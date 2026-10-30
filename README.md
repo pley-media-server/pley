@@ -1,6 +1,8 @@
-# Pley
+<p align="center"><img src="apps/web/public/favicon.svg" width="96" height="96" alt=""></p>
 
-A self-hosted media server for movies, shows, music and live TV.
+<h1 align="center">Pley</h1>
+
+<p align="center">A self-hosted media server for movies, shows, music and live TV.</p>
 
 ![A tour of the web app](docs/images/tour.gif)
 
