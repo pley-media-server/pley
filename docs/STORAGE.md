@@ -1,7 +1,7 @@
 # Storage
 
 What Pley keeps on disk, where, and how it is cleaned up. Everything lives in
-the data folder (`--data-dir`, see the [README](../README.md#configuration)),
+the data folder (`--data-dir`, see [CONFIGURATION.md](CONFIGURATION.md#options)),
 except your media and its local artwork, which Pley never moves or changes.
 
 ```

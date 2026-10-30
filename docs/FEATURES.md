@@ -1,0 +1,106 @@
+# Features
+
+What Pley does, in full. The [README](../README.md) has the short version.
+
+## Libraries
+
+- Movies, TV shows and music, scanned incrementally and rescanned when files
+  change. An offline drive isn't mistaken for deleted media.
+- Common naming schemes: `Movie (2019)`, release names, `{tmdb-123}` hints,
+  editions (`{edition-Director's Cut}`), `S01E02`, `1x02`, date-based and
+  anime episodes, and extras (`Trailers/` folders,
+  `Movie (2019)-trailer.mkv`). Looser episode names work too: `04 - Title` or
+  `104 - Title` in a `Season 1` folder, `Season 1 Episode 4`, or a title
+  alone, which TMDB numbers by its title. Two files never merge into one
+  episode for lack of a number.
+  [deploy/docker/media](../deploy/docker/media/README.md) shows a layout.
+- Each profile can order its libraries, on every app.
+
+## Metadata
+
+- Movies from TMDB (free API key); TV shows from TMDB, TheTVDB or TVmaze (no
+  key); music from MusicBrainz and the Cover Art Archive (no key). See
+  [Metadata sources](CONFIGURATION.md#metadata-sources).
+- Local artwork and hand edits always win. Cast and crew have their own
+  pages.
+
+## Playback
+
+- Direct play, remux or transcode, chosen per device, with the reason shown.
+  One Quality menu: Original, Automatic, or a lower quality
+  ([QUALITY.md](QUALITY.md)).
+- Hardware encoding (NVENC, Quick Sync, AMF, VAAPI, VideoToolbox) and GPU
+  tone mapping with libplacebo, including Dolby Vision profile 5.
+- Dolby Vision profile 7 (FEL or MEL) and HDR10+ are told apart from plain
+  HDR10 and shown as badges; the player's details say what the screen gets.
+- Subtitles: text tracks as WebVTT; picture tracks (PGS, VobSub, DVB)
+  drawn over the video by the web, desktop, Android, Samsung and LG apps
+  (PGS by Kodi too), so the file still plays as it is, and burned in
+  elsewhere; a timing offset in every player, the TV apps included.
+- Audio and subtitle defaults per profile, on every app; a choice carries
+  over to the next episode. Among tracks in the profile's language, the
+  server picks the one the device plays best (as is rather than converted;
+  the 5.1 track for a player that passes it to a receiver).
+- Resume, Up Next, Skip Intro and Skip Credits (from chapters, and by
+  comparing the audio of episodes), seek-bar previews and chapter pictures.
+
+## Live TV
+
+- IPTV channels from M3U playlists and Xtream Codes accounts, with their
+  guide from XMLTV, on every app: categories, a guide, a channel's number
+  typed on the remote, and one search with the rest of the library.
+- A channel is pulled once however many watch it, and a source never plays
+  more channels at once than its provider allows; changing channels frees
+  the connection at once.
+- Channels the TV can play as they are play straight from the provider's
+  stream; the others through the transcoder. Channels that don't play, and
+  divider rows, can be left out.
+
+## Watching
+
+- Progress, history, star ratings, Continue Watching and Next Up per user.
+- Recently Added, Recently Released, Top Rated, More Like This and full-text
+  search.
+- Collections (from TMDB, curated, or smart) and playlists (ordered or smart).
+
+## Accounts
+
+- Administrators, users and managed profiles for children, each with their
+  own libraries and age limit.
+- A profile switcher with optional PINs, invitation links, and a list of
+  signed-in devices that can be signed out remotely.
+- Optional two-step sign-in with an authenticator app, with recovery codes.
+- Apps sign in on Pley's own page and get only what you allow (browsing,
+  playing, playlists), never administration: OAuth 2.1 with client metadata
+  documents. Pley's own apps work without internet access; apps by other
+  publishers are off until an administrator allows them. TVs show a code to
+  type on Pley's `/link` page ([API.md](API.md#apps-oauth-21)).
+- First-run setup needs a one-time code from the server's log, which the tray
+  icon fills in. Passwords have at least 8 characters and can't be common
+  ones ([SECURITY.md](../SECURITY.md)).
+
+## Administration
+
+- Metadata editing with locked fields, Fix Match and a choice of artwork.
+- Settings with a Test button for each API key and service, a live dashboard
+  (playback, transcoder, scans, and charts of Pley's and the computer's CPU
+  and memory) and daily database backups ([STORAGE.md](STORAGE.md)).
+
+## Compatibility API
+
+On Pley's own port (or 32400), for `python-plexapi`, Tautulli and Kometa:
+browsing with their filters, editing, collections, playlists, play queues,
+sessions and notifications ([COMPATIBILITY.md](COMPATIBILITY.md)).
+
+## Offline
+
+On the home network everything works without the internet. Item pages
+download a file's original, which the Android app (phones and tablets) and
+the desktop app keep to play while the server is away; the Android app
+reports what was watched once it is back.
+
+## Performance
+
+Single binaries; SQLite in WAL mode with one writer; listings filtered,
+sorted and paged in SQL; compressed responses; pictures resized once and
+cached; transcodes throttled to about twice real time.

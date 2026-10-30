@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 530" width="1000" height="530" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img" aria-labelledby="title desc">
+  <title id="title">Pley's architecture</title>
+  <desc id="desc">Pley's apps talk to the Pley server over HTTP. The server starts and talks to the transcoder over HTTP and JSON; the transcoder runs FFmpeg, on the GPU where there is one. The server reads metadata sources and IPTV providers, and scans the media folders, which the transcoder reads too.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#38bdf8"/>
+    </marker>
+    <style>
+      .panel { fill: #111b2e; stroke: #25344d; stroke-width: 1.5; }
+      .accent { fill: #0f2a3d; stroke: #1f6f99; stroke-width: 1.5; }
+      .pill { fill: #17243a; stroke: #2a3a55; stroke-width: 1; }
+      .h { fill: #f1f5f9; font-size: 17px; font-weight: 700; }
+      .sub { fill: #8aa0bb; font-size: 12px; }
+      .t { fill: #dbe4ef; font-size: 13px; }
+      .s { fill: #9fb2c8; font-size: 12px; }
+      .lbl { fill: #7dd3fc; font-size: 11.5px; font-weight: 600; }
+      .line { stroke: #38bdf8; stroke-width: 1.8; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1000" height="530" rx="18" fill="#0b1220"/>
+
+  <!-- Apps -->
+  <rect class="panel" x="24" y="56" width="230" height="324" rx="12"/>
+  <text class="h" x="40" y="84">Apps</text>
+  <g>
+    <rect class="pill" x="38" y="102" width="202" height="28" rx="7"/><text class="t" x="50" y="121">Web browsers</text>
+    <rect class="pill" x="38" y="140" width="202" height="28" rx="7"/><text class="t" x="50" y="159">Windows · macOS · Linux</text>
+    <rect class="pill" x="38" y="178" width="202" height="28" rx="7"/><text class="t" x="50" y="197">Android · Android TV · Fire TV</text>
+    <rect class="pill" x="38" y="216" width="202" height="28" rx="7"/><text class="t" x="50" y="235">Kodi</text>
+    <rect class="pill" x="38" y="254" width="202" height="28" rx="7"/><text class="t" x="50" y="273">Roku</text>
+    <rect class="pill" x="38" y="292" width="202" height="28" rx="7"/><text class="t" x="50" y="311">Samsung TV · LG TV</text>
+    <rect class="pill" x="38" y="330" width="202" height="28" rx="7"/><text class="t" x="50" y="349">Tautulli · Kometa</text>
+  </g>
+
+  <!-- Server -->
+  <rect class="accent" x="314" y="56" width="310" height="324" rx="12"/>
+  <text class="h" x="330" y="84">pley</text>
+  <text class="sub" x="330" y="104">the server · Rust</text>
+  <text class="t" x="330" y="136">Libraries, scanned as folders change</text>
+  <text class="t" x="330" y="164">Metadata for movies, shows and music</text>
+  <text class="t" x="330" y="192">Accounts, profiles, app sign-in</text>
+  <text class="t" x="330" y="220">Playback sessions, Automatic quality</text>
+  <text class="t" x="330" y="248">Live TV: IPTV channels and guide</text>
+  <text class="t" x="330" y="276">Web app, HTTP API, compatibility API</text>
+  <rect class="pill" x="328" y="328" width="282" height="34" rx="8"/>
+  <text class="t" x="342" y="350">SQLite database</text>
+  <text class="s" x="452" y="350">one file, backed up daily</text>
+
+  <!-- Transcoder -->
+  <rect class="panel" x="684" y="56" width="292" height="204" rx="12"/>
+  <text class="h" x="700" y="84">pley-transcoder</text>
+  <text class="sub" x="700" y="104">a separate program</text>
+  <text class="t" x="700" y="136">Probing and keyframe indexes</text>
+  <text class="t" x="700" y="161">HLS transcodes and remuxes</text>
+  <text class="t" x="700" y="186">Tone mapping: HDR10, HLG, Dolby Vision</text>
+  <text class="t" x="700" y="211">Thumbnails, previews, subtitles</text>
+  <text class="t" x="700" y="236">Live TV channels</text>
+
+  <!-- FFmpeg -->
+  <rect class="panel" x="684" y="300" width="292" height="80" rx="12"/>
+  <text class="h" x="700" y="326">FFmpeg</text>
+  <text class="s" x="700" y="347">GPU: NVENC · Quick Sync · VAAPI · AMF ·</text>
+  <text class="s" x="700" y="366">VideoToolbox, or the CPU</text>
+
+  <!-- Sources -->
+  <rect class="panel" x="314" y="430" width="150" height="76" rx="12"/>
+  <text class="t" x="328" y="454" font-weight="700">Metadata sources</text>
+  <text class="s" x="328" y="474">TMDB · TheTVDB</text>
+  <text class="s" x="328" y="492">TVmaze · MusicBrainz</text>
+
+  <rect class="panel" x="474" y="430" width="150" height="76" rx="12"/>
+  <text class="t" x="488" y="454" font-weight="700">IPTV providers</text>
+  <text class="s" x="488" y="474">M3U · Xtream Codes</text>
+  <text class="s" x="488" y="492">XMLTV guides</text>
+
+  <rect class="panel" x="684" y="430" width="292" height="76" rx="12"/>
+  <text class="t" x="700" y="454" font-weight="700">Your media folders</text>
+  <text class="s" x="700" y="474">Movies, shows and music, read-only:</text>
+  <text class="s" x="700" y="492">Pley never moves or changes them</text>
+
+  <!-- Arrows -->
+  <line class="line" x1="257" y1="218" x2="311" y2="218" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <text class="lbl" x="284" y="208" text-anchor="middle">HTTP</text>
+  <text class="lbl" x="284" y="236" text-anchor="middle">HLS</text>
+
+  <line class="line" x1="627" y1="150" x2="681" y2="150" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <text class="lbl" x="654" y="140" text-anchor="middle">HTTP</text>
+  <text class="lbl" x="654" y="168" text-anchor="middle">JSON</text>
+
+  <line class="line" x1="830" y1="262" x2="830" y2="297" marker-end="url(#arrow)"/>
+  <text class="lbl" x="840" y="284">runs</text>
+
+  <line class="line" x1="389" y1="428" x2="389" y2="383" marker-end="url(#arrow)"/>
+  <line class="line" x1="549" y1="428" x2="549" y2="383" marker-end="url(#arrow)"/>
+
+  <line class="line" x1="830" y1="428" x2="830" y2="383" marker-end="url(#arrow)"/>
+  <text class="lbl" x="840" y="410">reads</text>
+
+  <path class="line" d="M682 452 H654 V340 H627" marker-end="url(#arrow)"/>
+  <text class="lbl" x="648" y="408" text-anchor="end">scans</text>
+
+  <!-- Note -->
+  <text class="s" x="24" y="454">Apps play a file as it is when they can,</text>
+  <text class="s" x="24" y="472">and the transcoder's HLS when they can't.</text>
+</svg>
