@@ -300,7 +300,7 @@ fn cors_path(path: &str) -> bool {
     path.starts_with("/api/") && !path.starts_with("/api/oauth/requests") && path != "/api/oauth/device/verify"
 }
 
-/// CORS for pley's packaged TV apps (docs/API.md, "TV apps"). Their web
+/// CORS for pley's packaged TV apps (docs/API.md, "CORS for TV apps"). Their web
 /// runtimes enforce it, so their API calls, which carry the app's token in
 /// `Authorization` and never a cookie, are answered with
 /// `Access-Control-Allow-Origin: *` and their preflights let that header

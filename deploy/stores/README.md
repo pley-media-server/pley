@@ -1,8 +1,12 @@
 # Store listings
 
-The pictures and words the app stores ask for besides the app itself.
-`bun scripts/render-icons.mjs` renders the pictures from the logo
-(`apps/web/public/favicon.svg`), with every other icon.
+What Google Play and the Amazon Appstore ask for besides the Android app
+itself: pictures, screenshots and the listing's text.
+
+## Pictures
+
+`bun scripts/render-icons.mjs` renders these from the logo
+(`apps/web/public/favicon.svg`), along with every other icon.
 
 | File | Size | For |
 |---|---|---|
@@ -10,12 +14,14 @@ The pictures and words the app stores ask for besides the app itself.
 | `icon-114.png` | 114 × 114 | The Amazon Appstore's small icon |
 | `feature-graphic-1024x500.png` | 1024 × 500 | Google Play's feature graphic |
 | `tv-banner-1280x720.png` | 1280 × 720 | Google Play's Android TV banner, the Amazon Appstore's Fire TV icon |
-| `fire-tv-background-1920x1080.jpg` | 1920 × 1080 | The Amazon Appstore's Fire TV background, behind the app's page (the mark top right, clear of the store's words) |
+| `fire-tv-background-1920x1080.jpg` | 1920 × 1080 | The Amazon Appstore's Fire TV background (the mark top right, clear of the store's text) |
 
-`screenshots/` has the apps' screenshots as JPEGs, as Google Play takes
-them: phones at 1080 × 1920 (the player at 1920 × 1080), TVs at 1920 × 1080.
-They show a made-up library with no real title's artwork, which
-[`scripts/store-library`](../../scripts/store-library/README.md) recreates.
+## Screenshots
+
+`screenshots/` holds JPEGs as Google Play takes them: phones at
+1080 × 1920 (the player at 1920 × 1080), TVs at 1920 × 1080. They show a
+made-up library, which [scripts/store-library](../../scripts/store-library/README.md)
+recreates.
 
 | Phone | TV |
 |---|---|
@@ -30,16 +36,15 @@ They show a made-up library with no real title's artwork, which
 ## The app
 
 - **Package**: `com.formandelement.pley`, on Google Play and the Amazon
-  Appstore (Fire TV and Fire tablets only: the Appstore takes no apps for
-  other Android phones and tablets since August 2025). Upload the release's
-  bundle, `pley-android-<version>-play.aab`
+  Appstore (Fire TV and Fire tablets only: the Appstore takes no other
+  Android phones and tablets).
+- **Upload**: the release's bundle, `pley-android-<version>-play.aab`
   ([ANDROID.md](../../docs/ANDROID.md#releases)).
 - **Version code**: derived from the version
   ([RELEASING.md](../../docs/RELEASING.md#androids-version-code)). The stores
-  take each code once, so a second upload of the same version is built with
-  `PLEY_BUILD` (1 to 99) added (`PLEY_BUILD=1` makes 10000101):
-  `./gradlew :app:bundleStoreRelease` in `apps/android`, with the release
-  key.
+  take each code once. To upload the same version again, build it with
+  `PLEY_BUILD` set (1 to 99; `PLEY_BUILD=1` makes 10000101) and the release
+  key: `./gradlew :app:bundleStoreRelease` in `apps/android`.
 - **Category**: Video Players & Editors.
 - **Name**: Pley
 

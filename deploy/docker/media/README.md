@@ -1,58 +1,73 @@
-# Your media
+# How to name your media
 
-This folder is mounted read-only at `/media` in the container when
-`PLEY_MEDIA_DIR` is `./media` (the default). Put your files in the three
-folders below, or point `PLEY_MEDIA_DIR` in `.env` at the folder that holds
-your media already, laid out the same way. Git ignores everything you add
-here.
+Keep movies, shows and music in separate folders, name them as below, and
+add one library per folder in **Settings → Libraries**. Pley never changes
+or moves your files.
 
-In Pley, add one library per kind (**Settings → Libraries**): a Movies library
-on `/media/Movies`, a TV Shows library on `/media/TV Shows`, a Music library on
-`/media/Music`. Pley never changes or moves these files.
+This folder is mounted read-only at `/media` in the container, so the
+libraries are `/media/Movies`, `/media/TV Shows` and `/media/Music`. To use
+media you already have, set `PLEY_MEDIA_DIR` in `.env` to its folder
+instead. Git ignores what you add here.
 
-## How to name files
-
-Pley reads names the way media servers commonly do. The year makes matches certain.
+## Movies
 
 ```
-media/
-├── Movies/
-│   ├── Blade Runner (1982)/
-│   │   ├── Blade Runner (1982) {edition-Final Cut}.mkv
-│   │   ├── Blade Runner (1982) {edition-Final Cut}.en.srt     subtitles
-│   │   ├── poster.jpg                                          your own artwork wins
-│   │   └── Trailers/
-│   │       └── Official Trailer.mkv
-│   ├── Arrival (2016).mkv                                      no folder needed
-│   ├── Arrival (2016)-trailer.mkv                              extras by suffix too
-│   └── Dune Part Two (2024) {tmdb-693134}.mkv                  a TMDB id settles it
-├── TV Shows/
-│   └── Severance (2022)/
-│       ├── poster.jpg
-│       ├── Season 01/
-│       │   ├── Severance (2022) - S01E01 - Good News About Hell.mkv
-│       │   ├── Severance (2022) - S01E01 - Good News About Hell.eng.forced.srt
-│       │   └── Severance (2022) - S01E02 - Half Loop.mkv
-│       └── Season 02/
-│           └── Severance - 2x01 - Hello, Ms. Cobel.mkv          1x02 works as well
-└── Music/
-    └── Daft Punk/
-        └── Discovery (2001)/
-            ├── cover.jpg
-            ├── 01 - One More Time.flac
-            └── 02 - Aerodynamic.flac
+Movies/
+├── Arrival (2016).mkv
+├── Arrival (2016)-trailer.mkv                      an extra
+├── Dune Part Two (2024) {tmdb-693134}.mkv          a TMDB id fixes the match
+└── Blade Runner (1982)/                            a folder works too
+    ├── Blade Runner (1982) {edition-Final Cut}.mkv
+    ├── Blade Runner (1982) {edition-Final Cut}.en.srt
+    ├── poster.jpg
+    └── Trailers/
+        └── Official Trailer.mkv
 ```
 
-- **Movies:** `Title (Year)`, alone or in a folder of the same name. Release
-  names (`Title.2019.2160p.WEB-DL...`) work too. `{edition-...}` names an
-  edition; `{tmdb-123}` fixes the match.
-- **TV shows:** a folder per show, `Season NN` folders, and `S01E02` (or
-  `1x02`, or `02 - Title` inside a season folder) in each file name.
-  Date-based shows (`Show - 2024-03-01.mkv`) and anime numbering work too.
-- **Music:** `Artist/Album/track`, with the tags in the files. Covers come
-  from `cover.jpg` or `folder.jpg`, or from the files.
-- **Subtitles** sit next to the video with the same name, plus a language
-  and optionally `forced` or `sdh`: `Movie (2019).en.srt`,
-  `Movie (2019).eng.forced.srt`. A `Subs/` folder works too.
+- `Title (Year)`, as a file or a folder. The year makes the match certain.
+- Release names (`Title.2019.2160p.WEB-DL.mkv`) work too.
+- `{edition-...}` marks an edition of the same movie.
+- Extras go in a folder such as `Trailers`, `Featurettes` or
+  `Behind The Scenes` next to the movie.
+
+## TV shows
+
+```
+TV Shows/
+└── Severance (2022)/
+    ├── poster.jpg
+    ├── Season 01/
+    │   ├── Severance (2022) - S01E01 - Good News About Hell.mkv
+    │   └── Severance (2022) - S01E02 - Half Loop.mkv
+    ├── Season 02/
+    │   └── Severance - 2x01 - Hello, Ms. Cobel.mkv
+    └── Specials/                                   season 0
+        └── Severance - S00E01.mkv
+```
+
+- One folder per show, `Season NN` folders, and `S01E02` (or `1x02`) in
+  each file name. Inside a season folder, `02 - Title` is enough.
+- Date-based shows (`Show - 2024-03-01.mkv`) and anime numbering
+  (`Show - 01.mkv`) work too.
+
+## Music
+
+```
+Music/
+└── Daft Punk/
+    └── Discovery (2001)/
+        ├── cover.jpg
+        ├── 01 - One More Time.flac
+        └── 02 - Aerodynamic.flac
+```
+
+`Artist/Album/track`, with the tags in the files. Covers come from
+`cover.jpg` or `folder.jpg`, or from the files.
+
+## Subtitles and artwork
+
+- **Subtitles** sit next to the video with its name, a language, and
+  optionally `forced` or `sdh`: `Movie (2019).en.srt`,
+  `Movie (2019).eng.forced.srt`. A `Subs` folder next to it works too.
 - **Artwork** next to the media wins over downloaded artwork: `poster.jpg`,
   `fanart.jpg`, `season01-poster.jpg`, `Movie (2019)-fanart.jpg`.

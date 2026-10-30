@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Renders the pictures pley's Kodi screens are drawn with
 // (apps/kodi/plugin.video.pley/resources/skins/default/media), in the
-// Android TV app's look (docs/KODI.md, "pley's look"): its Lucide icons, read
+// Android TV app's look: its Lucide icons, read
 // from the Android app's own set (PleyIcons.kt), its buttons, tile masks and
 // focus ring, the backdrop's gradients and the artwork placeholders. Sizes
 // are the Android TV app's dp doubled, as Kodi's 1080-line screens are

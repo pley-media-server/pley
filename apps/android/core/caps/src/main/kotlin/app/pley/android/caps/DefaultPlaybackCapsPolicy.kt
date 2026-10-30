@@ -9,7 +9,7 @@ import app.pley.android.model.caps.VideoDecoderCaps
 import java.util.Locale
 
 /**
- * The client's side of the Dolby Vision and HDR table (docs/ANDROID.md):
+ * The client's side of what plays Dolby Vision and HDR as it is:
  *
  * - HDR10 plays as it is with an HDR10 screen and a 10-bit hardware decoder;
  *   HDR10+ with an HDR10+ or HDR10 screen; HLG needs HLG.

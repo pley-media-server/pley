@@ -1,7 +1,56 @@
 # Pley HTTP API (v1)
 
-The API of the web app and Pley's own apps. The compatibility API for other
-media players is described in [COMPATIBILITY.md](COMPATIBILITY.md).
+The API the web app and Pley's own apps (Android, desktop, Kodi, Roku,
+Samsung and LG) use, for anyone writing a client or a script. Tools written
+for the widely used media-server API that Pley also speaks go through the
+compatibility API instead: [COMPATIBILITY.md](COMPATIBILITY.md).
+
+The base URL is the server's address with `/api`:
+`http://pley.local:7539/api`, or `https://media.example.com/api` behind a
+reverse proxy. Sign in with `POST /api/auth/login` and send the token it
+answers as `Authorization: Bearer <token>`; the web app uses the `HttpOnly`
+cookie the same call sets. Apps by other publishers, and Pley's own apps,
+sign in through OAuth 2.1 instead and get tokens limited to what the person
+allowed ([Apps](#apps-oauth-21)). [Authentication](#authentication) has the
+details.
+
+## Contents
+
+- [Conventions](#conventions)
+- [Authentication](#authentication): [Who](#who), [Headers](#headers),
+  [CORS for TV apps](#cors-for-tv-apps), [Errors](#errors)
+- [Types](#types)
+- [Public endpoints](#public-endpoints), [Auth](#auth),
+  [Two-step sign-in](#two-step-sign-in), [Your account](#your-account)
+- [Apps (OAuth 2.1)](#apps-oauth-21): [Discovery](#discovery),
+  [Signing in](#signing-in), [Tokens](#tokens), [TVs](#tvs),
+  [Lifetimes and limits](#lifetimes-and-limits), [Scopes](#scopes),
+  [Signed-in apps](#signed-in-apps), [Profiles](#profiles),
+  [Pley's own apps](#pleys-own-apps),
+  [Apps by other publishers](#apps-by-other-publishers),
+  [The consent page's endpoints](#the-consent-pages-endpoints)
+- [Access rules](#access-rules)
+- [Libraries](#libraries), [Items](#items),
+  [Added subtitles](#added-subtitles)
+- [Home & search](#home--search), [Continue Watching](#continue-watching),
+  [My List](#my-list), [Cast and crew](#cast-and-crew),
+  [Collections](#collections), [Playlists](#playlists)
+- [Playback](#playback): [Play request](#play-request),
+  [The audio track](#the-audio-track), [Keyed URLs](#keyed-urls),
+  [Network memory and speed test](#network-memory-and-speed-test),
+  [Version 2](#version-2), [HDR transcodes](#hdr-transcodes),
+  [Several sizes](#several-sizes),
+  [Dolby Vision remuxes](#dolby-vision-remuxes)
+- [Downloads](#downloads)
+- [Intro and credits detection](#intro-and-credits-detection),
+  [Library work](#library-work)
+- [Watch history](#watch-history)
+- [Activity & events](#activity--events):
+  [Stopping a stream](#stopping-a-stream),
+  [Watch state on other devices](#watch-state-on-other-devices)
+- [Live TV](#live-tv)
+- [Users](#users-admin), [Invitations](#invitations),
+  [System](#system-admin)
 
 ## Conventions
 
@@ -16,6 +65,9 @@ media players is described in [COMPATIBILITY.md](COMPATIBILITY.md).
   `offset` and `limit` and answer a `total` that counts every match, not
   just the page.
 - API answers carry `Cache-Control: no-store` unless a row says otherwise.
+- Text answers over 1 KiB are compressed when the request accepts it; media,
+  images and the event stream never are.
+- A request still running after 30 minutes answers `408`.
 - The compatibility API answers on the same port by default, but only to
   requests that are its own (its headers, its token in the query, or a path
   only it has). `/api/…` and `/.well-known/…` always belong to this API.
@@ -67,8 +119,9 @@ Each endpoint table has a **Who** column:
 ### Headers
 
 - Every answer carries `X-Content-Type-Options: nosniff`,
-  `X-Frame-Options: DENY`, `Referrer-Policy: same-origin` and a
-  `Content-Security-Policy` that loads only Pley's own scripts and styles.
+  `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`,
+  `Cross-Origin-Opener-Policy: same-origin` and a `Content-Security-Policy`
+  that loads only Pley's own scripts and styles.
 - Password checks queue, a few at a time. One that has waited 10 seconds
   answers `503`.
 
@@ -85,10 +138,10 @@ their web engines apply CORS. Their requests come with `Origin: file://`,
   `WWW-Authenticate`, `X-Pley-Complete`, `ETag`, `Content-Range` and
   `Retry-After`.
 
-A website's page in a sandboxed frame also sends `null`, but these answers
-only carry what a token in `Authorization` opens: a wildcard never lets a
-page read an answer made with cookies. The consent page's endpoints
-(`/api/oauth/requests…`, `/api/oauth/device/verify`) never answer CORS.
+A wildcard origin never lets a page read an answer made with cookies, so
+these answers only carry what a token in `Authorization` opens. The consent
+page's endpoints (`/api/oauth/requests…`, `/api/oauth/device/verify`) never
+answer CORS.
 
 ### Errors
 
@@ -165,7 +218,8 @@ interface Library {
   scanning: boolean;                // a scan is queued or running
 }
 
-type ItemKind = "movie" | "show" | "season" | "episode" | "artist" | "album" | "track";
+type ItemKind = "movie" | "show" | "season" | "episode" | "artist" | "album" | "track"
+              | "extra";            // trailers and other bonus material (ItemDetail.extras)
 
 interface UserState {
   position_ms: number;              // resume position, 0 if none
@@ -322,6 +376,8 @@ interface MediaStream {
   level?: number;                   // codec level as ffprobe gives it (HEVC 5.1 = 153)
   pix_fmt?: string;                 // "yuv420p10le", …
   interlaced?: boolean;
+  rotation?: number;                // degrees counterclockwise the picture is turned to be shown (phone
+                                    // video: 90 or -90); absent when not turned
   has_b_frames?: boolean;
   color_transfer?: string;          // "smpte2084", "arib-std-b67", …
   color_primaries?: string;
@@ -394,11 +450,11 @@ interface PlaybackInfo {
   live_bitrate: boolean;            // the video is converted, and PUT …/bitrate changes its bitrate as it
                                     // plays. Not for a player that moves between sizes itself
                                     // (hls.variants; see Several sizes)
-  pts_offset_ms?: number | null;    // how much later than the file's times (its start taken off, as
-                                    // `.mks` picture subtitles are timed) the stream's timestamps are:
-                                    // 1400 for HLS, wherever it started; null for a direct play. A
-                                    // player that knows the timestamp of the frame it shows (hls.js:
-                                    // media time + initPTS) draws picture subtitles at that less this
+  pts_offset_ms?: number | null;    // how far the stream's timestamps run ahead of the file's (its start
+                                    // taken off, as `.mks` subtitles are timed): 1400 for HLS, wherever it
+                                    // started; null for a direct play. A player that knows the timestamp
+                                    // of the frame it shows (hls.js: media time + initPTS) draws picture
+                                    // subtitles at that minus this
 }
 ```
 
@@ -487,7 +543,7 @@ passwords; after 100 in a row only a recovery code signs in.
 |---|---|---|---|
 | PATCH | `/api/me` | `user` | `{ display_name?, avatar_color?, audio_language?, subtitle_language?, subtitle_mode? }` (`null` clears) → `User` |
 | PUT | `/api/me/track-defaults` | `play` | `{ audio_language?, subtitle_language?, subtitle_mode? }` → the profile as [`GET /api/auth/me`](#auth) shows it |
-| PUT | `/api/me/pin` | `user` | `{ pin: string \| null, password }` → `204`. 4–8 digits; `null` removes it; `403` for a wrong password |
+| PUT | `/api/me/pin` | `user` | `{ pin: string \| null, password }` → `204`. 4–8 digits; `null` removes it; `403` for a wrong password, and for a managed profile (an administrator sets its PIN) |
 | PUT | `/api/me/avatar` | `user` | raw image bytes (JPEG, PNG, WebP, GIF, BMP; ≤ 10 MB) → `User`. Stored as a 256 px square JPEG |
 | DELETE | `/api/me/avatar` | `user` | `204` |
 | GET | `/api/users/{id}/avatar` | `any app` | `image/jpeg`, for the profile switcher. Apps: only their own profile's and their household's, else `404` |
@@ -523,9 +579,9 @@ as forced when flagged so, or when their title says so ("forced", or
 Apps sign in on Pley's own page and get tokens that open only what the
 person allowed. Pley is an OAuth 2.1 authorization server
 (draft-ietf-oauth-v2-1-16) with PKCE and client metadata documents
-(draft-ietf-oauth-client-id-metadata-document-02). It is not an OpenID
-Connect provider: it signs nobody in to other sites. The security design is
-summarized in [SECURITY.md](../SECURITY.md#what-pley-does).
+(draft-ietf-oauth-client-id-metadata-document-02), not an OpenID Connect
+provider. The security design is summarized in
+[SECURITY.md](../SECURITY.md#what-pley-does).
 
 - Every app is public: no client secrets, no registration.
 - An app's client ID is the https address of a JSON document that describes
@@ -547,6 +603,22 @@ summarized in [SECURITY.md](../SECURITY.md#what-pley-does).
 
 ### Discovery
 
+**Finding servers on the network.** An app broadcasts the 5 bytes `pley?`
+to UDP port 7539 (servers listen on their web port, on every address but
+loopback). Each server answers from the address to use with one JSON
+datagram:
+
+```json
+{ "pley": 1, "id": "3f2a…", "name": "Living room", "version": "0.9.0", "port": 7539 }
+```
+
+`pley` is the protocol version, `id` stays the same across restarts and
+renames, and `port` is the web port on the address the answer came from.
+Only senders on the local network get an answer, at most 100 a second.
+Administrators turn it off in Settings → Network (`discovery`) or with
+`--no-discovery` (`PLEY_NO_DISCOVERY`).
+
+**Finding the sign-in endpoints.**
 `GET /.well-known/oauth-authorization-server` (RFC 8414) says where
 everything is, for the address it was asked at (`Cache-Control: no-store`).
 Every other `/.well-known/` path answers `404`.
@@ -578,10 +650,11 @@ Every other `/.well-known/` path answers `404`.
   with a lower-case host, no default port and no trailing slash. A server
   reached at a home and a public address has a different issuer at each.
 - Apps check that the issuer is the address they used (RFC 8414 §3.3), so a
-  reverse proxy must pass the original `Host` ([deploy/README.md](../deploy/README.md)). For a
-  proxy that drops the port, list the public address in the settings'
-  `proxy_addresses` (`https://media.example.com:9999`): a `Host` without a
-  port, for that scheme and host name, takes that port.
+  reverse proxy must pass the original `Host`
+  ([deploy/README.md](../deploy/README.md)). For a proxy that drops the
+  port, list the public address in the settings' `proxy_addresses`
+  (`https://media.example.com:9999`): a `Host` without a port, for that
+  scheme and host name, takes that port.
 - A missing `Host`, or one with a path or a user name: `400`.
 - `client_id_metadata_document_supported` is the
   [apps by other publishers](#apps-by-other-publishers) setting.
@@ -605,11 +678,10 @@ Every other `/.well-known/` path answers `404`.
    | `resource` | optional: this server's issuer, with or without a trailing `/` (RFC 8707) |
    | `response_mode` | optional: `query` |
 
-2. The page signs the person in if needed (two-step sign-in included). It
-   shows the app, the profile it will act as (with "Use another profile"),
-   what it will be able to do and where it goes back to. People are asked
-   every time, for Pley's own apps too, and allow all that was asked or
-   nothing. Allow works once the page has been seen for a second.
+2. The page signs the person in if needed and shows the app, the profile it
+   will act as, what it will be able to do and where it goes back to.
+   People are asked every time, for Pley's own apps too, and allow all that
+   was asked or nothing.
 3. The browser goes back to the return address by a `303`, keeping the
    address's own query, with:
    - allowed: `code`, `state` (when the app sent one) and `iss` (the
@@ -649,8 +721,7 @@ never sent to the app. Other mistakes go back to the app with `error`,
 - take `resource` only for this server (else `invalid_target`);
 - answer `invalid_request` without a `grant_type`, `unsupported_grant_type`
   for an unknown one;
-- have no rate limit: codes and tokens carry 256 random bits, and a limit
-  per address behind a reverse proxy would lock every app out. TVs have
+- have no rate limit (codes and tokens carry 256 random bits); TVs have
   [their own limits](#tvs).
 
 A token answer:
@@ -667,8 +738,7 @@ A token answer:
 
 `scope` is everything the app was allowed. `refresh_token` comes only for
 apps whose description lists the `refresh_token` grant type (Pley's own
-apps do). Pley stores tokens as SHA-256 hashes; the prefixes make leaked
-ones easy to recognize.
+apps do).
 
 **`grant_type=authorization_code`**: `code`, `client_id` and
 `code_verifier` (43 to 128 of `A-Z a-z 0-9 . _ ~ -`). `redirect_uri`, when
@@ -743,9 +813,8 @@ apps allowed `profiles` move to another profile of the household. Send
 
 TVs and other devices without a usable browser sign in with a code they
 show (OAuth 2.0 Device Authorization Grant, RFC 8628). Only Pley's own apps
-may: anyone may start one, and Pley reads no app description for someone
-not signed in. These are the Android app (also on Android TV and Fire TV),
-Pley for Kodi, Pley for Roku, and the Samsung and LG apps.
+may: the Android app (also on Android TV and Fire TV), Pley for Kodi, Pley
+for Roku, and the Samsung and LG apps.
 
 1. The TV calls **`POST /api/oauth/device`** with `client_id` and an
    optional `scope` (as at `/oauth/authorize`: none means `library`):
@@ -764,9 +833,8 @@ Pley for Kodi, Pley for Roku, and the Samsung and LG apps.
    - The TV keeps `device_code` (256 random bits) to itself, and shows
      `user_code` and `verification_uri`, or a QR code of
      `verification_uri_complete`.
-   - User codes are 8 of RFC 8628 §6.1's 20 consonants
-     (`BCDFGHJKLMNPQRSTVWXZ`, about 2.6 × 10¹⁰ codes): no vowels or digits,
-     so they spell nothing and can't be misread.
+   - User codes are 8 letters from `BCDFGHJKLMNPQRSTVWXZ` (RFC 8628 §6.1),
+     shown as `BCDF-GHJK`.
    - Errors: `invalid_client` for an app that isn't Pley's own;
      `unauthorized_client` for one of Pley's own that doesn't sign in this
      way (the desktop app); `invalid_scope` as at `/oauth/authorize`;
@@ -779,12 +847,9 @@ Pley for Kodi, Pley for Roku, and the Samsung and LG apps.
    for something that isn't a code.
 2. The person opens **`/link`** (a web app page) on a phone or computer,
    signs in if needed, and types the code (any case, with or without the
-   dash and spaces). From the QR code it comes filled in, and is sent only
-   once they continue. The page shows the same consent as
-   `/oauth/authorize`, saying the answer goes to the TV showing that code,
-   what that device said it is and where it asked from, and to allow it only
-   when the code is on a screen in front of them. Nothing goes back through
-   the browser.
+   dash and spaces; from the QR code it comes filled in). The page shows the
+   same consent as `/oauth/authorize`, with what the TV said it is and where
+   it asked from. Nothing goes back through the browser.
 3. Meanwhile the TV asks the token endpoint every `interval` seconds with
    **`grant_type=urn:ietf:params:oauth:grant-type:device_code`**,
    `device_code` and `client_id`:
@@ -798,16 +863,12 @@ Pley for Kodi, Pley for Roku, and the Samsung and LG apps.
    | `expired_token` | 10 minutes went by; once |
    | `invalid_grant` | an unknown device code, another app's, one already answered, or a disabled account |
 
-A device code never appears in an address or a page, so one asked about
-again after its answer is just unknown (nothing has to end, unlike a code).
-
 **Limits.** At most 20 sign-ins in progress from one address (an IPv6 /64
 counts as one), 50 from one IPv6 /56, and 1,000 in all; nothing in progress
 is dropped to make room. The address is the connection's or, behind a
 reverse proxy on the same computer or network, the client it names last in
-`X-Forwarded-For`: never one a caller on the internet writes. Past 10 wrong
-codes from one person, or 300 from everyone, in 10 minutes, no code is
-looked up (`429`).
+`X-Forwarded-For`. Past 10 wrong codes from one person, or 300 from
+everyone, in 10 minutes, no code is looked up (`429`).
 
 ### Lifetimes and limits
 
@@ -965,7 +1026,7 @@ server's.
 are ignored and never fetched.
 
 **Fetching.** Pley reads a description only when someone signed in opens
-the consent page for the app:
+the consent page for the app, never for a TV:
 
 - over https on port 443, from public addresses only (the resolver checks
   the address actually connected to), without a proxy, redirects, cookies or
@@ -1013,11 +1074,10 @@ with too many sign-ins in progress.
 **`POST /api/oauth/device/verify`** answers the consent as above, with
 `redirect: { kind: "device", to: "BCDF-GHJK", device, address }`.
 
-- `device`: what the TV said it is when it asked for the code (Pley's apps
-  give their platform in their User-Agent's brackets, "Kodi 21.3; Windows";
-  anything else is named as the sign-ins list names it). Unchecked, since
-  anyone may ask. `address`: where it asked from. Each `null` when unknown.
-  The page shows both, so the person can tell which device is signing in.
+- `device`: what the TV said it is when it asked for the code, unchecked
+  (Pley's apps give their platform in their User-Agent's brackets, "Kodi
+  21.3; Windows"; anything else is named as the sign-ins list names it).
+  `address`: where it asked from. Each `null` when unknown.
 - `400` for something that can't be a code; `404` for a code no TV shows
   (it counts as a wrong one); `409` for one answered already or shown on
   another session's page; `429` past the wrong codes' limit; `503` with too
@@ -1060,7 +1120,7 @@ artwork, streams and the compatibility API.
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/libraries` | `library` | `Library[]` in the user's order (query `order=shared`: the shared order) |
-| POST | `/api/libraries` | `admin` | `{ name, kind, paths: string[] }` → `Library`; queues a scan |
+| POST | `/api/libraries` | `admin` | `{ name, kind, paths: string[] }` → `201` `Library`; queues a scan |
 | PUT | `/api/libraries/order` | `admin` | `{ ids: Id[] }` (every library, once) → `Library[]` in the new shared order |
 | PUT | `/api/me/libraries/order` | `play` | `{ ids: Id[] }` (every library the user may open, once) → `Library[]` in the user's own new order |
 | DELETE | `/api/me/libraries/order` | `play` | `Library[]` in the shared order, which the user sees again |
@@ -1071,7 +1131,7 @@ artwork, streams and the compatibility API.
 | POST | `/api/libraries/scan` | `admin` | `202`: scans every library |
 | GET | `/api/libraries/{id}/items` | `library` | `{ total, items: ItemSummary[] }`: top-level items, paged |
 | GET | `/api/libraries/{id}/filters` | `library` | `{ genres: string[], years: number[] }` |
-| GET | `/api/libraries/{id}/hubs` | `library` | `{ hubs: Hub[] }`: continue watching, recently added, recently released, top rated (empty hubs left out) |
+| GET | `/api/libraries/{id}/hubs` | `library` | `{ hubs: Hub[] }`: `continue_watching:{id}`, `recently_added:{id}`, `recently_released:{id}`, `top_rated:{id}`; music libraries only the second; empty hubs left out |
 
 **Order.** Libraries have one shared order, chosen by administrators (new
 libraries go last). A user may choose their own (Settings → Libraries).
@@ -1091,16 +1151,17 @@ open only some libraries see those, in that order.
 
 | Parameter | Values |
 |---|---|
-| `sort` | `title` (default), `year`, `added`, `rating`, `user_rating`, `release`, `duration`, `last_played`, `bitrate` |
-| `order` | `asc`, `desc` |
+| `sort` | `title` (default), `year`, `added`, `rating`, `user_rating`, `release`, `duration`, `last_played`, `bitrate`; another value: `400` |
+| `order` | `asc`, `desc`. Default: `desc` for `added`, `rating`, `user_rating`, `release`, `last_played` and `bitrate`, else `asc` |
 | `watched` | `true`, `false`; `true` matches shows whose every episode is watched |
 | `genre` | a genre name |
 | `year` | `yyyy` |
 | `offset`, `limit` | paging |
 | `summaries` | `1`: with synopses ([`summaries=1`](#types)) |
 
-Items leave out `backdrop_url` and `thumb_url` (grids show posters).
-Answers carry an `ETag` and `Cache-Control: private, no-cache`;
+Items leave out `backdrop_url` and `thumb_url` (grids show posters);
+sorted by `bitrate`, they carry `media`. Answers carry an `ETag` and
+`Cache-Control: private, no-cache`;
 `If-None-Match` with the same tag answers `304` while the library, the
 user's watch state and their access are unchanged.
 
@@ -1118,7 +1179,7 @@ user's watch state and their access are unchanged.
 | POST | `/api/items/{id}/progress` | `play` | `{ position_ms, duration_ms?, state, session_id?, age_ms? }` → `204` |
 | POST | `/api/items/{id}/watched` | `play` | `204`; containers: every leaf |
 | POST | `/api/items/{id}/unwatched` | `play` | `204` |
-| PUT | `/api/items/{id}/rating` | `play` | `{ rating: number \| null }` → `204`: the user's own rating (`user_state.rating`) |
+| PUT | `/api/items/{id}/rating` | `play` | `{ rating: number \| null }` → `204`: the user's own rating (`user_state.rating`); `400` outside 0-10 |
 | PUT | `/api/items/{id}/streams` | `play` | `{ file_id?, audio_index?, subtitle_index? }` → `204`: remembers track choices |
 | PATCH | `/api/items/{id}` | `admin` | `{ title?, sort_title?, original_title?, year?, summary?, tagline?, studio?, content_rating?, release_date?, genres? }` → `ItemDetail` |
 | GET | `/api/items/{id}/matches?title=&year=` | `admin` | TMDB candidates `{ tmdb_id, title, original_title, year, overview, poster_url }[]` for movies and shows (needs a TMDB key) |
@@ -1151,7 +1212,9 @@ user's watch state and their access are unchanged.
   Empty for other kinds.
 - **`images`**: long-lived cache headers. Falls back to the parent's
   artwork (season → show); `404` if none.
-- **`progress`**: `state` is `playing`, `paused` or `stopped`.
+- **`progress`**: `state` is `playing` (the default), `paused`, `stopped`
+  or `buffering`. Movies, episodes, tracks and extras only; other kinds
+  answer `400`.
   - At 90 % or more the item is marked watched and the resume point
     cleared.
   - `age_ms`: how long ago a late report was made (a download played while
@@ -1196,14 +1259,13 @@ files: a file uploaded from the web app, or one found on OpenSubtitles.
   `PUT /api/items/{id}/streams`, listed by the compatibility API
   (`/library/streams/{id}` serves them as they are), and shown like any text
   track (a transcode that burns one in is given its file).
-- Track indexes: a file's own tracks are below 1000 (FFmpeg opens no more
-  streams), subtitle files next to the video 1000 to 8999 (in path order;
-  more aren't listed), added ones 9000 to 9999 (the compatibility API's
-  stream ids, `file_id × 10000 + index`, hold four digits).
+- Track indexes: a file's own tracks are below 1000, subtitle files next to
+  the video 1000 to 8999 (in path order; more aren't listed), added ones
+  9000 to 9999.
 - An added track's index is unique among the files of its title, counting
   on from the highest (the lowest free one once 9999 is taken), so
   `DELETE /api/items/{id}/subtitles/{index}` needs no file. Indexes are
-  never reused, so a new track never shows an old one's cached WebVTT.
+  never reused.
 
 **Search**: `GET /api/items/{id}/subtitles/search?file_id=&language=`
 
@@ -1266,7 +1328,7 @@ WebVTT file named `.srt` is taken as WebVTT). Its language is kept as ISO
 |---|---|---|---|
 | GET | `/api/hubs/home` | `library` | `{ hubs: Hub[] }` |
 | DELETE | `/api/continue-watching/{id}` | `play` | `204`: takes a title out of the user's Continue Watching |
-| GET | `/api/search?q=&limit=` | `library` | `{ items: ItemSummary[], people: PersonSummary[], channels: LiveChannel[] }` (`limit` default 40; `channels`: up to 12 Live TV channels by name, number or what's on, for those Live TV is open to) |
+| GET | `/api/search?q=&limit=` | `library` | `{ items: ItemSummary[], people: PersonSummary[], channels: LiveChannel[] }`: `items` up to `limit` (default 40, 1 to 200); `people` up to 12; `channels` up to 12 Live TV channels by name, number or what's on, for those Live TV is open to |
 
 - **Home** hubs, empty ones left out: `continue_watching` (in progress and
   next up), then `my_list` ("My List", its 20 newest), then
@@ -1338,8 +1400,6 @@ Watching. A show's or season's id does the same; other kinds answer `400`.
   directors and writers. TVmaze or TheTVDB: shows' main cast and creators.
 - A person is known by the id of the source that credited them, so the same
   actor from two sources is two people.
-- Items matched by an older Pley get their credits fetched once, in the
-  background.
 - People appear only where the user can see an item they are credited in.
 - Photos are downloaded from the source (TMDB, TVmaze, TheTVDB) the first
   time.
@@ -1525,7 +1585,7 @@ removed or reordered (`400`).
   the item, queues them). Made one file at a time, never during a
   playback's first 30 s nor while anything is transcoded: a playback that
   starts puts off the file being done, which is made again later. Those of
-  whole libraries wait for library work's hours (see Library work).
+  whole libraries wait for [library work](#library-work)'s hours.
 - **Sprite sheets**: thumbnail `k` is at column `k % columns`, row
   `k / columns` of sheet `k / (columns × rows)`, and shows the video at
   `k × interval_ms`.
@@ -1553,7 +1613,7 @@ removed or reordered (`400`).
                                   // as it moves over)
   keyed_urls?: boolean;           // the player can't send the Authorization header: its addresses carry a
                                   // key (Keyed URLs)
-  caps: {                         // what the client decodes natively
+  caps?: {                        // what the client decodes natively (left out: nothing)
     containers: string[];         // ["mp4","m4v","mov","webm","mp3","m4a","flac","ogg","wav"]
     video_codecs: string[];       // ["h264","hevc","vp9","av1"]
     audio_codecs: string[];       // ["aac","mp3","opus","flac","vorbis"]
@@ -1610,8 +1670,9 @@ Rules:
 - Converted audio is stereo AAC. AAC and MP3 the player decodes are copied.
 - `mode: "direct"` always returns the original file (for a browser that
   plays more than it reports; other audio tracks are then unavailable, and
-  so are picture subtitles unless the player draws them itself). `"remux"` and `"transcode"` force HLS; `"transcode"`
-  always re-encodes the video.
+  so are picture subtitles unless the player draws them itself).
+  `"remux"` and `"transcode"` force HLS; `"transcode"` always re-encodes
+  the video.
 - A session started with a `client_id` ends that user's previous sessions
   on the same client (a quality or audio switch, the next episode) before
   the transcode limit is checked.
@@ -1725,13 +1786,11 @@ ceiling Automatic's last change left (for 24 hours) and the last speed test
 menu never do.
 
 The network is the one the request came from: the other end of the
-connection, or the client a proxy on the server's own network forwards for
-(nobody on the internet can choose it). An address on the server's own
-network (private, loopback, link-local, Tailscale) is `"local"`; any other
-is an IPv4 address as it is, or an IPv6 address by its /64 (which a home's
-devices share). Only a keyed hash of the address is stored (HMAC-SHA256
-with a key derived from the server's `secret.key`), and rows nobody wrote
-for 7 days are deleted.
+connection, or the client a proxy on the server's own network forwards for.
+An address on the server's own network (private, loopback, link-local,
+Tailscale) is `"local"`; any other is an IPv4 address as it is, or an IPv6
+address by its /64. Only a keyed hash of the address is stored, and rows
+nobody wrote for 7 days are deleted.
 
 ```ts
 // GET /api/playback/network?client_id=<id>, and PUT's answer
@@ -1794,13 +1853,13 @@ pseudo-random data, made as it is sent, with `Content-Length`,
 
 `caps_version: 2` turns on these rules. A report without it (the web app,
 the Android app's web view, compatibility API clients) decides as version 1,
-whatever else it sends. (The web app sends `subtitle_codecs` and
-`picture_subtitles_sideload` in its version 1 report to say it draws
-picture subtitles from their `.mks`: they change no decision, since it
-asks for no `subtitle_index` of a track it draws, and with one it can't
-draw, a `404` or `503` for the `.mks`, it asks for it to be burned in.) Version 2 reports still send the version 1 fields:
-`containers` always counts; `video_codecs` and `audio_codecs` stand in only
-when `video`, or both `audio_decode` and `audio_passthrough`, are left out.
+whatever else it sends: the web app's `subtitle_codecs` and
+`picture_subtitles_sideload` only tell the server it draws picture
+subtitles from their `.mks` (it asks for no `subtitle_index` of a track it
+draws, and for a burn-in when the `.mks` answers `404` or `503`). Version 2
+reports still send the version 1 fields: `containers` always counts;
+`video_codecs` and `audio_codecs` stand in only when `video`, or both
+`audio_decode` and `audio_passthrough`, are left out.
 
 - **Video.** Direct only when an entry of `video` takes the stream: its
   codec; its profile when the entry lists profiles (10-bit HEVC needs
@@ -1914,10 +1973,9 @@ sizes from `master.m3u8` (`PlaybackInfo.adaptive`). See
 
 ### Dolby Vision remuxes
 
-MPEG-TS segments carry a Dolby Vision stream's metadata (its RPUs) but
-can't say so: Media3's `TsExtractor` sees plain HEVC, which plays as its
-base layer at best, with wrong colors for profile 5. A multivariant
-playlist can say it. A version 2 player sending
+MPEG-TS segments carry a Dolby Vision stream's RPUs but can't name the
+format, so players see plain HEVC (wrong colors for profile 5); a
+multivariant playlist can name it. A version 2 player sending
 `hls: { master_playlist: true }` gets `PlaybackInfo.url` pointing to
 `master.m3u8` for every HLS session, remux or transcode, with one variant
 (then a transcode's smaller sizes, see [Several sizes](#several-sizes)):
@@ -2049,32 +2107,26 @@ interface DownloadInfo {
 
 Markers come from three sources, best first:
 
-1. **Chapters** titled like an intro or credits (*Intro*, *Opening*, *OP*,
-   *Opening Credits*, *Ending*, *ED*, *Credits*, *End Credits*, …), for
-   movies and episodes. *Credits* chapters shorter than 15 s (a logo at the
+1. **Chapters** (`source: "chapter"`) titled like an intro or credits
+   (*Intro*, *Opening*, *OP*, *Opening Credits*, *Ending*, *ED*, *Credits*,
+   *End Credits*, …), for movies and episodes. *Credits* chapters shorter than 15 s (a logo at the
    very end) are ignored.
-2. **Audio fingerprints** of episodes. The transcoder computes Chromaprint
-   fingerprints of the first half (at most 10 minutes) and the last 35 % (at
-   most 8 minutes) of every episode.
-   - An intro is audio of 12 s to 3 minutes near the start that the nearest
-     episodes of the season share (of the show, for a season with one
-     episode). Credits are shared audio near the end.
-   - Each episode is compared with up to eight others of its season, and the
-     boundaries most comparisons agree on win. An episode its season shares
-     nothing with (a premiere, a short season) is compared with up to six
-     episodes of the show's other seasons whose fingerprints are cached.
-   - Alignments are found from matching values, and parts of a title
-     sequence split by a gag that changes every episode count as one.
-   - Fingerprints are cached per file version in the cache folder, so a new
-     episode needs only its own.
+2. **Audio fingerprints** of episodes (`source: "fingerprint"`), from
+   Chromaprint fingerprints of the first half (at most 10 minutes) and the
+   last 35 % (at most 8 minutes) of each episode. An intro is audio of 12 s
+   to 3 minutes near the start that the nearest episodes of the season
+   share (up to eight are compared; for a season with nothing shared, up to
+   six of the show's other seasons). Credits are shared audio near the end.
+   Fingerprints are cached per file version, so a new episode needs only
+   its own.
 3. **Key frames** (`source: "frames"`), for credits no other episode shares:
-   the key frames of the last 35 % (at most 8 minutes) are measured, and the
-   last stretch of at least 15 s that is mostly text on black, ending less
-   than 2 minutes before the end of the file, is the credits.
+   the last stretch of at least 15 s that is mostly text on black, in the
+   last 35 % (at most 8 minutes), ending less than 2 minutes before the end
+   of the file.
 
 A background worker analyzes one season at a time after library scans (and
-30 s after start-up), waits while anything plays, and records the algorithm
-version so improvements re-run automatically.
+30 s after start-up) and waits while anything plays. A newer detection
+version analyzes everything again by itself.
 
 - A season not analyzed yet goes first as soon as one of its episodes
   plays: the episodes playing first, then the rest, each followed by a
@@ -2104,28 +2156,26 @@ separately on the same machine does). Then `library_work` decides:
     before;
   - the 20 newest movies of the last 14 days.
 
-  The rest waits for the hours people rarely watch, learned from when
-  something plays. Each hour of the week counts the minutes something
-  played, each week weighing 0.8 of the one after it. An hour is quiet when
-  something played in less than a tenth of its minutes. Each day's four
-  quietest hours in a row are always quiet, so a server watched all day
-  still gets its libraries done (only hours the server was up count for
-  that). Work begins only where this hour and the next are quiet, so it
-  doesn't run into a busy one. Until about a week is known, any hour is
-  quiet. At first start the hours come from the last 8 weeks of watch
-  history, and they are kept in the database. Where the rest has waited
-  for quiet hours through 24 hours of the server being up (a computer on
-  only in the evening), it goes on whenever nothing plays.
+  The rest waits for quiet hours, learned from when something plays:
+  - each hour of the week counts the minutes something played, older weeks
+    weighing less (0.8 a week); an hour is quiet when something played in
+    less than a tenth of its minutes;
+  - each day's four quietest hours in a row are always quiet (counting only
+    hours the server was up);
+  - work begins only where this hour and the next are quiet;
+  - until about a week is known, any hour is quiet; at first start the
+    hours come from the last 8 weeks of watch history;
+  - after 24 hours of the server being up without a quiet hour, the rest
+    goes on whenever nothing plays.
 - **`hours`**: all of it from `library_work_from` to `library_work_to`
   (hours of the day in the server's time; past midnight when `to` comes
   first, all day when they are the same).
 - **`idle`**: whenever nothing plays.
 
-A season whose hours end is put off, and goes first at its next turn (its
-fingerprints so far are cached). The hours and the processors hold back
-only the libraries' work: a title someone opens gets its previews, a
-season being watched its markers, and an analysis an administrator asks
-for runs, at any hour.
+A season whose hours end is put off and goes first at its next turn. The
+hours and the processors hold back only the libraries' work: a title
+someone opens gets its previews, a season being watched its markers, and
+an analysis an administrator asks for runs, at any hour.
 
 | Method | Path | Who | What |
 |---|---|---|---|
@@ -2185,9 +2235,15 @@ interface HistoryEntry {
 
 `/api/activity`: `seasons_pending` counts seasons waiting for intro and
 credits detection, `previews_pending` files waiting for seek previews, and
-`library_work` says why they wait while some do (see Library work).
+`library_work` says why they wait while some do ([Library work](#library-work)).
 Non-administrators see only their own sessions and the scans of libraries
 they may open, with no `analysis` or `library_work`, and both counts 0.
+
+`/api/events`: each stream gets the events of the libraries its user may
+open, and the user's own events. A comment line keeps it alive every 15 s.
+The token is checked again every 30 s: the stream ends once it is signed
+out, expired or its account disabled, and the client connects again with a
+valid token. One token may keep 16 streams open; another answers `429`.
 
 ### Stopping a stream
 
@@ -2328,9 +2384,15 @@ takes one connection, read once and given to every player of it. A source's
 nobody watches any more is let go 20 s after the last viewer left (at once
 when another channel needs the connection).
 
+**Who may watch.** Administrators always (their apps too). Others as
+`LiveSettings` says: `access` is `everyone`, `home` (accounts in the
+household) or `admins`; profiles with an age limit only with `age_limited`;
+`allowed_users` and `denied_users` override both. Every route below but
+`GET /api/live` answers `403` to an account Live TV isn't open to.
+
 | Method | Path | Who | What |
 |---|---|---|---|
-| GET | `/api/live` | `library` | `{ available, allowed, channels, sources, recent: Id[] }`: whether to show Live TV (`allowed`: open to this account; `available`: and it has channels), the channel count, the sources set up (administrators; else 0) and the channels watched last, newest first |
+| GET | `/api/live` | `library` | `{ available, allowed, channels, sources, recent: Id[] }`: whether to show Live TV (`allowed`: open to this account; `available`: and it has channels), the channel count, the sources set up (administrators; else 0) and the 12 channels watched last, newest first |
 | GET | `/api/live/channels` | `library` | `LiveChannel[]`, the shown channels by number, each with what's on now and next |
 | GET | `/api/live/groups` | `library` | `{ total, favorites, recent, groups: LiveGroup[] }`: the groups in the lineup's order, and how many channels in all, marked and watched lately |
 | GET | `/api/live/browse` | `library` | `?category=all\|favorites\|recent\|group&group=&q=&offset=&limit=&around=` → `{ total, offset, channels: LiveChannel[] }`: a page (100 by default, 500 at most) of a category's channels matching `q` (a name, a number's beginning, or the title of what's on); `around` gives the page with that channel in it |
@@ -2340,14 +2402,14 @@ when another channel needs the connection).
 | GET | `/api/live/guide` | `library` | `?from=&to=&ids=` (unix seconds; default half an hour ago to six hours on, two days at most; `ids`: the channels wanted, with commas between, else every one) → `{ from, to, programs: { [channel_id]: LiveProgram[] } }` |
 | PUT | `/api/live/channels/{id}/favorite` | `play` | `204` |
 | DELETE | `/api/live/channels/{id}/favorite` | `play` | `204` |
-| POST | `/api/live/channels/{id}/watch` | `play` | optional `{ client_id?, keyed_urls? }` → `{ session_id, url, kind: "hls", channel: LiveChannel }`: `url` is the channel's live HLS playlist; with `keyed_urls`, an address carrying a key of its own ([Keyed URLs](#keyed-urls)) |
-| GET | `/api/live/channels/{id}/stream.ts` | `play` | `?client_id=`: the channel's MPEG-TS as the provider sends it, for as long as it is read (VLC, Kodi, TVs that read MPEG-TS) |
-| GET | `/api/live/sessions/{session}/plan` | `play` | the transcoder's `LivePlan` for the channel (`video`: `"copy"` or the encoder, `audio`: `"copy"`, `"aac"` or `"none"`, codecs, size, interlaced), waited for a few seconds; `null` when not known in time. A player that reads MPEG-TS plays a channel whose video and audio are copied from `stream.ts` (with a client id of its own), sooner than its first segments |
-| GET | `/api/live/sessions/{session}/{file}` | `play` | `index.m3u8` or a segment of a watching session |
+| POST | `/api/live/channels/{id}/watch` | `play` | optional `{ client_id?, keyed_urls?, take_over? }` → `{ session_id, url, kind: "hls", channel: LiveChannel }`: `url` is the channel's live HLS playlist; with `keyed_urls`, an address carrying a key of its own ([Keyed URLs](#keyed-urls)); `take_over`: see Watching, below |
+| GET | `/api/live/channels/{id}/stream.ts` | `play` | `?client_id=&take_over=`: the channel's MPEG-TS (`video/mp2t`) as the provider sends it, for as long as it is read (VLC, Kodi, TVs that read MPEG-TS) |
+| GET | `/api/live/sessions/{session}/plan` | `play` | `LivePlan \| null`: what the transcoder makes of the channel, waited for up to 3 s; `null` when not known in time. A player that reads MPEG-TS plays a channel whose video and audio are copied from `stream.ts` (with a client id of its own), sooner than its first segments |
+| GET | `/api/live/sessions/{session}/{file}` | `play` | `index.m3u8` or a segment of a watching session; `410 session_stopped` once the session is over, with why as `message` |
 | GET | `/api/live/media/{key}/{file}` | `public` (the key) | the same, for a session watched with `keyed_urls` |
-| DELETE | `/api/live/sessions/{session}` | `play` | `204`: stops watching; `404` when not yours or already gone |
+| DELETE | `/api/live/sessions/{session}` | `play` | `204`: stops watching; `404` when not yours (administrators: any) or already gone |
 | GET | `/api/live/settings` | `admin` | `LiveSettings` |
-| PUT | `/api/live/settings` | `admin` | `LiveSettings` → `LiveSettings` |
+| PUT | `/api/live/settings` | `admin` | `LiveSettings` → `LiveSettings`; `400` outside the ranges below |
 | GET | `/api/live/sources` | `admin` | `LiveSource[]` |
 | POST | `/api/live/sources` | `admin` | `LiveSourceInput` → `201 LiveSource`; its channels and guide are read in the background |
 | POST | `/api/live/sources/test` | `admin` | `LiveSourceInput & { source_id? }` → `{ channels, groups, guide_url, account }` without saving; `source_id` lends a saved source's password |
@@ -2355,7 +2417,7 @@ when another channel needs the connection).
 | DELETE | `/api/live/sources/{id}` | `admin` | `204`, with its channels |
 | POST | `/api/live/sources/{id}/refresh` | `admin` | `202`: reads its channels and guide again now |
 | GET | `/api/live/lineup` | `admin` | `?source_id=` → `LiveLineupChannel[]`, hidden ones too |
-| PATCH | `/api/live/lineup` | `admin` | `{ ids: Id[], groups?: string[], filter?: { source_id?, group?, state?, q? }, hidden?, name?, number?, guide_id? }` → `204`: those channels, every one of `groups` and every one `filter` keeps; `""` gives back the source's own value; 20,000 ids at most |
+| PATCH | `/api/live/lineup` | `admin` | `{ ids?: Id[], groups?: string[], filter?: { source_id?, group?, state?, q? }, hidden?, name?, number?, guide_id? }` → `204`: those channels, every one of `groups` and every one `filter` keeps; `""` gives back the source's own value; 20,000 ids and 5,000 groups at most |
 | GET | `/api/live/lineup/page` | `admin` | `?source_id=&group=&state=all\|shown\|hidden\|no-guide\|offline&q=&offset=&limit=` → `{ total, hidden, offset, channels: LiveLineupChannel[] }`: a page of the lineup, filtered |
 | GET | `/api/live/lineup/groups` | `admin` | `(LiveGroup & { hidden, offline })[]`: every group, hidden and offline channels counted |
 | GET | `/api/live/tuners` | `admin` | `LiveTuner[]`: the channels being pulled and who watches them |
@@ -2364,6 +2426,7 @@ when another channel needs the connection).
 ```ts
 interface LiveChannel {
   id: Id; source_id: Id; name: string; number: string | null; group: string;
+  source_uid: string;                  // the source's short id
   logo: string | null;                 // the logo's address on this server
   favorite: boolean; has_guide: boolean;
   now: LiveProgram | null; next: LiveProgram | null;
@@ -2388,31 +2451,72 @@ interface LiveSourceInput {
   user_agent?: string; max_connections?: number /* 1 */; enabled?: boolean /* true */;
 }
 interface LiveSource extends Omit<LiveSourceInput, "password"> {
-  id: Id; password_set: boolean; created_at: number;
+  id: Id; uid: string;                 // uid: its short id, as in LiveChannel.source_uid
+  password_set: boolean; created_at: number;
   channels_at: number | null; channels_error: string | null;
   guide_at: number | null; guide_error: string | null;
-  account: { status: string; expires_at: number | null; max_connections: number | null;
-             active_connections: number | null; trial: boolean } | null; // Xtream
+  account: { status: string;           // Xtream: "Active", "Expired", "Banned", "Disabled"
+             expires_at: number | null; max_connections: number | null;
+             active_connections: number | null; trial: boolean } | null;
   channel_count: number; hidden_count: number; guided_count: number;
   connections_in_use: number; refreshing: boolean;
 }
-interface LiveSettings {
-  access: "everyone" | "admins";
-  age_limited: boolean;                // profiles with an age limit see Live TV too
-  deinterlace: boolean;                // interlaced channels are made progressive
-  max_height: number | null;           // transcoded channels at most this many lines
-  timeshift_minutes: number;           // how far back a channel can be paused and rewound
-  refresh_hours: number;               // channels and guide read again this often
-  guide_days: number;                  // days of guide kept ahead
+interface LiveSettings {                // defaults in /* */
+  access: "everyone" | "home" | "admins"; /* "everyone" */
+  allowed_users: Id[];                 // may watch whatever `access` says
+  denied_users: Id[];                  // may not (administrators always may)
+  age_limited: boolean;                // /* false */ profiles with an age limit see Live TV too
+  deinterlace: boolean;                // /* true */ interlaced channels are made progressive
+  max_height: number | null;           // /* null */ transcoded channels at most this many lines, 240-2160
+  timeshift_minutes: number;           // /* 5 */ how far back a channel can be paused and rewound, 1-60
+  refresh_hours: number;               // /* 24 */ channels and guide read again this often, 1-168
+  guide_days: number;                  // /* 7 */ days of guide kept ahead, 1-14
   hide_offline: boolean;               // /* true */ channels that don't play, and divider rows, left out
+}
+interface LiveLineupChannel {          // a channel as administrators see it
+  id: Id; source_id: Id; source_name: string;
+  name: string; number: string | null; group: string; logo: string | null;
+  guide_id: string;                    // the guide channel it uses
+  hidden: boolean; has_guide: boolean;
+  source_number: string | null; source_guide_id: string; // as the source has them
+  matched_guide_id: string | null;     // the guide's channel of its name, when the source names none
+  custom_name: string | null; custom_number: string | null; custom_guide_id: string | null; // as set
+  offline: boolean; offline_since: number | null;
+}
+interface LivePlan {
+  video_codec: string | null;          // the input's: "h264", "mpeg2video", "hevc"…
+  width: number | null; height: number | null; frame_rate: number | null;
+  interlaced: boolean;
+  audio_codec: string | null;          // the input's: "aac", "mp2", "ac3"…
+  audio_channels: number | null;
+  video: string;                       // "copy", or the encoder: "h264_nvenc", "libx264"…
+  audio: "copy" | "aac" | "none";
+}
+interface LiveTuner {                  // a connection in use
+  channel_id: Id; channel_name: string; source_id: Id; source_name: string;
+  started_at: number;
+  connected: boolean;                  // the provider is sending
+  error: string | null;
+  bytes_in: number; kbps: number;      // what the provider sends
+  viewers: { session_id: string; user_id: Id; username: string;
+             kind: "hls" | "stream"; started_at: number }[];
+  idle: boolean;                       // nobody watches: it goes soon
+  plan: LivePlan | null;               // what the transcoder makes of it, for HLS viewers
 }
 ```
 
 - **Watching.** `POST …/watch` tunes the channel when nobody watches it
-  yet. `409` when every connection of its source is in use; the message
-  names the channels watched (and, to administrators, by whom). A
-  `client_id` ends what that device watched before, so zapping doesn't
-  hold two connections.
+  yet. A `client_id` ends what that device watched before, so zapping
+  doesn't hold two connections. When every connection of its source is in
+  use (and none is idle), it answers `409` with
+  `connections: { channel_id, channel_name, watchers: string[], people, yours, can_take_over }[]`
+  besides `code` and `message`. `watchers` names who watches, for
+  administrators only; `yours`: only the asker watches it. Asking again
+  with `take_over` set to a `channel_id` whose `can_take_over` is true (all
+  its viewers are the asker, or the asker is an administrator and none of
+  them is) ends that channel's viewers and takes its connection; their
+  sessions answer `410` with why. Taking over another's connection
+  otherwise: `403`.
 - **The stream.** H.264 is sent as it is; other video, and interlaced
   video while `deinterlace` is on, is made H.264 by the transcoder; audio
   that isn't AAC is made AAC stereo. Every player of a channel reads the
@@ -2423,8 +2527,7 @@ interface LiveSettings {
   hundreds of groups. Apps list them by group (`groups`), a page at a
   time (`browse`), and ask the guide for the channels in view (`ids`);
   `GET /api/live/channels` and a guide without `ids` give every channel,
-  which is fine for a few hundred. The server keeps the lineup in memory
-  until it changes.
+  which is fine for a few hundred.
 - **Offline channels.** A channel the provider gives nothing for, however
   often it is asked (no answer, a 404, no data; not a refusal of the
   account), is offline until it plays again; so is a provider's divider
@@ -2442,7 +2545,7 @@ interface LiveSettings {
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/users` | `admin` | `User[]` |
-| POST | `/api/users` | `admin` | `{ username, password?, display_name?, is_admin?, managed?, home? (true), all_libraries? (true), library_ids?, max_age?, pin? }` → `User`; managed profiles need no password |
+| POST | `/api/users` | `admin` | `{ username, password?, display_name?, is_admin?, managed?, home? (true), all_libraries? (true), library_ids?, max_age?, pin? }` → `201` `User`; managed profiles need no password and can't be administrators (`400`) |
 | PATCH | `/api/users/{id}` | `admin` | `{ password?, display_name?, is_admin?, home?, disabled?, all_libraries?, library_ids?, max_age?, pin? }` (`null` clears nullable fields) → `User` |
 | DELETE | `/api/users/{id}` | `admin` | `204` (not yourself); their apps end with them |
 | GET | `/api/users/{id}/devices` | `admin` | `Device[]` |
@@ -2465,22 +2568,22 @@ interface LiveSettings {
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/invites` | `admin` | `Invite[]`: `{ code, created_at, expires_at, uses_left, all_libraries, library_ids, max_age, note }` |
-| POST | `/api/invites` | `admin` | `{ expires_in_days? (7; 0 = never), uses? (1), all_libraries?, library_ids?, max_age?, note? }` → `Invite`; share `/invite/{code}` |
+| POST | `/api/invites` | `admin` | `{ expires_in_days? (7; 0 = never), uses? (1, at most 1000), all_libraries? (true), library_ids?, max_age?, note? (200 characters kept) }` → `201` `Invite`; share `/invite/{code}` |
 | DELETE | `/api/invites/{code}` | `admin` | `204` |
 | GET | `/api/invites/{code}` | `public` | `{ server_name, expires_at }`; `404` when invalid, used up or expired |
-| POST | `/api/invites/{code}/accept` | `public` | `{ username, password, display_name? }` → `{ user, token }`: a new (non-home) account with the invitation's access, signed in |
+| POST | `/api/invites/{code}/accept` | `public` | `{ username, password, display_name? }` → `{ user, token? }` (as `/api/auth/login`): a new (non-home) account with the invitation's access, signed in; `404` when the invitation is invalid, used up or expired, `409` for a username taken |
 
 ## System *(admin)*
 
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/system` | `admin` | `SystemInfo` |
-| PUT | `/api/system/transcode-dir` | `admin` | `{ path: string \| null }` → the new `transcode_dir`, for the next start |
+| PUT | `/api/system/transcode-dir` | `admin` | `{ path: string \| null }` → `SystemInfo.transcode_dir` as it now is: the folder for the next start |
 | GET | `/api/system/resources?since=` | `admin` | CPU and memory use, sampled every 2 s for the last five minutes |
-| GET | `/api/system/library-work` | `admin` | `WatchingHours`: when library work runs (see Library work) |
+| GET | `/api/system/library-work` | `admin` | `WatchingHours`: when [library work](#library-work) runs |
 | GET | `/api/system/storage` | `admin` | `{ blobs, blob_bytes, media_folders, media_bytes, cache_bytes }` |
 | POST | `/api/system/storage/clean` | `admin` | `{ blobs_removed, media_folders_removed, subtitles_removed, bytes_freed, cache_files_removed, cache_bytes_freed }` |
-| GET | `/api/system/backups` | `admin` | `{ health: { ok, problem?, checked_at }, backups: { name, path, bytes, created_at }[] }`, newest first |
+| GET | `/api/system/backups` | `admin` | `{ health: { ok, problem?, checked_at }, backups: { name, path, bytes, created_at }[] }`, newest first (`ok` and `checked_at` `null` until checked) |
 | POST | `/api/system/backups` | `admin` | the new backup: a checked `VACUUM INTO` copy; the last 3 are kept |
 | GET | `/api/transcoder` | `admin` | `TranscoderStatus`: the transcoder's live metrics (all jobs, counters) |
 | GET | `/api/settings` | `admin` | `Settings` (never with `opensubtitles_password`) |
@@ -2490,12 +2593,6 @@ interface LiveSettings {
 | GET | `/api/network` | `admin` | `Network`: where Pley listens, and could |
 | PUT | `/api/network` | `admin` | `{ web, plex, plex_on_web?, discovery }` → `Network` |
 
-- **`/api/system`** also carries:
-  - `database: { ok, problem?, checked_at }`: the integrity check made at
-    start;
-  - `transcode_dir: { in_use, next, default, problem: { folder, reason } | null, fixed }`:
-    the transcoder's work folder, the one the next start uses when that
-    differs, and why the chosen one couldn't be used.
 - **`transcode-dir`** is saved in the config file for the next start
   (`null`, or the default folder, removes `transcode_dir`). `400` for a
   relative path, a whole drive, the data folder itself, a folder Pley can't
@@ -2544,7 +2641,8 @@ interface LiveSettings {
   start (`plex_bind`: `"web"`, `"off"` or the addresses). `400` for
   addresses Pley can't listen on together, `plex_on_web` with `plex`
   addresses too, more than 32 addresses of a kind, and a change to what the
-  command line or the environment sets.
+  command line or the environment sets; `503` when the change can't be
+  made.
 
 ```ts
 interface Network {
@@ -2616,6 +2714,14 @@ interface SystemInfo {
   arch: string;
   uptime_secs: number;
   data_dir: string;
+  database: { ok: boolean | null; problem?: string; checked_at: Timestamp | null }; // integrity check at start
+  transcode_dir: {                  // the transcoder's work folder
+    in_use: string;
+    next: string | null;            // the one the next start uses, when another
+    default: string;                // `transcode` in the data folder
+    problem: { folder: string; reason: string } | null; // the chosen one couldn't be used at start
+    fixed: boolean;                 // set by the command line or the environment
+  };
   transcoder: {
     available: boolean;
     managed: boolean;               // started and supervised by Pley (vs. an external URL)

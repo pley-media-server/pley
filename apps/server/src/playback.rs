@@ -379,7 +379,7 @@ pub struct PlaybackInfo {
     /// plays as it is. A player that knows the timestamp of the frame it
     /// shows (hls.js: media time + `initPTS`) draws subtitles at that less
     /// this; its media time alone may be off by the stream's B-frame delay
-    /// and more (docs/API.md, "Picture subtitles drawn by the player").
+    /// and more (docs/API.md, "Types": `pts_offset_ms`).
     pub pts_offset_ms: Option<i64>,
 }
 

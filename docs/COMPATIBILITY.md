@@ -1,21 +1,36 @@
 # Compatibility API
 
-Besides its own API, Pley speaks a widely used media-server API, so tools
-written for it work with Pley: scripts using
+Besides [its own API](API.md), Pley speaks a widely used media-server API,
+so tools written for it work with Pley: scripts using
 [`python-plexapi`](https://github.com/pushingkarmaorg/python-plexapi) and
-tools built on the same API (Tautulli, Kometa, direct-play clients). It uses
-the same libraries, users, watch state and playback sessions as Pley's own
-API, so changes made through either show up in both.
+tools built on the same API (Tautulli, Kometa, direct-play clients). This
+page is for people pointing such a tool at Pley, and for anyone extending
+the API. It uses the same libraries, users, watch state and playback
+sessions as Pley's own API, so changes made through either show up in both.
 
-Apps that sign in through their vendor's cloud service and find servers
-there are out of scope: Pley has no such service.
+The base URL is Pley's own address, `http://pley.local:7539` or
+`https://media.example.com` (no `/api`), unless the API has a port of its
+own ([Enabling and port](#enabling-and-port)). Every endpoint but
+`/identity` needs a Pley session token, sent as `X-Plex-Token`
+([Authentication](#authentication)).
+
+## Contents
+
+- [Enabling and port](#enabling-and-port)
+- [Authentication](#authentication)
+- [Formats](#formats)
+- [Mapping](#mapping)
+- [Endpoints](#endpoints)
+- [Editing](#editing)
+- [Searching and filtering](#searching-and-filtering)
+- [Tested](#tested)
+- [Not supported](#not-supported)
 
 ## Enabling and port
 
 By default the API answers on Pley's own port (7539), wherever Pley does,
-including behind a reverse proxy's HTTPS. Give tools Pley's address,
-`http://pley.local:7539` or `https://media.example.com`. Requests are told
-apart like this:
+including behind a reverse proxy's HTTPS. Requests are told apart like
+this:
 
 - A request with this API's headers (`X-Plex-Token`,
   `X-Plex-Client-Identifier`, …) or `X-Plex-Token` in its query belongs to
@@ -26,11 +41,12 @@ apart like this:
 - Everything else (`/`, `/search`, `/library` and `/playlists` among them)
   is the web app's. `/api/…` and `/.well-known/…` are always Pley's own.
 
-Because they share the web app's origin, this API's responses are sandboxed
-(`Content-Security-Policy: default-src 'none'; sandbox`,
-`X-Frame-Options: DENY`, and `Cache-Control: private` unless set otherwise).
-Paths both answer vary with `X-Plex-Token` and `X-Plex-Client-Identifier`
-for caches.
+Responses are never pages: they carry `Content-Security-Policy:
+default-src 'none'` (with `sandbox` on Pley's port), `X-Frame-Options:
+DENY`, `X-Content-Type-Options: nosniff`, `X-Plex-Protocol: 1.0`,
+`Access-Control-Allow-Origin: *` and `Cache-Control: no-cache` unless set
+otherwise. On Pley's port, paths both answer vary with `X-Plex-Token` and
+`X-Plex-Client-Identifier` for caches.
 
 Settings → Network turns the API off or gives it a port of its own:
 
@@ -61,14 +77,12 @@ Accepted:
 - this API's way: the `X-Plex-Token` header or query parameter;
 - Pley's way: `Authorization: Bearer`, `X-Pley-Token` or `?token=`.
 
-Refused:
+Refused (`401`):
 
 - the web app's `pley_token` cookie: browsers send it to this port too, and
   some of this API's endpoints change things on a GET;
-- tokens of apps signed in on Pley's own page (`pley_at_…`), and the HLS
-  session addresses of playback those apps started.
-
-Every endpoint needs a token except `/identity`.
+- tokens starting `pley_`: those of apps signed in on Pley's own page
+  (`pley_at_…`, `pley_rt_…`) and the keyed addresses of their playback.
 
 ```python
 from plexapi.server import PlexServer
@@ -77,27 +91,32 @@ for movie in server.library.section('Movies').search(unwatched=True):
     print(movie.title, movie.media[0].videoResolution)
 ```
 
-Each user sees their own watch state, Continue Watching and sessions.
-Administrators also see every user's sessions and can refresh libraries.
+Each user sees their own watch state, Continue Watching and sessions, and
+only what Pley's [access rules](API.md#access-rules) let them see.
+Administrators also see every user's sessions and history, and alone may
+refresh libraries and items, stop sessions, edit metadata and make or change
+collections (others get `403`).
 
 ## Formats
 
 Responses are XML `MediaContainer`s. With `Accept: application/json` they
-are JSON in the same layout
-(`{"MediaContainer": {"Metadata": […]}}`). Paging works through
-`X-Plex-Container-Start` and `X-Plex-Container-Size`, as headers or query
-parameters; containers report `size`, `totalSize` and `offset`.
+are JSON in the same layout (`{"MediaContainer": {"Metadata": […]}}`).
+Paging works through `X-Plex-Container-Start` and `X-Plex-Container-Size`,
+as headers or query parameters; containers report `size`, `totalSize` and
+`offset`. Paths may use `/:/` segments and trailing slashes as clients send
+them.
 
 ## Mapping
 
 - **IDs.** `ratingKey` is the Pley item id and `librarySectionID` the library
   id. Media and parts use the media file id. Stream ids are
   `file id × 10000 + stream index`.
-- **Order.** Sections, and the home hubs of each, come in the order
-  administrators choose in Pley (Settings → Libraries); new ones come last.
-- **Types.** Movies and episodes are `Video` elements, shows, seasons, artists
-  and albums are `Directory` elements, and tracks are `Track` elements, with
-  the API's `type` values.
+- **Order.** Sections, and the home hubs of each, come in the user's library
+  order in Pley (Settings → Libraries), else the administrators' order; new
+  ones come last.
+- **Types.** Movies and episodes are `Video` elements, shows, seasons,
+  artists and albums are `Directory` elements, and tracks are `Track`
+  elements, with the API's `type` values.
 - **GUIDs.** Every item gets a `plex://<type>/<id>` guid. With
   `includeGuids=1`, and always in details, `Guid` children carry the ids
   metadata found, in the API's usual form: `imdb://`, `tmdb://` (movies and
@@ -106,10 +125,11 @@ parameters; containers report `size`, `totalSize` and `offset`.
 - **Editions.** Movies whose versions are tagged with an edition
   (`{edition-Director's Cut}` in the file or folder name) carry the default
   version's `editionTitle`.
-- **Watch state.** `viewCount` is the play count of watched items and 0 once an
-  item is marked unplayed. `viewOffset` is the resume position.
-  `/:/scrobble`, `/:/unscrobble`, `/:/progress` and `/:/timeline` use the same
-  code as Pley's player.
+- **Watch state.** `viewCount` is the play count of watched items and 0 once
+  an item is marked unplayed. `viewOffset` is the resume position.
+  `/:/progress` and `/:/timeline` count as Pley's own progress reports (90 %
+  marks watched); `/:/scrobble` and `/:/unscrobble` mark watched and
+  unwatched.
 - **Sessions.** A client that reports `/:/timeline` while playing becomes a
   Pley playback session. It is listed in `/status/sessions` (with `User`,
   `Player` and `Session`, plus `TranscodeSession` for HLS) and in Pley's
@@ -131,12 +151,13 @@ parameters; containers report `size`, `totalSize` and `offset`.
 - **Streaming.**
   - `/library/parts/{id}/{version}/file.ext` serves the file with range
     requests (direct play; `?download=1` adds an attachment header).
-  - `/video/:/transcode/universal/start.m3u8` (`/audio/…` for tracks) starts
-    a Pley HLS session: remuxed when the video can be copied, transcoded
-    otherwise (`directStream=0` forces transcoding). It honors `offset`,
-    `maxVideoBitrate`, `videoResolution`, `audioStreamID` and burned-in
-    `subtitleStreamID`. Without `audioStreamID`, Pley picks the track as for
-    its own players ([API.md](API.md), "The audio track").
+  - `/video/:/transcode/universal/start.m3u8` (or `start`; `/audio/…` for
+    tracks) starts a Pley HLS session: remuxed when the video can be copied,
+    transcoded otherwise (`directStream=0` forces transcoding). It honors
+    `offset`, `maxVideoBitrate`, `videoResolution`, `audioStreamID` and
+    burned-in `subtitleStreamID`. Without `audioStreamID`, Pley picks the
+    track as for its own players
+    ([API.md](API.md#the-audio-track)).
   - The master playlist points at `session/<id>/base/index.m3u8`. Session
     URLs need no token: the 128-bit session id is the credential.
 - **Preview thumbnails and chapters.** Parts of files with seek previews have
@@ -147,24 +168,26 @@ parameters; containers report `size`, `totalSize` and `offset`.
   `endTimeOffset` in ms; credits are `final`), for Skip Intro and Skip
   Credits in clients.
 - **Cast and crew.** Details carry `Role` (with the part as `role`),
-  `Director`, `Writer` and `Producer` tags. Their `id` is the Pley person id and
-  `thumb` the TMDB photo.
+  `Director`, `Writer` and `Producer` tags. Their `id` is the Pley person id
+  and `thumb` the TMDB photo.
 - **Artwork.** `thumb` and `art` attributes point at
   `/library/metadata/{id}/thumb/{version}` and `/art/{version}`.
   `/photo/:/transcode?url=…&width=…` resizes them through Pley's image cache.
 
 ## Endpoints
 
+`GET` unless a method is given.
+
 | Area | Endpoints |
 |---|---|
-| Server | `/`, `/identity`, `/servers`, `/accounts`, `/myplex/account`, `/system`, `/prefs`, `/:/prefs`, `/media/providers`, `/:/websockets/notifications` |
-| Sections | `/library`, `/library/sections`, `/library/sections/{id}`, `…/all`, `…/albums`, `…/recentlyAdded`, `…/onDeck`, `…/search`, `…/firstCharacter`, `…/collections`, `…/{genre,year,decade,contentRating,studio,actor,director,writer,producer}`, `…/refresh`, `/library/sections/all/refresh` |
-| Items | `/library/metadata/{id}` (comma-separated ids allowed), `…/extras` (trailers and other bonus material as `clip`s with the API's `extraType` and `subtype`), `…/children`, `…/allLeaves`, `…/grandchildren`, `…/related` ("More Like This" hub), `…/similar` (the same items), `…/thumb`, `…/art`, `…/refresh` |
-| Lists | `/library/all`, `/library/onDeck`, `/library/recentlyAdded`, `/hubs`, `/hubs/sections/{id}`, `/hubs/continueWatching/items`, `/hubs/home/recentlyAdded`, `/hubs/search`, `/search`, `PUT /actions/removeFromContinueWatching?ratingKey=` (the movie, or the episode's show, leaves the user's Continue Watching until it is played again, as `DELETE /api/continue-watching/{id}`) |
-| Collections | `/library/sections/{id}/collections` (also `…/all?type=18`), `/library/collections/{id}`, `…/children`, `…/{thumb,art,composite}[/{version}]` |
-| Playlists | `GET`/`POST /playlists` (`?type=&title=&uri=…/library/metadata/1,2`, or `smart=1&uri=…/library/sections/{id}/all?…` for a smart playlist of that listing; `?smart=0|1` filters the list), `GET`/`PUT` (`?title=`)/`DELETE /playlists/{id}`, `GET`/`PUT /playlists/{id}/items` (`?uri=`), `DELETE /playlists/{id}/items/{playlistItemID}`, `PUT …/{playlistItemID}/move?after=`, `/playlists/{id}/composite/{version}` |
+| Server | `/`, `/identity`, `/servers`, `/accounts`, `/myplex/account`, `/system`, `/prefs`, `/:/prefs` (`PUT` is accepted and changes nothing), `/media/providers`, `/:/websockets/notifications`; `/clients`, `/devices`, `/activities`, `/butler` and `/updater/status` answer empty containers |
+| Sections | `/library`, `/library/sections`, `/library/sections/{id}`, `…/all`, `…/albums`, `…/recentlyAdded`, `…/onDeck`, `…/search`, `…/firstCharacter`, `…/collections`, `…/{genre,year,decade,contentRating,studio,actor,director,writer,producer,label}` (filter choices), `…/refresh` and `/library/sections/all/refresh` (administrators); `…/emptyTrash` and `…/analyze` are accepted and change nothing |
+| Items | `/library/metadata/{id}` (comma-separated ids allowed), `…/extras` (trailers and other bonus material as `clip`s with the API's `extraType` and `subtype`), `…/children`, `…/allLeaves`, `…/grandchildren`, `…/related` ("More Like This" hub), `…/similar` (the same items), `…/thumb[/{version}]`, `…/art[/{version}]`, `…/refresh` (administrators) |
+| Lists | `/library/all`, `/library/onDeck`, `/library/recentlyAdded`, `/hubs`, `/hubs/sections/{id}`, `/hubs/continueWatching/items`, `/hubs/sections/{id}/continueWatching/items`, `/hubs/home/recentlyAdded`, `/hubs/search`, `/search`, `PUT /actions/removeFromContinueWatching?ratingKey=` (the movie, or the episode's show, leaves the user's Continue Watching until it is played again, as `DELETE /api/continue-watching/{id}`) |
+| Collections | `/library/sections/{id}/collections` (also `…/all?type=18`), `/library/collections/{id}`, `…/children`, `…/{thumb,art,composite}[/{version}]`; changes under [Editing](#editing) |
+| Playlists | `GET`/`POST /playlists` (`?type=&title=&uri=…/library/metadata/1,2`, or `smart=1&uri=…/library/sections/{id}/all?…` for a smart playlist of that listing; `?smart=0\|1` filters the list), `GET`/`PUT` (`?title=`)/`DELETE /playlists/{id}`, `GET`/`PUT /playlists/{id}/items` (`?uri=`), `DELETE /playlists/{id}/items/{playlistItemID}`, `PUT …/{playlistItemID}/move?after=`, `/playlists/{id}/composite/{version}` |
 | Previews | `/library/parts/{id}/indexes/sd` (BIF), `/library/parts/{id}/indexes/sd/{offset}` (the frame at `offset` ms), `/library/media/{id}/chapterImages/{n}` |
-| Playback | `/library/parts/…`, `/library/streams/{id}` (subtitles), `/:/timeline`, `/:/progress`, `/:/scrobble`, `/:/unscrobble`, `/status/sessions`, `/status/sessions/terminate?sessionId=&reason=` (administrators: stops the session whose `Session` `id` it is, `reason` as the message its player shows, as `DELETE /api/sessions/{id}`; that client's reports don't start it again), `/transcode/sessions`, `/{video,audio}/:/transcode/universal/{start.m3u8,decision,stop,ping,session/…}` |
+| Playback | `/library/parts/…`, `/library/streams/{id}` (subtitles), `/:/timeline`, `/:/progress`, `/:/scrobble`, `/:/unscrobble`, `/:/rate?key=&rating=` (the user's rating, 0-10; negative clears it), `/status/sessions`, `/status/sessions/terminate?sessionId=&reason=` (administrators: stops the session whose `Session` `id` it is, `reason` as the message its player shows, as `DELETE /api/sessions/{id}`; that client's reports don't start it again), `/transcode/sessions`, `/{video,audio}/:/transcode/universal/{start.m3u8,start,decision,stop,ping,session/…}` |
 | Play queues | `POST /playQueues` (`uri=` items, a container, a section listing or a playlist, or `playlistID=`; `key=` the item to start with; `shuffle=1`; `continuous=1` plays the rest of an episode's show after it), `GET`/`PUT /playQueues/{id}` (`uri=`/`playlistID=` adds, `next=1` right after the playing item), `DELETE /playQueues/{id}/items[/{playQueueItemID}]`, `PUT …/items/{playQueueItemID}/move?after=`, `PUT /playQueues/{id}/shuffle`, `…/unshuffle`; kept in memory for a day, for the user who made them |
 | History | `/status/sessions/history/all` (`accountID`, `librarySectionID`, `metadataItemID`, `viewedAt>=`; administrators see every account, others their own), `DELETE /status/sessions/history/{id}` |
 | Images | `/photo/:/transcode` |
@@ -213,20 +236,22 @@ episode, 8 artist, 9 album, 10 track), `sort` (`titleSort`, `addedAt`,
 `viewCount`, `duration`, `index`, `id`, `updatedAt`; with `:desc`, several
 comma-separated), `limit` and the API's filters with their operators:
 
-- strings (`title`, `studio`): contains, `!=` does not contain, `==` is, `!==`
-  is not, `<=` begins with, `>=` ends with;
-- numbers (`year`, `decade`, `viewCount`, `duration`, `rating`, `index`, `id`):
-  is, `!=`, `>>=`, `<<=`;
-- tags (`genre`, `label`, `contentRating`), booleans (`unwatched`, `inProgress`), dates
-  (`addedAt`, `lastViewedAt`, `originallyAvailableAt`, as unix time or relative
-  like `-30d`) and `guid`;
-- people (`actor`, `director`, `writer`, `producer`): a person id (the tag `id`,
-  also listed by `/library/sections/{id}/actor` and friends) or a name, `!=`
-  excludes.
+- strings (`title`, `studio`): contains, `!=` does not contain, `==` is,
+  `!==` is not, `<=` begins with, `>=` ends with;
+- numbers (`year`, `decade`, `viewCount`, `duration`, `rating`, `index`,
+  `id`): is, `!=`, `>>=`, `<<=`;
+- tags (`genre`, `label`, `contentRating`), booleans (`unwatched`,
+  `inProgress`), dates (`addedAt`, `lastViewedAt`, `originallyAvailableAt`,
+  as unix time or relative like `-30d`) and `guid`;
+- people (`actor`, `director`, `writer`, `producer`): a person id (the tag
+  `id`, also listed by `/library/sections/{id}/actor` and the like) or a
+  name; `!=` excludes.
 
 Filters on ancestors work (`artist.id=5` on albums, `show.title=…` on
 episodes). With `includeMeta=1` the response describes these filters, sorts
-and fields in a `Meta` element; `python-plexapi` validates searches against it.
+and fields in a `Meta` element; `python-plexapi` validates searches against
+it. Pley's smart collections and smart playlists use the same query string
+([API.md](API.md#collections)).
 
 ## Tested
 
@@ -260,12 +285,12 @@ With `python-plexapi` 4.18 the following work against the test media:
 ## Not supported
 
 - The vendor's cloud service: its sign-in, server claiming, sharing and
-  remote access, and the apps that depend on it.
+  remote access, and the apps that depend on it to find servers.
 - Collections' order and mode are set in Pley, not through this API.
 - Editing episodes' and seasons' artwork from URLs other than TMDB images
   (upload the file instead), and per-item preferences (`/prefs`).
-- Filters on descendants (`episode.title` on shows) and on `resolution`, `hdr`,
-  audio or subtitle language: ignored, so they don't narrow results.
+- Filters on descendants (`episode.title` on shows) and on `resolution`,
+  `hdr`, audio or subtitle language: ignored, so they don't narrow results.
 - Player remote control, photos and live TV.
 - Notifications about transcodes (`transcodeSession.*`), deleted items and
   reachability.

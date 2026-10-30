@@ -13,7 +13,7 @@ import kotlinx.serialization.json.intOrNull
 import mockwebserver3.MockResponse
 import okio.Buffer
 
-/** What the server remembers of each client's network (docs/API.md, "Playback network"). */
+/** What the server remembers of each client's network (docs/API.md, "Network memory and speed test"). */
 internal class NetworkMemory {
     /** The client is on another network than the server's (a speed test is due when nothing is known). */
     var remote = false

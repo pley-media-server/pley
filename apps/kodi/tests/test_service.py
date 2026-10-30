@@ -428,7 +428,7 @@ class BitrateTest(unittest.TestCase):
 
 
 class NetworkTest(unittest.TestCase):
-    """Automatic's ceiling told to the server (docs/QUALITY.md, step 4)."""
+    """Automatic's ceiling told to the server (docs/QUALITY.md, "The server")."""
 
     def setUp(self):
         import tempfile
