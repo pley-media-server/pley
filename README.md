@@ -2,16 +2,20 @@
 
 A self-hosted media server for movies, shows, music and live TV.
 
-![Home](docs/images/web-home.jpg)
+![A tour of the web app](docs/images/tour.gif)
 
 <table>
   <tr>
+    <td width="50%"><img src="docs/images/web-home.jpg" alt="Home"></td>
     <td width="50%"><img src="docs/images/web-library.jpg" alt="Library"></td>
-    <td width="50%"><img src="docs/images/web-movie.jpg" alt="Movie"></td>
   </tr>
   <tr>
+    <td width="50%"><img src="docs/images/web-movie.jpg" alt="Movie"></td>
     <td width="50%"><img src="docs/images/web-season.jpg" alt="Season"></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="docs/images/web-player.jpg" alt="Player"></td>
+    <td width="50%"><img src="deploy/stores/screenshots/tv-1-home.jpg" alt="Android TV"></td>
   </tr>
 </table>
 

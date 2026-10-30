@@ -87,6 +87,11 @@ from) changes. The server's runs on Linux, macOS and Windows, with a build on
 the oldest supported Rust, the license check and the Docker build
 ([RELEASING.md](RELEASING.md#ci)).
 
+The README's pictures (`docs/images`) show a demo library of made-up titles
+([scripts/store-library](../scripts/store-library/README.md)):
+`bun scripts/store-library/web.mjs <dir> <address>` takes the web app's
+screenshots and its tour GIF from a server holding it.
+
 ## Versions and releases
 
 Each app (the server with its transcoder and web app, desktop, Android,
