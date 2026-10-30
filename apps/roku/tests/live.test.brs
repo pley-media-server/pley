@@ -1,4 +1,4 @@
-' The lab's channels, as GET /api/live/browse lists them.
+' The test channels, as GET /api/live/browse lists them.
 function liveSample() as object
     return [
         {

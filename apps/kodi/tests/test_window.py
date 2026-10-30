@@ -164,7 +164,7 @@ class Dialogs:
 
 class WindowTest(unittest.TestCase):
     def test_text_as_wide_as_kodi_draws_it(self):
-        # As the lab Kodi's screenshots measure them (Estuary at 1080p).
+        # As Kodi's screenshots measure them (Estuary at 1080p).
         line = "A burnt-out chef inherits a failing flower farm and a stubborn goat,"
         self.assertAlmostEqual(window.text_width(line, 30), 887, delta=9)
         self.assertAlmostEqual(window.text_width("Continue Watching", 36, bold=True), 350, delta=8)
