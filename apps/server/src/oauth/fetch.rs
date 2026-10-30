@@ -756,7 +756,7 @@ mod tests {
         for allowed in [false, true] {
             for id in BUILTIN_IDS {
                 // Even on a server reached at their host.
-                for own in [OWN, "hhaidar.github.io"] {
+                for own in [OWN, "pley-media-server.github.io"] {
                     let client = documents.get(id, 1, allowed, own).await.unwrap();
                     assert_eq!(client.id, *id);
                     assert!(client.first_party);
@@ -1000,8 +1000,8 @@ mod tests {
     async fn own_and_built_in_hosts_are_refused() {
         let (documents, fetches) = valid();
         for (id, own) in [
-            ("https://hhaidar.github.io/pley/oauth/other.json", OWN),
-            ("https://hhaidar.github.io/x.json", OWN),
+            ("https://pley-media-server.github.io/pley/oauth/other.json", OWN),
+            ("https://pley-media-server.github.io/x.json", OWN),
             ("https://pley.example.com/app.json", OWN),
             ("https://pley.example.com/app.json", "PLEY.example.com:32400"),
             ("https://pley.example.com/app.json", "pley.example.com."),

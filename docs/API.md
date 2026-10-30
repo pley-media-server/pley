@@ -641,7 +641,7 @@ Every other `/.well-known/` path answers `404`.
   "scopes_supported": ["library", "play", "playlists", "profiles"],
   "authorization_response_iss_parameter_supported": true,
   "client_id_metadata_document_supported": false,
-  "service_documentation": "https://github.com/hhaidar/pley/blob/master/docs/API.md"
+  "service_documentation": "https://github.com/pley-media-server/pley/blob/master/docs/API.md"
 }
 ```
 
@@ -976,12 +976,12 @@ profiles when the app's profile is in the household, else nothing:
 
 | App | Client ID | Return address |
 |---|---|---|
-| Pley for Android | `https://hhaidar.github.io/pley/oauth/android.json` | `app.pley.android:/oauth/callback` |
-| Pley for desktop | `https://hhaidar.github.io/pley/oauth/desktop.json` | `http://127.0.0.1/oauth/callback`, `http://[::1]/oauth/callback` (any port) |
-| Pley for Kodi | `https://hhaidar.github.io/pley/oauth/kodi.json` | none: a code only |
-| Pley for Roku | `https://hhaidar.github.io/pley/oauth/roku.json` | none: a code only |
-| Pley for Samsung TV | `https://hhaidar.github.io/pley/oauth/tizen.json` | none: a code only |
-| Pley for LG TV | `https://hhaidar.github.io/pley/oauth/webos.json` | none: a code only |
+| Pley for Android | `https://pley-media-server.github.io/pley/oauth/android.json` | `app.pley.android:/oauth/callback` |
+| Pley for desktop | `https://pley-media-server.github.io/pley/oauth/desktop.json` | `http://127.0.0.1/oauth/callback`, `http://[::1]/oauth/callback` (any port) |
+| Pley for Kodi | `https://pley-media-server.github.io/pley/oauth/kodi.json` | none: a code only |
+| Pley for Roku | `https://pley-media-server.github.io/pley/oauth/roku.json` | none: a code only |
+| Pley for Samsung TV | `https://pley-media-server.github.io/pley/oauth/tizen.json` | none: a code only |
+| Pley for LG TV | `https://pley-media-server.github.io/pley/oauth/webos.json` | none: a code only |
 
 - Their descriptions are built into the server and never fetched, so they
   sign in to servers without internet access.

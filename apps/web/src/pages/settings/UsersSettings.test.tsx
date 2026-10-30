@@ -31,10 +31,10 @@ const libraries: Library[] = [
 /** pley's own app, which Ann allowed for Kiddo. */
 const kidsApp: AppGrant = {
   id: 9,
-  client_id: "https://hhaidar.github.io/pley/oauth/android.json",
+  client_id: "https://pley-media-server.github.io/pley/oauth/android.json",
   name: "Pley for Android",
   first_party: true,
-  host: "hhaidar.github.io",
+  host: "pley-media-server.github.io",
   scopes: ["library", "play"],
   profile: { id: 2, name: "Kiddo" },
   approved_by: { id: 3, name: "Ann" },

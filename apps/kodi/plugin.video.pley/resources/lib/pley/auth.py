@@ -17,7 +17,7 @@ import time
 
 from .api import ApiError, Client
 
-CLIENT_ID = "https://hhaidar.github.io/pley/oauth/kodi.json"
+CLIENT_ID = "https://pley-media-server.github.io/pley/oauth/kodi.json"
 DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
 SWITCH_GRANT = "urn:pley:params:oauth:grant-type:switch-profile"
 # What the add-on asks to do: browse, play, make and change playlists (Add

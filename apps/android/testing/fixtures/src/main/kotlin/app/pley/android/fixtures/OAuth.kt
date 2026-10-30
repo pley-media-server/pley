@@ -160,7 +160,7 @@ internal class OAuth(private val state: State) {
             put("scopes_supported", strings(*SCOPES.toTypedArray()))
             put("authorization_response_iss_parameter_supported", true)
             put("client_id_metadata_document_supported", false)
-            put("service_documentation", "https://github.com/hhaidar/pley/blob/master/docs/API.md")
+            put("service_documentation", "https://github.com/pley-media-server/pley/blob/master/docs/API.md")
         }
         return Reply.json(body.toString(), headers = mapOf("Cache-Control" to "no-store"))
     }
@@ -448,7 +448,7 @@ internal class OAuth(private val state: State) {
     private fun strings(vararg values: String) = buildJsonArray { values.forEach { add(JsonPrimitive(it)) } }
 
     companion object {
-        const val CLIENT_ID = "https://hhaidar.github.io/pley/oauth/android.json"
+        const val CLIENT_ID = "https://pley-media-server.github.io/pley/oauth/android.json"
         const val REDIRECT_URI = "app.pley.android:/oauth/callback"
         const val SWITCH_PROFILE = "urn:pley:params:oauth:grant-type:switch-profile"
         const val DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"

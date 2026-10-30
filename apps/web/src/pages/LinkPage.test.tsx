@@ -15,8 +15,8 @@ function tvRequest(): ConsentRequest {
     id: "d1",
     expires_at: 1_700_000_600,
     client: {
-      id: "https://hhaidar.github.io/pley/oauth/android.json",
-      host: "hhaidar.github.io",
+      id: "https://pley-media-server.github.io/pley/oauth/android.json",
+      host: "pley-media-server.github.io",
       name: "Pley for Android",
       first_party: true,
     },
@@ -129,7 +129,7 @@ describe("LinkPage", () => {
   it("says which device is asking: what it says it is, and where from", async () => {
     const kodi: ConsentRequest = {
       ...tvRequest(),
-      client: { id: "https://hhaidar.github.io/pley/oauth/kodi.json", host: "hhaidar.github.io", name: "Pley for Kodi", first_party: true },
+      client: { id: "https://pley-media-server.github.io/pley/oauth/kodi.json", host: "pley-media-server.github.io", name: "Pley for Kodi", first_party: true },
       redirect: { kind: "device", to: "BCDF-GHJK", device: "Kodi 21.3; Windows", address: "192.168.1.20" },
     };
     serve({ verify: () => kodi });

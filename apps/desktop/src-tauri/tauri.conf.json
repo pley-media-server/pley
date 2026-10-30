@@ -20,7 +20,7 @@
     "targets": "all",
     "publisher": "the Pley authors",
     "copyright": "Copyright (c) 2026 the Pley authors",
-    "homepage": "https://github.com/hhaidar/pley",
+    "homepage": "https://github.com/pley-media-server/pley",
     "category": "Video",
     "shortDescription": "Pley for your desktop",
     "longDescription": "A window on your Pley media server: browse your movies, shows and music, play them, and download them to watch away from home.",

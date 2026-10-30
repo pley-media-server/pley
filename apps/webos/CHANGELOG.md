@@ -32,6 +32,12 @@ describes how they are made.
   finds channels too, in a Live TV row. Needs a server that gives the
   TV's player keyed live addresses.
 
+### Changed
+
+- The sign-in page names this app by its address on
+  `pley-media-server.github.io`. It needs a server from the same release,
+  which keeps it signed in.
+
 ### Fixed
 
 - Picture subtitles the server is still copying out of a big file show
@@ -52,5 +58,5 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/hhaidar/pley/compare/lg-v0.0.1...HEAD
-[0.0.1]: https://github.com/hhaidar/pley/releases/tag/lg-v0.0.1
+[Unreleased]: https://github.com/pley-media-server/pley/compare/lg-v0.0.1...HEAD
+[0.0.1]: https://github.com/pley-media-server/pley/releases/tag/lg-v0.0.1

@@ -77,7 +77,7 @@ class SignInTest {
             q.keys,
         )
         assertEquals("code", q["response_type"])
-        assertEquals("https://hhaidar.github.io/pley/oauth/android.json", q["client_id"])
+        assertEquals("https://pley-media-server.github.io/pley/oauth/android.json", q["client_id"])
         assertEquals("app.pley.android:/oauth/callback", q["redirect_uri"])
         assertEquals("library play playlists profiles", q["scope"])
         assertEquals("S256", q["code_challenge_method"])
@@ -87,7 +87,7 @@ class SignInTest {
         assertEquals(issuer, flow.issuer)
         // Everything URL-encoded: no raw ':', '/' or spaces in the query.
         val raw = URI(url).rawQuery
-        assertTrue(raw, raw.contains("client_id=https%3A%2F%2Fhhaidar.github.io%2Fpley%2Foauth%2Fandroid.json"))
+        assertTrue(raw, raw.contains("client_id=https%3A%2F%2Fpley-media-server.github.io%2Fpley%2Foauth%2Fandroid.json"))
         assertTrue(raw, raw.contains("redirect_uri=app.pley.android%3A%2Foauth%2Fcallback"))
         assertTrue(raw, raw.contains("scope=library%20play%20playlists%20profiles"))
         // The verifier never leaves the app with the sign-in page.

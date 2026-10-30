@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 import { findSection } from "./changelog.mjs";
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-export const REPOSITORY = "https://github.com/hhaidar/pley";
+export const REPOSITORY = "https://github.com/pley-media-server/pley";
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 /** A manifest's version, found and replaced by a pattern whose second group is the version. */

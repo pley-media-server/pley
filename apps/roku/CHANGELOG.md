@@ -27,6 +27,9 @@ describes how they are made.
 
 ### Changed
 
+- The sign-in page names this app by its address on
+  `pley-media-server.github.io`. It needs a server from the same release,
+  which keeps it signed in.
 - "Can't reach" offers Try again, as the other apps do, and the skip
   buttons read "Skip intro" and "Skip credits". Sign out asks "You'll be
   signed out of <server>."
@@ -46,5 +49,5 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/hhaidar/pley/compare/roku-v0.0.1...HEAD
-[0.0.1]: https://github.com/hhaidar/pley/releases/tag/roku-v0.0.1
+[Unreleased]: https://github.com/pley-media-server/pley/compare/roku-v0.0.1...HEAD
+[0.0.1]: https://github.com/pley-media-server/pley/releases/tag/roku-v0.0.1

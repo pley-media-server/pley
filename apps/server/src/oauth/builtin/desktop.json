@@ -1,7 +1,7 @@
 {
-  "client_id": "https://hhaidar.github.io/pley/oauth/desktop.json",
+  "client_id": "https://pley-media-server.github.io/pley/oauth/desktop.json",
   "client_name": "Pley for desktop",
-  "client_uri": "https://github.com/hhaidar/pley",
+  "client_uri": "https://github.com/pley-media-server/pley",
   "redirect_uris": ["http://127.0.0.1/oauth/callback", "http://[::1]/oauth/callback"],
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],

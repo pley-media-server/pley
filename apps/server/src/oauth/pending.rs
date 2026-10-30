@@ -340,8 +340,8 @@ mod tests {
             session_hash: format!("session-of-{user_id}"),
             issuer: "http://pley.local:7539".into(),
             app: AppSnapshot {
-                id: "https://hhaidar.github.io/pley/oauth/desktop.json".into(),
-                host: "hhaidar.github.io".into(),
+                id: "https://pley-media-server.github.io/pley/oauth/desktop.json".into(),
+                host: "pley-media-server.github.io".into(),
                 name: Some("Pley for desktop".into()),
                 first_party: true,
                 refresh: true,

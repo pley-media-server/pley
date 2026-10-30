@@ -130,7 +130,7 @@ pub async fn metadata(State(state): State<AppState>, headers: HeaderMap) -> ApiR
         "scopes_supported": Scope::ALL.map(Scope::name),
         "authorization_response_iss_parameter_supported": true,
         "client_id_metadata_document_supported": state.settings.get().third_party_apps,
-        "service_documentation": "https://github.com/hhaidar/pley/blob/master/docs/API.md",
+        "service_documentation": "https://github.com/pley-media-server/pley/blob/master/docs/API.md",
     });
     Ok(([(header::CACHE_CONTROL, "no-store")], Json(body)).into_response())
 }

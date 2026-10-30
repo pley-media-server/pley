@@ -101,10 +101,10 @@ const NOW = Math.floor(Date.now() / 1000);
 /** pley's own app, on the account's phone. */
 const android: AppGrant = {
   id: 7,
-  client_id: "https://hhaidar.github.io/pley/oauth/android.json",
+  client_id: "https://pley-media-server.github.io/pley/oauth/android.json",
   name: "Pley for Android",
   first_party: true,
-  host: "hhaidar.github.io",
+  host: "pley-media-server.github.io",
   scopes: ["library", "play", "playlists", "profiles"],
   profile: { id: 1, name: "Admin" },
   approved_by: { id: 1, name: "Admin" },

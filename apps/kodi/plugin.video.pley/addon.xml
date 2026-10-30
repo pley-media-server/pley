@@ -17,8 +17,8 @@
     <disclaimer lang="en_GB">Pley isn't affiliated with Plex Inc. or Team Kodi.</disclaimer>
     <platform>all</platform>
     <license>GPL-2.0-or-later AND ISC AND MIT</license>
-    <source>https://github.com/hhaidar/pley</source>
-    <website>https://github.com/hhaidar/pley</website>
+    <source>https://github.com/pley-media-server/pley</source>
+    <website>https://github.com/pley-media-server/pley</website>
     <assets>
       <icon>resources/icon.png</icon>
       <fanart>resources/fanart.jpg</fanart>

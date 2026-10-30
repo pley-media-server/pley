@@ -183,7 +183,7 @@ async fn pleys_android_app_signs_in_without_internet() {
     assert_eq!(body["status"], "consent");
     assert_eq!(
         body["client"],
-        json!({"id": ANDROID_APP, "host": "hhaidar.github.io", "name": "Pley for Android", "first_party": true})
+        json!({"id": ANDROID_APP, "host": "pley-media-server.github.io", "name": "Pley for Android", "first_party": true})
     );
     assert_eq!(body["redirect"], json!({"kind": "app", "to": "app.pley.android"}));
     assert_eq!(body["scopes"], json!(["library", "play"]));
@@ -343,7 +343,7 @@ async fn metadata_names_the_address_it_was_asked_at() {
             "scopes_supported": ["library", "play", "playlists", "profiles"],
             "authorization_response_iss_parameter_supported": true,
             "client_id_metadata_document_supported": false,
-            "service_documentation": "https://github.com/hhaidar/pley/blob/master/docs/API.md",
+            "service_documentation": "https://github.com/pley-media-server/pley/blob/master/docs/API.md",
         })
     );
     // The default port goes; a proxy's https is believed.
@@ -878,7 +878,7 @@ async fn apps_lists_show_and_end_grants() {
     let grant_id = grant["id"].as_i64().unwrap();
     assert_eq!(grant["client_id"], ANDROID_APP);
     assert_eq!((&grant["name"], &grant["first_party"]), (&json!("Pley for Android"), &json!(true)));
-    assert_eq!(grant["host"], "hhaidar.github.io");
+    assert_eq!(grant["host"], "pley-media-server.github.io");
     assert_eq!(grant["scopes"], json!(["library", "play"]));
     assert_eq!(grant["profile"], json!({"id": bob_id, "name": "bob"}));
     assert_eq!(grant["approved_by"], json!({"id": bob_id, "name": "bob"}));
@@ -931,7 +931,7 @@ async fn pending_requests_are_capped() {
     // A thousand in all.
     let snapshot = pley::oauth::AppSnapshot {
         id: ANDROID_APP.into(),
-        host: "hhaidar.github.io".into(),
+        host: "pley-media-server.github.io".into(),
         name: None,
         first_party: true,
         refresh: true,

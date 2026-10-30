@@ -8,18 +8,18 @@
 -->
 <Container version="2">
   <Name>Pley</Name>
-  <Repository>ghcr.io/hhaidar/pley:latest</Repository>
-  <Registry>https://github.com/hhaidar/pley/pkgs/container/pley</Registry>
+  <Repository>ghcr.io/pley-media-server/pley:latest</Repository>
+  <Registry>https://github.com/pley-media-server/pley/pkgs/container/pley</Registry>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
-  <Support>https://github.com/hhaidar/pley/issues</Support>
-  <Project>https://github.com/hhaidar/pley</Project>
-  <ReadMe>https://github.com/hhaidar/pley/blob/master/deploy/unraid/README.md</ReadMe>
+  <Support>https://github.com/pley-media-server/pley/issues</Support>
+  <Project>https://github.com/pley-media-server/pley</Project>
+  <ReadMe>https://github.com/pley-media-server/pley/blob/master/deploy/unraid/README.md</ReadMe>
   <Overview>Pley: your movies, shows and music, and live TV, streamed to the web, phones, TVs, Kodi and Roku. It plays files as they are when a device can, and transcodes on the GPU when it can't (Intel Quick Sync, AMD, NVIDIA NVENC), HDR tone mapping included.[br][br]Once it has started, open the WebUI and create the administrator account with the setup code from Pley's log (the Pley icon, Logs).</Overview>
   <Category>MediaServer:Video MediaServer:Music</Category>
   <WebUI>http://[IP]:[PORT:7539]/</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/hhaidar/pley/master/deploy/unraid/pley.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/hhaidar/pley/master/apps/web/public/icon-512.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/pley-media-server/pley/master/deploy/unraid/pley.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/pley-media-server/pley/master/apps/web/public/icon-512.png</Icon>
   <!-- /dev/shm for transcoding in memory (Settings, Transcoder). -->
   <ExtraParams>--shm-size=2g --security-opt=no-new-privileges</ExtraParams>
   <PostArgs/>

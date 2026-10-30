@@ -45,6 +45,12 @@ describes how they are made.
 - A stream's subtitles are never read from a file on the device that the
   server names.
 
+### Changed
+
+- The sign-in page names this app by its address on
+  `pley-media-server.github.io`. It needs a server from the same release,
+  which keeps it signed in.
+
 ### Fixed
 
 - Picture subtitles in a file next to the media show over the video, from
@@ -71,5 +77,5 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/hhaidar/pley/compare/android-v0.0.1...HEAD
-[0.0.1]: https://github.com/hhaidar/pley/releases/tag/android-v0.0.1
+[Unreleased]: https://github.com/pley-media-server/pley/compare/android-v0.0.1...HEAD
+[0.0.1]: https://github.com/pley-media-server/pley/releases/tag/android-v0.0.1

@@ -232,4 +232,40 @@ mod tests {
         assert_eq!(server_settings(&db).await, "not json");
         db.close().await;
     }
+
+    #[tokio::test]
+    async fn the_apps_sign_ins_move_with_their_client_ids() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pley.db");
+        let pool = database_before(35, &path).await;
+        sqlx::query("INSERT INTO users (id, username, password_hash, created_at) VALUES (1, 'ann', '!', 0)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        for (id, client) in [
+            (1, "https://hhaidar.github.io/pley/oauth/android.json"),
+            (2, "https://hhaidar.github.io/pley/oauth/webos.json"),
+            (3, "https://apps.example.com/pley.json"),
+        ] {
+            sqlx::query(
+                "INSERT INTO app_grants (id, user_id, approved_by, client_id, scope, created_at, last_used_at,
+                 expires_at) VALUES (?, 1, 1, ?, 'library', 0, 0, 0)",
+            )
+            .bind(id)
+            .bind(client)
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+        pool.close().await;
+
+        let db = Db::open(&path).await.unwrap();
+        let clients: Vec<String> =
+            sqlx::query_scalar("SELECT client_id FROM app_grants ORDER BY id").fetch_all(&db.read).await.unwrap();
+        assert_eq!(
+            clients,
+            [crate::oauth::clients::ANDROID_ID, crate::oauth::clients::WEBOS_ID, "https://apps.example.com/pley.json"]
+        );
+        db.close().await;
+    }
 }

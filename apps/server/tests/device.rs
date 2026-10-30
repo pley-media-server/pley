@@ -161,7 +161,7 @@ async fn a_tv_signs_in_with_a_code_shown_on_screen() {
     assert_eq!(shown.body["status"], "consent");
     assert_eq!(
         shown.body["client"],
-        json!({"id": ANDROID_APP, "host": "hhaidar.github.io", "name": "Pley for Android", "first_party": true})
+        json!({"id": ANDROID_APP, "host": "pley-media-server.github.io", "name": "Pley for Android", "first_party": true})
     );
     // An agent that isn't one of pley's apps is named as the sign-ins list
     // names it; the test's connection has no address.

@@ -46,8 +46,8 @@ FROM debian:trixie-slim
 ARG PLEY_COMMIT=unknown
 LABEL org.opencontainers.image.title="Pley" \
       org.opencontainers.image.description="Pley media server, with its transcoder and FFmpeg" \
-      org.opencontainers.image.source="https://github.com/hhaidar/pley" \
-      org.opencontainers.image.documentation="https://github.com/hhaidar/pley/blob/master/deploy/docker/README.md" \
+      org.opencontainers.image.source="https://github.com/pley-media-server/pley" \
+      org.opencontainers.image.documentation="https://github.com/pley-media-server/pley/blob/master/deploy/docker/README.md" \
       org.opencontainers.image.licenses="LicenseRef-Restricted" \
       org.opencontainers.image.revision=$PLEY_COMMIT
 # Mesa brings VAAPI for AMD and Vulkan for AMD and Intel. Intel's own VAAPI

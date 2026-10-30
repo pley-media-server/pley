@@ -17,7 +17,7 @@ import org.junit.Test
 
 /** Signing in as pley's authorization server does: PKCE, rotation, the device grant, profiles. */
 class OAuthTest {
-    private val clientId = "https://hhaidar.github.io/pley/oauth/android.json"
+    private val clientId = "https://pley-media-server.github.io/pley/oauth/android.json"
     private val redirect = "app.pley.android:/oauth/callback"
     private val verifier = "a".repeat(20) + "-B_c.d~" + "9".repeat(20)
     private val challenge = Base64.getUrlEncoder().withoutPadding()

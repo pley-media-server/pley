@@ -9,15 +9,15 @@ import { apiError, LocationDisplay, mockApi, TestProviders, testQueryClient, tes
 import { AuthorizePage, RequestOverPage } from "./AuthorizePage";
 
 const QUERY =
-  "response_type=code&client_id=https%3A%2F%2Fhhaidar.github.io%2Fpley%2Foauth%2Fandroid.json" +
+  "response_type=code&client_id=https%3A%2F%2Fpley-media-server.github.io%2Fpley%2Foauth%2Fandroid.json" +
   "&redirect_uri=app.pley.android%3A%2Foauth%2Fcallback&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM" +
   "&code_challenge_method=S256&scope=library+play&state=a%26b%3Dc";
 const ROUTE = `/oauth/authorize?${QUERY}`;
 const CONTINUE = "/api/oauth/requests/r1/continue";
 
 const android: OAuthClient = {
-  id: "https://hhaidar.github.io/pley/oauth/android.json",
-  host: "hhaidar.github.io",
+  id: "https://pley-media-server.github.io/pley/oauth/android.json",
+  host: "pley-media-server.github.io",
   name: "Pley for Android",
   first_party: true,
 };

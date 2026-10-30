@@ -185,8 +185,10 @@ async fn the_tv_apps_get_cors_and_no_website_does() {
 async fn the_samsung_and_lg_apps_sign_in_with_a_code() {
     let app = TestApp::new().await;
     app.setup_admin().await;
-    for client in ["https://hhaidar.github.io/pley/oauth/tizen.json", "https://hhaidar.github.io/pley/oauth/webos.json"]
-    {
+    for client in [
+        "https://pley-media-server.github.io/pley/oauth/tizen.json",
+        "https://pley-media-server.github.io/pley/oauth/webos.json",
+    ] {
         let form = format!("client_id={}&scope=library%20play%20playlists%20profiles", common::encode(client));
         let started = app.form_post("/api/oauth/device", &form, &[]).await;
         assert_eq!(started.status, StatusCode::OK, "{client}: {}", started.text());

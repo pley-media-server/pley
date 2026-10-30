@@ -9,7 +9,7 @@ installing it, use the release's `.zip` instead
 ## Install
 
 1. Download `pley-server-<version>-windows-x86_64-setup.exe` (or `-arm64-`)
-   from the [releases page](https://github.com/hhaidar/pley/releases).
+   from the [releases page](https://github.com/pley-media-server/pley/releases).
 2. Run it. Setup isn't signed, so SmartScreen warns: choose
    **More info → Run anyway**.
 3. Keep the defaults, or change them ([Setup's choices](#setups-choices)).
@@ -154,7 +154,7 @@ and setup link.
   WinGet's FFmpeg links and junctions in media folders. Setup writes only in
   Program Files and its own temporary folder.
 - **Provenance.** Each release's installer has build provenance:
-  `gh attestation verify <file> --repo hhaidar/pley`.
+  `gh attestation verify <file> --repo pley-media-server/pley`.
 
 [SECURITY.md](../../SECURITY.md) covers the server itself.
 

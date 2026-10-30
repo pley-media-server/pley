@@ -33,7 +33,7 @@ import org.json.JSONObject
  * every pley server (apps/server/src/oauth/builtin/android.json), never
  * fetched, so signing in works without internet.
  */
-const val CLIENT_ID = "https://hhaidar.github.io/pley/oauth/android.json"
+const val CLIENT_ID = "https://pley-media-server.github.io/pley/oauth/android.json"
 
 /** Where the browser comes back: the app id as a private-use scheme (RFC 8252 §7.1). */
 const val REDIRECT_SCHEME = "app.pley.android"

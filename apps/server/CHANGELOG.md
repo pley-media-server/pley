@@ -68,6 +68,10 @@ describes how they are made.
 
 ### Changed
 
+- Pley's apps are known by client IDs on `pley-media-server.github.io`,
+  and the sign-ins they hold move to them.
+- Links, the Docker image (`ghcr.io/pley-media-server/pley`) and the Unraid
+  template are on `github.com/pley-media-server/pley`.
 - Pley is Restricted, its licence terms to be determined (`LICENSE`), and
   the dashboard no longer shows the transcoder's licence.
 - The Docker image can be started as root, as Unraid, Synology and TrueNAS
@@ -152,5 +156,5 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/hhaidar/pley/compare/server-v0.0.1...HEAD
-[0.0.1]: https://github.com/hhaidar/pley/releases/tag/server-v0.0.1
+[Unreleased]: https://github.com/pley-media-server/pley/compare/server-v0.0.1...HEAD
+[0.0.1]: https://github.com/pley-media-server/pley/releases/tag/server-v0.0.1

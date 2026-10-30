@@ -12,7 +12,7 @@ You need Docker Engine with the Compose plugin (or Docker Desktop).
 1. Get Pley and run the setup script:
 
    ```sh
-   git clone https://github.com/hhaidar/pley.git
+   git clone https://github.com/pley-media-server/pley.git
    cd pley/deploy/docker
    ./setup.sh
    ```
@@ -54,7 +54,7 @@ All in `.env`; [.env.example](.env.example) explains each one.
 | `PLEY_RENDER_DEVICE` | `/dev/dri/renderD128` | Intel / AMD: which GPU |
 | `PLEY_PROXY_NETWORK` | `proxy` | `compose.proxy.yaml`: the proxy's Docker network |
 | `PLEY_PLEX_LISTEN` | `127.0.0.1:32400` | `compose.plex.yaml`: where the compatibility API is published |
-| `PLEY_IMAGE` | `pley:local` | The image; a release is `ghcr.io/hhaidar/pley:<version>` |
+| `PLEY_IMAGE` | `pley:local` | The image; a release is `ghcr.io/pley-media-server/pley:<version>` |
 | `PLEY_PULL_POLICY` | `build` | `build` from this checkout, or `missing` for a release |
 | `PLEY_SHM_SIZE` | `2gb` | `/dev/shm`, for transcoding in memory |
 | `PLEY_LOG` | `info` | Log detail (`debug` to look into a problem) |
@@ -160,7 +160,7 @@ backup is the whole config folder: the database alone can't decrypt
 two-step sign-in without `secret.key`.
 
 **A published image** instead of building: set
-`PLEY_IMAGE=ghcr.io/hhaidar/pley:<version>` and `PLEY_PULL_POLICY=missing`,
+`PLEY_IMAGE=ghcr.io/pley-media-server/pley:<version>` and `PLEY_PULL_POLICY=missing`,
 and update with `docker compose pull && docker compose up -d`.
 
 ## Other ways to run the image
@@ -176,7 +176,7 @@ docker run -d --name pley -p 7539:7539 --shm-size 2g \
   -e PUID=1000 -e PGID=1000 \
   -v /srv/pley:/config -v /srv/media:/media:ro \
   --device /dev/dri \
-  ghcr.io/hhaidar/pley:latest
+  ghcr.io/pley-media-server/pley:latest
 ```
 
 For NVIDIA, use `--gpus all` instead of `--device /dev/dri`.

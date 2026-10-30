@@ -10,6 +10,7 @@ describes how they are made.
 
 ### Changed
 
+- Its links point at `github.com/pley-media-server/pley`.
 - Pley Desktop is Restricted, its licence terms to be determined (`LICENSE`).
 
 ### Fixed
@@ -25,5 +26,5 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/hhaidar/pley/compare/desktop-v0.0.1...HEAD
-[0.0.1]: https://github.com/hhaidar/pley/releases/tag/desktop-v0.0.1
+[Unreleased]: https://github.com/pley-media-server/pley/compare/desktop-v0.0.1...HEAD
+[0.0.1]: https://github.com/pley-media-server/pley/releases/tag/desktop-v0.0.1

@@ -1281,7 +1281,7 @@ mod tests {
         auth.issue(NewGrant {
             user_id,
             approved_by,
-            client_id: "https://hhaidar.github.io/pley/oauth/android.json".into(),
+            client_id: "https://pley-media-server.github.io/pley/oauth/android.json".into(),
             client_name: None,
             scopes: Scopes::parse("library play").unwrap(),
             refresh: true,
@@ -1306,7 +1306,7 @@ mod tests {
         let app = user.app.as_deref().unwrap();
         assert_eq!((app.grant_id, app.approved_by), (admin.grant_id, 2));
         assert_eq!(app.scopes.to_string(), "library play");
-        assert_eq!(&*app.client_id, "https://hhaidar.github.io/pley/oauth/android.json");
+        assert_eq!(&*app.client_id, "https://pley-media-server.github.io/pley/oauth/android.json");
 
         let kid = app_of(&auth, 1, 1).await;
         let kid = auth.validate_app(&kid.access_token).await.unwrap();

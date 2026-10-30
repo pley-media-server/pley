@@ -6,7 +6,7 @@ import { AvplayEngine } from "./engine";
 import { readFacts, type TizenFacts } from "./facts";
 
 /** pley for Samsung TV's built-in OAuth client (apps/server/src/oauth/builtin/tizen.json). */
-export const CLIENT_ID = "https://hhaidar.github.io/pley/oauth/tizen.json";
+export const CLIENT_ID = "https://pley-media-server.github.io/pley/oauth/tizen.json";
 
 /** The remote's keys the app asks Tizen for (left to the TV unless registered). Exit stays the TV's. */
 export const REGISTERED = [

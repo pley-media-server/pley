@@ -27,17 +27,17 @@ const MAX_REDIRECT_LEN: usize = 512;
 const MAX_NAME_CHARS: usize = 64;
 
 /// pley for Android.
-pub const ANDROID_ID: &str = "https://hhaidar.github.io/pley/oauth/android.json";
+pub const ANDROID_ID: &str = "https://pley-media-server.github.io/pley/oauth/android.json";
 /// pley for desktop.
-pub const DESKTOP_ID: &str = "https://hhaidar.github.io/pley/oauth/desktop.json";
+pub const DESKTOP_ID: &str = "https://pley-media-server.github.io/pley/oauth/desktop.json";
 /// pley for Kodi.
-pub const KODI_ID: &str = "https://hhaidar.github.io/pley/oauth/kodi.json";
+pub const KODI_ID: &str = "https://pley-media-server.github.io/pley/oauth/kodi.json";
 /// pley for Roku.
-pub const ROKU_ID: &str = "https://hhaidar.github.io/pley/oauth/roku.json";
+pub const ROKU_ID: &str = "https://pley-media-server.github.io/pley/oauth/roku.json";
 /// pley for Samsung TV (Tizen).
-pub const TIZEN_ID: &str = "https://hhaidar.github.io/pley/oauth/tizen.json";
+pub const TIZEN_ID: &str = "https://pley-media-server.github.io/pley/oauth/tizen.json";
 /// pley for LG TV (webOS).
-pub const WEBOS_ID: &str = "https://hhaidar.github.io/pley/oauth/webos.json";
+pub const WEBOS_ID: &str = "https://pley-media-server.github.io/pley/oauth/webos.json";
 /// The client IDs of pley's own apps, matched as exact strings.
 pub const BUILTIN_IDS: &[&str] = &[ANDROID_ID, DESKTOP_ID, KODI_ID, ROKU_ID, TIZEN_ID, WEBOS_ID];
 
@@ -815,7 +815,7 @@ mod tests {
             *android,
             Client {
                 id: ANDROID_ID.into(),
-                host: "hhaidar.github.io".into(),
+                host: "pley-media-server.github.io".into(),
                 name: Some("Pley for Android".into()),
                 first_party: true,
                 redirect_uris: vec!["app.pley.android:/oauth/callback".into()],
@@ -880,22 +880,22 @@ mod tests {
         assert_eq!(BUILTIN_IDS.len(), 6);
         assert!(BUILTIN_IDS.iter().all(|id| builtin(id).is_some_and(|c| c.id == *id)));
         for near in [
-            "https://hhaidar.github.io/pley/oauth/android.json/",
-            "https://hhaidar.github.io/pley/oauth/Android.json",
-            "https://HHAIDAR.github.io/pley/oauth/android.json",
-            "http://hhaidar.github.io/pley/oauth/android.json",
-            "https://hhaidar.github.io/pley/oauth/android.json?",
-            "https://hhaidar.github.io/pley/oauth/android.json#",
-            " https://hhaidar.github.io/pley/oauth/android.json",
-            "https://hhaidar.github.io/pley/oauth/ios.json",
+            "https://pley-media-server.github.io/pley/oauth/android.json/",
+            "https://pley-media-server.github.io/pley/oauth/Android.json",
+            "https://PLEY-MEDIA-SERVER.github.io/pley/oauth/android.json",
+            "http://pley-media-server.github.io/pley/oauth/android.json",
+            "https://pley-media-server.github.io/pley/oauth/android.json?",
+            "https://pley-media-server.github.io/pley/oauth/android.json#",
+            " https://pley-media-server.github.io/pley/oauth/android.json",
+            "https://pley-media-server.github.io/pley/oauth/ios.json",
             "",
         ] {
             assert!(builtin(near).is_none(), "{near:?} isn't built in");
         }
 
-        assert!(is_reserved_host("hhaidar.github.io"));
-        assert!(is_reserved_host("HHaidar.GitHub.io"));
-        assert!(is_reserved_host("hhaidar.github.io."));
+        assert!(is_reserved_host("pley-media-server.github.io"));
+        assert!(is_reserved_host("Pley-Media-Server.GitHub.io"));
+        assert!(is_reserved_host("pley-media-server.github.io."));
         assert!(!is_reserved_host("other.github.io"));
         assert!(!is_reserved_host("github.io"));
         assert!(!is_reserved_host("apps.example.com"));

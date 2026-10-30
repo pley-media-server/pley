@@ -34,6 +34,10 @@ describes how they are made.
 
 ### Changed
 
+- The sign-in page names this app by its address on
+  `pley-media-server.github.io`. It needs a server from the same release,
+  which keeps it signed in.
+- Its links point at `github.com/pley-media-server/pley`.
 - PGS subtitles come to Kodi as a `.sup` file beside a converted stream,
   or for a `.sup` file next to the media, rather than burned in: the
   picture keeps its quality and HDR. Needs a server that makes them.
@@ -56,5 +60,5 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/hhaidar/pley/compare/kodi-v0.0.1...HEAD
-[0.0.1]: https://github.com/hhaidar/pley/releases/tag/kodi-v0.0.1
+[Unreleased]: https://github.com/pley-media-server/pley/compare/kodi-v0.0.1...HEAD
+[0.0.1]: https://github.com/pley-media-server/pley/releases/tag/kodi-v0.0.1

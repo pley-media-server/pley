@@ -1,7 +1,7 @@
 {
-  "client_id": "https://hhaidar.github.io/pley/oauth/android.json",
+  "client_id": "https://pley-media-server.github.io/pley/oauth/android.json",
   "client_name": "Pley for Android",
-  "client_uri": "https://github.com/hhaidar/pley",
+  "client_uri": "https://github.com/pley-media-server/pley",
   "redirect_uris": ["app.pley.android:/oauth/callback"],
   "grant_types": ["authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:device_code"],
   "response_types": ["code"],

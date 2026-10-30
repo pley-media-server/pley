@@ -721,7 +721,7 @@ mod tests {
     use super::*;
     use crate::auth::scopes::Scope;
 
-    const ANDROID: &str = "https://hhaidar.github.io/pley/oauth/android.json";
+    const ANDROID: &str = "https://pley-media-server.github.io/pley/oauth/android.json";
     const OTHER: &str = "https://apps.example.com/pley.json";
 
     async fn database(dir: &std::path::Path) -> Db {

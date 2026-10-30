@@ -17,7 +17,7 @@ manifests and CHANGELOG agree, and stops if the tag exists. It then runs the
 unit's own workflow with its release builds, tags the commit, and publishes
 the GitHub release with the version's CHANGELOG section as notes,
 `SHA256SUMS` and build provenance
-(`gh attestation verify <file> --repo hhaidar/pley`).
+(`gh attestation verify <file> --repo pley-media-server/pley`).
 
 - **Keep the GitHub release a draft** leaves the release for you to
   publish; the tag is made either way.
@@ -61,7 +61,7 @@ dated today. For Kodi it also writes the notes into `addon.xml`'s `<news>`.
 
 | Unit | What | Version in | Release files |
 |---|---|---|---|
-| `server` | The server, its transcoder and the web app it embeds | `apps/server/Cargo.toml`, `apps/transcoder/Cargo.toml`, `packages/transcoder-api/Cargo.toml`, `apps/web/package.json` | `pley-server-<version>-<os>-<arch>.zip`/`.tar.gz`, the Windows installers `…-setup.exe`, the Docker image `ghcr.io/hhaidar/pley:<version>`, `:<major>.<minor>` and `:latest` |
+| `server` | The server, its transcoder and the web app it embeds | `apps/server/Cargo.toml`, `apps/transcoder/Cargo.toml`, `packages/transcoder-api/Cargo.toml`, `apps/web/package.json` | `pley-server-<version>-<os>-<arch>.zip`/`.tar.gz`, the Windows installers `…-setup.exe`, the Docker image `ghcr.io/pley-media-server/pley:<version>`, `:<major>.<minor>` and `:latest` |
 | `desktop` | The desktop app (Tauri) | `apps/desktop/package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` | `pley-desktop-<version>-<os>-<arch>` `.msi`, `-setup.exe`, `.dmg`, `.deb`, `.rpm`, `.AppImage` |
 | `android` | Phones, tablets, Android TV, Fire TV | `apps/android/app/build.gradle.kts` (`appVersion`) | `pley-android-<version>.apk`, `pley-android-<version>-play.aab` |
 | `samsung` | Samsung TVs (`apps/tizen`) | `apps/tizen/package.json`, `config.xml` | None: the package is signed with a Samsung certificate, by hand (`bun run --cwd apps/tizen package`) |

@@ -11,7 +11,7 @@ give it your GPU for hardware transcoding.
 
    ```sh
    wget -O /boot/config/plugins/dockerMan/templates-user/my-Pley.xml \
-     https://raw.githubusercontent.com/hhaidar/pley/master/deploy/unraid/pley.xml
+     https://raw.githubusercontent.com/pley-media-server/pley/master/deploy/unraid/pley.xml
    ```
 
 2. **Create the container.** Go to **Docker → Add Container**, and under

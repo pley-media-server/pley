@@ -8,7 +8,7 @@ import { createServer } from "node:http";
 import { deflateSync } from "node:zlib";
 
 const USER_AGENT = /^pleyRoku\/\d+\.\d+\.\d+ \(Roku OS [^;()]+; [^;()]+\)$/;
-const CLIENT_ID = "https://hhaidar.github.io/pley/oauth/roku.json";
+const CLIENT_ID = "https://pley-media-server.github.io/pley/oauth/roku.json";
 const DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code";
 const SCOPE = "library play playlists profiles";
 const SWITCH_GRANT = "urn:pley:params:oauth:grant-type:switch-profile";

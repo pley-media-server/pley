@@ -3,7 +3,7 @@
 ' pley for Roku's client ID (docs/API.md, "pley's own apps"): it signs in
 ' with a TV code only.
 function httpClientId() as string
-    return "https://hhaidar.github.io/pley/oauth/roku.json"
+    return "https://pley-media-server.github.io/pley/oauth/roku.json"
 end function
 
 ' What the app asks to be allowed: browsing, playing, the profile's

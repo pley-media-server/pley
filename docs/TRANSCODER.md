@@ -456,7 +456,7 @@ One input at a time; a second is `400`.
 
 How players use these streams (the Quality menu, Automatic, when they switch)
 is in
-[QUALITY.md](https://github.com/hhaidar/pley/blob/master/docs/QUALITY.md).
+[QUALITY.md](https://github.com/pley-media-server/pley/blob/master/docs/QUALITY.md).
 This section is how the transcoder serves them.
 
 ### Segment layout
@@ -854,7 +854,7 @@ asked to be copied is converted, with a warning.
 - Audio not at 44.1 or 48 kHz is resampled to 48 kHz.
 - The job's audio plan reports the codec as `codec_out`. Which codec the Pley
   server asks for per player:
-  [Version 2 in API.md](https://github.com/hhaidar/pley/blob/master/docs/API.md#version-2).
+  [Version 2 in API.md](https://github.com/pley-media-server/pley/blob/master/docs/API.md#version-2).
 - **Lossless sources** are decoded only as far as needed: DTS-HD Master
   Audio to 5.1 or fewer from its lossy core (`-core_only`); TrueHD to stereo
   or 5.1 from the matching substream (`-downmix`).
@@ -1111,7 +1111,7 @@ duplicated frames), restarts, bytes served, `warnings`, `last_error`,
 
 The Pley web app shows these under *Settings → Dashboard*, next to the
 processor and memory use the server samples every 2 s
-([`GET /api/system/resources`](https://github.com/hhaidar/pley/blob/master/docs/API.md#system-admin)).
+([`GET /api/system/resources`](https://github.com/pley-media-server/pley/blob/master/docs/API.md#system-admin)).
 A managed transcoder and its FFmpeg processes count there as Pley's; an
 external one doesn't.
 

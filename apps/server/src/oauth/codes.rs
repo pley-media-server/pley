@@ -273,14 +273,14 @@ mod tests {
 
     const VERIFIER: &str = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
     const CHALLENGE: &str = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
-    const APP: &str = "https://hhaidar.github.io/pley/oauth/android.json";
+    const APP: &str = "https://pley-media-server.github.io/pley/oauth/android.json";
     const BACK: &str = "app.pley.android:/oauth/callback";
 
     fn grant() -> CodeGrant {
         CodeGrant {
             app: AppSnapshot {
                 id: APP.into(),
-                host: "hhaidar.github.io".into(),
+                host: "pley-media-server.github.io".into(),
                 name: Some("Pley for Android".into()),
                 first_party: true,
                 refresh: true,

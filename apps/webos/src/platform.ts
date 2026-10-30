@@ -8,7 +8,7 @@ import { VideoEngine } from "pley-tv/player/video-engine";
 import { hasLuna, luna, lunaSubscribe } from "./luna";
 
 /** pley for LG TV's built-in OAuth client (apps/server/src/oauth/builtin/webos.json). */
-export const CLIENT_ID = "https://hhaidar.github.io/pley/oauth/webos.json";
+export const CLIENT_ID = "https://pley-media-server.github.io/pley/oauth/webos.json";
 
 /** LG's remote: Back is 461; the rest are the standard codes. */
 export function webosKey(e: KeyboardEvent): Key | null {

@@ -578,13 +578,13 @@ impl Devices {
 mod tests {
     use super::*;
 
-    const TV: &str = "https://hhaidar.github.io/pley/oauth/android.json";
-    const DESKTOP: &str = "https://hhaidar.github.io/pley/oauth/desktop.json";
+    const TV: &str = "https://pley-media-server.github.io/pley/oauth/android.json";
+    const DESKTOP: &str = "https://pley-media-server.github.io/pley/oauth/desktop.json";
 
     fn app() -> AppSnapshot {
         AppSnapshot {
             id: TV.into(),
-            host: "hhaidar.github.io".into(),
+            host: "pley-media-server.github.io".into(),
             name: Some("Pley for Android".into()),
             first_party: true,
             refresh: true,

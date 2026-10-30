@@ -39,7 +39,7 @@ Release archives (Linux, macOS, Windows; x86_64 and arm64) hold `pley` and
 
 ## Docker
 
-The image is `ghcr.io/hhaidar/pley` (amd64 and arm64; `:latest`, or a
+The image is `ghcr.io/pley-media-server/pley` (amd64 and arm64; `:latest`, or a
 version such as `:0.0.1`). It holds Pley, its transcoder, Debian 13's
 FFmpeg 7.1 and the GPU drivers for Intel, AMD and NVIDIA.
 [docker/README.md](docker/README.md) sets it up with Docker Compose, locked
@@ -49,7 +49,7 @@ down, behind a reverse proxy. Without Compose:
 docker run -d --name pley --restart unless-stopped --stop-timeout 30 \
   -p 7539:7539 --shm-size 2g \
   -v /srv/pley:/config -v /srv/media:/media:ro \
-  ghcr.io/hhaidar/pley:latest
+  ghcr.io/pley-media-server/pley:latest
 docker logs pley    # the setup link
 ```
 

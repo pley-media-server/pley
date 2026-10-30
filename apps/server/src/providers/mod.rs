@@ -38,7 +38,7 @@ use crate::util::normalize_key;
 /// Requests that are rate limited are tried this many times.
 const ATTEMPTS: u32 = 4;
 /// MusicBrainz asks applications to identify themselves with a contact.
-const USER_AGENT: &str = concat!("pley/", env!("CARGO_PKG_VERSION"), " ( https://github.com/hhaidar/pley )");
+const USER_AGENT: &str = concat!("pley/", env!("CARGO_PKG_VERSION"), " ( https://github.com/pley-media-server/pley )");
 
 /// Where the providers are reached. The defaults are the public services;
 /// tests point them at a local server.
