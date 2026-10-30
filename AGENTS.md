@@ -1,0 +1,126 @@
+# Instructions for coding agents
+
+Pley is a self-hosted media server: a Rust server (`apps/server`) with the
+React web app it embeds (`apps/web`), a separate Rust transcoder that runs
+FFmpeg (`apps/transcoder`), and apps for desktop, Android, Kodi, Roku,
+Samsung TV and LG TV. [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) has the
+architecture, the repository's layout and every build and test command.
+
+## Before you change something
+
+Read the doc for the part you touch; they say how things work and why.
+
+| Part | Read |
+|---|---|
+| Server, its HTTP API, app sign-in | [docs/API.md](docs/API.md), [SECURITY.md](SECURITY.md) |
+| Transcoder and its protocol | [docs/TRANSCODER.md](docs/TRANSCODER.md) |
+| Quality, Automatic, playback decisions | [docs/QUALITY.md](docs/QUALITY.md) |
+| Data folder, caches, backups | [docs/STORAGE.md](docs/STORAGE.md) |
+| Compatibility API (Tautulli, Kometa) | [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) |
+| Android, Kodi, Roku, Samsung and LG apps | [docs/ANDROID.md](docs/ANDROID.md), [docs/KODI.md](docs/KODI.md), [docs/ROKU.md](docs/ROKU.md), [docs/TV_PLATFORMS.md](docs/TV_PLATFORMS.md) |
+| Docker, Unraid, Windows, services | [deploy/README.md](deploy/README.md) |
+| Licences and dependencies | [LICENSING.md](LICENSING.md) |
+| Versions, changelogs, CI | [docs/RELEASING.md](docs/RELEASING.md) |
+
+## Check your work
+
+Run the checks for what you changed before you call it done; CI runs them
+too, each app's workflow when that app changes.
+
+| You changed | Run |
+|---|---|
+| Rust (server, transcoder, protocol) | `cargo clippy --workspace --all-targets`, `cargo fmt --all`, `cargo test -p <crate>` (the whole workspace before a large change) |
+| A Rust dependency | `scripts/check-licenses.ps1` and `cargo deny check licenses` |
+| Web or desktop app | `bun run check` (type check, ESLint, Vitest) |
+| Samsung or LG app, `packages/tv` | `bun run tv:check` |
+| Roku app | `bun install && bun run check` in `apps/roku` |
+| Kodi add-on | `python -m unittest discover -s tests` in `apps/kodi` |
+| Android app | `./gradlew testDebugUnitTest lintDebug` in `apps/android`; `pwsh ../../scripts/check-android.ps1` after `assembleStoreRelease` when libraries change |
+| Docker image | built and checked by CI (`.github/workflows/server.yml`) |
+
+Fix what fails, including tests a change breaks elsewhere. Don't weaken or
+skip a test to make it pass; if a test is wrong, say why in the commit.
+Something you can't run (no device, no Docker) is said plainly, not
+claimed as checked.
+
+## Rules that must hold
+
+**Licensing** ([LICENSING.md](LICENSING.md)). Pley is Restricted
+(`LicenseRef-Restricted`, the root [LICENSE](LICENSE)); only the Kodi add-on
+is GPL-2.0-or-later.
+
+- Add no dependency that is only available under a copyleft licence (GPL,
+  LGPL, AGPL and the like) to the server, the transcoder or any app other
+  than the Kodi add-on. `scripts/check-licenses.ps1` and `deny.toml` enforce
+  this for Rust.
+- The transcoder runs `ffmpeg` and `ffprobe` as programs. Never link
+  FFmpeg's libraries into it: that would put it under the GPL.
+- The server never depends on the `pley-transcoder` crate; it talks to the
+  transcoder over HTTP with the types in `packages/transcoder-api`.
+- Never copy the Kodi add-on's code into another part of Pley.
+- The Android app takes no FFmpeg, mpv or GPL library and no new native
+  code (`scripts/check-android.ps1` has the allowed library groups). The TV
+  apps' build fails on a bundled package that `packages/tv/src/licenses.ts`
+  doesn't name.
+- Don't add licence texts or headers of your own; new transcoder files
+  start with `// SPDX-License-Identifier: LicenseRef-Restricted`, as the
+  others do.
+
+**Security** ([SECURITY.md](SECURITY.md)).
+
+- Every API route checks who is asking: an `AuthUser`, and the access check
+  for its area (administrators, Live TV's access, a library's).
+- A route apps may use is listed in `APP_ROUTES` in
+  `apps/server/src/auth/scopes.rs` with the scope it needs, and the count
+  in `every_app_route_is_on_a_real_path` goes up with it. Administration
+  never goes to apps.
+- Input from outside (requests, files, IPTV providers, metadata sources) is
+  bounded and checked: sizes, paths, formats. Pictures are served only as
+  JPEG, PNG, WebP or GIF, never SVG or HTML from Pley's address.
+- No secrets, tokens or personal data in logs, code, tests or docs.
+
+**Every app.** A feature people see is expected on every app (web and
+desktop, Android phone and TV, Samsung, LG, Kodi, Roku), the same way,
+unless the platform can't; the app's doc says what it can't do.
+
+**The brand** is written Pley in everything people read. Ids, binaries,
+paths, packages and protocol tokens stay lowercase `pley`.
+
+**Shared docs are for readers.** Docs and comments say what is and why.
+Notes to the maintainer (open questions, assumptions, to-dos, test logs,
+untested-on-device lists, a particular person's devices, addresses or
+providers) never go in a tracked file, and neither do question numbers.
+They go in `docs/QUESTIONS.md` or `docs/*.local.md`, which git ignores.
+
+## Writing
+
+- **Code** reads like the code around it: its naming, structure, error
+  handling and comment density. Comments explain why, in plain sentences.
+- **Docs** are plain and in the present tense: what Pley does, for whom,
+  and how. Update the doc a change affects in the same commit (a new route
+  goes in [docs/API.md](docs/API.md)).
+- **Changelogs**: a line under `## [Unreleased]` in each changed app's
+  `CHANGELOG.md`, saying what changed as a user sees it.
+- **Formatting**: `cargo fmt` (max width 120) for Rust; ESLint and the
+  existing style for TypeScript. The repository doesn't use Prettier: don't
+  run it.
+- Line endings are LF, except `.ps1`, `.cmd` and `.bat` (CRLF), as
+  `.gitattributes` says.
+
+## Commits
+
+- One logical change per commit, with what it needs (code, tests, docs,
+  changelog).
+- The subject starts with the area and says what changed, as a user sees
+  it: `server: Live TV starts at the last keyframe`, `web: …`,
+  `kodi, roku: …`, `docs: …`. The body says why, and anything a reviewer
+  should know.
+- Never commit build output (`target/`, `dist/`), keys, `.env` files, local
+  data, or files git ignores.
+
+## Platform notes
+
+- On Windows, run `cargo` from PowerShell: Git Bash's `link` can shadow
+  MSVC's linker.
+- Debug builds of the server read the web app from `apps/web/dist`, so
+  `bun run build` shows up without recompiling the server.
