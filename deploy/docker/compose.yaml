@@ -53,6 +53,11 @@ services:
     pids_limit: 4096
 
     environment:
+      # Pley runs as `user:` above. Only rootless Docker starts it as root
+      # (PLEY_UID=0, which is you outside the container), and then it stays
+      # root rather than becoming another user (deploy/docker/pley.sh).
+      PUID: ${PLEY_UID:-1000}
+      PGID: ${PLEY_GID:-1000}
       # The apps' search for servers on the network can't reach a container
       # on Docker's own network: don't listen for it.
       PLEY_NO_DISCOVERY: "true"

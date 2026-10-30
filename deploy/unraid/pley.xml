@@ -1,7 +1,10 @@
 <?xml version="1.0"?>
 <!--
-  Pley on Unraid: README.md beside this file says how to add it, and how to
-  give Pley an Intel, AMD or NVIDIA GPU for hardware transcoding.
+  Pley on Unraid. README.md beside this file says how to add it, and how to
+  give Pley an Intel, AMD or NVIDIA GPU for hardware transcoding. The GPU
+  isn't an entry here: a Device entry left empty falls back to its default,
+  and /dev/dri on a server without one would keep the container from
+  starting.
 -->
 <Container version="2">
   <Name>Pley</Name>
@@ -11,23 +14,21 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/hhaidar/pley/issues</Support>
   <Project>https://github.com/hhaidar/pley</Project>
-  <Overview>Pley: your movies, shows, music and photos, and live TV, streamed to the web, phones, TVs, Kodi and Roku, transcoded on the GPU where there is one (Intel Quick Sync, AMD, NVIDIA NVENC), HDR tone mapping included.[br][br]Open the web UI once it has started: the first visit sets up the administrator. Hardware transcoding: give it /dev/dri (Intel, AMD) or the NVIDIA runtime, see the template's README.</Overview>
-  <Category>MediaServer:Video MediaServer:Music MediaServer:Photos</Category>
+  <ReadMe>https://github.com/hhaidar/pley/blob/master/deploy/unraid/README.md</ReadMe>
+  <Overview>Pley: your movies, shows and music, and live TV, streamed to the web, phones, TVs, Kodi and Roku. It plays files as they are when a device can, and transcodes on the GPU when it can't (Intel Quick Sync, AMD, NVIDIA NVENC), HDR tone mapping included.[br][br]Once it has started, open the WebUI and create the administrator account with the setup code from Pley's log (the Pley icon, Logs).</Overview>
+  <Category>MediaServer:Video MediaServer:Music</Category>
   <WebUI>http://[IP]:[PORT:7539]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/hhaidar/pley/master/deploy/unraid/pley.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/hhaidar/pley/master/apps/web/public/icon-512.png</Icon>
-  <!-- Room for transcoding in memory (Settings, Transcoder), and for Pley to
-       finish what it's doing when stopped. -->
-  <ExtraParams>--shm-size=2g --stop-timeout=30 --security-opt=no-new-privileges</ExtraParams>
+  <!-- /dev/shm for transcoding in memory (Settings, Transcoder). -->
+  <ExtraParams>--shm-size=2g --security-opt=no-new-privileges</ExtraParams>
   <PostArgs/>
-  <Requires>Hardware transcoding: Intel or AMD, the GPU's driver loaded (the Intel GPU TOP or Radeon TOP plugin loads it) and /dev/dri below; NVIDIA, the Nvidia Driver plugin, --runtime=nvidia in Extra Parameters and the GPU's UUID below.</Requires>
-  <Config Name="Web UI" Target="7539" Default="7539" Mode="tcp" Description="Pley's web app, the apps' API and the Plex-compatible API." Type="Port" Display="always" Required="true" Mask="false">7539</Config>
-  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/pley" Mode="rw" Description="Pley's database, artwork, caches and transcodes: the only folder it writes. On a cache pool for speed." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/pley</Config>
-  <Config Name="Media" Target="/media" Default="/mnt/user/media" Mode="ro" Description="Your media, read-only: libraries are folders under /media in Pley." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/media</Config>
-  <Config Name="Intel or AMD GPU" Target="/dev/dri" Default="/dev/dri" Mode="" Description="Hardware transcoding on an Intel or AMD GPU: /dev/dri. Leave empty without one (the container doesn't start with a device that isn't there)." Type="Device" Display="always" Required="false" Mask="false"></Config>
-  <Config Name="NVIDIA GPU" Target="NVIDIA_VISIBLE_DEVICES" Default="" Mode="" Description="Hardware transcoding on an NVIDIA GPU: its UUID from the Nvidia Driver plugin's page (or all), with --runtime=nvidia added to Extra Parameters." Type="Variable" Display="always" Required="false" Mask="false"></Config>
-  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="The user Pley runs as: Unraid's nobody (99) owns appdata and can read the shares." Type="Variable" Display="advanced" Required="true" Mask="false">99</Config>
-  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="The group Pley runs in: Unraid's users (100)." Type="Variable" Display="advanced" Required="true" Mask="false">100</Config>
-  <Config Name="Discovery" Target="PLEY_NO_DISCOVERY" Default="true" Mode="" Description="true: the apps don't find Pley on the network by themselves (they can't reach a container on Docker's bridge network); enter its address in them. false with the host network." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
-  <Config Name="Log level" Target="PLEY_LOG" Default="info" Mode="" Description="error, warn, info, debug or trace." Type="Variable" Display="advanced" Required="false" Mask="false">info</Config>
+  <Requires>**Hardware transcoding** (optional). Intel or AMD: add a Device, `/dev/dri`. NVIDIA: the Nvidia Driver plugin, `--runtime=nvidia` in Extra Parameters, and the GPU's UUID in NVIDIA GPU.</Requires>
+  <Config Name="Web UI" Target="7539" Default="7539" Mode="tcp" Description="The web app, and the address the apps connect to." Type="Port" Display="always" Required="true" Mask="false">7539</Config>
+  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/pley" Mode="rw" Description="Pley's database, artwork and caches: the only folder it writes. Back it up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/pley</Config>
+  <Config Name="Media" Target="/media" Default="/mnt/user/media" Mode="ro" Description="Your media share, read-only. In Pley, libraries are folders under /media, such as /media/Movies." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/media</Config>
+  <Config Name="NVIDIA GPU" Target="NVIDIA_VISIBLE_DEVICES" Default="" Mode="" Description="NVIDIA only: the GPU's UUID from the Nvidia Driver plugin's page, or all. Also add --runtime=nvidia to Extra Parameters." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="The user Pley runs as: 99 is Unraid's nobody, who owns appdata and reads the shares." Type="Variable" Display="advanced" Required="true" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="The group Pley runs in: 100 is Unraid's users." Type="Variable" Display="advanced" Required="true" Mask="false">100</Config>
+  <Config Name="Log level" Target="PLEY_LOG" Default="info" Mode="" Description="info, or debug to look into a problem." Type="Variable" Display="advanced" Required="false" Mask="false">info</Config>
 </Container>

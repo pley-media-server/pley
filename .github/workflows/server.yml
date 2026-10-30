@@ -259,6 +259,9 @@ jobs:
           for name in h264_nvenc hevc_nvenc h264_vaapi hevc_vaapi h264_qsv hevc_qsv libx264 libx265; do
             grep -qw "$name" <<<"$encoders" || fail "FFmpeg has no $name encoder"
           done
+          # Intel's full driver: the free one leaves older GPUs on the CPU (Dockerfile).
+          docker run --rm --entrypoint dpkg pley:local -s intel-media-va-driver-non-free >/dev/null ||
+            fail "the image doesn't have Intel's non-free VAAPI driver"
       - name: Check the compose add-ons
         working-directory: deploy/docker
         env:

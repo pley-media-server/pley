@@ -1,104 +1,97 @@
 # Running Pley
 
-Release archives for Linux, macOS and Windows (x86_64 and arm64) contain the
-two programs, `pley` and `pley-transcoder`, which must stay in the same
-folder; the Linux and macOS archives also hold the service files below.
-FFmpeg and ffprobe come from the system, or from `--ffmpeg` and `--ffprobe`.
-The FFmpeg build decides what Pley can do with a GPU, so each section below
-names one.
+Pick the guide for where Pley will run:
 
-By default Pley listens on port 7539 on all interfaces and keeps its data in:
+| Where | How | Guide |
+|---|---|---|
+| A Linux server or NAS, with Docker | `./setup.sh`, then a reverse proxy | [docker/README.md](docker/README.md) |
+| Unraid | A template from Docker → Add Container | [unraid/README.md](unraid/README.md) |
+| Windows | The installer: a service, or in the notification area | [windows/README.md](windows/README.md) |
+| Linux without Docker | The release archive and a systemd unit | [below](#linux-systemd) |
+| macOS | The release archive and a launch agent | [below](#macos-launchd) |
 
-| OS | Data folder |
-|---|---|
-| Linux | `~/.local/share/pley` (`/var/lib/pley` with the systemd unit) |
-| macOS | `~/Library/Application Support/pley` |
-| Windows | `%LOCALAPPDATA%\pley` (`%ProgramData%\pley` for the service) |
+Whichever you pick, Pley prints a link with a one-time setup code when it
+first starts. Open it, create the administrator account and add your
+libraries. Until then, anyone with the code can claim the server.
 
-Change it with `--data-dir` or `PLEY_DATA_DIR`. `pley --help` and
+## What Pley needs
+
+- **One port, TCP 7539**, for the web app, the apps and the
+  [compatibility API](../docs/COMPATIBILITY.md).
+- **A data folder** for the database, artwork and caches. Change it with
+  `--data-dir` or `PLEY_DATA_DIR`; back it up
+  ([docs/STORAGE.md](../docs/STORAGE.md)).
+
+  | OS | Default |
+  |---|---|
+  | Linux | `~/.local/share/pley` (`/var/lib/pley` with the systemd unit) |
+  | macOS | `~/Library/Application Support/pley` |
+  | Windows | `%LOCALAPPDATA%\pley` (`%ProgramData%\pley` for the service) |
+  | Docker | `/config` in the container |
+
+- **FFmpeg and ffprobe.** The Docker image and the Windows installer bring
+  their own; elsewhere Pley takes them from `PATH`, or `--ffmpeg` and
+  `--ffprobe`. The FFmpeg build decides what Pley can do with a GPU.
+
+Release archives (Linux, macOS, Windows; x86_64 and arm64) hold `pley` and
+`pley-transcoder`, which must stay in the same folder. `pley --help` and
 [`pley.example.toml`](../pley.example.toml) list every option.
 
 ## Docker
 
-`setup.sh` sets Pley up with Docker Compose and starts it, locked down and
-published on `127.0.0.1` for a reverse proxy:
+The image is `ghcr.io/hhaidar/pley` (amd64 and arm64; `:latest`, or a
+version such as `:0.0.1`). It holds Pley, its transcoder, Debian 13's
+FFmpeg 7.1 and the GPU drivers for Intel, AMD and NVIDIA.
+[docker/README.md](docker/README.md) sets it up with Docker Compose, locked
+down, behind a reverse proxy. Without Compose:
 
 ```sh
-cd deploy/docker && ./setup.sh
-```
-
-[docker/README.md](docker/README.md) is the full guide: media folders,
-reverse proxies, hardware transcoding, security, updates and backups.
-
-The image is based on Debian 13 and its FFmpeg 7.1:
-
-- NVIDIA (NVENC, CUDA scaling), Intel (Quick Sync, VAAPI) and AMD (VAAPI)
-  transcoding;
-- HDR tone mapping with libplacebo (Vulkan), OpenCL or zscale;
-- Pley's licence in `/usr/share/doc/pley`, and each Debian package's,
-  FFmpeg's among them, in `/usr/share/doc/<package>/copyright`.
-
-Releases publish it to GitHub Container Registry for amd64 and arm64:
-`ghcr.io/hhaidar/pley:latest`, or a server version such as `:0.0.1` or
-`:0.0`.
-
-Without Compose:
-
-```sh
-docker build -f deploy/docker/Dockerfile -t pley .
-mkdir -p config && sudo chown 1000:1000 config
 docker run -d --name pley --restart unless-stopped --stop-timeout 30 \
-  -p 127.0.0.1:7539:7539 --read-only --tmpfs /tmp \
-  --cap-drop ALL --security-opt no-new-privileges \
-  -v ./config:/config -v /srv/media:/media:ro pley
+  -p 7539:7539 --shm-size 2g \
+  -v /srv/pley:/config -v /srv/media:/media:ro \
+  ghcr.io/hhaidar/pley:latest
+docker logs pley    # the setup link
 ```
 
-- Intel or AMD GPU: add
-  `--device /dev/dri/renderD128 --group-add "$(stat -c %g /dev/dri/renderD128)"`.
-- NVIDIA: add `--gpus all` (needs the NVIDIA Container Toolkit).
-- The container runs as uid 1000 (`--user` changes it), so `/config` must be
-  writable by that user.
-- `docker logs pley` shows the setup link with its one-time code.
-- `docker exec -it pley pley reset-password <user>` sets a lost password
-  (it asks for the new one).
+- **Intel or AMD GPU:** add `--device /dev/dri`. **NVIDIA:** add
+  `--gpus all` (needs the NVIDIA Container Toolkit).
+- Pley runs as user and group 1000 (`-e PUID=… -e PGID=…` change them) and
+  gives that user the config folder on its first start. Libraries are
+  folders under `/media`.
+- `docker exec -it pley pley reset-password <user>` sets a lost password.
 
 ## Linux (systemd)
 
-From the extracted archive (`pley.service` is
-[systemd/pley.service](systemd/pley.service)):
+From the extracted archive ([systemd/pley.service](systemd/pley.service)):
 
 ```sh
 sudo useradd --system --user-group --home-dir /var/lib/pley --shell /usr/sbin/nologin pley
 sudo install -m755 pley pley-transcoder /usr/local/bin/
 sudo cp pley.service /etc/systemd/system/
 sudo systemctl enable --now pley
+journalctl -u pley    # the setup link, and the log
 ```
 
-Give the `pley` user read access to your media. Logs:
-`journalctl -u pley -f`.
+Give the `pley` user read access to your media.
 
-**FFmpeg and hardware transcoding.** The distribution's FFmpeg works (Debian
-13's has NVENC, VAAPI, Quick Sync and libplacebo). Elsewhere,
-[jellyfin-ffmpeg](https://repo.jellyfin.org) is a good choice; it isn't on
-`PATH`, so set `Environment=PLEY_FFMPEG=...` and `PLEY_FFPROBE` in the unit.
-Then:
+**FFmpeg.** The distribution's works (Debian 13's has NVENC, VAAPI, Quick
+Sync and libplacebo). Elsewhere, [jellyfin-ffmpeg](https://repo.jellyfin.org)
+is a good choice: it isn't on `PATH`, so set `Environment=PLEY_FFMPEG=…` and
+`PLEY_FFPROBE=…` in the unit.
 
-- **Intel and AMD:** install the VAAPI driver (`intel-media-va-driver` or
-  `mesa-va-drivers`) and Mesa's Vulkan driver (`mesa-vulkan-drivers`, for
-  tone mapping), and uncomment `SupplementaryGroups=render video` in the
-  unit. With several GPUs Pley takes the first Intel or AMD one;
+**Hardware transcoding:**
+
+- **Intel and AMD:** install the VAAPI driver (`intel-media-va-driver-non-free`
+  or `mesa-va-drivers`) and `mesa-vulkan-drivers` (for HDR tone mapping),
+  then uncomment `SupplementaryGroups=render video` in the unit. With several
+  GPUs Pley takes the first Intel or AMD one;
   `Environment=PLEY_VAAPI_DEVICE=/dev/dri/renderD129` picks another.
 - **NVIDIA:** the proprietary driver is enough. If NVENC works by hand but
-  not from the service, load `nvidia-uvm` at boot (the unit can't load
-  kernel modules).
-
-Pley logs the encoders it found at start (`journalctl -u pley | grep
-detected`), and checks again when the GPUs change.
+  not from the service, load `nvidia-uvm` at boot.
 
 ## macOS (launchd)
 
-From the extracted archive (`pley.plist` is
-[launchd/pley.plist](launchd/pley.plist)):
+From the extracted archive ([launchd/pley.plist](launchd/pley.plist)):
 
 ```sh
 brew install ffmpeg-full
@@ -107,73 +100,58 @@ cp pley.plist ~/Library/LaunchAgents/pley.server.plist
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/pley.server.plist
 ```
 
-- It runs as your user at login.
-- VideoToolbox hardware encoding is used automatically.
-- Pley finds Homebrew's `ffmpeg-full` by itself; it has the tone mapping and
-  subtitle burn-in that Homebrew's `ffmpeg` leaves out.
-- Until releases are signed, downloaded binaries may need
-  `xattr -d com.apple.quarantine pley pley-transcoder`.
+Pley runs as you at login and encodes with VideoToolbox. It finds Homebrew's
+`ffmpeg-full` by itself (plain `ffmpeg` lacks tone mapping and subtitle
+burn-in). Until releases are signed, downloaded binaries may need
+`xattr -d com.apple.quarantine pley pley-transcoder`.
 
 ## Windows
 
-`pley-server-<version>-windows-<arch>-setup.exe` installs Pley as a locked-down
-Windows service or in the notification area, with FFmpeg, the firewall rule
-and an uninstaller. [windows/README.md](windows/README.md) is the full guide
-(accounts, NAS sign-ins, silent installs, `pley service`).
+`pley-server-<version>-windows-<arch>-setup.exe` installs Pley with FFmpeg
+and a firewall rule, as a locked-down service or in the notification area:
+[windows/README.md](windows/README.md). Or extract the archive, install
+FFmpeg (`winget install Gyan.FFmpeg`, whose "full" build has NVENC, QSV, AMF
+and Vulkan tone mapping) and run `pley.exe`.
 
-Or install FFmpeg (for example `winget install Gyan.FFmpeg`), extract the
-archive and run `pley.exe`. NVENC, QSV, AMF and Vulkan tone mapping work with
-the gyan.dev "full" FFmpeg build. On Windows on Arm, FFmpeg runs emulated and
-Pley transcodes on the CPU.
+## Checking hardware transcoding
+
+Pley logs the encoders it found when it starts (look for `detected`), and
+checks again when the GPUs change. **Settings → Transcoder** picks the
+encoder (Automatic takes the GPU's), and **Settings → Dashboard** shows each
+stream as GPU, hybrid or CPU.
 
 ## The tray icon
 
-On a desktop (Windows, macOS, or Linux with a StatusNotifier host such as KDE,
-or GNOME with the AppIndicator extension), Pley shows an icon in the
-notification area or menu bar while it runs:
-
-- Click it to open the web app.
-- Its menu scans the libraries, shows the logs, turns **Start Pley at login**
-  on or off, and quits Pley.
-- Started by double-click on Windows, Pley closes its console window once the
-  icon is up; logs are in `logs/pley.log` in the data folder.
-
-Services, containers and SSH sessions never show the icon. `--no-tray` (or
-`PLEY_NO_TRAY=true`) turns it off.
+On a desktop (Windows, macOS, or Linux with a StatusNotifier host such as
+KDE, or GNOME with the AppIndicator extension), Pley shows an icon while it
+runs. Click it to open the web app; its menu scans the libraries, shows the
+logs, turns **Start Pley at login** on or off, and quits. Services,
+containers and SSH sessions never show it; `--no-tray` turns it off.
 
 ## Firewall and remote access
 
-- **TCP 7539** is the only port that must be reachable. The compatibility API
-  answers there too, unless you give it a port of its own
+- **TCP 7539** is the only port that must be reachable. The compatibility
+  API answers there too, unless you give it a port of its own
   (`--plex-bind 0.0.0.0:32400`, or **Settings → Network**).
 - **UDP 7539** lets the apps find servers on the local network. Allow it, or
-  enter the server's address in the app. Containers answer only with host
-  networking (`--network host`), since broadcasts don't reach a bridge
-  network.
-- **Outside your network**, put Pley behind a reverse proxy with TLS (Caddy,
-  nginx, Traefik). Pley serves plain HTTP and works under any host name.
-- Docker publishes ports around host firewalls: with a proxy on the same
-  host, publish Pley on `127.0.0.1` only.
+  type the server's address in the app. A container answers only on the
+  host's network (`--network host`, or Unraid's `br0`).
+- **From outside your network**, put Pley behind a reverse proxy with TLS
+  (Caddy, nginx, Traefik). Docker publishes ports around host firewalls:
+  with a proxy on the same computer, publish Pley on `127.0.0.1` only.
 
 ## Apps and reverse proxies
 
 Apps sign in on Pley's own page (OAuth 2.1), and Pley names itself after the
-address each request came to. If that name differs from the address an app
-used, the app refuses the server: the sign-in description
-(`/.well-known/oauth-authorization-server`) must name the same address
-(RFC 8414 §3.3).
+address each request came to: if the name it gives differs from the address
+an app used, the app refuses the server. So a reverse proxy must:
 
-So a reverse proxy must:
-
-- pass the original `Host` header and set `X-Forwarded-Proto`, replacing what
-  clients send rather than adding to it (RFC 9700 §4.13). Pley also marks its
-  cookies `Secure` behind HTTPS;
+- pass the original `Host` header, and set `X-Forwarded-Proto` (replacing
+  what the client sent);
 - add the client's address to `X-Forwarded-For`. Pley trusts it only from a
-  proxy on the same computer, the local network or a Docker network, and
-  limits TVs signing in with a code by the address the proxy added last.
-  Without it, every TV counts as the proxy;
-- not buffer responses: live updates are server-sent events, and videos
-  stream as they are read;
+  proxy on the same computer, the local network or a Docker network;
+- not buffer responses (live updates are server-sent events, and video
+  streams as it is read);
 - accept uploads of up to 25 MB (artwork).
 
 **Caddy** does all of it by default:
@@ -206,17 +184,15 @@ server {
 }
 ```
 
-`$http_host` is the address as the client sent it, port included; nginx's
-`$host` leaves the port out. A proxy that drops the port (Nginx Proxy Manager
-does by default) works when the address uses its scheme's default port
-(`https://media.example.com`). On another port
-(`https://media.example.com:9999`), add the address in **Settings → Network →
-Reached through a reverse proxy** (the page offers it when opened through
-the proxy), and Pley puts the port back.
+`$http_host` keeps the port the client used; `$host` drops it. A proxy that
+drops the port (Nginx Proxy Manager does by default) works when the public
+address uses its scheme's default port (`https://media.example.com`). On
+another port (`https://media.example.com:9999`), add the address in
+**Settings → Network → Reached through a reverse proxy**, and Pley puts the
+port back.
 
-Pley's own apps can always sign in. Apps by other publishers are off until
-an administrator turns them on in **Settings → Server → Apps**; Pley then
-fetches an app's description from the internet when someone allows it.
+Pley's own apps can always sign in. Apps by other publishers are off until an
+administrator turns them on in **Settings → Server → Apps**.
 
-For Docker-specific setups (a proxy in Docker, Traefik labels, a proxy on
-another computer), see [docker/README.md](docker/README.md#behind-a-reverse-proxy).
+Docker-specific setups (a proxy in Docker, Traefik labels, a proxy on another
+computer) are in [docker/README.md](docker/README.md#behind-a-reverse-proxy).

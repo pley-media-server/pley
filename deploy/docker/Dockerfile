@@ -52,16 +52,22 @@ LABEL org.opencontainers.image.title="Pley" \
       org.opencontainers.image.revision=$PLEY_COMMIT
 # Mesa brings VAAPI for AMD and Vulkan for AMD and Intel. Intel's own VAAPI
 # driver and the runtime FFmpeg's Quick Sync encoders load (oneVPL) exist for
-# amd64 only. NVIDIA's container toolkit brings its driver's libraries; the
-# OpenCL loader learns of NVIDIA's from the file below. No program keeps a
-# setuid or setgid bit: nothing in the image can gain privileges, even when
-# it is run without no-new-privileges.
+# amd64 only. Intel's is the driver from Debian's non-free section: the free
+# one lacks the shader encoder 6th to 10th generation GPUs (Skylake to Comet
+# Lake, many a home server's) need for H.264 at a target bitrate unless the
+# host loads their HuC firmware, which it doesn't by default, so they would
+# transcode on the CPU. NVIDIA's container toolkit brings its driver's
+# libraries; the OpenCL loader learns of NVIDIA's from the file below. No
+# program keeps a setuid or setgid bit: nothing in the image can gain
+# privileges, even when it is run without no-new-privileges.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates ffmpeg tini \
         libvulkan1 mesa-vulkan-drivers mesa-va-drivers \
     && if [ "$(dpkg --print-architecture)" = amd64 ]; then \
-        apt-get install -y --no-install-recommends intel-media-va-driver libmfx-gen1.2; \
+        sed -i 's/^Components: main$/Components: main non-free/' /etc/apt/sources.list.d/debian.sources \
+        && apt-get update \
+        && apt-get install -y --no-install-recommends intel-media-va-driver-non-free libmfx-gen1.2; \
     fi \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /etc/OpenCL/vendors && echo libnvidia-opencl.so.1 > /etc/OpenCL/vendors/nvidia.icd \

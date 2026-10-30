@@ -62,11 +62,22 @@ describes how they are made.
   the processors busy. Settings → Server → Library scanning sets when it
   runs (automatically, between set hours, or whenever nothing plays), shows
   the week as learned, and the dashboard says what waits and why.
+- An Unraid template for the Docker image (`deploy/unraid`), with a
+  step-by-step guide to installing Pley and giving it an Intel, AMD or
+  NVIDIA graphics card.
 
 ### Changed
 
 - Pley is Restricted, its licence terms to be determined (`LICENSE`), and
   the dashboard no longer shows the transcoder's licence.
+- The Docker image can be started as root, as Unraid, Synology and TrueNAS
+  start containers: Pley then runs as `PUID`:`PGID` (1000 unless set),
+  gives that user the config folder, joins the groups of the graphics cards
+  passed in, and keeps no capabilities. Started as a user, as the Compose
+  setup does, it runs as that user, as before.
+- The Docker image has Intel's full VAAPI driver, so 6th to 10th generation
+  Intel graphics (Skylake to Comet Lake) transcode on the graphics card
+  rather than the processor.
 - The web app's sidebar has no line above Settings.
 - Picture subtitles a player shows itself are burned in on any stream it
   asks for (Remux, Transcode), not only when the file can't play as it is.
