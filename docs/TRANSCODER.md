@@ -159,8 +159,10 @@ Errors are `{"code": "...", "message": "..."}`:
 | GET | `/v1/jobs/{id}/index.m3u8` | HLS VOD playlist |
 | GET | `/v1/jobs/{id}/master.m3u8` | multivariant playlist |
 | GET | `/v1/jobs/{id}/{n}.ts` | MPEG-TS segment `n` |
+| GET | `/v1/jobs/{id}/init.mp4` | an fMP4 job's initialization segment |
+| GET | `/v1/jobs/{id}/{n}.m4s` | fMP4 segment `n` |
 | GET | `/v1/jobs/{id}/v{k}.m3u8` | rendition `k`'s playlist |
-| GET | `/v1/jobs/{id}/v{k}-{n}.ts` | rendition `k`'s segment `n` |
+| GET | `/v1/jobs/{id}/v{k}-{n}.ts` | rendition `k`'s segment `n` (`v{k}-init.mp4`, `v{k}-{n}.m4s` for fMP4) |
 | POST | `/v1/conversions` | convert a whole file |
 | GET | `/v1/conversions/{id}` | `ConversionStatus` |
 | DELETE | `/v1/conversions/{id}` | `204`: stop its FFmpeg, delete the file |
@@ -369,7 +371,7 @@ its palette, DVB) next to an HLS stream.
 
 `POST /v1/jobs` takes a `JobRequest` and returns `201` with `JobCreated {id,
 duration_ms, segment_seconds, segment_count, video, audio, warnings,
-variants}`. See [How HLS jobs work](#how-hls-jobs-work).
+variants, segment_format}`. See [How HLS jobs work](#how-hls-jobs-work).
 
 `JobRequest`:
 
@@ -385,6 +387,7 @@ variants}`. See [How HLS jobs work](#how-hls-jobs-work).
 | `start_ms?` | start transcoding here right away (playback start or resume) |
 | `options` | `TranscodeOptions` |
 | `variants` | lower renditions, highest first: `[{max_width?, max_height?, max_bitrate_kbps?}]` ([Renditions](#renditions)) |
+| `segment_format` | `ts` (default) or `fmp4` ([fMP4 segments](#fmp4-segments)); `JobCreated.segment_format` says what the job makes |
 | `container?` | conversions only: `matroska` (default) or `mp4` |
 
 `VideoRequest`:
@@ -424,7 +427,11 @@ variants}`. See [How HLS jobs work](#how-hls-jobs-work).
 Playlists and segments:
 
 - `GET /v1/jobs/{id}/{n}.ts` waits for the segment, or starts FFmpeg at it
-  ([Segments on demand](#segments-on-demand)).
+  ([Segments on demand](#segments-on-demand)). An fMP4 job's segments are
+  `{n}.m4s`, and `init.mp4` comes first ([fMP4 segments](#fmp4-segments)).
+  A segment named in the other format is `404`, and so is `init.mp4` of an
+  MPEG-TS job. Segments are `video/mp2t` and `video/mp4`, `init.mp4` is
+  `video/mp4`.
 - `GET /v1/jobs/{id}/master.m3u8` lists the job's own variant
   (`index.m3u8`), then its smaller renditions (`v1.m3u8`…), each with
   `CODECS`, `SUPPLEMENTAL-CODECS`, `RESOLUTION`, `FRAME-RATE`,
@@ -432,7 +439,8 @@ Playlists and segments:
   in the source video's frames (`MediaStream.closed_captions` false), and its
   bandwidth. Capability `hls_master_playlist`.
 - `GET /v1/jobs/{id}/v{k}.m3u8` and `v{k}-{n}.ts`: rendition `k`'s playlist
-  and segments. Capability `hls_variants`.
+  and segments (`v{k}-init.mp4` and `v{k}-{n}.m4s` for fMP4). Capability
+  `hls_variants`.
 
 `POST /v1/jobs/{id}/bitrate` takes `{max_bitrate_kbps}` and returns
 `{bitrate_kbps}`, the bitrate the transcode goes on at (capability
@@ -585,8 +593,53 @@ A segment that exists is served from disk or memory. Otherwise:
 FFmpeg's segment muxer writes a line to stdout as each segment finishes,
 which marks it ready and wakes waiting requests (no polling); a remux segment
 that needs editing is edited first
-([Dolby Vision in remuxes](#dolby-vision-in-remuxes)). FFmpeg's `-progress`
-output gives the live fps, speed, bitrate and position.
+([Dolby Vision in remuxes](#dolby-vision-in-remuxes)). An fMP4 process
+writes no segments itself: the transcoder cuts its output
+([fMP4 segments](#fmp4-segments)). FFmpeg's `-progress` output gives the
+live fps, speed, bitrate and position.
+
+### fMP4 segments
+
+A job asked for with `segment_format: fmp4` makes fragmented MP4 segments: an
+initialization segment, `init.mp4`, that players fetch once, then `{n}.m4s`.
+Apple's players take HEVC, HDR and Dolby Vision this way, and not in MPEG-TS.
+
+- **What gets them.** Jobs with video. A job without video makes MPEG-TS
+  whatever it asks: fragments are cut at video keyframes, and Apple's players
+  take AAC, AC-3 and E-AC-3 in MPEG-TS. So, for now, does a remux whose Dolby
+  Vision or HDR10+ the transcoder signals or edits. `JobCreated.segment_format`
+  says what the job makes.
+- **One file per process.** Each FFmpeg process writes one fragmented MP4 to
+  stdout (`-f mp4 -movflags
+  +frag_keyframe+empty_moov+default_base_moof+delay_moov+frag_discont+skip_trailer`,
+  `-write_tmcd 0`, `-flush_packets 1`): its `ftyp` and `moov`, then a
+  fragment (`moof` and `mdat`) at each video keyframe, every one with its
+  absolute decode time. HEVC, copied or encoded, is tagged `hvc1`, which
+  Apple's players need.
+- **Cut by the transcoder.** Each fragment goes in the segment its first
+  video sample is shown in, as the segment muxer splits MPEG-TS: a segment
+  begins at the first keyframe at or after its split time. A fragment without
+  video (FFmpeg's last) goes with the one before. Fragments before the
+  process's first segment (a remux's seek that landed a keyframe early) and
+  from the next existing segment on are left out. A segment is written to a
+  part file of the process's own (`{n}.m4s.p{process}`) and named `{n}.m4s`,
+  and is ready, once the next one begins; the last once the process ends
+  well, else its part goes.
+- **The init is kept.** The first process's `ftyp` and `moov` are written to
+  `init.mp4` in the job's folder. Every later process must write the same,
+  byte for byte: players fetched it once and decode every segment with it. A
+  process that writes another fails, and `init.mp4` stays as it was; failing
+  twice at the same segment returns the error. Processes started anywhere
+  with the same encoder and settings write the same init.
+- **Sound from before 0** (the encoder's priming, in a process that starts at
+  0) is left out of the first fragment, so the stream starts at 0: AAC at 0,
+  AC-3 at its first whole frame after it.
+- **Playlists** say `#EXT-X-VERSION:7` and `#EXT-X-MAP:URI="init.mp4"`
+  (`v{k}-init.mp4` for rendition `k`), and name `{n}.m4s`. Segment lengths
+  are the layout's, as for MPEG-TS.
+- `GET /v1/jobs/{id}/init.mp4` is answered at once once made. Before, it
+  starts the rendition at the segment its player asked for last, as a segment
+  request would, and waits for the init (`504` after 45 s).
 
 ### Throttling
 
@@ -621,7 +674,8 @@ server, on by default), and FFmpeg supports `readrate`.
 ### Failure handling
 
 - FFmpeg failing twice at the same segment returns the error. The job's
-  `last_error` holds FFmpeg's last log lines.
+  `last_error` holds FFmpeg's last log lines, or why its fMP4 output
+  couldn't be used.
 - A hardware encoder that fails before the first segment (a driver update, a
   GPU gone, a session refused) hands the job to the software encoder, with a
   warning. After that happens to three jobs, `capabilities.json` is deleted
@@ -637,7 +691,8 @@ smaller renditions:
   bits than the one above; `JobCreated.variants` says how many were kept.
   Remuxes and conversions ignore `variants`.
 - They are jobs inside the job, in folders `v1/`…, with segments `v1-{n}.ts`…
-  laid out as the job's. Burned-in text subtitles are extracted once and
+  (fMP4: `v1-init.mp4`, `v1-{n}.m4s`…, each with an init of its own) laid
+  out as the job's. Burned-in text subtitles are extracted once and
   copied to them.
 - `master.m3u8` lists them after the job's own, largest first.
 - Only the rendition the player asked for last has a running process; the
@@ -666,8 +721,9 @@ default), the job is throttled, and the transcoder has room.
   `v1/`…), private to its user and removed at shutdown, or at the next start
   after a crash.
 - Each process runs in the folder it writes to, with a copy of the burned-in
-  subtitles. Segments are served, edited and pruned there. Conversions and
-  the caches stay on disk.
+  subtitles. Segments are served, edited and pruned there. An fMP4 job's
+  `init.mp4` stays on disk: a few kilobytes that players need for as long as
+  they play. Conversions and the caches stay on disk.
 - Windows and macOS have no folder in RAM by default, so they keep segments
   on disk (`memory.available: false`, "works on Linux only").
 

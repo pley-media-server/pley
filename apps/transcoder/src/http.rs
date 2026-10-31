@@ -483,7 +483,16 @@ async fn job_file(State(state): Shared, Path((id, file)): Path<(String, String)>
     let job = state.jobs.get(&id).ok_or_else(|| ApiError::JobNotFound(format!("job {id} not found")))?;
     let unknown = || ApiError::NotFound(format!("unknown file {file}"));
     let (k, n) = match JobFile::parse(&file).ok_or_else(unknown)? {
-        JobFile::Segment(k, n) => (k, n),
+        // A segment in a format the job doesn't make names nothing.
+        JobFile::Segment(k, n, format) if format == job.plan.segment_format => (k, n),
+        JobFile::Segment(..) => return Err(unknown()),
+        JobFile::Init(k) => {
+            let (_, path) = state.jobs.rendition_init(&job, k).await?;
+            let bytes = tokio::fs::read(&path).await?;
+            return Ok(
+                ([(header::CONTENT_TYPE, "video/mp4"), (header::CACHE_CONTROL, "no-cache")], bytes).into_response()
+            );
+        }
         playlist => {
             job.touch();
             let mut headers = HeaderMap::new();
@@ -504,7 +513,7 @@ async fn job_file(State(state): Shared, Path((id, file)): Path<(String, String)>
     state.metrics.bytes_served.fetch_add(len, Ordering::Relaxed);
     let body = Body::from_stream(ReaderStream::with_capacity(handle, 256 * 1024));
     Response::builder()
-        .header(header::CONTENT_TYPE, "video/mp2t")
+        .header(header::CONTENT_TYPE, job.plan.segment_format.content_type())
         .header(header::CONTENT_LENGTH, len)
         .header(header::CACHE_CONTROL, "no-cache")
         .body(body)
@@ -571,12 +580,18 @@ mod tests {
 
     /// A transcoder whose FFmpeg is missing, on a free local port.
     async fn serve(dir: &std::path::Path, token: Option<&str>) -> SocketAddr {
-        let ff = Arc::new(Ffmpeg {
+        let ff = Ffmpeg {
             ffmpeg: dir.join("no-ffmpeg"),
             ffprobe: dir.join("no-ffprobe"),
             caps: Capabilities::default(),
             segment_times_relative: true,
-        });
+        };
+        serve_with(dir, token, ff).await
+    }
+
+    /// A transcoder with `ff`, on a free local port.
+    async fn serve_with(dir: &std::path::Path, token: Option<&str>, ff: Ffmpeg) -> SocketAddr {
+        let ff = Arc::new(ff);
         let metrics = Arc::new(Metrics::default());
         let prober = Arc::new(Prober::new(ff.clone(), metrics.clone(), 1));
         let background = crate::background::Background::new();
@@ -933,5 +948,96 @@ mod tests {
         assert_eq!((answer.status, answer.code()), (500, "ffmpeg_failed".to_owned()));
         let jobs = request(addr, "GET", "/v1/jobs", None, None).await;
         assert_eq!(jobs.body, "[]", "nothing was left behind");
+    }
+
+    /// A transcoder whose only encoder is libx264, with a 10 s clip to make
+    /// segments of; `None` without FFmpeg.
+    async fn serve_ffmpeg(dir: &std::path::Path) -> Option<(SocketAddr, std::path::PathBuf)> {
+        use pley_transcoder_api::{EncoderInfo, HwAccel, VideoCodec};
+        let ok =
+            |tool: &str| std::process::Command::new(tool).arg("-version").output().is_ok_and(|o| o.status.success());
+        if !(ok("ffmpeg") && ok("ffprobe")) {
+            eprintln!("ffmpeg not found: skipped");
+            return None;
+        }
+        let input = dir.join("clip.mkv");
+        let made = std::process::Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i"])
+            .arg("testsrc2=size=320x180:rate=25:duration=10")
+            .args(["-c:v", "libx264", "-preset", "ultrafast", "-g", "25"])
+            .arg(&input)
+            .status()
+            .unwrap();
+        assert!(made.success());
+        let x264 = EncoderInfo {
+            name: "libx264".into(),
+            codec: VideoCodec::H264,
+            hardware: false,
+            accel: HwAccel::None,
+            main10: false,
+        };
+        let caps = Capabilities {
+            ffmpeg_available: true,
+            ffprobe_available: true,
+            encoders: vec![x264],
+            ..Default::default()
+        };
+        let ff = Ffmpeg { ffmpeg: "ffmpeg".into(), ffprobe: "ffprobe".into(), caps, segment_times_relative: true };
+        Some((serve_with(dir, None, ff).await, input))
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fmp4_jobs_serve_mp4_and_only_their_own_names() {
+        let dir = tempfile::tempdir().unwrap();
+        let Some((addr, input)) = serve_ffmpeg(dir.path()).await else { return };
+        let job = |format: &str| {
+            serde_json::json!({
+                "input": input,
+                "video": {},
+                "segment_seconds": 2.0,
+                "options": {"throttle": false},
+                "segment_format": format,
+            })
+            .to_string()
+        };
+        let answer = request(addr, "POST", "/v1/jobs", None, Some(job("fmp4"))).await;
+        assert_eq!(answer.status, 201, "{}", answer.body);
+        let created: JobCreated = serde_json::from_str(&answer.body).unwrap();
+        assert_eq!(created.segment_format, pley_transcoder_api::SegmentFormat::Fmp4);
+        let file = |name: &str| format!("/v1/jobs/{}/{name}", created.id);
+
+        // Asked for as soon as the job is made: it waits for its process.
+        let init = request(addr, "GET", &file("init.mp4"), None, None).await;
+        assert_eq!(init.status, 200, "{}", init.body);
+        assert!(init.head.contains("content-type: video/mp4"), "{}", init.head);
+        assert!(init.body.get(4..8) == Some("ftyp") && init.body.contains("moov"));
+        let segment = request(addr, "GET", &file("1.m4s"), None, None).await;
+        assert_eq!(segment.status, 200, "{}", segment.body);
+        assert!(segment.head.contains("content-type: video/mp4"), "{}", segment.head);
+        assert!(segment.body.contains("moof") && !segment.body.contains("ftyp"));
+        let playlist = request(addr, "GET", &file("index.m3u8"), None, None).await;
+        assert!(playlist.body.contains("#EXT-X-MAP:URI=\"init.mp4\"\n") && playlist.body.contains("\n1.m4s\n"));
+        // Names of the other format, and of renditions it hasn't, name nothing.
+        for name in ["1.ts", "v1-init.mp4", "v1-1.m4s"] {
+            let answer = request(addr, "GET", &file(name), None, None).await;
+            assert_eq!((answer.status, answer.code()), (404, "not_found".to_owned()), "{name}");
+        }
+        // What it served counts segments only.
+        let status = request(addr, "GET", &format!("/v1/jobs/{}", created.id), None, None).await;
+        let status: JobStatus = serde_json::from_str(&status.body).unwrap();
+        assert_eq!(status.served_segments, 1);
+
+        // An MPEG-TS job has no init.
+        let answer = request(addr, "POST", "/v1/jobs", None, Some(job("ts"))).await;
+        let created: JobCreated = serde_json::from_str(&answer.body).unwrap();
+        assert_eq!(created.segment_format, pley_transcoder_api::SegmentFormat::Ts);
+        let file = |name: &str| format!("/v1/jobs/{}/{name}", created.id);
+        for name in ["init.mp4", "0.m4s"] {
+            let answer = request(addr, "GET", &file(name), None, None).await;
+            assert_eq!(answer.status, 404, "{name}");
+        }
+        let segment = request(addr, "GET", &file("0.ts"), None, None).await;
+        assert_eq!(segment.status, 200);
+        assert!(segment.head.contains("content-type: video/mp2t"), "{}", segment.head);
     }
 }

@@ -310,6 +310,7 @@ mod tests {
             pipeline: Pipeline::Software,
             dolby_vision,
             strip_hdr10plus: false,
+            hevc: copy,
             hdr: None,
         }
     }
@@ -341,6 +342,7 @@ mod tests {
             throttle: false,
             catchup: false,
             warnings: vec![],
+            segment_format: Default::default(),
         }
     }
 

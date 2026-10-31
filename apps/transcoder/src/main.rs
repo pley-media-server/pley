@@ -17,8 +17,6 @@ mod error;
 mod extract;
 mod ffmpeg;
 mod fingerprint;
-// Nothing reads fMP4 output yet: jobs still make MPEG-TS segments only.
-#[allow(dead_code)]
 mod fmp4;
 mod hls;
 mod http;

@@ -632,6 +632,12 @@ pub struct Capabilities {
     /// live HLS stream (`/v1/live`). Older transcoders lack it.
     #[serde(default)]
     pub live: bool,
+    /// Jobs make fragmented MP4 segments (`init.mp4` and `{n}.m4s`) when
+    /// [`JobRequest::segment_format`] asks for them, except jobs without
+    /// video, which stay MPEG-TS ([`JobCreated::segment_format`] says which).
+    /// Older transcoders make MPEG-TS only.
+    #[serde(default)]
+    pub fmp4_segments: bool,
     /// The version of the seek previews this transcoder makes
     /// ([`TrickplayInfo::version`]). Older transcoders lack it (0).
     #[serde(default)]
@@ -1157,6 +1163,45 @@ pub struct JobRequest {
     /// smaller than the one above it is left out ([`JobCreated::variants`]).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub variants: Vec<VariantRequest>,
+    /// How the segments are packaged: MPEG-TS (`{n}.ts`), or fragmented MP4
+    /// (`init.mp4` and `{n}.m4s`) where the transcoder has
+    /// [`Capabilities::fmp4_segments`]. Older transcoders ignore it and make
+    /// MPEG-TS; [`JobCreated::segment_format`] says what the job makes.
+    #[serde(default, skip_serializing_if = "SegmentFormat::is_ts")]
+    pub segment_format: SegmentFormat,
+}
+
+/// How a job's HLS segments are packaged.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum SegmentFormat {
+    /// MPEG-TS: `{n}.ts`, each segment playable by itself.
+    #[default]
+    Ts,
+    /// Fragmented MP4: `init.mp4`, then `{n}.m4s`, which play after it.
+    Fmp4,
+}
+
+impl SegmentFormat {
+    pub fn is_ts(&self) -> bool {
+        *self == Self::Ts
+    }
+
+    /// The segments' extension.
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::Ts => "ts",
+            Self::Fmp4 => "m4s",
+        }
+    }
+
+    /// The segments' media type (`init.mp4`'s is `video/mp4` too).
+    pub fn content_type(self) -> &'static str {
+        match self {
+            Self::Ts => "video/mp2t",
+            Self::Fmp4 => "video/mp4",
+        }
+    }
 }
 
 /// What a conversion's file is: Matroska, which keeps every track, or MP4
@@ -1265,6 +1310,10 @@ pub struct JobCreated {
     /// job is played from its `master.m3u8`.
     #[serde(default)]
     pub variants: u32,
+    /// How its segments are packaged: fragmented MP4 only when asked for
+    /// and the job has video. Older transcoders make MPEG-TS.
+    #[serde(default)]
+    pub segment_format: SegmentFormat,
 }
 
 /// Where a conversion is.
@@ -1666,6 +1715,33 @@ mod tests {
         )
         .unwrap();
         assert!(!caps.hdr_transcode && !caps.subtitle_matroska);
+    }
+
+    #[test]
+    fn segment_formats_are_ts_unless_asked_and_known() {
+        // Requests from older servers, and answers from older transcoders.
+        let req: JobRequest = serde_json::from_str(r#"{"input":"/m/a.mkv"}"#).unwrap();
+        assert_eq!(req.segment_format, SegmentFormat::Ts);
+        let created: JobCreated = serde_json::from_str(
+            r#"{"id":"j","duration_ms":1,"segment_seconds":4.0,"segment_count":1,"video":null,"audio":null,
+                "warnings":[]}"#,
+        )
+        .unwrap();
+        assert_eq!(created.segment_format, SegmentFormat::Ts);
+        let caps: Capabilities = serde_json::from_str(
+            r#"{"ffmpeg_available":true,"ffprobe_available":true,"ffmpeg_path":"","ffprobe_path":"",
+                "ffmpeg_version":null,"encoders":[],"hwaccels":[],"tonemappers":[],"dolby_vision":false,
+                "subtitle_burn_image":false,"subtitle_burn_text":false,"readrate":false}"#,
+        )
+        .unwrap();
+        assert!(!caps.fmp4_segments);
+        // A request for MPEG-TS reads to an older transcoder as it always did.
+        let ts = serde_json::to_value(JobRequest { input: "/m/a.mkv".into(), ..Default::default() }).unwrap();
+        assert!(ts.get("segment_format").is_none(), "{ts}");
+        let fmp4 = JobRequest { segment_format: SegmentFormat::Fmp4, ..Default::default() };
+        assert_eq!(serde_json::to_value(&fmp4).unwrap()["segment_format"], "fmp4");
+        assert_eq!((SegmentFormat::Ts.extension(), SegmentFormat::Fmp4.extension()), ("ts", "m4s"));
+        assert_eq!((SegmentFormat::Ts.content_type(), SegmentFormat::Fmp4.content_type()), ("video/mp2t", "video/mp4"));
     }
 
     #[test]

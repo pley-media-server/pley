@@ -18,10 +18,10 @@ use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
 use pley_transcoder_api::{
-    EncoderInfo, JobCreated, JobRequest, JobState, JobStatus, Limits, Load, MediaInfo, ProcessStatus, TonemapQuality,
-    VideoCodec, VideoMode,
+    EncoderInfo, JobCreated, JobRequest, JobState, JobStatus, Limits, Load, MediaInfo, ProcessStatus, SegmentFormat,
+    TonemapQuality, VideoCodec, VideoMode,
 };
-use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWriteExt, BufReader};
 use tokio::process::ChildStdout;
 use tokio::sync::{Notify, oneshot, watch};
 
@@ -31,6 +31,7 @@ use crate::cpuload::CpuMeter;
 use crate::error::{ApiError, ApiResult};
 use crate::extract::Extractor;
 use crate::ffmpeg::Ffmpeg;
+use crate::fmp4::{BoxReader, Fragment, Init};
 use crate::hls;
 use crate::keyframes::KeyframeStore;
 use crate::memory::{self, Lease, MemoryStore};
@@ -225,6 +226,10 @@ pub struct Job {
     /// The video bitrate its player asked for since it started (kbps), in
     /// place of the plan's: see [`JobManager::set_bitrate`].
     bitrate: Mutex<Option<u32>>,
+    /// An fMP4 job's initialization segment (`init.mp4` in its folder on
+    /// disk), once its first process wrote it: every later process must
+    /// write the same (see [`Job::store_init`]).
+    init: Mutex<Option<Arc<[u8]>>>,
 }
 
 /// Where a segment is made: in the job's folder on disk, or in RAM
@@ -302,8 +307,12 @@ pub enum JobFile {
     Master,
     /// A rendition's media playlist: `index.m3u8` (0), `v1.m3u8`…
     Playlist(usize),
-    /// A rendition's segment: `12.ts` (0), `v1-12.ts`…
-    Segment(usize, u32),
+    /// An fMP4 rendition's initialization segment: `init.mp4` (0),
+    /// `v1-init.mp4`…
+    Init(usize),
+    /// A rendition's segment: `12.ts` or `12.m4s` (0), `v1-12.ts` or
+    /// `v1-12.m4s`…
+    Segment(usize, u32, SegmentFormat),
 }
 
 impl JobFile {
@@ -312,16 +321,23 @@ impl JobFile {
         match name {
             "master.m3u8" => Some(JobFile::Master),
             "index.m3u8" => Some(JobFile::Playlist(0)),
-            _ => match name.strip_suffix(".m3u8") {
-                Some(playlist) => playlist.strip_prefix('v').and_then(rendition).map(JobFile::Playlist),
-                None => {
-                    let segment = name.strip_suffix(".ts")?;
-                    match segment.strip_prefix('v').and_then(|s| s.split_once('-')) {
-                        Some((k, n)) => Some(JobFile::Segment(rendition(k)?, n.parse().ok()?)),
-                        None => Some(JobFile::Segment(0, segment.parse().ok()?)),
-                    }
+            "init.mp4" => Some(JobFile::Init(0)),
+            _ => {
+                if let Some(playlist) = name.strip_suffix(".m3u8") {
+                    return playlist.strip_prefix('v').and_then(rendition).map(JobFile::Playlist);
                 }
-            },
+                if let Some(init) = name.strip_suffix("-init.mp4") {
+                    return init.strip_prefix('v').and_then(rendition).map(JobFile::Init);
+                }
+                let (segment, format) = match name.strip_suffix(".ts") {
+                    Some(segment) => (segment, SegmentFormat::Ts),
+                    None => (name.strip_suffix(".m4s")?, SegmentFormat::Fmp4),
+                };
+                match segment.strip_prefix('v').and_then(|s| s.split_once('-')) {
+                    Some((k, n)) => Some(JobFile::Segment(rendition(k)?, n.parse().ok()?, format)),
+                    None => Some(JobFile::Segment(0, segment.parse().ok()?, format)),
+                }
+            }
         }
     }
 }
@@ -654,6 +670,7 @@ impl JobManager {
             audio: plan.audio_plan(&media),
             warnings: plan.warnings.clone(),
             variants: variants.len() as u32,
+            segment_format: plan.segment_format,
         };
         let job =
             Arc::new(Job { variants, memory, ..Job::new(id.clone(), req, media, plan, input, dir, start_segment) });
@@ -716,26 +733,58 @@ impl JobManager {
         k: usize,
         n: u32,
     ) -> ApiResult<(Arc<Job>, PathBuf)> {
-        let rendition = match k.checked_sub(1) {
-            None => job.clone(),
-            Some(i) => job.variants.get(i).cloned().ok_or_else(|| ApiError::NotFound(format!("no rendition {k}")))?,
-        };
-        job.touch();
-        let before = job.active.swap(k as u32, Relaxed) as usize;
-        if before != k {
-            tracing::info!(job = %job.id, "the player moved from rendition {before} to {k}");
-            for (i, other) in job.renditions().into_iter().enumerate() {
-                if i != k {
-                    park(other);
-                }
-            }
-        }
+        let (rendition, _) = job.activate(k)?;
         let path = self.segment(&rendition, n).await?;
         // Asked for before its player moved on: made, and stopped again.
         if job.active.load(Relaxed) as usize != k {
             park(rendition.clone());
         }
         Ok((rendition, path))
+    }
+
+    /// The initialization segment of fMP4 rendition `k` of `job`
+    /// ([`JobFile::Init`]). Once made, it is there at once; before, the
+    /// rendition is taken as by [`JobManager::rendition_segment`] for the
+    /// segment its player asked for last, and the answer waits for the
+    /// process that makes it.
+    pub async fn rendition_init(self: &Arc<Self>, job: &Arc<Job>, k: usize) -> ApiResult<(Arc<Job>, PathBuf)> {
+        let rendition = job.rendition(k)?;
+        if !rendition.fmp4() {
+            return Err(ApiError::NotFound("its segments are MPEG-TS: it has no init.mp4".into()));
+        }
+        if rendition.has_init() {
+            job.touch();
+            return Ok((rendition.clone(), rendition.init_path()));
+        }
+        let (rendition, before) = job.activate(k)?;
+        // Where the player is, in whichever rendition it took last.
+        let n = job.rendition(before)?.last_requested.load(Relaxed).min(rendition.plan.segment_count() - 1);
+        rendition.touch();
+        let waiting = Waiting::register(&rendition, n);
+        let deadline = Instant::now() + SEGMENT_WAIT;
+        let made = loop {
+            let notified = rendition.notify.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            if rendition.has_init() {
+                break Ok(rendition.init_path());
+            }
+            self.ensure_producing(&rendition, n).await?;
+            let now = Instant::now();
+            if now >= deadline {
+                break Err(ApiError::Timeout("the init segment was not ready in time".into()));
+            }
+            let wait = (deadline - now).min(Duration::from_secs(1));
+            tokio::select! {
+                _ = &mut notified => {}
+                _ = tokio::time::sleep(wait) => {}
+            }
+        };
+        drop(waiting);
+        if job.active.load(Relaxed) as usize != k {
+            park(rendition.clone());
+        }
+        Ok((rendition, made?))
     }
 
     /// Changes the video bitrate of `job` as it is sent (docs/QUALITY.md,
@@ -1184,16 +1233,26 @@ impl JobManager {
         let pace = Arc::new(Mutex::new(Pace::default()));
         let (pause_tx, mut pause_rx) = watch::channel(false);
         let pause_tx = Arc::new(pause_tx);
-        let lister = tokio::spawn(read_segment_list(
-            job.clone(),
-            stdout,
+        let made = SegmentsMade {
+            job: job.clone(),
             place,
-            next.clone(),
+            next: next.clone(),
             spawned,
-            starting,
-            self.metrics.clone(),
-            pause_tx.clone(),
-        ));
+            starting: Some(starting),
+            metrics: self.metrics.clone(),
+            pause: pause_tx.clone(),
+            count: 0,
+        };
+        // Why its output couldn't be used, when that stopped it.
+        let reason = Arc::new(Mutex::new(None));
+        let lister = if job.fmp4() {
+            tokio::spawn(read_fragments(stdout, start, end, generation, made, reason.clone()))
+        } else {
+            tokio::spawn(async move {
+                read_segment_list(stdout, made).await;
+                None
+            })
+        };
         tokio::spawn(read_progress(job.clone(), stderr, start_ms, tail.clone(), pace.clone()));
 
         let (exit_tx, exit_rx) = watch::channel(false);
@@ -1231,13 +1290,23 @@ impl JobManager {
             };
             // Every segment it listed is ready (edited, when it needs it)
             // before the process counts as gone: a request coming then
-            // must not start another one that writes them again.
-            let _ = lister.await;
+            // must not start another one that writes them again. An fMP4
+            // process's last segment ends with its output: made when it
+            // ended well, else gone.
+            if let Some(pending) = lister.await.ok().flatten() {
+                let ended_well = !killed && status.as_ref().is_ok_and(ExitStatus::success) && reason.lock().is_none();
+                if !ended_well {
+                    pending.discard().await;
+                } else if let Err(err) = pending.commit().await {
+                    *reason.lock() = Some(format!("a segment couldn't be written: {err}"));
+                }
+            }
             drop(slot);
             let at = next_ref.load(Relaxed);
-            if job_ref.on_exit(generation, end, at, status, killed, &tail, &metrics) && place == Place::Memory {
+            let reason = reason.lock().take();
+            if job_ref.on_exit(generation, end, at, status, killed, reason, &tail, &metrics) && place == Place::Memory {
                 // The segment it was making, half made, takes no memory.
-                job_ref.drop_unmade(at);
+                job_ref.drop_unmade(at, generation);
             }
             let _ = exit_tx.send(true);
             job_ref.notify.notify_waiters();
@@ -1462,6 +1531,7 @@ impl Job {
             active: AtomicU32::new(0),
             bitrate: Mutex::new(None),
             memory: None,
+            init: Mutex::new(None),
         }
     }
 
@@ -1469,6 +1539,79 @@ impl Job {
     /// `[k]`.
     pub fn renditions(self: &Arc<Self>) -> Vec<Arc<Job>> {
         std::iter::once(self.clone()).chain(self.variants.iter().cloned()).collect()
+    }
+
+    /// Rendition `k`: the job itself (0), or one of its variants.
+    fn rendition(self: &Arc<Self>, k: usize) -> ApiResult<Arc<Job>> {
+        match k.checked_sub(1) {
+            None => Ok(self.clone()),
+            Some(i) => self.variants.get(i).cloned().ok_or_else(|| ApiError::NotFound(format!("no rendition {k}"))),
+        }
+    }
+
+    /// Rendition `k`, the one its player takes from now on: the others stop
+    /// making segments (those made stay, for when it comes back). With the
+    /// one it took before.
+    fn activate(self: &Arc<Self>, k: usize) -> ApiResult<(Arc<Job>, usize)> {
+        let rendition = self.rendition(k)?;
+        self.touch();
+        let before = self.active.swap(k as u32, Relaxed) as usize;
+        if before != k {
+            tracing::info!(job = %self.id, "the player moved from rendition {before} to {k}");
+            for (i, other) in self.renditions().into_iter().enumerate() {
+                if i != k {
+                    park(other);
+                }
+            }
+        }
+        Ok((rendition, before))
+    }
+
+    /// Whether its segments are fragmented MP4 (see [`crate::fmp4`]).
+    pub fn fmp4(&self) -> bool {
+        self.plan.segment_format == SegmentFormat::Fmp4
+    }
+
+    fn has_init(&self) -> bool {
+        self.init.lock().is_some()
+    }
+
+    /// Where an fMP4 job's `init.mp4` is: always on disk, a few kilobytes
+    /// that players fetch once and must find again for as long as it plays.
+    fn init_path(&self) -> PathBuf {
+        self.dir.join("init.mp4")
+    }
+
+    /// The initialization segment a process of this fMP4 job wrote
+    /// (`generation`): the first one's is kept as `init.mp4`, and every
+    /// later one must be the same, byte for byte. Players fetch it once and
+    /// decode every segment with it: segments made with another (another
+    /// encoder or its settings) wouldn't play. Why not, when it isn't.
+    fn store_init(&self, bytes: &[u8], generation: u64) -> Result<(), String> {
+        let mut init = self.init.lock();
+        if let Some(kept) = init.as_deref() {
+            if kept == bytes {
+                return Ok(());
+            }
+            tracing::warn!(
+                job = %self.id,
+                "process {generation} wrote another init segment ({} bytes, {} kept): it stops",
+                bytes.len(),
+                kept.len()
+            );
+            return Err("the init segment changed after a restart (encoder settings differ)".into());
+        }
+        // Small: written under the lock, so no two processes write it at once.
+        let part = self.dir.join(format!("init.mp4.p{generation}"));
+        let written = std::fs::write(&part, bytes).and_then(|()| std::fs::rename(&part, self.init_path()));
+        if let Err(err) = written {
+            let _ = std::fs::remove_file(&part);
+            return Err(format!("the init segment couldn't be written: {err}"));
+        }
+        *init = Some(Arc::from(bytes));
+        drop(init);
+        self.notify.notify_waiters();
+        Ok(())
     }
 
     pub fn touch(&self) {
@@ -1583,7 +1726,13 @@ impl Job {
     }
 
     fn path_in(&self, place: Place, n: u32) -> PathBuf {
-        self.folder(place).join(format!("{n}.ts"))
+        self.folder(place).join(format!("{n}.{}", self.plan.segment_format.extension()))
+    }
+
+    /// Where process `generation` writes fMP4 segment `n` in `place` until
+    /// it is whole: a process stopped long ago, still going, writes its own.
+    fn part_path(&self, place: Place, n: u32, generation: u64) -> PathBuf {
+        self.folder(place).join(format!("{n}.m4s.p{generation}"))
     }
 
     /// The folder segments made in `place` are in.
@@ -1670,6 +1819,8 @@ impl Job {
 
     /// Process `generation` exited, at segment `next` of those it was to
     /// make up to `end`: whether it is the latest one (none started since).
+    /// With a `reason` its output couldn't be used for (an fMP4 process's),
+    /// it failed, for that reason rather than what FFmpeg said last.
     #[allow(clippy::too_many_arguments)]
     fn on_exit(
         &self,
@@ -1678,10 +1829,11 @@ impl Job {
         next: u32,
         status: std::io::Result<ExitStatus>,
         killed: bool,
+        reason: Option<String>,
         tail: &Mutex<VecDeque<String>>,
         metrics: &Metrics,
     ) -> bool {
-        let success = status.as_ref().is_ok_and(ExitStatus::success);
+        let success = status.as_ref().is_ok_and(ExitStatus::success) && reason.is_none();
         tracing::debug!(job = %self.id, "ffmpeg exited at segment {next} (killed: {killed}, success: {success})");
         let mut rt = self.runtime.lock();
         if rt.generation != generation {
@@ -1699,7 +1851,9 @@ impl Job {
                 Metrics::inc(&metrics.jobs_failed);
             }
             let lines: Vec<String> = tail.lock().iter().cloned().collect();
-            let message = if lines.is_empty() {
+            let message = if let Some(reason) = reason {
+                reason
+            } else if lines.is_empty() {
                 match &status {
                     Ok(s) => format!("ffmpeg exited with {s}"),
                     Err(e) => format!("ffmpeg could not be awaited: {e}"),
@@ -1786,11 +1940,14 @@ impl Job {
         gone
     }
 
-    /// Process writing to memory stopped at segment `n`, not made: what it
-    /// wrote of it goes.
-    fn drop_unmade(&self, n: u32) {
+    /// Process `generation` writing to memory stopped at segment `n`, not
+    /// made: what it wrote of it goes.
+    fn drop_unmade(&self, n: u32, generation: u64) {
         if self.ready.lock().get(n as usize).copied().flatten() != Some(Place::Memory) {
             let _ = std::fs::remove_file(self.path_in(Place::Memory, n));
+        }
+        if self.fmp4() {
+            let _ = std::fs::remove_file(self.part_path(Place::Memory, n, generation));
         }
     }
 
@@ -1828,13 +1985,19 @@ impl Job {
         let longest = bounds.windows(2).map(|w| w[1] - w[0]).max().unwrap_or(0);
         let target = ((longest as f64) / 1000.0).ceil().max(1.0) as i64;
         let mut out = String::with_capacity(bounds.len() * 24 + 256);
-        out.push_str("#EXTM3U\n#EXT-X-VERSION:3\n");
+        // fMP4 segments (EXT-X-MAP) take version 7, as Apple's authoring
+        // specification asks.
+        out.push_str(if self.fmp4() { "#EXTM3U\n#EXT-X-VERSION:7\n" } else { "#EXTM3U\n#EXT-X-VERSION:3\n" });
         out.push_str(&format!("#EXT-X-TARGETDURATION:{target}\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n"));
         if self.plan.video.is_some() {
             out.push_str("#EXT-X-INDEPENDENT-SEGMENTS\n");
         }
+        if self.fmp4() {
+            out.push_str(&format!("#EXT-X-MAP:URI=\"{}init.mp4\"\n", self.prefix));
+        }
+        let extension = self.plan.segment_format.extension();
         for (i, w) in bounds.windows(2).enumerate() {
-            out.push_str(&format!("#EXTINF:{:.3},\n{}{i}.ts\n", (w[1] - w[0]) as f64 / 1000.0, self.prefix));
+            out.push_str(&format!("#EXTINF:{:.3},\n{}{i}.{extension}\n", (w[1] - w[0]) as f64 / 1000.0, self.prefix));
         }
         out.push_str("#EXT-X-ENDLIST\n");
         out
@@ -1926,43 +2089,214 @@ impl Job {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-async fn read_segment_list(
+/// The segments a process has made so far, and what each one made does:
+/// for either reader ([`read_segment_list`], [`read_fragments`]).
+struct SegmentsMade {
     job: Arc<Job>,
-    stdout: ChildStdout,
     place: Place,
     next: Arc<AtomicU32>,
     spawned: Instant,
-    starting: Starting,
+    /// Held until it made [`STARTED_AFTER`] segments.
+    starting: Option<Starting>,
     metrics: Arc<Metrics>,
     pause: Arc<watch::Sender<bool>>,
-) {
+    count: u32,
+}
+
+impl SegmentsMade {
+    /// Segment `n` is whole in its place: it is ready.
+    fn segment(&mut self, n: u32) {
+        let job = &self.job;
+        tracing::trace!(job = %job.id, "segment {n} ready");
+        if self.count == 0 {
+            job.runtime.lock().start_cost = Some(self.spawned.elapsed());
+        }
+        segment_written(job, &self.next, n, self.place);
+        Metrics::inc(&self.metrics.segments_produced);
+        // Throttling: far enough ahead, it pauses (see `PAUSE_AHEAD`)
+        // right away rather than at the reaper's next look.
+        if job.far_ahead(n + 1) {
+            self.pause.send_if_modified(|paused| !std::mem::replace(paused, true));
+        }
+        self.count += 1;
+        if self.count == STARTED_AFTER {
+            // Started: background work goes on.
+            drop(self.starting.take());
+        }
+    }
+}
+
+/// Reads the segment list an MPEG-TS process writes, a line for each
+/// segment it finished.
+async fn read_segment_list(stdout: ChildStdout, mut made: SegmentsMade) {
     let mut lines = BufReader::new(stdout).lines();
-    let mut first = true;
-    let mut starting = Some(starting);
-    let mut made = 0;
-    let edits = job.plan.segment_edits();
+    let edits = made.job.plan.segment_edits();
     while let Ok(Some(line)) = lines.next_line().await {
         if let Some(n) = parse_list_line(&line) {
             if let Some(edits) = edits {
-                job.edit_segment(n, place, edits).await;
+                made.job.edit_segment(n, made.place, edits).await;
             }
-            tracing::trace!(job = %job.id, "segment {n} ready");
-            if std::mem::take(&mut first) {
-                job.runtime.lock().start_cost = Some(spawned.elapsed());
+            made.segment(n);
+        }
+    }
+}
+
+/// The fMP4 segment a process was writing when its output ended: whole if
+/// the process ended well (`-t`, or the end of the media), else not.
+struct Pending {
+    n: u32,
+    part: PathBuf,
+    file: tokio::fs::File,
+    made: SegmentsMade,
+}
+
+impl Pending {
+    async fn commit(mut self) -> std::io::Result<()> {
+        let path = self.made.job.path_in(self.made.place, self.n);
+        commit_part(&mut self.file, &self.part, &path).await?;
+        self.made.segment(self.n);
+        Ok(())
+    }
+
+    async fn discard(self) {
+        drop(self.file);
+        let _ = tokio::fs::remove_file(&self.part).await;
+    }
+}
+
+/// Writes out what `file` holds and names it `path` from `part`.
+async fn commit_part(file: &mut tokio::fs::File, part: &Path, path: &Path) -> std::io::Result<()> {
+    // A tokio file writes in the background: done once flushed.
+    file.flush().await?;
+    tokio::fs::rename(part, path).await
+}
+
+/// Reads the fragmented MP4 an fMP4 process (`generation`, making segments
+/// `[start, end)`) writes on stdout and cuts it into segments: its `ftyp`
+/// and `moov` are the job's `init.mp4` ([`Job::store_init`]), and each
+/// `moof` and `mdat` goes in the segment its first video sample is shown
+/// in, as the segment muxer splits MPEG-TS ([`Plan::split_at`]). Fragments
+/// before `start` (a remux's seek landing a keyframe early) and from `end`
+/// on are left out: other processes make those. A segment is written to a
+/// part file of the process's own and named `{n}.m4s` once the next one
+/// begins; the last is given back, made when the process ended well.
+/// Output it can't use sets `reason` and ends the reading, which stops
+/// FFmpeg (its pipe is closed).
+async fn read_fragments(
+    stdout: impl AsyncRead + Unpin,
+    start: u32,
+    end: u32,
+    generation: u64,
+    mut made: SegmentsMade,
+    reason: Arc<Mutex<Option<String>>>,
+) -> Option<Pending> {
+    let job = made.job.clone();
+    let place = made.place;
+    let count = job.plan.segment_count() as usize;
+    let mut reader = BoxReader::new(stdout);
+    let mut ftyp: Option<Vec<u8>> = None;
+    let mut init: Option<Init> = None;
+    // The segment being written: its number, part file and file.
+    let mut open: Option<(u32, PathBuf, tokio::fs::File)> = None;
+    let failed = loop {
+        let top = match reader.next().await {
+            Ok(Some(top)) => top,
+            Ok(None) => break None,
+            Err(err) => break Some(format!("its fMP4 output couldn't be read: {err}")),
+        };
+        match &top.kind {
+            b"ftyp" => ftyp = Some(top.bytes),
+            b"moov" => {
+                let Some(ftyp) = ftyp.take() else { break Some("its fMP4 output has no file type box".into()) };
+                let parsed = match Init::parse(&ftyp, &top.bytes) {
+                    Ok(parsed) => parsed,
+                    Err(why) => break Some(format!("its init segment couldn't be read: {why}")),
+                };
+                if let Err(why) = job.store_init(&parsed.bytes, generation) {
+                    break Some(why);
+                }
+                init = Some(parsed);
             }
-            segment_written(&job, &next, n, place);
-            Metrics::inc(&metrics.segments_produced);
-            // Throttling: far enough ahead, it pauses (see `PAUSE_AHEAD`)
-            // right away rather than at the reaper's next look.
-            if job.far_ahead(n + 1) {
-                pause.send_if_modified(|paused| !std::mem::replace(paused, true));
+            b"moof" => {
+                let Some(init) = init.as_ref() else { break Some("its fMP4 output has no movie box".into()) };
+                let mdat = match reader.next().await {
+                    Ok(Some(mdat)) if mdat.kind == *b"mdat" => mdat,
+                    Ok(_) => break Some("a fragment of its fMP4 output has no media data".into()),
+                    Err(err) => break Some(format!("its fMP4 output couldn't be read: {err}")),
+                };
+                let mut fragment = match Fragment::parse(top.bytes, mdat.bytes, init) {
+                    Ok(fragment) => fragment,
+                    Err(why) => break Some(format!("a fragment of its fMP4 output couldn't be read: {why}")),
+                };
+                // Audio from before 0 (encoder priming, in a process that
+                // started at 0) is left out: players take a negative start
+                // badly.
+                let mut rewritten = None;
+                if fragment.needs_trim(init) {
+                    if fragment.trim_before_zero(init) {
+                        rewritten = Some(fragment.to_bytes());
+                    } else if job.warn("a segment's sound starts before the stream does") {
+                        tracing::warn!(job = %job.id, "a fragment's audio before 0 couldn't be left out");
+                    }
+                }
+                // Its segment: where its first video sample is shown, as the
+                // segment muxer splits (a segment begins at the first
+                // keyframe at or after its split time). Without video (the
+                // last flush), it goes with the one before.
+                let k = match fragment.presentation_start_ms(init) {
+                    Some(t) => job.plan.split_at[..count].partition_point(|&s| s <= t).max(1) as u32 - 1,
+                    None => match &open {
+                        Some((n, ..)) => *n,
+                        None => continue,
+                    },
+                };
+                if k < start || k >= end {
+                    tracing::trace!(job = %job.id, "a fragment of segment {k} left out: made by another process");
+                    continue;
+                }
+                if open.as_ref().is_none_or(|(n, ..)| k > *n) {
+                    let first = match open.take() {
+                        Some((n, part, mut file)) => {
+                            if let Err(err) = commit_part(&mut file, &part, &job.path_in(place, n)).await {
+                                break Some(format!("segment {n} couldn't be written: {err}"));
+                            }
+                            made.segment(n);
+                            n + 1
+                        }
+                        None => start,
+                    };
+                    if k > first {
+                        tracing::warn!(job = %job.id, "segments {first} to {} have no keyframe: never made", k - 1);
+                    }
+                    let part = job.part_path(place, k, generation);
+                    match tokio::fs::File::create(&part).await {
+                        Ok(file) => open = Some((k, part, file)),
+                        Err(err) => break Some(format!("segment {k} couldn't be written: {err}")),
+                    }
+                } else if open.as_ref().is_some_and(|(n, ..)| k < *n) {
+                    tracing::debug!(job = %job.id, "a fragment of segment {k} after a later one: left out");
+                    continue;
+                }
+                let bytes = rewritten.as_deref().unwrap_or(&fragment.bytes);
+                if let Some((n, _, file)) = open.as_mut()
+                    && let Err(err) = file.write_all(bytes).await
+                {
+                    break Some(format!("segment {n} couldn't be written: {err}"));
+                }
             }
-            made += 1;
-            if made == STARTED_AFTER {
-                // Started: background work goes on.
-                drop(starting.take());
+            _ => break Some("its fMP4 output has media data without a fragment".into()),
+        }
+    };
+    match failed {
+        None => open.map(|(n, part, file)| Pending { n, part, file, made }),
+        Some(why) => {
+            tracing::warn!(job = %job.id, "process {generation} stopped: {why}");
+            *reason.lock() = Some(why);
+            if let Some((_, part, file)) = open {
+                drop(file);
+                let _ = tokio::fs::remove_file(&part).await;
             }
+            None
         }
     }
 }
@@ -2085,7 +2419,8 @@ fn describe(created: &JobCreated) -> String {
         .audio
         .as_ref()
         .map(|a| format!("audio {}→{} {}ch", a.codec_in, a.codec_out, a.channels_out.unwrap_or(0)));
-    [video, audio, Some(format!("{} segments", created.segment_count))]
+    let format = if created.segment_format == SegmentFormat::Fmp4 { " fMP4" } else { "" };
+    [video, audio, Some(format!("{}{format} segments", created.segment_count))]
         .into_iter()
         .flatten()
         .collect::<Vec<_>>()
@@ -2384,6 +2719,7 @@ mod tests {
             throttle: false,
             catchup: false,
             warnings: vec![],
+            segment_format: Default::default(),
         };
         let job = Job::new(
             "test".into(),
@@ -2606,11 +2942,24 @@ mod tests {
             ("master.m3u8", Some(JobFile::Master)),
             ("index.m3u8", Some(JobFile::Playlist(0))),
             ("v2.m3u8", Some(JobFile::Playlist(2))),
-            ("12.ts", Some(JobFile::Segment(0, 12))),
-            ("v1-12.ts", Some(JobFile::Segment(1, 12))),
+            ("12.ts", Some(JobFile::Segment(0, 12, SegmentFormat::Ts))),
+            ("v1-12.ts", Some(JobFile::Segment(1, 12, SegmentFormat::Ts))),
+            ("12.m4s", Some(JobFile::Segment(0, 12, SegmentFormat::Fmp4))),
+            ("v1-12.m4s", Some(JobFile::Segment(1, 12, SegmentFormat::Fmp4))),
+            ("init.mp4", Some(JobFile::Init(0))),
+            ("v2-init.mp4", Some(JobFile::Init(2))),
             ("v0.m3u8", None),
             ("v0-3.ts", None),
+            ("v0-3.m4s", None),
+            ("v0-init.mp4", None),
+            ("-init.mp4", None),
+            ("v-init.mp4", None),
+            ("init.ts", None),
+            ("init.m4s", None),
+            ("12.m4s.p3", None),
+            ("12.mp4", None),
             ("v1.ts", None),
+            ("v1.m4s", None),
             ("x.m3u8", None),
             ("12.jpg", None),
         ] {
@@ -2804,7 +3153,7 @@ mod tests {
         let (metrics, tail) = (Metrics::default(), Mutex::new(VecDeque::new()));
         let exits = |hardware: bool, start: u32, next: u32, killed: bool| {
             job.runtime.lock().process = Some(ProcessStatus { hardware, start_segment: start, ..Default::default() });
-            job.on_exit(0, 3, next, Ok(exit(1)), killed, &tail, &metrics);
+            job.on_exit(0, 3, next, Ok(exit(1)), killed, None, &tail, &metrics);
             job.runtime.lock().hardware_failed
         };
         assert!(!exits(true, 1, 1, true), "stopped on purpose");
@@ -2914,21 +3263,21 @@ mod tests {
         let job = job(dir.path(), vec![0, 4_000, 8_000]);
         let metrics = Metrics::default();
         let tail = Mutex::new(VecDeque::new());
-        job.on_exit(0, 2, 2, Ok(exit(0)), false, &tail, &metrics);
+        job.on_exit(0, 2, 2, Ok(exit(0)), false, None, &tail, &metrics);
         assert_eq!(job.status().state, JobState::Finished, "produced up to the end");
-        job.on_exit(0, 1, 1, Ok(exit(0)), false, &tail, &metrics);
+        job.on_exit(0, 1, 1, Ok(exit(0)), false, None, &tail, &metrics);
         assert_eq!(job.status().state, JobState::Idle, "the window ended before the file did");
-        job.on_exit(0, 2, 1, Ok(exit(1)), true, &tail, &metrics);
+        job.on_exit(0, 2, 1, Ok(exit(1)), true, None, &tail, &metrics);
         assert_eq!(job.status().state, JobState::Idle, "stopped on purpose is no failure");
         assert_eq!(metrics.process_failures.load(Relaxed), 0);
 
         // A failure keeps the end of ffmpeg's output.
         tail.lock().extend(["one", "two", "three", "four", "five"].map(String::from));
-        job.on_exit(0, 2, 1, Ok(exit(1)), false, &tail, &metrics);
+        job.on_exit(0, 2, 1, Ok(exit(1)), false, None, &tail, &metrics);
         let status = job.status();
         assert_eq!(status.state, JobState::Failed);
         assert_eq!(status.last_error.as_deref(), Some("two | three | four | five"));
-        job.on_exit(0, 2, 1, Err(std::io::Error::other("gone")), false, &Mutex::new(VecDeque::new()), &metrics);
+        job.on_exit(0, 2, 1, Err(std::io::Error::other("gone")), false, None, &Mutex::new(VecDeque::new()), &metrics);
         assert!(job.status().last_error.unwrap().contains("could not be awaited: gone"));
         assert_eq!(metrics.process_failures.load(Relaxed), 2);
         assert_eq!(metrics.jobs_failed.load(Relaxed), 1, "a failing job counts once");
@@ -2947,11 +3296,11 @@ mod tests {
             rt.process = Some(ProcessStatus { pid: Some(7), ..Default::default() });
         }
         // The first process, which outlived its stop by seconds...
-        job.on_exit(1, 2, 1, Ok(exit(1)), true, &tail, &metrics);
+        job.on_exit(1, 2, 1, Ok(exit(1)), true, None, &tail, &metrics);
         let status = job.status();
         assert_eq!((status.state, status.process.and_then(|p| p.pid)), (JobState::Running, Some(7)));
         // ...then the second, the running one.
-        job.on_exit(2, 2, 1, Ok(exit(1)), true, &tail, &metrics);
+        job.on_exit(2, 2, 1, Ok(exit(1)), true, None, &tail, &metrics);
         let status = job.status();
         assert_eq!((status.state, status.process), (JobState::Idle, None));
     }
@@ -3193,8 +3542,8 @@ mod tests {
         let job = job_in_memory(dir.path(), "job", &store, GIB);
         make(&job, 7, Place::Memory, 100);
         std::fs::write(job.path_in(Place::Memory, 8), b"half").unwrap();
-        job.drop_unmade(8);
-        job.drop_unmade(7);
+        job.drop_unmade(8, 0);
+        job.drop_unmade(7, 0);
         assert!(!job.path_in(Place::Memory, 8).exists());
         assert!(job.path_in(Place::Memory, 7).exists(), "made, it stays");
     }
@@ -3272,5 +3621,412 @@ mod tests {
         assert!(mgr.memory_victim().is_none());
         assert_eq!(large.choose_place(), Place::Memory, "room again: the next process goes to memory");
         assert_eq!(mgr.memory_bytes(), 6_000);
+    }
+
+    #[test]
+    fn fmp4_playlists_name_their_init_and_segments() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut job = job(dir.path(), vec![0, 4_000, 8_400, 10_500]);
+        job.plan.segment_format = SegmentFormat::Fmp4;
+        assert_eq!(
+            job.playlist(),
+            "#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-TARGETDURATION:5\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n\
+             #EXT-X-MAP:URI=\"init.mp4\"\n\
+             #EXTINF:4.000,\n0.m4s\n#EXTINF:4.400,\n1.m4s\n#EXTINF:2.100,\n2.m4s\n#EXT-X-ENDLIST\n"
+        );
+        // A variant's: its own init.
+        let variant = Job { prefix: "v1-".into(), ..job };
+        let playlist = variant.playlist();
+        assert!(playlist.contains("#EXT-X-MAP:URI=\"v1-init.mp4\"\n#EXTINF:4.000,\nv1-0.m4s\n"), "{playlist}");
+        assert!(playlist.contains("\nv1-2.m4s\n") && !playlist.contains(".ts"), "{playlist}");
+    }
+
+    #[test]
+    fn an_fmp4_part_half_made_in_memory_goes() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(dir.path(), roomy());
+        let mut job = job_in_memory(dir.path(), "job", &store, GIB);
+        job.plan.segment_format = SegmentFormat::Fmp4;
+        assert!(job.path_in(Place::Memory, 8).ends_with("8.m4s"));
+        let part = job.part_path(Place::Memory, 8, 3);
+        assert!(part.starts_with(store.root()) && part.ends_with("8.m4s.p3"), "{}", part.display());
+        std::fs::write(&part, b"half").unwrap();
+        // Another process's part is its own.
+        let other = job.part_path(Place::Memory, 8, 4);
+        std::fs::write(&other, b"half").unwrap();
+        job.drop_unmade(8, 3);
+        assert!(!part.exists() && other.exists());
+    }
+
+    /// 30 s of 320×180 H.264 with B-frames and a keyframe every 2 s, and a
+    /// tone in AAC (`sound.mkv`: Matroska, whose Cues are the keyframe index
+    /// at once), and a manager whose only encoder is libx264 (`None` without
+    /// FFmpeg).
+    fn with_sound(dir: &Path) -> Option<(PathBuf, Arc<JobManager>)> {
+        let (_, jobs) = with_ffmpeg(dir, "320x180")?;
+        let input = dir.join("sound.mkv");
+        let made = std::process::Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i"])
+            .arg("testsrc2=size=320x180:rate=25:duration=30")
+            .args(["-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=30"])
+            .args(["-c:v", "libx264", "-preset", "veryfast", "-bf", "2", "-g", "50", "-sc_threshold", "0"])
+            .args(["-c:a", "aac"])
+            .arg(&input)
+            .status()
+            .unwrap();
+        assert!(made.success());
+        Some((input, jobs))
+    }
+
+    /// fMP4 segments of 2 s of `input`, its video made as `mode` says and
+    /// its sound AAC, made at full speed with x264's `veryfast`.
+    fn fmp4_request(input: &Path, mode: VideoMode) -> JobRequest {
+        use pley_transcoder_api::{AudioRequest, TranscodeOptions, VideoRequest};
+        JobRequest {
+            input: input.to_string_lossy().into_owned(),
+            video: Some(VideoRequest { mode, ..Default::default() }),
+            audio: Some(AudioRequest::default()),
+            segment_seconds: Some(2.0),
+            options: TranscodeOptions { throttle: false, preset: Some("veryfast".into()), ..Default::default() },
+            segment_format: SegmentFormat::Fmp4,
+            ..Default::default()
+        }
+    }
+
+    /// The `ftyp` and `moov` of `init`, read.
+    async fn read_init(init: &[u8]) -> Init {
+        let mut reader = BoxReader::new(init);
+        let (ftyp, moov) = (reader.next().await.unwrap().unwrap(), reader.next().await.unwrap().unwrap());
+        assert!(reader.next().await.unwrap().is_none(), "nothing but the init");
+        Init::parse(&ftyp.bytes, &moov.bytes).unwrap()
+    }
+
+    /// The fragments of fMP4 segment `segment`.
+    async fn read_fragments_of(init: &Init, segment: &Path) -> Vec<Fragment> {
+        let bytes = std::fs::read(segment).unwrap();
+        let mut reader = BoxReader::new(bytes.as_slice());
+        let mut fragments = Vec::new();
+        while let Some(moof) = reader.next().await.unwrap() {
+            let mdat = reader.next().await.unwrap().unwrap();
+            assert_eq!((moof.kind, mdat.kind), (*b"moof", *b"mdat"), "{}", segment.display());
+            fragments.push(Fragment::parse(moof.bytes, mdat.bytes, init).unwrap());
+        }
+        assert!(!fragments.is_empty(), "{} is empty", segment.display());
+        fragments
+    }
+
+    /// Each fragment's tracks and their decode times.
+    fn decode_times(fragments: &[Fragment]) -> Vec<Vec<(u32, i64)>> {
+        fragments.iter().map(|f| f.trafs.iter().map(|t| (t.track, t.tfdt)).collect()).collect()
+    }
+
+    /// The video's decode time at the start of a segment and after it.
+    fn video_span(init: &Init, fragments: &[Fragment]) -> (i64, i64) {
+        let video = init.video.unwrap();
+        let trafs: Vec<&crate::fmp4::Traf> =
+            fragments.iter().flat_map(|f| f.trafs.iter()).filter(|t| t.track == video).collect();
+        let last = trafs.last().unwrap();
+        let length: i64 = last.runs.iter().flat_map(|r| r.samples.iter()).map(|s| i64::from(s.duration)).sum();
+        (trafs[0].tfdt, last.tfdt + length)
+    }
+
+    /// No part files left in `dir`.
+    fn no_parts(dir: &Path) {
+        let names: Vec<String> = std::fs::read_dir(dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|n| n.contains(".p"))
+            .collect();
+        assert!(names.is_empty(), "{names:?}");
+    }
+
+    async fn stopped(job: &Job) {
+        let stopped = async {
+            while job.process.lock().await.as_ref().is_some_and(Proc::running) {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        };
+        tokio::time::timeout(Duration::from_secs(30), stopped).await.expect("its process stops");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fmp4_jobs_serve_an_init_and_segments_that_play_after_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let Some((input, jobs)) = with_sound(dir.path()) else { return };
+        let created = jobs.create(fmp4_request(&input, VideoMode::Transcode)).await.unwrap();
+        assert_eq!((created.segment_format, created.segment_count), (SegmentFormat::Fmp4, 15));
+        let job = jobs.get(&created.id).unwrap();
+        // Asked for before its process wrote it: it waits for it.
+        let (_, init_path) = jobs.rendition_init(&job, 0).await.unwrap();
+        assert_eq!(init_path, job.dir.join("init.mp4"));
+        let init_bytes = std::fs::read(&init_path).unwrap();
+        let init = read_init(&init_bytes).await;
+        let video = init.track(init.video.unwrap()).unwrap().clone();
+        let audio = init.tracks.iter().find(|t| t.handler == *b"soun").unwrap().clone();
+        assert_eq!((video.format, audio.format), (*b"avc1", *b"mp4a"));
+
+        let mut whole = init_bytes.clone();
+        for n in 0..created.segment_count {
+            let path = jobs.segment(&job, n).await.unwrap();
+            assert_eq!(path, job.dir.join(format!("{n}.m4s")));
+            let fragments = read_fragments_of(&init, &path).await;
+            // It starts on a keyframe, at its boundary (within a frame).
+            let first = &fragments[0];
+            let traf = first.trafs.iter().find(|t| t.track == video.id).expect("video first");
+            assert_eq!(traf.runs[0].samples[0].flags & 0x0001_0000, 0, "segment {n} starts on a keyframe");
+            let shown = first.presentation_start_ms(&init).unwrap();
+            assert!((shown - job.plan.boundaries[n as usize]).abs() <= 40, "segment {n} starts at {shown} ms");
+            if n == 0 {
+                let sound = first.trafs.iter().find(|t| t.track == audio.id).expect("sound from the start");
+                assert!(sound.tfdt >= 0, "the encoder's priming is left out: {}", sound.tfdt);
+            }
+            whole.extend(std::fs::read(&path).unwrap());
+        }
+        no_parts(&job.dir);
+
+        // The init and the segments one after another play, every frame.
+        let joined = dir.path().join("joined.mp4");
+        std::fs::write(&joined, &whole).unwrap();
+        let decoded = std::process::Command::new("ffmpeg")
+            .args(["-hide_banner", "-v", "error", "-i"])
+            .arg(&joined)
+            .args(["-f", "null", "-"])
+            .output()
+            .unwrap();
+        assert!(decoded.status.success() && decoded.stderr.is_empty(), "{}", String::from_utf8_lossy(&decoded.stderr));
+        let counted = std::process::Command::new("ffprobe")
+            .args(["-v", "error", "-count_frames", "-select_streams", "v:0"])
+            .args(["-show_entries", "stream=nb_read_frames", "-of", "csv=p=0"])
+            .arg(&joined)
+            .output()
+            .unwrap();
+        assert_eq!(String::from_utf8_lossy(&counted.stdout).trim(), "750");
+        jobs.remove(&created.id).await;
+    }
+
+    /// A process started again within an fMP4 job (here at segment 12, as
+    /// a new bitrate or a seek would) writes the same init as the first,
+    /// and its video at the same times: segment 12 follows segment 11. Its
+    /// sound, converted from a little before the seek point (and primed
+    /// anew), starts within a frame or two of the first process's.
+    async fn fmp4_restarts_go_on_where_the_first_process_was(mode: VideoMode) {
+        let dir = tempfile::tempdir().unwrap();
+        let Some((input, jobs)) = with_sound(dir.path()) else { return };
+        let created = jobs.create(fmp4_request(&input, mode)).await.unwrap();
+        assert_eq!(created.video.as_ref().map(|v| v.mode), Some(mode));
+        assert_eq!(created.segment_format, SegmentFormat::Fmp4);
+        let job = jobs.get(&created.id).unwrap();
+        let count = created.segment_count;
+        assert_eq!(count, 15);
+        let mut first = Vec::new();
+        for n in 0..count {
+            first.push(jobs.segment(&job, n).await.unwrap());
+        }
+        let init_bytes = std::fs::read(job.init_path()).unwrap();
+        let init = read_init(&init_bytes).await;
+        let mut times = Vec::new();
+        for path in &first {
+            times.push(decode_times(&read_fragments_of(&init, path).await));
+        }
+        let (_, eleven_ends) = video_span(&init, &read_fragments_of(&init, &first[11]).await);
+        let video = init.video.unwrap();
+        let audio = init.tracks.iter().find(|t| t.handler == *b"soun").unwrap();
+        let close = |a: &[Vec<(u32, i64)>], b: &[Vec<(u32, i64)>]| {
+            a.len() == b.len()
+                && a.iter().zip(b).all(|(a, b)| {
+                    a.len() == b.len()
+                        && a.iter().zip(b).all(|(&(ta, a), &(tb, b))| {
+                            ta == tb
+                                && match ta {
+                                    t if t == video => a == b,
+                                    // 50 ms.
+                                    _ => (a - b).abs() <= i64::from(audio.timescale) / 20,
+                                }
+                        })
+                })
+        };
+        stopped(&job).await;
+        let restarts = job.status().restarts;
+
+        assert_eq!(job.forget_from(12), 3);
+        for n in 12..count {
+            let path = jobs.segment(&job, n).await.unwrap();
+            let fragments = read_fragments_of(&init, &path).await;
+            let again = decode_times(&fragments);
+            assert!(close(&again, &times[n as usize]), "segment {n}: {again:?}, first {:?}", times[n as usize]);
+            if n == 12 {
+                assert_eq!(video_span(&init, &fragments).0, eleven_ends, "segment 12 follows segment 11");
+            }
+        }
+        assert!(job.status().restarts > restarts, "made again by another process");
+        assert_eq!(std::fs::read(job.init_path()).unwrap(), init_bytes, "the same init");
+        assert!(job.status().warnings.is_empty(), "{:?}", job.status().warnings);
+        no_parts(&job.dir);
+        jobs.remove(&created.id).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fmp4_transcodes_restarted_go_on_where_they_were() {
+        fmp4_restarts_go_on_where_the_first_process_was(VideoMode::Transcode).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fmp4_remuxes_restarted_go_on_where_they_were() {
+        fmp4_restarts_go_on_where_the_first_process_was(VideoMode::Copy).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_process_writing_another_init_fails_and_the_first_stays() {
+        let dir = tempfile::tempdir().unwrap();
+        let Some((input, jobs)) = with_sound(dir.path()) else { return };
+        let created = jobs.create(fmp4_request(&input, VideoMode::Transcode)).await.unwrap();
+        let job = jobs.get(&created.id).unwrap();
+        jobs.segment(&job, 0).await.unwrap();
+        let kept = std::fs::read(job.init_path()).unwrap();
+        assert!(job.store_init(&kept, 7).is_ok(), "the same again: nothing to do");
+        let err = job.store_init(b"another encoder's", 7).unwrap_err();
+        assert!(err.contains("init segment changed"), "{err}");
+        assert_eq!(std::fs::read(job.init_path()).unwrap(), kept, "players have it: it stays");
+
+        // Processes whose init isn't the one players have fail at once,
+        // twice, and the job says why.
+        stopped(&job).await;
+        *job.init.lock() = Some(Arc::from(&b"another encoder's"[..]));
+        job.forget_from(10);
+        let err = jobs.segment(&job, 10).await.unwrap_err();
+        assert!(matches!(&err, ApiError::Failed(m) if m.contains("init segment changed")), "{err:?}");
+        assert_eq!(
+            job.status().last_error.as_deref(),
+            Some("the init segment changed after a restart (encoder settings differ)")
+        );
+        assert!(!job.is_ready(10));
+        assert_eq!(std::fs::read(job.init_path()).unwrap(), kept);
+        no_parts(&job.dir);
+        jobs.remove(&created.id).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fmp4_segments_in_memory_are_made_there() {
+        use pley_transcoder_api::{EncoderInfo, HwAccel};
+        let dir = tempfile::tempdir().unwrap();
+        let Some((input, _)) = with_sound(dir.path()) else { return };
+        // Throttled, as jobs keeping their segments in memory are.
+        let x264 = EncoderInfo {
+            name: "libx264".into(),
+            codec: VideoCodec::H264,
+            hardware: false,
+            accel: HwAccel::None,
+            main10: false,
+        };
+        let caps = pley_transcoder_api::Capabilities {
+            ffmpeg_available: true,
+            ffprobe_available: true,
+            readrate: true,
+            encoders: vec![x264],
+            ..Default::default()
+        };
+        let ff = Ffmpeg { ffmpeg: "ffmpeg".into(), ffprobe: "ffprobe".into(), caps, segment_times_relative: true };
+        let jobs = manager_with(dir.path(), ff);
+        let store = store(dir.path(), roomy());
+        jobs.keep_in_memory(store.clone());
+        let mut req = fmp4_request(&input, VideoMode::Transcode);
+        req.options.throttle = true;
+        let created = jobs.create(req).await.unwrap();
+        let job = jobs.get(&created.id).unwrap();
+        let memory_dir = job.memory.as_ref().expect("in memory").dir.clone();
+        let path = jobs.segment(&job, 0).await.unwrap();
+        assert_eq!(path, memory_dir.join("0.m4s"));
+        assert!(job.status().memory_bytes > 0);
+        assert!(job.init_path().exists() && !memory_dir.join("init.mp4").exists(), "the init is on disk");
+        // Stopped as it makes the next ones: what it was making goes.
+        if let Some(p) = job.process.lock().await.take() {
+            p.stop().await;
+        }
+        no_parts(&memory_dir);
+        no_parts(&job.dir);
+        jobs.remove(&created.id).await;
+        assert!(!memory_dir.exists());
+    }
+
+    /// The cutter on its own, on what FFmpeg writes for 6 s with keyframes
+    /// at 0, 2 and 4 s, for a job of three 2 s segments.
+    #[tokio::test]
+    async fn fragments_go_in_their_segments_and_outside_the_window_are_left_out() {
+        let dir = tempfile::tempdir().unwrap();
+        if with_ffmpeg(dir.path(), "320x180").is_none() {
+            return;
+        }
+        let out = std::process::Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=25"])
+            .args(["-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000", "-t", "6"])
+            .args(["-c:v", "libx264", "-preset", "veryfast", "-bf", "2", "-sc_threshold", "0"])
+            .args(["-force_key_frames", "expr:gte(t,n_forced*2)", "-c:a", "aac", "-avoid_negative_ts", "disabled"])
+            .args(["-f", "mp4", "-movflags", crate::plan::FMP4_MOVFLAGS, "-write_tmcd", "0", "pipe:1"])
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        let stream = out.stdout;
+
+        let background = Background::new();
+        let cut = |job: &Arc<Job>, start: u32, end: u32, generation: u64, stream: &[u8]| {
+            let made = SegmentsMade {
+                job: job.clone(),
+                place: Place::Disk,
+                next: Arc::new(AtomicU32::new(start)),
+                spawned: Instant::now(),
+                starting: Some(background.start()),
+                metrics: Arc::default(),
+                pause: Arc::new(watch::channel(false).0),
+                count: 0,
+            };
+            let reason = Arc::new(Mutex::new(None));
+            let stream = stream.to_vec();
+            async move {
+                let pending = read_fragments(stream.as_slice(), start, end, generation, made, reason.clone()).await;
+                (pending, reason.lock().take())
+            }
+        };
+        let mut fmp4 = job(dir.path(), vec![0, 2_000, 4_000, 6_000]);
+        fmp4.plan.segment_format = SegmentFormat::Fmp4;
+        let job = Arc::new(fmp4);
+
+        // A process making segment 1 only (started a keyframe early, and
+        // let a keyframe past its end through): the rest is left out.
+        let (pending, reason) = cut(&job, 1, 2, 1, &stream).await;
+        assert_eq!(reason, None);
+        let pending = pending.expect("segment 1, whole once the process ended well");
+        assert_eq!((pending.n, pending.part.clone()), (1, dir.path().join("1.m4s.p1")));
+        assert!(!job.is_ready(1));
+        pending.commit().await.unwrap();
+        assert!(job.is_ready(1) && !job.is_ready(0) && !job.is_ready(2));
+        let init = read_init(&std::fs::read(job.init_path()).unwrap()).await;
+        let fragments = read_fragments_of(&init, &dir.path().join("1.m4s")).await;
+        let starts: Vec<_> = fragments.iter().filter_map(|f| f.presentation_start_ms(&init)).collect();
+        assert_eq!(starts, [2_000]);
+        assert!(!dir.path().join("0.m4s").exists() && !dir.path().join("2.m4s").exists());
+
+        // The whole: segments are made as the next begins, the last at the
+        // end, and a process that didn't end well leaves no part behind.
+        let (pending, reason) = cut(&job, 0, 3, 2, &stream).await;
+        assert_eq!(reason, None);
+        assert!(job.is_ready(0), "made once segment 1 began");
+        let pending = pending.unwrap();
+        assert_eq!(pending.n, 2);
+        let part = pending.part.clone();
+        pending.discard().await;
+        assert!(!part.exists() && !job.is_ready(2));
+        no_parts(dir.path());
+        let first = read_fragments_of(&init, &dir.path().join("0.m4s")).await;
+        let audio = init.tracks.iter().find(|t| t.handler == *b"soun").unwrap().id;
+        let sound = first[0].trafs.iter().find(|t| t.track == audio).unwrap();
+        assert_eq!(sound.tfdt, 0, "the encoder's priming left out");
+
+        // Output that isn't fMP4, or stops inside a box, stops the process.
+        for (broken, why) in [(&b"\0\0\0\x10moofnot an init"[..], "no movie box"), (&stream[..stream.len() - 9], "")] {
+            let (pending, reason) = cut(&job, 0, 3, 3, broken).await;
+            assert!(pending.is_none());
+            assert!(reason.as_deref().is_some_and(|r| r.contains(why)), "{reason:?}");
+            no_parts(dir.path());
+        }
     }
 }

@@ -14,7 +14,7 @@ use futures::FutureExt;
 use futures::future::{BoxFuture, Shared};
 use pley_transcoder_api::{
     AudioMode, ConversionState, ConversionStatus, FileContainer, JobRequest, JobStatus, MediaInfo, MediaStream,
-    SUBTITLES_COMPLETE_HEADER, StreamKind, VideoMode,
+    SUBTITLES_COMPLETE_HEADER, SegmentFormat, StreamKind, VideoMode,
 };
 use serde::{Deserialize, Serialize};
 use tower::ServiceExt;
@@ -249,6 +249,7 @@ pub async fn start(
         } else {
             Vec::new()
         },
+        segment_format: SegmentFormat::Ts,
     };
     let created = state.transcoder.create_job(&job_request).await.map_err(|err| for_viewer(&user, err))?;
     // Once the transcoder knows a playback starts: the copy waits for it.
@@ -767,6 +768,7 @@ pub async fn convert(
         options: state.settings.get().transcode_options(),
         container: (container == FileContainer::Mp4).then_some(container),
         variants: Vec::new(),
+        segment_format: SegmentFormat::Ts,
     };
     let status = state.transcoder.create_conversion(&job).await.map_err(|err| match AppError::from(err) {
         // The file can't be read now (a share asleep, unmounted): a moment's

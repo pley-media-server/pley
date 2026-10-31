@@ -16,8 +16,8 @@ use std::path::{Path, PathBuf};
 
 use pley_transcoder_api::{
     AudioCodec, AudioMode, AudioPlan, DolbyVisionMode, DynamicRange, EncoderInfo, FileContainer, HwAccel, JobRequest,
-    MediaInfo, MediaStream, StreamKind, TonemapQuality, TonemapSpeed, Tonemapper, VideoCodec, VideoMode, VideoPlan,
-    VideoRequest, decode_key, default_video_kbps, is_text_subtitle_codec,
+    MediaInfo, MediaStream, SegmentFormat, StreamKind, TonemapQuality, TonemapSpeed, Tonemapper, VideoCodec, VideoMode,
+    VideoPlan, VideoRequest, decode_key, default_video_kbps, is_text_subtitle_codec,
 };
 
 use crate::devices::vaapi_device;
@@ -43,6 +43,14 @@ pub const READRATE_BURST_MS: i64 = 120_000;
 /// How fast a throttled read that fell behind (a slow disk or share)
 /// catches up, where FFmpeg can.
 pub const READRATE_CATCHUP: f64 = 2.0;
+/// How a process making fMP4 segments writes its output: one fragmented
+/// MP4, a fragment at each video keyframe, which the transcoder cuts into
+/// segments (see [`crate::fmp4`]). Every fragment's decode time is absolute
+/// (`default_base_moof`, `frag_discont`), so processes started anywhere
+/// write the same `ftyp` and `moov`; `delay_moov` waits for the first
+/// packets (AC-3 needs them), and `skip_trailer` leaves out the index at
+/// the end.
+pub const FMP4_MOVFLAGS: &str = "+frag_keyframe+empty_moov+default_base_moof+delay_moov+frag_discont+skip_trailer";
 
 /// CPU tone mapping chain (zimg). Expects HDR input, outputs 8-bit BT.709.
 pub const ZSCALE_TONEMAP: &str = "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p";
@@ -264,6 +272,9 @@ pub struct VideoOut {
     pub dolby_vision: Option<DolbyVisionMode>,
     /// A remux of HEVC leaves out its HDR10+ metadata.
     pub strip_hdr10plus: bool,
+    /// The video comes out as HEVC, copied or encoded: tagged `hvc1` in MP4,
+    /// the only way Apple's players take it (FFmpeg writes `hev1`).
+    pub hevc: bool,
     /// A transcode that keeps HDR: HEVC Main 10 in HDR10 or HLG (see
     /// [`hdr_output`]); `None` when it comes out SDR.
     pub hdr: Option<HdrOut>,
@@ -485,6 +496,8 @@ pub struct Plan {
     /// A throttled read catches up faster when it falls behind ([`READRATE_CATCHUP`]).
     pub catchup: bool,
     pub warnings: Vec<String>,
+    /// How its segments are packaged (see [`Plan::build`]).
+    pub segment_format: SegmentFormat,
 }
 
 impl Plan {
@@ -572,6 +585,7 @@ impl Plan {
                         pipeline: Pipeline::Software,
                         dolby_vision,
                         strip_hdr10plus: vreq.strip_hdr10plus && src.codec == "hevc",
+                        hevc: src.codec == "hevc",
                         hdr: None,
                     })
                 } else {
@@ -726,6 +740,7 @@ impl Plan {
                         encoder: Some(encoder),
                         dolby_vision: None,
                         strip_hdr10plus: false,
+                        hevc: vreq.codec == VideoCodec::Hevc,
                         hdr,
                     })
                 }
@@ -800,6 +815,23 @@ impl Plan {
             }
         };
 
+        // fMP4 segments when asked for, but not without video: fragments are
+        // cut at video keyframes, and Apple's players take AAC, AC-3 and
+        // E-AC-3 in MPEG-TS. Nor yet for a remux whose Dolby Vision or
+        // HDR10+ the transcoder edits or signals: that is done to MPEG-TS
+        // segments only. No warning (what the job makes is in `JobCreated`).
+        let segment_format = match (req.segment_format, &video) {
+            (SegmentFormat::Fmp4, None) => {
+                tracing::debug!("no video: MPEG-TS segments rather than fMP4");
+                SegmentFormat::Ts
+            }
+            (SegmentFormat::Fmp4, Some(v)) if v.copy && (v.dolby_vision.is_some() || v.strip_hdr10plus) => {
+                tracing::debug!("a Dolby Vision or HDR10+ remux: MPEG-TS segments rather than fMP4");
+                SegmentFormat::Ts
+            }
+            (format, _) => format,
+        };
+
         Ok(Plan {
             duration_ms,
             boundaries,
@@ -812,6 +844,7 @@ impl Plan {
             throttle: req.options.throttle && ff.caps.readrate,
             catchup: req.options.throttle && ff.caps.readrate && ff.caps.readrate_catchup,
             warnings,
+            segment_format,
         })
     }
 
@@ -999,10 +1032,22 @@ impl Plan {
         })
     }
 
-    /// ffmpeg arguments producing segments `[start, end)`.
+    /// ffmpeg arguments producing segments `[start, end)`: MPEG-TS
+    /// segments it writes itself and lists on stdout, or for fMP4 one
+    /// fragmented MP4 on stdout that the transcoder cuts into segments at
+    /// [`Plan::split_at`] (see `job.rs`).
     pub fn ffmpeg_args(&self, ctx: &ArgsContext<'_>, start: u32, end: u32) -> Vec<OsString> {
         let start_ms = self.boundaries[start as usize];
         let mut a = self.stream_args(ctx, start, end);
+        if self.segment_format == SegmentFormat::Fmp4 {
+            if self.video.as_ref().is_some_and(|v| v.hevc) {
+                a.push_all(["-tag:v", "hvc1"]);
+            }
+            // No timecode track from a MOV source; each fragment reaches the
+            // pipe as soon as it is cut.
+            a.push_all(["-f", "mp4", "-movflags", FMP4_MOVFLAGS, "-write_tmcd", "0", "-flush_packets", "1", "pipe:1"]);
+            return a.0;
+        }
 
         // Segmenting. Relative split times count from the first video packet,
         // which is the boundary (a remux's seek point lies past it).
@@ -2171,6 +2216,7 @@ mod tests {
             throttle: false,
             catchup: false,
             warnings: vec![],
+            segment_format: SegmentFormat::Ts,
         };
         assert_eq!(plan.segment_for(0), 0);
         assert_eq!(plan.segment_for(3_999), 0);
@@ -3732,5 +3778,77 @@ mod tests {
                 assert_eq!(video.get("codec_name").map(String::as_str), Some("h264"), "copied");
             }
         }
+    }
+
+    #[test]
+    fn fmp4_processes_write_one_fragmented_mp4_on_stdout() {
+        let ff = ffmpeg_with(vec![x264(), x265()], vec![Tonemapper::Zscale]);
+        let mut req = request();
+        req.segment_format = SegmentFormat::Fmp4;
+        let sdr = media(DynamicRange::Sdr, None);
+        let plan = Plan::build(&req, &sdr, &ff, None).unwrap();
+        assert_eq!(plan.segment_format, SegmentFormat::Fmp4);
+        let args = args_string(&plan, 3, 8);
+        assert!(
+            args.contains(
+                "-f mp4 -movflags +frag_keyframe+empty_moov+default_base_moof+delay_moov+frag_discont+skip_trailer \
+                 -write_tmcd 0 -flush_packets 1 pipe:1"
+            ),
+            "{args}"
+        );
+        assert!(args.ends_with(" pipe:1"), "{args}");
+        assert!(!args.contains("-segment"), "cut by the transcoder: {args}");
+        assert!(!args.contains("hvc1"), "H.264: {args}");
+        // Seeking, its absolute times and the window are those of MPEG-TS.
+        assert!(args.contains("-ss 12.000") && args.contains("-output_ts_offset 12.000"), "{args}");
+        assert!(args.contains("-avoid_negative_ts disabled -t 20.000"), "{args}");
+        assert!(args.contains("-force_key_frames expr:gte(t,n_forced*4)"), "{args}");
+
+        // HEVC, encoded or copied, is tagged as Apple's players take it.
+        let mut hevc = req.clone();
+        hevc.video.as_mut().unwrap().codec = VideoCodec::Hevc;
+        let plan = Plan::build(&hevc, &sdr, &ff, None).unwrap();
+        assert!(args_string(&plan, 0, 8).contains("-tag:v hvc1 -f mp4"));
+        let mut copy = req.clone();
+        copy.video = Some(VideoRequest { mode: VideoMode::Copy, ..Default::default() });
+        let kf: Vec<i64> = (0..30).map(|i| i * 2_000).collect();
+        let plan = Plan::build(&copy, &media(DynamicRange::Hdr10, None), &ff, Some(&kf)).unwrap();
+        assert!(plan.video.as_ref().unwrap().copy && plan.segment_format == SegmentFormat::Fmp4);
+        assert!(args_string(&plan, 2, 8).contains("-c:v copy"));
+        assert!(args_string(&plan, 2, 8).contains("-tag:v hvc1 -f mp4"));
+
+        // Asked for MPEG-TS, nothing changes.
+        let plan = Plan::build(&request(), &sdr, &ff, None).unwrap();
+        assert_eq!(plan.segment_format, SegmentFormat::Ts);
+        let args = args_string(&plan, 3, 8);
+        assert!(args.contains("-f segment -segment_format mpegts") && !args.contains("movflags"), "{args}");
+    }
+
+    #[test]
+    fn fmp4_is_made_for_video_but_not_yet_for_edited_remuxes() {
+        let ff = ffmpeg_with(vec![x264()], vec![Tonemapper::Zscale]);
+        let kf: Vec<i64> = (0..30).map(|i| i * 2_000).collect();
+        let fmp4 = |video: Option<VideoRequest>| JobRequest { video, segment_format: SegmentFormat::Fmp4, ..request() };
+        // Audio only: MPEG-TS, which Apple's players take its sound in.
+        let plan = Plan::build(&fmp4(None), &media(DynamicRange::Sdr, None), &ff, None).unwrap();
+        assert_eq!(plan.segment_format, SegmentFormat::Ts);
+        // A remux of Dolby Vision, whatever is done with it, or one leaving
+        // out HDR10+: MPEG-TS, where the transcoder edits it.
+        for dolby_vision in [DolbyVisionMode::Copy, DolbyVisionMode::Signal, DolbyVisionMode::To81] {
+            let copy = VideoRequest { mode: VideoMode::Copy, dolby_vision, ..Default::default() };
+            let plan = Plan::build(&fmp4(Some(copy)), &media(DynamicRange::DolbyVision, Some(8)), &ff, Some(&kf));
+            let plan = plan.unwrap();
+            assert!(plan.video.as_ref().unwrap().dolby_vision.is_some());
+            assert_eq!(plan.segment_format, SegmentFormat::Ts, "{dolby_vision:?}");
+        }
+        let strip = VideoRequest { mode: VideoMode::Copy, strip_hdr10plus: true, ..Default::default() };
+        let plan = Plan::build(&fmp4(Some(strip)), &media(DynamicRange::Hdr10plus, None), &ff, Some(&kf)).unwrap();
+        assert!(plan.segment_edits().is_some());
+        assert_eq!(plan.segment_format, SegmentFormat::Ts);
+        // Dolby Vision transcoded is video like any other.
+        let plan = Plan::build(&fmp4(request().video), &media(DynamicRange::DolbyVision, Some(8)), &ff, None).unwrap();
+        assert!(!plan.video.as_ref().unwrap().copy);
+        assert_eq!(plan.segment_format, SegmentFormat::Fmp4);
+        assert!(plan.warnings.iter().all(|w| !w.contains("MPEG-TS")), "{:?}", plan.warnings);
     }
 }

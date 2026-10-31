@@ -382,6 +382,7 @@ async fn start_fake() -> (Fake, String) {
                     audio: status.audio,
                     warnings: vec![],
                     variants: 0,
+                    segment_format: Default::default(),
                 })
                 .into_response()
             }),
