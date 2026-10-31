@@ -12,16 +12,28 @@ let package = Package(
         .library(name: "PleyModel", targets: ["PleyModel"]),
         .library(name: "PleyCommon", targets: ["PleyCommon"]),
         .library(name: "PleyNetwork", targets: ["PleyNetwork"]),
+        .library(name: "PleyAuth", targets: ["PleyAuth"]),
+        .library(name: "PleyData", targets: ["PleyData"]),
         .library(name: "PleyTesting", targets: ["PleyTesting"]),
+        .executable(name: "pley-apple-check", targets: ["pley-apple-check"]),
     ],
     targets: [
         .target(name: "PleyModel"),
         .target(name: "PleyCommon"),
         .target(name: "PleyNetwork", dependencies: ["PleyModel", "PleyCommon"]),
+        .target(name: "PleyAuth", dependencies: ["PleyModel", "PleyCommon", "PleyNetwork"]),
+        .target(name: "PleyData", dependencies: ["PleyModel", "PleyCommon", "PleyNetwork", "PleyAuth"]),
         .target(name: "PleyTesting", dependencies: ["PleyModel", "PleyCommon"]),
+        // Signs in to a real, disposable server (scripts/check-server.sh). macOS only.
+        .executableTarget(name: "pley-apple-check", dependencies: ["PleyData", "PleyAuth", "PleyNetwork", "PleyModel",
+                                                                   "PleyCommon"]),
         .testTarget(name: "PleyModelTests", dependencies: ["PleyModel", "PleyTesting"]),
         .testTarget(name: "PleyCommonTests", dependencies: ["PleyCommon", "PleyTesting"]),
         .testTarget(name: "PleyNetworkTests", dependencies: ["PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),
+        .testTarget(name: "PleyAuthTests",
+                    dependencies: ["PleyAuth", "PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),
+        .testTarget(name: "PleyDataTests",
+                    dependencies: ["PleyData", "PleyAuth", "PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),
     ],
     swiftLanguageModes: [.v6]
 )

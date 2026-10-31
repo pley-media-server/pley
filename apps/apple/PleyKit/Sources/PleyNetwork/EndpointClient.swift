@@ -18,8 +18,11 @@ public struct EndpointClient: Sendable {
 
     /// Posts `form` and returns the answer's body. A non-2xx answer throws
     /// `.oauth` with the server's `{ error, error_description }`, or
-    /// `.unreadable` without one; a redirect throws `.redirected`.
-    public func postForm(_ url: URL, _ form: [(String, String)]) async throws -> Data {
+    /// `.unreadable` without one; a redirect throws `.redirected`. `onLeak`
+    /// is called when the form (a refresh token) reached an address that
+    /// isn't private over plain http (see `HTTPTransport.perform`).
+    public func postForm(_ url: URL, _ form: [(String, String)],
+                         onLeak: (@Sendable () async -> Void)? = nil) async throws -> Data {
         let body = Data(Self.encode(form).utf8)
         guard body.count <= Self.maxForm else { throw PleyError.tooLarge }
         var request = URLRequest(url: url)
@@ -27,7 +30,8 @@ public struct EndpointClient: Sendable {
         request.httpBody = body
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        let response = try await transport.perform(request, redirects: .endpoints, maxBytes: BodyLimit.small)
+        let response = try await transport.perform(request, redirects: .endpoints, maxBytes: BodyLimit.small,
+                                                   onLeak: onLeak)
         if (200..<300).contains(response.status) { return response.body }
         if (300..<400).contains(response.status) { throw PleyError.redirected(location: response.header("Location")) }
         guard let error = try? PleyJSON.decoder.decode(OAuthErrorBody.self, from: response.body), !error.error.isEmpty

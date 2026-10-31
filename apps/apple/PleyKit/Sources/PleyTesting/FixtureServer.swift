@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Network
 import os
@@ -64,6 +65,14 @@ public final class FixtureServer: Sendable {
 
     public static let allScopes = "library play playlists profiles"
 
+    /// The client IDs of Pley's Apple apps, which the fixture knows as the server does.
+    public static let appleClients = ["ios", "tvos", "macos"].map {
+        "https://pley-media-server.github.io/pley/oauth/\($0).json"
+    }
+    public static let redirectURI = "app.pley.apple:/oauth/callback"
+    public static let deviceCodeGrant = "urn:ietf:params:oauth:grant-type:device_code"
+    public static let switchProfileGrant = "urn:pley:params:oauth:grant-type:switch-profile"
+
     /// An answer of the knobs' own.
     struct Answer: Sendable {
         var status: Int
@@ -87,6 +96,21 @@ public final class FixtureServer: Sendable {
         var used = false
     }
 
+    /// A code the sign-in page gave, waiting to be exchanged.
+    private struct AuthCode {
+        let clientID: String
+        let challenge: String
+        let scope: String
+        var used = false
+    }
+
+    /// A TV's code, waiting for an answer.
+    private struct Device {
+        let clientID: String
+        let scope: String
+        var answered = false
+    }
+
     private struct State {
         var origin = ""
         var listener: Listener?
@@ -102,6 +126,13 @@ public final class FixtureServer: Sendable {
         var issuerOverride: String?
         var deviceApproved = false
         var deviceDenied = false
+        var deviceExpired = false
+        var slowDowns = 0
+        var authorizeError: String?
+        var codes: [String: AuthCode] = [:]
+        var devices: [String: Device] = [:]
+        var wrongPins: [Int: Int] = [:]
+        var lockedPins: Set<Int> = []
     }
 
     /// NWListener is Sendable from iOS 17 only; it is safe to share, and only
@@ -222,6 +253,26 @@ public final class FixtureServer: Sendable {
     /// The person refused the device code.
     public func denyDevice() {
         state.withLock { $0.deviceDenied = true }
+    }
+
+    /// The device codes given so far run out (`expired_token`).
+    public func expireDevice() {
+        state.withLock { $0.deviceExpired = true }
+    }
+
+    /// The next `count` polls of a device code answer `slow_down`.
+    public func slowDown(_ count: Int = 1) {
+        state.withLock { $0.slowDowns = count }
+    }
+
+    /// The sign-in page sends the browser back with this `error` (`access_denied`).
+    public func setAuthorizeError(_ error: String?) {
+        state.withLock { $0.authorizeError = error }
+    }
+
+    /// The PIN of `profile` is locked, as after 100 wrong ones.
+    public func lockPin(of profile: Int) {
+        state.withLock { _ = $0.lockedPins.insert(profile) }
     }
 
     /// Answers `path` with a redirect (`302`) to `location`.
@@ -399,8 +450,10 @@ public final class FixtureServer: Sendable {
         case "/api/oauth/revoke" where request.method == "POST":
             if let token = form["token"] { end(&s, token: token) }
             return Answer(status: 200, headers: [:], body: Data())
-        case "/oauth/authorize", "/api/oauth/device":
-            return notBuilt()
+        case "/oauth/authorize" where get:
+            return authorize(&s, request.query)
+        case "/api/oauth/device" where request.method == "POST":
+            return device(&s, form)
         default:
             break
         }
@@ -453,12 +506,154 @@ public final class FixtureServer: Sendable {
             s.refreshTokens[presented]?.used = true
             let tokens = issue(&s, profile: refresh.profile, scope: refresh.scope, grant: refresh.grant)
             return tokenAnswer(s, tokens, scope: refresh.scope)
+        case "authorization_code":
+            return exchange(&s, form)
+        case deviceCodeGrant:
+            return pollDevice(&s, form)
+        case switchProfileGrant:
+            return switchProfile(&s, form)
         case nil:
             return oauthError("invalid_request", "grant_type is missing")
         default:
-            return Answer(status: 501, headers: ["Content-Type": "application/json"],
-                          body: Data(#"{"error":"unsupported_grant_type","error_description":"not in the fixture yet"}"#.utf8))
+            return oauthError("unsupported_grant_type", "that grant isn't supported")
         }
+    }
+
+    /// `/oauth/authorize`: checks what the app sent as the server does, and
+    /// sends the browser back at once (`303`) as if Alex allowed the app.
+    private static func authorize(_ s: inout State, _ query: [String: String]) -> Answer {
+        guard let client = query["client_id"], appleClients.contains(client),
+              query["redirect_uri"] == redirectURI
+        else { return json(400, ["code": "bad_request", "message": "unknown app or return address"]) }
+        guard query["response_type"] == "code", query["code_challenge_method"] == "S256",
+              let challenge = query["code_challenge"], challenge.count == 43,
+              let state = query["state"], !state.isEmpty,
+              let scope = query["scope"], !scope.isEmpty,
+              Set(scope.split(separator: " ")).isSubset(of: Set(allScopes.split(separator: " ")))
+        else { return json(400, ["code": "bad_request", "message": "a parameter is missing or wrong"]) }
+        let issuer = s.issuerOverride ?? s.origin
+        var back = URLComponents(string: redirectURI)!
+        if let error = s.authorizeError {
+            back.queryItems = [URLQueryItem(name: "error", value: error), URLQueryItem(name: "state", value: state),
+                               URLQueryItem(name: "iss", value: issuer)]
+        } else {
+            let code = randomToken()
+            s.codes[code] = AuthCode(clientID: client, challenge: challenge, scope: scope)
+            back.queryItems = [URLQueryItem(name: "code", value: code), URLQueryItem(name: "state", value: state),
+                               URLQueryItem(name: "iss", value: issuer)]
+        }
+        return Answer(status: 303, headers: ["Location": back.string ?? redirectURI], body: Data())
+    }
+
+    /// `grant_type=authorization_code`, with PKCE's S256 check.
+    private static func exchange(_ s: inout State, _ form: [String: String]) -> Answer {
+        guard let code = form["code"], let waiting = s.codes[code], !waiting.used,
+              form["client_id"] == waiting.clientID, form["redirect_uri"].map({ $0 == redirectURI }) ?? true,
+              let verifier = form["code_verifier"], challenge(verifier) == waiting.challenge
+        else { return oauthError("invalid_grant", "the code doesn't work") }
+        s.codes[code]?.used = true
+        let grant = s.nextGrant
+        s.nextGrant += 1
+        let tokens = issue(&s, profile: 2, scope: waiting.scope, grant: grant)
+        return tokenAnswer(s, tokens, scope: waiting.scope)
+    }
+
+    /// `POST /api/oauth/device`: a code for a TV. The Mac's app doesn't sign in this way.
+    private static func device(_ s: inout State, _ form: [String: String]) -> Answer {
+        guard let client = form["client_id"], appleClients.contains(client) else {
+            return oauthError("invalid_client", "unknown app")
+        }
+        guard !client.hasSuffix("/macos.json") else {
+            return oauthError("unauthorized_client", "this app can't sign in with a code")
+        }
+        let scope = form["scope"] ?? "library"
+        let deviceCode = randomToken()
+        s.devices[deviceCode] = Device(clientID: client, scope: scope)
+        return json(200, ["device_code": deviceCode, "user_code": "BCDFGHJK",
+                          "verification_uri": "\(s.origin)/link",
+                          "verification_uri_complete": "\(s.origin)/link?code=BCDFGHJK",
+                          "expires_in": 600, "interval": 5],
+                    headers: ["Cache-Control": "no-store"])
+    }
+
+    /// `grant_type=…:device_code`: pending until `approveDevice()` or `denyDevice()`.
+    private static func pollDevice(_ s: inout State, _ form: [String: String]) -> Answer {
+        guard let code = form["device_code"], let device = s.devices[code], !device.answered,
+              form["client_id"] == device.clientID
+        else { return oauthError("invalid_grant", "the code doesn't work") }
+        if s.slowDowns > 0 {
+            s.slowDowns -= 1
+            return oauthError("slow_down", "ask less often")
+        }
+        if s.deviceExpired {
+            s.devices[code]?.answered = true
+            return oauthError("expired_token", "the code ran out")
+        }
+        if s.deviceDenied {
+            s.devices[code]?.answered = true
+            return oauthError("access_denied", "the person refused")
+        }
+        guard s.deviceApproved else { return oauthError("authorization_pending", "nobody has answered yet") }
+        s.devices[code]?.answered = true
+        let grant = s.nextGrant
+        s.nextGrant += 1
+        let tokens = issue(&s, profile: 2, scope: device.scope, grant: grant)
+        return tokenAnswer(s, tokens, scope: device.scope)
+    }
+
+    /// Pley's switch-profile grant, with the server's reasons. A refusal spends nothing.
+    private static func switchProfile(_ s: inout State, _ form: [String: String]) -> Answer {
+        guard let presented = form["refresh_token"], let refresh = s.refreshTokens[presented],
+              !s.endedGrants.contains(refresh.grant)
+        else { return oauthError("invalid_grant", "the sign-in has ended") }
+        if refresh.used {
+            s.endedGrants.insert(refresh.grant)
+            return oauthError("invalid_grant", "the sign-in has ended")
+        }
+        guard refresh.scope.split(separator: " ").contains("profiles") else {
+            return oauthError("unauthorized_client", "this app can't switch profiles")
+        }
+        guard let id = Int(form["profile"] ?? "") else { return oauthError("invalid_request", "profile is missing") }
+        guard let profile = household.first(where: { $0.id == id }) else {
+            return switchRefused("not_allowed", "you can't switch to this profile")
+        }
+        let pin = form["pin"]
+        if id == refresh.profile && (pin == nil || profile.pin == nil) {
+            return oauthError("invalid_request", "this is the profile in use")
+        }
+        switch profile.needs {
+        case "locked": return switchRefused("not_allowed", "you can't switch to this profile")
+        case "password": return switchRefused("browser", "this profile needs its password")
+        default: break
+        }
+        if let expected = profile.pin {
+            if s.lockedPins.contains(id) { return switchRefused("pin_locked", "this PIN is locked") }
+            if s.wrongPins[id, default: 0] >= 5 { return switchRefused("throttled", "too many wrong PINs") }
+            guard pin == expected else {
+                s.wrongPins[id, default: 0] += 1
+                return switchRefused("wrong_pin", "wrong PIN")
+            }
+        }
+        // The old tokens stop at once; the grant goes on as the new profile.
+        s.refreshTokens[presented]?.used = true
+        for (token, access) in s.accessTokens where access.grant == refresh.grant { s.accessTokens[token]?.valid = false }
+        let tokens = issue(&s, profile: id, scope: refresh.scope, grant: refresh.grant)
+        return tokenAnswer(s, tokens, scope: refresh.scope)
+    }
+
+    private static func switchRefused(_ reason: String, _ description: String) -> Answer {
+        json(400, ["error": "invalid_grant", "error_description": description, "reason": reason],
+             headers: ["Cache-Control": "no-store"])
+    }
+
+    private static func challenge(_ verifier: String) -> String {
+        Data(SHA256.hash(data: Data(verifier.utf8))).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
+    private static func randomToken() -> String {
+        (0..<4).map { _ in String(UInt64.random(in: 0...UInt64.max), radix: 16) }.joined()
     }
 
     private static func issue(_ s: inout State, profile: Int, scope: String, grant: Int) -> Tokens {
@@ -537,10 +732,6 @@ public final class FixtureServer: Sendable {
 
     private static func notFound(_ path: String) -> Answer {
         json(404, ["code": "not_found", "message": "\(path) not found"])
-    }
-
-    private static func notBuilt() -> Answer {
-        json(501, ["code": "not_implemented", "message": "not in the fixture yet"])
     }
 
     private static func json(_ status: Int, _ object: Any, headers: [String: String] = [:]) -> Answer {

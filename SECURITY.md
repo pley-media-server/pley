@@ -414,6 +414,41 @@ other apps (`pley_ct_…`), never a session's
 - Subtitle files on the device are read only for a download's own playback,
   never because a server names one.
 
+### The Apple app
+
+Pley for iPhone, iPad, Mac and Apple TV (in development).
+
+- It is native and shows no web pages.
+- It holds app tokens only, with a viewer's rights whoever signs in: never a
+  session or a password.
+- iPhone, iPad and Mac sign in on the server's own page in the system's
+  sign-in sheet (`ASWebAuthenticationSession`), with PKCE (S256), a `state`
+  the answer must repeat and the `iss` the server names (RFC 9207), which
+  must be the server's issuer. The sheet is a private session: it shares no
+  cookie with Safari and keeps none afterwards. Apple TV, and iPhone and iPad
+  when asked, show a code that is typed on the server's `/link` page.
+- The server's metadata is kept only when its issuer is exactly the address
+  the app used and every endpoint is on it, and the code's page must be on
+  that address too.
+- A token answer with more than the app asked for is revoked at once and
+  never used.
+- Tokens are kept in the Keychain, readable after the first unlock, on this
+  device only: never synchronised to iCloud, never in a backup restored to
+  another device. Signing out revokes them on the server.
+- Tokens go in the `Authorization` header only, and only to the server's own
+  origin (scheme, host and port). Redirects are followed only within that
+  origin: never between HTTPS and HTTP, never to another host or port; the
+  sign-in endpoints follow none. No cookies are kept or sent.
+- Over plain HTTP, codes and tokens go only to private addresses (loopback,
+  RFC 1918, link-local, CGNAT, IPv6 unique local). A name is looked up first
+  and every address it has must be private, or nothing is sent; after the
+  request, the address the connection reached must be private too. A
+  sign-in whose request reached any other address is ended on the device.
+  A server on the internet needs HTTPS.
+- Only the system's certificate authorities are trusted.
+- The app registers no URL scheme: the sign-in sheet catches its return
+  address itself, so no other app or page can open it with one.
+
 ### TV apps, Kodi and Roku
 
 - They sign in with a code typed on the server's `/link` page, send tokens

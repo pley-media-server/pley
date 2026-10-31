@@ -6,8 +6,11 @@ below are relative to it). They are in development and not released yet.
 - [What it is](#what-it-is)
 - [Finding servers](#finding-servers)
 - [Plain HTTP and HTTPS](#plain-http-and-https)
+- [Signing in](#signing-in)
+- [Profiles](#profiles)
 - [Building and testing](#building-and-testing)
 - [Code layout](#code-layout)
+- [A server to test against](#a-server-to-test-against)
 - [Known limits](#known-limits)
 
 ## What it is
@@ -103,6 +106,74 @@ without dots and `.local` names (`NSAllowsLocalNetworking`); the apps ask
 for nothing wider. A server whose http address is a name with dots
 (`nas.home.arpa`) is opened by its IP address or over https instead.
 
+## Signing in
+
+The apps sign in with OAuth as Pley's own apps
+([API.md, Apps](API.md#apps-oauth-21)), each with its client ID built into
+every server: `https://pley-media-server.github.io/pley/oauth/ios.json`,
+`tvos.json` and `macos.json`. They ask for `library play playlists
+profiles` (the ones the server offers), and hold a viewer's tokens only,
+whoever signs in.
+
+Before signing in, the app reads the server's metadata
+(`/.well-known/oauth-authorization-server`) and keeps it only when its
+issuer is exactly the address the app used and every endpoint is on that
+address. A server without it is too old for the app.
+
+- **iPhone, iPad and Mac** sign in on the server's own page, in the system's
+  sign-in sheet (`ASWebAuthenticationSession`), with PKCE (S256). The
+  browser comes back to `app.pley.apple:/oauth/callback`, which the sheet
+  catches itself: the app registers no URL scheme. The answer must carry the
+  `state` the app sent and the server's issuer as `iss`. The sheet is a
+  private session, so no cookie is shared with Safari or left behind: the
+  password is typed at every sign-in.
+- **Apple TV** shows a code, `BCDF-GHJK`, and the server's `/link` address,
+  where it is typed on a phone or computer; the page must be on the
+  server's own address. The app asks the server every 5 seconds, 5 seconds
+  more for good after each `slow_down`, until the code is allowed, refused
+  or runs out (after 10 minutes).
+  iPhone and iPad can sign in with a code too. The Mac can't: the server
+  refuses it codes.
+
+A token answer that allows more than the app asked for is revoked at once
+and refused. Signing in again to a server ends the sign-in it replaces.
+
+Tokens are kept in the Keychain, one item per server (service
+`app.pley.apple.signin`), readable after the first unlock and on this
+device only: never synchronised or restored to another device. On the Mac
+they go to the data protection keychain; a build signed to run locally
+without a team uses the login keychain. The list of servers is kept in the
+Keychain the same way (`app.pley.apple.servers`).
+
+Access tokens last an hour and are refreshed a minute before they end, or
+when the server refuses one. One refresh runs at a time, and the new
+refresh token is kept before the new access token is used. The app is
+signed out, and shown sign-in again, when:
+
+- the server refuses a refresh (`invalid_grant`), or refuses a token
+  moments after the refresh that gave it;
+- a refresh allows more than the sign-in had;
+- a request with a token reached an address that isn't private over plain
+  http ([Plain HTTP and HTTPS](#plain-http-and-https)).
+
+Signing out revokes the sign-in on the server (best effort) and deletes
+the tokens.
+
+## Profiles
+
+A sign-in acts as one profile of the household. The app lists the
+household (`GET /api/oauth/profiles`) and moves the sign-in to another
+profile with Pley's switch-profile grant, sending the profile's PIN when it
+has one. A PIN is 4 to 8 digits, checked before it is sent. On success the
+tokens are replaced, as the old ones stop at once; a refusal changes
+nothing. The server's reasons are shown in words: a wrong PIN, too many
+wrong PINs lately, a PIN locked after too many, a profile that needs its
+password, or one that can't be used from the app.
+
+A profile that needs its password is chosen by signing in again: on
+iPhone, iPad and Mac in the browser, where the person picks it; on Apple TV
+with a new code, picking it on the consent page.
+
 ## Building and testing
 
 Requirements: a Mac with Xcode 16 or later (the commands below were checked
@@ -185,15 +256,56 @@ PleyKit's modules, each depending only on those before it:
 | `PleyModel` | The server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read |
 | `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, Bonjour (browsing, TXT records, resolving), logging |
 | `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), and the typed API calls |
-| `PleyTesting` | What the tests share: the fixtures, and a fixture server (real HTTP on 127.0.0.1, with a household, tokens and a journal of the requests it got) |
+| `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the scope guard and profile switching |
+| `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, and pictures made small and cached |
+| `PleyTesting` | What the tests share: the fixtures, and a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens and a journal of the requests it got) |
+| `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)) |
 
 The rules: modules depend only downwards; the two apps never import each
 other's code; no third-party Swift package.
 
+## A server to test against
+
+Never test against a Pley server people use: signing in creates grants.
+The package tests use the fixture server. For a real one, a script builds
+the server, starts a disposable one and signs in to it as the apps do:
+
+```sh
+PLEY_CHECK_PASSWORD=$(openssl rand -hex 16) apps/apple/scripts/check-server.sh
+```
+
+It needs Rust and the web app built in `apps/web/dist`. The server gets a
+temporary data folder, a free port on 127.0.0.1, an administrator
+`checkadmin` with that password, and no Bonjour, Plex port or tray.
+`pley-apple-check` then signs in with a code as Apple TV, and again as
+iPhone:
+
+1. It checks the server and its metadata, and asks for a code.
+2. It allows the code as the administrator, through the consent page's
+   endpoints (`/api/oauth/device/verify`, then `/api/oauth/requests/{id}`).
+3. It collects the tokens, then fetches `/api/auth/me` (with the app's four
+   scopes and no administrator rights), the household and Home.
+4. It refreshes once, and checks that `/api/me/apps` names the grant
+   ("Pley for Apple TV", device `tvOS 18.2; Apple TV`).
+5. It signs out, and checks that the old token gets `401`.
+
+The server is stopped and its folder deleted afterwards. To try the apps
+by hand, start a server the same way and keep it running:
+
+```sh
+data=$(mktemp -d)
+pley --data-dir "$data" reset-password admin <password> --admin
+pley --data-dir "$data" --bind 127.0.0.1:7712 --plex-bind off --no-discovery --no-tray
+```
+
+The simulators share the Mac's network, so the apps open
+`http://127.0.0.1:7712`. Leave out `--no-discovery`, and bind a LAN
+address, to have it found by Bonjour. Delete the folder afterwards.
+
 ## Known limits
 
-- The apps show their version only: finding servers, signing in and
-  browsing are being built.
+- The apps show their version only: their screens for finding servers,
+  signing in and browsing are being built.
 - No playback yet.
 - Plain http reaches IP addresses, names without dots and `.local` names
   only; an http name with dots (`nas.home.arpa`) is refused by the system,

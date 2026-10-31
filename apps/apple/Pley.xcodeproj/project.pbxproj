@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		0A000000000000000000020B /* PleyCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 0A000000000000000000020A /* PleyCommon */; };
 		0A000000000000000000030B /* PleyCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 0A000000000000000000030A /* PleyCommon */; };
+		0A000000000000000000021B /* PleyData in Frameworks */ = {isa = PBXBuildFile; productRef = 0A000000000000000000021A /* PleyData */; };
+		0A000000000000000000031B /* PleyData in Frameworks */ = {isa = PBXBuildFile; productRef = 0A000000000000000000031A /* PleyData */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,6 +36,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0A000000000000000000020B /* PleyCommon in Frameworks */,
+				0A000000000000000000021B /* PleyData in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -42,6 +45,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0A000000000000000000030B /* PleyCommon in Frameworks */,
+				0A000000000000000000031B /* PleyData in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -102,6 +106,7 @@
 			name = Pley;
 			packageProductDependencies = (
 				0A000000000000000000020A /* PleyCommon */,
+				0A000000000000000000021A /* PleyData */,
 			);
 			productName = Pley;
 			productReference = 0A0000000000000000000202 /* Pley.app */;
@@ -125,6 +130,7 @@
 			name = PleyTV;
 			packageProductDependencies = (
 				0A000000000000000000030A /* PleyCommon */,
+				0A000000000000000000031A /* PleyData */,
 			);
 			productName = PleyTV;
 			productReference = 0A0000000000000000000302 /* Pley.app */;
@@ -295,6 +301,14 @@
 		0A000000000000000000030A /* PleyCommon */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = PleyCommon;
+		};
+		0A000000000000000000021A /* PleyData */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PleyData;
+		};
+		0A000000000000000000031A /* PleyData */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PleyData;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
