@@ -15,6 +15,8 @@ describes how they are made.
   "Pley for iPhone and iPad", "Pley for Apple TV" and "Pley for Mac". The
   Apple TV signs in with a code, as the other TVs do; an iPhone or iPad
   may too.
+- Signed-in apps and devices name Pley's Apple apps by device: Pley for
+  iPhone, iPad, Mac or Apple TV.
 - A player may say it runs on a desktop (`form: "desktop"`).
 - Apple's devices can stream HEVC, HDR and Dolby Vision as they are: a
   player that asks for fMP4 segments first gets its streams in fMP4 rather

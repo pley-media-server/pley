@@ -1208,8 +1208,8 @@ interface AppGrant {
   profile: { id: Id; name: string };     // the profile it acts as
   approved_by: { id: Id; name: string };
   device: string | null;            // of its last token request: "Chrome on Windows". Pley's Android, Kodi,
-                                    // Roku, Samsung and LG apps: their platform, e.g. "Android 15",
-                                    // "Kodi 21.2; Windows", "Tizen 7.0", "webOS 23"
+                                    // Roku, Apple, Samsung and LG apps: their platform, e.g. "Android 15",
+                                    // "Kodi 21.2; Windows", "iPadOS 16.7; iPad", "Tizen 7.0", "webOS 23"
   ip: string | null;
   created_at: Timestamp;
   last_used_at: Timestamp;
@@ -1259,7 +1259,9 @@ profiles when the app's profile is in the household, else nothing:
   `/oauth/authorize` never sends them a code.
 - The Apple app has its own client ID on each kind of device, so someone
   with Pley for Mac and Pley for desktop on one Mac sees two sign-ins they
-  can tell apart.
+  can tell apart. Its User-Agent, `pleyApple/0.1.0 (iPadOS 16.7; iPad)`,
+  gives the system first, so its sessions are named "Pley for iPhone",
+  "Pley for iPad", "Pley for Mac" or "Pley for Apple TV".
 - The Samsung and LG apps can't set their own User-Agent: the TV's web
   engine names the TV ("Samsung TV", "LG TV"; for an app's grant its
   system, "Tizen 7.0", "webOS 23").
@@ -1347,7 +1349,8 @@ with too many sign-ins in progress.
 
 - `device`: what the TV said it is when it asked for the code, unchecked
   (Pley's apps give their platform in their User-Agent's brackets, "Kodi
-  21.3; Windows"; anything else is named as the sign-ins list names it).
+  21.3; Windows" or the Apple TV's "tvOS 18.2; Apple TV"; anything else is
+  named as the sign-ins list names it).
   `address`: where it asked from. Each `null` when unknown.
 - `400` for something that can't be a code; `404` for a code no TV shows
   (it counts as a wrong one); `409` for one answered already or shown on

@@ -1436,18 +1436,15 @@ impl From<GrantRow> for AppGrant {
 }
 
 /// What an app's grant was last used from, by the User-Agent of its token
-/// requests. pley's apps say "pleyAndroid/1.0 (Android 15)",
-/// "pleyKodi/0.1.0 (Kodi 21.2; Windows)" or "pleyRoku/0.1.0 (Roku OS 14.5;
-/// Roku Ultra)": the row names the app already, so the platform it gives in
-/// brackets.
+/// requests. Pley's apps say "pleyAndroid/1.0 (Android 15)",
+/// "pleyKodi/0.1.0 (Kodi 21.2; Windows)", "pleyRoku/0.1.0 (Roku OS 14.5;
+/// Roku Ultra)" or "pleyApple/0.1.0 (iPadOS 16.7; iPad)": the row names the
+/// app already, so the platform it gives in brackets.
 fn grant_device(user_agent: &str) -> String {
-    for (app, platform) in [("pleyAndroid/", "Android"), ("pleyKodi/", "Kodi"), ("pleyRoku/", "Roku")] {
+    let apps = [("pleyAndroid/", "Android"), ("pleyKodi/", "Kodi"), ("pleyRoku/", "Roku"), ("pleyApple/", "Apple")];
+    for (app, platform) in apps {
         if user_agent.contains(app) {
-            let given = user_agent
-                .split_once('(')
-                .and_then(|(_, rest)| rest.split_once(')'))
-                .map(|(inside, _)| inside.trim())
-                .filter(|inside| !inside.is_empty());
+            let given = crate::accounts::bracketed(user_agent);
             return given.unwrap_or(platform).chars().take(60).collect();
         }
     }
@@ -1544,6 +1541,13 @@ mod tests {
         assert_eq!(grant_device(webos), "webOS 23");
         assert_eq!(grant_device(&webos.replace("Chrome/94", "Chrome/99")), "webOS");
         assert_eq!(grant_device("pleyKodi/0.1.0 (Kodi 21.2; Windows)"), "Kodi 21.2; Windows");
+    }
+
+    #[test]
+    fn apple_apps_name_their_system_and_device() {
+        assert_eq!(grant_device("pleyApple/0.1.0 (tvOS 18.2; Apple TV)"), "tvOS 18.2; Apple TV");
+        assert_eq!(grant_device("pleyApple/0.1.0 (iPadOS 16.7; iPad)"), "iPadOS 16.7; iPad");
+        assert_eq!(grant_device("pleyApple/0.1.0"), "Apple");
     }
 
     fn headers(pairs: &[(&'static str, &str)]) -> HeaderMap {
