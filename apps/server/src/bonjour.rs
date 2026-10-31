@@ -35,8 +35,8 @@ struct Plan {
     /// The web port.
     port: u16,
     /// The web addresses with that port: the announcement goes out from the
-    /// adapters with these addresses, or with any of their family for an
-    /// unspecified one (`0.0.0.0`).
+    /// adapters with these addresses, or for an unspecified one, from those
+    /// it listens on (see [`announced_on`]).
     addresses: Vec<IpAddr>,
 }
 
@@ -57,7 +57,14 @@ fn plan(listen: &Listen) -> Option<Plan> {
 fn announced_on(addresses: &[IpAddr], ip: IpAddr) -> bool {
     !ip.is_loopback()
         && crate::setup::is_local_address(ip)
-        && addresses.iter().any(|web| *web == ip || (web.is_unspecified() && web.is_ipv4() == ip.is_ipv4()))
+        && addresses.iter().any(|web| *web == ip || (web.is_unspecified() && listens_on_family(*web, ip)))
+}
+
+/// Whether a socket bound to the unspecified address `web` takes `ip`'s
+/// family. `0.0.0.0` takes IPv4 only. Pley leaves `::` as the system has it:
+/// dual-stack on Linux and macOS, so IPv4 too, and IPv6 only on Windows.
+fn listens_on_family(web: IpAddr, ip: IpAddr) -> bool {
+    web.is_ipv4() == ip.is_ipv4() || (web.is_ipv6() && cfg!(not(windows)))
 }
 
 /// `text`'s first `max` bytes at most, whole characters.
@@ -239,6 +246,8 @@ mod tests {
         assert!(!announced_on(&every, ip("fe80::1")), "IPv6, where Pley doesn't listen");
         assert!(announced_on(&[ip("::")], ip("fe80::1")));
         assert!(!announced_on(&[ip("::")], ip("2001:db8::1")), "a global IPv6 address");
+        assert_eq!(announced_on(&[ip("::")], ip("192.168.1.10")), cfg!(not(windows)), "dual-stack but on Windows");
+        assert!(!announced_on(&[ip("::")], ip("203.0.113.5")), "the internet, dual-stack");
         let one = [ip("192.168.1.10")];
         assert!(announced_on(&one, ip("192.168.1.10")));
         assert!(!announced_on(&one, ip("192.168.1.11")), "another adapter");

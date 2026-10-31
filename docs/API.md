@@ -757,9 +757,11 @@ name (at most 63 bytes). The TXT records carry the UDP answer's fields:
 | `version` | the server's version |
 
 The announcement goes out from the adapters with the web addresses that
-are on the local network (private, link-local and Tailscale's addresses;
-IPv4 only when the server listens on `0.0.0.0`), follows a rename, and
-says goodbye when the server stops. An instance name may change when two
+are on the local network: private, link-local and Tailscale's addresses.
+On `0.0.0.0` that is every IPv4 adapter; on `[::]`, every IPv4 and IPv6
+adapter, since the server takes both there (on Windows, `[::]` is IPv6
+only, and so is the announcement). It follows a rename, and says goodbye
+when the server stops. An instance name may change when two
 servers share one, so apps go by `id`. Anyone on the network can
 announce or answer, so either way an app confirms a server it found
 through its public endpoint (`GET /api/server`, [Public endpoints](#public-endpoints))
