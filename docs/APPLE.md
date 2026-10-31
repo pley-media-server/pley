@@ -4,6 +4,7 @@ Native apps for iPhone, iPad, Mac and Apple TV, in `apps/apple` (paths
 below are relative to it). They are in development and not released yet.
 
 - [What it is](#what-it-is)
+- [Screens](#screens)
 - [Finding servers](#finding-servers)
 - [Plain HTTP and HTTPS](#plain-http-and-https)
 - [Signing in](#signing-in)
@@ -34,6 +35,41 @@ the name someone gave it.
 
 The apps ask for local network access (to find and reach servers at home)
 and browse for Bonjour's `_pley._tcp`.
+
+## Screens
+
+Both apps have the same screens, each built for its device: the iPhone,
+iPad and Mac app in a navigation stack with Back, the Apple TV app for the
+focus engine and the Siri Remote, where Menu goes back and leaves the app
+from Home.
+
+- **Servers**: the servers found on this network ("On this network") and
+  the ones opened before ("Your servers", which can be forgotten: that
+  signs out of the server too), and "Add a server" by its address. A found
+  server with the name of a saved one at another address says so. When the
+  system refuses local network access, the screen explains how to allow it
+  (on iPhone and iPad with a link to Settings).
+- **Sign in**: the server's name and address, with a warning when it is
+  reached over plain http outside the home network. iPhone, iPad and Mac
+  offer "Sign in with your browser"; iPhone and iPad also "Sign in with a
+  code". Apple TV shows a code straight away: a QR code of the server's
+  `/link` page with the code in it, the code, the page's address and how
+  long the code lasts. A code that runs out or is refused offers a new one.
+- **Who's watching?**: after signing in, when the household has more than
+  one profile, and from Home's menu. Each profile shows its picture, or its
+  initials on its colour; one with a PIN asks for it (4 to 8 digits, typed
+  on the number pad), one that needs its password says how to choose it,
+  and a locked one can't be chosen.
+- **Home**: the server's rows for the profile, each a line of posters with
+  their titles, drawn at the screen's size from pictures fetched at that
+  width. iPhone and iPad pull to refresh. A menu (on Apple TV, buttons
+  above the rows) switches profile, goes to the servers, or signs out
+  after asking.
+
+At start, the app opens the server used last when it is still signed in
+to it, and shows the servers otherwise. When a sign-in ends without the
+person asking (the server ended it, or the address rule below), the app
+goes back to that server's sign-in and says why.
 
 ## Finding servers
 
@@ -258,11 +294,13 @@ PleyKit's modules, each depending only on those before it:
 | `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), and the typed API calls |
 | `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the scope guard and profile switching |
 | `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, and pictures made small and cached |
+| `PleyScreens` | What the screens show and do, shared by both apps without any views: the route between screens, the servers, signing in (with the QR code, from Core Image), profiles and Home, as `ObservableObject`s |
 | `PleyTesting` | What the tests share: the fixtures, and a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens and a journal of the requests it got) |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)) |
 
 The rules: modules depend only downwards; the two apps never import each
-other's code; no third-party Swift package.
+other's code, and their views hold no logic of their own beyond layout (it
+lives in `PleyScreens`, where it is tested); no third-party Swift package.
 
 ## A server to test against
 
@@ -304,9 +342,13 @@ address, to have it found by Bonjour. Delete the folder afterwards.
 
 ## Known limits
 
-- The apps show their version only: their screens for finding servers,
-  signing in and browsing are being built.
-- No playback yet.
+- No playback yet, and no item pages: choosing a poster does nothing.
+- Home loads when it is shown, after a profile switch and on pull to
+  refresh; it doesn't follow changes on the server as they happen.
+- The Mac app has no menus or keyboard shortcuts of its own yet, and iPad
+  and Mac show the same stack of screens as iPhone, without a sidebar.
+- The app doesn't ask "Who's watching?" by itself at start, so a profile
+  with a PIN stays chosen until someone switches.
 - Plain http reaches IP addresses, names without dots and `.local` names
   only; an http name with dots (`nas.home.arpa`) is refused by the system,
   even when it points to the home network. Such a server is reached by its

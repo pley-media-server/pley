@@ -1,7 +1,7 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
-// Everything in Pley's Apple apps but their screens. Each module is a
+// Everything in Pley's Apple apps but their views. Each module is a
 // target, and a target lists only the modules below it, so packages depend
 // only downwards (docs/APPLE.md, "Code layout"). Apple's frameworks only:
 // no third-party package.
@@ -14,6 +14,7 @@ let package = Package(
         .library(name: "PleyNetwork", targets: ["PleyNetwork"]),
         .library(name: "PleyAuth", targets: ["PleyAuth"]),
         .library(name: "PleyData", targets: ["PleyData"]),
+        .library(name: "PleyScreens", targets: ["PleyScreens"]),
         .library(name: "PleyTesting", targets: ["PleyTesting"]),
         .executable(name: "pley-apple-check", targets: ["pley-apple-check"]),
     ],
@@ -23,6 +24,8 @@ let package = Package(
         .target(name: "PleyNetwork", dependencies: ["PleyModel", "PleyCommon"]),
         .target(name: "PleyAuth", dependencies: ["PleyModel", "PleyCommon", "PleyNetwork"]),
         .target(name: "PleyData", dependencies: ["PleyModel", "PleyCommon", "PleyNetwork", "PleyAuth"]),
+        // The screens' state, shared by the iPhone, iPad and Mac app and the Apple TV app; no views.
+        .target(name: "PleyScreens", dependencies: ["PleyData", "PleyAuth", "PleyNetwork", "PleyModel", "PleyCommon"]),
         .target(name: "PleyTesting", dependencies: ["PleyModel", "PleyCommon"]),
         // Signs in to a real, disposable server (scripts/check-server.sh). macOS only.
         .executableTarget(name: "pley-apple-check", dependencies: ["PleyData", "PleyAuth", "PleyNetwork", "PleyModel",
@@ -34,6 +37,9 @@ let package = Package(
                     dependencies: ["PleyAuth", "PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),
         .testTarget(name: "PleyDataTests",
                     dependencies: ["PleyData", "PleyAuth", "PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),
+        .testTarget(name: "PleyScreensTests",
+                    dependencies: ["PleyScreens", "PleyData", "PleyAuth", "PleyNetwork", "PleyModel", "PleyCommon",
+                                   "PleyTesting"]),
     ],
     swiftLanguageModes: [.v6]
 )

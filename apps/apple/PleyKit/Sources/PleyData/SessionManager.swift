@@ -125,6 +125,19 @@ public actor SessionManager {
         close()
     }
 
+    /// Signs out of the saved server at `origin`, open or not, then removes
+    /// it from the list. A server that isn't open is signed out with the
+    /// endpoints its sign-in was kept with, so nothing is fetched first.
+    public func forget(origin: String) async throws {
+        if origin == self.origin {
+            try await forget()
+            return
+        }
+        // A server's issuer is its origin (ServerMetadata checks it).
+        await Tokens(issuer: origin, store: tokenStore, endpoints: endpoints, clock: clock).signOut()
+        try await servers.forget(origin: origin)
+    }
+
     // MARK: Inside
 
     private func opened() throws -> (String, ServerMetadata) {

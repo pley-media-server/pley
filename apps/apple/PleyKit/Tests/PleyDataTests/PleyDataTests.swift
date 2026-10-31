@@ -129,6 +129,26 @@ private func fixture() async throws -> FixtureServer {
         #expect(await servers.saved().isEmpty)
     }
 
+    @Test func aServerThatIsNotOpenIsSignedOutAndForgotten() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let store = MemoryTokenStore()
+        let given = server.issueTokens()
+        try await store.save(StoredTokens(
+            issuer: server.origin, clientID: AppClient.ios.clientID, tokenEndpoint: server.origin + "/api/oauth/token",
+            revocationEndpoint: server.origin + "/api/oauth/revoke", accessToken: given.accessToken,
+            accessExpiresAt: Date().addingTimeInterval(3600), refreshToken: given.refreshToken,
+            scope: FixtureServer.allScopes))
+        let servers = ServerRepository(store: MemoryServerListStore([
+            SavedServer(origin: server.origin, name: "Living Room", lastUsed: Date()),
+        ]))
+        try await session(store, servers: servers).forget(origin: server.origin)
+        #expect(server.requests("/api/oauth/revoke").count == 1)
+        #expect(server.requests("/api/server").isEmpty)
+        #expect(try await store.load(issuer: server.origin) == nil)
+        #expect(await servers.saved().isEmpty)
+    }
+
     @Test func somethingThatIsNotPleyIsNotOpened() async throws {
         let server = try await fixture()
         defer { server.stop() }
