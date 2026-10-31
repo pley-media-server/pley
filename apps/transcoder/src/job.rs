@@ -230,6 +230,98 @@ pub struct Job {
     /// disk), once its first process wrote it: every later process must
     /// write the same (see [`Job::store_init`]).
     init: Mutex<Option<Arc<[u8]>>>,
+    /// What made its init: every later process makes its video the same
+    /// way (see [`restart_encoder`]).
+    init_encoder: Mutex<Option<InitEncoder>>,
+}
+
+/// The encoder an fMP4 job's init was made with. The init holds the
+/// encoder's parameter sets and B-frame delay, which MPEG-TS carried in
+/// every segment: a process on another encoder, or at another x264 preset,
+/// would make segments that don't play after the init players have.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct InitEncoder {
+    /// Made on the GPU, with the planned hardware encoder.
+    hardware: bool,
+    /// The software encoder that stood in for the planned hardware one,
+    /// when one did.
+    stand_in: Option<String>,
+    /// The automatic preset it was made at (index in [`adaptive::LADDER`]).
+    preset: Option<usize>,
+}
+
+/// What a process encodes its video with (see [`restart_encoder`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EncoderChoice {
+    /// The planned encoder: on the GPU when it is a hardware one.
+    Planned,
+    /// The software stand-in: the hardware encoder failed the job.
+    Retreat,
+    /// The software stand-in: every hardware session is in use.
+    NoSession,
+    /// The software stand-in, which made the fMP4 job's init.
+    Kept,
+}
+
+impl EncoderChoice {
+    fn stands_in(self) -> bool {
+        self != EncoderChoice::Planned
+    }
+}
+
+/// What the next process of a job encodes with, and at which automatic
+/// preset (`preset` asked for, `None` to choose one): `planned_hw` when the
+/// planned encoder is a hardware one, `stand_in` when a software encoder
+/// can stand in for it, `hardware_failed` once the hardware encoder failed
+/// the job, and `hw_slot` when the process has a hardware session. Before
+/// an fMP4 job has an init (`pinned`), the stand-in takes over from a
+/// failed or busy hardware encoder. Once it has one, every process makes
+/// the video as the one that made it: the same encoder at the same preset,
+/// or none.
+fn restart_encoder(
+    pinned: Option<&InitEncoder>,
+    planned_hw: bool,
+    stand_in: bool,
+    hardware_failed: bool,
+    preset: Option<usize>,
+    hw_slot: bool,
+) -> ApiResult<(EncoderChoice, Option<usize>)> {
+    let Some(pinned) = pinned else {
+        let choice = if stand_in && hardware_failed {
+            EncoderChoice::Retreat
+        } else if planned_hw && !hw_slot {
+            if !stand_in {
+                return Err(ApiError::Busy(
+                    "all hardware encoder sessions are in use and no software encoder is available".into(),
+                ));
+            }
+            EncoderChoice::NoSession
+        } else {
+            EncoderChoice::Planned
+        };
+        return Ok((choice, preset));
+    };
+    let choice = if pinned.hardware {
+        if hardware_failed {
+            return Err(ApiError::Failed(
+                "the hardware encoder failed after the stream began; fMP4 segments can't change encoder".into(),
+            ));
+        }
+        if !hw_slot {
+            return Err(ApiError::Busy(
+                "all hardware encoder sessions are in use, and this stream can't change encoder".into(),
+            ));
+        }
+        EncoderChoice::Planned
+    } else if pinned.stand_in.is_some() {
+        if !stand_in {
+            return Err(ApiError::Failed("the encoder this stream began with is gone".into()));
+        }
+        EncoderChoice::Kept
+    } else {
+        EncoderChoice::Planned
+    };
+    Ok((choice, pinned.preset))
 }
 
 /// Where a segment is made: in the job's folder on disk, or in RAM
@@ -791,8 +883,13 @@ impl JobManager {
     /// "Players that go black between streams"): the segments its player
     /// hasn't fetched yet are made again at `kbps`, the same size and
     /// layout, so the player plays on from the same playlist without a new
-    /// stream. Between [`MIN_BITRATE_KBPS`] and the job's own bitrate.
+    /// stream. Between [`MIN_BITRATE_KBPS`] and the job's own bitrate. Not
+    /// for fMP4 jobs: another rate can make x264 choose another level, which
+    /// the init players have says (see [`InitEncoder`]).
     pub async fn set_bitrate(self: &Arc<Self>, job: &Arc<Job>, kbps: u32) -> ApiResult<u32> {
+        if job.fmp4() {
+            return Err(ApiError::BadRequest("an fMP4 stream's bitrate can't change as it is made".into()));
+        }
         let planned = match job.plan.video.as_ref() {
             Some(v) if !v.copy => v.bitrate_kbps,
             _ => return Err(ApiError::BadRequest("the video isn't converted: its bitrate is the file's".into())),
@@ -943,6 +1040,10 @@ impl JobManager {
             return;
         }
         for job in self.renditions() {
+            // An fMP4 job's preset is that of its init (see [`InitEncoder`]).
+            if job.init_encoder.lock().is_some() {
+                continue;
+            }
             let Some((current, moved_at)) = job.runtime.lock().preset else { continue };
             let Ok(mut guard) = job.process.try_lock() else { continue };
             // A paused process is far ahead already: it moves once it goes on.
@@ -1123,37 +1224,46 @@ impl JobManager {
         let end = job.first_ready(start + 1, limit).unwrap_or(limit);
         let planned = plan.encoder();
         let stand_in = plan.software_stand_in(&self.ff);
-        // Once the hardware encoder failed the job, the software one takes over.
-        let retreat = stand_in.filter(|_| job.runtime.lock().hardware_failed);
-        let want_hw = planned.is_some_and(|e| e.hardware) && retreat.is_none();
+        // Once the hardware encoder failed the job, the software one takes
+        // over; once an fMP4 job has its init, the encoder that made it
+        // stays.
+        let pinned = job.init_encoder.lock().clone();
+        let planned_hw = planned.is_some_and(|e| e.hardware);
+        let hardware_failed = job.runtime.lock().hardware_failed;
+        let encoder = |hw_slot| {
+            restart_encoder(pinned.as_ref(), planned_hw, stand_in.is_some(), hardware_failed, preset, hw_slot)
+        };
+        let want_hw = planned_hw && encoder(true)?.0 == EncoderChoice::Planned;
         let slot = self
             .slots
             .take(want_hw)
             .ok_or_else(|| ApiError::Busy(format!("all {} transcode slots are in use", self.limits.max_jobs)))?;
         let hw = slot.hw;
-        let fallback = if let Some(software) = retreat {
-            if job.warn("hardware encoder failed, using software") {
-                let failed = planned.map_or("the hardware encoder", |e| e.name.as_str());
-                tracing::warn!(
-                    job = %job.id,
-                    "{failed} failed before its first segment: encoding with {} instead",
-                    software.name
-                );
-                self.hardware_failed();
+        let (choice, preset) = encoder(hw).map_err(|err| match err {
+            ApiError::Busy(_) if pinned.is_none() => ApiError::Busy(format!(
+                "all {} hardware encoder sessions are in use and no software encoder is available",
+                self.limits.max_hw_jobs
+            )),
+            err => err,
+        })?;
+        let fallback = choice.stands_in().then_some(stand_in).flatten();
+        match (choice, fallback) {
+            (EncoderChoice::Retreat, Some(software)) => {
+                if job.warn("hardware encoder failed, using software") {
+                    let failed = planned.map_or("the hardware encoder", |e| e.name.as_str());
+                    tracing::warn!(
+                        job = %job.id,
+                        "{failed} failed before its first segment: encoding with {} instead",
+                        software.name
+                    );
+                    self.hardware_failed();
+                }
             }
-            Some(software)
-        } else if want_hw && !hw {
-            let Some(software) = stand_in else {
-                return Err(ApiError::Busy(format!(
-                    "all {} hardware encoder sessions are in use and no software encoder is available",
-                    self.limits.max_hw_jobs
-                )));
-            };
-            job.warn("hardware encoder busy, using software");
-            Some(software)
-        } else {
-            None
-        };
+            (EncoderChoice::NoSession, _) => {
+                job.warn("hardware encoder busy, using software");
+            }
+            _ => {}
+        }
 
         // The software encoder's preset: the planned one, or the automatic
         // one, which starts a step faster when nothing is ready ahead.
@@ -1246,7 +1356,12 @@ impl JobManager {
         // Why its output couldn't be used, when that stopped it.
         let reason = Arc::new(Mutex::new(None));
         let lister = if job.fmp4() {
-            tokio::spawn(read_fragments(stdout, start, end, generation, made, reason.clone()))
+            let encoder = InitEncoder {
+                hardware: hw && fallback.is_none(),
+                stand_in: fallback.map(|e| e.name.clone()),
+                preset: chosen,
+            };
+            tokio::spawn(read_fragments(stdout, start, end, generation, encoder, made, reason.clone()))
         } else {
             tokio::spawn(async move {
                 read_segment_list(stdout, made).await;
@@ -1532,6 +1647,7 @@ impl Job {
             bitrate: Mutex::new(None),
             memory: None,
             init: Mutex::new(None),
+            init_encoder: Mutex::new(None),
         }
     }
 
@@ -1586,8 +1702,10 @@ impl Job {
     /// (`generation`): the first one's is kept as `init.mp4`, and every
     /// later one must be the same, byte for byte. Players fetch it once and
     /// decode every segment with it: segments made with another (another
-    /// encoder or its settings) wouldn't play. Why not, when it isn't.
-    fn store_init(&self, bytes: &[u8], generation: u64) -> Result<(), String> {
+    /// encoder or its settings) wouldn't play. The first one's `encoder`
+    /// makes every later process's video ([`restart_encoder`]). Why not,
+    /// when it isn't the same.
+    fn store_init(&self, bytes: &[u8], generation: u64, encoder: &InitEncoder) -> Result<(), String> {
         let mut init = self.init.lock();
         if let Some(kept) = init.as_deref() {
             if kept == bytes {
@@ -1609,6 +1727,7 @@ impl Job {
             return Err(format!("the init segment couldn't be written: {err}"));
         }
         *init = Some(Arc::from(bytes));
+        *self.init_encoder.lock() = Some(encoder.clone());
         drop(init);
         self.notify.notify_waiters();
         Ok(())
@@ -2187,6 +2306,7 @@ async fn read_fragments(
     start: u32,
     end: u32,
     generation: u64,
+    encoder: InitEncoder,
     mut made: SegmentsMade,
     reason: Arc<Mutex<Option<String>>>,
 ) -> Option<Pending> {
@@ -2212,7 +2332,7 @@ async fn read_fragments(
                     Ok(parsed) => parsed,
                     Err(why) => break Some(format!("its init segment couldn't be read: {why}")),
                 };
-                if let Err(why) = job.store_init(&parsed.bytes, generation) {
+                if let Err(why) = job.store_init(&parsed.bytes, generation, &encoder) {
                     break Some(why);
                 }
                 init = Some(parsed);
@@ -3883,8 +4003,10 @@ mod tests {
         let job = jobs.get(&created.id).unwrap();
         jobs.segment(&job, 0).await.unwrap();
         let kept = std::fs::read(job.init_path()).unwrap();
-        assert!(job.store_init(&kept, 7).is_ok(), "the same again: nothing to do");
-        let err = job.store_init(b"another encoder's", 7).unwrap_err();
+        let encoder = job.init_encoder.lock().clone().expect("recorded with the init");
+        assert_eq!(encoder, InitEncoder { hardware: false, stand_in: None, preset: None }, "veryfast, as asked");
+        assert!(job.store_init(&kept, 7, &encoder).is_ok(), "the same again: nothing to do");
+        let err = job.store_init(b"another encoder's", 7, &encoder).unwrap_err();
         assert!(err.contains("init segment changed"), "{err}");
         assert_eq!(std::fs::read(job.init_path()).unwrap(), kept, "players have it: it stays");
 
@@ -3902,6 +4024,181 @@ mod tests {
         assert!(!job.is_ready(10));
         assert_eq!(std::fs::read(job.init_path()).unwrap(), kept);
         no_parts(&job.dir);
+        jobs.remove(&created.id).await;
+    }
+
+    #[test]
+    fn fmp4_restarts_keep_the_encoder_their_init_was_made_with() {
+        let gpu = InitEncoder { hardware: true, stand_in: None, preset: None };
+        let x264 = InitEncoder { hardware: false, stand_in: Some("libx264".into()), preset: Some(2) };
+        let software = InitEncoder { hardware: false, stand_in: None, preset: Some(4) };
+        // (pinned, planned on the GPU, a stand-in, the hardware failed, preset asked, a hardware session).
+        let choose = |pinned: Option<&InitEncoder>, failed: bool, preset: Option<usize>, hw_slot: bool| {
+            restart_encoder(pinned, true, true, failed, preset, hw_slot)
+        };
+
+        // Before an init: the stand-in takes over from a busy or failed GPU.
+        assert_eq!(choose(None, false, None, true).unwrap(), (EncoderChoice::Planned, None));
+        assert_eq!(choose(None, false, Some(1), false).unwrap(), (EncoderChoice::NoSession, Some(1)));
+        assert_eq!(choose(None, true, None, true).unwrap(), (EncoderChoice::Retreat, None));
+        let err = restart_encoder(None, true, false, false, None, false).unwrap_err();
+        assert!(matches!(err, ApiError::Busy(_)), "{err:?}");
+
+        // Made on the GPU: on the GPU it stays, or nothing.
+        assert_eq!(choose(Some(&gpu), false, None, true).unwrap(), (EncoderChoice::Planned, None));
+        let err = choose(Some(&gpu), false, None, false).unwrap_err();
+        assert!(matches!(&err, ApiError::Busy(m) if m.contains("can't change encoder")), "{err:?}");
+        let err = choose(Some(&gpu), true, None, true).unwrap_err();
+        assert!(
+            matches!(&err, ApiError::Failed(m) if m == "the hardware encoder failed after the stream began; fMP4 segments can't change encoder"),
+            "{err:?}"
+        );
+
+        // Made by the stand-in: it stays, with a hardware session free,
+        // at its preset whatever is asked.
+        assert_eq!(choose(Some(&x264), false, Some(5), true).unwrap(), (EncoderChoice::Kept, Some(2)));
+        assert_eq!(choose(Some(&x264), true, None, false).unwrap(), (EncoderChoice::Kept, Some(2)));
+        let err = restart_encoder(Some(&x264), true, false, false, None, true).unwrap_err();
+        assert!(matches!(err, ApiError::Failed(_)), "{err:?}");
+
+        // A software encode planned: the planned encoder, at the init's preset.
+        assert_eq!(
+            restart_encoder(Some(&software), false, false, false, Some(0), false).unwrap(),
+            (EncoderChoice::Planned, Some(4))
+        );
+        assert_eq!(
+            restart_encoder(None, false, false, false, Some(0), false).unwrap(),
+            (EncoderChoice::Planned, Some(0))
+        );
+    }
+
+    #[tokio::test]
+    async fn fmp4_bitrates_stay_as_they_began() {
+        let dir = tempfile::tempdir().unwrap();
+        let jobs = manager(dir.path());
+        let mut fmp4 = job(dir.path(), vec![0, 4_000, 8_000]);
+        fmp4.plan.segment_format = SegmentFormat::Fmp4;
+        let err = jobs.set_bitrate(&Arc::new(fmp4), 2_000).await.unwrap_err();
+        assert!(matches!(&err, ApiError::BadRequest(m) if m.contains("fMP4")), "{err:?}");
+        // MPEG-TS as before: refused only for video it doesn't convert.
+        let err = jobs.set_bitrate(&Arc::new(job(dir.path(), vec![0, 4_000, 8_000])), 2_000).await.unwrap_err();
+        assert!(matches!(&err, ApiError::BadRequest(m) if m.contains("isn't converted")), "{err:?}");
+    }
+
+    /// A job on the automatic preset, made to look behind its player with
+    /// a process that is slow (a stand-in for the real one, stopped): what
+    /// `adapt` does with it.
+    async fn adapted(format: SegmentFormat) -> (Option<usize>, Option<usize>) {
+        let dir = tempfile::tempdir().unwrap();
+        let Some((input, jobs)) = with_sound(dir.path()) else { return (None, None) };
+        let mut req = fmp4_request(&input, VideoMode::Transcode);
+        req.segment_format = format;
+        req.options.preset = Some(adaptive::AUTO.into());
+        let created = jobs.create(req).await.unwrap();
+        let job = jobs.get(&created.id).unwrap();
+        jobs.segment(&job, 0).await.unwrap();
+        if let Some(p) = job.process.lock().await.take() {
+            p.stop().await;
+        }
+        let pinned = job.init_encoder.lock().as_ref().and_then(|e| e.preset);
+        assert_eq!(pinned.is_some(), format == SegmentFormat::Fmp4, "an fMP4 job's preset is its init's");
+        // Its exit sender gone: stopping it doesn't wait.
+        let (_, exited) = watch::channel(false);
+        *job.process.lock().await = Some(Proc {
+            start: 5,
+            end: 15,
+            place: Place::Disk,
+            started: Instant::now(),
+            next: Arc::new(AtomicU32::new(5)),
+            lookahead: 6,
+            pace: Arc::default(),
+            exited,
+            kill: None,
+            pause: Arc::new(watch::channel(false).0),
+        });
+        job.last_requested.store(5, Relaxed);
+        {
+            let mut rt = job.runtime.lock();
+            rt.state = JobState::Running;
+            rt.process = Some(ProcessStatus { speed: Some(0.5), ..Default::default() });
+            rt.preset = Some((3, Instant::now().checked_sub(Duration::from_secs(60)).unwrap()));
+        }
+        jobs.adapt().await;
+        let after = job.runtime.lock().preset.map(|(i, _)| i);
+        if format == SegmentFormat::Fmp4 {
+            assert_eq!(job.process.lock().await.as_ref().map(|p| p.start), Some(5), "left alone");
+            // Made again later, it is at the init's preset.
+            job.process.lock().await.take();
+            job.runtime.lock().state = JobState::Idle;
+            job.forget_from(6);
+            jobs.segment(&job, 6).await.unwrap();
+            assert_eq!(job.runtime.lock().preset.map(|(i, _)| i), pinned, "the init's preset");
+        }
+        jobs.remove(&created.id).await;
+        (after, pinned)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_automatic_preset_moves_ts_jobs_only() {
+        let (ts, _) = adapted(SegmentFormat::Ts).await;
+        let (fmp4, _) = adapted(SegmentFormat::Fmp4).await;
+        if ts.is_none() {
+            return;
+        }
+        assert_eq!(ts, Some(2), "behind its player and slow: a step faster");
+        assert_eq!(fmp4, Some(3), "pinned: where it was");
+    }
+
+    /// Each rendition of an fMP4 job has its own init, its segments laid
+    /// out as the others', and keeps it as the player moves between them.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fmp4_renditions_each_have_their_init() {
+        use pley_transcoder_api::VariantRequest;
+        let dir = tempfile::tempdir().unwrap();
+        let Some((input, jobs)) = with_sound(dir.path()) else { return };
+        let variant =
+            |w, h, kbps| VariantRequest { max_width: Some(w), max_height: Some(h), max_bitrate_kbps: Some(kbps) };
+        let mut req = fmp4_request(&input, VideoMode::Transcode);
+        req.variants = vec![variant(256, 144, 400), variant(192, 108, 200)];
+        let created = jobs.create(req).await.unwrap();
+        assert_eq!((created.variants, created.segment_format), (2, SegmentFormat::Fmp4));
+        let job = jobs.get(&created.id).unwrap();
+        let master = job.master_playlist();
+        assert!(master.starts_with("#EXTM3U\n#EXT-X-VERSION:7\n"), "{master}");
+        assert!(job.renditions()[2].playlist().contains("#EXT-X-MAP:URI=\"v2-init.mp4\"\n"));
+
+        let mut inits = Vec::new();
+        for k in 0..3 {
+            let (rendition, path) = jobs.rendition_init(&job, k).await.unwrap();
+            let expected =
+                if k == 0 { job.dir.join("init.mp4") } else { job.dir.join(format!("v{k}")).join("init.mp4") };
+            assert_eq!(path, expected);
+            let bytes = std::fs::read(&path).unwrap();
+            let init = read_init(&bytes).await;
+            for n in 0..created.segment_count {
+                let (_, segment) = jobs.rendition_segment(&job, k, n).await.unwrap();
+                let first = &read_fragments_of(&init, &segment).await[0];
+                let traf = first.trafs.iter().find(|t| Some(t.track) == init.video).expect("video first");
+                assert_eq!(traf.runs[0].samples[0].flags & 0x0001_0000, 0, "v{k} {n} starts on a keyframe");
+                let shown = first.presentation_start_ms(&init).unwrap();
+                let at = rendition.plan.boundaries[n as usize];
+                assert_eq!(at, job.plan.boundaries[n as usize], "laid out alike");
+                assert!((shown - at).abs() <= 40, "v{k} segment {n} starts at {shown} ms, not {at}");
+            }
+            inits.push((path, bytes));
+        }
+        assert!(inits[0].1 != inits[1].1 && inits[1].1 != inits[2].1 && inits[0].1 != inits[2].1, "each its own");
+
+        // Back to the first and down again, from segment 6: each keeps its init.
+        for (k, n) in [(0, 6), (2, 7)] {
+            job.renditions()[k].forget_from(n);
+            jobs.rendition_segment(&job, k, n).await.unwrap();
+            assert_eq!(jobs.rendition_init(&job, k).await.unwrap().1, inits[k].0);
+        }
+        for (path, bytes) in &inits {
+            assert_eq!(&std::fs::read(path).unwrap(), bytes, "{}", path.display());
+        }
+        assert!(job.renditions().iter().all(|r| r.status().warnings.is_empty()));
         jobs.remove(&created.id).await;
     }
 
@@ -3982,7 +4279,9 @@ mod tests {
             let reason = Arc::new(Mutex::new(None));
             let stream = stream.to_vec();
             async move {
-                let pending = read_fragments(stream.as_slice(), start, end, generation, made, reason.clone()).await;
+                let encoder = InitEncoder { hardware: false, stand_in: None, preset: None };
+                let pending =
+                    read_fragments(stream.as_slice(), start, end, generation, encoder, made, reason.clone()).await;
                 (pending, reason.lock().take())
             }
         };

@@ -9,9 +9,13 @@
 //! the bandwidth. Media3 then gives a stream named `dvh1…` (or `hvc1…` with
 //! a `dvh1…` supplemental codec and the matching range) to a Dolby Vision
 //! decoder, and with every codec named it prepares without downloading a
-//! segment first.
+//! segment first. The names come from the plan and the media, not from an
+//! fMP4 job's init: the master playlist is asked for before any process
+//! has made one.
 
-use pley_transcoder_api::{DolbyVisionMode, DynamicRange, MediaInfo, MediaStream, VideoCodec, default_video_kbps};
+use pley_transcoder_api::{
+    DolbyVisionMode, DynamicRange, MediaInfo, MediaStream, SegmentFormat, VideoCodec, default_video_kbps,
+};
 
 use crate::plan::{AudioOut, Plan, VideoOut};
 
@@ -38,6 +42,16 @@ pub struct Variant {
 
 /// MPEG-TS packet and PES headers on top of the streams' own bitrates.
 const TS_OVERHEAD: f64 = 1.05;
+/// fMP4's fragment headers and sample tables, lighter than MPEG-TS's.
+const FMP4_OVERHEAD: f64 = 1.02;
+
+/// What a job's segments add to its streams' bitrates.
+fn overhead(format: SegmentFormat) -> f64 {
+    match format {
+        SegmentFormat::Ts => TS_OVERHEAD,
+        SegmentFormat::Fmp4 => FMP4_OVERHEAD,
+    }
+}
 
 impl Variant {
     pub fn of(plan: &Plan, media: &MediaInfo) -> Variant {
@@ -57,11 +71,12 @@ impl Variant {
         }
         let video_bps = video.map_or(0, |(v, src)| video_bitrate(v, src, media));
         let audio_bps = audio.map_or(0, |(a, src)| audio_bitrate(a, src));
-        let average = (video_bps + audio_bps) as f64 * TS_OVERHEAD;
+        let overhead = overhead(plan.segment_format);
+        let average = (video_bps + audio_bps) as f64 * overhead;
         // Copied video keeps its peaks (twice the average is common on
         // discs); encodes stay near their rate.
         let peak = match video {
-            Some((v, _)) if v.copy => (2 * video_bps + audio_bps) as f64 * TS_OVERHEAD,
+            Some((v, _)) if v.copy => (2 * video_bps + audio_bps) as f64 * overhead,
             _ => average * 1.25,
         };
         Variant {
@@ -112,9 +127,11 @@ pub fn master_playlist(plan: &Plan, media: &MediaInfo) -> String {
 /// The master playlist of a job with lower renditions too
 /// ([`pley_transcoder_api::JobRequest::variants`]), each with its media
 /// playlist, highest first: players that pick by the list's order start
-/// with the best.
+/// with the best. fMP4 segments (`EXT-X-MAP`) need version 7; a job's
+/// renditions are all of one format.
 pub fn renditions_playlist(renditions: &[(&Plan, String)], media: &MediaInfo) -> String {
-    let mut out = String::from("#EXTM3U\n#EXT-X-VERSION:3\n");
+    let fmp4 = renditions.iter().any(|(plan, _)| plan.segment_format == SegmentFormat::Fmp4);
+    let mut out = format!("#EXTM3U\n#EXT-X-VERSION:{}\n", if fmp4 { 7 } else { 3 });
     if renditions.iter().any(|(plan, _)| plan.video.is_some()) {
         out.push_str("#EXT-X-INDEPENDENT-SEGMENTS\n");
     }
@@ -143,6 +160,9 @@ fn video_codecs(v: &VideoOut, src: Option<&MediaStream>) -> (String, Option<Stri
     let base = match src.codec.as_str() {
         "h264" => avc_codec(src.profile.as_deref(), src.level),
         "hevc" => hevc_codec(src.profile.as_deref(), src.bit_depth.unwrap_or(8), src.level, v.height),
+        // fMP4 only.
+        "vp9" => vp9_codec(src, v.width, v.height),
+        "av1" => av1_codec(src, v.width, v.height),
         other => other.to_owned(),
     };
     let range = base_layer_range(src);
@@ -223,6 +243,84 @@ fn hevc_codec(profile: Option<&str>, bit_depth: i64, level: Option<i64>, height:
         _ => 93,
     });
     format!("hvc1.{idc}.{compat}.L{level}.B0")
+}
+
+/// `vp09.PP.LL.DD`: profile, level (10 for 1 … 62 for 6.2) and bit depth.
+/// ffprobe seldom knows a VP9 stream's level: the lowest that takes its
+/// size and frame rate, then.
+fn vp9_codec(src: &MediaStream, width: i64, height: i64) -> String {
+    const LEVELS: [(i64, f64, f64); 14] = [
+        (10, 36_864.0, 829_440.0),
+        (11, 73_728.0, 2_764_800.0),
+        (20, 122_880.0, 4_608_000.0),
+        (21, 245_760.0, 9_216_000.0),
+        (30, 552_960.0, 20_736_000.0),
+        (31, 983_040.0, 36_864_000.0),
+        (40, 2_228_224.0, 83_558_400.0),
+        (41, 2_228_224.0, 160_432_128.0),
+        (50, 8_912_896.0, 311_951_360.0),
+        (51, 8_912_896.0, 588_251_136.0),
+        (52, 8_912_896.0, 1_176_502_272.0),
+        (60, 35_651_584.0, 1_176_502_272.0),
+        (61, 35_651_584.0, 2_353_004_544.0),
+        (62, 35_651_584.0, 4_706_009_088.0),
+    ];
+    let profile = numbered_profile(src.profile.as_deref()).filter(|p| (0..=3).contains(p)).unwrap_or(0);
+    let level = src
+        .level
+        .filter(|l| LEVELS.iter().any(|(known, _, _)| known == l))
+        .unwrap_or_else(|| lowest_level(&LEVELS, width, height, src.frame_rate));
+    format!("vp09.{profile:02}.{level:02}.{:02}", bit_depth(src))
+}
+
+/// `av01.P.LLT.DD`: profile (Main 0, High 1, Professional 2), level
+/// (`seq_level_idx`, which ffprobe gives: 8 for 4.0), Main tier, bit depth.
+fn av1_codec(src: &MediaStream, width: i64, height: i64) -> String {
+    // seq_level_idx (4 per major level from 2.0), the picture size and the
+    // samples per second it takes.
+    const LEVELS: [(i64, f64, f64); 14] = [
+        (0, 147_456.0, 4_423_680.0),
+        (1, 278_784.0, 8_363_520.0),
+        (4, 665_856.0, 19_975_680.0),
+        (5, 1_065_024.0, 31_950_720.0),
+        (8, 2_359_296.0, 70_778_880.0),
+        (9, 2_359_296.0, 141_557_760.0),
+        (12, 8_912_896.0, 267_386_880.0),
+        (13, 8_912_896.0, 534_773_760.0),
+        (14, 8_912_896.0, 1_069_547_520.0),
+        (15, 8_912_896.0, 1_069_547_520.0),
+        (16, 35_651_584.0, 1_069_547_520.0),
+        (17, 35_651_584.0, 2_139_095_040.0),
+        (18, 35_651_584.0, 4_278_190_080.0),
+        (19, 35_651_584.0, 4_278_190_080.0),
+    ];
+    let profile = match src.profile.as_deref().map(str::to_ascii_lowercase).as_deref() {
+        Some("high") => 1,
+        Some("professional") => 2,
+        _ => 0,
+    };
+    let level = src
+        .level
+        .filter(|l| (0..=23).contains(l))
+        .unwrap_or_else(|| lowest_level(&LEVELS, width, height, src.frame_rate));
+    format!("av01.{profile}.{level:02}M.{:02}", bit_depth(src))
+}
+
+/// The number in ffprobe's "Profile 2".
+fn numbered_profile(profile: Option<&str>) -> Option<i64> {
+    profile?.strip_prefix("Profile ")?.trim().parse().ok()
+}
+
+fn bit_depth(src: &MediaStream) -> i64 {
+    src.bit_depth.filter(|b| (8..=16).contains(b)).unwrap_or(8)
+}
+
+/// The first of `levels` (each with its largest picture and samples per
+/// second) that takes this size and frame rate, else the last.
+fn lowest_level(levels: &[(i64, f64, f64)], width: i64, height: i64, fps: Option<f64>) -> i64 {
+    let picture = (width.max(1) * height.max(1)) as f64;
+    let rate = picture * fps.filter(|f| *f > 0.0).unwrap_or(30.0);
+    levels.iter().find(|(_, size, speed)| picture <= *size && rate <= *speed).unwrap_or(&levels[levels.len() - 1]).0
 }
 
 /// The lowest H.264 level for this size and frame rate (Table A-1), as
@@ -489,6 +587,67 @@ mod tests {
         (video.width, video.height) = (3840, 2160);
         let v = Variant::of(&plan(Some(video), None), &media(DynamicRange::Hlg, None));
         assert_eq!((v.codecs, v.video_range), (vec!["hvc1.2.4.L153.B0".to_owned()], Some("HLG")));
+    }
+
+    #[test]
+    fn fmp4_master_playlists_are_version_7_with_less_overhead() {
+        let m = media(DynamicRange::Hdr10, None);
+        let mut p = plan(Some(video_out(true, None)), Some(audio_out(true, AudioCodec::Aac)));
+        let ts = master_playlist(&p, &m);
+        p.segment_format = SegmentFormat::Fmp4;
+        let fmp4 = master_playlist(&p, &m);
+        assert_eq!(
+            fmp4,
+            "#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-INDEPENDENT-SEGMENTS\n\
+             #EXT-X-STREAM-INF:BANDWIDTH=82856640,AVERAGE-BANDWIDTH=41820000,CODECS=\"hvc1.2.4.L153.B0,ec-3\",\
+             RESOLUTION=3840x2160,FRAME-RATE=23.976,CLOSED-CAPTIONS=NONE,VIDEO-RANGE=PQ\nindex.m3u8\n"
+        );
+        assert!(ts.starts_with("#EXTM3U\n#EXT-X-VERSION:3\n"), "{ts}");
+        // The same streams.
+        let codecs = |text: &str| text.split("CODECS=").nth(1).unwrap().to_owned();
+        assert_eq!(codecs(&ts), codecs(&fmp4));
+        // HEVC encodes are hvc1 (which the transcoder tags them), H.264 avc1.
+        let mut video = video_out(false, None);
+        video.codec = VideoCodec::Hevc;
+        let mut p = plan(Some(video), None);
+        p.segment_format = SegmentFormat::Fmp4;
+        let v = Variant::of(&p, &m);
+        assert_eq!(v.codecs, ["hvc1.1.6.L123.B0"]);
+        assert_eq!(v.average_bandwidth, (8_000_000.0 * FMP4_OVERHEAD).round() as u64);
+    }
+
+    #[test]
+    fn vp9_and_av1_copies_are_named_as_rfc_6381_says() {
+        let stream = |codec: &str, profile: &str, level: Option<i64>, bit_depth: i64| MediaStream {
+            kind: StreamKind::Video,
+            codec: codec.into(),
+            profile: Some(profile.into()),
+            level,
+            bit_depth: Some(bit_depth),
+            frame_rate: Some(23.976),
+            ..Default::default()
+        };
+        // ffprobe seldom knows VP9's level: from the size and frame rate.
+        assert_eq!(vp9_codec(&stream("vp9", "Profile 0", None, 8), 1920, 1080), "vp09.00.40.08");
+        assert_eq!(vp9_codec(&stream("vp9", "Profile 0", Some(-99), 8), 1280, 720), "vp09.00.31.08");
+        assert_eq!(vp9_codec(&stream("vp9", "Profile 2", None, 10), 3840, 2160), "vp09.02.50.10");
+        assert_eq!(vp9_codec(&stream("vp9", "Profile 0", Some(41), 8), 1920, 1080), "vp09.00.41.08");
+        // AV1's is its seq_level_idx, which ffprobe gives.
+        assert_eq!(av1_codec(&stream("av1", "Main", Some(8), 8), 1920, 1080), "av01.0.08M.08");
+        assert_eq!(av1_codec(&stream("av1", "Main", Some(13), 10), 3840, 2160), "av01.0.13M.10");
+        assert_eq!(av1_codec(&stream("av1", "High", None, 8), 3840, 2160), "av01.1.12M.08");
+        assert_eq!(av1_codec(&stream("av1", "Professional", Some(-99), 12), 1280, 720), "av01.2.05M.12");
+
+        // In a master playlist, copied.
+        let mut m = media(DynamicRange::Sdr, None);
+        m.streams[0] =
+            MediaStream { index: 0, width: Some(3840), height: Some(2160), ..stream("av1", "Main", Some(12), 10) };
+        let mut video = video_out(true, None);
+        video.hevc = false;
+        let mut p = plan(Some(video), Some(audio_out(false, AudioCodec::Aac)));
+        p.segment_format = SegmentFormat::Fmp4;
+        let v = Variant::of(&p, &m);
+        assert_eq!((v.codecs, v.video_range), (vec!["av01.0.12M.10".to_owned(), "mp4a.40.2".to_owned()], Some("SDR")));
     }
 
     #[test]

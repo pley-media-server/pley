@@ -619,8 +619,8 @@ mod tests {
             limits.clone(),
             background,
         );
-        let info =
-            TranscoderInfo { version: "1.2.3".into(), capabilities: ff.caps.clone(), limits, ..Default::default() };
+        let capabilities = crate::own_capabilities(&ff.caps);
+        let info = TranscoderInfo { version: "1.2.3".into(), capabilities, limits, ..Default::default() };
         let conversions =
             Conversions::new(ff.clone(), prober.clone(), jobs.slots.clone(), None, dir.join("conversions"));
         let state = Arc::new(AppState::new(
@@ -767,7 +767,9 @@ mod tests {
         }
         let info = request(addr, "GET", "/v1/info", Some("Bearer s3cret"), None).await;
         assert_eq!(info.status, 200);
-        assert_eq!(serde_json::from_str::<TranscoderInfo>(&info.body).unwrap().version, "1.2.3");
+        let info = serde_json::from_str::<TranscoderInfo>(&info.body).unwrap();
+        assert_eq!(info.version, "1.2.3");
+        assert!(info.capabilities.fmp4_segments && info.capabilities.hls_variants, "{:?}", info.capabilities);
     }
 
     #[tokio::test]

@@ -219,6 +219,7 @@ before using what it names:
 | `hls_variants` | jobs make lower renditions (`variants`) |
 | `live_bitrate` | `POST /v1/jobs/{id}/bitrate` works |
 | `live` | `/v1/live` works |
+| `fmp4_segments` | jobs make fMP4 segments when `segment_format` asks for them, except jobs without video ([fMP4 segments](#fmp4-segments)) |
 | `trickplay_version` | the version of the seek previews it makes (`TrickplayInfo.version`); `0` from older transcoders |
 | `trickplay_runs` | how many seek-preview sets it makes at once; `0` from older transcoders, which make one at a time and give a set up after an hour of running |
 
@@ -450,7 +451,9 @@ Playlists and segments:
 - The segment its player asked for last and the next stay. Those after are
   deleted and made again at the same size and layout, so the player plays on
   from the same playlist. A running process restarts there at once.
-- `400` for a remux.
+- `400` for a remux, and for an fMP4 job: another bitrate can make the
+  encoder choose another level, which the init players have says. Players of
+  fMP4 streams move between renditions instead.
 
 ## Conversions
 
@@ -631,6 +634,21 @@ Apple's players take HEVC, HDR and Dolby Vision this way, and not in MPEG-TS.
   process that writes another fails, and `init.mp4` stays as it was; failing
   twice at the same segment returns the error. Processes started anywhere
   with the same encoder and settings write the same init.
+- **The encoder is kept.** The init holds the encoder's parameter sets and
+  its B-frame delay, which MPEG-TS repeats in every segment. Once a job has
+  its init, every process encodes as the one that made it:
+  - At the same preset. The automatic preset no longer moves for the job.
+  - On the GPU, when the init was made there. With every hardware session
+    in use the answer is `503`, not the software encoder; when the hardware
+    encoder fails, the job fails.
+  - With the software encoder, when it stood in for a busy or failed
+    hardware one, even once a hardware session is free.
+
+  Before the init exists, the software encoder stands in as for MPEG-TS
+  jobs ([Failure handling](#failure-handling)). Moves for the GPU's load
+  ([Sharing the GPU](#sharing-the-gpu)) restart processes with the same
+  encoder; the init's byte-for-byte check catches anything that still
+  differs.
 - **Sound from before 0** (the encoder's priming, in a process that starts at
   0) is left out of the first fragment, so the stream starts at 0: AAC at 0,
   AC-3 at its first whole frame after it.
@@ -679,7 +697,8 @@ server, on by default), and FFmpeg supports `readrate`.
 - A hardware encoder that fails before the first segment (a driver update, a
   GPU gone, a session refused) hands the job to the software encoder, with a
   warning. After that happens to three jobs, `capabilities.json` is deleted
-  and the next start tests the encoders again.
+  and the next start tests the encoders again. An fMP4 job whose init the
+  hardware encoder made fails instead ([fMP4 segments](#fmp4-segments)).
 
 ### Renditions
 
@@ -691,10 +710,20 @@ smaller renditions:
   bits than the one above; `JobCreated.variants` says how many were kept.
   Remuxes and conversions ignore `variants`.
 - They are jobs inside the job, in folders `v1/`…, with segments `v1-{n}.ts`…
-  (fMP4: `v1-init.mp4`, `v1-{n}.m4s`…, each with an init of its own) laid
-  out as the job's. Burned-in text subtitles are extracted once and
+  laid out as the job's. Burned-in text subtitles are extracted once and
   copied to them.
-- `master.m3u8` lists them after the job's own, largest first.
+- fMP4 renditions each have an init of their own (`v1/init.mp4`, served as
+  `v1-init.mp4`), with its own encoder kept, and segments `v1-{n}.m4s`….
+  Segment `n` of every rendition starts at the same keyframe time, so a
+  player switches between them at any segment.
+- `master.m3u8` lists them after the job's own, largest first. It says
+  `#EXT-X-VERSION:7` for fMP4 jobs (3 for MPEG-TS), and counts 2 % on top
+  of the streams' bitrates for fMP4's headers (5 % for MPEG-TS's). `CODECS`
+  comes from the plan and the media, not the init, so the master playlist
+  never waits for FFmpeg: H.264 is `avc1…`, HEVC `hvc1…` (FFmpeg is made to
+  tag it so), and VP9 and AV1, copied into fMP4 only, `vp09.PP.LL.DD` and
+  `av01.P.LLM.DD` (RFC 6381; the level from the stream, or the lowest its
+  size and frame rate take).
 - Only the rendition the player asked for last has a running process; the
   others stop, keeping what they made.
 - They expire with the job. The job's status is the playing rendition's

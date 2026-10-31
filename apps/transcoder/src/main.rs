@@ -604,19 +604,12 @@ async fn run(args: Args) -> anyhow::Result<()> {
         source: Some(SOURCE.into()),
         started_at_ms: util::now_ms(),
         // Not FFmpeg's: this program's own (master playlists, segment edits,
-        // subtitle tracks copied into files of their own).
+        // subtitle tracks copied into files of their own), and its seek
+        // previews.
         capabilities: pley_transcoder_api::Capabilities {
-            hls_master_playlist: true,
-            subtitle_matroska: true,
-            subtitle_matroska_partial: true,
-            conversions: true,
-            conversions_mp4: true,
-            hls_variants: true,
-            live_bitrate: true,
-            live: true,
             trickplay_version: trickplay::VERSION,
             trickplay_runs: runs,
-            ..ff.caps.clone()
+            ..own_capabilities(&ff.caps)
         },
         limits,
         memory: Some(memory::MemoryStore::info(&memory)),
@@ -719,6 +712,24 @@ async fn shutdown_signal(exit_with_parent: bool) {
         _ = parent_gone => {}
         _ = ctrl_c => {}
         _ = terminate => {}
+    }
+}
+
+/// What the transcoder can do: FFmpeg's `caps`, and this program's own
+/// (master playlists, segment edits, subtitle tracks copied into files of
+/// their own, fMP4 segments cut from FFmpeg's output).
+pub(crate) fn own_capabilities(caps: &pley_transcoder_api::Capabilities) -> pley_transcoder_api::Capabilities {
+    pley_transcoder_api::Capabilities {
+        hls_master_playlist: true,
+        subtitle_matroska: true,
+        subtitle_matroska_partial: true,
+        conversions: true,
+        conversions_mp4: true,
+        hls_variants: true,
+        live_bitrate: true,
+        live: true,
+        fmp4_segments: true,
+        ..caps.clone()
     }
 }
 
