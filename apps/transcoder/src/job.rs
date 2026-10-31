@@ -31,7 +31,7 @@ use crate::cpuload::CpuMeter;
 use crate::error::{ApiError, ApiResult};
 use crate::extract::Extractor;
 use crate::ffmpeg::Ffmpeg;
-use crate::fmp4::{BoxReader, Fragment, Init};
+use crate::fmp4::{self, BoxReader, Fragment, Init};
 use crate::hls;
 use crate::keyframes::KeyframeStore;
 use crate::memory::{self, Lease, MemoryStore};
@@ -39,7 +39,7 @@ use crate::metrics::Metrics;
 use crate::plan::{ArgsContext, Burn, MAX_DURATION_MS, PROCESS_WINDOW, Pipeline, Plan, READRATE, READRATE_BURST_MS};
 use crate::probe::Prober;
 use crate::share::{self, Lessons, Share};
-use crate::tsedit::{self, Edits};
+use crate::tsedit::{self, Edited, Edits};
 use crate::util::now_ms;
 
 /// Wait for the running process instead of restarting when the requested
@@ -2301,6 +2301,73 @@ async fn commit_part(file: &mut tokio::fs::File, part: &Path, path: &Path) -> st
 /// begins; the last is given back, made when the process ended well.
 /// Output it can't use sets `reason` and ends the reading, which stops
 /// FFmpeg (its pipe is closed).
+/// The init a process's `ftyp` and `moov` make: for a Dolby Vision
+/// remux, with the configuration record its stream now has (or none,
+/// copied without being named), so that every process writes the same.
+pub(crate) fn fmp4_init(plan: &Plan, media: &MediaInfo, ftyp: &[u8], moov: &[u8]) -> Result<Init, String> {
+    let init = Init::parse(ftyp, moov).map_err(|why| format!("its init segment couldn't be read: {why}"))?;
+    let Some(config) = plan.init_dolby_vision(media) else { return Ok(init) };
+    fmp4::set_dovi(&init.bytes, config)
+        .and_then(|bytes| Init::from_bytes(&bytes))
+        .map_err(|why| format!("its init segment's Dolby Vision couldn't be written: {why}"))
+}
+
+/// A fragment as its segment gets it ([`prepare_fragment`]).
+pub(crate) struct Prepared {
+    /// The fragment written anew, when anything changed.
+    pub bytes: Option<Vec<u8>>,
+    /// What the Dolby Vision and HDR10+ edits did.
+    pub edited: Option<Edited>,
+    /// Warnings for the job, each with what the log says of it.
+    pub warnings: Vec<(&'static str, String)>,
+}
+
+/// Leaves out a fragment's audio from before 0 (encoder priming, in a
+/// process that started at 0: players take a negative start badly), and
+/// makes the edits a remux's video needs ([`Plan::segment_edits`]), as
+/// MPEG-TS segments get them.
+pub(crate) fn prepare_fragment(plan: &Plan, init: &Init, fragment: &mut Fragment) -> Prepared {
+    let mut warnings = Vec::new();
+    let mut changed = false;
+    if fragment.needs_trim(init) {
+        if fragment.trim_before_zero(init) {
+            changed = true;
+        } else {
+            warnings.push((
+                "a segment's sound starts before the stream does",
+                "a fragment's audio before 0 couldn't be left out".into(),
+            ));
+        }
+    }
+    let mut edited = None;
+    if let Some(edits) = plan.segment_edits() {
+        match fragment.edit_video(init, edits) {
+            Ok(Some(done)) => {
+                if let Some(err) = done.first_error.as_deref().filter(|_| done.rpus_dropped > 0) {
+                    warnings.push((
+                        "some Dolby Vision metadata dropped",
+                        format!("a fragment's {} RPUs left out: {err}", done.rpus_dropped),
+                    ));
+                }
+                edited = Some(done);
+                changed = true;
+            }
+            Ok(None) => {}
+            Err(why) => warnings
+                .push(("a segment's Dolby Vision metadata dropped", format!("a fragment could not be edited: {why}"))),
+        }
+    }
+    Prepared { bytes: changed.then(|| fragment.to_bytes()), edited, warnings }
+}
+
+/// The segment a fragment whose first video sample is shown at `t` (ms)
+/// goes in, as the segment muxer splits: a segment begins at the first
+/// keyframe at or after its split time ([`Plan::split_at`]).
+pub(crate) fn segment_of(plan: &Plan, t: i64) -> u32 {
+    let count = plan.segment_count() as usize;
+    plan.split_at[..count].partition_point(|&s| s <= t).max(1) as u32 - 1
+}
+
 async fn read_fragments(
     stdout: impl AsyncRead + Unpin,
     start: u32,
@@ -2312,7 +2379,6 @@ async fn read_fragments(
 ) -> Option<Pending> {
     let job = made.job.clone();
     let place = made.place;
-    let count = job.plan.segment_count() as usize;
     let mut reader = BoxReader::new(stdout);
     let mut ftyp: Option<Vec<u8>> = None;
     let mut init: Option<Init> = None;
@@ -2328,9 +2394,9 @@ async fn read_fragments(
             b"ftyp" => ftyp = Some(top.bytes),
             b"moov" => {
                 let Some(ftyp) = ftyp.take() else { break Some("its fMP4 output has no file type box".into()) };
-                let parsed = match Init::parse(&ftyp, &top.bytes) {
+                let parsed = match fmp4_init(&job.plan, &job.media, &ftyp, &top.bytes) {
                     Ok(parsed) => parsed,
-                    Err(why) => break Some(format!("its init segment couldn't be read: {why}")),
+                    Err(why) => break Some(why),
                 };
                 if let Err(why) = job.store_init(&parsed.bytes, generation, &encoder) {
                     break Some(why);
@@ -2348,23 +2414,21 @@ async fn read_fragments(
                     Ok(fragment) => fragment,
                     Err(why) => break Some(format!("a fragment of its fMP4 output couldn't be read: {why}")),
                 };
-                // Audio from before 0 (encoder priming, in a process that
-                // started at 0) is left out: players take a negative start
-                // badly.
-                let mut rewritten = None;
-                if fragment.needs_trim(init) {
-                    if fragment.trim_before_zero(init) {
-                        rewritten = Some(fragment.to_bytes());
-                    } else if job.warn("a segment's sound starts before the stream does") {
-                        tracing::warn!(job = %job.id, "a fragment's audio before 0 couldn't be left out");
+                let prepared = prepare_fragment(&job.plan, init, &mut fragment);
+                if let Some(edited) = &prepared.edited {
+                    tracing::trace!(job = %job.id, "a fragment edited: {edited:?}");
+                }
+                for (warning, detail) in prepared.warnings {
+                    if job.warn(warning) {
+                        tracing::warn!(job = %job.id, "{detail}");
+                    } else {
+                        tracing::debug!(job = %job.id, "{detail}");
                     }
                 }
-                // Its segment: where its first video sample is shown, as the
-                // segment muxer splits (a segment begins at the first
-                // keyframe at or after its split time). Without video (the
-                // last flush), it goes with the one before.
+                let rewritten = prepared.bytes;
+                // Without video (the last flush), it goes with the one before.
                 let k = match fragment.presentation_start_ms(init) {
-                    Some(t) => job.plan.split_at[..count].partition_point(|&s| s <= t).max(1) as u32 - 1,
+                    Some(t) => segment_of(&job.plan, t),
                     None => match &open {
                         Some((n, ..)) => *n,
                         None => continue,

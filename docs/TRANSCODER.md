@@ -609,16 +609,16 @@ Apple's players take HEVC, HDR and Dolby Vision this way, and not in MPEG-TS.
 
 - **What gets them.** Jobs with video. A job without video makes MPEG-TS
   whatever it asks: fragments are cut at video keyframes, and Apple's players
-  take AAC, AC-3 and E-AC-3 in MPEG-TS. So, for now, does a remux whose Dolby
-  Vision or HDR10+ the transcoder signals or edits. `JobCreated.segment_format`
-  says what the job makes.
+  take AAC, AC-3 and E-AC-3 in MPEG-TS. `JobCreated.segment_format` says what
+  the job makes.
 - **One file per process.** Each FFmpeg process writes one fragmented MP4 to
   stdout (`-f mp4 -movflags
   +frag_keyframe+empty_moov+default_base_moof+delay_moov+frag_discont+skip_trailer`,
   `-write_tmcd 0`, `-flush_packets 1`): its `ftyp` and `moov`, then a
   fragment (`moof` and `mdat`) at each video keyframe, every one with its
   absolute decode time. HEVC, copied or encoded, is tagged `hvc1`, which
-  Apple's players need.
+  Apple's players need; a copy of Dolby Vision profile 5 named as such,
+  `dvh1` ([Dolby Vision in remuxes](#dolby-vision-in-remuxes)).
 - **Cut by the transcoder.** Each fragment goes in the segment its first
   video sample is shown in, as the segment muxer splits MPEG-TS: a segment
   begins at the first keyframe at or after its split time. A fragment without
@@ -628,8 +628,9 @@ Apple's players take HEVC, HDR and Dolby Vision this way, and not in MPEG-TS.
   part file of the process's own (`{n}.m4s.p{process}`) and named `{n}.m4s`,
   and is ready, once the next one begins; the last once the process ends
   well, else its part goes.
-- **The init is kept.** The first process's `ftyp` and `moov` are written to
-  `init.mp4` in the job's folder. Every later process must write the same,
+- **The init is kept.** The first process's `ftyp` and `moov` (for a Dolby
+  Vision remux, with the configuration record the stream has once edited)
+  are written to `init.mp4` in the job's folder. Every later process must write the same,
   byte for byte: players fetched it once and decode every segment with it. A
   process that writes another fails, and `init.mp4` stays as it was; failing
   twice at the same segment returns the error. Processes started anywhere
@@ -1074,9 +1075,10 @@ comes out earlier than the one before, the stream is marked
 
 ### Dolby Vision in remuxes
 
-A copied HEVC stream keeps its Dolby Vision RPUs (NAL type 62) in the MPEG-TS
-segments, which can't signal them, so `master.m3u8` does, as
-`VideoRequest.dolby_vision` asks:
+A copied HEVC stream keeps its Dolby Vision RPUs (NAL type 62) in its
+segments. MPEG-TS can't signal them, so `master.m3u8` does, as
+`VideoRequest.dolby_vision` asks; an fMP4 job's init says the same
+([below](#dolby-vision-in-fmp4)):
 
 | `dolby_vision` | `master.m3u8` |
 |---|---|
@@ -1108,6 +1110,32 @@ Segment editing re-packetizes the video PES: the first TS packet keeps its
 adaptation field (PCR, random access), continuity counters run on, and other
 PIDs' packets are untouched. A 2 s 4K segment takes milliseconds. The job's
 video plan reports `dolby_vision` and `hdr10plus_stripped`.
+
+#### Dolby Vision in fMP4
+
+An fMP4 remux is edited as it is cut ([fMP4 segments](#fmp4-segments)), with
+the same decisions for each NAL unit as MPEG-TS: each video sample's units
+(each after its length, as `hvcC` says) are edited, the sample's size in its
+`trun` follows, and the fragment is written anew with its data offsets and
+`mdat` worked out again. A fragment that can't be rewritten is kept as it
+is, with the warning `a segment's Dolby Vision metadata dropped`.
+
+The init's video sample entry gets the Dolby Vision configuration record
+(`DOVIDecoderConfigurationRecord`, version 1.0, right after `hvcC`) of the
+stream as it comes out, at the level `master.m3u8` names, and the file type
+the `dby1` brand. FFmpeg's own record, if any, is replaced, so every process
+writes the same init:
+
+| `dolby_vision` | Init |
+|---|---|
+| `copy` | no record and no `dby1`, as the base layer's codec `master.m3u8` names |
+| `signal`, profile 8 | `hvc1` with `dvvC`: the source's profile, level and compatibility id, RPU and base layer |
+| `signal`, profile 5 | `dvh1` (FFmpeg's `-tag:v dvh1`) with `dvcC`, compatibility id 0 |
+| `signal`, profile 7 | `hvc1` with `dvcC`: profile 7 with its enhancement layer, as the source |
+| `to81` | `hvc1` with `dvvC`: profile 8, compatibility id 1, RPU and base layer, no enhancement layer |
+
+The sample entries are `hvc1` and `dvh1` rather than `hev1` and `dvhe`, as
+Apple's players want them.
 
 ### HDR10+ and profile 7's enhancement layer
 

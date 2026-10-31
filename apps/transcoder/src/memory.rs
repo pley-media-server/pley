@@ -525,6 +525,7 @@ mod tests {
             dolby_vision: None,
             strip_hdr10plus: false,
             hevc: false,
+            dvh1: false,
             hdr: None,
         };
         let audio = AudioOut {

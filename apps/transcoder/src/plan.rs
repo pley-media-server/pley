@@ -22,6 +22,7 @@ use pley_transcoder_api::{
 
 use crate::devices::vaapi_device;
 use crate::ffmpeg::Ffmpeg;
+use crate::fmp4::DoviConfig;
 use crate::share::Share;
 use crate::tsedit::Edits;
 use crate::util::{MEDIA_INPUT_OPTIONS, input_arg, secs};
@@ -275,6 +276,10 @@ pub struct VideoOut {
     /// The video comes out as HEVC, copied or encoded: tagged `hvc1` in MP4,
     /// the only way Apple's players take it (FFmpeg writes `hev1`).
     pub hevc: bool,
+    /// A copy of Dolby Vision profile 5 that is named so: tagged `dvh1` in
+    /// MP4 instead, as its `dvh1.05` codec says (it has no base layer
+    /// anything else decodes).
+    pub dvh1: bool,
     /// A transcode that keeps HDR: HEVC Main 10 in HDR10 or HLG (see
     /// [`hdr_output`]); `None` when it comes out SDR.
     pub hdr: Option<HdrOut>,
@@ -586,6 +591,7 @@ impl Plan {
                         dolby_vision,
                         strip_hdr10plus: vreq.strip_hdr10plus && src.codec == "hevc",
                         hevc: src.codec == "hevc",
+                        dvh1: dolby_vision == Some(DolbyVisionMode::Signal) && src.dv_profile == Some(5),
                         hdr: None,
                     })
                 } else {
@@ -741,6 +747,7 @@ impl Plan {
                         dolby_vision: None,
                         strip_hdr10plus: false,
                         hevc: vreq.codec == VideoCodec::Hevc,
+                        dvh1: false,
                         hdr,
                     })
                 }
@@ -817,16 +824,11 @@ impl Plan {
 
         // fMP4 segments when asked for, but not without video: fragments are
         // cut at video keyframes, and Apple's players take AAC, AC-3 and
-        // E-AC-3 in MPEG-TS. Nor yet for a remux whose Dolby Vision or
-        // HDR10+ the transcoder edits or signals: that is done to MPEG-TS
-        // segments only. No warning (what the job makes is in `JobCreated`).
+        // E-AC-3 in MPEG-TS. No warning (what the job makes is in
+        // `JobCreated`).
         let segment_format = match (req.segment_format, &video) {
             (SegmentFormat::Fmp4, None) => {
                 tracing::debug!("no video: MPEG-TS segments rather than fMP4");
-                SegmentFormat::Ts
-            }
-            (SegmentFormat::Fmp4, Some(v)) if v.copy && (v.dolby_vision.is_some() || v.strip_hdr10plus) => {
-                tracing::debug!("a Dolby Vision or HDR10+ remux: MPEG-TS segments rather than fMP4");
                 SegmentFormat::Ts
             }
             (format, _) => format,
@@ -1019,6 +1021,30 @@ impl Plan {
         edits.any().then_some(edits)
     }
 
+    /// The Dolby Vision configuration record an fMP4 remux's init gets
+    /// ([`crate::fmp4::set_dovi`]), the `dby1` brand with it: `None` to leave
+    /// FFmpeg's init as it is (no Dolby Vision copied), `Some(None)` for no
+    /// record at all (Dolby Vision copied but not named, as the codecs the
+    /// master playlist names say). The level is the one the codecs name.
+    pub fn init_dolby_vision(&self, media: &MediaInfo) -> Option<Option<DoviConfig>> {
+        let v = self.video.as_ref().filter(|v| v.copy)?;
+        let mode = v.dolby_vision?;
+        let src = media.stream(v.stream_index)?;
+        let level = src.dv_level_named().unwrap_or(0).clamp(0, 63) as u8;
+        Some(match mode {
+            DolbyVisionMode::Copy => None,
+            // The enhancement layer left out and the RPUs made 8.1 over the
+            // HDR10 base layer.
+            DolbyVisionMode::To81 => Some(DoviConfig { profile: 8, level, rpu: true, el: false, bl: true, compat: 1 }),
+            DolbyVisionMode::Signal => {
+                let profile = src.dv_profile.unwrap_or(0).clamp(0, 127) as u8;
+                let compat = src.dv_bl_compat.unwrap_or(if profile == 5 { 0 } else { 1 }).clamp(0, 15) as u8;
+                let el = matches!(profile, 4 | 7);
+                Some(DoviConfig { profile, level, rpu: true, el, bl: true, compat })
+            }
+        })
+    }
+
     pub fn audio_plan(&self, media: &MediaInfo) -> Option<AudioPlan> {
         let a = self.audio.as_ref()?;
         let src = media.stream(a.stream_index);
@@ -1040,8 +1066,10 @@ impl Plan {
         let start_ms = self.boundaries[start as usize];
         let mut a = self.stream_args(ctx, start, end);
         if self.segment_format == SegmentFormat::Fmp4 {
-            if self.video.as_ref().is_some_and(|v| v.hevc) {
-                a.push_all(["-tag:v", "hvc1"]);
+            match &self.video {
+                Some(v) if v.dvh1 => a.push_all(["-tag:v", "dvh1"]),
+                Some(v) if v.hevc => a.push_all(["-tag:v", "hvc1"]),
+                _ => {}
             }
             // No timecode track from a MOV source; each fragment reaches the
             // pipe as soon as it is cut.
@@ -3825,30 +3853,52 @@ mod tests {
     }
 
     #[test]
-    fn fmp4_is_made_for_video_but_not_yet_for_edited_remuxes() {
+    fn fmp4_is_made_for_video_dolby_vision_remuxes_included() {
         let ff = ffmpeg_with(vec![x264()], vec![Tonemapper::Zscale]);
         let kf: Vec<i64> = (0..30).map(|i| i * 2_000).collect();
         let fmp4 = |video: Option<VideoRequest>| JobRequest { video, segment_format: SegmentFormat::Fmp4, ..request() };
         // Audio only: MPEG-TS, which Apple's players take its sound in.
         let plan = Plan::build(&fmp4(None), &media(DynamicRange::Sdr, None), &ff, None).unwrap();
         assert_eq!(plan.segment_format, SegmentFormat::Ts);
-        // A remux of Dolby Vision, whatever is done with it, or one leaving
-        // out HDR10+: MPEG-TS, where the transcoder edits it.
-        for dolby_vision in [DolbyVisionMode::Copy, DolbyVisionMode::Signal, DolbyVisionMode::To81] {
-            let copy = VideoRequest { mode: VideoMode::Copy, dolby_vision, ..Default::default() };
-            let plan = Plan::build(&fmp4(Some(copy)), &media(DynamicRange::DolbyVision, Some(8)), &ff, Some(&kf));
-            let plan = plan.unwrap();
-            assert!(plan.video.as_ref().unwrap().dolby_vision.is_some());
-            assert_eq!(plan.segment_format, SegmentFormat::Ts, "{dolby_vision:?}");
+        assert_eq!(plan.init_dolby_vision(&media(DynamicRange::Sdr, None)), None);
+
+        // A remux of Dolby Vision, whatever is done with it: fMP4, its init
+        // given the record the stream has once edited.
+        let dv = |profile: i64| {
+            let mut m = media(DynamicRange::DolbyVision, Some(profile));
+            m.streams[0].dv_level = Some(6);
+            m
+        };
+        let config = |profile, el, compat| DoviConfig { profile, level: 6, rpu: true, el, bl: true, compat };
+        for (profile, mode, record, tag) in [
+            (8, DolbyVisionMode::Copy, None, "hvc1"),
+            (8, DolbyVisionMode::Signal, Some(config(8, false, 1)), "hvc1"),
+            (7, DolbyVisionMode::To81, Some(config(8, false, 1)), "hvc1"),
+            (7, DolbyVisionMode::Signal, Some(config(7, true, 1)), "hvc1"),
+            (5, DolbyVisionMode::Signal, Some(config(5, false, 0)), "dvh1"),
+            // Profile 5 can't be made 8.1: named as it is.
+            (5, DolbyVisionMode::To81, Some(config(5, false, 0)), "dvh1"),
+            (5, DolbyVisionMode::Copy, None, "hvc1"),
+        ] {
+            let copy = VideoRequest { mode: VideoMode::Copy, dolby_vision: mode, ..Default::default() };
+            let plan = Plan::build(&fmp4(Some(copy)), &dv(profile), &ff, Some(&kf)).unwrap();
+            assert_eq!(plan.segment_format, SegmentFormat::Fmp4, "{profile} {mode:?}");
+            assert_eq!(plan.init_dolby_vision(&dv(profile)), Some(record), "{profile} {mode:?}");
+            let args = args_string(&plan, 0, 8);
+            assert!(args.contains(&format!("-tag:v {tag} -f mp4")), "{profile} {mode:?}: {args}");
+            assert_eq!(plan.segment_edits().is_some(), mode == DolbyVisionMode::To81 && profile == 7);
         }
         let strip = VideoRequest { mode: VideoMode::Copy, strip_hdr10plus: true, ..Default::default() };
-        let plan = Plan::build(&fmp4(Some(strip)), &media(DynamicRange::Hdr10plus, None), &ff, Some(&kf)).unwrap();
+        let hdr10plus = media(DynamicRange::Hdr10plus, None);
+        let plan = Plan::build(&fmp4(Some(strip)), &hdr10plus, &ff, Some(&kf)).unwrap();
         assert!(plan.segment_edits().is_some());
-        assert_eq!(plan.segment_format, SegmentFormat::Ts);
+        assert_eq!(plan.segment_format, SegmentFormat::Fmp4);
+        assert_eq!(plan.init_dolby_vision(&hdr10plus), None, "no Dolby Vision: FFmpeg's init as it is");
         // Dolby Vision transcoded is video like any other.
-        let plan = Plan::build(&fmp4(request().video), &media(DynamicRange::DolbyVision, Some(8)), &ff, None).unwrap();
+        let plan = Plan::build(&fmp4(request().video), &dv(8), &ff, None).unwrap();
         assert!(!plan.video.as_ref().unwrap().copy);
         assert_eq!(plan.segment_format, SegmentFormat::Fmp4);
+        assert_eq!(plan.init_dolby_vision(&dv(8)), None);
         assert!(plan.warnings.iter().all(|w| !w.contains("MPEG-TS")), "{:?}", plan.warnings);
     }
 }

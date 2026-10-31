@@ -3,7 +3,9 @@
 //! a pipe), read box by box and taken apart: the initialization (`ftyp`
 //! and `moov`) and each movie fragment (`moof` and its `mdat`), with the
 //! times needed to put fragments in segments and a writer that puts an
-//! edited fragment back together.
+//! edited fragment back together. Dolby Vision remuxes have their samples'
+//! NAL units edited as MPEG-TS segments are ([`crate::tsedit`]) and their
+//! init given the configuration record the stream now has ([`set_dovi`]).
 //!
 //! Everything read here comes from FFmpeg, which reads files from anywhere,
 //! so every size and count is bounded; what the bytes are used for is the
@@ -14,7 +16,9 @@ use std::ops::Range;
 
 use tokio::io::{AsyncRead, AsyncReadExt};
 
+use crate::dovi::NalEdit;
 use crate::mp4::Fields;
+use crate::tsedit::{self, Edited, Edits};
 
 /// Why a box could not be used.
 pub type Result<T> = std::result::Result<T, &'static str>;
@@ -189,6 +193,8 @@ pub struct TrackInfo {
     pub format: [u8; 4],
     /// Bytes of each NAL unit's length in a sample (`avcC`, `hvcC`).
     pub nal_length_size: Option<u8>,
+    /// The Dolby Vision configuration record of the sample entry.
+    pub dovi: Option<DoviConfig>,
     defaults: Option<Defaults>,
 }
 
@@ -240,6 +246,15 @@ impl Init {
         Ok(Init { bytes: [ftyp, moov.whole].concat(), tracks, video })
     }
 
+    /// An init as [`set_dovi`] gives it: `ftyp` and `moov` one after the
+    /// other.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Init> {
+        match children(bytes)?.as_slice() {
+            [ftyp, moov] => Init::parse(ftyp.whole, moov.whole),
+            _ => Err("not a file type and movie box"),
+        }
+    }
+
     pub fn track(&self, id: u32) -> Option<&TrackInfo> {
         self.tracks.iter().find(|t| t.id == id)
     }
@@ -275,12 +290,17 @@ fn track(trak: &[u8], movie_scale: u32) -> Result<TrackInfo> {
     let entries = children(stsd.get(8..).ok_or("sample descriptions too short")?)?;
     let entry = entries.first().ok_or("no sample description")?;
     let mut nal_length_size = None;
+    let mut dovi = None;
     if handler == *b"vide" {
         // A visual sample entry's own fields take 78 bytes before its boxes.
         for c in children(entry.payload.get(78..).unwrap_or_default()).unwrap_or_default() {
             let at = match &c.kind {
                 b"avcC" => 4,
                 b"hvcC" => 21,
+                kind if DOVI_BOXES.contains(kind) => {
+                    dovi = DoviConfig::parse(c.payload);
+                    continue;
+                }
                 _ => continue,
             };
             let byte = *c.payload.get(at).ok_or("decoder configuration too short")?;
@@ -294,7 +314,7 @@ fn track(trak: &[u8], movie_scale: u32) -> Result<TrackInfo> {
     {
         shift = edit_shift(elst.payload, movie_scale, timescale)?;
     }
-    Ok(TrackInfo { id, handler, timescale, shift, format: entry.kind, nal_length_size, defaults: None })
+    Ok(TrackInfo { id, handler, timescale, shift, format: entry.kind, nal_length_size, dovi, defaults: None })
 }
 
 /// The media time of the first edit that shows media, less the empty edits
@@ -363,6 +383,9 @@ pub struct Run {
     /// The run's bytes in the `mdat`'s payload, when they can be found
     /// there.
     pub data: Option<Range<usize>>,
+    /// The run's bytes as [`Fragment::edit_video`] made them, in place of
+    /// `data`'s.
+    edited: Option<Vec<u8>>,
 }
 
 /// A sample, with the defaults filled in.
@@ -471,8 +494,10 @@ impl Fragment {
                 }
                 if dropped > 0 {
                     run.samples.drain(..dropped);
-                    if let Some(data) = &mut run.data {
-                        data.start += bytes;
+                    match (&mut run.edited, &mut run.data) {
+                        (Some(edited), _) => drop(edited.drain(..bytes)),
+                        (None, Some(data)) => data.start += bytes,
+                        (None, None) => {}
                     }
                     changed = true;
                 }
@@ -482,6 +507,83 @@ impl Fragment {
         }
         self.trafs.retain(|t| !t.runs.is_empty());
         changed
+    }
+
+    /// Makes `edits` to the HEVC NAL units of every video sample (each unit
+    /// after its length, in `nal_length_size` bytes), as [`crate::tsedit`]
+    /// makes them to MPEG-TS segments: the samples' sizes follow, and
+    /// [`to_bytes`](Self::to_bytes) works the data offsets and the `mdat`
+    /// out anew. Gives what was done, or `None` when nothing changed; an
+    /// error, changing nothing, when the fragment isn't
+    /// [`rewritable`](Self::rewritable) or a sample's units don't read.
+    pub fn edit_video(&mut self, init: &Init, edits: Edits) -> Result<Option<Edited>> {
+        let Some(video) = init.video.and_then(|id| init.track(id)) else { return Ok(None) };
+        if !edits.any() || !self.trafs.iter().any(|t| t.track == video.id) {
+            return Ok(None);
+        }
+        if !self.rewritable() {
+            return Err("the fragment's data isn't addressed from its movie fragment box");
+        }
+        let length_size = usize::from(video.nal_length_size.ok_or("no NAL unit length size")?);
+        let mdat = &self.bytes[self.mdat_at + self.mdat_header..];
+        // Every run worked out before any changes, so that a sample that
+        // doesn't read leaves the fragment as it was.
+        let mut edited = Edited::default();
+        let mut new_runs = Vec::new();
+        for (t, traf) in self.trafs.iter().enumerate().filter(|(_, t)| t.track == video.id) {
+            for (r, run) in traf.runs.iter().enumerate() {
+                let data = match (&run.edited, &run.data) {
+                    (Some(edited), _) => edited.as_slice(),
+                    (None, Some(data)) => &mdat[data.clone()],
+                    (None, None) => continue,
+                };
+                let mut out = Vec::with_capacity(data.len());
+                let mut sizes = Vec::with_capacity(run.samples.len());
+                let mut changed = false;
+                let mut at = 0;
+                for s in &run.samples {
+                    let sample = data.get(at..at + s.size as usize).ok_or("a sample runs past its run's data")?;
+                    at += sample.len();
+                    let before = out.len();
+                    changed |= edit_sample(sample, length_size, edits, &mut edited, &mut out)?;
+                    sizes.push(u32::try_from(out.len() - before).map_err(|_| "an edited sample too large")?);
+                }
+                if changed {
+                    new_runs.push((t, r, out, sizes));
+                }
+            }
+        }
+        if new_runs.is_empty() {
+            return Ok(None);
+        }
+        for (t, r, out, sizes) in new_runs {
+            let run = &mut self.trafs[t].runs[r];
+            for (sample, size) in run.samples.iter_mut().zip(sizes) {
+                sample.size = size;
+            }
+            run.edited = Some(out);
+        }
+        Ok(Some(edited))
+    }
+
+    /// Each sample's data of track `id`, as the fragment has it now.
+    #[cfg(test)]
+    pub(crate) fn samples(&self, id: u32) -> Vec<&[u8]> {
+        let mdat = &self.bytes[self.mdat_at + self.mdat_header..];
+        let mut out = Vec::new();
+        for run in self.trafs.iter().filter(|t| t.track == id).flat_map(|t| &t.runs) {
+            let data = match (&run.edited, &run.data) {
+                (Some(edited), _) => edited.as_slice(),
+                (None, Some(data)) => &mdat[data.clone()],
+                (None, None) => continue,
+            };
+            let mut at = 0;
+            for s in &run.samples {
+                out.push(&data[at..at + s.size as usize]);
+                at += s.size as usize;
+            }
+        }
+        out
     }
 
     /// The fragment written out again: `moof` (with every run's data offset
@@ -509,7 +611,10 @@ impl Fragment {
         let mut places: Vec<Vec<usize>> = self.trafs.iter().map(|t| vec![0; t.runs.len()]).collect();
         for (t, r, data) in order {
             places[t][r] = payload.len();
-            payload.extend_from_slice(&mdat[data.clone()]);
+            match &self.trafs[t].runs[r].edited {
+                Some(edited) => payload.extend_from_slice(edited),
+                None => payload.extend_from_slice(&mdat[data.clone()]),
+            }
         }
         let mdat_header = if payload.len() + 8 > u32::MAX as usize { 16 } else { self.mdat_header };
 
@@ -543,6 +648,206 @@ impl Fragment {
         out.extend_from_slice(&payload);
         out
     }
+}
+
+/// Writes `sample`'s NAL units (each after its length, in `length_size`
+/// bytes) to `out` as `edits` leave them; whether any changed.
+fn edit_sample(
+    sample: &[u8],
+    length_size: usize,
+    edits: Edits,
+    edited: &mut Edited,
+    out: &mut Vec<u8>,
+) -> Result<bool> {
+    let mut changed = false;
+    let mut at = 0;
+    while at < sample.len() {
+        let length = sample.get(at..at + length_size).ok_or("a NAL unit's length is cut off")?;
+        let length = length.iter().fold(0usize, |n, &b| (n << 8) | usize::from(b));
+        let nal = sample.get(at + length_size..at + length_size + length).ok_or("a NAL unit runs past its sample")?;
+        match tsedit::nal_decision(nal, edits, edited) {
+            NalEdit::Keep => out.extend_from_slice(&sample[at..at + length_size + length]),
+            NalEdit::Drop => changed = true,
+            NalEdit::Replace(new) => {
+                if (new.len() as u64) >> (8 * length_size) != 0 {
+                    return Err("an edited NAL unit too long for its length field");
+                }
+                out.extend_from_slice(&(new.len() as u64).to_be_bytes()[8 - length_size..]);
+                out.extend_from_slice(&new);
+                changed = true;
+            }
+        }
+        at += length_size + length;
+    }
+    Ok(changed)
+}
+
+// ---------------------------------------------------------------- Dolby Vision in the init
+
+/// The boxes a Dolby Vision configuration record comes in: `dvcC` up to
+/// profile 7, `dvvC` for 8 to 10, `dvwC` above.
+const DOVI_BOXES: [[u8; 4]; 3] = [*b"dvcC", *b"dvvC", *b"dvwC"];
+
+/// A Dolby Vision decoder configuration record (Dolby's
+/// `DOVIDecoderConfigurationRecord`, version 1.0), which a video sample
+/// entry carries after its `hvcC`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DoviConfig {
+    pub profile: u8,
+    pub level: u8,
+    pub rpu: bool,
+    /// An enhancement layer in the stream.
+    pub el: bool,
+    pub bl: bool,
+    /// The base layer's signal compatibility id (0 none, 1 HDR10, 2 SDR,
+    /// 4 HLG, 6 Blu-ray HDR10).
+    pub compat: u8,
+}
+
+impl DoviConfig {
+    fn kind(&self) -> [u8; 4] {
+        DOVI_BOXES[match self.profile {
+            0..=7 => 0,
+            8..=10 => 1,
+            _ => 2,
+        }]
+    }
+
+    /// The box: 24 bytes of record after its header, the reserved bits 0.
+    fn to_box(self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(32);
+        let at = open_box(&mut out, &self.kind());
+        let bits = (u16::from(self.profile & 0x7F) << 9)
+            | (u16::from(self.level & 0x3F) << 3)
+            | (u16::from(self.rpu) << 2)
+            | (u16::from(self.el) << 1)
+            | u16::from(self.bl);
+        out.extend_from_slice(&[1, 0]);
+        out.extend_from_slice(&bits.to_be_bytes());
+        out.push(self.compat << 4);
+        out.extend_from_slice(&[0; 19]);
+        close_box(&mut out, at);
+        out
+    }
+
+    fn parse(payload: &[u8]) -> Option<DoviConfig> {
+        let bits = u16::from_be_bytes([*payload.get(2)?, *payload.get(3)?]);
+        Some(DoviConfig {
+            profile: (bits >> 9) as u8,
+            level: ((bits >> 3) & 0x3F) as u8,
+            rpu: bits & 4 != 0,
+            el: bits & 2 != 0,
+            bl: bits & 1 != 0,
+            compat: payload.get(4)? >> 4,
+        })
+    }
+}
+
+/// The init (`ftyp` and `moov`, as [`Init::bytes`]) with its video sample
+/// entry's Dolby Vision configuration record replaced by `config` (put
+/// right after the `hvcC`), or taken out when `None`; the file type's
+/// compatible brands then have `dby1` (Dolby Vision) or don't. Every box
+/// around the record gets its new size.
+pub fn set_dovi(init: &[u8], config: Option<DoviConfig>) -> Result<Vec<u8>> {
+    let mut out = Vec::with_capacity(init.len() + 32);
+    let mut video = false;
+    for top in children(init)? {
+        match &top.kind {
+            b"ftyp" => {
+                // Major brand and version, then the compatible brands.
+                let (head, brands) = top.payload.split_at_checked(8).ok_or("file type box too short")?;
+                let at = open_box(&mut out, b"ftyp");
+                out.extend_from_slice(head);
+                brands.chunks(4).filter(|b| *b != b"dby1").for_each(|b| out.extend_from_slice(b));
+                if config.is_some() {
+                    out.extend_from_slice(b"dby1");
+                }
+                close_box(&mut out, at);
+            }
+            b"moov" => {
+                // moov/trak (video)/mdia/minf/stbl/stsd (after its count)/
+                // the first entry (after its 78 bytes of fields).
+                let path: [(Pick, usize); 6] = [
+                    (|_, c| c.kind == *b"trak" && is_video_track(c), 0),
+                    (|_, c| c.kind == *b"mdia", 0),
+                    (|_, c| c.kind == *b"minf", 0),
+                    (|_, c| c.kind == *b"stbl", 0),
+                    (|_, c| c.kind == *b"stsd", 8),
+                    (|i, _| i == 0, 78),
+                ];
+                out.extend(rebuild(&top, 0, &path, &mut |boxes| Ok(entry_boxes(boxes, config)))?);
+                video = true;
+            }
+            _ => out.extend_from_slice(top.whole),
+        }
+    }
+    if !video {
+        return Err("no movie box");
+    }
+    Ok(out)
+}
+
+/// Which child of a box a path through the boxes goes on to, by its place
+/// and the box.
+type Pick = fn(usize, &Child) -> bool;
+
+/// `whole` written again (its first `skip` payload bytes as they were):
+/// the child `path` picks made anew in the same way down the path, and the
+/// children at its end made by `edit`.
+fn rebuild(
+    whole: &Child,
+    skip: usize,
+    path: &[(Pick, usize)],
+    edit: &mut dyn FnMut(&[Child]) -> Result<Vec<u8>>,
+) -> Result<Vec<u8>> {
+    let fields = whole.payload.get(..skip).ok_or("a box too short")?;
+    let kids = children(&whole.payload[skip..])?;
+    let body = match path.split_first() {
+        None => edit(&kids)?,
+        Some(((pick, child_skip), rest)) => {
+            let mut body = Vec::new();
+            let mut found = false;
+            for (i, c) in kids.iter().enumerate() {
+                if !found && pick(i, c) {
+                    body.extend(rebuild(c, *child_skip, rest, edit)?);
+                    found = true;
+                } else {
+                    body.extend_from_slice(c.whole);
+                }
+            }
+            if !found {
+                return Err("no video sample entry");
+            }
+            body
+        }
+    };
+    let mut out = Vec::with_capacity(8 + fields.len() + body.len());
+    let at = open_box(&mut out, &whole.kind);
+    out.extend_from_slice(fields);
+    out.extend(body);
+    close_box(&mut out, at);
+    Ok(out)
+}
+
+fn is_video_track(trak: &Child) -> bool {
+    let Ok(kids) = children(trak.payload) else { return false };
+    let Some(Ok(mdia)) = child(&kids, b"mdia").map(|m| children(m.payload)) else { return false };
+    child(&mdia, b"hdlr").and_then(|h| h.payload.get(8..12)) == Some(&b"vide"[..])
+}
+
+/// A sample entry's boxes without any Dolby Vision record, `config`'s
+/// after the decoder configuration (or last, without one).
+fn entry_boxes(boxes: &[Child], config: Option<DoviConfig>) -> Vec<u8> {
+    let mut out = Vec::new();
+    let mut record = config.map(DoviConfig::to_box);
+    for b in boxes.iter().filter(|b| !DOVI_BOXES.contains(&b.kind)) {
+        out.extend_from_slice(b.whole);
+        if b.kind == *b"hvcC" || b.kind == *b"avcC" {
+            out.extend(record.take().unwrap_or_default());
+        }
+    }
+    out.extend(record.unwrap_or_default());
+    out
 }
 
 fn parse_traf(
@@ -673,7 +978,7 @@ fn parse_trun(
         let end = s as u64 + total;
         (end <= mdat_len as u64).then_some(s..end as usize)
     });
-    Ok(Run { version, flags, first_sample_flags, samples, data })
+    Ok(Run { version, flags, first_sample_flags, samples, data, edited: None })
 }
 
 impl Traf {
@@ -1076,5 +1381,201 @@ mod tests {
         let (moof, mdat) = handmade_fragment(TFHD_DEFAULT_BASE_IS_MOOF, offset);
         let other = Init { tracks: Vec::new(), ..init };
         assert!(Fragment::parse(moof, mdat, &other).is_err());
+    }
+
+    // ---- Dolby Vision, by hand
+
+    /// A track: `entry` is the whole sample entry, `trex` its defaults.
+    fn handmade_trak(id: u32, handler: &[u8; 4], timescale: u32, entry: &[u8]) -> Vec<u8> {
+        let stsd = full(b"stsd", 0, &[&u32s(&[1])[..], entry].concat());
+        let minf = top(b"minf", &top(b"stbl", &stsd));
+        let hdlr = full(b"hdlr", 0, &[&u32s(&[0])[..], handler, &[0; 13]].concat());
+        let mdhd = full(b"mdhd", 0, &u32s(&[0, 0, timescale, 0, 0]));
+        let mdia = top(b"mdia", &[mdhd, hdlr, minf].concat());
+        let tkhd = full(b"tkhd", 7, &u32s(&[0, 0, id, 0, 0]));
+        top(b"trak", &[tkhd, mdia].concat())
+    }
+
+    /// HEVC (track 1, NAL unit lengths of 4 bytes) with `dovi` boxes after
+    /// its `hvcC` and a `pasp`, and audio (track 2) of 10-byte samples.
+    fn handmade_av_init(dovi: &[Vec<u8>]) -> Vec<u8> {
+        let mut hvcc = vec![1; 23];
+        hvcc[21] = 0xF3;
+        let mut boxes = top(b"hvcC", &hvcc);
+        dovi.iter().for_each(|b| boxes.extend(b));
+        boxes.extend(top(b"pasp", &u32s(&[1, 1])));
+        let video = top(b"hvc1", &[&[0; 78][..], &boxes].concat());
+        let audio = top(b"mp4a", &[0; 28]);
+        let mvhd = full(b"mvhd", 0, &u32s(&[0, 0, 1000, 0]));
+        let trex = [full(b"trex", 0, &u32s(&[1, 1, 3750, 0, 0])), full(b"trex", 0, &u32s(&[2, 1, 1024, 10, 0]))];
+        let traks = [handmade_trak(1, b"vide", 90000, &video), handmade_trak(2, b"soun", 48000, &audio)];
+        let moov = top(b"moov", &[mvhd, traks.concat(), top(b"mvex", &trex.concat())].concat());
+        [top(b"ftyp", b"isom\0\0\x02\0isomiso6"), moov].concat()
+    }
+
+    /// Whether every box down to the sample entries' own fills its parent
+    /// exactly.
+    fn sizes_add_up(data: &[u8]) -> bool {
+        let Ok(boxes) = children(data) else { return false };
+        boxes.iter().all(|b| match &b.kind {
+            b"moov" | b"trak" | b"mdia" | b"minf" | b"stbl" | b"mvex" => sizes_add_up(b.payload),
+            b"stsd" => sizes_add_up(&b.payload[8..]),
+            b"hvc1" | b"dvh1" => sizes_add_up(&b.payload[78..]),
+            _ => true,
+        })
+    }
+
+    /// The boxes of the video sample entry, by type.
+    fn entry_kinds(init: &[u8]) -> Vec<[u8; 4]> {
+        let mut data = init;
+        let mut skip = 0;
+        for (kind, then) in
+            [(b"moov", 0), (b"trak", 0), (b"mdia", 0), (b"minf", 0), (b"stbl", 0), (b"stsd", 8), (b"hvc1", 78)]
+        {
+            let boxes = children(&data[skip..]).unwrap();
+            data = boxes.iter().find(|b| b.kind == *kind).unwrap().payload;
+            skip = then;
+        }
+        children(&data[skip..]).unwrap().iter().map(|b| b.kind).collect()
+    }
+
+    #[test]
+    fn the_init_gets_the_dolby_vision_record_asked_for() {
+        let p81 = DoviConfig { profile: 8, level: 6, rpu: true, el: false, bl: true, compat: 1 };
+        let p7 = DoviConfig { profile: 7, level: 6, rpu: true, el: true, bl: true, compat: 6 };
+        let plain = handmade_av_init(&[]);
+        let audio_trak = |init: &[u8]| {
+            let boxes = children(init).unwrap();
+            let moov = children(boxes[1].payload).unwrap();
+            moov.iter().filter(|b| b.kind == *b"trak").nth(1).unwrap().whole.to_vec()
+        };
+        assert_eq!(&plain[24 + 4..24 + 8], b"moov");
+        let parsed = Init::from_bytes(&plain).unwrap();
+        assert_eq!((parsed.tracks[0].nal_length_size, parsed.tracks[0].dovi), (Some(4), None));
+
+        // Put in, after the hvcC, with the brand.
+        let inserted = set_dovi(&plain, Some(p81)).unwrap();
+        assert_eq!(inserted.len(), plain.len() + 32 + 4);
+        assert!(sizes_add_up(&inserted));
+        assert_eq!(entry_kinds(&inserted), [*b"hvcC", *b"dvvC", *b"pasp"]);
+        let parsed = Init::from_bytes(&inserted).unwrap();
+        assert_eq!(parsed.tracks[0].dovi, Some(p81));
+        assert_eq!(parsed.tracks[1], Init::from_bytes(&plain).unwrap().tracks[1]);
+        assert_eq!(audio_trak(&inserted), audio_trak(&plain), "the sound's track untouched");
+        let ftyp = |init: &[u8]| children(init).unwrap()[0].payload.to_vec();
+        assert_eq!(ftyp(&inserted), b"isom\0\0\x02\0isomiso6dby1");
+        // The record: version 1.0, profile 8 level 6, RPU and base layer,
+        // compatibility 1, the rest reserved.
+        let record = inserted.windows(4).position(|w| w == b"dvvC").unwrap();
+        assert_eq!(
+            inserted[record - 4..record + 12],
+            [0, 0, 0, 32, b'd', b'v', b'v', b'C', 1, 0, 0x10, 0x35, 0x10, 0, 0, 0]
+        );
+        // The same again: the same bytes, the brand not twice.
+        assert_eq!(set_dovi(&inserted, Some(p81)).unwrap(), inserted);
+
+        // Replaced: FFmpeg's profile 7 record becomes 8.1's.
+        let with_p7 = handmade_av_init(&[p7.to_box()]);
+        assert_eq!(Init::from_bytes(&with_p7).unwrap().tracks[0].dovi, Some(p7));
+        let replaced = set_dovi(&with_p7, Some(p81)).unwrap();
+        assert_eq!(replaced, inserted);
+        assert_eq!(entry_kinds(&replaced), [*b"hvcC", *b"dvvC", *b"pasp"]);
+
+        // Taken out, with any other record, and the brand (which FFmpeg
+        // gives a stream with a record).
+        let with_both = handmade_av_init(&[p7.to_box(), p81.to_box()]);
+        let removed = set_dovi(&with_both, None).unwrap();
+        assert_eq!(removed, plain);
+        assert_eq!(set_dovi(&inserted, None).unwrap(), plain);
+        assert_eq!(ftyp(&removed), b"isom\0\0\x02\0isomiso6");
+        assert!(sizes_add_up(&removed));
+        assert_eq!(Init::from_bytes(&removed).unwrap().tracks[0].dovi, None);
+
+        // Profile 5's record is a dvcC.
+        let p5 = DoviConfig { profile: 5, level: 9, rpu: true, el: false, bl: true, compat: 0 };
+        let made = set_dovi(&plain, Some(p5)).unwrap();
+        assert_eq!(entry_kinds(&made), [*b"hvcC", *b"dvcC", *b"pasp"]);
+        assert_eq!(Init::from_bytes(&made).unwrap().tracks[0].dovi, Some(p5));
+        assert!(set_dovi(&plain[..24], Some(p5)).is_err(), "no movie box");
+    }
+
+    /// Two video samples (AUD, slice, enhancement layer, profile 7 RPU)
+    /// and two 10-byte audio samples after them, at offsets from the moof.
+    fn handmade_av_fragment() -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+        let unit = |nal: &[u8]| [&(nal.len() as u32).to_be_bytes()[..], nal].concat();
+        let rpu = crate::dovi::tests::p7_rpu(false);
+        let sample = |slice: u8| {
+            [unit(&[0x46, 0x01, 0x50]), unit(&[0x26, 0x01, slice, 0x40]), unit(&[0x7E, 0x01, 0x22]), unit(&rpu)]
+                .concat()
+        };
+        let video: Vec<u8> = [sample(0xA1), sample(0xA2)].concat();
+        let audio = [3u8; 20];
+        let moof = |offsets: [u32; 2]| {
+            let mfhd = full(b"mfhd", 0, &u32s(&[5]));
+            let size = sample(0).len() as u32;
+            let vtraf = [
+                full(b"tfhd", TFHD_DEFAULT_BASE_IS_MOOF, &u32s(&[1])),
+                full(b"tfdt", 0x0100_0000, &u32s(&[0, 90000])),
+                full(b"trun", TRUN_DATA_OFFSET | TRUN_SIZE, &u32s(&[2, offsets[0], size, size])),
+            ];
+            let atraf = [
+                full(b"tfhd", TFHD_DEFAULT_BASE_IS_MOOF, &u32s(&[2])),
+                full(b"tfdt", 0x0100_0000, &u32s(&[0, 48000])),
+                full(b"trun", TRUN_DATA_OFFSET, &u32s(&[2, offsets[1]])),
+            ];
+            top(b"moof", &[mfhd, top(b"traf", &vtraf.concat()), top(b"traf", &atraf.concat())].concat())
+        };
+        let base = moof([0, 0]).len() as u32 + 8;
+        let mdat = top(b"mdat", &[&video[..], &audio].concat());
+        (moof([base, base + video.len() as u32]), mdat, rpu)
+    }
+
+    #[test]
+    fn video_samples_are_edited_and_the_fragment_written_anew() {
+        let init = Init::from_bytes(&handmade_av_init(&[])).unwrap();
+        let (moof, mdat, rpu) = handmade_av_fragment();
+        let mut f = Fragment::parse(moof, mdat, &init).unwrap();
+        assert!(f.rewritable());
+        let old_sizes: Vec<usize> = f.samples(1).iter().map(|s| s.len()).collect();
+        assert_eq!(f.edit_video(&init, Edits::default()).unwrap(), None, "nothing asked");
+        let edits = Edits { to_81: true, strip_hdr10plus: true };
+        let edited = f.edit_video(&init, edits).unwrap().expect("changed");
+        assert_eq!((edited.rpus_converted, edited.el_dropped, edited.rpus_dropped), (2, 2, 0));
+
+        let bytes = f.to_bytes();
+        let moof_len = u32::from_be_bytes(bytes[..4].try_into().unwrap()) as usize;
+        let again = Fragment::parse(bytes[..moof_len].to_vec(), bytes[moof_len..].to_vec(), &init).unwrap();
+        assert!(again.rewritable());
+        let crate::dovi::NalEdit::Replace(p81) = crate::dovi::rpu_to_p81(&rpu).unwrap() else { panic!() };
+        let unit = |nal: &[u8]| [&(nal.len() as u32).to_be_bytes()[..], nal].concat();
+        let samples = again.samples(1);
+        for (sample, slice) in samples.iter().zip([0xA1, 0xA2]) {
+            let expected = [unit(&[0x46, 0x01, 0x50]), unit(&[0x26, 0x01, slice, 0x40]), unit(&p81)].concat();
+            assert_eq!(*sample, expected.as_slice(), "the enhancement layer out, the RPU 8.1");
+        }
+        // The trun says the new sizes; the audio after the video, moved up.
+        let video = &again.trafs[0].runs[0];
+        let new_sizes: Vec<usize> = video.samples.iter().map(|s| s.size as usize).collect();
+        assert_eq!(new_sizes, samples.iter().map(|s| s.len()).collect::<Vec<_>>());
+        assert!(new_sizes.iter().zip(&old_sizes).all(|(new, old)| new < old));
+        let video_len: usize = new_sizes.iter().sum();
+        assert_eq!(video.data, Some(0..video_len));
+        assert_eq!(again.trafs[1].runs[0].data, Some(video_len..video_len + 20));
+        assert_eq!(again.samples(2), [[3u8; 10], [3u8; 10]]);
+        let mdat_size = u32::from_be_bytes(bytes[moof_len..moof_len + 4].try_into().unwrap()) as usize;
+        assert_eq!((mdat_size, bytes.len()), (8 + video_len + 20, moof_len + 8 + video_len + 20));
+        assert_eq!((again.trafs[0].tfdt, again.trafs[1].tfdt), (90000, 48000));
+
+        // Done once, nothing more to do.
+        let mut twice = again.clone();
+        assert_eq!(twice.edit_video(&init, edits).unwrap(), None);
+        assert_eq!(twice.to_bytes(), again.bytes);
+
+        // A unit running past its sample: an error, the fragment as it was.
+        let (moof, mut mdat, _) = handmade_av_fragment();
+        mdat[8 + 3] = 0xFF;
+        let mut broken = Fragment::parse(moof, mdat, &init).unwrap();
+        assert!(broken.edit_video(&init, edits).is_err());
+        assert_eq!(broken.to_bytes(), broken.bytes);
     }
 }

@@ -409,6 +409,7 @@ mod tests {
             dolby_vision,
             strip_hdr10plus: false,
             hevc: copy,
+            dvh1: false,
             hdr: None,
         }
     }
