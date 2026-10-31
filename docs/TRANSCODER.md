@@ -616,7 +616,11 @@ Apple's players take HEVC, HDR and Dolby Vision this way, and not in MPEG-TS.
   +frag_keyframe+empty_moov+default_base_moof+delay_moov+frag_discont+skip_trailer`,
   `-write_tmcd 0`, `-flush_packets 1`): its `ftyp` and `moov`, then a
   fragment (`moof` and `mdat`) at each video keyframe, every one with its
-  absolute decode time. HEVC, copied or encoded, is tagged `hvc1`, which
+  absolute decode time. Encoded video is made at a constant frame rate
+  (`-fps_mode:v cfr`), as the segment muxer makes it for MPEG-TS: at a
+  variable rate the mp4 muxer drops a frame that hardware decoding hands
+  back late after a seek, and the process's segments start a frame late.
+  HEVC, copied or encoded, is tagged `hvc1`, which
   Apple's players need; a copy of Dolby Vision profile 5 named as such,
   `dvh1` ([Dolby Vision in remuxes](#dolby-vision-in-remuxes)).
 - **Cut by the transcoder.** Each fragment goes in the segment its first

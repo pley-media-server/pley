@@ -1071,6 +1071,13 @@ impl Plan {
                 Some(v) if v.hevc => a.push_all(["-tag:v", "hvc1"]),
                 _ => {}
             }
+            // Frames at a constant rate, as the segment muxer gives MPEG-TS:
+            // the mp4 muxer's variable rate drops a frame that hardware
+            // decoding hands back late after a seek, which moves the forced
+            // keyframes and every segment of the process one frame later.
+            if self.video.as_ref().is_some_and(|v| !v.copy) {
+                a.push_all(["-fps_mode:v", "cfr"]);
+            }
             // No timecode track from a MOV source; each fragment reaches the
             // pipe as soon as it is cut.
             a.push_all(["-f", "mp4", "-movflags", FMP4_MOVFLAGS, "-write_tmcd", "0", "-flush_packets", "1", "pipe:1"]);
@@ -3831,19 +3838,22 @@ mod tests {
         assert!(args.contains("-ss 12.000") && args.contains("-output_ts_offset 12.000"), "{args}");
         assert!(args.contains("-avoid_negative_ts disabled -t 20.000"), "{args}");
         assert!(args.contains("-force_key_frames expr:gte(t,n_forced*4)"), "{args}");
+        // Encoded frames at a constant rate, as the segment muxer has them.
+        assert!(args.contains("-fps_mode:v cfr -f mp4"), "{args}");
 
         // HEVC, encoded or copied, is tagged as Apple's players take it.
         let mut hevc = req.clone();
         hevc.video.as_mut().unwrap().codec = VideoCodec::Hevc;
         let plan = Plan::build(&hevc, &sdr, &ff, None).unwrap();
-        assert!(args_string(&plan, 0, 8).contains("-tag:v hvc1 -f mp4"));
+        assert!(args_string(&plan, 0, 8).contains("-tag:v hvc1 -fps_mode:v cfr -f mp4"));
         let mut copy = req.clone();
         copy.video = Some(VideoRequest { mode: VideoMode::Copy, ..Default::default() });
         let kf: Vec<i64> = (0..30).map(|i| i * 2_000).collect();
         let plan = Plan::build(&copy, &media(DynamicRange::Hdr10, None), &ff, Some(&kf)).unwrap();
         assert!(plan.video.as_ref().unwrap().copy && plan.segment_format == SegmentFormat::Fmp4);
         assert!(args_string(&plan, 2, 8).contains("-c:v copy"));
-        assert!(args_string(&plan, 2, 8).contains("-tag:v hvc1 -f mp4"));
+        assert!(args_string(&plan, 2, 8).contains("-tag:v hvc1 -f mp4"), "a copy keeps its timing");
+        assert!(!args_string(&plan, 2, 8).contains("-fps_mode"));
 
         // Asked for MPEG-TS, nothing changes.
         let plan = Plan::build(&request(), &sdr, &ff, None).unwrap();
