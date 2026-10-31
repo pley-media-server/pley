@@ -597,12 +597,16 @@ impl Transcoder {
         Ok(resp.text().await?)
     }
 
-    /// Streaming response of segment `n` (the caller forwards the body).
+    /// Streaming response of MPEG-TS segment `n` (the caller forwards the
+    /// body).
     pub async fn segment(&self, job_id: &str, n: u32) -> TranscoderResult<reqwest::Response> {
         self.segment_file(job_id, &format!("{n}.ts")).await
     }
 
-    /// A segment by its name: `12.ts`, or a lower rendition's `v1-12.ts`.
+    /// A segment by its name: `12.ts`, or a lower rendition's `v1-12.ts`;
+    /// in an fMP4 job `12.m4s`, `v1-12.m4s` and the init segments
+    /// `init.mp4`, `v1-init.mp4`. A name in the other format than the job's
+    /// answers 404.
     pub async fn segment_file(&self, job_id: &str, name: &str) -> TranscoderResult<reqwest::Response> {
         let base = self.base()?;
         let resp = self

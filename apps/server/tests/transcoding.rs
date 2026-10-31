@@ -23,9 +23,9 @@ use pley::trickplay::Pace;
 use pley_transcoder_api::{
     API_VERSION, AudioMode, AudioPlan, BitrateChanged, BitrateRequest, Capabilities, ConversionState, ConversionStatus,
     EncoderInfo, ErrorBody, FileContainer, HoldRequest, HwAccel, JobCreated, JobRequest, JobStatus, Limits, Load,
-    MediaInfo, MediaStream, PrefetchRequest, Prefetched, ProbeRequest, SUBTITLES_COMPLETE_HEADER, StreamKind,
-    SubtitleRequest, TranscoderInfo, TranscoderStatus, TrickplayInfo, TrickplayRequest, VideoCodec, VideoMode,
-    VideoPlan,
+    MediaInfo, MediaStream, PrefetchRequest, Prefetched, ProbeRequest, SUBTITLES_COMPLETE_HEADER, SegmentFormat,
+    StreamKind, SubtitleRequest, TranscoderInfo, TranscoderStatus, TrickplayInfo, TrickplayRequest, VideoCodec,
+    VideoMode, VideoPlan,
 };
 use serde_json::{Value, json};
 
@@ -43,6 +43,8 @@ struct Fake {
     bitrates: Arc<Mutex<Vec<(String, u32)>>>,
     /// Every job request, in order.
     created: Arc<Mutex<Vec<JobRequest>>>,
+    /// Every job request as its JSON came, in order.
+    created_json: Arc<Mutex<Vec<Value>>>,
     deleted: Arc<Mutex<Vec<String>>>,
     probes: Arc<Mutex<Vec<String>>>,
     subtitles: Arc<Mutex<Vec<SubtitleRequest>>>,
@@ -319,6 +321,7 @@ async fn start_fake() -> (Fake, String) {
                         conversions: true,
                         conversions_mp4: true,
                         live_bitrate: true,
+                        fmp4_segments: true,
                         trickplay_version: 1,
                         trickplay_runs: fake.trickplay_runs.load(Ordering::SeqCst),
                         ..Default::default()
@@ -356,7 +359,9 @@ async fn start_fake() -> (Fake, String) {
         )
         .route(
             "/v1/jobs",
-            post(|State(fake): State<Fake>, Json(req): Json<JobRequest>| async move {
+            post(|State(fake): State<Fake>, Json(json): Json<Value>| async move {
+                let req: JobRequest = serde_json::from_value(json.clone()).expect("a job request");
+                fake.created_json.lock().push(json);
                 let delay = *fake.job_delay.lock();
                 if !delay.is_zero() {
                     tokio::time::sleep(delay).await;
@@ -371,6 +376,8 @@ async fn start_fake() -> (Fake, String) {
                 let id = format!("job{n}");
                 let segments = fake.layout.lock().unwrap_or(15);
                 let status = job_status(&id, &req, segments);
+                // fMP4 as asked, but for jobs without video.
+                let segment_format = if req.video.is_some() { req.segment_format } else { SegmentFormat::Ts };
                 fake.created.lock().push(req.clone());
                 fake.jobs.lock().insert(id.clone(), (req, segments));
                 Json(JobCreated {
@@ -382,7 +389,7 @@ async fn start_fake() -> (Fake, String) {
                     audio: status.audio,
                     warnings: vec![],
                     variants: 0,
-                    segment_format: Default::default(),
+                    segment_format,
                 })
                 .into_response()
             }),
@@ -426,9 +433,13 @@ async fn start_fake() -> (Fake, String) {
         .route(
             "/v1/jobs/{id}/{file}",
             get(|State(fake): State<Fake>, Path((id, file)): Path<(String, String)>| async move {
-                let Some(segments) = fake.jobs.lock().get(&id).map(|(_, n)| *n) else {
+                let Some((format, segments)) = fake.jobs.lock().get(&id).map(|(req, n)| (req.segment_format, *n))
+                else {
                     return error(StatusCode::NOT_FOUND, "job_not_found");
                 };
+                if file == "init.mp4" && format == SegmentFormat::Fmp4 {
+                    return ([(header::CONTENT_TYPE, "video/mp4")], format!("{id}:init")).into_response();
+                }
                 if file == "index.m3u8" {
                     let mut playlist = String::from("#EXTM3U\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXT-X-TARGETDURATION:4\n");
                     for n in 0..segments {
@@ -437,9 +448,9 @@ async fn start_fake() -> (Fake, String) {
                     playlist.push_str("#EXT-X-ENDLIST\n");
                     return ([(header::CONTENT_TYPE, "application/vnd.apple.mpegurl")], playlist).into_response();
                 }
-                match file.strip_suffix(".ts").and_then(|n| n.parse::<u32>().ok()) {
+                match file.strip_suffix(&format!(".{}", format.extension())).and_then(|n| n.parse::<u32>().ok()) {
                     Some(n) if n < segments => {
-                        ([(header::CONTENT_TYPE, "video/mp2t")], format!("{id}:{n}")).into_response()
+                        ([(header::CONTENT_TYPE, format.content_type())], format!("{id}:{n}")).into_response()
                     }
                     _ => error(StatusCode::NOT_FOUND, "not_found"),
                 }
@@ -1036,6 +1047,83 @@ async fn a_converted_streams_bitrate_changes_as_it_plays() {
     let id = remux.body["session_id"].as_str().unwrap();
     let refused = app.put(&format!("/api/playback/{id}/bitrate"), admin, json!({"max_bitrate": 3000})).await;
     assert_eq!(refused.status, StatusCode::BAD_REQUEST);
+}
+
+/// An Apple player: no Matroska, H.264 decoded, fMP4 segments before TS.
+fn apple() -> Value {
+    json!({
+        "caps_version": 2, "containers": ["mp4", "m4v", "mov"], "video_codecs": ["h264"], "audio_codecs": ["aac"],
+        "video": [{"codec": "h264", "hardware": true, "profiles": ["Main", "High"], "max_width": 3840,
+                   "max_height": 2160, "max_bit_depth": 8}],
+        "audio_decode": ["aac"],
+        "hls": {"master_playlist": true, "segments": ["fmp4", "ts"]}
+    })
+}
+
+#[tokio::test]
+async fn players_that_put_fmp4_first_stream_fmp4_segments() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let feature = w.movies["Feature"];
+
+    // Players that don't ask for fMP4: the request names no format, as
+    // older transcoders read it.
+    let ts = play(app, admin, json!({"item_id": feature, "caps": browser(), "client_id": "tab"})).await;
+    assert_eq!(ts.status, StatusCode::OK, "{}", ts.body);
+    assert_eq!(w.fake.last_request().segment_format, SegmentFormat::Ts);
+    let json = w.fake.created_json.lock().last().cloned().unwrap();
+    assert!(json.get("segment_format").is_none(), "{json}");
+    assert_eq!(ts.body["pts_offset_ms"], json!(1400));
+
+    let started =
+        play(app, admin, json!({"item_id": feature, "caps": apple(), "mode": "transcode", "keyed_urls": true})).await;
+    assert_eq!(started.status, StatusCode::OK, "{}", started.body);
+    assert_eq!(w.fake.last_request().segment_format, SegmentFormat::Fmp4);
+    assert_eq!(w.fake.created_json.lock().last().unwrap()["segment_format"], json!("fmp4"));
+    let info = &started.body;
+    assert_eq!(info["method"], json!("transcode"));
+    // Its bitrate stays as it began; the MP4 muxer adds nothing to the times.
+    assert_eq!((&info["live_bitrate"], &info["pts_offset_ms"]), (&json!(false), &json!(0)));
+    let session = info["session_id"].as_str().unwrap().to_owned();
+    let refused = app.put(&format!("/api/playback/{session}/bitrate"), admin, json!({"max_bitrate": 3000})).await;
+    assert_eq!(refused.status, StatusCode::BAD_REQUEST);
+    assert!(w.fake.bitrates.lock().is_empty());
+
+    let get = |file: &str| {
+        let uri = format!("/api/playback/{session}/{file}");
+        async move { app.get(&uri, admin).await }
+    };
+    let init = get("init.mp4").await;
+    assert_eq!((init.status, init.text()), (StatusCode::OK, "job2:init".to_owned()));
+    assert_eq!(init.headers[header::CONTENT_TYPE], "video/mp4");
+    let segment = get("3.m4s").await;
+    assert_eq!((segment.status, segment.text()), (StatusCode::OK, "job2:3".to_owned()));
+    assert_eq!(segment.headers[header::CONTENT_TYPE], "video/mp4");
+    // Names in the other format, or no name at all, are not found.
+    for file in ["3.ts", "init.m4s", "3.m4s.p1", "v0-init.mp4"] {
+        assert_eq!(get(file).await.status, StatusCode::NOT_FOUND, "{file}");
+    }
+
+    // Keyed URLs name the same files.
+    let url = info["url"].as_str().unwrap();
+    assert!(url.starts_with("/api/media/") && url.ends_with("/index.m3u8"), "{url}");
+    let keyed = url.trim_end_matches("index.m3u8");
+    let init = app.call(Method::GET, &format!("{keyed}init.mp4"), None, None, &[]).await;
+    assert_eq!((init.status, &init.headers[header::CONTENT_TYPE]), (StatusCode::OK, &"video/mp4".parse().unwrap()));
+    let segment = app.call(Method::GET, &format!("{keyed}4.m4s"), None, None, &[]).await;
+    assert_eq!((segment.status, segment.text()), (StatusCode::OK, "job2:4".to_owned()));
+
+    // A lost job comes back in fMP4, with the same names.
+    w.fake.lose_jobs();
+    let segment = get("5.m4s").await;
+    assert_eq!((segment.status, segment.text()), (StatusCode::OK, "job3:5".to_owned()));
+    assert_eq!(w.fake.last_request().segment_format, SegmentFormat::Fmp4);
+
+    // An MPEG-TS session has no fMP4 files.
+    let tab = ts.body["session_id"].as_str().unwrap();
+    for file in ["0.m4s", "init.mp4"] {
+        assert_eq!(app.get(&format!("/api/playback/{tab}/{file}"), admin).await.status, StatusCode::NOT_FOUND);
+    }
 }
 
 #[tokio::test]

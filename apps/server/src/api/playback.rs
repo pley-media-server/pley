@@ -111,6 +111,8 @@ pub async fn start(
     }
     // Transcodes keep HDR only with a transcoder that can (HEVC Main 10).
     req.hdr_transcodes = state.transcoder.info().is_some_and(|info| info.capabilities.hdr_transcode);
+    // fMP4 segments only from a transcoder that makes them.
+    req.fmp4_segments = state.transcoder.info().is_some_and(|info| info.capabilities.fmp4_segments);
     if !matches!(row.kind.as_str(), "movie" | "episode" | "track" | "extra") {
         return Err(AppError::bad_request("this item cannot be played directly"));
     }
@@ -249,7 +251,7 @@ pub async fn start(
         } else {
             Vec::new()
         },
-        segment_format: SegmentFormat::Ts,
+        segment_format: decision.segment_format,
     };
     let created = state.transcoder.create_job(&job_request).await.map_err(|err| for_viewer(&user, err))?;
     // Once the transcoder knows a playback starts: the copy waits for it.
@@ -264,11 +266,13 @@ pub async fn start(
     };
     reasons.extend(created.warnings.iter().map(|w| sentence(w)));
     let burn = decision.burn_index;
-    // Pin the effective video mode: the segment layout depends on it.
+    // Pin the effective video mode and segment format (audio-only jobs
+    // stay MPEG-TS): the segment layout and names depend on them.
     let mut request = job_request;
     if let (Some(video), Some(plan)) = (request.video.as_mut(), created.video.as_ref()) {
         video.mode = plan.mode;
     }
+    request.segment_format = created.segment_format;
     let spec = TranscodeSpec { request, segment_count: created.segment_count, duration_ms: created.duration_ms };
     let mut session = Session::new(
         user.id,
@@ -319,8 +323,11 @@ pub async fn start(
             .zip(created.video.as_ref())
             .and_then(|(v, plan)| video_range_shown(&v, &req.caps, Delivery::of_plan(plan))),
         adaptive,
-        live_bitrate: method == Method::Transcode && state.transcoder.live_bitrate(),
-        pts_offset_ms: Some(HLS_PTS_OFFSET_MS),
+        // An fMP4 stream's init segment holds the encoder's settings: its
+        // bitrate stays as it began, and players move between variants.
+        live_bitrate: method == Method::Transcode && state.transcoder.live_bitrate() && created.segment_format.is_ts(),
+        // The MP4 muxer keeps the file's times as they are.
+        pts_offset_ms: Some(if created.segment_format.is_ts() { HLS_PTS_OFFSET_MS } else { 0 }),
     }))
 }
 
@@ -348,7 +355,8 @@ pub async fn set_bitrate(
     Json(body): Json<BitrateBody>,
 ) -> ApiResult<Json<BitrateAnswer>> {
     let session = owned_session(&state, &user, &id)?;
-    if session.method != Method::Transcode || !state.transcoder.live_bitrate() {
+    let fmp4 = session.transcode.as_ref().is_some_and(|spec| !spec.request.segment_format.is_ts());
+    if session.method != Method::Transcode || !state.transcoder.live_bitrate() || fmp4 {
         return Err(AppError::bad_request("this stream's bitrate can't change as it plays"));
     }
     let job = session.job_id().ok_or_else(|| AppError::not_found("playback session expired"))?;
@@ -622,7 +630,11 @@ async fn replacement_job(state: &AppState, user: &AuthUser, session: &Session, f
         (None, None) => true,
         _ => false,
     };
-    if !same_mode || created.segment_count != spec.segment_count || created.duration_ms != spec.duration_ms {
+    if !same_mode
+        || created.segment_count != spec.segment_count
+        || created.duration_ms != spec.duration_ms
+        || created.segment_format != spec.request.segment_format
+    {
         let _ = state.transcoder.delete_job(&created.id).await;
         *session.job_id.lock() = None;
         tracing::info!("transcode job for session {} cannot be recreated with the same layout", session.id);
@@ -851,8 +863,8 @@ pub async fn hls_file(
     session_hls(&state, &user, &session, &file).await
 }
 
-/// A playlist or segment (`index.m3u8`, `master.m3u8`, `{n}.ts`) of a
-/// transcode session, for `user`.
+/// A playlist, init segment or segment (`index.m3u8`, `master.m3u8`,
+/// `init.mp4`, `{n}.ts`, `{n}.m4s`) of a transcode session, for `user`.
 async fn session_hls(state: &AppState, user: &AuthUser, session: &Arc<Session>, file: &str) -> ApiResult<Response> {
     if session.touch() {
         state.events.send(ServerEvent::SessionsChanged);
@@ -867,8 +879,8 @@ async fn session_hls(state: &AppState, user: &AuthUser, session: &Arc<Session>, 
     }
     let job = session.job_id().ok_or_else(|| AppError::not_found("playback session expired"))?;
 
-    let playlist = hls_file_kind(file).ok_or_else(|| AppError::not_found("unknown playlist file"))?;
-    if playlist {
+    let kind = hls_file_kind(file).ok_or_else(|| AppError::not_found("unknown playlist file"))?;
+    if kind == HlsFile::Playlist {
         let playlist = match state.transcoder.playlist_file(&job, file).await {
             Err(err) if err.is_job_gone() => {
                 let job = replacement_job(state, user, session, &job).await?;
@@ -877,7 +889,7 @@ async fn session_hls(state: &AppState, user: &AuthUser, session: &Arc<Session>, 
             other => other?,
         };
         return Ok((
-            [(header::CONTENT_TYPE, "application/vnd.apple.mpegurl"), (header::CACHE_CONTROL, "no-cache")],
+            [(header::CONTENT_TYPE, HlsFile::Playlist.content_type()), (header::CACHE_CONTROL, "no-cache")],
             playlist,
         )
             .into_response());
@@ -890,29 +902,62 @@ async fn session_hls(state: &AppState, user: &AuthUser, session: &Arc<Session>, 
         }
         other => other?,
     };
+    // A name in the other format than the job's is the transcoder's 404.
     let mut response =
-        Response::builder().header(header::CONTENT_TYPE, "video/mp2t").header(header::CACHE_CONTROL, "no-cache");
+        Response::builder().header(header::CONTENT_TYPE, kind.content_type()).header(header::CACHE_CONTROL, "no-cache");
     if let Some(len) = upstream.content_length() {
         response = response.header(header::CONTENT_LENGTH, len);
     }
     response.body(Body::from_stream(upstream.bytes_stream())).map_err(|e| AppError::Internal(e.into()))
 }
 
-/// What a transcode session's file is by its name: a playlist (`true`:
-/// `master.m3u8`, `index.m3u8`, a lower rendition's `v1.m3u8`…) or a segment
-/// (`false`: `12.ts`, `v1-12.ts`…); `None` for anything else.
-fn hls_file_kind(name: &str) -> Option<bool> {
+/// What a transcode session's file is, by its name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HlsFile {
+    /// `master.m3u8`, `index.m3u8`, a lower rendition's `v1.m3u8`…
+    Playlist,
+    /// `12.ts`, `v1-12.ts`, or in fMP4 `12.m4s`, `v1-12.m4s`…
+    Segment(SegmentFormat),
+    /// An fMP4 rendition's init segment: `init.mp4`, `v1-init.mp4`…
+    Init,
+}
+
+impl HlsFile {
+    /// The Content-Type it is served with.
+    fn content_type(self) -> &'static str {
+        match self {
+            HlsFile::Playlist => "application/vnd.apple.mpegurl",
+            HlsFile::Segment(format) => format.content_type(),
+            HlsFile::Init => SegmentFormat::Fmp4.content_type(),
+        }
+    }
+}
+
+/// What a transcode session's file is by its name; `None` for anything
+/// else.
+fn hls_file_kind(name: &str) -> Option<HlsFile> {
     let rendition = |s: &str| s.strip_prefix('v').and_then(|k| k.parse::<u32>().ok()).is_some_and(|k| k > 0);
     let number = |s: &str| !s.is_empty() && s.len() <= 9 && s.bytes().all(|b| b.is_ascii_digit());
     if let Some(stem) = name.strip_suffix(".m3u8") {
-        return (stem == "index" || stem == "master" || rendition(stem)).then_some(true);
+        return (stem == "index" || stem == "master" || rendition(stem)).then_some(HlsFile::Playlist);
     }
-    let stem = name.strip_suffix(".ts")?;
+    if let Some(stem) = name.strip_suffix(".mp4") {
+        let init = match stem.split_once('-') {
+            Some((k, rest)) => rendition(k) && rest == "init",
+            None => stem == "init",
+        };
+        return init.then_some(HlsFile::Init);
+    }
+    let (stem, format) = match name.rsplit_once('.')? {
+        (stem, "ts") => (stem, SegmentFormat::Ts),
+        (stem, "m4s") => (stem, SegmentFormat::Fmp4),
+        _ => return None,
+    };
     let segment = match stem.split_once('-') {
         Some((k, n)) => rendition(k) && number(n),
         None => number(stem),
     };
-    segment.then_some(false)
+    segment.then_some(HlsFile::Segment(format))
 }
 
 /// `GET /api/media/{key}/{file}`: a session's media for a player that can't
@@ -1937,5 +1982,53 @@ mod tests {
         assert_eq!(none.status(), StatusCode::RANGE_NOT_SATISFIABLE);
         assert_eq!(none.headers()[header::CONTENT_RANGE], "bytes */10");
         assert_eq!(none.headers()[SUBTITLES_COMPLETE_HEADER], "0");
+    }
+
+    #[test]
+    fn hls_files_are_known_by_their_names() {
+        use HlsFile::{Init, Playlist, Segment};
+        let (ts, fmp4) = (SegmentFormat::Ts, SegmentFormat::Fmp4);
+        for (name, kind) in [
+            ("index.m3u8", Playlist),
+            ("master.m3u8", Playlist),
+            ("v2.m3u8", Playlist),
+            ("0.ts", Segment(ts)),
+            ("12.ts", Segment(ts)),
+            ("v1-12.ts", Segment(ts)),
+            ("12.m4s", Segment(fmp4)),
+            ("v3-0.m4s", Segment(fmp4)),
+            ("init.mp4", Init),
+            ("v1-init.mp4", Init),
+        ] {
+            assert_eq!(hls_file_kind(name), Some(kind), "{name}");
+        }
+        for name in [
+            "v0.m3u8",
+            "other.m3u8",
+            "x.ts",
+            ".ts",
+            "1234567890.ts",
+            "v0-1.ts",
+            "v1-.ts",
+            "v1-x.m4s",
+            "-1.m4s",
+            "12.m4s.p3",
+            "12.mp4",
+            "v0-init.mp4",
+            "-init.mp4",
+            "init.m4s",
+            "init.ts",
+            "init.mp4.p1",
+            "vx-init.mp4",
+            "12.mkv",
+            "../init.mp4",
+            "",
+        ] {
+            assert_eq!(hls_file_kind(name), None, "{name}");
+        }
+        assert_eq!(Segment(ts).content_type(), "video/mp2t");
+        assert_eq!(Segment(fmp4).content_type(), "video/mp4");
+        assert_eq!(Init.content_type(), "video/mp4");
+        assert_eq!(Playlist.content_type(), "application/vnd.apple.mpegurl");
     }
 }

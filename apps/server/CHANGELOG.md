@@ -11,6 +11,10 @@ describes how they are made.
 
 ### Added
 
+- Apple's devices can stream HEVC, HDR and Dolby Vision as they are: a
+  player that asks for fMP4 segments first gets its streams in fMP4 rather
+  than MPEG-TS, with VP9 and AV1 copied too where it decodes them. Other
+  players stream as before.
 - Streams say when their video carries no closed captions, so Apple TV
   shows one Subtitles menu, not two. Files scanned before this say nothing
   until they are scanned again; captions in a TV recording's frames are
