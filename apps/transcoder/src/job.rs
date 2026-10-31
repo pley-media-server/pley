@@ -277,7 +277,9 @@ impl EncoderChoice {
 /// an fMP4 job has an init (`pinned`), the stand-in takes over from a
 /// failed or busy hardware encoder. Once it has one, every process makes
 /// the video as the one that made it: the same encoder at the same preset,
-/// or none.
+/// or none. A failure there is tried again on the same encoder, since
+/// `hardware_failed` also follows a read error or a bad spot after a seek;
+/// failing twice at a segment ends the job ([`MAX_FAILURES`]).
 fn restart_encoder(
     pinned: Option<&InitEncoder>,
     planned_hw: bool,
@@ -302,11 +304,6 @@ fn restart_encoder(
         return Ok((choice, preset));
     };
     let choice = if pinned.hardware {
-        if hardware_failed {
-            return Err(ApiError::Failed(
-                "the hardware encoder failed after the stream began; fMP4 segments can't change encoder".into(),
-            ));
-        }
         if !hw_slot {
             return Err(ApiError::Busy(
                 "all hardware encoder sessions are in use, and this stream can't change encoder".into(),
@@ -4112,11 +4109,11 @@ mod tests {
         assert_eq!(choose(Some(&gpu), false, None, true).unwrap(), (EncoderChoice::Planned, None));
         let err = choose(Some(&gpu), false, None, false).unwrap_err();
         assert!(matches!(&err, ApiError::Busy(m) if m.contains("can't change encoder")), "{err:?}");
-        let err = choose(Some(&gpu), true, None, true).unwrap_err();
-        assert!(
-            matches!(&err, ApiError::Failed(m) if m == "the hardware encoder failed after the stream began; fMP4 segments can't change encoder"),
-            "{err:?}"
-        );
+        // A failure there (a share asleep, a bad spot after a seek) is
+        // tried again on the GPU; failing twice at a segment ends the job.
+        assert_eq!(choose(Some(&gpu), true, None, true).unwrap(), (EncoderChoice::Planned, None));
+        let err = choose(Some(&gpu), true, None, false).unwrap_err();
+        assert!(matches!(&err, ApiError::Busy(m) if m.contains("can't change encoder")), "{err:?}");
 
         // Made by the stand-in: it stays, with a hardware session free,
         // at its preset whatever is asked.

@@ -644,8 +644,9 @@ Apple's players take HEVC, HDR and Dolby Vision this way, and not in MPEG-TS.
   its init, every process encodes as the one that made it:
   - At the same preset. The automatic preset no longer moves for the job.
   - On the GPU, when the init was made there. With every hardware session
-    in use the answer is `503`, not the software encoder; when the hardware
-    encoder fails, the job fails.
+    in use the answer is `503`, not the software encoder. A process that
+    fails is started again on the GPU; failing twice at the same segment
+    returns the error.
   - With the software encoder, when it stood in for a busy or failed
     hardware one, even once a hardware session is free.
 
@@ -703,7 +704,8 @@ server, on by default), and FFmpeg supports `readrate`.
   GPU gone, a session refused) hands the job to the software encoder, with a
   warning. After that happens to three jobs, `capabilities.json` is deleted
   and the next start tests the encoders again. An fMP4 job whose init the
-  hardware encoder made fails instead ([fMP4 segments](#fmp4-segments)).
+  hardware encoder made stays on it instead, and tries again there
+  ([fMP4 segments](#fmp4-segments)).
 
 ### Renditions
 
