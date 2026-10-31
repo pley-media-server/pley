@@ -958,6 +958,19 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn subscribers_hear_of_a_rename() {
+        let (_dir, db, store) = store().await;
+        let mut settings = store.subscribe();
+        settings.borrow_and_update();
+        store.update(&db, patch(serde_json::json!({"server_name": " Den "}))).await.unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(1), settings.changed()).await.unwrap().unwrap();
+        assert_eq!(settings.borrow_and_update().server_name, "Den");
+        // A rejected patch tells them nothing.
+        assert!(store.update(&db, patch(serde_json::json!({"server_name": ""}))).await.is_err());
+        assert!(!settings.has_changed().unwrap());
+    }
+
+    #[tokio::test]
     async fn a_tv_source_needs_its_key() {
         let (_dir, db, store) = store().await;
         let set = |json: serde_json::Value| store.update(&db, patch(json));
