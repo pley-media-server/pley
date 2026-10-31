@@ -119,14 +119,21 @@ public final class FixtureServer: Sendable {
     // MARK: Running
 
     /// Starts listening on 127.0.0.1, on a free port; returns the origin,
-    /// `http://127.0.0.1:<port>`.
+    /// `http://127.0.0.1:<port>`. With `bonjour`, it also announces itself
+    /// as a `_pley._tcp` service of that instance name and TXT record, on
+    /// this Mac only (the loopback interface).
     @discardableResult
-    public func start() async throws -> String {
+    public func start(bonjour: (instance: String, txt: [String: String])? = nil) async throws -> String {
         let parameters = NWParameters.tcp
         parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
         parameters.allowLocalEndpointReuse = true
+        if bonjour != nil { parameters.requiredInterfaceType = .loopback }
         let box = Listener(try NWListener(using: parameters))
         let listener = box.listener
+        if let bonjour {
+            listener.service = NWListener.Service(name: bonjour.instance, type: "_pley._tcp", domain: "local.",
+                                                  txtRecord: NWTXTRecord(bonjour.txt))
+        }
         listener.newConnectionHandler = { [weak self] connection in
             guard let self else { connection.cancel(); return }
             self.serve(connection)

@@ -4,6 +4,7 @@ Native apps for iPhone, iPad, Mac and Apple TV, in `apps/apple` (paths
 below are relative to it). They are in development and not released yet.
 
 - [What it is](#what-it-is)
+- [Finding servers](#finding-servers)
 - [Plain HTTP and HTTPS](#plain-http-and-https)
 - [Building and testing](#building-and-testing)
 - [Code layout](#code-layout)
@@ -30,6 +31,42 @@ the name someone gave it.
 
 The apps ask for local network access (to find and reach servers at home)
 and browse for Bonjour's `_pley._tcp`.
+
+## Finding servers
+
+The apps find servers on the home network by Bonjour: Pley servers
+announce `_pley._tcp` ([API.md, Discovery](API.md#discovery)), and the
+apps browse for it with Network.framework's `NWBrowser`. They don't send
+the `pley?` broadcast the other apps use, so they need no multicast
+entitlement. A server that isn't found (another network, Bonjour turned
+off on the server, a router that drops it) is added by its address.
+
+The first browse makes the system ask for local network access, with the
+reason from the app's Info.plist. If it is refused, the search reports it
+as refused rather than as an empty network; Settings → Privacy & Security
+→ Local Network turns it back on. Adding a server by its address still
+works for servers beyond the home network.
+
+Anyone on the network can announce a `_pley._tcp` service, so an
+announcement is only a lead:
+
+- **The TXT record is bounded**: `pley` must be `1` and `id` 1 to 64
+  letters, digits and hyphens; the name is cut to 64 characters without
+  control or format characters, and falls back to the instance name; a
+  version is at most 32 printable characters. A record with more than 16
+  keys or 1,300 bytes is ignored, and so are servers beyond the first 32.
+- **The address must be private**: the service is resolved by opening a
+  connection to it, an IPv4 address preferred, and IPv6 used only when it
+  isn't link-local. An address outside the private ranges below is
+  dropped.
+- **The server must confirm it**: the app asks `GET /api/server` at that
+  address, at most 4 at a time, and lists the server only if it answers
+  as Pley within 5 seconds. The name and version shown are from that
+  answer; the id is from the TXT record, and two announcements with one id
+  show once.
+
+A server that says goodbye (it stopped, or its announcement went) leaves
+the list. Servers are listed by name.
 
 ## Plain HTTP and HTTPS
 
@@ -118,6 +155,19 @@ to a fixture server the tests start on 127.0.0.1 (two of them where a
 second origin is needed), over a real socket, so they need no Pley server
 and no network beyond this device.
 
+One test finds a server by Bonjour for real: a fixture server announces
+`_pley._tcp` on the Mac's loopback interface, and `LocalServers` must find
+and confirm it. It needs mDNSResponder and local network access, so it
+runs only when asked:
+
+```sh
+PLEY_BONJOUR_TEST=1 swift test --package-path apps/apple/PleyKit --filter aServerAnnouncedByBonjourIsFound
+```
+
+`dns-sd -B _pley._tcp` lists the servers announced on the network. A
+server bound only to 127.0.0.1 announces nothing: announcements go out on
+the adapters with addresses on the local network.
+
 ## Code layout
 
 | Path | What |
@@ -133,8 +183,8 @@ PleyKit's modules, each depending only on those before it:
 | Module | What |
 |---|---|
 | `PleyModel` | The server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read |
-| `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, logging |
-| `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", and the typed API calls |
+| `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, Bonjour (browsing, TXT records, resolving), logging |
+| `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), and the typed API calls |
 | `PleyTesting` | What the tests share: the fixtures, and a fixture server (real HTTP on 127.0.0.1, with a household, tokens and a journal of the requests it got) |
 
 The rules: modules depend only downwards; the two apps never import each
