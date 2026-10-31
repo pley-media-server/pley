@@ -1,0 +1,7 @@
+/Config/Local.xcconfig
+/PleyKit/.build/
+/PleyKit/.swiftpm/
+xcuserdata/
+*.xcuserstate
+/build/
+DerivedData/

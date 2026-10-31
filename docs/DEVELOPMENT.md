@@ -18,6 +18,7 @@ server talks to it only over HTTP ([TRANSCODER.md](TRANSCODER.md)).
 | `apps/web` | The web app (React, TypeScript, Vite, Tailwind), embedded into the server |
 | `apps/desktop` | Pley for Windows, macOS and Linux (Tauri) |
 | `apps/android` | Pley for Android phones, tablets and TVs (Kotlin, Compose, Media3) |
+| `apps/apple` | Pley for iPhone, iPad, Mac and Apple TV (Swift, SwiftUI), in development |
 | `apps/kodi` | Pley for Kodi, an add-on (Python, GPL-2.0-or-later) |
 | `apps/roku` | Pley for Roku (BrightScript, SceneGraph) |
 | `apps/tizen`, `apps/webos` | Pley for Samsung TV and Pley for LG TV |
@@ -69,6 +70,7 @@ Then follow [First start](CONFIGURATION.md#first-start).
 | `dotnet test apps/tizen-native/test/Pley.Tv.Core.Tests` | Tests the native Samsung app's logic; `bun run tizen-native` packages it ([TV_PLATFORMS.md](TV_PLATFORMS.md#the-native-samsung-app)) |
 | `bun install && bun run check` in `apps/roku` | Compiles, lints and tests the Roku app ([ROKU.md](ROKU.md)) |
 | `python -m unittest discover -s tests` in `apps/kodi` | Tests the Kodi add-on ([KODI.md](KODI.md)) |
+| `swift test --package-path apps/apple/PleyKit` | Tests the Apple apps' packages on a Mac; [APPLE.md](APPLE.md#building-and-testing) has the simulator tests and the apps' `xcodebuild` builds |
 | `scripts/build.ps1` (or `build.sh`) | Builds the server's release archive locally |
 | `scripts/build-spk.sh` | Builds the Synology package from the static Linux archive ([deploy/synology](../deploy/synology/README.md)) |
 

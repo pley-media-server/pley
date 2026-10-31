@@ -1,0 +1,20 @@
+// Signing for Pley's Apple apps. To build with your own Apple account,
+// create Local.xcconfig next to this file (git ignores it) with your team
+// and a bundle ID of your own:
+//
+//   DEVELOPMENT_TEAM = ABCDE12345
+//   PLEY_BUNDLE_ID = com.example.pley
+//   CODE_SIGN_IDENTITY[sdk=macosx*] = Apple Development
+//
+// Without it, the Mac app is signed to run on this Mac only ("Sign to Run
+// Locally"), and simulator builds take CODE_SIGNING_ALLOWED=NO.
+
+// One bundle ID for iPhone, iPad, Mac and Apple TV: one universal purchase.
+PLEY_BUNDLE_ID = com.formandelement.pley
+DEVELOPMENT_TEAM =
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY[sdk=macosx*] = -
+
+#include? "Local.xcconfig"
+
+PRODUCT_BUNDLE_IDENTIFIER = $(PLEY_BUNDLE_ID)
