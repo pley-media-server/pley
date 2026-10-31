@@ -43,7 +43,8 @@ pub struct Listen {
     /// requests told apart from the web app's (see [`crate::jellyfin::on_web_port`]).
     #[serde(default)]
     pub jellyfin_on_web: bool,
-    /// Answer the pley apps looking for servers on the local network.
+    /// Answer the pley apps looking for servers on the local network, and
+    /// announce pley there by Bonjour (see [`crate::bonjour`]).
     pub discovery: bool,
 }
 
@@ -176,6 +177,11 @@ impl Network {
 
     pub fn wanted(&self) -> Listen {
         self.wanted.borrow().1.clone()
+    }
+
+    /// Hears each change once [`run`] has made it (see [`crate::bonjour`]).
+    pub fn applied(&self) -> watch::Receiver<u64> {
+        self.applied.subscribe()
     }
 
     /// Whether the Jellyfin-compatible API answers on pley's own port now.

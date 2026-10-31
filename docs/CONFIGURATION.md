@@ -31,7 +31,7 @@ example, `--jellyfin-bind` is also `PLEY_JELLYFIN_BIND` and `jellyfin_bind`.
 | `--web-dir` | | Serve the web app from a folder instead of the embedded copy |
 | `--log` | `info` | Log filter, e.g. `info,pley=debug`; also written to `logs/pley.log` |
 | `--no-tray` | | Never show the tray icon |
-| `--no-discovery` | | Don't answer apps looking for servers on the local network |
+| `--no-discovery` | | Don't answer apps looking for servers on the local network, nor announce Pley there by Bonjour |
 
 Everything else is set in the web app:
 

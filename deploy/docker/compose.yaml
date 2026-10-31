@@ -59,8 +59,9 @@ services:
       # root rather than becoming another user (deploy/docker/pley.sh).
       PUID: ${PLEY_UID:-1000}
       PGID: ${PLEY_GID:-1000}
-      # The apps' search for servers on the network can't reach a container
-      # on Docker's own network: don't listen for it.
+      # The apps' search for servers on the network (the broadcast and
+      # Bonjour) can't reach a container on Docker's own network: don't
+      # listen for it.
       PLEY_NO_DISCOVERY: "true"
       PLEY_LOG: ${PLEY_LOG:-info}
 

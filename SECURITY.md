@@ -271,6 +271,17 @@ other apps (`pley_ct_…`), never a session's
   networks that Automatic quality remembers.
 - On Unix, Pley raises its open-files limit to the most it may have.
 
+### Discovery
+
+- Apps find servers on the local network by a UDP broadcast and by
+  Bonjour (`_pley._tcp`). Both tell only the server's id, name, version and
+  web port, which its public endpoint tells anyone who reaches it.
+- The UDP answer goes only to addresses on the local network, at most 100
+  a second. The Bonjour announcement goes out only from adapters with
+  addresses on the local network, never to the internet.
+- `--no-discovery` (`PLEY_NO_DISCOVERY`), or Settings → Network, turns
+  both off; the Docker setup has them off.
+
 ### Files
 
 - A symbolic link in a library is followed only to a file of the same kind

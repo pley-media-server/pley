@@ -187,8 +187,11 @@ The container starts locked down; nothing here needs changing for Pley to
 work.
 
 - **One port, on this computer only** (`127.0.0.1`), so the reverse proxy,
-  with its HTTPS and access rules, is the only way in. Network discovery is
-  off, and the transcoder listens inside the container only.
+  with its HTTPS and access rules, is the only way in. Network discovery
+  (the apps' broadcast and Bonjour) is off, since neither reaches a
+  container on Docker's own network; with host networking it works, once
+  `PLEY_NO_DISCOVERY` is removed. The transcoder listens inside the
+  container only.
 - **Not root, no privileges.** Pley runs as your user, with every Linux
   capability dropped and `no-new-privileges`; the image has no setuid
   programs.

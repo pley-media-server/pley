@@ -11,6 +11,12 @@ describes how they are made.
 
 ### Added
 
+- The server announces itself on the local network by Bonjour
+  (`_pley._tcp`) too, with its id, name and version, so Apple's devices can
+  find it. It follows the discovery switch (`--no-discovery`, Settings →
+  Network, the Windows installer's checkbox) and a rename, and goes out
+  only from adapters on the local network. Windows Firewall's rule for
+  Pley already lets it through (UDP 5353).
 - A Jellyfin-compatible API, for Jellyfin's apps and others built on its
   API: they sign in with Pley's accounts, browse the libraries, play files
   as they are or as HLS from Pley's transcoder, with subtitles and Skip

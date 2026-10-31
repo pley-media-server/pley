@@ -36,6 +36,9 @@ hex = "0.4"
 hyper = { version = "1", features = ["server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp"] }
+# Bonjour (mDNS and DNS-SD) announcements in pure Rust, beside the system's
+# own responder (src/bonjour.rs): no async runtime of its own, no logging.
+mdns-sd = { version = "0.21", default-features = false }
 mime_guess = "2"
 mimalloc = { version = "0.1", default-features = false }
 notify = "8"

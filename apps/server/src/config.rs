@@ -93,7 +93,8 @@ pub struct Cli {
     #[arg(long, env = "PLEY_NO_TRAY", global = true)]
     pub no_tray: bool,
 
-    /// Don't answer the Pley apps looking for servers on the local network
+    /// Don't answer the Pley apps looking for servers on the local network, nor announce Pley
+    /// there by Bonjour
     #[arg(long, env = "PLEY_NO_DISCOVERY", global = true)]
     pub no_discovery: bool,
 }
@@ -188,7 +189,8 @@ pub struct Config {
     pub metadata_endpoints: Option<crate::providers::Endpoints>,
     /// See [`SHUTDOWN_GRACE`] (tests shorten it).
     pub shutdown_grace: Duration,
-    /// Answer apps looking for servers on the local network (see [`crate::discovery`]).
+    /// Answer apps looking for servers on the local network, and announce
+    /// pley there (see [`crate::discovery`] and [`crate::bonjour`]).
     pub discovery: bool,
     /// See [`EVENT_RECHECK`] (tests shorten it).
     pub event_recheck: Duration,

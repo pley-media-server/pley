@@ -3,11 +3,11 @@
 
 use std::sync::Arc;
 
-use parking_lot::RwLock;
 use pley_transcoder_api::{
     Capabilities, EncoderInfo, HwAccel, TonemapMode, Tonemapper, TranscodeOptions, TranscoderInfo, VideoCodec,
 };
 use serde::{Deserialize, Serialize};
+use tokio::sync::watch;
 
 use crate::db::Db;
 use crate::error::AppError;
@@ -598,7 +598,7 @@ pub struct SettingsPatch {
 }
 
 pub struct SettingsStore {
-    current: RwLock<Arc<Settings>>,
+    current: watch::Sender<Arc<Settings>>,
 }
 
 impl SettingsStore {
@@ -606,11 +606,17 @@ impl SettingsStore {
         let stored: Option<String> =
             sqlx::query_scalar("SELECT value FROM settings WHERE key = ?").bind(KEY).fetch_optional(&db.read).await?;
         let settings = stored.and_then(|json| serde_json::from_str(&json).ok()).unwrap_or_default();
-        Ok(Self { current: RwLock::new(Arc::new(settings)) })
+        Ok(Self { current: watch::Sender::new(Arc::new(settings)) })
     }
 
     pub fn get(&self) -> Arc<Settings> {
-        self.current.read().clone()
+        self.current.borrow().clone()
+    }
+
+    /// The settings, which change as they are saved (a rename: see
+    /// [`crate::bonjour`]).
+    pub fn subscribe(&self) -> watch::Receiver<Arc<Settings>> {
+        self.current.subscribe()
     }
 
     pub async fn update(&self, db: &Db, patch: SettingsPatch) -> Result<Arc<Settings>, AppError> {
@@ -862,7 +868,7 @@ impl SettingsStore {
         .execute(&db.write)
         .await?;
         let next = Arc::new(next);
-        *self.current.write() = next.clone();
+        self.current.send_replace(next.clone());
         Ok(next)
     }
 }

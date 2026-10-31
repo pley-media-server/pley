@@ -743,7 +743,29 @@ datagram:
 `pley` is the protocol version, `id` stays the same across restarts and
 renames, and `port` is the web port on the address the answer came from.
 Only senders on the local network get an answer, at most 100 a second.
-Administrators turn it off in Settings → Network (`discovery`) or with
+
+Servers also announce themselves by Bonjour (mDNS and DNS-SD), for apps
+that browse rather than broadcast (Apple's). The service type is
+`_pley._tcp`, its port the web port, and its instance name the server's
+name (at most 63 bytes). The TXT records carry the UDP answer's fields:
+
+| Key | Value |
+|---|---|
+| `pley` | `1`, the protocol version |
+| `id` | the server's id, as in the UDP answer |
+| `name` | the server's name (at most 64 characters and 250 bytes) |
+| `version` | the server's version |
+
+The announcement goes out from the adapters with the web addresses that
+are on the local network (private, link-local and Tailscale's addresses;
+IPv4 only when the server listens on `0.0.0.0`), follows a rename, and
+says goodbye when the server stops. An instance name may change when two
+servers share one, so apps go by `id`. Anyone on the network can
+announce or answer, so either way an app confirms a server it found
+through its public endpoint (`GET /api/server`, [Public endpoints](#public-endpoints))
+and its sign-in endpoints before it trusts it.
+
+Administrators turn both off in Settings → Network (`discovery`) or with
 `--no-discovery` (`PLEY_NO_DISCOVERY`).
 
 **Finding the sign-in endpoints.**

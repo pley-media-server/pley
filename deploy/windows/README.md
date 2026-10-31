@@ -53,7 +53,9 @@ Good to know:
 - A network adapter that isn't up when Pley starts (Wi-Fi, Tailscale) is
   retried every 30 seconds.
 - You can change where Pley listens later in **Settings → Network**. The
-  firewall rule follows, for the kinds of network you chose here.
+  firewall rule follows, for the kinds of network you chose here. It lets
+  Pley's TCP and UDP through on any port: the web port, the apps' broadcast
+  and Bonjour's (UDP 5353), by which Apple's apps find the server.
 - The Jellyfin-compatible API, for Jellyfin's apps, is off. **Settings →
   Network** turns it on, on Pley's port or one of its own.
 - FFmpeg comes with the installer, in `ffmpeg\` next to Pley. Releases carry
