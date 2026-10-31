@@ -426,39 +426,39 @@ impl TopLevel {
 }
 
 /// Big-endian fields of a payload.
-struct Fields<'a> {
+pub(crate) struct Fields<'a> {
     data: &'a [u8],
     pos: usize,
 }
 
 impl<'a> Fields<'a> {
-    fn new(data: &'a [u8]) -> Self {
+    pub(crate) fn new(data: &'a [u8]) -> Self {
         Self { data, pos: 0 }
     }
 
-    fn take<const N: usize>(&mut self) -> Result<[u8; N]> {
+    pub(crate) fn take<const N: usize>(&mut self) -> Result<[u8; N]> {
         let bytes = self.data.get(self.pos..self.pos + N).ok_or("box too short")?;
         self.pos += N;
         Ok(bytes.try_into().unwrap_or([0; N]))
     }
 
-    fn u32(&mut self) -> Result<u32> {
+    pub(crate) fn u32(&mut self) -> Result<u32> {
         self.take::<4>().map(u32::from_be_bytes)
     }
 
-    fn i32(&mut self) -> Result<i32> {
+    pub(crate) fn i32(&mut self) -> Result<i32> {
         self.take::<4>().map(i32::from_be_bytes)
     }
 
-    fn u64(&mut self) -> Result<u64> {
+    pub(crate) fn u64(&mut self) -> Result<u64> {
         self.take::<8>().map(u64::from_be_bytes)
     }
 
-    fn i64(&mut self) -> Result<i64> {
+    pub(crate) fn i64(&mut self) -> Result<i64> {
         self.take::<8>().map(i64::from_be_bytes)
     }
 
-    fn skip(&mut self, n: usize) -> Result<()> {
+    pub(crate) fn skip(&mut self, n: usize) -> Result<()> {
         if self.remaining() < n {
             return Err("box too short");
         }
@@ -466,13 +466,13 @@ impl<'a> Fields<'a> {
         Ok(())
     }
 
-    fn remaining(&self) -> usize {
+    pub(crate) fn remaining(&self) -> usize {
         self.data.len() - self.pos
     }
 
     /// The entry count of a table whose entries are `entry_size` bytes,
     /// checked against what the payload holds.
-    fn count(&mut self, entry_size: usize) -> Result<usize> {
+    pub(crate) fn count(&mut self, entry_size: usize) -> Result<usize> {
         let n = self.u32()? as usize;
         if n.checked_mul(entry_size).is_none_or(|bytes| bytes > self.remaining()) {
             return Err("table lists more entries than it holds");
