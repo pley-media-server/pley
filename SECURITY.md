@@ -275,7 +275,10 @@ other apps (`pley_ct_…`), never a session's
 
 - Apps find servers on the local network by a UDP broadcast and by
   Bonjour (`_pley._tcp`). Both tell only the server's id, name, version and
-  web port, which its public endpoint tells anyone who reaches it.
+  web port. The name and version are on its public endpoint too; the id is
+  a random identifier that says nothing about the computer or its users.
+  Bonjour tells them to every device on the local network unasked, and its
+  host name (`pley-` and the id's start) shows part of the id.
 - The UDP answer goes only to addresses on the local network, at most 100
   a second. The Bonjour announcement goes out only from adapters with
   addresses on the local network, never to the internet.
