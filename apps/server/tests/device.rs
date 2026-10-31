@@ -14,7 +14,9 @@ use std::time::Duration;
 use axum::http::{Method, StatusCode, header};
 use serde_json::json;
 
-use common::{ANDROID_APP, DESKTOP_APP, HOST, ISSUER, KODI_APP, ROKU_APP, Reply, TestApp};
+use common::{
+    ANDROID_APP, DESKTOP_APP, HOST, IOS_APP, ISSUER, KODI_APP, MACOS_APP, ROKU_APP, Reply, TVOS_APP, TestApp,
+};
 use pley::oauth::fetch::Source;
 
 const DEVICE_GRANT: &str = "urn:ietf:params:oauth:grant-type:device_code";
@@ -468,9 +470,18 @@ async fn only_pleys_own_apps_sign_in_with_a_code() {
     let page = app.browser_call(Method::POST, "/api/oauth/requests", &admin, Some(json!({"query": query})), &[]).await;
     assert_eq!(page.status, StatusCode::OK, "{}", page.text());
     assert_eq!(app.state.oauth.documents.fetched(), 1);
-    // Desktops have browsers: pley's desktop app signs in on pley's page.
-    let desktop = ask(&app, DESKTOP_APP, None, &[]).await;
-    assert_eq!(oauth_error(&desktop), (StatusCode::BAD_REQUEST, "unauthorized_client"));
+    // Desktops have browsers: pley's desktop app and the Apple app on a Mac
+    // sign in on pley's page.
+    for client_id in [DESKTOP_APP, MACOS_APP] {
+        let desktop = ask(&app, client_id, None, &[]).await;
+        assert_eq!(oauth_error(&desktop), (StatusCode::BAD_REQUEST, "unauthorized_client"), "{client_id}");
+    }
+    // An iPad on a stand or a shared iPhone may show a code instead.
+    let ipad = ask(&app, IOS_APP, Some("library play"), &[]).await;
+    assert_eq!(ipad.status, StatusCode::OK, "{}", ipad.text());
+    let shown = verify(&app, &admin, ipad.body["user_code"].as_str().unwrap()).await;
+    assert_eq!(shown.body["client"]["name"], "Pley for iPhone and iPad", "{}", shown.text());
+    assert_eq!(shown.body["client"]["first_party"], true);
 
     // Scopes by the consent page's rules: library when none is asked for,
     // nothing pley doesn't offer, nothing beyond the app's description.
@@ -865,12 +876,14 @@ async fn device_grants_act_like_other_app_grants() {
 }
 
 #[tokio::test]
-async fn kodi_and_roku_sign_in_only_with_a_code() {
+async fn kodi_roku_and_apple_tv_sign_in_only_with_a_code() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
     for (client_id, name, agent, platform) in [
         (KODI_APP, "Pley for Kodi", "pleyKodi/0.1.0 (Kodi 21.2; Windows)", "Kodi 21.2; Windows"),
         (ROKU_APP, "Pley for Roku", "pleyRoku/0.1.0 (Roku OS 14.5; Roku Ultra)", "Roku OS 14.5; Roku Ultra"),
+        // An agent pley doesn't know is named as the sign-ins list names it.
+        (TVOS_APP, "Pley for Apple TV", "pley-tv/1.0", "pley-tv/1.0"),
     ] {
         let asked = form(&[("client_id", client_id), ("scope", "library play")]);
         let started =
@@ -906,16 +919,18 @@ async fn kodi_and_roku_sign_in_only_with_a_code() {
 
         // They have no browser: pley's sign-in page has no return address for
         // them, so no code is ever sent anywhere.
-        let query = form(&[
-            ("response_type", "code"),
-            ("client_id", client_id),
-            ("redirect_uri", "app.pley.kodi:/oauth/callback"),
-            ("code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"),
-            ("code_challenge_method", "S256"),
-        ]);
-        let page =
-            app.browser_call(Method::POST, "/api/oauth/requests", &admin, Some(json!({"query": query})), &[]).await;
-        assert_eq!(page.status, StatusCode::BAD_REQUEST, "{}", page.text());
+        for redirect_uri in ["app.pley.kodi:/oauth/callback", "app.pley.apple:/oauth/callback"] {
+            let query = form(&[
+                ("response_type", "code"),
+                ("client_id", client_id),
+                ("redirect_uri", redirect_uri),
+                ("code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"),
+                ("code_challenge_method", "S256"),
+            ]);
+            let page =
+                app.browser_call(Method::POST, "/api/oauth/requests", &admin, Some(json!({"query": query})), &[]).await;
+            assert_eq!(page.status, StatusCode::BAD_REQUEST, "{redirect_uri}: {}", page.text());
+        }
     }
 }
 

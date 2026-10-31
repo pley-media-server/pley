@@ -20,10 +20,16 @@ use pley::{AppState, Config};
 pub const ANDROID_APP: &str = "https://pley-media-server.github.io/pley/oauth/android.json";
 /// The client_id of pley's desktop app.
 pub const DESKTOP_APP: &str = "https://pley-media-server.github.io/pley/oauth/desktop.json";
+/// The client_id of pley's Apple app on iPhone and iPad.
+pub const IOS_APP: &str = "https://pley-media-server.github.io/pley/oauth/ios.json";
 /// The client_id of pley's Kodi add-on.
 pub const KODI_APP: &str = "https://pley-media-server.github.io/pley/oauth/kodi.json";
+/// The client_id of pley's Apple app on the Mac.
+pub const MACOS_APP: &str = "https://pley-media-server.github.io/pley/oauth/macos.json";
 /// The client_id of pley's Roku app.
 pub const ROKU_APP: &str = "https://pley-media-server.github.io/pley/oauth/roku.json";
+/// The client_id of pley's Apple app on Apple TV.
+pub const TVOS_APP: &str = "https://pley-media-server.github.io/pley/oauth/tvos.json";
 /// The Host the tests' browsers and apps reach pley at.
 pub const HOST: &str = "pley.local:7539";
 /// The issuer for [`HOST`].

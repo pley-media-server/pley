@@ -30,16 +30,23 @@ const MAX_NAME_CHARS: usize = 64;
 pub const ANDROID_ID: &str = "https://pley-media-server.github.io/pley/oauth/android.json";
 /// pley for desktop.
 pub const DESKTOP_ID: &str = "https://pley-media-server.github.io/pley/oauth/desktop.json";
+/// pley for iPhone and iPad (iOS and iPadOS).
+pub const IOS_ID: &str = "https://pley-media-server.github.io/pley/oauth/ios.json";
 /// pley for Kodi.
 pub const KODI_ID: &str = "https://pley-media-server.github.io/pley/oauth/kodi.json";
+/// pley for Mac (macOS). The Apple app's, beside the desktop app.
+pub const MACOS_ID: &str = "https://pley-media-server.github.io/pley/oauth/macos.json";
 /// pley for Roku.
 pub const ROKU_ID: &str = "https://pley-media-server.github.io/pley/oauth/roku.json";
 /// pley for Samsung TV (Tizen).
 pub const TIZEN_ID: &str = "https://pley-media-server.github.io/pley/oauth/tizen.json";
+/// pley for Apple TV (tvOS).
+pub const TVOS_ID: &str = "https://pley-media-server.github.io/pley/oauth/tvos.json";
 /// pley for LG TV (webOS).
 pub const WEBOS_ID: &str = "https://pley-media-server.github.io/pley/oauth/webos.json";
 /// The client IDs of pley's own apps, matched as exact strings.
-pub const BUILTIN_IDS: &[&str] = &[ANDROID_ID, DESKTOP_ID, KODI_ID, ROKU_ID, TIZEN_ID, WEBOS_ID];
+pub const BUILTIN_IDS: &[&str] =
+    &[ANDROID_ID, DESKTOP_ID, IOS_ID, KODI_ID, MACOS_ID, ROKU_ID, TIZEN_ID, TVOS_ID, WEBOS_ID];
 
 /// An app that may ask people to allow it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -458,9 +465,12 @@ static BUILTINS: LazyLock<Vec<Client>> = LazyLock::new(|| {
     [
         (ANDROID_ID, include_str!("builtin/android.json")),
         (DESKTOP_ID, include_str!("builtin/desktop.json")),
+        (IOS_ID, include_str!("builtin/ios.json")),
         (KODI_ID, include_str!("builtin/kodi.json")),
+        (MACOS_ID, include_str!("builtin/macos.json")),
         (ROKU_ID, include_str!("builtin/roku.json")),
         (TIZEN_ID, include_str!("builtin/tizen.json")),
+        (TVOS_ID, include_str!("builtin/tvos.json")),
         (WEBOS_ID, include_str!("builtin/webos.json")),
     ]
     .into_iter()
@@ -846,12 +856,43 @@ mod tests {
         assert!(parse_document(ANDROID_ID, android_json.as_bytes(), false).is_err());
         assert!(parse_document(DESKTOP_ID, include_str!("builtin/desktop.json").as_bytes(), true).is_ok());
 
-        // Kodi, Roku and the Samsung and LG TVs sign in only with a code: no
-        // return address, so no code can be sent to them, and only being
-        // built in allows that.
+        // The Apple app on iPhone, iPad and Mac comes back by one scheme,
+        // with its own client ID on each, so a Mac with the desktop app too
+        // shows two sign-ins people can tell apart. An iPad on a stand or a
+        // shared iPhone may sign in with a code; a Mac has a browser.
+        for (id, name, device, json) in [
+            (IOS_ID, "Pley for iPhone and iPad", true, include_str!("builtin/ios.json")),
+            (MACOS_ID, "Pley for Mac", false, include_str!("builtin/macos.json")),
+        ] {
+            let apple = builtin(id).unwrap();
+            assert_eq!(apple.name.as_deref(), Some(name));
+            assert_eq!(apple.redirect_uris, ["app.pley.apple:/oauth/callback"]);
+            assert_eq!(apple.scope_cap.as_deref(), Some("library play playlists profiles requests approvals"));
+            assert!(apple.first_party && apple.refresh);
+            assert_eq!(apple.device, device, "{name}");
+            assert_eq!(
+                redirect_kind(apple, "app.pley.apple:/oauth/callback"),
+                Ok(RedirectKind::App { scheme: "app.pley.apple".into() })
+            );
+            for refused in [
+                "app.pley.android:/oauth/callback",
+                "app.pley.apple:/oauth/callback/",
+                "app.pley.apple:/other",
+                "http://127.0.0.1:53111/oauth/callback",
+            ] {
+                assert!(matches!(redirect_kind(apple, refused), Err(ClientError::Redirect(_))), "{name}: {refused}");
+            }
+            assert!(parse_document(id, json.as_bytes(), true).is_ok());
+            assert!(parse_document(id, json.as_bytes(), false).is_err());
+        }
+
+        // Kodi, Roku, Apple TV and the Samsung and LG TVs sign in only with a
+        // code: no return address, so no code can be sent to them, and only
+        // being built in allows that.
         for (id, name, json) in [
             (KODI_ID, "Pley for Kodi", include_str!("builtin/kodi.json")),
             (ROKU_ID, "Pley for Roku", include_str!("builtin/roku.json")),
+            (TVOS_ID, "Pley for Apple TV", include_str!("builtin/tvos.json")),
             (TIZEN_ID, "Pley for Samsung TV", include_str!("builtin/tizen.json")),
             (WEBOS_ID, "Pley for LG TV", include_str!("builtin/webos.json")),
         ] {
@@ -860,7 +901,9 @@ mod tests {
             assert!(tv.first_party && tv.refresh && tv.device);
             assert!(tv.redirect_uris.is_empty());
             assert_eq!(tv.scope_cap.as_deref(), Some("library play playlists profiles requests approvals"));
-            assert!(matches!(redirect_kind(tv, "app.pley.android:/oauth/callback"), Err(ClientError::Redirect(_))));
+            for refused in ["app.pley.android:/oauth/callback", "app.pley.apple:/oauth/callback"] {
+                assert!(matches!(redirect_kind(tv, refused), Err(ClientError::Redirect(_))), "{name}: {refused}");
+            }
             assert!(parse_document(id, json.as_bytes(), false).is_err());
         }
         let tv_only = |extra: &str| {
@@ -880,7 +923,7 @@ mod tests {
             format!(r#"{{"client_id": "{KODI_ID}", "grant_types": ["refresh_token"], "redirect_uris": []}}"#);
         assert!(parse_document(KODI_ID, no_grant.as_bytes(), true).is_err(), "a code or a return address");
 
-        assert_eq!(BUILTIN_IDS.len(), 6);
+        assert_eq!(BUILTIN_IDS.len(), 9);
         assert!(BUILTIN_IDS.iter().all(|id| builtin(id).is_some_and(|c| c.id == *id)));
         for near in [
             "https://pley-media-server.github.io/pley/oauth/android.json/",
@@ -890,7 +933,8 @@ mod tests {
             "https://pley-media-server.github.io/pley/oauth/android.json?",
             "https://pley-media-server.github.io/pley/oauth/android.json#",
             " https://pley-media-server.github.io/pley/oauth/android.json",
-            "https://pley-media-server.github.io/pley/oauth/ios.json",
+            "https://pley-media-server.github.io/pley/oauth/apple.json",
+            "https://pley-media-server.github.io/pley/oauth/iOS.json",
             "",
         ] {
             assert!(builtin(near).is_none(), "{near:?} isn't built in");

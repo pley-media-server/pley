@@ -1057,7 +1057,8 @@ apps allowed `profiles` move to another profile of the household. Send
 TVs and other devices without a usable browser sign in with a code they
 show (OAuth 2.0 Device Authorization Grant, RFC 8628). Only Pley's own apps
 may: the Android app (also on Android TV and Fire TV), Pley for Kodi, Pley
-for Roku, and the Samsung and LG apps.
+for Roku, the Samsung and LG apps, Pley for Apple TV, and Pley for iPhone
+and iPad (an iPad on a stand, an iPhone shared by the household).
 
 1. The TV calls **`POST /api/oauth/device`** with `client_id` and an
    optional `scope` (as at `/oauth/authorize`: none means `library`):
@@ -1080,8 +1081,9 @@ for Roku, and the Samsung and LG apps.
      shown as `BCDF-GHJK`.
    - Errors: `invalid_client` for an app that isn't Pley's own;
      `unauthorized_client` for one of Pley's own that doesn't sign in this
-     way (the desktop app); `invalid_scope` as at `/oauth/authorize`;
-     `429 temporarily_unavailable` past the limits below.
+     way (the desktop app, Pley for Mac); `invalid_scope` as at
+     `/oauth/authorize`; `429 temporarily_unavailable` past the limits
+     below.
 
    A TV that can't draw a QR code shows
    **`GET /api/oauth/device/qr?code=BCDF-GHJK`**: the address as a PNG
@@ -1238,6 +1240,9 @@ profiles when the app's profile is in the household, else nothing:
 |---|---|---|
 | Pley for Android | `https://pley-media-server.github.io/pley/oauth/android.json` | `app.pley.android:/oauth/callback` |
 | Pley for desktop | `https://pley-media-server.github.io/pley/oauth/desktop.json` | `http://127.0.0.1/oauth/callback`, `http://[::1]/oauth/callback` (any port) |
+| Pley for iPhone and iPad | `https://pley-media-server.github.io/pley/oauth/ios.json` | `app.pley.apple:/oauth/callback` |
+| Pley for Mac | `https://pley-media-server.github.io/pley/oauth/macos.json` | `app.pley.apple:/oauth/callback` |
+| Pley for Apple TV | `https://pley-media-server.github.io/pley/oauth/tvos.json` | none: a code only |
 | Pley for Kodi | `https://pley-media-server.github.io/pley/oauth/kodi.json` | none: a code only |
 | Pley for Roku | `https://pley-media-server.github.io/pley/oauth/roku.json` | none: a code only |
 | Pley for Samsung TV | `https://pley-media-server.github.io/pley/oauth/tizen.json` | none: a code only |
@@ -1248,9 +1253,13 @@ profiles when the app's profile is in the household, else nothing:
 - All get refresh tokens and may ask for every scope, but the desktop app
   for `requests` and `approvals`: its window shows the server's own pages,
   signed in as the web app is.
-- The Android app may also sign in with a code, on a TV ([TVs](#tvs)). The
-  Kodi, Roku, Samsung and LG apps sign in only that way: with no return
-  address, `/oauth/authorize` never sends them a code.
+- The Android app and Pley for iPhone and iPad may also sign in with a
+  code, on a TV or a shared screen ([TVs](#tvs)). The Kodi, Roku, Samsung,
+  LG and Apple TV apps sign in only that way: with no return address,
+  `/oauth/authorize` never sends them a code.
+- The Apple app has its own client ID on each kind of device, so someone
+  with Pley for Mac and Pley for desktop on one Mac sees two sign-ins they
+  can tell apart.
 - The Samsung and LG apps can't set their own User-Agent: the TV's web
   engine names the TV ("Samsung TV", "LG TV"; for an app's grant its
   system, "Tizen 7.0", "webOS 23").
@@ -1965,8 +1974,8 @@ removed or reordered (`400`).
             variants?: boolean }; // moves between a stream's sizes itself: transcodes come in several
                                   // (any caps version)
     display?: { width: number; height: number; refresh_rates?: number[] };
-    device?: { form?: "phone" | "tablet" | "tv" | "unknown"; tier?: "low" | "mid" | "high";
-               fire_tv?: boolean; model?: string };
+    device?: { form?: "phone" | "tablet" | "tv" | "desktop" | "unknown";
+               tier?: "low" | "mid" | "high"; fire_tv?: boolean; model?: string };
   };
 }
 ```
