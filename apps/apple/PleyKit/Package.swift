@@ -11,14 +11,17 @@ let package = Package(
     products: [
         .library(name: "PleyModel", targets: ["PleyModel"]),
         .library(name: "PleyCommon", targets: ["PleyCommon"]),
+        .library(name: "PleyNetwork", targets: ["PleyNetwork"]),
         .library(name: "PleyTesting", targets: ["PleyTesting"]),
     ],
     targets: [
         .target(name: "PleyModel"),
         .target(name: "PleyCommon"),
+        .target(name: "PleyNetwork", dependencies: ["PleyModel", "PleyCommon"]),
         .target(name: "PleyTesting", dependencies: ["PleyModel", "PleyCommon"]),
         .testTarget(name: "PleyModelTests", dependencies: ["PleyModel", "PleyTesting"]),
         .testTarget(name: "PleyCommonTests", dependencies: ["PleyCommon", "PleyTesting"]),
+        .testTarget(name: "PleyNetworkTests", dependencies: ["PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),
     ],
     swiftLanguageModes: [.v6]
 )

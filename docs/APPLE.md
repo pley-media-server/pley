@@ -4,6 +4,7 @@ Native apps for iPhone, iPad, Mac and Apple TV, in `apps/apple` (paths
 below are relative to it). They are in development and not released yet.
 
 - [What it is](#what-it-is)
+- [Plain HTTP and HTTPS](#plain-http-and-https)
 - [Building and testing](#building-and-testing)
 - [Code layout](#code-layout)
 - [Known limits](#known-limits)
@@ -28,9 +29,42 @@ The device part is the kind of device (iPhone, iPad, Mac, Apple TV), never
 the name someone gave it.
 
 The apps ask for local network access (to find and reach servers at home)
-and browse for Bonjour's `_pley._tcp`. App Transport Security allows plain
-http to local names only (`NSAllowsLocalNetworking`): IP addresses, names
-without dots and `.local` names.
+and browse for Bonjour's `_pley._tcp`.
+
+## Plain HTTP and HTTPS
+
+A server is reached over https, or over plain http on the home network.
+Plain http carries sign-in codes and tokens only to private addresses:
+this device (127.0.0.0/8, `::1`), the home network's ranges (10.0.0.0/8,
+172.16.0.0/12, 192.168.0.0/16), link-local addresses (169.254.0.0/16,
+`fe80::/10`), Tailscale's 100.64.0.0/10 and IPv6 unique local addresses
+(`fc00::/7`), the same rule as the Android app's.
+
+URLSession sends a request as soon as it connects, so the rule is checked
+on both sides of it:
+
+- **Before**: an IP address is checked as it is; a name is looked up, and
+  every address it has must be private. Otherwise nothing is sent.
+- **After**: the address the connection actually reached (from the
+  request's metrics) must be private too. If it isn't, the answer is thrown
+  away, and a sign-in whose token went with the request ends on the device.
+
+https needs nothing more: certificates are checked by the system, against
+its own certificate authorities only.
+
+Tokens go in the `Authorization` header only, never in an address, and
+only to the origin they were given for (the same scheme, host and port).
+The API follows redirects within that origin only: never from http to
+https or back, and never to another host or port. The sign-in endpoints
+follow none. No cookies are kept or sent, and nothing is cached on disk.
+Every answer has a size limit: 64 KiB for the server's name and the
+sign-in endpoints, 8 MiB for the API's JSON and 10 MiB for pictures, which
+are shown only as JPEG, PNG, WebP or GIF.
+
+Apple's App Transport Security allows plain http to IP addresses, names
+without dots and `.local` names (`NSAllowsLocalNetworking`); the apps ask
+for nothing wider. A server whose http address is a name with dots
+(`nas.home.arpa`) is opened by its IP address or over https instead.
 
 ## Building and testing
 
@@ -79,7 +113,10 @@ xcrun simctl launch booted com.formandelement.pley
 
 The package's tests read the Android app's JSON fixtures
 (`apps/android/core/testing/src/main/resources/fixtures`) where they are,
-so both apps are tested against the same answers.
+so both apps are tested against the same answers. The network tests talk
+to a fixture server the tests start on 127.0.0.1 (two of them where a
+second origin is needed), over a real socket, so they need no Pley server
+and no network beyond this device.
 
 ## Code layout
 
@@ -97,7 +134,8 @@ PleyKit's modules, each depending only on those before it:
 |---|---|
 | `PleyModel` | The server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read |
 | `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, logging |
-| `PleyTesting` | What the tests share: the fixtures |
+| `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", and the typed API calls |
+| `PleyTesting` | What the tests share: the fixtures, and a fixture server (real HTTP on 127.0.0.1, with a household, tokens and a journal of the requests it got) |
 
 The rules: modules depend only downwards; the two apps never import each
 other's code; no third-party Swift package.
