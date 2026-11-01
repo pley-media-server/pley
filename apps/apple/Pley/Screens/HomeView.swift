@@ -103,7 +103,7 @@ struct HomeView: View {
     }
 }
 
-/// A poster, 2:3, with its title below on one line.
+/// A poster, 2:3, with its title below on one line; it opens the item's page.
 private struct PosterTile: View {
     let app: AppModel
     let item: ItemSummary
@@ -111,6 +111,16 @@ private struct PosterTile: View {
     @Environment(\.displayScale) private var displayScale
 
     var body: some View {
+        Button {
+            app.showItem(item.id)
+        } label: {
+            tile
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(item.title)
+    }
+
+    private var tile: some View {
         VStack(alignment: .leading, spacing: 6) {
             ServerImage(app: app, path: HomeModel.posterPath(item),
                         widthPx: HomeModel.pixels(Double(width), scale: Double(displayScale)))
@@ -121,7 +131,6 @@ private struct PosterTile: View {
                 .lineLimit(1)
                 .frame(width: width, alignment: .leading)
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(item.title)
+        .contentShape(Rectangle())
     }
 }

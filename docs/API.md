@@ -2086,7 +2086,7 @@ sets only a cookie and a User-Agent; LG's media pipeline only what the web
 engine gives it), and an app's token goes only in the Authorization header.
 A play request with `keyed_urls: true` gets a session whose addresses carry
 a key of their own instead. Pley's Samsung, LG and Roku apps ask for keyed
-URLs.
+URLs, and so do the Apple apps, whose AVPlayer adds no header of its own.
 
 - `PlaybackInfo.url` is `/api/media/{key}/master.m3u8` (or `index.m3u8`)
   for a stream, whose playlists name their segments (and an fMP4 stream's

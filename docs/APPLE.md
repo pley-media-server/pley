@@ -66,7 +66,17 @@ from Home.
   their titles, drawn at the screen's size from pictures fetched at that
   width. iPhone and iPad pull to refresh. A menu (on Apple TV, buttons
   above the rows) switches profile, goes to the servers, or signs out
-  after asking.
+  after asking. Choosing a poster opens its page.
+- **An item's page**: the poster, the title, the year and running time,
+  the file's video and sound ("1080p · H.264 · AAC Stereo") and the
+  summary. A show or season shows its on-deck episode ("S1 E2 · Pilot")
+  and plays that. **Play**, or **Resume from 12:34** and **Play from
+  start** when the item was left part way. Pickers for the version (when
+  there are several), the audio track (when there are several) and the
+  subtitles; the audio and subtitle choices are saved on the server for
+  the item, as on the web. After the player closes, the page reads the
+  item again for its new resume point.
+- **The player**: the system's player on each device, below.
 
 At start, the app opens the server used last when it is still signed in
 to it, and shows the servers otherwise. When a sign-in ends without the
@@ -370,6 +380,41 @@ last rule.
 pauses and reports at once. Back after more than a minute, the session is
 checked, and one the server forgot starts again where it was, paused.
 
+### The player on each device
+
+Each device shows the system's own player over `PlaybackController`
+(`PleyPlayerViews`), so the controls, the scrubber, AirPlay and the
+remote's gestures are the ones people know. The system's controls act on
+AVPlayer itself; the controller follows them, so a play or pause from the
+controls, the Control Center or a headset is reported, and a move of the
+scrubber counts as a seek (one after the end starts a new session there).
+One playback plays at a time: starting another, signing out, switching
+profile or going back to the servers closes the one before, and its
+session ends on the server. The player shows the item's title and
+episode, and AVPlayer picks no subtitle or audio track of its own.
+
+- **iPhone and iPad**: full screen over the app. The system's Close ends
+  the playback. An Options button under the top row (with the controls,
+  and while paused) has Quality and Details: how the file plays (Direct
+  play, Direct stream or Transcoding, and whether the audio is
+  converted), why, and the video. Picture in Picture is off.
+- **Apple TV**: full screen, with Quality in the transport bar and a
+  Details tab in the info panel (swipe down). Menu closes the player when
+  the transport bar isn't showing. The display's frame rate and dynamic
+  range follow the video when the Apple TV is set to match content.
+- **Mac**: a window of its own per playback, opened from the item's page;
+  closing the window ends the session, and starting another playback
+  closes it. The controls float over the picture, with Quality and
+  Details in their menu, and a Playback menu in the menu bar (Play or
+  Pause, Back and Forward 10 Seconds, Quality) acts on the window in
+  front. The keys are the web player's: Space or K plays and pauses, ← or
+  J and → or L go back and forward 10 seconds, ↑ and ↓ change the volume,
+  M mutes, F goes full screen and Esc leaves it. The Mac going to sleep
+  pauses, a move to another screen reads the device's caps again, and
+  quitting waits for the last reports (2 seconds at most).
+
+Quality has Original only for now.
+
 The player logs under the subsystem `app.pley.apple`, category `player`:
 the session's method and the first 8 characters of its id, never a keyed
 address or a token.
@@ -473,14 +518,15 @@ PleyKit's modules, each depending only on those before it:
 
 | Module | What |
 |---|---|
-| `PleyModel` | The server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read; the caps report the apps send |
+| `PleyModel` | The server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read; the caps report the apps send; the words shown for codecs, tracks, versions and times (`Words`, the Android app's) |
 | `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, Bonjour (browsing, TXT records, resolving), logging |
 | `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), and the typed API calls |
 | `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the scope guard and profile switching |
 | `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, and pictures made small and cached |
 | `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
-| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the playback controller, and the AVPlayer engine behind a protocol the tests replace |
-| `PleyScreens` | What the screens show and do, shared by both apps without any views: the route between screens, the servers, signing in (with the QR code, from Core Image), profiles and Home, as `ObservableObject`s |
+| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the playback controller, the AVPlayer engine behind a protocol the tests replace, and the Mac player's keys |
+| `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its Quality and Details, and the audio session |
+| `PleyScreens` | What the screens show and do, shared by both apps without any views: the route between screens, the servers, signing in (with the QR code, from Core Image), profiles, Home and an item's page, as `ObservableObject`s; `AppModel` also owns the one playback at a time, the device's caps and the session reports |
 | `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens, playback sessions with keyed media, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
 | `pley-apple-play` | A command-line tool, on the Mac only, that plays a real server's test media through the player ([A server to test against](#a-server-to-test-against)) |
@@ -572,11 +618,18 @@ address, to have it found by Bonjour. Delete the folder afterwards.
 
 ## Known limits
 
-- No player screen or item pages yet: choosing a poster does nothing.
+- Quality has Original only; no skip intro or credits, Up Next, chapters,
+  audio switching inside the player or subtitles drawn over the picture
+  yet.
+- No seek-bar previews.
+- A subtitle isn't shown over AirPlay.
+- No Live TV, music or downloads.
+- A playback stopped from elsewhere is noticed at the next report, within
+  10 seconds.
 - Home loads when it is shown, after a profile switch and on pull to
   refresh; it doesn't follow changes on the server as they happen.
-- The Mac app has no menus or keyboard shortcuts of its own yet, and iPad
-  and Mac show the same stack of screens as iPhone, without a sidebar.
+- The Mac app's only menu of its own is Playback, and iPad and Mac show
+  the same stack of screens as iPhone, without a sidebar.
 - The app doesn't ask "Who's watching?" by itself at start, so a profile
   with a PIN stays chosen until someone switches.
 - Plain http reaches IP addresses, names without dots and `.local` names

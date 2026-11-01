@@ -18,3 +18,7 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Home shows your rows with their posters, moved through with the remote
   on Apple TV.
 - Sign out of a server, or forget it.
+- Play movies and episodes from Home: Play or Resume on an item's page,
+  the system player on each device (its own window on the Mac, with
+  keyboard shortcuts), and each file sent as this device plays it best,
+  in HDR and Dolby Vision where the screen shows them.

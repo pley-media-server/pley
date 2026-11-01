@@ -102,7 +102,7 @@ private struct PosterTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Button {
-                // An item's page comes with the detail screens.
+                app.showItem(item.id)
             } label: {
                 ServerImage(app: app, path: HomeModel.posterPath(item),
                             widthPx: HomeModel.pixels(Double(width), scale: Double(displayScale)))
