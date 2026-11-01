@@ -23,6 +23,7 @@ struct Reply {
     status: StatusCode,
     text: String,
     json: Value,
+    bytes: Vec<u8>,
 }
 
 impl TestApp {
@@ -68,7 +69,7 @@ impl TestApp {
         let bytes = axum::body::to_bytes(resp.into_body(), 1 << 24).await.unwrap();
         let text = String::from_utf8_lossy(&bytes).into_owned();
         let json = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
-        Reply { status, text, json }
+        Reply { status, text, json, bytes: bytes.to_vec() }
     }
 
     async fn plex_delete(&self, uri: &str, token: &str) -> StatusCode {
@@ -490,6 +491,7 @@ async fn preview_indexes_and_chapter_thumbs() {
         rows: 2,
         count: 10,
         sheets: 1,
+        version: 0,
     };
     std::fs::write(dir.join("index.json"), serde_json::to_vec(&trickplay).unwrap()).unwrap();
 
@@ -516,6 +518,24 @@ async fn preview_indexes_and_chapter_thumbs() {
     assert_eq!(bif.status, StatusCode::OK);
     let frame = app.plex(&format!("/library/parts/{file_id}/indexes/sd/45000?X-Plex-Token={token}"), &[]).await;
     assert_eq!(frame.status, StatusCode::OK);
+    // 45 s in, at a frame every 10 s: the fifth of ten, and tile 4's colour.
+    let word = |at: usize| u32::from_le_bytes(bif.bytes[at..at + 4].try_into().unwrap()) as usize;
+    assert_eq!(word(12), 10);
+    assert_eq!(frame.bytes, &bif.bytes[word(64 + 4 * 8 + 4)..word(64 + 5 * 8 + 4)]);
+    let pixel = image::load_from_memory(&frame.bytes).unwrap().to_rgb8()[(4, 2)];
+    assert!(pixel[0].abs_diff(100) < 20 && pixel[2].abs_diff(200) < 20, "tile 4 is {pixel:?}");
+
+    // The BIF index is kept in the cache, not beside the previews.
+    assert!(!dir.join("index-sd.bif").exists());
+    let kept: Vec<_> = std::fs::read_dir(app.state.config.cache_dir().join("bif"))
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.path())
+        .collect();
+    assert_eq!(kept.len(), 1, "{kept:?}");
+    assert_eq!(std::fs::read(&kept[0]).unwrap(), bif.bytes);
+    let again = app.plex(&format!("/library/parts/{file_id}/indexes/sd?X-Plex-Token={token}"), &[]).await;
+    assert_eq!(again.bytes, bif.bytes);
 }
 
 #[tokio::test]

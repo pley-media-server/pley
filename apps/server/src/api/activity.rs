@@ -46,8 +46,11 @@ pub struct Activity {
     analysis: Option<AnalysisStatus>,
     /// Seasons waiting for intro/credits detection (administrators only).
     seasons_pending: usize,
-    /// Files waiting for seek previews (administrators only).
+    /// Files waiting for seek previews, those being made included
+    /// (administrators only).
     previews_pending: usize,
+    /// Files whose seek previews are being made now (administrators only).
+    previews_running: usize,
     /// When what waits is done, while some does (administrators only).
     library_work: Option<LibraryWorkStatus>,
 }
@@ -83,6 +86,7 @@ pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResul
     let analysis = if user.is_admin { state.markers.status() } else { None };
     let seasons_pending = if user.is_admin { state.markers.pending() } else { 0 };
     let previews_pending = if user.is_admin { state.trickplay.pending() } else { 0 };
+    let previews_running = if user.is_admin { state.trickplay.running() } else { 0 };
     let library_work = (seasons_pending + previews_pending > 0).then(|| state.schedule.status());
     // Scans of libraries the user can't open stay private (their names too).
     let libraries = access::library_ids(&state.db, &user).await?;
@@ -92,7 +96,15 @@ pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResul
         .into_iter()
         .filter(|s| libraries.as_ref().is_none_or(|ids| ids.contains(&s.library_id)))
         .collect();
-    Ok(Json(Activity { scans, sessions: out, analysis, seasons_pending, previews_pending, library_work }))
+    Ok(Json(Activity {
+        scans,
+        sessions: out,
+        analysis,
+        seasons_pending,
+        previews_pending,
+        previews_running,
+        library_work,
+    }))
 }
 
 /// Event streams one session (or app token) may keep open: a few tabs and

@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, HeaderName, Method, StatusCode, header};
@@ -18,11 +18,14 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use parking_lot::Mutex;
+use pley::disks::{Disk, Source};
+use pley::trickplay::Pace;
 use pley_transcoder_api::{
     API_VERSION, AudioMode, AudioPlan, BitrateChanged, BitrateRequest, Capabilities, ConversionState, ConversionStatus,
-    EncoderInfo, ErrorBody, FileContainer, HoldRequest, HwAccel, JobCreated, JobRequest, JobStatus, Limits, MediaInfo,
-    MediaStream, PrefetchRequest, Prefetched, ProbeRequest, SUBTITLES_COMPLETE_HEADER, StreamKind, SubtitleRequest,
-    TranscoderInfo, TranscoderStatus, TrickplayInfo, TrickplayRequest, VideoCodec, VideoMode, VideoPlan,
+    EncoderInfo, ErrorBody, FileContainer, HoldRequest, HwAccel, JobCreated, JobRequest, JobStatus, Limits, Load,
+    MediaInfo, MediaStream, PrefetchRequest, Prefetched, ProbeRequest, SUBTITLES_COMPLETE_HEADER, StreamKind,
+    SubtitleRequest, TranscoderInfo, TranscoderStatus, TrickplayInfo, TrickplayRequest, VideoCodec, VideoMode,
+    VideoPlan,
 };
 use serde_json::{Value, json};
 
@@ -50,6 +53,20 @@ struct Fake {
     preview_delay: Arc<Mutex<Duration>>,
     /// Preview requests given up by pley before they were answered.
     previews_dropped: Arc<AtomicUsize>,
+    /// Preview requests wait while this is set.
+    previews_held: Arc<AtomicBool>,
+    /// Paths of the preview requests being answered now.
+    previews_flying: Arc<Mutex<Vec<String>>>,
+    /// The most preview requests answered at once.
+    previews_most: Arc<AtomicUsize>,
+    /// When each preview request began and ended (answered or given up).
+    preview_spans: Arc<Mutex<Vec<(String, Instant, Instant)>>>,
+    /// The next answer for a file whose path holds the key: an error, once.
+    preview_answers: Arc<Mutex<HashMap<String, (StatusCode, &'static str)>>>,
+    /// Seek-preview sets it says it makes at once (0, as older transcoders).
+    trickplay_runs: Arc<AtomicU32>,
+    /// What `/v1/status` says of its computer.
+    load: Arc<Mutex<Option<Load>>>,
     /// Files read ahead of a playback, in order.
     prefetches: Arc<Mutex<Vec<PrefetchRequest>>>,
     /// How long reading ahead takes.
@@ -232,6 +249,32 @@ impl Drop for Answered {
     }
 }
 
+/// A preview request being answered, until it is or pley gives up on it.
+struct Flying {
+    fake: Fake,
+    path: String,
+    from: Instant,
+}
+
+impl Flying {
+    fn new(fake: &Fake, path: &str) -> Self {
+        let mut flying = fake.previews_flying.lock();
+        flying.push(path.to_owned());
+        fake.previews_most.fetch_max(flying.len(), Ordering::SeqCst);
+        Flying { fake: fake.clone(), path: path.to_owned(), from: Instant::now() }
+    }
+}
+
+impl Drop for Flying {
+    fn drop(&mut self) {
+        let mut flying = self.fake.previews_flying.lock();
+        if let Some(at) = flying.iter().position(|p| *p == self.path) {
+            flying.remove(at);
+        }
+        self.fake.preview_spans.lock().push((self.path.clone(), self.from, Instant::now()));
+    }
+}
+
 fn authorized(headers: &HeaderMap) -> bool {
     headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok()) == Some(&format!("Bearer {TOKEN}"))
 }
@@ -241,7 +284,7 @@ async fn start_fake() -> (Fake, String) {
     let app = Router::new()
         .route(
             "/v1/info",
-            get(|headers: HeaderMap| async move {
+            get(|State(fake): State<Fake>, headers: HeaderMap| async move {
                 if !authorized(&headers) {
                     return error(StatusCode::UNAUTHORIZED, "unauthorized");
                 }
@@ -266,6 +309,8 @@ async fn start_fake() -> (Fake, String) {
                         conversions: true,
                         conversions_mp4: true,
                         live_bitrate: true,
+                        trickplay_version: 1,
+                        trickplay_runs: fake.trickplay_runs.load(Ordering::SeqCst),
                         ..Default::default()
                     },
                     limits: Limits { max_jobs: 8, max_hw_jobs: 0 },
@@ -282,6 +327,8 @@ async fn start_fake() -> (Fake, String) {
                     version: "9.9.9".into(),
                     max_jobs: 8,
                     running_processes: fake.transcoding.load(Ordering::SeqCst),
+                    trickplay_running: fake.previews_flying.lock().len() as u32,
+                    load: *fake.load.lock(),
                     jobs,
                     ..Default::default()
                 })
@@ -546,9 +593,21 @@ async fn start_fake() -> (Fake, String) {
             post(|State(fake): State<Fake>, Json(req): Json<TrickplayRequest>| async move {
                 fake.previews.lock().push(req.path.clone());
                 let mut answered = Answered(fake.previews_dropped.clone(), false);
+                let _flying = Flying::new(&fake, &req.path);
                 let delay = std::mem::take(&mut *fake.preview_delay.lock());
                 tokio::time::sleep(delay).await;
+                while fake.previews_held.load(Ordering::SeqCst) {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
                 answered.1 = true;
+                let scripted = {
+                    let mut answers = fake.preview_answers.lock();
+                    let key = answers.keys().find(|key| req.path.contains(key.as_str())).cloned();
+                    key.and_then(|key| answers.remove(&key))
+                };
+                if let Some((status, code)) = scripted {
+                    return error(status, code);
+                }
                 if !req.path.ends_with(".mp4") {
                     return error(StatusCode::INTERNAL_SERVER_ERROR, "ffmpeg_failed");
                 }
@@ -561,6 +620,7 @@ async fn start_fake() -> (Fake, String) {
                     rows: 2,
                     count: 6,
                     sheets: 1,
+                    version: 1,
                 })
                 .into_response()
             }),
@@ -1588,6 +1648,54 @@ async fn seek_previews_are_made_once_per_file() {
 }
 
 #[tokio::test]
+async fn seek_previews_an_earlier_version_made_are_made_again() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    // Library work whenever nothing plays, whatever else keeps the processors busy.
+    let settings = json!({"seek_previews": true, "library_work": "idle", "library_work_max_cpu": 100});
+    app.put("/api/settings", admin, settings).await;
+    let clip = app.file_of(w.movies["Clip"]).await;
+    let path: String = sqlx::query_scalar("SELECT path FROM media_files WHERE id = ?")
+        .bind(clip)
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    let media = app.state.store.media_dir(&app.state.store.fingerprint_of(clip, &path, None).await.unwrap()).unwrap();
+    // As an earlier version left them: no version, and chapter images cut from them.
+    let index = json!({"id": "old", "interval_ms": 10_000, "width": 8, "height": 4, "columns": 5, "rows": 2, "count": 6, "sheets": 1});
+    std::fs::create_dir_all(media.join("trickplay")).unwrap();
+    std::fs::write(media.join("trickplay").join("index.json"), index.to_string()).unwrap();
+    std::fs::write(media.join("trickplay").join("0.jpg"), b"old sheet").unwrap();
+    std::fs::create_dir_all(media.join("chapters")).unwrap();
+    std::fs::write(media.join("chapters").join("0.jpg"), b"old chapter").unwrap();
+    let previews = format!("/api/files/{clip}/trickplay");
+    assert_eq!(app.get(&previews, admin).await.body["id"], "old", "they serve meanwhile");
+
+    app.state.trickplay.request_all().await;
+    let mut made = Value::Null;
+    for _ in 0..200 {
+        let reply = app.get(&previews, admin).await;
+        if reply.body["id"] == "previews1" {
+            made = reply.body;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert_eq!((&made["id"], &made["version"]), (&json!("previews1"), &json!(1)), "made again: {made}");
+    assert_ne!(std::fs::read(media.join("trickplay").join("0.jpg")).unwrap(), b"old sheet");
+    // Chapter images go with the sheets they came from, once those are replaced.
+    eventually(|| !media.join("chapters").join("0.jpg").exists()).await;
+
+    // As the transcoder makes them now: not made again.
+    eventually(|| app.state.trickplay.pending() == 0).await;
+    let asked = w.fake.previews.lock().iter().filter(|p| p.ends_with("Clip (2020).mp4")).count();
+    app.state.trickplay.request_all().await;
+    assert_eq!(app.state.trickplay.pending(), 0, "current previews aren't queued again");
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(w.fake.previews.lock().iter().filter(|p| p.ends_with("Clip (2020).mp4")).count(), asked);
+}
+
+#[tokio::test]
 async fn seek_previews_wait_while_a_playback_starts() {
     let w = world().await;
     let (app, admin) = (&w.app, w.admin.as_str());
@@ -1682,6 +1790,270 @@ async fn seek_previews_stop_as_soon_as_play_is_pressed() {
     assert_eq!(started.status, StatusCode::OK, "{:?}", started.body);
     assert_eq!(app.state.trickplay.pending(), 1, "still to be made");
     assert!(w.fake.holds.lock().is_empty(), "the transcoder holds for its own jobs");
+}
+
+/// Four movies on three disks: Alpha and Delta share the first.
+const ON_THREE_DISKS: [(&str, usize, &str); 4] = [
+    ("Alpha (2001)", 5000, "disk1"),
+    ("Bravo (2002)", 5100, "disk2"),
+    ("Charlie (2003)", 5200, "disk3"),
+    ("Delta (2004)", 5300, "disk1"),
+];
+
+/// pley with the stand-in making `runs` seek-preview sets at once (0, as
+/// older transcoders), the previews' worker going at a test's pace, and a
+/// movie library of `files` (title, size, disk): identical sizes make
+/// identical files.
+async fn previews_world(runs: u32, files: &[(&str, usize, &str)]) -> World {
+    let (fake, base) = start_fake().await;
+    fake.trickplay_runs.store(runs, Ordering::SeqCst);
+    let url = base.clone();
+    let disks =
+        files.iter().map(|(title, _, disk)| (title.to_string(), Disk { key: Arc::from(*disk), width: 1 })).collect();
+    let app = TestApp::with_config(|c| {
+        c.transcoder_url = Some(url);
+        c.transcoder_token = Some(TOKEN.into());
+        c.trickplay_pace =
+            Pace { settle: Duration::ZERO, opened_grace: Duration::ZERO, look: Duration::from_millis(50) };
+        c.trickplay_disks = Source::Fixed(disks);
+    })
+    .await;
+    app.state.transcoder.start();
+    assert!(app.state.transcoder.wait_ready(Duration::from_secs(10)).await, "the stand-in answers /v1/info");
+    let admin = app.setup_admin().await;
+    // Nothing in the background until a test asks.
+    let settings = app.put("/api/settings", &admin, json!({"seek_previews": false})).await;
+    assert_eq!(settings.status, StatusCode::OK);
+    for (title, size, _) in files {
+        app.media_file(&format!("movies/{title}.mp4"), *size);
+    }
+    let library = app.library(&admin, "Movies", "movies", "movies").await;
+    let movies = app.ids(library, &admin).await;
+    World { app, fake, base, admin, movies }
+}
+
+/// Seek previews for whole libraries whenever nothing plays, whatever else
+/// keeps the processors busy.
+async fn library_work(app: &TestApp, admin: &str) {
+    let settings = json!({"seek_previews": true, "previews_in_background": true, "library_work": "idle", "library_work_max_cpu": 100});
+    assert_eq!(app.put("/api/settings", admin, settings).await.status, StatusCode::OK);
+}
+
+/// A transcoder with eight cores, nearly all idle, and memory to spare.
+fn idle() -> Load {
+    Load { cores: 8.0, busy: Some(0.1), foreign: Some(0.0), memory_available: Some(8 << 30) }
+}
+
+/// Whether two preview requests were answered at once.
+fn overlap(a: &(String, Instant, Instant), b: &(String, Instant, Instant)) -> bool {
+    a.1 < b.2 && b.1 < a.2
+}
+
+#[tokio::test]
+async fn library_previews_are_made_side_by_side_one_per_disk() {
+    let w = previews_world(5, &ON_THREE_DISKS).await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    *w.fake.load.lock() = Some(idle());
+    w.fake.previews_held.store(true, Ordering::SeqCst);
+    library_work(app, admin).await;
+    app.state.trickplay.request_all().await;
+
+    // A file of each disk at once; Delta waits for Alpha's.
+    eventually(|| w.fake.previews_flying.lock().len() == 3).await;
+    let flying = w.fake.previews_flying.lock().clone();
+    assert_eq!(flying.iter().filter(|p| p.contains("Alpha") || p.contains("Delta")).count(), 1, "{flying:?}");
+    let activity = app.get("/api/activity", admin).await;
+    assert_eq!((&activity.body["previews_pending"], &activity.body["previews_running"]), (&json!(4), &json!(3)));
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(w.fake.previews_flying.lock().len(), 3, "no more meanwhile");
+
+    w.fake.previews_held.store(false, Ordering::SeqCst);
+    eventually(|| app.state.trickplay.pending() == 0).await;
+    assert_eq!(w.fake.previews.lock().len(), 4, "each once");
+    assert_eq!(w.fake.previews_most.load(Ordering::SeqCst), 3);
+    let spans = w.fake.preview_spans.lock().clone();
+    let first: Vec<_> = spans.iter().filter(|(p, ..)| p.contains("Alpha") || p.contains("Delta")).collect();
+    assert_eq!(first.len(), 2);
+    assert!(!overlap(first[0], first[1]), "one file at a time from a disk");
+    for title in ["Alpha", "Bravo", "Charlie", "Delta"] {
+        let file = app.file_of(w.movies[title]).await;
+        assert_eq!(app.get(&format!("/api/files/{file}/trickplay"), admin).await.status, StatusCode::OK, "{title}");
+    }
+}
+
+#[tokio::test]
+async fn an_older_transcoder_makes_previews_one_at_a_time() {
+    let w = previews_world(0, &ON_THREE_DISKS).await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    library_work(app, admin).await;
+    app.state.trickplay.request_all().await;
+    eventually(|| app.state.trickplay.pending() == 0).await;
+    assert_eq!(w.fake.previews.lock().len(), 4, "each once");
+    assert_eq!(w.fake.previews_most.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn an_opened_title_does_not_wait_for_the_libraries_previews() {
+    let w = previews_world(5, &ON_THREE_DISKS).await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    // The processors are too busy for a second library file.
+    *w.fake.load.lock() = Some(Load { busy: Some(0.95), ..idle() });
+    w.fake.previews_held.store(true, Ordering::SeqCst);
+    library_work(app, admin).await;
+    app.state.trickplay.request_all().await;
+    eventually(|| w.fake.previews_flying.lock().len() == 1).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let library = w.fake.previews_flying.lock().clone();
+    assert_eq!(library.len(), 1, "one library file at a time: {library:?}");
+
+    // A title on another disk goes beside it, at once.
+    let disk = |path: &str| ON_THREE_DISKS.iter().find(|(title, ..)| path.contains(title)).unwrap().2;
+    let (title, ..) = ON_THREE_DISKS.iter().find(|(_, _, d)| *d != disk(&library[0])).unwrap();
+    let opened = w.movies[&title[..title.find(" (").unwrap()]];
+    assert_eq!(app.get(&format!("/api/items/{opened}"), admin).await.status, StatusCode::OK);
+    eventually(|| w.fake.previews_flying.lock().len() == 2).await;
+    assert!(w.fake.previews_flying.lock().iter().any(|p| p.contains(title)));
+
+    w.fake.previews_held.store(false, Ordering::SeqCst);
+    eventually(|| app.state.trickplay.pending() == 0).await;
+    assert_eq!(w.fake.previews_dropped.load(Ordering::SeqCst), 0, "nothing put off");
+    assert_eq!(w.fake.previews.lock().len(), 4, "each once");
+}
+
+#[tokio::test]
+async fn an_opened_title_puts_off_the_library_file_read_from_its_disk() {
+    let one_disk = ON_THREE_DISKS.map(|(title, size, _)| (title, size, "disk1"));
+    let w = previews_world(5, &one_disk).await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    *w.fake.load.lock() = Some(idle());
+    w.fake.previews_held.store(true, Ordering::SeqCst);
+    library_work(app, admin).await;
+    app.state.trickplay.request_all().await;
+    eventually(|| w.fake.previews_flying.lock().len() == 1).await;
+    let library = w.fake.previews_flying.lock()[0].clone();
+
+    // Opening another title on that disk puts the library file off.
+    let (title, ..) = one_disk.iter().find(|(title, ..)| !library.contains(title)).unwrap();
+    let opened = w.movies[&title[..title.find(" (").unwrap()]];
+    assert_eq!(app.get(&format!("/api/items/{opened}"), admin).await.status, StatusCode::OK);
+    eventually(|| w.fake.previews_dropped.load(Ordering::SeqCst) == 1).await;
+    eventually(|| w.fake.previews_flying.lock().len() == 1).await;
+    assert!(w.fake.previews_flying.lock()[0].contains(title), "the opened title is made");
+    assert_eq!(app.state.trickplay.pending(), 4, "the library file is still to be made");
+
+    // Then the libraries' go on, the one put off asked again.
+    w.fake.previews_held.store(false, Ordering::SeqCst);
+    eventually(|| app.state.trickplay.pending() == 0).await;
+    let asked = w.fake.previews.lock().clone();
+    assert_eq!(asked.len(), 5, "{asked:?}");
+    assert_eq!(asked.iter().filter(|p| **p == library).count(), 2);
+    assert_eq!(w.fake.previews_most.load(Ordering::SeqCst), 1, "one file at a time from a disk");
+}
+
+#[tokio::test]
+async fn a_playback_that_starts_puts_off_every_preview_being_made() {
+    let w = previews_world(5, &ON_THREE_DISKS).await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    *w.fake.load.lock() = Some(idle());
+    w.fake.previews_held.store(true, Ordering::SeqCst);
+    library_work(app, admin).await;
+    app.state.trickplay.request_all().await;
+    eventually(|| w.fake.previews_flying.lock().len() == 3).await;
+
+    let started = play(app, admin, json!({"item_id": w.movies["Delta"], "caps": browser(), "client_id": "tv"})).await;
+    assert_eq!(started.status, StatusCode::OK, "{:?}", started.body);
+    eventually(|| w.fake.previews_dropped.load(Ordering::SeqCst) == 3).await;
+    assert_eq!(app.state.trickplay.pending(), 4, "still to be made, not failed");
+    // Nothing is made while it plays.
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(w.fake.previews_flying.lock().is_empty());
+    assert_eq!(w.fake.previews.lock().len(), 3);
+
+    // Once it is over, they are made after all.
+    w.fake.previews_held.store(false, Ordering::SeqCst);
+    let session = started.body["session_id"].as_str().unwrap();
+    assert_eq!(app.delete(&format!("/api/playback/{session}"), admin).await.status, StatusCode::NO_CONTENT);
+    eventually(|| app.state.trickplay.pending() == 0).await;
+    assert_eq!(w.fake.previews.lock().len(), 7, "the three put off asked again, and Delta");
+    assert_eq!(w.fake.previews_dropped.load(Ordering::SeqCst), 3);
+}
+
+#[tokio::test]
+async fn one_preview_waits_while_something_is_transcoded_and_the_others_are_put_off() {
+    let w = previews_world(5, &ON_THREE_DISKS).await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    *w.fake.load.lock() = Some(idle());
+    w.fake.previews_held.store(true, Ordering::SeqCst);
+    library_work(app, admin).await;
+    app.state.trickplay.request_all().await;
+    eventually(|| w.fake.previews_flying.lock().len() == 3).await;
+
+    // A download being converted, say: one file stays (the transcoder pauses it).
+    w.fake.transcoding.store(1, Ordering::SeqCst);
+    eventually(|| w.fake.previews_dropped.load(Ordering::SeqCst) == 2).await;
+    assert_eq!(w.fake.previews_flying.lock().len(), 1);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(w.fake.previews.lock().len(), 3, "nothing more while it transcodes");
+    assert_eq!(app.state.trickplay.pending(), 4);
+
+    w.fake.transcoding.store(0, Ordering::SeqCst);
+    w.fake.previews_held.store(false, Ordering::SeqCst);
+    eventually(|| app.state.trickplay.pending() == 0).await;
+    assert_eq!(w.fake.previews.lock().len(), 6, "the two put off asked again, and Delta");
+}
+
+#[tokio::test]
+async fn previews_of_identical_files_are_made_once() {
+    let w = previews_world(5, &[("Golf (2007)", 6000, "disk1"), ("Hotel (2008)", 6000, "disk2")]).await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    *w.fake.load.lock() = Some(idle());
+    library_work(app, admin).await;
+    app.state.trickplay.request_all().await;
+    eventually(|| app.state.trickplay.pending() == 0).await;
+    assert_eq!(w.fake.previews.lock().len(), 1, "made once");
+    let (golf, hotel) = (app.file_of(w.movies["Golf"]).await, app.file_of(w.movies["Hotel"]).await);
+    let (golf, hotel) = (
+        app.get(&format!("/api/files/{golf}/trickplay"), admin).await,
+        app.get(&format!("/api/files/{hotel}/trickplay"), admin).await,
+    );
+    assert_eq!((golf.status, hotel.status), (StatusCode::OK, StatusCode::OK));
+    assert_eq!(golf.body, hotel.body);
+}
+
+#[tokio::test]
+async fn previews_the_transcoder_could_not_make_for_a_moment_are_not_given_up() {
+    let w = previews_world(5, &ON_THREE_DISKS).await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    app.put("/api/settings", admin, json!({"seek_previews": true})).await;
+    let made = async |file: i64| {
+        for _ in 0..200 {
+            if app.get(&format!("/api/files/{file}/trickplay"), admin).await.status == StatusCode::OK {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        false
+    };
+
+    // A share not mounted: out of the queue, not failed.
+    w.fake.preview_answers.lock().insert("Alpha".into(), (StatusCode::NOT_FOUND, "not_found"));
+    let alpha = app.file_of(w.movies["Alpha"]).await;
+    app.get(&format!("/api/files/{alpha}/trickplay"), admin).await;
+    eventually(|| w.fake.previews.lock().len() == 1).await;
+    eventually(|| app.state.trickplay.pending() == 0).await;
+    // Asked for again, it is made.
+    assert!(made(alpha).await);
+    assert_eq!(w.fake.previews.lock().len(), 2);
+
+    // The transcoder says "not now": the file keeps its turn, and is made.
+    w.fake.preview_answers.lock().insert("Bravo".into(), (StatusCode::SERVICE_UNAVAILABLE, "busy"));
+    let bravo = app.file_of(w.movies["Bravo"]).await;
+    app.get(&format!("/api/files/{bravo}/trickplay"), admin).await;
+    eventually(|| w.fake.previews.lock().len() == 3).await;
+    assert_eq!(app.state.trickplay.pending(), 1, "still to be made");
+    eventually(|| w.fake.previews.lock().len() == 4).await;
+    assert!(made(bravo).await);
+    assert_eq!(app.state.trickplay.pending(), 0);
 }
 
 #[tokio::test]

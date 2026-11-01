@@ -493,11 +493,11 @@ pub async fn item(db: &Db, user_id: i64, item_id: i64) -> sqlx::Result<Option<It
 
 /// Rows for `ids`, in the order given.
 /// Files of movies and episodes, newest first.
-/// Movie and episode files with video, newest first: id and fingerprint
-/// (not the probe data of every file).
-pub async fn video_file_ids(db: &Db) -> sqlx::Result<Vec<(i64, Option<String>)>> {
+/// Movie and episode files with video, newest first: id, fingerprint and
+/// path (not the probe data of every file).
+pub async fn video_file_ids(db: &Db) -> sqlx::Result<Vec<(i64, Option<String>, String)>> {
     sqlx::query_as(
-        "SELECT id, fingerprint FROM media_files WHERE video_codec IS NOT NULL
+        "SELECT id, fingerprint, path FROM media_files WHERE video_codec IS NOT NULL
          AND item_id IN (SELECT id FROM items WHERE kind IN ('movie', 'episode')) ORDER BY added_at DESC",
     )
     .fetch_all(&db.read)

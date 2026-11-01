@@ -12,9 +12,9 @@ use std::time::{Duration, SystemTime};
 use crate::util::dir_size;
 
 const DAY: Duration = Duration::from_secs(24 * 3600);
-/// Temporaries left alone longer than this are abandoned: seek previews give
-/// up after an hour, and FFmpeg passes over whole files for their subtitles,
-/// which may run longer, mark their outputs as written every few minutes.
+/// Temporaries left alone longer than this are abandoned: seek previews and
+/// FFmpeg passes over whole files for their subtitles, which may run or wait
+/// paused longer, mark theirs as being written every few minutes.
 const STALE_TEMPORARY: Duration = Duration::from_secs(3 * 3600);
 const FIRST_RUN: Duration = Duration::from_secs(120);
 const EVERY: Duration = Duration::from_secs(3600);

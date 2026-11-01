@@ -96,8 +96,7 @@ pub async fn part_index(
     Path((id, _quality)): Path<(i64, String)>,
 ) -> PlexResult<Response> {
     let file = visible_file(&state, &user, id).await?;
-    let path = state.trickplay.bif(&file).await.map_err(PlexError::Internal)?.ok_or(PlexError::NotFound)?;
-    let bytes = tokio::fs::read(path).await.map_err(|e| PlexError::Internal(e.into()))?;
+    let bytes = state.trickplay.bif(&file).await.map_err(PlexError::Internal)?.ok_or(PlexError::NotFound)?;
     Ok(([(header::CONTENT_TYPE, "application/octet-stream")], bytes).into_response())
 }
 

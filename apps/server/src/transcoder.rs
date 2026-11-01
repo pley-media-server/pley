@@ -275,6 +275,18 @@ impl Transcoder {
         self.info().is_some_and(|info| info.capabilities.subtitle_matroska)
     }
 
+    /// The version of the seek previews the transcoder makes
+    /// ([`TrickplayInfo::version`]): 0 from older ones, or before it answered.
+    pub fn trickplay_version(&self) -> u32 {
+        self.info().map_or(0, |info| info.capabilities.trickplay_version)
+    }
+
+    /// The seek-preview sets the transcoder makes at once: 1 from older
+    /// ones, or before it answered.
+    pub fn trickplay_runs(&self) -> u32 {
+        self.info().map_or(1, |info| info.capabilities.trickplay_runs.max(1))
+    }
+
     /// Whether the transcoder answers for a picture track's Matroska with
     /// what it has copied so far ([`Transcoder::subtitle_matroska_so_far`]);
     /// older ones answer only once it is whole.
@@ -382,10 +394,16 @@ impl Transcoder {
         self.post_json("/v1/frames", req, Duration::from_secs(15 * 60)).await
     }
 
-    /// Make (or look up) the seek previews of a video; can take minutes.
+    /// Make (or look up) the seek previews of a video; can take minutes, and
+    /// hours paused while something is transcoded. Transcoders that make
+    /// several at once bound a set by its file's size and keep a paused
+    /// one's work; older ones give a set up after an hour, and lose a paused
+    /// one's folder to their clean-up after three.
     pub async fn trickplay(&self, path: &str) -> TranscoderResult<TrickplayInfo> {
         let req = TrickplayRequest { path: path.to_owned(), ..Default::default() };
-        self.post_json("/v1/trickplay", &req, Duration::from_secs(60 * 60)).await
+        let bounded = self.info().is_some_and(|info| info.capabilities.trickplay_runs > 0);
+        let wait = Duration::from_secs(if bounded { 12 * 3600 } else { 3600 });
+        self.post_json("/v1/trickplay", &req, wait).await
     }
 
     pub async fn trickplay_sheet(&self, id: &str, n: u32) -> TranscoderResult<Bytes> {

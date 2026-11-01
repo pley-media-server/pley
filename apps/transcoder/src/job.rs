@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
 use pley_transcoder_api::{
-    EncoderInfo, JobCreated, JobRequest, JobState, JobStatus, Limits, MediaInfo, ProcessStatus, TonemapQuality,
+    EncoderInfo, JobCreated, JobRequest, JobState, JobStatus, Limits, Load, MediaInfo, ProcessStatus, TonemapQuality,
     VideoCodec, VideoMode,
 };
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
@@ -177,7 +177,10 @@ pub struct JobManager {
     creations: AtomicU64,
     last_creation: Mutex<Option<Instant>>,
     /// How busy the CPU is, and with whose work.
-    cpu: CpuMeter,
+    cpu: Arc<CpuMeter>,
+    /// Memory the transcoder can still take, in bytes, looked at with the
+    /// CPU ([`memory::available`]); `u64::MAX` where unknown.
+    memory_available: AtomicU64,
     /// What jobs falling behind their players taught (see [`crate::share`]).
     lessons: Mutex<Lessons>,
     /// Whether the CPU may decode for a GPU that falls behind (see
@@ -486,7 +489,8 @@ impl JobManager {
             closed: AtomicBool::new(false),
             creations: AtomicU64::new(0),
             last_creation: Mutex::new(None),
-            cpu: CpuMeter::default(),
+            cpu: Arc::default(),
+            memory_available: AtomicU64::new(u64::MAX),
             lessons: Mutex::default(),
             cpu_decode: AtomicBool::new(true),
         })
@@ -522,6 +526,23 @@ impl JobManager {
     /// Bytes of segments in memory now.
     pub fn memory_bytes(&self) -> u64 {
         self.memory.get().map_or(0, |store| store.used())
+    }
+
+    /// How busy the processors are, looked at every few seconds (the
+    /// reaper's turn).
+    pub fn cpu(&self) -> Arc<CpuMeter> {
+        self.cpu.clone()
+    }
+
+    /// What the computer has to spare, as of the last look (`/v1/status`).
+    pub fn load(&self) -> Load {
+        let memory = self.memory_available.load(Relaxed);
+        Load {
+            cores: self.cpu.room().unwrap_or_else(|| f64::from(crate::util::processors())),
+            busy: self.cpu.busy(),
+            foreign: self.cpu.foreign(),
+            memory_available: (memory != u64::MAX).then_some(memory),
+        }
     }
 
     pub fn get(&self, id: &str) -> Option<Arc<Job>> {
@@ -1314,7 +1335,11 @@ impl JobManager {
     async fn reap(self: &Arc<Self>) {
         // Reads /proc on Linux: a few hundred small files on a busy computer.
         let mgr = self.clone();
-        let _ = tokio::task::spawn_blocking(move || mgr.cpu.sample()).await;
+        let _ = tokio::task::spawn_blocking(move || {
+            mgr.cpu.sample();
+            mgr.memory_available.store(memory::available().unwrap_or(u64::MAX), Relaxed);
+        })
+        .await;
         self.adapt().await;
         self.share_gpu().await;
         self.relieve_memory().await;

@@ -617,6 +617,17 @@ pub struct Capabilities {
     /// live HLS stream (`/v1/live`). Older transcoders lack it.
     #[serde(default)]
     pub live: bool,
+    /// The version of the seek previews this transcoder makes
+    /// ([`TrickplayInfo::version`]). Older transcoders lack it (0).
+    #[serde(default)]
+    pub trickplay_version: u32,
+    /// Seek-preview sets it makes at once (`POST /v1/trickplay`): a client
+    /// sends no more, and further requests wait their turn. With it, a set's
+    /// time limit grows with its file, and a set paused through a long
+    /// transcode keeps its work. Older transcoders lack it (0): they make one
+    /// at a time, and give a set up after an hour.
+    #[serde(default)]
+    pub trickplay_runs: u32,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -699,11 +710,41 @@ pub struct TranscoderStatus {
     /// paused while a playback starts.
     #[serde(default)]
     pub background_paused: u32,
+    /// Seek-preview sets being made now, paused ones included.
+    #[serde(default)]
+    pub trickplay_running: u32,
+    /// How busy its computer's processors are and the memory it has, where
+    /// it can tell. Absent from older transcoders.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub load: Option<Load>,
     pub counters: Counters,
     pub jobs: Vec<JobStatus>,
     /// Live channels being made ([`Capabilities::live`]).
     #[serde(default)]
     pub live: Vec<LiveStatus>,
+}
+
+/// What a transcoder's computer has to spare ([`TranscoderStatus::load`]).
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct Load {
+    /// The cores it may use: the processors it may run on, or its control
+    /// group's CPU limit (a container's `--cpus`) where that is lower.
+    pub cores: f64,
+    /// The share of those cores' time that went to any work lately (about
+    /// 10 s), 0 to 1. Absent before it has looked twice, and where it can't
+    /// tell (macOS).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub busy: Option<f64>,
+    /// The cores other programs' work took lately (not its own, nor its
+    /// FFmpeg processes').
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub foreign: Option<f64>,
+    /// Memory it can still take without swapping, in bytes: what the
+    /// computer has available, or what its control group's memory limit
+    /// leaves, whichever is less.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_available: Option<u64>,
 }
 
 // ---------------------------------------------------------------------------
@@ -1512,6 +1553,8 @@ pub struct FrameStats {
 /// JPEG sprite sheets fetched with `GET /v1/trickplay/{id}/{n}`. Cached until
 /// every sheet has been fetched (callers keep their own copy), or for a day:
 /// asking again for the same file version meanwhile returns at once.
+/// Transcoders with [`Capabilities::trickplay_runs`] make that many at once;
+/// further requests wait their turn.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct TrickplayRequest {
     pub path: String,
@@ -1538,6 +1581,12 @@ pub struct TrickplayInfo {
     pub count: u32,
     /// Number of sheets, `0.jpg` to `{sheets - 1}.jpg`.
     pub sheets: u32,
+    /// How the sheets were made: a transcoder making them otherwise (their
+    /// quality, size or spacing) has a higher one
+    /// ([`Capabilities::trickplay_version`]). Sets made by older transcoders
+    /// lack it (0).
+    #[serde(default)]
+    pub version: u32,
 }
 
 /// Error body returned by the transcoder for non-2xx responses.
@@ -1683,5 +1732,38 @@ mod tests {
         // Nothing to go by: the file's.
         let unknown = MediaStream { dv_level: Some(10), ..Default::default() };
         assert_eq!((unknown.dv_level_needed(), unknown.dv_level_named()), (None, Some(10)));
+    }
+
+    #[test]
+    fn older_transcoders_and_servers_read_each_others_previews_and_load() {
+        // An older transcoder: one set at a time, nothing said of its load.
+        let caps: Capabilities = serde_json::from_str(
+            r#"{"ffmpeg_available":true,"ffprobe_available":true,"ffmpeg_path":"","ffprobe_path":"",
+                "ffmpeg_version":null,"encoders":[],"hwaccels":[],"tonemappers":[],"dolby_vision":false,
+                "subtitle_burn_image":false,"subtitle_burn_text":false,"readrate":false,"trickplay_version":1}"#,
+        )
+        .unwrap();
+        assert_eq!(caps.trickplay_runs, 0);
+        let old = r#"{"version":"0.1.0","uptime_secs":5,"ffmpeg_version":null,"max_jobs":8,"running_processes":0,
+            "hw_processes":0,"max_hw_jobs":2,"work_dir_bytes":0,"counters":{"jobs_created":0,"jobs_failed":0,
+            "processes_started":0,"process_failures":0,"segments_produced":0,"segments_served":0,"bytes_served":0,
+            "probes":0,"probe_failures":0,"probe_ms_total":0,"thumbnails":0,"subtitle_extractions":0,
+            "keyframe_scans":0},"jobs":[]}"#;
+        let status: TranscoderStatus = serde_json::from_str(old).unwrap();
+        assert_eq!((status.trickplay_running, status.load), (0, None));
+        // What it can't measure is left out, and read back as unknown.
+        let load = Load { cores: 2.0, ..Default::default() };
+        assert_eq!(serde_json::to_string(&load).unwrap(), r#"{"cores":2.0}"#);
+        let status = TranscoderStatus { trickplay_running: 3, load: Some(load), ..Default::default() };
+        let json = serde_json::to_string(&status).unwrap();
+        assert_eq!(serde_json::from_str::<TranscoderStatus>(&json).unwrap(), status);
+        // An older server, which knows neither, reads a new status.
+        #[derive(Deserialize)]
+        struct Before {
+            running_processes: u32,
+            background_paused: u32,
+        }
+        let before: Before = serde_json::from_str(&json).unwrap();
+        assert_eq!((before.running_processes, before.background_paused), (0, 0));
     }
 }

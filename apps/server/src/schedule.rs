@@ -17,7 +17,9 @@
 //! the next are quiet, so that it doesn't run into a busy one. Until about
 //! a week is known (play history counts), any hour is. Where the rest has
 //! waited for quiet hours through a day of the server being up (a computer
-//! on only in the evening), it goes on whenever nothing plays.
+//! on only in the evening), it goes on whenever nothing plays. Where this
+//! hour and the next are rarely watched, not only quiet by that rule,
+//! seek previews go several files at once ([`Scheduler::wide`]).
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -225,10 +227,15 @@ impl Profile {
         (h.seen >= MIN_SEEN).then(|| h.playing / h.seen)
     }
 
+    /// Whether about a week is known as of `week`.
+    fn learned(&self, week: i64) -> bool {
+        self.hours.iter().map(|h| h.at(week).seen).sum::<f64>() >= LEARNED
+    }
+
     /// The quiet hours of the week (see the module's documentation), as
     /// they count in `week`; `None` before about a week is known.
     fn quiet(&self, week: i64) -> Option<[bool; HOURS]> {
-        if self.hours.iter().map(|h| h.at(week).seen).sum::<f64>() < LEARNED {
+        if !self.learned(week) {
             return None;
         }
         let shares: Vec<Option<f64>> = (0..HOURS).map(|h| self.share(h, week)).collect();
@@ -246,6 +253,16 @@ impl Profile {
             }
         }
         quiet.try_into().ok()
+    }
+
+    /// Whether `hour` of the week and the next had something playing in
+    /// less than a tenth of their minutes, as they count in `week` (an hour
+    /// not seen enough counts as such), or the hours aren't known yet. Each
+    /// day's quietest hours, library work's even where people watch then,
+    /// don't count: a playback that starts puts off every file being made.
+    fn wide_at(&self, hour: usize, week: i64) -> bool {
+        let rare = |hour: usize| self.share(hour, week).is_none_or(|share| share < QUIET_SHARE);
+        !self.learned(week) || (rare(hour) && rare(hour + 1))
     }
 }
 
@@ -477,6 +494,14 @@ impl Scheduler {
         decide(class, Rules::from(&*self.settings.get()), quiet.as_ref(), looks)
     }
 
+    /// Whether this hour and the next are rarely watched (see
+    /// [`Profile::wide_at`]): seek previews of the libraries may go several
+    /// files at once.
+    pub fn wide(&self) -> bool {
+        let now = now();
+        self.profile.lock().wide_at(hour_of_week(now, self.offset.load(Relaxed)), week_of(now))
+    }
+
     /// What someone is likely to watch soon, looked up at most every
     /// [`SOON_FOR`].
     pub async fn soon(&self) -> Arc<Soon> {
@@ -685,6 +710,15 @@ mod tests {
     }
 
     #[test]
+    fn wide_hours_are_this_and_the_next_rarely_watched() {
+        let profile = evenings(3);
+        assert!(profile.wide_at(3, 2) && profile.wide_at(13, 2) && profile.wide_at(23, 2));
+        assert!(!profile.wide_at(19, 2), "the next hour is watched");
+        assert!(!profile.wide_at(20, 2) && !profile.wide_at(22, 2));
+        assert!(Profile::default().wide_at(20, 0), "before the hours are known, any");
+    }
+
+    #[test]
     fn a_server_watched_all_day_keeps_four_quiet_hours_in_a_row_each_day() {
         let mut profile = Profile::default();
         for week in 0..3 {
@@ -699,6 +733,8 @@ mod tests {
             let today: Vec<usize> = (0..24).filter(|h| quiet[day * 24 + h]).collect();
             assert_eq!(today, vec![3, 4, 5, 6], "day {day}");
         }
+        // Library work's, but watched a quarter of the time: one file at a time.
+        assert!((0..HOURS).all(|hour| !profile.wide_at(hour, 2)));
     }
 
     #[test]

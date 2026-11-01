@@ -72,7 +72,7 @@ pub fn render_prometheus(status: &TranscoderStatus) -> String {
         let _ = writeln!(out, "# TYPE pley_transcoder_{name} counter");
         let _ = writeln!(out, "pley_transcoder_{name} {value}");
     }
-    let gauges: [(&str, &str, f64); 7] = [
+    let gauges: [(&str, &str, f64); 8] = [
         ("uptime_seconds", "Seconds since the transcoder started", status.uptime_secs as f64),
         ("running_processes", "ffmpeg transcode processes currently running", status.running_processes as f64),
         ("hardware_processes", "Running processes using a hardware encoder", status.hw_processes as f64),
@@ -80,6 +80,7 @@ pub fn render_prometheus(status: &TranscoderStatus) -> String {
         ("jobs", "Transcode jobs (sessions) currently known", status.jobs.len() as f64),
         ("work_dir_bytes", "Disk space used by segments and caches", status.work_dir_bytes as f64),
         ("background_paused", "Background ffmpeg runs paused for playback", status.background_paused as f64),
+        ("trickplay_running", "Seek-preview sets being made, paused ones included", status.trickplay_running as f64),
     ];
     for (name, help, value) in gauges {
         let _ = writeln!(out, "# HELP pley_transcoder_{name} {help}");
@@ -127,9 +128,14 @@ mod tests {
 
     #[test]
     fn prometheus_output_contains_counters() {
-        let status = TranscoderStatus { counters: Counters { probes: 7, ..Default::default() }, ..Default::default() };
+        let status = TranscoderStatus {
+            counters: Counters { probes: 7, ..Default::default() },
+            trickplay_running: 2,
+            ..Default::default()
+        };
         let text = render_prometheus(&status);
         assert!(text.contains("pley_transcoder_probes_total 7"));
         assert!(text.contains("# TYPE pley_transcoder_running_processes gauge"));
+        assert!(text.contains("# TYPE pley_transcoder_trickplay_running gauge\npley_transcoder_trickplay_running 2\n"));
     }
 }

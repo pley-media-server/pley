@@ -426,7 +426,9 @@ impl Extractor {
             .args(["-fs", &(MAX_EXTRACTED + 1).to_string()])
             .arg(input_arg(&part));
         let _permit = self.passes.acquire().await.map_err(|e| ApiError::Internal(e.into()))?;
-        let result = kept_fresh(run_capture(cmd, (self.pass_time)(path)), &[part.as_path()], self.keep_fresh).await;
+        let result =
+            kept_fresh(run_capture(cmd, (self.pass_time)(path)), self.keep_fresh, || mark_written(&[part.as_path()]))
+                .await;
         let result = match result {
             Ok(_) => match tokio::fs::metadata(&part).await {
                 Ok(made) if made.len() > MAX_EXTRACTED => {
@@ -722,7 +724,8 @@ impl Extractor {
             outputs.push((part, self.subs_dir.join(format!("{key}_{index}.vtt"))));
         }
         let parts: Vec<&Path> = outputs.iter().map(|(part, _)| part.as_path()).collect();
-        let result = kept_fresh(run_capture(cmd, (self.pass_time)(path)), &parts, self.keep_fresh).await;
+        let result =
+            kept_fresh(run_capture(cmd, (self.pass_time)(path)), self.keep_fresh, || mark_written(&parts)).await;
         for (part, done) in &outputs {
             // Only complete files, flushed to disk, get their final name.
             if result.is_ok() && flush(part).await.is_ok() {
@@ -1000,27 +1003,31 @@ fn retry_alone(err: &ApiError, tracks: usize) -> bool {
     tracks > 1 && !matches!(err, ApiError::Timeout(_))
 }
 
-/// How often a pass marks its outputs as being written. The cache's pruning
-/// takes temporaries left alone for hours as abandoned, and a pass may run
-/// longer than that (a big file on a slow share), with tracks that get no
-/// cue for a long time.
-const KEEP_FRESH: Duration = Duration::from_secs(10 * 60);
+/// How often work over whole files (a pass, seek previews) marks what it
+/// writes as being written. The cache's pruning takes temporaries left
+/// alone for hours as abandoned, and such work may run or wait paused longer
+/// than that (a big file on a slow share, a long transcode), with outputs
+/// that get nothing for a long time (tracks with no cue).
+pub(crate) const KEEP_FRESH: Duration = Duration::from_secs(10 * 60);
 
-/// `work`, marking the files `parts` as being written every `every` while it
-/// runs.
-async fn kept_fresh<T>(work: impl Future<Output = T>, parts: &[&Path], every: Duration) -> T {
+/// `work`, calling `freshen` (which marks what it writes as being written)
+/// as it starts and every `every` while it runs.
+pub(crate) async fn kept_fresh<T>(work: impl Future<Output = T>, every: Duration, mut freshen: impl FnMut()) -> T {
     tokio::pin!(work);
     let mut tick = tokio::time::interval(every);
     loop {
         tokio::select! {
             done = &mut work => return done,
-            _ = tick.tick() => {
-                for part in parts {
-                    if let Ok(file) = std::fs::File::options().write(true).open(part) {
-                        let _ = file.set_modified(SystemTime::now());
-                    }
-                }
-            }
+            _ = tick.tick() => freshen(),
+        }
+    }
+}
+
+/// Marks the files `parts` as being written.
+fn mark_written(parts: &[&Path]) {
+    for part in parts {
+        if let Ok(file) = std::fs::File::options().write(true).open(part) {
+            let _ = file.set_modified(SystemTime::now());
         }
     }
 }
@@ -1033,7 +1040,7 @@ fn whole_file_timeout(path: &Path) -> Duration {
 
 /// 20 minutes, or more for a file too big to read in that time at 10 MB/s
 /// (a slow disk or network share; a 70 GB film needs two hours at that pace).
-fn pass_timeout(bytes: u64) -> Duration {
+pub(crate) fn pass_timeout(bytes: u64) -> Duration {
     Duration::from_secs((bytes / 10_000_000).max(20 * 60))
 }
 

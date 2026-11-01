@@ -52,6 +52,7 @@ const CACHES: &[(&str, Duration)] = &[
     ("covers", Duration::from_secs(30 * DAY)),       // api/items.rs: albums without embedded covers
     ("subtitles", Duration::from_secs(90 * DAY)),    // api/playback.rs: WebVTT
     ("fingerprints", Duration::from_secs(90 * DAY)), // markers: audio fingerprints
+    ("bif", Duration::from_secs(30 * DAY)),          // trickplay.rs: Plex's BIF indexes of seek previews
     ("discover", Duration::from_secs(30 * DAY)),     // discover/pictures.rs: TMDB's pictures
 ];
 
@@ -1008,6 +1009,8 @@ mod tests {
             ("subtitles/7_4_100.vtt", 91),
             ("subtitles/8_4_100.vtt", 60),
             ("fingerprints/7_100_5_0_1000.fp", 91),
+            ("bif/0123456789abcdef-10000-320x180-720.bif", 31),
+            ("bif/fedcba9876543210-10000-320x180-720.bif", 29),
             ("discover/w342/abc.jpg", 31),
             ("discover/w342/def.jpg", 2),
             ("trickplay/7/index.bif", 400), // not one of the caches the clean-up prunes
@@ -1019,7 +1022,7 @@ mod tests {
             age(&path, days * DAY);
         }
         let report = store.clean().await.unwrap();
-        assert_eq!((report.cache_files_removed, report.cache_bytes_freed), (5, 30));
+        assert_eq!((report.cache_files_removed, report.cache_bytes_freed), (6, 36));
         let mut left: Vec<String> = walkdir::WalkDir::new(&cache)
             .into_iter()
             .flatten()
@@ -1029,7 +1032,13 @@ mod tests {
         left.sort();
         assert_eq!(
             left,
-            ["discover/w342/def.jpg", "images/ab/recent.jpg", "subtitles/8_4_100.vtt", "trickplay/7/index.bif"]
+            [
+                "bif/fedcba9876543210-10000-320x180-720.bif",
+                "discover/w342/def.jpg",
+                "images/ab/recent.jpg",
+                "subtitles/8_4_100.vtt",
+                "trickplay/7/index.bif"
+            ]
         );
     }
 

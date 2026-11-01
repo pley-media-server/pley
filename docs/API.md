@@ -1612,7 +1612,7 @@ removed or reordered (`400`).
 | GET | `/api/files/{id}/subtitles/{index}.vtt?offset_ms=` | `play` | WebVTT of a text subtitle track |
 | GET | `/api/files/{id}/subtitles/{index}.mks` | `play` | a picture subtitle track in a Matroska file of its own (`video/x-matroska`) |
 | GET | `/api/files/{id}/subtitles/{index}.sup` | `play` | a PGS track as a `.sup` file (Kodi's) |
-| GET | `/api/files/{id}/trickplay` | `play` | seek-bar previews: `{ id, interval_ms, width, height, columns, rows, count, sheets }` |
+| GET | `/api/files/{id}/trickplay` | `play` | seek-bar previews: `{ id, interval_ms, width, height, columns, rows, count, sheets, version }` |
 | GET | `/api/files/{id}/trickplay/{n}.jpg?v={id}` | `play` | preview sprite sheet `n` |
 | GET | `/api/files/{id}/chapters/{n}.jpg` | `play` | picture of chapter `n` (0-based) |
 
@@ -1668,10 +1668,23 @@ removed or reordered (`400`).
   8 s for the whole track, then has what is copied so far
   (`X-Pley-Complete: 0`). `404` for anything but PGS.
 - **`trickplay`**: `404` while previews are being made (asking, or opening
-  the item, queues them). Made one file at a time, never during a
-  playback's first 30 s nor while anything is transcoded: a playback that
-  starts puts off the file being done, which is made again later. Those of
-  whole libraries wait for [library work](#library-work)'s hours.
+  the item, queues them). None start during a playback's first 30 s nor
+  while anything is transcoded: a playback that starts puts off every file
+  being made, and a transcode all but one (which the transcoder pauses);
+  they are made again later, in the order they were in, and never count as
+  failed. A file the transcoder couldn't reach (a share not mounted) is
+  asked for again the next time it is opened or scanned. Where the
+  transcoder makes several at once, a title someone opens is made beside
+  the libraries' previews rather than after them, unless a library file
+  is read from the same disk, which waits for it. Where the transcoder has
+  fewer than 4 cores (a container's limit counted), or the title's storage
+  can't be told, it is made alone: every library file being made waits.
+  Those of whole libraries wait for [library work](#library-work)'s
+  hours, one file at a time or more ([How many at once](#how-many-at-once)).
+  Previews an earlier version made (`version` lower than what the
+  transcoder makes now) are made again as library work, after the files
+  that have none and only in the hours for the rest of the libraries;
+  they serve until then.
 - **Sprite sheets**: thumbnail `k` is at column `k % columns`, row
   `k / columns` of sheet `k / (columns × rows)`, and shows the video at
   `k × interval_ms`.
@@ -2262,10 +2275,11 @@ separately on the same machine does). Then `library_work` decides:
   first, all day when they are the same).
 - **`idle`**: whenever nothing plays.
 
-A season whose hours end is put off and goes first at its next turn. The
-hours and the processors hold back only the libraries' work: a title
-someone opens gets its previews, a season being watched its markers, and
-an analysis an administrator asks for runs, at any hour.
+A season whose hours end is put off and goes first at its next turn;
+seek previews being made when their hours end are finished. The hours and
+the processors hold back only the libraries' work: a title someone opens
+gets its previews, a season being watched its markers, and an analysis an
+administrator asks for runs, at any hour.
 
 | Method | Path | Who | What |
 |---|---|---|---|
@@ -2287,6 +2301,40 @@ interface WatchingHours extends LibraryWorkStatus {
   }[];
 }
 ```
+
+### How many at once
+
+The libraries' seek previews are made one file at a time. More go at once
+where that disturbs nobody, four at most:
+
+- a second in library work's own hours (above), once nothing has played
+  for 10 minutes: someone who just stopped often starts something else,
+  and a playback that starts puts off every file being made;
+- a third and a fourth where this hour and the next were rarely watched
+  (something played in under a tenth of their minutes, the four quietest
+  hours a day kept for library work not counted; any hour until about a
+  week is known);
+- each only while the transcoder has a core idle, at least what each file
+  being made takes, and 2 GB of memory free, as it measures them (a
+  container's limits counted), and 20 s after the one before.
+
+One file at a time is read from each hard disk, array of hard disks
+(RAID), ZFS pool, network server, or disk of an Unraid or mergerfs pool,
+and up to four from a solid-state disk or an array of nothing else: two
+whole files read at once from one hard disk each go at a fraction of the
+speed. Pley tells disks apart from the server's mounts (Linux, in a
+container too: a partition is its disk's, an array its disks') or
+Windows' volumes; for a file in an Unraid user share or a mergerfs pool,
+it asks the pool which disk holds it. A file whose storage it can't tell
+(the pool doesn't say which disk holds it, a file system on no disk it
+knows, a share that didn't answer within a minute) is made alone; disks
+it can't trace, and shares whose server it can't tell, count as one
+storage. With a transcoder it didn't start, all files are one
+storage, read one at a time. Something that plays puts the
+libraries' files off within seconds. Transcoders from before this, and
+those on macOS (which can't pause their work for a playback), make one at
+a time; `PLEY_TRANSCODER_MAX_PREVIEWS=1` makes any transcoder do so
+([docs/TRANSCODER.md](TRANSCODER.md)).
 
 ## Watch history
 
@@ -2840,15 +2888,16 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 
 | Method | Path | Who | What |
 |---|---|---|---|
-| GET | `/api/activity` | `user` | `{ scans: ScanStatus[], sessions: SessionInfo[], analysis: AnalysisStatus \| null, seasons_pending: number, previews_pending: number, library_work: LibraryWorkStatus \| null }` |
+| GET | `/api/activity` | `user` | `{ scans: ScanStatus[], sessions: SessionInfo[], analysis: AnalysisStatus \| null, seasons_pending: number, previews_pending: number, previews_running: number, library_work: LibraryWorkStatus \| null }` |
 | DELETE | `/api/sessions/{id}` | `play` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
 | GET | `/api/events` | `library` | Server-Sent Events; each `data:` is a JSON `ServerEvent` |
 
 `/api/activity`: `seasons_pending` counts seasons waiting for intro and
-credits detection, `previews_pending` files waiting for seek previews, and
+credits detection, `previews_pending` files waiting for seek previews
+(those being made included), `previews_running` those being made now, and
 `library_work` says why they wait while some do ([Library work](#library-work)).
 Non-administrators see only their own sessions and the scans of libraries
-they may open, with no `analysis` or `library_work`, and both counts 0.
+they may open, with no `analysis` or `library_work`, and the counts 0.
 
 `/api/events`: each stream gets the events of the libraries its user may
 open, and the user's own events. A comment line keeps it alive every 15 s.
@@ -3377,7 +3426,7 @@ interface Settings {
   watch_libraries: boolean;         // pick up file changes automatically
   detect_markers: boolean;          // find intros and credits in the background (default true)
   seek_previews: boolean;           // make seek-bar thumbnails when an item is first opened (default true)
-  previews_in_background: boolean;  // also for whole libraries after scans, one file at a time (default true)
+  previews_in_background: boolean;  // also for whole libraries after scans (default true)
   library_work: "auto" | "hours" | "idle"; // when those and intro detection run (see Library work; default "auto")
   library_work_from: number;        // hours of the day 0-23, server time, for "hours" (default 1 to 7);
   library_work_to: number;          // past midnight when `to` comes first. Above 23: 400

@@ -41,6 +41,7 @@ pley-transcoder [OPTIONS]
 | `--max-hw-jobs <N>` | `PLEY_TRANSCODER_MAX_HW_JOBS` | 8 | Concurrent hardware encoder sessions. Extra jobs encode in software. |
 | `--cpu-decode <auto\|never>` | `PLEY_TRANSCODER_CPU_DECODE` | `auto` | Whether the CPU may decode jobs the GPU can't keep ahead ([Sharing the GPU](#sharing-the-gpu)). |
 | `--probe-concurrency <N>` | – | 8 | Concurrent probes and extractions. |
+| `--max-previews <N>` | `PLEY_TRANSCODER_MAX_PREVIEWS` | 5 (1 where runs can't be paused: macOS) | Seek-preview sets made at once, 1 to 16 ([Media](#media)). The Pley server sends no more: one for a title someone opens, four for the libraries. 1 makes them one at a time. |
 | `--announce` | – | off | Print `{"event":"listening","addr":"…"}` on stdout once ready. |
 | `--exit-with-parent` | – | off | Exit when stdin closes (managed mode). |
 | `--redetect` | – | off | Ignore the cached capability detection. |
@@ -86,7 +87,8 @@ or `~/.cache/pley-transcoder` on Linux.
   unused past their age, then the least recently used until the folder fits.
   Reading an entry counts as using it.
 - Temporaries left by a crash go after 3 hours untouched (a long subtitle pass
-  touches its outputs every 10 minutes).
+  touches its outputs every 10 minutes, and seek previews their folder, even
+  while paused).
 - What the transcoder keeps here is private to its user, and so is the work
   folder when the transcoder creates it or it is the default. A folder that
   already exists (such as `/tmp`) keeps its permissions.
@@ -124,7 +126,7 @@ Errors are `{"code": "...", "message": "..."}`:
 |---|---|---|
 | GET | `/health` | `ok`. Needs no token. |
 | GET | `/v1/info` | `TranscoderInfo`: version, capabilities, limits |
-| GET | `/v1/status` | `TranscoderStatus`: counters, processes, jobs, live channels ([Metrics](#metrics)) |
+| GET | `/v1/status` | `TranscoderStatus`: counters, processes, jobs, live channels, load ([Metrics](#metrics)) |
 | GET | `/metrics` | Prometheus text format |
 | POST | `/v1/probe` | `MediaInfo` of a file |
 | POST | `/v1/thumbnail` | one frame, `image/jpeg` |
@@ -205,6 +207,8 @@ before using what it names:
 | `hls_variants` | jobs make lower renditions (`variants`) |
 | `live_bitrate` | `POST /v1/jobs/{id}/bitrate` works |
 | `live` | `/v1/live` works |
+| `trickplay_version` | the version of the seek previews it makes (`TrickplayInfo.version`); `0` from older transcoders |
+| `trickplay_runs` | how many seek-preview sets it makes at once; `0` from older transcoders, which make one at a time and give a set up after an hour of running |
 
 ### Media
 
@@ -233,12 +237,35 @@ version (path, size, modification time).
 | `width?` | thumbnail width in pixels (default 320) |
 
 It returns `TrickplayInfo {id, interval_ms, width, height, columns, rows,
-count, sheets}`. Thumbnail `k` shows the video at `k × interval_ms`; each
-sheet holds `columns × rows` of them, left to right, top to bottom.
+count, sheets, version}`. Thumbnail `k` shows the video at `k × interval_ms`;
+each sheet holds `columns × rows` of them, left to right, top to bottom.
 `GET /v1/trickplay/{id}/{n}.jpg` returns sheet `n` (`0` to `sheets - 1`).
 
-- Only keyframes are decoded. HDR and Dolby Vision are tone mapped with
-  libplacebo when available.
+- Only keyframes are decoded, but the whole file is read: a set takes as
+  long as its disk or share takes to give it. HDR and Dolby Vision are tone
+  mapped with libplacebo when available.
+- Up to `trickplay_runs` sets are made at once (`--max-previews`); further
+  requests wait their turn. Like other background work, sets wait for and
+  pause through playback starts and transcodes
+  ([Background work and playback](#background-work-and-playback)).
+- A set may run for an hour, or 1 s per 10 MB of its file when that is
+  longer; paused time doesn't count. Its folder is made only once it may
+  start, and is marked as being written every 10 minutes while it runs or
+  waits paused, so the cache's pruning doesn't take it for abandoned.
+- Under a CPU limit below the processors FFmpeg counts (a container's
+  `--cpus`), each set's FFmpeg takes that many threads, rounded up;
+  otherwise FFmpeg chooses.
+- A file FFprobe couldn't read answers `ffmpeg_failed`. A probe that timed
+  out (a share whose disks sleep) or couldn't start answers `internal`: the
+  file may be fine. A file that isn't there, or whose share doesn't answer
+  within a minute, answers `not_found`. Four files are looked at at once at
+  most, their wait for a turn counted in the minute: a share that never
+  answers holds no more than four threads, however often it is asked.
+- Sheets are JPEGs at FFmpeg's quality 7. `version` says how a set was
+  made: it goes up whenever sets are made otherwise (1: quality 7 rather
+  than 5), and a server makes the previews it keeps again when they are
+  older than the transcoder's `trickplay_version`. Sets older transcoders
+  made lack it (`0`).
 - A set is cached per file version for a day, or until every sheet has been
   fetched: fetch them all in one go and keep them.
 
@@ -1088,13 +1115,31 @@ the runs paused now (`background_paused`).
 ## Metrics
 
 `GET /v1/status` returns the counters below, running and hardware processes
-against their limits, `background_paused`, the work folder's disk use,
-`memory_bytes` (segments in memory), every live channel's `LiveStatus`, and
-every job's `JobStatus`: state (`starting`, `running`, `idle`, `finished`,
-`failed`), video and audio plans (input → output, encoder, decoder, tone
-mapper), FFmpeg progress (fps, speed, bitrate, position, dropped and
-duplicated frames), restarts, bytes served, `warnings`, `last_error`,
-`rendition`, `variants`, `in_memory` and `memory_bytes`.
+against their limits, `background_paused`, `trickplay_running` (seek-preview
+sets being made, paused ones included), the work folder's disk use,
+`memory_bytes` (segments in memory), `load` (below), every live channel's
+`LiveStatus`, and every job's `JobStatus`: state (`starting`, `running`,
+`idle`, `finished`, `failed`), video and audio plans (input → output,
+encoder, decoder, tone mapper), FFmpeg progress (fps, speed, bitrate,
+position, dropped and duplicated frames), restarts, bytes served,
+`warnings`, `last_error`, `rendition`, `variants`, `in_memory` and
+`memory_bytes`.
+
+`load` is what the transcoder's computer has to spare, for a client to
+weigh before it sends more background work. It is looked at every 5 s, and
+a field it can't measure is left out:
+
+- `cores`: the processors it may run on, or its control group's CPU limit
+  (a container's `--cpus`) where that is lower.
+- `busy?`: the share of those cores' time that went to any work lately
+  (about 10 s), 0 to 1. Missing until it has looked twice, and on macOS.
+- `foreign?`: the cores other programs' work took meanwhile, not the
+  transcoder's nor its FFmpeg's. Missing with `busy`, and where it can't
+  tell its own processes' time.
+- `memory_available?`: the memory it can still take without swapping, in
+  bytes: what the computer has available, or what its control group's
+  memory limit (a container's `--memory`) leaves, the page cache it can drop
+  not counted, whichever is less. Missing on macOS.
 
 `GET /metrics` exposes the same for Prometheus, each name prefixed with
 `pley_transcoder_`:
@@ -1106,8 +1151,8 @@ duplicated frames), restarts, bytes served, `warnings`, `last_error`,
   `thumbnails_total`, `subtitle_extractions_total`, `keyframe_scans_total`.
 - **Gauges**: `uptime_seconds`, `running_processes`, `hardware_processes` (of
   those, on a hardware encoder), `max_jobs`, `jobs`, `work_dir_bytes`,
-  `background_paused`, and per job `job_speed{job}` (real-time multiplier),
-  `job_fps{job}` and `jobs_by_state{state}`.
+  `background_paused`, `trickplay_running`, and per job `job_speed{job}`
+  (real-time multiplier), `job_fps{job}` and `jobs_by_state{state}`.
 
 The Pley web app shows these under *Settings → Dashboard*, next to the
 processor and memory use the server samples every 2 s

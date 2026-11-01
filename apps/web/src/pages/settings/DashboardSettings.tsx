@@ -434,6 +434,7 @@ export function DashboardSettings() {
   const analysis = activity.data?.analysis ?? null;
   const seasonsPending = activity.data?.seasons_pending ?? 0;
   const previewsPending = activity.data?.previews_pending ?? 0;
+  const previewsRunning = activity.data?.previews_running ?? 0;
   const waits = libraryWorkWaits(activity.data?.library_work ?? null);
 
   return (
@@ -548,7 +549,8 @@ export function DashboardSettings() {
             </span>
           </SectionTitle>
           <p className="rounded-lg border border-border bg-surface px-4 py-3 text-sm text-muted">
-            {pluralize(previewsPending, "file")} left{waits ? ` · ${waits}` : ""}
+            {pluralize(previewsPending, "file")} left{previewsRunning > 1 ? ` · ${previewsRunning} at a time` : ""}
+            {waits ? ` · ${waits}` : ""}
           </p>
         </section>
       ) : null}

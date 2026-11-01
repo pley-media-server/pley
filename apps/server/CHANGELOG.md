@@ -11,10 +11,39 @@ describes how they are made.
 
 ### Changed
 
+- Seek-bar previews take about a fifth less space: they are saved at a
+  JPEG quality that looks the same at their size. Previews made before are
+  made again in the background, after the files that have none, in the
+  hours library work runs; they serve until then.
+- The seek previews Plex apps take (their BIF index, larger than the
+  previews themselves) are kept in the cache for 30 days instead of for good
+  beside the previews, and made again when asked for. Those kept so far are
+  removed at the first start.
+- Seek previews are made several at once where that is faster and disturbs
+  nobody. A title someone opens no longer waits for the libraries'
+  previews (made alone, though, where the transcoder has fewer than 4
+  cores). The libraries' go one file per disk, up to four at once, in the
+  hours library work runs: a second once nothing has played for 10
+  minutes, more in the hours people rarely watch, while the processors and
+  memory have room. A hard disk, an array of them, a ZFS pool or a network
+  share is still read one file at a time; a solid-state disk takes up to
+  four. With a transcoder from before this, on macOS, or with
+  `PLEY_TRANSCODER_MAX_PREVIEWS=1`, previews are made one at a time, as
+  before. The dashboard says how many are made at once.
 - On Unraid, searching Apps for Plex, Jellyfin, Emby or IPTV also finds
   Pley, and Apps offers it only on Unraid 6.12 or newer.
 - The Docker image has signed build provenance, as the release files do,
   and its page on GitHub lists only `linux/amd64` and `linux/arm64`.
+
+### Fixed
+
+- Seek previews of a file the transcoder couldn't reach for a moment (a
+  share whose disks slept, a share not mounted yet) are made when the file
+  is next opened or scanned, instead of being given up until a restart.
+- Seek previews of very large files on slow disks are no longer given up
+  after an hour, and those paused through a long transcode keep their work.
+- In a container limited to a few processors, making seek previews no
+  longer slows the server beside them.
 
 ## [0.1.1] - 2026-11-01
 

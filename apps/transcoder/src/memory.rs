@@ -16,6 +16,9 @@
 //! taking most moves to disk (`JobManager::relieve_memory`): the segments it
 //! made stay where they are, the next ones go to disk.
 //!
+//! What memory the transcoder can still take, a control group's limit
+//! counted, is told too ([`available`]): `/v1/status` reports it.
+//!
 //! [`TranscodeOptions::in_memory`]: pley_transcoder_api::TranscodeOptions::in_memory
 
 use std::path::{Path, PathBuf};
@@ -291,6 +294,82 @@ fn parse_meminfo(text: &str) -> Option<(u64, u64)> {
     Some((field("MemTotal")?, field("MemAvailable")?))
 }
 
+/// Memory the transcoder can still take without swapping, in bytes: Linux's
+/// `MemAvailable`, or what its control group's memory limit leaves (a
+/// container's `--memory`, systemd's `MemoryMax=`), whichever is less;
+/// Windows' available physical memory. `None` elsewhere, and where it can't
+/// be read. Blocking.
+pub fn available() -> Option<u64> {
+    #[cfg(target_os = "linux")]
+    {
+        let read = |path: &str| std::fs::read_to_string(path).ok();
+        available_on_linux(
+            read("/proc/meminfo").as_deref(),
+            read("/proc/self/cgroup").as_deref(),
+            Path::new("/sys/fs/cgroup"),
+        )
+    }
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+        let mut status = MEMORYSTATUSEX { dwLength: size_of::<MEMORYSTATUSEX>() as u32, ..Default::default() };
+        // SAFETY: plain Win32 call filling a struct of our own, told its size.
+        (unsafe { GlobalMemoryStatusEx(&mut status) } != 0).then_some(status.ullAvailPhys)
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
+    {
+        None
+    }
+}
+
+/// [`available`] on Linux, from `/proc/meminfo`, `/proc/self/cgroup` and the
+/// control groups mounted at `root`: the process's group of cgroup v1's
+/// `memory` controller where it has one, else its v2 group.
+#[cfg(any(target_os = "linux", test))]
+fn available_on_linux(meminfo: Option<&str>, groups: Option<&str>, root: &Path) -> Option<u64> {
+    use crate::cpuload::group_path;
+    let computer = meminfo.and_then(parse_meminfo).map(|(_, available)| available);
+    let group = groups.and_then(|groups| match group_path(groups, Some("memory")) {
+        Some(group) => group_room(&root.join("memory"), group, false),
+        None => group_room(root, group_path(groups, None)?, true),
+    });
+    computer.into_iter().chain(group).min()
+}
+
+/// A control group's memory limit this high is none: cgroup v1 says "no
+/// limit" with one just below 2^63.
+#[cfg(any(target_os = "linux", test))]
+const NO_LIMIT: u64 = 1 << 62;
+
+/// What the tightest memory limit of `group` (a path below `mount`) and the
+/// groups above it leaves, in bytes: the limit less what the group uses, the
+/// page cache it can drop not counted. cgroup v2: `memory.max` (`max` for
+/// none) less `memory.current` less `memory.stat`'s `inactive_file`; v1:
+/// `memory.limit_in_bytes` less `memory.usage_in_bytes` less
+/// `total_inactive_file`. `None` without a limit.
+#[cfg(any(target_os = "linux", test))]
+fn group_room(mount: &Path, group: &str, v2: bool) -> Option<u64> {
+    let (limit, usage, inactive) = if v2 {
+        ("memory.max", "memory.current", "inactive_file")
+    } else {
+        ("memory.limit_in_bytes", "memory.usage_in_bytes", "total_inactive_file")
+    };
+    let read = |dir: &Path, name: &str| std::fs::read_to_string(dir.join(name)).ok();
+    let room = crate::cpuload::tightest(mount, group, |dir| {
+        let limit = read(dir, limit)?.trim().parse::<u64>().ok().filter(|&limit| limit < NO_LIMIT)?;
+        let usage = read(dir, usage)?.trim().parse::<u64>().ok()?;
+        // The page cache of files not read lately, which the kernel drops
+        // before the group runs short (reading whole files fills it).
+        let droppable = read(dir, "memory.stat")
+            .and_then(|stat| {
+                stat.lines().find_map(|line| line.strip_prefix(inactive)?.strip_prefix(' ')?.trim().parse::<u64>().ok())
+            })
+            .unwrap_or(0);
+        Some(limit.saturating_sub(usage.saturating_sub(droppable)))
+    });
+    room.map(|(_, room)| room)
+}
+
 /// The process id in the name of a store's folder (`pley-transcoder-1234`).
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 fn owner_pid(name: &str) -> Option<u32> {
@@ -540,6 +619,83 @@ mod tests {
         assert_eq!(owner_pid("pley-transcoder-1234"), Some(1234));
         assert_eq!(owner_pid("pley-transcoder-x"), None);
         assert_eq!(owner_pid("pulse-shm-1"), None);
+    }
+
+    /// A control group's files in `dir`.
+    fn group(dir: &Path, files: &[(&str, String)]) {
+        std::fs::create_dir_all(dir).unwrap();
+        for (name, text) in files {
+            std::fs::write(dir.join(name), text).unwrap();
+        }
+    }
+
+    /// A cgroup v2 group's limit, use, and page cache it can drop.
+    fn v2(dir: &Path, max: &str, current: u64, inactive_file: u64) {
+        let stat = format!("anon 4096\nfile 8192\ninactive_anon 4096\ninactive_file {inactive_file}\n");
+        group(
+            dir,
+            &[("memory.max", format!("{max}\n")), ("memory.current", format!("{current}\n")), ("memory.stat", stat)],
+        );
+    }
+
+    #[test]
+    fn available_memory_counts_the_control_groups_limit() {
+        let root = tempfile::tempdir().unwrap();
+        let root = root.path();
+        // 4 GiB, of which 3.5 are used, 1 of that by files' pages it can drop.
+        v2(&root.join("a/b"), &(4 * GIB).to_string(), 3 * GIB + GIB / 2, GIB);
+        assert_eq!(group_room(root, "/a/b", true), Some(GIB + GIB / 2));
+        v2(&root.join("a/b"), "max", 3 * GIB, 0);
+        assert_eq!(group_room(root, "/a/b", true), None, "no limit");
+        // A group above tighter than its own wins.
+        v2(&root.join("a"), &(2 * GIB).to_string(), GIB + GIB / 2, 0);
+        v2(&root.join("a/b"), &(8 * GIB).to_string(), GIB, 0);
+        assert_eq!(group_room(root, "/a/b", true), Some(GIB / 2));
+        // A container's own group is its root, whatever the path.
+        v2(root, &(3 * GIB).to_string(), GIB, 0);
+        assert_eq!(group_room(root, "/docker/abc", true), Some(2 * GIB));
+
+        // cgroup v1: no limit is a number just below 2^63.
+        let v1 = root.join("memory");
+        let limits = |dir: &Path, limit: u64, usage: u64, inactive: u64| {
+            // The group's own and, with those below it, its total.
+            let stat = format!("cache 8192\ninactive_file 4096\ntotal_inactive_file {inactive}\n");
+            group(
+                dir,
+                &[
+                    ("memory.limit_in_bytes", format!("{limit}\n")),
+                    ("memory.usage_in_bytes", format!("{usage}\n")),
+                    ("memory.stat", stat),
+                ],
+            )
+        };
+        limits(&v1, 9_223_372_036_854_771_712, 10 * GIB, 0);
+        assert_eq!(group_room(&v1, "/", false), None);
+        limits(&v1.join("docker/abc"), 3 * GIB, 2 * GIB + GIB / 2, GIB);
+        assert_eq!(group_room(&v1, "/docker/abc", false), Some(GIB + GIB / 2));
+
+        // The computer's MemAvailable, or the group's room where that is less.
+        let meminfo =
+            |available: u64| format!("MemTotal: {} kB\nMemAvailable: {} kB\n", 64 * GIB / 1024, available / 1024);
+        let (ten, half) = (meminfo(10 * GIB), meminfo(GIB / 2));
+        v2(&root.join("c"), &(4 * GIB).to_string(), 3 * GIB, 0);
+        let in_v2 = Some("0::/c\n");
+        assert_eq!(available_on_linux(Some(&ten), in_v2, root), Some(GIB));
+        assert_eq!(available_on_linux(Some(&half), in_v2, root), Some(GIB / 2));
+        let in_v1 = Some("5:cpuacct,cpu:/docker/abc\n4:memory:/docker/abc\n0::/\n");
+        assert_eq!(available_on_linux(Some(&ten), in_v1, root), Some(GIB + GIB / 2));
+        assert_eq!(available_on_linux(Some(&ten), None, root), Some(10 * GIB), "no group known");
+        assert_eq!(available_on_linux(None, in_v2, root), Some(GIB), "no MemAvailable (kernels before 3.14)");
+        assert_eq!(available_on_linux(None, None, root), None);
+    }
+
+    #[test]
+    fn this_computers_memory_is_told_where_it_can_be() {
+        if cfg!(any(windows, target_os = "linux")) {
+            assert!(available().is_some_and(|bytes| bytes > 0), "{:?}", available());
+        } else {
+            assert_eq!(available(), None);
+        }
     }
 
     #[cfg(not(target_os = "linux"))]

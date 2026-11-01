@@ -187,6 +187,11 @@ pub struct Config {
     /// from: the internet, or nowhere in tests (which may also give fixed
     /// ones). pley's own apps are built in either way.
     pub client_documents: crate::oauth::fetch::Source,
+    /// How long seek previews' worker waits between its steps (tests shorten it).
+    pub trickplay_pace: crate::trickplay::Pace,
+    /// Where media files are read from, for seek previews: the system's
+    /// disks, or fixed ones in tests.
+    pub trickplay_disks: crate::disks::Source,
     /// The config file given, or `pley.toml` in the data directory: where
     /// the web app saves where pley listens (see [`crate::network`]).
     pub config_file: PathBuf,
@@ -249,6 +254,8 @@ impl Config {
             event_recheck: EVENT_RECHECK,
             extra_bind_retry: EXTRA_BIND_RETRY,
             client_documents: crate::oauth::fetch::Source::Internet,
+            trickplay_pace: crate::trickplay::Pace::default(),
+            trickplay_disks: crate::disks::Source::System,
             network_fixed: crate::network::Fixed {
                 web: cli.bind.is_some(),
                 plex: cli.plex_bind.is_some(),
@@ -288,6 +295,8 @@ impl Config {
             event_recheck: EVENT_RECHECK,
             extra_bind_retry: EXTRA_BIND_RETRY,
             client_documents: crate::oauth::fetch::Source::Off,
+            trickplay_pace: crate::trickplay::Pace::default(),
+            trickplay_disks: crate::disks::Source::System,
             config_file: data_dir.join("pley.toml"),
             network_fixed: crate::network::Fixed::default(),
         }

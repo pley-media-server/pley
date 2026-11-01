@@ -16,6 +16,7 @@ pub mod db;
 pub mod desktop;
 pub mod discover;
 pub mod discovery;
+pub mod disks;
 pub mod error;
 pub mod events;
 pub mod history;

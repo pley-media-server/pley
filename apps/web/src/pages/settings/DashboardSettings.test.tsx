@@ -95,4 +95,22 @@ describe("DashboardSettings library work", () => {
     await client.invalidateQueries({ queryKey: ["activity"] });
     expect(await screen.findByText("37 seasons left")).toBeInTheDocument();
   });
+
+  it("says how many files' previews are made at once", async () => {
+    let activity: Activity = {
+      scans: [],
+      sessions: [],
+      previews_pending: 12,
+      previews_running: 3,
+      library_work: { mode: "auto", waiting: null, resumes_at: null, learned: true },
+    };
+    mockApi({ "GET /api/activity": () => activity });
+    const { client } = renderWithProviders(<DashboardSettings />);
+    expect(await screen.findByText("12 files left · 3 at a time")).toBeInTheDocument();
+
+    // One at a time, or a server before it: as ever.
+    activity = { ...activity, previews_running: 1, library_work: { mode: "auto", waiting: "hours", resumes_at: null, learned: true } };
+    await client.invalidateQueries({ queryKey: ["activity"] });
+    expect(await screen.findByText("12 files left · what's likely to be watched soon first, the rest in quieter hours")).toBeInTheDocument();
+  });
 });

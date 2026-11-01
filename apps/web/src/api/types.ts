@@ -628,8 +628,10 @@ export interface Activity {
   analysis?: AnalysisStatus | null;
   /** Seasons waiting for intro/credits detection (admins only). Absent from servers before it. */
   seasons_pending?: number;
-  /** Files waiting for seek previews (admins only). */
+  /** Files waiting for seek previews, those being made included (admins only). */
   previews_pending?: number;
+  /** Files whose seek previews are being made now (admins only). Absent from servers before it. */
+  previews_running?: number;
   /** When what waits gets done, while some does (admins only). Absent from servers before it. */
   library_work?: LibraryWorkStatus | null;
 }

@@ -17,7 +17,7 @@ are only read, never moved or changed.
   metadata/blobs/       pictures that are metadata, named by their SHA-256
   media/ab/<fingerprint>/
     thumb.jpg           frame grab (movies and episodes without a still)
-    trickplay/          seek-bar previews (sprite sheets, index-sd.bif)
+    trickplay/          seek-bar previews (sprite sheets)
     chapters/<n>.jpg    chapter pictures, cut from the previews
   subtitles/<file_id>/  subtitles people added, as UTF-8 .srt/.vtt/.ass/.ssa
   avatars/              profile pictures
@@ -86,6 +86,7 @@ space used.
 | `cache/covers` | albums known to have no embedded cover | 30 days |
 | `cache/subtitles` | subtitles converted to WebVTT, picture subtitles copied into Matroska (`.mks`) | 90 days |
 | `cache/fingerprints` | audio fingerprints (intro and credits detection) | 90 days |
+| `cache/bif` | seek previews as Plex apps take them (BIF), cut from the previews when asked for | 30 days |
 | `cache/live/pictures` | Live TV channel logos and programme pictures | fetched again after 7 days; removed after 30 days unused, or oldest first past 256 MB |
 | `cache/live/downloads` | guide files being read | emptied at every start |
 | `cache/discover` | TMDB's pictures for Discover and requests, as `<size>/<file>` (TMDB's size and file name), with no database row | 30 days, or oldest first past 256 MB |

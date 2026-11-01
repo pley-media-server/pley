@@ -147,6 +147,9 @@ impl AppState {
             config.cache_dir().join("fingerprints"),
             stopping.clone(),
         );
+        // A transcoder elsewhere reads the files as its own mounts present
+        // them: they count as one storage.
+        let disks = Arc::new(crate::disks::Disks::new(config.trickplay_disks.clone(), !transcoder.is_managed()));
         let trickplay = TrickplayService::new(
             db.clone(),
             transcoder.clone(),
@@ -154,7 +157,9 @@ impl AppState {
             sessions.clone(),
             schedule.clone(),
             store.clone(),
-            config.cache_dir().join("trickplay"),
+            disks,
+            config.trickplay_pace,
+            config.cache_dir(),
             stopping.clone(),
         );
         let live =

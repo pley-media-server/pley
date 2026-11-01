@@ -96,6 +96,20 @@ impl CpuMeter {
     pub fn foreign(&self) -> Option<f64> {
         self.state.lock().1.and_then(|s| s.foreign)
     }
+
+    /// The cores the transcoder may use, as of the last look: the processors
+    /// it may run on, or its control group's CPU limit where that is lower.
+    /// `None` before a look, and where it can't look (macOS).
+    pub fn room(&self) -> Option<f64> {
+        self.state.lock().0.map(|t| t.limit.map_or(t.cpus, |l| l.cores.min(t.cpus)))
+    }
+
+    /// Its control group's CPU limit in cores, as of the last look, where
+    /// that leaves fewer than the processors it may run on: those FFmpeg
+    /// counts, which don't see the limit. Linux only.
+    pub fn quota(&self) -> Option<f64> {
+        self.state.lock().0.and_then(|t| t.limit.filter(|l| l.cores < t.cpus).map(|l| l.cores))
+    }
 }
 
 /// A bound on the processors' time the transcoder can have: the cores, the
@@ -322,7 +336,7 @@ fn limit() -> Option<Limit> {
 /// Where `/proc/self/cgroup` puts the process: its cgroup v1 group with
 /// `controller`, or its v2 group with `None`.
 #[cfg_attr(not(any(target_os = "linux", test)), allow(dead_code))]
-fn group_path<'a>(text: &'a str, controller: Option<&str>) -> Option<&'a str> {
+pub(crate) fn group_path<'a>(text: &'a str, controller: Option<&str>) -> Option<&'a str> {
     text.lines().find_map(|line| {
         let mut fields = line.splitn(3, ':');
         let (_, controllers, path) = (fields.next()?, fields.next()?, fields.next()?);
@@ -335,20 +349,24 @@ fn group_path<'a>(text: &'a str, controller: Option<&str>) -> Option<&'a str> {
 }
 
 /// Of `group` (a path below `mount`) and the groups above it, the one whose
-/// limit (`limit_of`, in cores) is the tightest. A container sees its own
-/// group at `mount`, whatever its path says.
+/// limit (`limit_of`: the cores, or the memory it leaves) is the tightest. A
+/// container sees its own group at `mount`, whatever its path says.
 #[cfg(any(target_os = "linux", test))]
-fn tightest(mount: &Path, group: &str, limit_of: impl Fn(&Path) -> Option<f64>) -> Option<(PathBuf, f64)> {
+pub(crate) fn tightest<T: PartialOrd>(
+    mount: &Path,
+    group: &str,
+    limit_of: impl Fn(&Path) -> Option<T>,
+) -> Option<(PathBuf, T)> {
     let mut dir = mount.join(group.trim_start_matches('/'));
     if !dir.is_dir() {
         dir = mount.to_path_buf();
     }
-    let mut found: Option<(PathBuf, f64)> = None;
+    let mut found: Option<(PathBuf, T)> = None;
     loop {
-        if let Some(cores) = limit_of(&dir)
-            && found.as_ref().is_none_or(|(_, tightest)| cores < *tightest)
+        if let Some(limit) = limit_of(&dir)
+            && found.as_ref().is_none_or(|(_, tightest)| limit < *tightest)
         {
-            found = Some((dir.clone(), cores));
+            found = Some((dir.clone(), limit));
         }
         if !dir.pop() || !dir.starts_with(mount) {
             return found;
@@ -529,6 +547,26 @@ mod tests {
     }
 
     #[test]
+    fn room_and_quota_come_from_the_last_look() {
+        let meter = CpuMeter::default();
+        assert_eq!((meter.room(), meter.quota()), (None, None), "before any look");
+        // 16 processors, and a control group's limit of `cores`.
+        let look = |cores: Option<f64>| Times {
+            busy: 0.0,
+            total: 0.0,
+            cpus: 16.0,
+            ours: None,
+            limit: cores.map(|cores| Limit { cores, used: 0.0, at: Instant::now() }),
+        };
+        meter.record(look(Some(2.0)));
+        assert_eq!((meter.room(), meter.quota()), (Some(2.0), Some(2.0)), "a container's --cpus=2");
+        meter.record(look(Some(32.0)));
+        assert_eq!((meter.room(), meter.quota()), (Some(16.0), None), "a limit the processors are within");
+        meter.record(look(None));
+        assert_eq!((meter.room(), meter.quota()), (Some(16.0), None));
+    }
+
+    #[test]
     fn this_computer_can_be_measured() {
         if cfg!(any(windows, target_os = "linux")) {
             let meter = CpuMeter::default();
@@ -536,6 +574,7 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(50));
             meter.sample();
             assert!(meter.busy().is_some_and(|b| (0.0..=1.0).contains(&b)));
+            assert!(meter.room().is_some_and(|room| room > 0.0), "{:?}", meter.room());
             let cores = f64::from(crate::util::processors());
             assert!(meter.foreign().is_none_or(|f| (0.0..=cores + 1.0).contains(&f)), "{:?}", meter.foreign());
         }

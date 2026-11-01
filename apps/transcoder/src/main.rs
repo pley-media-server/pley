@@ -98,6 +98,11 @@ struct Args {
     #[arg(long, default_value_t = 8)]
     probe_concurrency: usize,
 
+    /// Seek-preview sets made at once at most (default 5 where runs can be
+    /// paused, 1 elsewhere)
+    #[arg(long, env = "PLEY_TRANSCODER_MAX_PREVIEWS", value_parser = clap::value_parser!(u32).range(1..=16))]
+    max_previews: Option<u32>,
+
     /// Whether HDR transcodes may decode their video on the CPU where the
     /// GPU falls behind and the CPU has cores to spare
     #[arg(long, env = "PLEY_TRANSCODER_CPU_DECODE", value_enum, default_value_t = CpuDecode::Auto)]
@@ -422,8 +427,6 @@ async fn run(args: Args) -> anyhow::Result<()> {
         .with_background(background.clone()),
     );
     let fingerprinter = Arc::new(fingerprint::Fingerprinter::new(ff.clone(), background.clone(), 2));
-    let trickplay =
-        Arc::new(trickplay::Trickplay::new(ff.clone(), prober.clone(), background.clone(), work_dir.join("trickplay")));
     let limits = Limits { max_jobs: args.max_jobs.max(1), max_hw_jobs: args.max_hw_jobs };
     let jobs = job::JobManager::new(
         ff.clone(),
@@ -435,11 +438,22 @@ async fn run(args: Args) -> anyhow::Result<()> {
         shader_cache(&work_dir),
         Some(capabilities),
         limits.clone(),
-        background,
+        background.clone(),
     );
     if args.cpu_decode == CpuDecode::Never {
         jobs.never_decode_on_cpu();
     }
+    let runs = args.max_previews.unwrap_or_else(trickplay::default_runs);
+    tracing::info!("seek previews: up to {runs} at once");
+    // FFmpeg's threads fit a CPU limit the jobs' processors' meter finds.
+    let trickplay = Arc::new(trickplay::Trickplay::new(
+        ff.clone(),
+        prober.clone(),
+        background,
+        work_dir.join("trickplay"),
+        runs,
+        jobs.cpu(),
+    ));
     // Segments in memory, for jobs that ask, where this system has a folder in RAM.
     let memory = memory::MemoryStore::open();
     match &memory {
@@ -482,6 +496,8 @@ async fn run(args: Args) -> anyhow::Result<()> {
             hls_variants: true,
             live_bitrate: true,
             live: true,
+            trickplay_version: trickplay::VERSION,
+            trickplay_runs: runs,
             ..ff.caps.clone()
         },
         limits,

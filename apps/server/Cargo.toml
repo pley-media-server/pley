@@ -110,6 +110,9 @@ windows-sys = { version = "0.61", features = [
     # The processors' and memory's use, for the dashboard (src/resources.rs).
     "Win32_System_Diagnostics_ToolHelp",
     "Win32_System_IO",
+    # Which disks a volume is on, and whether they spin, for seek previews
+    # (src/disks.rs).
+    "Win32_System_Ioctl",
     "Win32_System_LibraryLoader",
     "Win32_System_ProcessStatus",
     "Win32_System_Registry",
