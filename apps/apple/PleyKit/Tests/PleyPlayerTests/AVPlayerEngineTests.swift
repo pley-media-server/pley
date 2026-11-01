@@ -46,6 +46,31 @@ struct AVPlayerEngineTests {
         #expect(gets.allSatisfy { $0.headers["authorization"] == nil })
     }
 
+    /// AVKit's Play pressed while an item loaded paused (after a quality
+    /// change while paused) is told once the item is ready.
+    @Test(.timeLimit(.minutes(1)))
+    func aPlayPressedWhileLoadingIsToldWhenReady() async throws {
+        let server = FixtureServer()
+        try await server.start()
+        defer { server.stop() }
+        server.addPlayable(.init(itemId: 7, fileId: 70, durationMs: 6_000, media: try await MediaMaker.mp4(seconds: 6)))
+        let api = api(server)
+        let info = try await api.startPlayback(PlaybackRequest(itemId: 7, keyedUrls: true))
+        let url = try await api.mediaURL(info.url)
+
+        let engine = AVPlayerEngine()
+        defer { engine.close() }
+        // The last item played: the player's rate is still set.
+        engine.player.play()
+        engine.load(url: url, startMs: 1_000, play: false)
+        #expect(engine.player.rate == 0)
+        engine.player.play()
+        var events = engine.events.makeAsyncIterator()
+        #expect(await events.next() == .ready)
+        #expect(await events.next() == .playRequested)
+        try await until("playing") { engine.sample().positionMs > 1_200 }
+    }
+
     @Test(.timeLimit(.minutes(1)))
     func aStoppedSessionsMediaFails() async throws {
         let server = FixtureServer()

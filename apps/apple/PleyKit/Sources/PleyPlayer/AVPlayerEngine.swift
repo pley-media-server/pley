@@ -33,6 +33,14 @@ public final class AVPlayerEngine: PlayerEngine {
     private var playerObservers: [any NSObjectProtocol] = []
     private var startMs = 0
     private var wantsPlay = false
+    /// What the controller last asked for or heard of: a play or pause
+    /// made in the system's controls while an item loads is told to it
+    /// once the item is ready.
+    private var controllerWants = false
+    /// Whether the player's rate was set when the item was loaded: only a
+    /// change from it while loading is a request (a notification of an
+    /// earlier change can still be on its way).
+    private var loadedPlaying = false
     private var ready = false
     private var hls = false
     private var frames = 0
@@ -64,6 +72,7 @@ public final class AVPlayerEngine: PlayerEngine {
         detach()
         self.startMs = max(startMs, 0)
         wantsPlay = play
+        controllerWants = play
         ready = false
         frames = 0
         stalled = false
@@ -108,16 +117,22 @@ public final class AVPlayerEngine: PlayerEngine {
                 Task { @MainActor in self?.selectionChanged() }
             },
         ]
+        // The player keeps its rate across items: one playing on to an item
+        // loaded paused would play it unasked.
+        if !play { player.pause() }
         player.replaceCurrentItem(with: item)
+        loadedPlaying = player.rate != 0
     }
 
     public func play() {
         wantsPlay = true
+        controllerWants = true
         if ready { player.play() }
     }
 
     public func pause() {
         wantsPlay = false
+        controllerWants = false
         player.pause()
     }
 
@@ -232,6 +247,7 @@ public final class AVPlayerEngine: PlayerEngine {
             await self?.readSelections(of: item)
             guard let self, self.item === item else { return }
             self.send(.ready)
+            if self.wantsPlay != self.controllerWants { self.requested(self.wantsPlay) }
         }
     }
 
@@ -262,12 +278,30 @@ public final class AVPlayerEngine: PlayerEngine {
     /// The rate changed. One the engine didn't ask for came from the
     /// system's controls (or an interruption): the controller hears of it.
     /// Stopping at the end and a failure don't count.
+    ///
+    /// While the item loads (after a quality change, a restart, the next
+    /// episode), AVKit's Play or Pause sets the rate AVPlayer starts at:
+    /// it is kept, and told once the item is ready, so the controller's
+    /// reports follow what plays.
     private func rateChanged() {
-        guard !closed, ready, let item, item.status == .readyToPlay, item.error == nil else { return }
+        guard !closed, let item, item.error == nil, item.status != .failed else { return }
         let playing = player.rate != 0
         if playing == wantsPlay { return }
+        guard ready else {
+            if playing != loadedPlaying {
+                wantsPlay = playing
+                loadedPlaying = playing
+            }
+            return
+        }
+        guard item.status == .readyToPlay else { return }
         if !playing, let end = Self.ms(item.duration), let at = Self.ms(item.currentTime()), at >= end - 500 { return }
         wantsPlay = playing
+        requested(playing)
+    }
+
+    private func requested(_ playing: Bool) {
+        controllerWants = playing
         send(playing ? .playRequested : .pauseRequested)
     }
 

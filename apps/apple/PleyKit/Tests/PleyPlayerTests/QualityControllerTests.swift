@@ -159,6 +159,33 @@ struct QualityControllerTests {
         #expect(rig.controller.state.videoOut == "H.264 1280×720")
     }
 
+    /// Paused, the quality changed, and Play pressed in the system's
+    /// controls while the new stream loaded: the engine tells it once
+    /// ready, and the new session's reports say playing.
+    @Test func aPlayPressedWhileTheNewStreamLoadsIsReported() async throws {
+        let rig = try await rig()
+        defer { rig.cleanUp() }
+        try await playing(rig)
+        run(rig, 4_000)
+        rig.controller.pause()
+        rig.engine.current.playing = false
+        rig.controller.selectQuality("4m")
+        try await until("the new stream") { rig.engine.loads.count == 2 }
+        #expect(rig.engine.loads.last?.play == false)
+        let new = try #require(rig.controller.session)
+        let plays = rig.engine.calls.filter { $0 == "play" }.count
+        rig.engine.emit(.ready)
+        rig.engine.emit(.playRequested)
+        try await until("played") { rig.engine.calls.filter { $0 == "play" }.count > plays }
+        rig.engine.playing(at: 4_000)
+        run(rig, 10_000)
+        #expect(rig.controller.state.phase == .playing)
+        await rig.reporter.flush()
+        let reports = await rig.reports().filter { $0.sessionId == new.id }
+        #expect(reports.last?.state == .playing)
+        #expect((reports.last?.positionMs ?? 0) > 4_000)
+    }
+
     @Test func aSecondChangeWhileTheFirstGetsReadyWins() async throws {
         let warmer = GateWarmer()
         let rig = try await rig(warmer: warmer)
