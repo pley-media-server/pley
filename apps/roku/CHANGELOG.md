@@ -53,6 +53,9 @@ describes how they are made.
   10 minutes, the music stops.
 - An album of several discs lists its tracks under Disc 1, Disc 2 and so
   on, as the other apps do.
+- A library sorted by title has an A to Z beside its grid: Up and Down pick
+  a letter (those no title starts with are dimmed) and OK goes to its first
+  title, however far down.
 
 ### Fixed
 

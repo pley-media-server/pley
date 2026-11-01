@@ -25,4 +25,5 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Transfer.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/AutoQuality.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Live.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Library.brs" />
 </component>

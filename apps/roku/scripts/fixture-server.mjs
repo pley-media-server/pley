@@ -88,12 +88,19 @@ function qrPicture(text) {
 
 const state = (position_ms = 0, watched = false) => ({ position_ms, watched, play_count: watched ? 1 : 0 });
 
-const movies = Array.from({ length: 150 }, (_, i) => ({
+// The movies' first words, seven movies each, in the order of their
+// titles: under "#" and most letters (one with an accent, under E), none
+// under Q, X or Z. Three pages of the app's 70; W's first is on the third.
+const WORDS = [
+  "2001", "Amber", "Birch", "Cedar", "Dune", "Écho", "Falcon", "Granite", "Harbor", "Iron", "Juniper", "Kestrel", "Lantern",
+  "Meadow", "North", "Orchid", "Pine", "Raven", "Silver", "Tide", "Umber", "Violet", "Willow", "Yarrow", "Yonder",
+];
+const movies = Array.from({ length: WORDS.length * 7 }, (_, i) => ({
   id: 1000 + i,
   library_id: 1,
   kind: "movie",
-  title: `Movie ${String(i + 1).padStart(3, "0")}`,
-  sort_title: `Movie ${String(i + 1).padStart(3, "0")}`,
+  title: `${WORDS[Math.floor(i / 7)]} Movie ${String(i + 1).padStart(3, "0")}`,
+  sort_title: `${WORDS[Math.floor(i / 7)]} Movie ${String(i + 1).padStart(3, "0")}`,
   year: 1990 + (i % 30),
   duration_ms: 6000000 + i * 1000,
   added_at: 1700000000 + i,
@@ -482,7 +489,13 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     }
     if ((match = path.match(/^\/api\/libraries\/(\d+)\/filters$/))) return json(200, { genres: ["Drama", "Mystery"], years: [2022, 2019] });
     if ((match = path.match(/^\/api\/libraries\/(\d+)\/items$/))) {
-      const listed = match[1] === "1" ? movies : match[1] === "2" ? [show] : [artist];
+      let listed = match[1] === "1" ? movies : match[1] === "2" ? [show] : [artist];
+      // By title, as the server sorts (accents with their letter); other
+      // sorts as listed.
+      if ((url.searchParams.get("sort") ?? "title") === "title") {
+        listed = [...listed].sort((a, b) => a.sort_title.localeCompare(b.sort_title, "en", { sensitivity: "base" }));
+        if (url.searchParams.get("order") === "desc") listed.reverse();
+      }
       const offset = Number(url.searchParams.get("offset") ?? 0);
       const limit = Number(url.searchParams.get("limit") ?? 50);
       return json(200, { total: listed.length, items: listed.slice(offset, offset + limit) });

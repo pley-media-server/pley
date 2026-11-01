@@ -2,9 +2,10 @@
 // a fake pley server on 127.0.0.1 (scripts/fixture-server.mjs), and walks
 // it with the remote: sign in with the TV code and its QR code on a server
 // that requires two-step sign-in, Home, a
-// title's details, the player, the Options key, a library's grid and its
-// next page, collections played (movies and a smart one of shows), a
-// show's page, its episodes and a person's page, Live TV (its
+// title's details, the player, the Options key, a library's grid, its A to
+// Z and the pages a jump passes over, collections played (movies and a
+// smart one of shows), a show's page, its episodes and a person's page,
+// Live TV (its
 // guide, a channel watched, the next one, the channel list, a favourite,
 // every connection in use, the Channels tab), Search, Discover (a movie
 // asked for, a show's seasons picked), the managers' Requests (Approve, a
@@ -171,6 +172,20 @@ function sleepButtonLong() {
   return false;
 }
 
+// The A to Z's mark on a letter (LibraryScreen.xml's column from 1812, 212,
+// 30 pixels a letter), left of the letter: the accent while the letters have
+// the focus, else the lighter ground behind the letter of the title the
+// grid's focus is on.
+function letterMarked(index, focused) {
+  if (!frame) return false;
+  const x = Math.round(1815 * (frame.width / 1920));
+  const y = Math.round((212 + index * 30 + 15) * (frame.height / 1080));
+  const at = (y * frame.width + x) * 4;
+  const [r, g, b] = [frame.data[at], frame.data[at + 1], frame.data[at + 2]];
+  if (focused) return r < 120 && g > 150 && b > 200;
+  return Math.abs(r - 0x2e) < 8 && Math.abs(g - 0x34) < 8 && Math.abs(b - 0x40) < 8;
+}
+
 async function drawnWithin(ms, test) {
   const until = Date.now() + ms;
   while (Date.now() < until) {
@@ -330,6 +345,8 @@ async function playedBy(what) {
   await waitFor(/^POST \/api\/playback$/, since, what);
   return fixture.playbacks[before]?.item ?? null;
 }
+// The A to Z showed with W in focus, and the grid went to a W title.
+const library = { letters: false, jumped: false };
 
 async function walk() {
   // A cold start of brs-node can take a while.
@@ -487,12 +504,28 @@ async function walk() {
   await press("down"); // the categories
   await press("back"); // Home
   await settle();
-  await openFromMenu(2, /^GET \/api\/libraries\/1\/items\?.*offset=0/, "Movies");
-  shoot("library");
-  // Down until the next page is asked for: two rows before the first one ends.
   since = mark();
-  for (let i = 0; i < 20 && !seen(/^GET \/api\/libraries\/1\/items\?.*offset=70/, since); i++) await press("down");
-  await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=70/, since, "the next page");
+  await openFromMenu(2, /^GET \/api\/libraries\/1\/items\?.*offset=0/, "Movies");
+  // Sorted by title: the A to Z, once every title's letter came, right of
+  // the grid's last column (a right press more than needed, which the
+  // letters take). Down from "#" to W, whose first title is on the third
+  // page: OK asks for that page and the grid goes there.
+  await waitFor(/^GET \/api\/libraries\/1\/items\?.*limit=1000/, since, "the library's letters");
+  shoot("library");
+  await press("right", 8);
+  await press("down", 23);
+  library.letters = await drawnWithin(2500, () => letterMarked(23, true));
+  shoot("library-letters");
+  since = mark();
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=140/, since, "the page of the letter jumped to");
+  // brs-node takes seconds to hand a task's ContentNodes over.
+  library.jumped = await drawnWithin(20000, () => letterMarked(23, false));
+  shoot("library-jumped");
+  // Up from there: the page before, skipped by the jump, comes.
+  since = mark();
+  for (let i = 0; i < 4 && !seen(/^GET \/api\/libraries\/1\/items\?.*offset=70/, since); i++) await press("up");
+  await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=70/, since, "the page before");
   shoot("library-scrolled");
   await press("back");
   await openFromMenu(3, /^GET \/api\/libraries\/2\/items/, "TV Shows");
@@ -1031,6 +1064,11 @@ const checks = [
   ["closed the session it played", fixture.closed.length > 1],
   ["reported where it stopped", fixture.progress.some((p) => p.state === "stopped" && p.session_id)],
   ["loaded a library's next page", asked(/^GET \/api\/libraries\/1\/items\?.*offset=70/)],
+  ["showed the A to Z beside a library sorted by title, W in focus", library.letters],
+  [
+    "jumped to W's first title, its page loaded before the one between",
+    library.jumped && fixture.requests.findIndex((r) => /^\/api\/libraries\/1\/items\?.*offset=140/.test(r.path)) < fixture.requests.findIndex((r) => /^\/api\/libraries\/1\/items\?.*offset=70/.test(r.path)),
+  ],
   ["came back to Home asking again only for rows a minute old", home.kept],
   ["loaded a season's episodes", asked(/^GET \/api\/items\/100\/children$/)],
   ["showed a library's Recommended and Collections tabs", asked(/^GET \/api\/libraries\/2\/hubs$/) && asked(/^GET \/api\/libraries\/2\/collections$/)],

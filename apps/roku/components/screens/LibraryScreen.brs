@@ -1,9 +1,9 @@
 ' A library as the web app shows it: Recommended (GET
 ' /api/libraries/{id}/hubs, as rows), Library (GET …/items a page at a time,
-' sorted and filtered as the chips at the right say) and Collections (GET
-' …/collections). The tab, sort and filters it was left on are kept on the
-' Roku for each server, profile and library (lib/Library.brs), and it
-' opens on them again.
+' sorted and filtered as the chips at the right say, with the A to Z beside
+' it when sorted by title) and Collections (GET …/collections). The tab,
+' sort and filters it was left on are kept on the Roku for each server,
+' profile and library (lib/Library.brs), and it opens on them again.
 
 sub init()
     m.title = m.top.findNode("title")
@@ -11,6 +11,8 @@ sub init()
     m.tabs = m.top.findNode("tabs")
     m.viewChips = m.top.findNode("view")
     m.grid = m.top.findNode("grid")
+    m.letters = m.top.findNode("letters")
+    m.jumpTimer = m.top.findNode("jumpTimer")
     m.rows = m.top.findNode("rows")
     m.message = m.top.findNode("message")
     m.panel = m.top.findNode("panel")
@@ -23,13 +25,18 @@ sub init()
     m.view = libDefaultView()
     m.viewKey = ""
     m.tabList = []
-    ' The Library tab's titles: listed so far (the next page's offset), in
-    ' all, and which listing (sort and filters) the answers must be for.
+    ' The Library tab's titles: their places so far (empty frames where a
+    ' page hasn't come), how many in all, the pages asked for ({ "3": true
+    ' }), and which listing (sort and filters) the answers must be for.
     m.content = CreateObject("roSGNode", "ContentNode")
-    m.offset = 0
     m.total = -1
-    m.loading = false
+    m.pages = {}
     m.listing = 0
+    ' Its A to Z (lib/Library.brs): invalid until every title's letter
+    ' came; the one being made; and the place a jump waits for.
+    m.alpha = invalid
+    m.alphaMaking = invalid
+    m.jumpTo = -1
     ' The other tabs, once loaded (invalid until then).
     m.collections = invalid
     m.recommended = invalid
@@ -47,6 +54,8 @@ sub init()
     m.viewChips.observeField("chosen", "onViewChosen")
     m.grid.observeField("itemSelected", "onSelected")
     m.grid.observeField("itemFocused", "onFocused")
+    m.letters.observeField("chosen", "onLetter")
+    m.jumpTimer.observeField("fire", "onJumpDue")
     m.rows.observeField("rowItemSelected", "onRowTile")
     m.choices.observeField("itemSelected", "onChoice")
     m.menu.observeField("itemSelected", "onMenu")
@@ -62,6 +71,7 @@ sub onActive()
         m.lastFocus = m.tabs
         if m.viewChips.isInFocusChain() then m.lastFocus = m.viewChips
         if m.grid.isInFocusChain() then m.lastFocus = m.grid
+        if m.letters.isInFocusChain() then m.lastFocus = m.letters
         if m.rows.isInFocusChain() then m.lastFocus = m.rows
         return
     end if
@@ -84,6 +94,7 @@ sub onActive()
             chips.Push({ label: libTabLabel(shownTab), width: 270 })
         end for
         m.tabs.chips = chips
+        m.letters.letters = libLetters()
         m.tabs.setFocus(true)
         showViewChips()
         showTab(m.view.tab)
@@ -134,15 +145,16 @@ sub showTab(wanted as string)
         end if
     end for
     m.viewChips.visible = wanted = "library"
-    if m.grid.isInFocusChain() or m.rows.isInFocusChain() then m.tabs.setFocus(true)
+    if m.grid.isInFocusChain() or m.rows.isInFocusChain() or m.letters.isInFocusChain() then m.tabs.setFocus(true)
     m.grid.visible = false
     m.rows.visible = false
+    showLetters()
     if wanted = "library"
         m.grid.content = m.content
         if m.content.getChildCount() > 0
             showContent()
         else
-            loadMore()
+            loadPage(0)
         end if
     else if wanted = "collections"
         if m.collections = invalid
@@ -183,6 +195,7 @@ sub showContent()
     m.message.visible = false
     m.rows.visible = shownTab = "recommended"
     m.grid.visible = shownTab <> "recommended"
+    showLetters()
     if m.focusContent and m.top.isInFocusChain() and not m.panel.visible
         m.focusContent = false
         focusContent()
@@ -192,6 +205,7 @@ end sub
 sub showMessage(text as string)
     m.grid.visible = false
     m.rows.visible = false
+    showLetters()
     m.message.text = text
     m.message.visible = true
     if not m.panel.visible and m.top.isInFocusChain() and not m.viewChips.isInFocusChain() then m.tabs.setFocus(true)
@@ -259,38 +273,93 @@ end sub
 
 ' --- The Library tab ---
 
-' A page of posters; the task makes their ContentNodes.
-sub loadMore()
-    if m.loading or (m.total >= 0 and m.offset >= m.total) then return
-    m.loading = true
-    if m.content.getChildCount() = 0 then showMessage("Loading…")
-    query = libQuery(m.view, m.offset, pageSize())
-    uiRequest({ method: "GET", path: urlWithQuery("/api/libraries/" + urlValue(m.library.id) + "/items", query), build: "tiles", listing: m.listing }, "onPage")
+' A page of posters, by its number; the task makes their ContentNodes, and
+' empty frames before them for the places between the last title here and
+' the page (a jump far down).
+sub loadPage(page as integer)
+    at = page * pageSize()
+    if page < 0 or m.pages.DoesExist(page.ToStr()) or (m.total >= 0 and at >= m.total) then return
+    m.pages[page.ToStr()] = true
+    count = m.content.getChildCount()
+    if count = 0 then showMessage("Loading…")
+    pad = at - count
+    if pad < 0 then pad = 0
+    query = libQuery(m.view, at, pageSize())
+    uiRequest({ method: "GET", path: urlWithQuery("/api/libraries/" + urlValue(m.library.id) + "/items", query), build: "tiles", pad: pad, listing: m.listing, page: page }, "onPage")
 end sub
 
 sub onPage(event as object)
-    if event.getRoSGNode().spec.listing <> m.listing then return
-    m.loading = false
+    request = event.getRoSGNode()
+    spec = request.spec
+    if spec.listing <> m.listing then return
     answer = event.getData()
     if not answer.ok
+        ' Asked again when the focus comes near it.
+        m.pages.Delete(spec.page.ToStr())
         if m.content.getChildCount() = 0 and not uiFailed(answer) and m.view.tab = "library" then showMessage(answer.message)
         return
     end if
     page = answer.data
+    at = spec.page * pageSize()
     m.total = page.total
-    m.offset = m.offset + page.listed
+    nodes = []
+    if request.content <> invalid then nodes = request.content.getChildren(-1, 0)
+    place(at, nodes, spec.pad)
     ' An empty page ends the listing, whatever the total said.
-    if page.listed = 0 then m.total = m.offset
-    tiles = event.getRoSGNode().content
-    if tiles <> invalid and tiles.getChildCount() > 0 then m.content.appendChildren(tiles.getChildren(-1, 0))
+    if page.listed = 0 then m.total = at
+    count = m.content.getChildCount()
+    if m.total >= 0 and count > m.total then m.content.removeChildrenIndex(count - m.total, m.total)
+    askLetters()
+    ' A jump waited for this page.
+    if m.jumpTo >= 0 and m.jumpTo < m.content.getChildCount() then m.jumpTimer.control = "start"
     if m.view.tab <> "library" then return
     showCount()
     showContent()
 end sub
 
-' Two rows before the end, the next page comes.
+' A page's tiles at at, after their empty frames (the first pad of nodes):
+' the frames fill the places between the last title here and the page,
+' less those another page made meanwhile; the tiles take the frames'
+' places, or come after the rest.
+sub place(at as integer, nodes as object, pad as integer)
+    count = m.content.getChildCount()
+    gap = at - count
+    if gap > 0
+        if gap > pad then nodesAppend(m.content, contentPlaceholders(gap - pad))
+        frames = []
+        for i = pad - gap to pad - 1
+            if i >= 0 then frames.Push(nodes[i])
+        end for
+        if frames.Count() > 0 then m.content.appendChildren(frames)
+        count = at
+    end if
+    over = []
+    after = []
+    for i = pad to nodes.Count() - 1
+        if at + i - pad < count
+            over.Push(nodes[i])
+        else
+            after.Push(nodes[i])
+        end if
+    end for
+    if over.Count() > 0 then m.content.replaceChildren(over, at)
+    if after.Count() > 0 then m.content.appendChildren(after)
+end sub
+
+' The pages near the focus come, and the A to Z follows it.
 sub onFocused(event as object)
-    if m.view.tab = "library" and event.getData() >= m.content.getChildCount() - 14 then loadMore()
+    if m.view.tab <> "library" then return
+    near(event.getData())
+    if m.alpha <> invalid then m.letters.current = libAlphaLetterAt(m.alpha, event.getData())
+end sub
+
+' Two rows before a page's end, the next page comes; two rows into a page
+' (after a jump), the one before.
+sub near(index as integer)
+    page = Int(index / pageSize())
+    loadPage(page)
+    if index - page * pageSize() < 14 then loadPage(page - 1)
+    if (page + 1) * pageSize() - index <= 14 then loadPage(page + 1)
 end sub
 
 sub onSelected(event as object)
@@ -316,17 +385,96 @@ sub showViewChips()
     m.viewChips.translation = [1824 - sortWidth - 16 - filterWidth, 132]
 end sub
 
-' A new sort or filters: the Roku keeps them, and the titles come again.
+' A new sort or filters: the Roku keeps them, and the titles come again,
+' with their A to Z.
 sub applyView()
     libSaveView(viewSection(), m.viewKey, m.view)
     showViewChips()
     m.listing = m.listing + 1
     m.content = CreateObject("roSGNode", "ContentNode")
     m.grid.content = m.content
-    m.offset = 0
     m.total = -1
-    m.loading = false
-    loadMore()
+    m.pages = {}
+    m.alpha = invalid
+    m.alphaMaking = invalid
+    m.jumpTo = -1
+    showLetters()
+    loadPage(0)
+end sub
+
+' --- The A to Z ---
+
+' Sorted by title with more than 30 titles, the listing's letters come in
+' pages of a thousand, once the first page said how many there are.
+sub askLetters()
+    if m.alpha <> invalid or m.alphaMaking <> invalid or not libShowsJump(m.view, m.total) then return
+    m.alphaMaking = libAlphaNew()
+    loadLetters()
+end sub
+
+sub loadLetters()
+    query = libQuery(m.view, m.alphaMaking.count, 1000)
+    uiRequest({ method: "GET", path: urlWithQuery("/api/libraries/" + urlValue(m.library.id) + "/items", query), build: "letters", listing: m.listing }, "onLetters")
+end sub
+
+' Without an answer, this listing has no A to Z.
+sub onLetters(event as object)
+    if event.getRoSGNode().spec.listing <> m.listing or m.alphaMaking = invalid then return
+    answer = event.getData()
+    if not answer.ok then return
+    page = answer.data
+    libAlphaAdd(m.alphaMaking, page.runs, page.listed)
+    if page.listed > 0 and m.alphaMaking.count < page.total
+        loadLetters()
+        return
+    end if
+    m.alpha = m.alphaMaking
+    has = []
+    for i = 0 to 26
+        has.Push(libAlphaHas(m.alpha, i))
+    end for
+    m.letters.has = has
+    m.letters.current = libAlphaLetterAt(m.alpha, m.grid.itemFocused)
+    showLetters()
+end sub
+
+' Beside the Library tab's grid while it shows, once its letters came.
+sub showLetters()
+    shown = m.alpha <> invalid and m.view.tab = "library" and m.grid.visible
+    if not shown and m.letters.isInFocusChain()
+        if m.grid.visible
+            m.grid.setFocus(true)
+        else
+            m.tabs.setFocus(true)
+        end if
+    end if
+    m.letters.visible = shown
+end sub
+
+' OK on a letter: the grid at its first title (lib/Library.brs's
+' libAlphaJump), once that title's page is here.
+sub onLetter(event as object)
+    if m.alpha = invalid then return
+    target = libAlphaJump(m.alpha, event.getData())
+    if target < m.content.getChildCount()
+        jumpTo(target)
+    else
+        m.jumpTo = target
+        loadPage(Int(target / pageSize()))
+    end if
+end sub
+
+' The page a jump waited for came: the grid goes there, unless the focus
+' left the letters meanwhile.
+sub onJumpDue()
+    if m.jumpTo >= 0 and m.letters.isInFocusChain() then jumpTo(m.jumpTo)
+    m.jumpTo = -1
+end sub
+
+sub jumpTo(position as integer)
+    m.grid.jumpToItem = position
+    m.grid.setFocus(true)
+    near(position)
 end sub
 
 ' --- The sort's and the filters' panel ---
@@ -495,8 +643,10 @@ sub closePanel()
     m.viewChips.setFocus(true)
 end sub
 
-' Down from the chips goes to the titles, up from their top row back;
-' right from the last tab reaches the sort and filters. Back closes the
+' Down from the chips goes to the titles, up from their top row (or the
+' A to Z's first letter) back; right from the last tab reaches the sort
+' and filters, and from the grid's last column the A to Z, at the letter
+' of the title it leaves, which Left goes back to. Back closes the
 ' panel (a filter's choices go back to the filters). The Options key on a
 ' title offers what can be done with it.
 function onKeyEvent(key as string, press as boolean) as boolean
@@ -517,8 +667,17 @@ function onKeyEvent(key as string, press as boolean) as boolean
         focusContent()
         return true
     end if
-    if key = "up" and (m.grid.isInFocusChain() or m.rows.isInFocusChain())
+    if key = "up" and (m.grid.isInFocusChain() or m.rows.isInFocusChain() or m.letters.isInFocusChain())
         m.tabs.setFocus(true)
+        return true
+    end if
+    if key = "right" and m.grid.isInFocusChain() and m.letters.visible
+        m.letters.focusIndex = m.letters.current
+        m.letters.setFocus(true)
+        return true
+    end if
+    if key = "left" and m.letters.isInFocusChain()
+        m.grid.setFocus(true)
         return true
     end if
     if key = "right" and m.tabs.isInFocusChain() and m.viewChips.visible

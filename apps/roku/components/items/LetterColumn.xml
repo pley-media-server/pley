@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The A to Z beside a library's grid sorted by title: "#" then A to Z
+     down its right. Letters no title starts with are dimmed, and the
+     letter of the title in focus in the grid stands out. With the focus,
+     Up and Down pick a letter (Up from the first leaves it) and OK chooses
+     it. -->
+<component name="LetterColumn" extends="Group">
+    <interface>
+        <!-- The letters, top to bottom (lib/Library.brs's libLetters). -->
+        <field id="letters" type="array" onChange="onLetters" />
+        <!-- For each letter, whether a title starts with it. -->
+        <field id="has" type="array" onChange="onLook" />
+        <!-- The letter of the title in focus in the grid. -->
+        <field id="current" type="integer" value="0" onChange="onLook" />
+        <field id="focusIndex" type="integer" value="0" onChange="onLook" />
+        <!-- The letter OK was pressed on. -->
+        <field id="chosen" type="integer" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/items/LetterColumn.brs" />
+    <children>
+        <!-- Behind the letter in focus, or the grid's while the focus is
+             elsewhere. -->
+        <Rectangle id="mark" width="40" height="30" color="0x2E3440FF" />
+    </children>
+</component>

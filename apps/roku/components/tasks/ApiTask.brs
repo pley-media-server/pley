@@ -158,15 +158,17 @@ function apiForm(job as object, params as object) as object
 end function
 
 ' A request of the screens: { method, path, query, json, jsonText, auth,
-' timeoutMs, build, known, manage }, to the current server, with the token
-' unless auth is false. jsonText is a body made into JSON on the render
-' thread, for one with nulls (a field's associative array may not keep
-' invalid). build ("rows", "tiles", "seasons", "episodes") makes the
+' timeoutMs, build, known, manage, pad }, to the current server, with the
+' token unless auth is false. jsonText is a body made into JSON on the
+' render thread, for one with nulls (a field's associative array may not
+' keep invalid). build ("rows", "tiles", "seasons", "episodes") makes the
 ' answer's list into ContentNodes here, off the render thread (apiBuild);
 ' for "rows", known holds the signatures of the rows Home shows, which
 ' aren't built again, and for "discoverTiles" the titles shown already
 ' ({ "movie:603": true }). manage: the requests are a manager's, who sees
-' why one failed.
+' why one failed. pad: for "tiles", empty frames to put before the titles
+' (a library's grid, where the titles before a page jumped to haven't
+' come).
 sub apiCall(request as object, spec as object)
     if m.server = ""
         apiAnswer(request, apiFail("no_server", "Choose a server first."))
@@ -179,6 +181,7 @@ sub apiCall(request as object, spec as object)
     job.build = httpString(spec.build)
     job.known = spec.known
     job.manage = httpTrue(spec.manage)
+    job.pad = Int(httpNumber(spec.pad, 0))
     job.play = httpTrue(spec.play)
     job.auth = true
     if GetInterface(spec.auth, "ifBoolean") <> invalid then job.auth = spec.auth
@@ -404,11 +407,17 @@ sub apiBuild(job as object, answer as object)
         for each person in httpArray(data.people)
             if GetInterface(person, "ifAssociativeArray") <> invalid and httpNumber(person.id, 0) > 0 then tiles.Push(pagePersonTile(person, server, ""))
         end for
-        job.request.content = nodesContent(tiles)
+        job.request.content = nodesContent(contentPlaceholders(job.pad))
+        nodesAppend(job.request.content, tiles)
         ' listed: the page's items (the next page's offset), shown or not.
         ' Search: the Live TV channels found too (12 at most), for a row of
         ' their own.
         answer.data = { total: httpNumber(data.total, -1), listed: items.Count(), shown: tiles.Count(), channels: liveChannels(data.channels, server) }
+    else if job.build = "letters"
+        ' A page of a library sorted by title, for its A to Z: where each
+        ' letter's titles start, and no ContentNodes.
+        items = httpArray(data.items)
+        answer.data = { total: httpNumber(data.total, -1), listed: items.Count(), runs: libLetterRuns(items) }
     else if job.build = "detail"
         ' The rows that come with a title's details; the details stay.
         rows = pageDetailRows(data, server)
