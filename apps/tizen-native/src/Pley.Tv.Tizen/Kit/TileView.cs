@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Pley.Tv.Core.Ui;
 using Tizen.NUI;
@@ -141,20 +142,33 @@ sealed class TileView : View
     void Fill(TileModel model)
     {
         Model = model;
-        shown++;
-        pictureAsked = false;
-        picture.Opacity = 0;
-        picture.ResourceUrl = "";
-        // A person's circle is Surface2, as on Android (the gradient is for a title, which it has
-        // none of): the TV's gradient visual stays square whatever its corner radius, and drew a
-        // dark square behind each round picture. A colour takes the well's.
-        if (kind.Round) well.BackgroundColor = PleyColors.Surface2;
+        var key = PictureKey(model);
+        // The same picture, shown: it stays, as the page draws the tile again with new data (back
+        // from a film, a resume point moved).
+        if (key != null && key == shownKey)
+        {
+            pictureAsked = true;
+        }
         else
         {
-            var (from, to) = Placeholder.Colors(model.Title);
-            well.Background = Gradients.Diagonal(AvatarView.Rgb(from), AvatarView.Rgb(to));
+            shown++;
+            shownKey = null;
+            pictureAsked = false;
+            picture.Opacity = 0;
+            picture.ResourceUrl = "";
+            // A picture shown before comes back at once: no title and gradient under it to flash by.
+            // A person's circle is Surface2, as on Android (the gradient is for a title, which it has
+            // none of): the TV's gradient visual stays square whatever its corner radius, and drew a
+            // dark square behind each round picture. A colour takes the well's.
+            var known = key != null && Seen.Contains(key);
+            if (kind.Round || known) well.BackgroundColor = PleyColors.Surface2;
+            else
+            {
+                var (from, to) = Placeholder.Colors(model.Title);
+                well.Background = Gradients.Diagonal(AvatarView.Rgb(from), AvatarView.Rgb(to));
+            }
+            if (placeholder != null) placeholder.Text = known ? "" : model.Title;
         }
-        if (placeholder != null) placeholder.Text = model.Title;
         foreach (var child in overlays.Children.ToList())
         {
             overlays.Remove(child);
@@ -165,6 +179,20 @@ sealed class TileView : View
         title.Text = Text.Fit(titleText, PleyType.Caption with { Weight = focus.Focused ? PleyType.Bold : PleyType.Caption.Weight }, kind.Width);
         subtitle.Text = Text.Fit(model.Subtitle, PleyType.Caption, kind.Width);
     }
+
+    /// <summary>The pictures this app has shown, by their addresses: shown again, they come at once.</summary>
+    static readonly HashSet<string> Seen = new HashSet<string>();
+
+    /// <summary>Emptied when it grows this large.</summary>
+    const int SeenMost = 5000;
+
+    /// <summary>The picture's fade in, while it runs.</summary>
+    Animation? fadeIn;
+
+    /// <summary>The picture shown now, by its addresses; null while none is.</summary>
+    string? shownKey;
+
+    static string? PictureKey(TileModel model) => model.Images.Count == 0 ? null : string.Join("|", model.Images);
 
     /// <summary>Asks for the picture once the tile is near the screen; it fades in over the placeholder.</summary>
     public void LoadPicture()
@@ -178,7 +206,24 @@ sealed class TileView : View
             // Gone, or showing another tile by now.
             if (file == null || Disposed || mine != shown) return;
             picture.ResourceUrl = file;
-            var fade = new Animation(PleyMotion.ImageFadeMs);
+            var key = PictureKey(Model);
+            shownKey = key;
+            if (key != null && Seen.Contains(key))
+            {
+                // Shown before: at once, not faded in again.
+                picture.Opacity = 1;
+                well.BackgroundColor = PleyColors.Surface2;
+                if (placeholder != null) placeholder.Text = "";
+                return;
+            }
+            if (key != null)
+            {
+                if (Seen.Count >= SeenMost) Seen.Clear();
+                Seen.Add(key);
+            }
+            // Held while it runs, as the player's timers are: held by nothing, it could be collected mid-fade.
+            fadeIn?.Stop();
+            var fade = fadeIn = new Animation(PleyMotion.ImageFadeMs);
             fade.AnimateTo(picture, "Opacity", 1f);
             // Once the picture is in, the well under it is Surface2, as on Android: a picture that
             // doesn't cover the box (a logo with clear parts) shows no gradient through it.

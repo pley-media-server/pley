@@ -180,3 +180,5 @@ It has no releases yet: it is built and installed by hand
 - Back in the native app's Live TV guide goes to the categories, then the
   rail, rather than straight to the rail.
 - The native app's "Exit Pley?" is a narrower dialog.
+- Coming back from a film in the native app, posters already shown stay
+  as they were rather than flashing to their titles and fading in again.
