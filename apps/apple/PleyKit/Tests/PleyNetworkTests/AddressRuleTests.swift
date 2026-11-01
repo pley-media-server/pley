@@ -33,6 +33,12 @@ import Testing
 }
 
 @Suite struct ConnectionGateTests {
+    @Test func plainHttpUsesNoProxy() throws {
+        // An empty dictionary turns the system's proxies off; nil would use them.
+        let proxies = try #require(transport().plainHTTPProxies)
+        #expect(proxies.isEmpty)
+    }
+
     @Test func aNameOnTheInternetIsRefusedBeforeAnythingIsSent() async throws {
         let server = try await fixture()
         defer { server.stop() }

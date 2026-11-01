@@ -444,7 +444,9 @@ Pley for iPhone, iPad, Mac and Apple TV (in development).
   and every address it has must be private, or nothing is sent; after the
   request, the address the connection reached must be private too. A
   sign-in whose request reached any other address is ended on the device.
-  A server on the internet needs HTTPS.
+  A server on the internet needs HTTPS. Plain HTTP goes straight to the
+  server, never through the system's proxy settings, so a token can't
+  reach a proxy before the address is checked.
 - Only the system's certificate authorities are trusted.
 - The app registers no URL scheme: the sign-in sheet catches its return
   address itself, so no other app or page can open it with one.

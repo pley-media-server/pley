@@ -12,7 +12,9 @@ import PleyCommon
 /// (from the task's metrics). An answer from anywhere else is thrown away.
 /// App Transport Security already lets plain http reach only IP addresses,
 /// names without dots and `.local` names, which narrows the gap between
-/// the two checks to a name whose lookup changes in between.
+/// the two checks to a name whose lookup changes in between. Plain http
+/// uses no proxy (`HTTPTransport`), so the address looked up is the one
+/// connected to, not a proxy's.
 public final class ConnectionGate: Sendable {
     private let resolver: any HostResolver
     private let isPrivate: @Sendable (String) -> Bool

@@ -30,14 +30,21 @@ public struct HTTPResponse: Sendable {
     }
 }
 
-/// The app's one way onto the network: an ephemeral URLSession without
+/// The app's one way onto the network: ephemeral URLSessions without
 /// cookies or a cache, the app's User-Agent on every request, the
 /// system's certificate authorities only, the redirect policy, Pley's
 /// plain http rule (`ConnectionGate`) and a limit on every answer.
+///
+/// Plain http has a session of its own that uses no proxy: through the
+/// system's HTTP proxy or PAC file, a request to a private address would
+/// carry its token to the proxy, which may be anywhere, before the address
+/// the connection reached could be checked. https uses the system's proxy
+/// settings, as other apps do.
 public final class HTTPTransport: Sendable {
     public let userAgent: String
     public let gate: ConnectionGate
     private let session: URLSession
+    private let directSession: URLSession
 
     /// `userAgent` is `UserAgent.current`, read on the main actor.
     public init(userAgent: String, gate: ConnectionGate = ConnectionGate()) {
@@ -54,11 +61,19 @@ public final class HTTPTransport: Sendable {
         configuration.timeoutIntervalForRequest = 20
         configuration.waitsForConnectivity = false
         session = URLSession(configuration: configuration)
+        // An empty proxy dictionary, unlike the default nil, means no proxy at all.
+        let direct = configuration.copy() as! URLSessionConfiguration
+        direct.connectionProxyDictionary = [:]
+        directSession = URLSession(configuration: direct)
     }
 
     deinit {
         session.invalidateAndCancel()
+        directSession.invalidateAndCancel()
     }
+
+    /// The proxy settings plain http requests go with: none.
+    package var plainHTTPProxies: [AnyHashable: Any]? { directSession.configuration.connectionProxyDictionary }
 
     /// Sends `request` and reads its answer, of at most `maxBytes`.
     ///
@@ -85,7 +100,7 @@ public final class HTTPTransport: Sendable {
         let observer = TaskObserver(redirects: redirects, maxBytes: maxBytes)
         let answer: TaskObserver.Answer
         do {
-            answer = try await observer.run(session, request)
+            answer = try await observer.run(plainHTTP ? directSession : session, request)
         } catch {
             let mapped = PleyError.from(error)
             Log.network.info("\(method, privacy: .public) \(path, privacy: .public) failed")
