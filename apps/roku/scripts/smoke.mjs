@@ -464,7 +464,7 @@ async function walk() {
   // Down past its buttons to its rows, the seasons then cast and crew,
   // whose first opens a person's page.
   since = mark();
-  await press("down", 3);
+  await press("down", 4); // past Resume, Episodes, the watched mark, My List and Rate
   await press("down");
   shoot("show-rows");
   await press("select");

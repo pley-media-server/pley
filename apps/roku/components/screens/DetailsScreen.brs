@@ -350,9 +350,61 @@ sub onButton(event as object)
         uiNavigate({ to: "player", params: { itemId: tile.itemId, startMs: playerStartOf(tile.positionMs, tile.durationMs) } })
     else if action = "episodes"
         uiNavigate({ to: "show", params: { showId: m.detail.itemId, seasonId: 0 } })
+    else if action = "rate"
+        askRating()
     else
         uiTitleAction({ itemId: m.detail.itemId, kind: m.detail.kind, parentId: m.detail.seasonId, grandparentId: m.detail.showId }, action)
     end if
+end sub
+
+' --- Your rating ---
+
+' The profile's own rating of the title, in stars: No rating, or 1 to 5.
+sub askRating()
+    labels = []
+    for stars = 0 to 5
+        labels.Push(contentStarsLabel(stars))
+    end for
+    labels.Push("Cancel")
+    dialog = CreateObject("roSGNode", "StandardMessageDialog")
+    dialog.title = "Your rating"
+    dialog.message = ["Now: " + contentStarsLabel(m.detail.stars) + "."]
+    dialog.buttons = labels
+    dialog.observeField("buttonSelected", "onRating")
+    m.top.getScene().dialog = dialog
+end sub
+
+' PUT /api/items/{id}/rating: 2 to 10 (half stars), null for none. The
+' button says it at once, and again as it was if the server refuses.
+sub onRating(event as object)
+    stars = event.getData()
+    uiCloseDialog()
+    if stars < 0 or stars > 5 or m.item = invalid then return
+    before = m.detail.stars
+    rating = invalid
+    if stars > 0 then rating = stars * 2
+    showRating(rating)
+    uiRequest({ method: "PUT", path: "/api/items/" + urlValue(m.item.id) + "/rating", json: { rating: rating }, before: before }, "onRated")
+end sub
+
+sub onRated(event as object)
+    answer = event.getData()
+    if answer.ok then return
+    before = event.getRoSGNode().spec.before
+    rating = invalid
+    if before > 0 then rating = before * 2
+    showRating(rating)
+    if not uiFailed(answer) then uiMessage("That didn't work", [answer.message])
+end sub
+
+sub showRating(rating as dynamic)
+    state = httpObject(m.item.user_state)
+    if state = invalid
+        state = {}
+        m.item.user_state = state
+    end if
+    state.rating = rating
+    showDetail()
 end sub
 
 ' Down from the buttons goes to the rows, up from the first row back; the

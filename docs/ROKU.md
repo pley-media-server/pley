@@ -50,6 +50,9 @@ than one profile.
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
 | Replay | Live TV | Search (Roku remotes have no search key for apps) |
 
+A title's page has Rate (Your rating, once given): No rating, or 1 to 5
+stars, kept for the profile on the server.
+
 Fast forward and rewind show seek previews in Roku's own bar: the server's
 previews of the file as a BIF file, which the Video node fetches beside the
 media (`previews.bif`). While the server is still making them, the bar
@@ -303,6 +306,6 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
   requests' summary refresh once a minute, a title page with a request
   each 30 s.
 - Audio other than the file's default isn't played as it is.
-- Not yet: rating titles, reordering a playlist, "Always start as", an
-  editable music queue.
+- Not yet: reordering a playlist, "Always start as", an editable music
+  queue.
 

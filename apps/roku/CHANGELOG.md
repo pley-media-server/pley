@@ -13,6 +13,8 @@ describes how they are made.
 - Seek previews: fast forward and rewind show pictures of where they go, in
   Roku's own bar, once the server has made the file's previews. Needs a
   server from the same release.
+- A title's page has Rate: No rating, or 1 to 5 stars, as on the other
+  apps; once given, the button says it (Your rating: 4 stars).
 
 ## [0.1.1] - 2026-11-01
 

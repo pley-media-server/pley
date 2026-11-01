@@ -372,6 +372,12 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
             actions.Push("listAdd")
         end if
     end if
+    stars = 0
+    if state <> invalid then stars = contentStars(state.rating)
+    if kind = "movie" or kind = "episode" or kind = "show"
+        buttons.Push(contentRatingLabel(stars))
+        actions.Push("rate")
+    end if
     if kind = "episode" and httpNumber(detail.grandparent_id, 0) > 0
         buttons.Push("Go to show")
         actions.Push("show")
@@ -397,12 +403,36 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
         durationMs: duration,
         watched: watched,
         inList: inList,
+        stars: stars,
         showId: httpNumber(detail.grandparent_id, 0),
         seasonId: httpNumber(detail.parent_id, 0),
         buttons: buttons,
         actions: actions,
         note: note
     }
+end function
+
+' The stars of the profile's own rating (user_state.rating, 0 to 10 in
+' half stars), rounded up as the other apps show it: 0 for none.
+function contentStars(rating as dynamic) as integer
+    value = httpNumber(rating, 0)
+    if value <= 0 then return 0
+    stars = -Int(-value / 2)
+    if stars > 5 then stars = 5
+    return stars
+end function
+
+' "1 star", "4 stars"; "No rating" for none.
+function contentStarsLabel(stars as integer) as string
+    if stars = 0 then return "No rating"
+    if stars = 1 then return "1 star"
+    return urlValue(stars) + " stars"
+end function
+
+' A title page's rating button: Rate, or the stars given.
+function contentRatingLabel(stars as integer) as string
+    if stars = 0 then return "Rate"
+    return "Your rating: " + contentStarsLabel(stars)
 end function
 
 ' The file a playback plays: the one with fileId, else the first.
