@@ -122,6 +122,8 @@ sealed class PlayerScreen : Sheet
     IReadOnlyList<ChapterMark>? segmentsOf;
     long segmentsFor = -1;
     long? previewAt;
+    /// <summary>The seek previews <see cref="previewAt"/> was shown with: ones that come mid-seek show at once.</summary>
+    TrickplaySet? previewsOf;
     string? clockText;
     bool shown;
     bool gone;
@@ -438,6 +440,12 @@ sealed class PlayerScreen : Sheet
         }
         else if (error != null) HideError();
         UpNext(s.UpNext);
+        if (s.Trickplay != previewsOf)
+        {
+            previewsOf = s.Trickplay;
+            previewAt = null;
+            chapterStrip.PreviewsCame();
+        }
         Overlays();
         // The server stopped the playback: the error says why, then the player leaves.
         if (s.StoppedByServer && !stoppedLeaving)

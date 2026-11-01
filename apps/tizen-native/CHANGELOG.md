@@ -188,3 +188,7 @@ It has no releases yet: it is built and installed by hand
   edge, where the picture's square corners showed past it.
 - Posters in the native app no longer stay empty, until the app starts
   again, after a library's sort or filter changes while they load.
+- In the native app's player, the seek preview and the chapters' cards
+  show their pictures as soon as the server has made them, where a card
+  asked before then stayed an empty box; a chapter whose own picture the
+  server lacks shows the preview at its start.

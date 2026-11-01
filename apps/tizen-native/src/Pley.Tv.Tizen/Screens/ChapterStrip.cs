@@ -161,15 +161,24 @@ sealed class ChapterStrip : View
         slide.Play();
     }
 
-    void Picture(Card card, int i)
+    /// <summary>The film's seek previews came: cards near focus that had no picture to ask for ask now.</summary>
+    public void PreviewsCame()
     {
-        if (card.Asked) return;
-        card.Asked = true;
+        if (!Open) return;
+        for (var i = Math.Max(0, index - 2); i <= Math.Min(cards.Count - 1, index + 5); i++) Picture(cards[i], i);
+    }
+
+    void Picture(Card card, int i, bool ownFailed = false)
+    {
+        if (card.Asked && !ownFailed) return;
         var chapter = chapters[i];
-        // The chapter's own picture, else the server's preview a moment into it.
-        var frame = chapter.ImageUrl == null ? previewAt(chapter.StartMs / Trickplay.StepMs * Trickplay.StepMs + Trickplay.StepMs) : null;
-        var url = chapter.ImageUrl ?? frame?.SheetUrl;
+        // The chapter's own picture, else (or when the server has none) its preview a moment into it.
+        var own = ownFailed ? null : chapter.ImageUrl;
+        var frame = own == null ? previewAt(chapter.StartMs / Trickplay.StepMs * Trickplay.StepMs + Trickplay.StepMs) : null;
+        var url = own ?? frame?.SheetUrl;
+        // Nothing to ask for yet (the previews not in): asked again as focus moves or they come.
         if (url == null) return;
+        card.Asked = true;
         if (sheets.TryGetValue(url, out var known))
         {
             card.Show(known, frame);
@@ -177,10 +186,18 @@ sealed class ChapterStrip : View
         }
         images.Load(new[] { url }, frame != null ? frame.SheetWidth / Ui.Scale : CardWidth, file =>
         {
-            if (file == null || Disposed) return;
-            sheets[url] = file;
             // Let go while it came: not shown.
-            if (card.Asked) card.Show(file, frame);
+            if (Disposed || card.Gone || !card.Asked) return;
+            if (file == null)
+            {
+                // The chapter's own picture missing: its preview instead. A preview that didn't come
+                // is asked again as focus moves, where it stayed an empty box.
+                if (own != null) Picture(card, i, ownFailed: true);
+                else card.Asked = false;
+                return;
+            }
+            sheets[url] = file;
+            card.Show(file, frame);
         });
     }
 
@@ -242,6 +259,9 @@ sealed class ChapterStrip : View
         }
 
         public bool Asked { get; set; }
+
+        /// <summary>Let go with its strip's chapters (another film's came).</summary>
+        public bool Gone => Disposed;
 
         /// <summary>The picture goes, and is asked for again when the card nears focus.</summary>
         public void Forget()
