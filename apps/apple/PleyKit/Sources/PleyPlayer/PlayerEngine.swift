@@ -28,6 +28,9 @@ public enum EngineEvent: Sendable, Equatable {
     case pauseRequested
     /// The time moved by a jump: a seek, the system's scrubber or skip buttons.
     case jumped
+    /// Someone chose another audio track in the system's own menu (a file
+    /// played as it is, with several tracks).
+    case audioChanged(EngineAudioOption)
 }
 
 /// The engine's state at one moment, read every 500 ms.
@@ -76,6 +79,12 @@ public protocol PlayerEngine: AnyObject {
     /// The largest picture the stream should play at, in pixels (AVPlayer's
     /// `preferredMaximumResolution`, for a stream in several sizes); 0×0 for no limit.
     func setMaximumResolution(width: Int, height: Int)
+    /// The media's own audio tracks AVPlayer can switch between (a file
+    /// played as it is), known once it is ready; empty for a stream.
+    func audioOptions() -> [EngineAudioOption]
+    /// Plays `option`'s audio; false when the media has no such option.
+    @discardableResult
+    func selectAudio(_ option: EngineAudioOption) -> Bool
     /// Lets go of the media and the player.
     func close()
 }

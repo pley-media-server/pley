@@ -68,6 +68,17 @@ public struct PlaybackEnvironment {
 ///   for ahead (`StreamWarmer`, 20 s at most) while the one before plays
 ///   on, then the player moves over where it got to and the one before is
 ///   deleted.
+/// - **Resume, skips, chapters.** It starts where the profile left off
+///   (exactly), offers Skip Intro and Skip Credits while the playhead is in
+///   one (`Markers`; nothing skips by itself), and jumps to chapters.
+/// - **Up Next.** An episode looks up the next one at 90 %; entering its
+///   credits (once per segment, `CreditsGate`) or its end brings up a card
+///   that counts 10 s down, then plays it on the same player: this
+///   session ends (`stopped`, then `DELETE`), the next starts where it resumes.
+/// - **Audio.** The server says which track plays; another one picked is
+///   saved for the movie or show (`PUT …/streams`) and switched by AVPlayer
+///   in a file played as it is, else played by a new session beside this
+///   one (`audio_index`, `keep_previous`).
 /// - **Background.** iPhone, iPad and Apple TV pause and report when the
 ///   app goes to the background; back after more than 60 s, the session is
 ///   checked and started again, paused, if the server forgot it.
@@ -94,6 +105,8 @@ public final class PlaybackController: ObservableObject {
     static let prepareLeadMs = 4_000
     /// The answer of a server with no transcode free for a second session.
     static let noTranscodeFree = 503
+    /// The largest chapter picture read.
+    static let chapterPictureMaxBytes = 10 * 1024 * 1024
 
     @Published public private(set) var state = PlayerState()
 
@@ -105,7 +118,7 @@ public final class PlaybackController: ObservableObject {
     public private(set) var item: ItemDetail?
     public private(set) var file: MediaFile?
 
-    private let request: PlayRequest
+    private var request: PlayRequest
     private let env: PlaybackEnvironment
     private var engine: (any PlayerEngine)?
     private var caps: ClientCaps?
@@ -146,6 +159,23 @@ public final class PlaybackController: ObservableObject {
     private var backgroundedAt: Int64?
     /// Counts restarts, so only the latest clears `sessionTask`.
     private var restarts = 0
+
+    /// The intro and credits of the file playing.
+    private var markers: [Marker] = []
+    private var credits = CreditsGate()
+    /// What plays next, once looked up; the look-up under way.
+    private var next: ItemSummary?
+    private var nextLookup: Task<Void, Never>?
+    private var nextAsked = false
+    /// The Up Next countdown's time left, counted on the clock while it is meant to play.
+    private var countdownLeftMs: Int?
+    private var lastCountdownAt: Int64 = 0
+    /// The audio track picked here, sent with each new session; `nil`: the server's choice.
+    private var pickedAudio: MediaStream?
+    /// The audio track that plays.
+    private var playingAudio: Int?
+    /// The subtitles as chosen, saved with an audio choice.
+    private var subtitleIndex: Int?
 
     public init(request: PlayRequest, environment: PlaybackEnvironment) {
         self.request = request
@@ -210,6 +240,7 @@ public final class PlaybackController: ObservableObject {
             : max(positionMs, 0)
         lastPositionMs = target
         state.positionMs = target
+        leftCredits(at: target)
         if ended || expired || session == nil {
             restart(at: target)
             return
@@ -225,6 +256,73 @@ public final class PlaybackController: ObservableObject {
 
     public func seek(byMs delta: Int) {
         seek(toMs: livePosition() + delta)
+    }
+
+    /// Skips the intro or the credits the playhead is in (`state.skipLabel`):
+    /// just before an intro ends, to the end of the credits.
+    public func skip() {
+        guard !closed, !stopped, let marker = Markers.active(markers, positionMs: livePosition()) else { return }
+        let target = Markers.skipTarget(marker)
+        seek(toMs: state.durationMs > 0 ? min(target, state.durationMs) : target)
+    }
+
+    /// Plays what comes next now: the one on the card, else the one looked
+    /// up; says so when there is none.
+    public func playNext() {
+        guard !closed, !stopped else { return }
+        if let next { return switchTo(next) }
+        let episode = item?.kind == .episode
+        lookUpNext { [weak self] found in
+            guard let self else { return }
+            if let found {
+                self.switchTo(found)
+            } else {
+                self.state.notice = episode ? PlayerTexts.lastEpisode : PlayerTexts.nothingNext
+            }
+        }
+    }
+
+    /// Hides the Up Next card and stops its countdown. At the end, it comes
+    /// back with no countdown only if asked for again (`playNext`).
+    public func cancelUpNext() {
+        hideUpNext()
+    }
+
+    /// Jumps to the start of chapter `index` (`state.chapters`).
+    public func jumpToChapter(_ index: Int) {
+        guard let chapter = state.chapters.first(where: { $0.index == index }) else { return }
+        seek(toMs: chapter.startMs)
+    }
+
+    /// Plays the audio track `index` (a stream index of the file, from
+    /// `state.audio`) and saves the choice for the movie or show, with the
+    /// subtitles as they are. A file played as it is switches it in
+    /// AVPlayer when this device plays it, keeping the session; otherwise a
+    /// new session starts beside this one with it.
+    public func selectAudio(_ index: Int) {
+        guard !closed, !stopped, let item, let file, index != playingAudio,
+              let stream = file.streams(.audio).first(where: { $0.index == index })
+        else { return }
+        pickedAudio = stream
+        playingAudio = index
+        saveAudio(item: item, file: file, index: index)
+        publishAudio()
+        guard let session, mediaShown, !ended else { return }
+        if session.info.method == .direct, PlaybackPlan.audioPlaysHere(stream, caps: caps), switchInEngine(index) {
+            return
+        }
+        restart(at: livePosition(), alongside: true)
+    }
+
+    /// Chapter `index`'s picture (JPEG, 10 MiB at most), read with the
+    /// token; `nil` when the file has none for it.
+    public func chapterPicture(_ index: Int) async -> Data? {
+        guard let file, file.chapters.indices.contains(index) else { return nil }
+        let path = file.chapters[index].thumbUrl ?? "/api/files/\(file.id)/chapters/\(index).jpg"
+        guard path.hasPrefix("/api/files/"),
+              !(path.split(separator: "?").first ?? "").split(separator: "/").contains("..")
+        else { return nil }
+        return try? await env.api.client.data(path, maxBytes: Self.chapterPictureMaxBytes, accept: ["image/jpeg"]).0
     }
 
     /// A choice of the Quality menu (`state.qualities`), remembered for
@@ -324,6 +422,7 @@ public final class PlaybackController: ObservableObject {
         sessionTask?.cancel()
         tickTask?.cancel()
         eventTask?.cancel()
+        nextLookup?.cancel()
         endSession(at: position)
         engine?.close()
         await env.reporter.flush(timeoutMs: Self.flushMs, clock: env.clock)
@@ -379,9 +478,18 @@ public final class PlaybackController: ObservableObject {
             state.title = summary.year.map { "\(summary.title) (\($0))" } ?? summary.title
             state.subtitle = nil
         }
+        state.itemId = item.id
         state.durationMs = file.durationMs ?? item.durationMs ?? 0
         lastPositionMs = PlaybackPlan.startMs(item, request)
         state.positionMs = lastPositionMs
+        markers = Markers.forFile(item, fileId: file.id)
+        subtitleIndex = file.selectedSubtitle
+        state.chapters = file.chapters.enumerated().map { n, chapter in
+            ChapterChoice(index: n, title: chapter.title.flatMap { $0.isEmpty ? nil : $0 } ?? "Chapter \(n + 1)",
+                          startMs: chapter.startMs)
+        }
+        followChapters(lastPositionMs)
+        publishAudio()
     }
 
     /// A new session at `atMs`, ending the one before; the previous start
@@ -484,10 +592,10 @@ public final class PlaybackController: ObservableObject {
         // A lower quality is always a transcode; the original keeps a fallback's mode.
         let mode: PlaybackMode = quality.original ? recovery.fallbackMode ?? .auto : .transcode
         let decision = caps.map { CapsPolicy.decide(file, $0) }
-        var choices = PlaybackPlan.Choices(file: file, startMs: atMs, maxBitrate: quality.maxBitrateKbps,
-                                           maxHeight: quality.maxHeight, mode: mode,
+        var choices = PlaybackPlan.Choices(file: file, startMs: atMs, audio: pickedAudio,
+                                           maxBitrate: quality.maxBitrateKbps, maxHeight: quality.maxHeight, mode: mode,
                                            streaming: PlaybackPlan.streams(mode: mode, decision: decision, file: file,
-                                                                           audio: nil, caps: caps))
+                                                                           audio: pickedAudio, caps: caps))
         var sent = PlaybackPlan.request(itemId: item.id, choices, clientId: env.clientId, caps: caps,
                                         keepPrevious: keepPrevious)
         var started = try await ServerPlaybackSession.start(api: env.api, request: sent, reporter: env.reporter,
@@ -529,6 +637,8 @@ public final class PlaybackController: ObservableObject {
         state.videoRange = info.videoRange
         state.videoOut = nil
         if info.durationMs > 0 { state.durationMs = info.durationMs }
+        playingAudio = pickedAudio?.index ?? info.audioIndex
+        publishAudio()
         auto.jumped()
         syncAutoOriginal(info)
         if autoNoticePending {
@@ -602,10 +712,14 @@ public final class PlaybackController: ObservableObject {
             if let state = schedule.firstFrame(at: env.clock.now()) { session.progress(positionMs: lastPositionMs, state: state) }
             setPhase(wantPlay ? .playing : .paused)
             if session.info.method == .transcode { describeConversion(session) }
+            // A file played as it is plays the track the server named (or the one picked) of its own.
+            if session.info.method == .direct, let playingAudio { switchInEngine(playingAudio) }
         case .ended:
             onEnded()
         case .failed(let error):
             onError(error, in: session)
+        case .audioChanged(let option):
+            audioChosenInSystemMenu(option)
         case .playRequested, .pauseRequested, .jumped:
             break
         }
@@ -617,6 +731,7 @@ public final class PlaybackController: ObservableObject {
     private func jumped() {
         guard mediaShown, !stopped, let engine else { return }
         let now = env.clock.now()
+        leftCredits(at: engine.sample().positionMs)
         if ended || expired || session == nil {
             guard sessionTask == nil else { return }
             restart(at: engine.sample().positionMs)
@@ -703,15 +818,24 @@ public final class PlaybackController: ObservableObject {
         lastPositionMs = end
         endSession(at: end)
         state.positionMs = end
+        state.skipLabel = nil
         setPhase(.ended)
+        // What comes next, with its countdown (again, when its card was cancelled).
+        guard let item, NextUp.hasNext(item.kind), !closed, !stopped else { return }
+        lookUpNext { [weak self] found in
+            guard let self, let found, self.ended else { return }
+            self.showUpNext(found, countdown: self.countdownLeftMs == nil)
+        }
     }
 
     // MARK: The clock
 
     /// Every 500 ms: the position, the reports due, stalls and a missing picture.
     func tick() {
-        guard let engine, let session, !closed, !stopped else { return }
+        guard !closed, !stopped else { return }
         let now = env.clock.now()
+        countDown(now)
+        guard let engine, let session else { return }
         let sample = engine.sample()
         if mediaShown && !ended {
             lastPositionMs = sample.positionMs
@@ -723,6 +847,7 @@ public final class PlaybackController: ObservableObject {
                 setPhase(sample.playing ? .playing : wantPlay ? .buffering : .paused)
             }
             if let due = schedule.due(at: now) { session.progress(positionMs: sample.positionMs, state: due) }
+            followMarkers(sample.positionMs)
         }
         if case .failed = state.phase { return }
         guard sessionTask == nil, preparing == nil else {
@@ -764,6 +889,189 @@ public final class PlaybackController: ObservableObject {
             positionMs: sample.positionMs, bufferedMs: sample.bufferedMs, durationMs: state.durationMs,
             bandwidthKbps: sample.bandwidthKbps, sizes: session.info.adaptive))
         if let step { applyAuto(step) }
+    }
+
+    // MARK: Markers, chapters and Up Next
+
+    /// The skip button, the credits' Up Next, the look-up at 90 % and the chapter playing, at `position`.
+    private func followMarkers(_ position: Int) {
+        let marker = state.isFailed ? nil : Markers.active(markers, positionMs: position)
+        let label = marker.map(Markers.label)
+        if state.skipLabel != label { state.skipLabel = label }
+        if credits.entered(marker) != nil { onCredits() }
+        if !nextAsked, let item, NextUp.hasNext(item.kind), state.durationMs > 0,
+           Double(position) >= Double(state.durationMs) * NextUp.lookAheadShare {
+            lookUpNext { _ in }
+        }
+        followChapters(position)
+    }
+
+    /// Marks the chapter `position` is in.
+    private func followChapters(_ position: Int) {
+        guard !state.chapters.isEmpty else { return }
+        let current = state.chapters.last { $0.startMs <= position }?.index
+        guard state.chapters.contains(where: { $0.current != ($0.index == current) }) else { return }
+        state.chapters = state.chapters.map { var c = $0; c.current = c.index == current; return c }
+    }
+
+    /// The credits began: what comes next shows, counting down.
+    private func onCredits() {
+        guard let item, NextUp.hasNext(item.kind), state.upNext == nil else { return }
+        lookUpNext { [weak self] found in
+            guard let self, let found, !self.closed, !self.stopped else { return }
+            self.showUpNext(found, countdown: true)
+        }
+    }
+
+    /// A seek or a jump to `position`, out of the credits before the end: the card goes.
+    private func leftCredits(at position: Int) {
+        guard state.upNext != nil, !ended else { return }
+        if Markers.active(markers, positionMs: position)?.kind == .credits { return }
+        hideUpNext()
+    }
+
+    /// Looks up what comes next (once for the item), then calls `then` with it.
+    private func lookUpNext(_ then: @escaping @MainActor (ItemSummary?) -> Void) {
+        guard let item else { return then(nil) }
+        nextAsked = true
+        if let next { return then(next) }
+        nextLookup?.cancel()
+        let (api, id, kind) = (env.api, item.id, item.kind)
+        nextLookup = Task { [weak self] in
+            let found = try? await NextUp.after(id, kind: kind, api: api)
+            guard let self, !Task.isCancelled, self.item?.id == id, !self.closed else { return }
+            if let found { self.next = found }
+            then(found)
+        }
+    }
+
+    private func showUpNext(_ found: ItemSummary, countdown: Bool) {
+        next = found
+        var card = UpNextCard(itemId: found.id, title: found.title, heading: NextUp.heading(found),
+                              imagePath: found.thumbUrl ?? found.backdropUrl)
+        if countdown {
+            countdownLeftMs = NextUp.countdownSeconds * 1000
+            lastCountdownAt = env.clock.now()
+        }
+        card.secondsLeft = countdownLeftMs.map { ($0 + 999) / 1000 }
+        state.upNext = card
+    }
+
+    private func hideUpNext() {
+        countdownLeftMs = nil
+        state.upNext = nil
+    }
+
+    /// The countdown, counted while it is meant to play (or after the end),
+    /// waiting while paused as the web's does; at 0 the next one plays.
+    private func countDown(_ now: Int64) {
+        defer { lastCountdownAt = now }
+        guard var card = state.upNext, var left = countdownLeftMs else { return }
+        if wantPlay || ended { left -= Int(now - lastCountdownAt) }
+        countdownLeftMs = left
+        if left <= 0 {
+            countdownLeftMs = nil
+            playNext()
+            return
+        }
+        let seconds = (left + 999) / 1000
+        if card.secondsLeft != seconds {
+            card.secondsLeft = seconds
+            state.upNext = card
+        }
+    }
+
+    /// Plays `target` on the same player: this session ends where it got to
+    /// (`stopped`, then `DELETE`, which at 90 % or more marks it watched),
+    /// then the next one starts from its resume point, or from the start if
+    /// watched, with the quality chosen (Automatic from what the server
+    /// knows of the network).
+    private func switchTo(_ target: ItemSummary) {
+        guard !closed, !stopped else { return }
+        hideUpNext()
+        nextLookup?.cancel()
+        nextLookup = nil
+        startTask?.cancel()
+        sessionTask?.cancel()
+        sessionTask = nil
+        let position = livePosition()
+        endSession(at: position)
+        engine?.pause()
+        request = PlayRequest(itemId: target.id, startMs: NextUp.startOf(target))
+        item = nil
+        file = nil
+        next = nil
+        nextAsked = false
+        markers = []
+        credits.reset()
+        pickedAudio = nil
+        playingAudio = nil
+        recovery = Recovery()
+        autoNoticePending = false
+        wantPlay = true
+        expired = false
+        reset(at: request.startMs ?? 0)
+        state.method = nil
+        state.audioConverted = false
+        state.reasons = []
+        state.videoRange = nil
+        state.videoOut = nil
+        state.skipLabel = nil
+        state.chapters = []
+        state.audio = []
+        state.subtitle = nil
+        state.title = target.grandparentTitle ?? target.title
+        state.itemId = target.id
+        state.durationMs = target.durationMs ?? 0
+        let reporter = env.reporter
+        let clock = env.clock
+        startTask = Task { [weak self] in
+            // The one before has ended on the server before the next one starts.
+            await reporter.flush(timeoutMs: Self.flushMs, clock: clock)
+            guard !Task.isCancelled else { return }
+            await self?.prepareFirst()
+        }
+    }
+
+    // MARK: Audio
+
+    /// The Audio menu as it plays now.
+    private func publishAudio() {
+        let menu = TrackChoices.audioMenu(file, playing: playingAudio)
+        if state.audio != menu { state.audio = menu }
+    }
+
+    /// Switches AVPlayer to the file's audio track `index`; false when the media hasn't it.
+    @discardableResult
+    private func switchInEngine(_ index: Int) -> Bool {
+        guard let engine, let option = TrackChoices.option(for: index, in: file, options: engine.audioOptions())
+        else { return false }
+        return engine.selectAudio(option)
+    }
+
+    /// A track chosen in AVKit's own audio menu: saved as one picked here.
+    private func audioChosenInSystemMenu(_ option: EngineAudioOption) {
+        guard let engine, let item, let file,
+              let stream = TrackChoices.stream(for: option, in: file, options: engine.audioOptions()),
+              stream.index != playingAudio
+        else { return }
+        pickedAudio = stream
+        playingAudio = stream.index
+        saveAudio(item: item, file: file, index: stream.index)
+        publishAudio()
+    }
+
+    /// `PUT /api/items/{id}/streams` with the audio picked and the subtitles as they are.
+    private func saveAudio(item: ItemDetail, file: MediaFile, index: Int) {
+        let choice = StreamsChoice(fileId: file.id, audioIndex: index, subtitleIndex: subtitleIndex)
+        let api = env.api
+        Task {
+            do {
+                try await api.setStreams(itemId: item.id, choice)
+            } catch {
+                Log.player.notice("the audio choice wasn't saved")
+            }
+        }
     }
 
     // MARK: Quality

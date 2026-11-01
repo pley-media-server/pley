@@ -36,6 +36,11 @@ func check(_ condition: Bool, _ what: @autoclosure () -> String) throws {
     if !condition { throw CheckFailure(what()) }
 }
 
+func required<T>(_ value: T?, _ what: @autoclosure () -> String) throws -> T {
+    guard let value else { throw CheckFailure(what()) }
+    return value
+}
+
 /// Waits until `condition` holds, polling every 250 ms, `seconds` at most.
 @MainActor
 func wait(_ what: String, seconds: Double, _ condition: @MainActor () async throws -> Bool) async throws {
@@ -229,6 +234,124 @@ func checkQuality(api: PleyAPI, page: AdminPage, caps: DeviceCaps, reporter: Ses
     }
 }
 
+/// The show's two episodes, by number; their markers asked for and waited for (120 s at most).
+@MainActor
+func episodes(_ page: AdminPage, api: PleyAPI, showId: Int) async throws -> (first: Int, second: Int) {
+    func children(_ id: Int) async throws -> [[String: Any]] {
+        let (status, body) = try await page.send("GET", "/api/items/\(id)/children")
+        try check(status == 200, "the children of item \(id) answered HTTP \(status)")
+        return body["items"] as? [[String: Any]] ?? []
+    }
+    guard let season = try await children(showId).first?["id"] as? Int else { throw CheckFailure("the show has no season") }
+    let found = try await children(season).compactMap { $0["id"] as? Int }
+    try check(found.count == 2, "the season has \(found.count) episode(s), not 2")
+    let (status, _) = try await page.send("POST", "/api/items/\(showId)/analyze")
+    try check(status == 202, "asking for the show's markers answered HTTP \(status)")
+    try await wait("the episodes' intro and credits", seconds: 120) {
+        for id in found {
+            let kinds = Set(try await api.item(id).markers.map(\.kind))
+            if !kinds.isSuperset(of: [.intro, .credits]) { return false }
+        }
+        return true
+    }
+    return (found[0], found[1])
+}
+
+/// (f) S01E01: Skip Intro lands past the intro; entering the credits brings
+/// up the next episode; Play Next ends this session (watched at 90 %) and
+/// plays S01E02.
+@MainActor
+func checkEpisodes(api: PleyAPI, page: AdminPage, caps: DeviceCaps, reporter: SessionReporter,
+                   episodes: (first: Int, second: Int)) async throws {
+    let first = try await api.item(episodes.first)
+    let intro = try required(first.markers.first { $0.kind == .intro }, "S01E01 has no intro marker")
+    let credits = try required(first.markers.first { $0.kind == .credits }, "S01E01 has no credits marker")
+    try check(abs(intro.startMs - 10_000) <= 1_000 && abs(intro.endMs - 30_000) <= 1_000,
+              "the intro runs \(intro.startMs)–\(intro.endMs) ms, not as its chapter")
+    try check(abs(credits.startMs - 55_000) <= 1_000, "the credits start at \(credits.startMs) ms, not as their chapter")
+    let run = Run(api: api, caps: caps, reporter: reporter, itemId: episodes.first)
+    do {
+        try await run.playing(past: 11_000, seconds: 60)
+        try check(run.controller.state.skipLabel == "Skip Intro",
+                  "no Skip Intro at \(run.sample.positionMs) ms (\(run.controller.state.skipLabel ?? "nothing"))")
+        run.controller.skip()
+        let target = Markers.skipTarget(intro)
+        try await wait("the skip", seconds: 10) { run.sample.positionMs >= target }
+        let landed = run.sample.positionMs
+        try check(landed >= 29_250, "Skip Intro landed at \(landed) ms")
+        try check(run.controller.session?.info.method == .remux, "S01E01 isn't a remux")
+        let old = try run.session
+
+        run.controller.seek(toMs: credits.startMs - 1_500)
+        try await wait("Up Next in the credits", seconds: 15) { run.controller.state.upNext != nil }
+        let card = try required(run.controller.state.upNext, "no card")
+        try check(card.itemId == episodes.second, "Up Next shows item \(card.itemId), not S01E02")
+        try check(card.heading == "Up next · S1 E2", "the card says \(card.heading)")
+        try check(run.controller.state.skipLabel == "Skip Credits", "no Skip Credits in the credits")
+        // The server marks it watched at 90 %: past it, then Play Next.
+        let past = Int(Double(first.durationMs ?? 75_000) * 0.9) + 1_000
+        run.controller.seek(toMs: past)
+        try await wait("the time past 90 %", seconds: 20) { run.sample.positionMs > past }
+        try check(run.controller.state.upNext != nil, "the card went while the credits play")
+        run.controller.playNext()
+        try await wait("S01E02 playing", seconds: 60) {
+            run.controller.state.itemId == episodes.second && run.controller.session.map { $0.id != old.id } ?? false
+                && (run.sample.videoFrames ?? 0) > 0 && run.controller.state.phase == .playing
+        }
+        try check(try await api.item(episodes.first).userState.watched, "S01E01 isn't marked watched")
+        do {
+            _ = try await api.playbackStatus(old.id)
+            throw CheckFailure("S01E01's session still answers after Play Next")
+        } catch PleyError.api(404, _, _) {}
+        try await wait("S01E01's session to leave activity", seconds: 15) { try await activity(page, old.id) == nil }
+        let shown = try await activity(page, try run.session.id)
+        try check(shown != nil, "S01E02's session isn't in activity")
+        say("(f) episodes: Skip Intro landed at \(landed) ms; Up Next showed S1 E2 in the credits; Play Next marked "
+            + "S01E01 watched, its session answers 404, and S01E02 plays (\(run.describe()))")
+        await run.controller.close()
+    } catch {
+        await run.controller.close()
+        throw error
+    }
+}
+
+/// (h) File 2's French AC-3 picked while it plays as it is: AVPlayer
+/// switches to it in the same session, and the server keeps the choice.
+@MainActor
+func checkAudio(api: PleyAPI, caps: DeviceCaps, reporter: SessionReporter, itemId: Int) async throws {
+    let run = Run(api: api, caps: caps, reporter: reporter, itemId: itemId)
+    do {
+        try await run.playing(past: 3_000, seconds: 30)
+        let session = try run.session
+        try check(session.info.method == .direct, "file 2 plays by \(session.info.method.rawValue), not direct")
+        let audio = run.controller.state.audio
+        try check(audio.count == 2, "the Audio menu has \(audio.count) track(s), not 2")
+        try check(audio.first?.selected == true, "the first track isn't the one playing")
+        try check(run.engine?.audioOptions().count == 2, "AVPlayer lists \(run.engine?.audioOptions().count ?? 0) audio options")
+        let file = try required(run.controller.file, "no file")
+        let french = try required(file.streams(.audio).first { $0.codec == "ac3" }, "file 2 has no AC-3 track")
+        run.controller.selectAudio(french.index)
+        try await wait("the choice kept by the server", seconds: 15) {
+            let saved = try await api.item(itemId).files.first
+            return saved?.selectedAudio == french.index && saved?.audioPicked == true
+        }
+        let position = run.sample.positionMs
+        try await run.playing(past: position + 2_000, seconds: 15)
+        try check(run.controller.session?.id == session.id, "the audio change started a new session")
+        try check(run.controller.state.audio.last?.selected == true, "the menu doesn't mark the AC-3 track")
+        let item = try required(run.engine?.player.currentItem, "no item")
+        let group = try required(try await item.asset.loadMediaSelectionGroup(for: .audible), "no audible group")
+        let selected = item.currentMediaSelection.selectedMediaOption(in: group)
+        try check(selected == group.options.last, "AVPlayer doesn't play the second audio track")
+        say("(h) audio: the AC-3 track plays in the same session (\(short(session.id))…); the server keeps "
+            + "selected_audio \(french.index), picked")
+        await run.controller.close()
+    } catch {
+        await run.controller.close()
+        throw error
+    }
+}
+
 /// Plays `itemId` until frames pass 3 s, checks it, and closes.
 @MainActor
 func play(_ name: String, api: PleyAPI, caps: DeviceCaps, reporter: SessionReporter, itemId: Int,
@@ -383,6 +506,12 @@ func run() async throws {
     try await checkDirect(api: api, page: page, caps: caps, reporter: reporter, itemId: try item("Direct H264"))
 
     try await checkQuality(api: api, page: page, caps: caps, reporter: reporter, itemId: try item("Direct H264"))
+
+    guard let showId = shows["Pley Test Show"] else { throw CheckFailure("no show Pley Test Show") }
+    let pair = try await episodes(page, api: api, showId: showId)
+    try await checkEpisodes(api: api, page: page, caps: caps, reporter: reporter, episodes: pair)
+
+    try await checkAudio(api: api, caps: caps, reporter: reporter, itemId: try item("Two Audio"))
 
     try await play("(b) remux", api: api, caps: caps, reporter: reporter, itemId: try item("Remux H264 AC3")) { _, session in
         try check(session.info.method == .remux, "file 3 plays by \(session.info.method.rawValue), not remux")

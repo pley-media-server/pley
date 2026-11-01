@@ -2,7 +2,8 @@ import Foundation
 
 /// The Mac player's keys, as the web player has them: space or k plays
 /// and pauses, ← or j and → or l go back and forward 10 seconds, ↑ and ↓
-/// change the volume by 5 %, m mutes, f goes full screen and Esc leaves it.
+/// change the volume by 5 %, m mutes, f goes full screen and Esc leaves it,
+/// and s skips the intro or the credits the playhead is in.
 /// Keys with ⌘, ⌃ or ⌥ are left to the menus.
 public enum PlayerKeys {
     public enum Action: Equatable, Sendable {
@@ -12,6 +13,7 @@ public enum PlayerKeys {
         case mute
         case fullScreen
         case leaveFullScreen
+        case skip
     }
 
     public static let seekMs = 10_000
@@ -40,6 +42,7 @@ public enum PlayerKeys {
         case "m": return .mute
         case "f": return .fullScreen
         case Special.escape: return .leaveFullScreen
+        case "s": return .skip
         default: return nil
         }
     }

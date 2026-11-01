@@ -25,3 +25,6 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - A Quality menu with Original, Automatic and each quality; Automatic
   lowers the quality when the video doesn't play smoothly and goes back up
   when it can.
+- Resume where you left off, Skip Intro and Skip Credits, Up Next for the
+  next episode, chapters, and an audio track choice the server remembers
+  for the whole show.

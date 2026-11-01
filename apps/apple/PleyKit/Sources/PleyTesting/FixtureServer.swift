@@ -2,6 +2,7 @@ import CryptoKit
 import Foundation
 import Network
 import os
+import PleyModel
 
 /// A Pley server for the tests: real HTTP/1.1 on 127.0.0.1, so addresses,
 /// redirects, metrics and headers are tested over a socket as they are
@@ -55,8 +56,8 @@ public final class FixtureServer: Sendable {
         public let needs: String
     }
 
-    /// An item the fixture plays: a movie with one file, its media made by
-    /// the test (`MediaMaker`) or none.
+    /// An item the fixture plays: a movie, or an episode, with one file,
+    /// its media made by the test (`MediaMaker`) or none.
     public struct Playable: Sendable {
         public var itemId: Int
         public var fileId: Int
@@ -70,6 +71,17 @@ public final class FixtureServer: Sendable {
         public var bitrate: Int
         public var width: Int
         public var height: Int
+        /// An episode's show, season and number; `nil` for a movie.
+        public var episode: (show: String, season: Int, number: Int)?
+        /// The episode after this one (`GET /api/items/{id}/next`).
+        public var next: Int?
+        /// The file's intro and credits, chapters and audio streams.
+        public var markers: [Marker] = []
+        public var chapters: [Chapter] = []
+        public var audio: [MediaStream] = []
+        /// The audio picked for it (`PUT …/streams`).
+        public var selectedAudio: Int?
+        public var audioPicked = false
 
         public init(itemId: Int, fileId: Int, title: String = "Test Movie", container: String = "mp4",
                     durationMs: Int = 4_000, positionMs: Int = 0, watched: Bool = false, media: Data = Data(),
@@ -372,6 +384,11 @@ public final class FixtureServer: Sendable {
         state.withLock { $0.playables[playable.itemId] = playable }
     }
 
+    /// The item as the fixture holds it now (its watch state, its tracks picked).
+    public func playable(_ itemId: Int) -> Playable? {
+        state.withLock { $0.playables[itemId] }
+    }
+
     /// The method new sessions answer with: `direct` (the default) gives the
     /// keyed file, `remux` and `transcode` a keyed playlist.
     public func setPlaybackMethod(_ method: String) {
@@ -638,7 +655,12 @@ public final class FixtureServer: Sendable {
                 guard let playable = s.playables[id] else { return notFound(request.path) }
                 return json(200, detail(playable))
             }
-        case ("GET", 4, "items") where parts[3] == "on-deck" || parts[3] == "next":
+        case ("GET", 4, "items") where parts[3] == "next":
+            return withToken(&s, request, scope: "library") { s, _ in
+                let next = Int(parts[2]).flatMap { s.playables[$0]?.next }.flatMap { s.playables[$0] }
+                return json(200, ["item": next.map { summary($0) as Any } ?? NSNull()])
+            }
+        case ("GET", 4, "items") where parts[3] == "on-deck":
             return withToken(&s, request, scope: "library") { _, _ in json(200, ["item": NSNull()]) }
         case ("POST", 4, "items") where parts[3] == "progress":
             guard let id = Int(parts[2]) else { return nil }
@@ -649,12 +671,35 @@ public final class FixtureServer: Sendable {
                     if case .some(let message) = session.stopped { return stoppedAnswer(message) }
                     if session.expired || session.deleted { return expiredAnswer() }
                 }
+                // As the server keeps the place: at 90 % or more, watched from the start.
+                if let position = body["position_ms"] as? Int, var playable = s.playables[id] {
+                    if playable.durationMs > 0, Double(position) >= Double(playable.durationMs) * 0.9 {
+                        playable.watched = true
+                        playable.positionMs = 0
+                    } else {
+                        playable.positionMs = position
+                    }
+                    s.playables[id] = playable
+                }
                 return Answer(status: 204, headers: [:], body: Data())
             }
         case ("PUT", 4, "items") where parts[3] == "streams":
             return withToken(&s, request, scope: "play") { s, _ in
                 s.streamsBodies.append(request.body)
+                let body = (try? JSONSerialization.jsonObject(with: request.body)) as? [String: Any] ?? [:]
+                if let id = Int(parts[2]), let audio = body["audio_index"] as? Int {
+                    s.playables[id]?.selectedAudio = audio
+                    s.playables[id]?.audioPicked = true
+                }
                 return Answer(status: 204, headers: [:], body: Data())
+            }
+        case ("GET", 5, "files") where parts[3] == "chapters" && parts[4].hasSuffix(".jpg"):
+            // A chapter's picture, for the files with chapters.
+            return withToken(&s, request, scope: "play") { s, _ in
+                guard let fileId = Int(parts[2]), let n = Int(parts[4].dropLast(4)),
+                      s.playables.values.contains(where: { $0.fileId == fileId && $0.chapters.indices.contains(n) })
+                else { return notFound(request.path) }
+                return image(width: 320, height: 180, type: "public.jpeg", contentType: "image/jpeg")
             }
         case ("POST", 2, "playback"):
             return withToken(&s, request, scope: "play") { s, _ in startSession(&s, request.body) }
@@ -741,6 +786,8 @@ public final class FixtureServer: Sendable {
         let id = randomToken()
         let key = "pley_mk_" + randomToken()
         let maxBitrate = asked["max_bitrate"] as? Int
+        // The track asked for, else the one picked for the item, else the file's first.
+        let audioIndex = asked["audio_index"] as? Int ?? playable.selectedAudio ?? playable.audio.first?.index ?? 1
         let lines = (asked["max_height"] as? Int).map { min($0, playable.height) } ?? playable.height
         s.sessions[id] = PlaySession(itemId: itemId, key: key, method: method,
                                      videoOut: "H.264 \(lines * 16 / 9)×\(lines)")
@@ -749,7 +796,7 @@ public final class FixtureServer: Sendable {
         return json(200, [
             "session_id": id, "method": method, "hls": hls, "file_id": playable.fileId,
             "url": hls ? "/api/media/\(key)/index.m3u8" : "/api/media/\(key)/file.\(playable.container)",
-            "duration_ms": playable.durationMs, "audio_index": 1, "subtitle_index": NSNull(), "burn_subtitles": false,
+            "duration_ms": playable.durationMs, "audio_index": audioIndex, "subtitle_index": NSNull(), "burn_subtitles": false,
             "audio_converted": false, "subtitles": [], "reasons": hls ? ["MKV not supported."] : [],
             "reason": NSNull(), "auto_quality": autoQuality, "video_range": NSNull(),
             "adaptive": hls && s.adaptive,
@@ -757,22 +804,47 @@ public final class FixtureServer: Sendable {
         ])
     }
 
-    private static func detail(_ p: Playable) -> [String: Any] {
-        [
-            "id": p.itemId, "library_id": 1, "kind": "movie", "title": p.title, "sort_title": p.title, "year": 2020,
-            "duration_ms": p.durationMs, "added_at": 1761300000,
+    /// `p` as an `ItemSummary`.
+    private static func summary(_ p: Playable) -> [String: Any] {
+        var out: [String: Any] = [
+            "id": p.itemId, "library_id": 1, "kind": p.episode == nil ? "movie" : "episode", "title": p.title,
+            "sort_title": p.title, "duration_ms": p.durationMs, "added_at": 1761300000,
             "user_state": ["position_ms": p.positionMs, "watched": p.watched, "play_count": p.watched ? 1 : 0],
-            "files": [[
-                "id": p.fileId, "path": "\(p.title).\(p.container)", "size": p.media.count, "container": p.container,
-                "duration_ms": p.durationMs, "bitrate": p.bitrate, "width": p.width, "height": p.height,
-                "video_codec": "h264", "audio_codec": NSNull(),
-                "streams": [["index": 0, "kind": "video", "codec": "h264", "default": true, "profile": "High",
-                             "width": p.width, "height": p.height, "frame_rate": 30.0, "bit_depth": 8, "level": 30,
-                             "dynamic_range": "sdr"]],
-                "selected_audio": NSNull(), "audio_picked": false, "selected_subtitle": NSNull(), "chapters": [],
-            ]],
-            "markers": [],
         ]
+        if let episode = p.episode {
+            out["index"] = episode.number
+            out["parent_index"] = episode.season
+            out["parent_title"] = "Season \(episode.season)"
+            out["grandparent_title"] = episode.show
+            out["thumb_url"] = "/api/items/\(p.itemId)/images/thumb"
+        } else {
+            out["year"] = 2020
+        }
+        return out
+    }
+
+    private static func detail(_ p: Playable) -> [String: Any] {
+        var streams: [Any] = [["index": 0, "kind": "video", "codec": "h264", "default": true, "profile": "High",
+                               "width": p.width, "height": p.height, "frame_rate": 30.0, "bit_depth": 8, "level": 30,
+                               "dynamic_range": "sdr"]]
+        streams += p.audio.map(object(_:))
+        var out = summary(p)
+        out["files"] = [[
+            "id": p.fileId, "path": "\(p.title).\(p.container)", "size": p.media.count, "container": p.container,
+            "duration_ms": p.durationMs, "bitrate": p.bitrate, "width": p.width, "height": p.height,
+            "video_codec": "h264", "audio_codec": p.audio.first.map { $0.codec as Any } ?? NSNull(),
+            "streams": streams, "selected_audio": p.selectedAudio.map { $0 as Any } ?? NSNull(),
+            "audio_picked": p.audioPicked, "selected_subtitle": NSNull(), "chapters": p.chapters.map(object(_:)),
+        ]]
+        out["markers"] = p.markers.map(object(_:))
+        return out
+    }
+
+    /// A model value as the server's JSON (snake_case) object.
+    private static func object(_ value: some Encodable) -> Any {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        return (try? encoder.encode(value)).flatMap { try? JSONSerialization.jsonObject(with: $0) } ?? [:]
     }
 
     private static func networkAnswer(_ network: Network, client: String) -> Answer {

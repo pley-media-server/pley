@@ -28,6 +28,8 @@ final class StillEngine: PlayerEngine {
     func seek(toMs positionMs: Int) {}
     func sample() -> EngineSample { EngineSample() }
     func setMaximumResolution(width: Int, height: Int) {}
+    func audioOptions() -> [EngineAudioOption] { [] }
+    func selectAudio(_ option: EngineAudioOption) -> Bool { false }
 
     func close() {
         closed = true

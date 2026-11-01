@@ -383,6 +383,61 @@ last rule.
 pauses and reports at once. Back after more than a minute, the session is
 checked, and one the server forgot starts again where it was, paused.
 
+### Resume, skips, Up Next and chapters
+
+**Resume.** An item left part way starts where the profile left off,
+exactly (AVPlayer seeks with no tolerance before it plays; a conversion
+starts producing there). Watched items, and Play from start, start at 0.
+
+**Skip Intro and Skip Credits** come from the item's markers for the file
+playing (the server finds them from chapters, shared audio or the
+credits' pictures: [Intro and credits
+detection](API.md#intro-and-credits-detection)). The button shows
+from a segment's start until a second before its end. Skip Intro lands
+750 ms before the intro ends (or half-way into a very short one), so its
+last moment plays; Skip Credits goes to the credits' end. Nothing is
+skipped by itself.
+
+**Up Next** follows an episode with the next one
+(`GET /api/items/{id}/next`, looked up at 90 % of the episode, or when its
+credits begin). Entering the credits brings up a card, once per segment
+(seeking back out of them hides it, and coming back into the same credits
+doesn't bring it again); the end of the episode brings it up too, also
+after it was cancelled. The card shows the next episode's picture, "Up
+next · S1 E2", its title, and counts 10 seconds down while it plays (the
+countdown waits while paused), then plays it; Play Next plays it at once,
+Cancel hides the card. Playing the next one ends this session first
+(`stopped` where it got to, then `DELETE`: at 90 % or more the server
+marks it watched), then starts the next one on the same player from its
+resume point, or from the start if it was watched, with the quality chosen
+(Automatic starting from what the server knows of the network). Movies
+have none; Play Next on the last episode says "This is the last episode".
+
+**Chapters** from the file are listed with their start times, the one
+playing marked, and jump there. On Apple TV they are the player's chapter
+markers, each with its picture (`/api/files/{id}/chapters/{n}.jpg`, JPEG,
+read with the token; a chapter without one is shown without).
+
+### Audio
+
+The server says which audio track plays (`audio_index`): the one the
+profile picked for the movie or show, else the best of the profile's
+language for this device. The Audio menu lists the file's tracks
+("English (AAC Stereo)", "English – Commentary (AAC Stereo)") with that one
+marked. Picking another saves it for the whole show, or the movie, with
+the subtitles as they are (`PUT /api/items/{id}/streams`), and:
+
+- a file played as it is (an MP4 or MOV, whose tracks AVPlayer switches)
+  switches to it in the same session, when the device decodes it. A
+  track is the option at its place in AVPlayer's audio group (the file's
+  track order is ffprobe's), checked against its language;
+- otherwise a new session starts beside the one playing with the track
+  (`audio_index`, `keep_previous`), as a quality change does.
+
+A track chosen in AVKit's own audio menu (a file played as it is, with
+several tracks) is saved the same way. A file played as it is starts with
+the track the server named.
+
 ### Quality
 
 The Quality menu is the one in [QUALITY.md](QUALITY.md#the-menu): Original,
@@ -440,25 +495,33 @@ scrubber counts as a seek (one after the end starts a new session there).
 One playback plays at a time: starting another, signing out, switching
 profile or going back to the servers closes the one before, and its
 session ends on the server. The player shows the item's title and
-episode, and AVPlayer picks no subtitle or audio track of its own.
+episode, and AVPlayer picks no subtitle or audio track of its own: the
+audio is the one the server names ([Audio](#audio)).
 
 - **iPhone and iPad**: full screen over the app. The system's Close ends
   the playback. An Options button under the top row (with the controls,
-  and while paused) has Quality and Details: how the file plays (Direct
-  play, Direct stream or Transcoding, and whether the audio is
-  converted), why, and the video. Picture in Picture is off.
-- **Apple TV**: full screen, with Quality in the transport bar and a
-  Details tab in the info panel (swipe down). Menu closes the player when
-  the transport bar isn't showing. The display's frame rate and dynamic
-  range follow the video when the Apple TV is set to match content.
+  and while paused) has Quality, Audio (when there are several tracks),
+  Chapters and Details: how the file plays (Direct play, Direct stream or
+  Transcoding, and whether the audio is converted), why, and the video.
+  Skip Intro, Skip Credits and the Up Next card show at the bottom right.
+  Picture in Picture is off.
+- **Apple TV**: full screen, with Quality and Audio in the transport bar
+  and a Details tab in the info panel (swipe down). Skip Intro, Skip
+  Credits and Up Next ("Play Next (8)", Cancel) are the player's own
+  contextual buttons, and the chapters its chapter markers, with their
+  pictures. Menu closes the player when the transport bar isn't showing.
+  The display's frame rate and dynamic range follow the video when the
+  Apple TV is set to match content.
 - **Mac**: a window of its own per playback, opened from the item's page;
   closing the window ends the session, and starting another playback
-  closes it. The controls float over the picture, with Quality and
-  Details in their menu, and a Playback menu in the menu bar (Play or
-  Pause, Back and Forward 10 Seconds, Quality) acts on the window in
-  front. The keys are the web player's: Space or K plays and pauses, ← or
-  J and → or L go back and forward 10 seconds, ↑ and ↓ change the volume,
-  M mutes, F goes full screen and Esc leaves it. The Mac going to sleep
+  closes it. The controls float over the picture, with Quality, Audio,
+  Chapters and Details in their menu, Skip Intro, Skip Credits and the Up
+  Next card at the bottom right, and a Playback menu in the menu bar (Play
+  or Pause, Back and Forward 10 Seconds, Skip, Play Next, Quality, Audio,
+  Chapters) acts on the window in front. The keys are the web player's:
+  Space or K plays and pauses, ← or J and → or L go back and forward 10
+  seconds, ↑ and ↓ change the volume, M mutes, F goes full screen and Esc
+  leaves it, and S skips the intro or the credits. The Mac going to sleep
   pauses, a move to another screen reads the device's caps again, and
   quitting waits for the last reports (2 seconds at most).
 
@@ -575,8 +638,8 @@ PleyKit's modules, each depending only on those before it:
 | `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the scope guard and profile switching |
 | `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, and pictures made small and cached |
 | `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
-| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), the playback controller, the AVPlayer engine behind a protocol the tests replace, and the Mac player's keys |
-| `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its Quality and Details, and the audio session |
+| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `TrackChoices`), the playback controller, the AVPlayer engine behind a protocol the tests replace, and the Mac player's keys |
+| `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Chapters, Details), Apple TV's contextual actions and chapter markers, and the audio session |
 | `PleyScreens` | What the screens show and do, shared by both apps without any views: the route between screens, the servers, signing in (with the QR code, from Core Image), profiles, Home and an item's page, as `ObservableObject`s; `AppModel` also owns the one playback at a time, the device's caps and the session reports |
 | `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens, playback sessions with keyed media, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
@@ -637,6 +700,13 @@ activity, the session's status and the item:
 - HEVC HDR10 is repackaged with `VIDEO-RANGE=PQ` on a screen that shows
   HDR, and converted to SDR, saying so, on one that doesn't;
 - MPEG-2 is converted, and DTS repackaged with its audio converted;
+- the show's first episode, its markers asked for and made from its
+  chapters: Skip Intro lands past the intro, entering the credits brings
+  up Up Next for the second episode, and Play Next (past 90 %) marks the
+  first watched, ends its session and plays the second;
+- the MP4 with two audio tracks switches to its AC-3 track in the same
+  session, and the server keeps the choice (`selected_audio`,
+  `audio_picked`);
 - for every recorded Apple device class's caps report
   (`apps/server/tests/fixtures/caps`), the server's decision for six of
   the files (method, converted audio and reasons) is the one
@@ -669,8 +739,9 @@ address, to have it found by Bonjour. Delete the folder afterwards.
 
 ## Known limits
 
-- No skip intro or credits, Up Next, chapters, audio switching inside the
-  player or subtitles drawn over the picture yet.
+- No subtitles drawn over the picture yet.
+- Up Next follows episodes only: no playlist or collection queues, and no
+  setting to turn its countdown off.
 - No seek-bar previews.
 - A subtitle isn't shown over AirPlay.
 - No Live TV, music or downloads.

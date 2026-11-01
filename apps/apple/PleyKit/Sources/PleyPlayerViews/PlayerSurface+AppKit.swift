@@ -9,7 +9,7 @@ import SwiftUI
 /// full-screen button, showing the controller's AVPlayer.
 ///
 /// - Its action menu (the controls' "…") has Quality, each choice with its
-///   second line, and Details.
+///   second line, Audio, Chapters and Details.
 /// - Automatic plays no stream size bigger than the view, in pixels.
 /// - The web player's keys work while its window is key (`PlayerKeys`).
 /// - When its window moves to another screen, or the screens change, the
@@ -138,6 +138,9 @@ public final class PleyPlayerView: AVPlayerView {
         case .leaveFullScreen:
             guard let window, window.styleMask.contains(.fullScreen) else { return false }
             window.toggleFullScreen(nil)
+        case .skip:
+            guard controller.state.skipLabel != nil else { return false }
+            controller.skip()
         }
         return true
     }
@@ -145,7 +148,7 @@ public final class PleyPlayerView: AVPlayerView {
 
 /// The Mac's player menus, shared by the action menu and the menu bar's Playback menu.
 public enum PlayerMenus {
-    /// Quality (the one playing checked) and Details.
+    /// Quality (the one playing checked), Audio (when there is a choice), Chapters and Details.
     @MainActor
     public static func actionMenu(_ state: PlayerState, controller: PlaybackController) -> NSMenu {
         let menu = NSMenu()
@@ -160,6 +163,24 @@ public enum PlayerMenus {
             quality.submenu?.addItem(item)
         }
         menu.addItem(quality)
+        if state.audio.count > 1 {
+            menu.addItem(submenu("Audio", state.audio.map { choice in
+                let item = ClosureMenuItem(title: choice.label) { [weak controller] in
+                    if let index = Int(choice.id) { controller?.selectAudio(index) }
+                }
+                item.state = choice.selected ? .on : .off
+                return item
+            }))
+        }
+        if !state.chapters.isEmpty {
+            menu.addItem(submenu("Chapters", state.chapters.map { chapter in
+                let item = ClosureMenuItem(title: chapter.label) { [weak controller] in
+                    controller?.jumpToChapter(chapter.index)
+                }
+                item.state = chapter.current ? .on : .off
+                return item
+            }))
+        }
         let details = NSMenuItem(title: "Details", action: nil, keyEquivalent: "")
         details.submenu = NSMenu(title: "Details")
         for line in PlayerDetails.lines(state) {
@@ -169,6 +190,13 @@ public enum PlayerMenus {
         }
         menu.addItem(details)
         return menu
+    }
+
+    private static func submenu(_ title: String, _ items: [NSMenuItem]) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.submenu = NSMenu(title: title)
+        items.forEach { item.submenu?.addItem($0) }
+        return item
     }
 }
 

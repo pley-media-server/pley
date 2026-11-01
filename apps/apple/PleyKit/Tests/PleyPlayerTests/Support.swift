@@ -86,6 +86,17 @@ final class FakeEngine: PlayerEngine {
     private(set) var maximumResolution = (width: 0, height: 0)
     func setMaximumResolution(width: Int, height: Int) { maximumResolution = (width, height) }
 
+    /// The media's own audio options, as AVPlayer would list them; the choices made of them.
+    var audio: [EngineAudioOption] = []
+    private(set) var audioChoices: [EngineAudioOption] = []
+    func audioOptions() -> [EngineAudioOption] { audio }
+
+    func selectAudio(_ option: EngineAudioOption) -> Bool {
+        guard audio.contains(option) else { return false }
+        audioChoices.append(option)
+        return true
+    }
+
     func close() {
         closed = true
         continuation.finish()

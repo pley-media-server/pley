@@ -14,20 +14,26 @@ import UIKit
 /// - Apple TV: AVKit applies the content's frame rate and dynamic range to
 ///   the TV when the person turned on Match Content
 ///   (`appliesPreferredDisplayCriteriaAutomatically`, from the master
-///   playlist's `FRAME-RATE` and `VIDEO-RANGE`). The Quality menu sits in
-///   the transport bar, and Details is a tab of the info panel.
+///   playlist's `FRAME-RATE` and `VIDEO-RANGE`). The Quality and Audio
+///   menus sit in the transport bar, and Details is a tab of the info panel.
+///   Skip Intro, Skip Credits and Up Next ("Play Next (8)", Cancel) are the
+///   player's contextual actions, and the chapters its navigation markers,
+///   with their pictures.
 public struct PlayerSurface: UIViewControllerRepresentable {
     let player: AVPlayer?
     let state: PlayerState
     let onTap: () -> Void
     let onQuality: (String) -> Void
+    /// Apple TV: what the transport bar's menus and the contextual actions act on.
+    let controller: PlaybackController?
 
     public init(player: AVPlayer?, state: PlayerState, onTap: @escaping () -> Void = {},
-                onQuality: @escaping (String) -> Void = { _ in }) {
+                onQuality: @escaping (String) -> Void = { _ in }, controller: PlaybackController? = nil) {
         self.player = player
         self.state = state
         self.onTap = onTap
         self.onQuality = onQuality
+        self.controller = controller
     }
 
     public func makeCoordinator() -> Coordinator { Coordinator() }
@@ -65,10 +71,25 @@ public struct PlayerSurface: UIViewControllerRepresentable {
         coordinator.describeItem()
         #if os(tvOS)
         coordinator.details?.rootView = AnyView(PlayerDetailsView(state: state).padding(40))
-        if coordinator.qualities != state.qualities {
+        let playback = self.controller
+        if coordinator.qualities != state.qualities || coordinator.audio != state.audio {
             coordinator.qualities = state.qualities
-            controller.transportBarCustomMenuItems = [Self.qualityMenu(state.qualities, onQuality)]
+            coordinator.audio = state.audio
+            var menus = [Self.qualityMenu(state.qualities, onQuality)]
+            if state.audio.count > 1 {
+                menus.append(Self.audioMenu(state.audio) { playback?.selectAudio($0) })
+            }
+            controller.transportBarCustomMenuItems = menus
         }
+        let actions = Self.contextualActions(state, playback)
+        if coordinator.actions != actions.key {
+            coordinator.actions = actions.key
+            controller.contextualActions = actions.list
+        }
+        coordinator.chapters = state.chapters
+        coordinator.durationMs = state.durationMs
+        coordinator.playback = playback
+        coordinator.markChapters()
         #endif
     }
 
@@ -88,6 +109,33 @@ public struct PlayerSurface: UIViewControllerRepresentable {
         }
         return UIMenu(title: "Quality", image: UIImage(systemName: "slider.horizontal.3"), children: actions)
     }
+
+    /// The transport bar's Audio menu, the track playing checked.
+    static func audioMenu(_ choices: [MenuChoice], _ select: @escaping (Int) -> Void) -> UIMenu {
+        let actions = choices.map { choice in
+            UIAction(title: choice.label, state: choice.selected ? .on : .off) { _ in
+                if let index = Int(choice.id) { select(index) }
+            }
+        }
+        return UIMenu(title: "Audio", image: UIImage(systemName: "speaker.wave.2"), children: actions)
+    }
+
+    /// Skip Intro or Skip Credits, or Up Next's Play Next and Cancel; and
+    /// what they are, so they are made again only when that changes.
+    @MainActor
+    static func contextualActions(_ state: PlayerState,
+                                  _ playback: PlaybackController?) -> (key: String, list: [UIAction]) {
+        if let card = state.upNext {
+            return ("next \(card.itemId) \(card.playLabel)", [
+                UIAction(title: card.playLabel, image: UIImage(systemName: "forward.end")) { _ in playback?.playNext() },
+                UIAction(title: "Cancel") { _ in playback?.cancelUpNext() },
+            ])
+        }
+        if let label = state.skipLabel {
+            return ("skip \(label)", [UIAction(title: label) { _ in playback?.skip() }])
+        }
+        return ("", [])
+    }
     #endif
 
     public final class Coordinator: NSObject, UIGestureRecognizerDelegate {
@@ -97,6 +145,16 @@ public struct PlayerSurface: UIViewControllerRepresentable {
         #if os(tvOS)
         var details: UIHostingController<AnyView>?
         var qualities: [MenuChoice] = []
+        var audio: [MenuChoice] = []
+        var actions = ""
+        var chapters: [ChapterChoice] = []
+        var durationMs = 0
+        weak var playback: PlaybackController?
+        /// The item the chapter markers were given to, and for which chapters.
+        private weak var marked: AVPlayerItem?
+        private var markedFor: [ChapterChoice] = []
+        private var pictures: [Int: Data] = [:]
+        private var picturesTask: Task<Void, Never>?
         #endif
         private weak var player: AVPlayer?
         private var itemWatch: NSKeyValueObservation?
@@ -116,9 +174,64 @@ public struct PlayerSurface: UIViewControllerRepresentable {
             self.player = player
             guard let player else { return }
             itemWatch = player.observe(\.currentItem, options: [.new]) { [weak self] _, _ in
-                Task { @MainActor in self?.describeItem() }
+                Task { @MainActor in
+                    self?.describeItem()
+                    #if os(tvOS)
+                    self?.markChapters()
+                    #endif
+                }
             }
         }
+
+        #if os(tvOS)
+        /// The chapters as the player's navigation markers, on each new item
+        /// (a new session) and when they change; their pictures (JPEG, read
+        /// with the token) are added as they come, and left out when missing.
+        @MainActor
+        func markChapters() {
+            guard let item = player?.currentItem else { return }
+            let titles = chapters.map { ChapterChoice(index: $0.index, title: $0.title, startMs: $0.startMs) }
+            if marked === item, markedFor == titles { return }
+            if markedFor != titles {
+                picturesTask?.cancel()
+                pictures = [:]
+                if let playback, !titles.isEmpty {
+                    let indexes = titles.map(\.index)
+                    picturesTask = Task { [weak self] in
+                        for index in indexes {
+                            guard let data = await playback.chapterPicture(index), !Task.isCancelled else { continue }
+                            self?.pictures[index] = data
+                        }
+                        guard !Task.isCancelled, let self, let item = self.player?.currentItem else { return }
+                        item.navigationMarkerGroups = self.markerGroups()
+                    }
+                }
+            }
+            marked = item
+            markedFor = titles
+            item.navigationMarkerGroups = markerGroups()
+        }
+
+        private func markerGroups() -> [AVNavigationMarkersGroup] {
+            guard !markedFor.isEmpty else { return [] }
+            let markers = markedFor.enumerated().map { n, chapter in
+                let end = n + 1 < markedFor.count ? markedFor[n + 1].startMs : max(durationMs, chapter.startMs + 1)
+                var items = [Self.metadata(.commonIdentifierTitle, chapter.title)]
+                if let data = pictures[chapter.index] {
+                    let artwork = AVMutableMetadataItem()
+                    artwork.identifier = .commonIdentifierArtwork
+                    artwork.value = data as NSData
+                    artwork.dataType = kCMMetadataBaseDataType_JPEG as String
+                    artwork.extendedLanguageTag = "und"
+                    items.append(artwork.copy() as! AVMetadataItem)
+                }
+                let range = CMTimeRange(start: CMTime(value: CMTimeValue(chapter.startMs), timescale: 1000),
+                                        end: CMTime(value: CMTimeValue(end), timescale: 1000))
+                return AVTimedMetadataGroup(items: items, timeRange: range)
+            }
+            return [AVNavigationMarkersGroup(title: nil, timedNavigationMarkers: markers)]
+        }
+        #endif
 
         /// The title and the episode's label, for the system's info panel.
         @MainActor

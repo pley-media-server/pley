@@ -17,6 +17,9 @@ import PleyCommon
 /// - The system's controls act on the player itself: a play or pause they
 ///   make, and a jump in time, are told to the controller as events.
 /// - Subtitles are the app's to draw: the asset's own are never selected.
+/// - A file's own audio tracks are its `.audible` media selection group's
+///   options, in the file's order; a choice made in the system's audio menu
+///   is told to the controller (`audioChanged`).
 @MainActor
 public final class AVPlayerEngine: PlayerEngine {
     public let player: AVPlayer
@@ -39,6 +42,9 @@ public final class AVPlayerEngine: PlayerEngine {
     /// The last HTTP error the error log named for this item.
     private var lastHTTPStatus: Int?
     private var closed = false
+    /// The media's audio group, once ready, and the place of the option playing.
+    private var audible: AVMediaSelectionGroup?
+    private var audioPlaying: Int?
 
     public init() {
         player = AVPlayer()
@@ -62,6 +68,8 @@ public final class AVPlayerEngine: PlayerEngine {
         frames = 0
         stalled = false
         lastHTTPStatus = nil
+        audible = nil
+        audioPlaying = nil
         hls = url.path.hasSuffix(".m3u8")
         let item = AVPlayerItem(asset: AVURLAsset(url: url))
         item.preferredMaximumResolution = maximumResolution
@@ -94,6 +102,10 @@ public final class AVPlayerEngine: PlayerEngine {
             center.addObserver(forName: AVPlayerItem.playbackStalledNotification, object: item, queue: .main) {
                 [weak self] _ in
                 Task { @MainActor in self?.stalled = true }
+            },
+            center.addObserver(forName: AVPlayerItem.mediaSelectionDidChangeNotification, object: item,
+                               queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.selectionChanged() }
             },
         ]
         player.replaceCurrentItem(with: item)
@@ -148,6 +160,22 @@ public final class AVPlayerEngine: PlayerEngine {
         item?.preferredMaximumResolution = maximumResolution
     }
 
+    public func audioOptions() -> [EngineAudioOption] {
+        guard let audible else { return [] }
+        return audible.options.enumerated().map { position, option in
+            EngineAudioOption(position: position, language: option.extendedLanguageTag ?? option.locale?.identifier)
+        }
+    }
+
+    @discardableResult
+    public func selectAudio(_ option: EngineAudioOption) -> Bool {
+        guard let item, let audible, audible.options.indices.contains(option.position) else { return false }
+        // Known before the notification comes: a choice of the controller's own isn't told back to it.
+        audioPlaying = option.position
+        item.select(audible.options[option.position], in: audible)
+        return true
+    }
+
     public func close() {
         guard !closed else { return }
         closed = true
@@ -164,6 +192,7 @@ public final class AVPlayerEngine: PlayerEngine {
     private func detach() {
         status?.invalidate()
         status = nil
+        audible = nil
         observers.forEach(NotificationCenter.default.removeObserver)
         observers = []
         if let item, let output { item.remove(output) }
@@ -188,21 +217,41 @@ public final class AVPlayerEngine: PlayerEngine {
         }
     }
 
-    /// The item stands at its start: it plays when wanted, and says it is ready.
+    /// The item stands at its start: it plays when wanted, and says it is
+    /// ready once its audio tracks are known.
     private func began(_ item: AVPlayerItem) {
         guard self.item === item, !ready, !closed else { return }
         ready = true
         if wantsPlay { player.play() }
-        send(.ready)
-        Task { [weak self] in await self?.deselectSubtitles(of: item) }
+        Task { [weak self] in
+            await self?.readSelections(of: item)
+            guard let self, self.item === item else { return }
+            self.send(.ready)
+        }
     }
 
-    /// The asset's own subtitles stay off: the app draws the server's.
-    private func deselectSubtitles(of item: AVPlayerItem) async {
-        guard let group = try? await item.asset.loadMediaSelectionGroup(for: .legible), self.item === item else {
-            return
+    /// The asset's own subtitles stay off (the app draws the server's), and
+    /// its audio tracks are read.
+    private func readSelections(of item: AVPlayerItem) async {
+        if let legible = try? await item.asset.loadMediaSelectionGroup(for: .legible), self.item === item {
+            item.select(nil, in: legible)
         }
-        item.select(nil, in: group)
+        guard !hls, let group = try? await item.asset.loadMediaSelectionGroup(for: .audible), self.item === item
+        else { return }
+        audible = group
+        audioPlaying = item.currentMediaSelection.selectedMediaOption(in: group).flatMap(group.options.firstIndex(of:))
+    }
+
+    /// The media's selection changed: a new audio track chosen elsewhere
+    /// than here (the system's menu) is told to the controller.
+    private func selectionChanged() {
+        guard !closed, let item, let audible,
+              let option = item.currentMediaSelection.selectedMediaOption(in: audible),
+              let position = audible.options.firstIndex(of: option), position != audioPlaying
+        else { return }
+        audioPlaying = position
+        send(.audioChanged(EngineAudioOption(position: position,
+                                             language: option.extendedLanguageTag ?? option.locale?.identifier)))
     }
 
     /// The rate changed. One the engine didn't ask for came from the

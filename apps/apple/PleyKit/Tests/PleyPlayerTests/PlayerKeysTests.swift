@@ -15,6 +15,7 @@ import Testing
         #expect(PlayerKeys.action("m") == .mute)
         #expect(PlayerKeys.action("f") == .fullScreen)
         #expect(PlayerKeys.action(String(PlayerKeys.Special.escape)) == .leaveFullScreen)
+        #expect(PlayerKeys.action("s") == .skip)
     }
 
     @Test func otherKeysAndMenuShortcutsAreLeftAlone() {

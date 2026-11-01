@@ -6,9 +6,11 @@ import SwiftUI
 #if os(iOS)
 /// The player on iPhone and iPad, full screen over the app: the system's
 /// player (its own Close ends the playback) with Pley's Options button
-/// (Quality, each with its second line, and Details) under its top row. Options shows with the
-/// system's controls (a tap shows it for 3 seconds) and stays while
-/// paused. A notice shows at the top for 4 seconds.
+/// (Quality, each with its second line, Audio, Chapters and Details) under
+/// its top row. Options shows with the system's controls (a tap shows it
+/// for 3 seconds) and stays while paused. Skip Intro, Skip Credits and the
+/// Up Next card show bottom trailing (`PlayerOverlay`). A notice shows at
+/// the top for 4 seconds.
 struct PlayerScreen: View {
     let app: AppModel
     @ObservedObject var controller: PlaybackController
@@ -27,6 +29,7 @@ struct PlayerScreen: View {
                     .onChange(of: geometry.size) { sized($0) }
             }
             .ignoresSafeArea()
+            PlayerOverlay(app: app, controller: controller)
             overlay
         }
         .statusBarHidden()
@@ -127,6 +130,36 @@ struct PlayerScreen: View {
                     }
                 }
             }
+            if controller.state.audio.count > 1 {
+                Section("Audio") {
+                    ForEach(controller.state.audio) { choice in
+                        Button {
+                            if let index = Int(choice.id) { controller.selectAudio(index) }
+                        } label: {
+                            if choice.selected {
+                                Label(choice.label, systemImage: "checkmark")
+                            } else {
+                                Text(choice.label)
+                            }
+                        }
+                    }
+                }
+            }
+            if !controller.state.chapters.isEmpty {
+                Menu("Chapters") {
+                    ForEach(controller.state.chapters) { chapter in
+                        Button {
+                            controller.jumpToChapter(chapter.index)
+                        } label: {
+                            if chapter.current {
+                                Label(chapter.label, systemImage: "checkmark")
+                            } else {
+                                Text(chapter.label)
+                            }
+                        }
+                    }
+                }
+            }
             Section("Details") {
                 ForEach(PlayerDetails.lines(controller.state), id: \.self) { line in
                     Text("\(line.title): \(line.text)")
@@ -205,6 +238,7 @@ private struct PlayerWindowContent: View {
         ZStack {
             Color.black
             PlayerSurface(controller: controller, state: controller.state, caps: app.caps)
+            PlayerOverlay(app: app, controller: controller)
             VStack {
                 if let notice {
                     Text(notice)
@@ -261,6 +295,11 @@ struct PlaybackCommands: Commands {
             Button("Forward 10 Seconds") { player?.seek(byMs: PlayerKeys.seekMs) }
                 .disabled(player == nil)
             Divider()
+            Button(player?.state.skipLabel ?? "Skip Intro") { player?.skip() }
+                .disabled(player?.state.skipLabel == nil)
+            Button("Play Next") { player?.playNext() }
+                .disabled(player?.state.upNext == nil)
+            Divider()
             Menu("Quality") {
                 ForEach(player?.state.qualities ?? []) { choice in
                     Toggle(choice.label, isOn: Binding(get: { choice.selected },
@@ -268,6 +307,21 @@ struct PlaybackCommands: Commands {
                 }
             }
             .disabled(player == nil)
+            Menu("Audio") {
+                ForEach(player?.state.audio ?? []) { choice in
+                    Toggle(choice.label, isOn: Binding(get: { choice.selected }, set: { _ in
+                        if let index = Int(choice.id) { player?.selectAudio(index) }
+                    }))
+                }
+            }
+            .disabled((player?.state.audio.count ?? 0) < 2)
+            Menu("Chapters") {
+                ForEach(player?.state.chapters ?? []) { chapter in
+                    Toggle(chapter.label, isOn: Binding(get: { chapter.current },
+                                                        set: { _ in player?.jumpToChapter(chapter.index) }))
+                }
+            }
+            .disabled(player?.state.chapters.isEmpty ?? true)
         }
     }
 

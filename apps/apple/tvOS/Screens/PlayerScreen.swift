@@ -4,8 +4,10 @@ import PleyScreens
 import SwiftUI
 
 /// The player on Apple TV: the system's player, full screen, with its
-/// transport bar's Quality menu (each choice with its second line) and a
-/// Details tab in its info panel. Menu
+/// transport bar's Quality menu (each choice with its second line) and
+/// Audio menu, a Details tab in its info panel, Skip Intro, Skip Credits
+/// and Up Next as its contextual actions, and the chapters as its
+/// navigation markers. Menu
 /// closes it (when the transport bar isn't showing), which ends the session.
 struct PlayerScreen: View {
     let app: AppModel
@@ -17,7 +19,7 @@ struct PlayerScreen: View {
             Color.black.ignoresSafeArea()
             GeometryReader { geometry in
                 PlayerSurface(player: controller.player, state: controller.state,
-                              onQuality: { controller.selectQuality($0) })
+                              onQuality: { controller.selectQuality($0) }, controller: controller)
                     .onAppear { sized(geometry.size) }
                     .onChange(of: geometry.size) { _, size in sized(size) }
             }

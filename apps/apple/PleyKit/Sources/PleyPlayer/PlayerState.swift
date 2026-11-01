@@ -46,6 +46,16 @@ public struct PlayerState: Equatable, Sendable {
     public var qualityNote: String?
     /// What the server's conversion makes of the video ("H.264 1280×720"), once it runs.
     public var videoOut: String?
+    /// The item playing; it changes when the next episode plays.
+    public var itemId: Int?
+    /// "Skip Intro" or "Skip Credits" while the playhead is in one; `skip()` skips it.
+    public var skipLabel: String?
+    /// What plays next, while its card shows.
+    public var upNext: UpNextCard?
+    /// The file's chapters, the one playing marked.
+    public var chapters: [ChapterChoice] = []
+    /// The Audio menu: the file's audio tracks, the one playing selected; ids are stream indexes.
+    public var audio: [MenuChoice] = []
 
     public init() {}
 
@@ -67,6 +77,52 @@ public struct PlayerState: Equatable, Sendable {
         if case .failed = phase { return true }
         return false
     }
+}
+
+/// The card for what plays next: its words, its picture and its countdown.
+public struct UpNextCard: Equatable, Sendable {
+    public var itemId: Int
+    public var title: String
+    /// "Up next · S1 E2".
+    public var heading: String
+    /// The server's picture of it (a still, else the backdrop), for `NextUp.imageWidth` pixels.
+    public var imagePath: String?
+    /// Seconds before it plays by itself; `nil` while no countdown runs.
+    public var secondsLeft: Int?
+
+    public init(itemId: Int, title: String, heading: String, imagePath: String? = nil, secondsLeft: Int? = nil) {
+        self.itemId = itemId
+        self.title = title
+        self.heading = heading
+        self.imagePath = imagePath
+        self.secondsLeft = secondsLeft
+    }
+
+    /// "Play Next (8)" while counting down, else "Play Next".
+    public var playLabel: String { secondsLeft.map { "Play Next (\($0))" } ?? "Play Next" }
+}
+
+/// A chapter in the player's Chapters menu.
+public struct ChapterChoice: Equatable, Hashable, Sendable, Identifiable {
+    /// Its place in the file's chapters, from 0.
+    public var index: Int
+    /// The chapter's title, else "Chapter 3".
+    public var title: String
+    public var startMs: Int
+    /// The playhead is in it.
+    public var current: Bool
+
+    public var id: Int { index }
+
+    public init(index: Int, title: String, startMs: Int, current: Bool = false) {
+        self.index = index
+        self.title = title
+        self.startMs = startMs
+        self.current = current
+    }
+
+    /// The menu's line: "Intro · 0:10".
+    public var label: String { "\(title) · \(Words.clock(ms: startMs))" }
 }
 
 /// A choice in one of the player's menus.
@@ -94,6 +150,8 @@ enum PlayerTexts {
     static let nothingToPlay = "This item has no file to play."
     static let slowServer = "The server can't convert this video fast enough; a lower quality would play smoothly."
     static let automaticHint = "Dynamically adjust to conditions"
+    static let lastEpisode = "This is the last episode"
+    static let nothingNext = "Nothing plays next"
 
     /// The menu's Automatic while it plays `playing`: "Automatic · 8 Mbps 1080p".
     static func automatic(_ playing: String) -> String { "Automatic · \(playing)" }
