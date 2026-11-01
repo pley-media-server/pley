@@ -40,23 +40,6 @@ public static class Markers
     /// <summary>"Skip Intro" or "Skip Credits".</summary>
     public static string SkipLabel(Marker marker) => marker.Kind == "intro" ? SessionText.SkipIntro : SessionText.SkipCredits;
 
-    /// <summary>
-    /// The cards of the chapters' row (Up on the scrubber) with the markers in them, in time:
-    /// "Skip Intro" where skipping the intro lands, "Credits" where the credits begin. The
-    /// player's controls show no Skip button; the row has it. Chapters keep their names ("Chapter
-    /// 3" numbered among the chapters alone), and a film with markers and no chapters has a row.
-    /// </summary>
-    public static IReadOnlyList<ChapterMark> Cards(IReadOnlyList<ChapterMark> chapters, IReadOnlyList<Marker> markers)
-    {
-        var cards = chapters.Select((c, i) => c with { Title = PlayerText.ChapterTitle(c, i) }).ToList();
-        foreach (var m in markers)
-        {
-            if (m.Kind == "intro") cards.Add(new ChapterMark(SessionText.SkipIntro, SkipTarget(m), SkipTarget(m), null));
-            else cards.Add(new ChapterMark(PlayerText.Credits, m.StartMs, m.EndMs, null));
-        }
-        return cards.OrderBy(c => c.StartMs).ToList();
-    }
-
     /// <summary>"Intro" or "Credits", under the scrubber's span of the marker playing.</summary>
     public static string Name(Marker marker) => marker.Kind == "intro" ? PlayerText.Intro : PlayerText.Credits;
 

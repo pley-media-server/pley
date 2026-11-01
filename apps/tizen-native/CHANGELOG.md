@@ -126,15 +126,18 @@ It has no releases yet: it is built and installed by hand
   send them has them burned into the video instead.
 - In the native app's player, OK with the controls hidden shows them on
   the scrubber, as Up does, rather than pausing; OK on the scrubber plays
-  and pauses. Up on the scrubber opens the film's chapters as a row of
-  cards (each one's picture, name and start), with Skip Intro and the
-  credits among them, pausing while it shows:
-  Left and Right go through them, moving the scrubber to each one's
+  and pauses. Seeking with Left and Right waits for OK, as YouTube's TV app
+  does: the preview shows where it goes, OK goes there, Back lets it go,
+  and it goes by itself 5 s after the last key; a held key runs faster the
+  longer it's held. While a seek waits, Up opens the film's chapters as a
+  row of cards (each one's picture, name and start), pausing while it
+  shows: Left and Right go through them, moving the scrubber to each one's
   start, and OK goes there. Chapters named only for where they start
   ("00:06:19.212") are numbered instead. The scrubber is blue up to its
-  thumb while seeking. The Skip Intro and Skip Credits button shows only
-  while the controls are hidden. As each item begins playing (the next
-  episode by itself too), its title shows at the top for a few seconds.
+  thumb while seeking. Skip Intro and Skip Credits show over the scrubber
+  as on Android TV, where Up reaches them, and give way to a seek's preview
+  and the chapters. As each item begins playing (the next episode by
+  itself too), its title shows at the top for a few seconds.
 - Back on the native app's first screen asks "Exit Pley?" (Cancel, Exit) as
   the web Samsung app does, rather than leaving at once.
 - The native app's Home no longer pauses to draw its rows again when the

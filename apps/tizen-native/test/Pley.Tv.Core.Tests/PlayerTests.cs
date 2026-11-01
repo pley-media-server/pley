@@ -45,21 +45,47 @@ public class SeekerTests
         Assert.Equal(-10_000, s.BadgeAt);
     }
 
-    [Fact]
-    public void A_held_key_scrubs_faster_the_longer_it_is_held_and_seeks_on_release()
+    /// <summary>How far a key held from 0 moves the target between <paramref name="from"/> and <paramref name="to"/>, repeating every 50 ms.</summary>
+    static long Scrubbed(Seeker s, long from, long to)
     {
-        var s = Make();
+        var before = s.Target ?? 0;
+        for (var t = from + 50; t <= to; t += 50) s.Repeat(1, t);
+        return (s.Target ?? 0) - before;
+    }
+
+    [Fact]
+    public void A_held_key_scrubs_twice_as_fast_every_1_5_s_and_waits_when_let_go()
+    {
+        var s = Make(duration: 36_000_000);
         s.Repeat(1, 0);
         Assert.True(s.Holding);
-        s.Repeat(1, 100);
-        Assert.Equal(60_000 + 30 * 100, s.Target);
-        for (var t = 200L; t <= 2_000; t += 100) s.Repeat(1, t);
-        // From 1.5 s on, 90 ms of video per ms held.
-        Assert.True(s.Target > 60_000 + 30 * 1_500);
+        s.Repeat(1, 50);
+        Assert.Equal(60_000 + (long)(Seeker.HoldStartRate * System.Math.Pow(2, 50 / 1_500.0) * 50), s.Target);
+        // A second held goes about twice as far as the second 1.5 s before it.
+        Scrubbed(s, 50, 500);
+        var early = Scrubbed(s, 500, 1_500);
+        Scrubbed(s, 1_500, 2_000);
+        var later = Scrubbed(s, 2_000, 3_000);
+        Assert.InRange(later / (double)early, 1.9, 2.1);
         Assert.Empty(seeks);
+        // Let go, it waits for OK as presses do: nothing yet, then once it settles.
         Assert.True(s.Release());
-        Assert.Single(seeks);
         Assert.False(s.Holding);
+        Assert.Empty(seeks);
+        s.Settle(s.Presses);
+        Assert.Single(seeks);
+    }
+
+    [Fact]
+    public void A_held_key_tops_out_at_a_whole_video_in_10_s_or_300_ms_a_ms()
+    {
+        Assert.Equal(20, Make().RateAt(0));
+        Assert.Equal(40, Make().RateAt(1_500), 6);
+        Assert.Equal(160, Make().RateAt(4_500), 6);
+        // An hour's video: an hour in 10 s, 360 ms of video a ms.
+        Assert.Equal(360, Make(duration: 3_600_000).RateAt(20_000));
+        // A short one: 300 ms a ms at most.
+        Assert.Equal(300, Make(duration: 600_000).RateAt(20_000));
     }
 
     [Fact]
@@ -68,7 +94,7 @@ public class SeekerTests
         var s = Make();
         s.Repeat(1, 0);
         s.Repeat(1, 1_000);
-        Assert.Equal(60_000 + 30 * 200, s.Target);
+        Assert.Equal(60_000 + (long)(Seeker.HoldStartRate * System.Math.Pow(2, 1_000 / 1_500.0) * 200), s.Target);
     }
 
     [Fact]

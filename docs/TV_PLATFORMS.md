@@ -401,16 +401,18 @@ album pages (Play, Shuffle, the albums, the tracks by disc) and Now Playing
 music playing on behind the other pages, driven by the remote's media keys
 from any of them, and pausing for a video; and the player: the stream on
 the TV's own player, chosen with the TV's capabilities, seeking with Left
-and Right with previews of where to, OK showing the controls, the
-scrubber with its chapters (Up on it opens them as a row of cards to go
-to, Skip Intro and the credits among them) and the control row, the title
+and Right with previews of where to (as YouTube's TV app: it waits for OK,
+and a held key runs faster the longer it's held), OK showing the
+controls, the scrubber with its chapters (Up while a seek waits opens
+them as a row of cards to go to) and the control row, the title
 for a few seconds as each item begins, text subtitles in Settings' look
 (the CAPTIONS key turns them off and on), picture subtitles (PGS, VobSub,
 DVB) decoded from the server's `.mks` and drawn as the web app draws them,
 burned in by the server only when it can't make that file, the side
 panels (Subtitles with Sync and the subtitles' look, Audio, Quality,
 Chapters, the sleep timer, Speed where the TV's player has other speeds,
-and Info), Skip Intro and Skip Credits while the controls are hidden, Up
+and Info), Skip Intro and Skip Credits (over the scrubber, where Up
+reaches them, as on Android TV), Up
 Next (the next episode, or the next in a playlist or collection),
 recovering by itself from stalls and a server out of reach, and Try again
 when it can't play. Back on its first screen asks "Exit Pley?". Unlike

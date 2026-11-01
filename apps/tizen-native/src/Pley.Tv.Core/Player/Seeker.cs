@@ -3,13 +3,16 @@ using System;
 namespace Pley.Tv.Core.Player;
 
 /// <summary>
-/// Left and Right in the player (the Android app's TvSeeker; TV addendum §5.2, design spec §2.7):
+/// Left and Right in the player (the Android app's TvSeeker, timed as YouTube's TV app; TV
+/// addendum §5.2, design spec §2.7):
 /// <list type="bullet">
-/// <item>A press moves the target 10 s. Presses in a row add up ("+30 s") and seek once,
-/// <see cref="SettleMs"/> after the last one (<see cref="Settle"/>), so a few quick presses don't
-/// start the server's conversion again for each.</item>
-/// <item>A held key scrubs: the target runs faster the longer the key is held, and nothing seeks
-/// until the key is let go; then it seeks once (<see cref="Release"/>).</item>
+/// <item>A press moves the target 10 s. Presses in a row add up ("+30 s") and seek once, when
+/// they settle (<see cref="Settle"/>): the player waits for OK there, <see cref="WaitMs"/> at most,
+/// and the media keys' jumps <see cref="SettleMs"/>, so a few quick presses don't start the
+/// server's conversion again for each.</item>
+/// <item>A held key scrubs: the target runs faster the longer the key is held, from
+/// <see cref="HoldStartRate"/>, doubling every <see cref="HoldDoublesMs"/>. Let go, it waits as
+/// presses do (<see cref="Release"/>).</item>
 /// </list>
 /// Times are the keys' own, in ms; the UI thread only.
 /// </summary>
@@ -17,8 +20,10 @@ public sealed class Seeker
 {
     /// <summary>A press of Left or Right.</summary>
     public const long StepMs = 10_000;
-    /// <summary>Presses in a row seek once, this long after the last.</summary>
+    /// <summary>The media keys' jumps in a row seek once, this long after the last.</summary>
     public const long SettleMs = 400;
+    /// <summary>A seek with Left and Right waits for OK, and goes by itself this long after the last key.</summary>
+    public const long WaitMs = 5_000;
     /// <summary>The seek badge shows this long after the last press.</summary>
     public const long BadgeMs = 600;
     /// <summary>OK this soon after a seek confirms it instead of pausing: a seek far off takes a moment to show.</summary>
@@ -26,10 +31,14 @@ public sealed class Seeker
     /// <summary>Seeks stop short of the end, so the end isn't reached by seeking.</summary>
     public const long EndMarginMs = 1_000;
 
-    const long SlowForMs = 1_500;
-    const long MediumForMs = 4_000;
-    /// <summary>After a few seconds held, a whole video goes by in about this long.</summary>
-    const long FullSweepMs = 15_000;
+    /// <summary>A held key's speed as it starts, in ms of video per ms held.</summary>
+    public const double HoldStartRate = 20;
+    /// <summary>A held key's speed doubles this often.</summary>
+    public const long HoldDoublesMs = 1_500;
+    /// <summary>The speed it stops at: at least this, or a whole video in <see cref="FullSweepMs"/>.</summary>
+    public const double HoldTopRate = 300;
+    /// <summary>At its top speed, a whole video goes by in about this long.</summary>
+    public const long FullSweepMs = 10_000;
     /// <summary>A gap between repeats longer than this counts as this (a stalled frame isn't a jump).</summary>
     const long MaxGapMs = 200;
 
@@ -98,12 +107,15 @@ public sealed class Seeker
         Target = Clamp((Target ?? position()) + direction * (long)(rate * dt));
     }
 
-    /// <summary>The key is let go: a scrub seeks now. Returns whether one did.</summary>
+    /// <summary>
+    /// The key is let go: a scrub waits where it got to, as presses do, settling from now (it
+    /// counts as a press). Returns whether a key was held.
+    /// </summary>
     public bool Release()
     {
         if (!Holding) return false;
         Holding = false;
-        Commit();
+        Presses++;
         return true;
     }
 
@@ -170,9 +182,7 @@ public sealed class Seeker
         return d > 0 ? Math.Max(0, Math.Min(ms, Math.Max(0, d - EndMarginMs))) : Math.Max(0, ms);
     }
 
-    /// <summary>How fast a held key scrubs, in ms of video per ms held: faster the longer it's held, and for longer videos.</summary>
-    double RateAt(long heldMs) =>
-        heldMs < SlowForMs ? 30.0
-        : heldMs < MediumForMs ? 90.0
-        : Math.Max(180.0, duration() / (double)FullSweepMs);
+    /// <summary>How fast a held key scrubs, in ms of video per ms held: smoothly faster the longer it's held, up to a top that grows with the video.</summary>
+    public double RateAt(long heldMs) =>
+        Math.Min(HoldStartRate * Math.Pow(2, heldMs / (double)HoldDoublesMs), Math.Max(HoldTopRate, duration() / (double)FullSweepMs));
 }

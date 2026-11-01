@@ -285,33 +285,6 @@ public class PlayerScreenRulesTests
         Assert.Equal("Chapter 3", PlayerText.ChapterLine(Chapters[2], 2));
     }
 
-    static Marker Mark(string kind, long start, long end) => new Marker { FileId = 1, Kind = kind, StartMs = start, EndMs = end, Source = "chapter" };
-
-    [Fact]
-    public void The_chapters_row_has_skip_intro_and_the_credits_among_the_chapters_in_time()
-    {
-        var chapters = new[]
-        {
-            new ChapterMark(null, 0, 120_000, null),
-            new ChapterMark("The Heist", 120_000, 3_000_000, null),
-            new ChapterMark(null, 3_000_000, 3_600_000, null),
-        };
-        var cards = Markers.Cards(chapters, new[] { Mark("credits", 3_400_000, 3_600_000), Mark("intro", 30_000, 90_000) });
-        // Skip Intro lands where the Skip button would: just before the intro ends.
-        Assert.Equal(Markers.SkipTarget(Mark("intro", 30_000, 90_000)), cards[1].StartMs);
-        // Chapters keep the number they have among the chapters, the markers in between.
-        Assert.Equal(new[] { "Chapter 1", "Skip Intro", "The Heist", "Chapter 3", "Credits" }, cards.Select(c => c.Title));
-        Assert.Equal(new long[] { 0, 89_250, 120_000, 3_000_000, 3_400_000 }, cards.Select(c => c.StartMs));
-    }
-
-    [Fact]
-    public void A_film_with_markers_and_no_chapters_has_a_chapters_row()
-    {
-        var cards = Markers.Cards(new ChapterMark[0], new[] { Mark("intro", 0, 60_000) });
-        Assert.Equal("Skip Intro", Assert.Single(cards).Title);
-        Assert.Empty(Markers.Cards(new ChapterMark[0], new Marker[0]));
-    }
-
     [Theory]
     [InlineData("00:06:19.212")]
     [InlineData("00:06:19")]

@@ -309,9 +309,9 @@ sealed class PlayerScreen : Sheet
                         if (down && !Busy) Step(key == "Left" ? -1 : 1);
                         return true;
                     case "Up":
-                        // The chapters as cards over the scrubber, Skip Intro and the credits among them,
-                        // where there are any; else Up moves on.
-                        if (Cards().Count == 0) return false;
+                        // While a seek waits for OK, the chapters as cards over the scrubber, as YouTube's
+                        // TV app has them; else Up moves on, to Skip Intro while it shows.
+                        if (seeker.Target == null || model.State.Value.Chapters.Count == 0) return false;
                         if (down) OpenChapters();
                         return true;
                     case "Down":
@@ -572,8 +572,8 @@ sealed class PlayerScreen : Sheet
     {
         var s = model.State.Value;
         var free = error == null && s.UpNext == null;
-        // Only with the controls hidden: with them, the chapters' row (Up on the scrubber) has Skip Intro.
-        var skipNow = s.SkipLabel != null && free && !shown;
+        // Over the scrubber with the controls up, as on Android TV, but not over a seek's preview or the chapters.
+        var skipNow = s.SkipLabel != null && free && !(shown && (seeker.Target != null || chapterStrip.Open));
         if (skipNow) skip.SetLabel(s.SkipLabel!);
         var noticeNow = s.Sleep.SecondsLeft != null && error == null;
         if (s.Sleep.SecondsLeft is int left) notice.Set(left);
@@ -728,9 +728,7 @@ sealed class PlayerScreen : Sheet
         ends.Text = s.Phase.Kind == PhaseKind.Paused
             ? PlayerText.EndsAt(DateTime.Now.AddMilliseconds(Math.Max(0, duration - position)).ToString("t", CultureInfo.CurrentCulture))
             : "";
-        // Broken where the chapters' cards start, Skip Intro and the credits among them.
-        var marks = Cards();
-        if (!ReferenceEquals(marks, segmentsOf) || duration != segmentsFor) Segments(marks, duration);
+        if (!ReferenceEquals(s.Chapters, segmentsOf) || duration != segmentsFor) Segments(s.Chapters, duration);
         var width = track.SizeWidth;
         float X(long ms) => duration > 0 ? (float)(width * Math.Max(0, Math.Min(1, ms / (double)duration))) : 0;
         // Blue up to the thumb: where it plays, or where a seek or a chapter focused would take it.
@@ -853,7 +851,7 @@ sealed class PlayerScreen : Sheet
         }
         if (RemoteKeys.Info(key) || RemoteKeys.Menu(key) || RemoteKeys.Guide(key))
         {
-            if (down) ShowControls(true, scrubber);
+            if (down) ShowControls(true, skipShown ? skip.Item : scrubber);
             return true;
         }
         switch (key)
@@ -962,26 +960,26 @@ sealed class PlayerScreen : Sheet
         else
         {
             seeker.Press(direction);
-            Settle();
+            Settle(Seeker.WaitMs);
         }
         Layout();
     }
 
-    /// <summary>Back and Forward: a step of 10 s each, as Left and Right; fast forward and rewind 30 s.</summary>
+    /// <summary>Back and Forward: a step of 10 s each, as Left and Right; fast forward and rewind 30 s. They seek without waiting for OK.</summary>
     void Jump(int steps)
     {
         if (Busy) return;
         seeker.Press(Math.Sign(steps), Seeker.StepMs * Math.Abs(steps));
-        Settle();
+        Settle(Seeker.SettleMs);
         if (shown) Poke();
         Layout();
     }
 
-    /// <summary>Presses in a row seek once they stop; the badge goes a little later.</summary>
-    void Settle()
+    /// <summary>Presses in a row seek once they stop, <paramref name="waitMs"/> after the last (OK sooner); the badge goes a little later.</summary>
+    void Settle(long waitMs)
     {
         var press = seeker.Presses;
-        After(Seeker.SettleMs, () =>
+        After(waitMs, () =>
         {
             seeker.Settle(press);
             Layout();
@@ -996,7 +994,10 @@ sealed class PlayerScreen : Sheet
     void Released()
     {
         if (gone) return;
-        if (seeker.Release()) Layout();
+        if (!seeker.Release()) return;
+        // Let go, the scrub waits for OK where it got to, as presses do.
+        Settle(Seeker.WaitMs);
+        Layout();
     }
 
     void SeekTo(long ms)
@@ -1013,24 +1014,12 @@ sealed class PlayerScreen : Sheet
     /// while they show, as YouTube's TV app does, and plays on as it was once they go; as focus goes
     /// through them, the scrubber's thumb shows the chapter's start.
     /// </summary>
-    /// <summary>The chapters' row's cards (<see cref="Markers.Cards"/>), made again only when the chapters or markers change.</summary>
-    IReadOnlyList<ChapterMark> Cards()
-    {
-        var s = model.State.Value;
-        if (!ReferenceEquals(s.Chapters, cardsChapters) || !ReferenceEquals(s.Markers, cardsMarkers))
-        {
-            cardsChapters = s.Chapters;
-            cardsMarkers = s.Markers;
-            cards = Markers.Cards(s.Chapters, s.Markers);
-        }
-        return cards;
-    }
-
-    IReadOnlyList<ChapterMark> cards = Array.Empty<ChapterMark>();
-    object? cardsChapters, cardsMarkers;
-
     void OpenChapters()
     {
+        // The seek gives way to the chapters, which start where it was going: chosen, one goes there;
+        // closed, it plays on from where it was.
+        var from = seeker.Target ?? model.LivePositionMs();
+        seeker.Cancel();
         playOnAfterChapters = model.WantsToPlay;
         if (playOnAfterChapters) model.Pause();
         chapterStrip.Focused = start =>
@@ -1038,7 +1027,7 @@ sealed class PlayerScreen : Sheet
             chapterAt = start;
             Layout();
         };
-        chapterStrip.Show(Cards(), seeker.Target ?? model.LivePositionMs());
+        chapterStrip.Show(model.State.Value.Chapters, from);
         if (chapterStrip.Item.Parent == null) Root.Add(chapterStrip.Item);
         Tree.Focus(chapterStrip.Item);
         Poke();
@@ -1105,6 +1094,14 @@ sealed class PlayerScreen : Sheet
         if (error == null && chapterStrip.Open)
         {
             CloseChapters();
+            return true;
+        }
+        // A seek waiting for OK: Back lets it go, and it plays on from where it was.
+        if (error == null && shown && seeker.Target != null)
+        {
+            seeker.Cancel();
+            Poke();
+            Layout();
             return true;
         }
         if (error == null && shown)

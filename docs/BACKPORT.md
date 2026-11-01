@@ -12,18 +12,18 @@ and LG web apps (`packages/tv`) · **Roku** · **Kodi**.
 - [ ] **OK shows the controls instead of pausing.** With the controls hidden, OK shows them on
   the scrubber (as Up does); OK on the scrubber plays/pauses; OK just after a seek confirms it.
   Native `d80bdfb1`. To: AndTV, TV, Roku, Kodi (remote-driven players).
-- [ ] **Chapters as a row of cards (YouTube-style).** Up on the scrubber opens a row of chapter
-  cards (picture: the chapter's own, else the trickplay frame a moment in; name; start time).
-  Pauses while open, plays on as it was when it closes; Left/Right move the scrubber's thumb and
-  times to each chapter's start; OK jumps there; Down/Back close. Without chapters (or markers),
-  Up does what it did. Native `d80bdfb1` (`Screens/ChapterStrip.cs`). To: AndTV, TV, Roku, Kodi;
-  Web/AndPh could get a similar chapter picker.
-- [ ] **Skip Intro and Credits baked into the chapter row; Skip button only without controls.**
-  The row has "Skip Intro" (at `Markers.SkipTarget`) and "Credits" (at the credits' start) among
-  the chapters in time; unnamed chapters keep their number among the chapters alone; a film with
-  markers and no chapters still has a row. The Skip button shows only while the controls are
-  hidden. The scrubber breaks where each card starts (Skip Intro and Credits too). Native
-  `87538bbd`, `7d45b3e4` (`Markers.Cards`, tested). To: AndTV, TV, Roku, Kodi.
+- [ ] **Chapters as a row of cards (YouTube-style).** While a seek waits for OK (Right or Left
+  on the scrubber), Up opens a row of chapter cards (picture: the chapter's own, else the
+  trickplay frame a moment in; name; start time), from where the seek was going, and hides Skip
+  Intro. Pauses while open, plays on as it was when it closes; Left/Right move the scrubber's
+  thumb and times to each chapter's start; OK jumps there; Down/Back close. Up with no seek
+  waiting does what it did (Skip Intro while it shows). Native `d80bdfb1` and "seeking that waits for OK"
+  (`Screens/ChapterStrip.cs`). To: AndTV, TV, Roku, Kodi; Web/AndPh could get a similar picker.
+- [ ] **A seek waits for OK; a held key speeds up smoothly (YouTube's TV app).** Left/Right
+  move the target with its preview while the video plays on; OK goes there, Back lets it go, and
+  it goes by itself 5 s after the last key (media keys' jumps still go after 0.4 s). Held, it
+  scrubs at 20× and twice as fast every 1.5 s, up to a whole video in 10 s (300× at least);
+  letting go waits for OK too. Native "seeking that waits for OK" (`Seeker`, tested). To: AndTV, TV, Roku, Kodi.
 - [ ] **Timestamp chapter names are numbered.** A chapter titled only by where it starts
   ("00:06:19.212", mkvmerge's default) shows as "Chapter N" in the seek preview, the Chapters
   panel and the cards; a real name containing a time keeps it. Native `d80bdfb1`
