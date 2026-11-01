@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The player: the Video node with its own controls, Skip Intro and Skip
      Credits, Up Next before the end of an episode, pley's menu (Down:
-     Quality, Subtitle sync, Chapters, Find subtitles…, Playback details), Automatic's
-     notice of a lower quality, and what went wrong when it did. -->
+     Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…,
+     Playback details), the sleep timer's notice, Automatic's notice of a
+     lower quality, and what went wrong when it did. -->
 <component name="PlayerScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -27,6 +28,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/AutoQuality.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Details.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/SubtitleSearch.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Sleep.brs" />
     <children>
         <Rectangle width="1920" height="1080" color="0x000000FF" />
         <Video id="video" width="1920" height="1080">
@@ -66,6 +68,13 @@
             <Label id="noticeText" translation="[96, 430]" width="1500" wrap="true" maxLines="6" color="0xA1A9B6FF" font="font:SmallSystemFont" />
             <ButtonGroup id="noticeButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[96, 700]" minWidth="400" />
         </Group>
+        <!-- The sleep timer's last 30 s, at the bottom left: Keep watching
+             adds the same time again. -->
+        <Group id="sleepNotice" translation="[96, 916]" visible="false">
+            <Rectangle width="840" height="112" color="0x16191EE6" />
+            <Label id="sleepText" translation="[40, 0]" width="420" height="112" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />
+            <ButtonGroup id="sleepButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[480, 20]" minWidth="320" />
+        </Group>
         <!-- Automatic saying it went down, briefly, at the top. -->
         <Group id="toast" visible="false">
             <Rectangle translation="[460, 72]" width="1000" height="96" color="0x16191EE6" />
@@ -73,6 +82,8 @@
         </Group>
         <Timer id="countdownTimer" duration="1" repeat="true" />
         <Timer id="toastTimer" duration="4" />
+        <!-- The sleep timer's look, once a second while it is set. -->
+        <Timer id="sleepTimer" duration="1" repeat="true" />
         <!-- Automatic's look at the playback, once a second while it plays. -->
         <Timer id="autoTimer" duration="1" repeat="true" />
     </children>

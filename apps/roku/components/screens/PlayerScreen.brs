@@ -7,7 +7,8 @@
 ' Skip Intro and Skip Credits follow the web player: an episode's credits
 ' bring up Up Next instead. Down brings up pley's menu: Quality, subtitle
 ' sync for a file with text subtitles (SubtitleSync.brs), the file's
-' chapters, and the playback's details (Details.brs). Subtitles (or audio) the person picks
+' chapters, the sleep timer (Sleep.brs) and the playback's details
+' (Details.brs). Subtitles (or audio) the person picks
 ' in Roku's options are remembered on the server for the show or the movie
 ' (Tracks.brs), so the next episode starts with matching ones. The quality
 ' is the one chosen in Settings or the menu; when it doesn't play well,
@@ -108,6 +109,17 @@ sub init()
     m.toastTimer.observeField("fire", "onToastTimer")
     m.autoTimer = m.top.findNode("autoTimer")
     m.autoTimer.observeField("fire", "onAutoTick")
+    ' The sleep timer, off until set in the menu, for the whole time the
+    ' player shows; when it paused the video (clock ms), -1 otherwise.
+    m.sleep = sleepNew(0, 0#)
+    m.sleepPausedAt = -1#
+    m.sleepNotice = m.top.findNode("sleepNotice")
+    m.sleepText = m.top.findNode("sleepText")
+    m.sleepButtons = m.top.findNode("sleepButtons")
+    m.sleepButtons.buttons = ["Keep watching"]
+    m.sleepButtons.observeField("buttonSelected", "onKeepWatching")
+    m.sleepTimer = m.top.findNode("sleepTimer")
+    m.sleepTimer.observeField("fire", "onSleepTick")
     m.video.observeField("downloadedSegment", "onSegment")
     m.syncButtons.buttons = ["Done", "Reset"]
     m.syncButtons.observeField("buttonSelected", "onSyncButton")
@@ -698,6 +710,11 @@ sub onState(event as object)
     if state = "playing"
         m.played = true
         m.loading.visible = false
+        ' Played again after the sleep timer's pause: the player stays.
+        if m.sleepPausedAt >= 0
+            m.sleepPausedAt = -1#
+            if m.sleep.minutes = 0 then m.sleepTimer.control = "stop"
+        end if
         if m.tracksFrom < 0 then m.tracksFrom = m.clock.TotalMilliseconds() + tracksSettleMs()
         if m.paused
             m.paused = false
@@ -724,7 +741,7 @@ sub onPosition(event as object)
     m.positionMs = Int(seconds * 1000)
     if m.watch <> invalid then aqPosition(m.watch, m.clock.TotalMilliseconds(), m.positionMs)
     if playerShouldReport(m.video.state, m.clock.TotalMilliseconds() - m.lastReportAt) then report("playing")
-    if m.next <> invalid and not m.upNextShown and m.upNextAt > 0 and m.positionMs >= m.upNextAt then showUpNext()
+    if m.next <> invalid and not m.upNextShown and m.upNextAt > 0 and m.positionMs >= m.upNextAt and not sleepEndsWith(m.sleep, urlValue(m.itemId)) then showUpNext()
     updateSkip()
 end sub
 
@@ -833,6 +850,11 @@ sub ended()
     if m.durationMs > 0 then m.positionMs = m.durationMs
     report("stopped")
     endSession()
+    ' The sleep timer's end: nothing plays after this one.
+    if sleepEndsWith(m.sleep, urlValue(m.itemId))
+        uiNavigate({ back: true })
+        return
+    end if
     if m.next <> invalid and not m.upNextCancelled and playerAutoplay(playbackSection())
         playNext()
     else
@@ -847,6 +869,8 @@ sub finish()
     m.attempt = m.attempt + 1
     m.tracksFrom = -1
     m.countdownTimer.control = "stop"
+    m.sleepTimer.control = "stop"
+    m.sleepNotice.visible = false
     newTitle()
     m.toastTimer.control = "stop"
     m.toast.visible = false
@@ -1029,6 +1053,19 @@ end sub
 ' scene), which closes the session.
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
+    ' The sleep timer's Keep watching: Back leaves it to count down, the
+    ' video's own keys go on as ever.
+    if m.sleepButtons.isInFocusChain()
+        if key = "back"
+            m.video.setFocus(true)
+            return true
+        end if
+        if key = "play" or key = "fastforward" or key = "rewind"
+            playerKey(key)
+            return true
+        end if
+        return false
+    end if
     if m.menu.visible
         if key = "back" or key = "left"
             if m.menuKind = "menu"
@@ -1082,7 +1119,8 @@ end function
 ' --- pley's menu ---
 
 ' Its entries: Quality, Subtitle sync for a file with text subtitles,
-' Chapters for a file that has them, Find subtitles…, Playback details.
+' Chapters for a file that has them, Sleep timer, Find subtitles…,
+' Playback details.
 sub openMenu()
     hideSkip()
     m.menuKind = "menu"
@@ -1097,6 +1135,8 @@ sub openMenu()
         items.Push({ title: "Chapters" })
         m.menuActions.Push("chapters")
     end if
+    items.Push({ title: "Sleep timer: " + sleepLabel(m.sleep, sleepNow(), playingKind()) })
+    m.menuActions.Push("sleep")
     items.Push({ title: "Find subtitles…" })
     m.menuActions.Push("find")
     items.Push({ title: "Playback details" })
@@ -1164,6 +1204,8 @@ sub onMenuEntry(event as object)
         openSync()
     else if action = "chapters"
         openChapters()
+    else if action = "sleep"
+        openSleep()
     else
         openDetails()
     end if
@@ -1198,6 +1240,21 @@ sub openChapters()
     showMenuChoices(items, detChapterAt(chapters, m.positionMs))
 end sub
 
+' Off, minutes, or the end of what plays; the one set checked.
+sub openSleep()
+    m.menuKind = "sleep"
+    m.menuTitle.text = "Sleep timer"
+    items = []
+    m.menuValues = []
+    current = 0
+    for each choice in sleepChoices(playingKind())
+        if choice.minutes = m.sleep.minutes then current = items.Count()
+        items.Push({ title: choice.label })
+        m.menuValues.Push(choice.minutes)
+    end for
+    showMenuChoices(items, current)
+end sub
+
 sub showMenuChoices(items as object, current as integer)
     m.menuChoices.content = nodesContent(items)
     m.menuChoices.checkedItem = current
@@ -1228,6 +1285,10 @@ sub onMenuChoice(event as object)
         seekTo(value)
         return
     end if
+    if kind = "sleep"
+        setSleep(value)
+        return
+    end if
     if value = aqChoice(playbackSection()) then return
     aqChoose(playbackSection(), value)
     ' Picked again, Automatic starts afresh at the original.
@@ -1237,6 +1298,75 @@ sub onMenuChoice(event as object)
     if seconds <> invalid and seconds > 0 then position = Int(seconds * 1000)
     newTitle()
     open(m.itemId, position, m.item, m.mode)
+end sub
+
+' --- The sleep timer ---
+
+' What plays, as the sleep timer names its end.
+function playingKind() as string
+    if m.item = invalid then return ""
+    return httpString(m.item.kind)
+end function
+
+function clockMs() as double
+    return m.clock.TotalMilliseconds() * 1#
+end function
+
+' What the timer says now.
+function sleepNow() as object
+    left = -1#
+    if m.played and m.durationMs > 0 then left = (m.durationMs - m.positionMs) * 1#
+    return sleepState(m.sleep, clockMs(), left, urlValue(m.itemId))
+end function
+
+' Set from the menu (minutes; 0 for Off, -1 for the end of what plays).
+sub setSleep(minutes as integer)
+    m.sleep = sleepNew(minutes, clockMs())
+    hideSleepNotice()
+    if minutes = 0 and m.sleepPausedAt < 0
+        m.sleepTimer.control = "stop"
+    else
+        m.sleepTimer.control = "start"
+    end if
+end sub
+
+' Once a second: the notice in the last 30 s, the pause at the end, and
+' the player left 10 minutes into that pause.
+sub onSleepTick()
+    if m.sleepPausedAt >= 0
+        if clockMs() - m.sleepPausedAt >= sleepLeaveAfterMs() then uiNavigate({ back: true })
+        return
+    end if
+    state = sleepNow()
+    if state.fire
+        m.sleep = sleepNew(0, 0#)
+        hideSleepNotice()
+        m.sleepPausedAt = clockMs()
+        m.video.control = "pause"
+        return
+    end if
+    if state.secondsLeft < 0
+        hideSleepNotice()
+        return
+    end if
+    m.sleepText.text = "Pausing in " + urlValue(state.secondsLeft) + " s"
+    if not m.sleepNotice.visible
+        m.sleepNotice.visible = true
+        ' The button takes the focus while nothing else is up.
+        if m.video.hasFocus() or m.skip.hasFocus() then m.sleepButtons.setFocus(true)
+    end if
+end sub
+
+sub hideSleepNotice()
+    if m.sleepButtons.isInFocusChain() then m.video.setFocus(true)
+    m.sleepNotice.visible = false
+end sub
+
+' Keep watching: the same time again, or this title plays to its end and
+' the next one's end stops.
+sub onKeepWatching()
+    sleepExtend(m.sleep, urlValue(m.itemId))
+    hideSleepNotice()
 end sub
 
 ' How the stream plays, and for a conversion what the server makes of it

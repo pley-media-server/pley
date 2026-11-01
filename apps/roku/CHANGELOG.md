@@ -19,6 +19,9 @@ describes how they are made.
   carry it, OK puts it there and Back puts it back.
 - Settings has Always start as, for a household of several profiles: the
   app starts without asking who's watching.
+- The player's menu has a sleep timer: 15 to 90 minutes or the end of
+  what plays, then the video pauses; in its last 30 s, Keep watching adds
+  the same time again.
 
 ## [0.1.1] - 2026-11-01
 

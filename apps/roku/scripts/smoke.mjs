@@ -326,8 +326,19 @@ async function walk() {
   await press("select");
   await press("up");
   await press("select");
-  since = mark();
+  // The sleep timer, after Chapters: 15 minutes, which the menu then
+  // counts down.
   await press("down");
+  await press("down"); // Sleep timer
+  await press("select");
+  await sleep(300);
+  shoot("player-sleep");
+  await press("down"); // 15 min
+  await press("select");
+  await press("down");
+  await sleep(300);
+  shoot("player-menu-sleep");
+  since = mark();
   await press("down", 2); // past Find subtitles…, Playback details
   await press("select");
   await waitFor(/^GET \/api\/playback\/s\d+$/, since, "the conversion's details");

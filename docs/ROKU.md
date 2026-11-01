@@ -46,13 +46,20 @@ than one profile.
 | Options (\*) | Watch history | Removes it |
 | Options (\*) | A playlist entry | Move (Up and Down carry it, OK puts it there, Back puts it back), Remove from playlist |
 | Options (\*) | A request | What can be done with it (Approve, Decline, Withdraw…) |
-| Down | The player | Pley's menu: Quality, Subtitle sync, Chapters, Find subtitles…, Playback details |
+| Down | The player | Pley's menu: Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…, Playback details |
 | Options (\*) | The player | Roku's own options: subtitles and audio tracks |
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
 | Replay | Live TV | Search (Roku remotes have no search key for apps) |
 
 A title's page has Rate (Your rating, once given): No rating, or 1 to 5
 stars, kept for the profile on the server.
+
+The player's sleep timer (Down, then Sleep timer) pauses after 15 to 90
+minutes or at the end of what plays, as on the other apps. In its last
+30 s it says "Pausing in 12 s" with Keep watching, which adds the same time
+again (or lets this title play to its end). Paused by it for 10 minutes,
+the player leaves; it isn't kept from one time the player opens to the
+next.
 
 Fast forward and rewind show seek previews in Roku's own bar: the server's
 previews of the file as a BIF file, which the Video node fetches beside the
