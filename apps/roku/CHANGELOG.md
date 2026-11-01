@@ -24,6 +24,8 @@ describes how they are made.
 - A title with several files plays the version chosen in Audio and
   subtitles, one line each (4K · HEVC · DV P8.1 · TrueHD Atmos 7.1 · 62.0
   GB).
+- More… → Media info: each file of a movie or an episode and every one of
+  its streams in full, as on the other apps.
 - A playlist's entries move: the Options key's Move lifts one, Up and Down
   carry it, OK puts it there and Back puts it back.
 - Settings has Always start as, for a household of several profiles: the

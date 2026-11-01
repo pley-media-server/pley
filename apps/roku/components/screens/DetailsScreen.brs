@@ -21,11 +21,12 @@ sub init()
     m.panelTitle = m.top.findNode("panelTitle")
     m.menu = m.top.findNode("menu")
     m.choices = m.top.findNode("choices")
+    m.info = m.top.findNode("info")
     m.column.visible = false
-    ' What the panel shows: "" (closed), a menu ("more", "tracks"), or the
+    ' What the panel shows: "" (closed), a menu ("more", "tracks"), the
     ' choices of one of its entries ("rating", "version", "audio",
-    ' "subtitles"); the menu Back goes back to ("" for none), and the values
-    ' of the choices.
+    ' "subtitles") or the media info ("info"); the menu Back goes back to
+    ' ("" for none), and the values of the choices.
     m.panelKind = ""
     m.panelBack = ""
     m.panelValues = []
@@ -399,7 +400,7 @@ end sub
 ' --- The panel ---
 
 ' More: what is used less, in a menu over the right of the page, as on the
-' other TVs: the profile's rating, Go to show, Add to playlist.
+' other TVs: the profile's rating, Go to show, Media info, Add to playlist.
 sub openMore()
     labels = []
     for each entry in m.detail.more
@@ -422,6 +423,7 @@ sub showMenu(kind as string, title as string, labels as object)
     m.menu.content = nodesContent(items)
     if at > 0 and at < items.Count() then m.menu.jumpToItem = at
     m.choices.visible = false
+    m.info.visible = false
     m.menu.visible = true
     m.panel.visible = true
     m.menu.setFocus(true)
@@ -447,9 +449,24 @@ sub showChoices(kind as string, title as string, labels as object, values as obj
     m.choices.checkedItem = current
     if current > 0 then m.choices.jumpToItem = current
     m.menu.visible = false
+    m.info.visible = false
     m.choices.visible = true
     m.panel.visible = true
     m.choices.setFocus(true)
+end sub
+
+' Media info: each file and every stream in full (Media.brs), as on the
+' other TVs, in text that Up and Down scroll; Back goes back to More.
+sub showInfo()
+    m.panelKind = "info"
+    m.panelBack = "more"
+    m.panelTitle.text = "Media info"
+    m.info.text = mediaInfoText(m.item)
+    m.menu.visible = false
+    m.choices.visible = false
+    m.info.visible = true
+    m.panel.visible = true
+    m.info.setFocus(true)
 end sub
 
 sub closePanel()
@@ -479,6 +496,10 @@ sub onMenu(event as object)
             values.Push(stars)
         end for
         showChoices("rating", "Your rating", labels, values, m.detail.stars, "more")
+        return
+    end if
+    if action = "info"
+        showInfo()
         return
     end if
     closePanel()

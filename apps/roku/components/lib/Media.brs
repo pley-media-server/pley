@@ -1,7 +1,8 @@
 ' A title's files as its page shows them, in the other apps' words
 ' (packages/tv/src/format/format.ts, the Android app's format): the
 ' version, audio and subtitles to start with, which the person picks
-' before playing. Tracks are saved with Tracks.brs's rules.
+' before playing, and their media info. Tracks are saved with Tracks.brs's
+' rules.
 
 ' A track's language by name: "English", "Unknown" for und; a code not
 ' among the 34 in capitals ("KUR"), a longer tag as it is; "" for none.
@@ -284,4 +285,249 @@ function mediaVersions(item as object, fileId as dynamic) as object
         end if
     end for
     return out
+end function
+
+' --- Media info ---
+' Each file and every stream in full, as the other apps' media info
+' (packages/tv/src/format/media-info.ts, the Android app's MediaFacts)
+' words it.
+
+' A codec level as people write it: HEVC 153 → "5.1", H.264 51 → "5.1",
+' AV1 13 → "5.1"; "" without one.
+function mediaLevel(codec as dynamic, level as dynamic) as string
+    value = Int(httpNumber(level, 0))
+    if value <= 0 then return ""
+    name = LCase(httpString(codec))
+    if name = "av1" then return urlValue(2 + Int(value / 4)) + "." + urlValue(value mod 4)
+    if name = "hevc" or name = "h265" then return fmtOneDecimal(value / 30)
+    return fmtOneDecimal(value / 10)
+end function
+
+' "Main 10 · Level 5.1".
+function mediaProfile(stream as object) as string
+    parts = []
+    profile = httpSentence(stream.profile)
+    if profile <> "" then parts.Push(profile)
+    level = mediaLevel(stream.codec, stream.level)
+    if level <> "" then parts.Push("Level " + level)
+    return parts.Join(" · ")
+end function
+
+' "23.976 fps": up to three decimals, trailing zeros left out.
+function mediaFrameRate(fps as dynamic, interlaced as boolean) as string
+    value = httpNumber(fps, 0)
+    if value <= 0 then return ""
+    thousandths = Int(value * 1000 + 0.5)
+    text = urlValue(Int(thousandths / 1000))
+    decimals = thousandths mod 1000
+    if decimals > 0
+        digits = Right("00" + urlValue(decimals), 3)
+        while Right(digits, 1) = "0"
+            digits = Left(digits, Len(digits) - 1)
+        end while
+        text = text + "." + digits
+    end if
+    text = text + " fps"
+    if interlaced then text = text + ", interlaced"
+    return text
+end function
+
+' "10-bit · 4:2:0".
+function mediaBitDepth(depth as dynamic, pixFmt as dynamic) as string
+    parts = []
+    bits = Int(httpNumber(depth, 0))
+    if bits > 0 then parts.Push(urlValue(bits) + "-bit")
+    format = LCase(httpString(pixFmt))
+    chroma = ""
+    if CreateObject("roRegex", "^(yuv420|nv12|p010)", "").IsMatch(format)
+        chroma = "4:2:0"
+    else if Left(format, 6) = "yuv422"
+        chroma = "4:2:2"
+    else if Left(format, 6) = "yuv444"
+        chroma = "4:4:4"
+    else if Left(format, 4) = "gray"
+        chroma = "4:0:0"
+    end if
+    if chroma <> "" then parts.Push(chroma)
+    return parts.Join(" · ")
+end function
+
+' A colour property by name ("BT.2020", "PQ (SMPTE ST 2084)"); one not
+' known as ffprobe names it; "" for none.
+function mediaColour(table as object, name as dynamic) as string
+    value = httpString(name)
+    if value = "" or value = "unknown" or value = "reserved" then return ""
+    if table.DoesExist(value) then return table[value]
+    return value
+end function
+
+function mediaPrimaries() as object
+    return { bt709: "BT.709", bt2020: "BT.2020", smpte170m: "BT.601 NTSC", bt470bg: "BT.601 PAL", bt470m: "BT.470 M", smpte240m: "SMPTE 240M", smpte431: "DCI-P3", smpte432: "Display P3", film: "Film" }
+end function
+
+function mediaTransfers() as object
+    return { smpte2084: "PQ (SMPTE ST 2084)", "arib-std-b67": "HLG (ARIB STD-B67)", bt709: "BT.709", smpte170m: "BT.601", bt470bg: "BT.470 BG", "bt2020-10": "BT.2020 (10-bit)", "bt2020-12": "BT.2020 (12-bit)", "iec61966-2-1": "sRGB", linear: "Linear" }
+end function
+
+function mediaMatrices() as object
+    return { bt709: "BT.709", bt2020nc: "BT.2020 non-constant", bt2020c: "BT.2020 constant", smpte170m: "BT.601", bt470bg: "BT.601", ictcp: "ICtCp", gbr: "RGB", ycgco: "YCgCo", fcc: "FCC" }
+end function
+
+' "Profile 8.1 · Level 6 · HDR10-compatible base layer"; "" without a
+' Dolby Vision profile.
+function mediaDolbyVision(stream as object) as string
+    profile = Int(httpNumber(stream.dv_profile, -1))
+    if profile < 0 then return ""
+    compat = Int(httpNumber(stream.dv_bl_compat, 0))
+    label = "Profile " + urlValue(profile)
+    if profile >= 8 and (compat = 1 or compat = 2 or compat = 4) then label = label + "." + urlValue(compat)
+    parts = [label]
+    level = httpNumber(stream.dv_level, -1)
+    if level >= 0 then parts.Push("Level " + urlValue(level))
+    bases = { "0": "no compatible base layer", "1": "HDR10-compatible base layer", "2": "SDR-compatible base layer", "4": "HLG-compatible base layer", "6": "Blu-ray HDR10-compatible base layer" }
+    base = bases[urlValue(compat)]
+    if base <> invalid then parts.Push(base)
+    layer = httpString(stream.dv_el)
+    if profile = 7 and layer = "fel" then parts.Push("full enhancement layer")
+    if profile = 7 and layer = "mel" then parts.Push("minimal enhancement layer")
+    return parts.Join(" · ")
+end function
+
+' "3840×2160 (4K)".
+function mediaDimensions(width as dynamic, height as dynamic) as string
+    w = httpNumber(width, 0)
+    h = httpNumber(height, 0)
+    if w <= 0 or h <= 0 then return ""
+    text = urlValue(w) + "×" + urlValue(h)
+    size = detResolution(w, h)
+    if size <> "" then text = text + " (" + size + ")"
+    return text
+end function
+
+' "Default, Forced, Beside the media".
+function mediaFlags(stream as object) as string
+    flags = []
+    if httpTrue(stream.default) then flags.Push("Default")
+    if httpTrue(stream.forced) then flags.Push("Forced")
+    if httpTrue(stream.external) then flags.Push("Beside the media")
+    return flags.Join(", ")
+end function
+
+' The file name only, after the last / or \.
+function mediaFileName(path as dynamic) as string
+    text = httpSentence(path)
+    for each mark in ["/", "\"]
+        at = Instr(1, text, mark)
+        while at > 0
+            text = Mid(text, at + 1)
+            at = Instr(1, text, mark)
+        end while
+    end for
+    return text
+end function
+
+sub mediaFact(facts as object, label as string, value as string)
+    if value.Trim() <> "" then facts.Push({ label: label, value: value })
+end sub
+
+' A file's facts in blocks ([{ title, facts: [{ label, value }] }]): the
+' file, then each stream, video first.
+function mediaFacts(file as object) as object
+    facts = []
+    mediaFact(facts, "Name", mediaFileName(file.path))
+    mediaFact(facts, "Container", UCase(httpString(file.container)))
+    if httpNumber(file.size, 0) > 0 then mediaFact(facts, "Size", mediaBytes(file.size))
+    mediaFact(facts, "Duration", fmtDuration(file.duration_ms))
+    mediaFact(facts, "Overall bitrate", detBitrate(file.bitrate))
+    blocks = [{ title: "File", facts: facts }]
+    names = { video: "Video", audio: "Audio", subtitle: "Subtitles" }
+    for each kind in ["video", "audio", "subtitle"]
+        streams = []
+        for each stream in httpArray(file.streams)
+            if httpObject(stream) <> invalid and httpString(stream.kind) = kind then streams.Push(stream)
+        end for
+        streams.SortBy("index")
+        for i = 0 to streams.Count() - 1
+            title = names[kind]
+            if streams.Count() > 1 then title = title + " " + urlValue(i + 1)
+            blocks.Push({ title: title, facts: mediaStreamFacts(streams[i]) })
+        end for
+    end for
+    return blocks
+end function
+
+' One stream's facts.
+function mediaStreamFacts(stream as object) as object
+    facts = []
+    kind = httpString(stream.kind)
+    language = mediaLanguage(stream.language)
+    if kind = "video"
+        mediaFact(facts, "Codec", detCodec(stream.codec))
+        mediaFact(facts, "Profile", mediaProfile(stream))
+        mediaFact(facts, "Resolution", mediaDimensions(stream.width, stream.height))
+        order = httpString(stream.field_order)
+        mediaFact(facts, "Frame rate", mediaFrameRate(stream.frame_rate, httpTrue(stream.interlaced) or (order <> "" and order <> "progressive")))
+        mediaFact(facts, "Bit depth", mediaBitDepth(stream.bit_depth, stream.pix_fmt))
+        range = detRange(stream)
+        if range = "" then range = "SDR"
+        mediaFact(facts, "HDR", range)
+        mediaFact(facts, "Dolby Vision", mediaDolbyVision(stream))
+        mediaFact(facts, "Primaries", mediaColour(mediaPrimaries(), stream.color_primaries))
+        mediaFact(facts, "Transfer", mediaColour(mediaTransfers(), stream.color_transfer))
+        mediaFact(facts, "Matrix", mediaColour(mediaMatrices(), stream.color_space))
+        mediaFact(facts, "Bitrate", detBitrate(stream.bitrate))
+        mediaFact(facts, "Title", httpSentence(stream.title))
+    else if kind = "audio"
+        codec = detCodec(stream.codec)
+        if mediaAtmos(stream) then codec = codec + " Atmos"
+        mediaFact(facts, "Codec", codec)
+        mediaFact(facts, "Profile", httpSentence(stream.profile))
+        channels = mediaChannels(stream.channels, stream.channel_layout)
+        layout = httpString(stream.channel_layout)
+        if layout <> "" and channels <> "" and layout <> channels then channels = channels + " (" + layout + ")"
+        mediaFact(facts, "Channels", channels)
+        hertz = httpNumber(stream.sample_rate, 0)
+        if hertz > 0 then mediaFact(facts, "Sample rate", fmtOneDecimal(hertz / 1000) + " kHz")
+        mediaFact(facts, "Language", language)
+        mediaFact(facts, "Title", httpSentence(stream.title))
+        mediaFact(facts, "Bitrate", detBitrate(stream.bitrate))
+        mediaFact(facts, "Flags", mediaFlags(stream))
+    else
+        nature = "text"
+        if GetInterface(stream.text_based, "ifBoolean") <> invalid and not stream.text_based then nature = "picture"
+        mediaFact(facts, "Format", detCodec(stream.codec) + ", " + nature)
+        mediaFact(facts, "Language", language)
+        mediaFact(facts, "Title", httpSentence(stream.title))
+        mediaFact(facts, "Flags", mediaFlags(stream))
+    end if
+    return facts
+end function
+
+' A title's media info as text, for a panel that scrolls: each file (in
+' capitals, by its edition, or "Version 2" when there are several) and its
+' blocks, "Label: value" under each block's title, a line between blocks.
+function mediaInfoText(item as object) as string
+    files = []
+    for each file in httpArray(item.files)
+        if httpObject(file) <> invalid then files.Push(file)
+    end for
+    lines = []
+    for i = 0 to files.Count() - 1
+        title = httpSentence(files[i].edition)
+        if title = "" and files.Count() > 1 then title = "Version " + urlValue(i + 1)
+        if title <> ""
+            if lines.Count() > 0 then lines.Push("")
+            lines.Push(UCase(title))
+        end if
+        under = title <> ""
+        for each block in mediaFacts(files[i])
+            if lines.Count() > 0 and not under then lines.Push("")
+            under = false
+            lines.Push(block.title)
+            for each fact in block.facts
+                lines.Push(fact.label + ": " + fact.value)
+            end for
+        end for
+    end for
+    return lines.Join(Chr(10))
 end function

@@ -119,7 +119,7 @@ sub test_content_details_offer_resume_and_start()
     tkEqual(detail.genres, "Drama, Science Fiction, Mystery")
     tkEqual(detail.buttons, ["Resume from 10:00", "Play from start", "Mark as watched", "Add to My List", "More…"])
     tkEqual(detail.actions, ["resume", "start", "watched", "listAdd", "more"])
-    tkEqual(detail.more, [{ label: "Rate", action: "rate" }, { label: "Add to playlist", action: "playlist" }])
+    tkEqual(detail.more, [{ label: "Rate", action: "rate" }, { label: "Media info", action: "info" }, { label: "Add to playlist", action: "playlist" }])
     tkEqual(detail.backdrop, "http://nas:7539/api/items/12/images/backdrop?v=1729600000&w=640", "faint behind text: small")
     tkEqual(detail.poster, "http://nas:7539/api/items/12/images/poster?v=1729600000&w=420")
 
@@ -139,6 +139,7 @@ sub test_content_details_offer_resume_and_start()
     empty.files = []
     tkEqual(contentDetail(empty, contentTestServer()).note, "This item has no file to play.")
     tkEqual(contentDetail(empty, contentTestServer()).buttons, ["Mark as watched", "Add to My List", "More…"], "what doesn't need a file")
+    tkEqual(contentDetail(empty, contentTestServer()).more.Count(), 2, "no media info without a file")
 end sub
 
 sub test_content_details_offer_audio_and_subtitles()
@@ -177,7 +178,7 @@ sub test_content_episode_details_name_show_and_episode()
     episode.files = [{ id: 8, container: "mp4" }]
     detail = contentDetail(episode, contentTestServer())
     tkEqual(detail.buttons, ["Play", "Mark as unwatched", "More…"], "watched; no My List for an episode")
-    tkEqual(detail.more, [{ label: "Rate", action: "rate" }, { label: "Go to show", action: "show" }, { label: "Add to playlist", action: "playlist" }])
+    tkEqual(detail.more, [{ label: "Rate", action: "rate" }, { label: "Go to show", action: "show" }, { label: "Media info", action: "info" }, { label: "Add to playlist", action: "playlist" }])
     tkEqual(detail.showId, 99)
     tkEqual(detail.seasonId, 100)
     tkEqual(detail.heading, "Severance")

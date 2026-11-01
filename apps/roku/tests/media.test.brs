@@ -124,3 +124,95 @@ sub test_media_versions_one_line_each()
     tkEqual(versions.current, 1)
     tkEqual(mediaVersions(item, invalid).current, 0, "the first plays unless another was chosen")
 end sub
+
+sub test_media_info_words_as_the_other_apps()
+    tkEqual(mediaLevel("h264", 51), "5.1")
+    tkEqual(mediaLevel("hevc", 153), "5.1")
+    tkEqual(mediaLevel("hevc", 150), "5")
+    tkEqual(mediaLevel("av1", 13), "5.1")
+    tkEqual(mediaLevel("h264", invalid), "")
+    tkEqual(mediaFrameRate(23.976023, false), "23.976 fps")
+    tkEqual(mediaFrameRate(24, false), "24 fps")
+    tkEqual(mediaFrameRate(29.97, true), "29.97 fps, interlaced")
+    tkEqual(mediaFrameRate(0, false), "")
+    tkEqual(mediaBitDepth(10, "yuv420p10le"), "10-bit · 4:2:0")
+    tkEqual(mediaBitDepth(invalid, "yuv444p"), "4:4:4")
+    tkEqual(mediaDimensions(1920, 1080), "1920×1080 (1080p)")
+    tkEqual(mediaColour(mediaTransfers(), "arib-std-b67"), "HLG (ARIB STD-B67)")
+    tkEqual(mediaColour(mediaPrimaries(), "unknown"), "")
+    tkEqual(mediaColour(mediaMatrices(), "odd"), "odd", "as ffprobe names it")
+    tkEqual(mediaDolbyVision({ dv_profile: 7, dv_bl_compat: 6, dv_el: "fel" }), "Profile 7 · Blu-ray HDR10-compatible base layer · full enhancement layer")
+    tkEqual(mediaDolbyVision({ dv_profile: 5 }), "Profile 5 · no compatible base layer")
+    tkEqual(mediaDolbyVision({}), "")
+    tkEqual(mediaFileName("/media/movies/Arrival (2016).mkv"), "Arrival (2016).mkv")
+    tkEqual(mediaFileName("D:\Movies\Arrival.mkv"), "Arrival.mkv")
+end sub
+
+sub test_media_info_of_every_stream()
+    file = mediaTestFile()
+    video = file.streams[0]
+    video.bit_depth = 10
+    video.pix_fmt = "yuv420p10le"
+    video.frame_rate = 23.976023
+    video.profile = "Main 10"
+    video.level = 153
+    video.dv_level = 6
+    video.color_primaries = "bt2020"
+    video.color_transfer = "smpte2084"
+    video.color_space = "bt2020nc"
+    file.streams[1].sample_rate = 48000
+    file.streams[1].channel_layout = "7.1"
+    file.streams[2].channel_layout = "5.1(side)"
+    blocks = mediaFacts(file)
+    titles = []
+    for each block in blocks
+        titles.Push(block.title)
+    end for
+    tkEqual(titles, ["File", "Video", "Audio 1", "Audio 2", "Audio 3", "Subtitles 1", "Subtitles 2", "Subtitles 3"])
+    tkEqual(blocks[0].facts, [
+        { label: "Name", value: "Arrival (2016).mkv" },
+        { label: "Container", value: "MKV" },
+        { label: "Size", value: "62.0 GB" },
+        { label: "Duration", value: "1 h 56 min" },
+        { label: "Overall bitrate", value: "61 Mbps" }
+    ])
+    tkEqual(blocks[1].facts, [
+        { label: "Codec", value: "HEVC" },
+        { label: "Profile", value: "Main 10 · Level 5.1" },
+        { label: "Resolution", value: "3840×2160 (4K)" },
+        { label: "Frame rate", value: "23.976 fps" },
+        { label: "Bit depth", value: "10-bit · 4:2:0" },
+        { label: "HDR", value: "Dolby Vision P8.1" },
+        { label: "Dolby Vision", value: "Profile 8.1 · Level 6 · HDR10-compatible base layer" },
+        { label: "Primaries", value: "BT.2020" },
+        { label: "Transfer", value: "PQ (SMPTE ST 2084)" },
+        { label: "Matrix", value: "BT.2020 non-constant" }
+    ])
+    tkEqual(blocks[2].facts, [
+        { label: "Codec", value: "TrueHD Atmos" },
+        { label: "Profile", value: "Dolby TrueHD + Dolby Atmos" },
+        { label: "Channels", value: "7.1" },
+        { label: "Sample rate", value: "48 kHz" },
+        { label: "Language", value: "English" },
+        { label: "Title", value: "TrueHD Atmos 7.1" },
+        { label: "Flags", value: "Default" }
+    ])
+    tkEqual(blocks[3].facts[1], { label: "Channels", value: "5.1 (5.1(side))" }, "a layout of another name")
+    tkEqual(blocks[6].facts, [{ label: "Format", value: "PGS, picture" }, { label: "Language", value: "French" }, { label: "Title", value: "Forced" }, { label: "Flags", value: "Forced" }])
+    tkEqual(blocks[7].facts, [{ label: "Format", value: "SRT, text" }, { label: "Title", value: "Signs & Songs" }, { label: "Flags", value: "Beside the media" }])
+    sdr = mediaStreamFacts({ index: 0, kind: "video", codec: "h264", width: 1920, height: 1080 })
+    tkEqual(sdr[2], { label: "HDR", value: "SDR" })
+end sub
+
+sub test_media_info_as_text()
+    one = { files: [{ id: 1, path: "a.mkv", size: 1536, container: "mkv", streams: [{ index: 0, kind: "audio", codec: "aac", channels: 2 }] }] }
+    tkEqual(mediaInfoText(one), "File" + Chr(10) + "Name: a.mkv" + Chr(10) + "Container: MKV" + Chr(10) + "Size: 1.5 KB" + Chr(10) + Chr(10) + "Audio" + Chr(10) + "Codec: AAC" + Chr(10) + "Channels: Stereo")
+    two = { files: [one.files[0], { id: 2, path: "b.mkv", edition: "Final Cut", streams: [] }] }
+    lines = mediaInfoText(two).Split(Chr(10))
+    tkEqual(lines[0], "VERSION 1", "each file under its name when there are several")
+    tkEqual(lines[1], "File")
+    tkTrue(lines.Count() > 11)
+    tkEqual(lines[9], "")
+    tkEqual(lines[10], "FINAL CUT", "an edition by its name")
+    tkEqual(lines[11], "File")
+end sub

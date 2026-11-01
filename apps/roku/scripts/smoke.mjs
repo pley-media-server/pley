@@ -131,6 +131,19 @@ function syncDrawn() {
   return false;
 }
 
+// A title's media info: lines of text far down its page's panel (from 776,
+// 150), where More's few entries never reach.
+function infoDrawn() {
+  if (!frame) return false;
+  for (let y = 760; y < 1000; y += 2) {
+    for (let x = 780; x < 1400; x += 2) {
+      const at = (Math.round(y * (frame.height / 1080)) * frame.width + Math.round(x * (frame.width / 1920))) * 4;
+      if (frame.data[at] > 200 && frame.data[at + 1] > 200 && frame.data[at + 2] > 200) return true;
+    }
+  }
+  return false;
+}
+
 // The live player's notice: its dark panel over the whole screen, its
 // title in the app's text colour at the left (from 96, 120 when it lists what
 // holds each connection).
@@ -352,6 +365,8 @@ const library = { letters: false, jumped: false };
 const seeAll = { after: -1 };
 // A recent search was searched again from the list.
 const searched = { again: false };
+// A title's media info filled its panel.
+const mediaInfo = { shown: false };
 
 async function walk() {
   // A cold start of brs-node can take a while.
@@ -961,6 +976,18 @@ async function walk() {
   pickedSince = mark();
   await press("back");
   await waitFor(/^DELETE \/api\/playback\//, pickedSince, "the version's session closed");
+  // Back on its page, More…, past My List: Media info, its two files and
+  // their streams; Back to More, to the buttons, to the requests.
+  await settle();
+  await press("down", 4);
+  await press("select"); // Rate, Media info, Add to playlist
+  await sleep(500);
+  await press("down");
+  await press("select");
+  mediaInfo.shown = await drawnWithin(2500, infoDrawn);
+  shoot("movie-media-info");
+  await press("back");
+  await press("back");
   await press("back"); // the requests
   await settle();
   shoot("requests-approved");
@@ -1211,6 +1238,7 @@ const checks = [
   ["picked a movie's audio on its page, saved with the subtitles shown", fixture.streams.some((s) => s.item === 1011 && s.file_id === 8011 && s.audio_index === 2 && s.subtitle_index === 3)],
   ["turned its subtitles off on its page, the audio picked there kept", fixture.streams.some((s) => s.item === 1011 && s.audio_index === 2 && s.subtitle_index === null)],
   ["played the version chosen on its page", fixture.playbacks.some((p) => p.item === 1011 && p.file_id === 10011)],
+  ["showed a movie's media info from its More", mediaInfo.shown],
   ["asked for a show's More Like This and collections", asked(/^GET \/api\/items\/99\/related\?limit=20$/) && asked(/^GET \/api\/items\/99\/collections$/)],
   ["opened a person's page", asked(/^GET \/api\/people\/7$/)],
   ["opened a title from a person's row of what they directed", person.opened],

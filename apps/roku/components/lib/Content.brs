@@ -318,7 +318,8 @@ end function
 ' "start", "playNext" (a show's next episode, onDeck), "episodes",
 ' "watched", "unwatched", "tracks" (Audio and subtitles), "listAdd",
 ' "listRemove" and "more". More holds what is used less, as on the other
-' TVs ([{ label, action }]): "rate", "show" (an episode's) and "playlist".
+' TVs ([{ label, action }]): "rate", "show" (an episode's), "info" (Media
+' info) and "playlist".
 ' onDeck is a show's episode to play next (ItemSummary), invalid until the
 ' server said or when there is none.
 function contentDetail(detail as object, server as string, onDeck = invalid as dynamic) as object
@@ -414,6 +415,7 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
     rateable = kind = "movie" or kind = "episode" or kind = "show"
     if rateable then more.Push({ label: contentRatingLabel(stars), action: "rate" })
     if kind = "episode" and httpNumber(detail.grandparent_id, 0) > 0 then more.Push({ label: "Go to show", action: "show" })
+    if (kind = "movie" or kind = "episode") and files.Count() > 0 then more.Push({ label: "Media info", action: "info" })
     if rateable then more.Push({ label: "Add to playlist", action: "playlist" })
     if more.Count() > 0
         buttons.Push("More…")

@@ -191,7 +191,12 @@ buttons goes to the rows under them.
     it only when picked here, Automatic as none, as on the other TVs.
 - **More**, what is used less, as on the other TVs: Rate (Your rating,
   once given: No rating, or 1 to 5 stars, kept for the profile on the
-  server), Go to show and Add to playlist.
+  server), Go to show, Media info and Add to playlist.
+- **Media info** (a movie or an episode with a file): each file, under its
+  edition or "VERSION 2" when there are several, and every stream in
+  full, in the other apps' words (codec, profile and level, size, frame
+  rate, bit depth, HDR and Dolby Vision, colour, channels, sample rate,
+  language, title, flags), as text that Up and Down scroll.
 
 ### Audio and subtitles
 
