@@ -1,8 +1,10 @@
 ' Now Playing: what the music player (m.global.music) plays, and Up next,
 ' the tracks after it: OK on one plays it, and the queue goes on from
 ' there. Shuffle plays the other tracks after this one in a random order;
-' Stop shuffling puts the order back. The remote's play pauses or goes on,
-' fast forward and rewind go to the next track or back. Down goes from the
+' Stop shuffling puts the order back. The sleep timer's button steps
+' through its choices, and in the timer's last 30 s, while a line counts
+' down, it is Keep listening. The remote's play pauses or goes on, fast
+' forward and rewind go to the next track or back. Down goes from the
 ' buttons to Up next, Up from its first track back. Its fields are
 ' followed only while this screen shows.
 
@@ -28,6 +30,8 @@ sub init()
     m.queueId = -1
     m.rows = CreateObject("roSGNode", "ContentNode")
     m.from = -1
+    ' Whether the sleep timer's last 30 s were counting down.
+    m.noticing = false
     showButtons()
     m.buttons.focusIndex = 2
     m.buttons.observeField("chosen", "onButton")
@@ -39,7 +43,7 @@ sub onActive()
     music = m.global.music
     if not m.top.active
         if m.watching
-            for each field in ["track", "at", "state", "shuffled", "positionMs", "message"]
+            for each field in ["track", "at", "state", "shuffled", "sleep", "positionMs", "message"]
                 music.unobserveFieldScoped(field)
             end for
             m.watching = false
@@ -51,15 +55,16 @@ sub onActive()
         music.observeFieldScoped("at", "onAt")
         music.observeFieldScoped("state", "onMusicState")
         music.observeFieldScoped("shuffled", "showButtons")
+        music.observeFieldScoped("sleep", "onSleep")
         music.observeFieldScoped("positionMs", "onPosition")
-        music.observeFieldScoped("message", "onMessage")
+        music.observeFieldScoped("message", "showStatus")
         m.watching = true
     end if
     onTrack()
     onAt()
     onMusicState()
+    onSleep()
     onPosition()
-    onMessage()
     m.buttons.setFocus(true)
 end sub
 
@@ -116,17 +121,20 @@ sub onMusicState()
 end sub
 
 ' Shuffle (or Stop shuffling), Previous, Pause (or Play, paused), Next and
-' Stop side by side, each wide enough for either of its words.
+' Stop side by side, each wide enough for either of its words, then the
+' sleep timer's button, as wide as what it says.
 sub showButtons()
     music = m.global.music
     shuffle = "Shuffle"
     if music.shuffled then shuffle = "Stop shuffling"
     toggle = "Pause"
     if music.state = "paused" then toggle = "Play"
-    labels = [shuffle, "Previous", toggle, "Next", "Stop"]
+    sleep = "Sleep timer"
+    if music.sleep <> invalid then sleep = music.sleep.button
+    labels = [shuffle, "Previous", toggle, "Next", "Stop", sleep]
     if FormatJson(labels) = FormatJson(m.labels) then return
     m.labels = labels
-    widths = [300, 220, 180, 160, 160]
+    widths = [300, 220, 180, 160, 160, 0]
     chips = []
     for i = 0 to labels.Count() - 1
         chips.Push({ label: labels[i], width: widths[i] })
@@ -144,15 +152,35 @@ sub onPosition()
     if duration > 0 then m.left.text = "-" + fmtClock(duration - position)
 end sub
 
-sub onMessage()
-    m.message.text = m.global.music.message
+' The sleep timer: its button says what is left. Keep listening takes the
+' focus as the last 30 s begin, while the buttons have it.
+sub onSleep()
+    sleep = m.global.music.sleep
+    noticing = sleep <> invalid and sleep.secondsLeft >= 0
+    showButtons()
+    if noticing and not m.noticing and m.buttons.hasFocus() then m.buttons.focusIndex = 5
+    m.noticing = noticing
+    showStatus()
+end sub
+
+' The line under the album: "Pausing in 12 s" in the sleep timer's last
+' 30 s, else what went wrong with a track before.
+sub showStatus()
+    music = m.global.music
+    if m.noticing
+        m.message.text = "Pausing in " + urlValue(music.sleep.secondsLeft) + " s"
+        m.message.color = "0xA1A9B6FF"
+    else
+        m.message.text = music.message
+        m.message.color = "0xEB6B70FF"
+    end if
 end sub
 
 sub onButton(event as object)
     music = m.global.music
     shuffle = "shuffle"
     if music.shuffled then shuffle = "unshuffle"
-    actions = [shuffle, "previous", "toggle", "next", "stop"]
+    actions = [shuffle, "previous", "toggle", "next", "stop", "sleep"]
     music.control = actions[event.getData()]
 end sub
 

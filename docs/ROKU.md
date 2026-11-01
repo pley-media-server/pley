@@ -110,12 +110,21 @@ chosen, so Previous goes back past it; its Shuffle starts on any track and
 plays the others after it in a random order.
 
 Now Playing shows the track, its cover and how far along it is, Shuffle,
-Previous, Pause, Next and Stop, and Up next: the tracks after the one
-playing, numbered by their place in the queue. OK on one plays it, and the
-queue goes on from there. Shuffle plays the other tracks after the one
-playing in a random order; Stop shuffling puts them back in the album's or
-playlist's order, at the same track. Play pauses or goes on; fast forward
-and rewind go to the next track or back.
+Previous, Pause, Next, Stop and the sleep timer, and Up next: the tracks
+after the one playing, numbered by their place in the queue. OK on one
+plays it, and the queue goes on from there. Shuffle plays the other tracks
+after the one playing in a random order; Stop shuffling puts them back in
+the album's or playlist's order, at the same track. Play pauses or goes
+on; fast forward and rewind go to the next track or back.
+
+The sleep timer belongs to the music, not to Now Playing: it runs while
+other screens show. Each OK on its button steps Off, 15, 30, 45, 60 and 90
+min, End of this track, and the button says what is left ("Sleep timer:
+23 min left"). In its last 30 s Now Playing says "Pausing in 12 s" and the
+button is Keep listening, which adds the same time again (or lets this
+track play to its end). Then the music pauses; at the end of a track, the
+next one waits, paused. Paused by the timer for 10 minutes, the music
+stops. Stop, or the queue's end, turns the timer off.
 
 ### Audio and subtitles
 
@@ -339,13 +348,13 @@ bun run images    # the nine-patch focus and watched-mark images
   address, or a refresh token used twice. On the way it plays a collection
   of movies and a smart one of shows, and an artist's tracks, makes a
   playlist, plays a track from Now Playing's Up next, shuffles the queue
-  and puts its order back, asks for a movie and three seasons from
-  Discover, approves a request, opens a title from its ready-to-watch
-  notice, and checks that a server without requests is asked nothing but
-  the summary.
-- **brs-node limits:** its own fonts, no video (Skip intro and Up Next have
-  only unit tests), one fetch at a time, the odd dropped key, and no
-  measure of a Roku's speed.
+  and puts its order back, steps the music's sleep timer through its
+  choices, asks for a movie and three seasons from Discover, approves a
+  request, opens a title from its ready-to-watch notice, and checks that a
+  server without requests is asked nothing but the summary.
+- **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
+  Next and the sleep timers' ends have only unit tests), one fetch at a
+  time, the odd dropped key, and no measure of a Roku's speed.
 - **Images:** `bun run images` runs `scripts/make_images.py` (Python
   standard library). The home screen icons and splash screens come from
   `bun scripts/render-icons.mjs` at the repository root.

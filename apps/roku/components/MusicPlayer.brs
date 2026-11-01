@@ -6,7 +6,8 @@
 ' doesn't play as it is plays again converted, once; one that doesn't play
 ' at all is passed over. The end of the queue stops it. The queue keeps
 ' the order it was given in (lib/Music.brs), so Stop shuffling puts it
-' back.
+' back. The sleep timer (lib/Sleep.brs) is the music player's, not Now
+' Playing's: the music plays on while other screens show.
 
 sub init()
     m.audio = m.top.findNode("audio")
@@ -29,6 +30,17 @@ sub init()
     m.mode = "auto"
     m.played = false
     m.lastReportAt = 0
+    ' The sleep timer, off until set, for as long as music plays; when it
+    ' paused the music (clock ms), -1 otherwise; whether the track shown
+    ' waits for Play, with no session yet (the timer ended with the one
+    ' before); and what Now Playing was told of it last.
+    m.sleep = sleepNew(0, 0#)
+    m.sleepPausedAt = -1#
+    m.waiting = false
+    m.sleepShown = ""
+    m.sleepTimer = m.top.findNode("sleepTimer")
+    m.sleepTimer.observeField("fire", "onSleepTick")
+    showSleep(sleepNow())
 end sub
 
 sub onToken()
@@ -40,6 +52,7 @@ sub onPlay()
     if request = invalid or GetInterface(request.queue, "ifArray") = invalid or request.queue.Count() = 0 then return
     ' The track playing ends before the new queue replaces it.
     finishTrack()
+    sleepWoken()
     m.queue = musicQueue(request.queue, Int(httpNumber(request.at, 0)), httpTrue(request.shuffled))
     showQueue()
     m.top.message = ""
@@ -57,28 +70,39 @@ end sub
 ' A track of Up next: it plays, and the queue goes on from it.
 sub onJump()
     at = m.top.jump
-    if at >= 0 and at < m.queue.order.Count() then playTrack(at, "auto")
+    if at < 0 or at >= m.queue.order.Count() then return
+    sleepWoken()
+    playTrack(at, "auto")
 end sub
 
 ' The track at, from its start; its session and its details are asked for
 ' together (the details say the file's container).
 sub playTrack(at as integer, mode as string)
+    showTrack(at, "loading")
+    m.mode = mode
+    track = musicTrackAt(m.queue, at)
+    uiRequest({ op: "play", itemId: track.itemId, startMs: 0, mode: mode, attempt: m.attempt }, "onSession")
+    uiRequest({ method: "GET", path: "/api/items/" + urlValue(track.itemId), attempt: m.attempt }, "onDetail")
+end sub
+
+' The track at, at its start, the one before left: "loading" while its
+' session is asked for, or "paused", waiting for Play with none (where the
+' sleep timer stopped the music).
+sub showTrack(at as integer, state as string)
     finishTrack()
     m.queue.at = at
-    m.mode = mode
     m.attempt = m.attempt + 1
     m.info = invalid
     m.detail = invalid
     m.played = false
+    m.waiting = state = "paused"
     track = musicTrackAt(m.queue, at)
     m.top.track = track
     m.top.at = at
     m.top.positionMs = 0
     m.top.durationMs = track.durationMs
-    m.top.state = "loading"
+    m.top.state = state
     m.audio.control = "stop"
-    uiRequest({ op: "play", itemId: track.itemId, startMs: 0, mode: mode, attempt: m.attempt }, "onSession")
-    uiRequest({ method: "GET", path: "/api/items/" + urlValue(track.itemId), attempt: m.attempt }, "onDetail")
 end sub
 
 sub onSession(event as object)
@@ -141,12 +165,21 @@ sub onState(event as object)
         wasPaused = m.top.state = "paused"
         m.played = true
         m.top.state = "playing"
+        sleepWoken()
         if wasPaused then report("playing")
     else if state = "paused"
         m.top.state = "paused"
         report("paused")
     else if state = "finished"
         m.top.positionMs = m.top.durationMs
+        ' The sleep timer ends with this track: the next one waits, paused.
+        if sleepEndsWith(m.sleep, trackKey())
+            sleepFired()
+            if m.queue.at + 1 < m.queue.order.Count()
+                showTrack(m.queue.at + 1, "paused")
+                return
+            end if
+        end if
         nextTrack()
     else if state = "error"
         ' The file as it is doesn't play on this Roku: converted, once.
@@ -175,8 +208,11 @@ sub onControl()
             action = "pause"
         end if
     end if
+    if action = "resume" or action = "next" or action = "previous" then sleepWoken()
     if action = "pause"
         m.audio.control = "pause"
+    else if action = "resume" and m.waiting
+        playTrack(m.queue.at, "auto")
     else if action = "resume"
         m.audio.control = "resume"
     else if action = "next"
@@ -188,6 +224,15 @@ sub onControl()
         musicShuffle(m.queue, action = "shuffle")
         showQueue()
         m.top.at = m.queue.at
+    else if action = "sleep"
+        ' The timer's button: Keep listening in its last 30 s, else the next
+        ' choice.
+        if sleepNow().secondsLeft >= 0
+            sleepExtend(m.sleep, trackKey())
+        else
+            setSleep(sleepNextMinutes(m.sleep.minutes))
+        end if
+        showSleep(sleepNow())
     else if action = "stop"
         stopAll()
     end if
@@ -207,11 +252,16 @@ sub passOver(message as string)
     nextTrack()
 end sub
 
+' Nothing plays any more: the queue goes, and the sleep timer with it.
 sub stopAll()
     finishTrack()
     m.attempt = m.attempt + 1
     m.audio.control = "stop"
     m.queue = musicQueue([], 0, false)
+    m.waiting = false
+    m.sleepPausedAt = -1#
+    setSleep(0)
+    showSleep(sleepNow())
     showQueue()
     m.top.state = "stopped"
 end sub
@@ -235,4 +285,78 @@ end sub
 sub closeSession(sessionId as string)
     if sessionId = "" then return
     uiRequest({ method: "DELETE", path: "/api/playback/" + urlEncode(sessionId) }, "")
+end sub
+
+' --- The sleep timer ---
+
+function clockMs() as double
+    return m.clock.TotalMilliseconds() * 1#
+end function
+
+' The track playing, as the timer tells tracks apart.
+function trackKey() as string
+    if m.queue.order.Count() = 0 then return ""
+    return urlValue(musicTrackAt(m.queue, m.queue.at).itemId)
+end function
+
+' What the timer says now.
+function sleepNow() as object
+    left = -1#
+    if m.played and m.top.durationMs > 0 then left = (m.top.durationMs - m.top.positionMs) * 1#
+    return sleepState(m.sleep, clockMs(), left, trackKey())
+end function
+
+' Set from Now Playing (minutes; 0 for Off, -1 for the end of the track).
+sub setSleep(minutes as integer)
+    m.sleep = sleepNew(minutes, clockMs())
+    if minutes = 0 and m.sleepPausedAt < 0
+        m.sleepTimer.control = "stop"
+    else
+        m.sleepTimer.control = "start"
+    end if
+end sub
+
+' Once a second: the countdown of the last 30 s, the pause at the end,
+' and the music stopped 10 minutes into that pause.
+sub onSleepTick()
+    if m.sleepPausedAt >= 0
+        if clockMs() - m.sleepPausedAt >= sleepLeaveAfterMs() then stopAll()
+        return
+    end if
+    state = sleepNow()
+    if not state.fire
+        showSleep(state)
+        return
+    end if
+    sleepFired()
+    ' A track still loading would start once it has: it waits instead.
+    if m.top.state = "loading"
+        showTrack(m.queue.at, "paused")
+    else
+        m.audio.control = "pause"
+    end if
+end sub
+
+' The timer's end: it goes off, and the pause it makes is timed.
+sub sleepFired()
+    m.sleep = sleepNew(0, 0#)
+    m.sleepPausedAt = clockMs()
+    m.sleepTimer.control = "start"
+    showSleep(sleepNow())
+end sub
+
+' Played again after the timer's pause: the music stays.
+sub sleepWoken()
+    if m.sleepPausedAt < 0 then return
+    m.sleepPausedAt = -1#
+    if m.sleep.minutes = 0 then m.sleepTimer.control = "stop"
+end sub
+
+' What Now Playing shows of the timer, told when it changes.
+sub showSleep(state as object)
+    shown = { button: sleepButtonLabel(m.sleep, state), secondsLeft: state.secondsLeft }
+    text = FormatJson(shown)
+    if text = m.sleepShown then return
+    m.sleepShown = text
+    m.top.sleep = shown
 end sub

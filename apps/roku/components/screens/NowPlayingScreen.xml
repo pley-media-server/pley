@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Now Playing: the track the music player plays, its cover, how far
-     along it is, Shuffle, Previous, Pause, Next and Stop, and under them
-     Up next, the tracks after it. Back leaves it; the music goes on, and
-     Home's menu brings it back. -->
+     along it is, Shuffle, Previous, Pause, Next, Stop and the sleep
+     timer, and under them Up next, the tracks after it. Back leaves it;
+     the music goes on, and Home's menu brings it back. -->
 <component name="NowPlayingScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -28,6 +28,7 @@
         <Label id="title" translation="[560, 144]" width="1264" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="artist" translation="[560, 300]" width="1264" color="0xEBEBEBFF" font="font:MediumSystemFont" />
         <Label id="album" translation="[560, 348]" width="1264" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+        <!-- The sleep timer's countdown, or what went wrong with a track. -->
         <Label id="message" translation="[560, 396]" width="1264" color="0xEB6B70FF" font="font:SmallestSystemFont" />
         <Rectangle id="track" translation="[560, 456]" width="1264" height="8" color="0x2E3440FF" />
         <Rectangle id="fill" translation="[560, 456]" width="0" height="8" color="0x38BDF8FF" />

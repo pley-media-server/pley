@@ -156,6 +156,21 @@ function pageTextDrawn() {
   return false;
 }
 
+// Whether Now Playing's sleep timer button, focused (in the accent), says
+// more than "Sleep timer": it is the last of the buttons, which start at
+// 96, 560 (NowPlayingScreen.brs: the five before it take 1100), and only
+// a longer label reaches past 1500.
+function sleepButtonLong() {
+  if (!frame) return false;
+  for (let y = 566; y < 610; y += 4) {
+    for (let x = 1500; x < 1580; x += 4) {
+      const at = (Math.round(y * (frame.height / 1080)) * frame.width + Math.round(x * (frame.width / 1920))) * 4;
+      if (frame.data[at] < 120 && frame.data[at + 1] > 150 && frame.data[at + 2] > 200) return true;
+    }
+  }
+  return false;
+}
+
 async function drawnWithin(ms, test) {
   const until = Date.now() + ms;
   while (Date.now() < until) {
@@ -302,9 +317,10 @@ const collections = { movies: false, shows: false };
 const person = { opened: false };
 // An artist's Play: each album's tracks asked for, the first played.
 const artistPlayed = { gathered: false, first: false };
-// Now Playing: what OK on Up next played, and Previous once shuffled and
-// once in order again.
-const music = { upNext: null, shuffled: null, unshuffled: null };
+// Now Playing: what OK on Up next played, Previous once shuffled and once
+// in order again, and the sleep timer's button: short while off, long
+// once set.
+const music = { upNext: null, shuffled: null, unshuffled: null, sleepOff: false, sleepSet: false, sleepEnd: false, sleepCycled: false };
 
 // The track OK plays: the next one the server is asked to play.
 async function playedBy(what) {
@@ -625,8 +641,20 @@ async function walk() {
   await press("select");
   await press("right"); // Previous
   music.unshuffled = await playedBy("Previous, in the album's order");
+  // The sleep timer's button: 15 minutes, saying what is left, then on
+  // through its choices to End of this track and Off again.
+  await press("right", 4); // Sleep timer
+  await sleep(300);
+  music.sleepOff = !sleepButtonLong();
+  await press("select");
+  music.sleepSet = await drawnWithin(2000, sleepButtonLong);
+  shoot("now-playing-sleep");
+  await press("select", 5); // 30, 45, 60 and 90 min, End of this track
+  music.sleepEnd = await drawnWithin(2000, sleepButtonLong);
+  await press("select"); // Off
+  music.sleepCycled = await drawnWithin(2000, () => !sleepButtonLong());
   since = mark();
-  await press("right", 3); // Stop
+  await press("left"); // Stop
   await press("select");
   await waitFor(/^DELETE \/api\/playback\//, since, "the track's session closed");
   for (let i = 0; i < 3; i++) {
@@ -1010,6 +1038,8 @@ const checks = [
   ["played the track after the one playing from Now Playing's Up next", music.upNext === 5202],
   ["shuffled Now Playing's queue, the track playing first", music.shuffled === 5202],
   ["put the album's order back with Stop shuffling", music.unshuffled === 5201],
+  ["set Now Playing's sleep timer, its button saying what is left", music.sleepOff && music.sleepSet],
+  ["stepped the sleep timer through End of this track back to Off", music.sleepEnd && music.sleepCycled],
   ["played a playlist from its top, the next entry to come", fixture.playbacks.some((p) => p.item === 101)],
   ["searched", asked(/^GET \/api\/search\?/)],
   ["showed Live TV's guide, its programmes for the channels in view", fixture.liveGuides.length > 0 && fixture.liveGuides.every((g) => g.ids.length > 0 && g.ids.length <= 50)],

@@ -1,10 +1,10 @@
 ' The sleep timer, as the other apps have it: after the minutes chosen, or
 ' at the end of what plays, the playback pauses. In its last 30 s a notice
-' counts down with Keep watching, which adds the same time again (or waits
-' for the end of the next title). Minutes keep running while paused, and
-' it isn't remembered between playbacks. Paused by it for 10 minutes, the
-' player leaves. Plain state: the screen asks it once a second with the
-' clock's milliseconds.
+' counts down with Keep watching (Keep listening, for music), which adds
+' the same time again (or waits for the end of the next title). Minutes
+' keep running while paused, and it isn't remembered between playbacks.
+' Paused by it for 10 minutes, the player leaves (the music stops). Plain
+' state: the player asks it once a second with the clock's milliseconds.
 
 ' What the timer is set to, in order: [{ label, minutes }], minutes 0 for
 ' Off and -1 for the end of what plays (kind: "episode", "movie", "track"
@@ -84,6 +84,25 @@ function sleepLabel(timer as object, state as object, kind as string) as string
     if state.secondsLeft >= 0 then return urlValue(state.secondsLeft) + " s left"
     if state.minutesLeft > 0 then return urlValue(state.minutesLeft) + " min left"
     return sleepEndLabel(kind)
+end function
+
+' The choice after minutes, in sleepChoices' order, Off after the last:
+' what a button that steps through them sets next.
+function sleepNextMinutes(minutes as integer) as integer
+    choices = sleepChoices("")
+    for i = 0 to choices.Count() - 2
+        if choices[i].minutes = minutes then return choices[i + 1].minutes
+    end for
+    return 0
+end function
+
+' What Now Playing's sleep timer button says: "Sleep timer" while off,
+' "Keep listening" in its last 30 s, else what is left ("Sleep timer: 23
+' min left", "Sleep timer: End of this track").
+function sleepButtonLabel(timer as object, state as object) as string
+    if timer.minutes = 0 then return "Sleep timer"
+    if state.secondsLeft >= 0 then return "Keep listening"
+    return "Sleep timer: " + sleepLabel(timer, state, "track")
 end function
 
 ' How long the timer's pause lasts before the player leaves.

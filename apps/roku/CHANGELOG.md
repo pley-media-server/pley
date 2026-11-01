@@ -47,6 +47,10 @@ describes how they are made.
 - Now Playing has Shuffle, and Stop shuffling puts the album's or
   playlist's order back. An album or a music playlist played from a track
   plays whole, so Previous goes back past where it started.
+- Music has a sleep timer, on Now Playing: each OK steps through 15 to 90
+  minutes and the end of the track, the button saying what is left; in
+  its last 30 s, Keep listening adds the same time again. Paused by it for
+  10 minutes, the music stops.
 
 ## [0.1.1] - 2026-11-01
 

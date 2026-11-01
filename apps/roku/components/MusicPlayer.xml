@@ -8,7 +8,8 @@
              from at; shuffled, in a random order that starts there. -->
         <field id="play" type="assocarray" alwaysNotify="true" />
         <!-- "toggle", "pause", "resume", "next", "previous", "shuffle",
-             "unshuffle", "stop". -->
+             "unshuffle", "stop", or "sleep": the sleep timer's button
+             (Keep listening in its last 30 s, else its next choice). -->
         <field id="control" type="string" alwaysNotify="true" />
         <!-- Plays the track at this place in the queue. -->
         <field id="jump" type="integer" alwaysNotify="true" />
@@ -28,6 +29,9 @@
         <field id="durationMs" type="integer" />
         <!-- What went wrong with the track before, or "". -->
         <field id="message" type="string" />
+        <!-- The sleep timer: { button (what its button says), secondsLeft
+             (its last 30 s counting down; -1 otherwise) }. -->
+        <field id="sleep" type="assocarray" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/MusicPlayer.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
@@ -38,7 +42,11 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Music.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Sleep.brs" />
     <children>
         <Audio id="audio" />
+        <!-- The sleep timer's look, once a second while it is set or has
+             paused the music. -->
+        <Timer id="sleepTimer" duration="1" repeat="true" />
     </children>
 </component>

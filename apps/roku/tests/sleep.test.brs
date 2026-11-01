@@ -54,6 +54,29 @@ sub test_sleep_at_the_end_of_what_plays()
     tkTrue(sleepEndsWith(timer, "ep2"))
 end sub
 
+sub test_sleep_button_steps_through_the_choices()
+    steps = []
+    minutes = 0
+    for i = 1 to 7
+        minutes = sleepNextMinutes(minutes)
+        steps.Push(minutes)
+    end for
+    tkEqual(steps, [15, 30, 45, 60, 90, -1, 0], "Off after the end of the track")
+    tkEqual(sleepNextMinutes(20), 0, "a time it doesn't offer: Off")
+end sub
+
+sub test_sleep_button_says_what_is_left()
+    timer = sleepNew(0, 0#)
+    tkEqual(sleepButtonLabel(timer, sleepState(timer, 0#, 1000#, "a")), "Sleep timer")
+    timer = sleepNew(15, 0#)
+    tkEqual(sleepButtonLabel(timer, sleepState(timer, 0#, 1000#, "a")), "Sleep timer: 15 min left")
+    tkEqual(sleepButtonLabel(timer, sleepState(timer, 14.5 * 60000#, 1000#, "a")), "Keep listening", "its last 30 s")
+    timer = sleepNew(-1, 0#)
+    tkEqual(sleepButtonLabel(timer, sleepState(timer, 0#, 125000#, "a")), "Sleep timer: End of this track")
+    tkEqual(sleepButtonLabel(timer, sleepState(timer, 0#, -1#, "a")), "Sleep timer: End of this track", "a track not started")
+    tkEqual(sleepButtonLabel(timer, sleepState(timer, 0#, 9000#, "a")), "Keep listening")
+end sub
+
 sub test_sleep_off_says_nothing()
     timer = sleepNew(0, 0#)
     state = sleepState(timer, 99999#, 1000#, "a")
