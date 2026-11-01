@@ -429,12 +429,18 @@ function contentStreamFormat(info as object, detail as object) as string
 end function
 
 ' What the Video node opens for a PlaybackInfo: { url, streamFormat,
-' title, playStart, subtitleTracks, subtitle }. subtitle is the TrackName
-' of the subtitles the person's choices pick ("" for none); the server
-' sends text tracks as WebVTT.
+' title, playStart, subtitleTracks, subtitle, previews }. subtitle is the
+' TrackName of the subtitles the person's choices pick ("" for none); the
+' server sends text tracks as WebVTT. previews: the seek previews as a BIF
+' file beside a keyed session's media, which Roku's trick play shows ("" for
+' an address without a key).
 function contentStream(info as object, detail as object, server as string, startMs as dynamic) as object
     url = httpString(info.url)
     if Left(url, 1) = "/" then url = server + url
+    previews = ""
+    keyed = CreateObject("roRegex", "^(.*/api/media/pley_mk_[A-Za-z0-9_-]+/)[^/]+$", "")
+    match = keyed.Match(url)
+    if match.Count() = 2 then previews = match[1] + "previews.bif"
     file = contentFile(detail, info.file_id)
     selected = -1
     if file <> invalid then selected = httpNumber(file.selected_subtitle, -1)
@@ -456,7 +462,8 @@ function contentStream(info as object, detail as object, server as string, start
         title: contentPlayerTitle(detail),
         playStart: Int(httpNumber(startMs, 0) / 1000),
         subtitleTracks: tracks,
-        subtitle: subtitle
+        subtitle: subtitle,
+        previews: previews
     }
 end function
 

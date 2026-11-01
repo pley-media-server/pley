@@ -164,6 +164,16 @@ sub test_content_stream_carries_text_subtitles()
         { Language: "und", TrackName: "http://nas:7539/api/files/7/subtitles/4.vtt", Description: "Forced" }
     ])
     tkEqual(stream.subtitle, "http://nas:7539/api/files/7/subtitles/3.vtt", "the file's selected_subtitle")
+    tkEqual(stream.previews, "", "no key, no previews: the Video node sends no token for them")
+end sub
+
+sub test_content_stream_names_a_keyed_sessions_previews()
+    key = "pley_mk_" + String(43, "a")
+    stream = contentStream({ url: "/api/media/" + key + "/master.m3u8", hls: true, file_id: 7 }, contentTestDetail(), contentTestServer(), 0)
+    tkEqual(stream.url, "http://nas:7539/api/media/" + key + "/master.m3u8")
+    tkEqual(stream.previews, "http://nas:7539/api/media/" + key + "/previews.bif")
+    direct = contentStream({ url: "/api/media/" + key + "/file.mkv", hls: false, file_id: 7 }, contentTestDetail(), contentTestServer(), 0)
+    tkEqual(direct.previews, "http://nas:7539/api/media/" + key + "/previews.bif", "a direct play's too")
 end sub
 
 sub test_content_names_subtitles()

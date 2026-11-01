@@ -273,7 +273,9 @@ end sub
 ' The session at the choice's quality; ceilingKbps is where Automatic
 ' starts under (0 for none).
 sub requestPlayback(choice as string, ceilingKbps as float)
-    spec = { op: "play", itemId: m.itemId, startMs: m.startMs, mode: m.mode, attempt: m.attempt }
+    ' Keyed addresses: Roku fetches the seek previews itself, without the
+    ' Authorization header.
+    spec = { op: "play", itemId: m.itemId, startMs: m.startMs, mode: m.mode, attempt: m.attempt, keyed: true }
     file = contentFile(m.item, invalid)
     if file <> invalid
         spec.fileId = httpNumber(file.id, 0)
@@ -543,6 +545,11 @@ sub showStream(stream as object, subtitle as string)
     content.title = stream.title
     content.playStart = stream.playStart
     content.subtitleTracks = syncTracks(stream.subtitleTracks, m.syncMs)
+    if stream.previews <> ""
+        content.SDBifUrl = stream.previews
+        content.HDBifUrl = stream.previews
+        content.FHDBifUrl = stream.previews
+    end if
     if LCase(Left(stream.url, 8)) = "https://" then nodesFill(content, { HttpCertificatesFile: "common:/certs/ca-bundle.crt" })
     m.video.setHttpAgent(uiHttpAgent())
     m.video.content = content

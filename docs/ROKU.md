@@ -50,6 +50,11 @@ than one profile.
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
 | Replay | Live TV | Search (Roku remotes have no search key for apps) |
 
+Fast forward and rewind show seek previews in Roku's own bar: the server's
+previews of the file as a BIF file, which the Video node fetches beside the
+media (`previews.bif`). While the server is still making them, the bar
+shows the time alone.
+
 Settings has the audio and subtitle defaults, Quality, Play the next
 episode by itself (Up Next counts down only while it is on), Watch
 history, Switch profile, Sort libraries, Switch server and Sign out, and
@@ -202,6 +207,9 @@ Rules the code keeps:
 - All HTTP goes through `ApiTask`; the render thread never makes a request.
 - The access token goes only in `Authorization: Bearer`, never in an
   address, including the Video node's and the pictures' HTTP agents.
+- Videos play from [keyed addresses](API.md#keyed-urls): Roku fetches a
+  BIF file of seek previews without its HTTP agent's headers, so the
+  previews come from the session's key, beside its media.
 - Refreshes run one at a time per server, and the new token pair is saved
   before use (a refresh token works once).
 - The User-Agent is `pleyRoku/<version> (Roku OS <version>; <model>)`; the
@@ -295,6 +303,6 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
   requests' summary refresh once a minute, a title page with a request
   each 30 s.
 - Audio other than the file's default isn't played as it is.
-- Not yet: seek previews, rating titles, reordering a
-  playlist, "Always start as", an editable music queue.
+- Not yet: rating titles, reordering a playlist, "Always start as", an
+  editable music queue.
 

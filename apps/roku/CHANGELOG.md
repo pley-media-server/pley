@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Seek previews: fast forward and rewind show pictures of where they go, in
+  Roku's own bar, once the server has made the file's previews. Needs a
+  server from the same release.
+
 ## [0.1.1] - 2026-11-01
 
 ### Added
