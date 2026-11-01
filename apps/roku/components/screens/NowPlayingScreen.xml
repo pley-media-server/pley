@@ -24,12 +24,16 @@
         <Poster id="backdrop" width="1920" height="1080" loadWidth="320" loadHeight="320" loadDisplayMode="scaleToZoom" opacity="0.12" />
         <Rectangle id="coverFrame" translation="[96, 96]" width="400" height="400" color="0x262B35FF" />
         <Poster id="cover" translation="[96, 96]" width="400" height="400" loadWidth="400" loadHeight="400" loadDisplayMode="scaleToZoom" />
-        <Label translation="[560, 104]" text="Now playing" color="0x38BDF8FF" font="font:SmallerBoldSystemFont" />
-        <Label id="title" translation="[560, 144]" width="1264" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
-        <Label id="artist" translation="[560, 300]" width="1264" color="0xEBEBEBFF" font="font:MediumSystemFont" />
-        <Label id="album" translation="[560, 348]" width="1264" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-        <!-- The sleep timer's countdown, or what went wrong with a track. -->
-        <Label id="message" translation="[560, 396]" width="1264" color="0xEB6B70FF" font="font:SmallestSystemFont" />
+        <!-- The track's lines, each under the one before, so a title of
+             one line or two leaves no gap. -->
+        <LayoutGroup translation="[560, 104]" layoutDirection="vert" itemSpacings="[8, 20, 8, 20]">
+            <Label text="Now playing" color="0x38BDF8FF" font="font:SmallerBoldSystemFont" />
+            <Label id="title" width="1264" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+            <Label id="artist" width="1264" color="0xEBEBEBFF" font="font:MediumSystemFont" />
+            <Label id="album" width="1264" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+            <!-- The sleep timer's countdown, or what went wrong with a track. -->
+            <Label id="message" width="1264" color="0xEB6B70FF" font="font:SmallestSystemFont" />
+        </LayoutGroup>
         <Rectangle id="track" translation="[560, 456]" width="1264" height="8" color="0x2E3440FF" />
         <Rectangle id="fill" translation="[560, 456]" width="0" height="8" color="0x38BDF8FF" />
         <Label id="elapsed" translation="[560, 476]" width="300" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
