@@ -1,0 +1,30 @@
+<Project Sdk="Tizen.NET.Sdk/1.2.1">
+
+  <!-- The Tizen app: NUI screens on the Core logic, packaged as a .tpk. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>tizen90</TargetFramework>
+    <AssemblyName>Pley.Tv.Tizen</AssemblyName>
+    <!-- The SDK asks for a Tizen.NET build NuGet no longer has and takes the next one up. -->
+    <NoWarn>$(NoWarn);NU1603</NoWarn>
+  </PropertyGroup>
+
+  <!-- A profiling build (scripts/package.mjs, PLEY_TIZEN_METRICS): Kit/Profile.cs's calls are
+       compiled in, and send their marks to PleyMetrics. Without it, they're left out. -->
+  <PropertyGroup Condition="'$(PleyMetrics)' != ''">
+    <DefineConstants>$(DefineConstants);PROFILE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(PleyMetrics)' != ''">
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>PleyMetrics</_Parameter1>
+      <_Parameter2>$(PleyMetrics)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pley.Tv.Core\Pley.Tv.Core.csproj" />
+    <!-- The link screen's QR code: Nayuki's generator, as the Android app has it, under MIT. -->
+    <PackageReference Include="Net.Codecrete.QrCodeGenerator" Version="3.2.1" />
+  </ItemGroup>
+
+</Project>

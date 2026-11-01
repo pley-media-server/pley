@@ -20,6 +20,7 @@
     "desktop": "bun run --cwd apps/desktop dev",
     "tv:check": "bun run --cwd packages/picture-subtitles check && bun run --cwd packages/tv check && bun run --cwd apps/tizen check && bun run --cwd apps/webos check",
     "tizen": "bun run --cwd apps/tizen package",
+    "tizen-native": "bun apps/tizen-native/scripts/package.mjs",
     "webos": "bun run --cwd apps/webos package"
   },
   "engines": {

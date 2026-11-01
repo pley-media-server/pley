@@ -17,6 +17,7 @@
 *.gif binary
 *.woff binary
 *.woff2 binary
+*.ttf binary
 *.zip binary
 *.gz binary
 *.br binary

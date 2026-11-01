@@ -21,11 +21,12 @@ server talks to it only over HTTP ([TRANSCODER.md](TRANSCODER.md)).
 | `apps/kodi` | Pley for Kodi, an add-on (Python, GPL-2.0-or-later) |
 | `apps/roku` | Pley for Roku (BrightScript, SceneGraph) |
 | `apps/tizen`, `apps/webos` | Pley for Samsung TV and Pley for LG TV |
+| `apps/tizen-native` | Pley for Samsung TV, native (C#, Tizen .NET, NUI), built beside the web app |
 | `packages/tv` | The TV app both share (TypeScript, Preact) |
 | `packages/transcoder-api` | Protocol types shared by server and transcoder |
 | `deploy/` | Docker, systemd and launchd setups, the Windows installer, store listings |
 | `docs/` | Documentation |
-| `scripts/` | Versions and releases (`version.mjs`, `release.mjs`), release builds, the license check, the apps' icons and store pictures (`render-icons.mjs`) |
+| `scripts/` | Versions and releases (`version.mjs`, `release.mjs`), release builds, the license checks, the apps' icons and store pictures (`render-icons.mjs`) |
 
 ## Requirements
 
@@ -35,6 +36,7 @@ server talks to it only over HTTP ([TRANSCODER.md](TRANSCODER.md)).
   `bun.lock` and runs their scripts and tools (each package's `bunfig.toml`
   says so).
 - Node.js 22 or newer, for the Roku app's tools only.
+- The .NET 8 SDK, for the native Samsung app only.
 - FFmpeg and ffprobe on `PATH` or configured; 6.1 or newer throttles
   transcodes. For hardware transcoding and GPU tone mapping, use a build
   with NVENC, QSV, AMF or VAAPI and libplacebo: gyan.dev's "full" build on
@@ -64,6 +66,7 @@ Then follow [First start](CONFIGURATION.md#first-start).
 | `bun run check` | The web app's and desktop app's type check, ESLint and tests (Vitest) |
 | `bun run desktop` | Runs the desktop app (on Linux needs WebKitGTK: `libwebkit2gtk-4.1-dev`); `bun run --cwd apps/desktop build` makes its installers |
 | `bun run tv:check` | Type-checks and tests the Samsung and LG apps; `bun run tizen` and `bun run webos` package them ([TV_PLATFORMS.md](TV_PLATFORMS.md)) |
+| `dotnet test apps/tizen-native/test/Pley.Tv.Core.Tests` | Tests the native Samsung app's logic; `bun run tizen-native` packages it ([TV_PLATFORMS.md](TV_PLATFORMS.md#the-native-samsung-app)) |
 | `bun install && bun run check` in `apps/roku` | Compiles, lints and tests the Roku app ([ROKU.md](ROKU.md)) |
 | `python -m unittest discover -s tests` in `apps/kodi` | Tests the Kodi add-on ([KODI.md](KODI.md)) |
 | `scripts/build.ps1` (or `build.sh`) | Builds the server's release archive locally |

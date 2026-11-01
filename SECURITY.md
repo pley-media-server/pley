@@ -325,6 +325,9 @@ Apps sign in on Pley's own page with OAuth 2.1.
   beyond the home network (Kodi checks the address it actually connected
   to).
 - The Samsung and LG apps send the token only to the server's own origin.
+- The native Samsung app keeps its tokens encrypted with AES-GCM under a
+  256-bit key that the TV's key manager makes and keeps, bound to their
+  server's address. Sign-in requests and server checks follow no redirect.
 - Kodi's player and artwork cache reach the server through the add-on's
   proxy on 127.0.0.1, behind a random path checked in constant time, for
   requests addressed to it alone.

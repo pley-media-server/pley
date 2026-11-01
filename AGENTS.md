@@ -33,6 +33,8 @@ too, each app's workflow when that app changes.
 | A Rust dependency | `scripts/check-licenses.ps1` and `cargo deny check licenses` |
 | Web or desktop app | `bun run check` (type check, ESLint, Vitest) |
 | Samsung or LG app, `packages/tv` | `bun run tv:check` |
+| Native Samsung app (`apps/tizen-native`), `packages/tv/test/fixtures` | `dotnet test apps/tizen-native/test/Pley.Tv.Core.Tests`, `dotnet build apps/tizen-native/src/Pley.Tv.Tizen` (and `bun run tv:check` for a fixture) |
+| A NuGet package | `bun scripts/check-nuget-licenses.mjs` |
 | Roku app | `bun install && bun run check` in `apps/roku` |
 | Kodi add-on | `python -m unittest discover -s tests` in `apps/kodi` |
 | Android app | `./gradlew testDebugUnitTest lintDebug` in `apps/android`; `pwsh ../../scripts/check-android.ps1` after `assembleStoreRelease` when libraries change |
@@ -53,7 +55,8 @@ licences ([CONTRIBUTING.md](CONTRIBUTING.md)).
 - Add no dependency that is only available under a copyleft licence (GPL,
   LGPL, AGPL and the like) to the server, the transcoder or any app other
   than the Kodi add-on. `scripts/check-licenses.ps1` and `deny.toml` enforce
-  this for Rust.
+  this for Rust, `scripts/check-nuget-licenses.mjs` for the native Samsung
+  app's NuGet packages.
 - The transcoder runs `ffmpeg` and `ffprobe` as programs. Never link
   FFmpeg's libraries into it: that would bind it to FFmpeg's GPL.
 - The server never depends on the `pley-transcoder` crate; it talks to the
@@ -82,7 +85,11 @@ licences ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 **Every app.** A feature people see is expected on every app (web and
 desktop, Android phone and TV, Samsung, LG, Kodi, Roku), the same way,
-unless the platform can't; the app's doc says what it can't do.
+unless the platform can't; the app's doc says what it can't do. The native
+Samsung app ports the Android TV app to C#, its screens and its rules. A
+rule it shares with `packages/tv` is pinned by a fixture in
+`packages/tv/test/fixtures`, and changes in both, with it; where Android
+differs, the native app follows Android and its test says so.
 
 **The brand** is written Pley in everything people read. Ids, binaries,
 paths, packages and protocol tokens stay lowercase `pley`.

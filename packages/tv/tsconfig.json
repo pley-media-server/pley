@@ -19,6 +19,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
+    "resolveJsonModule": true,
     "noUncheckedIndexedAccess": true
   },
   "include": ["src", "test", "vitest.config.ts"]

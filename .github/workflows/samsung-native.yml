@@ -1,0 +1,55 @@
+name: Samsung TV (native)
+
+# The native Samsung TV app (apps/tizen-native, Tizen .NET). Its logic's tests
+# run the web TV app's fixtures (packages/tv/test/fixtures), so a change there
+# runs them too. It has no release yet; its package is signed with a Samsung
+# certificate only its owner can make (`bun run tizen-native`,
+# docs/TV_PLATFORMS.md), so the build here checks the code and the .tpk only.
+on:
+  push:
+    branches: [master]
+    paths:
+      - apps/tizen-native/**
+      - packages/tv/test/fixtures/**
+      - scripts/check-nuget-licenses.mjs
+      - scripts/commit.mjs
+      - .github/workflows/samsung-native.yml
+      - "!**/CHANGELOG.md"
+  pull_request:
+    paths:
+      - apps/tizen-native/**
+      - packages/tv/test/fixtures/**
+      - scripts/check-nuget-licenses.mjs
+      - scripts/commit.mjs
+      - .github/workflows/samsung-native.yml
+      - "!**/CHANGELOG.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A new push to a pull request replaces its running checks; master runs them all.
+  group: samsung-native-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Actions are pinned to commits.
+jobs:
+  samsung-native:
+    name: Samsung TV app (native)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 8.0.x
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - run: dotnet test apps/tizen-native/test/Pley.Tv.Core.Tests
+      # Built with Tizen's default certificate; a TV takes it once signed with a Samsung one.
+      - run: dotnet build apps/tizen-native/src/Pley.Tv.Tizen -c Release
+      - run: bun scripts/check-nuget-licenses.mjs

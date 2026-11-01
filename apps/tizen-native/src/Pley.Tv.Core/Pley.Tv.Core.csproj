@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The app's logic without Tizen: tested on any computer with `dotnet test`. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- No newer than the TV's own copy (.NET 6), which the runtime loads first. -->
+    <PackageReference Include="System.Text.Json" Version="6.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Pley.Tv.Core.Tests" />
+  </ItemGroup>
+
+</Project>

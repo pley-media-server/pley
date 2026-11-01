@@ -1,0 +1,370 @@
+{
+  "normalizeServer": [
+    {
+      "in": "nas",
+      "out": "http://nas:7539"
+    },
+    {
+      "in": "nas:8080",
+      "out": "http://nas:8080"
+    },
+    {
+      "in": "192.168.1.20",
+      "out": "http://192.168.1.20:7539"
+    },
+    {
+      "in": "192.168.1.20:7539",
+      "out": "http://192.168.1.20:7539"
+    },
+    {
+      "in": "https://pley.example.com/",
+      "out": "https://pley.example.com"
+    },
+    {
+      "in": "HTTPS://Pley.Example.com:443/x",
+      "out": "https://pley.example.com"
+    },
+    {
+      "in": "http://pley.example.com:80",
+      "out": "http://pley.example.com"
+    },
+    {
+      "in": "  nas  ",
+      "out": "http://nas:7539"
+    },
+    {
+      "in": "",
+      "out": null
+    },
+    {
+      "in": "a b",
+      "out": null
+    },
+    {
+      "in": "ftp://nas",
+      "out": null
+    },
+    {
+      "in": "http://[fe80::1]:7539",
+      "out": "http://[fe80::1]:7539"
+    },
+    {
+      "in": "[::1]",
+      "out": "http://[::1]:7539"
+    },
+    {
+      "in": "nas:70000",
+      "out": null
+    },
+    {
+      "in": "nas:0",
+      "out": null
+    },
+    {
+      "in": "https://media.example.org:9999/",
+      "out": "https://media.example.org:9999"
+    },
+    {
+      "in": "pley.example.com/web",
+      "out": "http://pley.example.com:7539"
+    }
+  ],
+  "candidates": [
+    {
+      "in": "nas",
+      "out": [
+        "http://nas:7539"
+      ]
+    },
+    {
+      "in": "pley.example.com",
+      "out": [
+        "https://pley.example.com",
+        "http://pley.example.com:7539"
+      ]
+    },
+    {
+      "in": "pley.example.com:8443",
+      "out": [
+        "http://pley.example.com:8443"
+      ]
+    },
+    {
+      "in": "https://pley.example.com",
+      "out": [
+        "https://pley.example.com"
+      ]
+    },
+    {
+      "in": "http://pley.example.com",
+      "out": [
+        "http://pley.example.com"
+      ]
+    },
+    {
+      "in": "192.168.1.20",
+      "out": [
+        "http://192.168.1.20:7539"
+      ]
+    },
+    {
+      "in": "nas.local",
+      "out": [
+        "http://nas.local:7539"
+      ]
+    },
+    {
+      "in": "box.tail1234.ts.net",
+      "out": [
+        "http://box.tail1234.ts.net:7539"
+      ]
+    },
+    {
+      "in": "bad input",
+      "out": []
+    },
+    {
+      "in": "media.example.org/path",
+      "out": [
+        "https://media.example.org",
+        "http://media.example.org:7539"
+      ]
+    },
+    {
+      "in": "100.64.0.1",
+      "out": [
+        "http://100.64.0.1:7539"
+      ]
+    }
+  ],
+  "isLocalHost": [
+    {
+      "in": "localhost",
+      "out": true
+    },
+    {
+      "in": "nas",
+      "out": true
+    },
+    {
+      "in": "NAS",
+      "out": true
+    },
+    {
+      "in": "nas.local",
+      "out": true
+    },
+    {
+      "in": "pley.example.com",
+      "out": false
+    },
+    {
+      "in": "10.0.0.5",
+      "out": true
+    },
+    {
+      "in": "172.16.0.1",
+      "out": true
+    },
+    {
+      "in": "172.31.255.255",
+      "out": true
+    },
+    {
+      "in": "172.32.0.1",
+      "out": false
+    },
+    {
+      "in": "192.168.1.20",
+      "out": true
+    },
+    {
+      "in": "169.254.1.1",
+      "out": true
+    },
+    {
+      "in": "100.64.0.1",
+      "out": true
+    },
+    {
+      "in": "100.127.0.1",
+      "out": true
+    },
+    {
+      "in": "100.128.0.1",
+      "out": false
+    },
+    {
+      "in": "8.8.8.8",
+      "out": false
+    },
+    {
+      "in": "127.0.0.1",
+      "out": true
+    },
+    {
+      "in": "::1",
+      "out": true
+    },
+    {
+      "in": "[::1]",
+      "out": true
+    },
+    {
+      "in": "fd12::1",
+      "out": true
+    },
+    {
+      "in": "fc00::1",
+      "out": true
+    },
+    {
+      "in": "fe80::1",
+      "out": true
+    },
+    {
+      "in": "febf::1",
+      "out": true
+    },
+    {
+      "in": "fec0::1",
+      "out": false
+    },
+    {
+      "in": "2001:db8::1",
+      "out": false
+    },
+    {
+      "in": "box.ts.net",
+      "out": true
+    },
+    {
+      "in": "x.home.arpa",
+      "out": true
+    },
+    {
+      "in": "x.lan",
+      "out": true
+    },
+    {
+      "in": "x.internal",
+      "out": true
+    },
+    {
+      "in": "x.localdomain",
+      "out": true
+    },
+    {
+      "in": "x.home",
+      "out": true
+    }
+  ],
+  "atHome": [
+    {
+      "in": "http://nas:7539",
+      "out": true
+    },
+    {
+      "in": "http://100.64.0.1:7539",
+      "out": false
+    },
+    {
+      "in": "https://box.tail1234.ts.net",
+      "out": false
+    },
+    {
+      "in": "https://pley.example.com",
+      "out": false
+    },
+    {
+      "in": "http://192.168.1.20:7539",
+      "out": true
+    },
+    {
+      "in": "not a url",
+      "out": false
+    }
+  ],
+  "unencrypted": [
+    {
+      "in": "http://pley.example.com:7539",
+      "out": true
+    },
+    {
+      "in": "https://pley.example.com",
+      "out": false
+    },
+    {
+      "in": "http://192.168.1.20:7539",
+      "out": false
+    },
+    {
+      "in": "http://nas:7539",
+      "out": false
+    },
+    {
+      "in": "not a url",
+      "out": false
+    }
+  ],
+  "displayAddress": [
+    {
+      "in": "http://nas:7539",
+      "out": "nas"
+    },
+    {
+      "in": "http://nas:8080",
+      "out": "nas:8080"
+    },
+    {
+      "in": "https://pley.example.com",
+      "out": "pley.example.com"
+    },
+    {
+      "in": "https://pley.example.com:8443",
+      "out": "pley.example.com:8443"
+    },
+    {
+      "in": "http://192.168.1.20:7539",
+      "out": "192.168.1.20"
+    },
+    {
+      "in": "https://nas:7539",
+      "out": "nas:7539"
+    },
+    {
+      "in": "garbage",
+      "out": "garbage"
+    }
+  ],
+  "origin": [
+    {
+      "in": "https://Pley.Example.com/path",
+      "out": "https://pley.example.com"
+    },
+    {
+      "in": "http://nas:7539/x",
+      "out": "http://nas:7539"
+    },
+    {
+      "in": "https://pley.example.com:443",
+      "out": "https://pley.example.com"
+    },
+    {
+      "in": "http://nas:80",
+      "out": "http://nas"
+    },
+    {
+      "in": "ftp://nas",
+      "out": null
+    },
+    {
+      "in": "nope",
+      "out": null
+    },
+    {
+      "in": "http://[FE80::1]:8080/",
+      "out": "http://[fe80::1]:8080"
+    }
+  ]
+}

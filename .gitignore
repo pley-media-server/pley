@@ -23,6 +23,9 @@ CLAUDE.local.md
 __pycache__/
 /apps/tizen/out
 /apps/webos/out
+/apps/tizen-native/out
+/apps/tizen-native/**/bin/
+/apps/tizen-native/**/obj/
 
 # Never published: keys and certificates, local settings and data, packages.
 *.jks
@@ -56,6 +59,7 @@ pley.toml
 *.aab
 *.ipk
 *.wgt
+*.tpk
 *.pkg
 /apps/kodi/dist/
 

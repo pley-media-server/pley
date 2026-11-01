@@ -24,6 +24,7 @@ In short, the AGPL means:
 | **Pley for Android** | `apps/android` | AGPL-3.0-only | A native app for phones, tablets and TVs (Kotlin and Compose): AndroidX, Media3, OkHttp, Coil and kotlinx under Apache-2.0, Lucide's icons under ISC, Nayuki's QR code generator under MIT |
 | **Pley for Roku** | `apps/roku` | AGPL-3.0-only | A native SceneGraph app in BrightScript, built with BrighterScript (MIT), which adds its runtime helpers, bslib (MIT), to the package |
 | **Pley for Samsung TV and LG TV** | `apps/tizen`, `apps/webos`, `packages/tv` | AGPL-3.0-only | Web apps for the TVs' own engines in TypeScript: Preact and its signals (MIT), Lucide's icons (ISC, and MIT for those from Feather), a QR code generator (MIT) and the Roboto font (OFL-1.1) |
+| **Pley for Samsung TV, native** | `apps/tizen-native` | AGPL-3.0-only | A Tizen .NET app in C# with NUI screens, on Tizen.NET (Apache-2.0) and .NET Standard (MIT), which the TV provides, Lucide's icons (ISC, and MIT for those from Feather), Nayuki's QR code generator (MIT, `Net.Codecrete.QrCodeGenerator`) and the Roboto font (OFL-1.1) |
 | **Pley for Kodi** | `apps/kodi` | **GPL-2.0-or-later** (`plugin.video.pley/LICENSE.txt`) | A Kodi add-on in Python, on Python's standard library alone, with pictures drawn from Lucide's icons under ISC |
 
 ## Source code
@@ -108,6 +109,12 @@ can't be combined with the AGPL at all.
     would bring native code, so neither can slip in under an allowed group.
 - **The TV apps name every package they bundle.** Their build fails on a
   package that `packages/tv/src/licenses.ts` doesn't name.
+- **Only permissive packages in the native Samsung app.**
+  `scripts/check-nuget-licenses.mjs` reads the licence of every NuGet
+  package the app ships with, transitive ones included, and fails on one
+  that isn't MIT, Apache-2.0, BSD, ISC or Zlib, or whose licence it can't
+  tell; a package that puts nothing into the app is named there with why.
+  CI runs it.
 - **Rules to keep:**
   - Never link FFmpeg's libraries into the transcoder, or any GPL library
     into the server, the transcoder or an app; Pley runs FFmpeg as a program.
@@ -140,6 +147,17 @@ What each build contains of others' work, and where its notices are:
   `@fontsource/roboto`). The build writes the full licences of the packages
   in the bundle into `NOTICES.txt` in `dist/` (so into the .wgt and the
   .ipk). Settings → About lists them.
+- The native Samsung app draws Lucide's icons (ISC, and MIT for those
+  Lucide took from Feather), copied as SVG files by
+  `apps/tizen-native/scripts/icons.mjs` with their licence beside them
+  (`shared/res/icons/LICENSE.txt`, in the .tpk).
+- The native Samsung app draws its sign-in QR code with
+  `Net.Codecrete.QrCodeGenerator` (MIT), Nayuki's generator, as the Android
+  app has it.
+- The native Samsung app draws its text in Roboto (OFL-1.1): the files the
+  web TV app ships from `@fontsource/roboto`, unpacked to TrueType by
+  `apps/tizen-native/scripts/fonts.mjs`, with their licence beside them
+  (`shared/res/fonts/LICENSE.txt`, in the .tpk).
 - The tools that build the JavaScript apps (Bun, Vite, TypeScript and the
   rest) aren't shipped.
 - Builds of Pley carry `LICENSE` (as `LICENSE.txt`) and this file.

@@ -14,9 +14,11 @@ and packaging. Both follow the [Android TV app](ANDROID.md): the same
 | Player | AVPlay, Samsung's player, on the hardware video plane | `<video src>`, handed to LG's media pipeline (uMediaServer) |
 | Oldest TV | 2018 (Tizen 4.0, Chromium 56); Samsung's store takes new media apps for 2021 (Tizen 6.0) and later | 2018 (webOS 4.0, Chromium 53) |
 
-Neither maker lets outside developers ship native apps, so both apps are web
-apps that hand the file's address to the TV's own player, with its hardware
-decoders, HDR and sound output. No video goes through a JavaScript player.
+Both are web apps that hand the file's address to the TV's own player, with
+its hardware decoders, HDR and sound output. No video goes through a
+JavaScript player. LG's TVs run only web apps from outside developers.
+Samsung's also run Tizen .NET apps, and a native Samsung app is being built
+beside the web one ([The native Samsung app](#the-native-samsung-app)).
 
 Neither app is in a store: both are installed on a TV in developer mode.
 
@@ -25,6 +27,7 @@ Neither app is in a store: both are installed on a TV in developer mode.
 - [Building and testing](#building-and-testing)
 - [Releases](#releases)
 - [Known limits](#known-limits)
+- [The native Samsung app](#the-native-samsung-app)
 
 ## Install
 
@@ -43,6 +46,9 @@ install it on a TV in developer mode.
 3. `sdb connect <TV address>`; `sdb devices` names the target.
 4. With a Samsung certificate, run `tizen install-permit -t <target>` once.
 5. `tizen install -n pley.wgt -t <target> -- apps/tizen/out`.
+
+The native Samsung app installs the same way, as a `.tpk`
+([Setting up](#setting-up)).
 
 ### On an LG TV
 
@@ -289,7 +295,7 @@ bun run --cwd apps/webos build       # only an app's dist/ (apps/tizen too); --d
 
 - The picture subtitle decoders are in `packages/picture-subtitles`, which
   the web app uses too: plain TypeScript without dependencies, compiled by
-  each TV build for its own engine.
+  each TV build for its own engine. The native Samsung app has them in C#.
 - Each shell has `facts.ts` (what the TV says about itself; LG's system
   services in `luna.ts`), `caps.ts` (the capability report, with snapshot
   tests of real sets), `engine.ts` (AVPlay, or `<video>` with
@@ -437,6 +443,172 @@ Store requirements:
 
 - No playback speed on Samsung.
 - No subtitle upload or delete on either TV.
+
+## The native Samsung app
+
+Pley for Samsung TV, native, is the Samsung app rewritten in C# for Tizen
+.NET, so its screens are drawn by the TV's own graphics engine (NUI) rather
+than a web engine. It runs on Tizen 9 TVs and is built beside the web app,
+which stays the Samsung app until the native one has its features. So far
+it has the Android TV app's "Choose your server" screen (servers found on
+the network, an address pad and the TV's keyboard, forgetting a server),
+its sign-in with a code and a QR code, Who's watching? with PINs, and
+Home: the hero, the server's rows and the rail, and item pages: the hero
+and its buttons, seasons and episodes, Extras, Cast and More Like This,
+and the side panels; library pages (the chips and panels, the grid with
+the A to Z jump, Recommended and Collections) and the Libraries page;
+search (the field and the TV's keyboard, results in rows, recent
+searches); people's pages (the photo, the name and a row per role); the
+rail's Collections and a collection's page, with Play and Shuffle; the
+watch history page; playlists (their covers, a playlist's page with
+moving and removing entries, Rename and Delete, Add to playlist, New
+playlist and saving a library's filters as a smart playlist); Settings
+(its categories and their rows, the side panels of choices, the web
+page's address and QR code, signing out); Diagnostics (the TV's facts and
+what it tells the server it plays); Live TV's page (the categories and
+their search, the guide and the channels' tiles, a programme's details
+and favourites) and its live player (changing channel, number keys, what's
+on, the channel list on OK and the controls on OK held, and why a channel
+doesn't play); music's artist and
+album pages (Play, Shuffle, the albums, the tracks by disc) and Now Playing
+(the scrubber, the controls, the sleep timer and the queue), with the
+music playing on behind the other pages, driven by the remote's media keys
+from any of them, and pausing for a video; and the player: the stream on
+the TV's own player, chosen with the TV's capabilities, seeking with Left
+and Right with previews of where to (as YouTube's TV app: it waits for OK,
+and a held key runs faster the longer it's held), OK showing the
+controls, the scrubber with its chapters (Up while a seek waits opens
+them as a row of cards to go to) and the control row, the title
+for a few seconds as each item begins, text subtitles in Settings' look
+(the CAPTIONS key turns them off and on), picture subtitles (PGS, VobSub,
+DVB) decoded from the server's `.mks` and drawn as the web app draws them,
+burned in by the server only when it can't make that file, the side
+panels (Subtitles with Sync and the subtitles' look, Audio, Quality, the
+sleep timer, Speed where the TV's player has other speeds, and Info),
+Chapters opening the chapters' cards, Skip Intro and Skip Credits (over the scrubber, where Up
+reaches them, as on Android TV), Up
+Next (the next episode, or the next in a playlist or collection),
+recovering by itself from stalls and a server out of reach, and Try again
+when it can't play. Back on its first screen asks "Exit Pley?". Unlike
+Android's, its music pauses while the app is hidden, since a hidden app
+gives up the TV's player, and plays on from there when the app is back.
+The other pages come next.
+
+A channel starts as on Android: its `stream.ts` (the provider's MPEG-TS,
+from its last keyframe) is read while the server says what it makes of the
+channel, and plays when that is the channel as it is, or with sound every
+Samsung TV decodes itself (AC3, E-AC3, MP2), which the server converts for
+other players; otherwise, or when it fails, the channel's HLS. The TV's
+player can't send the `Authorization` header `stream.ts` needs, and the
+server takes an app's token nowhere else, so the app reads it with its
+token and hands it on to the player as it comes, on the TV's loopback
+address under a random path that lasts one channel (`Net/StreamRelay.cs`).
+Live channels start once 0.5 s is buffered, 1.5 s after a stall, as on
+Android; films the same from a server at home, and 1 s and 2 s from
+elsewhere. A film asks the server for its stream before its player
+screen is made, which takes the UI thread half a second the first time.
+
+| | |
+|---|---|
+| Folder | `apps/tizen-native` |
+| Package | Tizen .NET app (`.tpk`, id `app.pley.tizen`), named "Pley (native)" on the TV |
+| Screens | NUI, Samsung's C# toolkit on its DALi engine |
+| Oldest TV | Tizen 9 |
+
+### How it is built
+
+- It is a port of the Android TV app: its screens, its words and its rules
+  (sign-in, servers, the API client, the rail, tiles). The web TV app
+  (`packages/tv`) is itself a port of the Android one.
+- `src/Pley.Tv.Core` is the logic without Tizen (.NET Standard 2.0). It
+  runs on any computer, so its tests need no TV; they include the Android
+  app's tests for the same rules.
+- `src/Pley.Tv.Tizen` is the app: NUI screens on the Core, the TV's player,
+  remote keys and keyboard, and packaging.
+- The picture subtitle decoders (`src/Pley.Tv.Core/Subtitles/Pictures`)
+  are `packages/picture-subtitles` in C#, with its tests. Each bitmap's
+  RGBA bytes become a NUI texture (`PixelData`), shown by an image scaled
+  from the subtitle plane to the screen.
+- The Core's tests also run the fixtures in `packages/tv/test/fixtures`,
+  inputs with the answers `packages/tv` gives, so the two Samsung apps
+  answer the same questions the same way. Where the Android app is
+  stricter (a token answer without `token_type`, a device code without
+  `expires_in`), the native app follows it, and its test says which
+  fixture case it answers differently.
+
+### Setting up
+
+On the computer:
+
+1. The **.NET 8 SDK**. The build fetches Tizen .NET's own build tools
+   (`Tizen.NET.Sdk`) from NuGet by itself.
+2. The **Tizen SDK 10.0** ([Commands](#commands)), for its CLI (`tizen`,
+   `sdb`) and Certificate Manager; `TIZEN_STUDIO` names its folder when
+   it isn't on the PATH. In its Package Manager, under Extension SDK,
+   install **Samsung Certificate Extension**.
+
+For each TV:
+
+1. **Developer mode:** Apps, `12345` on the remote, Developer mode On
+   with the computer's IP address, then restart the TV.
+2. **Its DUID**, which the certificate lists: `duid` in
+   `http://<TV address>:8001/api/v2/`, or Certificate Manager reads it
+   from a TV connected with `sdb connect <TV address>`.
+3. **A certificate that lists it.** In Certificate Manager, `+`, Samsung,
+   TV: an author certificate (keep its password, and reuse it for later
+   profiles), then a distributor certificate with privilege Public and
+   the DUIDs of every TV the package is for. The profile's name is
+   `PLEY_TIZEN_PROFILE` when packaging. A TV added later takes a new
+   profile with the same author certificate and a distributor certificate
+   listing all the DUIDs, and a package signed again with it.
+4. **Its permit,** once per TV and certificate:
+   `tizen install-permit -t <target>`, with the target `sdb devices`
+   names.
+
+### Building and installing
+
+```sh
+dotnet test apps/tizen-native/test/Pley.Tv.Core.Tests   # the Core's tests
+PLEY_TIZEN_PROFILE=<profile> bun run tizen-native        # apps/tizen-native/out/pley-tizen.tpk, signed
+tizen install -n pley-tizen.tpk -t <target> -- apps/tizen-native/out
+tizen run -p app.pley.tizen -t <target>
+bun scripts/check-nuget-licenses.mjs                     # the licences of the packages it ships with
+```
+
+`tizen run` brings the app to the front when it is running already; an
+install ends it, so installing again starts it afresh. It is named
+"Pley (native)" among the TV's apps.
+
+### Profiling
+
+A profiling build measures the app on a TV: what happens when (startup,
+pages drawn, the player, Live TV's guide), each time the UI thread is held
+for more than 66 ms and what came before it, pictures, memory every 5
+seconds, and the frame rate, which also shows over the screen's top right.
+It keeps its last marks in the app's data folder, so the marks before a
+crash are sent at the next start. Its marks go as lines to a listener on a
+computer the TV reaches:
+
+```sh
+node apps/tizen-native/scripts/metrics.mjs     # writes apps/tizen-native/out/metrics.log, prints its address
+PLEY_TIZEN_METRICS=http://<computer>:7531 bun run tizen-native
+```
+
+A build without `PLEY_TIZEN_METRICS` has none of this: the calls of
+`Kit/Profile.cs` are left out when it is compiled.
+
+### On the TV
+
+- **60 frames a second** is the most an app's screens get, also on panels
+  sold as 120 Hz, which reach 120 from HDMI sources. On a 2023 set with
+  Tizen 9, DALi updates the screens 60 times a second even with its own
+  limit lifted (`DALI_DISABLE_VSYNC_RENDER`,
+  `NUIApplication.SetMaximumRenderFrameRate`), and Samsung's cloud gaming
+  specification says 60 too. It draws nothing while nothing moves.
+- **Packages the TV has itself** (`System.Text.Json` and the rest of .NET)
+  are loaded from the TV, whatever version the app carries, so the app must
+  ask for one no newer than the TV's: a newer one fails to load
+  (`FileLoadException`).
 
 ## References
 
