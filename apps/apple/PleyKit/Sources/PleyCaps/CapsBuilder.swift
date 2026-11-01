@@ -31,10 +31,12 @@ public enum CapsBuilder {
     /// pictures (PGS, VobSub, DVB) from its `.mks` of the track.
     public static let subtitles = ["subrip", "ass", "ssa", "webvtt", "mov_text", "hdmv_pgs_subtitle", "dvd_subtitle",
                                    "dvb_subtitle"]
-    /// fMP4 first: Apple's players take HEVC, HDR and Dolby Vision in HLS
-    /// only from fMP4 segments, and the server sends them only to players
-    /// that put it first.
-    public static let hls = HlsCaps(masterPlaylist: true, segments: ["fmp4", "ts"], variants: true)
+    /// fMP4 only: Apple's players take HEVC, HDR and Dolby Vision in HLS
+    /// only from fMP4 segments. Without "ts", a server whose transcoder
+    /// makes no fMP4 knows these players take only H.264 from MPEG-TS and
+    /// converts HEVC itself, rather than copying it into segments AVPlayer
+    /// plays without a picture.
+    public static let hls = HlsCaps(masterPlaylist: true, segments: ["fmp4"], variants: true)
     /// The rates an Apple TV switches the TV to when Match Content's frame
     /// rate is on.
     public static let matchedRates: [Double] = [23.976, 24, 25, 29.97, 30, 50, 59.94, 60]

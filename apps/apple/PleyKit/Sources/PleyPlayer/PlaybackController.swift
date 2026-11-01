@@ -1478,7 +1478,7 @@ public final class PlaybackController: ObservableObject {
     }
 
     /// A remux whose time runs on with no picture for 5 s plays a video
-    /// AVPlayer can't show (HEVC copied into MPEG-TS): a transcode, once.
+    /// AVPlayer opened but can't show: a transcode, once.
     private func checkPicture(_ sample: EngineSample, _ session: ServerPlaybackSession) {
         guard mediaShown, !pictureSeen, session.info.method == .remux, file?.video != nil, sample.playing else { return }
         let picture = sample.videoFrames.map { $0 > 0 } ?? (sample.presentationWidth > 0)

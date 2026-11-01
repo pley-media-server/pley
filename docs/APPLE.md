@@ -291,9 +291,12 @@ the system says and from a table of Apple's devices (`PleyCaps`):
   VobSub, DVB), which it reads from the server's `.mks` of the track
   (`picture_subtitles_sideload`), so they never force a conversion.
 - **HLS**: master playlists, a stream's several sizes (AVPlayer moves
-  between them), and fMP4 segments before MPEG-TS, which the server sends
-  these apps for every HLS stream ([API.md, fMP4 segments](API.md#fmp4-segments)):
-  Apple's players take HEVC, HDR and Dolby Vision only from fMP4.
+  between them), and fMP4 segments only, which the server sends these
+  apps for every HLS stream ([API.md, fMP4 segments](API.md#fmp4-segments)):
+  Apple's players take HEVC, HDR and Dolby Vision only from fMP4. From a
+  transcoder that makes no fMP4, the server sends MPEG-TS anyway, with
+  HEVC converted to H.264, the one video codec Apple's players take from
+  it.
 - **Screen and device**: the screen's size in pixels and refresh rate (on
   Apple TV with Match Content's frame rate on, the film and TV rates it
   switches to); the device's form (`phone`, `tablet`, `tv`, `desktop` for
@@ -374,8 +377,7 @@ playback on that server and profile.
   the server: a conversion slower than real time suggests a lower
   quality, else the session starts again, and stuck twice it stops.
 - A repackaged stream whose time runs on for 5 seconds without a picture
-  (AVPlayer plays HEVC copied into MPEG-TS without one) gets a conversion,
-  once.
+  (video AVPlayer opened but can't show) gets a conversion, once.
 - A file played as it is that drops frames (more than 1 % of them over
   10 seconds, or 10 at once) gets the server's conversion, once.
 

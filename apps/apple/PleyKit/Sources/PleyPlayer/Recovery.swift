@@ -34,9 +34,9 @@ public enum Failure: Sendable, Equatable {
 /// - Network errors after the engine's own retries: a new session, at most 3.
 /// - 12 s standing still while meant to play: a direct play with data
 ///   becomes a transcode; a stream asks the server first (`checkServer`).
-/// - A remux that shows no picture for 5 s while its time runs on (HEVC
-///   copied into MPEG-TS by a transcoder without fMP4, which AVPlayer plays
-///   without picture): a transcode, once.
+/// - A remux that shows no picture for 5 s while its time runs on (video
+///   AVPlayer opened but can't show, as HEVC in MPEG-TS would be): a
+///   transcode, once.
 ///
 /// Budgets start over after 5 s of playback and on Retry. Not thread-safe:
 /// the controller calls it on the main actor.

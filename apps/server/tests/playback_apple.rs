@@ -337,32 +337,23 @@ fn the_reports_are_read_as_version_2_with_fmp4_first() {
     }
 }
 
-/// With a transcoder that makes no fMP4, the reports' `["fmp4", "ts"]`
-/// still take MPEG-TS: HEVC is copied into it, which AVPlayer plays
-/// without a picture (the app's safety net then asks for a conversion).
-/// Only a report listing `["fmp4"]` alone would make the server convert
-/// it to H.264 itself.
+/// With a transcoder that makes no fMP4, the reports' `["fmp4"]` take
+/// MPEG-TS with H.264 only, the one video codec Apple's players take from
+/// it: HEVC, HDR and Dolby Vision are converted rather than copied into
+/// segments AVPlayer would play without a picture, and H.264 is still
+/// copied.
 #[test]
-fn without_fmp4_from_the_transcoder_hevc_is_copied_into_mpeg_ts() {
+fn without_fmp4_from_the_transcoder_hevc_is_converted_to_h264() {
     let mut req = request("tv_4k_dv");
     req.fmp4_segments = false;
-    let hdr10 = answer(&req, "MKV HEVC HDR10 E-AC-3");
-    assert_eq!((hdr10.method, hdr10.segments), ("R", SegmentFormat::Ts));
-    assert_eq!(hdr10.reasons, [MKV]);
-    // Dolby Vision too, named in the master playlist, profile 5 included.
-    for name in ["MKV DV 8.1 TrueHD", "MKV DV 5"] {
-        let dv = answer(&req, name);
-        assert_eq!((dv.method, dv.segments), ("R+DV", SegmentFormat::Ts), "{name}");
+    for name in ["MKV HEVC HDR10 E-AC-3", "MKV DV 8.1 TrueHD", "MKV DV 5"] {
+        let d = answer(&req, name);
+        assert_eq!((d.method, d.segments), ("T", SegmentFormat::Ts), "{name}");
+        assert!(d.reasons.iter().any(|r| r == "HEVC not supported in MPEG-TS."), "{name}: {:?}", d.reasons);
     }
     // AV1 can't travel in MPEG-TS at all.
     let mut mac = request("mac_m3_xdr");
     mac.fmp4_segments = false;
     let av1 = answer(&mac, "MKV AV1 10-bit");
     assert_eq!((av1.method, av1.segments), ("T", SegmentFormat::Ts));
-
-    // fMP4 alone in the report: H.264 in MPEG-TS, as docs/API.md says.
-    req.caps.hls.as_mut().unwrap().segments = vec!["fmp4".into()];
-    let alone = answer(&req, "MKV HEVC HDR10 E-AC-3");
-    assert_eq!((alone.method, alone.segments), ("T", SegmentFormat::Ts));
-    assert_eq!(alone.reasons, [MKV, "HEVC not supported in MPEG-TS."]);
 }

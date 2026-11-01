@@ -193,7 +193,7 @@ struct CapsBuilderTests {
                                             "dvd_subtitle", "dvb_subtitle"])
             #expect(caps.pictureSubtitlesSideload == true)
             #expect(caps.audioTrackSwitching == true)
-            #expect(caps.hls == HlsCaps(masterPlaylist: true, segments: ["fmp4", "ts"], variants: true))
+            #expect(caps.hls == HlsCaps(masterPlaylist: true, segments: ["fmp4"], variants: true))
             #expect(caps.video?.first?.codec == "h264")
             #expect(caps.video?.first?.maxBitDepth == 8)
         }

@@ -60,8 +60,7 @@
   "hls": {
     "master_playlist": true,
     "segments": [
-      "fmp4",
-      "ts"
+      "fmp4"
     ],
     "variants": true
   },
