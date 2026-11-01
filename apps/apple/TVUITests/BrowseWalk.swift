@@ -16,13 +16,26 @@ extension Walk {
             .waitForExistence(timeout: timeout)
     }
 
+    /// Whether `element`'s accessibility value comes to be `value` within 10 s.
+    func valueBecomes(_ element: XCUIElement, _ value: String) -> Bool {
+        // No value at all reads as nil.
+        let predicate = value.isEmpty ? NSPredicate(format: "value == nil OR value == ''")
+            : NSPredicate(format: "value == %@", value)
+        return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)],
+                                timeout: 10) == .completed
+    }
+
     /// Home's first See all goes to its library, listed newest first.
     func seeAll() {
         let seeAll = app.buttons.matching(NSPredicate(format: "identifier ENDSWITH '.seeAll'")).firstMatch
         select(seeAll, "See all", first: [.down, .right])
-        wait(element("library.sort"), "the library's Sort")
+        let sort = wait(element("library.sort"), "the library's Sort")
+        // Assistive technology reads the menus by name, not only what they show.
+        XCTAssertEqual(sort.label, "Sort", "Sort has its name")
+        let filter = element("library.filter")
+        if filter.exists { XCTAssertEqual(filter.label, "Filter", "Filter has its name") }
         shot("08-see-all")
-        XCTAssertTrue(says("Sort: Date added"), "See all lists newest first")
+        XCTAssertTrue(valueBecomes(sort, "Date added"), "See all lists newest first")
         remote.press(.menu)
         seeHome("the same")
     }
@@ -96,7 +109,7 @@ extension Walk {
         press(.select)
         press(.down)
         press(.select)
-        XCTAssertTrue(says("Sort: Year"), "sorted by year")
+        XCTAssertTrue(valueBecomes(element("library.sort"), "Year"), "sorted by year")
         press(.right)
         press(.select)
         XCTAssertTrue(says("Ascending"), "the other way")
@@ -104,11 +117,11 @@ extension Walk {
         press(.select)
         press(.down)
         press(.select)
-        XCTAssertTrue(says("Filter: Unwatched"), "filtered")
+        XCTAssertTrue(valueBecomes(element("library.filter"), "Unwatched"), "filtered")
         shot("11-library")
         press(.right)
         press(.select)
-        XCTAssertFalse(says("Filter: Unwatched", timeout: 2), "the filters cleared")
+        XCTAssertTrue(valueBecomes(element("library.filter"), ""), "the filters cleared")
     }
 
     /// Clips, sorted by title: C, three along from "#" in the row above the

@@ -113,7 +113,11 @@ struct LibraryView: View {
                     }
                 }
             } label: {
+                // tvOS drops a Menu's own accessibility label and value from
+                // the button it makes, so they go on the label inside it.
                 Label("Sort: \(model.params.sort.title)", systemImage: "arrow.up.arrow.down")
+                    .accessibilityLabel("Sort")
+                    .accessibilityValue(model.params.sort.title)
             }
             .accessibilityIdentifier("library.sort")
             Button {
@@ -150,6 +154,8 @@ struct LibraryView: View {
                 } label: {
                     Label(model.params.filtered ? "Filter: \(model.filterSummary)" : "Filter",
                           systemImage: "line.3.horizontal.decrease.circle")
+                        .accessibilityLabel("Filter")
+                        .accessibilityValue(model.filterSummary)
                 }
                 .accessibilityIdentifier("library.filter")
                 if model.params.filtered {
