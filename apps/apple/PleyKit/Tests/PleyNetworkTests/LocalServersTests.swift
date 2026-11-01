@@ -214,6 +214,59 @@ func port(of server: FixtureServer) -> Int {
         #expect(clock.now - start < .seconds(5))
     }
 
+    @Test func anAnnouncementNotConfirmedIsCheckedAgain() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let serverPort = port(of: server)
+        let gauge = Gauge()
+        let browser = FakeBrowser()
+        // The first resolve finds nothing, as a slow mDNS answer would.
+        let local = LocalServers(transport: transport(), browser: browser, resolve: { _ in
+            await gauge.enter()
+            await gauge.leave()
+            return await gauge.total == 1 ? nil : ResolvedService(host: "127.0.0.1", port: serverPort)
+        }, settle: .zero, retryDelays: [.milliseconds(100)])
+        let watcher = Watcher(local.browse())
+        defer { watcher.stop() }
+        browser.found("Living Room", id: "abc")
+        let state = await watcher.wait { !$0.servers.isEmpty }
+        #expect(state?.servers.first?.origin == server.origin)
+        #expect(await gauge.total == 2)
+    }
+
+    @Test func aLostAnnouncementIsNotCheckedAgain() async throws {
+        let gauge = Gauge()
+        let browser = FakeBrowser()
+        let local = LocalServers(transport: transport(), browser: browser, resolve: { _ in
+            await gauge.enter()
+            await gauge.leave()
+            return nil
+        }, settle: .zero, retryDelays: [.milliseconds(200), .milliseconds(200)])
+        let watcher = Watcher(local.browse())
+        defer { watcher.stop() }
+        browser.found("Gone", id: "abc")
+        _ = await watcher.settled { await gauge.total == 1 }
+        browser.send(.lost(instance: "Gone"))
+        try await Task.sleep(for: .milliseconds(600))
+        #expect(await gauge.total == 1)
+    }
+
+    @Test func checksStopAfterTheLastRetry() async throws {
+        let gauge = Gauge()
+        let browser = FakeBrowser()
+        let local = LocalServers(transport: transport(), browser: browser, resolve: { _ in
+            await gauge.enter()
+            await gauge.leave()
+            return nil
+        }, settle: .zero, retryDelays: [.milliseconds(20), .milliseconds(20)])
+        let watcher = Watcher(local.browse())
+        defer { watcher.stop() }
+        browser.found("Nobody", id: "abc")
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(await gauge.total == 3)
+        #expect(watcher.latest?.searching == false)
+    }
+
     @Test func atMostFourAreCheckedAtOnce() async throws {
         let server = try await fixture()
         defer { server.stop() }

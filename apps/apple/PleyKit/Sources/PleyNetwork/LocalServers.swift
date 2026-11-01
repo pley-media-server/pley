@@ -36,18 +36,25 @@ public final class LocalServers: Sendable {
     private let probe: ServerProbe
     private let confirmTimeout: Duration
     private let settle: Duration
+    private let retryDelays: [Duration]
 
     /// `confirmTimeout` bounds resolving and confirming one announcement;
     /// one that takes longer is left out. `settle` is how long `searching`
-    /// stays on at the start, while the first announcements come in.
+    /// stays on at the start, while the first announcements come in. An
+    /// announcement that wasn't confirmed is checked again after each of
+    /// `retryDelays` while it is still announced: the system sends nothing
+    /// new for an unchanged announcement, so one slow answer would
+    /// otherwise hide a server for the rest of the search.
     public init(transport: HTTPTransport, browser: any ServiceBrowsing = BonjourBrowser(),
                 resolve: @escaping Resolve = { await BonjourBrowser.resolve($0) },
-                confirmTimeout: Duration = .seconds(5), settle: Duration = .seconds(2)) {
+                confirmTimeout: Duration = .seconds(5), settle: Duration = .seconds(2),
+                retryDelays: [Duration] = [.seconds(5), .seconds(15), .seconds(60)]) {
         self.browser = browser
         self.resolve = resolve
         probe = ServerProbe(transport: transport)
         self.confirmTimeout = confirmTimeout
         self.settle = settle
+        self.retryDelays = retryDelays
     }
 
     /// The search's state each time it changes, starting with an empty,
@@ -55,7 +62,8 @@ public final class LocalServers: Sendable {
     public func browse() -> AsyncStream<DiscoveryState> {
         let (stream, continuation) = AsyncStream.makeStream(of: DiscoveryState.self,
                                                             bufferingPolicy: .bufferingNewest(8))
-        let search = Search(resolve: resolve, probe: probe, timeout: confirmTimeout, output: continuation)
+        let search = Search(resolve: resolve, probe: probe, timeout: confirmTimeout, retryDelays: retryDelays,
+                            output: continuation)
         let events = browser.results()
         let settle = settle
         let task = Task {
@@ -87,22 +95,27 @@ private actor Search {
     private let resolve: LocalServers.Resolve
     private let probe: ServerProbe
     private let timeout: Duration
+    private let retryDelays: [Duration]
     private let output: AsyncStream<DiscoveryState>.Continuation
 
     private var leads: [String: Lead] = [:]
     private var queue: [String] = []
     private var running: [String: Task<Void, Never>] = [:]
     private var confirmed: [String: FoundServer] = [:]
+    /// Checks waiting to run again, and how many each announcement has had.
+    private var retries: [String: Task<Void, Never>] = [:]
+    private var attempts: [String: Int] = [:]
     private var generation = 0
     private var blocked = false
     private var settling = true
     private var last: DiscoveryState?
 
-    init(resolve: @escaping LocalServers.Resolve, probe: ServerProbe, timeout: Duration,
+    init(resolve: @escaping LocalServers.Resolve, probe: ServerProbe, timeout: Duration, retryDelays: [Duration],
          output: AsyncStream<DiscoveryState>.Continuation) {
         self.resolve = resolve
         self.probe = probe
         self.timeout = timeout
+        self.retryDelays = retryDelays
         self.output = output
     }
 
@@ -115,12 +128,16 @@ private actor Search {
             leads[instance] = Lead(announcement: announcement, endpoint: endpoint, generation: generation)
             running[instance]?.cancel()
             running[instance] = nil
+            retries.removeValue(forKey: instance)?.cancel()
+            attempts[instance] = nil
             if !queue.contains(instance) { queue.append(instance) }
             startChecks()
         case .lost(let instance):
             leads[instance] = nil
             queue.removeAll { $0 == instance }
             running.removeValue(forKey: instance)?.cancel()
+            retries.removeValue(forKey: instance)?.cancel()
+            attempts[instance] = nil
             confirmed[instance] = nil
             startChecks()
         case .blocked:
@@ -139,7 +156,9 @@ private actor Search {
 
     func stop() {
         for task in running.values { task.cancel() }
+        for task in retries.values { task.cancel() }
         running = [:]
+        retries = [:]
         queue = []
         settling = false
         publish()
@@ -181,10 +200,32 @@ private actor Search {
         running[instance] = nil
         if let server {
             confirmed[instance] = server
+            attempts[instance] = nil
         } else {
             confirmed[instance] = nil
             Log.discovery.info("an announcement wasn't confirmed")
+            retryLater(instance, generation: generation)
         }
+        startChecks()
+        publish()
+    }
+
+    private func retryLater(_ instance: String, generation: Int) {
+        let attempt = attempts[instance, default: 0]
+        guard attempt < retryDelays.count else { return }
+        attempts[instance] = attempt + 1
+        let delay = retryDelays[attempt]
+        retries[instance] = Task {
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            self.retry(instance, generation: generation)
+        }
+    }
+
+    private func retry(_ instance: String, generation: Int) {
+        guard leads[instance]?.generation == generation else { return }
+        retries[instance] = nil
+        if running[instance] == nil, !queue.contains(instance) { queue.append(instance) }
         startChecks()
         publish()
     }

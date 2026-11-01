@@ -102,7 +102,9 @@ announcement is only a lead:
   address, at most 4 at a time, and lists the server only if it answers
   as Pley within 5 seconds. The name and version shown are from that
   answer; the id is from the TXT record, and two announcements with one id
-  show once.
+  show once. An announcement that isn't confirmed is checked again after
+  5, 15 and 60 seconds while it is still announced, since one slow answer
+  would otherwise hide the server until it announces something new.
 
 A server that says goodbye (it stopped, or its announcement went) leaves
 the list. Servers are listed by name.
