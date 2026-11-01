@@ -327,12 +327,15 @@ sealed class LivePlayerScreen : Sheet
         var barVisible = channel != null && playing && !listOpen && (controlsShown || infoShown);
         if (!barVisible)
         {
-            if (barShown != null)
+            // By what's drawn, not barShown: ShowControls(false) forgets that to have the bar drawn
+            // again, and the bar stayed on screen with nothing to take it away (Back then left).
+            if (infoBar.Children.Count > 0 || controls.Children.Count > 0)
             {
                 barShown = null;
+                // Before the buttons go: after, the focused one has no parent to tell it by.
+                if (Tree.Current?.Parent == controls) Tree.Blur();
                 Clear(infoBar);
                 controls.Clear();
-                if (Tree.Current?.Parent == controls) Tree.Blur();
             }
             if (controlsShown && !playing) controlsShown = false;
             return;

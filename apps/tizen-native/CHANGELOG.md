@@ -157,3 +157,6 @@ It has no releases yet: it is built and installed by hand
 - Changing channel in the native app no longer flashes the TV's menu, and
   doesn't hold the remote while the last channel lets go; a channel buffers
   as on Android and shows its picture as soon as it moves.
+- In the native app's live player, the controls go once a channel is
+  picked from the list they opened, and Back no longer leaves the channel
+  while they seem to show.
