@@ -45,9 +45,13 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Search with recent searches; Settings for quality, the next episode,
   subtitle style and grid size; History, Diagnostics and About. On Apple
   TV, choose who's watching at start or always start as one profile.
+- On the Mac: File and View menus with shortcuts, Settings (⌘,), About
+  Pley, hover and right-click. On Apple TV, a row puts the focus back on
+  the tile you left it on.
 
 ### Fixed
 
 - The iPhone's Quality menu keeps each choice's second line when it is
   checked.
 - VoiceOver no longer reads the page behind the player.
+- The Mac's player menu no longer flickers while playing.

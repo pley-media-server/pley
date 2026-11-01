@@ -9,8 +9,9 @@ import XCTest
 /// collection's page, a playlist made, changed and deleted, the libraries'
 /// order, a search and its recent searches, the profile's subtitle default,
 /// History, Settings' quality and subtitle size, Diagnostics, About, and
-/// Sign out. A person's page is walked when a title has cast, which comes
-/// from a metadata source; the test server has none, so it is skipped.
+/// Sign out. Another walk looks at the screens at the largest text size.
+/// A person's page is walked when a title has cast, which comes from a
+/// metadata source; the test server has none, so it is skipped.
 @MainActor
 final class ScreensTests: XCTestCase {
     override func setUp() async throws {
@@ -68,6 +69,29 @@ final class ScreensTests: XCTestCase {
         walk.openMe()
         walk.signOut()
         walk.shot("07-signed-out")
+    }
+
+    /// The screens at the largest accessibility text size, looked at and
+    /// checked to be reachable; nothing on the server changes.
+    func testLargeTextScreens() async throws {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            XCUIDevice.shared.orientation = .landscapeLeft
+        }
+        let app = XCUIApplication()
+        app.launchArguments += Walk.largestText
+        app.launch()
+        let walk = Walk(app: app, test: self)
+        walk.startSignedOut()
+        await walk.signInWithCode()
+        // The profile signed in goes on without its PIN.
+        walk.wait(walk.button("profiles.profile.\(Admin.adminName)"), "Who's watching?", timeout: 30).tap()
+        if walk.element("profiles.pin").waitForExistence(timeout: 3) {
+            walk.element("profiles.pin").tap()
+            walk.element("profiles.pin").typeText(Admin.adminPin)
+            walk.tap("profiles.pin.continue", "Continue")
+        }
+        walk.largeTextPass(libraries: await Admin.libraryIds())
+        walk.signOut()
     }
 
     func testPersonPage() async throws {

@@ -11,6 +11,9 @@ import SwiftUI
 ///
 /// - Its action menu (the controls' "…") has Quality, each choice with its
 ///   second line, Audio, Subtitles, Subtitle sync, Chapters and Details.
+///   The menu is set once; its items are made from the controller's state
+///   each time it opens (`ActionMenuSource`), so the state changing while
+///   it plays doesn't touch it.
 /// - The subtitles are drawn over the picture, in its content overlay
 ///   (`SubtitleView`), placed in the video's bounds.
 /// - Automatic plays no stream size bigger than the view, in pixels.
@@ -36,6 +39,7 @@ public struct PlayerSurface: NSViewRepresentable {
         view.showsFullScreenToggleButton = true
         view.allowsPictureInPicturePlayback = false
         view.addSubtitles()
+        view.addActionMenu()
         return view
     }
 
@@ -44,10 +48,6 @@ public struct PlayerSurface: NSViewRepresentable {
         view.caps = caps
         if view.player !== controller.player { view.player = controller.player }
         view.subtitles?.shown = state.cues
-        if view.shownState != state {
-            view.shownState = state
-            view.actionPopUpButtonMenu = PlayerMenus.actionMenu(state, controller: controller)
-        }
     }
 
     public static func dismantleNSView(_ view: PleyPlayerView, coordinator: ()) {
@@ -58,10 +58,13 @@ public struct PlayerSurface: NSViewRepresentable {
 
 /// `AVPlayerView` with the window's keys, its screen and the Mac's sleep.
 public final class PleyPlayerView: AVPlayerView {
-    weak var controller: PlaybackController?
+    weak var controller: PlaybackController? {
+        didSet { actionMenuSource.controller = controller }
+    }
     weak var caps: DeviceCaps?
-    var shownState: PlayerState?
     private(set) var subtitles: SubtitleView?
+    /// Makes the action menu's items when it opens.
+    let actionMenuSource = ActionMenuSource()
     private var boundsWatch: NSKeyValueObservation?
     private var monitor: Any?
     private var tokens: [any NSObjectProtocol] = []
@@ -108,6 +111,13 @@ public final class PleyPlayerView: AVPlayerView {
         boundsWatch = observe(\.videoBounds, options: [.new]) { [weak self] _, _ in
             Task { @MainActor in self?.placeSubtitles() }
         }
+    }
+
+    /// The action menu, set once: its delegate fills it as it opens.
+    func addActionMenu() {
+        let menu = NSMenu(title: "Player")
+        menu.delegate = actionMenuSource
+        actionPopUpButtonMenu = menu
     }
 
     private func placeSubtitles() {
@@ -173,12 +183,44 @@ public final class PleyPlayerView: AVPlayerView {
     }
 }
 
+/// Fills the player's action menu as it opens, from the state then: the
+/// menu itself is made once, and the state changing while it plays (every
+/// half second) costs nothing until the menu is opened again.
+@MainActor
+public final class ActionMenuSource: NSObject, NSMenuDelegate {
+    weak var controller: PlaybackController?
+    /// The state the items are made from: the controller's, or a test's.
+    var state: () -> PlayerState?
+
+    init(state: (() -> PlayerState?)? = nil) {
+        self.state = { nil }
+        super.init()
+        self.state = state ?? { [weak self] in self?.controller?.state }
+    }
+
+    public func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+        guard let state = state() else { return }
+        for item in PlayerMenus.actionItems(state, controller: controller) {
+            menu.addItem(item)
+        }
+    }
+}
+
 /// The Mac's player menus, shared by the action menu and the menu bar's Playback menu.
 public enum PlayerMenus {
     /// Quality (the one playing checked), Audio (when there is a choice),
     /// Subtitles and their sync (when the file has some), Chapters and Details.
     @MainActor
-    public static func actionMenu(_ state: PlayerState, controller: PlaybackController) -> NSMenu {
+    public static func actionMenu(_ state: PlayerState, controller: PlaybackController?) -> NSMenu {
+        let menu = NSMenu()
+        actionItems(state, controller: controller).forEach { menu.addItem($0) }
+        return menu
+    }
+
+    /// The action menu's items for `state`.
+    @MainActor
+    static func actionItems(_ state: PlayerState, controller: PlaybackController?) -> [NSMenuItem] {
         let menu = NSMenu()
         let quality = NSMenuItem(title: "Quality", action: nil, keyEquivalent: "")
         quality.submenu = NSMenu(title: "Quality")
@@ -221,12 +263,14 @@ public enum PlayerMenus {
             details.submenu?.addItem(item)
         }
         menu.addItem(details)
-        return menu
+        let items = menu.items
+        menu.removeAllItems()
+        return items
     }
 
     /// Subtitles: Off and each track, the one shown checked.
     @MainActor
-    public static func subtitlesMenu(_ state: PlayerState, controller: PlaybackController) -> NSMenuItem {
+    public static func subtitlesMenu(_ state: PlayerState, controller: PlaybackController?) -> NSMenuItem {
         submenu("Subtitles", state.subtitles.map { choice in
             let item = ClosureMenuItem(title: choice.label) { [weak controller] in
                 controller?.selectSubtitle(choice.id == MenuChoice.off ? nil : Int(choice.id))
@@ -239,7 +283,7 @@ public enum PlayerMenus {
 
     /// Subtitle sync: the offset, 0.1 s earlier or later, and back to 0.
     @MainActor
-    public static func syncMenu(_ state: PlayerState, controller: PlaybackController) -> NSMenuItem {
+    public static func syncMenu(_ state: PlayerState, controller: PlaybackController?) -> NSMenuItem {
         let offset = state.subtitleOffsetMs
         let now = NSMenuItem(title: "Offset: \(state.subtitleOffsetLabel)", action: nil, keyEquivalent: "")
         now.isEnabled = false

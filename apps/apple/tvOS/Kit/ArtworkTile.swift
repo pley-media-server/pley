@@ -18,11 +18,14 @@ struct ArtworkTile: View {
     let remove: (() async -> Void)?
     /// The focus came to it (Home's info block).
     let focused: (() -> Void)?
+    /// Its row's focus, by tile: the row puts the focus back on the tile it last had.
+    let rowFocus: FocusState<Int?>.Binding?
     let open: () -> Void
     @FocusState private var hasFocus: Bool
 
     init(app: AppModel, tile: Tile, width: CGFloat, continueWatching: Bool = false,
-         remove: (() async -> Void)? = nil, focused: (() -> Void)? = nil, open: @escaping () -> Void) {
+         remove: (() async -> Void)? = nil, focused: (() -> Void)? = nil,
+         rowFocus: FocusState<Int?>.Binding? = nil, open: @escaping () -> Void) {
         self.app = app
         _actions = ObservedObject(wrappedValue: app.actions)
         given = tile
@@ -30,6 +33,7 @@ struct ArtworkTile: View {
         self.continueWatching = continueWatching
         self.remove = remove
         self.focused = focused
+        self.rowFocus = rowFocus
         self.open = open
     }
 
@@ -43,6 +47,7 @@ struct ArtworkTile: View {
             }
             .buttonStyle(.card)
             .focused($hasFocus)
+            .modifier(RowFocus(focus: rowFocus, id: tile.id))
             .onChange(of: hasFocus) { _, now in if now { focused?() } }
             .accessibilityLabel(tile.spokenLabel)
             .accessibilityValue(tile.spokenValue)
@@ -96,6 +101,20 @@ struct ArtworkTile: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
+        }
+    }
+}
+
+/// Ties a tile's focus to its row's, when it is in one.
+private struct RowFocus: ViewModifier {
+    let focus: FocusState<Int?>.Binding?
+    let id: Int
+
+    func body(content: Content) -> some View {
+        if let focus {
+            content.focused(focus, equals: id)
+        } else {
+            content
         }
     }
 }

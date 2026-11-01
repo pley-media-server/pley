@@ -3,10 +3,11 @@ import XCTest
 /// Apple TV's screens against a test server (check-screens.sh): sign in
 /// with a code, "Who's watching?" with Kids by PIN, Home, an item,
 /// Settings, back to the administrator by PIN, See all, a title's actions,
-/// a movie's, a show's, a season's, an episode's, an artist's and an
-/// album's pages, a library tab's sort, filter and letters, Save as Smart
-/// Playlist, a collection's page, a playlist made, changed and deleted,
-/// a search and its recent searches, the profile's subtitle default,
+/// a row keeping its focus, Play/Pause on a tile, a movie's, a show's, a
+/// season's, an episode's, an artist's and an album's pages, a library
+/// tab's sort, filter and letters, Save as Smart Playlist, a collection's
+/// page, a playlist made, changed and deleted, a search and its recent
+/// searches, the profile's subtitle default,
 /// History, quality and subtitle size, Diagnostics, About, Always start as
 /// across a relaunch, and Sign out.
 /// A person's page is walked when a title has cast, which comes from a
@@ -46,6 +47,8 @@ final class ScreensTests: XCTestCase {
         walk.seeAll()
         let libraries = await Admin.libraryIds()
         await walk.itemActions(movies: libraries["Movies"] ?? 0)
+        walk.rowKeepsItsFocus(movies: libraries["Movies"] ?? 0)
+        await walk.playPauseOnATile(movies: libraries["Movies"] ?? 0)
         await walk.moviePage(movies: libraries["Movies"] ?? 0)
         walk.showPages()
         walk.musicPages()

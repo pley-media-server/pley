@@ -41,6 +41,7 @@ struct LibraryView: View {
                 .presentationDetents([.medium, .large])
             }
             .task { await model.load() }
+            .reloads(app) { await model.reload() }
     }
 
     @ViewBuilder private var content: some View {
@@ -176,7 +177,6 @@ struct LibraryView: View {
                 } label: {
                     Label("Reload", systemImage: "arrow.clockwise")
                 }
-                .keyboardShortcut("r")
                 .accessibilityIdentifier("library.reload")
                 #endif
             }

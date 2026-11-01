@@ -57,9 +57,52 @@ in to another server starts every section again at Home.
   800 by 560 points, and opens at 1100 by 720.
 - **Apple TV**: tabs across the top, Search (a magnifying glass, first,
   as in Apple's apps), Home, a tab per library with its name (or one
-  Libraries tab when there are more than four), Playlists and Settings (which holds what Me holds elsewhere). The focus engine and the Siri
+  Libraries tab when there are more than four), Playlists and Settings
+  (which holds what Me holds elsewhere). The focus engine and the Siri
   Remote move through it; Menu goes back, then to the tabs, then out of
   the app.
+
+**On the Mac**, the menu bar has the app's commands, and Settings (⌘,)
+and About Pley are windows of their own. The pointer on a tile grows it a
+little (under Reduce Motion, outlines it instead) and shows a play button
+over a video's picture. A right-click, or Control-click, on a tile, a
+collection, a playlist or a library row opens its menu. With keyboard
+navigation on (System Settings → Keyboard), Tab moves through the tiles,
+Return opens the one with the focus and ⌘↩ plays it.
+
+| Menu | Command | Keys |
+|---|---|---|
+| Pley | About Pley (a window of its own) | |
+| Pley | Settings… | ⌘, |
+| File | Add Server… (the servers, with the address field ready) | ⇧⌘N |
+| File | Servers | |
+| File | Switch Profile… (with the `profiles` scope and more than one profile) | ⇧⌘P |
+| File | Sign Out… (asks first) | |
+| View | Home | ⌘1 |
+| View | Search (its field takes the keys) | ⌘F |
+| View | Playlists | ⌘2 |
+| View | The first seven libraries, in the profile's order | ⌘3 to ⌘9 |
+| View | Reload (the page showing) | ⌘R |
+| View | Larger Tiles, Smaller Tiles (Settings' grid size) | ⌘+, ⌘− |
+| View | Show or Hide Sidebar, and the toolbar's own | ⌃⌘S |
+| Playback | Play "Title": the tile with the focus, or the title page showing, in a player window | ⌘↩ |
+| Playback | Play or Pause, Back and Forward 10 Seconds, Skip Intro, Play Next, Quality, Audio, Subtitles, Subtitle Sync, Chapters (the player window that is key) | |
+
+An iPad with a keyboard has Search (⌘F) and Reload (⌘R) too.
+
+**On Apple TV**, the remote:
+
+- **Select** opens the tile, row or button with the focus; held (a long
+  press), it opens a tile's actions, and on a library or a playlist's
+  entry, Move.
+- **Play/Pause** on a video's tile plays it, as Play would.
+- **Menu** goes back a page, then to the tabs, then out of the app; in
+  Move, it puts the library or entry back where it was.
+- A row remembers the tile that had the focus: moving up or down to it
+  again, or coming back to the page, puts the focus there.
+- Home's facts about the tile with the focus fade in as the focus moves
+  (at once under Reduce Motion), and its summary comes once the focus
+  rests 0.3 s.
 
 A short message (a toast) shows at the bottom of the window (on Apple TV,
 top trailing, without taking the focus), and VoiceOver reads it out.
@@ -314,6 +357,25 @@ behind it.
   **New Playlist** asks for a title (up to 200 characters) and, empty,
   whether it plays Movies & TV or Music; the playlist made opens.
 - **The player**: the system's player on each device, below.
+
+### Accessibility
+
+- **Dynamic Type** (iPhone, iPad and Mac): text uses the system's text
+  styles, and tiles grow with it up to 1.6 times. At the accessibility
+  sizes, the iPhone's grids show two columns; a row's title goes above its
+  See all, a show's Seasons above its season's link, and Play above
+  Shuffle; a title page's header, buttons and facts stack; captions take
+  three lines; episode rows wrap; and the iPad's sidebar is wider. Nothing
+  has a fixed height that clips its text.
+- **VoiceOver**: each tile is one element ("The Office, season 2, episode
+  5, Glasshouse", "26 minutes left", "Opens its page") with its menu as
+  actions; rows' titles are headings; the A to Z strip ("Jump to letter")
+  and the star rating are adjustable; toasts are read out; pictures are
+  hidden; and while the player is open, only the player is read. Apple TV
+  uses the same labels.
+- **Reduce Motion**: no tile growing under the pointer (an outline
+  instead), no pictures fading in, no fade between Home's facts on Apple
+  TV, and no animated changes; loading rows don't pulse.
 
 ### Updates from the server
 
@@ -990,7 +1052,9 @@ read `<screen>.<part>[.<id>]` (`servers.address`, `signIn.userCode`,
 5. See all on Home opens the library sorted newest first.
 6. A movie's menu: Mark as watched, and on iPhone and iPad back to
    unwatched; Add to My List, and on iPhone and iPad out again; each
-   checked on the server.
+   checked on the server. On Apple TV, then: along Home's movies row,
+   down a row and back up, the focus is on the tile it left; and
+   Play/Pause on a movie's tile opens the player, which Menu closes.
 7. Movies: sort by year, the other way, Unwatched, and Clear.
 8. Save as Smart Playlist on Movies: the smart playlist's page opens with
    no way to change it, and the server has its filter; the test deletes
@@ -1027,6 +1091,13 @@ Between steps 6 and 7, the title pages:
 - Music: the artist's page, and the album's with its two tracks and no
   Play.
 
+On iPhone and iPad, a test of its own looks at the screens at the largest
+accessibility text size (Accessibility XXXL): Home, a movie's page and
+below it, Movies, a show with its episodes, "Test collection", Playlists,
+Search, Me, Settings and About, each with its main control checked to be
+on screen and reachable. Its screenshots are named `large-*`. It changes
+nothing on the server.
+
 A person's page is a test of its own, which opens the first title with
 cast; the test server has no metadata source, so no title has cast, and
 the test reports itself skipped.
@@ -1062,9 +1133,9 @@ without the script, the UI tests skip.
 |---|---|
 | `Pley.xcodeproj` | The project: the apps `Pley` and `PleyTV` and their UI tests `PleyUITests` and `PleyTVUITests`, with shared schemes of the same names. Its folders are synchronized, so adding a file doesn't change `project.pbxproj` |
 | `Config/` | Build settings (`.xcconfig`), the apps' Info.plist keys and the Mac's entitlements; `project.pbxproj` holds no settings |
-| `Pley/` | The iPhone, iPad and Mac app: `Shell/` (the tab bar, the sidebar and Me), `Kit/` (the views the screens share: `ArtworkTile`, `TileRow`, `TileGrid`, `ItemActionsMenu`, `ServerImage`, `StateView`, `ToastView`, `FlowLayout`, `StarRating`, the collections' and playlists' cards in `ListCards`, and `Metrics` and `Motion` for sizes and Reduce Motion) and `Screens/` |
+| `Pley/` | The iPhone, iPad and Mac app: `Shell/` (the tab bar, the sidebar, Me, and the Mac's menus and About window in `MacCommands`), `Kit/` (the views the screens share: `ArtworkTile`, `TileRow`, `TileGrid`, `ItemActionsMenu`, `ServerImage`, `StateView`, `ToastView`, `FlowLayout`, `StarRating`, the collections' and playlists' cards in `ListCards`, and `Metrics` and `Motion` for sizes and Reduce Motion) and `Screens/` |
 | `tvOS/` | The Apple TV app, laid out the same way: `Shell/` (the tabs and Settings), `Kit/` (the same views, built for the focus engine) and `Screens/` |
-| `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `Admin.swift` (the administrator's side), `Walk.swift`, `BrowseWalk.swift`, `ItemWalk.swift`, `ListsWalk.swift` and `AccountWalk.swift` (the steps, by accessibility identifier) and `ScreensTests.swift` |
+| `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `Admin.swift` (the administrator's side), `Walk.swift`, `BrowseWalk.swift`, `ItemWalk.swift`, `ListsWalk.swift` and `AccountWalk.swift` (the steps, by accessibility identifier), `LargeTextWalk.swift` (iPhone and iPad at the largest text size), `RemoteWalk.swift` (Apple TV's Play/Pause and a row's focus) and `ScreensTests.swift` |
 | `PleyKit/` | One Swift package with everything else, a module per target |
 
 PleyKit's modules, each depending only on those before it:
@@ -1080,7 +1151,7 @@ PleyKit's modules, each depending only on those before it:
 | `PleySubtitles` | Subtitles the app draws: the WebVTT reader, text cues by time, the subtitle sync and its offsets, the server's tracks read with `X-Pley-Complete`, and a port of `packages/picture-subtitles` (the Matroska reader, the PGS, VobSub and DVB decoders, and the pictures by time) |
 | `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, and the Mac player's keys |
 | `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Chapters, Details), the subtitles drawn over the video in the system's caption style with the app's overrides (`SubtitleLayer`, `CaptionStyle`), Apple TV's contextual actions and chapter markers, and the audio session |
-| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast (`ShellModel`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`) smart filters in words (`SmartFilter`, the Android app's), search (`SearchModel`), Me's track defaults (`MeModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`) and Apple TV's start (`StartGate`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, the device's caps, the session reports and the reports kept for later, one set per server and profile |
+| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`) smart filters in words (`SmartFilter`, the Android app's), search (`SearchModel`), Me's track defaults (`MeModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`) and Apple TV's start (`StartGate`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, the device's caps, the session reports and the reports kept for later, one set per server and profile |
 | `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens, playback sessions with keyed media, libraries with watch marks, My List and orders that change, collections and playlists, an event stream the tests push to, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
 | `pley-apple-play` | A command-line tool, on the Mac only, that plays a real server's test media through the player ([A server to test against](#a-server-to-test-against)) |
@@ -1196,7 +1267,10 @@ address, to have it found by Bonjour. Delete the folder afterwards.
 - No Live TV, music or downloads.
 - Events aren't read while the app is in the background; back in front,
   what shows is read again.
-- The Mac app's only menu of its own is Playback.
+- The Mac app has no UI tests: driving it needs Accessibility and Screen
+  Recording permissions that only a person can grant. Its views are
+  checked by building it, and its models and menus' state by the
+  packages' tests.
 - Search finds Live TV channels, but the apps have no Live TV, so they
   aren't shown.
 - Music isn't played: artists' and albums' pages have no Play, and music

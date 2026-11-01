@@ -14,6 +14,14 @@ enum Metrics {
     /// A tile's width grows with Dynamic Type up to this many times.
     static let maxTileScale: CGFloat = 1.6
 
+    /// A heading and what goes with it (See all, a season's link): side by
+    /// side, or one under the other at the accessibility text sizes, where
+    /// side by side would break the heading's words.
+    static func headingLayout(stacked: Bool) -> AnyLayout {
+        stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+    }
+
     /// The side margin: narrower on iPhone.
     static func gutter(regular: Bool) -> CGFloat { regular ? 20 : 16 }
 

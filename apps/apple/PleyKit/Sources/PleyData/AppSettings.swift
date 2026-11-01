@@ -213,6 +213,13 @@ public enum GridDensity: String, CaseIterable, Sendable {
         }
     }
 
+    /// One size larger (`by: 1`, ⌘+) or smaller (`by: -1`, ⌘−); `nil` past the largest or smallest.
+    public func stepped(by step: Int) -> GridDensity? {
+        let all = Self.allCases
+        guard let index = all.firstIndex(of: self), all.indices.contains(index + step) else { return nil }
+        return all[index + step]
+    }
+
     /// A tile's width against the medium one's.
     public var scale: Double {
         switch self {

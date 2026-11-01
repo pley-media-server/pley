@@ -48,6 +48,13 @@ struct ItemView: View {
             }
         }
         .task { await model.load() }
+        .reloads(app) { await model.load() }
+        #if os(macOS)
+        // ⌘↩ plays the page's title, as its Play does.
+        .focusedSceneValue(\.playTarget, model.request() == nil ? nil : PlayTarget(title: model.title) {
+            [model] in model.request()
+        })
+        #endif
         .onReceive(app.$player) { player in
             if player != nil {
                 sawPlayer = true
@@ -481,12 +488,14 @@ struct ItemView: View {
     /// The episodes of a season; on a show's page, a picker of its seasons
     /// and a link to the season's own page.
     private func seasonsSection(_ section: SeasonsSection, onShow: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
+        // At the accessibility text sizes the heading and its controls stack.
+        let heading = Metrics.headingLayout(stacked: typeSize.isAccessibilitySize)
+        return VStack(alignment: .leading, spacing: 12) {
+            heading {
                 Text(section.seasons.isEmpty ? "Episodes" : "Seasons")
                     .font(.title3.bold())
                     .accessibilityAddTraits(.isHeader)
-                Spacer()
+                if !typeSize.isAccessibilitySize { Spacer() }
                 if section.seasons.count > 1 {
                     Picker("Season", selection: Binding(get: { section.selected ?? 0 },
                                                         set: { model.selectSeason($0) })) {

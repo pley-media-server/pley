@@ -12,6 +12,8 @@ struct ServersView: View {
     @ObservedObject private var app: AppModel
     @StateObject private var model: ServersModel
     @Environment(\.openURL) private var openURL
+    /// The address field has the keys: after File → Add Server… on the Mac.
+    @FocusState private var addressFocused: Bool
 
     init(app: AppModel) {
         self.app = app
@@ -65,6 +67,7 @@ struct ServersView: View {
                     #endif
                     .submitLabel(.go)
                     .onSubmit { Task { await model.add() } }
+                    .focused($addressFocused)
                     .accessibilityIdentifier("servers.address")
                     .disabled(model.adding)
                 HStack {
@@ -83,6 +86,11 @@ struct ServersView: View {
         }
         .navigationTitle("Servers")
         .task { await model.load() }
+        .task(id: app.addingServer) {
+            guard app.addingServer else { return }
+            addressFocused = true
+            app.addingServerShown()
+        }
         .task { await model.browse() }
     }
 

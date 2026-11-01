@@ -34,6 +34,7 @@ struct LibrariesView: View {
                 }
             }
             .task { await model.reload() }
+            .reloads(app) { await model.reload() }
     }
 
     @ViewBuilder private var content: some View {
@@ -67,6 +68,7 @@ struct LibrariesView: View {
                             Button("Move down") { model.move(entry.id, by: 1) }
                         }
                     }
+                    .contextMenu { LibraryMoveButtons(model: model, entry: entry) }
                     .accessibilityIdentifier("libraries.row.\(entry.id)")
                 }
                 .onMove(perform: model.reorderable ? { model.move(fromOffsets: $0, toOffset: $1) } : nil)
@@ -79,6 +81,29 @@ struct LibrariesView: View {
 
 /// A library's row: its kind's symbol, its name, what it holds, and a
 /// spinning mark while the server scans it.
+/// Move Up and Move Down: a library's row's context menu (right-click on the Mac).
+struct LibraryMoveButtons: View {
+    @ObservedObject var model: LibrariesModel
+    let entry: LibraryEntry
+
+    var body: some View {
+        if model.reorderable {
+            Button {
+                model.move(entry.id, by: -1)
+            } label: {
+                Label("Move Up", systemImage: "arrow.up")
+            }
+            .disabled(model.entries.first?.id == entry.id)
+            Button {
+                model.move(entry.id, by: 1)
+            } label: {
+                Label("Move Down", systemImage: "arrow.down")
+            }
+            .disabled(model.entries.last?.id == entry.id)
+        }
+    }
+}
+
 struct LibraryRow: View {
     let entry: LibraryEntry
 

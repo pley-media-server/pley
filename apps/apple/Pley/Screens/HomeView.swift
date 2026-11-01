@@ -26,12 +26,12 @@ struct HomeView: View {
                     } label: {
                         Label("Reload", systemImage: "arrow.clockwise")
                     }
-                    .keyboardShortcut("r")
                     .accessibilityIdentifier("home.reload")
                 }
             }
             #endif
             .task(id: app.homeVersion) { await model.reload() }
+            .reloads(app) { await model.reload() }
     }
 
     @ViewBuilder private var content: some View {

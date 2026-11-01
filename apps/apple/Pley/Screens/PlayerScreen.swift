@@ -224,12 +224,25 @@ private struct PlayerWindowContent: View {
     }
 }
 
-/// The menu bar's Playback menu, acting on the player window that is key.
+/// The menu bar's Playback menu: Play (⌘↩) plays the tile with the focus
+/// or the title page showing, in a player window; the rest acts on the
+/// player window that is key.
 struct PlaybackCommands: Commands {
     @FocusedObject private var player: PlaybackController?
+    @FocusedValue(\.playTarget) private var target
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
         CommandMenu("Playback") {
+            Button(target?.menuTitle ?? "Play Title") {
+                guard let target else { return }
+                Task {
+                    if let request = await target.request() { openWindow(id: PlayerWindow.id, value: request) }
+                }
+            }
+            .keyboardShortcut(.return, modifiers: .command)
+            .disabled(target == nil)
+            Divider()
             Button(isPlaying ? "Pause" : "Play") {
                 guard let player else { return }
                 if isPlaying { player.pause() } else { player.play() }

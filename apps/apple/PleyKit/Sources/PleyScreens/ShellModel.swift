@@ -257,6 +257,67 @@ public final class ShellModel: ObservableObject {
         settings.lastSection = ShellSection.home.key
     }
 
+    // MARK: Commands: the Mac's menus, the iPad's keyboard
+
+    /// A section in the View menu, with its ⌘ number.
+    public struct MenuEntry: Equatable, Sendable {
+        public let title: String
+        public let section: ShellSection
+        /// The key that goes with ⌘ ("1"), `nil` past the ninth.
+        public let key: Character?
+    }
+
+    /// The View menu's sections, as the sidebar lists them: Home ⌘1,
+    /// Playlists ⌘2, then the libraries in the profile's order, the first
+    /// seven ⌘3 to ⌘9. Search has ⌘F of its own.
+    public var viewMenu: [MenuEntry] {
+        let fixed = [MenuEntry(title: "Home", section: .home, key: "1"),
+                     MenuEntry(title: "Playlists", section: .playlists, key: "2")]
+        let libraries = libraries.enumerated().map { index, library in
+            MenuEntry(title: library.name, section: .library(library.id),
+                      key: index < 7 ? Character(String(index + 3)) : nil)
+        }
+        return fixed + libraries
+    }
+
+    /// Search's field is asked for (⌘F): Search shows, and its field
+    /// takes the keys, then says so (`searchFieldShown`).
+    @Published public private(set) var wantsSearchField = false
+
+    /// Search, with its field ready to type in (⌘F).
+    public func findInSearch() {
+        if section != .search { select(.search) }
+        wantsSearchField = true
+    }
+
+    /// Search's field has the keys.
+    public func searchFieldShown() {
+        wantsSearchField = false
+    }
+
+    /// Whether the page showing can be read again (View → Reload, ⌘R).
+    @Published public private(set) var canReload = false
+    private var reloader: (owner: UUID, run: @MainActor () async -> Void)?
+
+    /// The page `owner` shows now, and reads itself again with `reload`.
+    /// The page that showed last wins: one pushed on top, or one shown again.
+    public func showing(_ owner: UUID, reload: @escaping @MainActor () async -> Void) {
+        reloader = (owner, reload)
+        canReload = true
+    }
+
+    /// `owner` went from the screen; another page may have taken its place already.
+    public func leaving(_ owner: UUID) {
+        guard reloader?.owner == owner else { return }
+        reloader = nil
+        canReload = false
+    }
+
+    /// Reads the page showing again (⌘R).
+    public func reloadShowing() async {
+        await reloader?.run()
+    }
+
     // MARK: Toasts
 
     /// Shows `text` for 5 seconds, with Undo when `undo` is given.

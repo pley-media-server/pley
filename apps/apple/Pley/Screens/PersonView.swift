@@ -23,6 +23,7 @@ struct PersonView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .task { await model.load() }
+            .reloads(app) { await model.load() }
     }
 
     @ViewBuilder private var content: some View {

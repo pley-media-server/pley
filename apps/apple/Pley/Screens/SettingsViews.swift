@@ -223,6 +223,7 @@ struct HistoryView: View {
         content
             .navigationTitle("History")
             .task { await model.load() }
+            .reloads(app) { await model.load() }
             #if os(iOS)
             .refreshable { await model.load() }
             #endif

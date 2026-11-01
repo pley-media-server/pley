@@ -19,6 +19,7 @@ struct TileRow: View {
     let open: (Tile) -> Void
     private let layout = WideLayout()
     @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     init(app: AppModel, key: String, title: String, shape: RowShape, tiles: [Tile], seeAll: (() -> Void)? = nil,
          remove: ((Tile) async -> Void)? = nil, prefix: String = "home.row", open: @escaping (Tile) -> Void) {
@@ -39,12 +40,13 @@ struct TileRow: View {
 
     var body: some View {
         let gutter = Metrics.gutter(regular: layout.wide)
+        let heading = Metrics.headingLayout(stacked: typeSize.isAccessibilitySize)
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
+            heading {
                 Text(title)
                     .font(.title3.bold())
                     .accessibilityAddTraits(.isHeader)
-                Spacer()
+                if !typeSize.isAccessibilitySize { Spacer() }
                 if let seeAll {
                     Button("See all", action: seeAll)
                         .accessibilityLabel("See all, \(title)")

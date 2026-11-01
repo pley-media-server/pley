@@ -67,32 +67,44 @@ struct HomeView: View {
 /// reads the tile itself, so this is hidden from it.
 private struct InfoBlock: View {
     let info: HomeInfo?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // One on top of the other while the next fades in.
+        ZStack(alignment: .topLeading) {
             if let info {
-                Text(info.title)
-                    .font(.title2.bold())
-                    .lineLimit(1)
-                if !info.context.isEmpty {
-                    Text(info.context)
-                        .font(.headline)
-                        .lineLimit(1)
-                }
-                Text(([info.timeLeft] + info.meta).filter { !$0.isEmpty }.joined(separator: " · "))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Text(info.summary)
-                    .font(.callout)
-                    .lineLimit(3)
-                    .frame(maxWidth: 1100, alignment: .leading)
+                facts(info)
+                    // Another tile's facts fade in, at once under Reduce Motion.
+                    .id(info.itemId)
+                    .transition(.opacity)
             }
         }
+        .animation(Motion.animation(.easeInOut(duration: 0.2), reduced: reduceMotion), value: info?.itemId)
         .frame(maxWidth: .infinity, minHeight: 230, maxHeight: 230, alignment: .topLeading)
         .padding(.horizontal, Metrics.gutter)
         .padding(.top, 20)
         .accessibilityHidden(true)
         .accessibilityIdentifier("home.info")
+    }
+
+    private func facts(_ info: HomeInfo) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(info.title)
+                .font(.title2.bold())
+                .lineLimit(1)
+            if !info.context.isEmpty {
+                Text(info.context)
+                    .font(.headline)
+                    .lineLimit(1)
+            }
+            Text(([info.timeLeft] + info.meta).filter { !$0.isEmpty }.joined(separator: " · "))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Text(info.summary)
+                .font(.callout)
+                .lineLimit(3)
+                .frame(maxWidth: 1100, alignment: .leading)
+        }
     }
 }

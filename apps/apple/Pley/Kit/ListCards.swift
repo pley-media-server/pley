@@ -77,11 +77,18 @@ struct CollectionTile: View {
         .scaleEffect(hovering && !reduceMotion ? 1.03 : 1)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
         .onHover { hovering = $0 }
+        .onKeyPress(.return) {
+            open()
+            return .handled
+        }
         #endif
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(card.spokenLabel)
         .accessibilityHint("Opens its page")
         .accessibilityAddTraits(.isButton)
+        .contextMenu {
+            Button(action: open) { Label("Open", systemImage: "square.stack") }
+        }
         .accessibilityIdentifier("tile.collection.\(card.id)")
     }
 }
@@ -142,6 +149,8 @@ struct PlaylistTile: View {
     let width: CGFloat
     let open: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hovering = false
 
     var body: some View {
         Button(action: open) {
@@ -149,6 +158,11 @@ struct PlaylistTile: View {
                 PlaylistMosaic(app: app, artwork: card.artwork, video: card.video, size: width)
                     .overlay(alignment: .topLeading) {
                         if card.smart { ListBadge(text: "Smart").padding(6) }
+                    }
+                    .overlay {
+                        if hovering && reduceMotion {
+                            RoundedRectangle(cornerRadius: Metrics.corner).strokeBorder(Color.accentColor, lineWidth: 2)
+                        }
                     }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(card.title)
@@ -167,7 +181,18 @@ struct PlaylistTile: View {
         .buttonStyle(.plain)
         #if os(iOS)
         .hoverEffect(.lift)
+        #else
+        .scaleEffect(hovering && !reduceMotion ? 1.03 : 1)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
+        .onHover { hovering = $0 }
+        .onKeyPress(.return) {
+            open()
+            return .handled
+        }
         #endif
+        .contextMenu {
+            Button(action: open) { Label("Open", systemImage: "music.note.list") }
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(card.spokenLabel)
         .accessibilityHint("Opens it")
@@ -183,11 +208,16 @@ struct PlayShuffleButtons: View {
     let canShuffle: Bool
     let play: () -> Void
     let shuffle: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        HStack(spacing: 12) {
+        // One under the other at the accessibility text sizes, so neither word breaks.
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(spacing: 12))
+        layout {
             Button(action: play) {
                 Label("Play", systemImage: "play.fill")
+                    .fixedSize()
                     .frame(minWidth: 90)
                     // In a list's row the symbol takes the accent colour, the
                     // button's own, and vanishes; it is drawn as the words are.
@@ -198,6 +228,7 @@ struct PlayShuffleButtons: View {
             .accessibilityIdentifier("\(prefix).play")
             Button(action: shuffle) {
                 Label("Shuffle", systemImage: "shuffle")
+                    .fixedSize()
                     .frame(minWidth: 90)
             }
             .buttonStyle(.bordered)

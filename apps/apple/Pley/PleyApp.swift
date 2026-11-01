@@ -26,7 +26,10 @@ struct PleyApp: App {
         }
         #if os(macOS)
         .defaultSize(width: 1100, height: 720)
-        .commands { PlaybackCommands() }
+        .commands {
+            MacCommands(app: app)
+            PlaybackCommands()
+        }
         #endif
 
         #if os(macOS)
@@ -34,6 +37,8 @@ struct PleyApp: App {
         Settings {
             MacSettingsView(app: app)
         }
+        // About Pley, in place of the standard panel.
+        AboutWindow()
         #endif
 
         #if os(macOS)

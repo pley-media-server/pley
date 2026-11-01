@@ -267,11 +267,31 @@ public final class AppModel: ObservableObject {
         }
     }
 
-    /// The servers, keeping the sign-in.
-    public func showServers() {
+    /// The servers, keeping the sign-in; with `adding`, the address
+    /// field is ready for a new one (the Mac's File → Add Server…).
+    public func showServers(adding: Bool = false) {
         Task { await closePlayer() }
         root = .servers
         signingIn = []
+        if adding { addingServer = true }
+    }
+
+    /// Set by Add Server…: the servers' address field takes the keys. The
+    /// servers screen clears it once it has (`addingServerShown`).
+    @Published public private(set) var addingServer = false
+
+    public func addingServerShown() {
+        addingServer = false
+    }
+
+    /// Whether Switch profile is offered: the sign-in has the `profiles`
+    /// scope, and the household, as last seen, has more than one profile
+    /// (or hasn't been seen yet).
+    public var canSwitchProfile: Bool {
+        guard let user, user.scopes.contains("profiles") else { return false }
+        guard let origin = server?.origin else { return true }
+        let household = settings.household(origin: origin)
+        return household.isEmpty || household.count > 1
     }
 
     /// Back from a server's sign-in to the servers.
@@ -299,6 +319,8 @@ public final class AppModel: ObservableObject {
     /// without the network, and Settings can offer "Always start as".
     public func noteHousehold(_ profiles: [HouseholdProfile]) {
         guard let origin = server?.origin, !profiles.isEmpty else { return }
+        // Switch Profile follows it.
+        objectWillChange.send()
         settings.setHousehold(profiles.map { ($0.id, $0.name) }, origin: origin)
     }
 

@@ -14,6 +14,7 @@ struct ShellView: View {
     @ObservedObject var app: AppModel
     @ObservedObject private var shell: ShellModel
     private let layout = WideLayout()
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     init(app: AppModel) {
         self.app = app
@@ -29,6 +30,9 @@ struct ShellView: View {
             }
         }
         .overlay(alignment: .bottom) { ToastView(shell: shell) }
+        #if os(iOS)
+        .background { KeyboardShortcuts(shell: shell) }
+        #endif
         .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { sheet in
             ShellSheet(app: app, sheet: sheet)
         }
@@ -62,6 +66,9 @@ struct ShellView: View {
                 .navigationTitle("Pley")
                 #if os(macOS)
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+                #else
+                // Wider at the accessibility text sizes, so "Playlists" stays one word.
+                .navigationSplitViewColumnWidth(typeSize.isAccessibilitySize ? 400 : 320)
                 #endif
         } detail: {
             stack(shell.section)
@@ -98,6 +105,10 @@ struct ShellView: View {
         }
         .buttonStyle(.plain)
         .padding(8)
+        #if os(iOS)
+        // The rows scroll under it: they mustn't show through.
+        .background(Color(uiColor: .systemGroupedBackground))
+        #endif
         .accessibilityLabel("Me, \(app.user.map { $0.displayName ?? $0.name } ?? "")")
         .accessibilityAddTraits(shell.section == .me ? .isSelected : [])
         .accessibilityIdentifier("shell.me")
@@ -152,6 +163,26 @@ struct ShellView: View {
     }
 }
 
+#if os(iOS)
+/// An iPad's keyboard: Search (⌘F) and Reload (⌘R), as the Mac's View menu has them.
+private struct KeyboardShortcuts: View {
+    @ObservedObject var shell: ShellModel
+
+    var body: some View {
+        ZStack {
+            Button("Search") { shell.findInSearch() }
+                .keyboardShortcut("f")
+            Button("Reload") { Task { await shell.reloadShowing() } }
+                .keyboardShortcut("r")
+                .disabled(!shell.canReload)
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
+    }
+}
+#endif
+
 /// The sidebar: Home, Search and Playlists, then the libraries in the profile's order, each
 /// with its kind's symbol; a drag (or Edit on iPad, or VoiceOver's Move up
 /// and Move down) puts them in another order.
@@ -198,6 +229,7 @@ private struct Sidebar: View {
                             Button("Move down") { model.move(entry.id, by: 1) }
                         }
                     }
+                    .contextMenu { LibraryMoveButtons(model: model, entry: entry) }
                     .accessibilityIdentifier("shell.sidebar.library.\(entry.id)")
                 }
                 .onMove(perform: model.reorderable ? { model.move(fromOffsets: $0, toOffset: $1) } : nil)

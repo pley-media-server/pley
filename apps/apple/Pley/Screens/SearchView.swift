@@ -10,10 +10,14 @@ import SwiftUI
 struct SearchView: View {
     @ObservedObject private var app: AppModel
     @StateObject private var model: SearchModel
+    @ObservedObject private var shell: ShellModel
+    /// The field has the keys: after ⌘F (the Mac's View menu, an iPad's keyboard).
+    @FocusState private var fieldFocused: Bool
 
     init(app: AppModel) {
         self.app = app
         _model = StateObject(wrappedValue: SearchModel(app: app))
+        _shell = ObservedObject(wrappedValue: app.shell)
     }
 
     var body: some View {
@@ -25,6 +29,12 @@ struct SearchView: View {
             #else
             .searchable(text: $model.query, placement: .toolbar, prompt: "Movies, shows, people and music")
             #endif
+            .modifier(SearchFieldFocus(focused: $fieldFocused))
+            .task(id: shell.wantsSearchField) {
+                guard shell.wantsSearchField else { return }
+                fieldFocused = true
+                shell.searchFieldShown()
+            }
             .onSubmit(of: .search) { model.submit() }
             .task(id: app.user?.id) { model.loadRecent() }
     }
@@ -109,6 +119,23 @@ struct SearchView: View {
 }
 
 /// People found: their round photos (or initials) and names, in a row.
+/// Ties the search field's focus to `focused` where the system can (iOS 18, the Mac).
+private struct SearchFieldFocus: ViewModifier {
+    let focused: FocusState<Bool>.Binding
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        if #available(iOS 18, *) {
+            content.searchFocused(focused)
+        } else {
+            content
+        }
+        #else
+        content.searchFocused(focused)
+        #endif
+    }
+}
+
 private struct PeopleRow: View {
     let app: AppModel
     let group: SearchModel.Group

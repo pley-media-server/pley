@@ -40,6 +40,7 @@ struct PlaylistsView: View {
             }
             // Read again each time it shows: playlists change from other pages.
             .task { await model.load() }
+            .reloads(app) { await model.load() }
     }
 
     @ViewBuilder private var content: some View {
@@ -112,6 +113,7 @@ struct PlaylistView: View {
                 Text("The titles in it stay in your libraries.")
             }
             .task { await model.load() }
+            .reloads(app) { await model.load() }
     }
 
     @ViewBuilder private var content: some View {

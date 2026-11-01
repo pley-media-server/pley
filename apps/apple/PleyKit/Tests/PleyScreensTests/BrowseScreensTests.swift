@@ -255,8 +255,12 @@ private func item(_ id: Int, _ kind: ItemKind, positionMs: Int = 0, durationMs: 
         model.sort(by: .year)
         model.filter(watched: false)
         #expect(model.filterSummary == "Unwatched")
-        #expect(await eventually { server.requests("/api/libraries/1/items").last?.query["watched"] == "false" })
-        let asked = try #require(server.requests("/api/libraries/1/items").last)
+        // A page the first listing's A to Z asked for may reach the server
+        // after the new listing's, so the new one is found by its filter.
+        #expect(await eventually {
+            server.requests("/api/libraries/1/items").contains { $0.query["watched"] == "false" }
+        })
+        let asked = try #require(server.requests("/api/libraries/1/items").last { $0.query["watched"] == "false" })
         #expect(asked.query["sort"] == "year" && asked.query["order"] == "desc")
         model.select(.recommended)
         #expect(await eventually { model.rows?.isEmpty == false })

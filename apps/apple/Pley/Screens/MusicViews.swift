@@ -23,6 +23,7 @@ struct ArtistView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .task { await model.load() }
+            .reloads(app) { await model.load() }
     }
 
     @ViewBuilder private var content: some View {
@@ -112,6 +113,7 @@ struct AlbumView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .task { await model.load() }
+            .reloads(app) { await model.load() }
     }
 
     @ViewBuilder private var content: some View {

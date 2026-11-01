@@ -3,7 +3,8 @@ import SwiftUI
 
 /// A row of tiles: its title (a heading for VoiceOver), See all when it
 /// has one, and the tiles in a line the focus moves along. The row is a
-/// focus section, so moving up or down goes to the row above or below.
+/// focus section, so moving up or down goes to the row above or below;
+/// coming back to a row puts the focus on the tile it had last.
 struct TileRow: View {
     let app: AppModel
     /// The row's key, for its identifier (`home.row.continue_watching`).
@@ -19,6 +20,9 @@ struct TileRow: View {
     /// What the identifier starts with: `home.row`, `item.row`.
     var prefix = "home.row"
     let open: (Tile) -> Void
+    /// The tile with the focus in this row, and the one that had it last.
+    @FocusState private var focusedTile: Int?
+    @State private var lastFocused: Int?
 
     init(app: AppModel, key: String, title: String, shape: RowShape, tiles: [Tile], seeAll: (() -> Void)? = nil,
          remove: ((Tile) async -> Void)? = nil, focused: ((Tile) -> Void)? = nil, prefix: String = "home.row",
@@ -46,7 +50,8 @@ struct TileRow: View {
                     ForEach(tiles) { tile in
                         ArtworkTile(app: app, tile: tile, width: Metrics.tileWidth(shape), continueWatching: remove != nil,
                                     remove: remove.map { remove in { await remove(tile) } },
-                                    focused: focused.map { focused in { focused(tile) } }) { open(tile) }
+                                    focused: focused.map { focused in { focused(tile) } },
+                                    rowFocus: $focusedTile) { open(tile) }
                     }
                     if let seeAll {
                         Button("See all", action: seeAll)
@@ -59,6 +64,11 @@ struct TileRow: View {
                 .padding(.vertical, 32)
             }
             .scrollClipDisabled()
+        }
+        // Coming back up or down to the row, the focus goes to the tile it left.
+        .defaultFocus($focusedTile, lastFocused, priority: .userInitiated)
+        .onChange(of: focusedTile) { _, now in
+            if let now { lastFocused = now }
         }
         .focusSection()
         .accessibilityElement(children: .contain)
