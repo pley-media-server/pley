@@ -157,21 +157,32 @@ const collectionOf = ({ items: held, ...collection }) => ({ ...collection, item_
 
 // Every file has text and picture subtitles; the choices pick the picture
 // ones for episode 103 (the one the walk plays), which the app asks the
-// server to draw.
+// server to draw. A movie's file has French audio too. Tracks picked
+// (PUT /api/items/{id}/streams) are the item's choices after, as a
+// server keeps them; Automatic is English.
 const PICTURE_SUBTITLES = 4;
-function detail(item, myList) {
+function detail(item, myList, picks) {
   const file = {
     id: 7000 + item.id, path: `${item.title}.mkv`, size: 1000000, container: item.kind === "movie" ? "mkv" : "mp4",
     duration_ms: item.duration_ms ?? null, bitrate: 8000000, width: 1920, height: 1080, video_codec: "h264", audio_codec: "aac",
     streams: [
       { index: 0, kind: "video", codec: "h264" },
-      { index: 1, kind: "audio", codec: "aac", language: "eng" },
+      { index: 1, kind: "audio", codec: "aac", language: "eng", channels: 2, default: true },
+      ...(item.kind === "movie" ? [{ index: 2, kind: "audio", codec: "ac3", language: "fre", channels: 6 }] : []),
       { index: 3, kind: "subtitle", codec: "subrip", language: "eng", text_based: true },
       { index: PICTURE_SUBTITLES, kind: "subtitle", codec: "hdmv_pgs_subtitle", language: "eng", forced: false, text_based: false },
     ],
-    edition: null, selected_audio: 1, selected_subtitle: item.id === 103 ? PICTURE_SUBTITLES : 3,
+    edition: null, selected_audio: 1, selected_subtitle: item.id === 103 ? PICTURE_SUBTITLES : 3, audio_picked: false,
     chapters: [{ start_ms: 0, end_ms: 600000, title: "Opening" }, { start_ms: 600000, end_ms: item.duration_ms ?? 1200000, title: null }],
   };
+  const pick = picks?.get(item.id);
+  if (pick && (pick.file_id ?? file.id) === file.id) {
+    if ("audio_index" in pick) {
+      file.selected_audio = pick.audio_index ?? 1;
+      file.audio_picked = pick.audio_index !== null;
+    }
+    file.selected_subtitle = pick.subtitle_index ?? null;
+  }
   if (item.kind === "track") {
     file.container = "mp3";
     file.streams = [{ index: 0, kind: "audio", codec: "mp3", channels: 2 }];
@@ -398,7 +409,11 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       return res.end(JSON.stringify({ index: 10001, codec: "subrip", language: "eng", title: null, default: false, forced: false, external: true, text_based: true, added: true, url: `/api/files/${fileId}/subtitles/10001.vtt` }));
     }
     if ((match = path.match(/^\/api\/items\/(\d+)\/streams$/)) && req.method === "PUT") {
-      fixture.streams.push({ item: Number(match[1]), ...JSON.parse(body) });
+      const asked = JSON.parse(body);
+      fixture.streams.push({ item: Number(match[1]), ...asked });
+      // The audio left out stays as picked before; subtitles left out are off.
+      const before = fixture.picks.get(Number(match[1])) ?? {};
+      fixture.picks.set(Number(match[1]), { ...before, ...asked, subtitle_index: asked.subtitle_index ?? null });
       res.writeHead(204);
       return res.end();
     }
@@ -582,7 +597,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     }
     if ((match = path.match(/^\/api\/items\/(\d+)$/))) {
       const item = items.get(Number(match[1]));
-      return item ? json(200, detail(item, fixture.myList)) : json(404, { code: "not_found", message: `item ${match[1]} not found` });
+      return item ? json(200, detail(item, fixture.myList, fixture.picks)) : json(404, { code: "not_found", message: `item ${match[1]} not found` });
     }
     if (path === "/api/playback" && req.method === "POST") {
       const ask = JSON.parse(body);
@@ -748,7 +763,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     return json(404, { code: "not_found", message: `nothing at ${path}` });
   });
 
-  const fixture = { issuer: "", down: false, qr: true, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], streams: [], ratings: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [], smartPlaylists: [], nextPlaylist: 2,
+  const fixture = { issuer: "", down: false, qr: true, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], streams: [], picks: new Map(), ratings: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [], smartPlaylists: [], nextPlaylist: 2,
     household: [{ id: 1, name: "Anna", avatar_url: null, avatar_color: "#38bdf8", current: true, needs: "none" }, { id: 2, name: "Ben", avatar_url: null, avatar_color: "#f472b6", current: false, needs: "none" }],
     switched: [], subtitlesAdded: [], probed: false, networkTold: [], speedTests: [], requestsAsked: [], requestsActed: [], discoverPictures: [], problems, requests, progress, closed, close: () => server.close(),
     liveRecent: [2], liveBrowses: [], liveFavorites: [], liveFavoriteChanges: [], liveGuides: [], liveWatches: [], liveSessions: new Map(), livePlaylists: [], liveLeft: [] };

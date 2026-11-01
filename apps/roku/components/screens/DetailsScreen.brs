@@ -22,12 +22,16 @@ sub init()
     m.menu = m.top.findNode("menu")
     m.choices = m.top.findNode("choices")
     m.column.visible = false
-    ' What the panel shows: "" (closed), a menu ("more"), or the choices of
-    ' one of its entries ("rating"); the menu Back goes back to ("" for
-    ' none), and the values of the choices.
+    ' What the panel shows: "" (closed), a menu ("more", "tracks"), or the
+    ' choices of one of its entries ("rating", "audio", "subtitles"); the
+    ' menu Back goes back to ("" for none), and the values of the choices.
     m.panelKind = ""
     m.panelBack = ""
     m.panelValues = []
+    ' Audio and subtitles' entries, in order; the audio picked on this page
+    ' (-1 Automatic, -2 none), which subtitles picked after are saved with.
+    m.trackKinds = []
+    m.audioPick = -2
     m.started = false
     ' What the server says of requests for the title (GET
     ' /api/items/{id}/request), invalid for nothing to show; the asks (an
@@ -146,8 +150,12 @@ sub showDetail()
     end if
     m.buttons.visible = hasButtons
     m.column.visible = true
-    ' More's menu says the rating as it is now.
-    if m.panelKind = "more" then openMore()
+    ' A menu of the panel says its entries as they are now.
+    if m.panelKind = "more"
+        openMore()
+    else if m.panelKind = "tracks"
+        openTracks()
+    end if
     ' Only while this screen has the focus: a dialog or the panel over it
     ' keeps it.
     if m.top.isInFocusChain() and not m.rows.isInFocusChain() and not m.panel.visible
@@ -367,6 +375,8 @@ sub onButton(event as object)
         uiNavigate({ to: "player", params: { itemId: tile.itemId, startMs: playerStartOf(tile.positionMs, tile.durationMs) } })
     else if action = "episodes"
         uiNavigate({ to: "show", params: { showId: m.detail.itemId, seasonId: 0 } })
+    else if action = "tracks"
+        openTracks()
     else if action = "more"
         openMore()
     else
@@ -444,6 +454,10 @@ end sub
 
 sub onMenu(event as object)
     at = event.getData()
+    if m.panelKind = "tracks"
+        if at >= 0 and at < m.trackKinds.Count() then openTrackChoices(m.trackKinds[at], "tracks")
+        return
+    end if
     if m.panelKind <> "more" or at < 0 or at >= m.detail.more.Count() then return
     action = m.detail.more[at].action
     if action = "rate"
@@ -463,10 +477,92 @@ end sub
 sub onChoice(event as object)
     at = event.getData()
     if at < 0 or at >= m.panelValues.Count() then return
-    if m.panelKind = "rating"
+    kind = m.panelKind
+    if kind = "rating"
         rate(m.panelValues[at])
         openMore()
+    else if kind = "audio" or kind = "subtitles"
+        pickTrack(kind, m.panelValues[at])
+        if m.panelBack = "tracks"
+            openTracks()
+        else
+            closePanel()
+        end if
     end if
+end sub
+
+' Back from an entry's choices to its menu, else the panel closes.
+sub goBackInPanel()
+    if m.panelBack = "more"
+        openMore()
+    else if m.panelBack = "tracks"
+        openTracks()
+    else
+        closePanel()
+    end if
+end sub
+
+' --- Audio and subtitles ---
+
+' The file Play plays.
+function playingFile() as dynamic
+    return contentFile(m.item, invalid)
+end function
+
+' The file's audio (two tracks or more) and subtitles (any), as on the
+' other TVs: each an entry saying what plays, whose choices are saved at
+' once. With only one of them its choices open at once.
+sub openTracks()
+    tracks = mediaTracks(playingFile())
+    labels = []
+    m.trackKinds = []
+    if tracks.audio.labels.Count() > 0
+        labels.Push("Audio: " + tracks.audio.labels[tracks.audio.current])
+        m.trackKinds.Push("audio")
+    end if
+    if tracks.subtitles.labels.Count() > 0
+        labels.Push("Subtitles: " + tracks.subtitles.labels[tracks.subtitles.current])
+        m.trackKinds.Push("subtitles")
+    end if
+    if m.trackKinds.Count() > 1
+        showMenu("tracks", "Audio and subtitles", labels)
+    else if m.trackKinds.Count() = 1
+        openTrackChoices(m.trackKinds[0], "")
+    end if
+end sub
+
+sub openTrackChoices(kind as string, back as string)
+    tracks = mediaTracks(playingFile())
+    if kind = "audio"
+        showChoices("audio", "Audio", tracks.audio.labels, tracks.audio.values, tracks.audio.current, back)
+    else
+        showChoices("subtitles", "Subtitles", tracks.subtitles.labels, tracks.subtitles.values, tracks.subtitles.current, back)
+    end if
+end sub
+
+' PUT /api/items/{id}/streams, as on the other TVs: audio picked here
+' (Automatic as none) goes with the subtitles shown; subtitles picked go
+' with the audio picked here, else leave the audio as it was picked. The
+' page, and Play pressed at once, start with them; the page is asked for
+' again for the server's word on them.
+sub pickTrack(kind as string, index as integer)
+    file = playingFile()
+    if file = invalid then return
+    subtitle = Int(httpNumber(file.selected_subtitle, -1))
+    if kind = "audio"
+        m.audioPick = index
+    else
+        subtitle = index
+    end if
+    mediaPick(m.item, file.id, m.audioPick, subtitle)
+    body = tracksStreamsBody(file.id, m.audioPick, subtitle)
+    uiRequest({ method: "PUT", path: "/api/items/" + urlValue(m.item.id) + "/streams", jsonText: FormatJson(body) }, "onTracksSaved")
+end sub
+
+sub onTracksSaved(event as object)
+    answer = event.getData()
+    if not answer.ok and not uiFailed(answer) then uiMessage("That didn't work", [answer.message])
+    if m.item <> invalid then uiGet("/api/items/" + urlValue(m.item.id), "onDetail")
 end sub
 
 ' --- Your rating ---
@@ -509,13 +605,7 @@ end sub
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
     if m.panel.visible
-        if key = "back" or key = "left"
-            if m.panelBack = "more"
-                openMore()
-            else
-                closePanel()
-            end if
-        end if
+        if key = "back" or key = "left" then goBackInPanel()
         return true
     end if
     if key = "down" and not m.rows.isInFocusChain() and m.rows.visible

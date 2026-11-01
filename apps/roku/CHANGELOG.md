@@ -18,6 +18,9 @@ describes how they are made.
 - A title's page has More…, as on the other TVs: the rating, Go to show
   and Add to playlist, in a panel at the right, which keeps the column of
   buttons short.
+- A movie's or an episode's page has Audio and subtitles: the audio
+  (Automatic, named by its language, or a track) and the subtitles (Off or
+  a track) to play, saved for the movie or show before it plays.
 - A playlist's entries move: the Options key's Move lifts one, Up and Down
   carry it, OK puts it there and Back puts it back.
 - Settings has Always start as, for a household of several profiles: the

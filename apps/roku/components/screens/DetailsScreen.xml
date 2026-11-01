@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A movie, an episode or a show: its backdrop and poster, what it is, and
      its buttons (Resume / Play from start, a show's next episode and its
-     episodes, Mark as watched, My List, More…). More opens a panel over
-     the right of the page: the rating, Go to show, Add to playlist. The
+     episodes, Mark as watched, Audio and subtitles, My List, More…). Audio
+     and subtitles and More open a panel over the right of the page: the
+     tracks to play; the rating, Go to show, Add to playlist. The
      text is laid out top to bottom, leaving out what a title doesn't have.
      Under it, rows of a show's seasons, cast and crew, extras, More Like
      This and the collections it is part of: Down slides the page up to
@@ -33,6 +34,10 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/SubtitleSync.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Tracks.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Details.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Media.brs" />
     <children>
         <Poster id="backdrop" width="1920" height="1080" loadWidth="640" loadHeight="360" loadDisplayMode="scaleToZoom" opacity="0.4" />
         <Rectangle id="shade" width="1260" height="1080" color="0x16191ED9" />
@@ -58,7 +63,8 @@
             <RowList id="rows" translation="[96, 940]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         </Group>
         <Label id="message" translation="[96, 480]" width="1100" wrap="true" color="0xA1A9B6FF" text="Loading…" font="font:MediumSystemFont" />
-        <!-- More's menu, or the choices of one of its entries. -->
+        <!-- A menu (Audio and subtitles, More), or the choices of one of its
+             entries. -->
         <Group id="panel" visible="false">
             <Rectangle translation="[1000, 0]" width="920" height="1080" color="0x1E222AFF" />
             <Label id="panelTitle" translation="[1056, 56]" width="808" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />

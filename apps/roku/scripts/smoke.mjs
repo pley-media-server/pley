@@ -9,7 +9,8 @@
 // guide, a channel watched, the next one, the channel list, a favourite,
 // every connection in use, the Channels tab), Search, Discover (a movie
 // asked for, a show's seasons picked), the managers' Requests (Approve, a
-// ready-to-watch notice, then Yours), Settings, the server gone and Try
+// ready-to-watch notice whose movie's audio and subtitles are picked on
+// its page, then Yours), Settings, the server gone and Try
 // again, then signing out and in again on a server too old for QR codes,
 // requests and two-step sign-in. Then it starts the app again, signed in,
 // and times how soon Home is asked for. Fails on a BrightScript error or
@@ -925,6 +926,27 @@ async function walk() {
   await press("select"); // Open
   await waitFor(/^GET \/api\/items\/1011$/, since, "the title the notice opens");
   notice.opened = true;
+  // Its page: Audio and subtitles, after Play and the watched mark. French
+  // picked, saved with the subtitles shown; then subtitles off, saved with
+  // the French picked here.
+  await settle();
+  let pickedSince = mark();
+  await press("down", 2);
+  await press("select"); // Audio: Automatic (English), Subtitles: English (SRT)
+  await sleep(500);
+  shoot("movie-tracks");
+  await press("select"); // Audio's choices, Automatic checked
+  await press("down", 2);
+  shoot("movie-audio");
+  await press("select"); // French (AC3 5.1), then the menu again
+  await waitFor(/^PUT \/api\/items\/1011\/streams$/, pickedSince, "the audio picked, saved");
+  pickedSince = mark();
+  await press("down");
+  await press("select"); // Subtitles' choices, English (SRT) checked
+  await press("up");
+  await press("select"); // Off
+  await waitFor(/^PUT \/api\/items\/1011\/streams$/, pickedSince, "the subtitles turned off, saved");
+  await press("back"); // the buttons
   await press("back"); // the requests
   await settle();
   shoot("requests-approved");
@@ -1172,6 +1194,8 @@ const checks = [
   ],
   ["marked a title watched with the Options key", fixture.marks.some((m) => m.item === 103 && m.action === "watched")],
   ["rated a show 4 stars from its page's More", fixture.ratings.some((r) => r.item === 99 && r.rating === 8)],
+  ["picked a movie's audio on its page, saved with the subtitles shown", fixture.streams.some((s) => s.item === 1011 && s.file_id === 8011 && s.audio_index === 2 && s.subtitle_index === 3)],
+  ["turned its subtitles off on its page, the audio picked there kept", fixture.streams.some((s) => s.item === 1011 && s.audio_index === 2 && s.subtitle_index === null)],
   ["asked for a show's More Like This and collections", asked(/^GET \/api\/items\/99\/related\?limit=20$/) && asked(/^GET \/api\/items\/99\/collections$/)],
   ["opened a person's page", asked(/^GET \/api\/people\/7$/)],
   ["opened a title from a person's row of what they directed", person.opened],

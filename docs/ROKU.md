@@ -173,11 +173,21 @@ stops. Stop, or the queue's end, turns the timer off.
 
 A movie's, an episode's or a show's page has its buttons in a column at
 the left, Play (or Resume and Play from start) first, then Mark as
-watched, My List and More…. More opens a panel at the right with what is
-used less, as on the other TVs: Rate (Your rating, once given: No rating,
-or 1 to 5 stars, kept for the profile on the server), Go to show and Add
-to playlist. Back closes the panel; Down from the buttons goes to the
-rows under them.
+watched, Audio and subtitles, My List and More…. Audio and subtitles and
+More open a panel at the right; Back closes it, and Down from the
+buttons goes to the rows under them.
+
+- **Audio and subtitles** (a movie's or an episode's file with two audio
+  tracks or more, or subtitles): Audio, Automatic first, named by the
+  language the profile's defaults pick ("Automatic (English)"), then the
+  file's tracks ("French (AC3 5.1)"); Subtitles, Off first, then the
+  file's ("English – SDH (SRT)"). A choice is saved at once for the show
+  or movie (`PUT /api/items/{id}/streams`) and Play starts with it. The
+  audio goes with it only when picked here, Automatic as none, as on the
+  other TVs.
+- **More**, what is used less, as on the other TVs: Rate (Your rating,
+  once given: No rating, or 1 to 5 stars, kept for the profile on the
+  server), Go to show and Add to playlist.
 
 ### Audio and subtitles
 

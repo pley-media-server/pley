@@ -316,10 +316,11 @@ end function
 ' A title's details screen (a movie, an episode, a show or an extra): what
 ' it shows and which buttons it has. actions match buttons: "resume",
 ' "start", "playNext" (a show's next episode, onDeck), "episodes",
-' "watched", "unwatched", "listAdd", "listRemove" and "more". More holds
-' what is used less, as on the other TVs ([{ label, action }]): "rate",
-' "show" (an episode's) and "playlist". onDeck is a show's episode to play
-' next (ItemSummary), invalid until the server said or when there is none.
+' "watched", "unwatched", "tracks" (Audio and subtitles), "listAdd",
+' "listRemove" and "more". More holds what is used less, as on the other
+' TVs ([{ label, action }]): "rate", "show" (an episode's) and "playlist".
+' onDeck is a show's episode to play next (ItemSummary), invalid until the
+' server said or when there is none.
 function contentDetail(detail as object, server as string, onDeck = invalid as dynamic) as object
     kind = httpString(detail.kind)
     title = httpSentence(detail.title)
@@ -394,6 +395,10 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
             actions.Push("watched")
         end if
     end if
+    if (kind = "movie" or kind = "episode") and contentHasTracks(detail)
+        buttons.Push("Audio and subtitles")
+        actions.Push("tracks")
+    end if
     if kind = "movie" or kind = "show"
         if inList
             buttons.Push("Remove from My List")
@@ -443,6 +448,22 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
         more: more,
         note: note
     }
+end function
+
+' Whether a title's page offers Audio and subtitles before playing: its
+' file has two audio tracks or more, or subtitles.
+function contentHasTracks(detail as object) as boolean
+    file = httpObject(contentFile(detail, invalid))
+    if file = invalid then return false
+    audio = 0
+    for each stream in httpArray(file.streams)
+        if GetInterface(stream, "ifAssociativeArray") <> invalid
+            kind = httpString(stream.kind)
+            if kind = "subtitle" then return true
+            if kind = "audio" then audio = audio + 1
+        end if
+    end for
+    return audio > 1
 end function
 
 ' The stars of the profile's own rating (user_state.rating, 0 to 10 in

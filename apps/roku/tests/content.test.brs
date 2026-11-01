@@ -141,6 +141,21 @@ sub test_content_details_offer_resume_and_start()
     tkEqual(contentDetail(empty, contentTestServer()).buttons, ["Mark as watched", "Add to My List", "More…"], "what doesn't need a file")
 end sub
 
+sub test_content_details_offer_audio_and_subtitles()
+    detail = contentTestDetail()
+    tkFalse(contentHasTracks(detail), "no streams")
+    detail.files[0].streams = [{ index: 1, kind: "audio" }, { index: 2, kind: "audio" }]
+    tkTrue(contentHasTracks(detail), "two audio tracks")
+    tkEqual(contentDetail(detail, contentTestServer()).buttons, ["Resume from 10:00", "Play from start", "Mark as watched", "Audio and subtitles", "Add to My List", "More…"])
+    tkEqual(contentDetail(detail, contentTestServer()).actions[3], "tracks")
+    detail.files[0].streams = [{ index: 1, kind: "audio" }]
+    tkFalse(contentHasTracks(detail), "one audio track: nothing to choose")
+    detail.files[0].streams.Push({ index: 3, kind: "subtitle" })
+    tkTrue(contentHasTracks(detail), "subtitles")
+    detail.files = []
+    tkFalse(contentHasTracks(detail), "no file")
+end sub
+
 sub test_content_show_details_offer_its_next_episode_and_episodes()
     show = ParseJson("{""id"":99,""kind"":""show"",""title"":""Severance"",""year"":2022,""child_count"":2,""content_rating"":""TV-MA"",""user_state"":{""position_ms"":0,""watched"":false,""play_count"":0},""files"":[],""in_watchlist"":true}")
     detail = contentDetail(show, contentTestServer())
