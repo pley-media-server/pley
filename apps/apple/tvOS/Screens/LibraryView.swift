@@ -106,19 +106,17 @@ struct LibraryView: View {
     /// Sort, the order, Filter and Clear.
     private var controls: some View {
         HStack(spacing: 24) {
-            Menu {
+            // tvOS gives a menu's button no accessibility label of its own,
+            // whatever its label view shows: it is set here.
+            Menu("Sort: \(model.params.sort.title)", systemImage: "arrow.up.arrow.down") {
                 Picker("Sort by", selection: Binding(get: { model.params.sort }, set: { model.sort(by: $0) })) {
                     ForEach(model.sorts, id: \.self) { sort in
                         Text(sort.title).tag(sort)
                     }
                 }
-            } label: {
-                // tvOS drops a Menu's own accessibility label and value from
-                // the button it makes, so they go on the label inside it.
-                Label("Sort: \(model.params.sort.title)", systemImage: "arrow.up.arrow.down")
-                    .accessibilityLabel("Sort")
-                    .accessibilityValue(model.params.sort.title)
             }
+            .accessibilityLabel("Sort")
+            .accessibilityValue(model.params.sort.title)
             .accessibilityIdentifier("library.sort")
             Button {
                 model.flipOrder()
@@ -128,7 +126,8 @@ struct LibraryView: View {
             }
             .accessibilityIdentifier("library.order")
             if model.filterable {
-                Menu {
+                Menu(model.params.filtered ? "Filter: \(model.filterSummary)" : "Filter",
+                     systemImage: "line.3.horizontal.decrease.circle") {
                     Picker("Show", selection: Binding(get: { model.params.watched },
                                                       set: { model.filter(watched: $0) })) {
                         Text("All").tag(Bool?.none)
@@ -151,12 +150,9 @@ struct LibraryView: View {
                         }
                         .pickerStyle(.menu)
                     }
-                } label: {
-                    Label(model.params.filtered ? "Filter: \(model.filterSummary)" : "Filter",
-                          systemImage: "line.3.horizontal.decrease.circle")
-                        .accessibilityLabel("Filter")
-                        .accessibilityValue(model.filterSummary)
                 }
+                .accessibilityLabel("Filter")
+                .accessibilityValue(model.filterSummary)
                 .accessibilityIdentifier("library.filter")
                 if model.params.filtered {
                     Button("Clear") { model.clearFilters() }

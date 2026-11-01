@@ -18,9 +18,7 @@ extension Walk {
 
     /// Whether `element`'s accessibility value comes to be `value` within 10 s.
     func valueBecomes(_ element: XCUIElement, _ value: String) -> Bool {
-        // No value at all reads as nil.
-        let predicate = value.isEmpty ? NSPredicate(format: "value == nil OR value == ''")
-            : NSPredicate(format: "value == %@", value)
+        let predicate = NSPredicate(format: "value == %@", value)
         return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)],
                                 timeout: 10) == .completed
     }
