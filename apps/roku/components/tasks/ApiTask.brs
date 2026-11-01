@@ -427,13 +427,14 @@ sub apiBuild(job as object, answer as object)
         job.request.content = nodesContent(tiles)
         answer.data = { shown: tiles.Count() }
     else if job.build = "person"
-        tiles = pagePersonCredits(data, server)
-        job.request.content = nodesContent(tiles)
-        answer.data = { title: httpSentence(data.name), image: urlImage(server, data.photo_url, contentDetailPosterWidth()), line: fmtTitles(tiles.Count()), summary: "", shown: tiles.Count() }
+        ' A person's page: a row of titles per role.
+        page = pagePerson(data, server)
+        job.request.content = nodesRows(page.rows)
+        answer.data = { name: page.name, photo: page.photo, initials: page.initials, line: page.line, shown: page.rows.Count() }
     else if job.build = "playlists"
         tiles = pagePlaylistTiles(data.playlists, server)
         job.request.content = nodesContent(tiles)
-        answer.data = { title: "Playlists", image: "", line: "", summary: "", shown: tiles.Count() }
+        answer.data = { title: "Playlists", line: "", summary: "", shown: tiles.Count() }
     else if job.build = "playlist"
         rows = pagePlaylistEntries(data.entries, server)
         job.request.content = nodesContent(rows)
@@ -460,7 +461,7 @@ sub apiBuild(job as object, answer as object)
         else if tiles.Count() > 1
             line = urlValue(tiles.Count()) + " albums"
         end if
-        answer.data = { title: "", image: "", line: line, summary: "", shown: tiles.Count() }
+        answer.data = { title: "", line: line, summary: "", shown: tiles.Count() }
     else if job.build = "collection"
         ' A collection's page: its titles as tiles, what it says of itself
         ' and what Play plays.

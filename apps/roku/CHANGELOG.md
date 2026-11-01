@@ -33,6 +33,10 @@ describes how they are made.
   posters. Play plays a collection of movies in its order, Up Next
   bringing on each next; a collection of shows plays a show's next
   episode.
+- A person's page has their round photo and how many of their movies and
+  shows are in the libraries, then a row for each thing they did (Acting,
+  Directing, Creating, Writing, Producing), each title with its year and
+  the part.
 
 ## [0.1.1] - 2026-11-01
 

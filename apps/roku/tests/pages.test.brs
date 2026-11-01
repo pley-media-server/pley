@@ -40,17 +40,51 @@ sub test_pages_extras_say_what_they_are()
     tkEqual(rows[0].key, "extras")
 end sub
 
-sub test_pages_person_credits_say_the_part()
-    person = { id: 7, name: "Amy Adams", credits: [
-        { item: { id: 12, kind: "movie", title: "Arrival", year: 2016, user_state: { position_ms: 0, watched: true } }, roles: [{ role: "actor", character: "Louise Banks" }] },
+sub test_pages_person_has_a_row_per_role()
+    person = { id: 7, name: "Amy Adams", photo_url: "/api/people/7/photo?v=1", credits: [
         { item: { id: 99, kind: "show", title: "Sharp Objects", year: 2018 }, roles: [{ role: "actor", character: "Camille", episodes: 8 }, { role: "producer" }] },
-        { item: { id: 5, kind: "collection", title: "Odd" }, roles: [] }
+        { item: { id: 12, kind: "movie", title: "Arrival", year: 2016, user_state: { position_ms: 0, watched: true } }, roles: [{ role: "actor", character: "Louise Banks" }] },
+        { item: { id: 13, kind: "movie", title: "Untitled" }, roles: [{ role: "director" }, { role: "writer" }] },
+        { item: { id: 12, kind: "movie", title: "Arrival", year: 2016 }, roles: [{ role: "actor", character: "Louise Banks" }] },
+        { item: { id: 5, kind: "collection", title: "Odd" }, roles: [{ role: "actor" }] }
     ] }
-    tiles = pagePersonCredits(person, "http://nas:7539")
-    tkEqual(tiles.Count(), 2, "titles this version shows")
-    tkEqual(tiles[0].subtitle, "Louise Banks")
-    tkTrue(tiles[0].watched)
-    tkEqual(tiles[1].subtitle, "Camille, Producer")
+    page = pagePerson(person, "http://nas:7539")
+    tkEqual(page.name, "Amy Adams")
+    tkEqual(page.photo, "http://nas:7539/api/people/7/photo?v=1&w=160")
+    tkEqual(page.initials, "AA")
+    tkEqual(page.line, "2 movies · 1 show in your libraries", "each title once, movies and shows only")
+    rows = []
+    for each row in page.rows
+        captions = []
+        for each tile in row.tiles
+            captions.Push(tile.title + ": " + tile.subtitle)
+        end for
+        rows.Push(row.title + " — " + captions.Join(" | "))
+    end for
+    tkEqual(rows, [
+        "Acting — Sharp Objects: 2018 · as Camille (8 episodes) | Arrival: 2016 · as Louise Banks",
+        "Directing — Untitled: Director",
+        "Writing — Untitled: Writer",
+        "Producing — Sharp Objects: 2018 · Producer"
+    ])
+    tkTrue(page.rows[0].tiles[1].watched)
+    tkEqual(page.rows[1].key, "director")
+    nobody = pagePerson({ id: 8, name: "Nobody", credits: [] }, "http://nas:7539")
+    tkEqual(nobody.line, "")
+    tkEqual(nobody.rows, [])
+    tkEqual(nobody.photo, "", "no photo: the initials show")
+end sub
+
+sub test_pages_roles_in_words()
+    tkEqual(pageRoleText([{ role: "actor", character: "Neo" }]), "as Neo")
+    tkEqual(pageRoleText([{ role: "actor", episodes: 3 }]), "Guest star (3 episodes)")
+    tkEqual(pageRoleText([{ role: "actor", character: "Herself", episodes: 1 }]), "as Herself (1 episode)")
+    tkEqual(pageRoleText([{ role: "actor" }]), "Actor")
+    tkEqual(pageRoleText([{ role: "creator" }, { role: "editor" }]), "Creator, Crew")
+    tkEqual(pageInitials("Idris Vale"), "IV")
+    tkEqual(pageInitials("Cher"), "C")
+    tkEqual(pageInitials("  ana   de armas "), "AD")
+    tkEqual(pageInitials(""), "")
 end sub
 
 sub test_pages_collections_and_seasons_as_tiles()

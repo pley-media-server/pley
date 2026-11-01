@@ -298,6 +298,8 @@ const notice = { opened: false };
 // What Play played on a collection's page: its first movie, a show's next
 // episode.
 const collections = { movies: false, shows: false };
+// A title opened from a person's row of a role.
+const person = { opened: false };
 
 async function walk() {
   // A cold start of brs-node can take a while.
@@ -525,6 +527,14 @@ async function walk() {
   await press("select");
   await waitFor(/^GET \/api\/people\/7$/, since, "a person's page");
   shoot("person");
+  // Their Directing row, under Acting: its first title opened, then Back.
+  await press("down");
+  since = mark();
+  await press("select");
+  await waitFor(/^GET \/api\/items\/1000$/, since, "a title of a person's Directing row");
+  person.opened = true;
+  await press("back");
+  await settle();
   // Back on the show's page, its last row: the collections it is part of,
   // whose first, of five movies, plays them in its order. Down past its
   // buttons slides its page up to its posters, Up back to the buttons.
@@ -921,6 +931,7 @@ const checks = [
   ["marked a title watched with the Options key", fixture.marks.some((m) => m.item === 103 && m.action === "watched")],
   ["asked for a show's More Like This and collections", asked(/^GET \/api\/items\/99\/related\?limit=20$/) && asked(/^GET \/api\/items\/99\/collections$/)],
   ["opened a person's page", asked(/^GET \/api\/people\/7$/)],
+  ["opened a title from a person's row of what they directed", person.opened],
   ["played a collection of movies from its first", collections.movies],
   ["played the next episode of a smart collection's show", collections.shows],
   ["moved a playlist's first entry down one", JSON.stringify(fixture.playlistOrders[0]) === JSON.stringify([2, 1, 3])],

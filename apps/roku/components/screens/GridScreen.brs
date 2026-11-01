@@ -1,11 +1,9 @@
-' A grid of titles under a heading: a person's movies and shows (GET
-' /api/people/{id}), an artist's albums (GET /api/items/{id}/children), or
-' the profile's playlists (GET /api/playlists). params: { kind ("person",
-' "artist", "playlists"), id, title (shown until the server answers) }.
+' A grid of titles under a heading: an artist's albums (GET
+' /api/items/{id}/children), or the profile's playlists (GET
+' /api/playlists). params: { kind ("artist", "playlists"), id, title
+' (shown until the server answers) }.
 
 sub init()
-    m.photoFrame = m.top.findNode("photoFrame")
-    m.photo = m.top.findNode("photo")
     m.title = m.top.findNode("title")
     m.line = m.top.findNode("line")
     m.summary = m.top.findNode("summary")
@@ -36,9 +34,7 @@ end sub
 
 sub load()
     params = m.top.params
-    if params.kind = "person"
-        uiRequest({ method: "GET", path: "/api/people/" + urlValue(params.id), build: "person" }, "onGrid")
-    else if params.kind = "playlists"
+    if params.kind = "playlists"
         uiRequest({ method: "GET", path: "/api/playlists", build: "playlists" }, "onGrid")
     else
         ' An artist's albums are square.
@@ -58,15 +54,6 @@ sub onGrid(event as object)
     if page.title <> "" then m.title.text = page.title
     m.line.text = page.line
     m.summary.text = page.summary
-    if page.image <> ""
-        ' A photo at the left, the text beside it.
-        for each label in [m.title, m.line, m.summary]
-            label.translation = [248, label.translation[1]]
-        end for
-        m.photoFrame.visible = true
-        m.photo.setHttpAgent(m.top.getScene().getHttpAgent())
-        m.photo.uri = page.image
-    end if
     focused = m.grid.itemFocused
     m.grid.content = event.getRoSGNode().content
     if focused > 0 and focused < page.shown then m.grid.jumpToItem = focused

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A person's movies and shows, an artist's albums or the playlists, as a
-     grid of posters under their name (and photo), what the server says of
-     them. -->
+<!-- An artist's albums or the playlists, as a grid of posters under
+     their name, what the server says of them. -->
 <component name="GridScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -21,8 +20,6 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
     <children>
-        <Rectangle id="photoFrame" translation="[96, 48]" width="112" height="168" color="0x262B35FF" visible="false" />
-        <Poster id="photo" translation="[96, 48]" width="112" height="168" loadWidth="112" loadHeight="168" loadDisplayMode="scaleToZoom" />
         <Label id="title" translation="[96, 56]" width="1600" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="line" translation="[96, 128]" width="1600" color="0xA1A9B6FF" font="font:SmallerSystemFont" />
         <Label id="summary" translation="[96, 168]" width="1600" maxLines="1" color="0x8B95A5FF" font="font:SmallestSystemFont" />

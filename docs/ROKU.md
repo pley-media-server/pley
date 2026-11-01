@@ -69,6 +69,11 @@ plays a collection of movies in its order, Up Next bringing on each next,
 and Shuffle in any order; a collection of shows plays the first show's
 next episode, and Shuffle a random show's.
 
+A person's page has their photo, their name and what of theirs is in the
+libraries ("3 movies · 2 shows in your libraries"), then a row for each
+thing they did (Acting, Directing, Creating, Writing, Producing) of their
+titles, newest first, each with its year and the part ("2019 · as Neo").
+
 Fast forward and rewind show seek previews in Roku's own bar: the server's
 previews of the file as a BIF file, which the Video node fetches beside the
 media (`previews.bif`). While the server is still making them, the bar

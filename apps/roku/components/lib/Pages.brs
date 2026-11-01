@@ -308,29 +308,105 @@ function pageSeasonTiles(children as dynamic, server as string) as object
     return tiles
 end function
 
-' A person's page: their movies and shows, newest first, each with the
-' part they played or what they did ("Director, Writer"; "12 episodes" of
-' a show when the server counts them).
-function pagePersonCredits(person as object, server as string) as object
-    tiles = []
+' --- People ---
+
+' A person's page (GET /api/people/{id}): { name, photo, initials, line,
+' rows }. line says what of theirs is in the libraries ("3 movies · 2 shows
+' in your libraries"; "" for nothing). rows ([{ key, title, wide, tiles }])
+' has a row per role, acting first, then directing, creating, writing and
+' producing, each of their titles in it newest first, as the server sends
+' them, captioned with its year and the part ("2019 · as Neo").
+function pagePerson(person as object, server as string) as object
+    credits = []
+    seen = {}
+    movies = 0
+    shows = 0
     for each credit in httpArray(person.credits)
         item = invalid
         if GetInterface(credit, "ifAssociativeArray") <> invalid then item = httpObject(credit.item)
-        if item <> invalid and contentShown(httpString(item.kind))
-            tile = contentTile(item, server, false)
-            parts = []
-            for each role in httpArray(credit.roles)
-                if GetInterface(role, "ifAssociativeArray") <> invalid
-                    text = httpSentence(role.character)
-                    if text = "" then text = pageRoleLabel(httpString(role.role))
-                    if text <> "" and parts.Count() < 2 then parts.Push(text)
-                end if
-            end for
-            if parts.Count() > 0 then tile.subtitle = parts.Join(", ")
-            tiles.Push(tile)
+        kind = ""
+        if item <> invalid then kind = httpString(item.kind)
+        key = ""
+        if item <> invalid then key = urlValue(httpNumber(item.id, 0))
+        if (kind = "movie" or kind = "show") and not seen.DoesExist(key)
+            seen[key] = true
+            if kind = "movie" then movies = movies + 1
+            if kind = "show" then shows = shows + 1
+            credits.Push({ item: item, roles: httpArray(credit.roles) })
         end if
     end for
-    return tiles
+    counts = []
+    if movies > 0 then counts.Push(fmtCount(movies, "movies"))
+    if shows > 0 then counts.Push(fmtCount(shows, "shows"))
+    line = ""
+    if counts.Count() > 0 then line = counts.Join(" · ") + " in your libraries"
+    rows = []
+    for each row in [["actor", "Acting"], ["director", "Directing"], ["creator", "Creating"], ["writer", "Writing"], ["producer", "Producing"]]
+        tiles = []
+        for each credit in credits
+            roles = []
+            for each role in credit.roles
+                if GetInterface(role, "ifAssociativeArray") <> invalid and httpString(role.role) = row[0] then roles.Push(role)
+            end for
+            if roles.Count() > 0
+                tile = contentTile(credit.item, server, false)
+                parts = []
+                if tile.subtitle <> "" then parts.Push(tile.subtitle)
+                parts.Push(pageRoleText(roles))
+                tile.subtitle = parts.Join(" · ")
+                tiles.Push(tile)
+            end if
+        end for
+        if tiles.Count() > 0 then rows.Push({ key: row[0], title: row[1], wide: false, tiles: tiles })
+    end for
+    name = httpSentence(person.name)
+    return { name: name, photo: urlImage(server, person.photo_url, pagePhotoWidth()), initials: pageInitials(name), line: line, rows: rows }
+end function
+
+' The size of a person's photo on their page, round.
+function pagePhotoWidth() as integer
+    return 160
+end function
+
+' What someone did in a title, as the other apps say it: "as Neo",
+' "Director", "Guest star (3 episodes)"; several the same way, with
+' commas.
+function pageRoleText(roles as object) as string
+    parts = []
+    for each role in roles
+        kind = httpString(role.role)
+        episodes = Int(httpNumber(role.episodes, 0))
+        text = ""
+        if kind = "actor"
+            character = httpSentence(role.character)
+            if character <> ""
+                text = "as " + character
+            else if episodes > 0
+                text = "Guest star"
+            else
+                text = "Actor"
+            end if
+        else
+            text = pageRoleLabel(kind)
+            if text = "" then text = "Crew"
+        end if
+        if episodes = 1
+            text = text + " (1 episode)"
+        else if episodes > 1
+            text = text + " (" + urlValue(episodes) + " episodes)"
+        end if
+        parts.Push(text)
+    end for
+    return parts.Join(", ")
+end function
+
+' "Idris Vale" is "IV": what a person's photo shows without a picture.
+function pageInitials(name as string) as string
+    out = ""
+    for each word in name.Tokenize(" ")
+        if Len(out) < 2 then out = out + UCase(Left(word, 1))
+    end for
+    return out
 end function
 
 ' What the Options key offers on a tile: [{ label, action }]. inList: the
