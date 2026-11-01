@@ -129,6 +129,13 @@ const tracks = [1, 2, 3].map((n) => ({
   grandparent_id: 5000, grandparent_title: "The Fixtures", duration_ms: 200000, added_at: 0, user_state: state(),
 }));
 const items = new Map([...movies, show, ...seasons, ...episodes, artist, album, ...tracks].map((item) => [item.id, item]));
+// Collections: TMDB's of five movies, and a smart one a filter fills with
+// the show.
+const collections = [
+  { id: 1, library_id: 1, title: "Fixture Collection", summary: "Five films of the fake server, in the order they came out.", automatic: true, sort: "release", smart_filter: null, poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: movies.slice(0, 5) },
+  { id: 2, library_id: 2, title: "Fixture Dramas", summary: null, automatic: false, sort: "release", smart_filter: "type=2&genre=Drama&sort=year%3Adesc", poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: [show] },
+];
+const collectionOf = ({ items: held, ...collection }) => ({ ...collection, item_count: held.length });
 
 // Every file has text and picture subtitles; the choices pick the picture
 // ones for episode 103 (the one the walk plays), which the app asks the
@@ -441,7 +448,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       return json(200, { hubs: listed.length ? [{ key: "recently_added", title: "Recently Added", library_id: Number(match[1]), items: listed }, { key: "top_rated", title: "Top Rated", library_id: Number(match[1]), items: listed }] : [] });
     }
     if ((match = path.match(/^\/api\/libraries\/(\d+)\/collections$/))) {
-      return json(200, { collections: match[1] === "3" ? [] : [{ id: 1, library_id: Number(match[1]), title: "Fixture Collection", summary: null, automatic: false, sort: "release", smart_filter: null, item_count: 5, poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0 }] });
+      return json(200, { collections: collections.filter((c) => c.library_id === Number(match[1])).map(collectionOf) });
     }
     if ((match = path.match(/^\/api\/libraries\/(\d+)\/filters$/))) return json(200, { genres: ["Drama", "Mystery"], years: [2022, 2019] });
     if ((match = path.match(/^\/api\/libraries\/(\d+)\/items$/))) {
@@ -470,7 +477,9 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       return json(200, { id: Number(match[1]), name: "Ada Lovelace", photo_url: `/api/people/${match[1]}/photo?v=1`, credits: [{ item: show, roles: [{ role: "actor", character: "Herself", episodes: 9 }] }, ...movies.slice(0, 3).map((item) => ({ item, roles: [{ role: "director" }] }))] });
     }
     if ((match = path.match(/^\/api\/collections\/(\d+)$/))) {
-      return json(200, { id: Number(match[1]), library_id: 1, title: "Fixture Collection", summary: "Five films.", automatic: false, sort: "release", smart_filter: null, item_count: 5, poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: movies.slice(0, 5) });
+      const collection = collections.find((c) => c.id === Number(match[1]));
+      if (!collection) return json(404, { code: "not_found", message: `collection ${match[1]} not found` });
+      return json(200, { ...collectionOf(collection), items: collection.items });
     }
     if (/^\/api\/(people\/\d+\/photo|collections\/\d+\/images\/\w+)$/.test(path)) {
       res.writeHead(200, { "Content-Type": "image/png" });

@@ -68,6 +68,71 @@ sub test_pages_collections_and_seasons_as_tiles()
     tkEqual(seasons[1].subtitle, "1 episode")
 end sub
 
+sub test_pages_collection_of_movies_plays_them_in_order()
+    detail = {
+        id: 3, library_id: 1, title: "Dune Collection", summary: "Both parts.", automatic: true, sort: "release", smart_filter: invalid, item_count: 2,
+        poster_url: "/api/collections/3/images/poster?v=1", backdrop_url: "",
+        items: [
+            { id: 12, kind: "movie", title: "Dune", year: 2021, duration_ms: 9000000, user_state: { position_ms: 600000, watched: false } },
+            { id: 13, kind: "movie", title: "Dune: Part Two", year: 2024, duration_ms: 9900000, backdrop_url: "/api/items/13/images/backdrop?v=1" },
+            { id: 5, kind: "collection", title: "Odd" }
+        ]
+    }
+    page = pageCollection(detail, "http://nas:7539")
+    tkEqual(page.title, "Dune Collection")
+    tkEqual(page.summary, "Both parts.")
+    tkTrue(page.automatic, "from TMDB")
+    tkFalse(page.smart)
+    tkEqual(page.count, 2)
+    tkEqual(page.libraryId, 1)
+    tkEqual(page.notes, ["By release date"])
+    tkEqual(page.backdrop, "http://nas:7539/api/collections/3/images/backdrop?w=640", "the server's picture of it")
+    tkTrue(page.movies)
+    tkEqual(page.shown, 2, "titles this version shows")
+    tkEqual(page.tiles[1].title, "Dune: Part Two")
+    tkEqual(page.queue.Count(), 2)
+    tkEqual(page.queue[0].itemId, 12)
+    tkEqual(page.queue[0].startMs, 600000, "from where it was left")
+    tkEqual(page.queue[1].itemId, 13)
+    tkEqual(page.shows, [])
+    tkEqual(pageCollectionFacts(page, { name: "Movies", kind: "movies" }), "2 movies · Movies · By release date")
+    tkEqual(pageCollectionFacts(page, invalid), "2 titles · By release date", "the libraries not known yet")
+end sub
+
+sub test_pages_collection_of_shows_plays_their_next_episodes()
+    detail = {
+        id: 4, library_id: 2, title: "Prestige drama", summary: invalid, automatic: false, sort: "custom", smart_filter: "type=2&genre=Drama&unwatched=1&sort=year%3Adesc", item_count: 2,
+        backdrop_url: "/api/collections/4/images/backdrop?v=7",
+        items: [{ id: 99, kind: "show", title: "Severance" }, { id: 98, kind: "show", title: "Succession" }]
+    }
+    page = pageCollection(detail, "http://nas:7539")
+    tkFalse(page.movies)
+    tkTrue(page.smart)
+    tkEqual(page.summary, "")
+    tkEqual(page.queue, [], "shows play their next episode")
+    tkEqual(page.shows, [99, 98])
+    tkEqual(page.notes, ["Genre: Drama", "Unwatched", "Newest first"], "what its filter keeps, not its order")
+    tkEqual(page.backdrop, "http://nas:7539/api/collections/4/images/backdrop?v=7&w=640")
+    tkEqual(pageCollectionFacts(page, { name: "TV Shows", kind: "shows" }), "2 shows · TV Shows · Genre: Drama · Unwatched · Newest first")
+    empty = pageCollection({ id: 6, title: "Empty", sort: "title", item_count: 0, items: [] }, "http://nas:7539")
+    tkEqual(empty.shown, 0)
+    tkEqual(pageCollectionFacts(empty, { name: "Movies", kind: "movies" }), "0 movies · Movies · By title")
+end sub
+
+sub test_pages_smart_filters_in_words()
+    tkEqual(pageFilterNotes("type=1&genre=Comedy&unwatched=1&sort=year%3Adesc"), ["Genre: Comedy", "Unwatched", "Newest first"])
+    tkEqual(pageFilterNotes("year%3E%3E=2019&sort=movie.addedAt:desc&includeGuids=1&limit=20"), ["After 2019", "Recently added first", "At most 20"])
+    tkEqual(pageFilterNotes("resolution=4k"), ["resolution: 4k"])
+    tkEqual(pageFilterNotes("genre=Science+Fiction&year%3C%3C=2000&decade=1980&unwatched=0&inProgress=1&contentRating=PG-13&studio=A24&label=Kids"), ["Genre: Science Fiction", "Before 2000", "The 1980s", "Watched", "In progress", "Rated PG-13", "Studio: A24", "Label: Kids"])
+    tkEqual(pageFilterNotes("&&sort=titleSort"), ["By title"], "empty parts left out")
+    tkEqual(pageFilterOrder("titleSort:desc,year"), "By title, Z to A", "the first field counts")
+    tkEqual(pageFilterOrder("lastViewedAt"), "Least recently played first")
+    tkEqual(pageFilterOrder("mediaHeight:desc"), "Sorted by mediaHeight")
+    tkEqual(pageCollectionOrder("title"), "By title")
+    tkEqual(pageCollectionOrder("custom"), "Custom order")
+    tkEqual(pageCollectionOrder(invalid), "")
+end sub
+
 sub test_pages_tile_options_by_kind()
     labels = function(options as object) as object
         out = []

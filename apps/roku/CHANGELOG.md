@@ -28,6 +28,11 @@ describes how they are made.
   results, picks it.
 - Settings has Diagnostics, what this Roku tells the server it plays, and
   the open-source licences, as the other TV apps do.
+- A collection has a page of its own, as on the other TVs: its backdrop,
+  TMDB or Smart, what it holds and its summary, Play and Shuffle, then its
+  posters. Play plays a collection of movies in its order, Up Next
+  bringing on each next; a collection of shows plays a show's next
+  episode.
 
 ## [0.1.1] - 2026-11-01
 

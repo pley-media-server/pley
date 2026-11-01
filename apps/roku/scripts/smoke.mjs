@@ -3,7 +3,8 @@
 // it with the remote: sign in with the TV code and its QR code on a server
 // that requires two-step sign-in, Home, a
 // title's details, the player, the Options key, a library's grid and its
-// next page, a show's page, its episodes and a person's page, Live TV (its
+// next page, collections played (movies and a smart one of shows), a
+// show's page, its episodes and a person's page, Live TV (its
 // guide, a channel watched, the next one, the channel list, a favourite,
 // every connection in use, the Channels tab), Search, Discover (a movie
 // asked for, a show's seasons picked), the managers' Requests (Approve, a
@@ -294,6 +295,9 @@ const home = { kept: false };
 const older = { since: -1 };
 // The ready-to-watch notice's Open led to the title.
 const notice = { opened: false };
+// What Play played on a collection's page: its first movie, a show's next
+// episode.
+const collections = { movies: false, shows: false };
 
 async function walk() {
   // A cold start of brs-node can take a while.
@@ -471,6 +475,24 @@ async function walk() {
   await press("select");
   await waitFor(/^GET \/api\/libraries\/2\/collections$/, since, "a library's collections");
   shoot("library-collections");
+  // Its smart collection of shows: Play asks for the show's next episode
+  // and plays it. Back to the collections, then the tabs.
+  await press("down"); // the collections
+  since = mark();
+  await press("select");
+  await waitFor(/^GET \/api\/collections\/2$/, since, "a smart collection's page");
+  shoot("collection-smart");
+  since = mark();
+  await press("select"); // Play
+  await waitFor(/^GET \/api\/items\/99\/on-deck$/, since, "the next episode of the collection's show");
+  await waitFor(/^POST \/api\/playback$/, since, "the collection's show played");
+  collections.shows = fixture.playbacks.at(-1)?.item === 103;
+  since = mark();
+  await press("back"); // stopped, then the session closed
+  await waitFor(/^DELETE \/api\/playback\//, since, "closing the session of the collection's show");
+  await press("back"); // the library's collections
+  await settle();
+  await press("up"); // the tabs, on Collections
   await press("left"); // Library
   await press("select");
   await press("right", 2); // past Collections to the sort
@@ -503,8 +525,29 @@ async function walk() {
   await press("select");
   await waitFor(/^GET \/api\/people\/7$/, since, "a person's page");
   shoot("person");
-  // The show's page, its buttons, the library, Home: one at a time, each
-  // screen settled before the next key.
+  // Back on the show's page, its last row: the collections it is part of,
+  // whose first, of five movies, plays them in its order. Down past its
+  // buttons slides its page up to its posters, Up back to the buttons.
+  await press("back");
+  await settle();
+  await press("down", 2); // past More like this to Collections
+  since = mark();
+  await press("select");
+  await waitFor(/^GET \/api\/collections\/1$/, since, "a collection of movies");
+  shoot("collection");
+  await press("down", 2); // past Shuffle
+  await sleep(500);
+  shoot("collection-titles");
+  await press("up", 2); // Shuffle, then Play
+  since = mark();
+  await press("select"); // Play
+  await waitFor(/^POST \/api\/playback$/, since, "the collection played");
+  collections.movies = fixture.playbacks.at(-1)?.item === 1000;
+  since = mark();
+  await press("back"); // stopped, then the session closed
+  await waitFor(/^DELETE \/api\/playback\//, since, "closing the collection's session");
+  // The collection, the show's page and its buttons, the library, Home:
+  // one at a time, each screen settled before the next key.
   for (let i = 0; i < 4; i++) {
     await press("back");
     await settle();
@@ -878,6 +921,8 @@ const checks = [
   ["marked a title watched with the Options key", fixture.marks.some((m) => m.item === 103 && m.action === "watched")],
   ["asked for a show's More Like This and collections", asked(/^GET \/api\/items\/99\/related\?limit=20$/) && asked(/^GET \/api\/items\/99\/collections$/)],
   ["opened a person's page", asked(/^GET \/api\/people\/7$/)],
+  ["played a collection of movies from its first", collections.movies],
+  ["played the next episode of a smart collection's show", collections.shows],
   ["moved a playlist's first entry down one", JSON.stringify(fixture.playlistOrders[0]) === JSON.stringify([2, 1, 3])],
   ["took the entry moved out of the playlist", fixture.playlistRemoved[0] === 1],
   ["switched to another profile of the household", fixture.switched.includes(2)],

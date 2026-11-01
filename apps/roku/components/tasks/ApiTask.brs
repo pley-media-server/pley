@@ -462,9 +462,12 @@ sub apiBuild(job as object, answer as object)
         end if
         answer.data = { title: "", image: "", line: line, summary: "", shown: tiles.Count() }
     else if job.build = "collection"
-        tiles = contentTiles(data.items, server)
-        job.request.content = nodesContent(tiles)
-        answer.data = { title: httpSentence(data.title), image: "", line: fmtTitles(data.item_count), summary: httpClean(data.summary, 600, false), shown: tiles.Count() }
+        ' A collection's page: its titles as tiles, what it says of itself
+        ' and what Play plays.
+        page = pageCollection(data, server)
+        job.request.content = nodesContent(page.tiles)
+        page.Delete("tiles")
+        answer.data = page
     else if job.build = "seasons"
         seasons = contentSeasons(data.items)
         job.request.content = nodesContent(seasons)

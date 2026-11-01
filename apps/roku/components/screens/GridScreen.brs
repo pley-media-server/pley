@@ -1,7 +1,6 @@
 ' A grid of titles under a heading: a person's movies and shows (GET
-' /api/people/{id}), a collection's titles (GET /api/collections/{id}), an
-' artist's albums (GET /api/items/{id}/children), or the profile's
-' playlists (GET /api/playlists). params: { kind ("person", "collection",
+' /api/people/{id}), an artist's albums (GET /api/items/{id}/children), or
+' the profile's playlists (GET /api/playlists). params: { kind ("person",
 ' "artist", "playlists"), id, title (shown until the server answers) }.
 
 sub init()
@@ -41,13 +40,11 @@ sub load()
         uiRequest({ method: "GET", path: "/api/people/" + urlValue(params.id), build: "person" }, "onGrid")
     else if params.kind = "playlists"
         uiRequest({ method: "GET", path: "/api/playlists", build: "playlists" }, "onGrid")
-    else if params.kind = "artist"
-        ' Albums are square.
+    else
+        ' An artist's albums are square.
         m.grid.itemSize = [220, 300]
         m.grid.numRows = 3
         uiRequest({ method: "GET", path: "/api/items/" + urlValue(params.id) + "/children", build: "albums" }, "onGrid")
-    else
-        uiRequest({ method: "GET", path: "/api/collections/" + urlValue(params.id), build: "collection" }, "onGrid")
     end if
 end sub
 

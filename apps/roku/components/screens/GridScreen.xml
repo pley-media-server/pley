@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A person's movies and shows, or a collection's titles, as a grid of
-     posters under their name (and photo), what the server says of them. -->
+<!-- A person's movies and shows, an artist's albums or the playlists, as a
+     grid of posters under their name (and photo), what the server says of
+     them. -->
 <component name="GridScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
