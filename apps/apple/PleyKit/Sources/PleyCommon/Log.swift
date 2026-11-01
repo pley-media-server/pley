@@ -12,6 +12,7 @@ public enum Log {
     public static let auth = Logger(subsystem: subsystem, category: "auth")
     public static let discovery = Logger(subsystem: subsystem, category: "discovery")
     public static let data = Logger(subsystem: subsystem, category: "data")
+    public static let caps = Logger(subsystem: subsystem, category: "caps")
 
     static let subsystem = "app.pley.apple"
 }

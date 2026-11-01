@@ -9,6 +9,7 @@ below are relative to it). They are in development and not released yet.
 - [Plain HTTP and HTTPS](#plain-http-and-https)
 - [Signing in](#signing-in)
 - [Profiles](#profiles)
+- [What each device plays](#what-each-device-plays)
 - [Building and testing](#building-and-testing)
 - [Code layout](#code-layout)
 - [A server to test against](#a-server-to-test-against)
@@ -212,6 +213,82 @@ A profile that needs its password is chosen by signing in again: on
 iPhone, iPad and Mac in the browser, where the person picks it; on Apple TV
 with a new code, picking it on the consent page.
 
+## What each device plays
+
+Before playing, the apps tell the server what the device plays: a version 2
+caps report ([API.md, Version 2](API.md#version-2)), the same kind the
+Android app sends. The server decides from it whether a file plays as it
+is, is repackaged into HLS, or is converted. The report is built from what
+the system says and from a table of Apple's devices (`PleyCaps`):
+
+- **Containers**: MP4, M4V, MOV, M4A, MP3, FLAC and WAV play as they are.
+  AVPlayer opens no Matroska, so an MKV file is repackaged into HLS, its
+  video copied, whenever the device decodes it.
+- **Video**: H.264 on every device; HEVC where VideoToolbox decodes it in
+  hardware; AV1 where it does too (A17 Pro, A18 and later, M3 and later);
+  VP9 only where its hardware decoder is registered (macOS, and iOS and
+  tvOS 26.2 and later). The sizes, frame rates, levels and 10-bit come from
+  the device's class, since VideoToolbox only says whether a codec is
+  decoded in hardware:
+
+  | Class | Devices | H.264 | HEVC | AV1 | Dolby Vision |
+  |---|---|---|---|---|---|
+  | A8 | Apple TV HD | 1080p60 | no | no | no |
+  | A9 | iPhone 6s and SE, iPad 5th generation, the first iPad Pros | 4K30 | 4K30, 8-bit only | no | no |
+  | A10 | iPhone 7, iPad 6th and 7th generation | 4K30 | 4K30, 10-bit | no | level 7 |
+  | A10X | iPad Pro 2nd generation, Apple TV 4K 1st generation | 4K60 | 4K60, 10-bit | no | level 9 |
+  | A11 to A16, M1, M2 | iPhone 8 to 15, the iPads of those years, Apple TV 4K 2nd and 3rd generation, the first Apple silicon Macs | 4K60 | 4K60, 10-bit | no | level 9 |
+  | A17 Pro and later, M3 and later | iPhone 15 Pro and later, iPad mini A17 Pro, iPads with M3 or later | 4K60 | 4K60, 10-bit | 4K60, 10-bit | level 9 |
+  | Intel | Intel Macs | 4K60 | 4K60, 10-bit, where VideoToolbox decodes it | no | no |
+
+  Devices are matched by model identifier (`iPhone15,2`, `AppleTV14,1`),
+  Macs by chip. A device the table doesn't know takes the newest class when
+  its model number (a Mac's chip generation) is newer than any the table
+  has, else the A11 to A16 class's.
+  VideoToolbox can always take a codec away, never add one.
+- **HDR**: reported only when AVPlayer says the device is eligible for HDR
+  playback (`eligibleForHDRPlayback`), since an HDR-only stream doesn't open
+  on an SDR screen, and only with a 10-bit HEVC decoder. iPhone, iPad and
+  Apple TV report the HDR modes the system lists (HDR10, HLG, Dolby
+  Vision), which on Apple TV are the TV's. The Mac reports HDR10 and HLG
+  when the screen its window is on shows more than SDR's white (an XDR or
+  HDR display), and Dolby Vision too on Apple silicon. HDR10+ is never
+  reported: AVPlayer shows it as HDR10.
+- **Dolby Vision**: with a Dolby Vision screen, profiles 5 and 8 at the
+  class's level. Never profile 7, whose two layers AVPlayer doesn't decode:
+  the server makes it 8.1 for these apps, or plays its HDR10 base layer.
+- **Audio**: AAC, MP3, ALAC, FLAC, Opus, AC-3 and E-AC-3 are decoded on the
+  device; nothing is passed through, since the system decodes everything
+  and sends PCM (or Dolby Atmos in E-AC-3 on Apple TV) to a receiver.
+  TrueHD and DTS are converted by the server, to E-AC-3 5.1 when the output
+  takes surround sound. The channels are the output's: 6 with spatial
+  audio (AirPods), 2 for Bluetooth, headphones and built-in speakers, what
+  HDMI reports on Apple TV (2, 6 or 8), and the default output device's on
+  the Mac.
+- **Subtitles**: text subtitles (SRT, ASS/SSA, WebVTT, MP4 text) are left
+  to the app to draw; picture subtitles (PGS, VobSub, DVB) are burned in by
+  the server.
+- **HLS**: master playlists, a stream's several sizes (AVPlayer moves
+  between them), and fMP4 segments before MPEG-TS, which the server sends
+  these apps for every HLS stream ([API.md, fMP4 segments](API.md#fmp4-segments)):
+  Apple's players take HEVC, HDR and Dolby Vision only from fMP4.
+- **Screen and device**: the screen's size in pixels and refresh rate (on
+  Apple TV with Match Content's frame rate on, the film and TV rates it
+  switches to); the device's form (`phone`, `tablet`, `tv`, `desktop` for
+  the Mac), its model identifier and a tier (low, mid or high) from its
+  class and memory.
+
+The report is read once and again when something it depends on changes:
+the HDR the system reports (a TV switched, a display connected), the
+audio route, or on the Mac the screen the player's window moves to. A new
+report applies to the next playback.
+
+What a device reports can be seen without playing anything: on a Mac,
+`swift run --package-path apps/apple/PleyKit pley-apple-check --print-caps`
+prints what its probe read and the report built from it; a debug build of
+the apps logs the same once, under the subsystem `app.pley.apple`, category
+`caps`. Neither holds personal data.
+
 ## Building and testing
 
 Requirements: a Mac with Xcode 16 or later (the commands below were checked
@@ -267,6 +344,23 @@ to a fixture server the tests start on 127.0.0.1 (two of them where a
 second origin is needed), over a real socket, so they need no Pley server
 and no network beyond this device.
 
+The caps tests build each recorded device class's report from its probe
+(`PleyKit/Tests/PleyCapsTests/Probes`) and compare it with the server's
+fixture of the same name (`apps/server/tests/fixtures/caps/apple_<class>_v2.json`),
+which the server's tests decide from (`apps/server/tests/playback_apple.rs`):
+the report the app sends and the server's answer to it can't drift apart.
+After a change to what the apps report, rewrite the fixtures and check the
+server's answers:
+
+```sh
+PLEY_UPDATE_CAPS_FIXTURES=1 swift test --package-path apps/apple/PleyKit --filter RecordedDevicesTests
+cargo test -p pley-server --test playback_apple
+```
+
+The recorded probes follow Apple's published specifications; a device's
+own reading, from `--print-caps` or a debug build's log, replaces its
+class's when one is recorded.
+
 One test finds a server by Bonjour for real: a fixture server announces
 `_pley._tcp` on the Mac's loopback interface, and `LocalServers` must find
 and confirm it. It needs mDNSResponder and local network access, so it
@@ -294,14 +388,15 @@ PleyKit's modules, each depending only on those before it:
 
 | Module | What |
 |---|---|
-| `PleyModel` | The server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read |
+| `PleyModel` | The server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read; the caps report the apps send |
 | `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, Bonjour (browsing, TXT records, resolving), logging |
 | `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), and the typed API calls |
 | `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the scope guard and profile switching |
 | `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, and pictures made small and cached |
+| `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
 | `PleyScreens` | What the screens show and do, shared by both apps without any views: the route between screens, the servers, signing in (with the QR code, from Core Image), profiles and Home, as `ObservableObject`s |
 | `PleyTesting` | What the tests share: the fixtures, and a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens and a journal of the requests it got) |
-| `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)) |
+| `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
 
 The rules: modules depend only downwards; the two apps never import each
 other's code, and their views hold no logic of their own beyond layout (it

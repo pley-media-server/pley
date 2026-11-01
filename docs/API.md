@@ -1948,7 +1948,7 @@ removed or reordered (`400`).
     audio_codecs: string[];       // ["aac","mp3","opus","flac","vorbis"]
     hdr?: boolean;                // shows HDR10 and HLG without tone mapping
     dolby_vision?: boolean;       // decodes Dolby Vision (needed for profile 5)
-    // Version 2 (the Android app); every field optional. Codec names are ffprobe's.
+    // Version 2 (the Android and Apple apps); every field optional. Codec names are ffprobe's.
     caps_version?: 2;
     video?: {                     // every video decoder; a stream plays when one entry takes it
       codec: string;              // "h264", "hevc", "vp9", "av1"…

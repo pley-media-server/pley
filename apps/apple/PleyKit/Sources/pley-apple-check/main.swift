@@ -4,12 +4,17 @@
 //
 //   pley-apple-check --server http://127.0.0.1:7712 --client tvos|ios --admin <username>
 //
+// `pley-apple-check --print-caps` prints instead what this Mac's probe read
+// and the caps report the Apple apps would send from it, so a Mac's device
+// class can be recorded (PleyKit/Tests/PleyCapsTests/Probes).
+//
 // The administrator's password comes from PLEY_CHECK_PASSWORD. Nothing it
 // prints holds a token, a code or the password.
 
 #if os(macOS)
 import Foundation
 import PleyAuth
+import PleyCaps
 import PleyCommon
 import PleyModel
 import PleyNetwork
@@ -82,7 +87,26 @@ struct Admin {
     }
 }
 
+/// This Mac's probe input, its report and the report in words. The input
+/// holds no personal data: the model, the chip, the screen and the outputs.
+func printCaps() async throws {
+    let input = await SystemCapsProbe().read(screen: nil)
+    let snapshot = CapsBuilder.build(input)
+    let encoder = JSONEncoder()
+    encoder.keyEncodingStrategy = .convertToSnakeCase
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    say("probe input:")
+    say(String(decoding: try encoder.encode(input), as: UTF8.self))
+    say("caps report (device class \(snapshot.deviceClass)):")
+    say(String(decoding: try encoder.encode(snapshot.report), as: UTF8.self))
+    snapshot.lines.forEach(say)
+}
+
 func run() async throws {
+    if Array(CommandLine.arguments.dropFirst()) == ["--print-caps"] {
+        try await printCaps()
+        return
+    }
     var options: [String: String] = [:]
     var arguments = CommandLine.arguments.dropFirst()
     while let name = arguments.popFirst() {

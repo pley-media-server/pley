@@ -1,0 +1,99 @@
+{
+  "audio_channels": 2,
+  "audio_codecs": [
+    "aac",
+    "mp3",
+    "alac",
+    "flac",
+    "opus",
+    "ac3",
+    "eac3"
+  ],
+  "audio_decode": [
+    "aac",
+    "mp3",
+    "alac",
+    "flac",
+    "opus",
+    "ac3",
+    "eac3"
+  ],
+  "audio_passthrough": [],
+  "audio_track_switching": true,
+  "caps_version": 2,
+  "containers": [
+    "mp4",
+    "m4v",
+    "mov",
+    "m4a",
+    "mp3",
+    "flac",
+    "wav"
+  ],
+  "device": {
+    "fire_tv": false,
+    "form": "desktop",
+    "model": "MacBookPro16,1",
+    "tier": "high"
+  },
+  "display": {
+    "height": 1920,
+    "refresh_rates": [
+      60
+    ],
+    "width": 3072
+  },
+  "dolby_vision": false,
+  "dolby_vision_profiles": [],
+  "hdr": false,
+  "hdr_types": [],
+  "hls": {
+    "master_playlist": true,
+    "segments": [
+      "fmp4",
+      "ts"
+    ],
+    "variants": true
+  },
+  "subtitle_codecs": [
+    "subrip",
+    "ass",
+    "ssa",
+    "webvtt",
+    "mov_text"
+  ],
+  "video": [
+    {
+      "codec": "h264",
+      "hardware": true,
+      "max_bit_depth": 8,
+      "max_fps": 60,
+      "max_height": 2160,
+      "max_level": 52,
+      "max_width": 3840,
+      "profiles": [
+        "Constrained Baseline",
+        "Baseline",
+        "Main",
+        "High"
+      ]
+    },
+    {
+      "codec": "hevc",
+      "hardware": true,
+      "max_bit_depth": 10,
+      "max_fps": 60,
+      "max_height": 2160,
+      "max_level": 153,
+      "max_width": 3840,
+      "profiles": [
+        "Main",
+        "Main 10"
+      ]
+    }
+  ],
+  "video_codecs": [
+    "h264",
+    "hevc"
+  ]
+}

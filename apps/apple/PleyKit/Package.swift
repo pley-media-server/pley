@@ -14,6 +14,7 @@ let package = Package(
         .library(name: "PleyNetwork", targets: ["PleyNetwork"]),
         .library(name: "PleyAuth", targets: ["PleyAuth"]),
         .library(name: "PleyData", targets: ["PleyData"]),
+        .library(name: "PleyCaps", targets: ["PleyCaps"]),
         .library(name: "PleyScreens", targets: ["PleyScreens"]),
         .library(name: "PleyTesting", targets: ["PleyTesting"]),
         .executable(name: "pley-apple-check", targets: ["pley-apple-check"]),
@@ -24,12 +25,14 @@ let package = Package(
         .target(name: "PleyNetwork", dependencies: ["PleyModel", "PleyCommon"]),
         .target(name: "PleyAuth", dependencies: ["PleyModel", "PleyCommon", "PleyNetwork"]),
         .target(name: "PleyData", dependencies: ["PleyModel", "PleyCommon", "PleyNetwork", "PleyAuth"]),
+        // What this device plays: the caps report sent with playback requests.
+        .target(name: "PleyCaps", dependencies: ["PleyModel", "PleyCommon"]),
         // The screens' state, shared by the iPhone, iPad and Mac app and the Apple TV app; no views.
         .target(name: "PleyScreens", dependencies: ["PleyData", "PleyAuth", "PleyNetwork", "PleyModel", "PleyCommon"]),
         .target(name: "PleyTesting", dependencies: ["PleyModel", "PleyCommon"]),
         // Signs in to a real, disposable server (scripts/check-server.sh). macOS only.
-        .executableTarget(name: "pley-apple-check", dependencies: ["PleyData", "PleyAuth", "PleyNetwork", "PleyModel",
-                                                                   "PleyCommon"]),
+        .executableTarget(name: "pley-apple-check", dependencies: ["PleyCaps", "PleyData", "PleyAuth", "PleyNetwork",
+                                                                   "PleyModel", "PleyCommon"]),
         .testTarget(name: "PleyModelTests", dependencies: ["PleyModel", "PleyTesting"]),
         .testTarget(name: "PleyCommonTests", dependencies: ["PleyCommon", "PleyTesting"]),
         .testTarget(name: "PleyNetworkTests", dependencies: ["PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),
@@ -37,6 +40,8 @@ let package = Package(
                     dependencies: ["PleyAuth", "PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),
         .testTarget(name: "PleyDataTests",
                     dependencies: ["PleyData", "PleyAuth", "PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),
+        .testTarget(name: "PleyCapsTests", dependencies: ["PleyCaps", "PleyModel", "PleyCommon", "PleyTesting"],
+                    exclude: ["Probes"]),
         .testTarget(name: "PleyScreensTests",
                     dependencies: ["PleyScreens", "PleyData", "PleyAuth", "PleyNetwork", "PleyModel", "PleyCommon",
                                    "PleyTesting"]),
