@@ -312,6 +312,36 @@ public class StateTests
     }
 
     [Fact]
+    public async Task A_profile_switch_starts_the_events_over_and_only_when_they_are_followed()
+    {
+        var store = new MemoryKeyValue();
+        var scheduler = new FakeScheduler();
+        var server = new FakeServer();
+        server.On("GET", Home + "/api/auth/me", 200, MeJson);
+        server.On("GET", Home + "/api/libraries", 200, "[]");
+        server.On("GET", Home + "/api/oauth/profiles", 200, "[]");
+        server.On("GET", Home + "/api/hubs/home", 200, @"{""hubs"":[]}");
+        var connections = new List<CancellationToken>();
+        var state = State(store, server, scheduler, (url, headers, onOpen, onText, cancel) =>
+        {
+            connections.Add(cancel);
+            onOpen();
+            return new TaskCompletionSource<EventEnd>().Task;
+        });
+        SignIn(state, store, scheduler);
+        await state.Switched(2);
+        Assert.Empty(connections);
+        state.Listen(true);
+        await Task.Delay(50);
+        Assert.Single(connections);
+        await state.Switched(3);
+        await Task.Delay(50);
+        Assert.Equal(2, connections.Count);
+        Assert.True(connections[0].IsCancellationRequested);
+        Assert.False(connections[1].IsCancellationRequested);
+    }
+
+    [Fact]
     public async Task Gathers_each_librarys_changes_apart_and_follows_its_scans()
     {
         var store = new MemoryKeyValue();

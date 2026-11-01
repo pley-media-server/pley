@@ -79,18 +79,20 @@ class App : NUIApplication
         Profile.Took("app: the first page", first);
     }
 
-    /// <summary>The app went to the background: what plays lets go (Live TV's connection).</summary>
+    /// <summary>The app went to the background: what plays lets go (Live TV's connection), and the server's events stop.</summary>
     protected override void OnPause()
     {
         base.OnPause();
         shell.Visible(false);
+        state.Listen(false);
     }
 
-    /// <summary>Back in front: what was let go plays again.</summary>
+    /// <summary>Back in front: what was let go plays again, and the server's events are followed again when signed in.</summary>
     protected override void OnResume()
     {
         base.OnResume();
         shell.Visible(true);
+        state.Listen(true);
     }
 
     protected override void OnTerminate()
@@ -238,13 +240,15 @@ class App : NUIApplication
         tv.Follow(liveEntry);
         // Now Playing in the rail while music has a queue.
         tv.Follow(music.Now);
-        // Back from the player: Home asks again, for the new resume point and Continue Watching.
+        // While the player is on top, Home and the pages wait; back from it, they ask again (its reports
+        // moved resume points and watched marks), and the item details kept go.
         tv.Play = request =>
         {
             // A video takes the TV's one media pipeline: the music pauses and lets go of its session, keeping its place.
             music.YieldToVideo();
             var opened = Profile.Start();
-            new PlayerScreen(shell, state, request, reporter, images, gate, () => _ = state.LoadHome()).Show();
+            state.HoldRefresh(true);
+            new PlayerScreen(shell, state, request, reporter, images, gate, () => state.HoldRefresh(false)).Show();
             Profile.Took("player shown", opened);
         };
         Profile.Took("app: the shell and its rail", made);
@@ -256,6 +260,8 @@ class App : NUIApplication
         _ = state.LoadAccount();
         var home = state.LoadHome();
         Profile.Ends("Home's data", home);
+        // Signed in now (at start, after a sign-in or a profile chosen): the server's events from here.
+        state.Listen(true);
     }
 
     /// <summary>Home: a tile opens its item's page, an artist's or album's their music page, a track its album.</summary>

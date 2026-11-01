@@ -419,6 +419,12 @@ public sealed class AppState
         ForgetItems();
         profile = to;
         if (to != null && Server.Value != null) KeepProfile(Server.Value, to.Value);
+        // The events start over with the new profile's token, so none of the last one's come.
+        if (events?.Running == true)
+        {
+            events.Stop();
+            events.Start();
+        }
         ShowSaved();
         await LoadAccount();
         _ = LoadHome();

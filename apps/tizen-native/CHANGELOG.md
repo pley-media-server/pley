@@ -198,3 +198,7 @@ It has no releases yet: it is built and installed by hand
   more work after each seek or pause.
 - Signing out of the native app goes back to signing in each time, also
   after signing in again to the same server.
+- The native app follows the server's events while it shows, as the other
+  apps do: its pages change with what changes on the server and on other
+  devices, and Home and the libraries show their scans. Back from a film,
+  its page has the new resume point and watched mark.
