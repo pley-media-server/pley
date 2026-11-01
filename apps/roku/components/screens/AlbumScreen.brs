@@ -96,11 +96,13 @@ sub onTracks(event as object)
     end if
 end sub
 
-' The album from its track at (shuffled: in any order, that one first).
+' The album from its track at, or shuffled: from any track, the others
+' after it in a random order. The music player keeps the album's order
+' for Previous and Stop shuffling.
 sub play(at as integer, shuffled as boolean)
-    queue = pageQueueFrom(m.queue, at, shuffled)
-    if queue.Count() = 0 then return
-    m.global.music.play = { queue: queue, at: 0 }
+    if m.queue.Count() = 0 then return
+    if shuffled then at = Rnd(m.queue.Count()) - 1
+    m.global.music.play = { queue: m.queue, at: at, shuffled: shuffled }
     uiNavigate({ to: "nowPlaying" })
 end sub
 

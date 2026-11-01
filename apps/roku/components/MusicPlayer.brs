@@ -4,7 +4,9 @@
 ' is), reports progress about every 10 s, on pause and as "stopped" when
 ' it ends or another starts, and its session is closed then. A track that
 ' doesn't play as it is plays again converted, once; one that doesn't play
-' at all is passed over. The end of the queue stops it.
+' at all is passed over. The end of the queue stops it. The queue keeps
+' the order it was given in (lib/Music.brs), so Stop shuffling puts it
+' back.
 
 sub init()
     m.audio = m.top.findNode("audio")
@@ -16,8 +18,7 @@ sub init()
     m.top.observeField("jump", "onJump")
     m.global.session.observeFieldScoped("accessToken", "onToken")
     m.clock = CreateObject("roTimespan")
-    m.queue = []
-    m.at = 0
+    m.queue = musicQueue([], 0, false)
     ' Which opening the answers belong to, its session and details, how it
     ' was asked for ("auto", or "transcode" once the file didn't play), and
     ' whether it has played.
@@ -39,38 +40,37 @@ sub onPlay()
     if request = invalid or GetInterface(request.queue, "ifArray") = invalid or request.queue.Count() = 0 then return
     ' The track playing ends before the new queue replaces it.
     finishTrack()
-    m.queue = request.queue
+    m.queue = musicQueue(request.queue, Int(httpNumber(request.at, 0)), httpTrue(request.shuffled))
     showQueue()
-    at = Int(httpNumber(request.at, 0))
-    if at < 0 or at >= m.queue.Count() then at = 0
     m.top.message = ""
-    playTrack(at, "auto")
+    playTrack(m.queue.at, "auto")
 end sub
 
 ' The queue as Now Playing lists it.
 sub showQueue()
-    m.top.queue = m.queue
-    m.top.queueSize = m.queue.Count()
+    m.top.queue = musicOrder(m.queue)
+    m.top.queueSize = m.queue.order.Count()
+    m.top.shuffled = m.queue.shuffled
     m.top.queueId = m.top.queueId + 1
 end sub
 
 ' A track of Up next: it plays, and the queue goes on from it.
 sub onJump()
     at = m.top.jump
-    if at >= 0 and at < m.queue.Count() then playTrack(at, "auto")
+    if at >= 0 and at < m.queue.order.Count() then playTrack(at, "auto")
 end sub
 
 ' The track at, from its start; its session and its details are asked for
 ' together (the details say the file's container).
 sub playTrack(at as integer, mode as string)
     finishTrack()
-    m.at = at
+    m.queue.at = at
     m.mode = mode
     m.attempt = m.attempt + 1
     m.info = invalid
     m.detail = invalid
     m.played = false
-    track = m.queue[at]
+    track = musicTrackAt(m.queue, at)
     m.top.track = track
     m.top.at = at
     m.top.positionMs = 0
@@ -114,7 +114,7 @@ end sub
 
 sub begin()
     if m.info = invalid or m.detail = invalid then return
-    track = m.queue[m.at]
+    track = musicTrackAt(m.queue, m.queue.at)
     url = httpString(m.info.url)
     if Left(url, 1) = "/" then url = m.global.session.server + url
     content = CreateObject("roSGNode", "ContentNode")
@@ -151,7 +151,7 @@ sub onState(event as object)
     else if state = "error"
         ' The file as it is doesn't play on this Roku: converted, once.
         if not m.played and m.mode <> "transcode" and httpString(m.info.method) <> "transcode"
-            playTrack(m.at, "transcode")
+            playTrack(m.queue.at, "transcode")
         else
             passOver("This track can't be played on this Roku.")
         end if
@@ -167,7 +167,7 @@ end sub
 
 sub onControl()
     action = m.top.control
-    if m.queue.Count() = 0 then return
+    if m.queue.order.Count() = 0 then return
     if action = "toggle"
         if m.top.state = "paused"
             action = "resume"
@@ -182,15 +182,20 @@ sub onControl()
     else if action = "next"
         nextTrack()
     else if action = "previous"
-        playTrack(musicPreviousAt(m.at, m.top.positionMs), "auto")
+        playTrack(musicPreviousAt(m.queue.at, m.top.positionMs), "auto")
+    else if action = "shuffle" or action = "unshuffle"
+        ' The track plays on; its place in the new order is told after it.
+        musicShuffle(m.queue, action = "shuffle")
+        showQueue()
+        m.top.at = m.queue.at
     else if action = "stop"
         stopAll()
     end if
 end sub
 
 sub nextTrack()
-    if m.at + 1 < m.queue.Count()
-        playTrack(m.at + 1, "auto")
+    if m.queue.at + 1 < m.queue.order.Count()
+        playTrack(m.queue.at + 1, "auto")
     else
         stopAll()
     end if
@@ -198,7 +203,7 @@ end sub
 
 ' A track that can't be played: said, and the next one plays.
 sub passOver(message as string)
-    m.top.message = m.queue[m.at].title + ": " + message
+    m.top.message = musicTrackAt(m.queue, m.queue.at).title + ": " + message
     nextTrack()
 end sub
 
@@ -206,7 +211,7 @@ sub stopAll()
     finishTrack()
     m.attempt = m.attempt + 1
     m.audio.control = "stop"
-    m.queue = []
+    m.queue = musicQueue([], 0, false)
     showQueue()
     m.top.state = "stopped"
 end sub
@@ -223,7 +228,7 @@ end sub
 sub report(state as string)
     if m.sessionId = "" then return
     m.lastReportAt = m.clock.TotalMilliseconds()
-    track = m.queue[m.at]
+    track = musicTrackAt(m.queue, m.queue.at)
     uiRequest({ method: "POST", path: "/api/items/" + urlValue(track.itemId) + "/progress", json: playerProgress(m.top.positionMs, m.top.durationMs, state, m.sessionId) }, "")
 end sub
 

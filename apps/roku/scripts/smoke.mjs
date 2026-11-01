@@ -302,8 +302,18 @@ const collections = { movies: false, shows: false };
 const person = { opened: false };
 // An artist's Play: each album's tracks asked for, the first played.
 const artistPlayed = { gathered: false, first: false };
-// Now Playing: what OK on Up next played.
-const music = { upNext: null };
+// Now Playing: what OK on Up next played, and Previous once shuffled and
+// once in order again.
+const music = { upNext: null, shuffled: null, unshuffled: null };
+
+// The track OK plays: the next one the server is asked to play.
+async function playedBy(what) {
+  const since = mark();
+  const before = fixture.playbacks.length;
+  await press("select");
+  await waitFor(/^POST \/api\/playback$/, since, what);
+  return fixture.playbacks[before]?.item ?? null;
+}
 
 async function walk() {
   // A cold start of brs-node can take a while.
@@ -568,8 +578,10 @@ async function walk() {
   }
   // Music: the artist's page, whose Play gathers every album's tracks for
   // the music player; Now Playing stopped. Then their older album, its
-  // tracks played; the first of Now Playing's Up next played, Now Playing
-  // stopped, then Back to Home.
+  // tracks played; the first of Now Playing's Up next played, then Shuffle,
+  // which puts the track playing first (Previous plays it again), and Stop
+  // shuffling, the album's order again (Previous plays the one before). Now
+  // Playing stopped, then Back to Home.
   await openFromMenu(4, /^GET \/api\/libraries\/3\/items\?.*offset=0/, "Music");
   shoot("music");
   since = mark();
@@ -601,14 +613,20 @@ async function walk() {
   await press("down"); // Up next
   await sleep(300);
   shoot("now-playing-up-next");
-  since = mark();
-  const played = fixture.playbacks.length;
-  await press("select"); // its first track
-  await waitFor(/^POST \/api\/playback$/, since, "a track of Up next played");
-  music.upNext = fixture.playbacks[played]?.item ?? null;
+  music.upNext = await playedBy("a track of Up next played");
   await press("up"); // the buttons, on Pause
+  await press("left", 2); // Shuffle
+  await press("select");
+  await sleep(300);
+  shoot("now-playing-shuffled");
+  await press("right"); // Previous
+  music.shuffled = await playedBy("Previous, shuffled");
+  await press("left"); // Stop shuffling
+  await press("select");
+  await press("right"); // Previous
+  music.unshuffled = await playedBy("Previous, in the album's order");
   since = mark();
-  await press("right", 2); // Stop: back to the album
+  await press("right", 3); // Stop
   await press("select");
   await waitFor(/^DELETE \/api\/playback\//, since, "the track's session closed");
   for (let i = 0; i < 3; i++) {
@@ -990,6 +1008,8 @@ const checks = [
   ["played every track of an artist, each album's asked for", artistPlayed.gathered && artistPlayed.first],
   ["played an album's tracks with the music player", fixture.playbacks.some((p) => p.item === 5201) && fixture.progress.some((p) => p.item >= 5201 && p.item <= 5203)],
   ["played the track after the one playing from Now Playing's Up next", music.upNext === 5202],
+  ["shuffled Now Playing's queue, the track playing first", music.shuffled === 5202],
+  ["put the album's order back with Stop shuffling", music.unshuffled === 5201],
   ["played a playlist from its top, the next entry to come", fixture.playbacks.some((p) => p.item === 101)],
   ["searched", asked(/^GET \/api\/search\?/)],
   ["showed Live TV's guide, its programmes for the channels in view", fixture.liveGuides.length > 0 && fixture.liveGuides.every((g) => g.ids.length > 0 && g.ids.length <= 50)],

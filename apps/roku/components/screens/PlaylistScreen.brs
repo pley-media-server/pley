@@ -109,14 +109,19 @@ end sub
 ' Plays the playlist from its entry at (shuffled: in any order, that one
 ' first), Up Next bringing on each next one.
 sub play(at as integer, shuffled as boolean)
-    queue = pageQueueFrom(m.playlist.queue, at, shuffled)
-    if queue.Count() = 0 then return
     if m.playlist.kind = "audio"
-        ' Tracks: the music player, and Now Playing.
-        m.global.music.play = { queue: queue, at: 0 }
+        ' Tracks: the music player, which keeps the playlist's order for
+        ' Previous and Stop shuffling (shuffled, it starts anywhere), and
+        ' Now Playing.
+        tracks = m.playlist.queue
+        if tracks.Count() = 0 then return
+        if shuffled then at = Rnd(tracks.Count()) - 1
+        m.global.music.play = { queue: tracks, at: at, shuffled: shuffled }
         uiNavigate({ to: "nowPlaying" })
         return
     end if
+    queue = pageQueueFrom(m.playlist.queue, at, shuffled)
+    if queue.Count() = 0 then return
     uiNavigate({ to: "player", params: { itemId: queue[0].itemId, startMs: queue[0].startMs, queue: queue } })
 end sub
 

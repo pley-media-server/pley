@@ -1,9 +1,10 @@
 ' Now Playing: what the music player (m.global.music) plays, and Up next,
 ' the tracks after it: OK on one plays it, and the queue goes on from
-' there. The remote's play pauses or goes on, fast forward and rewind go
-' to the next track or back. Down goes from the buttons to Up next, Up
-' from its first track back. Its fields are followed only while this
-' screen shows.
+' there. Shuffle plays the other tracks after this one in a random order;
+' Stop shuffling puts the order back. The remote's play pauses or goes on,
+' fast forward and rewind go to the next track or back. Down goes from the
+' buttons to Up next, Up from its first track back. Its fields are
+' followed only while this screen shows.
 
 sub init()
     m.backdrop = m.top.findNode("backdrop")
@@ -27,8 +28,8 @@ sub init()
     m.queueId = -1
     m.rows = CreateObject("roSGNode", "ContentNode")
     m.from = -1
-    showButtons("Pause")
-    m.buttons.focusIndex = 1
+    showButtons()
+    m.buttons.focusIndex = 2
     m.buttons.observeField("chosen", "onButton")
     m.upNext.observeField("itemSelected", "onUpNext")
     m.top.observeField("active", "onActive")
@@ -38,7 +39,7 @@ sub onActive()
     music = m.global.music
     if not m.top.active
         if m.watching
-            for each field in ["track", "at", "state", "positionMs", "message"]
+            for each field in ["track", "at", "state", "shuffled", "positionMs", "message"]
                 music.unobserveFieldScoped(field)
             end for
             m.watching = false
@@ -49,6 +50,7 @@ sub onActive()
         music.observeFieldScoped("track", "onTrack")
         music.observeFieldScoped("at", "onAt")
         music.observeFieldScoped("state", "onMusicState")
+        music.observeFieldScoped("shuffled", "showButtons")
         music.observeFieldScoped("positionMs", "onPosition")
         music.observeFieldScoped("message", "onMessage")
         m.watching = true
@@ -104,27 +106,30 @@ sub onAt()
     if not shown and m.upNext.hasFocus() then m.buttons.setFocus(true)
 end sub
 
-' Stopped (the queue played out, or Stop), the screen goes; paused, the
-' button says Play.
+' Stopped (the queue played out, or Stop), the screen goes.
 sub onMusicState()
-    state = m.global.music.state
-    if state = "stopped"
+    if m.global.music.state = "stopped"
         if m.top.active then uiNavigate({ back: true })
         return
     end if
-    label = "Pause"
-    if state = "paused" then label = "Play"
-    showButtons(label)
+    showButtons()
 end sub
 
-' Previous, Pause (or Play), Next and Stop side by side.
-sub showButtons(toggle as string)
-    labels = ["Previous", toggle, "Next", "Stop"]
+' Shuffle (or Stop shuffling), Previous, Pause (or Play, paused), Next and
+' Stop side by side, each wide enough for either of its words.
+sub showButtons()
+    music = m.global.music
+    shuffle = "Shuffle"
+    if music.shuffled then shuffle = "Stop shuffling"
+    toggle = "Pause"
+    if music.state = "paused" then toggle = "Play"
+    labels = [shuffle, "Previous", toggle, "Next", "Stop"]
     if FormatJson(labels) = FormatJson(m.labels) then return
     m.labels = labels
+    widths = [300, 220, 180, 160, 160]
     chips = []
-    for each label in labels
-        chips.Push({ label: label, width: 210 })
+    for i = 0 to labels.Count() - 1
+        chips.Push({ label: labels[i], width: widths[i] })
     end for
     m.buttons.chips = chips
 end sub
@@ -144,8 +149,11 @@ sub onMessage()
 end sub
 
 sub onButton(event as object)
-    actions = ["previous", "toggle", "next", "stop"]
-    m.global.music.control = actions[event.getData()]
+    music = m.global.music
+    shuffle = "shuffle"
+    if music.shuffled then shuffle = "unshuffle"
+    actions = [shuffle, "previous", "toggle", "next", "stop"]
+    music.control = actions[event.getData()]
 end sub
 
 sub onUpNext(event as object)

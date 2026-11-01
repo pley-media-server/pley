@@ -180,7 +180,9 @@ sub askAlbumTracks()
 end sub
 
 ' An album's tracks came: the next album is asked for, or, the last in,
-' the music player plays them all (shuffled: in any order, from any).
+' the music player plays them all (shuffled: from any track, the others
+' after it in a random order; the music player keeps their order for
+' Previous and Stop shuffling).
 sub onAlbumTracks(event as object)
     gathering = m.gathering
     spec = event.getRoSGNode().spec
@@ -210,7 +212,7 @@ sub onAlbumTracks(event as object)
     end if
     at = 0
     if gathering.shuffled then at = Rnd(tracks.Count()) - 1
-    m.global.music.play = { queue: pageQueueFrom(tracks, at, gathering.shuffled), at: 0 }
+    m.global.music.play = { queue: tracks, at: at, shuffled: gathering.shuffled }
     uiNavigate({ to: "nowPlaying" })
 end sub
 

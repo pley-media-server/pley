@@ -34,6 +34,72 @@ sub test_music_previous_goes_back_or_to_the_start()
     tkEqual(musicPreviousAt(0, 1000), 0)
 end sub
 
+' Ten tracks, told apart by their itemId (0 to 9).
+function musicTestTracks() as object
+    tracks = []
+    for i = 0 to 9
+        tracks.Push({ itemId: i, title: "Song " + urlValue(i) })
+    end for
+    return tracks
+end function
+
+function musicTestIds(queue as object) as object
+    ids = []
+    for each track in musicOrder(queue)
+        ids.Push(track.itemId)
+    end for
+    return ids
+end function
+
+sub test_music_queue_plays_in_the_order_given()
+    queue = musicQueue(musicTestTracks(), 3, false)
+    tkEqual(queue.at, 3)
+    tkFalse(queue.shuffled)
+    tkEqual(musicTrackAt(queue, queue.at).itemId, 3)
+    tkEqual(musicTestIds(queue), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    tkEqual(musicQueue(musicTestTracks(), 12, false).at, 0, "a place it hasn't: the first")
+    empty = musicQueue([], 0, true)
+    tkEqual(empty.order.Count(), 0)
+    musicShuffle(empty, true)
+    tkFalse(empty.shuffled, "nothing to shuffle")
+end sub
+
+sub test_music_shuffle_keeps_the_track_playing_first()
+    queue = musicQueue(musicTestTracks(), 3, false)
+    musicShuffle(queue, true)
+    tkTrue(queue.shuffled)
+    tkEqual(queue.at, 0, "the track playing comes first")
+    tkEqual(musicTrackAt(queue, 0).itemId, 3)
+    ids = musicTestIds(queue)
+    ids.Sort()
+    tkEqual(ids, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], "every track once")
+    ' Nine tracks shuffled five times: one of them is out of order.
+    moved = false
+    for attempt = 1 to 5
+        again = musicQueue(musicTestTracks(), 0, true)
+        if FormatJson(musicTestIds(again)) <> FormatJson([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) then moved = true
+    end for
+    tkTrue(moved, "the others in a random order")
+
+    ' Stop shuffling: the order given, at the track playing.
+    queue.at = 4
+    playing = musicTrackAt(queue, 4).itemId
+    musicShuffle(queue, false)
+    tkFalse(queue.shuffled)
+    tkEqual(musicTestIds(queue), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    tkEqual(queue.at, playing)
+    tkEqual(musicTrackAt(queue, queue.at).itemId, playing)
+end sub
+
+sub test_music_queue_shuffled_from_the_start()
+    queue = musicQueue(musicTestTracks(), 6, true)
+    tkTrue(queue.shuffled)
+    tkEqual(queue.at, 0)
+    tkEqual(musicTrackAt(queue, 0).itemId, 6, "the track chosen first")
+    queue = musicQueue([{ itemId: 7 }, { itemId: 7 }], 1, true)
+    tkEqual(queue.order, [1, 0], "the same track twice: places tell them apart")
+end sub
+
 sub test_music_up_next_is_what_follows_the_track_playing()
     tracks = []
     for i = 1 to 4

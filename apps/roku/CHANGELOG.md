@@ -44,6 +44,9 @@ describes how they are made.
   the Roku's keyboard; the new playlist opens.
 - Now Playing lists Up next, the tracks after the one playing, as the other
   apps do; OK on one plays it.
+- Now Playing has Shuffle, and Stop shuffling puts the album's or
+  playlist's order back. An album or a music playlist played from a track
+  plays whole, so Previous goes back past where it started.
 
 ## [0.1.1] - 2026-11-01
 

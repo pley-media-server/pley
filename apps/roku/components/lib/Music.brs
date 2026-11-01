@@ -1,5 +1,5 @@
-' Music: an album's or a playlist's tracks as the music player and its
-' lists know them, and how Roku's Audio node plays one (docs/API.md,
+' Music: an album's or a playlist's tracks as the music player, its queue
+' and its lists know them, and how Roku's Audio node plays one (docs/API.md,
 ' "Playback"): a session for each track, the file as it is when the Roku
 ' decodes it, else a conversion.
 
@@ -155,6 +155,63 @@ function musicStreamFormat(info as object, detail as dynamic) as string
     formats = { mp3: "mp3", flac: "flac", m4a: "mp4", mp4: "mp4", mov: "mp4", aac: "es.aac-adts", wav: "wav", mka: "mka", wma: "wma" }
     if formats.DoesExist(container) then return formats[container]
     return "mp3"
+end function
+
+' The music player's queue: the tracks as given, the order they play in
+' (their places among the tracks), and where it is in that order (at).
+' The same track may be in it twice: places, not ids, say which plays.
+' shuffled: in a random order, the track at first.
+function musicQueue(tracks as object, at as integer, shuffled as boolean) as object
+    order = []
+    for i = 0 to tracks.Count() - 1
+        order.Push(i)
+    end for
+    if at < 0 or at >= tracks.Count() then at = 0
+    queue = { tracks: tracks, order: order, at: at, shuffled: false }
+    if shuffled then musicShuffle(queue, true)
+    return queue
+end function
+
+' Shuffle: the track playing first, the others after it in a random
+' order. Stop shuffling: the order given again, at the same track.
+sub musicShuffle(queue as object, shuffled as boolean)
+    count = queue.order.Count()
+    if count = 0 or shuffled = queue.shuffled then return
+    playing = queue.order[queue.at]
+    order = []
+    for i = 0 to count - 1
+        order.Push(i)
+    end for
+    if shuffled
+        order[playing] = 0
+        order[0] = playing
+        ' Fisher-Yates over all but the first.
+        for i = count - 1 to 2 step -1
+            j = Rnd(i)
+            other = order[i]
+            order[i] = order[j]
+            order[j] = other
+        end for
+        queue.at = 0
+    else
+        queue.at = playing
+    end if
+    queue.order = order
+    queue.shuffled = shuffled
+end sub
+
+' The track at a place of the queue's order.
+function musicTrackAt(queue as object, at as integer) as object
+    return queue.tracks[queue.order[at]]
+end function
+
+' The queue's tracks in the order they play.
+function musicOrder(queue as object) as object
+    tracks = []
+    for each place in queue.order
+        tracks.Push(queue.tracks[place])
+    end for
+    return tracks
 end function
 
 ' Where "previous" goes: the track's start once it has played 3 s, else
