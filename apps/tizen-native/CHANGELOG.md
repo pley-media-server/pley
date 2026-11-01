@@ -184,3 +184,5 @@ It has no releases yet: it is built and installed by hand
   as they were rather than flashing to their titles and fading in again.
 - Holding Up or Down in the native app's libraries slides the posters
   under a highlight that stays still, as rows do for Left and Right.
+- The native app's seek preview keeps its picture inside its rounded
+  edge, where the picture's square corners showed past it.

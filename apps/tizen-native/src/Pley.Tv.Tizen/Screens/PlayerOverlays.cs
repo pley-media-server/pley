@@ -546,14 +546,16 @@ sealed class SeekPreviewView : View
     {
         this.images = images;
         Size = new Size(Ui.Dp(PictureWidth), Ui.Dp(PictureHeight + 6 + PleyType.Label.Line + PleyType.Caption.Line));
+        // Not clipped: the TV clips children to a rectangle, whatever the frame's corners, so a
+        // picture filling the frame showed its square corners past the rounded edge. It rounds its
+        // own, as a chapter card's does.
         frame = new View
         {
             Size = new Size(Ui.Dp(PictureWidth), Ui.Dp(PictureHeight)),
             CornerRadius = Ui.Dp(PleyShape.TileRadius),
             BackgroundColor = PleyColors.Surface2,
-            ClippingMode = ClippingModeType.ClipChildren,
         };
-        picture = new ImageView { Size = frame.Size, FittingMode = FittingModeType.ScaleToFill };
+        picture = new ImageView { Size = frame.Size, CornerRadius = Ui.Dp(PleyShape.TileRadius), FittingMode = FittingModeType.ScaleToFill };
         frame.Add(picture);
         frame.Add(new View
         {
