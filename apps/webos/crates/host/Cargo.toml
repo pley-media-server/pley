@@ -1,0 +1,28 @@
+[package]
+name = "pley-host"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: the frame loop, the start on the TV and in the simulator, the command line"
+license = "LicenseRef-Restricted"
+publish = false
+
+[features]
+default = ["desktop"]
+# The simulator: a desktop window, and the fake server for `--fixtures`.
+desktop = ["pley-platform/desktop", "dep:pley-fixtures"]
+# The TV: the firmware's SDL2, luna-service2 and media pipeline.
+tv = ["dep:pley-webos"]
+
+[dependencies]
+pley-base = { path = "../base" }
+pley-gfx = { path = "../gfx" }
+pley-text = { path = "../text" }
+pley-platform = { path = "../platform", default-features = false }
+pley-core = { path = "../core" }
+pley-ui = { path = "../ui" }
+pley-shell = { path = "../shell" }
+pley-player = { path = "../player" }
+pley-fixtures = { path = "../fixtures", optional = true }
+pley-webos = { path = "../webos", optional = true }
+log = { version = "0.4.29", features = ["std"] }

@@ -332,6 +332,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "filetime"
+version = "0.2.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c287a33c7f0a620c38e641e7f60827713987b3c0f26e8ddc9462cc69cf75759"
+dependencies = [
+ "cfg-if",
+ "libc",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1062,6 +1072,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "object"
+version = "0.40.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd229a0361b9d0d4396176e02d65897f487eebeab7caa6d443855ee152ca0b9c"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1129,8 +1148,11 @@ version = "0.0.0"
 name = "pley-browse"
 version = "0.0.0"
 dependencies = [
+ "log",
  "pley-base",
  "pley-core",
+ "pley-fixtures",
+ "pley-host",
  "pley-kit",
  "pley-shell",
  "pley-ui",
@@ -1180,20 +1202,44 @@ dependencies = [
 name = "pley-home"
 version = "0.0.0"
 dependencies = [
+ "log",
  "pley-base",
  "pley-core",
+ "pley-fixtures",
+ "pley-host",
  "pley-kit",
  "pley-shell",
  "pley-ui",
 ]
 
 [[package]]
+name = "pley-host"
+version = "0.0.0"
+dependencies = [
+ "log",
+ "pley-base",
+ "pley-core",
+ "pley-fixtures",
+ "pley-gfx",
+ "pley-platform",
+ "pley-player",
+ "pley-shell",
+ "pley-text",
+ "pley-ui",
+ "pley-webos",
+]
+
+[[package]]
 name = "pley-item"
 version = "0.0.0"
 dependencies = [
+ "log",
  "pley-base",
  "pley-core",
+ "pley-fixtures",
+ "pley-host",
  "pley-kit",
+ "pley-player",
  "pley-shell",
  "pley-ui",
 ]
@@ -1204,41 +1250,38 @@ version = "0.0.0"
 dependencies = [
  "pley-base",
  "pley-ui",
+ "qrcodegen",
 ]
 
 [[package]]
 name = "pley-lg"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "pley-base",
  "pley-browse",
  "pley-core",
- "pley-fixtures",
- "pley-gfx",
  "pley-home",
+ "pley-host",
  "pley-item",
- "pley-kit",
  "pley-live",
  "pley-music",
  "pley-onboarding",
- "pley-platform",
- "pley-player",
  "pley-player-ui",
  "pley-search",
  "pley-settings",
  "pley-shell",
- "pley-subs",
- "pley-text",
- "pley-ui",
- "pley-webos",
 ]
 
 [[package]]
 name = "pley-live"
 version = "0.0.0"
 dependencies = [
+ "log",
  "pley-base",
  "pley-core",
+ "pley-fixtures",
+ "pley-host",
  "pley-kit",
  "pley-player",
  "pley-shell",
@@ -1249,8 +1292,11 @@ dependencies = [
 name = "pley-music"
 version = "0.0.0"
 dependencies = [
+ "log",
  "pley-base",
  "pley-core",
+ "pley-fixtures",
+ "pley-host",
  "pley-kit",
  "pley-player",
  "pley-shell",
@@ -1261,8 +1307,11 @@ dependencies = [
 name = "pley-onboarding"
 version = "0.0.0"
 dependencies = [
+ "log",
  "pley-base",
  "pley-core",
+ "pley-fixtures",
+ "pley-host",
  "pley-kit",
  "pley-shell",
  "pley-ui",
@@ -1286,15 +1335,21 @@ version = "0.0.0"
 dependencies = [
  "pley-base",
  "pley-core",
+ "pley-fixtures",
  "pley-subs",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
 name = "pley-player-ui"
 version = "0.0.0"
 dependencies = [
+ "log",
  "pley-base",
  "pley-core",
+ "pley-fixtures",
+ "pley-host",
  "pley-kit",
  "pley-player",
  "pley-shell",
@@ -1306,8 +1361,11 @@ dependencies = [
 name = "pley-search"
 version = "0.0.0"
 dependencies = [
+ "log",
  "pley-base",
  "pley-core",
+ "pley-fixtures",
+ "pley-host",
  "pley-kit",
  "pley-shell",
  "pley-ui",
@@ -1317,9 +1375,13 @@ dependencies = [
 name = "pley-settings"
 version = "0.0.0"
 dependencies = [
+ "log",
  "pley-base",
  "pley-core",
+ "pley-fixtures",
+ "pley-host",
  "pley-kit",
+ "pley-player",
  "pley-shell",
  "pley-ui",
 ]
@@ -1328,12 +1390,14 @@ dependencies = [
 name = "pley-shell"
 version = "0.0.0"
 dependencies = [
+ "log",
  "pley-base",
  "pley-core",
- "pley-kit",
+ "pley-fixtures",
  "pley-player",
- "pley-subs",
  "pley-ui",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1368,9 +1432,12 @@ dependencies = [
 name = "pley-webos"
 version = "0.0.0"
 dependencies = [
+ "libc",
+ "libloading",
  "pley-base",
  "pley-core",
  "pley-platform",
+ "serde_json",
 ]
 
 [[package]]
@@ -1417,6 +1484,12 @@ checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
 ]
+
+[[package]]
+name = "qrcodegen"
+version = "1.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4339fc7a1021c9c1621d87f5e3505f2805c8c105420ba2f2a4df86814590c142"
 
 [[package]]
 name = "quick-error"
@@ -1775,6 +1848,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "tar"
+version = "0.4.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840"
+dependencies = [
+ "filetime",
+ "libc",
 ]
 
 [[package]]
@@ -2445,6 +2528,12 @@ checksum = "e450f9b2ed1dff33c94c12589a87338689467b9c4f5d8a5710bd09a847d2c8a7"
 [[package]]
 name = "xtask"
 version = "0.0.0"
+dependencies = [
+ "flate2",
+ "object",
+ "serde_json",
+ "tar",
+]
 
 [[package]]
 name = "zerocopy"

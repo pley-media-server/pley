@@ -3,8 +3,13 @@ name = "xtask"
 version = "0.0.0"
 edition = "2024"
 rust-version = "1.95"
-description = "Pley for LG TV's build tasks: the .ipk, notices and release checks"
+description = "Pley for LG TV's build tasks: the TV build, the .ipk, notices and release checks"
 license = "LicenseRef-Restricted"
 publish = false
 
 [dependencies]
+# Pure Rust (miniz_oxide), the default backend.
+flate2 = "1.1"
+object = { version = "0.40", default-features = false, features = ["read_core", "elf", "std"] }
+serde_json = "1"
+tar = { version = "0.4", default-features = false }

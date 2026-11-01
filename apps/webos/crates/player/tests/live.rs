@@ -1,0 +1,669 @@
+//! packages/tv/test/live/{session,pages}.test.ts, ported: a live channel on
+//! the TV's player (on `SimEngine`), a category's channels by pages, and the
+//! guide of the rows in view.
+
+use std::collections::HashMap;
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
+
+use pley_base::Waker;
+use pley_core::api::LiveBrowse;
+use pley_core::http::Method;
+use pley_core::model::*;
+use pley_core::task::Tasks;
+use pley_core::{ApiError, CapsReport};
+use pley_player::Reporter;
+use pley_player::env::PlayerEnv;
+use pley_player::live::{Category, ChannelPages, GuideStore, LivePhase, LiveSession, TroubleKind, holders};
+use pley_player::server::{PlayerServer, SubtitleAnswer};
+use pley_player::sim::{SIM_LOAD_MS, SimClock, SimEngine, SimHandle};
+
+fn channel(id: i64) -> LiveChannel {
+    LiveChannel {
+        id,
+        source_id: 1,
+        name: format!("Ch {id}"),
+        number: Some((100 + id).to_string()),
+        ..LiveChannel::default()
+    }
+}
+
+fn refused(status: u16, message: &str, body: Option<serde_json::Value>) -> ApiError {
+    ApiError::Status { status, code: "conflict".into(), message: message.into(), body }
+}
+
+type Watch = Box<dyn Fn(i64, usize) -> Result<LiveWatching, ApiError> + Send + Sync>;
+
+/// The server: each watch answered by `answer` (a session and a keyed address unless it says otherwise).
+struct LiveFake {
+    asked: Mutex<Vec<String>>,
+    /// Why the server says a session ended, by session.
+    ended: Mutex<HashMap<String, String>>,
+    watches: Mutex<usize>,
+    answer: Mutex<Option<Watch>>,
+    /// Watches wait for the test to answer.
+    hold: Mutex<Option<Option<LiveWatching>>>,
+    held: Condvar,
+    total: i64,
+}
+
+impl LiveFake {
+    fn new() -> Arc<LiveFake> {
+        LiveFake::with_total(0)
+    }
+
+    fn with_total(total: i64) -> Arc<LiveFake> {
+        Arc::new(LiveFake {
+            asked: Mutex::default(),
+            ended: Mutex::default(),
+            watches: Mutex::new(0),
+            answer: Mutex::new(None),
+            hold: Mutex::new(None),
+            held: Condvar::new(),
+            total,
+        })
+    }
+
+    fn answer(&self, f: impl Fn(i64, usize) -> Result<LiveWatching, ApiError> + Send + Sync + 'static) {
+        *self.answer.lock().unwrap() = Some(Box::new(f));
+    }
+
+    fn asked(&self) -> Vec<String> {
+        self.asked.lock().unwrap().clone()
+    }
+
+    fn watches(&self) -> Vec<String> {
+        self.asked().into_iter().filter(|a| a.starts_with("watch")).collect()
+    }
+
+    fn end(&self, session: &str, why: &str) {
+        self.ended.lock().unwrap().insert(session.into(), why.into());
+    }
+
+    fn hold_watches(&self) {
+        *self.hold.lock().unwrap() = Some(None);
+    }
+
+    fn answer_held(&self, w: LiveWatching) {
+        *self.hold.lock().unwrap() = Some(Some(w));
+        self.held.notify_all();
+    }
+
+    fn log(&self, s: String) {
+        self.asked.lock().unwrap().push(s);
+    }
+}
+
+fn not_here<T>() -> Result<T, ApiError> {
+    Err(refused(404, "no", None))
+}
+
+impl PlayerServer for LiveFake {
+    fn server(&self) -> &str {
+        "http://tv.test"
+    }
+    fn url(&self, path: &str) -> String {
+        format!("http://tv.test{path}")
+    }
+    fn item(&self, _: i64) -> Result<ItemDetail, ApiError> {
+        not_here()
+    }
+    fn next(&self, _: i64) -> Result<Option<ItemSummary>, ApiError> {
+        Ok(None)
+    }
+    fn playlist(&self, _: i64) -> Result<PlaylistDetail, ApiError> {
+        not_here()
+    }
+    fn collection(&self, _: i64) -> Result<CollectionDetail, ApiError> {
+        not_here()
+    }
+    fn play(&self, _: &PlaybackRequest) -> Result<PlaybackInfo, ApiError> {
+        not_here()
+    }
+    fn progress(&self, _: i64, _: &ProgressReport) -> Result<(), ApiError> {
+        Ok(())
+    }
+    fn stop_session(&self, _: &str) -> Result<(), ApiError> {
+        Ok(())
+    }
+    fn session_status(&self, _: &str, _: Duration) -> Result<SessionStatus, ApiError> {
+        not_here()
+    }
+    fn set_bitrate(&self, _: &str, _: u32) -> Result<BitrateAnswer, ApiError> {
+        not_here()
+    }
+    fn set_streams(&self, _: i64, _: &StreamChoice) -> Result<(), ApiError> {
+        Ok(())
+    }
+    fn reachable(&self, _: Duration) -> Result<ServerInfo, ApiError> {
+        Ok(ServerInfo::default())
+    }
+    fn media(&self, method: Method, url: &str, _: Duration) -> Result<String, ApiError> {
+        let m = if method == Method::Head { "HEAD" } else { "GET" };
+        self.log(format!("{m} {}", url.replace("http://tv.test", "")));
+        Ok("#EXTM3U".into())
+    }
+    fn network(&self, _: &str, _: Duration) -> Result<NetworkAnswer, ApiError> {
+        not_here()
+    }
+    fn tell_network(&self, _: &str, _: &NetworkReport, _: Duration) -> Result<NetworkAnswer, ApiError> {
+        not_here()
+    }
+    fn speed_test(&self, _: u64) -> Result<SpeedSample, ApiError> {
+        not_here()
+    }
+    fn trickplay(&self, _: i64) -> Result<TrickplayInfo, ApiError> {
+        not_here()
+    }
+    fn subtitles(&self, _: &str, _: &str, _: Option<u64>, _: Duration) -> Result<SubtitleAnswer, ApiError> {
+        not_here()
+    }
+    fn search_subtitles(&self, _: i64, _: Option<i64>, _: &[String]) -> Result<Vec<SubtitleResult>, ApiError> {
+        not_here()
+    }
+    fn add_subtitle(&self, _: i64, _: &AddSubtitle) -> Result<SubtitleTrack, ApiError> {
+        not_here()
+    }
+    fn watch_channel(&self, id: i64, req: &WatchRequest) -> Result<LiveWatching, ApiError> {
+        let taking = req.take_over.map(|t| format!(" taking {t}")).unwrap_or_default();
+        self.log(format!("watch {id} {}{taking}", req.client_id.as_deref().unwrap_or("")));
+        let n = {
+            let mut w = self.watches.lock().unwrap();
+            *w += 1;
+            *w
+        };
+        let mut hold = self.hold.lock().unwrap();
+        while let Some(waiting) = hold.as_mut() {
+            if let Some(w) = waiting.take() {
+                *hold = None;
+                return Ok(w);
+            }
+            hold = self.held.wait(hold).unwrap();
+        }
+        drop(hold);
+        match &*self.answer.lock().unwrap() {
+            Some(f) => f(id, n),
+            None => Ok(LiveWatching {
+                session_id: format!("s{n}"),
+                url: format!("/api/live/media/pley_mk_{n}/index.m3u8"),
+                kind: "hls".into(),
+                channel: Some(channel(id)),
+            }),
+        }
+    }
+    fn live_plan(&self, session: &str) -> Result<Option<LivePlan>, ApiError> {
+        match self.ended.lock().unwrap().get(session) {
+            Some(why) => Err(ApiError::SessionStopped { message: Some(why.clone()) }),
+            None => Ok(None),
+        }
+    }
+    fn leave_channel(&self, session: &str) -> Result<(), ApiError> {
+        self.log(format!("leave {session}"));
+        Ok(())
+    }
+    fn live_channel(&self, _: i64) -> Result<LiveChannel, ApiError> {
+        not_here()
+    }
+    fn live_groups(&self) -> Result<LiveGroups, ApiError> {
+        Ok(LiveGroups::default())
+    }
+    fn live_browse(&self, b: &LiveBrowse) -> Result<LiveChannelPage, ApiError> {
+        let group = b.category.group().map(|g| format!(" {g}")).unwrap_or_default();
+        match b.around {
+            Some(a) => self.log(format!("{} around {a}", b.category.wire())),
+            None => self.log(format!("{}{group} @{}", b.category.wire(), b.offset)),
+        }
+        let limit = if b.limit > 0 { b.limit } else { 100 };
+        let offset = b.around.map_or(b.offset, |a| (a - 1) / limit * limit);
+        let channels = (offset..self.total.min(offset + limit))
+            .map(|i| LiveChannel {
+                id: i + 1,
+                name: format!("Ch {}", i + 1),
+                number: Some((i + 1).to_string()),
+                ..LiveChannel::default()
+            })
+            .collect();
+        Ok(LiveChannelPage { total: self.total, offset, channels })
+    }
+    fn live_guide(&self, from: i64, to: i64, ids: &[i64]) -> Result<LiveGuide, ApiError> {
+        self.log(format!("{from}: {}", ids.iter().map(i64::to_string).collect::<Vec<_>>().join(",")));
+        Ok(LiveGuide { from, to, ..LiveGuide::default() })
+    }
+    fn set_live_favorite(&self, _: i64, _: bool) -> Result<(), ApiError> {
+        Ok(())
+    }
+}
+
+/// A live player on `SimEngine` and the pretend server, on a clock the test moves.
+struct Live {
+    fake: Arc<LiveFake>,
+    clock: SimClock,
+    sim: SimHandle,
+    c: LiveSession,
+    now: i64,
+}
+
+impl Live {
+    fn new(fake: Arc<LiveFake>) -> Live {
+        let clock = SimClock::manual();
+        let (engine, sim) = SimEngine::new(clock.clone());
+        let server: Arc<dyn PlayerServer> = fake.clone();
+        let caps = Arc::new(|| None::<CapsReport>);
+        let env = PlayerEnv::new(server, Tasks::with_threads(2, Waker::noop()), Reporter::new(), caps, "webos-tv");
+        let c = LiveSession::new(channel(1), &env, Box::new(engine), 0);
+        Live { fake, clock, sim, c, now: 0 }
+    }
+
+    fn settle(&mut self) {
+        let until = Instant::now() + Duration::from_secs(5);
+        loop {
+            self.c.tick(self.now);
+            if !self.c.busy() {
+                break;
+            }
+            assert!(Instant::now() < until, "a server call never came back");
+            thread::sleep(Duration::from_millis(1));
+        }
+        self.c.tick(self.now);
+    }
+
+    fn advance(&mut self, ms: i64) {
+        let end = self.now + ms;
+        while self.now < end {
+            self.now = (self.now + 50).min(end);
+            self.clock.set(self.now);
+            self.settle();
+        }
+    }
+
+    /// The first picture shows.
+    fn first_frame(&mut self) {
+        self.advance(SIM_LOAD_MS);
+    }
+}
+
+#[test]
+fn watches_with_this_tvs_id_waits_for_the_playlist_then_plays_its_keyed_address_from_the_live_edge() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    assert_eq!(w.fake.asked(), ["watch 1 webos-tv", "GET /api/live/media/pley_mk_1/index.m3u8"]);
+    let load = &w.sim.loads()[0];
+    assert_eq!(
+        (load.url.as_str(), load.kind, load.start_ms),
+        ("http://tv.test/api/live/media/pley_mk_1/index.m3u8", pley_core::media::MediaKind::LiveHls, 0)
+    );
+    assert_eq!(w.c.state().phase, LivePhase::Tuning);
+    w.first_frame();
+    let s = w.c.state();
+    assert_eq!((s.phase, s.shown, s.audio_only), (LivePhase::Playing, true, false));
+}
+
+#[test]
+fn changing_channels_lets_the_last_one_go_first_and_holds_one_session() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    w.c.tune(channel(2));
+    w.settle();
+    assert_eq!(w.fake.asked()[2..], ["leave s1", "watch 2 webos-tv", "GET /api/live/media/pley_mk_2/index.m3u8"]);
+    assert!(w.sim.commands().contains(&"unload".to_string()));
+    let s = w.c.state();
+    assert_eq!((s.phase, s.shown, s.tunes, s.channel.id), (LivePhase::Tuning, false, 2, 2));
+}
+
+#[test]
+fn says_the_servers_own_words_when_every_connection_is_in_use_and_tries_again() {
+    let fake = LiveFake::new();
+    let busy = Arc::new(Mutex::new(true));
+    let still = busy.clone();
+    fake.answer(move |id, n| {
+        if *still.lock().unwrap() {
+            Err(refused(409, "The one connection of Provider is in use, watching News.", None))
+        } else {
+            Ok(LiveWatching {
+                session_id: format!("s{n}"),
+                url: "/api/live/media/pley_mk_x/index.m3u8".into(),
+                kind: "hls".into(),
+                channel: Some(channel(id)),
+            })
+        }
+    });
+    let mut w = Live::new(fake);
+    w.c.tune(channel(1));
+    w.settle();
+    assert_eq!(w.c.state().phase, LivePhase::Error);
+    let t = w.c.state().trouble.clone().unwrap();
+    assert_eq!(
+        (t.kind, t.title.as_str(), t.message.as_str(), t.can_retry),
+        (
+            TroubleKind::Busy,
+            "All connections are in use",
+            "The one connection of Provider is in use, watching News.",
+            true
+        )
+    );
+    *busy.lock().unwrap() = false;
+    w.c.retry();
+    w.settle();
+    assert_eq!(w.c.state().phase, LivePhase::Tuning);
+    assert_eq!(w.fake.watches().len(), 2);
+}
+
+#[test]
+fn lists_what_holds_each_connection_and_takes_one_over_where_it_may() {
+    let connections = serde_json::json!([
+        { "channel_id": 7, "channel_name": "Sport", "watchers": [], "people": 1, "yours": true, "can_take_over": true },
+        { "channel_id": 8, "channel_name": "Films", "watchers": ["ana", "bo"], "people": 2, "yours": false, "can_take_over": false }
+    ]);
+    let fake = LiveFake::new();
+    let body = serde_json::json!({ "code": "conflict", "message": "", "connections": connections });
+    fake.answer(move |id, n| {
+        if n == 1 {
+            Err(refused(409, "Provider allows 2 connections at once.", Some(body.clone())))
+        } else {
+            Ok(LiveWatching {
+                session_id: format!("s{n}"),
+                url: "/api/live/media/pley_mk_x/index.m3u8".into(),
+                kind: "hls".into(),
+                channel: Some(channel(id)),
+            })
+        }
+    });
+    let mut w = Live::new(fake);
+    w.c.tune(channel(1));
+    w.settle();
+    let t = w.c.state().trouble.clone().unwrap();
+    assert_eq!(t.connections.iter().map(|c| c.channel_id).collect::<Vec<_>>(), [7, 8]);
+    assert_eq!(t.connections.iter().map(holders).collect::<Vec<_>>(), ["You, on another device", "ana, bo"]);
+    w.c.take_over(7);
+    w.settle();
+    assert_eq!(w.fake.watches(), ["watch 1 webos-tv", "watch 1 webos-tv taking 7"]);
+    assert_eq!(w.c.state().phase, LivePhase::Tuning);
+}
+
+#[test]
+fn asks_a_server_without_keyed_addresses_to_be_updated() {
+    let fake = LiveFake::new();
+    fake.answer(|id, _| {
+        Ok(LiveWatching {
+            session_id: "old".into(),
+            url: "/api/live/sessions/old/index.m3u8".into(),
+            kind: "hls".into(),
+            channel: Some(channel(id)),
+        })
+    });
+    let mut w = Live::new(fake);
+    w.c.tune(channel(1));
+    w.settle();
+    assert_eq!(w.c.state().trouble.as_ref().map(|t| t.kind), Some(TroubleKind::Older));
+    assert!(w.sim.loads().is_empty());
+}
+
+#[test]
+fn watches_anew_when_the_player_fails_twice_then_says_so() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    w.sim.fail(2, "gone");
+    w.settle();
+    w.advance(1_000);
+    w.first_frame();
+    w.sim.fail(2, "gone");
+    w.settle();
+    w.advance(3_000);
+    assert_eq!(w.fake.watches().len(), 3);
+    w.first_frame();
+    w.sim.fail(2, "gone");
+    w.settle();
+    assert_eq!(w.c.state().phase, LivePhase::Error);
+    let t = w.c.state().trouble.clone().unwrap();
+    assert_eq!((t.title.as_str(), t.can_retry), ("Ch 1 stopped", true));
+    // A session that ends with an error is let go.
+    assert_eq!(w.fake.asked().last().map(String::as_str), Some("leave s3"));
+}
+
+#[test]
+fn says_when_the_server_stopped_it() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.fake.end("s1", "Stopped by the administrator.");
+    w.sim.fail(410, "gone");
+    w.settle();
+    let t = w.c.state().trouble.clone().unwrap();
+    assert_eq!((t.kind, t.message.as_str()), (TroubleKind::Stopped, "Stopped by the administrator."));
+}
+
+#[test]
+fn says_who_took_the_connection_over_rather_than_watching_again() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    w.fake.end("s1", "ana started watching Films on this connection.");
+    w.sim.fail(2, "the playlist went");
+    w.settle();
+    w.advance(5_000);
+    let t = w.c.state().trouble.clone().unwrap();
+    assert_eq!(
+        (t.kind, t.title.as_str(), t.message.as_str()),
+        (TroubleKind::Stopped, "Watching stopped", "ana started watching Films on this connection.")
+    );
+    assert_eq!(w.fake.watches().len(), 1);
+    // Its session is gone already: nothing to leave.
+    assert!(!w.fake.asked().contains(&"leave s1".to_string()));
+}
+
+#[test]
+fn asks_the_server_why_a_stall_lasts() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    w.sim.wait(true);
+    w.settle();
+    w.advance(5_000);
+    // Still watching on the server: it waits on.
+    assert_eq!(w.c.state().phase, LivePhase::Buffering);
+    w.sim.wait(false);
+    w.settle();
+    w.sim.wait(true);
+    w.settle();
+    w.fake.end("s1", "Watching moved to Films on another device.");
+    w.advance(5_000);
+    let t = w.c.state().trouble.clone().unwrap();
+    assert_eq!((t.kind, t.message.as_str()), (TroubleKind::Stopped, "Watching moved to Films on another device."));
+    assert_eq!(w.fake.watches().len(), 1);
+}
+
+#[test]
+fn watches_anew_after_a_stall_of_20_s() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    w.sim.wait(true);
+    w.settle();
+    w.advance(21_000);
+    assert_eq!(w.fake.watches().len(), 2);
+}
+
+#[test]
+fn gives_up_on_a_channel_whose_picture_never_comes() {
+    let mut w = Live::new(LiveFake::new());
+    // The pipeline opens nothing in time.
+    w.sim.set_load_ms(60_000);
+    w.c.tune(channel(1));
+    w.settle();
+    w.advance(30_000);
+    // The first try failing is tried again, as any failure.
+    assert_eq!(w.c.state().phase, LivePhase::Tuning);
+    w.advance(1_000);
+    assert_eq!(w.fake.watches().len(), 2);
+}
+
+#[test]
+fn knows_a_channel_with_sound_and_no_picture() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    // The live playlist carries no video facts: the sim's stats have no width.
+    w.advance(1_500);
+    assert!(w.c.state().audio_only);
+}
+
+#[test]
+fn plays_from_the_live_edge_and_nothing_else() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    assert_eq!(w.c.state().phase, LivePhase::Playing);
+    assert_eq!(w.sim.loads()[0].start_ms, 0);
+    let before = w.fake.asked().len();
+    w.advance(120_000);
+    assert_eq!(w.fake.asked().len(), before);
+    assert!(w.sim.commands().iter().all(|c| c != "pause" && !c.starts_with("seek")));
+}
+
+#[test]
+fn lets_go_of_the_session_when_the_tv_hides_the_app_and_watches_again_when_it_shows() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.c.suspend();
+    w.settle();
+    assert_eq!(w.fake.asked().last().map(String::as_str), Some("leave s1"));
+    w.c.resume();
+    w.settle();
+    let asked = w.fake.asked();
+    assert_eq!(asked[asked.len() - 2..], ["watch 1 webos-tv", "GET /api/live/media/pley_mk_2/index.m3u8"]);
+}
+
+#[test]
+fn tells_the_server_at_once_when_the_player_closes_and_drops_a_watch_that_answers_after() {
+    let fake = LiveFake::new();
+    fake.hold_watches();
+    let mut w = Live::new(fake.clone());
+    w.c.tune(channel(1));
+    let until = Instant::now() + Duration::from_secs(5);
+    while fake.watches().is_empty() {
+        assert!(Instant::now() < until);
+        thread::sleep(Duration::from_millis(1));
+    }
+    w.c.close();
+    fake.answer_held(LiveWatching {
+        session_id: "late".into(),
+        url: "/api/live/media/pley_mk_late/index.m3u8".into(),
+        kind: "hls".into(),
+        channel: Some(channel(1)),
+    });
+    while !fake.asked().contains(&"leave late".to_string()) {
+        assert!(Instant::now() < until, "the late watch was never let go");
+        thread::sleep(Duration::from_millis(1));
+    }
+    assert_eq!(fake.asked(), ["watch 1 webos-tv", "leave late"]);
+    assert!(w.sim.loads().is_empty());
+}
+
+// ---- a category's channels
+
+fn pages_of(total: i64, category: Category, frozen: bool) -> (Arc<LiveFake>, ChannelPages) {
+    let fake = LiveFake::with_total(total);
+    let server: Arc<dyn PlayerServer> = fake.clone();
+    (fake, ChannelPages::new(server, Tasks::with_threads(1, Waker::noop()), category, frozen))
+}
+
+fn wait_pages(pages: &mut ChannelPages) {
+    let until = Instant::now() + Duration::from_secs(5);
+    loop {
+        pages.poll(0);
+        if !pages.busy() {
+            pages.poll(0);
+            return;
+        }
+        assert!(Instant::now() < until);
+        thread::sleep(Duration::from_millis(1));
+    }
+}
+
+#[test]
+fn channels_come_a_page_at_a_time_as_they_show_the_first_saying_how_many() {
+    let (fake, mut pages) = pages_of(57_176, Category::Group("UK| Sport".into()), false);
+    pages.want(0, 12, 0);
+    wait_pages(&mut pages);
+    assert_eq!(fake.asked(), ["group UK| Sport @0"]);
+    assert_eq!(pages.total(), Some(57_176));
+    assert_eq!(pages.at(11).map(|c| c.id), Some(12));
+    assert!(pages.at(150).is_none());
+    pages.want(190, 210, 0);
+    wait_pages(&mut pages);
+    // The first page is fresh; the second and third come.
+    let mut asked = fake.asked();
+    asked[1..].sort();
+    assert_eq!(asked, ["group UK| Sport @0", "group UK| Sport @100", "group UK| Sport @200"]);
+    assert_eq!(pages.at(205).map(|c| c.id), Some(206));
+}
+
+#[test]
+fn channels_know_where_a_channel_is_by_the_page_around_it() {
+    let (fake, mut pages) = pages_of(57_176, Category::All, false);
+    pages.neighbor(30_042, 0, 0);
+    wait_pages(&mut pages);
+    assert_eq!(pages.take_neighbor().flatten().map(|c| c.id), Some(30_042));
+    assert_eq!(fake.asked(), ["all around 30042"]);
+    // Known now: not asked again.
+    assert_eq!(pages.find(30_050), Some(30_049));
+    pages.neighbor(30_050, 0, 0);
+    wait_pages(&mut pages);
+    assert_eq!(pages.take_neighbor().flatten().map(|c| c.id), Some(30_050));
+    assert_eq!(fake.asked().len(), 1);
+}
+
+#[test]
+fn channels_go_round_their_ends_for_channel_up_and_down() {
+    let (_, mut pages) = pages_of(250, Category::Favorites, true);
+    let mut neighbor = |id, by| {
+        pages.neighbor(id, by, 0);
+        wait_pages(&mut pages);
+        pages.take_neighbor().flatten().map(|c| c.id)
+    };
+    assert_eq!(neighbor(250, 1), Some(1));
+    assert_eq!(neighbor(1, -1), Some(250));
+    assert_eq!(neighbor(100, 1), Some(101));
+    assert_eq!(neighbor(42, -1), Some(41));
+}
+
+#[test]
+fn channels_show_a_favourite_marked_at_once() {
+    let (_, mut pages) = pages_of(10, Category::All, false);
+    pages.want(0, 10, 0);
+    wait_pages(&mut pages);
+    pages.patch(3, |c| c.favorite = true);
+    assert_eq!(pages.at(2).map(|c| c.favorite), Some(true));
+}
+
+#[test]
+fn the_guide_asks_only_for_the_channels_shown_and_only_once_a_chunk() {
+    let fake = LiveFake::new();
+    let server: Arc<dyn PlayerServer> = fake.clone();
+    let mut store = GuideStore::new(server, Tasks::with_threads(1, Waker::noop()), 0);
+    store.want(0, 3600, &[1, 2, 3], 0);
+    store.want(0, 3600, &[2, 3, 4], 0);
+    let until = Instant::now() + Duration::from_secs(5);
+    while store.busy() {
+        store.poll(0);
+        assert!(Instant::now() < until);
+        thread::sleep(Duration::from_millis(1));
+    }
+    assert_eq!(fake.asked(), ["0: 1,2,3", "0: 4"]);
+    assert!(store.answered(1, 60));
+    assert!(!store.answered(9, 60));
+    store.want(0, 3600, &[], 0);
+    assert_eq!(fake.asked().len(), 2);
+}

@@ -6,9 +6,10 @@ members = [
     "packages/transcoder-api",
 ]
 default-members = ["apps/server", "apps/transcoder"]
-# The desktop app is a workspace of its own (Tauri and its webview
-# libraries), so server builds don't compile it.
-exclude = ["apps/desktop/src-tauri"]
+# The desktop app (Tauri and its webview libraries) and Pley for LG TV (a
+# native app cross-built for the TV, apps/webos) are workspaces of their own,
+# so server builds don't compile them and their dependencies stay apart.
+exclude = ["apps/desktop/src-tauri", "apps/webos"]
 
 # NOTE: all three are under LICENSE (AGPL-3.0-only), and none may depend on a
 # copyleft-only crate (scripts/check-licenses.ps1, LICENSING.md).

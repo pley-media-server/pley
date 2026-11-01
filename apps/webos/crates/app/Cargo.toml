@@ -11,19 +11,17 @@ publish = false
 name = "pley"
 path = "src/main.rs"
 
+[features]
+default = ["desktop"]
+# The simulator: a desktop window, and the fake server for `--fixtures`.
+desktop = ["pley-host/desktop"]
+# The TV: the firmware's SDL2, luna-service2 and media pipeline. Built with
+# `--no-default-features --features tv`.
+tv = ["pley-host/tv", "dep:libc"]
+
 [dependencies]
-pley-base = { path = "../base" }
-pley-gfx = { path = "../gfx" }
-pley-text = { path = "../text" }
-pley-platform = { path = "../platform" }
-pley-core = { path = "../core" }
-pley-ui = { path = "../ui" }
-pley-kit = { path = "../kit" }
-pley-subs = { path = "../subs" }
-pley-player = { path = "../player" }
-pley-webos = { path = "../webos" }
+pley-host = { path = "../host", default-features = false }
 pley-shell = { path = "../shell" }
-pley-fixtures = { path = "../fixtures" }
 pley-onboarding = { path = "../screens/onboarding" }
 pley-home = { path = "../screens/home" }
 pley-browse = { path = "../screens/browse" }
@@ -33,3 +31,9 @@ pley-music = { path = "../screens/music" }
 pley-settings = { path = "../screens/settings" }
 pley-live = { path = "../screens/live" }
 pley-player-ui = { path = "../screens/player" }
+# getauxval on the TV (src/auxv.rs).
+libc = { version = "0.2.191", optional = true }
+
+[dev-dependencies]
+pley-base = { path = "../base" }
+pley-core = { path = "../core" }

@@ -10,3 +10,5 @@ publish = false
 [dependencies]
 pley-base = { path = "../base" }
 pley-ui = { path = "../ui" }
+# The sign-in screen's QR code (MIT): byte mode with the error correction raised when it fits.
+qrcodegen = "1.8.0"

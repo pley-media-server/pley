@@ -1,31 +1,34 @@
 name: LG TV
 
-# The LG TV app (apps/webos, built with packages/tv, which the Samsung app
-# shares): one release unit (docs/RELEASING.md). Runs when either changes.
-# The Release workflow calls it with `release: true`, which adds the .ipk a
-# TV in Developer Mode installs (LG signs store builds itself).
+# Pley for LG TV (apps/webos): a native webOS app in Rust, a Cargo workspace
+# of its own and one release unit (docs/RELEASING.md). Runs when it changes.
+# The host job formats, lints and tests it and checks its licences; the TV job
+# cross-builds it for the TV's ARMv7 with the webOS toolchain, checks the
+# binary and packs the .ipk that a TV in Developer Mode or the Homebrew
+# Channel installs (LG's store takes no native apps). The Release workflow
+# calls it with `release: true`, which adds that .ipk as the release's file.
 on:
   push:
     branches: [master]
     paths:
       - apps/webos/**
-      - packages/tv/**
-      - package.json
-      - bun.lock
-      - bunfig.toml
-      - scripts/commit.mjs
-      - scripts/commit.d.mts
+      - rustfmt.toml
+      - deny.toml
+      - LICENSE
+      - LICENSING.md
+      - scripts/check-licenses.ps1
+      - scripts/version.mjs
       - .github/workflows/lg.yml
       - "!**/CHANGELOG.md"
   pull_request:
     paths:
       - apps/webos/**
-      - packages/tv/**
-      - package.json
-      - bun.lock
-      - bunfig.toml
-      - scripts/commit.mjs
-      - scripts/commit.d.mts
+      - rustfmt.toml
+      - deny.toml
+      - LICENSE
+      - LICENSING.md
+      - scripts/check-licenses.ps1
+      - scripts/version.mjs
       - .github/workflows/lg.yml
       - "!**/CHANGELOG.md"
   workflow_dispatch:
@@ -48,12 +51,25 @@ concurrency:
   group: ${{ inputs.release && 'lg-release' || format('lg-{0}', github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  # The webOS toolchain: openlgtv/buildroot-nc4 2026.08-webos for x86-64 Linux
+  # (GCC 16.2, the TVs' glibc 2.12 as its sysroot). apps/webos/scripts/build-tv.ps1
+  # reads these two lines.
+  WEBOS_SDK_URL: https://github.com/openlgtv/buildroot-nc4/releases/download/2026.08-webos/arm-webos-linux-gnueabi_sdk-buildroot-x86_64.tar.gz
+  WEBOS_SDK_SHA256: 2230a6351e5cce6fcb9d4fdcb4697335f223995401ef969c81744aaeb14c5344
+
 # Actions are pinned to commits.
 jobs:
   lg:
     name: LG TV app
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    defaults:
+      run:
+        # Cargo reads apps/webos/.cargo/config.toml only when it runs there.
+        working-directory: apps/webos
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -63,33 +79,122 @@ jobs:
           bun-version-file: package.json
       # Its manifests carry one version, which its CHANGELOG has (scripts/version.mjs).
       - run: bun scripts/version.mjs check lg
-      - run: bun install --frozen-lockfile
-      - run: bun run --cwd packages/tv check
-      - run: bun run --cwd apps/webos check
-      - run: bun run --cwd apps/webos build
+        working-directory: .
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: apps/webos
+          # Pull requests reuse master's cache without writing their own.
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      # The app as the TV builds it (its `tv` feature, the TV's code in place of the simulator's).
+      - name: Clippy, the TV's features
+        run: cargo clippy --package pley-lg --no-default-features --features tv --all-targets --locked -- -D warnings
+      - name: Test
+        run: cargo test --workspace --locked
+      - name: No copyleft-only crates
+        shell: pwsh
+        working-directory: .
+        run: ./scripts/check-licenses.ps1
+      # cargo-deny finds the root deny.toml above apps/webos.
+      - name: Third-party licenses
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        with:
+          manifest-path: apps/webos/Cargo.toml
+          command: check licenses
+
+  tv:
+    name: TV build (armv7)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/webos
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+          targets: armv7-unknown-linux-gnueabi
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: apps/webos
+          key: armv7
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      # The toolchain (1.2 GB unpacked) is kept between runs. Installing it
+      # writes its folder into its files (relocate-sdk.sh), so it comes back
+      # to the same folder, and only for this very archive: no restore-keys.
+      - id: sdk
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/webos-sdk
+          key: webos-sdk-${{ runner.os }}-${{ runner.arch }}-${{ env.WEBOS_SDK_SHA256 }}
+      - name: Install the webOS toolchain
+        if: steps.sdk.outputs.cache-hit != 'true'
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -fsSL --retry 3 -o sdk.tar.gz "$WEBOS_SDK_URL"
+          echo "$WEBOS_SDK_SHA256  sdk.tar.gz" | sha256sum -c -
+          mkdir -p ~/webos-sdk
+          tar -xzf sdk.tar.gz -C ~/webos-sdk
+          rm sdk.tar.gz
+          ~/webos-sdk/arm-webos-linux-gnueabi_sdk-buildroot/relocate-sdk.sh
+      - run: echo "$HOME/webos-sdk/arm-webos-linux-gnueabi_sdk-buildroot/bin" >> "$GITHUB_PATH"
+      # A toolchain for another host unpacks fine and then can't run: try it first.
+      - run: arm-webos-linux-gnueabi-gcc --version
+      - name: Build
+        run: cargo xtask build --locked
+      # Licences of the TV binary's crates; the binary's ABI, libraries, glibc versions, libm and size.
+      - name: Check the binary
+        run: cargo xtask check
+      - name: Package
+        run: cargo xtask ipk --no-build
+      - name: Verify the package
+        run: cargo xtask ipk-verify
+      - name: Size
+        run: |
+          for ipk in out/*.ipk; do
+            echo "$(basename "$ipk"): $(stat -c %s "$ipk") bytes" >> "$GITHUB_STEP_SUMMARY"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lg-ipk
+          path: apps/webos/out/*.ipk
+          if-no-files-found: error
+      # The binary before stripping, which turns a crash report's addresses into names.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lg-symbols
+          path: apps/webos/target/armv7-unknown-linux-gnueabi/release/pley
+          if-no-files-found: error
 
   # ---- Release (called by release.yml) ---------------------------------------
 
   package:
     name: Package
     if: inputs.release
-    needs: lg
+    needs: [lg, tv]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          persist-credentials: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version-file: package.json
-      - run: bun install --frozen-lockfile
-      - run: bun run --cwd apps/webos package
+          name: lg-ipk
+          path: out
+      # The package's name carries its version, so this also checks it is the one released.
       - env:
           VERSION: ${{ inputs.version }}
         run: |
           mkdir -p dist
-          cp apps/webos/out/*.ipk "dist/pley-lg-$VERSION.ipk"
+          cp "out/app.pley.tv_${VERSION}_arm.ipk" "dist/pley-lg-$VERSION.ipk"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-lg
