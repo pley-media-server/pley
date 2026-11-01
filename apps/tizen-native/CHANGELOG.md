@@ -155,9 +155,8 @@ It has no releases yet: it is built and installed by hand
   segments before; channels with surround sound the TV decodes (AC3) play
   that way too. A channel the TV can't play this way falls back to the
   server's HLS by itself.
-- Changing channel in the native app no longer flashes the TV's menu, and
-  doesn't hold the remote while the last channel lets go; a channel buffers
-  as on Android and shows its picture as soon as it moves.
+- Changing channel in the native app no longer flashes the TV's menu; a
+  channel buffers as on Android and shows its picture as soon as it moves.
 - In the native app's live player, the controls go once a channel is
   picked from the list they opened, and Back no longer leaves the channel
   while they seem to show.

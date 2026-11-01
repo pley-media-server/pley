@@ -635,28 +635,25 @@ sealed class TizenMediaEngine : IVideoEngine
                 // It failed: there is nothing to stop.
             }
         }
-        // Off the UI thread: stopping and unpreparing wait on the TV's player, and held the UI for
-        // 100 to 300 ms as each channel changed. Back on it after, for the window.
-        await Task.Run(() =>
+        // On the UI thread, though it holds it 100 to 300 ms: let go from another, the player, bound
+        // to the window, held the UI 8 s as a film was left, and the app died moments later.
+        try
         {
-            try
-            {
-                if (p.State is Media.PlayerState.Playing or Media.PlayerState.Paused) p.Stop();
-                if (p.State != Media.PlayerState.Idle) p.Unprepare();
-            }
-            catch (Exception)
-            {
-                // Already stopped.
-            }
-            try
-            {
-                p.Dispose();
-            }
-            catch (Exception)
-            {
-                // Gone already.
-            }
-        });
+            if (p.State is Media.PlayerState.Playing or Media.PlayerState.Paused) p.Stop();
+            if (p.State != Media.PlayerState.Idle) p.Unprepare();
+        }
+        catch (Exception)
+        {
+            // Already stopped.
+        }
+        try
+        {
+            p.Dispose();
+        }
+        catch (Exception)
+        {
+            // Gone already.
+        }
         // No player waiting to take the display (it would turn the alpha back on itself): as it was,
         // with its alpha while a player still covers the screen; the shell made it opaque if not.
         if (cover && opening == 0 && opaque)
