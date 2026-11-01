@@ -1,64 +1,224 @@
+import PleyData
+import PleyModel
 import PleyScreens
 import SwiftUI
 
-/// Settings: the profile signed in and its server, Switch profile, Servers
-/// and Sign out (what Me holds on the other devices).
+/// Settings on Apple TV, which holds what Me holds on the other devices:
+/// the profile signed in and its server, Switch profile, History, Servers
+/// and Sign out, the profile's audio and subtitle defaults; then this
+/// device's settings (Playback, Subtitles, Browsing, Always start as),
+/// Diagnostics and About. Each row opens its choices; a change is kept at
+/// once.
 struct SettingsView: View {
     @ObservedObject private var app: AppModel
-    @StateObject private var model: MeModel
+    @StateObject private var me: MeModel
+    @StateObject private var settings: SettingsModel
     @State private var confirmSignOut = false
 
     init(app: AppModel) {
         self.app = app
-        _model = StateObject(wrappedValue: MeModel(app: app))
+        _me = StateObject(wrappedValue: MeModel(app: app))
+        _settings = StateObject(wrappedValue: SettingsModel(app: app, offersCellular: false))
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: 80) {
             VStack(spacing: 24) {
                 if let user = app.user {
-                    AvatarView(app: app, name: model.name, path: user.avatarUrl, color: user.avatarColor, size: 240)
+                    AvatarView(app: app, name: me.name, path: user.avatarUrl, color: user.avatarColor, size: 240)
                 }
-                Text(model.name)
+                Text(me.name)
                     .font(.title2.bold())
                     .accessibilityIdentifier("me.name")
-                if let kind = model.kind {
+                if let kind = me.kind {
                     Text(kind).foregroundStyle(.secondary)
                 }
-            }
-            .frame(width: 480)
-            VStack(alignment: .leading, spacing: 40) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Server").font(.headline).foregroundStyle(.secondary)
-                    Text(model.serverName).font(.title3)
-                    Text(model.serverAddress).foregroundStyle(.secondary)
+                VStack(spacing: 8) {
+                    Text(me.serverName).font(.callout)
+                    Text(me.serverAddress).font(.caption).foregroundStyle(.secondary)
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("me.server")
-                // Buttons of their own, in a column the focus moves down.
-                VStack(alignment: .leading, spacing: 24) {
-                    if model.canSwitch {
-                        Button("Switch profile") { model.switchProfile() }
-                            .accessibilityIdentifier("me.switchProfile")
-                    }
-                    Button("Servers") { model.showServers() }
-                        .accessibilityIdentifier("me.servers")
-                    Button("Sign out", role: .destructive) { confirmSignOut = true }
-                        .accessibilityIdentifier("me.signOut")
-                }
-                .focusSection()
                 Text(MeModel.webNote)
-                    .font(.callout)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(width: 480)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 48) {
+                    account
+                    trackDefaults
+                    playback
+                    subtitles
+                    browsing
+                    more
+                }
+                // Room for a row to grow with the focus, inside the column,
+                // which clips so nothing scrolls over the tabs.
+                .padding(.vertical, 40)
+                .padding(.horizontal, 24)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, Metrics.gutter)
-        .padding(.top, 40)
-        .task(id: app.user?.id) { await model.load() }
+        .task(id: app.user?.id) {
+            await me.load()
+            await settings.load()
+        }
         .alert("Sign out of \(app.server?.name ?? "this server")?", isPresented: $confirmSignOut) {
-            Button("Sign out", role: .destructive) { Task { await model.signOut() } }
+            Button("Sign out", role: .destructive) { Task { await me.signOut() } }
             Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    // Buttons of their own, in columns the focus moves down.
+
+    private var account: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            if me.canSwitch {
+                Button("Switch profile") { me.switchProfile() }
+                    .accessibilityIdentifier("me.switchProfile")
+            }
+            Button("History") { app.shell.open(.history) }
+                .accessibilityIdentifier("me.history")
+            Button("Servers") { me.showServers() }
+                .accessibilityIdentifier("me.servers")
+            Button("Sign out", role: .destructive) { confirmSignOut = true }
+                .accessibilityIdentifier("me.signOut")
+        }
+        .focusSection()
+    }
+
+    private var trackDefaults: some View {
+        SettingsGroup(title: "Audio and subtitles",
+                      note: me.editable ? MeModel.modeHint(me.trackDefaults.subtitleMode) : MeModel.readOnlyNote) {
+            SettingRow(title: "Audio language", value: me.audioLabel, id: "me.audioLanguage",
+                       choices: [SettingChoice<String?>(nil, "The file's default")]
+                           + MeModel.languages.map { SettingChoice<String?>($0.code, $0.name) },
+                       selected: me.trackDefaults.audioLanguage) { code in Task { await me.setAudioLanguage(code) } }
+            SettingRow(title: "Subtitles", value: MeModel.modeLabel(me.trackDefaults.subtitleMode),
+                       id: "me.subtitleMode",
+                       choices: MeModel.modes.map { SettingChoice($0, MeModel.modeLabel($0)) },
+                       selected: me.trackDefaults.subtitleMode) { mode in Task { await me.setSubtitleMode(mode) } }
+            if me.showsSubtitleLanguage {
+                SettingRow(title: "Subtitle language", value: me.subtitleLanguageLabel, id: "me.subtitleLanguage",
+                           choices: [SettingChoice<String?>(nil, "Same as the audio language")]
+                               + MeModel.languages.map { SettingChoice<String?>($0.code, $0.name) },
+                           selected: me.trackDefaults.subtitleLanguage) { code in
+                    Task { await me.setSubtitleLanguage(code) }
+                }
+            }
+        }
+        .disabled(!me.editable || me.saving)
+    }
+
+    private var playback: some View {
+        SettingsGroup(title: "Playback", note: nil) {
+            SettingRow(title: "Quality", value: SettingsModel.qualityLabel(settings.qualityOther),
+                       id: "settings.quality", choices: SettingsModel.qualities, selected: settings.qualityOther) {
+                settings.setQuality($0, cellular: false)
+            }
+            SettingRow(title: "Play the next episode automatically", value: settings.autoplayNext ? "On" : "Off",
+                       id: "settings.autoplay",
+                       choices: [SettingChoice(true, "On"), SettingChoice(false, "Off")],
+                       selected: settings.autoplayNext) { settings.setAutoplayNext($0) }
+        }
+    }
+
+    private var subtitles: some View {
+        SettingsGroup(title: "Subtitles", note: "System uses your caption style from the Apple TV's Settings → "
+                      + "Accessibility → Subtitles and Captioning. Position moves text subtitles only.") {
+            SettingRow(title: "Size", value: settings.subtitles.size.label, id: "settings.subtitleSize",
+                       choices: SettingsModel.sizes, selected: settings.subtitles.size) { settings.setSubtitleSize($0) }
+            SettingRow(title: "Background", value: settings.subtitles.background.label,
+                       id: "settings.subtitleBackground", choices: SettingsModel.backgrounds,
+                       selected: settings.subtitles.background) { settings.setSubtitleBackground($0) }
+            SettingRow(title: "Font", value: settings.subtitles.font.label, id: "settings.subtitleFont",
+                       choices: SettingsModel.fonts, selected: settings.subtitles.font) { settings.setSubtitleFont($0) }
+            SettingRow(title: "Position", value: settings.subtitles.raise.label, id: "settings.subtitlePosition",
+                       choices: SettingsModel.raises, selected: settings.subtitles.raise) {
+                settings.setSubtitleRaise($0)
+            }
+        }
+    }
+
+    private var browsing: some View {
+        SettingsGroup(title: "Browsing", note: nil) {
+            SettingRow(title: "Grid size", value: settings.gridDensity.label, id: "settings.gridSize",
+                       choices: SettingsModel.densities, selected: settings.gridDensity) { settings.setGridDensity($0) }
+            Button("Use the server's library order") { Task { await settings.useServerOrder() } }
+                .accessibilityIdentifier("settings.serverOrder")
+            if settings.offersStartAs {
+                SettingRow(title: "Always start as", value: settings.startAsLabel, id: "settings.startAs",
+                           choices: settings.startChoices, selected: settings.alwaysStartAs) {
+                    settings.setAlwaysStartAs($0)
+                }
+            }
+        }
+    }
+
+    private var more: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            Button("Diagnostics") { app.shell.open(.diagnostics) }
+                .accessibilityIdentifier("settings.diagnostics")
+            Button("About Pley") { app.shell.open(.about) }
+                .accessibilityIdentifier("settings.about")
+        }
+        .focusSection()
+    }
+}
+
+/// A group of rows under its heading, with a note under it.
+private struct SettingsGroup<Content: View>: View {
+    let title: String
+    let note: String?
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.secondary)
+                .accessibilityAddTraits(.isHeader)
+            content
+            if let note {
+                Text(note).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .focusSection()
+    }
+}
+
+/// A setting as a wide button saying its value; Select opens its choices
+/// in the system's list, the current one ticked.
+private struct SettingRow<Value: Hashable & Sendable>: View {
+    let title: String
+    let value: String
+    let id: String
+    let choices: [SettingChoice<Value>]
+    let selected: Value
+    let pick: (Value) -> Void
+    @State private var open = false
+
+    var body: some View {
+        Button {
+            open = true
+        } label: {
+            HStack {
+                Text(title)
+                Spacer(minLength: 40)
+                Text(value).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .accessibilityLabel(title)
+        .accessibilityValue(value)
+        .accessibilityIdentifier(id)
+        .confirmationDialog(title, isPresented: $open, titleVisibility: .visible) {
+            ForEach(choices) { choice in
+                Button(choice.value == selected ? "\(choice.label) ✓" : choice.label) { pick(choice.value) }
+            }
         }
     }
 }

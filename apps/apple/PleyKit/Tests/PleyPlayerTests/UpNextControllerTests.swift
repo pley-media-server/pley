@@ -8,7 +8,8 @@ import Testing
 /// Two 75 s episodes, as make-test-media.sh makes them: an intro from 10 to
 /// 30 s and credits from 55 s on, from their chapters.
 @MainActor
-private func showRig(start: Int? = nil, secondResumesAt: Int = 20_000, method: String = "direct") async throws -> Rig {
+private func showRig(start: Int? = nil, secondResumesAt: Int = 20_000, method: String = "direct",
+                     autoplayNext: Bool = true) async throws -> Rig {
     let server = FixtureServer()
     try await server.start()
     let chapters = [Chapter(startMs: 0, endMs: 10_000, title: "Prologue"),
@@ -26,7 +27,7 @@ private func showRig(start: Int? = nil, secondResumesAt: Int = 20_000, method: S
         server.addPlayable(episode)
     }
     server.setPlaybackMethod(method)
-    return try Rig(server: server, request: PlayRequest(itemId: 31, startMs: start))
+    return try Rig(server: server, request: PlayRequest(itemId: 31, startMs: start), autoplayNext: autoplayNext)
 }
 
 /// A movie whose MP4 has English AAC (1) and French AC-3 5.1 (2).
@@ -144,6 +145,34 @@ struct UpNextControllerTests {
         #expect(state.subtitle == "S1 E2 · Episode 2")
         #expect(state.upNext == nil)
         #expect(state.chapters.count == 4)
+        await rig.controller.close()
+    }
+
+    @Test func withAutoplayOffTheCardShowsWithNoCountdownAndNothingPlaysByItself() async throws {
+        let rig = try await showRig(start: 50_000, autoplayNext: false)
+        defer { rig.cleanUp() }
+        _ = try await started(rig)
+        at(rig, 56_000)
+        try await until("the card") { rig.controller.state.upNext != nil }
+        let card = try #require(rig.controller.state.upNext)
+        #expect(card.itemId == 32)
+        #expect(card.secondsLeft == nil)
+        #expect(card.playLabel == "Play Next")
+        // Playing on through the credits: nothing counts down.
+        for n in 1...15 { at(rig, 56_000 + n * 1_000, after: 1_000) }
+        #expect(rig.controller.state.upNext?.secondsLeft == nil)
+        #expect(rig.engine.loads.count == 1)
+        // At the end too, the card waits for Play Next.
+        rig.engine.emit(.ended)
+        try await until("the end") { rig.controller.state.phase == .ended }
+        for _ in 0..<15 {
+            rig.clock.advance(ms: 1_000)
+            rig.controller.tick()
+        }
+        #expect(rig.controller.state.upNext?.secondsLeft == nil)
+        #expect(rig.engine.loads.count == 1)
+        rig.controller.playNext()
+        try await until("the next episode loaded") { rig.engine.loads.count == 2 }
         await rig.controller.close()
     }
 

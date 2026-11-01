@@ -30,6 +30,13 @@ struct PleyApp: App {
         #endif
 
         #if os(macOS)
+        // Settings (⌘,): Playback, Subtitles and Browsing.
+        Settings {
+            MacSettingsView(app: app)
+        }
+        #endif
+
+        #if os(macOS)
         // The player, in a window of its own per playback.
         WindowGroup("Player", id: PlayerWindow.id, for: PlayRequest.self) { $request in
             PlayerWindow(app: app, request: request)

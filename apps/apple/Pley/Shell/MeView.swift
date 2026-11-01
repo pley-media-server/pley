@@ -1,8 +1,10 @@
+import PleyModel
 import PleyScreens
 import SwiftUI
 
-/// Me: the profile signed in and its server, Switch profile, Servers and
-/// Sign out.
+/// Me: the profile signed in and its server, Switch profile, the profile's
+/// audio and subtitle defaults, History, Settings (on the Mac, the
+/// Settings window, ⌘,), Diagnostics and About, Servers and Sign out.
 struct MeView: View {
     @ObservedObject private var app: AppModel
     @StateObject private var model: MeModel
@@ -32,8 +34,38 @@ struct MeView: View {
                 }
                 .accessibilityElement(children: .combine)
                 .padding(.vertical, 4)
+                if model.canSwitch {
+                    Button("Switch profile") { model.switchProfile() }
+                        .accessibilityIdentifier("me.switchProfile")
+                }
             } footer: {
                 Text(MeModel.webNote)
+            }
+            TrackDefaultsSection(model: model)
+            Section {
+                NavigationLink(value: Screen.history) {
+                    Label("History", systemImage: "clock")
+                }
+                .accessibilityIdentifier("me.history")
+                #if os(macOS)
+                SettingsLink {
+                    Label("Settings…", systemImage: "gearshape")
+                }
+                .accessibilityIdentifier("me.settings")
+                NavigationLink(value: Screen.diagnostics) {
+                    Label("Diagnostics", systemImage: "stethoscope")
+                }
+                .accessibilityIdentifier("me.diagnostics")
+                NavigationLink(value: Screen.about) {
+                    Label("About Pley", systemImage: "info.circle")
+                }
+                .accessibilityIdentifier("me.about")
+                #else
+                NavigationLink(value: Screen.settings) {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .accessibilityIdentifier("me.settings")
+                #endif
             }
             Section("Server") {
                 VStack(alignment: .leading, spacing: 2) {
@@ -44,18 +76,15 @@ struct MeView: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("me.server")
-            }
-            Section {
-                if model.canSwitch {
-                    Button("Switch profile") { model.switchProfile() }
-                        .accessibilityIdentifier("me.switchProfile")
-                }
                 Button("Servers") { model.showServers() }
                     .accessibilityIdentifier("me.servers")
                 Button("Sign out", role: .destructive) { confirmSignOut = true }
                     .accessibilityIdentifier("me.signOut")
             }
         }
+        #if os(macOS)
+        .listStyle(.inset)
+        #endif
         .navigationTitle("Me")
         .task(id: app.user?.id) { await model.load() }
         .confirmationDialog("Sign out of \(app.server?.name ?? "this server")?", isPresented: $confirmSignOut,
@@ -63,5 +92,56 @@ struct MeView: View {
             Button("Sign out", role: .destructive) { Task { await model.signOut() } }
                 .accessibilityIdentifier("me.signOut.confirm")
         }
+    }
+}
+
+/// The profile's audio and subtitle defaults, kept on the server: the
+/// audio language, when subtitles come on, and their language when the
+/// mode needs one. Read-only for a sign-in without the `play` scope.
+private struct TrackDefaultsSection: View {
+    @ObservedObject var model: MeModel
+
+    var body: some View {
+        Section {
+            Picker(selection: Binding(get: { model.trackDefaults.audioLanguage },
+                                      set: { code in Task { await model.setAudioLanguage(code) } })) {
+                Text("The file's default").tag(String?.none)
+                ForEach(MeModel.languages, id: \.code) { language in
+                    Text(language.name).tag(Optional(language.code))
+                }
+            } label: {
+                Text("Audio language")
+            }
+            .accessibilityIdentifier("me.audioLanguage")
+            Picker(selection: Binding(get: { model.trackDefaults.subtitleMode },
+                                      set: { mode in Task { await model.setSubtitleMode(mode) } })) {
+                ForEach(MeModel.modes, id: \.self) { mode in
+                    Text(MeModel.modeLabel(mode)).tag(mode)
+                }
+            } label: {
+                Text("Subtitles")
+            }
+            .accessibilityIdentifier("me.subtitleMode")
+            if model.showsSubtitleLanguage {
+                Picker(selection: Binding(get: { model.trackDefaults.subtitleLanguage },
+                                          set: { code in Task { await model.setSubtitleLanguage(code) } })) {
+                    Text("Same as the audio language").tag(String?.none)
+                    ForEach(MeModel.languages, id: \.code) { language in
+                        Text(language.name).tag(Optional(language.code))
+                    }
+                } label: {
+                    Text("Subtitle language")
+                }
+                .accessibilityIdentifier("me.subtitleLanguage")
+            }
+        } header: {
+            Text("Audio and subtitles")
+        } footer: {
+            Text(model.editable ? MeModel.modeHint(model.trackDefaults.subtitleMode) : MeModel.readOnlyNote)
+        }
+        #if os(iOS)
+        .pickerStyle(.navigationLink)
+        #endif
+        .disabled(!model.editable || model.saving)
     }
 }

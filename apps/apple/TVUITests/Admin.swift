@@ -124,6 +124,18 @@ enum Admin {
         return nil
     }
 
+    /// The administrator's subtitle mode, as `GET /api/auth/me` says it.
+    static func subtitleMode() async -> String? {
+        (await call("GET", "/api/auth/me").1 as? [String: Any])?["subtitle_mode"] as? String
+    }
+
+    /// The administrator's track defaults back to the server's: the file's
+    /// audio, forced subtitles in the audio's language.
+    static func resetTrackDefaults() async {
+        _ = await call("PATCH", "/api/me",
+                       body: #"{"audio_language":null,"subtitle_language":null,"subtitle_mode":"forced"}"#)
+    }
+
     /// The libraries back in the server's order.
     static func resetLibraryOrder() async {
         _ = await call("DELETE", "/api/me/libraries/order")

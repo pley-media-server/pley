@@ -33,6 +33,9 @@ public struct PlaybackEnvironment {
     public var profileId: Int?
     /// Where picture subtitles are downloaded while they show (the app's Caches, `picture-subtitles`).
     public var pictureFolder: URL
+    /// Whether the next episode plays by itself after the Up Next
+    /// countdown; `false`: the card shows with no countdown.
+    public var autoplayNext: Bool
 
     public init(api: PleyAPI, caps: DeviceCaps, clientId: String, reporter: SessionReporter, late: LateReports?,
                 quality: any QualityMemory = MemoryQuality(), ceiling: any CeilingMemory = MemoryCeiling(),
@@ -40,8 +43,9 @@ public struct PlaybackEnvironment {
                 engines: @escaping @MainActor () -> any PlayerEngine = { AVPlayerEngine() },
                 warmer: (any StreamWarmer)? = nil, networkTiming: NetworkStart.Timing = NetworkStart.Timing(),
                 subtitleOffsets: any SubtitleOffsets = MemorySubtitleOffsets(), profileId: Int? = nil,
-                pictureFolder: URL? = nil) {
+                pictureFolder: URL? = nil, autoplayNext: Bool = true) {
         self.api = api
+        self.autoplayNext = autoplayNext
         self.caps = caps
         self.clientId = clientId
         self.reporter = reporter
@@ -139,6 +143,8 @@ public final class PlaybackController: ObservableObject {
     static let subtitleRefreshMs: Int64 = 10_000
 
     @Published public private(set) var state = PlayerState()
+    /// Whether the next episode plays by itself after the Up Next countdown (Settings).
+    public var autoplaysNext: Bool { env.autoplayNext }
 
     /// The engine's player, for the views; `nil` until started.
     public var player: AVPlayer? { (engine as? AVPlayerEngine)?.player }
@@ -1070,7 +1076,8 @@ public final class PlaybackController: ObservableObject {
         next = found
         var card = UpNextCard(itemId: found.id, title: found.title, heading: NextUp.heading(found),
                               imagePath: found.thumbUrl ?? found.backdropUrl)
-        if countdown {
+        // With autoplay off (Settings), the card waits for Play Next.
+        if countdown && env.autoplayNext {
             countdownLeftMs = NextUp.countdownSeconds * 1000
             lastCountdownAt = env.clock.now()
         }

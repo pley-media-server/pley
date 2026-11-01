@@ -42,6 +42,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Collections and playlists: play or shuffle them, add titles to playlists,
   make, rename, reorder and delete playlists, and save a library's filters
   as a smart playlist.
+- Search with recent searches; Settings for quality, the next episode,
+  subtitle style and grid size; History, Diagnostics and About. On Apple
+  TV, choose who's watching at start or always start as one profile.
 
 ### Fixed
 

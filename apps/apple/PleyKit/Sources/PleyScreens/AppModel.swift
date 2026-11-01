@@ -108,6 +108,8 @@ public final class AppModel: ObservableObject {
     public private(set) lazy var actions = ItemActionsModel(app: self)
     /// The event stream of a server's API (the tests give their own).
     private let eventSignals: @Sendable (PleyAPI) -> AsyncStream<EventSignal>
+    /// Whether this is the Apple TV app, which asks "Who's watching?" at start.
+    private let tv: Bool
     /// Whether the app is in the foreground: the event stream runs only then.
     private var active = true
     private var eventsRunning = false
@@ -125,7 +127,7 @@ public final class AppModel: ObservableObject {
                 authenticator: (any WebAuthenticator)?,
                 discover: @escaping @Sendable () -> AsyncStream<DiscoveryState>,
                 caps: DeviceCaps? = nil, playerSetup: PlayerSetup = PlayerSetup(),
-                settings: AppSettings = AppSettings(),
+                settings: AppSettings = AppSettings(), tv: Bool = ShellModel.isTV,
                 eventSignals: @escaping @Sendable (PleyAPI) -> AsyncStream<EventSignal> = {
                     EventStream(api: $0).signals()
                 }) {
@@ -137,7 +139,8 @@ public final class AppModel: ObservableObject {
         self.caps = caps ?? DeviceCaps()
         self.playerSetup = playerSetup
         self.settings = settings
-        shell = ShellModel(settings: settings)
+        self.tv = tv
+        shell = ShellModel(settings: settings, tv: tv)
         self.eventSignals = eventSignals
         // One loader for the app, always with the open server's API.
         images = ImageLoader { [session] path, width in
@@ -161,13 +164,15 @@ public final class AppModel: ObservableObject {
         let servers = ServerRepository()
         let session = SessionManager(transport: transport, servers: servers)
         let discovery = LocalServers(transport: transport)
+        let settings = AppSettings()
         #if os(iOS) || os(macOS)
-        let authenticator: (any WebAuthenticator)? = SystemWebAuthenticator()
+        // Settings' "Sign in privately", read at each sign-in.
+        let authenticator: (any WebAuthenticator)? = SystemWebAuthenticator { settings.privateSignIn }
         #else
         let authenticator: (any WebAuthenticator)? = nil
         #endif
         return AppModel(session: session, servers: servers, transport: transport, authenticator: authenticator,
-                        discover: { discovery.browse() })
+                        discover: { discovery.browse() }, settings: settings)
     }
 
     /// At start: opens the server used last when the app is signed in to
@@ -183,7 +188,7 @@ public final class AppModel: ObservableObject {
             switch try await session.open(origin: last.origin, id: last.id) {
             case .signedIn(let user):
                 await opened(last.origin, id: last.id, name: last.name)
-                show(user, chooseProfile: false)
+                await startAs(user)
             case .signedOut:
                 root = .servers
             }
@@ -219,6 +224,7 @@ public final class AppModel: ObservableObject {
     public func signedIn(_ user: User) async {
         notice = nil
         let household = (try? await session.profiles?.profiles()) ?? []
+        noteHousehold(household)
         shell.reset()
         actions.reset()
         show(user, chooseProfile: household.count > 1)
@@ -280,6 +286,22 @@ public final class AppModel: ObservableObject {
         root = .profiles
     }
 
+    /// The profile as the server now says it is (after a change to its track defaults).
+    func updated(_ user: User) {
+        guard user.id == self.user?.id else { return }
+        var user = user
+        // The server's answer to a write may leave the token's scope out.
+        if user.scope == nil { user.scope = self.user?.scope }
+        self.user = user
+    }
+
+    /// The household as just read: kept, so the next start knows it
+    /// without the network, and Settings can offer "Always start as".
+    public func noteHousehold(_ profiles: [HouseholdProfile]) {
+        guard let origin = server?.origin, !profiles.isEmpty else { return }
+        settings.setHousehold(profiles.map { ($0.id, $0.name) }, origin: origin)
+    }
+
     /// "Who's watching?" ends without a switch: the profile in use stays.
     public func keepProfile() {
         guard user != nil else { return }
@@ -304,7 +326,8 @@ public final class AppModel: ObservableObject {
             api: api, caps: caps, clientId: playerSetup.clientId, reporter: reporter,
             late: lateReports(origin: origin, profileId: user.id), quality: playerSetup.quality,
             ceiling: playerSetup.ceilings(origin), clock: playerSetup.clock, engines: playerSetup.engines,
-            subtitleOffsets: playerSetup.subtitleOffsets, profileId: user.id)
+            subtitleOffsets: playerSetup.subtitleOffsets, profileId: user.id,
+            autoplayNext: settings.autoplayNext)
         let controller = PlaybackController(request: request, environment: environment)
         // Started first, so the screens get its AVPlayer with it.
         controller.start()
@@ -384,6 +407,43 @@ public final class AppModel: ObservableObject {
 
     // MARK: Inside
 
+    /// The start on a server signed in to: on Apple TV, "Who's watching?"
+    /// when the household had several profiles and no "Always start as" is
+    /// set, or a switch to that profile; Home everywhere else.
+    private func startAs(_ user: User) async {
+        let origin = server?.origin ?? ""
+        let gate = StartGate.decide(tv: tv, household: settings.household(origin: origin).map(\.id),
+                                    alwaysStartAs: settings.alwaysStartAs(origin: origin), current: user.id)
+        switch gate {
+        case .home:
+            show(user, chooseProfile: false)
+        case .profiles:
+            show(user, chooseProfile: true)
+        case .switchTo(let id):
+            if let switched = await switchAtStart(to: id) {
+                show(switched, chooseProfile: false)
+            } else {
+                // One with a PIN, or one gone: the person chooses.
+                show(user, chooseProfile: true)
+            }
+        }
+    }
+
+    /// Moves the sign-in to profile `id` when it needs nothing (no PIN):
+    /// the profile it is then, or `nil` when it couldn't.
+    private func switchAtStart(to id: Int) async -> User? {
+        guard let switcher = await session.profiles, let profiles = try? await switcher.profiles() else { return nil }
+        noteHousehold(profiles)
+        guard let profile = profiles.first(where: { $0.id == id }), profile.needs == .none else { return nil }
+        do {
+            try await switcher.switchTo(id, pin: nil)
+            guard let api = await session.api else { return nil }
+            return try await api.me()
+        } catch {
+            return nil
+        }
+    }
+
     private func show(_ user: User, chooseProfile: Bool) {
         self.user = user
         homeVersion += 1
@@ -454,4 +514,24 @@ public func asSentence(_ text: String) -> String {
     guard let first = trimmed.first else { return trimmed }
     let capital = first.uppercased() + trimmed.dropFirst()
     return ".…!?".contains(capital.last!) ? capital : capital + "."
+}
+
+/// Where the app opens on a server it is signed in to (Android TV's start
+/// gate): Apple TV asks "Who's watching?" when the household, as last seen,
+/// has several profiles and Settings' "Always start as" isn't set, and
+/// starts as that profile when it is. iPhone, iPad and Mac open Home as the
+/// profile used last, as Android's phone app does.
+public enum StartGate {
+    public enum Outcome: Hashable, Sendable {
+        case home
+        case profiles
+        /// Starts as this profile, switching to it first.
+        case switchTo(Int)
+    }
+
+    public static func decide(tv: Bool, household: [Int], alwaysStartAs: Int?, current: Int) -> Outcome {
+        guard tv, household.count > 1 else { return .home }
+        guard let always = alwaysStartAs, household.contains(always) else { return .profiles }
+        return always == current ? .home : .switchTo(always)
+    }
 }

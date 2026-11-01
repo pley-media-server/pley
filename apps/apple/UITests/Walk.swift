@@ -134,7 +134,7 @@ struct Walk {
 
     /// Sign out, confirmed; the servers show.
     func signOut() {
-        wait(element("me.signOut"), "Sign out").tap()
+        reveal(element("me.signOut"), "Sign out").tap()
         let confirm = app.buttons.matching(NSPredicate(format: "label == 'Sign out' AND identifier != 'me.signOut'"))
             .firstMatch
         wait(confirm, "Sign out's confirmation").tap()

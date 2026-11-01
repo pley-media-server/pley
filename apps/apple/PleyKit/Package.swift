@@ -40,8 +40,8 @@ let package = Package(
         .target(name: "PleyScreens", dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyData", "PleyAuth",
                                                     "PleyNetwork", "PleyModel", "PleyCommon"]),
         // The player's surface on each platform (AVKit's own controls) and what the apps lay over it.
-        .target(name: "PleyPlayerViews", dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyModel",
-                                                        "PleyCommon"]),
+        .target(name: "PleyPlayerViews", dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyData",
+                                                        "PleyModel", "PleyCommon"]),
         .target(name: "PleyTesting", dependencies: ["PleyModel", "PleyCommon"]),
         // Signs in to a real, disposable server (scripts/check-server.sh). macOS only.
         .executableTarget(name: "pley-apple-check", dependencies: ["PleyCaps", "PleyData", "PleyAuth", "PleyNetwork",
@@ -65,7 +65,7 @@ let package = Package(
                     dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyNetwork", "PleyModel", "PleyCommon",
                                    "PleyTesting"]),
         // UIKit's menus: run on the iOS and tvOS simulators, empty on the Mac.
-        .testTarget(name: "PleyPlayerViewsTests", dependencies: ["PleyPlayerViews", "PleyPlayer"]),
+        .testTarget(name: "PleyPlayerViewsTests", dependencies: ["PleyPlayerViews", "PleyPlayer", "PleyData"]),
         .testTarget(name: "PleyScreensTests",
                     dependencies: ["PleyScreens", "PleyPlayer", "PleyCaps", "PleyData", "PleyAuth", "PleyNetwork",
                                    "PleyModel", "PleyCommon", "PleyTesting"]),

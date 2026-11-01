@@ -1,7 +1,8 @@
+import PleyData
 import PleyScreens
 import SwiftUI
 
-/// A grid of `count` tiles in as many columns as fit. Only the cells near
+/// A grid of `count` tiles in as many columns as fit, sized by Settings' grid size. Only the cells near
 /// the screen are made; a cell whose tile isn't loaded yet shows its
 /// shape, and each cell says when it shows (`showing`), so its page can
 /// be loaded.
@@ -12,9 +13,10 @@ struct TileGrid: View {
     let tile: (Int) -> Tile?
     var showing: (Int) -> Void = { _ in }
     let open: (Tile) -> Void
+    @AppStorage(AppSettings.gridDensityKey) private var density = GridDensity.medium.rawValue
 
     var body: some View {
-        let width = Metrics.tileWidth(shape)
+        let width = Metrics.tileWidth(shape) * (GridDensity(rawValue: density) ?? .medium).scale
         LazyVGrid(columns: [GridItem(.adaptive(minimum: width, maximum: width), spacing: Metrics.tileSpacing,
                                      alignment: .top)],
                   alignment: .leading, spacing: Metrics.rowSpacing) {

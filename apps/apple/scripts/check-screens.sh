@@ -10,7 +10,9 @@
 # UI tests (PleyUITests on each iPhone and iPad simulator, PleyTVUITests on
 # the Apple TV one): sign in with a code, "Who's watching?", Home, an item,
 # a library, a collection, a playlist made, changed and deleted, Me
-# (Settings on Apple TV), a switch back by PIN, and Sign out. The server
+# (Settings on Apple TV), a switch back by PIN, a search, the profile's
+# track defaults, History, Settings, Diagnostics and About, on Apple TV
+# Always start as across a relaunch, and Sign out. The server
 # and the temporary folder are removed afterwards, whatever happens. macOS
 # only.
 #

@@ -203,6 +203,7 @@ public final class FixtureServer: Sendable {
         var delays: [String: Int] = [:]
         var network = Network()
         var browse = Browse()
+        var account = Account()
     }
 
     /// What the fixture says of the client's network (`/api/playback/network`).
@@ -388,6 +389,11 @@ public final class FixtureServer: Sendable {
         state.withLock { $0.files[path] = (type, body, headers) }
     }
 
+    /// `path` answers as its route does again.
+    public func clearAnswer(path: String) {
+        state.withLock { _ = $0.answers.removeValue(forKey: path) }
+    }
+
     public func answer(path: String, status: Int, headers: [String: String] = [:], json: String) {
         var headers = headers
         headers["Content-Type"] = headers["Content-Type"] ?? "application/json"
@@ -503,7 +509,10 @@ public final class FixtureServer: Sendable {
                 self.openEvents(request, on: connection)
             case .some(.some(let request)):
                 let answer = self.handle(request)
-                if let ms = self.state.withLock({ $0.delays["\(request.method) \(request.path)"] ?? $0.delays[request.path] }) {
+                if let ms = self.state.withLock({
+                    $0.delays["\(request.method) \(request.path)"] ?? $0.delays[request.path]
+                        ?? $0.delays["\(request.path)?q=\(request.query["q"] ?? "")"]
+                }) {
                     self.queue.asyncAfter(deadline: .now() + .milliseconds(ms)) { self.send(answer, on: connection) }
                 } else {
                     self.send(answer, on: connection)
@@ -633,7 +642,9 @@ public final class FixtureServer: Sendable {
         case "/.well-known/oauth-authorization-server" where get:
             return json(200, metadata(issuer: s.issuerOverride ?? s.origin, origin: s.origin))
         case "/api/auth/me" where get:
-            return withToken(&s, request) { _, access in json(200, me(profile: access.profile, scope: access.scope)) }
+            return withToken(&s, request) { s, access in
+                json(200, withTrackDefaults(s, me(profile: access.profile, scope: access.scope), profile: access.profile))
+            }
         case "/api/oauth/profiles" where get:
             return withToken(&s, request, scope: "profiles") { _, access in
                 json(200, household.map { profileJSON($0, current: $0.id == access.profile) })
@@ -663,6 +674,7 @@ public final class FixtureServer: Sendable {
         }
         if let answer = browse(&s, request, parts) { return answer }
         if let answer = lists(&s, request, parts) { return answer }
+        if let answer = account(&s, request, parts) { return answer }
         if let answer = playback(&s, request, parts) { return answer }
         if get, parts.count == 4, parts[0] == "api", parts[1] == "users", let id = Int(parts[2]), parts[3] == "avatar" {
             return withToken(&s, request) { _, _ in
@@ -1152,7 +1164,7 @@ public final class FixtureServer: Sendable {
         ]
     }
 
-    private static func me(profile: Int, scope: String) -> Any {
+    static func me(profile: Int, scope: String) -> Any {
         let p = household.first { $0.id == profile } ?? household[0]
         var user = (try? JSONSerialization.jsonObject(with: Fixtures.data("me/app_token.json"))) as? [String: Any] ?? [:]
         user["id"] = p.id

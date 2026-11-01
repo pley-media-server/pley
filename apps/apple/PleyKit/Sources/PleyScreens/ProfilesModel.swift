@@ -35,6 +35,7 @@ public final class ProfilesModel: ObservableObject {
         defer { loading = false }
         do {
             profiles = try await switcher.profiles()
+            app.noteHousehold(profiles)
             error = nil
         } catch is CancellationError {
         } catch {

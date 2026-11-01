@@ -12,23 +12,28 @@ import AppKit
 /// engine, outside the app, which catches the return address itself, so the
 /// app registers no URL scheme.
 ///
-/// The session is ephemeral, as the Android app's private tab: it shares no
-/// cookie with Safari and keeps none afterwards, so no Pley cookie with the
-/// account's full rights stays on the device. The password is typed at
-/// every sign-in.
+/// The session is ephemeral by default, as the Android app's private tab:
+/// it shares no cookie with Safari and keeps none afterwards, so no Pley
+/// cookie with the account's full rights stays on the device, and the
+/// password is typed at every sign-in. Settings' "Sign in privately" off
+/// shares Safari's cookies instead (`ephemeral` says which, at each sign-in).
 public struct SystemWebAuthenticator: WebAuthenticator {
-    public init() {}
+    private let ephemeral: @Sendable () -> Bool
+
+    public init(ephemeral: @escaping @Sendable () -> Bool = { true }) {
+        self.ephemeral = ephemeral
+    }
 
     public func authenticate(url: URL, callbackScheme: String) async throws -> URL {
-        try await Self.run(url: url, callbackScheme: callbackScheme)
+        try await Self.run(url: url, callbackScheme: callbackScheme, ephemeral: ephemeral())
     }
 
     @MainActor
-    private static func run(url: URL, callbackScheme: String) async throws -> URL {
+    private static func run(url: URL, callbackScheme: String, ephemeral: Bool) async throws -> URL {
         let sheet = Sheet()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                sheet.start(url: url, callbackScheme: callbackScheme, continuation: continuation)
+                sheet.start(url: url, callbackScheme: callbackScheme, ephemeral: ephemeral, continuation: continuation)
             }
         } onCancel: {
             Task { @MainActor in sheet.cancel() }
@@ -41,7 +46,8 @@ public struct SystemWebAuthenticator: WebAuthenticator {
 private final class Sheet: NSObject, ASWebAuthenticationPresentationContextProviding {
     private var session: ASWebAuthenticationSession?
 
-    func start(url: URL, callbackScheme: String, continuation: CheckedContinuation<URL, any Error>) {
+    func start(url: URL, callbackScheme: String, ephemeral: Bool,
+               continuation: CheckedContinuation<URL, any Error>) {
         // The iOS 16 initialiser: the `Callback` one needs iOS 17.4.
         let session = ASWebAuthenticationSession(url: url, callbackURLScheme: callbackScheme) { callback, error in
             if let callback {
@@ -53,7 +59,7 @@ private final class Sheet: NSObject, ASWebAuthenticationPresentationContextProvi
             }
             Task { @MainActor in self.session = nil }
         }
-        session.prefersEphemeralWebBrowserSession = true
+        session.prefersEphemeralWebBrowserSession = ephemeral
         session.presentationContextProvider = self
         self.session = session
         if !session.start() {

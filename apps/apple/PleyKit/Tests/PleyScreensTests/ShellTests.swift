@@ -95,14 +95,16 @@ import Testing
         #expect(ShellSection(key: "live") == nil)
     }
 
-    @Test func playlistsHaveATabASidebarRowAndAnAppleTVTab() {
-        #expect(ShellModel.sections(tv: false, libraries: []) == [.home, .libraries, .playlists, .me])
+    @Test func searchAndPlaylistsHaveATabASidebarRowAndAnAppleTVTab() {
+        // The Android phone's five tabs.
+        #expect(ShellModel.sections(tv: false, libraries: []) == [.home, .libraries, .search, .playlists, .me])
         let libraries = [Library(id: 1, name: "Movies", kind: .movies), Library(id: 2, name: "Shows", kind: .shows)]
+        // Search first on Apple TV, where tvOS puts it.
         #expect(ShellModel.sections(tv: true, libraries: libraries)
-            == [.home, .library(1), .library(2), .playlists, .settings])
+            == [.search, .home, .library(1), .library(2), .playlists, .settings])
         let shell = ShellModel(settings: freshSettings(), tv: false)
         shell.setLibraries(libraries)
-        #expect(shell.sidebar == [.home, .playlists, .library(1), .library(2)])
+        #expect(shell.sidebar == [.home, .search, .playlists, .library(1), .library(2)])
     }
 
     @Test func aToastsUndoRunsOnce() {

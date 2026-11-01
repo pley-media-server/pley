@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import os
+import PleyData
 
 /// The network's ceiling Automatic found last, per device and server, so
 /// the next title starts at what the network carried (docs/QUALITY.md,
@@ -83,7 +84,8 @@ public final class DefaultsQuality: QualityMemory, @unchecked Sendable {
         self.cellular = cellular
     }
 
-    private var key: String { cellular() ? "pley.quality.cellular" : "pley.quality.other" }
+    /// The keys Settings writes too (`AppSettings.setQuality`).
+    private var key: String { AppSettings.qualityKey(cellular: cellular()) }
 
     public func remembered() -> String? { defaults.string(forKey: key) }
     public func remember(_ id: String) { defaults.set(id, forKey: key) }
@@ -95,16 +97,23 @@ public final class NetworkKind: Sendable {
 
     private let monitor = NWPathMonitor()
     private let isCellular = OSAllocatedUnfairLock(initialState: false)
+    private let hasCellular = OSAllocatedUnfairLock(initialState: false)
 
     private init() {
         let isCellular = isCellular
+        let hasCellular = hasCellular
         monitor.pathUpdateHandler = { path in
             let cellular = path.usesInterfaceType(.cellular) && !path.usesInterfaceType(.wifi)
                 && !path.usesInterfaceType(.wiredEthernet)
             isCellular.withLock { $0 = cellular }
+            if path.availableInterfaces.contains(where: { $0.type == .cellular }) { hasCellular.withLock { $0 = true } }
         }
         monitor.start(queue: DispatchQueue(label: "app.pley.apple.network-kind"))
     }
 
     public var cellular: Bool { isCellular.withLock { $0 } }
+
+    /// Whether the device has mobile data at all (an iPad with cellular),
+    /// so Settings offers a quality for it.
+    public var cellularAvailable: Bool { hasCellular.withLock { $0 } }
 }

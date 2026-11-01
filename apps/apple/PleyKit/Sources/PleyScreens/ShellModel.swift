@@ -124,8 +124,9 @@ public final class ShellModel: ObservableObject {
     private var toastTask: Task<Void, Never>?
 
     /// The shell on this device, opening on the section shown last: on
-    /// iPhone, iPad and Mac, Home, Libraries, Playlists and Me; on Apple TV,
-    /// Home, the libraries, Playlists and Settings.
+    /// iPhone, iPad and Mac, Home, Libraries, Search, Playlists and Me (the
+    /// Android phone's five); on Apple TV, Search, Home, the libraries,
+    /// Playlists and Settings.
     public init(settings: AppSettings = AppSettings(), tv: Bool = ShellModel.isTV) {
         self.settings = settings
         self.tv = tv
@@ -149,14 +150,15 @@ public final class ShellModel: ObservableObject {
 
     /// The tabs of a shell, with `libraries`.
     public static func sections(tv: Bool, libraries: [Library]) -> [ShellSection] {
-        guard tv else { return [.home, .libraries, .playlists, .me] }
+        guard tv else { return [.home, .libraries, .search, .playlists, .me] }
         let middle: [ShellSection] = libraries.count > maxLibraryTabs ? [.libraries] : libraries.map { .library($0.id) }
-        return [.home] + middle + [.playlists, .settings]
+        // Search first, where tvOS puts it.
+        return [.search, .home] + middle + [.playlists, .settings]
     }
 
-    /// The sidebar's rows on iPad and Mac: Home and Playlists, then each
-    /// library (Me is at its foot).
-    public var sidebar: [ShellSection] { [.home, .playlists] + libraries.map { .library($0.id) } }
+    /// The sidebar's rows on iPad and Mac: Home, Search and Playlists, then
+    /// each library (Me is at its foot).
+    public var sidebar: [ShellSection] { [.home, .search, .playlists] + libraries.map { .library($0.id) } }
 
     /// Whether `section` is one this device can show now.
     public func shows(_ section: ShellSection) -> Bool {

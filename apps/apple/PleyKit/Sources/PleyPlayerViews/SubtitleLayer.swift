@@ -3,15 +3,18 @@ import CoreGraphics
 import CoreText
 import Foundation
 import MediaAccessibility
+import PleyData
 import PleySubtitles
 #if canImport(UIKit)
 import UIKit
 typealias PlatformFont = UIFont
+typealias PlatformFontDescriptor = UIFontDescriptor
 typealias PlatformColor = UIColor
 typealias DrawingOptions = NSStringDrawingOptions
 #else
 import AppKit
 typealias PlatformFont = NSFont
+typealias PlatformFontDescriptor = NSFontDescriptor
 typealias PlatformColor = NSColor
 typealias DrawingOptions = NSString.DrawingOptions
 #endif
@@ -20,8 +23,9 @@ typealias DrawingOptions = NSString.DrawingOptions
 /// white, bold, a dark outline and no box, 4.8 % of the video's height.
 /// When the person chose a caption style in the system's settings
 /// (Accessibility → Subtitles & Captioning), what that style sets wins:
-/// colours, background, font, size and edges.
-public struct CaptionStyle: Sendable {
+/// colours, background, font, size and edges. What they chose in Pley's
+/// Settings (size, background, font, position) wins over both.
+public struct CaptionStyle: Sendable, Equatable {
     public enum Edge: Sendable {
         case none, outline, shadow, raised, depressed
     }
@@ -39,6 +43,10 @@ public struct CaptionStyle: Sendable {
     /// The size the style asks for, against pley's: 1 is 4.8 % of the height.
     public var scale: CGFloat = 1
     public var edge: Edge = .outline
+    /// A typeface chosen in Settings, over `fontName`; `.system` for none.
+    public var family: SubtitleFont = .system
+    /// How far bottom text subtitles are raised, a share of the video's height.
+    public var raise: CGFloat = 0
 
     /// A colour as four components (sRGB), so the style stays a value.
     public struct RGBA: Sendable, Equatable {
@@ -61,8 +69,36 @@ public struct CaptionStyle: Sendable {
 
     public init() {}
 
+    /// The box Settings' "Dark box" puts behind the text.
+    public static let darkBox = RGBA(0, 0, 0, 0.75)
+
+    /// Pley's look, with what the system's caption style sets and, over it,
+    /// what Settings sets.
+    public static func current(overrides: SubtitleOverrides = AppSettings().subtitles) -> CaptionStyle {
+        system().merged(overrides)
+    }
+
+    /// The style with Settings' choices over it: a size replaces the
+    /// system's, None takes the box away and Dark box puts one in, a
+    /// typeface replaces the system's, and the raise moves text up.
+    public func merged(_ overrides: SubtitleOverrides) -> CaptionStyle {
+        var style = self
+        if let scale = overrides.size.scale { style.scale = CGFloat(scale) }
+        switch overrides.background {
+        case .system: break
+        case .none: style.background = nil
+        case .darkBox: style.background = Self.darkBox
+        }
+        if overrides.font != .system {
+            style.family = overrides.font
+            style.fontName = nil
+        }
+        style.raise = CGFloat(overrides.raise.share)
+        return style
+    }
+
     /// Pley's look, with what the system's caption style sets.
-    public static func current() -> CaptionStyle {
+    public static func system() -> CaptionStyle {
         var style = CaptionStyle()
         var behavior = MACaptionAppearanceBehavior.useContentIfAvailable
         let text = MACaptionAppearanceCopyForegroundColor(.user, &behavior).takeRetainedValue()
@@ -100,9 +136,11 @@ public struct CaptionStyle: Sendable {
 
     /// The font for text `size` points tall, bold or not, italic or not.
     func font(size: CGFloat, bold: Bool, italic: Bool) -> PlatformFont {
-        var base = fontName.flatMap { PlatformFont(name: $0, size: size) }
-            ?? PlatformFont.systemFont(ofSize: size, weight: bold ? .bold : .semibold)
-        if italic || bold && fontName != nil {
+        let weight: PlatformFont.Weight = bold ? .bold : .semibold
+        var base = chosenFont(size: size, weight: weight)
+            ?? fontName.flatMap { PlatformFont(name: $0, size: size) }
+            ?? PlatformFont.systemFont(ofSize: size, weight: weight)
+        if italic || bold && (fontName != nil || family == .casual) {
             var traits = CTFontGetSymbolicTraits(base as CTFont)
             if italic { traits.insert(.traitItalic) }
             if bold { traits.insert(.traitBold) }
@@ -111,6 +149,24 @@ public struct CaptionStyle: Sendable {
             }
         }
         return base
+    }
+
+    /// The typeface chosen in Settings; `nil` for the system's choice.
+    private func chosenFont(size: CGFloat, weight: PlatformFont.Weight) -> PlatformFont? {
+        let system = PlatformFont.systemFont(ofSize: size, weight: weight)
+        switch family {
+        case .system: return nil
+        case .sansSerif: return system
+        case .serif: return Self.designed(system, .serif, size: size)
+        case .monospace: return Self.designed(system, .monospaced, size: size)
+        case .casual: return PlatformFont(name: SubtitleFont.casualName, size: size)
+        }
+    }
+
+    private static func designed(_ font: PlatformFont, _ design: PlatformFontDescriptor.SystemDesign,
+                                 size: CGFloat) -> PlatformFont? {
+        guard let descriptor = font.fontDescriptor.withDesign(design) else { return nil }
+        return PlatformFont(descriptor: descriptor, size: size)
     }
 }
 
@@ -156,7 +212,8 @@ enum SubtitleDrawing {
                                          options: options, context: nil)
         let height = ceil(measured.height)
         let margin = video.height * CaptionStyle.margin
-        let y = atTop ? video.minY + margin : video.maxY - margin - height
+        // Settings' raise lifts subtitles at the bottom; pictures keep their place.
+        let y = atTop ? video.minY + margin : video.maxY - margin - video.height * style.raise - height
         let rect = CGRect(x: video.midX - width / 2, y: y, width: width, height: height)
         if let background = style.background {
             let used = ceil(measured.width) + size * 0.6
@@ -268,16 +325,22 @@ final class SubtitleView: UIView {
         autoresizingMask = [.flexibleWidth, .flexibleHeight]
         NotificationCenter.default.addObserver(self, selector: #selector(captionStyleDidChange),
                                                name: captionStyleChanged, object: nil)
+        // Settings' subtitle style, changed while playing (the Mac's Settings window).
+        NotificationCenter.default.addObserver(self, selector: #selector(captionStyleDidChange),
+                                               name: UserDefaults.didChangeNotification, object: nil)
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("not from a nib") }
 
-    /// The person changed the system's caption style: drawn again with it.
+    /// The person changed the system's caption style, or Settings': drawn again with it.
     @objc private func captionStyleDidChange() {
         Task { @MainActor [weak self] in
-            self?.style = CaptionStyle.current()
-            self?.setNeedsDisplay()
+            guard let self else { return }
+            let style = CaptionStyle.current()
+            guard style != self.style else { return }
+            self.style = style
+            self.setNeedsDisplay()
         }
     }
 
@@ -305,16 +368,22 @@ final class SubtitleView: NSView {
         autoresizingMask = [.width, .height]
         NotificationCenter.default.addObserver(self, selector: #selector(captionStyleDidChange),
                                                name: captionStyleChanged, object: nil)
+        // Settings' subtitle style, changed while playing (the Mac's Settings window).
+        NotificationCenter.default.addObserver(self, selector: #selector(captionStyleDidChange),
+                                               name: UserDefaults.didChangeNotification, object: nil)
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("not from a nib") }
 
-    /// The person changed the system's caption style: drawn again with it.
+    /// The person changed the system's caption style, or Settings': drawn again with it.
     @objc private func captionStyleDidChange() {
         Task { @MainActor [weak self] in
-            self?.style = CaptionStyle.current()
-            self?.needsDisplay = true
+            guard let self else { return }
+            let style = CaptionStyle.current()
+            guard style != self.style else { return }
+            self.style = style
+            self.needsDisplay = true
         }
     }
 

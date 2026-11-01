@@ -3,8 +3,8 @@ import PleyScreens
 import SwiftUI
 
 /// The signed-in app. On iPhone, and on iPad in a narrow window, a tab bar
-/// with Home, Libraries, Playlists and Me; on iPad at regular width and on
-/// the Mac, a sidebar with Home and Playlists, the libraries in the
+/// with Home, Libraries, Search, Playlists and Me; on iPad at regular width
+/// and on the Mac, a sidebar with Home, Search and Playlists, the libraries in the
 /// profile's order (Edit, or a drag, puts them in another), and at its foot
 /// the profile signed in (Me). Each section keeps its own navigation, and
 /// choosing the section showing goes back to its start. Add to playlist and
@@ -121,9 +121,9 @@ struct ShellView: View {
         case .home: HomeView(app: app)
         case .libraries: LibrariesView(app: app)
         case .library(let id): LibraryView(app: app, libraryId: id)
+        case .search: SearchView(app: app)
         case .playlists: PlaylistsView(app: app)
         case .me, .settings: MeView(app: app)
-        default: EmptyView()
         }
     }
 
@@ -152,7 +152,7 @@ struct ShellView: View {
     }
 }
 
-/// The sidebar: Home and Playlists, then the libraries in the profile's order, each
+/// The sidebar: Home, Search and Playlists, then the libraries in the profile's order, each
 /// with its kind's symbol; a drag (or Edit on iPad, or VoiceOver's Move up
 /// and Move down) puts them in another order.
 private struct Sidebar: View {
@@ -172,6 +172,9 @@ private struct Sidebar: View {
             Label(ShellView.title(.home), systemImage: ShellView.symbol(.home))
                 .tag(ShellSection.home)
                 .accessibilityIdentifier("shell.sidebar.home")
+            Label(ShellView.title(.search), systemImage: ShellView.symbol(.search))
+                .tag(ShellSection.search)
+                .accessibilityIdentifier("shell.sidebar.search")
             Label(ShellView.title(.playlists), systemImage: ShellView.symbol(.playlists))
                 .tag(ShellSection.playlists)
                 .accessibilityIdentifier("shell.sidebar.playlists")
@@ -241,8 +244,21 @@ struct ScreenView: View {
             CollectionsPage(app: app, libraryId: library)
         case .playlist(let id):
             PlaylistView(app: app, playlistId: id)
-        default:
-            EmptyView()
+        case .history:
+            HistoryView(app: app)
+        case .settings:
+            #if os(macOS)
+            // The Mac's Settings is a window of its own (⌘,).
+            MeView(app: app)
+            #else
+            SettingsView(app: app)
+            #endif
+        case .diagnostics:
+            DiagnosticsView(app: app)
+        case .about:
+            AboutView()
+        case .trackDefaults:
+            MeView(app: app)
         }
     }
 }

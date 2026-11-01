@@ -6,7 +6,9 @@ import XCTest
 /// a movie's, a show's, a season's, an episode's, an artist's and an
 /// album's pages, a library tab's sort, filter and letters, Save as Smart
 /// Playlist, a collection's page, a playlist made, changed and deleted,
-/// and Sign out.
+/// a search and its recent searches, the profile's subtitle default,
+/// History, quality and subtitle size, Diagnostics, About, Always start as
+/// across a relaunch, and Sign out.
 /// A person's page is walked when a title has cast, which comes from a
 /// metadata source; the test server has none, so it is skipped.
 @MainActor
@@ -54,6 +56,11 @@ final class ScreensTests: XCTestCase {
         await walk.playlistWalk(movies: libraries["Movies"] ?? 0)
         walk.openLibraryTab("Clips")
         walk.jumpByLetter()
+        walk.search()
+        await walk.trackDefaults()
+        walk.history()
+        walk.settings()
+        walk.alwaysStartAs()
         walk.openSettings()
         walk.signOut()
         walk.shot("07-signed-out")

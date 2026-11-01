@@ -1,10 +1,10 @@
 import PleyScreens
 import SwiftUI
 
-/// The signed-in app on Apple TV: tabs across the top, Home, a tab per
-/// library (or one Libraries tab when there are more than four), Playlists
-/// and Settings (which holds the profile, the server, Switch profile,
-/// Servers and Sign out). Each tab keeps its own navigation; Menu goes back
+/// The signed-in app on Apple TV: tabs across the top, Search, Home, a tab
+/// per library (or one Libraries tab when there are more than four),
+/// Playlists and Settings (which holds the profile, the server, Switch
+/// profile, History, Servers and Sign out, and the device's settings). Each tab keeps its own navigation; Menu goes back
 /// through it, then to the tabs, then out of the app. Add to playlist and
 /// New playlist are a panel down the right. While the player is open
 /// VoiceOver reads only the player.
@@ -49,9 +49,9 @@ struct ShellView: View {
         case .home: HomeView(app: app)
         case .libraries: LibrariesView(app: app)
         case .library(let id): LibraryView(app: app, libraryId: id)
+        case .search: SearchView(app: app)
         case .playlists: PlaylistsView(app: app)
         case .settings, .me: SettingsView(app: app)
-        default: EmptyView()
         }
     }
 
@@ -119,8 +119,14 @@ struct ScreenView: View {
             CollectionsPage(app: app, libraryId: library)
         case .playlist(let id):
             PlaylistView(app: app, playlistId: id)
-        default:
-            EmptyView()
+        case .history:
+            HistoryView(app: app)
+        case .diagnostics:
+            DiagnosticsView(app: app)
+        case .about:
+            AboutView()
+        case .settings, .trackDefaults:
+            SettingsView(app: app)
         }
     }
 }

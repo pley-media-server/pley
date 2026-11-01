@@ -39,7 +39,7 @@ func app(_ store: any TokenStore = MemoryTokenStore(), servers: [SavedServer] = 
          client: AppClient = .ios,
          discover: @escaping @Sendable () -> AsyncStream<DiscoveryState> = { AsyncStream { $0.finish() } },
          engines: @escaping @MainActor () -> any PlayerEngine = { StillEngine() },
-         settings: AppSettings = freshSettings())
+         settings: AppSettings = freshSettings(), tv: Bool = ShellModel.isTV)
     -> AppModel {
     let transport = HTTPTransport(userAgent: testAgent)
     let repository = ServerRepository(store: MemoryServerListStore(servers))
@@ -51,7 +51,7 @@ func app(_ store: any TokenStore = MemoryTokenStore(), servers: [SavedServer] = 
                     caps: DeviceCaps(probe: RecordedProbe()),
                     playerSetup: .init(clientId: "apple-test", lateReports: late, quality: MemoryQuality(),
                                        ceilings: { _ in MemoryCeiling() }, engines: engines),
-                    settings: settings)
+                    settings: settings, tv: tv)
 }
 
 /// Settings of their own, gone with the test.

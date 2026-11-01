@@ -7,7 +7,9 @@ import XCTest
 /// movie's, a show's, a season's, an episode's, an artist's and an album's
 /// pages, a library's sort, filter and letters, Save as Smart Playlist, a
 /// collection's page, a playlist made, changed and deleted, the libraries'
-/// order, and Sign out. A person's page is walked when a title has cast, which comes
+/// order, a search and its recent searches, the profile's subtitle default,
+/// History, Settings' quality and subtitle size, Diagnostics, About, and
+/// Sign out. A person's page is walked when a title has cast, which comes
 /// from a metadata source; the test server has none, so it is skipped.
 @MainActor
 final class ScreensTests: XCTestCase {
@@ -59,6 +61,10 @@ final class ScreensTests: XCTestCase {
         walk.openLibrary(libraries["Clips"] ?? 0, "Clips")
         walk.jumpByLetter()
         await walk.reorder()
+        walk.search()
+        await walk.trackDefaults()
+        walk.history()
+        walk.settings()
         walk.openMe()
         walk.signOut()
         walk.shot("07-signed-out")

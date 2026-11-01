@@ -1,8 +1,9 @@
+import PleyData
 import PleyScreens
 import SwiftUI
 
 /// A grid of `count` tiles in as many columns as fit (two on iPhone at the
-/// accessibility text sizes). Only the cells near the screen are made; a
+/// accessibility text sizes), sized by Settings' grid size. Only the cells near the screen are made; a
 /// cell whose tile isn't loaded yet shows its shape, and each cell says
 /// when it shows (`showing`), so its page can be loaded.
 struct TileGrid: View {
@@ -15,9 +16,11 @@ struct TileGrid: View {
     private let layout = WideLayout()
     @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
     @Environment(\.dynamicTypeSize) private var typeSize
+    @AppStorage(AppSettings.gridDensityKey) private var density = GridDensity.medium.rawValue
 
     private var width: CGFloat {
-        Metrics.tileWidth(shape, regular: layout.wide) * min(max(typeScale, 1), Metrics.maxTileScale)
+        let scale = (GridDensity(rawValue: density) ?? .medium).scale
+        return Metrics.tileWidth(shape, regular: layout.wide) * scale * min(max(typeScale, 1), Metrics.maxTileScale)
     }
 
     private var columns: [GridItem] {

@@ -155,7 +155,8 @@ struct Walk {
 
     /// Sign out, confirmed; the servers show.
     func signOut() {
-        select(element("me.signOut"), "Sign out", first: [.down, .right])
+        focusDown(element("me.signOut"), "Sign out")
+        remote.press(.select)
         let confirm = app.alerts.buttons["Sign out"].firstMatch
         select(confirm, "Sign out's confirmation", first: [.up, .down])
         wait(button("servers.add"), "the servers after signing out")
