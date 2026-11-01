@@ -192,3 +192,7 @@ It has no releases yet: it is built and installed by hand
   show their pictures as soon as the server has made them, where a card
   asked before then stayed an empty box; a chapter whose own picture the
   server lacks shows the preview at its start.
+- What the native app stops stays stopped: Up Next no longer moves on
+  after it was stopped, a sign-in code no longer changes while it is
+  read, and the subtitles and the reports to the server no longer do
+  more work after each seek or pause.

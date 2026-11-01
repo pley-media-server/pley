@@ -88,7 +88,17 @@ public sealed class ContextScheduler : IScheduler
             if (context != null) context.Post(_ => { if (!cancel.IsCancellationRequested) action(); }, null);
             else action();
         }, TaskScheduler.Default);
-        return cancel;
+        return new Cancel(cancel);
+    }
+
+    /// <summary>Cancels the timer: disposing a CancellationTokenSource doesn't, so it can't be the handle.</summary>
+    sealed class Cancel : IDisposable
+    {
+        readonly CancellationTokenSource source;
+
+        public Cancel(CancellationTokenSource source) => this.source = source;
+
+        public void Dispose() => source.Cancel();
     }
 
     public void Post(Action action)
