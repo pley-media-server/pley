@@ -31,6 +31,7 @@ static class Profile
     [Conditional("PROFILE")]
     public static void Mark(string what) => Run.Mark(what);
 
+
     /// <summary>
     /// The UI thread goes into <paramref name="what"/>, a call into the TV (its player, its window):
     /// a hang there is named by the watchdog. <see cref="Leave"/> as it comes back.
@@ -110,6 +111,7 @@ static class Profile
         static readonly System.Collections.Concurrent.BlockingCollection<(string Line, bool Keep)> Outgoing =
             new System.Collections.Concurrent.BlockingCollection<(string, bool)>(new System.Collections.Concurrent.ConcurrentQueue<(string, bool)>(), 4096);
         static Thread? writer;
+        static int memoryTicks;
 
         public static void Mark(string what)
         {
@@ -165,6 +167,7 @@ static class Profile
         {
             Trail(dataDir);
             CatchCrashes(dataDir);
+            Sampler(dataDir);
             Write();
             // Core's marks too (the relay's, Live TV's), from whatever thread they come on.
             Core.Marks.Listener = Mark;
@@ -187,7 +190,94 @@ static class Profile
                 // Gone already.
             }
             trail = null;
+            Forget(samples);
         }
+
+        static string? samples;
+
+        /// <summary>
+        /// The app's threads looked at from outside it every 250 ms, by a shell of its own: each one's
+        /// state (R running, S sleeping, D waiting on the kernel, T stopped) and the kernel call it
+        /// waits in, written to a ring of files. The app freezes whole now and then, its watchdog and
+        /// writer with it, so nothing in it can tell why; the shell is no .NET thread, so a pause of
+        /// .NET's doesn't stop it, and if the TV stops the app's processes, the samples stop with
+        /// them. A run that ended without <see cref="End"/> has its last samples sent at the next start.
+        /// </summary>
+        static void Sampler(string dataDir)
+        {
+            var dir = Path.Combine(dataDir, "samples");
+            try
+            {
+                if (Directory.Exists(dir))
+                {
+                    var found = new System.Collections.Generic.List<(double At, string Text)>();
+                    foreach (var f in Directory.GetFiles(dir, "s.*"))
+                    {
+                        if (f.EndsWith(".tmp", StringComparison.Ordinal)) continue;
+                        var text = File.ReadAllText(f);
+                        var first = text.Split('\n')[0];
+                        if (first.StartsWith("at ", StringComparison.Ordinal)
+                            && double.TryParse(first.Substring(3).Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var at))
+                            found.Add((at, text));
+                    }
+                    found.Sort((a, b) => a.At.CompareTo(b.At));
+                    for (var i = Math.Max(0, found.Count - 8); i < found.Count; i++)
+                    {
+                        var line = "SAMPLE LAST RUN " + found[i].Text.Trim().Replace("\n", " | ");
+                        Send(line.Length > 3900 ? line.Substring(0, 3900) : line);
+                    }
+                    Forget(dir);
+                }
+                Directory.CreateDirectory(dir);
+                // The TV's clock since it started, which the samples count in: it lines them up with the marks.
+                Mark($"uptime {File.ReadAllText("/proc/uptime").Trim()}");
+                var script = Path.Combine(dataDir, "sampler.sh");
+                File.WriteAllText(script, SamplerScript.Replace("\r", ""));
+                var shell = Process.Start(new ProcessStartInfo("/bin/sh", $"{script} {Process.GetCurrentProcess().Id} {dir}") { UseShellExecute = false });
+                Mark(shell != null ? $"sampler: started, process {shell.Id}" : "sampler: didn't start");
+                samples = dir;
+            }
+            catch (Exception e)
+            {
+                Mark($"sampler: didn't start: {e.GetType().Name}: {e.Message}");
+            }
+        }
+
+        static void Forget(string? dir)
+        {
+            try
+            {
+                if (dir != null && Directory.Exists(dir))
+                    foreach (var f in Directory.GetFiles(dir)) File.Delete(f);
+            }
+            catch (Exception)
+            {
+                // Gone already.
+            }
+        }
+
+        /// <summary>
+        /// The sampler: shell built-ins in its loop (read, echo), so it forks little; a ring of 20
+        /// files, each written whole then moved into place, so the last ones are always readable.
+        /// </summary>
+        const string SamplerScript = @"p=$1; d=$2; i=0
+while [ -d /proc/$p ]; do
+  f=$d/s.$i
+  {
+    read up idle < /proc/uptime; echo ""at $up""
+    while read k v; do case $k in State:|VmRSS:|Threads:) printf '%s %s  ' ""$k"" ""$v"";; esac; done < /proc/$p/status; echo
+    while read c; do printf '%s ' ""$c""; done < /proc/$p/cgroup; echo
+    for t in /proc/$p/task/*; do
+      s=; n=; w=
+      read -r s < $t/stat; read -r n < $t/comm; read -r w < $t/wchan
+      s=${s##*) }; echo ""${t##*/} $n ${s%% *} $w""
+    done
+  } > $f.tmp 2>/dev/null
+  mv $f.tmp $f
+  i=$(( (i + 1) % 20 ))
+  sleep 0.25 2>/dev/null || usleep 250000
+done
+";
 
         /// <summary>The last 40 marks of a run that ended without <see cref="End"/> are sent; this run's go to the same file.</summary>
         static void Trail(string dataDir)
@@ -318,7 +408,26 @@ static class Profile
                 {
                     // Not readable here.
                 }
-                Send($"profile {Now,8:0} ms  MEMORY rss={rss} peak={peak} heap={GC.GetTotalMemory(false) / 1048576.0:0.0} MB gc0={GC.CollectionCount(0)} gc2={GC.CollectionCount(2)}, after: {last}");
+                // The TV's memory as a whole, and how readily it would close this app for it: a TV short
+                // of memory freezes an app (every thread at once) and then closes it.
+                string available = "?", free = "?", swap = "?", adj = "?";
+                try
+                {
+                    foreach (var line in File.ReadAllLines("/proc/meminfo"))
+                    {
+                        if (line.StartsWith("MemAvailable:")) available = line.Substring(13).Trim();
+                        else if (line.StartsWith("MemFree:")) free = line.Substring(8).Trim();
+                        else if (line.StartsWith("SwapFree:")) swap = line.Substring(9).Trim();
+                    }
+                    adj = File.ReadAllText("/proc/self/oom_score_adj").Trim();
+                }
+                catch (Exception)
+                {
+                    // Not readable here.
+                }
+                Send($"profile {Now,8:0} ms  MEMORY rss={rss} peak={peak} heap={GC.GetTotalMemory(false) / 1048576.0:0.0} MB gc0={GC.CollectionCount(0)} gc2={GC.CollectionCount(2)} tv-available={available} tv-free={free} swap-free={swap} oom-adj={adj}, after: {last}");
+                // To the trail too, every 30 s: the last before a close says what the TV had left.
+                if (++memoryTicks % 6 == 0) Outgoing.TryAdd(($"profile {Now,8:0} ms  MEMORY rss={rss} tv-available={available} oom-adj={adj}", true));
                 return true;
             };
             memory.Start();
