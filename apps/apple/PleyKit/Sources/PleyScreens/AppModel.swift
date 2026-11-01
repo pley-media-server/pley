@@ -67,6 +67,9 @@ public final class AppModel: ObservableObject {
     /// "Who's watching?" was opened from the signed-in app (Switch profile),
     /// so it can go back without a choice.
     @Published public private(set) var profilesFromShell = false
+    /// "Who's watching?" is Apple TV's start gate: going on as the profile
+    /// in use asks for its PIN when it has one, as on Android TV.
+    @Published public private(set) var profilesAtStart = false
     /// Who the app acts as on the open server, when signed in.
     @Published public private(set) var user: User?
     /// The server open, by the name it gave.
@@ -241,6 +244,7 @@ public final class AppModel: ObservableObject {
         shell.reset()
         actions.reset()
         profilesFromShell = false
+        profilesAtStart = false
         root = .signedIn
         // Another profile's token: its own stream.
         restartEvents()
@@ -303,6 +307,7 @@ public final class AppModel: ObservableObject {
     public func showProfiles() {
         guard user != nil else { return }
         profilesFromShell = true
+        profilesAtStart = false
         root = .profiles
     }
 
@@ -328,6 +333,7 @@ public final class AppModel: ObservableObject {
     public func keepProfile() {
         guard user != nil else { return }
         profilesFromShell = false
+        profilesAtStart = false
         root = .signedIn
     }
 
@@ -440,13 +446,13 @@ public final class AppModel: ObservableObject {
         case .home:
             show(user, chooseProfile: false)
         case .profiles:
-            show(user, chooseProfile: true)
+            show(user, chooseProfile: true, atStart: true)
         case .switchTo(let id):
             if let switched = await switchAtStart(to: id) {
                 show(switched, chooseProfile: false)
             } else {
                 // One with a PIN, or one gone: the person chooses.
-                show(user, chooseProfile: true)
+                show(user, chooseProfile: true, atStart: true)
             }
         }
     }
@@ -466,11 +472,12 @@ public final class AppModel: ObservableObject {
         }
     }
 
-    private func show(_ user: User, chooseProfile: Bool) {
+    private func show(_ user: User, chooseProfile: Bool, atStart: Bool = false) {
         self.user = user
         homeVersion += 1
         signingIn = []
         profilesFromShell = false
+        profilesAtStart = chooseProfile && atStart
         root = chooseProfile ? .profiles : .signedIn
         signedInNow(user)
     }

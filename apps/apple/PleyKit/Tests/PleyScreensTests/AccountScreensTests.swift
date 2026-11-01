@@ -461,4 +461,68 @@ private func searches(_ server: FixtureServer) -> [String] {
         let pinned = try await tvApp(server, settings: settings)
         #expect(pinned.root == .profiles)
     }
+
+    @Test func theStartGateAsksForThePinOfTheProfileInUse() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let settings = freshSettings()
+        let first = try await tvApp(server, settings: settings)
+        await ProfilesModel(app: first).load()
+
+        // Signed in as Sam, whose PIN is 1234: the gate asks for it.
+        let store = MemoryTokenStore()
+        let tokens = server.issueTokens(profile: 3)
+        try await store.save(StoredTokens(
+            issuer: server.origin, clientID: AppClient.ios.clientID, tokenEndpoint: server.origin + "/api/oauth/token",
+            revocationEndpoint: server.origin + "/api/oauth/revoke", accessToken: tokens.accessToken,
+            accessExpiresAt: Date().addingTimeInterval(3600), refreshToken: tokens.refreshToken,
+            scope: FixtureServer.allScopes))
+        let app = app(store, servers: [SavedServer(origin: server.origin, name: "Living Room", lastUsed: Date())],
+                      settings: settings, tv: true)
+        await app.start()
+        #expect(app.root == .profiles)
+        #expect(app.profilesAtStart)
+        let model = ProfilesModel(app: app)
+        await model.load()
+        let sam = try #require(model.profiles.first { $0.id == 3 })
+        #expect(sam.current)
+        await model.choose(sam)
+        #expect(model.pinFor?.id == 3)
+        #expect(app.root == .profiles)
+
+        // A wrong PIN keeps the gate shut.
+        model.pin = "9999"
+        await model.submitPin()
+        #expect(model.pinError == "wrong PIN")
+        #expect(app.root == .profiles)
+
+        model.pin = "1234"
+        await model.submitPin()
+        #expect(model.pinFor == nil)
+        #expect(app.root == .signedIn)
+        #expect(app.user?.id == 3)
+        #expect(!app.profilesAtStart)
+
+        // From Switch profile, the profile in use goes back without its PIN.
+        app.showProfiles()
+        await model.choose(sam)
+        #expect(model.pinFor == nil)
+        #expect(app.root == .signedIn)
+    }
+
+    @Test func theStartGateLetsAProfileWithoutAPinThrough() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let settings = freshSettings()
+        let first = try await tvApp(server, settings: settings)
+        await ProfilesModel(app: first).load()
+        let app = try await tvApp(server, settings: settings)
+        #expect(app.root == .profiles)
+        let model = ProfilesModel(app: app)
+        await model.load()
+        let alex = try #require(model.profiles.first { $0.current })
+        await model.choose(alex)
+        #expect(model.pinFor == nil)
+        #expect(app.root == .signedIn)
+    }
 }

@@ -407,7 +407,11 @@ on the profile used last. On Apple TV, a shared screen, it asks "Who's
 watching?" at each start when the household (as last seen on this
 device) has more than one profile, unless Always start as names one: the
 app then opens as that profile, on the section shown last, switching to
-it when it is another and needs no PIN, and asks when it needs one. When a sign-in ends without the
+it when it is another and needs no PIN, and asks when it needs one.
+At that start, going on as the profile in use asks for its PIN when it
+has one, so the profile used last is no way past it; Switch profile's
+Menu, and the choice right after signing in, keep the profile in use
+without it. When a sign-in ends without the
 person asking (the server ended it, or the address rule below), the app
 goes back to that server's sign-in and says why.
 
@@ -1074,7 +1078,8 @@ read `<screen>.<part>[.<id>]` (`servers.address`, `signIn.userCode`,
     back); History shows.
 15. Settings: Quality on Wi-Fi to 4 Mbps 720p and subtitles at 150 %;
     Diagnostics shows the caps report, and About the version.
-16. On Apple TV, relaunched: "Who's watching?" shows; with Always start as
+16. On Apple TV, relaunched: "Who's watching?" shows, and going on as the
+    administrator, the profile in use, asks for its PIN; with Always start as
     the administrator, a second relaunch opens signed in as them, without
     asking (the test puts it back to asking).
 17. Sign out, confirmed; the servers show.

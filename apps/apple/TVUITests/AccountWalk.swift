@@ -127,12 +127,11 @@ extension Walk {
         remote.press(.menu)
     }
 
-    /// Chooses `name` in "Who's watching?" at start: the profile in use goes
-    /// on without its PIN, as Switch profile's Menu does; another asks for it.
+    /// Chooses `name`, a profile with a PIN, in "Who's watching?" at start:
+    /// the gate asks for its PIN even when it is the profile in use.
     func chooseAtStart(_ name: String, pin: String) {
         select(button("profiles.profile.\(name)"), "\(name) in Who's watching?", first: [.right, .left])
-        let field = element("profiles.pin")
-        guard field.waitForExistence(timeout: 5) else { return }
+        let field = wait(element("profiles.pin"), "\(name)'s PIN at start")
         select(field, "\(name)'s PIN")
         type(pin)
         let next = button("profiles.pin.continue")

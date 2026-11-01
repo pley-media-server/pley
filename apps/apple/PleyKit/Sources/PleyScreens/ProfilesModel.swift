@@ -43,12 +43,19 @@ public final class ProfilesModel: ObservableObject {
         }
     }
 
-    /// Chooses `profile`: the one in use goes back to Home, one with a PIN
-    /// asks for it, one that needs its password says how to use it.
+    /// Chooses `profile`: the one in use goes back to Home (at Apple TV's
+    /// start gate, after its PIN when it has one), one with a PIN asks for
+    /// it, one that needs its password says how to use it.
     public func choose(_ profile: HouseholdProfile) async {
         error = nil
         if profile.current {
-            app.keepProfile()
+            if gatesCurrent(profile) {
+                pin = ""
+                pinError = nil
+                pinFor = profile
+            } else {
+                app.keepProfile()
+            }
             return
         }
         switch profile.needs {
@@ -73,7 +80,42 @@ public final class ProfilesModel: ObservableObject {
             pinError = ProfileSwitchError.pinFormat.message
             return
         }
-        await switchTo(profile, pin: pin)
+        if profile.current {
+            await confirm(profile, pin: pin)
+        } else {
+            await switchTo(profile, pin: pin)
+        }
+    }
+
+    /// Whether going on as `profile`, the one in use, asks for its PIN:
+    /// only at Apple TV's start gate, never from Switch profile or right
+    /// after a sign-in, as on Android TV.
+    private func gatesCurrent(_ profile: HouseholdProfile) -> Bool {
+        guard app.root == .profiles, app.profilesAtStart, !app.profilesFromShell else { return false }
+        let hasPin = app.user.map { $0.id == profile.id && $0.hasPin } ?? false
+        return hasPin || profile.needs == .pin
+    }
+
+    /// Checks the PIN of the profile in use with the switch-profile grant
+    /// to itself. A server that can't check it (it answers that this is the
+    /// profile in use) lets the person through, as Android TV does.
+    private func confirm(_ profile: HouseholdProfile, pin: String) async {
+        guard switching == nil, let switcher = await app.session.profiles else { return }
+        switching = profile.id
+        defer { switching = nil }
+        do {
+            try await switcher.switchTo(profile.id, pin: pin)
+            cancelPin()
+            // New tokens for the same profile: the stream and pages follow them.
+            await app.profileChanged()
+        } catch ProfileSwitchError.cannotCheckPins {
+            cancelPin()
+            app.keepProfile()
+        } catch is CancellationError {
+        } catch {
+            pinError = describe(error)
+            self.pin = ""
+        }
     }
 
     public func cancelPin() {
