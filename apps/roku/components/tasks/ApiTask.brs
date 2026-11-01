@@ -450,7 +450,7 @@ sub apiBuild(job as object, answer as object)
         answer.data = { total: httpNumber(data.total, -1), listed: entries.Count(), shown: rows.Count() }
     else if job.build = "tracks"
         tracks = musicTracks(data.items, server)
-        job.request.content = nodesContent(musicTrackRows(tracks, true))
+        job.request.content = nodesContent(musicDiscRows(tracks))
         answer.data = { queue: tracks, shown: tracks.Count() }
     else if job.build = "trackQueue"
         ' An album's tracks for the music player alone: an artist's Play

@@ -3,7 +3,8 @@
 ' "Playback"): a session for each track, the file as it is when the Roku
 ' decodes it, else a conversion.
 
-' A track: { itemId, title, artist, album, image, durationMs, index }.
+' A track: { itemId, title, artist, album, image, durationMs, index, disc
+' (the server's parent_index; 1 without one) }.
 function musicTrack(item as object, server as string) as object
     image = urlImage(server, item.poster_url, 600)
     if image = "" then image = urlImage(server, "/api/items/" + urlValue(item.id) + "/images/poster", 600)
@@ -14,7 +15,8 @@ function musicTrack(item as object, server as string) as object
         album: httpSentence(item.parent_title),
         image: image,
         durationMs: Int(httpNumber(item.duration_ms, 0)),
-        index: Int(httpNumber(item.index, -1))
+        index: Int(httpNumber(item.index, -1)),
+        disc: Int(httpNumber(item.parent_index, 1))
     }
 end function
 
@@ -42,6 +44,27 @@ function musicTrackRows(tracks as object, byAlbum as boolean) as object
         rows.Push({ title: title, subtitle: subtitle, duration: fmtClock(track.durationMs), itemId: track.itemId, kind: "track" })
     end for
     return rows
+end function
+
+' An album's list: its tracks' rows (musicTrackRows), each with at, its
+' place among the tracks, and when they are on several discs a heading
+' row above each disc's ({ title: "Disc 2", kind: "disc", at: -1 }), which
+' takes no focus.
+function musicDiscRows(tracks as object) as object
+    rows = musicTrackRows(tracks, true)
+    several = false
+    for each track in tracks
+        if track.disc <> tracks[0].disc then several = true
+    end for
+    out = []
+    for i = 0 to tracks.Count() - 1
+        if several and (i = 0 or tracks[i].disc <> tracks[i - 1].disc)
+            out.Push({ title: "Disc " + urlValue(tracks[i].disc), subtitle: "", duration: "", kind: "disc", at: -1 })
+        end if
+        rows[i].at = i
+        out.Push(rows[i])
+    end for
+    return out
 end function
 
 ' "Artist · 2019 · 12 tracks · 48 min": an album's line.

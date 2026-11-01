@@ -1,5 +1,7 @@
 ' An album (GET /api/items/{id}, its tracks /children): Play, Shuffle and
 ' OK on a track hand its tracks to the music player and open Now Playing.
+' On several discs, each disc's tracks are under its heading, a row of
+' the list that the focus passes over (lib/Music.brs, musicDiscRows).
 ' params: { id, title (shown until the server answers), trackId (the
 ' track to focus, from a search) }.
 
@@ -14,10 +16,14 @@ sub init()
     m.started = false
     m.album = invalid
     m.queue = []
+    ' The row of the track that had the focus last, which says which way
+    ' it was going when it lands on a heading.
+    m.trackRow = 0
     m.lastFocus = m.buttons
     m.buttons.buttons = ["Play", "Shuffle"]
     m.buttons.observeField("buttonSelected", "onButton")
     m.tracks.observeField("itemSelected", "onTrack")
+    m.tracks.observeField("itemFocused", "onTrackFocused")
     m.top.observeField("active", "onActive")
 end sub
 
@@ -29,7 +35,11 @@ sub onActive()
     end if
     uiChangesSince()
     if m.started
-        if m.buttons.visible then m.lastFocus.setFocus(true)
+        if m.lastFocus.isSameNode(m.tracks)
+            focusTracks()
+        else if m.buttons.visible
+            m.buttons.setFocus(true)
+        end if
         return
     end if
     m.started = true
@@ -83,17 +93,47 @@ sub onTracks(event as object)
     m.message.visible = false
     m.buttons.visible = true
     wanted = httpNumber(m.top.params.trackId, 0)
-    at = -1
-    for i = 0 to m.queue.Count() - 1
-        if m.queue[i].itemId = wanted then at = i
+    row = -1
+    for i = 0 to m.tracks.content.getChildCount() - 1
+        at = trackAt(i)
+        if at >= 0 and m.queue[at].itemId = wanted then row = i
     end for
     if not m.top.isInFocusChain() then return
-    if at >= 0
-        m.tracks.jumpToItem = at
+    if row >= 0
+        m.tracks.jumpToItem = row
         m.tracks.setFocus(true)
     else
         m.buttons.setFocus(true)
     end if
+end sub
+
+' The place among the album's tracks of the list's row; -1 for a disc's
+' heading.
+function trackAt(row as integer) as integer
+    node = m.tracks.content.getChild(row)
+    if node = invalid then return -1
+    return node.at
+end function
+
+' A disc's heading passes the focus on: to the track beyond it, the way
+' the focus was going, or back to the first track from the top.
+sub onTrackFocused(event as object)
+    row = event.getData()
+    if row < 0 or m.tracks.content = invalid then return
+    if trackAt(row) >= 0
+        m.trackRow = row
+        return
+    end if
+    beyond = row + 1
+    if row < m.trackRow and row > 0 then beyond = row - 1
+    if beyond >= m.tracks.content.getChildCount() then beyond = row - 1
+    if beyond >= 0 then m.tracks.jumpToItem = beyond
+end sub
+
+' The tracks take the focus, never on a heading.
+sub focusTracks()
+    m.tracks.setFocus(true)
+    if trackAt(m.tracks.itemFocused) < 0 then m.tracks.jumpToItem = m.tracks.itemFocused + 1
 end sub
 
 ' The album from its track at, or shuffled: from any track, the others
@@ -111,7 +151,8 @@ sub onButton(event as object)
 end sub
 
 sub onTrack(event as object)
-    play(event.getData(), false)
+    at = trackAt(event.getData())
+    if at >= 0 then play(at, false)
 end sub
 
 ' Right from the buttons goes to the tracks, left back; the Options key on
@@ -120,7 +161,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
     hasTracks = m.queue.Count() > 0
     if key = "right" and m.buttons.isInFocusChain() and hasTracks
-        m.tracks.setFocus(true)
+        focusTracks()
         return true
     end if
     if key = "left" and m.tracks.isInFocusChain()
@@ -129,7 +170,9 @@ function onKeyEvent(key as string, press as boolean) as boolean
     end if
     if key = "options" and hasTracks
         if m.tracks.isInFocusChain()
-            track = m.queue[m.tracks.itemFocused]
+            at = trackAt(m.tracks.itemFocused)
+            if at < 0 then return true
+            track = m.queue[at]
             uiTileOptions({ itemId: track.itemId, kind: "track", title: track.title }, false)
         else if m.album <> invalid
             uiTileOptions({ itemId: m.album.id, kind: "album", title: httpSentence(m.album.title) }, false)

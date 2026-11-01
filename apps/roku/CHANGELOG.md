@@ -51,6 +51,8 @@ describes how they are made.
   minutes and the end of the track, the button saying what is left; in
   its last 30 s, Keep listening adds the same time again. Paused by it for
   10 minutes, the music stops.
+- An album of several discs lists its tracks under Disc 1, Disc 2 and so
+  on, as the other apps do.
 
 ## [0.1.1] - 2026-11-01
 

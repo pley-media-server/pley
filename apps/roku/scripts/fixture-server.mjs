@@ -119,7 +119,8 @@ const episodes = seasons.flatMap((season) => Array.from({ length: 9 }, (_, i) =>
   user_state: season.index === 1 && i < 2 ? state(0, true) : season.index === 1 && i === 2 ? state(900000) : state(),
 })));
 // Music: an artist, their albums (the server lists the older first) and
-// their tracks.
+// their tracks; the older album's last track is on its second disc
+// (parent_index).
 const artist = {
   id: 5000, library_id: 3, kind: "artist", title: "The Fixtures", sort_title: "Fixtures", added_at: 0, poster_url: "/api/items/5000/images/poster?v=1",
   user_state: state(), child_count: 2, leaf_count: 5,
@@ -132,11 +133,12 @@ const newerAlbum = {
   id: 5101, library_id: 3, kind: "album", title: "Red", sort_title: "Red", year: 2005, parent_id: 5000, parent_title: "The Fixtures",
   added_at: 0, poster_url: "/api/items/5101/images/poster?v=1", user_state: state(), leaf_count: 2,
 };
-const albumTracks = (of, count, first) => Array.from({ length: count }, (_, i) => ({
-  id: first + i, library_id: 3, kind: "track", title: `Song ${i + 1}`, sort_title: `Song ${i + 1}`, index: i + 1, parent_id: of.id, parent_title: of.title,
-  grandparent_id: 5000, grandparent_title: "The Fixtures", duration_ms: 200000, added_at: 0, user_state: state(),
+// An album's tracks from id first: each one's disc and its place on it.
+const albumTracks = (of, first, places) => places.map(([disc, index], i) => ({
+  id: first + i, library_id: 3, kind: "track", title: `Song ${i + 1}`, sort_title: `Song ${i + 1}`, index, parent_id: of.id, parent_title: of.title,
+  parent_index: disc, grandparent_id: 5000, grandparent_title: "The Fixtures", duration_ms: 200000, added_at: 0, user_state: state(),
 }));
-const tracks = [...albumTracks(album, 3, 5201), ...albumTracks(newerAlbum, 2, 5211)];
+const tracks = [...albumTracks(album, 5201, [[1, 1], [1, 2], [2, 1]]), ...albumTracks(newerAlbum, 5211, [[1, 1], [1, 2]])];
 const items = new Map([...movies, show, ...seasons, ...episodes, artist, album, newerAlbum, ...tracks].map((item) => [item.id, item]));
 // Collections: TMDB's of five movies, and a smart one a filter fills with
 // the show.

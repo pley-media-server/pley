@@ -6,7 +6,7 @@ end function
 
 sub test_music_tracks_of_an_album_and_a_playlist()
     track = musicTrack(musicTestTrack(), "http://nas:7539")
-    tkEqual(track, { itemId: 5201, title: "Song 1", artist: "The Fixtures", album: "Blue", image: "http://nas:7539/api/items/5201/images/poster?w=600", durationMs: 200000, index: 1 }, "the album's cover, through the track")
+    tkEqual(track, { itemId: 5201, title: "Song 1", artist: "The Fixtures", album: "Blue", image: "http://nas:7539/api/items/5201/images/poster?w=600", durationMs: 200000, index: 1, disc: 1 }, "the album's cover, through the track; disc 1 without parent_index")
     tkEqual(musicTracks([musicTestTrack(), { id: 9, kind: "album" }], "http://nas:7539").Count(), 1, "tracks only")
     tkEqual(musicTracks([{ entry_id: 3, item: musicTestTrack() }], "http://nas:7539")[0].itemId, 5201, "a playlist's entries")
     rows = musicTrackRows([track], true)
@@ -15,6 +15,36 @@ sub test_music_tracks_of_an_album_and_a_playlist()
     tkEqual(musicTrackRows([track], false)[0].subtitle, "The Fixtures", "a playlist's: the artist")
     album = { title: "Blue", parent_title: "The Fixtures", year: 2001 }
     tkEqual(musicAlbumLine(album, [track, track, track]), "The Fixtures · 2001 · 3 tracks · 10 min")
+end sub
+
+sub test_music_album_tracks_by_disc()
+    tracks = []
+    for each place in [[1, 1], [1, 2], [2, 1], [2, 2], [2, 3]]
+        item = musicTestTrack()
+        item.parent_index = place[0]
+        item.index = place[1]
+        item.title = "Song " + urlValue(place[0]) + "-" + urlValue(place[1])
+        tracks.Push(musicTrack(item, "http://nas:7539"))
+    end for
+    tkEqual(tracks[2].disc, 2, "the disc: the track's parent_index")
+    rows = musicDiscRows(tracks)
+    titles = []
+    places = []
+    for each row in rows
+        titles.Push(row.title)
+        places.Push(row.at)
+    end for
+    tkEqual(titles, ["Disc 1", "1. Song 1-1", "2. Song 1-2", "Disc 2", "1. Song 2-1", "2. Song 2-2", "3. Song 2-3"], "each disc under its heading, numbered on it")
+    tkEqual(places, [-1, 0, 1, -1, 2, 3, 4], "a track's place among the album's; -1 for a heading")
+    tkEqual(rows[0].kind, "disc")
+    tkEqual(rows[1].kind, "track")
+
+    ' One disc: no heading.
+    one = musicDiscRows([tracks[2], tracks[3]])
+    tkEqual(one.Count(), 2)
+    tkEqual(one[0].title, "1. Song 2-1")
+    tkEqual(one[1].at, 1)
+    tkEqual(musicDiscRows([]).Count(), 0, "no tracks")
 end sub
 
 sub test_music_stream_formats()

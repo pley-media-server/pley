@@ -319,8 +319,8 @@ const person = { opened: false };
 const artistPlayed = { gathered: false, first: false };
 // Now Playing: what OK on Up next played, Previous once shuffled and once
 // in order again, and the sleep timer's button: short while off, long
-// once set.
-const music = { upNext: null, shuffled: null, unshuffled: null, sleepOff: false, sleepSet: false, sleepEnd: false, sleepCycled: false };
+// once set; then what OK on the album's second disc played.
+const music = { upNext: null, shuffled: null, unshuffled: null, sleepOff: false, sleepSet: false, sleepEnd: false, sleepCycled: false, disc: null };
 
 // The track OK plays: the next one the server is asked to play.
 async function playedBy(what) {
@@ -596,8 +596,9 @@ async function walk() {
   // the music player; Now Playing stopped. Then their older album, its
   // tracks played; the first of Now Playing's Up next played, then Shuffle,
   // which puts the track playing first (Previous plays it again), and Stop
-  // shuffling, the album's order again (Previous plays the one before). Now
-  // Playing stopped, then Back to Home.
+  // shuffling, the album's order again (Previous plays the one before), and
+  // the sleep timer's button. Now Playing stopped; then the album's second
+  // disc played from its list and stopped, and Back to Home.
   await openFromMenu(4, /^GET \/api\/libraries\/3\/items\?.*offset=0/, "Music");
   shoot("music");
   since = mark();
@@ -657,6 +658,19 @@ async function walk() {
   await press("left"); // Stop
   await press("select");
   await waitFor(/^DELETE \/api\/playback\//, since, "the track's session closed");
+  // The album again: its tracks under "Disc 1" and "Disc 2", headings the
+  // focus passes over; OK on the second disc's track plays that one, and
+  // stopped, the album shows again.
+  await settle();
+  await press("right"); // the tracks, on the first under "Disc 1"
+  await press("down", 2); // the second, then past "Disc 2" to its track
+  shoot("album-discs");
+  music.disc = await playedBy("a track of the album's second disc");
+  since = mark();
+  await press("right", 2); // Stop
+  await press("select");
+  await waitFor(/^DELETE \/api\/playback\//, since, "its session closed");
+  await settle();
   for (let i = 0; i < 3; i++) {
     await press("back"); // the artist, the library, Home
     await settle();
@@ -1040,6 +1054,7 @@ const checks = [
   ["put the album's order back with Stop shuffling", music.unshuffled === 5201],
   ["set Now Playing's sleep timer, its button saying what is left", music.sleepOff && music.sleepSet],
   ["stepped the sleep timer through End of this track back to Off", music.sleepEnd && music.sleepCycled],
+  ["played the track OK was on under an album's second disc", music.disc === 5203],
   ["played a playlist from its top, the next entry to come", fixture.playbacks.some((p) => p.item === 101)],
   ["searched", asked(/^GET \/api\/search\?/)],
   ["showed Live TV's guide, its programmes for the channels in view", fixture.liveGuides.length > 0 && fixture.liveGuides.every((g) => g.ids.length > 0 && g.ids.length <= 50)],

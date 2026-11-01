@@ -105,9 +105,12 @@ each server.
 ### Music
 
 Music plays on while other screens show, and Home's menu has Now Playing
-while it does. An album or a music playlist plays whole, from the track
-chosen, so Previous goes back past it; its Shuffle starts on any track and
-plays the others after it in a random order.
+while it does. An album's page lists its tracks under "Disc 1", "Disc 2"
+when they are on several discs (the tracks' `parent_index`), each
+numbered on its disc; the focus passes over the headings. An album or a
+music playlist plays whole, from the track chosen, so Previous goes back
+past it; its Shuffle starts on any track and plays the others after it in
+a random order.
 
 Now Playing shows the track, its cover and how far along it is, Shuffle,
 Previous, Pause, Next, Stop and the sleep timer, and Up next: the tracks
@@ -349,9 +352,10 @@ bun run images    # the nine-patch focus and watched-mark images
   of movies and a smart one of shows, and an artist's tracks, makes a
   playlist, plays a track from Now Playing's Up next, shuffles the queue
   and puts its order back, steps the music's sleep timer through its
-  choices, asks for a movie and three seasons from Discover, approves a
-  request, opens a title from its ready-to-watch notice, and checks that a
-  server without requests is asked nothing but the summary.
+  choices, plays a track from under an album's "Disc 2", asks for a movie
+  and three seasons from Discover, approves a request, opens a title from
+  its ready-to-watch notice, and checks that a server without requests is
+  asked nothing but the summary.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
   Next and the sleep timers' ends have only unit tests), one fetch at a
   time, the odd dropped key, and no measure of a Roku's speed.
