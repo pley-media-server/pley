@@ -127,9 +127,10 @@ Each endpoint table has a **Who** column:
 
 ### CORS for TV apps
 
-Pley's Samsung and LG apps are web apps loaded from the TV itself, and
-their web engines apply CORS. Their requests come with `Origin: file://`,
-`null` or an `app://` address. For those origins only, the API and
+Pley's Samsung app is a web app loaded from the TV itself, as the LG app
+was before it became a native app, and a TV's web engine applies CORS.
+Their requests come with `Origin: file://`, `null` or an `app://` address.
+For those origins only, the API and
 `/.well-known/oauth-authorization-server` answer CORS:
 
 - a preflight lets `Authorization`, `Content-Type`, `Accept` and `Range`

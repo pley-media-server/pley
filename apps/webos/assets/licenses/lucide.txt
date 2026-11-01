@@ -1,4 +1,4 @@
-pley draws icons from Lucide (https://lucide.dev), lucide-react 1.61.0, under this licence:
+Pley draws icons from Lucide (https://lucide.dev), lucide-react 1.61.0, under this licence:
 
 ISC License
 

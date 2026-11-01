@@ -22,7 +22,8 @@
 ## Apps
 
 Web, Windows, macOS, Linux, [Android](docs/ANDROID.md), [Kodi](docs/KODI.md),
-[Roku](docs/ROKU.md), [Samsung TV and LG TV](docs/TV_PLATFORMS.md).
+[Roku](docs/ROKU.md), [Samsung TV](docs/TV_PLATFORMS.md),
+[LG TV](docs/LG.md).
 
 ## Install
 

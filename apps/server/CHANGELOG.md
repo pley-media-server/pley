@@ -11,6 +11,9 @@ describes how they are made.
 
 ### Changed
 
+- Pley is free software under the GNU Affero General Public License,
+  version 3 (`AGPL-3.0-only`, `LICENSE`). The transcoder gives the address
+  of its source (`GET /v1/info`, `--license`).
 - The LG TV app's sign-ins are listed as "Pley for LG TV", with the TV's
   webOS and model, now that the app names itself.
 

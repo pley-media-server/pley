@@ -324,10 +324,25 @@ Apps sign in on Pley's own page with OAuth 2.1.
   in the `Authorization` header only, and refuse plain HTTP to an address
   beyond the home network (Kodi checks the address it actually connected
   to).
-- The Samsung and LG apps send the token only to the server's own origin.
+- The Samsung and LG apps send the token only to the server's own origin
+  (scheme, host and port), and their players get keyed media addresses,
+  never the token.
 - The native Samsung app keeps its tokens encrypted with AES-GCM under a
   256-bit key that the TV's key manager makes and keeps, bound to their
   server's address. Sign-in requests and server checks follow no redirect.
+- The LG app's HTTP client follows no redirect by itself: the app decides
+  each hop (a collection's picture), so a token never follows one
+  elsewhere. It keeps each server's tokens in its data folder on the TV,
+  which only the app's own user can read (folders 0700, files 0600),
+  never in its install folder, and writes each file whole (a temporary
+  file, then a rename). Refreshes run one at a time and the new pair is
+  saved before it is used. A server that grants more than the app asked
+  for has the grant revoked and the TV signed out. Signing out revokes the
+  tokens on the server.
+- The LG app carries its own TLS (rustls) and root certificates, since a
+  TV's own are as old as its firmware. Its log on the TV
+  (`/tmp/app.pley.tv/pley.log`, readable by the app's group) leaves out
+  tokens, codes and keyed addresses.
 - Kodi's player and artwork cache reach the server through the add-on's
   proxy on 127.0.0.1, behind a random path checked in constant time, for
   requests addressed to it alone.

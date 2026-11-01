@@ -8,6 +8,15 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Pley for LG TV is a native app now, in place of the web app: it starts
+  and moves faster, and looks and works as the Android TV app does. It
+  installs over the web app, in Developer Mode or on a rooted TV; what the
+  web app kept doesn't carry over, so choose the server and sign in again.
+- The server lists this TV's sign-in as Pley for LG TV, with its webOS and
+  model, with a server from the same release.
+
 ### Fixed
 
 - Settings' Always start as no longer starts the TV as a profile with a
@@ -54,6 +63,7 @@ describes how they are made.
   Request more seasons for a show missing some.
 - Signing in with a code says when the server requires two-step sign-in:
   the phone that approves the code sets it up for whoever hasn't.
+
 
 ### Changed
 

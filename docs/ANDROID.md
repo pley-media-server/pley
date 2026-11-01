@@ -4,8 +4,8 @@ One app, `com.formandelement.pley`, for phones, tablets, Android TV, Google
 TV and Fire TV (Fire OS 7 and later), on Android 8 or later. It is native
 Kotlin and Jetpack Compose, playing with Media3: `MainActivity` on phones
 and tablets, `TvActivity` on TVs. Pley's other TV apps ([Kodi](KODI.md),
-[Roku](ROKU.md), [Samsung and LG](TV_PLATFORMS.md)) follow its TV screens.
-No store carries it yet, so you sideload it.
+[Roku](ROKU.md), [Samsung](TV_PLATFORMS.md), [LG](LG.md)) follow its TV
+screens. No store carries it yet, so you sideload it.
 
 - [Install](#install)
 - [Using it](#using-it)
@@ -140,13 +140,14 @@ The menu, Original and Automatic work as in
 ### Live TV
 
 This is how every Pley app shows Live TV; the [Kodi](KODI.md#live-tv),
-[Roku](ROKU.md#live-tv) and [Samsung and LG](TV_PLATFORMS.md#live-tv) docs
-list only what differs. It appears only where `GET /api/live` says
-`available` (a source with channels this profile may watch),
-administrators included: in the web app's sidebar, the phone's Libraries
-tab, after Home in the TV's rail. It comes and goes as sources are added
-or removed (`live_channels_changed`). Sources, the lineup and connections
-are set up in the web app's Settings → Live TV ([API.md](API.md#live-tv)).
+[Roku](ROKU.md#live-tv), [Samsung](TV_PLATFORMS.md#live-tv) and
+[LG](LG.md#live-tv) docs list only what differs. It appears only where
+`GET /api/live` says `available` (a source with channels this profile may
+watch), administrators included: in the web app's sidebar, the phone's
+Libraries tab, after Home in the TV's rail. It comes and goes as sources
+are added or removed (`live_channels_changed`). Sources, the lineup and
+connections are set up in the web app's Settings → Live TV
+([API.md](API.md#live-tv)).
 
 - **Categories:** Favourites, Recently watched, All channels, then the
   regions in alphabetical order, each opening to its groups ("UK| Sport"),
