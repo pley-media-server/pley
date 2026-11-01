@@ -213,3 +213,6 @@ It has no releases yet: it is built and installed by hand
   the TV player's stream details once, and again when the picture changes,
   rather than every second; it opens with them, where it said "Asking the
   server…" for a moment first.
+- Switching to a Japanese (or other) audio track in the native app works
+  where the file names its language in three letters and the TV in two
+  ("jpn", "ja"); the player no longer starts again at each try.

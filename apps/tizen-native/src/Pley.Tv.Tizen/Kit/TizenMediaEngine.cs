@@ -356,7 +356,7 @@ sealed class TizenMediaEngine : IVideoEngine
                 var code = info.GetLanguageCode(ordinal);
                 if (!string.IsNullOrEmpty(code) && !Same(code, language)) return false;
             }
-            info.Selected = ordinal;
+            if (info.Selected != ordinal) info.Selected = ordinal;
             return true;
         }
         catch (Exception)
@@ -365,9 +365,45 @@ sealed class TizenMediaEngine : IVideoEngine
         }
     }
 
-    /// <summary>Languages as two or three letters ("en", "eng"): the same when one begins the other.</summary>
-    static bool Same(string a, string b) =>
-        a.StartsWith(b, StringComparison.OrdinalIgnoreCase) || b.StartsWith(a, StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// Languages as two or three letters ("en", "eng"; "ja", "jpn"; "fr", "fre", "fra"): the same
+    /// when one begins the other, or when both name one language. Japanese's "ja" doesn't begin
+    /// "jpn", and every switch to a Japanese track failed and started the player again.
+    /// </summary>
+    static bool Same(string a, string b)
+    {
+        if (a.StartsWith(b, StringComparison.OrdinalIgnoreCase) || b.StartsWith(a, StringComparison.OrdinalIgnoreCase)) return true;
+        return TwoLetters(a) is { } x && x == TwoLetters(b);
+    }
+
+    /// <summary>The ISO 639-1 code of a language's two- or three-letter code; null when not known.</summary>
+    static string? TwoLetters(string code)
+    {
+        var c = code.Trim().ToLowerInvariant();
+        var dash = c.IndexOfAny(new[] { '-', '_' });
+        if (dash > 0) c = c.Substring(0, dash);
+        if (c.Length == 2) return c;
+        if (ThreeLetters.TryGetValue(c, out var two)) return two;
+        try
+        {
+            foreach (var culture in System.Globalization.CultureInfo.GetCultures(System.Globalization.CultureTypes.NeutralCultures))
+                if (culture.ThreeLetterISOLanguageName == c) return culture.TwoLetterISOLanguageName;
+        }
+        catch (Exception)
+        {
+            // No culture data on this TV: the table's.
+        }
+        return null;
+    }
+
+    /// <summary>The bibliographic codes Matroska and ffprobe use where .NET knows the terminological ones.</summary>
+    static readonly Dictionary<string, string> ThreeLetters = new Dictionary<string, string>
+    {
+        ["eng"] = "en", ["jpn"] = "ja", ["fre"] = "fr", ["fra"] = "fr", ["ger"] = "de", ["deu"] = "de", ["spa"] = "es",
+        ["ita"] = "it", ["por"] = "pt", ["rus"] = "ru", ["chi"] = "zh", ["zho"] = "zh", ["kor"] = "ko", ["ara"] = "ar",
+        ["hin"] = "hi", ["dut"] = "nl", ["nld"] = "nl", ["swe"] = "sv", ["tur"] = "tr", ["pol"] = "pl", ["gre"] = "el",
+        ["ell"] = "el", ["cze"] = "cs", ["ces"] = "cs", ["heb"] = "he", ["tha"] = "th", ["vie"] = "vi", ["ind"] = "id",
+    };
 
     /// <summary>
     /// What the player says of its streams, read once for each source and again when its picture
