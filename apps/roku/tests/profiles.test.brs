@@ -17,11 +17,32 @@ sub test_profiles_as_tiles()
 end sub
 
 sub test_profiles_asked_at_a_start()
-    tkTrue(profAskWho("library play playlists profiles", 2))
-    tkFalse(profAskWho("library play playlists profiles", 1), "a household of one")
-    tkFalse(profAskWho("library play", 3), "a sign-in that can't switch")
+    tkTrue(profAskWho("library play playlists profiles", 2, 0))
+    tkFalse(profAskWho("library play playlists profiles", 1, 0), "a household of one")
+    tkFalse(profAskWho("library play", 3, 0), "a sign-in that can't switch")
+    tkFalse(profAskWho("library play playlists profiles", 2, 7), "Always start as names a profile")
     tkTrue(authAllows("library play", "play"))
     tkFalse(authAllows("library playlists", "play"))
+end sub
+
+sub test_profiles_always_start_as()
+    section = CreateObject("roRegistrySection", "startAsTest")
+    tkEqual(profStartAs(section, "http://nas:7539"), 0, "none kept")
+    profSetStartAs(section, "http://nas:7539", 7)
+    tkEqual(profStartAs(section, "http://nas:7539"), 7)
+    tkEqual(profStartAs(section, "http://other:7539"), 0, "for each server")
+    profSetStartAs(section, "http://nas:7539", 0)
+    tkEqual(profStartAs(section, "http://nas:7539"), 0, "Ask who's watching forgets it")
+
+    household = profHousehold(ParseJson("[{""id"":7,""name"":""Anna""},{""id"":9,""name"":""Kids""},{""id"":0,""name"":""?""}]"))
+    tkEqual(household, [{ id: 7, name: "Anna" }, { id: 9, name: "Kids" }])
+    choice = profStartAsChoices(household, 9)
+    tkEqual(choice.labels, ["Ask who's watching", "Anna", "Kids"])
+    tkEqual(choice.values, [0, 7, 9])
+    tkEqual(choice.current, 2)
+    tkEqual(profStartAsChoices(household, 0).current, 0)
+    tkEqual(profStartAsLabel(household, 7), "Anna")
+    tkEqual(profStartAsLabel(household, 3), "Ask who's watching", "a profile gone")
 end sub
 
 sub test_profiles_switch_answers()

@@ -47,7 +47,56 @@ end function
 
 ' Whether the app asks "Who's watching?" as it starts: a sign-in allowed to
 ' switch profiles, on a server whose household had more than one when last
-' asked.
-function profAskWho(scope as string, household as integer) as boolean
-    return authAllows(scope, "profiles") and household > 1
+' asked, unless Settings' "Always start as" names one (startAs, its id; 0
+' for none). As on the other TVs, that only skips the question: the app
+' starts as the profile it was left on.
+function profAskWho(scope as string, household as integer, startAs as integer) as boolean
+    return authAllows(scope, "profiles") and household > 1 and startAs = 0
+end function
+
+' "Always start as" for server, kept on this Roku (registry section
+' startAs): the profile's id, 0 for none.
+function profStartAs(section as object, server as string) as integer
+    return Int(Val(section.Read(server)))
+end function
+
+sub profSetStartAs(section as object, server as string, id as integer)
+    if id = 0
+        section.Delete(server)
+    else
+        section.Write(server, id.ToStr())
+    end if
+    section.Flush()
+end sub
+
+' Settings' choices of "Always start as": Ask who's watching, then the
+' household's profiles ([{ id, name }]); the one kept checked.
+function profStartAsChoices(profiles as object, startAs as integer) as object
+    choice = { title: "Always start as", labels: ["Ask who's watching"], values: [0], hints: [], current: 0 }
+    for each profile in profiles
+        if profile.id = startAs then choice.current = choice.values.Count()
+        choice.labels.Push(profile.name)
+        choice.values.Push(profile.id)
+    end for
+    return choice
+end function
+
+' What the row says: the profile kept, or Ask who's watching (also for one
+' gone from the household).
+function profStartAsLabel(profiles as object, startAs as integer) as string
+    for each profile in profiles
+        if profile.id = startAs then return profile.name
+    end for
+    return "Ask who's watching"
+end function
+
+' The household's profiles as Settings lists them: [{ id, name }].
+function profHousehold(profiles as dynamic) as object
+    out = []
+    for each profile in httpArray(profiles)
+        if GetInterface(profile, "ifAssociativeArray") <> invalid and httpNumber(profile.id, 0) > 0
+            out.Push({ id: Int(httpNumber(profile.id, 0)), name: httpSentence(profile.name) })
+        end if
+    end for
+    return out
 end function

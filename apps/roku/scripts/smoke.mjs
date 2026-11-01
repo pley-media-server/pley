@@ -645,11 +645,20 @@ async function walk() {
   shoot("history");
   await press("back");
   await settle();
-  // Sort libraries, after Switch profile: Movies lifted and put after TV
-  // Shows, saved at once; then the server's order again, which the rest of
-  // the walk expects.
-  since = mark();
+  // Always start as, after Switch profile (a household of two): Anna
+  // chosen, kept on the Roku.
   await press("down", 2);
+  await press("select");
+  await sleep(500);
+  await press("down"); // Anna
+  shoot("settings-start-as");
+  await press("select");
+  await settle();
+  // Sort libraries, next: Movies lifted and put after TV Shows, saved at
+  // once; then the server's order again, which the rest of the walk
+  // expects.
+  since = mark();
+  await press("down");
   await press("select"); // Sort libraries
   await waitFor(/^GET \/api\/libraries$/, since, "the libraries to sort");
   await press("select"); // lifts Movies
@@ -798,6 +807,7 @@ const checks = [
   ["kept the server's answer instead of asking before each play", fixture.requests.filter((r) => r.method === "GET" && r.path.startsWith("/api/playback/network")).length < fixture.playbacks.filter((p) => p.kind !== "track").length],
   ["played the original in Automatic, the default", fixture.playbacks.length > 0 && fixture.playbacks.filter((p) => p.kind !== "track").every((p) => p.mode === "auto" && p.max_bitrate === null)],
   ["kept 8 Mbps 1080p chosen in Settings", registry !== null && /playback.quality","8m"/.test(JSON.stringify([...registry]))],
+  ["kept Anna as the profile to always start as", registry !== null && /startAs\.http[^"]*","1"/.test(JSON.stringify([...registry]))],
   ["showed subtitle sync", sync.label],
   ["showed the playback's details", asked(/^GET \/api\/playback\/s\d+$/)],
   ["saved Movies after TV Shows, every library in the order", fixture.orders.some((ids) => JSON.stringify(ids) === "[2,1,3]")],

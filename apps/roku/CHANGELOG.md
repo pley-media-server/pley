@@ -17,6 +17,8 @@ describes how they are made.
   apps; once given, the button says it (Your rating: 4 stars).
 - A playlist's entries move: the Options key's Move lifts one, Up and Down
   carry it, OK puts it there and Back puts it back.
+- Settings has Always start as, for a household of several profiles: the
+  app starts without asking who's watching.
 
 ## [0.1.1] - 2026-11-01
 

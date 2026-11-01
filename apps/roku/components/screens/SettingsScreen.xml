@@ -2,8 +2,9 @@
 <!-- Settings: the server and the profile this TV uses; the profile's audio
      and subtitle defaults and this Roku's quality, chosen in a panel at
      the right, and whether the next episode plays by itself; the watch
-     history, switch profile, sort the libraries, switch server or sign
-     out. Under the app's version, TMDB's notice. -->
+     history, switch profile, the profile to always start as, sort the
+     libraries, switch server or sign out. Under the app's version, TMDB's
+     notice. -->
 <component name="SettingsScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -22,6 +23,8 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Tracks.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/AutoQuality.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Auth.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Profiles.brs" />
     <children>
         <Label translation="[96, 56]" text="Settings" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <Label translation="[96, 170]" text="Server" color="0x8B95A5FF" font="font:SmallestSystemFont" />

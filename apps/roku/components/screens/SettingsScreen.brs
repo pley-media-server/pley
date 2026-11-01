@@ -5,7 +5,8 @@
 ' (PUT /api/me/track-defaults, all three) and shows before the server
 ' answers, put back if it refuses. A server or sign-in that doesn't let apps
 ' change them says to change them on the web. Quality is this Roku's own
-' (AutoQuality.brs), kept in its registry.
+' (AutoQuality.brs), kept in its registry, and so is "Always start as"
+' (Profiles.brs), offered when the household has more than one profile.
 
 sub init()
     m.server = m.top.findNode("server")
@@ -25,6 +26,8 @@ sub init()
     m.defaults = invalid
     m.refused = false
     m.saving = 0
+    ' The household's profiles ([{ id, name }]), for "Always start as".
+    m.household = []
     ' What each button does, in order, and the choices the panel shows.
     m.actions = []
     m.choice = invalid
@@ -48,7 +51,20 @@ sub onActive()
         m.buttons.setFocus(true)
     end if
     uiGet("/api/auth/me", "onMe")
+    if authAllows(session.scope, "profiles") then uiGet("/api/oauth/profiles", "onHousehold")
 end sub
+
+sub onHousehold(event as object)
+    answer = event.getData()
+    if not answer.ok or GetInterface(answer.data, "ifArray") = invalid then return
+    m.household = profHousehold(answer.data)
+    uiKeepHousehold(m.household.Count())
+    showRows()
+end sub
+
+function startAsSection() as object
+    return CreateObject("roRegistrySection", "startAs")
+end function
 
 ' Settings stay usable when the server doesn't answer: switching server
 ' and signing out need no answer.
@@ -72,9 +88,9 @@ sub useProfile(me as dynamic)
 end sub
 
 ' The buttons: the defaults' rows, this Roku's quality and whether the
-' next episode plays by itself, then Watch history, Switch profile, Sort
-' libraries, Switch server and Sign out; the focus stays on the row it was
-' on.
+' next episode plays by itself, then Watch history, Switch profile, "Always
+' start as" (a household of several), Sort libraries, Switch server and Sign
+' out; the focus stays on the row it was on.
 sub showRows()
     labels = []
     actions = []
@@ -89,7 +105,15 @@ sub showRows()
     if playerAutoplay(playbackSection()) then autoplay = "On"
     labels.Push("Play the next episode by itself: " + autoplay)
     actions.Push("autoplay")
-    for each action in ["Watch history", "Switch profile", "Sort libraries", "Switch server", "Sign out"]
+    for each action in ["Watch history", "Switch profile"]
+        labels.Push(action)
+        actions.Push(action)
+    end for
+    if m.household.Count() > 1
+        labels.Push("Always start as: " + profStartAsLabel(m.household, profStartAs(startAsSection(), m.global.session.server)))
+        actions.Push("startAs")
+    end if
+    for each action in ["Sort libraries", "Switch server", "Sign out"]
         labels.Push(action)
         actions.Push(action)
     end for
@@ -121,6 +145,11 @@ sub onButton(event as object)
     end if
     if chosen = "Watch history"
         uiNavigate({ to: "history" })
+        return
+    end if
+    if chosen = "startAs"
+        m.message.text = ""
+        showChoices("startAs", profStartAsChoices(m.household, profStartAs(startAsSection(), m.global.session.server)))
         return
     end if
     if chosen = "audio" or chosen = "mode" or chosen = "subtitle"
@@ -241,6 +270,11 @@ sub onChoice(event as object)
             uiRequest({ op: "tellNetwork", ceilingKbps: 0 }, "")
         end if
         aqChoose(playbackSection(), value)
+        showRows()
+        return
+    end if
+    if m.choiceKind = "startAs"
+        profSetStartAs(startAsSection(), m.global.session.server, m.choice.values[at])
         showRows()
         return
     end if

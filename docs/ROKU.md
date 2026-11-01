@@ -61,8 +61,11 @@ shows the time alone.
 
 Settings has the audio and subtitle defaults, Quality, Play the next
 episode by itself (Up Next counts down only while it is on), Watch
-history, Switch profile, Sort libraries, Switch server and Sign out, and
-carries TMDB's notice.
+history, Switch profile, Always start as (for a household of several
+profiles: a profile, or Ask who's watching), Sort libraries, Switch server
+and Sign out, and carries TMDB's notice. As on the other TVs, Always start
+as only skips "Who's watching?" at a start; it is kept on the Roku for
+each server.
 
 ### Audio and subtitles
 
@@ -221,7 +224,8 @@ Rules the code keeps:
 - The event stream (`GET /api/events`) works with `http://` servers only:
   Roku's sockets have no TLS.
 - Settings and views are kept in registry sections: `playback`,
-  `subtitleSync`, `libraryViews`, `liveViews`, `household`, `requests`.
+  `subtitleSync`, `libraryViews`, `liveViews`, `household`, `startAs`,
+  `requests`.
 - Sign-in asks for `library play playlists profiles`, and `requests
   approvals` when the server's metadata lists them in `scopes_supported`
   (an older server refuses scopes it doesn't know). A sign-in from before
@@ -307,5 +311,5 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
   requests' summary refresh once a minute, a title page with a request
   each 30 s.
 - Audio other than the file's default isn't played as it is.
-- Not yet: "Always start as", an editable music queue.
+- Not yet: an editable music queue.
 
