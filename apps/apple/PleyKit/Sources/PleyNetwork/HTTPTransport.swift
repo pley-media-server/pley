@@ -147,6 +147,13 @@ extension HTTPTransport {
     package func stream(_ request: URLRequest, redirects: RedirectPolicy.Mode,
                         onLeak: (@Sendable () async -> Void)? = nil,
                         read: @escaping @Sendable (Int) -> Bool) async throws -> StreamedResponse {
+        try await streamData(request, redirects: redirects, onLeak: onLeak) { read($0.count) }
+    }
+
+    /// `stream`, handing `read` the pieces themselves (a download written to a file).
+    package func streamData(_ request: URLRequest, redirects: RedirectPolicy.Mode,
+                            onLeak: (@Sendable () async -> Void)? = nil,
+                            read: @escaping @Sendable (Data) -> Bool) async throws -> StreamedResponse {
         guard let url = request.url, let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
               let host = url.host(percentEncoded: false), !host.isEmpty
         else { throw PleyError.unreachable("that isn't a server address") }
@@ -183,7 +190,7 @@ extension HTTPTransport {
     }
 }
 
-/// `stream`'s delegate: hands a 2xx body's pieces to `read`, and stops
+/// `streamData`'s delegate: hands a 2xx body's pieces to `read`, and stops
 /// the task when it says so; keeps an error body and the metrics.
 private final class StreamObserver: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     struct Answer {
@@ -202,11 +209,11 @@ private final class StreamObserver: NSObject, URLSessionDataDelegate, @unchecked
 
     private static let maxErrorBody = 64 << 10
     private let redirects: RedirectPolicy.Mode
-    private let read: @Sendable (Int) -> Bool
+    private let read: @Sendable (Data) -> Bool
     // Unchecked Sendable: every mutable thing is behind this lock.
     private let state = OSAllocatedUnfairLock(initialState: State())
 
-    init(redirects: RedirectPolicy.Mode, read: @escaping @Sendable (Int) -> Bool) {
+    init(redirects: RedirectPolicy.Mode, read: @escaping @Sendable (Data) -> Bool) {
         self.redirects = redirects
         self.read = read
     }
@@ -241,7 +248,7 @@ private final class StreamObserver: NSObject, URLSessionDataDelegate, @unchecked
             if over { stop(dataTask) }
             return
         }
-        if !read(data.count) { stop(dataTask) }
+        if !read(data) { stop(dataTask) }
     }
 
     /// Ends the task early: what came is the answer.

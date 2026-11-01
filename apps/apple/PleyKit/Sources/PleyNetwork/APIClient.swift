@@ -44,12 +44,20 @@ public actor APIClient {
     /// else is refused.
     public func data(_ path: String, query: [URLQueryItem] = [], maxBytes: Int,
                      accept: Set<String>) async throws -> (Data, String) {
+        let response = try await fetch(path, query: query, maxBytes: maxBytes, accept: accept)
+        return (response.body, response.contentType ?? "")
+    }
+
+    /// `data`'s answer whole, with its headers (a subtitle track says
+    /// whether it is complete in one): a type in `accept`, or refused.
+    public func fetch(_ path: String, query: [URLQueryItem] = [], maxBytes: Int,
+                      accept: Set<String>) async throws -> HTTPResponse {
         let response = try await request("GET", path, query: query, body: nil, maxBytes: maxBytes,
                                          accept: accept.sorted().joined(separator: ", "))
         guard let type = response.contentType, accept.contains(type) else {
             throw PleyError.unreadable(status: response.status)
         }
-        return (response.body, type)
+        return response
     }
 
     /// `GET path` read as it arrives: each piece of the body's byte count
@@ -58,6 +66,69 @@ public actor APIClient {
     /// every request is; an error status throws as it does.
     public func bytes(_ path: String, query: [URLQueryItem] = [], headers: [String: String] = [:],
                       read: @escaping @Sendable (Int) -> Bool) async throws {
+        try check(try await streamed(path, query: query, headers: headers) { read($0.count) })
+    }
+
+    /// What a download wrote (`download`).
+    public struct Download: Sendable {
+        /// `200` the whole file, `206` the part from the offset asked
+        /// for, `416` nothing new past it (the file is as it was).
+        public let status: Int
+        /// Bytes added to the file by this answer.
+        public let bytes: Int
+        /// Header names in lower case.
+        public let headers: [String: String]
+
+        public func header(_ name: String) -> String? { headers[name.lowercased()] }
+    }
+
+    /// `GET path` written to `file` as it arrives, with the token, through
+    /// the same plain http rule as every request: of a type in `accept`,
+    /// and `maxBytes` at most in all. With `offset`, only what follows
+    /// that many bytes of the file is asked for (`Range`): a `206` adds it
+    /// to the file, a `200` (a server that sent the whole) replaces it. The
+    /// file is left as it was when the download fails.
+    public func download(_ path: String, query: [URLQueryItem] = [], to file: URL, maxBytes: Int, from offset: Int = 0,
+                         accept: Set<String>) async throws -> Download {
+        let part = file.appendingPathExtension("part")
+        let fm = FileManager.default
+        try? fm.removeItem(at: part)
+        guard fm.createFile(atPath: part.path, contents: nil), let handle = try? FileHandle(forWritingTo: part) else {
+            throw PleyError.unreachable("the download couldn't be saved")
+        }
+        let writer = PartWriter(handle: handle, limit: maxBytes - max(offset, 0))
+        defer {
+            writer.close()
+            try? fm.removeItem(at: part)
+        }
+        var headers = ["Accept": accept.sorted().joined(separator: ", ")]
+        if offset > 0 { headers["Range"] = "bytes=\(offset)-" }
+        let response = try await streamed(path, query: query, headers: headers, read: writer.write)
+        if response.status == 416 && offset > 0 { return Download(status: 416, bytes: 0, headers: response.headers) }
+        try check(response)
+        let type = response.header("Content-Type")?.split(separator: ";").first
+            .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+        guard let type, accept.contains(type) else { throw PleyError.unreadable(status: response.status) }
+        let (written, over, failed) = writer.result
+        if over { throw PleyError.tooLarge }
+        if failed { throw PleyError.unreachable("the download couldn't be saved") }
+        writer.close()
+        if response.status == 206 && offset > 0, fm.fileExists(atPath: file.path) {
+            let out = try FileHandle(forWritingTo: file)
+            defer { try? out.close() }
+            try out.seekToEnd()
+            try out.write(contentsOf: try Data(contentsOf: part, options: .alwaysMapped))
+        } else {
+            try? fm.removeItem(at: file)
+            try fm.moveItem(at: part, to: file)
+        }
+        return Download(status: response.status, bytes: written, headers: response.headers)
+    }
+
+    /// `GET path` read as it arrives, with the token (refreshed once, as
+    /// for every request); the answer, unchecked.
+    private func streamed(_ path: String, query: [URLQueryItem], headers: [String: String],
+                          read: @escaping @Sendable (Data) -> Bool) async throws -> StreamedResponse {
         guard let url = url(path, query: query) else { throw PleyError.unreachable("that isn't an address on the server") }
         var request = URLRequest(url: url)
         for (name, value) in headers { request.setValue(value, forHTTPHeaderField: name) }
@@ -66,24 +137,23 @@ public actor APIClient {
         }
         let issuer = tokens?.issuer ?? origin
         guard let tokens else {
-            try check(try await transport.stream(request, redirects: .api(issuer: issuer), read: read))
-            return
+            return try await transport.streamData(request, redirects: .api(issuer: issuer), read: read)
         }
         let sent = try await tokens.accessToken()
         request.setValue("Bearer \(sent)", forHTTPHeaderField: "Authorization")
-        let first = try await transport.stream(request, redirects: .api(issuer: issuer),
-                                               onLeak: { await tokens.connectionLeaked() }, read: read)
+        let first = try await transport.streamData(request, redirects: .api(issuer: issuer),
+                                                   onLeak: { await tokens.connectionLeaked() }, read: read)
         guard first.status == 401, first.header("WWW-Authenticate").map(BearerChallenge.isInvalidToken) ?? false else {
-            return try check(first)
+            return first
         }
         if await tokens.refusedAfterRefresh(sent) { throw PleyError.signedOut }
         try await tokens.refresh(after: sent)
         let fresh = try await tokens.accessToken()
         request.setValue("Bearer \(fresh)", forHTTPHeaderField: "Authorization")
-        let second = try await transport.stream(request, redirects: .api(issuer: issuer),
-                                                onLeak: { await tokens.connectionLeaked() }, read: read)
+        let second = try await transport.streamData(request, redirects: .api(issuer: issuer),
+                                                    onLeak: { await tokens.connectionLeaked() }, read: read)
         if second.status == 401 { throw PleyError.signedOut }
-        try check(second)
+        return second
     }
 
     /// A player's address on this server (a keyed `/api/media/…`, which
@@ -216,6 +286,50 @@ public actor APIClient {
             return try PleyJSON.decoder.decode(type, from: response.body)
         } catch {
             throw PleyError.unreadable(status: response.status)
+        }
+    }
+}
+
+/// A download's bytes into its part file, from the transport's queue.
+private final class PartWriter: @unchecked Sendable {
+    // Unchecked Sendable: every mutable thing is behind the lock.
+    private let lock = NSLock()
+    private var handle: FileHandle?
+    private let limit: Int
+    private var written = 0
+    private var over = false
+    private var failed = false
+
+    init(handle: FileHandle, limit: Int) {
+        self.handle = handle
+        self.limit = limit
+    }
+
+    /// Writes a piece; false (stop) once past the limit or when the file can't be written.
+    func write(_ data: Data) -> Bool {
+        lock.withLock {
+            guard let handle, !over, !failed else { return false }
+            if written + data.count > limit {
+                over = true
+                return false
+            }
+            do {
+                try handle.write(contentsOf: data)
+                written += data.count
+                return true
+            } catch {
+                failed = true
+                return false
+            }
+        }
+    }
+
+    var result: (written: Int, over: Bool, failed: Bool) { lock.withLock { (written, over, failed) } }
+
+    func close() {
+        lock.withLock {
+            try? handle?.close()
+            handle = nil
         }
     }
 }

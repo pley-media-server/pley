@@ -172,6 +172,8 @@ public final class FixtureServer: Sendable {
         var nextToken = 1
         var nextGrant = 1
         var answers: [String: Answer] = [:]
+        /// Files served with `Range`, by path: their type, bytes and headers besides.
+        var files: [String: (type: String, body: Data, headers: [String: String])] = [:]
         var widerScope = false
         var refuseEveryToken = false
         var issuerOverride: String?
@@ -371,6 +373,13 @@ public final class FixtureServer: Sendable {
         state.withLock {
             $0.answers[path] = Answer(status: status, headers: headers, body: body, contentLength: contentLength)
         }
+    }
+
+    /// Serves `body` at `path` as a file of `type`, with `Range` (`206`,
+    /// or `416` past its end), and `headers` besides (`X-Pley-Complete: 0`…).
+    /// No token is asked for.
+    public func serveFile(path: String, type: String, body: Data, headers: [String: String] = [:]) {
+        state.withLock { $0.files[path] = (type, body, headers) }
     }
 
     public func answer(path: String, status: Int, headers: [String: String] = [:], json: String) {
@@ -593,6 +602,11 @@ public final class FixtureServer: Sendable {
             s.journal.append(Recorded(method: request.method, path: request.path, query: request.query,
                                       headers: headers, grantType: form["grant_type"], formKeys: form.keys.sorted()))
             if let answer = s.answers[request.path] { return answer }
+            if let file = s.files[request.path] {
+                var answer = Self.ranged(file.body, range: request.headers["range"], type: file.type)
+                answer.headers.merge(file.headers) { _, mine in mine }
+                return answer
+            }
             return Self.route(&s, request, form: form)
         }
     }

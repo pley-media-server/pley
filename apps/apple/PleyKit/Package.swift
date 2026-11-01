@@ -15,6 +15,7 @@ let package = Package(
         .library(name: "PleyAuth", targets: ["PleyAuth"]),
         .library(name: "PleyData", targets: ["PleyData"]),
         .library(name: "PleyCaps", targets: ["PleyCaps"]),
+        .library(name: "PleySubtitles", targets: ["PleySubtitles"]),
         .library(name: "PleyPlayer", targets: ["PleyPlayer"]),
         .library(name: "PleyScreens", targets: ["PleyScreens"]),
         .library(name: "PleyPlayerViews", targets: ["PleyPlayerViews"]),
@@ -30,20 +31,25 @@ let package = Package(
         .target(name: "PleyData", dependencies: ["PleyModel", "PleyCommon", "PleyNetwork", "PleyAuth"]),
         // What this device plays: the caps report sent with playback requests.
         .target(name: "PleyCaps", dependencies: ["PleyModel", "PleyCommon"]),
+        // Subtitles the app draws: WebVTT, picture tracks (PGS, VobSub, DVB) and their sync.
+        .target(name: "PleySubtitles", dependencies: ["PleyNetwork", "PleyModel"]),
         // Playing: sessions on the server, their reports, recovery, and the AVPlayer engine.
-        .target(name: "PleyPlayer", dependencies: ["PleyCaps", "PleyData", "PleyNetwork", "PleyModel", "PleyCommon"]),
+        .target(name: "PleyPlayer", dependencies: ["PleySubtitles", "PleyCaps", "PleyData", "PleyNetwork", "PleyModel",
+                                                   "PleyCommon"]),
         // The screens' state, shared by the iPhone, iPad and Mac app and the Apple TV app; no views.
         .target(name: "PleyScreens", dependencies: ["PleyPlayer", "PleyCaps", "PleyData", "PleyAuth", "PleyNetwork",
                                                     "PleyModel", "PleyCommon"]),
         // The player's surface on each platform (AVKit's own controls) and what the apps lay over it.
-        .target(name: "PleyPlayerViews", dependencies: ["PleyPlayer", "PleyCaps", "PleyModel", "PleyCommon"]),
+        .target(name: "PleyPlayerViews", dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyModel",
+                                                        "PleyCommon"]),
         .target(name: "PleyTesting", dependencies: ["PleyModel", "PleyCommon"]),
         // Signs in to a real, disposable server (scripts/check-server.sh). macOS only.
         .executableTarget(name: "pley-apple-check", dependencies: ["PleyCaps", "PleyData", "PleyAuth", "PleyNetwork",
                                                                    "PleyModel", "PleyCommon", "PleyTesting"]),
         // Plays a disposable server's test media through the real player (scripts/check-playback.sh). macOS only.
-        .executableTarget(name: "pley-apple-play", dependencies: ["PleyPlayer", "PleyCaps", "PleyAuth", "PleyNetwork",
-                                                                  "PleyModel", "PleyCommon", "PleyTesting"]),
+        .executableTarget(name: "pley-apple-play", dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyAuth",
+                                                                  "PleyNetwork", "PleyModel", "PleyCommon",
+                                                                  "PleyTesting"]),
         .testTarget(name: "PleyModelTests", dependencies: ["PleyModel", "PleyTesting"]),
         .testTarget(name: "PleyCommonTests", dependencies: ["PleyCommon", "PleyTesting"]),
         .testTarget(name: "PleyNetworkTests", dependencies: ["PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),
@@ -53,8 +59,11 @@ let package = Package(
                     dependencies: ["PleyData", "PleyAuth", "PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),
         .testTarget(name: "PleyCapsTests", dependencies: ["PleyCaps", "PleyModel", "PleyCommon", "PleyTesting"],
                     exclude: ["Probes"]),
+        .testTarget(name: "PleySubtitlesTests",
+                    dependencies: ["PleySubtitles", "PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),
         .testTarget(name: "PleyPlayerTests",
-                    dependencies: ["PleyPlayer", "PleyCaps", "PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),
+                    dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyNetwork", "PleyModel", "PleyCommon",
+                                   "PleyTesting"]),
         .testTarget(name: "PleyScreensTests",
                     dependencies: ["PleyScreens", "PleyPlayer", "PleyCaps", "PleyData", "PleyAuth", "PleyNetwork",
                                    "PleyModel", "PleyCommon", "PleyTesting"]),
