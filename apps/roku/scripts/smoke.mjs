@@ -628,12 +628,26 @@ async function walk() {
   shoot("show");
   await press("right"); // the episodes
   shoot("show-episodes");
-  await press("back"); // the show's page
-  // Down past its buttons to its rows, the seasons then cast and crew,
-  // whose first opens a person's page.
   since = mark();
-  await press("down", 4); // past Resume, Episodes, the watched mark, My List and Rate
-  await press("down");
+  await press("back"); // the show's page, its buttons back with its next episode
+  await waitFor(/^GET \/api\/items\/99\/on-deck$/, since, "the show's next episode again");
+  // More…, its last button: 4 stars from the rating's choices, saved at
+  // once; Back from More to the buttons.
+  since = mark();
+  await press("down", 3); // from Episodes, past the watched mark and My List
+  await press("select");
+  await sleep(500);
+  shoot("show-more");
+  await press("select"); // Rate: its choices, No rating checked
+  await press("down", 4);
+  shoot("show-rating");
+  await press("select"); // 4 stars, then More again
+  await waitFor(/^PUT \/api\/items\/99\/rating$/, since, "the show rated");
+  await press("back");
+  // Down from More… to its rows, the seasons then cast and crew, whose
+  // first opens a person's page.
+  since = mark();
+  await press("down", 2);
   shoot("show-rows");
   await press("select");
   await waitFor(/^GET \/api\/people\/7$/, since, "a person's page");
@@ -1157,6 +1171,7 @@ const checks = [
     fixture.smartPlaylists.some((p) => p.library_id === 2 && p.title.length > 0 && p.smart_filter === "unwatched=1&sort=year%3Adesc"),
   ],
   ["marked a title watched with the Options key", fixture.marks.some((m) => m.item === 103 && m.action === "watched")],
+  ["rated a show 4 stars from its page's More", fixture.ratings.some((r) => r.item === 99 && r.rating === 8)],
   ["asked for a show's More Like This and collections", asked(/^GET \/api\/items\/99\/related\?limit=20$/) && asked(/^GET \/api\/items\/99\/collections$/)],
   ["opened a person's page", asked(/^GET \/api\/people\/7$/)],
   ["opened a title from a person's row of what they directed", person.opened],

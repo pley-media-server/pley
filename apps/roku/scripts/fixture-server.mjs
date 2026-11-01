@@ -562,6 +562,14 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       res.writeHead(204);
       return res.end();
     }
+    // The profile's rating: 0 to 10, or null for none.
+    if ((match = path.match(/^\/api\/items\/(\d+)\/rating$/)) && req.method === "PUT") {
+      const { rating } = JSON.parse(body);
+      if (rating !== null && !(rating >= 0 && rating <= 10)) return json(400, { code: "bad_request", message: "a rating is 0 to 10" });
+      fixture.ratings.push({ item: Number(match[1]), rating });
+      res.writeHead(204);
+      return res.end();
+    }
     if ((match = path.match(/^\/api\/continue-watching\/(\d+)$/)) && req.method === "DELETE") {
       fixture.marks.push({ item: Number(match[1]), action: "hide" });
       res.writeHead(204);
@@ -740,7 +748,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     return json(404, { code: "not_found", message: `nothing at ${path}` });
   });
 
-  const fixture = { issuer: "", down: false, qr: true, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], streams: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [], smartPlaylists: [], nextPlaylist: 2,
+  const fixture = { issuer: "", down: false, qr: true, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], streams: [], ratings: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [], smartPlaylists: [], nextPlaylist: 2,
     household: [{ id: 1, name: "Anna", avatar_url: null, avatar_color: "#38bdf8", current: true, needs: "none" }, { id: 2, name: "Ben", avatar_url: null, avatar_color: "#f472b6", current: false, needs: "none" }],
     switched: [], subtitlesAdded: [], probed: false, networkTold: [], speedTests: [], requestsAsked: [], requestsActed: [], discoverPictures: [], problems, requests, progress, closed, close: () => server.close(),
     liveRecent: [2], liveBrowses: [], liveFavorites: [], liveFavoriteChanges: [], liveGuides: [], liveWatches: [], liveSessions: new Map(), livePlaylists: [], liveLeft: [] };

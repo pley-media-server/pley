@@ -117,8 +117,9 @@ sub test_content_details_offer_resume_and_start()
     tkEqual(detail.heading, "Arrival")
     tkEqual(detail.line, "2016 · 1 h 56 min · PG-13")
     tkEqual(detail.genres, "Drama, Science Fiction, Mystery")
-    tkEqual(detail.buttons, ["Resume from 10:00", "Play from start", "Mark as watched", "Add to My List", "Rate"])
-    tkEqual(detail.actions, ["resume", "start", "watched", "listAdd", "rate"])
+    tkEqual(detail.buttons, ["Resume from 10:00", "Play from start", "Mark as watched", "Add to My List", "More…"])
+    tkEqual(detail.actions, ["resume", "start", "watched", "listAdd", "more"])
+    tkEqual(detail.more, [{ label: "Rate", action: "rate" }, { label: "Add to playlist", action: "playlist" }])
     tkEqual(detail.backdrop, "http://nas:7539/api/items/12/images/backdrop?v=1729600000&w=640", "faint behind text: small")
     tkEqual(detail.poster, "http://nas:7539/api/items/12/images/poster?v=1729600000&w=420")
 
@@ -127,7 +128,8 @@ sub test_content_details_offer_resume_and_start()
     fresh.user_state.watched = true
     fresh.in_watchlist = true
     fresh.user_state.rating = 7
-    tkEqual(contentDetail(fresh, contentTestServer()).buttons, ["Play", "Mark as unwatched", "Remove from My List", "Your rating: 4 stars"], "3.5 stars shown as 4, as the other apps do")
+    tkEqual(contentDetail(fresh, contentTestServer()).buttons, ["Play", "Mark as unwatched", "Remove from My List", "More…"])
+    tkEqual(contentDetail(fresh, contentTestServer()).more[0].label, "Your rating: 4 stars", "3.5 stars shown as 4, as the other apps do")
 
     long = contentTestDetail()
     long.summary = String(60, "A long summary. ")
@@ -136,27 +138,29 @@ sub test_content_details_offer_resume_and_start()
     empty = contentTestDetail()
     empty.files = []
     tkEqual(contentDetail(empty, contentTestServer()).note, "This item has no file to play.")
-    tkEqual(contentDetail(empty, contentTestServer()).buttons, ["Mark as watched", "Add to My List", "Rate"], "what doesn't need a file")
+    tkEqual(contentDetail(empty, contentTestServer()).buttons, ["Mark as watched", "Add to My List", "More…"], "what doesn't need a file")
 end sub
 
 sub test_content_show_details_offer_its_next_episode_and_episodes()
     show = ParseJson("{""id"":99,""kind"":""show"",""title"":""Severance"",""year"":2022,""child_count"":2,""content_rating"":""TV-MA"",""user_state"":{""position_ms"":0,""watched"":false,""play_count"":0},""files"":[],""in_watchlist"":true}")
     detail = contentDetail(show, contentTestServer())
     tkEqual(detail.line, "2022 · 2 seasons · TV-MA")
-    tkEqual(detail.buttons, ["Episodes", "Mark as watched", "Remove from My List", "Rate"], "before the next episode is known")
+    tkEqual(detail.buttons, ["Episodes", "Mark as watched", "Remove from My List", "More…"], "before the next episode is known")
     tkEqual(detail.note, "")
     onDeck = contentTestEpisode()
     onDeck.user_state.position_ms = 600000
     detail = contentDetail(show, contentTestServer(), onDeck)
-    tkEqual(detail.buttons, ["Resume S1 E1", "Episodes", "Mark as watched", "Remove from My List", "Rate"])
-    tkEqual(detail.actions, ["playNext", "episodes", "watched", "listRemove", "rate"])
+    tkEqual(detail.buttons, ["Resume S1 E1", "Episodes", "Mark as watched", "Remove from My List", "More…"])
+    tkEqual(detail.actions, ["playNext", "episodes", "watched", "listRemove", "more"])
+    tkEqual(detail.more, [{ label: "Rate", action: "rate" }, { label: "Add to playlist", action: "playlist" }])
 end sub
 
 sub test_content_episode_details_name_show_and_episode()
     episode = contentTestEpisode()
     episode.files = [{ id: 8, container: "mp4" }]
     detail = contentDetail(episode, contentTestServer())
-    tkEqual(detail.buttons, ["Play", "Mark as unwatched", "Rate", "Go to show"], "watched; no My List for an episode")
+    tkEqual(detail.buttons, ["Play", "Mark as unwatched", "More…"], "watched; no My List for an episode")
+    tkEqual(detail.more, [{ label: "Rate", action: "rate" }, { label: "Go to show", action: "show" }, { label: "Add to playlist", action: "playlist" }])
     tkEqual(detail.showId, 99)
     tkEqual(detail.seasonId, 100)
     tkEqual(detail.heading, "Severance")

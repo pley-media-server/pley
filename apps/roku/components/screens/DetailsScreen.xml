@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A movie, an episode or a show: its backdrop and poster, what it is, and
      its buttons (Resume / Play from start, a show's next episode and its
-     episodes, Mark as watched, My List, Go to show). The text is laid out
-     top to bottom, leaving out what a title doesn't have. Under it, rows
-     of a show's seasons, cast and crew, extras, More Like This and the
-     collections it is part of: Down slides the page up to them. Under the
-     poster, how a request for the title stands; a show the person may ask
-     more seasons of ends its seasons with Request more seasons. -->
+     episodes, Mark as watched, My List, More…). More opens a panel over
+     the right of the page: the rating, Go to show, Add to playlist. The
+     text is laid out top to bottom, leaving out what a title doesn't have.
+     Under it, rows of a show's seasons, cast and crew, extras, More Like
+     This and the collections it is part of: Down slides the page up to
+     them. Under the poster, how a request for the title stands; a show the
+     person may ask more seasons of ends its seasons with Request more
+     seasons. -->
 <component name="DetailsScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -56,6 +58,13 @@
             <RowList id="rows" translation="[96, 940]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         </Group>
         <Label id="message" translation="[96, 480]" width="1100" wrap="true" color="0xA1A9B6FF" text="Loading…" font="font:MediumSystemFont" />
+        <!-- More's menu, or the choices of one of its entries. -->
+        <Group id="panel" visible="false">
+            <Rectangle translation="[1000, 0]" width="920" height="1080" color="0x1E222AFF" />
+            <Label id="panelTitle" translation="[1056, 56]" width="808" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <LabelList id="menu" translation="[1056, 150]" itemSize="[808, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" />
+            <RadioButtonList id="choices" translation="[1056, 150]" itemSize="[808, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" visible="false" />
+        </Group>
         <!-- The title's request asked again while it downloads. -->
         <Timer id="requestPoll" duration="10" />
     </children>

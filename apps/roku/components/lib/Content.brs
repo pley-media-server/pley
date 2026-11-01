@@ -314,11 +314,12 @@ function contentEpisodes(children as dynamic, server as string) as object
 end function
 
 ' A title's details screen (a movie, an episode, a show or an extra): what
-' it shows and which buttons it has, four at most. actions match buttons:
-' "resume", "start", "playNext" (a show's next episode, onDeck),
-' "episodes", "watched", "unwatched", "listAdd", "listRemove" and "show"
-' (an episode's). onDeck is a show's episode to play next (ItemSummary),
-' invalid until the server said or when there is none.
+' it shows and which buttons it has. actions match buttons: "resume",
+' "start", "playNext" (a show's next episode, onDeck), "episodes",
+' "watched", "unwatched", "listAdd", "listRemove" and "more". More holds
+' what is used less, as on the other TVs ([{ label, action }]): "rate",
+' "show" (an episode's) and "playlist". onDeck is a show's episode to play
+' next (ItemSummary), invalid until the server said or when there is none.
 function contentDetail(detail as object, server as string, onDeck = invalid as dynamic) as object
     kind = httpString(detail.kind)
     title = httpSentence(detail.title)
@@ -404,13 +405,14 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
     end if
     stars = 0
     if state <> invalid then stars = contentStars(state.rating)
-    if kind = "movie" or kind = "episode" or kind = "show"
-        buttons.Push(contentRatingLabel(stars))
-        actions.Push("rate")
-    end if
-    if kind = "episode" and httpNumber(detail.grandparent_id, 0) > 0
-        buttons.Push("Go to show")
-        actions.Push("show")
+    more = []
+    rateable = kind = "movie" or kind = "episode" or kind = "show"
+    if rateable then more.Push({ label: contentRatingLabel(stars), action: "rate" })
+    if kind = "episode" and httpNumber(detail.grandparent_id, 0) > 0 then more.Push({ label: "Go to show", action: "show" })
+    if rateable then more.Push({ label: "Add to playlist", action: "playlist" })
+    if more.Count() > 0
+        buttons.Push("More…")
+        actions.Push("more")
     end if
     backdrop = urlImage(server, detail.backdrop_url, contentBackdropWidth())
     if backdrop = "" then backdrop = urlImage(server, detail.thumb_url, contentBackdropWidth())
@@ -438,6 +440,7 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
         seasonId: httpNumber(detail.parent_id, 0),
         buttons: buttons,
         actions: actions,
+        more: more,
         note: note
     }
 end function

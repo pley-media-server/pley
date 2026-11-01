@@ -17,7 +17,17 @@ sub init()
     m.stage = m.top.findNode("stage")
     m.stageLine = m.top.findNode("stageLine")
     m.requestPoll = m.top.findNode("requestPoll")
+    m.panel = m.top.findNode("panel")
+    m.panelTitle = m.top.findNode("panelTitle")
+    m.menu = m.top.findNode("menu")
+    m.choices = m.top.findNode("choices")
     m.column.visible = false
+    ' What the panel shows: "" (closed), a menu ("more"), or the choices of
+    ' one of its entries ("rating"); the menu Back goes back to ("" for
+    ' none), and the values of the choices.
+    m.panelKind = ""
+    m.panelBack = ""
+    m.panelValues = []
     m.started = false
     ' What the server says of requests for the title (GET
     ' /api/items/{id}/request), invalid for nothing to show; the asks (an
@@ -37,6 +47,8 @@ sub init()
     m.rowNodes = {}
     m.rowKeys = []
     m.buttons.observeField("buttonSelected", "onButton")
+    m.menu.observeField("itemSelected", "onMenu")
+    m.choices.observeField("itemSelected", "onChoice")
     m.rows.observeField("rowItemSelected", "onTile")
     m.requestPoll.observeField("fire", "askItemRequest")
     m.top.observeField("active", "onActive")
@@ -55,7 +67,9 @@ sub onActive()
         return
     end if
     uiChangesSince()
-    if m.rows.visible and m.page.translation[1] < 0
+    if m.panel.visible
+        closePanel()
+    else if m.rows.visible and m.page.translation[1] < 0
         m.rows.setFocus(true)
     else if m.buttons.visible
         m.buttons.setFocus(true)
@@ -132,8 +146,11 @@ sub showDetail()
     end if
     m.buttons.visible = hasButtons
     m.column.visible = true
-    ' Only while this screen has the focus: a dialog over it keeps it.
-    if m.top.isInFocusChain() and not m.rows.isInFocusChain()
+    ' More's menu says the rating as it is now.
+    if m.panelKind = "more" then openMore()
+    ' Only while this screen has the focus: a dialog or the panel over it
+    ' keeps it.
+    if m.top.isInFocusChain() and not m.rows.isInFocusChain() and not m.panel.visible
         if hasButtons
             m.buttons.setFocus(true)
         else
@@ -350,35 +367,113 @@ sub onButton(event as object)
         uiNavigate({ to: "player", params: { itemId: tile.itemId, startMs: playerStartOf(tile.positionMs, tile.durationMs) } })
     else if action = "episodes"
         uiNavigate({ to: "show", params: { showId: m.detail.itemId, seasonId: 0 } })
-    else if action = "rate"
-        askRating()
+    else if action = "more"
+        openMore()
     else
-        uiTitleAction({ itemId: m.detail.itemId, kind: m.detail.kind, parentId: m.detail.seasonId, grandparentId: m.detail.showId }, action)
+        titleAction(action)
+    end if
+end sub
+
+' What the title's tile would do with the Options key: mark it, My List,
+' Add to playlist, Go to show.
+sub titleAction(action as string)
+    uiTitleAction({ itemId: m.detail.itemId, kind: m.detail.kind, parentId: m.detail.seasonId, grandparentId: m.detail.showId }, action)
+end sub
+
+' --- The panel ---
+
+' More: what is used less, in a menu over the right of the page, as on the
+' other TVs: the profile's rating, Go to show, Add to playlist.
+sub openMore()
+    labels = []
+    for each entry in m.detail.more
+        labels.Push(entry.label)
+    end for
+    showMenu("more", "More", labels)
+end sub
+
+' A menu; the entry in focus stays in focus as it shows again.
+sub showMenu(kind as string, title as string, labels as object)
+    at = 0
+    if m.panelKind = kind or m.panelBack = kind then at = m.menu.itemFocused
+    items = []
+    for each label in labels
+        items.Push({ title: label })
+    end for
+    m.panelKind = kind
+    m.panelBack = ""
+    m.panelTitle.text = title
+    m.menu.content = nodesContent(items)
+    if at > 0 and at < items.Count() then m.menu.jumpToItem = at
+    m.choices.visible = false
+    m.menu.visible = true
+    m.panel.visible = true
+    m.menu.setFocus(true)
+end sub
+
+' The choices of a menu's entry, the current one checked and focused; Back
+' goes to the menu named back ("" closes the panel).
+sub showChoices(kind as string, title as string, labels as object, values as object, current as integer, back as string)
+    items = []
+    for each label in labels
+        items.Push({ title: label })
+    end for
+    m.panelKind = kind
+    m.panelBack = back
+    m.panelValues = values
+    m.panelTitle.text = title
+    m.choices.content = nodesContent(items)
+    m.choices.checkedItem = current
+    if current > 0 then m.choices.jumpToItem = current
+    m.menu.visible = false
+    m.choices.visible = true
+    m.panel.visible = true
+    m.choices.setFocus(true)
+end sub
+
+sub closePanel()
+    m.panel.visible = false
+    m.panelKind = ""
+    m.panelBack = ""
+    if m.buttons.visible
+        m.buttons.setFocus(true)
+    else
+        m.top.setFocus(true)
+    end if
+end sub
+
+sub onMenu(event as object)
+    at = event.getData()
+    if m.panelKind <> "more" or at < 0 or at >= m.detail.more.Count() then return
+    action = m.detail.more[at].action
+    if action = "rate"
+        labels = []
+        values = []
+        for stars = 0 to 5
+            labels.Push(contentStarsLabel(stars))
+            values.Push(stars)
+        end for
+        showChoices("rating", "Your rating", labels, values, m.detail.stars, "more")
+        return
+    end if
+    closePanel()
+    titleAction(action)
+end sub
+
+sub onChoice(event as object)
+    at = event.getData()
+    if at < 0 or at >= m.panelValues.Count() then return
+    if m.panelKind = "rating"
+        rate(m.panelValues[at])
+        openMore()
     end if
 end sub
 
 ' --- Your rating ---
 
-' The profile's own rating of the title, in stars: No rating, or 1 to 5.
-sub askRating()
-    labels = []
-    for stars = 0 to 5
-        labels.Push(contentStarsLabel(stars))
-    end for
-    labels.Push("Cancel")
-    dialog = CreateObject("roSGNode", "StandardMessageDialog")
-    dialog.title = "Your rating"
-    dialog.message = ["Now: " + contentStarsLabel(m.detail.stars) + "."]
-    dialog.buttons = labels
-    dialog.observeField("buttonSelected", "onRating")
-    m.top.getScene().dialog = dialog
-end sub
-
-' PUT /api/items/{id}/rating: 2 to 10 (half stars), null for none. The
-' button says it at once, and again as it was if the server refuses.
-sub onRating(event as object)
-    stars = event.getData()
-    uiCloseDialog()
+' PUT /api/items/{id}/rating: 2 to 10 (half stars), null for none. More
+' says it at once, and again as it was if the server refuses.
+sub rate(stars as integer)
     if stars < 0 or stars > 5 or m.item = invalid then return
     before = m.detail.stars
     rating = invalid
@@ -408,9 +503,21 @@ sub showRating(rating as dynamic)
 end sub
 
 ' Down from the buttons goes to the rows, up from the first row back; the
-' Options key on a title of the rows offers what can be done with it.
+' Options key on a title of the rows offers what can be done with it. Back
+' or Left closes the panel (an entry's choices go back to its menu), and
+' keys its lists leave go nowhere else.
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
+    if m.panel.visible
+        if key = "back" or key = "left"
+            if m.panelBack = "more"
+                openMore()
+            else
+                closePanel()
+            end if
+        end if
+        return true
+    end if
     if key = "down" and not m.rows.isInFocusChain() and m.rows.visible
         focusRows(true)
         return true

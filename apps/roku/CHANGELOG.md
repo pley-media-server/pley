@@ -13,8 +13,11 @@ describes how they are made.
 - Seek previews: fast forward and rewind show pictures of where they go, in
   Roku's own bar, once the server has made the file's previews. Needs a
   server from the same release.
-- A title's page has Rate: No rating, or 1 to 5 stars, as on the other
-  apps; once given, the button says it (Your rating: 4 stars).
+- A title's page rates it: No rating, or 1 to 5 stars, as on the other
+  apps; once given, More says it (Your rating: 4 stars).
+- A title's page has More…, as on the other TVs: the rating, Go to show
+  and Add to playlist, in a panel at the right, which keeps the column of
+  buttons short.
 - A playlist's entries move: the Options key's Move lifts one, Up and Down
   carry it, OK puts it there and Back puts it back.
 - Settings has Always start as, for a household of several profiles: the

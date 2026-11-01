@@ -51,9 +51,6 @@ than one profile.
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
 | Replay | Live TV | Search (Roku remotes have no search key for apps) |
 
-A title's page has Rate (Your rating, once given): No rating, or 1 to 5
-stars, kept for the profile on the server.
-
 The player's sleep timer (Down, then Sleep timer) pauses after 15 to 90
 minutes or at the end of what plays, as on the other apps. In its last
 30 s it says "Pausing in 12 s" with Keep watching, which adds the same time
@@ -171,6 +168,16 @@ button is Keep listening, which adds the same time again (or lets this
 track play to its end). Then the music pauses; at the end of a track, the
 next one waits, paused. Paused by the timer for 10 minutes, the music
 stops. Stop, or the queue's end, turns the timer off.
+
+### A title's page
+
+A movie's, an episode's or a show's page has its buttons in a column at
+the left, Play (or Resume and Play from start) first, then Mark as
+watched, My List and More…. More opens a panel at the right with what is
+used less, as on the other TVs: Rate (Your rating, once given: No rating,
+or 1 to 5 stars, kept for the profile on the server), Go to show and Add
+to playlist. Back closes the panel; Down from the buttons goes to the
+rows under them.
 
 ### Audio and subtitles
 
