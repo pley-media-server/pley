@@ -158,6 +158,10 @@ sealed class PlayerScreen : Sheet
         var source = new AppPlayerSource(state, () => Caps(state));
         model = new PlayerModel(request, source, Engine, new ContextScheduler(), reporter);
         seeker = new Seeker(model.LivePositionMs, () => model.Clock.Value.DurationMs, SeekTo);
+        // Asked for before the screen is made, which holds the UI half a second: the server answers
+        // meanwhile. Its answer comes after (the UI thread's), and the watches below take the state as it is.
+        Profile.Mark("player: asking");
+        model.Start();
 
         // Black until the first picture: the video plane under it shows nothing of the page meanwhile.
         black = new View { Size = Canvas(), BackgroundColor = Color.Black };
@@ -398,12 +402,8 @@ sealed class PlayerScreen : Sheet
         return engine;
     }
 
-    /// <summary>Shows the player and starts: the item's details, a session, its stream.</summary>
-    public void Show()
-    {
-        shell.Push(this);
-        model.Start();
-    }
+    /// <summary>Shows the player, started as it was made: the item's details, a session, its stream.</summary>
+    public void Show() => shell.Push(this);
 
     // ---- what the playback says
 

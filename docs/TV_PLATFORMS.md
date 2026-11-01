@@ -431,7 +431,9 @@ server takes an app's token nowhere else, so the app reads it with its
 token and hands it on to the player as it comes, on the TV's loopback
 address under a random path that lasts one channel (`Net/StreamRelay.cs`).
 Live channels start once 0.5 s is buffered, 1.5 s after a stall, as on
-Android.
+Android; films the same from a server at home, and 1 s and 2 s from
+elsewhere. A film asks the server for its stream before its player
+screen is made, which takes the UI thread half a second the first time.
 
 | | |
 |---|---|

@@ -35,7 +35,10 @@ class App : NUIApplication
         Ui.Measure(window);
         // A profiling build's marks, stalls and frame rate, from here (none in other builds).
         Profile.Begin(window, Current.DirectoryInfo.Data);
+        Profile.Mark("app: starting");
+        var fonts = Profile.Start();
         Text.LoadFonts();
+        Profile.Took("app: fonts", fonts);
         window.BackgroundColor = PleyColors.Bg;
         // NUI draws its own highlight round the view with key focus (a text field while typing),
         // at the field's inner text box, not its edge; the app draws focus itself, as Android does.
@@ -49,6 +52,7 @@ class App : NUIApplication
         Profile.Took("app state", made);
         // Pictures come through the API in use, with its token.
         state.Api.Watch(api => images.Api = api);
+        var services = Profile.Start();
         live = new AppLiveSource(state);
         // The lineup changed (the server's events, a reconnection): whether Live TV has channels may have too.
         live.OnChange(() => liveEntry?.Refresh());
@@ -58,11 +62,13 @@ class App : NUIApplication
         // TV's media key service reaches every listener whatever is on top.
         musicKeys = new MediaKeys(shell.Input, () => music.Active && !shell.Covered, Media);
         shell.Shown += MusicShown;
+        Profile.Took("app: Live TV, music and the media keys", services);
         // The server ended the sign-in (revoked, or the refresh token spent): sign in again.
         state.SignedOut.Changed += signedOut =>
         {
             if (signedOut && state.Server.Value != null) Go(new PageKey.Link(state.Server.Value));
         };
+        var first = Profile.Start();
         Go(state.Start() switch
         {
             StartPage.Servers => new PageKey.Servers(),
@@ -70,6 +76,7 @@ class App : NUIApplication
             StartPage.Profiles => new PageKey.Profiles(),
             _ => new PageKey.Home(),
         });
+        Profile.Took("app: the first page", first);
     }
 
     /// <summary>The app went to the background: what plays lets go (Live TV's connection).</summary>
@@ -182,6 +189,7 @@ class App : NUIApplication
     /// <summary>Home, with the rail; what was saved shows at once, and the server is asked for the rest.</summary>
     void ShowHome()
     {
+        var made = Profile.Start();
         TvShell? tv = null;
         tv = new TvShell(state,
             item =>
@@ -239,6 +247,7 @@ class App : NUIApplication
             new PlayerScreen(shell, state, request, reporter, images, gate, () => _ = state.LoadHome()).Show();
             Profile.Took("player shown", opened);
         };
+        Profile.Took("app: the shell and its rail", made);
         tv.Actions = (id, continueWatching) => TileActions.Open(shell, state, id, continueWatching, r => tv.Play?.Invoke(r), k => Go(tv, k), tv.Toast);
         shell.Show(tv);
         var shown = Profile.Start();

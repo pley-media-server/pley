@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Pley.Tv.Core;
 using Pley.Tv.Core.Player;
 using Tizen.NUI;
 using Media = Tizen.Multimedia;
@@ -143,7 +144,7 @@ sealed class TizenMediaEngine : IVideoEngine
             p.PlaybackInterrupted += (_, _) => Post(mine, () => Fail(new EngineError.Other("the TV took its player for something else")));
             p.VideoStreamChanged += (_, e) => Post(mine, () => Picture(e.Size.Width, e.Size.Height));
             p.SetSource(new Media.MediaUriSource(s.Url));
-            if (s.Live) Buffer(p);
+            Buffer(p, s);
 #if PROFILE
             p.BufferingProgressChanged += (_, e) => Profile.Mark($"engine: buffered {e.Percent} %");
 #endif
@@ -198,7 +199,9 @@ sealed class TizenMediaEngine : IVideoEngine
             var start = pendingSeek ?? (s.Live ? 0 : s.StartMs);
             if (start >= 1000)
             {
+                Profile.Mark($"engine: going to {start / 1000} s");
                 await p.SetPlayPositionAsync((int)start, false);
+                Profile.Mark("engine: there");
                 if (mine != generation) return;
                 lastPosition = start;
             }
@@ -212,23 +215,25 @@ sealed class TizenMediaEngine : IVideoEngine
         }
     }
 
-    /// <summary>A live channel plays once this much is buffered (the Android app's live threshold).</summary>
-    const int LiveStartBufferMs = 500;
-
-    /// <summary>After a stall, it plays again once this much is buffered (the Android app's).</summary>
-    const int LiveRestartBufferMs = 1_500;
+    /// <summary>
+    /// What is buffered before playing, and before playing again after a stall, as the Android app's
+    /// BufferPlan has it: 0.5 s and 1.5 s from a server at home, 1 s and 2 s from elsewhere; a live
+    /// channel the first, wherever it comes from, as it airs.
+    /// </summary>
+    const int StartHomeMs = 500, RestartHomeMs = 1_500, StartRemoteMs = 1_000, RestartRemoteMs = 2_000;
 
     /// <summary>
-    /// A live channel's buffering as the Android app's: left to the TV, its player waited seconds
-    /// after each stall, and stalled again soon after.
+    /// The source's buffering as the Android app's. Left to the TV, a channel waited seconds after
+    /// each stall and stalled again soon after, and a film took 0.5 s more to show its first picture.
     /// </summary>
-    static void Buffer(Media.Player p)
+    static void Buffer(Media.Player p, EngineSource s)
     {
         try
         {
             var before = p.BufferingTime;
             Profile.Mark($"engine: the TV's own buffering {before.PreBufferMillisecond} ms, {before.ReBufferMillisecond} ms after a stall");
-            p.BufferingTime = new Media.PlayerBufferingTime(LiveStartBufferMs, LiveRestartBufferMs);
+            var home = s.Live || Addresses.AtHome(s.Url);
+            p.BufferingTime = new Media.PlayerBufferingTime(home ? StartHomeMs : StartRemoteMs, home ? RestartHomeMs : RestartRemoteMs);
         }
         catch (Exception)
         {
@@ -414,6 +419,7 @@ sealed class TizenMediaEngine : IVideoEngine
         try
         {
             if (p.State != Media.PlayerState.Playing) p.Start();
+            Profile.Mark("engine: started");
         }
         catch (Exception e)
         {

@@ -213,7 +213,9 @@ public sealed class PlayerModel : IDisposable
         var at = NextGeneration();
         try
         {
-            var detail = source.Saved(current.ItemId) ?? await Ui(() => source.Item(current.ItemId));
+            var saved = source.Saved(current.ItemId);
+            if (Marks.On) Marks.Note(saved != null ? "player: the item's details kept" : "player: asking for the item's details");
+            var detail = saved ?? await Ui(() => source.Item(current.ItemId));
             if (at != generation || closed) return;
             if (engine == null)
             {
@@ -343,7 +345,9 @@ public sealed class PlayerModel : IDisposable
         var streaming = PlaybackPlan.Streams(mode, decision, chosen, wanted, caps) || (PlaybackPlan.IsImage(subtitle) && !Sideload);
         var choices = new PlaybackPlan.Choices(chosen, atMs, wanted, subtitle, quality, mode, streaming, Sideload);
         var sent = Body(detail.Id, choices);
+        if (Marks.On) Marks.Note("player: asking the server to play");
         var started = await Ui(() => source.StartPlayback(sent));
+        if (Marks.On) Marks.Note("player: the server answered");
         if (at != generation || closed)
         {
             // Closed or replaced while the server made it: it never played.
