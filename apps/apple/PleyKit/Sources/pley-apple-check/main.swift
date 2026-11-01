@@ -18,6 +18,7 @@ import PleyCaps
 import PleyCommon
 import PleyModel
 import PleyNetwork
+import PleyTesting
 
 struct CheckFailure: Error, CustomStringConvertible {
     let description: String
@@ -30,61 +31,6 @@ func say(_ line: String) {
 
 func check(_ condition: Bool, _ what: @autoclosure () -> String) throws {
     if !condition { throw CheckFailure(what()) }
-}
-
-/// What the check does as the approving administrator, with the consent
-/// page's endpoints: a browser's cookie, its `Origin`, and `Sec-Fetch-Site`.
-struct Admin {
-    let origin: String
-    let session: URLSession
-    var cookie = ""
-
-    init(origin: String) {
-        self.origin = origin
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.httpCookieStorage = nil
-        configuration.httpShouldSetCookies = false
-        configuration.urlCache = nil
-        session = URLSession(configuration: configuration)
-    }
-
-    /// `POST /api/auth/login` without `Origin`, so the token comes in the body.
-    mutating func login(username: String, password: String) async throws {
-        let (status, body) = try await send("POST", "/api/auth/login",
-                                            json: ["username": username, "password": password], asPage: false)
-        guard status == 200, let token = body["token"] as? String, !token.isEmpty else {
-            throw CheckFailure("the administrator couldn't sign in (HTTP \(status))")
-        }
-        cookie = "pley_token=\(token)"
-    }
-
-    func send(_ method: String, _ path: String, json: [String: Any]? = nil,
-              asPage: Bool = true) async throws -> (Int, [String: Any]) {
-        let (status, data) = try await raw(method, path, json: json, asPage: asPage)
-        let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
-        return (status, object)
-    }
-
-    func raw(_ method: String, _ path: String, json: [String: Any]? = nil, asPage: Bool = true,
-             bearer: String? = nil) async throws -> (Int, Data) {
-        var request = URLRequest(url: URL(string: origin + path)!)
-        request.httpMethod = method
-        request.httpShouldHandleCookies = false
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("pley-apple-check", forHTTPHeaderField: "User-Agent")
-        if let json {
-            request.httpBody = try JSONSerialization.data(withJSONObject: json)
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        }
-        if asPage && !cookie.isEmpty {
-            request.setValue(cookie, forHTTPHeaderField: "Cookie")
-            request.setValue(origin, forHTTPHeaderField: "Origin")
-            request.setValue("same-origin", forHTTPHeaderField: "Sec-Fetch-Site")
-        }
-        if let bearer { request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization") }
-        let (data, response) = try await session.data(for: request)
-        return ((response as? HTTPURLResponse)?.statusCode ?? 0, data)
-    }
 }
 
 /// This Mac's probe input, its report and the report in words. The input
@@ -147,7 +93,7 @@ func run() async throws {
     say("code shown, page \(code.verificationURL.absoluteString)")
 
     // 3. Allowed by the administrator on the consent page.
-    var page = Admin(origin: origin)
+    var page = AdminPage(origin: origin)
     try await page.login(username: admin, password: password)
     let (verifyStatus, consent) = try await page.send("POST", "/api/oauth/device/verify",
                                                       json: ["user_code": code.userCode])

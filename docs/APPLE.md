@@ -10,6 +10,7 @@ below are relative to it). They are in development and not released yet.
 - [Signing in](#signing-in)
 - [Profiles](#profiles)
 - [What each device plays](#what-each-device-plays)
+- [Playing](#playing)
 - [Building and testing](#building-and-testing)
 - [Code layout](#code-layout)
 - [A server to test against](#a-server-to-test-against)
@@ -139,6 +140,13 @@ follow none. No cookies are kept or sent, and nothing is cached on disk.
 Every answer has a size limit: 64 KiB for the server's name and the
 sign-in endpoints, 8 MiB for the API's JSON and 10 MiB for pictures, which
 are shown only as JPEG, PNG, WebP or GIF.
+
+The player's media follows the same rule. AVPlayer is given only a keyed
+address the server named in its answer (`/api/media/{key}/…`, on the
+server's own origin), checked before AVPlayer has it; over plain http,
+its host must pass the check above. The key in the address stands for the
+session, so AVPlayer sends no token and no header is added to its
+requests.
 
 Apple's App Transport Security allows plain http to IP addresses, names
 without dots and `.local` names (`NSAllowsLocalNetworking`); the apps ask
@@ -289,6 +297,83 @@ prints what its probe read and the report built from it; a debug build of
 the apps logs the same once, under the subsystem `app.pley.apple`, category
 `caps`. Neither holds personal data.
 
+## Playing
+
+The player is `PlaybackController` (`PleyPlayer`), a port of the Android
+app's session player, over AVPlayer. It plays one item, in Original quality
+for now: the server picks a file's way to play from the caps report (`mode:
+auto`).
+
+**Starting.** The item's details and the device's caps report are read
+together. The file is the one asked for, else the one the device plays
+best (the Android app's rule: as it is before repackaged before converted,
+then one that fits the screen, the largest, the best dynamic range and
+the highest bitrate), and it starts at the resume point unless asked to start
+over. `POST /api/playback` asks for keyed addresses (`keyed_urls: true`)
+and names the audio or subtitle track only where the server needs it. A
+repackaged stream whose audio isn't the one chosen is asked for again with
+the track named. AVPlayer then opens the keyed address the answer gives,
+at the start position exactly.
+
+**Reports.** `POST /api/items/{id}/progress` with the session, on the web
+and Android players' cadence:
+
+- `playing` at the first frame, then every 10 seconds while playing (or
+  buffering to play);
+- `paused` at once on a pause, then every 30 seconds while paused;
+- one second after a seek, so the dashboard follows;
+- `stopped` at the end, then `DELETE /api/playback/{id}`, which ends any
+  conversion.
+
+Reports go out one after the other, in the order they were made, on a
+queue that outlives the player, so a player that closes still sends its
+last position and ends its session. A new session (a fallback, an expired
+session started again) ends the one before first. Closing waits for the
+reports at most 2 seconds.
+
+**Answers.** A report answered `410` (`session_stopped`) means the session
+was stopped from elsewhere: the player stops, keeps the place with one
+last `stopped` report, deletes nothing, and says "Playback was stopped by
+the server's administrator", with the administrator's message, without
+Try again. The media of a stopped session answers `410` too; the player
+asks the session's status before taking that for an expiry. A report
+answered `404` means the session expired (90 seconds without one): the
+next play or seek starts a new session where it was.
+
+**Reports that can't go out.** A `paused` or `stopped` report the server
+can't be reached for is kept on the device, in a file per server and
+profile in `Application Support/Pley` (the item, the position, the state
+and when it was made: never a token or a session). The newest per item
+is kept, for 100 items and 90 days. They are sent with their `age_ms`, so
+the server keeps whatever happened to the item since, at the next
+playback on that server and profile.
+
+**When it fails.** As on Android:
+
+- A file AVPlayer can't open as it is gets a repackaged stream, then a
+  converted one; a video it can't decode goes straight to a conversion.
+- An expired session or a broken stream is started again where it was,
+  three times, and the count starts over after 5 seconds of playback.
+- Stalled for 12 seconds with data loaded (decoding too slow), a file
+  played as it is gets a conversion. A stream that stalls is checked on
+  the server: a conversion slower than real time suggests a lower
+  quality, else the session starts again, and stuck twice it stops.
+- A repackaged stream whose time runs on for 5 seconds without a picture
+  (AVPlayer plays HEVC copied into MPEG-TS without one) gets a conversion,
+  once.
+
+AVPlayer decodes video with or without a view on screen: a video output
+is attached to every item, and the frames it gives are counted for that
+last rule.
+
+**Leaving the app.** On iPhone, iPad and Apple TV, going to the background
+pauses and reports at once. Back after more than a minute, the session is
+checked, and one the server forgot starts again where it was, paused.
+
+The player logs under the subsystem `app.pley.apple`, category `player`:
+the session's method and the first 8 characters of its id, never a keyed
+address or a token.
+
 ## Building and testing
 
 Requirements: a Mac with Xcode 16 or later (the commands below were checked
@@ -394,9 +479,11 @@ PleyKit's modules, each depending only on those before it:
 | `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the scope guard and profile switching |
 | `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, and pictures made small and cached |
 | `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
+| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the playback controller, and the AVPlayer engine behind a protocol the tests replace |
 | `PleyScreens` | What the screens show and do, shared by both apps without any views: the route between screens, the servers, signing in (with the QR code, from Core Image), profiles and Home, as `ObservableObject`s |
-| `PleyTesting` | What the tests share: the fixtures, and a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens and a journal of the requests it got) |
+| `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens, playback sessions with keyed media, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
+| `pley-apple-play` | A command-line tool, on the Mac only, that plays a real server's test media through the player ([A server to test against](#a-server-to-test-against)) |
 
 The rules: modules depend only downwards; the two apps never import each
 other's code, and their views hold no logic of their own beyond layout (it
@@ -427,7 +514,50 @@ iPhone:
    ("Pley for Apple TV", device `tvOS 18.2; Apple TV`).
 5. It signs out, and checks that the old token gets `401`.
 
-The server is stopped and its folder deleted afterwards. To try the apps
+The server is stopped and its folder deleted afterwards.
+
+Playback is checked the same way, with the server's transcoder:
+
+```sh
+PLEY_CHECK_PASSWORD=$(openssl rand -hex 16) apps/apple/scripts/check-playback.sh
+```
+
+It builds the server and its transcoder, makes the test media with FFmpeg
+(`scripts/make-test-media.sh`; set `PLEY_CHECK_MEDIA` to a folder to make
+it once and keep it), and starts a disposable server as above, its
+transcoder working in the same temporary folder. `pley-apple-play` makes
+the Movies and Shows libraries, signs in with a code as the app does, and
+plays each file through `PlaybackController` and AVPlayer with this Mac's
+caps report, decoding without a window. It checks, through the server's
+activity, the session's status and the item:
+
+- an H.264 MP4 plays as it is: pictures, the position after 22 seconds,
+  the dashboard showing it playing, still there after 35 seconds paused,
+  and after a seek and closing, the place saved within 1.5 seconds and the
+  session gone;
+- an MKV with H.264 and AC-3 is repackaged, in fMP4 segments
+  (`#EXT-X-MAP` and `.m4s` in its playlist);
+- HEVC HDR10 is repackaged with `VIDEO-RANGE=PQ` on a screen that shows
+  HDR, and converted to SDR, saying so, on one that doesn't;
+- MPEG-2 is converted, and DTS repackaged with its audio converted;
+- for every recorded Apple device class's caps report
+  (`apps/server/tests/fixtures/caps`), the server's decision for six of
+  the files (method, converted audio and reasons) is the one
+  `playback_apple.rs` expects.
+
+It prints a line per check and stops at the first failure; nothing it
+prints, nor the server's lines it shows on a failure, holds a token or a
+keyed address.
+
+`scripts/make-test-media.sh <dir>` makes, from FFmpeg's test pictures and
+tones: an H.264 MP4 with an SRT beside it, an MP4 with two audio tracks, an
+MKV with H.264, AC-3, an SRT and a PGS track (written by
+`scripts/make-pgs.py`, since FFmpeg can't encode PGS), HEVC HDR10 with
+E-AC-3, MPEG-2 with MP2, H.264 with DTS, AV1 10-bit, and a show's two
+episodes with an intro and credits chapters. It needs FFmpeg with libx264,
+libx265 and libsvtav1.
+
+To try the apps
 by hand, start a server the same way and keep it running:
 
 ```sh
@@ -442,7 +572,7 @@ address, to have it found by Bonjour. Delete the folder afterwards.
 
 ## Known limits
 
-- No playback yet, and no item pages: choosing a poster does nothing.
+- No player screen or item pages yet: choosing a poster does nothing.
 - Home loads when it is shown, after a profile switch and on pull to
   refresh; it doesn't follow changes on the server as they happen.
 - The Mac app has no menus or keyboard shortcuts of its own yet, and iPad

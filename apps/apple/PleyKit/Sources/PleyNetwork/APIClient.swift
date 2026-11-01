@@ -17,7 +17,7 @@ public struct NoContent: Decodable, Sendable, Equatable {
 public actor APIClient {
     public nonisolated let origin: String
     private let tokens: (any TokenProvider)?
-    private let transport: HTTPTransport
+    private nonisolated let transport: HTTPTransport
 
     public init(origin: String, tokens: (any TokenProvider)?, transport: HTTPTransport) {
         self.origin = origin
@@ -62,6 +62,18 @@ public actor APIClient {
         else { return nil }
         if !query.isEmpty { components.queryItems = (components.queryItems ?? []) + query }
         return components.url
+    }
+
+    /// Before a player opens `url` itself (AVPlayer, without the token):
+    /// throws unless it is on this server's origin and, over plain http,
+    /// every address its host stands for is private (`ConnectionGate`'s
+    /// check before a request). What answers can't be checked after, as
+    /// the player makes its own connections.
+    public nonisolated func checkPlayerURL(_ url: URL) async throws {
+        guard Addresses.origin(url) == Addresses.origin(origin), let host = url.host(percentEncoded: false),
+              !host.isEmpty
+        else { throw PleyError.unreachable("that isn't an address on the server") }
+        if url.scheme?.lowercased() == "http" { try await transport.gate.check(host: host) }
     }
 
     private func request(_ method: String, _ path: String, query: [URLQueryItem], body: Data?, maxBytes: Int,

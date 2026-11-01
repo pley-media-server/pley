@@ -55,6 +55,37 @@ public final class FixtureServer: Sendable {
         public let needs: String
     }
 
+    /// An item the fixture plays: a movie with one file, its media made by
+    /// the test (`MediaMaker`) or none.
+    public struct Playable: Sendable {
+        public var itemId: Int
+        public var fileId: Int
+        public var title: String
+        public var container: String
+        public var durationMs: Int
+        public var positionMs: Int
+        public var watched: Bool
+        public var media: Data
+
+        public init(itemId: Int, fileId: Int, title: String = "Test Movie", container: String = "mp4",
+                    durationMs: Int = 4_000, positionMs: Int = 0, watched: Bool = false, media: Data = Data()) {
+            self.itemId = itemId
+            self.fileId = fileId
+            self.title = title
+            self.container = container
+            self.durationMs = durationMs
+            self.positionMs = positionMs
+            self.watched = watched
+            self.media = media
+        }
+    }
+
+    /// A progress report as it came: the item and the JSON body.
+    public struct ProgressRecord: Sendable, Hashable {
+        public let itemId: Int
+        public let body: Data
+    }
+
     public static let household: [Profile] = [
         Profile(id: 2, username: "alex", name: "Alex", avatarColor: "#38bdf8", hasAvatar: true, pin: nil, needs: "none"),
         Profile(id: 3, username: "sam", name: "Sam", avatarColor: "#a3e635", hasAvatar: false, pin: "1234", needs: "pin"),
@@ -133,6 +164,23 @@ public final class FixtureServer: Sendable {
         var devices: [String: Device] = [:]
         var wrongPins: [Int: Int] = [:]
         var lockedPins: Set<Int> = []
+        var playables: [Int: Playable] = [:]
+        var sessions: [String: PlaySession] = [:]
+        var progress: [ProgressRecord] = []
+        var playbackBodies: [Data] = []
+        var streamsBodies: [Data] = []
+        var playbackMethod = "direct"
+        var playbackFails: Int?
+    }
+
+    /// A session the fixture started.
+    private struct PlaySession {
+        let itemId: Int
+        let key: String
+        let method: String
+        var stopped: String??
+        var expired = false
+        var deleted = false
     }
 
     /// NWListener is Sendable from iOS 17 only; it is safe to share, and only
@@ -295,6 +343,46 @@ public final class FixtureServer: Sendable {
         answer(path: path, status: status, headers: headers, body: Data(json.utf8))
     }
 
+    /// Plays `playable` from now on: its details, sessions and keyed media.
+    public func addPlayable(_ playable: Playable) {
+        state.withLock { $0.playables[playable.itemId] = playable }
+    }
+
+    /// The method new sessions answer with: `direct` (the default) gives the
+    /// keyed file, `remux` and `transcode` a keyed playlist.
+    public func setPlaybackMethod(_ method: String) {
+        state.withLock { $0.playbackMethod = method }
+    }
+
+    /// `POST /api/playback` answers with this status from now on (`nil`: normally).
+    public func failPlayback(status: Int?) {
+        state.withLock { $0.playbackFails = status }
+    }
+
+    /// Stops session `id` from elsewhere: its status, reports and media answer `410` with `message`.
+    public func stopSession(_ id: String, message: String? = nil) {
+        state.withLock { $0.sessions[id]?.stopped = .some(message) }
+    }
+
+    /// Forgets session `id`, as the server does after 90 s without a report: `404`.
+    public func expireSession(_ id: String) {
+        state.withLock { $0.sessions[id]?.expired = true }
+    }
+
+    /// The progress reports received, in order.
+    public var progressReports: [ProgressRecord] { state.withLock { $0.progress } }
+
+    /// The bodies of `POST /api/playback`, in order.
+    public var playbackRequests: [Data] { state.withLock { $0.playbackBodies } }
+
+    /// The bodies of `PUT /api/items/{id}/streams`, in order.
+    public var streamsChoices: [Data] { state.withLock { $0.streamsBodies } }
+
+    /// The sessions started, in no order, and whether each is still open.
+    public var openSessions: Set<String> {
+        state.withLock { s in Set(s.sessions.filter { !$0.value.deleted && !$0.value.expired }.keys) }
+    }
+
     // MARK: HTTP
 
     private struct Request {
@@ -401,6 +489,7 @@ public final class FixtureServer: Sendable {
         case 302: "Found"
         case 303: "See Other"
         case 307: "Temporary Redirect"
+        case 206: "Partial Content"
         case 400: "Bad Request"
         case 401: "Unauthorized"
         case 403: "Forbidden"
@@ -466,6 +555,7 @@ public final class FixtureServer: Sendable {
                 return image(width: width, height: max(height, 1), type: "public.png", contentType: "image/png")
             }
         }
+        if let answer = playback(&s, request, parts) { return answer }
         if get, parts.count == 4, parts[0] == "api", parts[1] == "users", let id = Int(parts[2]), parts[3] == "avatar" {
             return withToken(&s, request) { _, _ in
                 guard household.contains(where: { $0.id == id && $0.hasAvatar }) else { return notFound(path) }
@@ -473,6 +563,133 @@ public final class FixtureServer: Sendable {
             }
         }
         return notFound(path)
+    }
+
+    /// The routes of playing: an item's details, sessions, reports and keyed media.
+    private static func playback(_ s: inout State, _ request: Request, _ parts: [String]) -> Answer? {
+        let method = request.method
+        guard parts.count >= 2, parts[0] == "api" else { return nil }
+        switch (method, parts.count, parts[1]) {
+        case ("GET", 3, "items"):
+            guard let id = Int(parts[2]) else { return nil }
+            return withToken(&s, request, scope: "library") { s, _ in
+                guard let playable = s.playables[id] else { return notFound(request.path) }
+                return json(200, detail(playable))
+            }
+        case ("GET", 4, "items") where parts[3] == "on-deck" || parts[3] == "next":
+            return withToken(&s, request, scope: "library") { _, _ in json(200, ["item": NSNull()]) }
+        case ("POST", 4, "items") where parts[3] == "progress":
+            guard let id = Int(parts[2]) else { return nil }
+            return withToken(&s, request, scope: "play") { s, _ in
+                s.progress.append(ProgressRecord(itemId: id, body: request.body))
+                let body = (try? JSONSerialization.jsonObject(with: request.body)) as? [String: Any] ?? [:]
+                if let sid = body["session_id"] as? String, let session = s.sessions[sid] {
+                    if case .some(let message) = session.stopped { return stoppedAnswer(message) }
+                    if session.expired || session.deleted { return expiredAnswer() }
+                }
+                return Answer(status: 204, headers: [:], body: Data())
+            }
+        case ("PUT", 4, "items") where parts[3] == "streams":
+            return withToken(&s, request, scope: "play") { s, _ in
+                s.streamsBodies.append(request.body)
+                return Answer(status: 204, headers: [:], body: Data())
+            }
+        case ("POST", 2, "playback"):
+            return withToken(&s, request, scope: "play") { s, _ in startSession(&s, request.body) }
+        case ("GET", 3, "playback") where parts[2] == "network":
+            return withToken(&s, request, scope: "play") { _, _ in
+                json(200, ["local": true, "ceiling_kbps": NSNull(), "source": NSNull(), "since": NSNull(),
+                           "probe": false])
+            }
+        case ("GET", 3, "playback"), ("DELETE", 3, "playback"):
+            let id = parts[2]
+            return withToken(&s, request, scope: "play") { s, _ in
+                guard let session = s.sessions[id] else { return expiredAnswer() }
+                if method == "DELETE" {
+                    s.sessions[id]?.deleted = true
+                    return Answer(status: 204, headers: [:], body: Data())
+                }
+                if case .some(let message) = session.stopped { return stoppedAnswer(message) }
+                if session.expired || session.deleted { return expiredAnswer() }
+                return json(200, ["session_id": id, "method": session.method, "transcode": NSNull()])
+            }
+        case ("GET", 4, "media"):
+            // The key is the session's own: no token.
+            guard let session = s.sessions.values.first(where: { $0.key == parts[2] }) else { return expiredAnswer() }
+            if case .some(let message) = session.stopped { return stoppedAnswer(message) }
+            if session.expired || session.deleted { return expiredAnswer() }
+            guard let playable = s.playables[session.itemId], parts[3].hasPrefix("file.") else {
+                return notFound("/api/media/…")
+            }
+            return ranged(playable.media, range: request.headers["range"], type: "video/mp4")
+        default:
+            return nil
+        }
+    }
+
+    private static func startSession(_ s: inout State, _ body: Data) -> Answer {
+        s.playbackBodies.append(body)
+        if let status = s.playbackFails { return json(status, ["code": "unavailable", "message": "no transcode free"]) }
+        let asked = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] ?? [:]
+        guard let itemId = asked["item_id"] as? Int, let playable = s.playables[itemId] else {
+            return json(404, ["code": "not_found", "message": "item not found"])
+        }
+        let method = (asked["mode"] as? String).flatMap { ["remux", "transcode"].contains($0) ? $0 : nil }
+            ?? s.playbackMethod
+        let id = randomToken()
+        let key = "pley_mk_" + randomToken()
+        s.sessions[id] = PlaySession(itemId: itemId, key: key, method: method)
+        let hls = method != "direct"
+        return json(200, [
+            "session_id": id, "method": method, "hls": hls, "file_id": playable.fileId,
+            "url": hls ? "/api/media/\(key)/index.m3u8" : "/api/media/\(key)/file.\(playable.container)",
+            "duration_ms": playable.durationMs, "audio_index": 1, "subtitle_index": NSNull(), "burn_subtitles": false,
+            "audio_converted": false, "subtitles": [], "reasons": hls ? ["MKV not supported."] : [],
+            "reason": NSNull(), "auto_quality": NSNull(), "video_range": NSNull(), "adaptive": false,
+            "live_bitrate": false, "pts_offset_ms": hls ? 0 : NSNull(),
+        ])
+    }
+
+    private static func detail(_ p: Playable) -> [String: Any] {
+        [
+            "id": p.itemId, "library_id": 1, "kind": "movie", "title": p.title, "sort_title": p.title, "year": 2020,
+            "duration_ms": p.durationMs, "added_at": 1761300000,
+            "user_state": ["position_ms": p.positionMs, "watched": p.watched, "play_count": p.watched ? 1 : 0],
+            "files": [[
+                "id": p.fileId, "path": "\(p.title).\(p.container)", "size": p.media.count, "container": p.container,
+                "duration_ms": p.durationMs, "bitrate": 1_000_000, "width": 320, "height": 180, "video_codec": "h264",
+                "audio_codec": NSNull(),
+                "streams": [["index": 0, "kind": "video", "codec": "h264", "default": true, "profile": "High",
+                             "width": 320, "height": 180, "frame_rate": 30.0, "bit_depth": 8, "level": 30,
+                             "dynamic_range": "sdr"]],
+                "selected_audio": NSNull(), "audio_picked": false, "selected_subtitle": NSNull(), "chapters": [],
+            ]],
+            "markers": [],
+        ]
+    }
+
+    private static func stoppedAnswer(_ message: String?) -> Answer {
+        json(410, ["code": "session_stopped", "error": "session_stopped", "message": message.map { $0 as Any } ?? NSNull()])
+    }
+
+    private static func expiredAnswer() -> Answer {
+        json(404, ["code": "not_found", "message": "playback session expired"])
+    }
+
+    /// `data`, or the part `range` asks for (`bytes=a-b`, `bytes=a-`).
+    private static func ranged(_ data: Data, range: String?, type: String) -> Answer {
+        var headers = ["Content-Type": type, "Accept-Ranges": "bytes", "Cache-Control": "private, no-store"]
+        guard let range, range.hasPrefix("bytes="), !data.isEmpty else {
+            return Answer(status: 200, headers: headers, body: data)
+        }
+        let bounds = range.dropFirst(6).split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false)
+        let start = Int(bounds.first ?? "") ?? 0
+        let end = min(bounds.count > 1 ? Int(bounds[1]) ?? data.count - 1 : data.count - 1, data.count - 1)
+        guard start <= end, start < data.count else {
+            return Answer(status: 416, headers: ["Content-Range": "bytes */\(data.count)"], body: Data())
+        }
+        headers["Content-Range"] = "bytes \(start)-\(end)/\(data.count)"
+        return Answer(status: 206, headers: headers, body: data.subdata(in: start..<(end + 1)))
     }
 
     private static func withToken(_ s: inout State, _ request: Request, scope: String? = nil,
