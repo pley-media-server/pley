@@ -222,3 +222,6 @@ It has no releases yet: it is built and installed by hand
 - The native app's black bars meet a letterboxed film's picture exactly,
   whatever its shape, where a sliver of the TV's menu could show between
   them.
+- Picture subtitles (PGS, VobSub, DVB) in the native app no longer close
+  the app as a track still being made comes again: the same picture is
+  kept, and an old one's texture goes a second after it leaves the screen.
