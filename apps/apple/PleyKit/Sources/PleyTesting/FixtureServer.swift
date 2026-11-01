@@ -135,7 +135,7 @@ public final class FixtureServer: Sendable {
         var contentLength = true
     }
 
-    private struct Access {
+    struct Access {
         let id: Int
         let profile: Int
         let scope: String
@@ -143,7 +143,7 @@ public final class FixtureServer: Sendable {
         var valid = true
     }
 
-    private struct Refresh {
+    struct Refresh {
         let profile: Int
         let scope: String
         let grant: Int
@@ -151,7 +151,7 @@ public final class FixtureServer: Sendable {
     }
 
     /// A code the sign-in page gave, waiting to be exchanged.
-    private struct AuthCode {
+    struct AuthCode {
         let clientID: String
         let challenge: String
         let scope: String
@@ -159,13 +159,13 @@ public final class FixtureServer: Sendable {
     }
 
     /// A TV's code, waiting for an answer.
-    private struct Device {
+    struct Device {
         let clientID: String
         let scope: String
         var answered = false
     }
 
-    private struct State {
+    struct State {
         var origin = ""
         var listener: Listener?
         var journal: [Recorded] = []
@@ -201,10 +201,11 @@ public final class FixtureServer: Sendable {
         var adaptive = false
         var delays: [String: Int] = [:]
         var network = Network()
+        var browse = Browse()
     }
 
     /// What the fixture says of the client's network (`/api/playback/network`).
-    private struct Network {
+    struct Network {
         var routes = true
         var local = true
         var probe = false
@@ -214,7 +215,7 @@ public final class FixtureServer: Sendable {
     }
 
     /// A session the fixture started.
-    private struct PlaySession {
+    struct PlaySession {
         let itemId: Int
         let key: String
         let method: String
@@ -226,13 +227,13 @@ public final class FixtureServer: Sendable {
 
     /// NWListener is Sendable from iOS 17 only; it is safe to share, and only
     /// started and cancelled through this.
-    private final class Listener: @unchecked Sendable {
+    final class Listener: @unchecked Sendable {
         let listener: NWListener
         init(_ listener: NWListener) { self.listener = listener }
     }
 
-    private let state = OSAllocatedUnfairLock(initialState: State())
-    private let queue = DispatchQueue(label: "app.pley.apple.fixture")
+    let state = OSAllocatedUnfairLock(initialState: State())
+    let queue = DispatchQueue(label: "app.pley.apple.fixture")
 
     public init() {}
 
@@ -282,6 +283,7 @@ public final class FixtureServer: Sendable {
     }
 
     public func stop() {
+        endEvents()
         let box = state.withLock { s -> Listener? in
             defer { s.listener = nil }
             return s.listener
@@ -472,7 +474,7 @@ public final class FixtureServer: Sendable {
 
     // MARK: HTTP
 
-    private struct Request {
+    struct Request {
         let method: String
         let path: String
         let query: [String: String]
@@ -496,6 +498,8 @@ public final class FixtureServer: Sendable {
             var buffer = buffer
             if let data { buffer.append(data) }
             switch Self.parse(buffer) {
+            case .some(.some(let request)) where request.method == "GET" && request.path == "/api/events":
+                self.openEvents(request, on: connection)
             case .some(.some(let request)):
                 let answer = self.handle(request)
                 if let ms = self.state.withLock({ $0.delays["\(request.method) \(request.path)"] ?? $0.delays[request.path] }) {
@@ -560,7 +564,7 @@ public final class FixtureServer: Sendable {
         return out
     }
 
-    private func send(_ answer: Answer, on connection: NWConnection) {
+    func send(_ answer: Answer, on connection: NWConnection) {
         var head = "HTTP/1.1 \(answer.status) \(Self.reason(answer.status))\r\n"
         var headers = answer.headers
         if answer.contentLength { headers["Content-Length"] = String(answer.body.count) }
@@ -578,6 +582,9 @@ public final class FixtureServer: Sendable {
         case 200: "OK"
         case 204: "No Content"
         case 302: "Found"
+        case 304: "Not Modified"
+        case 409: "Conflict"
+        case 429: "Too Many Requests"
         case 303: "See Other"
         case 307: "Temporary Redirect"
         case 206: "Partial Content"
@@ -631,7 +638,7 @@ public final class FixtureServer: Sendable {
                 json(200, household.map { profileJSON($0, current: $0.id == access.profile) })
             }
         case "/api/hubs/home" where get:
-            return withToken(&s, request, scope: "library") { _, _ in fixture("hubs/home.json") }
+            return withToken(&s, request, scope: "library") { s, _ in home(s) }
         case "/api/oauth/token" where request.method == "POST":
             return token(&s, form)
         case "/api/oauth/revoke" where request.method == "POST":
@@ -653,6 +660,7 @@ public final class FixtureServer: Sendable {
                 return image(width: width, height: max(height, 1), type: "public.png", contentType: "image/png")
             }
         }
+        if let answer = browse(&s, request, parts) { return answer }
         if let answer = playback(&s, request, parts) { return answer }
         if get, parts.count == 4, parts[0] == "api", parts[1] == "users", let id = Int(parts[2]), parts[3] == "avatar" {
             return withToken(&s, request) { _, _ in
@@ -914,7 +922,7 @@ public final class FixtureServer: Sendable {
         return Answer(status: 206, headers: headers, body: data.subdata(in: start..<(end + 1)))
     }
 
-    private static func withToken(_ s: inout State, _ request: Request, scope: String? = nil,
+    static func withToken(_ s: inout State, _ request: Request, scope: String? = nil,
                                   _ body: (inout State, Access) -> Answer) -> Answer {
         let auth = request.headers["authorization"] ?? ""
         let token = auth.hasPrefix("Bearer ") ? String(auth.dropFirst(7)) : ""
@@ -1164,16 +1172,16 @@ public final class FixtureServer: Sendable {
         return out
     }
 
-    private static func fixture(_ path: String) -> Answer {
+    static func fixture(_ path: String) -> Answer {
         guard let data = try? Fixtures.data(path) else { return notFound(path) }
         return Answer(status: 200, headers: ["Content-Type": "application/json"], body: data)
     }
 
-    private static func notFound(_ path: String) -> Answer {
+    static func notFound(_ path: String) -> Answer {
         json(404, ["code": "not_found", "message": "\(path) not found"])
     }
 
-    private static func json(_ status: Int, _ object: Any, headers: [String: String] = [:]) -> Answer {
+    static func json(_ status: Int, _ object: Any, headers: [String: String] = [:]) -> Answer {
         var headers = headers
         headers["Content-Type"] = "application/json"
         let body = (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data()

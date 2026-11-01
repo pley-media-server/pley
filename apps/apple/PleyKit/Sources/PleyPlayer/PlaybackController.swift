@@ -783,6 +783,17 @@ public final class PlaybackController: ObservableObject {
         return true
     }
 
+    /// The server says (its event stream's `session_stopped`) this
+    /// playback was stopped from elsewhere: it stops as on a `410`, and
+    /// what to tell the person comes back, for the screen that closes it.
+    @discardableResult
+    public func stoppedByServer(message: String?, byAdmin: Bool) -> String {
+        let text = PlayerTexts.stoppedFromElsewhere(message, byAdmin: byAdmin)
+        stopByServer(message)
+        if case .failed = state.phase { state.phase = .failed(message: text, canRetry: false) }
+        return text
+    }
+
     /// The server ended the session: the engine stops, only `stopped` is
     /// sent (for the resume point), and the screen says why without Try again.
     private func stopByServer(_ message: String?) {

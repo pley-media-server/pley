@@ -207,6 +207,15 @@ enum PlayerTexts {
         return "\(stoppedByServer) \(message)"
     }
 
+    /// The event stream's `session_stopped`: "Playback was stopped by the
+    /// server's administrator: <message>", or "Playback was stopped from
+    /// another device" when the profile stopped it itself.
+    static func stoppedFromElsewhere(_ message: String?, byAdmin: Bool) -> String {
+        guard byAdmin else { return "Playback was stopped from another device" }
+        guard let message, !message.isEmpty else { return stoppedByServer }
+        return "Playback was stopped by the server's administrator: \(message)"
+    }
+
     static func failure(_ failure: Failure, detail: String?) -> String {
         switch failure {
         case .unplayable: "This video can't be played on this device."

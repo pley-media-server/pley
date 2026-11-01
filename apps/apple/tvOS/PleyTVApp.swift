@@ -33,6 +33,9 @@ struct RootView: View {
             PlayerScreen(app: app, controller: controller)
         }
         .onChange(of: scenePhase) { _, phase in
+            // The server's events are read while Pley is in front; back in
+            // front, what shows is read again.
+            app.sceneActive(phase != .background)
             switch phase {
             case .background: background()
             case .active: Task { await app.player?.appDidBecomeActive() }

@@ -40,6 +40,29 @@ public actor APIClient {
         return try decode(type, response)
     }
 
+    /// `get` with the tag of the answer shown (`If-None-Match`): `nil` when
+    /// the server says it is unchanged (`304`), else the answer and its
+    /// `ETag`.
+    public func get<T: Decodable & Sendable>(_ path: String, query: [URLQueryItem] = [], ifNoneMatch tag: String?,
+                                             as type: T.Type) async throws -> (value: T, tag: String?)? {
+        let response = try await request("GET", path, query: query, body: nil, maxBytes: BodyLimit.json,
+                                         accept: "application/json",
+                                         headers: tag.map { ["If-None-Match": $0] } ?? [:], notModified: tag != nil)
+        if response.status == 304 { return nil }
+        return (try decode(type, response), response.header("ETag"))
+    }
+
+    /// `GET path` read as it arrives, each piece of the body handed to
+    /// `read` until it returns false or the body ends (an event stream).
+    /// `opened` is told the answer's status as soon as it comes. With the
+    /// token, refreshed once as every request is; an error status throws
+    /// as it does.
+    public func stream(_ path: String, query: [URLQueryItem] = [], headers: [String: String] = [:],
+                       opened: @escaping @Sendable (Int) -> Void = { _ in },
+                       read: @escaping @Sendable (Data) -> Bool) async throws {
+        try check(try await streamed(path, query: query, headers: headers, opened: opened, read: read))
+    }
+
     /// Bytes of a type in `accept` (`image/png`…) and their type; anything
     /// else is refused.
     public func data(_ path: String, query: [URLQueryItem] = [], maxBytes: Int,
@@ -128,6 +151,7 @@ public actor APIClient {
     /// `GET path` read as it arrives, with the token (refreshed once, as
     /// for every request); the answer, unchecked.
     private func streamed(_ path: String, query: [URLQueryItem], headers: [String: String],
+                          opened: (@Sendable (Int) -> Void)? = nil,
                           read: @escaping @Sendable (Data) -> Bool) async throws -> StreamedResponse {
         guard let url = url(path, query: query) else { throw PleyError.unreachable("that isn't an address on the server") }
         var request = URLRequest(url: url)
@@ -137,12 +161,20 @@ public actor APIClient {
         }
         let issuer = tokens?.issuer ?? origin
         guard let tokens else {
-            return try await transport.streamData(request, redirects: .api(issuer: issuer), read: read)
+            return try await transport.streamData(request, redirects: .api(issuer: issuer), opened: opened, read: read)
         }
         let sent = try await tokens.accessToken()
         request.setValue("Bearer \(sent)", forHTTPHeaderField: "Authorization")
+        // A 401 asks again: the first answer's status isn't the stream's.
+        let firstOpened: (@Sendable (Int) -> Void)?
+        if let opened {
+            firstOpened = { status in if status != 401 { opened(status) } }
+        } else {
+            firstOpened = nil
+        }
         let first = try await transport.streamData(request, redirects: .api(issuer: issuer),
-                                                   onLeak: { await tokens.connectionLeaked() }, read: read)
+                                                   onLeak: { await tokens.connectionLeaked() },
+                                                   opened: firstOpened, read: read)
         guard first.status == 401, first.header("WWW-Authenticate").map(BearerChallenge.isInvalidToken) ?? false else {
             return first
         }
@@ -151,7 +183,8 @@ public actor APIClient {
         let fresh = try await tokens.accessToken()
         request.setValue("Bearer \(fresh)", forHTTPHeaderField: "Authorization")
         let second = try await transport.streamData(request, redirects: .api(issuer: issuer),
-                                                    onLeak: { await tokens.connectionLeaked() }, read: read)
+                                                    onLeak: { await tokens.connectionLeaked() }, opened: opened,
+                                                    read: read)
         if second.status == 401 { throw PleyError.signedOut }
         return second
     }
@@ -203,12 +236,19 @@ public actor APIClient {
         if url.scheme?.lowercased() == "http" { try await transport.gate.check(host: host) }
     }
 
+    /// With `notModified`, a `304` is an answer, not an error.
     private func request(_ method: String, _ path: String, query: [URLQueryItem], body: Data?, maxBytes: Int,
-                         accept: String) async throws -> HTTPResponse {
+                         accept: String, headers: [String: String] = [:],
+                         notModified: Bool = false) async throws -> HTTPResponse {
         guard let url = url(path, query: query) else { throw PleyError.unreachable("that isn't an address on the server") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(accept, forHTTPHeaderField: "Accept")
+        for (name, value) in headers { request.setValue(value, forHTTPHeaderField: name) }
+        let check: (HTTPResponse) throws -> Void = { [self] response in
+            if notModified && response.status == 304 { return }
+            try self.check(response)
+        }
         if let body {
             request.httpBody = body
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")

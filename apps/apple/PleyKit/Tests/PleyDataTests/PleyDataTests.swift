@@ -356,3 +356,64 @@ private func waitFor(_ condition: () async -> Bool) async -> Bool {
     }
     return await condition()
 }
+
+@MainActor
+@Suite struct ServerEventsTests {
+    @Test func changesOfAThirdOfASecondGoOutTogether() async throws {
+        let events = ServerEvents()
+        var changes: [ServerChange] = []
+        events.onChange = { changes.append($0) }
+        // A play reaching 90 % sends both.
+        events.heard(.userStateChanged(itemIds: [202, 203, 201], children: false))
+        events.heard(.libraryChanged(libraryId: 2))
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(changes.isEmpty)
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(changes.count == 1)
+        let change = try #require(changes.first)
+        #expect(change.home)
+        #expect(change.itemIds == [202, 203, 201])
+        #expect(change.touches(library: 2) && !change.touches(library: 1))
+        #expect(change.names(203) && !change.names(5))
+        // A show marked as a whole: everything under it too.
+        events.heard(.userStateChanged(itemIds: [201], children: true))
+        events.heard(.watchlistChanged)
+        try await Task.sleep(for: .milliseconds(450))
+        #expect(changes.count == 2)
+        #expect(changes[1].names(999, parent: 201) && changes[1].watchlist)
+        #expect(changes[1].serial > changes[0].serial)
+    }
+
+    @Test func scansAreToldAsTheyMoveAndTheirEndChangesTheLibrary() async throws {
+        let events = ServerEvents(window: 0.01)
+        var scans: [[Int: ScanStatus]] = []
+        var changes: [ServerChange] = []
+        events.onScans = { scans.append($0) }
+        events.onChange = { changes.append($0) }
+        events.heard(.scanStarted(libraryId: 1))
+        events.heard(.scanProgress(libraryId: 1, phase: "probing", processed: 118, total: 412))
+        #expect(scans.last?[1]?.processed == 118)
+        #expect(changes.isEmpty)
+        events.heard(.scanFinished(libraryId: 1))
+        #expect(scans.last?.isEmpty == true)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(changes.count == 1 && changes[0].libraries && changes[0].touches(library: 1))
+    }
+
+    @Test func aStoppedPlaybackIsToldAtOnceAndAReconnectReadsEverything() async throws {
+        let events = ServerEvents(window: 0.01)
+        var stopped: [String] = []
+        var changes: [ServerChange] = []
+        events.onSessionStopped = { id, _, _ in stopped.append(id) }
+        events.onChange = { changes.append($0) }
+        events.heard(.event(.sessionStopped(sessionId: "s1", message: "bedtime", byAdmin: true)))
+        #expect(stopped == ["s1"])
+        events.heard(.connected)
+        try await Task.sleep(for: .milliseconds(80))
+        #expect(changes.isEmpty)
+        events.heard(.connected)
+        events.heard(.event(.sessionsChanged))
+        try await Task.sleep(for: .milliseconds(80))
+        #expect(changes.count == 1 && changes[0].everything && changes[0].names(12345))
+    }
+}

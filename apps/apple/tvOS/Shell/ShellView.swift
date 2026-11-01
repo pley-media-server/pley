@@ -1,9 +1,10 @@
 import PleyScreens
 import SwiftUI
 
-/// The signed-in app on Apple TV: tabs across the top, Home and Settings
-/// (which holds the profile, the server, Switch profile, Servers and Sign
-/// out). Each tab keeps its own navigation; Menu goes back through it,
+/// The signed-in app on Apple TV: tabs across the top, Home, a tab per
+/// library (or one Libraries tab when there are more than four), and
+/// Settings (which holds the profile, the server, Switch profile, Servers
+/// and Sign out). Each tab keeps its own navigation; Menu goes back through it,
 /// then to the tabs, then out of the app. While the player is open
 /// VoiceOver reads only the player.
 struct ShellView: View {
@@ -18,7 +19,7 @@ struct ShellView: View {
     var body: some View {
         TabView(selection: Binding(get: { shell.section }, set: { shell.select($0) })) {
             ForEach(shell.sections, id: \.self) { section in
-                Tab(Self.title(section), systemImage: Self.symbol(section), value: section) {
+                Tab(title(section), systemImage: symbol(section), value: section) {
                     stack(section)
                 }
                 .accessibilityIdentifier("shell.tab.\(section.key)")
@@ -42,9 +43,25 @@ struct ShellView: View {
     @ViewBuilder private func start(_ section: ShellSection) -> some View {
         switch section {
         case .home: HomeView(app: app)
+        case .libraries: LibrariesView(app: app)
+        case .library(let id): LibraryView(app: app, libraryId: id)
         case .settings, .me: SettingsView(app: app)
         default: EmptyView()
         }
+    }
+
+    /// A library's tab is its name.
+    private func title(_ section: ShellSection) -> String {
+        if case .library(let id) = section { return shell.libraryName(id) }
+        return Self.title(section)
+    }
+
+    /// A library's tab shows its kind.
+    private func symbol(_ section: ShellSection) -> String {
+        if case .library(let id) = section, let library = shell.libraries.first(where: { $0.id == id }) {
+            return LibraryEntry.symbol(library.kind)
+        }
+        return Self.symbol(section)
     }
 
     static func title(_ section: ShellSection) -> String {
@@ -82,6 +99,10 @@ struct ScreenView: View {
         switch screen {
         case .item(let id), .artist(let id), .album(let id, _):
             ItemView(app: app, itemId: id)
+        case .library(let id, let view):
+            LibraryView(app: app, libraryId: id, view: view)
+        case .libraries:
+            LibrariesView(app: app)
         default:
             EmptyView()
         }

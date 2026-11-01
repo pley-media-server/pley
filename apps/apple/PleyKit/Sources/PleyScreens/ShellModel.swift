@@ -105,30 +105,78 @@ public final class ShellModel: ObservableObject {
     @Published public private(set) var paths: [ShellSection: [Screen]] = [:]
     @Published public var sheet: Sheet?
     @Published public private(set) var toast: Toast?
-    /// The sections this device shows, in order: a tab or a sidebar row each.
+    /// The tabs this device shows, in order: the iPhone's tab bar (and the
+    /// iPad's in a narrow window), or Apple TV's tabs across the top.
     @Published public private(set) var sections: [ShellSection]
+    /// The libraries, in the profile's order: the sidebar's rows, and
+    /// Apple TV's library tabs.
+    @Published public private(set) var libraries: [Library] = []
     /// Whether the server's Live TV shows (from Phase 4).
     public let liveTv = false
 
+    /// Apple TV shows a tab per library up to this many; more go under one Libraries tab.
+    public static let maxLibraryTabs = 4
+
     private let settings: AppSettings
+    private let tv: Bool
     private var toastTask: Task<Void, Never>?
 
-    /// The shell on this device: Home and Me (Apple TV: Home and Settings),
-    /// opening on the section shown last.
-    public init(settings: AppSettings = AppSettings(), sections: [ShellSection] = ShellModel.deviceSections) {
+    /// The shell on this device, opening on the section shown last: on
+    /// iPhone, iPad and Mac, Home, Libraries and Me; on Apple TV, Home, the
+    /// libraries and Settings.
+    public init(settings: AppSettings = AppSettings(), tv: Bool = ShellModel.isTV) {
         self.settings = settings
-        self.sections = sections
+        self.tv = tv
+        sections = Self.sections(tv: tv, libraries: [])
         let last = settings.lastSection.flatMap(ShellSection.init(key:))
-        section = last.flatMap { sections.contains($0) ? $0 : nil } ?? .home
+        // A library's section waits for the libraries to be known.
+        section = last.flatMap { last in
+            if case .library = last { return last }
+            return Self.sections(tv: tv, libraries: []).contains(last) ? last : nil
+        } ?? .home
     }
 
-    /// The sections of this device's shell.
-    public static var deviceSections: [ShellSection] {
+    /// Whether this is the Apple TV app.
+    public static var isTV: Bool {
         #if os(tvOS)
-        [.home, .settings]
+        true
         #else
-        [.home, .me]
+        false
         #endif
+    }
+
+    /// The tabs of a shell, with `libraries`.
+    public static func sections(tv: Bool, libraries: [Library]) -> [ShellSection] {
+        guard tv else { return [.home, .libraries, .me] }
+        let middle: [ShellSection] = libraries.count > maxLibraryTabs ? [.libraries] : libraries.map { .library($0.id) }
+        return [.home] + middle + [.settings]
+    }
+
+    /// The sidebar's rows on iPad and Mac: Home, then each library (Me is at its foot).
+    public var sidebar: [ShellSection] { [.home] + libraries.map { .library($0.id) } }
+
+    /// Whether `section` is one this device can show now.
+    public func shows(_ section: ShellSection) -> Bool {
+        if sections.contains(section) { return true }
+        if case .library(let id) = section { return libraries.contains { $0.id == id } }
+        return false
+    }
+
+    /// The libraries, as last read: the sections follow them. A library
+    /// section that went away goes back to Home.
+    public func setLibraries(_ libraries: [Library]) {
+        guard libraries != self.libraries else { return }
+        self.libraries = libraries
+        sections = Self.sections(tv: tv, libraries: libraries)
+        if !shows(section) {
+            section = .home
+            settings.lastSection = ShellSection.home.key
+        }
+    }
+
+    /// A library's name, for its tab or row.
+    public func libraryName(_ id: Int) -> String {
+        libraries.first { $0.id == id }?.name ?? "Library"
     }
 
     /// The pages on top of `section`'s start.
@@ -141,7 +189,7 @@ public final class ShellModel: ObservableObject {
 
     /// Shows `section`; showing it again goes back to its start.
     public func select(_ section: ShellSection) {
-        guard sections.contains(section) else { return }
+        guard shows(section) else { return }
         if section == self.section {
             popToRoot()
         } else {
@@ -196,6 +244,8 @@ public final class ShellModel: ObservableObject {
     /// or sign-in sees other things.
     public func reset() {
         paths = [:]
+        libraries = []
+        sections = Self.sections(tv: tv, libraries: [])
         sheet = nil
         dismissToast()
         section = .home

@@ -6,11 +6,35 @@ import SwiftUI
 /// and below it a caption of one or two lines. Over the picture, the
 /// progress while in progress, a check once watched, or a show's unwatched
 /// episodes. One element for VoiceOver ("Arrival, 2016", "watched").
+/// A long press on Select opens its title's actions, and Play/Pause plays
+/// it; a mark made there shows at once.
 struct ArtworkTile: View {
     let app: AppModel
-    let tile: Tile
+    @ObservedObject private var actions: ItemActionsModel
+    private let given: Tile
     let width: CGFloat
+    /// From a Continue Watching row: its actions offer to leave it.
+    let continueWatching: Bool
+    let remove: (() async -> Void)?
+    /// The focus came to it (Home's info block).
+    let focused: (() -> Void)?
     let open: () -> Void
+    @FocusState private var hasFocus: Bool
+
+    init(app: AppModel, tile: Tile, width: CGFloat, continueWatching: Bool = false,
+         remove: (() async -> Void)? = nil, focused: (() -> Void)? = nil, open: @escaping () -> Void) {
+        self.app = app
+        _actions = ObservedObject(wrappedValue: app.actions)
+        given = tile
+        self.width = width
+        self.continueWatching = continueWatching
+        self.remove = remove
+        self.focused = focused
+        self.open = open
+    }
+
+    /// The tile with the marks made here.
+    private var tile: Tile { actions.shown(given) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -18,8 +42,11 @@ struct ArtworkTile: View {
                 picture
             }
             .buttonStyle(.card)
+            .focused($hasFocus)
+            .onChange(of: hasFocus) { _, now in if now { focused?() } }
             .accessibilityLabel(tile.spokenLabel)
             .accessibilityValue(tile.spokenValue)
+            .itemActions(app, tile.item, continueWatching: continueWatching, remove: remove)
             .accessibilityIdentifier("tile.item.\(tile.id)")
             caption
                 .accessibilityHidden(true)

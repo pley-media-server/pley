@@ -12,16 +12,22 @@ struct TileRow: View {
     let shape: RowShape
     let tiles: [Tile]
     var seeAll: (() -> Void)?
+    /// Continue Watching: its tiles' actions offer to leave it, through this.
+    var remove: ((Tile) async -> Void)?
+    /// The focus came to a tile (Home's info block).
+    var focused: ((Tile) -> Void)?
     let open: (Tile) -> Void
 
     init(app: AppModel, key: String, title: String, shape: RowShape, tiles: [Tile], seeAll: (() -> Void)? = nil,
-         open: @escaping (Tile) -> Void) {
+         remove: ((Tile) async -> Void)? = nil, focused: ((Tile) -> Void)? = nil, open: @escaping (Tile) -> Void) {
         self.app = app
         self.key = key
         self.title = title
         self.shape = shape
         self.tiles = tiles
         self.seeAll = seeAll
+        self.remove = remove
+        self.focused = focused
         self.open = open
     }
 
@@ -34,10 +40,13 @@ struct TileRow: View {
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: Metrics.tileSpacing) {
                     ForEach(tiles) { tile in
-                        ArtworkTile(app: app, tile: tile, width: Metrics.tileWidth(shape)) { open(tile) }
+                        ArtworkTile(app: app, tile: tile, width: Metrics.tileWidth(shape), continueWatching: remove != nil,
+                                    remove: remove.map { remove in { await remove(tile) } },
+                                    focused: focused.map { focused in { focused(tile) } }) { open(tile) }
                     }
                     if let seeAll {
                         Button("See all", action: seeAll)
+                            .accessibilityLabel("See all, \(title)")
                             .accessibilityIdentifier("home.row.\(key).seeAll")
                     }
                 }

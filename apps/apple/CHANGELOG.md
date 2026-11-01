@@ -33,6 +33,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   longer force a conversion.
 - A tab bar on iPhone, a sidebar on iPad and Mac, and tabs across the top on
   Apple TV; your profile, servers and sign-out are under Me.
+- Browse your libraries: sort, filter, jump by letter, and put libraries
+  in your own order. Home has See all, and long press or right-click for a
+  title's actions. Screens update when something changes on the server.
 
 ### Fixed
 

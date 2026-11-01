@@ -3,11 +3,12 @@ import PleyScreens
 import SwiftUI
 
 /// The signed-in app. On iPhone, and on iPad in a narrow window, a tab bar
-/// with Home and Me; on iPad at regular width and on the Mac, a sidebar
-/// with Home and, at its foot, the profile signed in (Me). Each section
-/// keeps its own navigation, and choosing the section showing goes back
-/// to its start. The toast shows at the bottom; while the player is open
-/// VoiceOver reads only the player.
+/// with Home, Libraries and Me; on iPad at regular width and on the Mac, a
+/// sidebar with Home, the libraries in the profile's order (Edit, or a
+/// drag, puts them in another), and at its foot the profile signed in
+/// (Me). Each section keeps its own navigation, and choosing the section
+/// showing goes back to its start. The toast shows at the bottom; while
+/// the player is open VoiceOver reads only the player.
 struct ShellView: View {
     @ObservedObject var app: AppModel
     @ObservedObject private var shell: ShellModel
@@ -33,35 +34,31 @@ struct ShellView: View {
     // MARK: Tabs
 
     private var tabs: some View {
-        TabView(selection: Binding(get: { shell.section }, set: { shell.select($0) })) {
+        // A library opened from the sidebar shows under Libraries.
+        TabView(selection: Binding(get: { Self.tab(shell.section) }, set: { shell.select($0) })) {
             ForEach(shell.sections, id: \.self) { section in
-                stack(section)
+                stack(section == Self.tab(shell.section) ? shell.section : section)
                     .tabItem { Label(Self.title(section), systemImage: Self.symbol(section)) }
                     .tag(section)
             }
         }
     }
 
+    private static func tab(_ section: ShellSection) -> ShellSection {
+        if case .library = section { return .libraries }
+        return section
+    }
+
     // MARK: Sidebar
 
     private var split: some View {
         NavigationSplitView {
-            List(selection: Binding<ShellSection?>(get: { shell.section == .me ? nil : shell.section },
-                                                   set: { if let section = $0 { shell.select(section) } })) {
-                ForEach(shell.sections.filter { $0 != .me }, id: \.self) { section in
-                    Label(Self.title(section), systemImage: Self.symbol(section))
-                        .tag(section)
-                        .accessibilityIdentifier("shell.sidebar.\(section.key)")
-                }
-            }
-            // A container of its own, so its identifier doesn't replace its rows'.
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("shell.sidebar")
-            .safeAreaInset(edge: .bottom) { meRow }
-            .navigationTitle("Pley")
-            #if os(macOS)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
-            #endif
+            Sidebar(app: app)
+                .safeAreaInset(edge: .bottom) { meRow }
+                .navigationTitle("Pley")
+                #if os(macOS)
+                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+                #endif
         } detail: {
             stack(shell.section)
                 // Another section, another navigation.
@@ -118,6 +115,8 @@ struct ShellView: View {
     @ViewBuilder private func start(_ section: ShellSection) -> some View {
         switch section {
         case .home: HomeView(app: app)
+        case .libraries: LibrariesView(app: app)
+        case .library(let id): LibraryView(app: app, libraryId: id)
         case .me, .settings: MeView(app: app)
         default: EmptyView()
         }
@@ -148,6 +147,67 @@ struct ShellView: View {
     }
 }
 
+/// The sidebar: Home, then the libraries in the profile's order, each
+/// with its kind's symbol; a drag (or Edit on iPad, or VoiceOver's Move up
+/// and Move down) puts them in another order.
+private struct Sidebar: View {
+    @ObservedObject var app: AppModel
+    @ObservedObject private var shell: ShellModel
+    @StateObject private var model: LibrariesModel
+
+    init(app: AppModel) {
+        self.app = app
+        _shell = ObservedObject(wrappedValue: app.shell)
+        _model = StateObject(wrappedValue: LibrariesModel(app: app))
+    }
+
+    var body: some View {
+        List(selection: Binding<ShellSection?>(get: { shell.section == .me ? nil : shell.section },
+                                               set: { if let section = $0 { shell.select(section) } })) {
+            Label(ShellView.title(.home), systemImage: ShellView.symbol(.home))
+                .tag(ShellSection.home)
+                .accessibilityIdentifier("shell.sidebar.home")
+            Section("Libraries") {
+                ForEach(model.entries) { entry in
+                    HStack {
+                        Label(entry.name, systemImage: entry.symbol)
+                        Spacer(minLength: 0)
+                        if entry.scanning {
+                            ProgressView().controlSize(.small).accessibilityHidden(true)
+                        }
+                    }
+                    .tag(ShellSection.library(entry.id))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(entry.spoken)
+                    .accessibilityActions {
+                        if model.entries.first?.id != entry.id {
+                            Button("Move up") { model.move(entry.id, by: -1) }
+                        }
+                        if model.entries.last?.id != entry.id {
+                            Button("Move down") { model.move(entry.id, by: 1) }
+                        }
+                    }
+                    .accessibilityIdentifier("shell.sidebar.library.\(entry.id)")
+                }
+                .onMove(perform: model.reorderable ? { model.move(fromOffsets: $0, toOffset: $1) } : nil)
+            }
+        }
+        // A container of its own, so its identifier doesn't replace its rows'.
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("shell.sidebar")
+        #if os(iOS)
+        .toolbar {
+            if model.reorderable {
+                ToolbarItem(placement: .primaryAction) {
+                    EditButton().accessibilityIdentifier("shell.sidebar.edit")
+                }
+            }
+        }
+        #endif
+        .task { await model.reload() }
+    }
+}
+
 /// The page a `Screen` names. Artists and albums open the item's page
 /// until they have pages of their own.
 struct ScreenView: View {
@@ -158,6 +218,10 @@ struct ScreenView: View {
         switch screen {
         case .item(let id), .artist(let id), .album(let id, _):
             ItemView(app: app, itemId: id)
+        case .library(let id, let view):
+            LibraryView(app: app, libraryId: id, view: view)
+        case .libraries:
+            LibrariesView(app: app)
         default:
             EmptyView()
         }

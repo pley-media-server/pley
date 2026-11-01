@@ -3,7 +3,8 @@ import XCTest
 
 /// The screens on iPhone and iPad against a test server (check-screens.sh):
 /// sign in with a code, "Who's watching?" with Kids by PIN, Home, an item,
-/// Me, back to the administrator by PIN, and Sign out.
+/// Me, back to the administrator by PIN, See all, a title's actions, a
+/// library's sort, filter and letters, the libraries' order, and Sign out.
 @MainActor
 final class ScreensTests: XCTestCase {
     override func setUp() async throws {
@@ -11,7 +12,7 @@ final class ScreensTests: XCTestCase {
         try XCTSkipUnless(Admin.ready, "Run by scripts/check-screens.sh, which starts the test server.")
     }
 
-    func testSignInProfilesHomeMeAndSignOut() async throws {
+    func testSignInProfilesHomeBrowseMeAndSignOut() async throws {
         if UIDevice.current.userInterfaceIdiom == .pad {
             // The sidebar shows beside the page in landscape.
             XCUIDevice.shared.orientation = .landscapeLeft
@@ -40,6 +41,14 @@ final class ScreensTests: XCTestCase {
 
         walk.openHome()
         walk.seeHome(Admin.adminName)
+        walk.seeAll()
+        let libraries = await Admin.libraryIds()
+        await walk.itemActions(movies: libraries["Movies"] ?? 0)
+        walk.openLibrary(libraries["Movies"] ?? 0, "Movies")
+        walk.sortAndFilter()
+        walk.openLibrary(libraries["Clips"] ?? 0, "Clips")
+        walk.jumpByLetter()
+        await walk.reorder()
         walk.openMe()
         walk.signOut()
         walk.shot("07-signed-out")

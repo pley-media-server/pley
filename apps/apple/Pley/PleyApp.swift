@@ -45,9 +45,7 @@ struct PleyApp: App {
 /// player covers it all.
 struct RootView: View {
     @ObservedObject var app: AppModel
-    #if os(iOS)
     @Environment(\.scenePhase) private var scenePhase
-    #endif
 
     var body: some View {
         root
@@ -66,6 +64,11 @@ struct RootView: View {
             }
         }
         #endif
+        // The server's events are read while Pley is in front; back in
+        // front, what shows is read again.
+        .onChange(of: scenePhase) { phase in
+            app.sceneActive(phase != .background)
+        }
     }
 
     @ViewBuilder private var root: some View {

@@ -46,4 +46,34 @@ enum Admin {
         guard status == 200, let id = (answer as? [String: Any])?["id"] else { return false }
         return await call("POST", "/api/oauth/requests/\(id)", body: #"{"allow":true}"#).0 == 200
     }
+
+    /// The libraries' ids by name, in the administrator's order.
+    static func libraries() async -> [(name: String, id: Int)] {
+        let (_, answer) = await call("GET", "/api/libraries")
+        return (answer as? [[String: Any]] ?? []).compactMap { library in
+            guard let id = library["id"] as? Int, let name = library["name"] as? String else { return nil }
+            return (name, id)
+        }
+    }
+
+    static func libraryIds() async -> [String: Int] {
+        Dictionary(await libraries().map { ($0.name, $0.id) }, uniquingKeysWith: { a, _ in a })
+    }
+
+    /// Whether the administrator has watched item `id`.
+    static func watched(_ id: Int) async -> Bool? {
+        let (_, answer) = await call("GET", "/api/items/\(id)")
+        return ((answer as? [String: Any])?["user_state"] as? [String: Any])?["watched"] as? Bool
+    }
+
+    /// The ids in the administrator's My List.
+    static func watchlist() async -> [Int] {
+        let (_, answer) = await call("GET", "/api/watchlist")
+        return ((answer as? [String: Any])?["items"] as? [[String: Any]] ?? []).compactMap { $0["id"] as? Int }
+    }
+
+    /// The libraries back in the server's order.
+    static func resetLibraryOrder() async {
+        _ = await call("DELETE", "/api/me/libraries/order")
+    }
 }

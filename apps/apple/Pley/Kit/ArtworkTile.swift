@@ -7,14 +7,34 @@ import SwiftUI
 /// or a show's unwatched episodes. One element for VoiceOver ("Arrival,
 /// 2016", "watched", "Opens its page"). The pointer lifts it on iPad; on
 /// the Mac, hovering grows it a little, or outlines it under Reduce Motion.
+/// Its title's actions are its context menu and VoiceOver's actions; a
+/// mark made there shows at once.
 struct ArtworkTile: View {
     let app: AppModel
-    let tile: Tile
+    @ObservedObject private var actions: ItemActionsModel
+    private let given: Tile
     let width: CGFloat
+    /// From a Continue Watching row: its actions offer to leave it.
+    let continueWatching: Bool
+    let remove: (() async -> Void)?
     let open: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var hovering = false
+
+    init(app: AppModel, tile: Tile, width: CGFloat, continueWatching: Bool = false,
+         remove: (() async -> Void)? = nil, open: @escaping () -> Void) {
+        self.app = app
+        _actions = ObservedObject(wrappedValue: app.actions)
+        given = tile
+        self.width = width
+        self.continueWatching = continueWatching
+        self.remove = remove
+        self.open = open
+    }
+
+    /// The tile with the marks made here.
+    private var tile: Tile { actions.shown(given) }
 
     var body: some View {
         Button(action: open) {
@@ -36,6 +56,7 @@ struct ArtworkTile: View {
         .accessibilityLabel(tile.spokenLabel)
         .accessibilityValue(tile.spokenValue)
         .accessibilityHint("Opens its page")
+        .itemActions(app, tile.item, continueWatching: continueWatching, remove: remove)
         .accessibilityIdentifier("tile.item.\(tile.id)")
     }
 

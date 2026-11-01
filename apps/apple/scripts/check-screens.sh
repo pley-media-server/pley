@@ -20,8 +20,8 @@
 #   PLEY_SCREENS_LOGS  a folder for the test logs of the simulators that failed
 #   PLEY_BUNDLE_ID     the app's bundle ID, when Local.xcconfig changes it
 #
-# The app is removed from each simulator first, so the walk starts at the
-# servers. The server reads the web app from apps/web/dist: build it first
+# The app is removed from each simulator first, and the simulator's
+# Keychain emptied, so the walk starts at the servers. The server reads the web app from apps/web/dist: build it first
 # (bun run build), or link it there in a worktree.
 set -euo pipefail
 
@@ -156,6 +156,8 @@ walk() {
   fi
   xcrun simctl boot "$id" 2>/dev/null || true
   xcrun simctl uninstall "$id" "$bundle" 2>/dev/null || true
+  # The server list and sign-ins are in the Keychain, which outlives the app.
+  xcrun simctl keychain "$id" reset 2>/dev/null || true
   log="$temp/$scheme-$id.log"
   echo "check-screens: $scheme on $name"
   if xcodebuild test -project apps/apple/Pley.xcodeproj -scheme "$scheme" -destination "id=$id" \

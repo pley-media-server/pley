@@ -18,7 +18,7 @@ import Testing
     }
 
     @Test func pagesOpenOnTheSectionShowingAndBackTakesOneOff() {
-        let shell = ShellModel(settings: freshSettings(), sections: [.home, .me])
+        let shell = ShellModel(settings: freshSettings(), tv: false)
         #expect(shell.section == .home)
         shell.open(.item(7))
         shell.open(item: item(8, .movie))
@@ -36,7 +36,7 @@ import Testing
     }
 
     @Test func choosingTheSectionShowingGoesBackToItsStart() {
-        let shell = ShellModel(settings: freshSettings(), sections: [.home, .me])
+        let shell = ShellModel(settings: freshSettings(), tv: false)
         shell.open(.item(1))
         shell.open(.item(2))
         shell.select(.me)
@@ -69,12 +69,12 @@ import Testing
 
     @Test func theSectionShownLastIsKeptAndAResetGoesHome() {
         let settings = freshSettings()
-        let shell = ShellModel(settings: settings, sections: [.home, .me])
+        let shell = ShellModel(settings: settings, tv: false)
         shell.select(.me)
         shell.open(.history)
-        #expect(ShellModel(settings: settings, sections: [.home, .me]).section == .me)
+        #expect(ShellModel(settings: settings, tv: false).section == .me)
         // A section another device has isn't restored here.
-        #expect(ShellModel(settings: settings, sections: [.home, .settings]).section == .home)
+        #expect(ShellModel(settings: settings, tv: true).section == .home)
         shell.sheet = .addToPlaylist([1])
         shell.show("Added to Favourites")
         shell.reset()
@@ -94,7 +94,7 @@ import Testing
     }
 
     @Test func aToastsUndoRunsOnce() {
-        let shell = ShellModel(settings: freshSettings(), sections: [.home, .me])
+        let shell = ShellModel(settings: freshSettings(), tv: false)
         var undone = 0
         shell.show("Removed Arrival") { undone += 1 }
         #expect(shell.toast?.text == "Removed Arrival")
@@ -108,7 +108,7 @@ import Testing
 @MainActor
 @Suite struct ShellNavigationTests {
     /// Me, or Apple TV's Settings, which holds the same.
-    private let meSection = ShellModel.deviceSections.last!
+    private let meSection = ShellModel.sections(tv: ShellModel.isTV, libraries: []).last!
 
     private func signedIn(_ server: FixtureServer) async throws -> AppModel {
         let store = MemoryTokenStore()

@@ -151,8 +151,10 @@ extension HTTPTransport {
     }
 
     /// `stream`, handing `read` the pieces themselves (a download written to a file).
+    /// `opened` is told the answer's status as soon as it comes, before any of its body.
     package func streamData(_ request: URLRequest, redirects: RedirectPolicy.Mode,
                             onLeak: (@Sendable () async -> Void)? = nil,
+                            opened: (@Sendable (Int) -> Void)? = nil,
                             read: @escaping @Sendable (Data) -> Bool) async throws -> StreamedResponse {
         guard let url = request.url, let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
               let host = url.host(percentEncoded: false), !host.isEmpty
@@ -165,7 +167,7 @@ extension HTTPTransport {
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.httpShouldHandleCookies = false
         let path = Log.path(url.path(percentEncoded: true))
-        let observer = StreamObserver(redirects: redirects, read: read)
+        let observer = StreamObserver(redirects: redirects, opened: opened, read: read)
         let answer: StreamObserver.Answer
         do {
             answer = try await observer.run(plainHTTP ? directSession : session, request)
@@ -210,11 +212,14 @@ private final class StreamObserver: NSObject, URLSessionDataDelegate, @unchecked
     private static let maxErrorBody = 64 << 10
     private let redirects: RedirectPolicy.Mode
     private let read: @Sendable (Data) -> Bool
+    private let opened: (@Sendable (Int) -> Void)?
     // Unchecked Sendable: every mutable thing is behind this lock.
     private let state = OSAllocatedUnfairLock(initialState: State())
 
-    init(redirects: RedirectPolicy.Mode, read: @escaping @Sendable (Data) -> Bool) {
+    init(redirects: RedirectPolicy.Mode, opened: (@Sendable (Int) -> Void)? = nil,
+         read: @escaping @Sendable (Data) -> Bool) {
         self.redirects = redirects
+        self.opened = opened
         self.read = read
     }
 
@@ -233,7 +238,9 @@ private final class StreamObserver: NSObject, URLSessionDataDelegate, @unchecked
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
                     completionHandler: @escaping @Sendable (URLSession.ResponseDisposition) -> Void) {
-        state.withLock { $0.response = response as? HTTPURLResponse }
+        let http = response as? HTTPURLResponse
+        state.withLock { $0.response = http }
+        if let http { opened?(http.statusCode) }
         completionHandler(.allow)
     }
 

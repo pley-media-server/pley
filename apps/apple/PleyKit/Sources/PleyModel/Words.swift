@@ -285,6 +285,23 @@ public enum Words {
         return "\(number) \(n == 1 ? one : many ?? one + "s")"
     }
 
+    /// A listing's file line, sorted by bitrate: "1080p · 6.6 Mbps · 50.4 GB"; empty without one.
+    public static func fileLine(_ media: MediaSummary?) -> String {
+        guard let media else { return "" }
+        return [resolution(width: media.width, height: media.height) ?? "", bitrate(media.bitrate),
+                (media.size ?? 0) > 0 ? bytes(media.size!) : ""].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    /// "412 movies", "38 shows", "120 artists": what a library holds, by its kind.
+    public static func libraryCount(_ library: Library) -> String {
+        switch library.kind {
+        case .movies: pluralize(library.itemCount, "movie")
+        case .shows: pluralize(library.itemCount, "show")
+        case .music: pluralize(library.itemCount, "artist")
+        default: pluralize(library.itemCount, "item")
+        }
+    }
+
     /// "S1 · E3", "E3", or "" with neither number: the screens' episode label.
     public static func episodeLabel(season: Int?, episode: Int?) -> String {
         [season.map { "S\($0)" }, episode.map { "E\($0)" }].compactMap { $0 }.joined(separator: " · ")

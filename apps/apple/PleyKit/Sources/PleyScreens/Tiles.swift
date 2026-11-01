@@ -12,9 +12,10 @@ public enum RowShape: String, Sendable, Hashable {
     case square
 
     /// The shape of `hub`'s tiles: Continue Watching as stills, music as
-    /// squares, the rest by their first item.
-    public static func of(_ hub: Hub) -> RowShape {
+    /// squares (a music library's rows too), the rest by their first item.
+    public static func of(_ hub: Hub, libraryKind: LibraryKind? = nil) -> RowShape {
         if hub.key.hasPrefix("continue") { return .landscape }
+        if libraryKind == .music { return .square }
         switch hub.items.first?.kind {
         case .episode?: return .landscape
         case .artist?, .album?, .track?: return .square
@@ -33,7 +34,7 @@ public struct Tile: Identifiable, Hashable, Sendable {
     /// The caption's first line: the title, an episode's show in a still.
     public let title: String
     /// Its second line: "2016", "3 seasons", "S2 · E5 · 26 min left"; empty for none.
-    public let subtitle: String
+    public private(set) var subtitle: String
     /// Server paths of its picture, the best first: the next is tried when one is missing.
     public let pictures: [String]
     /// Played so far, 0 to 1; 0 when not in progress.
@@ -46,8 +47,9 @@ public struct Tile: Identifiable, Hashable, Sendable {
     public let spokenLabel: String
     public let spokenValue: String
 
-    /// `item` as a tile of `shape` (Android's `ArtworkTileModel.of`).
-    public init(_ item: ItemSummary, shape: RowShape) {
+    /// `item` as a tile of `shape` (Android's `ArtworkTileModel.of`);
+    /// `line`, when given, is its second line instead (a file's, sorted by bitrate).
+    public init(_ item: ItemSummary, shape: RowShape, line: String? = nil) {
         self.item = item
         self.shape = shape
         let inProgress = Words.isInProgress(item)
@@ -62,6 +64,7 @@ public struct Tile: Identifiable, Hashable, Sendable {
             title = item.title
             subtitle = left.isEmpty ? Words.cardSubtitle(item) : left
         }
+        if let line { subtitle = line }
         pictures = shape == .landscape ? Self.stills(item) : Self.posters(item)
         progress = inProgress ? Words.progress(item) : 0
         unwatched = item.kind == .show || item.kind == .season ? Words.unwatchedCount(item) : 0
@@ -69,6 +72,20 @@ public struct Tile: Identifiable, Hashable, Sendable {
         let spoken = Words.tileSpoken(item)
         spokenLabel = spoken.label
         spokenValue = spoken.value
+    }
+
+    /// The tile with the profile's watch mark changed, as the screens show
+    /// a mark at once, before the server's answer.
+    public func marked(watched: Bool) -> Tile {
+        var item = item
+        item.userState.watched = watched
+        if watched {
+            item.userState.positionMs = 0
+            if let leaves = item.leafCount { item.viewedLeafCount = leaves }
+        } else if item.leafCount != nil {
+            item.viewedLeafCount = 0
+        }
+        return Tile(item, shape: shape, line: shape == .poster && item.media != nil ? subtitle : nil)
     }
 
     /// A poster: its own, else its parent's (an episode's season), else its grandparent's (the show).

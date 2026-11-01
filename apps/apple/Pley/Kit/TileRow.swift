@@ -12,18 +12,21 @@ struct TileRow: View {
     let shape: RowShape
     let tiles: [Tile]
     var seeAll: (() -> Void)?
+    /// Continue Watching: its tiles' actions offer to leave it, through this.
+    var remove: ((Tile) async -> Void)?
     let open: (Tile) -> Void
     private let layout = WideLayout()
     @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
 
     init(app: AppModel, key: String, title: String, shape: RowShape, tiles: [Tile], seeAll: (() -> Void)? = nil,
-         open: @escaping (Tile) -> Void) {
+         remove: ((Tile) async -> Void)? = nil, open: @escaping (Tile) -> Void) {
         self.app = app
         self.key = key
         self.title = title
         self.shape = shape
         self.tiles = tiles
         self.seeAll = seeAll
+        self.remove = remove
         self.open = open
     }
 
@@ -41,6 +44,7 @@ struct TileRow: View {
                 Spacer()
                 if let seeAll {
                     Button("See all", action: seeAll)
+                        .accessibilityLabel("See all, \(title)")
                         .accessibilityIdentifier("\(identifier).seeAll")
                 }
             }
@@ -48,7 +52,8 @@ struct TileRow: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: Metrics.tileSpacing) {
                     ForEach(tiles) { tile in
-                        ArtworkTile(app: app, tile: tile, width: width) { open(tile) }
+                        ArtworkTile(app: app, tile: tile, width: width, continueWatching: remove != nil,
+                                    remove: remove.map { remove in { await remove(tile) } }) { open(tile) }
                     }
                 }
                 .padding(.horizontal, gutter)

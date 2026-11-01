@@ -78,6 +78,11 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var homeVersion = 0
     /// The playback open, if any; the player screens show it.
     @Published public private(set) var player: PlaybackController?
+    /// What changed on the server last (its events, gathered for 0.3 s,
+    /// and this app's own writes): the screens showing it read it again.
+    @Published public private(set) var change: ServerChange?
+    /// The scans running, by library.
+    @Published public private(set) var scans: [Int: ScanStatus] = [:]
 
     public let session: SessionManager
     public let servers: ServerRepository
@@ -97,6 +102,15 @@ public final class AppModel: ObservableObject {
     public let settings: AppSettings
     /// The signed-in app's sections and their navigation.
     public let shell: ShellModel
+    /// The server's events, made into changes.
+    public let serverEvents = ServerEvents()
+    /// The item actions and the marks they made.
+    public private(set) lazy var actions = ItemActionsModel(app: self)
+    /// The event stream of a server's API (the tests give their own).
+    private let eventSignals: @Sendable (PleyAPI) -> AsyncStream<EventSignal>
+    /// Whether the app is in the foreground: the event stream runs only then.
+    private var active = true
+    private var eventsRunning = false
 
     private var listener: Task<Void, Never>?
     /// Counts playbacks asked for, so only the latest of two quick ones opens.
@@ -111,7 +125,10 @@ public final class AppModel: ObservableObject {
                 authenticator: (any WebAuthenticator)?,
                 discover: @escaping @Sendable () -> AsyncStream<DiscoveryState>,
                 caps: DeviceCaps? = nil, playerSetup: PlayerSetup = PlayerSetup(),
-                settings: AppSettings = AppSettings()) {
+                settings: AppSettings = AppSettings(),
+                eventSignals: @escaping @Sendable (PleyAPI) -> AsyncStream<EventSignal> = {
+                    EventStream(api: $0).signals()
+                }) {
         self.session = session
         self.servers = servers
         self.transport = transport
@@ -121,10 +138,20 @@ public final class AppModel: ObservableObject {
         self.playerSetup = playerSetup
         self.settings = settings
         shell = ShellModel(settings: settings)
+        self.eventSignals = eventSignals
         // One loader for the app, always with the open server's API.
         images = ImageLoader { [session] path, width in
             guard let api = await session.api else { throw PleyError.signedOut }
             return try await api.image(path: path, width: width)
+        }
+        serverEvents.onChange = { [weak self] change in
+            guard let self else { return }
+            self.actions.followed(change)
+            self.change = change
+        }
+        serverEvents.onScans = { [weak self] scans in self?.scans = scans }
+        serverEvents.onSessionStopped = { [weak self] id, message, byAdmin in
+            self?.sessionStopped(id, message: message, byAdmin: byAdmin)
         }
     }
 
@@ -175,7 +202,10 @@ public final class AppModel: ObservableObject {
         switch state {
         case .signedIn(let user):
             // Another server's pages don't belong to this one.
-            if before != server?.origin { shell.reset() }
+            if before != server?.origin {
+                shell.reset()
+                actions.reset()
+            }
             show(user, chooseProfile: false)
         case .signedOut:
             user = nil
@@ -190,6 +220,7 @@ public final class AppModel: ObservableObject {
         notice = nil
         let household = (try? await session.profiles?.profiles()) ?? []
         shell.reset()
+        actions.reset()
         show(user, chooseProfile: household.count > 1)
     }
 
@@ -202,16 +233,21 @@ public final class AppModel: ObservableObject {
         }
         homeVersion += 1
         shell.reset()
+        actions.reset()
         profilesFromShell = false
         root = .signedIn
+        // Another profile's token: its own stream.
+        restartEvents()
     }
 
     /// Ends the sign-in on the open server; the servers show.
     public func signOut() async {
         await closePlayer()
+        stopEvents()
         await session.signOut()
         user = nil
         shell.reset()
+        actions.reset()
         root = .servers
         signingIn = []
     }
@@ -296,6 +332,56 @@ public final class AppModel: ObservableObject {
         return queue
     }
 
+    // MARK: The server's events
+
+    /// The app came to the foreground (`true`) or left it: the event
+    /// stream runs only in the foreground. Back in front, everything shown
+    /// is read again, since events were missed.
+    public func sceneActive(_ active: Bool) {
+        guard active != self.active else { return }
+        self.active = active
+        if active {
+            startEvents()
+            if user != nil { note(ServerChange(home: true, libraries: true, watchlist: true, everything: true)) }
+        } else {
+            stopEvents()
+        }
+    }
+
+    /// A change this app made itself: the other screens showing it follow.
+    public func note(_ change: ServerChange) {
+        serverEvents.note(change)
+    }
+
+    private func startEvents() {
+        guard active, user != nil, !eventsRunning else { return }
+        eventsRunning = true
+        let signals = eventSignals
+        Task { [weak self] in
+            guard let self, let api = await self.session.api, self.eventsRunning else { return }
+            self.serverEvents.start(signals(api))
+        }
+    }
+
+    private func stopEvents() {
+        eventsRunning = false
+        serverEvents.stop()
+    }
+
+    private func restartEvents() {
+        stopEvents()
+        startEvents()
+    }
+
+    /// One of this profile's playbacks was stopped from elsewhere: the
+    /// player showing it closes, and says why.
+    private func sessionStopped(_ id: String, message: String?, byAdmin: Bool) {
+        guard let player, player.session?.id == id else { return }
+        let text = player.stoppedByServer(message: message, byAdmin: byAdmin)
+        shell.show(text)
+        Task { await closePlayer(player) }
+    }
+
     // MARK: Inside
 
     private func show(_ user: User, chooseProfile: Bool) {
@@ -311,6 +397,8 @@ public final class AppModel: ObservableObject {
     /// reports that couldn't reach this server and profile before go now.
     private func signedInNow(_ user: User) {
         Task { await caps.warmUp() }
+        startEvents()
+        Task { await actions.loadWatchlist() }
         Task { [weak self] in
             guard let self, let api = await self.session.api, let origin = await self.session.origin else { return }
             await self.lateReports(origin: origin, profileId: user.id).send(using: api)
@@ -343,9 +431,11 @@ public final class AppModel: ObservableObject {
     private func heard(_ event: SessionEvent) {
         guard case .signedOut(let origin, let message) = event, let server, server.origin == origin else { return }
         Task { await closePlayer() }
+        stopEvents()
         user = nil
         notice = message
         shell.reset()
+        actions.reset()
         root = .servers
         signingIn = [server]
     }
