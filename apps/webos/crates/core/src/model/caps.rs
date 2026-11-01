@@ -3,9 +3,9 @@
 //! (`caps_version: 2`) adds the decoders, HDR, sound, subtitles and HLS facts
 //! the server decides by (docs/API.md, "Version 2").
 //!
-//! It writes its keys in the web app's order (`apps/webos/src/caps.ts`) and
-//! whole numbers without a decimal point, so the LG port's snapshots compare
-//! byte for byte.
+//! It writes its keys in the order the LG web app before it did, and whole
+//! numbers without a decimal point, so its reports compare byte for byte with
+//! that app's snapshots (`pley-webos`' `tests/caps_snapshots.rs`).
 
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize, Serializer};

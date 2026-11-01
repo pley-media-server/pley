@@ -1,6 +1,6 @@
-//! The web app's capability snapshots (`apps/webos/test/caps.test.ts` and
-//! its `__snapshots__/caps.test.ts.snap`, kept here byte for byte): for the
-//! same facts the native report must print exactly as the web app's did,
+//! The capability reports of the LG web app this app replaced, as its Vitest
+//! snapshots kept them (`caps.test.ts.snap`, byte for byte): for the same
+//! facts the native report must print exactly as the web app's did,
 //! in Vitest's snapshot format (keys sorted, a comma after every entry).
 
 use pley_core::device::CapsOverrides;
@@ -36,7 +36,7 @@ fn tv(over: impl FnOnce(&mut WebosFacts)) -> WebosFacts {
     f
 }
 
-/// Real sets, as their services describe them (`caps.test.ts`' `SETS`).
+/// Real sets, as their services describe them.
 fn sets() -> Vec<(&'static str, WebosFacts)> {
     let s = |v: &str| Some(v.to_string());
     vec![

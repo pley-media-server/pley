@@ -1,5 +1,5 @@
 /**
- * Others' work the Samsung and LG apps ship, by npm package: Settings →
+ * Others' work the Samsung app ships, by npm package: Settings →
  * About lists it, and the build (build/notices.ts) puts each package's
  * license text in the package's NOTICES.txt. The build stops on a package
  * in the bundle that isn't named here, so neither list falls behind.

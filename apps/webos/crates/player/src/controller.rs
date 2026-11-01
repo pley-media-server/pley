@@ -3128,8 +3128,7 @@ fn progress(position_ms: i64, info: &PlaybackInfo, state: ProgressState) -> Prog
     }
 }
 
-/// Two- and three-letter codes of the same language compare equal
-/// (packages/tv/src/player/video-engine.ts, `LANG3`).
+/// Two- and three-letter codes of the same language compare equal.
 const LANG3: [(&str, &str); 32] = [
     ("en", "eng"),
     ("fr", "fre"),
