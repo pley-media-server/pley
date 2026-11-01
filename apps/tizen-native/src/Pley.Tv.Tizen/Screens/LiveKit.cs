@@ -302,7 +302,7 @@ sealed class CategoryColumnView : View
         else if (top + LiveCategories.RowHeight > scroll + room) scroll = top + LiveCategories.RowHeight - room;
         var a = new Animation(PleyMotion.FocusMs) { DefaultAlphaFunction = new AlphaFunction(AlphaFunction.BuiltinFunctions.EaseOut) };
         a.AnimateTo(content, "PositionY", -Ui.Dp(scroll));
-        a.Play();
+        a.PlayHeld();
     }
 
     /// <summary>One category or region: its icon, name and count; the one shown marked; focused, the accent fill.</summary>

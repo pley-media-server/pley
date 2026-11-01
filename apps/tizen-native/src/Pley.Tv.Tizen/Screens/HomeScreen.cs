@@ -606,7 +606,7 @@ sealed class BackdropView : View
             before.Unparent();
             before.Dispose();
         };
-        fade.Play();
+        fade.PlayHeld();
     }
 }
 

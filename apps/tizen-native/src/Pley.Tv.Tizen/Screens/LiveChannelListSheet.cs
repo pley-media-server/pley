@@ -329,7 +329,7 @@ sealed class LiveChannelListSheet : Sheet
             {
                 var a = new Animation(PleyMotion.FocusMs) { DefaultAlphaFunction = new AlphaFunction(AlphaFunction.BuiltinFunctions.EaseOut) };
                 a.AnimateTo(rows, "PositionY", y);
-                a.Play();
+                a.PlayHeld();
             }
             else rows.PositionY = y;
             model.ShowingListRows(top, top + Shown);

@@ -254,7 +254,7 @@ sealed class PersonScreen : ShellPage
             Add(picture);
             var fade = new Animation(PleyMotion.ImageFadeMs);
             fade.AnimateTo(picture, "Opacity", 1f);
-            fade.Play();
+            fade.PlayHeld();
         }
     }
 }

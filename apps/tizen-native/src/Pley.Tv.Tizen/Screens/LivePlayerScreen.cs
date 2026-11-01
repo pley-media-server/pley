@@ -40,6 +40,8 @@ sealed class LivePlayerScreen : Sheet
     readonly View black;
     readonly View bars;
     readonly View stage = new View();
+    /// <summary>The tuning spinner's turning: it loops, so it's held here, and stopped as the stage is cleared.</summary>
+    Animation? tuningTurn;
     readonly View infoBar = new View();
     readonly View digits;
     readonly TextLabel digitsText;
@@ -347,6 +349,8 @@ sealed class LivePlayerScreen : Sheet
             {
                 troubleShown = failed.Trouble;
                 stageShown = "failed";
+                tuningTurn?.Stop();
+                tuningTurn = null;
                 Clear(stage);
                 ShowControls(false);
                 Trouble(failed.Trouble, channel);
@@ -358,6 +362,8 @@ sealed class LivePlayerScreen : Sheet
             troubleShown = null;
             var hadTrouble = trouble.Children.Count > 0;
             trouble.Clear();
+            tuningTurn?.Stop();
+            tuningTurn = null;
             Clear(stage);
             if (hadTrouble && !controlsShown) Tree.Blur();
             if (stageKey.StartsWith("tuning", StringComparison.Ordinal)) Tuning(channel!, name, now);
@@ -449,6 +455,8 @@ sealed class LivePlayerScreen : Sheet
         var (ring, turn) = LiveViews.Spinner(36);
         ring.Position = new Position(Ui.Dp((PleyTv.CanvasWidth - 36) / 2), Ui.Dp(top + 112 + 22));
         stage.Add(ring);
+        tuningTurn?.Stop();
+        tuningTurn = turn;
         turn.Play();
         spins.Add(turn);
         var line = Centred(LiveText.NumberAndName(channel, name), PleyType.Section, PleyColors.Fg, top + 112 + 22 + 36 + 18);

@@ -216,3 +216,6 @@ It has no releases yet: it is built and installed by hand
 - Switching to a Japanese (or other) audio track in the native app works
   where the file names its language in three letters and the TV in two
   ("jpn", "ja"); the player no longer starts again at each try.
+- The native app's animations (a tile's focus, a film's title as it
+  begins, pictures fading in) are held while they run, where one could be
+  collected mid-way and close the app.

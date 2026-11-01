@@ -323,7 +323,7 @@ sealed class GuideView : View
             var a = Scrolling.Glide(gate);
             a.AnimateTo(rowsLayer, "PositionY", y);
             a.AnimateTo(rowsTimeLayer, "PositionY", y);
-            a.Play();
+            a.PlayHeld();
         }
         else
         {

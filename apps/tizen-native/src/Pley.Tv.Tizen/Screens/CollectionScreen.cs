@@ -470,7 +470,7 @@ sealed class CollectionScreen : ShellPage
         if (Math.Abs(dim.Opacity - target) < 0.001f) return;
         var fade = Scrolling.Glide(gate);
         fade.AnimateTo(dim, "Opacity", target);
-        fade.Play();
+        fade.PlayHeld();
     }
 
     bool InTree(FocusItem item)

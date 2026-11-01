@@ -158,7 +158,7 @@ sealed class ChannelCardsView : View
             {
                 var a = Scrolling.Glide(gate);
                 a.AnimateTo(content, "PositionY", y);
-                a.Play();
+                a.PlayHeld();
             }
             else content.PositionY = y;
         }
