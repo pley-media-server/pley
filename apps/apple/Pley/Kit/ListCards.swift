@@ -217,7 +217,10 @@ struct PlayShuffleButtons: View {
         layout {
             Button(action: play) {
                 Label("Play", systemImage: "play.fill")
-                    .fixedSize()
+                    // A list's row would make the label icon-only and give it
+                    // any height: the words stay, and only the width is fixed.
+                    .labelStyle(.titleAndIcon)
+                    .fixedSize(horizontal: true, vertical: false)
                     .frame(minWidth: 90)
                     // In a list's row the symbol takes the accent colour, the
                     // button's own, and vanishes; it is drawn as the words are.
@@ -228,13 +231,19 @@ struct PlayShuffleButtons: View {
             .accessibilityIdentifier("\(prefix).play")
             Button(action: shuffle) {
                 Label("Shuffle", systemImage: "shuffle")
-                    .fixedSize()
+                    // A list's row would make the label icon-only and give it
+                    // any height: the words stay, and only the width is fixed.
+                    .labelStyle(.titleAndIcon)
+                    .fixedSize(horizontal: true, vertical: false)
                     .frame(minWidth: 90)
             }
             .buttonStyle(.bordered)
             .disabled(!canShuffle)
             .accessibilityIdentifier("\(prefix).shuffle")
         }
+        // A list's row offers any height: the buttons keep their own. Being
+        // bordered, each keeps its own hit area there, not the whole row's.
+        .fixedSize(horizontal: false, vertical: true)
         #if os(iOS)
         .controlSize(.large)
         #endif
