@@ -330,6 +330,35 @@ private func item(_ id: Int, _ kind: ItemKind, positionMs: Int = 0, durationMs: 
 
 @MainActor
 @Suite struct FollowingTheServerTests {
+    @Test func anotherServerHasItsOwnEventStream() async throws {
+        let first = try await fixture()
+        defer { first.stop() }
+        let second = try await fixture()
+        defer { second.stop() }
+        let store = MemoryTokenStore()
+        try await keepSignIn(first, in: store)
+        try await keepSignIn(second, in: store)
+        let app = app(store, servers: [
+            SavedServer(origin: first.origin, name: "Living Room", lastUsed: Date()),
+            SavedServer(origin: second.origin, name: "Cabin", lastUsed: Date(timeIntervalSinceNow: -60)),
+        ])
+        await app.start()
+        try #require(app.server?.origin == first.origin)
+        #expect(await eventually { first.openEventStreams == 1 })
+
+        app.showServers()
+        try await app.open(ServerEntry(origin: second.origin, name: "Cabin", saved: true, found: false))
+        #expect(app.root == .signedIn)
+        #expect(await eventually { second.openEventStreams == 1 })
+
+        // The first server's scans aren't heard on the second; the second's are.
+        first.pushEvent(#"{"type":"scan_started","library_id":1}"#)
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(app.scans.isEmpty)
+        second.pushEvent(#"{"type":"scan_started","library_id":2}"#)
+        #expect(await eventually { app.scans[2] != nil })
+    }
+
     @Test func homeReadsItsRowsAgainWhenTheServerSaysSo() async throws {
         let server = try await fixture()
         defer { server.stop() }

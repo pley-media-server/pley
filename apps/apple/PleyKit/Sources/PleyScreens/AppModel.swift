@@ -209,8 +209,9 @@ public final class AppModel: ObservableObject {
         await opened(entry.origin, id: entry.id, name: entry.name, saved: entry.saved, found: entry.found)
         switch state {
         case .signedIn(let user):
-            // Another server's pages don't belong to this one.
+            // Another server's pages don't belong to this one, nor its event stream.
             if before != server?.origin {
+                stopEvents()
                 shell.reset()
                 actions.reset()
             }
@@ -230,6 +231,8 @@ public final class AppModel: ObservableObject {
         noteHousehold(household)
         shell.reset()
         actions.reset()
+        // A new token, perhaps on another server: its own stream.
+        stopEvents()
         show(user, chooseProfile: household.count > 1)
     }
 
