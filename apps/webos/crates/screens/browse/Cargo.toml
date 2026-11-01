@@ -16,6 +16,8 @@ pley-shell = { path = "../../shell" }
 log = "0.4.29"
 
 [dev-dependencies]
-# The simulator with this crate's screens alone (examples/sim.rs), and the fake server.
+# The simulator with this crate's screens alone (examples/browse_sim.rs), the fake server, and the
+# simulated player engine the headless tests' TV plays on.
 pley-host = { path = "../../host" }
 pley-fixtures = { path = "../../fixtures" }
+pley-player = { path = "../../player" }

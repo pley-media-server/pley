@@ -1154,6 +1154,7 @@ dependencies = [
  "pley-fixtures",
  "pley-host",
  "pley-kit",
+ "pley-player",
  "pley-shell",
  "pley-ui",
 ]
@@ -1349,12 +1350,16 @@ dependencies = [
  "pley-base",
  "pley-core",
  "pley-fixtures",
+ "pley-gfx",
  "pley-host",
  "pley-kit",
+ "pley-platform",
  "pley-player",
  "pley-shell",
  "pley-subs",
+ "pley-text",
  "pley-ui",
+ "serde_json",
 ]
 
 [[package]]

@@ -15,9 +15,16 @@ pley-kit = { path = "../../kit" }
 pley-shell = { path = "../../shell" }
 pley-player = { path = "../../player" }
 pley-subs = { path = "../../subs" }
+# Seek-preview sheets are decoded on the task pool and cut into their previews (src/previews.rs).
+pley-gfx = { path = "../../gfx" }
 log = "0.4.29"
 
 [dev-dependencies]
-# The simulator with this crate's screens alone (examples/sim.rs), and the fake server.
+# The simulator with this crate's screens alone (examples/player_sim.rs), and the fake server.
 pley-host = { path = "../../host" }
 pley-fixtures = { path = "../../fixtures" }
+# The tests build server errors with JSON bodies.
+serde_json = "1.0.154"
+# examples/player_states.rs draws the player's states with the app's renderer and fonts.
+pley-text = { path = "../../text" }
+pley-platform = { path = "../../platform" }
