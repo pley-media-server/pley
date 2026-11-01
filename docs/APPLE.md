@@ -217,8 +217,11 @@ with Xcode 27.2). The apps use Apple's frameworks only: no Swift package is
 downloaded.
 
 Signing lives in `Config/Signing.xcconfig`. Without an Apple account, the
-Mac app is signed to run on the building Mac only ("Sign to Run Locally"),
-and simulator builds turn signing off with `CODE_SIGNING_ALLOWED=NO`. To
+Mac app and simulator builds are signed to run on the building Mac only
+("Sign to Run Locally"). Keep them signed: an app built with
+`CODE_SIGNING_ALLOWED=NO` can't use the Keychain, so it can't keep a
+sign-in and opening any server fails with a Keychain error. Only the
+package's tests turn signing off. To
 sign with an Apple account, create `Config/Local.xcconfig` (git ignores
 it) with your team and a bundle ID of your own:
 
@@ -244,13 +247,13 @@ IOS_SIM="iPhone 17"; TV_SIM="Apple TV 4K (4th generation)"
 (cd apps/apple/PleyKit && xcodebuild test -scheme PleyKit-Package -destination "platform=tvOS Simulator,name=$TV_SIM" CODE_SIGNING_ALLOWED=NO)
 
 # The apps
-xcodebuild -project apps/apple/Pley.xcodeproj -scheme Pley   -destination 'generic/platform=iOS Simulator'  CODE_SIGNING_ALLOWED=NO build
-xcodebuild -project apps/apple/Pley.xcodeproj -scheme PleyTV -destination 'generic/platform=tvOS Simulator' CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project apps/apple/Pley.xcodeproj -scheme Pley   -destination 'generic/platform=iOS Simulator'  build
+xcodebuild -project apps/apple/Pley.xcodeproj -scheme PleyTV -destination 'generic/platform=tvOS Simulator' build
 xcodebuild -project apps/apple/Pley.xcodeproj -scheme Pley   -destination 'platform=macOS' build
 
 # Run the iPhone app on a simulator
 xcrun simctl boot "$IOS_SIM"; open -a Simulator
-xcodebuild -project apps/apple/Pley.xcodeproj -scheme Pley -destination "platform=iOS Simulator,name=$IOS_SIM" -derivedDataPath /tmp/pley-dd CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project apps/apple/Pley.xcodeproj -scheme Pley -destination "platform=iOS Simulator,name=$IOS_SIM" -derivedDataPath /tmp/pley-dd build
 xcrun simctl install booted /tmp/pley-dd/Build/Products/Debug-iphonesimulator/Pley.app
 xcrun simctl launch booted com.formandelement.pley
 ```

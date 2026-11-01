@@ -6,8 +6,9 @@
 //   PLEY_BUNDLE_ID = com.example.pley
 //   CODE_SIGN_IDENTITY[sdk=macosx*] = Apple Development
 //
-// Without it, the Mac app is signed to run on this Mac only ("Sign to Run
-// Locally"), and simulator builds take CODE_SIGNING_ALLOWED=NO.
+// Without it, the Mac app and simulator builds are signed to run on this
+// Mac only ("Sign to Run Locally"). Don't turn signing off for an app that
+// is run: without a signature it can't use the Keychain, so it can't sign in.
 
 // One bundle ID for iPhone, iPad, Mac and Apple TV: one universal purchase.
 PLEY_BUNDLE_ID = com.formandelement.pley
