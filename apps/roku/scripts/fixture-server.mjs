@@ -203,8 +203,9 @@ function detail(item, myList) {
 // `playbackDelayMs` holds back the answers to POST /api/playback.
 // What the app asked for and did is kept: requestsAsked (POST
 // /api/requests bodies), requestsActed ({ id, action }), and
-// discoverPictures ({ kind, file, w }); requestArrives(id, itemId) brings
-// a movie request's title into a library, as time would.
+// discoverPictures ({ kind, file, w }), and smartPlaylists (POST
+// /api/playlists bodies with a smart_filter); requestArrives(id, itemId)
+// brings a movie request's title into a library, as time would.
 export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
   const problems = [];
   const requests = [];
@@ -441,8 +442,24 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       id: 1, title: "Road trip", kind: "video", item_count: fixture.playlistEntries.length, duration_ms: 9300000,
       artwork: ["/api/items/1000/images/poster?v=1"], smart_filter: null, library_id: null, created_at: 0, updated_at: 0,
     });
+    // Smart playlists made from a library's filters (Save as…); they play
+    // the library's titles. Those made here, smart or not, are numbered on
+    // from 2.
+    const smart = (made) => ({
+      id: made.id, title: made.title, kind: "video", item_count: 3, duration_ms: 18000000, artwork: [],
+      smart_filter: made.smart_filter, library_id: made.library_id, created_at: 0, updated_at: 0,
+      entries: movies.slice(0, 3).map((item) => ({ entry_id: item.id, item })),
+    });
     if (path === "/api/playlists" && req.method === "GET") {
-      return json(200, { playlists: [playlist(), ...fixture.playlistsMade].sort((a, b) => a.title.localeCompare(b.title)) });
+      const listed = [playlist(), ...fixture.playlistsMade, ...fixture.smartPlaylists.filter((made) => made.id).map((made) => ({ ...smart(made), entries: undefined }))];
+      return json(200, { playlists: listed.sort((a, b) => a.title.localeCompare(b.title)) });
+    }
+    if (path === "/api/playlists" && req.method === "POST" && body && "smart_filter" in JSON.parse(body)) {
+      const made = JSON.parse(body);
+      fixture.smartPlaylists.push(made);
+      if (typeof made.title !== "string" || !made.title.trim() || !made.library_id || !made.smart_filter) return json(400, { code: "bad_request", message: "a smart playlist needs a title, a library and a filter" });
+      made.id = fixture.nextPlaylist++;
+      return json(201, smart(made));
     }
     if (path === "/api/playlists" && req.method === "POST") {
       const asked = JSON.parse(body);
@@ -450,7 +467,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       if (typeof asked.title !== "string" || !asked.title.trim()) return json(400, { code: "bad_request", message: "A playlist needs a title." });
       if (asked.kind !== undefined && asked.kind !== "video" && asked.kind !== "audio") return json(400, { code: "bad_request", message: "kind is video or audio" });
       const made = {
-        id: 2 + fixture.playlistsMade.length, title: asked.title.trim(), kind: asked.kind ?? "video", item_count: 0, duration_ms: 0,
+        id: fixture.nextPlaylist++, title: asked.title.trim(), kind: asked.kind ?? "video", item_count: 0, duration_ms: 0,
         artwork: [], smart_filter: null, library_id: null, created_at: 0, updated_at: 0,
       };
       fixture.playlistsMade.push(made);
@@ -458,6 +475,9 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     }
     if (path === "/api/playlists/1" && req.method === "GET") {
       return json(200, { ...playlist(), entries: fixture.playlistEntries.map(([entry_id, id]) => ({ entry_id, item: items.get(id) })) });
+    }
+    if ((match = path.match(/^\/api\/playlists\/(\d+)$/)) && req.method === "GET" && fixture.smartPlaylists.some((made) => made.id === Number(match[1]))) {
+      return json(200, smart(fixture.smartPlaylists.find((made) => made.id === Number(match[1]))));
     }
     if (path === "/api/playlists/1/order" && req.method === "PUT") {
       const ids = JSON.parse(body).entry_ids;
@@ -718,7 +738,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     return json(404, { code: "not_found", message: `nothing at ${path}` });
   });
 
-  const fixture = { issuer: "", down: false, qr: true, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], streams: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [],
+  const fixture = { issuer: "", down: false, qr: true, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], streams: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [], smartPlaylists: [], nextPlaylist: 2,
     household: [{ id: 1, name: "Anna", avatar_url: null, avatar_color: "#38bdf8", current: true, needs: "none" }, { id: 2, name: "Ben", avatar_url: null, avatar_color: "#f472b6", current: false, needs: "none" }],
     switched: [], subtitlesAdded: [], probed: false, networkTold: [], speedTests: [], requestsAsked: [], requestsActed: [], discoverPictures: [], problems, requests, progress, closed, close: () => server.close(),
     liveRecent: [2], liveBrowses: [], liveFavorites: [], liveFavoriteChanges: [], liveGuides: [], liveWatches: [], liveSessions: new Map(), livePlaylists: [], liveLeft: [] };

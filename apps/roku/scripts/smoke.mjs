@@ -3,9 +3,9 @@
 // it with the remote: sign in with the TV code and its QR code on a server
 // that requires two-step sign-in, Home, a
 // title's details, the player, the Options key, a library's grid, its A to
-// Z and the pages a jump passes over, collections played (movies and a
-// smart one of shows), a show's page, its episodes and a person's page,
-// Live TV (its
+// Z and the pages a jump passes over, filters saved as a smart playlist,
+// collections played (movies and a smart one of shows), a show's page, its
+// episodes and a person's page, Live TV (its
 // guide, a channel watched, the next one, the channel list, a favourite,
 // every connection in use, the Channels tab), Search, Discover (a movie
 // asked for, a show's seasons picked), the managers' Requests (Approve, a
@@ -567,7 +567,30 @@ async function walk() {
   await press("select");
   await waitFor(/^GET \/api\/libraries\/2\/items\?.*sort=year/, since, "the library sorted by year");
   shoot("library-sorted");
-  await press("left"); // the tabs
+  // Filter: Unwatched, then Save as…: the filters and the order as a smart
+  // playlist, named on the keyboard, and its page; Back to the library.
+  await press("right"); // the filters
+  await press("select");
+  await sleep(500);
+  since = mark();
+  await press("select"); // Show
+  await press("down"); // Unwatched
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/2\/items\?.*watched=false/, since, "the library filtered");
+  await press("down", 4); // Save as…, after Clear filters
+  await press("select");
+  await sleep(800);
+  for (const c of "Unwatched") await press(`lit_${c}`);
+  shoot("save-as");
+  since = mark();
+  await press("down", 6); // past the keyboard, to Cancel
+  await press("up"); // Save
+  await press("select");
+  await waitFor(/^GET \/api\/playlists\/2$/, since, "the smart playlist's page");
+  shoot("smart-playlist");
+  await press("back"); // the library, on the filters
+  await settle();
+  await press("left", 2); // the sort, then the tabs
   await press("down"); // the grid
   since = mark();
   await press("select"); // Severance: its page, with its next episode first
@@ -1074,6 +1097,10 @@ const checks = [
   ["showed a library's Recommended and Collections tabs", asked(/^GET \/api\/libraries\/2\/hubs$/) && asked(/^GET \/api\/libraries\/2\/collections$/)],
   ["sorted a library by year, newest first", asked(/^GET \/api\/libraries\/2\/items\?.*order=desc.*sort=year/)],
   ["kept the library's tab and sort on the Roku", registry !== null && /libraryViews.*\\"sort\\":\\"year\\"/.test(JSON.stringify([...registry]))],
+  [
+    "saved a library's filters and order as a smart playlist, named on the keyboard",
+    fixture.smartPlaylists.some((p) => p.library_id === 2 && p.title.length > 0 && p.smart_filter === "unwatched=1&sort=year%3Adesc"),
+  ],
   ["marked a title watched with the Options key", fixture.marks.some((m) => m.item === 103 && m.action === "watched")],
   ["asked for a show's More Like This and collections", asked(/^GET \/api\/items\/99\/related\?limit=20$/) && asked(/^GET \/api\/items\/99\/collections$/)],
   ["opened a person's page", asked(/^GET \/api\/people\/7$/)],

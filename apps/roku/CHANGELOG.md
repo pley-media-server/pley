@@ -56,6 +56,8 @@ describes how they are made.
 - A library sorted by title has an A to Z beside its grid: Up and Down pick
   a letter (those no title starts with are dimmed) and OK goes to its first
   title, however far down.
+- Save as… in a library's Filter panel saves the filters and the order as
+  a smart playlist, named on the keyboard, which keeps up with the library.
 
 ### Fixed
 

@@ -95,6 +95,67 @@ function libFiltered(view as object) as boolean
     return view.watched <> "" or view.genre <> "" or view.year > 0
 end function
 
+' --- Save as… ---
+
+' Plex's name of each sort, as smart filters write it (docs/COMPATIBILITY.md).
+function libPlexSort(sort as string) as string
+    names = {
+        title: "titleSort", year: "year", added: "addedAt", rating: "rating", user_rating: "userRating",
+        release: "originallyAvailableAt", duration: "duration", last_played: "lastViewedAt", bitrate: "mediaBitrate"
+    }
+    if names.DoesExist(sort) then return names[sort]
+    return "titleSort"
+end function
+
+' The Library tab's filters and order as a smart filter, in Plex's syntax
+' (genre=Comedy&unwatched=1&sort=year:desc, docs/API.md's smart playlists):
+' what Save as… saves, written as the other apps write it (Android's
+' SmartFilter.of).
+function libSmartFilter(view as object) as string
+    parts = []
+    if view.genre <> "" then parts.Push("genre=" + libFormValue(view.genre))
+    if view.year > 0 then parts.Push("year=" + urlValue(view.year))
+    if view.watched = "true" then parts.Push("unwatched=0")
+    if view.watched = "false" then parts.Push("unwatched=1")
+    field = libPlexSort(view.sort)
+    if view.order = "desc" then field = field + ":desc"
+    parts.Push("sort=" + libFormValue(field))
+    return parts.Join("&")
+end function
+
+' A value of a form, spaces as "+" (as URLSearchParams and Java write it).
+function libFormValue(text as string) as string
+    return urlEncode(text).Replace("%20", "+")
+end function
+
+' What libSmartFilter's filter finds, in words, as the other apps describe
+' a smart playlist: ["Genre: Comedy", "Unwatched", "Newest first"].
+function libSmartFilterWords(view as object) as object
+    words = []
+    if view.genre <> "" then words.Push("Genre: " + view.genre)
+    if view.year > 0 then words.Push("From " + urlValue(view.year))
+    if view.watched = "true" then words.Push("Watched")
+    if view.watched = "false" then words.Push("Unwatched")
+    notes = {
+        titleSort: ["By title", "By title, Z to A"],
+        year: ["Oldest first", "Newest first"],
+        originallyAvailableAt: ["Earliest release first", "Latest release first"],
+        addedAt: ["First added first", "Recently added first"],
+        rating: ["Lowest rated first", "Best rated first"],
+        userRating: ["Your lowest rated first", "Your best rated first"],
+        lastViewedAt: ["Least recently played first", "Recently played first"],
+        duration: ["Shortest first", "Longest first"],
+        mediaBitrate: ["Lowest bitrate first", "Highest bitrate first"]
+    }
+    pair = notes[libPlexSort(view.sort)]
+    if view.order = "desc"
+        words.Push(pair[1])
+    else
+        words.Push(pair[0])
+    end if
+    return words
+end function
+
 ' Where a library's view is kept: the server, the profile and the library.
 function libViewKey(server as string, profileId as dynamic, libraryId as dynamic) as string
     return server + "|" + urlValue(profileId) + "|" + urlValue(libraryId)

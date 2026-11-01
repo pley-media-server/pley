@@ -499,7 +499,8 @@ sub openSort()
     showChoices("sort", "Sort by", labels, values, current, "OK on the one checked turns the order around.")
 end sub
 
-' The filters, each with what it keeps; OK opens its choices.
+' The filters, each with what it keeps; OK opens its choices. Once some
+' are set, Clear filters and Save as….
 sub openFilters()
     m.panelKind = "filters"
     m.panelTitle.text = "Filter"
@@ -510,7 +511,10 @@ sub openFilters()
     year = "Any"
     if m.view.year > 0 then year = urlValue(m.view.year)
     items.Push({ title: "Year: " + year })
-    if libFiltered(m.view) then items.Push({ title: "Clear filters" })
+    if libFiltered(m.view)
+        items.Push({ title: "Clear filters" })
+        items.Push({ title: "Save as…" })
+    end if
     at = m.menu.itemFocused
     m.menu.content = nodesContent(items)
     if at > 0 and at < items.Count() then m.menu.jumpToItem = at
@@ -543,12 +547,49 @@ sub onMenu(event as object)
             return
         end if
         openFilter(kind)
-    else
+    else if at = 3
         m.view.watched = ""
         m.view.genre = ""
         m.view.year = 0
         applyView()
         openFilters()
+    else
+        saveAs()
+    end if
+end sub
+
+' --- Save as… ---
+
+' These filters, and the order, as a smart playlist (POST /api/playlists
+' with library_id and smart_filter): its name typed on the keyboard, what
+' it finds said above. The panel closes, back to the Filter chip.
+sub saveAs()
+    closePanel()
+    m.smartFilter = libSmartFilter(m.view)
+    dialog = CreateObject("roSGNode", "StandardKeyboardDialog")
+    dialog.title = "Save these filters"
+    dialog.message = [libSmartFilterWords(m.view).Join(" · ") + ". It keeps up with the library by itself."]
+    dialog.buttons = ["Save", "Cancel"]
+    dialog.observeField("buttonSelected", "onSaveNamed")
+    m.top.getScene().dialog = dialog
+end sub
+
+sub onSaveNamed(event as object)
+    dialog = m.top.getScene().dialog
+    name = ""
+    if dialog <> invalid then name = dialog.text.Trim()
+    uiCloseDialog()
+    if event.getData() <> 0 or name = "" then return
+    uiRequest({ method: "POST", path: "/api/playlists", json: { title: name, library_id: m.library.id, smart_filter: m.smartFilter } }, "onSaved")
+end sub
+
+' Saved: the new playlist's page.
+sub onSaved(event as object)
+    answer = event.getData()
+    if answer.ok and httpObject(answer.data) <> invalid
+        uiNavigate({ to: "playlist", params: { id: answer.data.id, title: httpSentence(answer.data.title) } })
+    else if not uiFailed(answer)
+        uiMessage("That didn't work", [pagePlaylistRefusal(answer)])
     end if
 end sub
 

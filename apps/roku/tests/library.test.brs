@@ -61,6 +61,30 @@ sub test_library_views_kept_and_checked()
     section.Delete(key)
 end sub
 
+sub test_library_filters_as_a_smart_filter()
+    view = libDefaultView()
+    tkEqual(libSmartFilter(view), "sort=titleSort")
+    tkEqual(libSmartFilterWords(view), ["By title"])
+    view.genre = "Science Fiction"
+    view.year = 1999
+    view.watched = "false"
+    view.sort = "year"
+    view.order = "desc"
+    tkEqual(libSmartFilter(view), "genre=Science+Fiction&year=1999&unwatched=1&sort=year%3Adesc", "as the other apps write it")
+    tkEqual(libSmartFilterWords(view), ["Genre: Science Fiction", "From 1999", "Unwatched", "Newest first"])
+    view.genre = "Action & Adventure"
+    view.year = 0
+    view.watched = "true"
+    view.sort = "release"
+    view.order = "asc"
+    tkEqual(libSmartFilter(view), "genre=Action+%26+Adventure&unwatched=0&sort=originallyAvailableAt")
+    tkEqual(libSmartFilterWords(view), ["Genre: Action & Adventure", "Watched", "Earliest release first"])
+    tkEqual(libPlexSort("added"), "addedAt")
+    tkEqual(libPlexSort("user_rating"), "userRating")
+    tkEqual(libPlexSort("last_played"), "lastViewedAt")
+    tkEqual(libPlexSort("bitrate"), "mediaBitrate")
+end sub
+
 sub test_library_letters_of_titles()
     letters = libLetters()
     tkEqual(letters.Count(), 27)
