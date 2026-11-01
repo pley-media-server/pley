@@ -80,6 +80,15 @@ sealed class ChapterStrip : View
 
     public bool Open => Visibility;
 
+    /// <summary>Cards this far before and after the focused one keep their pictures.</summary>
+    const int KeptBefore = 4, KeptAfter = 8;
+
+    /// <summary>Every card lets its picture go (closed, or the player going): a texture goes with its view only when it's collected.</summary>
+    public void Forget()
+    {
+        foreach (var card in cards) card.Forget();
+    }
+
     /// <summary>The chapter focused changed: its start, for the scrubber and the seek preview to show.</summary>
     public Action<long>? Focused { get; set; }
 
@@ -131,8 +140,12 @@ sealed class ChapterStrip : View
         if (index < cards.Count) cards[index].Look(true);
         looked = index;
         if (index < chapters.Count) Focused?.Invoke(chapters[index].StartMs);
-        // Pictures for the cards near the focused one.
+        // Pictures for the cards near the focused one; those far from it let theirs go. Each is a part
+        // of one of the server's preview sheets, ~20 MB each drawn, and a film's chapters held every
+        // sheet: the app then died as the posters came after the film.
         for (var i = Math.Max(0, index - 2); i <= Math.Min(cards.Count - 1, index + 5); i++) Picture(cards[i], i);
+        for (var i = 0; i < cards.Count; i++)
+            if (i < index - KeptBefore || i > index + KeptAfter) cards[i].Forget();
         var room = PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal;
         var content = cards.Count * (CardWidth + Gap) - Gap;
         var x = content <= room ? 0 : -Math.Min(index * (CardWidth + Gap), content - room);
@@ -166,7 +179,8 @@ sealed class ChapterStrip : View
         {
             if (file == null || Disposed) return;
             sheets[url] = file;
-            card.Show(file, frame);
+            // Let go while it came: not shown.
+            if (card.Asked) card.Show(file, frame);
         });
     }
 
@@ -228,6 +242,15 @@ sealed class ChapterStrip : View
         }
 
         public bool Asked { get; set; }
+
+        /// <summary>The picture goes, and is asked for again when the card nears focus.</summary>
+        public void Forget()
+        {
+            if (Disposed || !Asked) return;
+            Asked = false;
+            picture.ResourceUrl = "";
+            well.BackgroundColor = PleyColors.Surface2;
+        }
 
         public void Look(bool focused)
         {

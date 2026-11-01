@@ -184,17 +184,17 @@ public sealed class Api
     /// GET <paramref name="path"/> with the token, its body read as it comes for as long as it lasts
     /// (a live channel's MPEG-TS); refused, an <see cref="ApiException"/>, as <see cref="Send"/>'s.
     /// </summary>
-    public async Task<StreamResponse> Open(string path, CancellationToken cancel = default)
+    public async Task<StreamResponse> Open(string path, CancellationToken cancel = default, string accept = "*/*")
     {
         var token = await tokens.AccessToken().ConfigureAwait(false) ?? throw new SignedOutException();
-        var res = await OpenOnce(path, token, cancel).ConfigureAwait(false);
+        var res = await OpenOnce(path, token, cancel, accept).ConfigureAwait(false);
         if (res.Status == 401 && OwnServer(path) && InvalidToken(res.Header("WWW-Authenticate")))
         {
             var fresh = await Refreshed(token).ConfigureAwait(false);
             if (fresh != null)
             {
                 res.Dispose();
-                res = await OpenOnce(path, fresh, cancel).ConfigureAwait(false);
+                res = await OpenOnce(path, fresh, cancel, accept).ConfigureAwait(false);
             }
         }
         if (res.Status >= 200 && res.Status < 300) return res;
@@ -209,9 +209,9 @@ public sealed class Api
         }
     }
 
-    Task<StreamResponse> OpenOnce(string path, string token, CancellationToken cancel)
+    Task<StreamResponse> OpenOnce(string path, string token, CancellationToken cancel, string accept)
     {
-        var headers = new Dictionary<string, string> { ["Accept"] = "*/*" };
+        var headers = new Dictionary<string, string> { ["Accept"] = accept };
         if (OwnServer(path)) headers["Authorization"] = "Bearer " + token;
         return streams(new HttpRequest { Url = Url(path), Headers = headers, Cancel = cancel });
     }
@@ -473,8 +473,31 @@ public sealed class Api
     /// </summary>
     public async Task<SubtitlePictures> PictureSubtitles(string url, CancellationToken cancel = default)
     {
-        var res = await Send(url, cancel: cancel, timeoutMs: 15 * 60_000, responseType: ResponseType.Bytes, accept: "video/x-matroska").ConfigureAwait(false);
-        return new SubtitlePictures(res.Bytes ?? new byte[0], (res.Header("X-Pley-Complete") ?? "").Trim() != "0");
+        // Read as it comes into one array of its length: gathered in a growing buffer and copied
+        // out, a film's track took three times its size of .NET's heap, tens of MB on a 32-bit TV.
+        using var res = await Open(url, cancel, "video/x-matroska").ConfigureAwait(false);
+        var bytes = await ReadAll(res, cancel).ConfigureAwait(false);
+        return new SubtitlePictures(bytes, (res.Header("X-Pley-Complete") ?? "").Trim() != "0");
+    }
+
+    /// <summary>The whole body of <paramref name="res"/>: into one array when its length is said, else gathered.</summary>
+    static async Task<byte[]> ReadAll(StreamResponse res, CancellationToken cancel)
+    {
+        if (long.TryParse(res.Header("Content-Length"), out var length) && length >= 0 && length <= int.MaxValue)
+        {
+            var bytes = new byte[length];
+            var at = 0;
+            int n;
+            while (at < bytes.Length && (n = await res.Body.ReadAsync(bytes, at, bytes.Length - at, cancel).ConfigureAwait(false)) > 0) at += n;
+            if (at == bytes.Length) return bytes;
+            // Shorter than it said: what came.
+            var came = new byte[at];
+            Array.Copy(bytes, came, at);
+            return came;
+        }
+        using var gathered = new System.IO.MemoryStream();
+        await res.Body.CopyToAsync(gathered, 81_920, cancel).ConfigureAwait(false);
+        return gathered.ToArray();
     }
 
     /// <summary>GET /api/files/{id}/trickplay: the file's seek previews; null while the server makes them (its 404).</summary>

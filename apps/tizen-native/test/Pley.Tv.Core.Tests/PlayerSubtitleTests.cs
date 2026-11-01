@@ -285,6 +285,25 @@ public class SubtitlePresenterTests
     }
 
     [Fact]
+    public void A_partial_picture_track_is_asked_for_less_often_each_time_up_to_a_minute()
+    {
+        // Deviation from Android, which asks every 3 s: each answer is the whole .mks so far, tens of MB.
+        var part = PictureKit.Mks("S_HDMV/PGS", new[] { new PictureKit.MksBlock(1000, Shown) });
+        var mks = new Queue<Func<SubtitlePictures>>();
+        for (var i = 0; i < 8; i++) mks.Enqueue(() => new SubtitlePictures(part, Complete: false));
+        var p = WithPictures(mks, new List<string>());
+        p.ShowPictures("http://pley/api/files/7/subtitles/4.mks");
+        var times = new List<long>();
+        for (var t = 0; t < 200_000; t += 1_000)
+        {
+            clock.Advance(1_000);
+            if (asked.Count > times.Count + 1) times.Add(t + 1_000);
+        }
+        // 3, 6, 12, 24, 48 s apart, then a minute.
+        Assert.Equal(new long[] { 3_000, 9_000, 21_000, 45_000, 93_000, 153_000 }, times.Take(6));
+    }
+
+    [Fact]
     public void Pictures_the_server_cant_make_or_this_app_cant_decode_are_unavailable()
     {
         var mks = new Queue<Func<SubtitlePictures>>();

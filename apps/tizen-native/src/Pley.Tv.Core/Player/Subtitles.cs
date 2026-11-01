@@ -373,6 +373,14 @@ public sealed class SubtitlePresenter
 {
     /// <summary>A partial answer is asked for again this often.</summary>
     public const long PartialRetryMs = 3_000;
+
+    /// <summary>
+    /// A partial picture track is asked for again after <see cref="PartialRetryMs"/>, then twice as
+    /// long each time up to this: each answer is the whole .mks so far, tens of MB for a film, and
+    /// read every 3 s for the minutes the server takes to make it, the app stopped answering in the
+    /// collections that followed. Deviation from Android, which asks every 3 s.
+    /// </summary>
+    public const long PicturesRetryMostMs = 60_000;
     const long MinWaitMs = 20, MaxWaitMs = 250, IdleWaitMs = 500;
 
     readonly IScheduler scheduler;
@@ -444,7 +452,7 @@ public sealed class SubtitlePresenter
         }
         Reset(url, true);
         Clear();
-        FetchPictures(url, generation);
+        FetchPictures(url, generation, PartialRetryMs);
     }
 
     public void Hide()
@@ -511,7 +519,7 @@ public sealed class SubtitlePresenter
         });
     }
 
-    void FetchPictures(string url, int at)
+    void FetchPictures(string url, int at, long waitMs)
     {
         if (fetchPictures == null)
         {
@@ -533,7 +541,7 @@ public sealed class SubtitlePresenter
             // Each answer holds every picture found so far: the later one replaces the earlier.
             pictures = subs;
             Refresh();
-            if (!answer.Complete) retry = scheduler.After(PartialRetryMs, () => FetchPictures(url, at));
+            if (!answer.Complete) retry = scheduler.After(waitMs, () => FetchPictures(url, at, Math.Min(waitMs * 2, PicturesRetryMostMs)));
         }, e =>
         {
             if (at != generation) return;
@@ -547,6 +555,7 @@ public sealed class SubtitlePresenter
     static async Task<(PictureTrack Track, bool Complete)> ReadPictures(Func<string, Task<SubtitlePictures>> fetch, string url)
     {
         var answer = await fetch(url).ConfigureAwait(false);
+        if (Marks.On) Marks.Note($"subtitles: the pictures' .mks, {answer.Bytes.Length / 1024} KB{(answer.Complete ? "" : ", not whole yet")}");
         return (Mks.ReadPictureTrack(answer.Bytes), answer.Complete);
     }
 

@@ -25,6 +25,10 @@ sealed class Images
     const int Parallel = 6;
     /// <summary>The cache's size on the TV before the oldest pictures go.</summary>
     const long CacheBytes = 200L * 1024 * 1024;
+    /// <summary>A picture not in by then is given up.</summary>
+    const int FetchMs = 20_000;
+    /// <summary>A download is written a buffer of this at a time: under .NET's large objects.</summary>
+    const int BufferBytes = 64 * 1024;
 
     readonly string dir;
     readonly SemaphoreSlim slots = new SemaphoreSlim(Parallel);
@@ -84,11 +88,25 @@ sealed class Images
         await slots.WaitAsync(cancel).ConfigureAwait(false);
         try
         {
-            var res = await api.Send(url, cancel: cancel, responseType: ResponseType.Bytes, timeoutMs: 20_000).ConfigureAwait(false);
-            if (res.Bytes == null || res.Bytes.Length == 0) return null;
+            // To the file as it comes, a buffer at a time: read whole into memory, a preview sheet of
+            // a few MB took three times that of .NET's heap, a few at once 80 MB, and the app stopped
+            // answering in the collections that followed.
+            using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+            limit.CancelAfter(FetchMs);
+            using var res = await api.Open(url, limit.Token).ConfigureAwait(false);
             // Written whole, then renamed: a half-written picture is never shown.
             var part = file + ".part";
-            File.WriteAllBytes(part, res.Bytes);
+            long length;
+            using (var to = new FileStream(part, FileMode.Create, FileAccess.Write, FileShare.None, BufferBytes, useAsync: true))
+            {
+                await res.Body.CopyToAsync(to, BufferBytes, limit.Token).ConfigureAwait(false);
+                length = to.Length;
+            }
+            if (length == 0)
+            {
+                File.Delete(part);
+                return null;
+            }
             if (File.Exists(file)) File.Delete(part);
             else File.Move(part, file);
             return file;

@@ -1041,6 +1041,8 @@ sealed class PlayerScreen : Sheet
         if (!chapterStrip.Open) return;
         chapterAt = null;
         chapterStrip.Hide();
+        // Its pictures go while the film plays on: the TV's decoder shares the memory.
+        chapterStrip.Forget();
         if (chapterStrip.Item.Parent != null) Root.Remove(chapterStrip.Item);
         if (shown && !(chaptersFrom != null && Tree.Focus(chaptersFrom))) Tree.Focus(scrubber);
         chaptersFrom = null;
@@ -1208,6 +1210,8 @@ sealed class PlayerScreen : Sheet
         model.Close();
         // The pictures' textures go now, not when the view is collected.
         pictures.Show(null);
+        chapterStrip.Forget();
+        preview.Forget();
         closed();
     }
 

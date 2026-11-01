@@ -169,3 +169,8 @@ It has no releases yet: it is built and installed by hand
   filter is chosen, where it was lost and no key moved it; anywhere a page
   draws a row again under focus, the next key brings focus back to it.
 - The native app's cast and crew circles no longer sit on dark squares.
+- The native app no longer stops answering, or closes, after a film's
+  chapters were looked through or its picture subtitles were on: it holds
+  only the chapter pictures near the one shown, lets them go as the player
+  goes, and reads a film's subtitle pictures once rather than every few
+  seconds while the server makes them.

@@ -594,6 +594,14 @@ sealed class SeekPreviewView : View
         else if (chapterImage != null) Show(chapterImage, null);
     }
 
+    /// <summary>The picture goes (the player going): a texture goes with its view only when it's collected.</summary>
+    public void Forget()
+    {
+        if (Disposed) return;
+        asked = null;
+        picture.ResourceUrl = "";
+    }
+
     void Show(string url, TrickplayFrame? crop)
     {
         void Apply(string file) => Letterbox.Show(picture, frame, file, crop);
