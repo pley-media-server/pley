@@ -266,14 +266,17 @@ sealed class TileView : View
             well.Add(new View { Size = new Size(w, bar), Position = new Position(0, h - bar), BackgroundColor = PleyColors.ProgressTrackOnArt, CornerRadius = new Vector4(0, 0, corner, corner) });
             well.Add(new View { Size = new Size(w * played, bar), Position = new Position(0, h - bar), BackgroundColor = PleyColors.Accent, CornerRadius = new Vector4(0, 0, played >= 1f ? corner : 0, corner) });
         }
+        // The count, tick and badges as the Android app draws them (TileOverlays): 2 dp corners, the
+        // count on the accent, the tick an accent check on OnArt.
+        var round = Ui.Dp(PleyShape.BadgeRadius);
         if (model.Unwatched > 0)
         {
-            var count = Text.Label(model.Unwatched.ToString(System.Globalization.CultureInfo.InvariantCulture), PleyType.Badge, PleyColors.Fg);
+            var count = Text.Label(model.Unwatched.ToString(System.Globalization.CultureInfo.InvariantCulture), PleyType.Badge, PleyColors.OnAccent);
             var pill = new View
             {
-                Size = new Size(Math.Max(Ui.Dp(18), Ui.Dp(8) + count.NaturalSize2D.Width), Ui.Dp(18)),
-                BackgroundColor = PleyColors.OnArt,
-                CornerRadius = Ui.Dp(9),
+                Size = new Size(Math.Max(Ui.Dp(20), Ui.Dp(12) + count.NaturalSize2D.Width), Ui.Dp(18)),
+                BackgroundColor = PleyColors.Accent,
+                CornerRadius = round,
             };
             pill.Position = new Position(w - inset - pill.SizeWidth, inset);
             count.Size = new Size(pill.SizeWidth, pill.SizeHeight);
@@ -288,30 +291,37 @@ sealed class TileView : View
                 Size = new Size(Ui.Dp(20), Ui.Dp(20)),
                 Position = new Position(w - inset - Ui.Dp(20), inset),
                 BackgroundColor = PleyColors.OnArt,
-                CornerRadius = Ui.Dp(10),
+                CornerRadius = round,
             };
-            var glyph = Text.Label("✓", new TextStyle(12, 20, PleyType.Bold), PleyColors.Fg);
-            glyph.Size = new Size(Ui.Dp(20), Ui.Dp(20));
-            glyph.HorizontalAlignment = HorizontalAlignment.Center;
+            var glyph = Icons.Icon("check", 12, PleyColors.Accent);
+            glyph.Position = new Position(Ui.Dp(4), Ui.Dp(4));
             tick.Add(glyph);
             well.Add(tick);
         }
+        // Bottom left, 6 dp apart; the well doesn't clip, so a badge that would pass the art's edge is
+        // left out, with those after it.
         var x = inset;
         foreach (var badge in model.Badges)
         {
             var text = Text.Label(badge, PleyType.Badge, PleyColors.Fg);
+            var width = text.NaturalSize2D.Width + Ui.Dp(12);
+            if (x + width > w - inset)
+            {
+                text.Dispose();
+                break;
+            }
             var box = new View
             {
-                Size = new Size(text.NaturalSize2D.Width + Ui.Dp(12), Ui.Dp(18)),
+                Size = new Size(width, Ui.Dp(18)),
                 Position = new Position(x, h - bar - inset - Ui.Dp(18)),
                 BackgroundColor = PleyColors.OnArt,
-                CornerRadius = Ui.Dp(PleyShape.BadgeRadius),
+                CornerRadius = round,
             };
             text.Size = new Size(box.SizeWidth, box.SizeHeight);
             text.HorizontalAlignment = HorizontalAlignment.Center;
             box.Add(text);
             well.Add(box);
-            x += box.SizeWidth + Ui.Dp(4);
+            x += width + Ui.Dp(6);
         }
     }
 }

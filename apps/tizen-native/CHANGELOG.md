@@ -142,3 +142,7 @@ It has no releases yet: it is built and installed by hand
 - The native app's rows (Home, libraries, item pages) show sooner: the
   tiles past the screen's edge are made just after, and the app no longer
   pauses to save what is already saved.
+- The native app's tiles draw their badges as the Android app's do: a
+  quality badge that doesn't fit the tile is left out rather than running
+  past its edge, the unwatched count sits on the accent and the watched
+  tick is an accent check, both with square corners.
