@@ -452,16 +452,16 @@ sub apiBuild(job as object, answer as object)
         tracks = musicTracks(data.items, server)
         job.request.content = nodesContent(musicTrackRows(tracks, true))
         answer.data = { queue: tracks, shown: tracks.Count() }
+    else if job.build = "trackQueue"
+        ' An album's tracks for the music player alone: an artist's Play
+        ' gathers each album's.
+        answer.data = { queue: musicTracks(data.items, server) }
     else if job.build = "albums"
-        tiles = contentTiles(data.items, server)
-        job.request.content = nodesContent(tiles)
-        line = ""
-        if tiles.Count() = 1
-            line = "1 album"
-        else if tiles.Count() > 1
-            line = urlValue(tiles.Count()) + " albums"
-        end if
-        answer.data = { title: "", line: line, summary: "", shown: tiles.Count() }
+        ' An artist's albums, newest first; Play plays them in the
+        ' server's order.
+        albums = musicArtistAlbums(data.items, server)
+        job.request.content = nodesContent(albums.tiles)
+        answer.data = { order: albums.order, shown: albums.tiles.Count() }
     else if job.build = "collection"
         ' A collection's page: its titles as tiles, what it says of itself
         ' and what Play plays.

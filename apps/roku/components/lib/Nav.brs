@@ -15,6 +15,7 @@ function navScreen(name as string) as string
         grid: "GridScreen",
         collection: "CollectionScreen",
         person: "PersonScreen",
+        artist: "ArtistScreen",
         album: "AlbumScreen",
         nowPlaying: "NowPlayingScreen",
         playlist: "PlaylistScreen",
@@ -52,8 +53,8 @@ end function
 
 ' The screen a tile opens: { to, params }, or invalid for kinds this
 ' version doesn't open. A season opens its show on that season; a
-' collection and a person, their page; an artist, a grid of their albums;
-' a playlist, its entries; a track, its album; an extra plays at once. A
+' collection, a person and an artist, their page; a playlist, its
+' entries; a track, its album; an extra plays at once. A
 ' TMDB title opens its page (Request more seasons, with its season
 ' picker); See all, its list, or Discover's search for its words.
 function navForTile(tile as object) as dynamic
@@ -80,8 +81,7 @@ function navForTile(tile as object) as dynamic
         if showId = 0 then return invalid
         return { to: "show", params: { showId: showId, seasonId: id } }
     end if
-    if kind = "collection" or kind = "person" then return { to: kind, params: { id: id, title: httpString(tile.title) } }
-    if kind = "artist" then return { to: "grid", params: { kind: kind, id: id, title: httpString(tile.title) } }
+    if kind = "collection" or kind = "person" or kind = "artist" then return { to: kind, params: { id: id, title: httpString(tile.title) } }
     if kind = "album" then return { to: "album", params: { id: id, title: httpString(tile.title) } }
     if kind = "track"
         albumId = httpNumber(tile.parentId, 0)

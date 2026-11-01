@@ -43,3 +43,29 @@ sub test_music_tiles_are_square()
     tkEqual(artist.subtitle, "2 albums")
     tkFalse(contentTile(contentTestMovie(), "http://nas:7539", false).square)
 end sub
+
+sub test_music_artist_albums_newest_first()
+    items = [
+        { id: 1, kind: "album", title: "Blue", year: 2001, parent_title: "Joni" },
+        { id: 2, kind: "album", title: "Hejira", year: 1976 },
+        { id: 3, kind: "album", title: "Court and Spark", sort_title: "Court and Spark", year: 2001 },
+        { id: 4, kind: "track", title: "A song" },
+        { id: 5, kind: "album", title: "Demos" },
+        { id: 6, kind: "album", title: "blue", year: 2001 }
+    ]
+    albums = musicArtistAlbums(items, "http://nas:7539")
+    titles = []
+    for each tile in albums.tiles
+        titles.Push(tile.title + " " + tile.subtitle)
+    end for
+    tkEqual(titles, ["Blue 2001", "blue 2001", "Court and Spark 2001", "Hejira 1976", "Demos "], "a later year first, then by title, the server's order kept for the same")
+    tkEqual(albums.order, [1, 2, 3, 5, 6], "Play's order, the server's")
+    tkTrue(albums.tiles[0].square)
+    tkEqual(albums.tiles[0].kind, "album")
+end sub
+
+sub test_music_artist_line()
+    tkEqual(musicArtistLine({ child_count: 4, leaf_count: 40, genres: ["Rock", "Pop", "Folk", "Jazz"] }, 0), "4 albums · 40 tracks · Rock · Pop · Folk")
+    tkEqual(musicArtistLine({ leaf_count: 1 }, 1), "1 album · 1 track", "albums counted from the list")
+    tkEqual(musicArtistLine({ child_count: 0, genres: [] }, 0), "")
+end sub

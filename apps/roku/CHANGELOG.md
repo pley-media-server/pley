@@ -37,6 +37,9 @@ describes how they are made.
   shows are in the libraries, then a row for each thing they did (Acting,
   Directing, Creating, Writing, Producing), each title with its year and
   the part.
+- An artist's page has Play and Shuffle, which play every track of theirs
+  with the music player, and Now playing while music plays; their albums
+  are newest first, each with its year.
 
 ## [0.1.1] - 2026-11-01
 

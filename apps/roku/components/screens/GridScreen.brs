@@ -1,7 +1,6 @@
-' A grid of titles under a heading: an artist's albums (GET
-' /api/items/{id}/children), or the profile's playlists (GET
-' /api/playlists). params: { kind ("artist", "playlists"), id, title
-' (shown until the server answers) }.
+' The profile's playlists (GET /api/playlists) as a grid under their
+' heading. params: { kind ("playlists"), id, title (shown until the server
+' answers) }.
 
 sub init()
     m.title = m.top.findNode("title")
@@ -22,7 +21,7 @@ sub onActive()
             onTitleChanged(change)
         end for
         ' A playlist renamed, emptied or deleted meanwhile.
-        if m.top.params.kind = "playlists" then load()
+        load()
         return
     end if
     m.started = true
@@ -33,15 +32,7 @@ sub onActive()
 end sub
 
 sub load()
-    params = m.top.params
-    if params.kind = "playlists"
-        uiRequest({ method: "GET", path: "/api/playlists", build: "playlists" }, "onGrid")
-    else
-        ' An artist's albums are square.
-        m.grid.itemSize = [220, 300]
-        m.grid.numRows = 3
-        uiRequest({ method: "GET", path: "/api/items/" + urlValue(params.id) + "/children", build: "albums" }, "onGrid")
-    end if
+    uiRequest({ method: "GET", path: "/api/playlists", build: "playlists" }, "onGrid")
 end sub
 
 sub onGrid(event as object)
@@ -58,8 +49,7 @@ sub onGrid(event as object)
     m.grid.content = event.getRoSGNode().content
     if focused > 0 and focused < page.shown then m.grid.jumpToItem = focused
     if page.shown = 0
-        m.message.text = "Nothing to show here."
-        if m.top.params.kind = "playlists" then m.message.text = "No playlists yet. Make one with Add to playlist, the Options key on a title."
+        m.message.text = "No playlists yet. Make one with Add to playlist, the Options key on a title."
         m.message.visible = true
     else
         m.message.visible = false

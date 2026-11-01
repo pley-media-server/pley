@@ -65,6 +65,84 @@ function musicAlbumLine(album as object, tracks as object) as string
     return parts.Join(" · ")
 end function
 
+' An artist's albums (GET /api/items/{id}/children): { tiles, order }.
+' tiles are the albums newest first (then by title), each captioned with
+' its year; order has their ids as the server sent them, the order Play
+' plays them in.
+function musicArtistAlbums(items as dynamic, server as string) as object
+    sorted = []
+    order = []
+    for each item in httpArray(items)
+        if GetInterface(item, "ifAssociativeArray") <> invalid and httpString(item.kind) = "album"
+            order.Push(httpNumber(item.id, 0))
+            ' Placed after those it doesn't come before: albums are few,
+            ' and the same year and title keep the server's order.
+            at = sorted.Count()
+            while at > 0 and musicNewer(item, sorted[at - 1])
+                at = at - 1
+            end while
+            placed = []
+            for i = 0 to sorted.Count() - 1
+                if i = at then placed.Push(item)
+                placed.Push(sorted[i])
+            end for
+            if at = sorted.Count() then placed.Push(item)
+            sorted = placed
+        end if
+    end for
+    tiles = []
+    for each album in sorted
+        tile = contentTile(album, server, false)
+        tile.subtitle = ""
+        year = httpNumber(album.year, 0)
+        if year > 0 then tile.subtitle = urlValue(year)
+        tiles.Push(tile)
+    end for
+    return { tiles: tiles, order: order }
+end function
+
+' Whether album a comes before album b on their artist's page: a later
+' year first, then by title.
+function musicNewer(a as object, b as object) as boolean
+    yearA = httpNumber(a.year, 0)
+    yearB = httpNumber(b.year, 0)
+    if yearA <> yearB then return yearA > yearB
+    return LCase(musicSortTitle(a)) < LCase(musicSortTitle(b))
+end function
+
+function musicSortTitle(item as object) as string
+    title = httpString(item.sort_title)
+    if title = "" then title = httpString(item.title)
+    return title
+end function
+
+' "2 albums · 24 tracks · Rock · Pop": an artist's line, their genres three
+' at most. albums: how many came, for a server that doesn't count them.
+function musicArtistLine(artist as object, albums as integer) as string
+    parts = []
+    count = Int(httpNumber(artist.child_count, albums))
+    if count = 1
+        parts.Push("1 album")
+    else if count > 1
+        parts.Push(urlValue(count) + " albums")
+    end if
+    tracks = Int(httpNumber(artist.leaf_count, 0))
+    if tracks = 1
+        parts.Push("1 track")
+    else if tracks > 1
+        parts.Push(urlValue(tracks) + " tracks")
+    end if
+    genres = 0
+    for each genre in httpArray(artist.genres)
+        name = httpSentence(genre)
+        if name <> "" and genres < 3
+            parts.Push(name)
+            genres = genres + 1
+        end if
+    end for
+    return parts.Join(" · ")
+end function
+
 ' The Audio node's streamFormat for a track's PlaybackInfo: HLS for a
 ' conversion, else the file's container (the item's details say it).
 function musicStreamFormat(info as object, detail as dynamic) as string

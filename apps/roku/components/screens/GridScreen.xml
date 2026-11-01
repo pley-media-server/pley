@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- An artist's albums or the playlists, as a grid of posters under
-     their name, what the server says of them. -->
+<!-- The playlists, as a grid of posters under their heading. -->
 <component name="GridScreen" extends="Group">
     <interface>
         <field id="route" type="string" />

@@ -118,17 +118,26 @@ const episodes = seasons.flatMap((season) => Array.from({ length: 9 }, (_, i) =>
   thumb_url: `/api/items/${season.id + i + 1}/images/thumb?v=1`, summary: `What happens in episode ${i + 1}.`,
   user_state: season.index === 1 && i < 2 ? state(0, true) : season.index === 1 && i === 2 ? state(900000) : state(),
 })));
-// Music: an artist, their album and its tracks.
-const artist = { id: 5000, library_id: 3, kind: "artist", title: "The Fixtures", sort_title: "Fixtures", added_at: 0, poster_url: "/api/items/5000/images/poster?v=1", user_state: state(), child_count: 1 };
+// Music: an artist, their albums (the server lists the older first) and
+// their tracks.
+const artist = {
+  id: 5000, library_id: 3, kind: "artist", title: "The Fixtures", sort_title: "Fixtures", added_at: 0, poster_url: "/api/items/5000/images/poster?v=1",
+  user_state: state(), child_count: 2, leaf_count: 5,
+};
 const album = {
   id: 5100, library_id: 3, kind: "album", title: "Blue", sort_title: "Blue", year: 2001, parent_id: 5000, parent_title: "The Fixtures",
   added_at: 0, poster_url: "/api/items/5100/images/poster?v=1", user_state: state(), leaf_count: 3,
 };
-const tracks = [1, 2, 3].map((n) => ({
-  id: 5200 + n, library_id: 3, kind: "track", title: `Song ${n}`, sort_title: `Song ${n}`, index: n, parent_id: 5100, parent_title: "Blue",
+const newerAlbum = {
+  id: 5101, library_id: 3, kind: "album", title: "Red", sort_title: "Red", year: 2005, parent_id: 5000, parent_title: "The Fixtures",
+  added_at: 0, poster_url: "/api/items/5101/images/poster?v=1", user_state: state(), leaf_count: 2,
+};
+const albumTracks = (of, count, first) => Array.from({ length: count }, (_, i) => ({
+  id: first + i, library_id: 3, kind: "track", title: `Song ${i + 1}`, sort_title: `Song ${i + 1}`, index: i + 1, parent_id: of.id, parent_title: of.title,
   grandparent_id: 5000, grandparent_title: "The Fixtures", duration_ms: 200000, added_at: 0, user_state: state(),
 }));
-const items = new Map([...movies, show, ...seasons, ...episodes, artist, album, ...tracks].map((item) => [item.id, item]));
+const tracks = [...albumTracks(album, 3, 5201), ...albumTracks(newerAlbum, 2, 5211)];
+const items = new Map([...movies, show, ...seasons, ...episodes, artist, album, newerAlbum, ...tracks].map((item) => [item.id, item]));
 // Collections: TMDB's of five movies, and a smart one a filter fills with
 // the show.
 const collections = [

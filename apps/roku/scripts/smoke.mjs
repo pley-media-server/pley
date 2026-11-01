@@ -300,6 +300,8 @@ const notice = { opened: false };
 const collections = { movies: false, shows: false };
 // A title opened from a person's row of a role.
 const person = { opened: false };
+// An artist's Play: each album's tracks asked for, the first played.
+const artistPlayed = { gathered: false, first: false };
 
 async function walk() {
   // A cold start of brs-node can take a while.
@@ -562,24 +564,37 @@ async function walk() {
     await press("back");
     await settle();
   }
-  // Music: the artist, their album, and its tracks played; Now Playing
-  // stopped, then Back to Home.
+  // Music: the artist's page, whose Play gathers every album's tracks for
+  // the music player; Now Playing stopped. Then their newest album, its
+  // tracks played and stopped, and Back to Home.
   await openFromMenu(4, /^GET \/api\/libraries\/3\/items\?.*offset=0/, "Music");
   shoot("music");
   since = mark();
   await press("select"); // the artist
   await waitFor(/^GET \/api\/items\/5000\/children$/, since, "an artist's albums");
+  shoot("artist");
   since = mark();
-  await press("select"); // the album
-  await waitFor(/^GET \/api\/items\/5100\/children$/, since, "an album's tracks");
+  await press("select"); // Play
+  await waitFor(/^POST \/api\/playback$/, since, "the artist's tracks played");
+  artistPlayed.gathered = seen(/^GET \/api\/items\/5100\/children$/, since) && seen(/^GET \/api\/items\/5101\/children$/, since);
+  artistPlayed.first = fixture.playbacks.at(-1)?.item === 5201;
+  await sleep(1500);
+  shoot("now-playing");
+  since = mark();
+  await press("right", 2); // Stop: back to the artist
+  await press("select");
+  await waitFor(/^DELETE \/api\/playback\//, since, "the artist's track's session closed");
+  await press("right"); // the albums, the newest first
+  since = mark();
+  await press("select");
+  await waitFor(/^GET \/api\/items\/5101\/children$/, since, "an album's tracks");
   shoot("album");
   since = mark();
   await press("select"); // Play
   await waitFor(/^POST \/api\/playback$/, since, "a track played");
   await sleep(1500);
-  shoot("now-playing");
   since = mark();
-  await press("right", 2); // Stop
+  await press("right", 2); // Stop: back to the album
   await press("select");
   await waitFor(/^DELETE \/api\/playback\//, since, "the track's session closed");
   for (let i = 0; i < 3; i++) {
@@ -938,7 +953,8 @@ const checks = [
   ["took the entry moved out of the playlist", fixture.playlistRemoved[0] === 1],
   ["switched to another profile of the household", fixture.switched.includes(2)],
   ["showed the watch history", asked(/^GET \/api\/history\?/)],
-  ["played an album's tracks with the music player", fixture.playbacks.some((p) => p.item === 5201) && fixture.progress.some((p) => p.item >= 5201 && p.item <= 5203)],
+  ["played every track of an artist, each album's asked for", artistPlayed.gathered && artistPlayed.first],
+  ["played an album's tracks with the music player", fixture.playbacks.some((p) => p.item === 5211) && fixture.progress.some((p) => p.item === 5211 || p.item === 5212)],
   ["played a playlist from its top, the next entry to come", fixture.playbacks.some((p) => p.item === 101)],
   ["searched", asked(/^GET \/api\/search\?/)],
   ["showed Live TV's guide, its programmes for the channels in view", fixture.liveGuides.length > 0 && fixture.liveGuides.every((g) => g.ids.length > 0 && g.ids.length <= 50)],
