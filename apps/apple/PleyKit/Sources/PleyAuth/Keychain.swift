@@ -1,10 +1,29 @@
 import Foundation
+import PleyCommon
 import Security
 
-/// A Keychain error, with the Security framework's status.
+/// A Keychain error, with the Security framework's status. Trying again
+/// rarely helps, so its words say what failed rather than "try again".
 public struct KeychainError: Error, Sendable, Equatable, CustomStringConvertible {
     public let status: OSStatus
+
+    public init(status: OSStatus) {
+        self.status = status
+        Log.auth.error("Keychain error \(status, privacy: .public)")
+    }
+
     public var description: String { "Keychain error \(status)" }
+}
+
+extension KeychainError: LocalizedError {
+    public var errorDescription: String? {
+        switch status {
+        // A build that isn't signed has no Keychain of its own.
+        case errSecMissingEntitlement: "this build of Pley can't use the Keychain: it isn't signed (error \(status))"
+        case errSecInteractionNotAllowed: "the Keychain can't be read until this device is unlocked (error \(status))"
+        default: "this device's Keychain can't be used (error \(status))"
+        }
+    }
 }
 
 /// One generic-password item of the app's Keychain: `service` and

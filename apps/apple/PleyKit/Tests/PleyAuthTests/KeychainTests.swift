@@ -1,5 +1,6 @@
 import Foundation
 import PleyAuth
+import Security
 import Testing
 
 /// The real Keychain, where this test runner has one: `swift test` on the
@@ -24,5 +25,16 @@ struct KeychainTests {
         try await store.delete(issuer: issuer)
         #expect(try await store.load(issuer: issuer) == nil)
         try await store.delete(issuer: issuer)
+    }
+}
+
+/// What a Keychain failure says: why, never "try again".
+@Suite struct KeychainErrorTests {
+    @Test func aKeychainFailureSaysWhatFailed() {
+        let unsigned = KeychainError(status: errSecMissingEntitlement)
+        #expect(unsigned.localizedDescription.contains("isn't signed"))
+        #expect(unsigned.localizedDescription.contains("-34018"))
+        let other = KeychainError(status: errSecNotAvailable)
+        #expect(other.errorDescription == "this device's Keychain can't be used (error \(errSecNotAvailable))")
     }
 }
