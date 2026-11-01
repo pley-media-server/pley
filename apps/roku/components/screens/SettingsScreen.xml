@@ -4,7 +4,8 @@
      the right, and whether the next episode plays by itself; the watch
      history, switch profile, the profile to always start as, sort the
      libraries, switch server or sign out. Under the app's version, TMDB's
-     notice, then where the account is managed on the web. -->
+     notice, then where the account is managed on the web; at the right,
+     Diagnostics and the open-source licences. -->
 <component name="SettingsScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -44,6 +45,7 @@
         <Label id="web" translation="[1000, 496]" width="824" color="0x7DD3FCFF" font="font:MediumSystemFont" />
         <Label translation="[1000, 552]" width="824" wrap="true" maxLines="2" text="Name, picture, password, PIN, two-step, devices and apps, from a phone or computer on the same network." color="0x8B95A5FF" font="font:SmallestSystemFont" />
         <Label id="message" translation="[1000, 650]" width="824" wrap="true" maxLines="4" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+        <ButtonGroup id="about" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[1000, 850]" minWidth="600" maxWidth="824" />
         <!-- The choices of one row, over the right half. -->
         <Group id="panel" visible="false">
             <Rectangle translation="[1000, 0]" width="920" height="1080" color="0x1E222AFF" />

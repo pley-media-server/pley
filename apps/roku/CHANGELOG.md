@@ -26,6 +26,8 @@ describes how they are made.
   password, PIN, two-step sign-in, devices and apps.
 - Find subtitles… looks in another language too: Language, above the
   results, picks it.
+- Settings has Diagnostics, what this Roku tells the server it plays, and
+  the open-source licences, as the other TV apps do.
 
 ## [0.1.1] - 2026-11-01
 

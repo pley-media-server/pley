@@ -20,6 +20,12 @@ sub init()
     m.panelTitle = m.top.findNode("panelTitle")
     m.choices = m.top.findNode("choices")
     m.panelHint = m.top.findNode("panelHint")
+    ' Diagnostics and the licences, at the right: Right and Left go between
+    ' them and the settings, and the focus comes back to the one it was on.
+    m.about = m.top.findNode("about")
+    m.about.buttons = ["Diagnostics", "Open-source licences"]
+    m.about.observeField("buttonSelected", "onAbout")
+    m.lastFocus = m.buttons
     m.dialog = invalid
     ' The profile's defaults as Settings knows them ({ audio, subtitle,
     ' mode }), invalid until GET /api/auth/me answered; refused once the
@@ -50,7 +56,7 @@ sub onActive()
     if m.panel.visible
         m.choices.setFocus(true)
     else
-        m.buttons.setFocus(true)
+        m.lastFocus.setFocus(true)
     end if
     uiGet("/api/auth/me", "onMe")
     if authAllows(session.scope, "profiles") then uiGet("/api/oauth/profiles", "onHousehold")
@@ -322,11 +328,33 @@ function webAddress() as string
     return urlDisplayAddress(m.global.session.server) + "/account"
 end function
 
-' Back closes the choices; left from them does too.
+sub onAbout(event as object)
+    m.lastFocus = m.about
+    if event.getData() = 0
+        uiNavigate({ to: "diagnostics" })
+    else
+        uiNavigate({ to: "licences" })
+    end if
+end sub
+
+' Back closes the choices; left from them does too. Right and Left go
+' between the settings and Diagnostics.
 function onKeyEvent(key as string, press as boolean) as boolean
-    if not press or not m.panel.visible then return false
-    if key = "back" or key = "left"
-        closeChoices()
+    if not press then return false
+    if m.panel.visible
+        if key = "back" or key = "left"
+            closeChoices()
+            return true
+        end if
+        return false
+    end if
+    if key = "right" and m.buttons.isInFocusChain()
+        m.about.setFocus(true)
+        return true
+    end if
+    if key = "left" and m.about.isInFocusChain()
+        m.lastFocus = m.buttons
+        m.buttons.setFocus(true)
         return true
     end if
     return false

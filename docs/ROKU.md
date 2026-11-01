@@ -71,7 +71,10 @@ episode by itself (Up Next counts down only while it is on), Watch
 history, Switch profile, Always start as (for a household of several
 profiles: a profile, or Ask who's watching), Sort libraries, Switch server
 and Sign out. It says where the account is managed on the web (the
-server's address and `/account`), and carries TMDB's notice. As on the other TVs, Always start
+server's address and `/account`), and carries TMDB's notice. Right of the
+settings, Diagnostics shows this Roku and what it tells the server it
+plays (`capsLines` in `components/lib/Caps.brs`), and Open-source licences
+shows Pley's licence and the notices of what the package bundles. As on the other TVs, Always start
 as only skips "Who's watching?" at a start; it is kept on the Roku for
 each server.
 

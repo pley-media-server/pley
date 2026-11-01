@@ -142,6 +142,19 @@ function noticeDrawn() {
   return false;
 }
 
+// A Settings text page's text (TextScreen.xml, from 96, 180), in the app's
+// text colour.
+function pageTextDrawn() {
+  if (!frame) return false;
+  for (let y = 186; y < 230; y += 2) {
+    for (let x = 100; x < 600; x += 2) {
+      const at = (Math.round(y * (frame.height / 1080)) * frame.width + Math.round(x * (frame.width / 1920))) * 4;
+      if (frame.data[at] > 200 && frame.data[at + 1] > 200 && frame.data[at + 2] > 200) return true;
+    }
+  }
+  return false;
+}
+
 async function drawnWithin(ms, test) {
   const until = Date.now() + ms;
   while (Date.now() < until) {
@@ -274,6 +287,7 @@ const twoStep = { shown: false, hidden: false };
 // The player's notice when every connection is in use.
 const live = { busy: false };
 const sync = { label: false };
+const pages = { diagnostics: false, licences: false };
 // Home asks again only after playing, or when its rows are a minute old.
 const home = { kept: false };
 // From when the server knew nothing of requests (an older one).
@@ -647,6 +661,20 @@ async function walk() {
   await settle();
   await openFromMenu(9, /^GET \/api\/auth\/me$/, "Settings");
   shoot("settings");
+  // Diagnostics and the licences, at the right; Left back to the settings.
+  await press("right");
+  await press("select"); // Diagnostics
+  pages.diagnostics = await drawnWithin(3000, pageTextDrawn);
+  shoot("diagnostics");
+  await press("back");
+  await settle();
+  await press("down");
+  await press("select"); // Open-source licences
+  pages.licences = await drawnWithin(3000, pageTextDrawn);
+  shoot("licences");
+  await press("back");
+  await settle();
+  await press("left");
   // Quality, after Audio language and Subtitles: Automatic checked, then
   // 8 Mbps 1080p chosen, kept on the Roku.
   await press("down", 2);
@@ -829,6 +857,7 @@ const checks = [
   ["kept 8 Mbps 1080p chosen in Settings", registry !== null && /playback.quality","8m"/.test(JSON.stringify([...registry]))],
   ["kept Anna as the profile to always start as", registry !== null && /startAs\.http[^"]*","1"/.test(JSON.stringify([...registry]))],
   ["showed subtitle sync", sync.label],
+  ["showed Diagnostics and the open-source licences from Settings", pages.diagnostics && pages.licences],
   ["showed the playback's details", asked(/^GET \/api\/playback\/s\d+$/)],
   ["saved Movies after TV Shows, every library in the order", fixture.orders.some((ids) => JSON.stringify(ids) === "[2,1,3]")],
   ["went back to the server's order", fixture.orders.includes(null) && fixture.libraryOrder.join() === "1,2,3"],

@@ -20,6 +20,8 @@ function navScreen(name as string) as string
         search: "SearchScreen",
         settings: "SettingsScreen",
         history: "HistoryScreen",
+        diagnostics: "TextScreen",
+        licences: "TextScreen",
         sortLibraries: "SortLibrariesScreen",
         unreachable: "UnreachableScreen",
         discover: "DiscoverScreen",

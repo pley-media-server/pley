@@ -21,6 +21,34 @@ sub test_caps_of_a_4k_hdr_roku_with_a_receiver()
     tkEqual(caps.device, { form: "tv", model: "Roku Ultra" })
 end sub
 
+sub test_caps_lines_say_what_diagnostics_shows()
+    report = {
+        display: { width: 3840, height: 2160, refresh_rates: [60] },
+        hdr_types: ["hdr10", "hlg", "dolby_vision"],
+        dolby_vision_profiles: [{ profile: 5 }, { profile: 8 }],
+        video: [{ codec: "h264", max_width: 3840, max_height: 2160, max_bit_depth: 8 }, { codec: "hevc", max_width: 3840, max_height: 2160, max_bit_depth: 10 }],
+        audio_decode: ["aac", "mp3", "ac3"],
+        audio_passthrough: ["eac3", "dts"],
+        audio_channels: 6,
+        containers: ["mp4", "mkv"]
+    }
+    tkEqual(capsLines(report), [
+        "Display: 3840×2160 at 60 Hz",
+        "HDR: HDR10, HLG, Dolby Vision",
+        "Dolby Vision: profiles 5, 8",
+        "Video: H.264 3840×2160, HEVC 3840×2160 10-bit",
+        "Audio decoded: aac, mp3, ac3",
+        "Sent to the receiver: eac3, dts",
+        "Sound: Surround (5.1)",
+        "Containers: mp4, mkv",
+        "Streams: HLS, in several sizes"
+    ])
+    plain = capsLines({ hdr_types: [], video: [{ codec: "h264", max_width: 1920, max_height: 1080, max_bit_depth: 8 }], audio_decode: ["aac"], audio_passthrough: [], audio_channels: 2, containers: ["mp4"] })
+    tkEqual(plain[0], "HDR: none", "no display mode known: no line for it")
+    tkEqual(plain[3], "Sent to the receiver: nothing")
+    tkEqual(plain[4], "Sound: Stereo")
+end sub
+
 sub test_caps_of_a_1080p_stick_on_tv_speakers()
     caps = capsBuild(fakeExpress())
     tkEqual(caps.containers, ["mp4", "m4v", "mov", "mkv", "mp3", "m4a", "flac", "wav", "aac"])
