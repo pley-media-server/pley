@@ -97,6 +97,8 @@ class App : NUIApplication
 
     protected override void OnTerminate()
     {
+        // The music's session ends with the app, its place reported (AppState.OnLeave).
+        state.EndPlayback();
         Profile.End();
         musicKeys?.Dispose();
         base.OnTerminate();

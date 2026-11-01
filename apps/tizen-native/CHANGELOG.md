@@ -207,3 +207,5 @@ It has no releases yet: it is built and installed by hand
 - Choosing a profile in the native app no longer leaves Who's watching?
   stuck when the server fails to send the profile's libraries after the
   switch: the app goes on as that profile, and the pages offer Retry.
+- Exiting the native app while music plays ends the music's session on
+  the server, with where it stopped.
