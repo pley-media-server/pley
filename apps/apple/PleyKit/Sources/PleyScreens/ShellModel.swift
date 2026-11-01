@@ -122,6 +122,9 @@ public final class ShellModel: ObservableObject {
     private let settings: AppSettings
     private let tv: Bool
     private var toastTask: Task<Void, Never>?
+    /// The library section shown last, waiting for the libraries: until
+    /// they are read it has no tab, so Home shows meanwhile.
+    private var restoring: ShellSection?
 
     /// The shell on this device, opening on the section shown last: on
     /// iPhone, iPad and Mac, Home, Libraries, Search, Playlists and Me (the
@@ -132,11 +135,13 @@ public final class ShellModel: ObservableObject {
         self.tv = tv
         sections = Self.sections(tv: tv, libraries: [])
         let last = settings.lastSection.flatMap(ShellSection.init(key:))
-        // A library's section waits for the libraries to be known.
-        section = last.flatMap { last in
-            if case .library = last { return last }
-            return Self.sections(tv: tv, libraries: []).contains(last) ? last : nil
-        } ?? .home
+        // A library's section waits for the libraries to be known, on Home.
+        if case .library = last {
+            restoring = last
+            section = .home
+        } else {
+            section = last.flatMap { Self.sections(tv: tv, libraries: []).contains($0) ? $0 : nil } ?? .home
+        }
     }
 
     /// Whether this is the Apple TV app.
@@ -173,6 +178,13 @@ public final class ShellModel: ObservableObject {
         guard libraries != self.libraries else { return }
         self.libraries = libraries
         sections = Self.sections(tv: tv, libraries: libraries)
+        if let restoring {
+            self.restoring = nil
+            if shows(restoring) {
+                section = restoring
+                return
+            }
+        }
         if !shows(section) {
             section = .home
             settings.lastSection = ShellSection.home.key
@@ -195,6 +207,8 @@ public final class ShellModel: ObservableObject {
     /// Shows `section`; showing it again goes back to its start.
     public func select(_ section: ShellSection) {
         guard shows(section) else { return }
+        // Chosen by the person: the section shown last stays put.
+        restoring = nil
         if section == self.section {
             popToRoot()
         } else {
@@ -248,6 +262,7 @@ public final class ShellModel: ObservableObject {
     /// Every section back at its start, and Home showing: another profile
     /// or sign-in sees other things.
     public func reset() {
+        restoring = nil
         paths = [:]
         libraries = []
         sections = Self.sections(tv: tv, libraries: [])

@@ -43,7 +43,8 @@ and browse for Bonjour's `_pley._tcp`.
 Both apps have the same screens, each built for its device. Signed in,
 the app is in sections, each with a navigation of its own that Back goes
 through; choosing the section showing goes back to its start, and the app
-opens on the section shown last. Switching profile, signing out or signing
+opens on the section shown last (a library's once the libraries are read,
+with Home meanwhile). Switching profile, signing out or signing
 in to another server starts every section again at Home.
 
 - **iPhone**, and iPad in a narrow window (Slide Over, a third of Split

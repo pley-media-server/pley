@@ -154,6 +154,7 @@ public final class AppModel: ObservableObject {
             guard let self else { return }
             self.actions.followed(change)
             self.change = change
+            if change.libraries || change.everything { self.loadLibraries() }
         }
         serverEvents.onScans = { [weak self] scans in self?.scans = scans }
         serverEvents.onSessionStopped = { [weak self] id, message, byAdmin in
@@ -490,10 +491,23 @@ public final class AppModel: ObservableObject {
     private func signedInNow(_ user: User) {
         Task { await caps.warmUp() }
         startEvents()
+        loadLibraries()
         Task { await actions.loadWatchlist() }
         Task { [weak self] in
             guard let self, let api = await self.session.api, let origin = await self.session.origin else { return }
             await self.lateReports(origin: origin, profileId: user.id).send(using: api)
+        }
+    }
+
+    /// Apple TV's library tabs, read whatever tab shows: the tab shown
+    /// last may be a library's, or one (Search, Playlists) that reads none.
+    /// iPad's and the Mac's sidebar reads them itself.
+    private func loadLibraries() {
+        guard tv, user != nil else { return }
+        Task { [weak self] in
+            guard let self, let api = await self.session.api,
+                  let libraries = try? await api.libraries(), self.user != nil else { return }
+            self.shell.setLibraries(libraries)
         }
     }
 

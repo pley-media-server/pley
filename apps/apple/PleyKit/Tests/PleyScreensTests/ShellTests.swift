@@ -87,6 +87,29 @@ import Testing
         #expect(settings.lastSection == "home")
     }
 
+    @Test func aLibraryShownLastComesBackOnceTheLibrariesAreRead() {
+        let settings = freshSettings()
+        let libraries = [Library(id: 1, name: "Movies", kind: .movies), Library(id: 2, name: "Shows", kind: .shows)]
+        let first = ShellModel(settings: settings, tv: true)
+        first.setLibraries(libraries)
+        first.select(.library(2))
+        // Home until they are read: no tab is a library's yet.
+        let shell = ShellModel(settings: settings, tv: true)
+        #expect(shell.section == .home)
+        shell.setLibraries(libraries)
+        #expect(shell.section == .library(2))
+        // One that went stays on Home.
+        let again = ShellModel(settings: settings, tv: true)
+        again.setLibraries([libraries[0]])
+        #expect(again.section == .home)
+        // A tab chosen meanwhile wins.
+        settings.lastSection = ShellSection.library(1).key
+        let chosen = ShellModel(settings: settings, tv: true)
+        chosen.select(.search)
+        chosen.setLibraries(libraries)
+        #expect(chosen.section == .search)
+    }
+
     @Test func sectionsKeepTheirNames() {
         for section in [ShellSection.home, .libraries, .search, .playlists, .me, .settings, .library(12)] {
             #expect(ShellSection(key: section.key) == section)
@@ -131,6 +154,21 @@ import Testing
         await app.start()
         try #require(app.root == .signedIn)
         return app
+    }
+
+    @Test func appleTVReadsItsLibraryTabsWhateverTabShows() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let settings = freshSettings()
+        settings.lastSection = ShellSection.search.key
+        let store = MemoryTokenStore()
+        try await keepSignIn(server, in: store)
+        let app = app(store, servers: [SavedServer(origin: server.origin, name: "Living Room", lastUsed: Date())],
+                      settings: settings, tv: true)
+        await app.start()
+        #expect(app.shell.section == .search)
+        #expect(await eventually { app.shell.sections.contains(.library(1)) })
+        #expect(app.shell.section == .search)
     }
 
     @Test func aProfileChangeStartsEverySectionAgainAtHome() async throws {
