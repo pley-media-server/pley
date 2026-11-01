@@ -85,6 +85,8 @@ public final class ProfilesModel: ObservableObject {
         guard switching == nil, let switcher = await app.session.profiles else { return }
         switching = profile.id
         defer { switching = nil }
+        // The playback open belongs to the profile before: it ends first, reported as that profile.
+        await app.closePlayer()
         do {
             try await switcher.switchTo(profile.id, pin: pin)
             cancelPin()

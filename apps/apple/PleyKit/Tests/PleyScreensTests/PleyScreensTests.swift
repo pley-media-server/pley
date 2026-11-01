@@ -1,9 +1,11 @@
 import CoreGraphics
 import Foundation
 import PleyAuth
+import PleyCaps
 import PleyCommon
 import PleyData
 import PleyModel
+import PleyPlayer
 @testable import PleyNetwork
 @testable import PleyScreens
 import PleyTesting
@@ -11,7 +13,7 @@ import Testing
 
 private let testAgent = "pleyApple/9.9.9 (iOS 18.1; iPhone)"
 
-private func fixture() async throws -> FixtureServer {
+func fixture() async throws -> FixtureServer {
     let server = FixtureServer()
     try await server.start()
     return server
@@ -30,21 +32,27 @@ private struct FakeWebAuthenticator: WebAuthenticator {
 }
 
 /// An app on memory stores, with the fake sign-in sheet and no network search.
+/// Its player gets a recorded device's caps, a client id of its own, a
+/// folder for late reports in the temporary folder, and `engines`.
 @MainActor
-private func app(_ store: any TokenStore = MemoryTokenStore(), servers: [SavedServer] = [],
-                 client: AppClient = .ios,
-                 discover: @escaping @Sendable () -> AsyncStream<DiscoveryState> = { AsyncStream { $0.finish() } })
+func app(_ store: any TokenStore = MemoryTokenStore(), servers: [SavedServer] = [],
+         client: AppClient = .ios,
+         discover: @escaping @Sendable () -> AsyncStream<DiscoveryState> = { AsyncStream { $0.finish() } },
+         engines: @escaping @MainActor () -> any PlayerEngine = { StillEngine() })
     -> AppModel {
     let transport = HTTPTransport(userAgent: testAgent)
     let repository = ServerRepository(store: MemoryServerListStore(servers))
     let session = SessionManager(transport: transport, tokenStore: store, servers: repository, client: client,
                                  sleep: { _ in try await Task.sleep(for: .milliseconds(5)) })
+    let late = FileManager.default.temporaryDirectory.appendingPathComponent("pley-screens-\(UUID().uuidString)")
     return AppModel(session: session, servers: repository, transport: transport,
-                    authenticator: client.signsInWithBrowser ? FakeWebAuthenticator() : nil, discover: discover)
+                    authenticator: client.signsInWithBrowser ? FakeWebAuthenticator() : nil, discover: discover,
+                    caps: DeviceCaps(probe: RecordedProbe()),
+                    playerSetup: .init(clientId: "apple-test", lateReports: late, engines: engines))
 }
 
 /// Tokens the fixture gave, kept as a sign-in keeps them.
-private func keepSignIn(_ server: FixtureServer, in store: any TokenStore) async throws {
+func keepSignIn(_ server: FixtureServer, in store: any TokenStore) async throws {
     let tokens = server.issueTokens()
     try await store.save(StoredTokens(
         issuer: server.origin, clientID: AppClient.ios.clientID, tokenEndpoint: server.origin + "/api/oauth/token",
@@ -55,7 +63,7 @@ private func keepSignIn(_ server: FixtureServer, in store: any TokenStore) async
 
 /// Waits until `condition` holds, for at most 5 seconds.
 @MainActor
-private func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
+func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
     for _ in 0..<500 {
         if condition() { return true }
         try? await Task.sleep(for: .milliseconds(10))

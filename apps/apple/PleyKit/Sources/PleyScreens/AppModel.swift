@@ -1,15 +1,18 @@
 import Combine
 import Foundation
 import PleyAuth
+import PleyCaps
 import PleyCommon
 import PleyData
 import PleyModel
 import PleyNetwork
+import PleyPlayer
 
 /// The app's state above its screens: which server is open, who is signed
-/// in, and which screen shows. Both apps' views follow it: a
+/// in, which screen shows, and what plays. Both apps' views follow it: a
 /// `NavigationStack` with `root` at the bottom and `path` on top, so Back
-/// (and Menu on the Siri Remote) goes where people expect.
+/// (and Menu on the Siri Remote) goes where people expect. One playback at
+/// a time: starting another closes the one before, as on Android.
 @MainActor
 public final class AppModel: ObservableObject {
     /// The bottom of the navigation.
@@ -24,6 +27,8 @@ public final class AppModel: ObservableObject {
     public enum Screen: Hashable, Sendable {
         case signIn(ServerEntry)
         case profiles
+        /// An item's page.
+        case item(Int)
     }
 
     /// The screen showing.
@@ -33,6 +38,26 @@ public final class AppModel: ObservableObject {
         case signIn(ServerEntry)
         case profiles
         case home
+        case item(Int)
+    }
+
+    /// What the player needs beside the server: this install's client id,
+    /// where late reports are kept, a clock and the engine. Tests replace them.
+    public struct PlayerSetup {
+        public var clientId: String
+        /// `nil`: `Application Support/Pley`.
+        public var lateReports: URL?
+        public var clock: any PlayerClock
+        public var engines: @MainActor () -> any PlayerEngine
+
+        public init(clientId: String = ClientID.current(), lateReports: URL? = nil,
+                    clock: any PlayerClock = SystemPlayerClock(),
+                    engines: @escaping @MainActor () -> any PlayerEngine = { AVPlayerEngine() }) {
+            self.clientId = clientId
+            self.lateReports = lateReports
+            self.clock = clock
+            self.engines = engines
+        }
     }
 
     @Published public private(set) var root: Root = .starting
@@ -47,6 +72,8 @@ public final class AppModel: ObservableObject {
     @Published public var notice: String?
     /// Goes up whenever Home's rows may have changed (a new sign-in, another profile).
     @Published public private(set) var homeVersion = 0
+    /// The playback open, if any; the player screens show it.
+    @Published public private(set) var player: PlaybackController?
 
     public let session: SessionManager
     public let servers: ServerRepository
@@ -56,13 +83,22 @@ public final class AppModel: ObservableObject {
     public let authenticator: (any WebAuthenticator)?
     /// Starts a search of the local network.
     public let discover: @Sendable () -> AsyncStream<DiscoveryState>
+    /// What this device plays, read once signed in, before anything plays.
+    public let caps: DeviceCaps
+    /// The players' report queue: it outlives each player, so a closed
+    /// player's last report and the end of its session still go out.
+    public let reporter = SessionReporter()
+    public let playerSetup: PlayerSetup
 
     private var listener: Task<Void, Never>?
+    /// Counts playbacks asked for, so only the latest of two quick ones opens.
+    private var plays = 0
 
     public var route: Route {
         switch path.last {
         case .signIn(let entry): return .signIn(entry)
         case .profiles: return .profiles
+        case .item(let id): return .item(id)
         case nil:
             switch root {
             case .starting: return .starting
@@ -76,12 +112,15 @@ public final class AppModel: ObservableObject {
 
     public init(session: SessionManager, servers: ServerRepository, transport: HTTPTransport,
                 authenticator: (any WebAuthenticator)?,
-                discover: @escaping @Sendable () -> AsyncStream<DiscoveryState>) {
+                discover: @escaping @Sendable () -> AsyncStream<DiscoveryState>,
+                caps: DeviceCaps? = nil, playerSetup: PlayerSetup = PlayerSetup()) {
         self.session = session
         self.servers = servers
         self.transport = transport
         self.authenticator = authenticator
         self.discover = discover
+        self.caps = caps ?? DeviceCaps()
+        self.playerSetup = playerSetup
         // One loader for the app, always with the open server's API.
         images = ImageLoader { [session] path, width in
             guard let api = await session.api else { throw PleyError.signedOut }
@@ -152,13 +191,18 @@ public final class AppModel: ObservableObject {
 
     /// The sign-in moved to another profile.
     public func profileChanged() async {
-        if let api = await session.api, let user = try? await api.me() { self.user = user }
+        await closePlayer()
+        if let api = await session.api, let user = try? await api.me() {
+            self.user = user
+            signedInNow(user)
+        }
         homeVersion += 1
         path = []
     }
 
     /// Ends the sign-in on the open server; the servers show.
     public func signOut() async {
+        await closePlayer()
         await session.signOut()
         user = nil
         root = .servers
@@ -176,6 +220,7 @@ public final class AppModel: ObservableObject {
 
     /// The servers, keeping the sign-in.
     public func showServers() {
+        Task { await closePlayer() }
         root = .servers
         path = []
     }
@@ -184,9 +229,52 @@ public final class AppModel: ObservableObject {
         path = [.profiles]
     }
 
+    /// An item's page, on top of the screen showing.
+    public func showItem(_ id: Int) {
+        path.append(.item(id))
+    }
+
     /// Back from the screen on top.
     public func back() {
         if !path.isEmpty { path.removeLast() }
+    }
+
+    // MARK: Playing
+
+    /// Plays `request` on the open server, after closing the playback
+    /// before (its `stopped` report and `DELETE` go first). `nil` when
+    /// signed out, or when another play was asked for meanwhile.
+    @discardableResult
+    public func play(_ request: PlayRequest) async -> PlaybackController? {
+        plays += 1
+        let asked = plays
+        await closePlayer()
+        guard asked == plays, let user, let api = await session.api, let origin = await session.origin,
+              asked == plays
+        else { return nil }
+        let environment = PlaybackEnvironment(
+            api: api, caps: caps, clientId: playerSetup.clientId, reporter: reporter,
+            late: lateReports(origin: origin, profileId: user.id), clock: playerSetup.clock,
+            engines: playerSetup.engines)
+        let controller = PlaybackController(request: request, environment: environment)
+        // Started first, so the screens get its AVPlayer with it.
+        controller.start()
+        player = controller
+        return controller
+    }
+
+    /// Ends the playback open (`controller`, when given, only if it is
+    /// still the one open): `stopped`, then `DELETE`, waiting for the
+    /// reports 2 s at most.
+    public func closePlayer(_ controller: PlaybackController? = nil) async {
+        guard let current = player, controller == nil || controller === current else { return }
+        player = nil
+        await current.close()
+    }
+
+    /// The reports of this server and profile that couldn't go out before.
+    private func lateReports(origin: String, profileId: Int) -> LateReports {
+        LateReports(origin: origin, profileId: profileId, directory: playerSetup.lateReports, clock: playerSetup.clock)
     }
 
     // MARK: Inside
@@ -196,6 +284,17 @@ public final class AppModel: ObservableObject {
         homeVersion += 1
         root = .home
         path = chooseProfile ? [.profiles] : []
+        signedInNow(user)
+    }
+
+    /// Signed in: the device's caps are read ahead of the first Play, and
+    /// reports that couldn't reach this server and profile before go now.
+    private func signedInNow(_ user: User) {
+        Task { await caps.warmUp() }
+        Task { [weak self] in
+            guard let self, let api = await self.session.api, let origin = await self.session.origin else { return }
+            await self.lateReports(origin: origin, profileId: user.id).send(using: api)
+        }
     }
 
     /// Notes the server just opened, by the name it gave.
@@ -223,6 +322,7 @@ public final class AppModel: ObservableObject {
     /// A sign-in ended without the person asking: its sign-in shows, with why.
     private func heard(_ event: SessionEvent) {
         guard case .signedOut(let origin, let message) = event, let server, server.origin == origin else { return }
+        Task { await closePlayer() }
         user = nil
         notice = message
         root = .servers

@@ -17,6 +17,7 @@ let package = Package(
         .library(name: "PleyCaps", targets: ["PleyCaps"]),
         .library(name: "PleyPlayer", targets: ["PleyPlayer"]),
         .library(name: "PleyScreens", targets: ["PleyScreens"]),
+        .library(name: "PleyPlayerViews", targets: ["PleyPlayerViews"]),
         .library(name: "PleyTesting", targets: ["PleyTesting"]),
         .executable(name: "pley-apple-check", targets: ["pley-apple-check"]),
         .executable(name: "pley-apple-play", targets: ["pley-apple-play"]),
@@ -32,7 +33,10 @@ let package = Package(
         // Playing: sessions on the server, their reports, recovery, and the AVPlayer engine.
         .target(name: "PleyPlayer", dependencies: ["PleyCaps", "PleyData", "PleyNetwork", "PleyModel", "PleyCommon"]),
         // The screens' state, shared by the iPhone, iPad and Mac app and the Apple TV app; no views.
-        .target(name: "PleyScreens", dependencies: ["PleyData", "PleyAuth", "PleyNetwork", "PleyModel", "PleyCommon"]),
+        .target(name: "PleyScreens", dependencies: ["PleyPlayer", "PleyCaps", "PleyData", "PleyAuth", "PleyNetwork",
+                                                    "PleyModel", "PleyCommon"]),
+        // The player's surface on each platform (AVKit's own controls) and what the apps lay over it.
+        .target(name: "PleyPlayerViews", dependencies: ["PleyPlayer", "PleyCaps", "PleyModel", "PleyCommon"]),
         .target(name: "PleyTesting", dependencies: ["PleyModel", "PleyCommon"]),
         // Signs in to a real, disposable server (scripts/check-server.sh). macOS only.
         .executableTarget(name: "pley-apple-check", dependencies: ["PleyCaps", "PleyData", "PleyAuth", "PleyNetwork",
@@ -52,8 +56,8 @@ let package = Package(
         .testTarget(name: "PleyPlayerTests",
                     dependencies: ["PleyPlayer", "PleyCaps", "PleyNetwork", "PleyModel", "PleyCommon", "PleyTesting"]),
         .testTarget(name: "PleyScreensTests",
-                    dependencies: ["PleyScreens", "PleyData", "PleyAuth", "PleyNetwork", "PleyModel", "PleyCommon",
-                                   "PleyTesting"]),
+                    dependencies: ["PleyScreens", "PleyPlayer", "PleyCaps", "PleyData", "PleyAuth", "PleyNetwork",
+                                   "PleyModel", "PleyCommon", "PleyTesting"]),
     ],
     swiftLanguageModes: [.v6]
 )
