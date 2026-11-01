@@ -69,6 +69,19 @@ sealed class RailView : View
         Add(avatar.Box);
         this.onSelect = onSelect;
         Group.Add(AddEntry(Rail.SettingsItem, SettingsY).Item);
+#if PROFILE
+        // A profiling build says so, under Settings, where it's never in the way of a page.
+        var debug = new TextLabel("DEBUG\nMODE")
+        {
+            PixelSize = Ui.Dp(8),
+            TextColor = Color.Yellow,
+            MultiLine = true,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Size = new Size(Ui.Dp(PleyTv.RailCollapsed), Ui.Dp(24)),
+            Position = new Position(0, Ui.Dp(SettingsY + EntryHeight + 2)),
+        };
+        Add(debug);
+#endif
         // Focus in the rail is what opens it.
         tree.Moved += item => Open(item?.Parent == Group);
     }

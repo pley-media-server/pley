@@ -55,7 +55,9 @@ sealed class TizenMediaEngine : IVideoEngine
             {
                 try
                 {
+                    var asked = Profile.Start();
                     if (p.State is Media.PlayerState.Playing or Media.PlayerState.Paused) lastPosition = p.GetPlayPosition();
+                    Slow("its position", asked);
                 }
                 catch (Exception)
                 {
@@ -64,6 +66,14 @@ sealed class TizenMediaEngine : IVideoEngine
             }
             return pendingSeek ?? lastPosition;
         }
+    }
+
+    /// <summary>A call into the TV's player that held the UI thread: marked, in a profiling build.</summary>
+    [System.Diagnostics.Conditional("PROFILE")]
+    static void Slow(string what, long asked)
+    {
+        var ms = (System.Diagnostics.Stopwatch.GetTimestamp() - asked) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+        if (ms >= 30) Profile.Mark($"engine: the player took {ms:0} ms for {what}");
     }
 
     public long DurationMs => durationMs > 0 ? durationMs : source?.DurationHintMs ?? 0;
@@ -253,6 +263,7 @@ sealed class TizenMediaEngine : IVideoEngine
 
     public void Pause()
     {
+        Profile.Mark("engine: pause asked");
         wanted = false;
         var p = player;
         if (p == null || !prepared) return;
@@ -272,6 +283,7 @@ sealed class TizenMediaEngine : IVideoEngine
         var to = Math.Max(0, ms);
         var p = player;
         if (p == null) return;
+        Profile.Mark($"engine: seek to {to} ms asked");
         pendingSeek = to;
         if (!prepared) return;
         var mine = generation;
@@ -356,6 +368,7 @@ sealed class TizenMediaEngine : IVideoEngine
                 var code = info.GetLanguageCode(ordinal);
                 if (!string.IsNullOrEmpty(code) && !Same(code, language)) return false;
             }
+            Profile.Mark($"engine: audio track {ordinal} of {info.GetCount()} chosen (was {info.Selected})");
             if (info.Selected != ordinal) info.Selected = ordinal;
             return true;
         }
@@ -420,6 +433,7 @@ sealed class TizenMediaEngine : IVideoEngine
         int? width = null, height = null, bitrate = null, audioBitrate = null, channels = null;
         double? fps = null;
         string? codec = null, audioCodec = null;
+        var asked = Profile.Start();
         try
         {
             var v = p.StreamInfo.GetVideoProperties();
@@ -447,6 +461,7 @@ sealed class TizenMediaEngine : IVideoEngine
         {
             // No sound, or not known.
         }
+        Slow("its stats", asked);
         var total = (bitrate ?? 0) + (audioBitrate ?? 0);
         var read = new EngineStats
         {
@@ -522,8 +537,10 @@ sealed class TizenMediaEngine : IVideoEngine
         long position;
         try
         {
+            var asked = Profile.Start();
             playing = p.State == Media.PlayerState.Playing;
             position = playing ? lastPosition = p.GetPlayPosition() : lastPosition;
+            Slow("its position (watch)", asked);
         }
         catch (Exception)
         {
@@ -532,6 +549,9 @@ sealed class TizenMediaEngine : IVideoEngine
         if (!moved)
         {
             // Started: the position has moved on from where it began, so pictures come.
+#if PROFILE
+            if (++startWatches % 25 == 0) Profile.Mark($"engine: waiting for the picture to move: {p.State}, at {position} ms");
+#endif
             if (!playing) return;
             if (firstAt < 0) firstAt = position;
             if (position < firstAt + FirstMoveMs) return;
@@ -562,6 +582,9 @@ sealed class TizenMediaEngine : IVideoEngine
     /// <summary>How far the position moves from where it began before the source counts as started.</summary>
     const long FirstMoveMs = 80;
     bool moved;
+#if PROFILE
+    int startWatches;
+#endif
     long firstAt = -1;
     long watchedAt = -1;
     int stillFor;

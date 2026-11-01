@@ -247,15 +247,14 @@ static class Profile
         }
 
         /// <summary>
-        /// The frames drawn a second and the longest frame, top right over everything, every half
-        /// second, and sent while something moves. NUI draws only while something moves, so it
-        /// reads 0 at rest.
+        /// The frames drawn a second and the longest frame, every half second, sent while something
+        /// moves. Not shown: over the player it was in the way, and the rail says the build is a
+        /// debug one. NUI draws only while something moves, so it reads 0 at rest.
         /// </summary>
         sealed class Counter : FrameUpdateCallbackInterface
         {
             const uint EveryMs = 500;
 
-            readonly TextLabel label;
             readonly Timer timer = new Timer(EveryMs);
             int frames;
             /// <summary>The longest frame since the last reading, in microseconds (the update thread writes it).</summary>
@@ -264,25 +263,10 @@ static class Profile
 
             public Counter(Window window)
             {
-                label = new TextLabel("")
-                {
-                    PixelSize = Ui.Dp(12),
-                    TextColor = Color.Yellow,
-                    BackgroundColor = new Color(0, 0, 0, 0.7f),
-                    MultiLine = true,
-                    Size = new Size(Ui.Dp(150), Ui.Dp(36)),
-                    Position = new Position(Ui.Dp(PleyTv.CanvasWidth - 158), Ui.Dp(4)),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                };
-                var layer = new Layer();
-                window.AddLayer(layer);
-                layer.Add(label);
                 timer.Tick += (s, e) =>
                 {
                     var count = Interlocked.Exchange(ref frames, 0);
                     var worst = Interlocked.Exchange(ref longest, 0);
-                    label.Text = $"{count * 1000 / EveryMs} fps\nlongest frame {worst / 1000f:0.0} ms";
                     if (count > 2) Send($"fps={count * 1000 / EveryMs} longest={worst / 1000f:0.0}");
                     return true;
                 };
