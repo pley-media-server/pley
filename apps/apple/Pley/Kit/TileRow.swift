@@ -6,7 +6,7 @@ import SwiftUI
 /// the tiles near the screen.
 struct TileRow: View {
     let app: AppModel
-    /// The row's key, for its identifier (`home.row.continue_watching`).
+    /// The row's key, for its identifier (`home.row.continue_watching`, `item.row.related`).
     let key: String
     let title: String
     let shape: RowShape
@@ -14,12 +14,14 @@ struct TileRow: View {
     var seeAll: (() -> Void)?
     /// Continue Watching: its tiles' actions offer to leave it, through this.
     var remove: ((Tile) async -> Void)?
+    /// What the identifier starts with: `home.row`, `item.row`.
+    var prefix = "home.row"
     let open: (Tile) -> Void
     private let layout = WideLayout()
     @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
 
     init(app: AppModel, key: String, title: String, shape: RowShape, tiles: [Tile], seeAll: (() -> Void)? = nil,
-         remove: ((Tile) async -> Void)? = nil, open: @escaping (Tile) -> Void) {
+         remove: ((Tile) async -> Void)? = nil, prefix: String = "home.row", open: @escaping (Tile) -> Void) {
         self.app = app
         self.key = key
         self.title = title
@@ -27,6 +29,7 @@ struct TileRow: View {
         self.tiles = tiles
         self.seeAll = seeAll
         self.remove = remove
+        self.prefix = prefix
         self.open = open
     }
 
@@ -63,5 +66,5 @@ struct TileRow: View {
         .accessibilityIdentifier(identifier)
     }
 
-    private var identifier: String { "home.row.\(key)" }
+    private var identifier: String { "\(prefix).\(key)" }
 }

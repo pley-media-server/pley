@@ -97,8 +97,14 @@ struct ScreenView: View {
 
     var body: some View {
         switch screen {
-        case .item(let id), .artist(let id), .album(let id, _):
+        case .item(let id):
             ItemView(app: app, itemId: id)
+        case .artist(let id):
+            ArtistView(app: app, itemId: id)
+        case .album(let id, let track):
+            AlbumView(app: app, itemId: id, track: track)
+        case .person(let id):
+            PersonView(app: app, personId: id)
         case .library(let id, let view):
             LibraryView(app: app, libraryId: id, view: view)
         case .libraries:

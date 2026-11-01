@@ -220,10 +220,8 @@ private func addShow(to server: FixtureServer) {
         let app = try await signedIn(server)
         let model = ItemModel(app: app, itemId: 404)
         await model.load()
-        guard case .failed = model.state else {
-            Issue.record("not failed: \(model.state)")
-            return
-        }
+        // A 404 is its own state now: "This title isn't available", with nothing to try again.
+        #expect(model.state == .notFound)
     }
 }
 

@@ -51,20 +51,32 @@ struct ItemActionsMenu: ViewModifier {
     }
 
     private func run(_ action: ItemAction) {
+        #if os(macOS)
+        Self.run(app, action, on: item, remove: remove) { openWindow(id: PlayerWindow.id, value: $0) }
+        #else
+        Self.run(app, action, on: item, remove: remove, play: nil)
+        #endif
+    }
+
+    /// Does `action` on `item`: the tile's menu and a page's More menu both
+    /// come here. `play` opens the player on the Mac (its own window);
+    /// elsewhere the app's player covers the screen.
+    static func run(_ app: AppModel, _ action: ItemAction, on item: ItemSummary, remove: (() async -> Void)? = nil,
+                    play: ((PlayRequest) -> Void)?) {
         Task {
             if action == .removeFromContinueWatching, let remove {
                 await remove()
                 return
             }
-            switch await actions.perform(action, on: item) {
+            switch await app.actions.perform(action, on: item) {
             case .done: break
             case .open(let screen): app.shell.open(screen)
             case .play(let request):
-                #if os(macOS)
-                openWindow(id: PlayerWindow.id, value: request)
-                #else
-                await app.play(request)
-                #endif
+                if let play {
+                    play(request)
+                } else {
+                    await app.play(request)
+                }
             }
         }
     }

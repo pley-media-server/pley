@@ -50,12 +50,18 @@ struct ItemActionsMenu: ViewModifier {
     }
 
     private func run(_ action: ItemAction) {
+        Self.run(app, action, on: item, remove: remove)
+    }
+
+    /// Does `action` on `item`: the tile's menu and a page's More menu both come here.
+    static func run(_ app: AppModel, _ action: ItemAction, on item: ItemSummary,
+                    remove: (() async -> Void)? = nil) {
         Task {
             if action == .removeFromContinueWatching, let remove {
                 await remove()
                 return
             }
-            switch await actions.perform(action, on: item) {
+            switch await app.actions.perform(action, on: item) {
             case .done: break
             case .open(let screen): app.shell.open(screen)
             case .play(let request): await app.play(request)

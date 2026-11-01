@@ -21,7 +21,7 @@
 #      Prologue, Intro (10-30 s), Story and Credits (55-75 s)
 #
 # With --screens, the media for the screens' UI tests (check-screens.sh)
-# instead: 1 and 8, a third episode, and
+# instead: 1, 2 and 8, a third episode, and
 #
 #  12. <dir>/Clips/Clip 01.mp4 to Clip 40.mp4, 2 s each: rows and grids
 #      longer than a screen
@@ -101,7 +101,6 @@ if [[ ! -e "$f" ]]; then
 fi
 made "1 Direct H264"
 
-if [[ $screens == no ]]; then
 # 2. Two Audio (2020).mp4: AAC stereo in English and AC-3 5.1 in French.
 f=$(movie "Two Audio (2020)" mp4)
 if [[ ! -e "$f" ]]; then
@@ -111,6 +110,7 @@ if [[ ! -e "$f" ]]; then
 fi
 made "2 Two Audio"
 
+if [[ $screens == no ]]; then
 # 3. Remux H264 AC3 (2021).mkv, with an SRT track and a PGS track.
 f=$(movie "Remux H264 AC3 (2021)" mkv)
 if [[ ! -e "$f" ]]; then

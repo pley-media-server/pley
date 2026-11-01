@@ -104,4 +104,52 @@ extension PleyAPI {
     public func removeFromContinueWatching(_ id: Int) async throws {
         _ = try await client.send("DELETE", "/api/continue-watching/\(id)", body: Empty?.none, as: NoContent.self)
     }
+
+    // MARK: Item pages
+
+    /// `GET /api/items/{id}/children`: a show's seasons, a season's
+    /// episodes, an artist's albums, an album's tracks, by index.
+    public func children(_ id: Int) async throws -> [ItemSummary] {
+        try await client.get("/api/items/\(id)/children", as: ItemList.self).items
+    }
+
+    /// `GET /api/items/{id}/related`: More Like This.
+    public func related(_ id: Int, limit: Int = 20) async throws -> [ItemSummary] {
+        try await client.get("/api/items/\(id)/related", query: [URLQueryItem(name: "limit", value: String(limit))],
+                             as: ItemList.self).items
+    }
+
+    /// `GET /api/items/{id}/collections`: the collections a movie or show is in.
+    public func itemCollections(_ id: Int) async throws -> [CollectionRef] {
+        try await client.get("/api/items/\(id)/collections", as: ItemCollections.self).collections
+    }
+
+    /// `PUT /api/items/{id}/rating`: the profile's own rating, 0 to 10 (two
+    /// points a star); `nil` takes it away.
+    public func setRating(_ id: Int, _ rating: Double?) async throws {
+        _ = try await client.send("PUT", "/api/items/\(id)/rating", body: Rating(rating: rating), as: NoContent.self)
+    }
+
+    /// `POST /api/items/{id}/prefetch`: Play is about to be pressed, so the
+    /// server reads ahead what it plays first.
+    public func prefetch(_ id: Int) async throws {
+        _ = try await client.send("POST", "/api/items/\(id)/prefetch", body: Empty?.none, as: NoContent.self)
+    }
+
+    /// `GET /api/people/{id}`: a person and their titles this profile may see.
+    public func person(_ id: Int) async throws -> PersonDetail {
+        try await client.get("/api/people/\(id)", as: PersonDetail.self)
+    }
+}
+
+/// `{ rating }`, with `null` written out: no rating.
+private struct Rating: Encodable, Sendable {
+    let rating: Double?
+
+    func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        if let rating { try c.encode(rating, forKey: .rating) } else { try c.encodeNil(forKey: .rating) }
+    }
+
+    private enum CodingKeys: String, CodingKey { case rating }
 }

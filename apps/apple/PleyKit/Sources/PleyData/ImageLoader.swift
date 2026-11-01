@@ -49,6 +49,15 @@ public actor ImageLoader {
         #endif
     }
 
+    /// The widest backdrop asked for, in pixels: 1920, or 1536 on a device
+    /// with 3 GB or less (the iPad 5th generation).
+    public static func backdropLimit(physicalMemory: UInt64) -> Int {
+        physicalMemory <= 3 << 30 ? 1536 : 1920
+    }
+
+    /// This device's widest backdrop.
+    public static var deviceBackdropLimit: Int { backdropLimit(physicalMemory: ProcessInfo.processInfo.physicalMemory) }
+
     /// The width in pixels a picture `points` wide asks for on a screen of
     /// `scale`: rounded up to a multiple of 64, so near sizes share one
     /// cache entry, and never more than `limit`.

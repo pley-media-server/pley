@@ -152,15 +152,68 @@ behind it.
   address, Switch profile (when the household has another profile), the
   servers, and Sign out after asking. A profile's name, picture and PIN
   are changed in Pley on the web.
-- **An item's page**: the poster, the title, the year and running time,
-  the file's video and sound ("1080p · H.264 · AAC Stereo") and the
-  summary. A show or season shows its on-deck episode ("S1 E2 · Pilot")
-  and plays that. **Play**, or **Resume from 12:34** and **Play from
-  start** when the item was left part way. Pickers for the version (when
-  there are several), the audio track (when there are several) and the
-  subtitles; the audio and subtitle choices are saved on the server for
-  the item, as on the web. After the player closes, the page reads the
-  item again for its new resume point.
+- **A title's page** (movies, shows, seasons and episodes): the backdrop
+  (at most 1536 pixels wide on a device with 3 GB of memory or less,
+  1920 otherwise), the poster, and the title with where it sits: an
+  episode's show and season, a season's show, as links. Under the title,
+  one line of facts read by VoiceOver as one: the year (a show's years,
+  "3 seasons"), the running time, the content rating, the critics' rating
+  and the file's quality badges ("4K", "DV", "Atmos"). Then **Play** or
+  **Resume**, with how far it was played and the time left (a show or
+  season plays its next episode: "Play S1 · E3"), **From start** when
+  part played, **Watched**, **My List** (movies and shows), **Trailer**
+  when there is one, and **More** with the rest of the title's actions.
+  The profile's own rating, in half stars: a tap or a drag on iPhone, iPad
+  and Mac (one adjustable element for VoiceOver, "Your rating, 3.5
+  stars"), a list on Apple TV. A movie's or episode's pickers: the
+  version when there are several, the audio track, with **Automatic**
+  first ("Automatic (English)": the profile's languages pick the track,
+  which a track picked here replaces), and the subtitles, with Off; each
+  choice is saved on the server, for the whole show when it is an
+  episode's. The tagline, summary and genres, and the collections it is
+  part of. A show's seasons and the episodes of one (the season of its
+  next episode, else the first that isn't Specials), each with its still,
+  progress or check, number and title, length and air date, and summary;
+  choosing one opens its page, its picture plays it, and a long press
+  gives its actions. A season or an episode lists its season's episodes.
+  Then rows of extras (which play), the cast (Guest Stars on an episode),
+  each opening the person's page, and More Like This; crew (Created by,
+  Director, Writers, four names then "and 2 more", each opening their
+  page); details (original title, release date, studio or network,
+  plays, versions); and **Media info**, each file's facts and streams,
+  behind a disclosure (a button on Apple TV). Watched, My List and the
+  rating show at once and go back, with a toast saying why, when the
+  server refuses. When Play gets the pointer (iPad, Mac) or the focus
+  (Apple TV), the server reads ahead what it plays, at most once in two
+  minutes. After the player closes, and when the server says the title,
+  its show or an episode listed changed, the page reads it again. A title
+  that is gone says so. An extra opens its movie's or show's page, a
+  track its album's.
+  - **iPhone**: one column. At the accessibility text sizes the poster
+    sits above the title, and the buttons and an episode's picture and
+    words stack.
+  - **iPad and Mac**: from 700 points wide, the poster beside the
+    title's column (but one column at the accessibility text sizes), and
+    the rows across below.
+  - **Apple TV**: the backdrop fills the screen behind the title, its
+    facts, summary and a row of buttons (Play, From start, Watched, My
+    List, Trailer, the rating, the version, Audio and Subtitles, More);
+    below come the seasons as a row of buttons (and Open Season), the
+    episodes as a row of cards, then extras, cast, More Like This, and
+    details with Media info. Play/Pause on an episode's card plays it.
+- **A person's page**: their photo (or initials), name and "3 movies · 1
+  show", then a row for each thing they did (Acting, Directing, Creating,
+  Writing, Producing), each title with its year and their part ("as
+  Louise Banks", "Director"). People come from a title's cast and crew,
+  which a metadata source (TMDB) gives.
+- **Music**: an artist's page, with their picture, "4 albums · 40 tracks",
+  what the server says of them and their albums, newest first; and an
+  album's page, with its cover, its artist (a link), the year, "10 tracks ·
+  42m", the profile's rating and its tracks (number, title, the track's
+  own artist when it isn't the album's, length), with disc headings on an
+  album of several discs. An album opened from a track marks that track
+  and scrolls to it (on Apple TV, gives it the focus). Music isn't played
+  yet, so these pages have no Play.
 - **The player**: the system's player on each device, below.
 
 ### Updates from the server
@@ -820,6 +873,22 @@ read `<screen>.<part>[.<id>]` (`servers.address`, `signIn.userCode`,
    server has the new order, and the test puts the server's back.
 10. Sign out, confirmed; the servers show.
 
+Between steps 6 and 7, the title pages:
+
+- A movie (Two Audio, given a genre it shares with Direct H264 by an
+  administrator's edit): its French track picked in Audio and four stars
+  given, each checked on the server; More Like This and Media info show;
+  Play opens the player, which the page behind can't be reached through,
+  and closing it comes back to the page.
+- Shows: the show's page with its episodes, its season's page with its
+  three episodes, and an episode's page.
+- Music: the artist's page, and the album's with its two tracks and no
+  Play.
+
+A person's page is a test of its own, which opens the first title with
+cast; the test server has no metadata source, so no title has cast, and
+the test reports itself skipped.
+
 They need a server set up for them, so a script runs them:
 
 ```sh
@@ -848,7 +917,7 @@ without the script, the UI tests skip.
 |---|---|
 | `Pley.xcodeproj` | The project: the apps `Pley` and `PleyTV` and their UI tests `PleyUITests` and `PleyTVUITests`, with shared schemes of the same names. Its folders are synchronized, so adding a file doesn't change `project.pbxproj` |
 | `Config/` | Build settings (`.xcconfig`), the apps' Info.plist keys and the Mac's entitlements; `project.pbxproj` holds no settings |
-| `Pley/` | The iPhone, iPad and Mac app: `Shell/` (the tab bar, the sidebar and Me), `Kit/` (the views the screens share: `ArtworkTile`, `TileRow`, `TileGrid`, `ItemActionsMenu`, `ServerImage`, `StateView`, `ToastView`, and `Metrics` and `Motion` for sizes and Reduce Motion) and `Screens/` |
+| `Pley/` | The iPhone, iPad and Mac app: `Shell/` (the tab bar, the sidebar and Me), `Kit/` (the views the screens share: `ArtworkTile`, `TileRow`, `TileGrid`, `ItemActionsMenu`, `ServerImage`, `StateView`, `ToastView`, `FlowLayout`, `StarRating`, and `Metrics` and `Motion` for sizes and Reduce Motion) and `Screens/` |
 | `tvOS/` | The Apple TV app, laid out the same way: `Shell/` (the tabs and Settings), `Kit/` (the same views, built for the focus engine) and `Screens/` |
 | `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `Admin.swift` (the administrator's side), `Walk.swift` and `BrowseWalk.swift` (the steps, by accessibility identifier) and `ScreensTests.swift` |
 | `PleyKit/` | One Swift package with everything else, a module per target |
@@ -866,7 +935,7 @@ PleyKit's modules, each depending only on those before it:
 | `PleySubtitles` | Subtitles the app draws: the WebVTT reader, text cues by time, the subtitle sync and its offsets, the server's tracks read with `X-Pley-Complete`, and a port of `packages/picture-subtitles` (the Matroska reader, the PGS, VobSub and DVB decoders, and the pictures by time) |
 | `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, and the Mac player's keys |
 | `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Chapters, Details), the subtitles drawn over the video in the system's caption style (`SubtitleLayer`), Apple TV's contextual actions and chapter markers, and the audio session |
-| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast (`ShellModel`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me and an item's page, as `ObservableObject`s; `AppModel` also owns the one playback at a time, the device's caps, the session reports and the reports kept for later, one set per server and profile |
+| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast (`ShellModel`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`) and music's pages (`ArtistModel`, `AlbumModel`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, the device's caps, the session reports and the reports kept for later, one set per server and profile |
 | `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens, playback sessions with keyed media, libraries with watch marks, My List and orders that change, an event stream the tests push to, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
 | `pley-apple-play` | A command-line tool, on the Mac only, that plays a real server's test media through the player ([A server to test against](#a-server-to-test-against)) |
@@ -987,7 +1056,10 @@ address, to have it found by Bonjour. Delete the folder afterwards.
 - The Mac app's only menu of its own is Playback.
 - No search, playlists or collections yet, and no Add to playlist in a
   title's menu.
-- Artists and albums open the item's page, without pages of their own.
+- Music isn't played: artists' and albums' pages have no Play.
+- People's pages need a title's cast and crew, which come from a metadata
+  source (TMDB); without one, a title lists no one.
+- A title's collections are named, without pages of their own yet.
 - The app doesn't ask "Who's watching?" by itself at start, so a profile
   with a PIN stays chosen until someone switches.
 - Plain http reaches IP addresses, names without dots and `.local` names

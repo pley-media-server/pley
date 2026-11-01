@@ -56,12 +56,14 @@ public enum Screen: Hashable, Codable, Sendable {
     case playlist(Int)
     case history, settings, trackDefaults, diagnostics, about
 
-    /// The page `item` opens: music has its own pages; a track opens its album.
+    /// The page `item` opens: music has its own pages; a track opens its
+    /// album, an extra its movie's or show's page.
     public static func page(of item: ItemSummary) -> Screen {
         switch item.kind {
         case .artist: .artist(item.id)
         case .album: .album(item.id)
         case .track: item.parentId.map { .album($0, track: item.id) } ?? .item(item.id)
+        case .extra: item.parentId.map { .item($0) } ?? .item(item.id)
         default: .item(item.id)
         }
     }

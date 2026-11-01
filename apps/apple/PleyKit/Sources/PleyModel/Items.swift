@@ -24,7 +24,7 @@ public struct StreamKind: WireValue {
 
 /// `GET /api/items/{id}`: an item with everything the server knows about
 /// it (docs/API.md, `ItemDetail`): an `ItemSummary`'s fields and more
-/// beside them in the same object. Cast and crew are left unread here.
+/// beside them in the same object.
 public struct ItemDetail: Codable, Hashable, Sendable, Identifiable {
     public var summary: ItemSummary
     public var originalTitle: String?
@@ -41,6 +41,12 @@ public struct ItemDetail: Codable, Hashable, Sendable, Identifiable {
     public var extras: [ItemSummary]
     /// In the profile's My List (movies and shows).
     public var inWatchlist: Bool
+    /// Actors in billing order; an episode's guest stars; a season's are its show's.
+    public var cast: [Credit]
+    /// Creators, directors, writers and producers.
+    public var crew: [Credit]
+    public var tmdbId: Int?
+    public var imdbId: String?
 
     public var id: Int { summary.id }
     public var kind: ItemKind { summary.kind }
@@ -56,10 +62,13 @@ public struct ItemDetail: Codable, Hashable, Sendable, Identifiable {
         self.markers = markers
         extras = []
         inWatchlist = false
+        cast = []
+        crew = []
     }
 
     private enum CodingKeys: String, CodingKey {
-        case originalTitle, tagline, genres, studio, contentRating, files, markers, extras, inWatchlist
+        case originalTitle, tagline, genres, studio, contentRating, files, markers, extras, inWatchlist, cast, crew,
+             tmdbId, imdbId
     }
 
     public init(from decoder: any Decoder) throws {
@@ -74,6 +83,10 @@ public struct ItemDetail: Codable, Hashable, Sendable, Identifiable {
         markers = try c.value(.markers, or: [])
         extras = try c.value(.extras, or: [])
         inWatchlist = try c.value(.inWatchlist, or: false)
+        cast = try c.value(.cast, or: [])
+        crew = try c.value(.crew, or: [])
+        tmdbId = try c.decodeIfPresent(Int.self, forKey: .tmdbId)
+        imdbId = try c.decodeIfPresent(String.self, forKey: .imdbId)
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -88,6 +101,10 @@ public struct ItemDetail: Codable, Hashable, Sendable, Identifiable {
         try c.encode(markers, forKey: .markers)
         try c.encode(extras, forKey: .extras)
         try c.encode(inWatchlist, forKey: .inWatchlist)
+        try c.encode(cast, forKey: .cast)
+        try c.encode(crew, forKey: .crew)
+        try c.encodeIfPresent(tmdbId, forKey: .tmdbId)
+        try c.encodeIfPresent(imdbId, forKey: .imdbId)
     }
 }
 

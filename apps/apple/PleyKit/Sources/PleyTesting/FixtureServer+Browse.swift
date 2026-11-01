@@ -42,6 +42,11 @@ extension FixtureServer {
         var events: [EventClient] = []
         var eventConnects = 0
         var eventsRefusal: Int?
+        /// The profile's ratings, by item; a `nil` value: taken away.
+        var ratings: [Int: Double?] = [:]
+        var ratingRefusal: Int?
+        /// The items read ahead, in order.
+        var prefetches: [Int] = []
     }
 
     // MARK: Knobs
@@ -87,6 +92,19 @@ extension FixtureServer {
     public var hiddenFromContinueWatching: Set<Int> {
         state.withLock { $0.browse.hidden }
     }
+
+    /// `PUT /api/items/{id}/rating` answers this status from now on (`nil`: normally).
+    public func refuseRating(status: Int?) {
+        state.withLock { $0.browse.ratingRefusal = status }
+    }
+
+    /// The rating item `id` has now; `nil` when never rated, `.some(nil)` when taken away.
+    public func rating(_ id: Int) -> Double?? {
+        state.withLock { $0.browse.ratings[id] }
+    }
+
+    /// The items `POST /api/items/{id}/prefetch` was asked for, in order.
+    public var prefetches: [Int] { state.withLock { $0.browse.prefetches } }
 
     /// `GET /api/events` answers this status from now on (`nil`: a stream).
     public func refuseEvents(status: Int?) {
@@ -241,8 +259,53 @@ extension FixtureServer {
                 return json(200, patched(s, detail))
             }
         case ("GET", 4, "items") where parts[3] == "on-deck":
-            guard let id = Int(parts[2]), s.playables[id] == nil, id == 201 else { return nil }
+            guard let id = Int(parts[2]), s.playables[id] == nil, id == 201 || id == 202 else { return nil }
             return withToken(&s, request, scope: "library") { _, _ in fixture("items/on_deck.json") }
+        case ("GET", 4, "items") where parts[3] == "children":
+            guard let id = Int(parts[2]), s.playables[id] == nil else { return nil }
+            return withToken(&s, request, scope: "library") { s, _ in
+                guard let items = children(id) else { return notFound(request.path) }
+                return json(200, ["items": items.map { patched(s, $0) }])
+            }
+        case ("GET", 4, "items") where parts[3] == "related":
+            guard let id = Int(parts[2]), s.playables[id] == nil else { return nil }
+            return withToken(&s, request, scope: "library") { s, _ in
+                guard detailJSON(s, id) != nil else { return notFound(request.path) }
+                let items = id == 101 || id == 201 ? object("items/related.json")?["items"] as? [[String: Any]] ?? [] : []
+                return json(200, ["items": items.map { patched(s, $0) }])
+            }
+        case ("GET", 4, "items") where parts[3] == "collections":
+            guard let id = Int(parts[2]), s.playables[id] == nil else { return nil }
+            return withToken(&s, request, scope: "library") { _, _ in
+                id == 101 ? fixture("items/collections.json") : json(200, ["collections": [Any]()])
+            }
+        case ("PUT", 4, "items") where parts[3] == "rating":
+            guard let id = Int(parts[2]) else { return nil }
+            return withToken(&s, request, scope: "play") { s, _ in
+                if let status = s.browse.ratingRefusal {
+                    return json(status, ["code": "refused", "message": "not now"])
+                }
+                let body = (try? JSONSerialization.jsonObject(with: request.body)) as? [String: Any] ?? [:]
+                guard body.keys.contains("rating") else { return json(400, ["code": "bad_request", "message": "rating"]) }
+                let rating = body["rating"] as? Double
+                if let rating, !(0...10).contains(rating) {
+                    return json(400, ["code": "bad_request", "message": "a rating is 0 to 10"])
+                }
+                s.browse.ratings[id] = .some(rating)
+                s.browse.version += 1
+                return Answer(status: 204, headers: [:], body: Data())
+            }
+        case ("POST", 4, "items") where parts[3] == "prefetch":
+            guard let id = Int(parts[2]) else { return nil }
+            return withToken(&s, request, scope: "play") { s, _ in
+                s.browse.prefetches.append(id)
+                return Answer(status: 202, headers: [:], body: Data())
+            }
+        case ("GET", 3, "people"):
+            guard let id = Int(parts[2]) else { return nil }
+            return withToken(&s, request, scope: "library") { _, _ in
+                id == 706 ? fixture("people/detail.json") : notFound(request.path)
+            }
         case ("GET", 2, "hubs") where parts.count == 3:
             return nil
         default:
@@ -323,16 +386,70 @@ extension FixtureServer {
                 "added_at": 1_761_300_000, "user_state": ["position_ms": 0, "watched": false, "play_count": 0]]
     }
 
-    /// An item's watch state as the fixture keeps it.
+    /// An item's watch state and rating as the fixture keeps them.
     private static func patched(_ s: State, _ item: [String: Any]) -> [String: Any] {
-        guard let id = item["id"] as? Int, let mark = s.browse.watched[id] else { return item }
+        guard let id = item["id"] as? Int else { return item }
         var item = item
         var state = item["user_state"] as? [String: Any] ?? [:]
-        state["watched"] = mark
-        if mark { state["position_ms"] = 0 }
+        if let rating = s.browse.ratings[id] { state["rating"] = rating ?? NSNull() }
+        if let mark = s.browse.watched[id] {
+            state["watched"] = mark
+            if mark { state["position_ms"] = 0 }
+            if let leaves = item["leaf_count"] as? Int { item["viewed_leaf_count"] = mark ? leaves : 0 }
+        }
         item["user_state"] = state
-        if let leaves = item["leaf_count"] as? Int { item["viewed_leaf_count"] = mark ? leaves : 0 }
         return item
+    }
+
+    /// An item's children: Severance's seasons and season 1's episodes (from
+    /// the fixtures), and the music fixtures' artist and album; `nil` for
+    /// an item the fixture doesn't have.
+    private static func children(_ id: Int) -> [[String: Any]]? {
+        switch id {
+        case 201: object("items/children_seasons.json")?["items"] as? [[String: Any]]
+        case 202: object("items/children_episodes.json")?["items"] as? [[String: Any]]
+        case 206: []
+        case 301: [album]
+        case 302: tracks
+        default: nil
+        }
+    }
+
+    /// The music fixtures beside `items/track_detail.json`: its artist, Nils
+    /// Frahm (301), and its album, All Melody (302), with three tracks
+    /// (the second is the fixture's track 303) on two discs.
+    static var artist: [String: Any] {
+        [
+            "id": 301, "library_id": 3, "kind": "artist", "title": "Nils Frahm", "sort_title": "Frahm, Nils",
+            "added_at": 1_761_100_000, "poster_url": "/api/items/301/images/poster?v=1761100300",
+            "user_state": ["position_ms": 0, "watched": false, "play_count": 0], "child_count": 1, "leaf_count": 3,
+            "summary": "A composer from Hamburg.", "genres": ["Ambient"], "files": [Any](),
+        ]
+    }
+
+    static var album: [String: Any] {
+        [
+            "id": 302, "library_id": 3, "kind": "album", "title": "All Melody", "sort_title": "All Melody", "year": 2018,
+            "parent_id": 301, "parent_title": "Nils Frahm", "added_at": 1_761_100_000,
+            "poster_url": "/api/items/302/images/poster?v=1761100300",
+            "user_state": ["position_ms": 0, "watched": false, "play_count": 0], "leaf_count": 3,
+        ]
+    }
+
+    static var tracks: [[String: Any]] {
+        [
+            track(304, index: 1, disc: 1, title: "Sunson", ms: 552_000),
+            track(303, index: 2, disc: 1, title: "The Whole Universe Wants to Be Touched", ms: 245_000),
+            track(305, index: 1, disc: 2, title: "Forever Changeless", ms: 190_000, artist: "Guest Player"),
+        ]
+    }
+
+    private static func track(_ id: Int, index: Int, disc: Int, title: String, ms: Int,
+                              artist: String = "Nils Frahm") -> [String: Any] {
+        ["id": id, "library_id": 3, "kind": "track", "title": title, "sort_title": title, "year": 2018,
+         "index": index, "parent_id": 302, "parent_title": "All Melody", "parent_index": disc, "grandparent_id": 301,
+         "grandparent_title": artist, "duration_ms": ms, "added_at": 1_761_100_000,
+         "user_state": ["position_ms": 0, "watched": false, "play_count": 0]]
     }
 
     private static func watchlist(_ s: State) -> Set<Int> {
@@ -348,6 +465,9 @@ extension FixtureServer {
             object("libraries/items.json")?["items"] as? [[String: Any]] ?? [],
             object("libraries/items_by_bitrate.json")?["items"] as? [[String: Any]] ?? [],
             object("watchlist/list.json")?["items"] as? [[String: Any]] ?? [],
+            object("items/children_seasons.json")?["items"] as? [[String: Any]] ?? [],
+            object("items/children_episodes.json")?["items"] as? [[String: Any]] ?? [],
+            tracks,
         ] + ((object("hubs/home.json")?["hubs"] as? [[String: Any]] ?? []).map { $0["items"] as? [[String: Any]] ?? [] })
         for list in lists {
             for item in list { if let id = item["id"] as? Int, out[id] == nil { out[id] = patched(s, item) } }
@@ -358,9 +478,11 @@ extension FixtureServer {
     /// Item `id`'s details: its fixture's when there is one, else its summary.
     private static func detailJSON(_ s: State, _ id: Int) -> [String: Any]? {
         for file in ["items/movie_detail.json", "items/show_detail.json", "items/episode_detail.json",
-                     "items/track_detail.json"] {
-            if let detail = object(file), detail["id"] as? Int == id { return detail }
+                     "items/track_detail.json", "items/extra.json"] {
+            if let detail = object(file), detail["id"] as? Int == id { return patched(s, detail) }
         }
+        if id == 301 { return patched(s, artist) }
+        if id == 302 { return patched(s, album.merging(["genres": ["Ambient"], "files": [Any]()]) { a, _ in a }) }
         if let library = s.browse.libraries.first(where: { $0.generated && id / 100_000 == $0.id }) {
             return generated(library, id % 100_000)
         }

@@ -72,6 +72,58 @@ enum Admin {
         return ((answer as? [String: Any])?["items"] as? [[String: Any]] ?? []).compactMap { $0["id"] as? Int }
     }
 
+    /// Item `id` as the administrator sees it: its JSON.
+    static func item(_ id: Int) async -> [String: Any] {
+        await call("GET", "/api/items/\(id)").1 as? [String: Any] ?? [:]
+    }
+
+    /// The top-level titles of library `id`, by title.
+    static func titles(library id: Int) async -> [String: Int] {
+        let (_, answer) = await call("GET", "/api/libraries/\(id)/items?limit=200")
+        let items = (answer as? [String: Any])?["items"] as? [[String: Any]] ?? []
+        return Dictionary(items.compactMap { item -> (String, Int)? in
+            guard let id = item["id"] as? Int, let title = item["title"] as? String else { return nil }
+            return (title, id)
+        }, uniquingKeysWith: { a, _ in a })
+    }
+
+    /// Gives items `ids` the genre `genre`, as an administrator's edit does,
+    /// so they are More Like This for each other.
+    static func genre(_ genre: String, _ ids: [Int]) async {
+        for id in ids {
+            _ = await call("PATCH", "/api/items/\(id)", body: #"{"genres":["\#(genre)"]}"#)
+        }
+    }
+
+    /// The first file of item `id`: the audio track it starts with, and
+    /// whether the administrator picked it.
+    static func audio(_ id: Int) async -> (selected: Int?, picked: Bool, french: Int?) {
+        let file = (await item(id)["files"] as? [[String: Any]])?.first ?? [:]
+        let streams = file["streams"] as? [[String: Any]] ?? []
+        let french = streams.first { $0["kind"] as? String == "audio" && $0["language"] as? String == "fre" }
+        return (file["selected_audio"] as? Int, file["audio_picked"] as? Bool ?? false, french?["index"] as? Int)
+    }
+
+    /// Item `id` as it was before the walk on another device: Automatic
+    /// audio and no rating.
+    static func resetChoices(_ id: Int) async {
+        _ = await call("PUT", "/api/items/\(id)/streams", body: #"{"audio_index":null}"#)
+        _ = await call("PUT", "/api/items/\(id)/rating", body: #"{"rating":null}"#)
+    }
+
+    /// The administrator's own rating of item `id`, 1 to 10.
+    static func rating(_ id: Int) async -> Double? {
+        (await item(id)["user_state"] as? [String: Any])?["rating"] as? Double
+    }
+
+    /// A title of library `id` with cast (from a metadata source), if any.
+    static func titleWithCast(library id: Int) async -> String? {
+        for (title, item) in await titles(library: id).sorted(by: { $0.key < $1.key }) {
+            if !((await self.item(item)["cast"] as? [Any]) ?? []).isEmpty { return title }
+        }
+        return nil
+    }
+
     /// The libraries back in the server's order.
     static func resetLibraryOrder() async {
         _ = await call("DELETE", "/api/me/libraries/order")

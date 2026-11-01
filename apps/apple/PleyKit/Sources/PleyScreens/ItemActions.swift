@@ -147,6 +147,12 @@ public final class ItemActionsModel: ObservableObject {
     private unowned let app: AppModel
     /// Items with a write on its way: a change naming them isn't the server's last word yet.
     private var inFlight: Set<Int> = []
+    /// When each item was last read ahead.
+    private var prefetched: [Int: Date] = [:]
+    /// The time now (the tests set their own).
+    var now: () -> Date = Date.init
+    /// How often an item is read ahead at most.
+    public static let prefetchSeconds: Double = 120
 
     init(app: AppModel) {
         self.app = app
@@ -244,6 +250,19 @@ public final class ItemActionsModel: ObservableObject {
         return ok
     }
 
+    /// Play of `itemId` is about to be pressed: the server reads ahead what
+    /// it plays first. At most once in 2 minutes per item; nothing is said
+    /// when it fails, since Play works without it.
+    public func prefetch(_ itemId: Int) {
+        let time = now()
+        if let last = prefetched[itemId], time.timeIntervalSince(last) < Self.prefetchSeconds { return }
+        prefetched[itemId] = time
+        Task { [app] in
+            guard let api = await app.session.api else { return }
+            try? await api.prefetch(itemId)
+        }
+    }
+
     /// Reads My List's ids.
     public func loadWatchlist() async {
         guard let api = await app.session.api, let items = try? await api.watchlist() else { return }
@@ -263,6 +282,7 @@ public final class ItemActionsModel: ObservableObject {
         watched = [:]
         listed = nil
         inFlight = []
+        prefetched = [:]
     }
 
     private func write(_ id: Int, undo: (ItemActionsModel) -> Void, why: String,

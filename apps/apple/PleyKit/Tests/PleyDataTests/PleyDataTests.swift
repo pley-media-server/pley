@@ -251,6 +251,9 @@ private func fixture() async throws -> FixtureServer {
         #expect(ImageLoader.budget(physicalMemory: 3 << 30, appleTV: true) == 32 << 20)
         #expect(ImageLoader.budget(physicalMemory: 4 << 30, appleTV: true) == 64 << 20)
         #expect(ImageLoader.budget(physicalMemory: 8 << 30, appleTV: false) == 96 << 20)
+        // Backdrops: smaller on the 2 GB iPad.
+        #expect(ImageLoader.backdropLimit(physicalMemory: 2 << 30) == 1536)
+        #expect(ImageLoader.backdropLimit(physicalMemory: 8 << 30) == 1920)
     }
 
     @Test func nearSizesAskForOneWidth() {

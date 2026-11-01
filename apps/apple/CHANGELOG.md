@@ -36,6 +36,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Browse your libraries: sort, filter, jump by letter, and put libraries
   in your own order. Home has See all, and long press or right-click for a
   title's actions. Screens update when something changes on the server.
+- Full title pages: seasons and episodes, cast and crew, extras and
+  trailers, More Like This, media info, your rating, watched marks and My
+  List; people's pages; artist and album pages.
 
 ### Fixed
 

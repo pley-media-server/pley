@@ -16,10 +16,13 @@ struct TileRow: View {
     var remove: ((Tile) async -> Void)?
     /// The focus came to a tile (Home's info block).
     var focused: ((Tile) -> Void)?
+    /// What the identifier starts with: `home.row`, `item.row`.
+    var prefix = "home.row"
     let open: (Tile) -> Void
 
     init(app: AppModel, key: String, title: String, shape: RowShape, tiles: [Tile], seeAll: (() -> Void)? = nil,
-         remove: ((Tile) async -> Void)? = nil, focused: ((Tile) -> Void)? = nil, open: @escaping (Tile) -> Void) {
+         remove: ((Tile) async -> Void)? = nil, focused: ((Tile) -> Void)? = nil, prefix: String = "home.row",
+         open: @escaping (Tile) -> Void) {
         self.app = app
         self.key = key
         self.title = title
@@ -28,6 +31,7 @@ struct TileRow: View {
         self.seeAll = seeAll
         self.remove = remove
         self.focused = focused
+        self.prefix = prefix
         self.open = open
     }
 
@@ -47,7 +51,7 @@ struct TileRow: View {
                     if let seeAll {
                         Button("See all", action: seeAll)
                             .accessibilityLabel("See all, \(title)")
-                            .accessibilityIdentifier("home.row.\(key).seeAll")
+                            .accessibilityIdentifier("\(prefix).\(key).seeAll")
                     }
                 }
                 // Room for the focused tile to lift.
@@ -58,6 +62,6 @@ struct TileRow: View {
         }
         .focusSection()
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("home.row.\(key)")
+        .accessibilityIdentifier("\(prefix).\(key)")
     }
 }
