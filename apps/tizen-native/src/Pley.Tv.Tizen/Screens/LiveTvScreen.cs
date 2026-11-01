@@ -143,7 +143,15 @@ sealed class LiveTvScreen : ShellPage
         Shell.FocusRail();
     }
 
-    public override bool Back() => guide?.Back() == true;
+    /// <summary>
+    /// Back goes up a step at a time: the guide back to now first, then from the guide or the
+    /// channels to the categories, then (the shell's) to the rail; not from the guide to the rail.
+    /// </summary>
+    public override bool Back()
+    {
+        if (guide?.Back() == true) return true;
+        return allowedShown && Tree.Current is { } at && InContent(at) && categories.FocusShown();
+    }
 
     public override void Gone()
     {

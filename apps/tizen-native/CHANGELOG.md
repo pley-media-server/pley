@@ -177,3 +177,5 @@ It has no releases yet: it is built and installed by hand
 - Films start about half a second sooner in the native app: the player
   starts once it has as much as Android's does, and asks for the film
   while its screen is being made.
+- Back in the native app's Live TV guide goes to the categories, then the
+  rail, rather than straight to the rail.

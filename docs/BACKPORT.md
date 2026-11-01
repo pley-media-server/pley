@@ -41,6 +41,9 @@ and LG web apps (`packages/tv`) · **Roku** · **Kodi**.
 
 ## Live TV
 
+- [ ] **Back goes up a step at a time.** From the guide or the channels, Back goes to the
+  categories, then to the rail (the guide back to now first, as before); it went from the guide
+  to the rail. Native "Live TV's Back goes up a step at a time". To: AndTV, TV.
 - [ ] **OK opens the channel list; OK held shows the controls.** On the live player with
   nothing over the channel, OK (on its release) opens the channel list at once; held 0.5 s, it
   shows the controls (Channels, Favourite), and its release presses nothing. Timed from the
