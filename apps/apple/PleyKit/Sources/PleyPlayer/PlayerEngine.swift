@@ -41,16 +41,20 @@ public struct EngineSample: Sendable, Equatable {
     public var ready = false
     /// Frames move.
     public var playing = false
-    /// It wants to play and waits for data.
+    /// It wants to play and waits for data (AVPlayer waits to minimize
+    /// stalls, or the item stalled and hasn't played since).
     public var waiting = false
     /// Video frames decoded so far for this media; `nil` when the engine can't say.
     public var videoFrames: Int?
     /// The size of the picture shown; 0×0 while none shows (or no video).
     public var presentationWidth = 0
     public var presentationHeight = 0
-    /// What the connection carried lately, kbps; `nil` while unknown.
+    /// What the connection carried lately, kbps (the access log's last
+    /// `observedBitrate`); `nil` while unknown.
     public var bandwidthKbps: Int?
-    /// Video frames dropped so far, and seconds watched, for the struggle meter.
+    /// Video frames dropped so far, and seconds watched, for the struggle
+    /// meter (the access log's `numberOfDroppedVideoFrames` and
+    /// `durationWatched`, over this media's events).
     public var droppedFrames = 0
     public var watchedSeconds = 0.0
 
@@ -69,6 +73,9 @@ public protocol PlayerEngine: AnyObject {
     func pause()
     func seek(toMs positionMs: Int)
     func sample() -> EngineSample
+    /// The largest picture the stream should play at, in pixels (AVPlayer's
+    /// `preferredMaximumResolution`, for a stream in several sizes); 0×0 for no limit.
+    func setMaximumResolution(width: Int, height: Int)
     /// Lets go of the media and the player.
     func close()
 }

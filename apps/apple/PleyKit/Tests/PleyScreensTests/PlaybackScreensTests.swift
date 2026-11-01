@@ -27,6 +27,7 @@ final class StillEngine: PlayerEngine {
     func pause() {}
     func seek(toMs positionMs: Int) {}
     func sample() -> EngineSample { EngineSample() }
+    func setMaximumResolution(width: Int, height: Int) {}
 
     func close() {
         closed = true

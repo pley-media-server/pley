@@ -43,8 +43,8 @@ public struct HTTPResponse: Sendable {
 public final class HTTPTransport: Sendable {
     public let userAgent: String
     public let gate: ConnectionGate
-    private let session: URLSession
-    private let directSession: URLSession
+    fileprivate let session: URLSession
+    fileprivate let directSession: URLSession
 
     /// `userAgent` is `UserAgent.current`, read on the main actor.
     public init(userAgent: String, gate: ConnectionGate = ConnectionGate()) {
@@ -121,6 +121,172 @@ public final class HTTPTransport: Sendable {
             if let name = name as? String, let value = value as? String { headers[name.lowercased()] = value }
         }
         return HTTPResponse(url: answer.response.url ?? url, status: status, headers: headers, body: answer.body)
+    }
+}
+
+/// An answer read as it arrived (`HTTPTransport.stream`): its status and
+/// headers, and, for an error status, its body (64 KiB at most).
+public struct StreamedResponse: Sendable {
+    public let url: URL
+    public let status: Int
+    public let headers: [String: String]
+    public let errorBody: Data
+
+    public func header(_ name: String) -> String? { headers[name.lowercased()] }
+}
+
+extension HTTPTransport {
+    /// Sends `request` and hands each piece of a 2xx answer's body to
+    /// `read` as it arrives (its byte count), until `read` returns false or
+    /// the body ends; nothing is kept. An error status's body is read
+    /// whole instead (64 KiB at most), for its error.
+    ///
+    /// Plain http follows Pley's rule, as `perform` does: refused before
+    /// sending when the host's addresses aren't private, and thrown away
+    /// after when the connection's wasn't (then `onLeak`).
+    package func stream(_ request: URLRequest, redirects: RedirectPolicy.Mode,
+                        onLeak: (@Sendable () async -> Void)? = nil,
+                        read: @escaping @Sendable (Int) -> Bool) async throws -> StreamedResponse {
+        guard let url = request.url, let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+              let host = url.host(percentEncoded: false), !host.isEmpty
+        else { throw PleyError.unreachable("that isn't a server address") }
+        let plainHTTP = scheme == "http"
+        if plainHTTP { try await gate.check(host: host) }
+        try Task.checkCancellation()
+
+        var request = request
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        request.httpShouldHandleCookies = false
+        let path = url.path(percentEncoded: true)
+        let observer = StreamObserver(redirects: redirects, read: read)
+        let answer: StreamObserver.Answer
+        do {
+            answer = try await observer.run(plainHTTP ? directSession : session, request)
+        } catch {
+            Log.network.info("GET \(path, privacy: .public) failed")
+            throw PleyError.from(error)
+        }
+        if plainHTTP {
+            do {
+                try gate.verify(metrics: answer.metrics)
+            } catch {
+                await onLeak?()
+                throw error
+            }
+        }
+        var headers: [String: String] = [:]
+        for (name, value) in answer.response.allHeaderFields {
+            if let name = name as? String, let value = value as? String { headers[name.lowercased()] = value }
+        }
+        return StreamedResponse(url: answer.response.url ?? url, status: answer.response.statusCode, headers: headers,
+                                errorBody: answer.errorBody)
+    }
+}
+
+/// `stream`'s delegate: hands a 2xx body's pieces to `read`, and stops
+/// the task when it says so; keeps an error body and the metrics.
+private final class StreamObserver: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+    struct Answer {
+        let response: HTTPURLResponse
+        let errorBody: Data
+        let metrics: URLSessionTaskMetrics?
+    }
+
+    private struct State {
+        var continuation: CheckedContinuation<Answer, any Error>?
+        var response: HTTPURLResponse?
+        var errorBody = Data()
+        var metrics: URLSessionTaskMetrics?
+        var stopped = false
+    }
+
+    private static let maxErrorBody = 64 << 10
+    private let redirects: RedirectPolicy.Mode
+    private let read: @Sendable (Int) -> Bool
+    // Unchecked Sendable: every mutable thing is behind this lock.
+    private let state = OSAllocatedUnfairLock(initialState: State())
+
+    init(redirects: RedirectPolicy.Mode, read: @escaping @Sendable (Int) -> Bool) {
+        self.redirects = redirects
+        self.read = read
+    }
+
+    func run(_ session: URLSession, _ request: URLRequest) async throws -> Answer {
+        let task = session.dataTask(with: request)
+        task.delegate = self
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                state.withLock { $0.continuation = continuation }
+                task.resume()
+            }
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
+                    completionHandler: @escaping @Sendable (URLSession.ResponseDisposition) -> Void) {
+        state.withLock { $0.response = response as? HTTPURLResponse }
+        completionHandler(.allow)
+    }
+
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        let (status, stopped) = state.withLock { ($0.response?.statusCode ?? 0, $0.stopped) }
+        if stopped { return }
+        if !(200..<300).contains(status) {
+            let over = state.withLock { s -> Bool in
+                s.errorBody.append(data.prefix(Self.maxErrorBody - s.errorBody.count))
+                return s.errorBody.count >= Self.maxErrorBody
+            }
+            if over { stop(dataTask) }
+            return
+        }
+        if !read(data.count) { stop(dataTask) }
+    }
+
+    /// Ends the task early: what came is the answer.
+    private func stop(_ task: URLSessionDataTask) {
+        state.withLock { $0.stopped = true }
+        task.cancel()
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest,
+                    completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
+        guard let from = response.url ?? task.currentRequest?.url, let to = request.url,
+              RedirectPolicy.decide(from: from, to: to, mode: redirects)
+        else {
+            completionHandler(nil)
+            return
+        }
+        var next = request
+        if let authorization = task.originalRequest?.value(forHTTPHeaderField: "Authorization") {
+            next.setValue(authorization, forHTTPHeaderField: "Authorization")
+        }
+        completionHandler(next)
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge,
+                    completionHandler: @escaping @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        completionHandler(.performDefaultHandling, nil)
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
+        state.withLock { $0.metrics = metrics }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
+        let (continuation, result) = state.withLock { s -> (CheckedContinuation<Answer, any Error>?, Result<Answer, any Error>) in
+            let continuation = s.continuation
+            s.continuation = nil
+            guard let response = s.response else {
+                return (continuation, .failure(error ?? PleyError.unreachable(PleyError.connectionFailed)))
+            }
+            // Stopped by `read` or the error body's limit: what came is the answer.
+            if let error, !s.stopped { return (continuation, .failure(error)) }
+            return (continuation, .success(Answer(response: response, errorBody: s.errorBody, metrics: s.metrics)))
+        }
+        continuation?.resume(with: result)
     }
 }
 

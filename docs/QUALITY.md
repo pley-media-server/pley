@@ -2,8 +2,8 @@
 
 The Quality menu every Pley player offers, and how Automatic chooses what to
 play. This is the spec for the web app, the Android app (phones and TVs), the
-Samsung and LG apps, Pley for Kodi and Pley for Roku; each app's own doc
-covers only where it differs.
+Apple apps (iPhone, iPad, Mac and Apple TV), the Samsung and LG apps, Pley
+for Kodi and Pley for Roku; each app's own doc covers only where it differs.
 
 Contents: [The menu](#the-menu) · [Original](#original) ·
 [Automatic](#automatic) ·
@@ -138,6 +138,14 @@ server's own quality.
   ([TV_PLATFORMS.md](TV_PLATFORMS.md#quality)), but their players can't
   hold the last picture: the screen is black while the new stream opens,
   and their loading ring waits 2.5 s.
+- The Apple apps prepare the new session as the web app does, requesting
+  its playlist and the segment it starts with (20 s at most), then give
+  AVPlayer the new stream from where the old one got to. AVPlayer can't
+  hold the last picture across streams, so the screen may be black for a
+  moment while the new one opens. They do the same for a quality picked
+  in their menus. With no transcode free for a second session (`503` to
+  `keep_previous`), the old session ends first and the new one starts as
+  any new session does.
 
 ### Stepping up
 
@@ -146,14 +154,17 @@ server's own quality.
   time carries 1.6 times the next quality up (or the file, for Original).
   At most one step every 3 minutes, silently.
 - A title that started lower because of the [memory](#memory) needs only
-  20 s without a play issue (web app and Android app), then goes in one step
-  to the highest quality the network carries 1.6 times, Original included.
+  20 s without a play issue (web app, Android app and Apple apps), then
+  goes in one step to the highest quality the network carries 1.6 times,
+  Original included.
   The memory may come from a slower moment, or from a step down the server
   caused. After a play issue or a step, the usual rules apply.
 - Players measure the network from what they download: an HLS segment's
   size over the time since its first byte (the wait before it is the
-  transcoder's), or a direct play's bytes read while filling its buffer. A
-  player that can't measure stays where it went down to.
+  transcoder's), or a direct play's bytes read while filling its buffer.
+  The Apple apps read AVPlayer's own measure of what it downloads
+  (`observedBitrate` in its access log). A player that can't measure stays
+  where it went down to.
 
 ### Settling
 
@@ -189,7 +200,8 @@ network, as a keyed hash of the network address (never the address):
 Samsung's AVPlay and Kodi's player close one stream before opening the
 next, and Roku's Video node replaces its content the same way. LG's player
 is treated the same. (The web app and the Android
-app switch on the last picture, so this section doesn't apply to them.)
+app switch on the last picture, and the Apple apps switch to a stream made
+ready beforehand, so this section doesn't apply to them.)
 
 On these players Automatic never switches streams while one plays well. It
 changes the stream as it is sent instead:
@@ -225,7 +237,7 @@ changes the stream as it is sent instead:
 ## Several sizes (adaptive bitrate)
 
 A player that switches between sizes by itself sends `caps.hls.variants`
-(hls.js, the browsers' own HLS, Media3, Roku's Video node), and its
+(hls.js, the browsers' own HLS, Media3, AVPlayer, Roku's Video node), and its
 transcodes come in several sizes. Kodi and the Samsung and LG apps don't.
 
 - `master.m3u8` lists the transcode's own size first. A quality with more
@@ -249,11 +261,12 @@ While a session has several sizes (`PlaybackInfo.adaptive`), Automatic
 leaves the network to the player's ABR and watches only for what sizes can't
 fix: dropped frames, and a stall long enough to ask the server. Both still
 restart the session lower; other play issues only restart the calm. The web
-app and the Android app step back up from such a session as
+app, the Android app and the Apple apps step back up from such a session as
 [above](#stepping-up), to the next quality or the Original, so a step down
 from the Original doesn't last the title.
 
-The web app's Automatic plays no size bigger than the player on screen; a
+The web app's and the Apple apps' Automatic plays no size bigger than the
+player on screen (AVPlayer's `preferredMaximumResolution`, in pixels); a
 picked quality plays its own size whenever the connection allows. The menu
 shows the size playing ("Automatic · 720p"), and the dashboard which of the
 sizes ("size 2 of 4").

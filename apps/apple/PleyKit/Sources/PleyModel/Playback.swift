@@ -395,3 +395,21 @@ public enum NetworkReport: Encodable, Hashable, Sendable {
         }
     }
 }
+
+/// What a speed test measured (`GET /api/playback/speedtest`): the bytes
+/// read from the first one on, over `ms`, and whether all of them came
+/// within the time.
+public struct SpeedSample: Hashable, Sendable {
+    public var bytes: Int
+    public var ms: Int
+    public var complete: Bool
+
+    public init(bytes: Int, ms: Int, complete: Bool) {
+        self.bytes = bytes
+        self.ms = ms
+        self.complete = complete
+    }
+
+    /// kbps: bytes × 8 / seconds / 1000.
+    public var kbps: Int { ms <= 0 ? 0 : Int(Double(bytes) * 8 / Double(ms)) }
+}

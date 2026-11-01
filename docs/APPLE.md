@@ -310,9 +310,9 @@ the apps logs the same once, under the subsystem `app.pley.apple`, category
 ## Playing
 
 The player is `PlaybackController` (`PleyPlayer`), a port of the Android
-app's session player, over AVPlayer. It plays one item, in Original quality
-for now: the server picks a file's way to play from the caps report (`mode:
-auto`).
+app's session player, over AVPlayer. It plays one item, at the quality
+picked in its Quality menu ([Quality](#quality)); at the Original, the
+server picks a file's way to play from the caps report (`mode: auto`).
 
 **Starting.** The item's details and the device's caps report are read
 together. The file is the one asked for, else the one the device plays
@@ -338,7 +338,8 @@ and Android players' cadence:
 Reports go out one after the other, in the order they were made, on a
 queue that outlives the player, so a player that closes still sends its
 last position and ends its session. A new session (a fallback, an expired
-session started again) ends the one before first. Closing waits for the
+session started again) ends the one before first; a quality change
+prepares the next one first ([Quality](#quality)). Closing waits for the
 reports at most 2 seconds.
 
 **Answers.** A report answered `410` (`session_stopped`) means the session
@@ -371,6 +372,8 @@ playback on that server and profile.
 - A repackaged stream whose time runs on for 5 seconds without a picture
   (AVPlayer plays HEVC copied into MPEG-TS without one) gets a conversion,
   once.
+- A file played as it is that drops frames (more than 1 % of them over
+  10 seconds, or 10 at once) gets the server's conversion, once.
 
 AVPlayer decodes video with or without a view on screen: a video output
 is attached to every item, and the frames it gives are counted for that
@@ -379,6 +382,52 @@ last rule.
 **Leaving the app.** On iPhone, iPad and Apple TV, going to the background
 pauses and reports at once. Back after more than a minute, the session is
 checked, and one the server forgot starts again where it was, paused.
+
+### Quality
+
+The Quality menu is the one in [QUALITY.md](QUALITY.md#the-menu): Original,
+Automatic and each quality that makes the file smaller, with Original's
+size and bitrate and Automatic's "Now 8 Mbps 1080p · Lowered for your
+connection" as second lines. The choice is remembered on the device for
+each kind of network, cellular and the rest (`NWPathMonitor`), and the next
+playback on that kind of network starts with it. Automatic is the default.
+
+**Automatic** follows [QUALITY.md](QUALITY.md#automatic), with the Android
+app's numbers (`AutoQuality`):
+
+- It asks the server what it knows of the network
+  (`GET /api/playback/network`, 1.5 seconds at most, alongside the item's
+  details) and, on a network the server asks to measure, reads
+  `GET /api/playback/speedtest` for 2 seconds from its first byte and sends
+  the result back; all of it takes 3.5 seconds at most. The server's own
+  network is never measured. Its later ceilings go to the server behind the
+  reports.
+- When the server can't say, the device's own memory decides: the ceiling
+  at the last step down, kept per server for 30 minutes on the time since
+  the device started (`UserDefaults`), so a restart forgets it.
+- It watches the waits, the seconds of video loaded ahead and AVPlayer's
+  own measure of the network (`observedBitrate` in the access log), every
+  half second, and the dropped frames (the access log's count against the
+  seconds watched and the video's frame rate) every 2 seconds.
+- On a stream in several sizes, AVPlayer moves between them, and plays
+  none bigger than the player on screen (`preferredMaximumResolution`, in
+  pixels); a quality picked plays its own size.
+
+**Changing the quality.** A quality picked, or Automatic's step, starts the
+next session beside the one playing (`keep_previous`) and asks for its
+playlist and the segment it starts with as AVPlayer will, 20 seconds at
+most, so the transcoder has it ready. The player then opens the new stream
+from where the old one got to, at that position exactly, and the old
+session is deleted without a `stopped` report, which would only move the
+resume point back. A second change while the first gets ready wins, and
+the first session is deleted. With no transcode free for both (`503`), the
+old session ends first. Automatic's step down says "Quality lowered to
+4 Mbps 720p" once; going back up is silent. Picking Original or Automatic
+while the original plays changes nothing on the screen.
+
+**Details** adds the quality playing, why Automatic lowered it, and, for a
+conversion, what the server makes of the video ("H.264 1280×720"), read
+from the session's status once it plays.
 
 ### The player on each device
 
@@ -413,7 +462,9 @@ episode, and AVPlayer picks no subtitle or audio track of its own.
   pauses, a move to another screen reads the device's caps again, and
   quitting waits for the last reports (2 seconds at most).
 
-Quality has Original only for now.
+Quality's choices show their second line under them: as a subtitle in
+the transport bar's menu on Apple TV and in the Mac's menus, as a second
+line in the Options menu on iPhone and iPad.
 
 The player logs under the subsystem `app.pley.apple`, category `player`:
 the session's method and the first 8 characters of its id, never a keyed
@@ -524,7 +575,7 @@ PleyKit's modules, each depending only on those before it:
 | `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the scope guard and profile switching |
 | `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, and pictures made small and cached |
 | `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
-| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the playback controller, the AVPlayer engine behind a protocol the tests replace, and the Mac player's keys |
+| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), the playback controller, the AVPlayer engine behind a protocol the tests replace, and the Mac player's keys |
 | `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its Quality and Details, and the audio session |
 | `PleyScreens` | What the screens show and do, shared by both apps without any views: the route between screens, the servers, signing in (with the QR code, from Core Image), profiles, Home and an item's page, as `ObservableObject`s; `AppModel` also owns the one playback at a time, the device's caps and the session reports |
 | `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens, playback sessions with keyed media, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
@@ -618,9 +669,8 @@ address, to have it found by Bonjour. Delete the folder afterwards.
 
 ## Known limits
 
-- Quality has Original only; no skip intro or credits, Up Next, chapters,
-  audio switching inside the player or subtitles drawn over the picture
-  yet.
+- No skip intro or credits, Up Next, chapters, audio switching inside the
+  player or subtitles drawn over the picture yet.
 - No seek-bar previews.
 - A subtitle isn't shown over AirPlay.
 - No Live TV, music or downloads.

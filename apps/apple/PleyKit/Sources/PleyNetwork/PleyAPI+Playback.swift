@@ -60,6 +60,38 @@ extension PleyAPI {
         try await client.send("PUT", "/api/playback/network", body: report, as: NetworkAnswer.self)
     }
 
+    /// `GET /api/playback/speedtest?bytes=`, read as it comes: timed from
+    /// the first byte, and stopped `readMs` after it or when all arrived.
+    /// `timeoutMs` bounds the whole request, the wait for the first byte
+    /// included; a test cut short after its first byte still says what it
+    /// measured (docs/API.md, "Network memory").
+    public func speedTest(bytes: Int, readMs: Int, timeoutMs: Int) async throws -> SpeedSample {
+        let reader = SpeedReader(expected: bytes, readMs: readMs)
+        let client = client
+        let query = [URLQueryItem(name: "bytes", value: String(bytes))]
+        do {
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    // The bytes as they travel: nothing to unpack, nothing counted twice.
+                    try await client.bytes("/api/playback/speedtest", query: query,
+                                           headers: ["Accept": "application/octet-stream",
+                                                     "Accept-Encoding": "identity", "Cache-Control": "no-store"],
+                                           read: reader.read)
+                }
+                group.addTask {
+                    try await Task.sleep(for: .milliseconds(max(timeoutMs, 0)))
+                    throw PleyError.timedOut
+                }
+                defer { group.cancelAll() }
+                try await group.next()
+            }
+        } catch {
+            guard let sample = reader.sample else { throw error }
+            return sample
+        }
+        return reader.sample ?? SpeedSample(bytes: 0, ms: 0, complete: false)
+    }
+
     /// The address a player opens for a session's media: `path` (a keyed
     /// `/api/media/{key}/…`, as `PlaybackInfo.url` gives it) on this
     /// server's origin, after Pley's plain http rule. The player sends no

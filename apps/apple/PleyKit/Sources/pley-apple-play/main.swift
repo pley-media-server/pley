@@ -189,6 +189,46 @@ func checkDirect(api: PleyAPI, page: AdminPage, caps: DeviceCaps, reporter: Sess
     say("(a) closed at \(last / 1000) s: the place is saved (\(saved) ms), the session answers 404 and left activity")
 }
 
+/// (g) A quality picked while file 1 plays: a new session converting to
+/// 720 lines takes over from where it got to, and the old one is gone. The
+/// server knows this network as its own, so Automatic measured nothing.
+@MainActor
+func checkQuality(api: PleyAPI, page: AdminPage, caps: DeviceCaps, reporter: SessionReporter, itemId: Int) async throws {
+    let run = Run(api: api, caps: caps, reporter: reporter, itemId: itemId)
+    do {
+        try await run.playing(past: 3_000, seconds: 30)
+        let old = try run.session
+        try check(old.info.method == .direct, "file 1 plays by \(old.info.method.rawValue), not direct")
+        let network = try await api.playbackNetwork(clientId: "apple-play-check")
+        try check(network.local, "the server doesn't take this network for its own")
+        try check(run.controller.speedTests == 0, "Automatic ran \(run.controller.speedTests) speed test(s) at home")
+        run.controller.selectQuality("4m")
+        try await wait("the 4 Mbps session", seconds: 60) { run.controller.session.map { $0.id != old.id } ?? false }
+        let new = try run.session
+        try check(new.info.method == .transcode, "4 Mbps plays by \(new.info.method.rawValue), not transcode")
+        // The new session starts from where the old one got to.
+        let from = run.controller.state.positionMs
+        try check(from >= 3_000, "the new session starts at \(from) ms, not where the old one got to")
+        try await run.playing(past: from + 3_000, seconds: 60)
+        let videoOut = try await api.playbackStatus(new.id).transcode?.videoOut ?? ""
+        try check(videoOut.range(of: #"[x×]720\b"#, options: .regularExpression) != nil,
+                  "the conversion makes \(videoOut), not 720 lines")
+        try check(run.controller.state.videoOut == videoOut, "Details don't show the conversion")
+        do {
+            _ = try await api.playbackStatus(old.id)
+            throw CheckFailure("the old session still answers after the change")
+        } catch PleyError.api(404, _, _) {}
+        try await wait("the old session to leave activity", seconds: 15) { try await activity(page, old.id) == nil }
+        try check(run.controller.speedTests == 0, "a speed test ran at home")
+        say("(g) quality: 4 Mbps took over at \(from / 1000) s as a transcode (\(videoOut)); the old session answers 404 "
+            + "and left activity; the server's own network, no speed test")
+        await run.controller.close()
+    } catch {
+        await run.controller.close()
+        throw error
+    }
+}
+
 /// Plays `itemId` until frames pass 3 s, checks it, and closes.
 @MainActor
 func play(_ name: String, api: PleyAPI, caps: DeviceCaps, reporter: SessionReporter, itemId: Int,
@@ -341,6 +381,8 @@ func run() async throws {
     let reporter = SessionReporter()
 
     try await checkDirect(api: api, page: page, caps: caps, reporter: reporter, itemId: try item("Direct H264"))
+
+    try await checkQuality(api: api, page: page, caps: caps, reporter: reporter, itemId: try item("Direct H264"))
 
     try await play("(b) remux", api: api, caps: caps, reporter: reporter, itemId: try item("Remux H264 AC3")) { _, session in
         try check(session.info.method == .remux, "file 3 plays by \(session.info.method.rawValue), not remux")

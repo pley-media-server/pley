@@ -4,18 +4,24 @@ import PleyScreens
 import SwiftUI
 
 /// The player on Apple TV: the system's player, full screen, with its
-/// transport bar's Quality menu and a Details tab in its info panel. Menu
+/// transport bar's Quality menu (each choice with its second line) and a
+/// Details tab in its info panel. Menu
 /// closes it (when the transport bar isn't showing), which ends the session.
 struct PlayerScreen: View {
     let app: AppModel
     @ObservedObject var controller: PlaybackController
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            PlayerSurface(player: controller.player, state: controller.state,
-                          onQuality: { controller.selectQuality($0) })
-                .ignoresSafeArea()
+            GeometryReader { geometry in
+                PlayerSurface(player: controller.player, state: controller.state,
+                              onQuality: { controller.selectQuality($0) })
+                    .onAppear { sized(geometry.size) }
+                    .onChange(of: geometry.size) { _, size in sized(size) }
+            }
+            .ignoresSafeArea()
             switch controller.state.phase {
             case .preparing where controller.player?.currentItem == nil:
                 ProgressView()
@@ -39,5 +45,10 @@ struct PlayerScreen: View {
         }
         .onAppear { PlaybackAudioSession.activate() }
         .onDisappear { PlaybackAudioSession.deactivate() }
+    }
+
+    /// The player's size in pixels: Automatic plays no stream size bigger than the screen.
+    private func sized(_ size: CGSize) {
+        controller.setViewPixelSize(width: Int(size.width * displayScale), height: Int(size.height * displayScale))
     }
 }

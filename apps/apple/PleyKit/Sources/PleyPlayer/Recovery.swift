@@ -61,6 +61,8 @@ public struct Recovery: Sendable {
     /// The mode asked for instead of the original's, after a fallback.
     public private(set) var fallbackMode: PlaybackMode?
     public private(set) var fallbackReason: FallbackReason?
+    /// The switch for dropped frames happened (once per item).
+    public private(set) var struggleSwitched = false
     public private(set) var recreate = 0
     public private(set) var network = 0
     public private(set) var stuck = 0
@@ -128,6 +130,21 @@ public struct Recovery: Sendable {
         return switchTo(.transcode, .unplayable)
     }
 
+    /// The decoder drops frames: one switch to a transcode per item at the
+    /// server's own quality; `nil` when it switched already or transcodes.
+    public mutating func onStruggling(method: PlaybackMethod) -> Action? {
+        guard !struggleSwitched, method != .transcode else { return nil }
+        struggleSwitched = true
+        transcodeTried = true
+        return switchTo(.transcode, .notSmooth)
+    }
+
+    /// Another quality chosen: its own mode again, as on the web (dropped frames don't switch twice).
+    public mutating func qualityChanged() {
+        fallbackMode = nil
+        fallbackReason = nil
+    }
+
     /// Retry after an error: every new-session budget again.
     public mutating func retry() {
         recreate = 0
@@ -141,6 +158,7 @@ public struct Recovery: Sendable {
         retry()
         fallbackMode = nil
         fallbackReason = nil
+        struggleSwitched = false
         remuxTried = false
         transcodeTried = false
     }

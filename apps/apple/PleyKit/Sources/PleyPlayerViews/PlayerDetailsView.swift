@@ -1,9 +1,10 @@
 import PleyPlayer
 import SwiftUI
 
-/// How the video plays, for Details: the way ("Direct stream"), why the
-/// server didn't play the file as it is, and what the screen gets of HDR
-/// video. Apple TV shows it as an info panel tab, the other devices in the
+/// How the video plays, for Details: the way ("Direct stream"), the
+/// quality and why Automatic went lower, why the server didn't play the
+/// file as it is, what the screen gets of HDR video, and what the server's
+/// conversion makes. Apple TV shows it as an info panel tab, the other devices in the
 /// Options menu (iPhone and iPad) or the action menu (Mac).
 public struct PlayerDetailsView: View {
     let state: PlayerState
@@ -35,11 +36,18 @@ public enum PlayerDetails {
     public static func lines(_ state: PlayerState) -> [Line] {
         var lines: [Line] = []
         lines.append(Line(title: "Playing", text: state.methodLabel ?? "Starting…"))
+        lines.append(Line(title: "Quality", text: state.quality))
+        if let note = state.qualityNote {
+            lines.append(Line(title: "Lowered", text: note))
+        }
         if !state.reasons.isEmpty {
             lines.append(Line(title: "Why", text: state.reasons.joined(separator: " ")))
         }
         if let range = state.videoRange, !range.isEmpty {
             lines.append(Line(title: "Video", text: range))
+        }
+        if let out = state.videoOut, !out.isEmpty {
+            lines.append(Line(title: "Video out", text: out))
         }
         return lines
     }

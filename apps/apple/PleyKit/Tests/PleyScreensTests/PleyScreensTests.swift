@@ -48,7 +48,8 @@ func app(_ store: any TokenStore = MemoryTokenStore(), servers: [SavedServer] = 
     return AppModel(session: session, servers: repository, transport: transport,
                     authenticator: client.signsInWithBrowser ? FakeWebAuthenticator() : nil, discover: discover,
                     caps: DeviceCaps(probe: RecordedProbe()),
-                    playerSetup: .init(clientId: "apple-test", lateReports: late, engines: engines))
+                    playerSetup: .init(clientId: "apple-test", lateReports: late, quality: MemoryQuality(),
+                                       ceilings: { _ in MemoryCeiling() }, engines: engines))
 }
 
 /// Tokens the fixture gave, kept as a sign-in keeps them.

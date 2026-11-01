@@ -8,7 +8,8 @@ import PleyNetwork
 
 /// What a playback needs from the app: the server's API, what the device
 /// plays, this install's client id, the report queue and the late
-/// reports (both the app's, outliving any player), a clock and the engine.
+/// reports (both the app's, outliving any player), the quality picked and
+/// Automatic's ceiling as remembered, a clock and the engine.
 @MainActor
 public struct PlaybackEnvironment {
     public var api: PleyAPI
@@ -16,19 +17,32 @@ public struct PlaybackEnvironment {
     public var clientId: String
     public var reporter: SessionReporter
     public var late: LateReports?
+    /// The quality picked in the menu, per kind of network.
+    public var quality: any QualityMemory
+    /// Automatic's ceiling for this server, for when the server can't say.
+    public var ceiling: any CeilingMemory
     public var clock: any PlayerClock
     public var engines: @MainActor () -> any PlayerEngine
+    /// Asks for a new stream ahead of the player, while the one before plays on.
+    public var warmer: any StreamWarmer
+    public var networkTiming: NetworkStart.Timing
 
     public init(api: PleyAPI, caps: DeviceCaps, clientId: String, reporter: SessionReporter, late: LateReports?,
+                quality: any QualityMemory = MemoryQuality(), ceiling: any CeilingMemory = MemoryCeiling(),
                 clock: any PlayerClock = SystemPlayerClock(),
-                engines: @escaping @MainActor () -> any PlayerEngine = { AVPlayerEngine() }) {
+                engines: @escaping @MainActor () -> any PlayerEngine = { AVPlayerEngine() },
+                warmer: (any StreamWarmer)? = nil, networkTiming: NetworkStart.Timing = NetworkStart.Timing()) {
         self.api = api
         self.caps = caps
         self.clientId = clientId
         self.reporter = reporter
         self.late = late
+        self.quality = quality
+        self.ceiling = ceiling
         self.clock = clock
         self.engines = engines
+        self.warmer = warmer ?? APIStreamWarmer(client: api.client)
+        self.networkTiming = networkTiming
     }
 }
 
@@ -43,13 +57,22 @@ public struct PlaybackEnvironment {
 ///   new session. A `410` answer means the session was stopped from
 ///   elsewhere: the player stops and says so. A `404` means it expired: the
 ///   next play or seek starts a new session where it was.
-/// - **Recovery.** `Recovery`'s ladder for engine errors, 12 s stalls and a
-///   remux without picture.
+/// - **Recovery.** `Recovery`'s ladder for engine errors, 12 s stalls, a
+///   remux without picture, and dropped frames (`StruggleMeter`).
+/// - **Quality.** The quality picked plays as it is; Automatic
+///   (docs/QUALITY.md) plays the original and lets `AutoQuality` step down
+///   and back up, starting from what the server knows of the network
+///   (`NetworkStart`). The pick is remembered per kind of network.
+/// - **Switches.** A quality picked, or Automatic's step, starts the next
+///   session beside the one playing (`keep_previous`): its stream is asked
+///   for ahead (`StreamWarmer`, 20 s at most) while the one before plays
+///   on, then the player moves over where it got to and the one before is
+///   deleted.
 /// - **Background.** iPhone, iPad and Apple TV pause and report when the
 ///   app goes to the background; back after more than 60 s, the session is
 ///   checked and started again, paused, if the server forgot it.
 ///
-/// Original quality only (`mode: auto`); one session at a time.
+/// One session plays at a time; a switch has a second one ready for a moment.
 @MainActor
 public final class PlaybackController: ObservableObject {
     public static let tickMs: Int64 = 500
@@ -63,6 +86,14 @@ public final class PlaybackController: ObservableObject {
     public static let flushMs: Int64 = 2_000
     static let starvingMs = 1_000
     static let seekEndMarginMs = 250
+    /// How often dropped frames are sampled while it plays.
+    static let struggleSampleMs: Int64 = 2_000
+    /// The longest a switch's next stream gets ready before the player moves over all the same.
+    public static let prepareMaxMs: Int64 = 20_000
+    /// The next stream is asked for this far past where the switch began: where the player will be.
+    static let prepareLeadMs = 4_000
+    /// The answer of a server with no transcode free for a second session.
+    static let noTranscodeFree = 503
 
     @Published public private(set) var state = PlayerState()
 
@@ -80,6 +111,20 @@ public final class PlaybackController: ObservableObject {
     private var caps: ClientCaps?
     private var recovery = Recovery()
     private var schedule = ProgressSchedule()
+    private var struggle = StruggleMeter()
+    private var lastStruggleSample: Int64 = 0
+    private let network: NetworkStart
+    private let auto: AutoQuality
+    /// The quality chosen: the menu's or the remembered one, Automatic included.
+    private var picked = Qualities.automatic
+    /// The quality playing: the original or a transcode (Automatic's step, or the one picked).
+    private var quality = Qualities.original
+    /// "Quality lowered to …" is said once the next session loads.
+    private var autoNoticePending = false
+    /// A switch's next session is getting ready: this one's stalls and drops no longer count.
+    private var preparing: NSObject?
+    /// The player's size on screen, in pixels: Automatic plays no stream size bigger.
+    private var viewPixels: (width: Int, height: Int) = (0, 0)
 
     private var startTask: Task<Void, Never>?
     private var sessionTask: Task<Void, Never>?
@@ -105,7 +150,15 @@ public final class PlaybackController: ObservableObject {
     public init(request: PlayRequest, environment: PlaybackEnvironment) {
         self.request = request
         env = environment
+        let network = NetworkStart(api: environment.api, clientId: environment.clientId,
+                                   reporter: environment.reporter, clock: environment.clock,
+                                   timing: environment.networkTiming)
+        self.network = network
+        auto = AutoQuality(memory: environment.ceiling, onCeiling: { network.report($0) })
     }
+
+    /// How many speed tests this playback ran (for the end-to-end check).
+    public var speedTests: Int { network.speedTests }
 
     // MARK: Commands
 
@@ -143,6 +196,7 @@ public final class PlaybackController: ObservableObject {
     public func pause() {
         guard !closed else { return }
         wantPlay = false
+        struggle.reset()
         engine?.pause()
         if let due = schedule.wantsToPlay(false, at: env.clock.now()) { report(due) }
         if mediaShown && !ended { setPhase(.paused) }
@@ -163,6 +217,8 @@ public final class PlaybackController: ObservableObject {
         engine?.seek(toMs: target)
         schedule.sought(at: env.clock.now())
         recovery.onJump()
+        struggle.reset()
+        auto.jumped()
         noPictureFrom = nil
         lastAdvanceAt = env.clock.now()
     }
@@ -171,11 +227,49 @@ public final class PlaybackController: ObservableObject {
         seek(toMs: livePosition() + delta)
     }
 
-    /// A choice of the Quality menu (`state.qualities`). Original, the one
-    /// there is for now, is what plays.
+    /// A choice of the Quality menu (`state.qualities`), remembered for
+    /// this kind of network. Another quality than what plays starts a new
+    /// session beside it; Original and Automatic at the original play on.
+    /// Automatic picked again starts afresh: what was known of the network
+    /// is forgotten.
     public func selectQuality(_ id: String) {
-        guard state.qualities.contains(where: { $0.id == id }) else { return }
-        for i in state.qualities.indices { state.qualities[i].selected = state.qualities[i].id == id }
+        guard !closed, !stopped else { return }
+        let wanted = Qualities.byIdOrLabel(id)
+        guard let choice = Qualities.forFile(file).first(where: { $0.id == wanted.id }), choice.id != picked.id else {
+            return
+        }
+        let before = quality
+        picked = choice
+        if choice.automatic { auto.forgetCeiling() }
+        quality = playedFor(choice)
+        autoNoticePending = false
+        env.quality.remember(choice.id)
+        let same = quality.id == before.id
+        if same {
+            if automatic && recovery.fallbackReason == .notSmooth {
+                auto.deviceFellBehindAtOriginal(nowMs: env.clock.now(),
+                                                convertedKbps: serverQuality(session?.info)?.maxBitrateKbps)
+            }
+            if let info = session?.info { syncAutoOriginal(info) }
+        } else {
+            recovery.qualityChanged()
+        }
+        publishChoices()
+        applyMaximumResolution()
+        if item != nil && !same { restart(at: livePosition(), alongside: true) }
+    }
+
+    /// The player's size on screen in pixels: while Automatic plays, a
+    /// stream in several sizes plays none bigger (as on the web).
+    public func setViewPixelSize(width: Int, height: Int) {
+        guard (width, height) != viewPixels else { return }
+        viewPixels = (width, height)
+        applyMaximumResolution()
+    }
+
+    /// The notice was shown: it goes.
+    public func dismissNotice() {
+        state.notice = nil
     }
 
     /// Try again after an error: every recovery budget again, from where it was.
@@ -238,6 +332,12 @@ public final class PlaybackController: ObservableObject {
     // MARK: Sessions
 
     private func prepareFirst() async {
+        // What the server knows of the network, asked at once when the quality remembered is Automatic.
+        let remembered = env.quality.remembered()
+        let network = network
+        let lookup: Task<NetworkStart.Lookup, Never>? = Qualities.choose(nil, remembered: remembered).automatic
+            ? Task { await network.lookUp() } : nil
+        defer { lookup?.cancel() }
         do {
             async let detail = env.api.item(request.itemId)
             let snapshot = await env.caps.warmUp()
@@ -256,6 +356,12 @@ public final class PlaybackController: ObservableObject {
             }
             file = chosen
             describe(found, chosen)
+            picked = Qualities.choose(chosen, remembered: remembered)
+            var start = StartCeiling.device
+            if picked.automatic, let lookup { start = await network.resolve(await lookup.value) }
+            guard !closed else { return }
+            quality = playedFor(picked, start: start)
+            publishChoices()
             try await begin(at: PlaybackPlan.startMs(found, request))
         } catch is CancellationError {
         } catch {
@@ -278,8 +384,12 @@ public final class PlaybackController: ObservableObject {
         state.positionMs = lastPositionMs
     }
 
-    /// A new session at `atMs`, ending the one before; the previous start is cancelled.
-    private func restart(at atMs: Int) {
+    /// A new session at `atMs`, ending the one before; the previous start
+    /// is cancelled (a new choice wins). `alongside`: a quality change or
+    /// Automatic's step while it plays, made ready beside the session
+    /// playing (`beginBeside`). Recoveries from errors and stalls start at
+    /// once: the stream playing is what failed.
+    private func restart(at atMs: Int, alongside: Bool = false) {
         guard !stopped, !closed else { return }
         sessionTask?.cancel()
         restarts += 1
@@ -287,7 +397,7 @@ public final class PlaybackController: ObservableObject {
         sessionTask = Task { [weak self] in
             guard let self else { return }
             do {
-                try await self.begin(at: atMs)
+                try await self.begin(at: atMs, alongside: alongside)
             } catch is CancellationError {
             } catch {
                 self.failWith(error)
@@ -296,24 +406,97 @@ public final class PlaybackController: ObservableObject {
         }
     }
 
-    private func begin(at atMs: Int) async throws {
-        guard let item, let file else { return }
+    private func begin(at atMs: Int, alongside: Bool = false) async throws {
+        guard item != nil, file != nil else { return }
+        // A change while the media shows: the session playing plays on while the next one gets ready.
+        if alongside, let playing = session, mediaShown, !ended, !state.isFailed {
+            return try await beginBeside(playing, at: atMs)
+        }
         // The session before ends first ("stopped", then DELETE), unless the server is slow to say so.
         if endSession(at: atMs) { await env.reporter.flush(timeoutMs: Self.flushMs, clock: env.clock) }
         try Task.checkCancellation()
         reset(at: atMs)
-        let mode = recovery.fallbackMode ?? .auto
+        let (started, url) = try await startSession(at: atMs, keepPrevious: false)
+        load(started, url: url, at: atMs)
+    }
+
+    /// A change while it plays (a quality, Automatic's step): the next
+    /// session starts beside `playing` (`keep_previous`), which plays on
+    /// while the next one's stream is asked for as AVPlayer will ask for it
+    /// (`StreamWarmer`), so the transcoder makes its first segment; then the
+    /// player moves over from where `playing` got to, and `playing` is
+    /// deleted. With no transcode free for two at once (`503`) it moves as
+    /// any new session does: `playing` ends first.
+    private func beginBeside(_ playing: ServerPlaybackSession, at atMs: Int) async throws {
+        let token = NSObject()
+        preparing = token
+        defer { if preparing === token { preparing = nil } }
+        // The stall watch starts over: the next session is on its way.
+        lastAdvanceAt = env.clock.now()
+        let ready: (ServerPlaybackSession, URL)
+        do {
+            ready = try await startSession(at: atMs, keepPrevious: true)
+        } catch PleyError.api(Self.noTranscodeFree, _, _) {
+            let at = livePosition()
+            if endSession(at: at) { await env.reporter.flush(timeoutMs: Self.flushMs, clock: env.clock) }
+            try Task.checkCancellation()
+            reset(at: at)
+            let (started, url) = try await startSession(at: at, keepPrevious: false)
+            return load(started, url: url, at: at)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // As when the session before ended first: it ends, and the screen says what failed.
+            lastPositionMs = livePosition()
+            endSession(at: lastPositionMs)
+            throw error
+        }
+        let (started, url) = ready
+        if started.info.hls {
+            let (warmer, clock, start) = (env.warmer, env.clock, atMs + Self.prepareLeadMs)
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { try? await warmer.warm(url, startMs: start) }
+                group.addTask { try? await clock.sleep(ms: Self.prepareMaxMs) }
+                await group.next()
+                group.cancelAll()
+            }
+        }
+        // Cancelled for a newer choice, or the session playing ended meanwhile (its end, the server's stop).
+        guard !Task.isCancelled, session === playing, !closed, !stopped else {
+            started.discard()
+            if Task.isCancelled { throw CancellationError() }
+            return
+        }
+        // From where the one before got to while this one got ready; it goes without a "stopped",
+        // which would only move the resume point back.
+        let at = livePosition()
+        session = nil
+        playing.discard()
+        reset(at: at)
+        load(started, url: url, at: at)
+    }
+
+    /// `POST /api/playback` for the choices of the moment at `atMs`, asked
+    /// again with the track indexes when the answer needs them; and the
+    /// keyed address the player opens.
+    private func startSession(at atMs: Int, keepPrevious: Bool) async throws -> (ServerPlaybackSession, URL) {
+        guard let item, let file else { throw CancellationError() }
+        // A lower quality is always a transcode; the original keeps a fallback's mode.
+        let mode: PlaybackMode = quality.original ? recovery.fallbackMode ?? .auto : .transcode
         let decision = caps.map { CapsPolicy.decide(file, $0) }
-        var choices = PlaybackPlan.Choices(file: file, startMs: atMs, mode: mode,
+        var choices = PlaybackPlan.Choices(file: file, startMs: atMs, maxBitrate: quality.maxBitrateKbps,
+                                           maxHeight: quality.maxHeight, mode: mode,
                                            streaming: PlaybackPlan.streams(mode: mode, decision: decision, file: file,
                                                                            audio: nil, caps: caps))
-        var sent = PlaybackPlan.request(itemId: item.id, choices, clientId: env.clientId, caps: caps)
+        var sent = PlaybackPlan.request(itemId: item.id, choices, clientId: env.clientId, caps: caps,
+                                        keepPrevious: keepPrevious)
         var started = try await ServerPlaybackSession.start(api: env.api, request: sent, reporter: env.reporter,
                                                             late: env.late)
         if PlaybackPlan.needsIndexes(started.info, sent: sent, choices) {
             started.discard()
             choices.streaming = true
-            sent = PlaybackPlan.request(itemId: item.id, choices, clientId: env.clientId, caps: caps)
+            sent = PlaybackPlan.request(itemId: item.id, choices, clientId: env.clientId, caps: caps,
+                                        keepPrevious: keepPrevious)
             started = try await ServerPlaybackSession.start(api: env.api, request: sent, reporter: env.reporter,
                                                             late: env.late)
         }
@@ -321,14 +504,12 @@ public final class PlaybackController: ObservableObject {
             started.discard()
             throw CancellationError()
         }
-        let url: URL
         do {
-            url = try await env.api.mediaURL(started.info.url)
+            return (started, try await env.api.mediaURL(started.info.url))
         } catch {
             started.discard()
             throw error
         }
-        load(started, url: url, at: atMs)
     }
 
     private func load(_ started: ServerPlaybackSession, url: URL, at atMs: Int) {
@@ -346,7 +527,17 @@ public final class PlaybackController: ObservableObject {
         state.audioConverted = info.audioConverted
         state.reasons = info.reasons
         state.videoRange = info.videoRange
+        state.videoOut = nil
         if info.durationMs > 0 { state.durationMs = info.durationMs }
+        auto.jumped()
+        syncAutoOriginal(info)
+        if autoNoticePending {
+            autoNoticePending = false
+            let playing = playingPreset(info)
+            if !playing.original { state.notice = PlayerTexts.lowered(to: label(playing)) }
+        }
+        publishChoices()
+        applyMaximumResolution()
         engine?.load(url: url, startMs: atMs, play: wantPlay)
     }
 
@@ -357,6 +548,8 @@ public final class PlaybackController: ObservableObject {
         ended = false
         noPictureFrom = nil
         pictureSeen = false
+        struggle.reset()
+        auto.jumped()
         schedule.restart()
         recovery.onJump()
         lastAdvanceAt = env.clock.now()
@@ -408,6 +601,7 @@ public final class PlaybackController: ObservableObject {
             lastAdvanceAt = env.clock.now()
             if let state = schedule.firstFrame(at: env.clock.now()) { session.progress(positionMs: lastPositionMs, state: state) }
             setPhase(wantPlay ? .playing : .paused)
+            if session.info.method == .transcode { describeConversion(session) }
         case .ended:
             onEnded()
         case .failed(let error):
@@ -430,8 +624,20 @@ public final class PlaybackController: ObservableObject {
         }
         schedule.sought(at: now)
         recovery.onJump()
+        struggle.reset()
+        auto.jumped()
         noPictureFrom = nil
         lastAdvanceAt = now
+    }
+
+    /// What the server's conversion makes of the video (Details), once it runs.
+    private func describeConversion(_ session: ServerPlaybackSession) {
+        let api = env.api
+        Task { [weak self] in
+            let status = try? await api.playbackStatus(session.id)
+            guard let self, self.session === session else { return }
+            self.state.videoOut = status?.transcode?.videoOut
+        }
     }
 
     private func onError(_ error: EngineError, in session: ServerPlaybackSession) {
@@ -456,10 +662,12 @@ public final class PlaybackController: ObservableObject {
         act(recovery.decide(error, method: session.info.method, videoCodec: file?.video?.codec), starving: false)
     }
 
-    private func act(_ action: Recovery.Action, starving: Bool) {
+    /// Does what the recovery ladder says; `alongside`: a new session is
+    /// made ready beside the one playing, which plays on.
+    private func act(_ action: Recovery.Action, starving: Bool, alongside: Bool = false) {
         switch action {
         case .newSession:
-            restart(at: livePosition())
+            restart(at: livePosition(), alongside: alongside)
         case .checkServer:
             guard let session else { return }
             Task { [weak self] in
@@ -475,7 +683,12 @@ public final class PlaybackController: ObservableObject {
                 self.act(self.recovery.afterServerCheck(speed: speed, starving: starving), starving: starving)
             }
         case .suggestLowerQuality:
-            state.notice = PlayerTexts.slowServer
+            // Automatic goes lower by itself; otherwise the person is told a lower quality would help.
+            if automatic, let step = auto.serverTooSlow(nowMs: env.clock.now()) {
+                applyAuto(step)
+            } else {
+                state.notice = PlayerTexts.slowServer
+            }
         case .fail(let failure, let detail):
             if let detail { Log.player.error("playback failed: \(detail, privacy: .public)") }
             fail(PlayerTexts.failure(failure, detail: detail), canRetry: failure != .unplayable)
@@ -512,8 +725,8 @@ public final class PlaybackController: ObservableObject {
             if let due = schedule.due(at: now) { session.progress(positionMs: sample.positionMs, state: due) }
         }
         if case .failed = state.phase { return }
-        guard sessionTask == nil else {
-            // The next session is on its way: this one's stalls no longer count.
+        guard sessionTask == nil, preparing == nil else {
+            // The next session is on its way: this one's stalls and drops no longer count.
             lastAdvanceAt = now
             return
         }
@@ -529,6 +742,136 @@ public final class PlaybackController: ObservableObject {
             return
         }
         checkPicture(sample, session)
+        guard sessionTask == nil else { return }
+        let method = session.info.method
+        // Dropped frames, sampled every 2 s of playback.
+        let moving = mediaShown && wantPlay && !ended && sample.playing
+        if moving, now - lastStruggleSample >= Self.struggleSampleMs {
+            lastStruggleSample = now
+            let frameRate = file?.video?.frameRate.flatMap { $0 > 0 ? $0 : nil } ?? 30
+            if struggle.sample(atMs: now, FrameCounts(sample, frameRate: frameRate)) {
+                struggle.reset()
+                onStruggling(method, now)
+                return
+            }
+        }
+        // A stream in several sizes: AVPlayer moves between them as the
+        // connection allows, without a new session (stalls and dropped
+        // frames still lower it); Automatic only steps back up from it.
+        guard automatic, !state.isFailed else { return }
+        let step = auto.sample(AutoSample(
+            atMs: now, watching: mediaShown && wantPlay && !ended, buffering: sample.waiting,
+            positionMs: sample.positionMs, bufferedMs: sample.bufferedMs, durationMs: state.durationMs,
+            bandwidthKbps: sample.bandwidthKbps, sizes: session.info.adaptive))
+        if let step { applyAuto(step) }
+    }
+
+    // MARK: Quality
+
+    /// The decoder drops frames. The original switches to the server's
+    /// quality, once, by the recovery ladder (in Automatic, that is its
+    /// step down); a transcode in Automatic steps down to fewer lines.
+    private func onStruggling(_ method: PlaybackMethod, _ now: Int64) {
+        if let action = recovery.onStruggling(method: method) {
+            Log.player.notice("frames dropped: asking for a conversion")
+            if automatic {
+                auto.deviceFellBehindAtOriginal(nowMs: now, convertedKbps: nil)
+                autoNoticePending = true
+            }
+            act(action, starving: false, alongside: true)
+        } else if automatic, let step = auto.deviceFellBehind(nowMs: now) {
+            applyAuto(step)
+        }
+    }
+
+    /// Plays what Automatic asked for, from where it is: a new session at
+    /// that quality. Going down says so once, as the new session starts;
+    /// going back up is silent.
+    private func applyAuto(_ step: AutoStep) {
+        guard !closed, !stopped, item != nil else { return }
+        auto.applied(step, nowMs: env.clock.now())
+        quality = step.to
+        autoNoticePending = !step.up
+        Log.player.notice("Automatic: \(step.up ? "up" : "down", privacy: .public) to \(step.to.id, privacy: .public)")
+        publishChoices()
+        restart(at: livePosition(), alongside: true)
+    }
+
+    /// Automatic is chosen and watches.
+    private var automatic: Bool { picked.automatic && auto.active }
+
+    /// What `choice` plays: Automatic starts afresh for the file (at the
+    /// original, or at most at `start`'s ceiling); every other quality
+    /// plays as itself.
+    private func playedFor(_ choice: QualityPreset, start: StartCeiling = .device) -> QualityPreset {
+        guard choice.automatic, let file else {
+            auto.stop()
+            return choice.automatic ? Qualities.original : choice
+        }
+        let described = AutoFile(offered: Qualities.forFile(file), originalKbps: Qualities.fileKbps(file),
+                                 lines: Qualities.linesClassOf(file), cap: Qualities.closest(file))
+        return auto.begin(described, nowMs: env.clock.now(), start: start)
+    }
+
+    /// Tells Automatic what the original plays at in `info`: the file, or the server's conversion of it.
+    private func syncAutoOriginal(_ info: PlaybackInfo) {
+        guard automatic, quality.original else { return }
+        let converted = info.method == .transcode
+        auto.originalPlaysAt(converted ? serverQuality(info)?.maxBitrateKbps : Qualities.fileKbps(file),
+                             converted: converted)
+    }
+
+    /// The quality the server converts the original at in `info`; `nil` when it doesn't, or plays a quality asked for.
+    private func serverQuality(_ info: PlaybackInfo?) -> QualityPreset? {
+        guard quality.original, let id = info?.autoQuality else { return nil }
+        let preset = Qualities.byId(id)
+        return preset.original || preset.automatic ? nil : preset
+    }
+
+    /// What plays in `info`: the quality, or the original's conversion at the server's quality.
+    private func playingPreset(_ info: PlaybackInfo?) -> QualityPreset { serverQuality(info) ?? quality }
+
+    /// `preset`'s name for the file playing: one taller than the file goes by the file's lines ("8 Mbps 720p").
+    private func label(_ preset: QualityPreset) -> String {
+        Qualities.label(preset, fileLines: Qualities.linesClassOf(file))
+    }
+
+    /// Why it plays lower when the player chose it: Automatic's lowering, else a fallback's reason.
+    private func noteNow() -> String? {
+        if automatic, let lowered = auto.loweredFor { return PlayerTexts.lowered(lowered) }
+        return recovery.fallbackReason.map(PlayerTexts.fallback)
+    }
+
+    /// The Quality menu as chosen now, and what plays.
+    private func publishChoices() {
+        let converted = serverQuality(session?.info)
+        let playing = label(converted ?? quality)
+        let note = noteNow()
+        let fileLine = file.map { f in
+            [Words.resolution(width: f.width ?? f.video?.width, height: f.height ?? f.video?.height) ?? "",
+             Words.bitrate(f.bitrate)].filter { !$0.isEmpty }.joined(separator: " · ")
+        }
+        let lowered = automatic && (converted != nil || !quality.original)
+        state.qualities = Qualities.forFile(file).map { preset in
+            let detail: String? = if preset.automatic {
+                lowered ? [PlayerTexts.now(playing), note].compactMap { $0 }.joined(separator: " · ")
+                    : PlayerTexts.automaticHint
+            } else if preset.original {
+                fileLine.flatMap { $0.isEmpty ? nil : $0 }
+            } else {
+                nil
+            }
+            let name = preset.automatic && picked.automatic ? PlayerTexts.automatic(playing) : label(preset)
+            return MenuChoice(id: preset.id, label: name, detail: detail, selected: preset.id == picked.id)
+        }
+        state.quality = automatic ? PlayerTexts.automatic(playing) : label(quality)
+        state.qualityNote = note
+    }
+
+    /// AVPlayer's largest stream size: the player's for Automatic, none for a quality picked.
+    private func applyMaximumResolution() {
+        let (width, height) = automatic ? viewPixels : (0, 0)
+        engine?.setMaximumResolution(width: width, height: height)
     }
 
     /// A remux whose time runs on with no picture for 5 s plays a video

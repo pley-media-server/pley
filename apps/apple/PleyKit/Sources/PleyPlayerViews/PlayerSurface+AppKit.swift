@@ -8,7 +8,9 @@ import SwiftUI
 /// The Mac's player: AVKit's `AVPlayerView` with floating controls and a
 /// full-screen button, showing the controller's AVPlayer.
 ///
-/// - Its action menu (the controls' "…") has Quality and Details.
+/// - Its action menu (the controls' "…") has Quality, each choice with its
+///   second line, and Details.
+/// - Automatic plays no stream size bigger than the view, in pixels.
 /// - The web player's keys work while its window is key (`PlayerKeys`).
 /// - When its window moves to another screen, or the screens change, the
 ///   device's caps are read again for that screen (its size and HDR), for
@@ -90,6 +92,13 @@ public final class PleyPlayerView: AVPlayerView {
         screenChanged()
     }
 
+    public override func layout() {
+        super.layout()
+        // The player's size in pixels: Automatic plays no stream size bigger.
+        let pixels = convertToBacking(bounds).size
+        controller?.setViewPixelSize(width: Int(pixels.width), height: Int(pixels.height))
+    }
+
     /// Lets go of the observers and the key monitor.
     func stop() {
         tokens.forEach { NotificationCenter.default.removeObserver($0) }
@@ -147,7 +156,7 @@ public enum PlayerMenus {
                 controller?.selectQuality(choice.id)
             }
             item.state = choice.selected ? .on : .off
-            item.toolTip = choice.detail
+            item.subtitle = choice.detail
             quality.submenu?.addItem(item)
         }
         menu.addItem(quality)

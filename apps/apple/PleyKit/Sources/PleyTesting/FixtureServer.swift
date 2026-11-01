@@ -66,9 +66,14 @@ public final class FixtureServer: Sendable {
         public var positionMs: Int
         public var watched: Bool
         public var media: Data
+        /// The file's bitrate (bits a second) and size, for the Quality menu.
+        public var bitrate: Int
+        public var width: Int
+        public var height: Int
 
         public init(itemId: Int, fileId: Int, title: String = "Test Movie", container: String = "mp4",
-                    durationMs: Int = 4_000, positionMs: Int = 0, watched: Bool = false, media: Data = Data()) {
+                    durationMs: Int = 4_000, positionMs: Int = 0, watched: Bool = false, media: Data = Data(),
+                    bitrate: Int = 1_000_000, width: Int = 320, height: Int = 180) {
             self.itemId = itemId
             self.fileId = fileId
             self.title = title
@@ -77,6 +82,9 @@ public final class FixtureServer: Sendable {
             self.positionMs = positionMs
             self.watched = watched
             self.media = media
+            self.bitrate = bitrate
+            self.width = width
+            self.height = height
         }
     }
 
@@ -171,6 +179,21 @@ public final class FixtureServer: Sendable {
         var streamsBodies: [Data] = []
         var playbackMethod = "direct"
         var playbackFails: Int?
+        var refuseBeside = false
+        var autoQuality = "8m"
+        var adaptive = false
+        var delays: [String: Int] = [:]
+        var network = Network()
+    }
+
+    /// What the fixture says of the client's network (`/api/playback/network`).
+    private struct Network {
+        var routes = true
+        var local = true
+        var probe = false
+        var ceilings: [String: Int] = [:]
+        var reports: [Data] = []
+        var speedTests = 0
     }
 
     /// A session the fixture started.
@@ -178,6 +201,7 @@ public final class FixtureServer: Sendable {
         let itemId: Int
         let key: String
         let method: String
+        var videoOut = ""
         var stopped: String??
         var expired = false
         var deleted = false
@@ -369,6 +393,40 @@ public final class FixtureServer: Sendable {
         state.withLock { $0.sessions[id]?.expired = true }
     }
 
+    /// `POST /api/playback` with `keep_previous` answers `503` (no transcode free for a second session).
+    public func refuseBeside(_ refuse: Bool = true) {
+        state.withLock { $0.refuseBeside = refuse }
+    }
+
+    /// The `auto_quality` a transcode of the original answers with, and whether sessions come in several sizes.
+    public func setConversion(autoQuality: String = "8m", adaptive: Bool = false) {
+        state.withLock {
+            $0.autoQuality = autoQuality
+            $0.adaptive = adaptive
+        }
+    }
+
+    /// Answers requests to `path` `ms` later; only those of `method` when it is given.
+    public func delay(path: String, ms: Int, method: String? = nil) {
+        state.withLock { $0.delays[method.map { "\($0) \(path)" } ?? path] = ms }
+    }
+
+    /// How the network routes answer: absent (`404`, an older server), the
+    /// server's own network (`local`), or one it asks a speed test on (`probe`).
+    public func setNetwork(routes: Bool = true, local: Bool = true, probe: Bool = false) {
+        state.withLock {
+            $0.network.routes = routes
+            $0.network.local = local
+            $0.network.probe = probe
+        }
+    }
+
+    /// The bodies of `PUT /api/playback/network`, in order.
+    public var networkReports: [Data] { state.withLock { $0.network.reports } }
+
+    /// How many speed tests were asked for.
+    public var speedTests: Int { state.withLock { $0.network.speedTests } }
+
     /// The progress reports received, in order.
     public var progressReports: [ProgressRecord] { state.withLock { $0.progress } }
 
@@ -411,7 +469,11 @@ public final class FixtureServer: Sendable {
             switch Self.parse(buffer) {
             case .some(.some(let request)):
                 let answer = self.handle(request)
-                self.send(answer, on: connection)
+                if let ms = self.state.withLock({ $0.delays["\(request.method) \(request.path)"] ?? $0.delays[request.path] }) {
+                    self.queue.asyncAfter(deadline: .now() + .milliseconds(ms)) { self.send(answer, on: connection) }
+                } else {
+                    self.send(answer, on: connection)
+                }
             case .some(.none):
                 self.send(Answer(status: 400, headers: [:], body: Data()), on: connection)
             case .none:
@@ -597,9 +659,32 @@ public final class FixtureServer: Sendable {
         case ("POST", 2, "playback"):
             return withToken(&s, request, scope: "play") { s, _ in startSession(&s, request.body) }
         case ("GET", 3, "playback") where parts[2] == "network":
-            return withToken(&s, request, scope: "play") { _, _ in
-                json(200, ["local": true, "ceiling_kbps": NSNull(), "source": NSNull(), "since": NSNull(),
-                           "probe": false])
+            return withToken(&s, request, scope: "play") { s, _ in
+                guard s.network.routes else { return notFound(request.path) }
+                return networkAnswer(s.network, client: request.query["client_id"] ?? "")
+            }
+        case ("PUT", 3, "playback") where parts[2] == "network":
+            return withToken(&s, request, scope: "play") { s, _ in
+                guard s.network.routes else { return notFound(request.path) }
+                s.network.reports.append(request.body)
+                let body = (try? JSONSerialization.jsonObject(with: request.body)) as? [String: Any] ?? [:]
+                let client = body["client_id"] as? String ?? ""
+                if let probe = body["probe_kbps"] as? Int {
+                    let complete = body["probe_complete"] as? Bool ?? false
+                    s.network.ceilings[client] = complete ? nil : Int(Double(probe) * 0.7)
+                } else if body.keys.contains("ceiling_kbps") {
+                    s.network.ceilings[client] = body["ceiling_kbps"] as? Int
+                }
+                return networkAnswer(s.network, client: client)
+            }
+        case ("GET", 3, "playback") where parts[2] == "speedtest":
+            return withToken(&s, request, scope: "play") { s, _ in
+                guard s.network.routes else { return notFound(request.path) }
+                s.network.speedTests += 1
+                let count = min(max(Int(request.query["bytes"] ?? "") ?? 33_554_432, 65_536), 67_108_864)
+                return Answer(status: 200, headers: ["Content-Type": "application/octet-stream",
+                                                     "Cache-Control": "no-store, no-transform"],
+                              body: Data(count: count))
             }
         case ("GET", 3, "playback"), ("DELETE", 3, "playback"):
             let id = parts[2]
@@ -611,16 +696,30 @@ public final class FixtureServer: Sendable {
                 }
                 if case .some(let message) = session.stopped { return stoppedAnswer(message) }
                 if session.expired || session.deleted { return expiredAnswer() }
-                return json(200, ["session_id": id, "method": session.method, "transcode": NSNull()])
+                let transcode: Any = session.method == "transcode"
+                    ? ["job_id": "job-" + id, "video_out": session.videoOut, "speed": 1.5, "subtitle_burn": false]
+                    : NSNull()
+                return json(200, ["session_id": id, "method": session.method, "transcode": transcode])
             }
         case ("GET", 4, "media"):
             // The key is the session's own: no token.
             guard let session = s.sessions.values.first(where: { $0.key == parts[2] }) else { return expiredAnswer() }
             if case .some(let message) = session.stopped { return stoppedAnswer(message) }
             if session.expired || session.deleted { return expiredAnswer() }
-            guard let playable = s.playables[session.itemId], parts[3].hasPrefix("file.") else {
-                return notFound("/api/media/…")
+            guard let playable = s.playables[session.itemId] else { return notFound("/api/media/…") }
+            if parts[3] == "index.m3u8" {
+                // Six-second segments covering the item.
+                var playlist = "#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-TARGETDURATION:6\n#EXT-X-PLAYLIST-TYPE:VOD\n"
+                playlist += "#EXT-X-MAP:URI=\"init.mp4\"\n"
+                for n in 0..<max((playable.durationMs + 5_999) / 6_000, 1) { playlist += "#EXTINF:6.000,\n\(n).m4s\n" }
+                playlist += "#EXT-X-ENDLIST\n"
+                return Answer(status: 200, headers: ["Content-Type": "application/vnd.apple.mpegurl"],
+                              body: Data(playlist.utf8))
             }
+            if parts[3] == "init.mp4" || parts[3].hasSuffix(".m4s") {
+                return Answer(status: 200, headers: ["Content-Type": "video/mp4"], body: Data(count: 4_096))
+            }
+            guard parts[3].hasPrefix("file.") else { return notFound("/api/media/…") }
             return ranged(playable.media, range: request.headers["range"], type: "video/mp4")
         default:
             return nil
@@ -634,18 +733,26 @@ public final class FixtureServer: Sendable {
         guard let itemId = asked["item_id"] as? Int, let playable = s.playables[itemId] else {
             return json(404, ["code": "not_found", "message": "item not found"])
         }
+        if s.refuseBeside, asked["keep_previous"] as? Bool == true {
+            return json(503, ["code": "unavailable", "message": "no transcode free"])
+        }
         let method = (asked["mode"] as? String).flatMap { ["remux", "transcode"].contains($0) ? $0 : nil }
             ?? s.playbackMethod
         let id = randomToken()
         let key = "pley_mk_" + randomToken()
-        s.sessions[id] = PlaySession(itemId: itemId, key: key, method: method)
+        let maxBitrate = asked["max_bitrate"] as? Int
+        let lines = (asked["max_height"] as? Int).map { min($0, playable.height) } ?? playable.height
+        s.sessions[id] = PlaySession(itemId: itemId, key: key, method: method,
+                                     videoOut: "H.264 \(lines * 16 / 9)×\(lines)")
         let hls = method != "direct"
+        let autoQuality: Any = method == "transcode" && maxBitrate == nil ? s.autoQuality : NSNull()
         return json(200, [
             "session_id": id, "method": method, "hls": hls, "file_id": playable.fileId,
             "url": hls ? "/api/media/\(key)/index.m3u8" : "/api/media/\(key)/file.\(playable.container)",
             "duration_ms": playable.durationMs, "audio_index": 1, "subtitle_index": NSNull(), "burn_subtitles": false,
             "audio_converted": false, "subtitles": [], "reasons": hls ? ["MKV not supported."] : [],
-            "reason": NSNull(), "auto_quality": NSNull(), "video_range": NSNull(), "adaptive": false,
+            "reason": NSNull(), "auto_quality": autoQuality, "video_range": NSNull(),
+            "adaptive": hls && s.adaptive,
             "live_bitrate": false, "pts_offset_ms": hls ? 0 : NSNull(),
         ])
     }
@@ -657,15 +764,22 @@ public final class FixtureServer: Sendable {
             "user_state": ["position_ms": p.positionMs, "watched": p.watched, "play_count": p.watched ? 1 : 0],
             "files": [[
                 "id": p.fileId, "path": "\(p.title).\(p.container)", "size": p.media.count, "container": p.container,
-                "duration_ms": p.durationMs, "bitrate": 1_000_000, "width": 320, "height": 180, "video_codec": "h264",
-                "audio_codec": NSNull(),
+                "duration_ms": p.durationMs, "bitrate": p.bitrate, "width": p.width, "height": p.height,
+                "video_codec": "h264", "audio_codec": NSNull(),
                 "streams": [["index": 0, "kind": "video", "codec": "h264", "default": true, "profile": "High",
-                             "width": 320, "height": 180, "frame_rate": 30.0, "bit_depth": 8, "level": 30,
+                             "width": p.width, "height": p.height, "frame_rate": 30.0, "bit_depth": 8, "level": 30,
                              "dynamic_range": "sdr"]],
                 "selected_audio": NSNull(), "audio_picked": false, "selected_subtitle": NSNull(), "chapters": [],
             ]],
             "markers": [],
         ]
+    }
+
+    private static func networkAnswer(_ network: Network, client: String) -> Answer {
+        let ceiling = network.ceilings[client]
+        return json(200, ["local": network.local, "ceiling_kbps": ceiling.map { $0 as Any } ?? NSNull(),
+                          "source": ceiling == nil ? NSNull() : "playback" as Any, "since": NSNull(),
+                          "probe": network.probe && ceiling == nil && !network.local])
     }
 
     private static func stoppedAnswer(_ message: String?) -> Answer {

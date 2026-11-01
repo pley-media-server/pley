@@ -22,3 +22,6 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the system player on each device (its own window on the Mac, with
   keyboard shortcuts), and each file sent as this device plays it best,
   in HDR and Dolby Vision where the screen shows them.
+- A Quality menu with Original, Automatic and each quality; Automatic
+  lowers the quality when the video doesn't play smoothly and goes back up
+  when it can.

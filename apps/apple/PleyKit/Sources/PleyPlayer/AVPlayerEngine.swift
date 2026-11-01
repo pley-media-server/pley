@@ -33,6 +33,9 @@ public final class AVPlayerEngine: PlayerEngine {
     private var ready = false
     private var hls = false
     private var frames = 0
+    /// The item stalled, and hasn't played since.
+    private var stalled = false
+    private var maximumResolution = CGSize.zero
     /// The last HTTP error the error log named for this item.
     private var lastHTTPStatus: Int?
     private var closed = false
@@ -57,9 +60,11 @@ public final class AVPlayerEngine: PlayerEngine {
         wantsPlay = play
         ready = false
         frames = 0
+        stalled = false
         lastHTTPStatus = nil
         hls = url.path.hasSuffix(".m3u8")
         let item = AVPlayerItem(asset: AVURLAsset(url: url))
+        item.preferredMaximumResolution = maximumResolution
         let output = AVPlayerItemVideoOutput(pixelBufferAttributes: nil)
         item.add(output)
         self.item = item
@@ -85,6 +90,10 @@ public final class AVPlayerEngine: PlayerEngine {
             center.addObserver(forName: AVPlayerItem.timeJumpedNotification, object: item, queue: .main) {
                 [weak self] _ in
                 Task { @MainActor in self?.jumped() }
+            },
+            center.addObserver(forName: AVPlayerItem.playbackStalledNotification, object: item, queue: .main) {
+                [weak self] _ in
+                Task { @MainActor in self?.stalled = true }
             },
         ]
         player.replaceCurrentItem(with: item)
@@ -113,8 +122,9 @@ public final class AVPlayerEngine: PlayerEngine {
         sample.durationMs = Self.ms(item.duration) ?? 0
         sample.ready = ready
         sample.playing = player.timeControlStatus == .playing
+        if sample.playing { stalled = false }
         sample.waiting = player.timeControlStatus == .waitingToPlayAtSpecifiedRate
-            && player.reasonForWaitingToPlay != .noItemToPlay
+            && (player.reasonForWaitingToPlay == .toMinimizeStalls || stalled)
         for range in item.loadedTimeRanges.map(\.timeRangeValue) where range.containsTime(now) {
             sample.bufferedMs = Self.ms(range.end) ?? sample.positionMs
         }
@@ -131,6 +141,11 @@ public final class AVPlayerEngine: PlayerEngine {
             sample.watchedSeconds = events.reduce(0) { $0 + max($1.durationWatched, 0) }
         }
         return sample
+    }
+
+    public func setMaximumResolution(width: Int, height: Int) {
+        maximumResolution = CGSize(width: max(width, 0), height: max(height, 0))
+        item?.preferredMaximumResolution = maximumResolution
     }
 
     public func close() {

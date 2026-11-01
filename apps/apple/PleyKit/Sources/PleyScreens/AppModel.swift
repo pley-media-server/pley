@@ -42,19 +42,28 @@ public final class AppModel: ObservableObject {
     }
 
     /// What the player needs beside the server: this install's client id,
-    /// where late reports are kept, a clock and the engine. Tests replace them.
+    /// where late reports are kept, the quality picked and Automatic's
+    /// ceilings as remembered, a clock and the engine. Tests replace them.
     public struct PlayerSetup {
         public var clientId: String
         /// `nil`: `Application Support/Pley`.
         public var lateReports: URL?
+        /// The quality picked, per kind of network.
+        public var quality: any QualityMemory
+        /// Automatic's ceiling of the server at an origin.
+        public var ceilings: (String) -> any CeilingMemory
         public var clock: any PlayerClock
         public var engines: @MainActor () -> any PlayerEngine
 
         public init(clientId: String = ClientID.current(), lateReports: URL? = nil,
+                    quality: any QualityMemory = DefaultsQuality(),
+                    ceilings: @escaping (String) -> any CeilingMemory = { DefaultsCeiling(origin: $0) },
                     clock: any PlayerClock = SystemPlayerClock(),
                     engines: @escaping @MainActor () -> any PlayerEngine = { AVPlayerEngine() }) {
             self.clientId = clientId
             self.lateReports = lateReports
+            self.quality = quality
+            self.ceilings = ceilings
             self.clock = clock
             self.engines = engines
         }
@@ -254,8 +263,8 @@ public final class AppModel: ObservableObject {
         else { return nil }
         let environment = PlaybackEnvironment(
             api: api, caps: caps, clientId: playerSetup.clientId, reporter: reporter,
-            late: lateReports(origin: origin, profileId: user.id), clock: playerSetup.clock,
-            engines: playerSetup.engines)
+            late: lateReports(origin: origin, profileId: user.id), quality: playerSetup.quality,
+            ceiling: playerSetup.ceilings(origin), clock: playerSetup.clock, engines: playerSetup.engines)
         let controller = PlaybackController(request: request, environment: environment)
         // Started first, so the screens get its AVPlayer with it.
         controller.start()

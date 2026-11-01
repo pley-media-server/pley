@@ -83,6 +83,9 @@ final class FakeEngine: PlayerEngine {
 
     func sample() -> EngineSample { current }
 
+    private(set) var maximumResolution = (width: 0, height: 0)
+    func setMaximumResolution(width: Int, height: Int) { maximumResolution = (width, height) }
+
     func close() {
         closed = true
         continuation.finish()
@@ -125,14 +128,16 @@ struct Rig {
     let controller: PlaybackController
     let folder: URL
 
-    init(server: FixtureServer, request: PlayRequest) throws {
+    init(server: FixtureServer, request: PlayRequest, quality: any QualityMemory = MemoryQuality(),
+         ceiling: any CeilingMemory = MemoryCeiling(), warmer: (any StreamWarmer)? = nil) throws {
         self.server = server
         folder = FileManager.default.temporaryDirectory.appendingPathComponent("pley-late-\(UUID().uuidString)")
         late = LateReports(origin: server.origin, profileId: 2, directory: folder, clock: clock)
         let caps = DeviceCaps(probe: FixedProbe(input: try recordedProbe()))
         let engine = self.engine
         let env = PlaybackEnvironment(api: api(server), caps: caps, clientId: "apple-test", reporter: reporter,
-                                      late: late, clock: clock, engines: { engine })
+                                      late: late, quality: quality, ceiling: ceiling, clock: clock,
+                                      engines: { engine }, warmer: warmer)
         controller = PlaybackController(request: request, environment: env)
     }
 

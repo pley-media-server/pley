@@ -6,7 +6,7 @@ import SwiftUI
 #if os(iOS)
 /// The player on iPhone and iPad, full screen over the app: the system's
 /// player (its own Close ends the playback) with Pley's Options button
-/// (Quality and Details) under its top row. Options shows with the
+/// (Quality, each with its second line, and Details) under its top row. Options shows with the
 /// system's controls (a tap shows it for 3 seconds) and stays while
 /// paused. A notice shows at the top for 4 seconds.
 struct PlayerScreen: View {
@@ -15,13 +15,18 @@ struct PlayerScreen: View {
     @State private var controlsUntil = Date.distantPast
     @State private var hideTask: Task<Void, Never>?
     @State private var notice: String?
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            PlayerSurface(player: controller.player, state: controller.state, onTap: showControls,
-                          onQuality: { controller.selectQuality($0) })
-                .ignoresSafeArea()
+            GeometryReader { geometry in
+                PlayerSurface(player: controller.player, state: controller.state, onTap: showControls,
+                              onQuality: { controller.selectQuality($0) })
+                    .onAppear { sized(geometry.size) }
+                    .onChange(of: geometry.size) { sized($0) }
+            }
+            .ignoresSafeArea()
             overlay
         }
         .statusBarHidden()
@@ -34,11 +39,17 @@ struct PlayerScreen: View {
         .onChange(of: controller.state.notice) { text in
             guard let text else { return }
             notice = text
+            controller.dismissNotice()
             Task {
                 try? await Task.sleep(for: .seconds(4))
                 if notice == text { notice = nil }
             }
         }
+    }
+
+    /// The player's size in pixels: Automatic plays no stream size bigger.
+    private func sized(_ size: CGSize) {
+        controller.setViewPixelSize(width: Int(size.width * displayScale), height: Int(size.height * displayScale))
     }
 
     private var controlsShown: Bool {
@@ -101,10 +112,17 @@ struct PlayerScreen: View {
                     Button {
                         controller.selectQuality(choice.id)
                     } label: {
+                        // A menu shows a second Text as the choice's second line.
                         if choice.selected {
-                            Label(choice.label, systemImage: "checkmark")
+                            Label {
+                                Text(choice.label)
+                                if let detail = choice.detail { Text(detail) }
+                            } icon: {
+                                Image(systemName: "checkmark")
+                            }
                         } else {
                             Text(choice.label)
+                            if let detail = choice.detail { Text(detail) }
                         }
                     }
                 }
@@ -213,6 +231,7 @@ private struct PlayerWindowContent: View {
         .onChange(of: controller.state.notice) { _, text in
             guard let text else { return }
             notice = text
+            controller.dismissNotice()
             Task {
                 try? await Task.sleep(for: .seconds(4))
                 if notice == text { notice = nil }

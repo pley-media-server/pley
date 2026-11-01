@@ -137,6 +137,17 @@ public enum Words {
         return parts.isEmpty ? "Version \(position + 1)" : parts.joined(separator: " · ")
     }
 
+    /// A bitrate in bits a second: "8.2 Mbps", "12 Mbps", "640 kbps"; empty when unknown.
+    public static func bitrate(_ bps: Int?) -> String {
+        guard let bps, bps > 0 else { return "" }
+        if bps >= 1_000_000 {
+            let mbps = Double(bps) / 1_000_000
+            return String(format: bps >= 10_000_000 ? "%.0f Mbps" : "%.1f Mbps", locale: Locale(identifier: "en_US_POSIX"),
+                          mbps)
+        }
+        return "\(Int((Double(bps) / 1000).rounded())) kbps"
+    }
+
     /// A file's video and sound in one line: "4K · HEVC · Dolby Vision P8.1 · TrueHD Atmos 7.1".
     public static func videoLine(_ file: MediaFile) -> String {
         let video = file.video

@@ -36,8 +36,16 @@ public struct PlayerState: Equatable, Sendable {
     public var notice: String?
     /// The server stopped the session (an administrator, or the profile elsewhere).
     public var stoppedByServer = false
-    /// The Quality menu, the one playing selected.
-    public var qualities: [MenuChoice] = [MenuChoice(id: MenuChoice.original, label: "Original", selected: true)]
+    /// The Quality menu, the one chosen selected: Original, Automatic, then
+    /// the file's qualities (docs/QUALITY.md, "The menu").
+    public var qualities: [MenuChoice] = []
+    /// What plays, by the menu's words: "Automatic · 8 Mbps 1080p", "Original".
+    public var quality = "Automatic"
+    /// Why it plays lower than the original when the player chose it
+    /// ("Lowered for your connection"); `nil` otherwise.
+    public var qualityNote: String?
+    /// What the server's conversion makes of the video ("H.264 1280×720"), once it runs.
+    public var videoOut: String?
 
     public init() {}
 
@@ -85,6 +93,32 @@ enum PlayerTexts {
     static let stoppedByServer = "Playback was stopped by the server's administrator."
     static let nothingToPlay = "This item has no file to play."
     static let slowServer = "The server can't convert this video fast enough; a lower quality would play smoothly."
+    static let automaticHint = "Dynamically adjust to conditions"
+
+    /// The menu's Automatic while it plays `playing`: "Automatic · 8 Mbps 1080p".
+    static func automatic(_ playing: String) -> String { "Automatic · \(playing)" }
+
+    /// Automatic's second line while it plays below the original: "Now 8 Mbps 1080p".
+    static func now(_ playing: String) -> String { "Now \(playing)" }
+
+    /// Said once when Automatic goes down to `label`.
+    static func lowered(to label: String) -> String { "Quality lowered to \(label)" }
+
+    /// Why Automatic plays lower.
+    static func lowered(_ reason: LoweredFor) -> String {
+        switch reason {
+        case .network: "Lowered for your connection"
+        case .device: "Lowered for this device"
+        }
+    }
+
+    /// Why a fallback plays something else than the original.
+    static func fallback(_ reason: FallbackReason) -> String {
+        switch reason {
+        case .unplayable: "This device couldn't play the original file."
+        case .notSmooth: "The original didn't play smoothly on this device."
+        }
+    }
 
     static func stopped(_ message: String?) -> String {
         guard let message, !message.isEmpty else { return stoppedByServer }
