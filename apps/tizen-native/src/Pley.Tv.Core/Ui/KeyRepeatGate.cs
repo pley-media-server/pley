@@ -36,7 +36,12 @@ public sealed class KeyRepeatGate
     /// <summary>The direction pressed and not let go yet: held once <see cref="HoldDelayMs"/> has passed.</summary>
     string? pressed;
 
-    public KeyRepeatGate(Func<long>? clock = null) => this.clock = clock ?? (() => System.Diagnostics.Stopwatch.GetTimestamp() * 1000 / System.Diagnostics.Stopwatch.Frequency);
+    /// <param name="clock">Milliseconds; by default since the gate was made.</param>
+    public KeyRepeatGate(Func<long>? clock = null)
+    {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        this.clock = clock ?? (() => watch.ElapsedMilliseconds);
+    }
 
     /// <summary>Whether a direction key is held down and moving focus by itself now.</summary>
     public bool Holding { get; private set; }

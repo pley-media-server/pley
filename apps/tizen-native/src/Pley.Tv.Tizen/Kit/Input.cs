@@ -49,7 +49,10 @@ sealed class Input
         return new Undo(() => handlers.Remove(handler));
     }
 
-    static long Now => System.Diagnostics.Stopwatch.GetTimestamp() * 1000 / System.Diagnostics.Stopwatch.Frequency;
+    static readonly System.Diagnostics.Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
+
+    /// <summary>Milliseconds since the app started.</summary>
+    static long Now => Clock.ElapsedMilliseconds;
 
     void OnKey(string key, bool down)
     {

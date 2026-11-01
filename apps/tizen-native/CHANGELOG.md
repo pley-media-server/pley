@@ -202,3 +202,5 @@ It has no releases yet: it is built and installed by hand
   apps do: its pages change with what changes on the server and on other
   devices, and Home and the libraries show their scans. Back from a film,
   its page has the new resume point and watched mark.
+- Held keys and a held OK keep working in the native app on a TV that has
+  been on for more than 106 days.
