@@ -5,18 +5,29 @@ import Foundation
 /// the server and passes what the tests need in the environment:
 ///
 /// - `PLEY_ORIGIN`: the server's address.
-/// - `PLEY_ADMIN_TOKEN`: the administrator's web sign-in.
-/// - `PLEY_ADMIN_NAME`, `PLEY_ADMIN_PIN`: the administrator's profile and its PIN.
-/// - `PLEY_KIDS_PIN`: the PIN of the managed profile Kids.
+/// - `PLEY_ADMIN_NAME`: the administrator's profile.
+/// - `PLEY_SECRETS_FILE`: a file only its owner reads, with the
+///   administrator's web sign-in (`token`) and the PINs of the
+///   administrator (`admin_pin`) and the managed profile Kids (`kids_pin`).
+///   They aren't in the environment, which other processes can read.
 /// - `PLEY_SHOTS`: a folder for the screenshots, when set.
 enum Admin {
     static var env: [String: String] { ProcessInfo.processInfo.environment }
     static var origin: String { env["PLEY_ORIGIN"] ?? "" }
     static var adminName: String { env["PLEY_ADMIN_NAME"] ?? "Admin" }
-    static var adminPin: String { env["PLEY_ADMIN_PIN"] ?? "" }
-    static var kidsPin: String { env["PLEY_KIDS_PIN"] ?? "" }
+    static var adminPin: String { secrets["admin_pin"] ?? "" }
+    static var kidsPin: String { secrets["kids_pin"] ?? "" }
     static var shots: String? { env["PLEY_SHOTS"].flatMap { $0.isEmpty ? nil : $0 } }
-    private static var token: String { env["PLEY_ADMIN_TOKEN"] ?? "" }
+    private static var token: String { secrets["token"] ?? "" }
+
+    /// The secrets file, read once.
+    private static let secrets: [String: String] = {
+        guard let path = ProcessInfo.processInfo.environment["PLEY_SECRETS_FILE"], !path.isEmpty,
+              let data = FileManager.default.contents(atPath: path),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: String]
+        else { return [:] }
+        return object
+    }()
 
     /// Whether check-screens.sh set the walk up.
     static var ready: Bool { !origin.isEmpty && !token.isEmpty && !kidsPin.isEmpty && !adminPin.isEmpty }
@@ -159,6 +170,19 @@ enum Admin {
             else { return nil }
             return (id, item)
         }
+    }
+
+    /// The ids of the administrator's signed-in Apple apps
+    /// (`GET /api/users/{id}/apps`), to see a sign-out end its grant.
+    static func appleGrants() async -> Set<Int> {
+        guard let me = (await call("GET", "/api/auth/me").1 as? [String: Any])?["id"] as? Int else { return [] }
+        let (_, answer) = await call("GET", "/api/users/\(me)/apps")
+        return Set((answer as? [[String: Any]] ?? []).compactMap { grant in
+            guard let id = grant["id"] as? Int, let client = grant["client_id"] as? String,
+                  client.hasPrefix("https://pley-media-server.github.io/pley/oauth/") else { return nil }
+            let apple = ["ios", "tvos", "macos"].contains { client.hasSuffix("/\($0).json") }
+            return apple ? id : nil
+        })
     }
 
     /// Deletes the administrator's playlists called any of `titles`, left

@@ -55,6 +55,21 @@ struct Walk {
     func startSignedOut() {
         let address = element("servers.address")
         if address.waitForExistence(timeout: 8) { return }
+        // Signed out at the default text size, where Me is in reach (a test
+        // run again after a failure finds the app as that one left it).
+        let arguments = app.launchArguments
+        if !arguments.isEmpty {
+            app.terminate()
+            app.launchArguments = []
+            app.launch()
+            defer {
+                app.terminate()
+                app.launchArguments = arguments
+                app.launch()
+                wait(address, "the servers")
+            }
+            if address.waitForExistence(timeout: 8) { return }
+        }
         if tile.exists || element("shell.me").exists || app.tabBars.buttons["Me"].exists {
             openMe()
             signOut()
@@ -108,23 +123,49 @@ struct Walk {
 
     /// Me: the tab on iPhone, the sidebar's foot on iPad and Mac.
     func openMe() {
-        let tab = app.tabBars.buttons["Me"]
-        if tab.exists {
-            tab.tap()
-        } else {
-            wait(element("shell.me"), "Me in the sidebar").tap()
-        }
+        openSection("Me", sidebar: "shell.me")
         wait(element("me.name"), "Me")
+    }
+
+    /// Scrolls the page a screen's half, up (`true`: to what is below) or
+    /// down, dragging inside the app's window: a swipe on the whole app can
+    /// start at the screen's bottom edge, where it opens the iPad's Dock,
+    /// which then covers the rows below. Right of the middle, clear of the
+    /// iPad's sidebar.
+    func scrollPage(up: Bool) {
+        let window = app.windows.firstMatch
+        let low = window.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.7))
+        let high = window.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.3))
+        if up {
+            low.press(forDuration: 0.05, thenDragTo: high)
+        } else {
+            high.press(forDuration: 0.05, thenDragTo: low)
+        }
+    }
+
+    /// Whether `element` can be tapped, and on the iPad clear of the
+    /// screen's last 140 points, where the Dock can show over the app.
+    func inReach(_ element: XCUIElement) -> Bool {
+        guard element.exists, element.isHittable else { return false }
+        guard UIDevice.current.userInterfaceIdiom == .pad else { return true }
+        return element.frame.maxY < app.windows.firstMatch.frame.maxY - 140
+    }
+
+    /// The tab called `tab` on iPhone, the sidebar's row `sidebar` on iPad.
+    /// The tab bar is waited for: at the accessibility text sizes it can
+    /// be slow to settle, and a tab checked too early looks missing.
+    @discardableResult
+    func openSection(_ tab: String, sidebar: String) -> XCUIElement {
+        let target = UIDevice.current.userInterfaceIdiom == .pad
+            ? wait(element(sidebar), "\(tab) in the sidebar")
+            : wait(app.tabBars.buttons[tab], "the \(tab) tab")
+        target.tap()
+        return target
     }
 
     /// Home again: the tab on iPhone, the sidebar's row on iPad and Mac.
     func openHome() {
-        let tab = app.tabBars.buttons["Home"]
-        if tab.exists {
-            tab.tap()
-        } else {
-            wait(element("shell.sidebar.home"), "Home in the sidebar").tap()
-        }
+        openSection("Home", sidebar: "shell.sidebar.home")
     }
 
     func meSays(_ name: String, file: StaticString = #filePath, line: UInt = #line) {
@@ -139,5 +180,17 @@ struct Walk {
             .firstMatch
         wait(confirm, "Sign out's confirmation").tap()
         wait(element("servers.address"), "the servers after signing out")
+    }
+
+    /// Sign out, checked on the server too: the app's grant is gone from
+    /// the administrator's signed-in apps, not only from the screen.
+    func signOutEndingTheGrant() async {
+        let before = await Admin.appleGrants()
+        XCTAssertFalse(before.isEmpty, "the app's grant is listed before signing out")
+        signOut()
+        await eventually("the app's grant is gone from the server") {
+            let now = await Admin.appleGrants()
+            return now.count < before.count && now.isSubset(of: before)
+        }
     }
 }

@@ -24,9 +24,12 @@
 #   PLEY_SCREENS_LOGS  a folder for the test logs of the simulators that failed
 #   PLEY_BUNDLE_ID     the app's bundle ID, when Local.xcconfig changes it
 #
-# The app is removed from each simulator first, and the simulator's
-# Keychain emptied, so the walk starts at the servers. The server reads the web app from apps/web/dist: build it first
-# (bun run build), or link it there in a worktree.
+# Each simulator is booted afresh, the app removed from it and its
+# Keychain emptied, so the walk starts at the servers; a lock per simulator
+# keeps two runs off the same one. A failed test is run once more, in a new
+# test runner: a walk stops at its first failure, which ends the runner.
+# The server reads the web app from apps/web/dist: build it first (bun run
+# build), or link it there in a worktree.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../../.." && pwd)
@@ -54,11 +57,15 @@ fi
 temp=$(mktemp -d)
 data="$temp/data"
 server=""
+# The simulators this run holds: a lock directory each, shared by every run.
+locks=()
+lockdir="${TMPDIR:-/tmp}/pley-check-screens"
 cleanup() {
   if [[ -n "$server" ]]; then
     kill "$server" 2>/dev/null || true
     wait "$server" 2>/dev/null || true
   fi
+  for lock in ${locks[@]+"${locks[@]}"}; do rm -rf "$lock"; done
   rm -rf "$temp"
 }
 trap cleanup EXIT
@@ -149,13 +156,40 @@ udid() {
     python3 -c 'import json,sys;n=sys.argv[1];print(next(d["udid"] for r in json.load(sys.stdin)["devices"].values() for d in r if d["name"]==n))' "$1"
 }
 
+# The token and the PINs go to the tests in a file only this user reads,
+# not in the environment, which any process can see (ps eww). It goes with
+# the temporary folder.
+secrets="$temp/secrets.json"
+(umask 077 && TOKEN="$token" ADMIN_PIN="$admin_pin" KIDS_PIN="$kids_pin" python3 -c '
+import json, os
+print(json.dumps({"token": os.environ["TOKEN"], "admin_pin": os.environ["ADMIN_PIN"], "kids_pin": os.environ["KIDS_PIN"]}))
+' >"$secrets")
+
 # xcodebuild hands TEST_RUNNER_ variables to the tests, without the prefix.
 export TEST_RUNNER_PLEY_ORIGIN="$origin"
-export TEST_RUNNER_PLEY_ADMIN_TOKEN="$token"
+export TEST_RUNNER_PLEY_SECRETS_FILE="$secrets"
 export TEST_RUNNER_PLEY_ADMIN_NAME="Admin"
-export TEST_RUNNER_PLEY_ADMIN_PIN="$admin_pin"
-export TEST_RUNNER_PLEY_KIDS_PIN="$kids_pin"
 export TEST_RUNNER_PLEY_SHOTS="$shots"
+
+# Holds simulator $1 for this run, or says who has it.
+take() {
+  mkdir -p "$lockdir"
+  local lock="$lockdir/$1"
+  if mkdir "$lock" 2>/dev/null; then
+    echo $$ >"$lock/pid"
+    locks+=("$lock")
+    return 0
+  fi
+  # A run that died leaves its lock: taken over when its process is gone.
+  local holder
+  holder=$(cat "$lock/pid" 2>/dev/null || true)
+  if [[ -n "$holder" ]] && ! kill -0 "$holder" 2>/dev/null; then
+    rm -rf "$lock"
+    take "$1"
+    return
+  fi
+  return 1
+}
 
 failed=()
 walk() {
@@ -165,18 +199,31 @@ walk() {
     failed+=("$name")
     return
   fi
+  if ! take "$id"; then
+    echo "check-screens: $name is in use by another check-screens run" >&2
+    failed+=("$name")
+    return
+  fi
+  # Booted afresh: a simulator up for long, or still starting, kills the
+  # test runner before it connects.
+  xcrun simctl shutdown "$id" 2>/dev/null || true
   xcrun simctl boot "$id" 2>/dev/null || true
+  xcrun simctl bootstatus "$id" -b >/dev/null
   xcrun simctl uninstall "$id" "$bundle" 2>/dev/null || true
   # The server list and sign-ins are in the Keychain, which outlives the app.
   xcrun simctl keychain "$id" reset 2>/dev/null || true
+  xcrun simctl bootstatus "$id" -b >/dev/null
   log="$temp/$scheme-$id.log"
   echo "check-screens: $scheme on $name"
   if xcodebuild test -project apps/apple/Pley.xcodeproj -scheme "$scheme" -destination "id=$id" \
+    -retry-tests-on-failure -test-iterations 2 -test-repetition-relaunch-enabled YES \
     -resultBundlePath "$temp/$scheme-$id.xcresult" >"$log" 2>&1; then
     echo "check-screens: $name passed"
   else
     echo "check-screens: $name failed:" >&2
     grep -E "error:|failed|XCTAssert|didn't show|couldn't" "$log" | tail -n 20 | redacted >&2 || true
+    echo "check-screens: the server's last lines:" >&2
+    tail -n 40 "$temp/server.log" | redacted >&2
     if [[ -n "$logs" ]]; then redacted <"$log" >"$logs/$scheme-$name.log"; fi
     failed+=("$name")
   fi

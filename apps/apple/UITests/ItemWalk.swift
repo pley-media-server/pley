@@ -13,9 +13,12 @@ extension Walk {
     @discardableResult
     func scroll(to element: XCUIElement, _ what: String, file: StaticString = #filePath,
                 line: UInt = #line) -> XCUIElement {
-        for _ in 0..<8 {
-            if element.exists && element.isHittable { return element }
-            app.swipeUp()
+        var last: CGRect?
+        for _ in 0..<12 {
+            if inReach(element) { return element }
+            if element.exists, element.isHittable, element.frame == last { return element }
+            last = element.exists ? element.frame : nil
+            scrollPage(up: true)
         }
         XCTAssertTrue(element.exists && element.isHittable, "\(what) didn't show", file: file, line: line)
         return element
@@ -57,8 +60,8 @@ extension Walk {
         shot("15-movie-rows")
 
         // Play: the player covers the page, which VoiceOver and taps can't reach.
-        app.swipeDown()
-        app.swipeDown()
+        scrollPage(up: false)
+        scrollPage(up: false)
         let play = scroll(to: button("item.play"), "Play")
         play.tap()
         await eventually("the player covers the page") { !(play.exists && play.isHittable) }
@@ -105,8 +108,8 @@ extension Walk {
         scroll(to: third, "the season's third episode")
         shot("17-season")
 
-        app.swipeDown()
-        app.swipeDown()
+        scrollPage(up: false)
+        scrollPage(up: false)
         scroll(to: episodes.firstMatch, "the season's first episode").tap()
         wait(element("item.seasonLink"), "the episode's season")
         wait(button("item.play"), "the episode's Play")

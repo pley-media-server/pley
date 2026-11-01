@@ -18,8 +18,8 @@ extension Walk {
         tile.tap()
         reveal(button("item.play"), "the item's Play")
         shot("large-02-item")
-        app.swipeUp()
-        app.swipeUp()
+        scrollPage(up: true)
+        scrollPage(up: true)
         shot("large-03-item-below")
         back(to: "Home")
 

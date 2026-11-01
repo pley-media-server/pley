@@ -6,12 +6,7 @@ import XCTest
 extension Walk {
     /// Search: the tab on iPhone, the sidebar's row on iPad.
     func openSearch() {
-        let tab = app.tabBars.buttons["Search"]
-        if tab.exists {
-            tab.tap()
-        } else {
-            wait(element("shell.sidebar.search"), "Search in the sidebar").tap()
-        }
+        openSection("Search", sidebar: "shell.sidebar.search")
     }
 
     /// Searches "clip", opens a movie found and comes back; the search is
@@ -44,8 +39,12 @@ extension Walk {
     @discardableResult
     func reveal(_ element: XCUIElement, _ what: String, file: StaticString = #filePath,
                 line: UInt = #line) -> XCUIElement {
-        for _ in 0..<8 where !(element.exists && element.isHittable) {
-            app.swipeUp()
+        var last: CGRect?
+        for _ in 0..<12 where !inReach(element) {
+            // At the page's end it moves no more: as far as it goes.
+            if element.exists, element.isHittable, element.frame == last { break }
+            last = element.exists ? element.frame : nil
+            scrollPage(up: true)
         }
         XCTAssertTrue(element.exists && element.isHittable, "\(what) didn't show", file: file, line: line)
         return element

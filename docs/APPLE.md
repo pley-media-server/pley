@@ -1085,7 +1085,8 @@ read `<screen>.<part>[.<id>]` (`servers.address`, `signIn.userCode`,
     administrator, the profile in use, asks for its PIN; with Always start as
     the administrator, a second relaunch opens signed in as them, without
     asking (the test puts it back to asking).
-17. Sign out, confirmed; the servers show.
+17. Sign out, confirmed; the servers show, and the server no longer lists
+    the app among the administrator's signed-in apps.
 
 Between steps 6 and 7, the title pages:
 
@@ -1123,17 +1124,26 @@ checks do, and gives it a household and libraries: the administrator
 Shows, Clips and Music, and once they are scanned the collection "Test
 collection" of two movies. Playlists the walk makes are deleted, by
 title, before and after it, since each simulator walks the same server.
-It removes the app from each simulator and empties
-the simulator's Keychain, which outlives the app, so the walk starts at
-the servers, runs `PleyUITests` on iPhone 17 and iPad (A16)
+It boots each simulator afresh, removes the app from it and empties the
+simulator's Keychain, which outlives the app, so the walk starts at the
+servers; a lock per simulator keeps two runs of the script off the same
+one. It runs `PleyUITests` on iPhone 17 and iPad (A16)
 (turned to landscape, where the sidebar shows) and `PleyTVUITests` on Apple
 TV 4K (4th generation), and stops the server and deletes its folder
 afterwards. `PLEY_IOS_SIMS` (names separated by `;`) and `PLEY_TV_SIM` name
 other simulators, `PLEY_SHOTS` a folder for the walk's screenshots, and
-`PLEY_SCREENS_LOGS` a folder for the logs of a simulator that failed. The
-server's address, the administrator's token and the PINs reach the tests
-as `TEST_RUNNER_` variables; nothing the script prints holds them. Run
-without the script, the UI tests skip.
+`PLEY_SCREENS_LOGS` a folder for the logs of a simulator that failed. A
+test that fails runs once more, in a new test runner
+(`-retry-tests-on-failure`); one that fails
+twice fails the run, which then prints the test's errors and the server's
+last 40 log lines, with addresses, tokens and codes left out. The server's
+address reaches the tests as a `TEST_RUNNER_` variable; the
+administrator's token and the PINs are in a file only its owner reads
+(`PLEY_SECRETS_FILE`), never in the environment, and go with the
+temporary folder. Nothing the script prints holds them. Sign out is
+checked on the server too: the app's grant leaves the administrator's
+signed-in apps (`GET /api/users/{id}/apps`). Run without the script, the
+UI tests skip.
 
 ## Code layout
 

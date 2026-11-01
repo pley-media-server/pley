@@ -65,7 +65,7 @@ final class ScreensTests: XCTestCase {
         walk.settings()
         walk.alwaysStartAs()
         walk.openSettings()
-        walk.signOut()
+        await walk.signOutEndingTheGrant()
         walk.shot("07-signed-out")
     }
 

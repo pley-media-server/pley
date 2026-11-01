@@ -161,4 +161,16 @@ struct Walk {
         select(confirm, "Sign out's confirmation", first: [.up, .down])
         wait(button("servers.add"), "the servers after signing out")
     }
+
+    /// Sign out, checked on the server too: the app's grant is gone from
+    /// the administrator's signed-in apps, not only from the screen.
+    func signOutEndingTheGrant() async {
+        let before = await Admin.appleGrants()
+        XCTAssertFalse(before.isEmpty, "the app's grant is listed before signing out")
+        signOut()
+        await eventually("the app's grant is gone from the server") {
+            let now = await Admin.appleGrants()
+            return now.count < before.count && now.isSubset(of: before)
+        }
+    }
 }

@@ -48,22 +48,22 @@ extension Walk {
 
     /// Playlists: the tab on iPhone, the sidebar's row on iPad.
     func openPlaylists() {
-        let tab = app.tabBars.buttons["Playlists"]
-        if tab.exists {
-            tab.tap()
-            // Twice goes back to the list from a playlist left open.
-            if !element("playlists.new").waitForExistence(timeout: 3) { tab.tap() }
-        } else {
-            wait(element("shell.sidebar.playlists"), "Playlists in the sidebar").tap()
-        }
+        let tab = openSection("Playlists", sidebar: "shell.sidebar.playlists")
+        // On iPhone, twice goes back to the list from a playlist left open.
+        if !wide && !element("playlists.new").waitForExistence(timeout: 3) { tab.tap() }
         wait(element("playlists.new"), "Playlists")
     }
 
     /// An entry's context menu, and its item `id` or `label`.
     func entryMenu(_ entry: Int, _ id: String, or label: String) {
         let row = wait(element("playlist.entry.\(entry)"), "entry \(entry)")
-        row.press(forDuration: 1.2)
-        wait(button(id, or: label), label).tap()
+        let item = button(id, or: label)
+        // The menu can miss a press made while the list still moves: one more.
+        for _ in 0..<3 where !item.exists {
+            row.press(forDuration: 1.2)
+            if item.waitForExistence(timeout: 5) { break }
+        }
+        wait(item, label).tap()
     }
 
     /// A movie's actions, Add to playlist and New playlist "UI Test"; a
@@ -109,6 +109,11 @@ extension Walk {
         wait(element("playlist.title"), "UI Test's page")
         wait(element("playlist.entry.\(entries[1])"), "UI Test's second entry")
         shot("18-playlist")
+        // Play and Shuffle keep their words and a button's height in the list's header.
+        let play = wait(button("playlist.play"), "the playlist's Play")
+        XCTAssertLessThan(play.frame.height, 80, "Play is \(play.frame.height) pt high")
+        XCTAssertLessThan(button("playlist.shuffle").frame.height, 80, "Shuffle stays a button's height")
+        XCTAssertEqual(play.label, "Play", "Play keeps its title")
 
         entryMenu(entries[1], "playlist.entry.moveUp", or: "Move Up")
         await eventually("the server has the second entry first") {
