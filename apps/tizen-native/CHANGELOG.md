@@ -179,3 +179,4 @@ It has no releases yet: it is built and installed by hand
   while its screen is being made.
 - Back in the native app's Live TV guide goes to the categories, then the
   rail, rather than straight to the rail.
+- The native app's "Exit Pley?" is a narrower dialog.

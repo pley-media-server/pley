@@ -167,7 +167,8 @@ sealed class Shell
     /// </summary>
     void AskExit(Action exit)
     {
-        var dialog = new Dialog(this, "Exit Pley?", "");
+        // A short question: a narrow card, its title and two buttons.
+        var dialog = new Dialog(this, "Exit Pley?", "", width: 360);
         dialog.Button("Cancel", dialog.Close);
         dialog.Button("Exit", exit, initial: true);
         dialog.Show();

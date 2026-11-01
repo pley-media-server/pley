@@ -13,18 +13,24 @@ namespace Pley.Tv.Tizen.Kit;
 /// </summary>
 sealed class Dialog : Sheet
 {
-    const float Width = 560, Padding = 24, Radius = 16;
+    /// <summary>A dialog's width, unless it asks for its own (a short question needs less).</summary>
+    public const float DefaultWidth = 560;
+
+    const float Padding = 24, Radius = 16;
+
+    readonly float width;
 
     readonly Shell shell;
     readonly ButtonRow buttons = new ButtonRow(12);
     readonly View card;
     ButtonView? first;
 
-    public Dialog(Shell shell, string title, string body) : base("dialog", Axis.Row)
+    public Dialog(Shell shell, string title, string body, float width = DefaultWidth) : base("dialog", Axis.Row)
     {
         this.shell = shell;
+        this.width = width;
         View.BackgroundColor = PleyColors.Scrim;
-        var inner = Width - Padding * 2;
+        var inner = width - Padding * 2;
         var titleLabel = Text.Label(title, PleyType.Title, PleyColors.Fg, maxLines: 2, width: inner);
         titleLabel.VerticalAlignment = VerticalAlignment.Top;
         var bodyLabel = Text.Label(body, PleyType.Body, PleyColors.Muted, maxLines: 4, width: inner);
@@ -41,8 +47,8 @@ sealed class Dialog : Sheet
         var height = buttonsY + Ui.Dp(PleyTv.ButtonHeight + Padding);
         card = new View
         {
-            Size = new Size(Ui.Dp(Width), height),
-            Position = new Position(Ui.Dp((PleyTv.CanvasWidth - Width) / 2), (Ui.Dp(PleyTv.CanvasHeight) - height) / 2),
+            Size = new Size(Ui.Dp(width), height),
+            Position = new Position(Ui.Dp((PleyTv.CanvasWidth - width) / 2), (Ui.Dp(PleyTv.CanvasHeight) - height) / 2),
             CornerRadius = Ui.Dp(Radius),
             BackgroundColor = PleyColors.Surface2,
         };
@@ -57,7 +63,7 @@ sealed class Dialog : Sheet
     public ButtonView Button(string text, Action onClick, Color? color = null, bool initial = false)
     {
         var b = buttons.Add(new ButtonView(text, ButtonKind.Text, onClick, color));
-        buttons.PositionX = Ui.Dp(Width - Padding - buttons.WidthDp);
+        buttons.PositionX = Ui.Dp(width - Padding - buttons.WidthDp);
         if (initial || first == null) first = b;
         return b;
     }
