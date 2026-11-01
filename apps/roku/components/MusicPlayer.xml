@@ -48,5 +48,7 @@
         <!-- The sleep timer's look, once a second while it is set or has
              paused the music. -->
         <Timer id="sleepTimer" duration="1" repeat="true" />
+        <!-- Progress told while paused (Player.brs). -->
+        <Timer id="pausedTimer" repeat="true" />
     </children>
 </component>

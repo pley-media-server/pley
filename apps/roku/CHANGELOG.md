@@ -54,6 +54,12 @@ describes how they are made.
 - An album of several discs lists its tracks under Disc 1, Disc 2 and so
   on, as the other apps do.
 
+### Fixed
+
+- A paused video or track goes on telling the server where it is, every
+  30 s, as the other apps do, so a long pause no longer drops the server's
+  session: it stays on the dashboard's Now playing and plays on at once.
+
 ## [0.1.1] - 2026-11-01
 
 ### Added

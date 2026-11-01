@@ -1,6 +1,6 @@
 ' The player (docs/API.md, "Playback"). Progress goes to the server about
-' every 10 s while playing, on pause, and as "stopped" on the way out, then
-' the session is closed. A stream that breaks is checked with the server:
+' every 10 s while playing, on pause and every 30 s while paused, and as
+' "stopped" on the way out, then the session is closed. A stream that breaks is checked with the server:
 ' stopped by an administrator (410), the player leaves and says so;
 ' otherwise it starts again where it was, with a new session and the
 ' current token (a token that ran out answers 401 to the Video node).
@@ -123,6 +123,9 @@ sub init()
     m.sleepButtons.observeField("buttonSelected", "onKeepWatching")
     m.sleepTimer = m.top.findNode("sleepTimer")
     m.sleepTimer.observeField("fire", "onSleepTick")
+    m.pausedTimer = m.top.findNode("pausedTimer")
+    m.pausedTimer.duration = playerPausedReportEveryMs() / 1000
+    m.pausedTimer.observeField("fire", "onPausedTick")
     m.video.observeField("downloadedSegment", "onSegment")
     m.syncButtons.buttons = ["Done", "Reset"]
     m.syncButtons.observeField("buttonSelected", "onSyncButton")
@@ -140,6 +143,12 @@ sub init()
     m.countdownTimer.observeField("fire", "onCountdown")
     m.top.observeField("active", "onActive")
     m.top.observeField("serverStopped", "onServerStopped")
+end sub
+
+' Paused, the progress goes on being told, so the session stays the
+' player's.
+sub onPausedTick()
+    if m.video.state = "paused" then report("paused")
 end sub
 
 ' This playback's session stopped from elsewhere: it ends now, not at its
@@ -710,6 +719,7 @@ end sub
 sub onState(event as object)
     state = event.getData()
     watchState(state)
+    if state <> "paused" then m.pausedTimer.control = "stop"
     if state = "playing"
         m.played = true
         m.loading.visible = false
@@ -731,6 +741,7 @@ sub onState(event as object)
     if state = "paused"
         m.paused = true
         report("paused")
+        m.pausedTimer.control = "start"
     else if state = "finished"
         ended()
     else if state = "error"
@@ -873,6 +884,7 @@ sub finish()
     m.tracksFrom = -1
     m.countdownTimer.control = "stop"
     m.sleepTimer.control = "stop"
+    m.pausedTimer.control = "stop"
     m.sleepNotice.visible = false
     newTitle()
     m.toastTimer.control = "stop"

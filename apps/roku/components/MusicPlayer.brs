@@ -1,8 +1,9 @@
 ' The music player (docs/API.md, "Playback"): each track gets a session
 ' (POST /api/playback, the Roku's capabilities with it), plays with the
 ' scene's Audio node (the token in its HTTP agent, renewed as the token
-' is), reports progress about every 10 s, on pause and as "stopped" when
-' it ends or another starts, and its session is closed then. A track that
+' is), reports progress about every 10 s, on pause and every 30 s while
+' paused, and as "stopped" when it ends or another starts, and its session
+' is closed then. A track that
 ' doesn't play as it is plays again converted, once; one that doesn't play
 ' at all is passed over. The end of the queue stops it. The queue keeps
 ' the order it was given in (lib/Music.brs), so Stop shuffling puts it
@@ -40,6 +41,9 @@ sub init()
     m.sleepShown = ""
     m.sleepTimer = m.top.findNode("sleepTimer")
     m.sleepTimer.observeField("fire", "onSleepTick")
+    m.pausedTimer = m.top.findNode("pausedTimer")
+    m.pausedTimer.duration = playerPausedReportEveryMs() / 1000
+    m.pausedTimer.observeField("fire", "onPausedTick")
     showSleep(sleepNow())
 end sub
 
@@ -161,6 +165,7 @@ end sub
 sub onState(event as object)
     state = event.getData()
     if m.info = invalid then return
+    if state <> "paused" then m.pausedTimer.control = "stop"
     if state = "playing"
         wasPaused = m.top.state = "paused"
         m.played = true
@@ -170,6 +175,7 @@ sub onState(event as object)
     else if state = "paused"
         m.top.state = "paused"
         report("paused")
+        m.pausedTimer.control = "start"
     else if state = "finished"
         m.top.positionMs = m.top.durationMs
         ' The sleep timer ends with this track: the next one waits, paused.
@@ -253,7 +259,14 @@ sub passOver(message as string)
 end sub
 
 ' Nothing plays any more: the queue goes, and the sleep timer with it.
+' Paused, the progress goes on being told, so the session stays the
+' player's.
+sub onPausedTick()
+    if m.audio.state = "paused" then report("paused")
+end sub
+
 sub stopAll()
+    m.pausedTimer.control = "stop"
     finishTrack()
     m.attempt = m.attempt + 1
     m.audio.control = "stop"

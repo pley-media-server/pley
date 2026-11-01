@@ -82,6 +82,8 @@
         </Group>
         <Timer id="countdownTimer" duration="1" repeat="true" />
         <Timer id="toastTimer" duration="4" />
+        <!-- Progress told while paused (Player.brs). -->
+        <Timer id="pausedTimer" repeat="true" />
         <!-- The sleep timer's look, once a second while it is set. -->
         <Timer id="sleepTimer" duration="1" repeat="true" />
         <!-- Automatic's look at the playback, once a second while it plays. -->
