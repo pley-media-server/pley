@@ -433,7 +433,10 @@ function pageTileOptions(tile as object, continueWatching as boolean, inList as 
     end if
     options.Push({ label: "Add to playlist", action: "playlist" })
     if continueWatching then options.Push({ label: "Remove from Continue Watching", action: "hide" })
-    if kind = "episode" and httpNumber(tile.grandparentId, 0) > 0 then options.Push({ label: "Go to show", action: "show" })
+    if kind = "episode" and httpNumber(tile.grandparentId, 0) > 0
+        options.Push({ label: "Go to show", action: "show" })
+        if httpNumber(tile.parentId, 0) > 0 then options.Push({ label: "Go to season", action: "season" })
+    end if
     return options
 end function
 

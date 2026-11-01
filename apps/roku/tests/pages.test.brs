@@ -179,6 +179,7 @@ sub test_pages_tile_options_by_kind()
     tkEqual(labels(pageTileOptions({ kind: "movie", itemId: 12, watched: true }, true, true)), ["Mark as unwatched", "Remove from My List", "Add to playlist", "Remove from Continue Watching"])
     tkEqual(labels(pageTileOptions({ kind: "show", itemId: 99 }, false, invalid)), ["Mark as watched", "Add to playlist"], "My List not known")
     tkEqual(labels(pageTileOptions({ kind: "episode", itemId: 101, grandparentId: 99 }, true, false)), ["Mark as watched", "Add to playlist", "Remove from Continue Watching", "Go to show"])
+    tkEqual(labels(pageTileOptions({ kind: "episode", itemId: 101, parentId: 100, grandparentId: 99 }, false, invalid)), ["Mark as watched", "Add to playlist", "Go to show", "Go to season"])
     tkEqual(pageTileOptions({ kind: "person", itemId: 7 }, false, false).Count(), 0)
     tkEqual(labels(pageTileOptions({ kind: "album", itemId: 5 }, false, false)), ["Add to playlist"], "music: playlists only")
 end sub

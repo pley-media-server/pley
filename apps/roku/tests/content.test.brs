@@ -190,7 +190,9 @@ sub test_content_episode_details_name_show_and_episode()
     episode.files = [{ id: 8, container: "mp4" }]
     detail = contentDetail(episode, contentTestServer())
     tkEqual(detail.buttons, ["Play", "Mark as unwatched", "More…"], "watched; no My List for an episode")
-    tkEqual(detail.more, [{ label: "Rate", action: "rate" }, { label: "Go to show", action: "show" }, { label: "Media info", action: "info" }, { label: "Add to playlist", action: "playlist" }])
+    tkEqual(detail.more, [{ label: "Rate", action: "rate" }, { label: "Go to show", action: "show" }, { label: "Go to season", action: "season" }, { label: "Media info", action: "info" }, { label: "Add to playlist", action: "playlist" }])
+    episode.parent_id = invalid
+    tkEqual(contentDetail(episode, contentTestServer()).more[2].action, "info", "no season to go to")
     tkEqual(detail.showId, 99)
     tkEqual(detail.seasonId, 100)
     tkEqual(detail.heading, "Severance")

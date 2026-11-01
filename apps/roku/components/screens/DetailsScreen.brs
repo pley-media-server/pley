@@ -399,7 +399,7 @@ sub onButton(event as object)
 end sub
 
 ' What the title's tile would do with the Options key: mark it, My List,
-' Add to playlist, Go to show.
+' Add to playlist, Go to show or season.
 sub titleAction(action as string)
     uiTitleAction({ itemId: m.detail.itemId, kind: m.detail.kind, parentId: m.detail.seasonId, grandparentId: m.detail.showId }, action)
 end sub
@@ -407,7 +407,8 @@ end sub
 ' --- The panel ---
 
 ' More: what is used less, in a menu over the right of the page, as on the
-' other TVs: the profile's rating, Go to show, Media info, Add to playlist.
+' other TVs: the profile's rating, Go to show and Go to season, Media info,
+' Add to playlist.
 sub openMore()
     labels = []
     for each entry in m.detail.more

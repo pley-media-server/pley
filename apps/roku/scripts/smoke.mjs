@@ -367,6 +367,8 @@ const seeAll = { after: -1 };
 const searched = { again: false };
 // A title's media info filled its panel.
 const mediaInfo = { shown: false };
+// An episode's More went to its season.
+const season = { opened: false };
 
 async function walk() {
   // A cold start of brs-node can take a while.
@@ -381,6 +383,22 @@ async function walk() {
   await press("select"); // the first of Continue Watching: an episode
   await waitFor(/^GET \/api\/items\/103$/, since, "its details");
   shoot("details");
+  // More…, after Resume, Play from start, the watched mark and Audio and
+  // subtitles: Go to season, its episodes; Back to the episode's page, up
+  // to Resume.
+  await press("down", 4);
+  await press("select"); // Rate, Go to show, Go to season, Media info, Add to playlist
+  await sleep(500);
+  shoot("episode-more");
+  since = mark();
+  await press("down", 2);
+  await press("select");
+  await waitFor(/^GET \/api\/items\/100\/children$/, since, "the episode's season");
+  season.opened = true;
+  since = mark();
+  await press("back");
+  await waitFor(/^GET \/api\/items\/103$/, since, "the episode's page again");
+  await press("up", 4);
   // Back while the player starts: the session that comes after is closed.
   since = mark();
   fixture.playbackDelayMs = 2500;
@@ -1249,6 +1267,7 @@ const checks = [
   ["turned its subtitles off on its page, the audio picked there kept", fixture.streams.some((s) => s.item === 1011 && s.audio_index === 2 && s.subtitle_index === null)],
   ["played the version chosen on its page", fixture.playbacks.some((p) => p.item === 1011 && p.file_id === 10011)],
   ["showed a movie's media info from its More", mediaInfo.shown],
+  ["went to an episode's season from its More", season.opened],
   ["played a movie's trailer from its page, from the start", fixture.playbacks.some((p) => p.item === 4000 && p.start_ms === 0)],
   ["asked for a show's More Like This and collections", asked(/^GET \/api\/items\/99\/related\?limit=20$/) && asked(/^GET \/api\/items\/99\/collections$/)],
   ["opened a person's page", asked(/^GET \/api\/people\/7$/)],

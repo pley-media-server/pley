@@ -28,6 +28,9 @@ describes how they are made.
   its streams in full, as on the other apps.
 - A title with a trailer among its extras has Trailer on its page, which
   plays it from the start.
+- An episode's More… and the Options key on its tile have Go to season,
+  its season's episodes; Go to show opens the show's page, as on the
+  other apps.
 - A playlist's entries move: the Options key's Move lifts one, Up and Down
   carry it, OK puts it there and Back puts it back.
 - Settings has Always start as, for a household of several profiles: the

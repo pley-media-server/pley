@@ -42,7 +42,7 @@ than one profile.
 
 | Key | Where | What it does |
 |---|---|---|
-| Options (\*) | A title | Mark watched, My List, Add to playlist, Remove from Continue Watching, Go to show |
+| Options (\*) | A title | Mark watched, My List, Add to playlist, Remove from Continue Watching, Go to show, Go to season |
 | Options (\*) | Watch history | Removes it |
 | Options (\*) | A playlist entry | Move (Up and Down carry it, OK puts it there, Back puts it back), Remove from playlist |
 | Options (\*) | A request | What can be done with it (Approve, Decline, Withdraw…) |
@@ -192,7 +192,9 @@ to the rows under them.
     it only when picked here, Automatic as none, as on the other TVs.
 - **More**, what is used less, as on the other TVs: Rate (Your rating,
   once given: No rating, or 1 to 5 stars, kept for the profile on the
-  server), Go to show, Media info and Add to playlist.
+  server), an episode's Go to show (the show's page) and Go to season
+  (its episodes), Media info and Add to playlist. The Options key on an
+  episode's tile goes to them alike.
 - **Media info** (a movie or an episode with a file): each file, under its
   edition or "VERSION 2" when there are several, and every stream in
   full, in the other apps' words (codec, profile and level, size, frame
