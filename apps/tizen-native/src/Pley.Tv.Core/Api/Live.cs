@@ -135,6 +135,28 @@ public sealed record LiveWatching
 }
 
 /// <summary>
+/// GET /api/live/sessions/{session}/plan: what the transcoder makes of the channel a session
+/// watches (<see cref="Video"/>: <c>copy</c> or the encoder; <see cref="Audio"/>: <c>copy</c>,
+/// <c>aac</c> or <c>none</c>). Sent as it is, the channel plays from its <c>stream.ts</c>, sooner
+/// than its first HLS segments (<see cref="Direct"/>).
+/// </summary>
+public sealed record LivePlan
+{
+    public string? VideoCodec { get; init; }
+    public int? Width { get; init; }
+    public int? Height { get; init; }
+    public double? FrameRate { get; init; }
+    public bool Interlaced { get; init; }
+    public string? AudioCodec { get; init; }
+    public int? AudioChannels { get; init; }
+    public string Video { get; init; } = "";
+    public string Audio { get; init; } = "";
+
+    /// <summary>The channel is sent as it is (or without picture or sound): <c>stream.ts</c> plays it straight away.</summary>
+    public bool Direct => Video is "copy" or "none" && Audio is "copy" or "none";
+}
+
+/// <summary>
 /// A connection of a channel's source in use, as a <c>409</c> from watching lists them:
 /// <see cref="Watchers"/> names who watches (administrators only), <see cref="Yours"/> only the
 /// asker does, and whether it may be taken over.

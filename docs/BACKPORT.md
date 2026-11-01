@@ -38,6 +38,11 @@ and LG web apps (`packages/tv`) · **Roku** · **Kodi**.
 
 ## Live TV
 
+- [ ] **stream.ts for sound the device decodes.** The plan's `direct` asks for video and audio
+  as they are; the native app also plays `stream.ts` when the audio is converted only for players
+  that can't decode it (AC3, E-AC3, MP2 on every Samsung TV), where HLS took ~0.8 s longer and
+  cost the server a conversion. Native "Live TV starts from the channel's stream.ts"
+  (`LiveRules.PlaysAsSent`, tested). AndTV: the same, by what the device's decoders take.
 - [ ] **Left through empty guide time.** On a channel with no programmes, Left goes back a half
   hour at a time as Right goes on; before, it left the guide for the categories from wherever
   Right had gone. Native `925375c7` (`GuideCursor.MoveLeft`, test changed). The rule came from

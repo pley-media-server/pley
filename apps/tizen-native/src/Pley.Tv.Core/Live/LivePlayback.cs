@@ -96,14 +96,22 @@ public sealed record LiveState(long? ChannelId = null, LivePhase? Phase = null, 
 /// - <see cref="Tune"/> asks the server for the channel with this TV's client id, which ends what
 ///   it watched before (zapping never holds two of the provider's connections), and a keyed
 ///   playlist address, since the TV's player can't send the token; the session before is let go.
-///   The playlist is asked for once first, as the server waits for the channel's first segments
-///   before it answers and the TV's player gives up sooner. Then the TV's player plays it from
-///   the live edge. Android reads the channel's MPEG-TS first where it is sent as it is; that
-///   address takes the token, so the TV has HLS only.
+/// - As Android's, the channel's <c>stream.ts</c> (MPEG-TS as the provider sends it) is read at
+///   once, under an id of its own, while the server is asked what the channel is made into: sent
+///   as it is, or with sound the TV decodes itself (<see cref="LiveRules.PlaysAsSent"/>), that plays
+///   from its first keyframe rather than after the first HLS segments. Its address takes the
+///   token, which the TV's player can't send, so this app reads it and hands it on
+///   (<see cref="ILiveServer.Stream"/>). It is asked for with the channel, not after: the server
+///   tunes for whichever comes first.
+/// - Otherwise, or when it fails, the HLS: its playlist is asked for once first, as the server
+///   waits for the channel's first segments before it answers and the TV's player gives up
+///   sooner. Then the TV's player plays it from the live edge.
 /// - It is watched as it airs: no pausing, no going back.
 /// - The TV's player says nothing of a playlist that has gone: a stall of 5 s asks the server
 ///   whether watching ended (and why), one of 20 s is a failure. A failure asks the same, then
-///   tunes again twice (after 1 s, then 3 s) before it says why it doesn't play.
+///   tunes again twice (after 1 s, then 3 s) before it says why it doesn't play. The stream.ts
+///   failing is watched again as HLS, as Android's: before it played, at once; while it played,
+///   once the server has said watching didn't end there.
 /// - <see cref="Stop"/> lets the session and the player go (the app went to the background),
 ///   <see cref="Resume"/> tunes the channel again, <see cref="Close"/> ends it all.
 ///
@@ -132,6 +140,15 @@ public sealed class LivePlayback
     /// <summary>A stall this long: tuned anew, as a failure.</summary>
     public const long StallGiveUpMs = 20_000;
 
+    /// <summary><c>stream.ts</c> is read under this TV's id with this after it (Android's): the HLS session stays.</summary>
+    public const string StreamClient = "-stream";
+
+    /// <summary>
+    /// The stream.ts not playing this long after it was given: watched as HLS. Android's player
+    /// says when it can't; the TV's may wait on.
+    /// </summary>
+    public const long DirectWaitMs = 10_000;
+
     /// <summary>A keyed live address: anything else needs the token.</summary>
     static readonly Regex Keyed = new Regex(@"/api/live/media/", RegexOptions.CultureInvariant);
 
@@ -144,6 +161,8 @@ public sealed class LivePlayback
     int generation;
     int retries;
     bool shown, closed;
+    /// <summary>What plays is the channel's stream.ts: failing, it is watched again as HLS.</summary>
+    bool direct;
     IDisposable? startTimer, pictureTimer, retryTimer, stallShown, stallCheck;
 
     public LivePlayback(ILiveServer server, Func<IMediaEngine> engines, IScheduler scheduler)
@@ -191,6 +210,8 @@ public sealed class LivePlayback
         generation++;
         cancel?.Cancel();
         ClearTimers();
+        direct = false;
+        server.EndStream();
         Leave();
         if (engine != null)
         {
@@ -208,7 +229,7 @@ public sealed class LivePlayback
         closed = true;
     }
 
-    void Start(long channelId, long? takeOver)
+    void Start(long channelId, long? takeOver, bool allowDirect = true)
     {
         if (closed) return;
         var mine = ++generation;
@@ -216,9 +237,16 @@ public sealed class LivePlayback
         cancel?.Cancel();
         var token = (cancel = new CancellationTokenSource()).Token;
         engine?.Stop();
+        server.EndStream();
         Leave();
         shown = false;
+        direct = false;
         State.Value = new LiveState(channelId, new LivePhase.Tuning());
+        // As Android's: stream.ts is read under an id of its own (so it doesn't end the HLS session
+        // the plan is asked of), and played once the plan says this TV plays the channel as it is.
+        // Asked for with the channel, as the server tunes for whichever comes first; after it when a
+        // connection is taken over, as only the watch takes it.
+        var stream = allowDirect && takeOver == null ? server.Stream(channelId, server.ClientId + StreamClient) : null;
         Plays.When(scheduler, () => server.Watch(channelId, takeOver, token), watching =>
         {
             if (mine != generation)
@@ -227,29 +255,102 @@ public sealed class LivePlayback
                 return;
             }
             session = watching.SessionId;
+            if (Marks.On) Marks.Note("live: watching answered");
             if (!Keyed.IsMatch(watching.Url))
             {
                 Fail(new LiveTrouble(LiveTroubleKind.Older, LiveText.OlderBody));
                 return;
             }
             var playlist = server.Url(watching.Url);
-            // The channel's first segments, before the player asks: a TV's player gives up sooner than the server takes to tune.
-            Plays.When(scheduler, () => server.Prefetch(playlist, PlaylistWaitMs, token), () =>
+            if (allowDirect && takeOver != null) stream = server.Stream(channelId, server.ClientId + StreamClient);
+            if (stream == null)
+            {
+                Hls(playlist, mine, token);
+                return;
+            }
+            direct = true;
+            Open().Prepare(new EngineSource(stream, Hls: false, Live: true), play: false);
+            startTimer = scheduler.After(DirectWaitMs, () =>
+            {
+                if (mine == generation && !shown) Failed(new EngineError.Other("its stream didn't start in time"));
+            });
+            void Planned(LivePlan? plan)
             {
                 if (mine != generation) return;
-                Open().Prepare(new EngineSource(playlist, Hls: true, Live: true), play: true);
-                startTimer = scheduler.After(StartWaitMs, () =>
+                if (Marks.On) Marks.Note(plan == null ? "live: the plan isn't known" : $"live: the plan, video {plan.Video} ({plan.VideoCodec} {plan.Width}x{plan.Height} {plan.FrameRate}{(plan.Interlaced ? " interlaced" : "")}), audio {plan.Audio} ({plan.AudioCodec} {plan.AudioChannels} ch)");
+                if (plan != null && LiveRules.PlaysAsSent(plan))
                 {
-                    if (mine == generation && !shown) Failed(new EngineError.Other("it didn't start in time"));
-                });
-            }, e =>
+                    engine?.Play();
+                    return;
+                }
+                // Made into something else, or not known in time: its HLS.
+                direct = false;
+                startTimer?.Dispose();
+                startTimer = null;
+                server.EndStream();
+                Hls(playlist, mine, token);
+            }
+            Plays.When(scheduler, () => server.Plan(watching.SessionId), Planned, _ => Planned(null));
+        }, e =>
+        {
+            if (mine == generation && !Cancelled(e)) Fail(LiveTrouble.Of(e));
+        });
+    }
+
+    /// <summary>The channel's HLS at <paramref name="playlist"/>, from the live edge, once its first segments are in.</summary>
+    void Hls(string playlist, int mine, CancellationToken token)
+    {
+        // The channel's first segments, before the player asks: a TV's player gives up sooner than the server takes to tune.
+        Plays.When(scheduler, () => server.Prefetch(playlist, PlaylistWaitMs, token), () =>
+        {
+            if (mine != generation) return;
+            Open().Prepare(new EngineSource(playlist, Hls: true, Live: true), play: true);
+            startTimer = scheduler.After(StartWaitMs, () =>
             {
-                if (mine == generation && !Cancelled(e)) Fail(LiveTrouble.Of(e));
+                if (mine == generation && !shown) Failed(new EngineError.Other("it didn't start in time"));
             });
         }, e =>
         {
             if (mine == generation && !Cancelled(e)) Fail(LiveTrouble.Of(e));
         });
+    }
+
+    /// <summary>
+    /// The stream.ts failed or ended (Android's onPlayerError and brokeOff). Before it played, the
+    /// channel is watched again as HLS at once. While it played, the server is asked first whether
+    /// watching ended there (its connection taken over, the channel stopped); if not, it broke off,
+    /// and is watched again as HLS.
+    /// </summary>
+    void DirectFailed()
+    {
+        if (closed || State.Value.ChannelId is not { } channelId) return;
+        var played = State.Value.Playing;
+        direct = false;
+        server.EndStream();
+        if (!played)
+        {
+            Start(channelId, null, allowDirect: false);
+            return;
+        }
+        var mine = ++generation;
+        ClearTimers();
+        engine?.Stop();
+        State.Value = State.Value with { Phase = new LivePhase.Tuning(), Buffering = false };
+        var asked = session;
+        Plays.When(scheduler, () => asked != null ? server.WhyEnded(asked) : Task.FromResult<string?>(null), why => After(why), _ => After(null));
+
+        void After(string? why)
+        {
+            if (mine != generation || closed) return;
+            if (why != null)
+            {
+                // Already gone at the server: nothing to leave.
+                session = null;
+                Fail(new LiveTrouble(LiveTroubleKind.Stopped, why));
+                return;
+            }
+            Start(channelId, null, allowDirect: false);
+        }
     }
 
     IMediaEngine Open()
@@ -271,6 +372,12 @@ public sealed class LivePlayback
 
     void OnStatus(EngineStatus status)
     {
+        // A stream.ts that ends before it plays: its HLS now, not after the wait.
+        if (status == EngineStatus.Ended && direct && !State.Value.Playing)
+        {
+            Failed(new EngineError.Other("its stream ended"));
+            return;
+        }
         if (!State.Value.Playing) return;
         switch (status)
         {
@@ -321,7 +428,9 @@ public sealed class LivePlayback
                 if (Stalled()) Failed(new EngineError.Other("it stalled"));
             });
             var asked = session;
-            if (!Stalled() || asked == null) return;
+            // Not of a stream.ts, as Android asks nothing of a stall: its HLS session, unread, goes
+            // after 45 s, and would say watching ended when it hadn't.
+            if (!Stalled() || asked == null || direct) return;
             Plays.When(scheduler, () => server.WhyEnded(asked), why =>
             {
                 if (why == null || !Stalled()) return;
@@ -346,6 +455,11 @@ public sealed class LivePlayback
     void Failed(EngineError error)
     {
         if (closed || State.Value.ChannelId is not { } channelId) return;
+        if (direct)
+        {
+            DirectFailed();
+            return;
+        }
         var mine = ++generation;
         ClearTimers();
         engine?.Stop();
@@ -385,7 +499,9 @@ public sealed class LivePlayback
     {
         generation++;
         ClearTimers();
+        direct = false;
         engine?.Stop();
+        server.EndStream();
         Leave();
         State.Value = State.Value with { Phase = new LivePhase.Failed(trouble), Buffering = false };
     }

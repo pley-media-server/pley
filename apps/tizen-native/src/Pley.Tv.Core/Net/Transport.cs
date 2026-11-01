@@ -99,6 +99,39 @@ public sealed class HttpResponse
 /// <summary>Sends requests: HttpClient on the TV, a fake in tests.</summary>
 public delegate Task<HttpResponse> Transport(HttpRequest request);
 
+/// <summary>
+/// An answer whose body is read as it comes, for as long as it lasts (a live channel's MPEG-TS):
+/// disposed, its connection goes.
+/// </summary>
+public sealed class StreamResponse : IDisposable
+{
+    readonly Func<string, string?> header;
+    readonly IDisposable? owner;
+
+    public StreamResponse(int status, Func<string, string?> header, Stream body, IDisposable? owner = null)
+    {
+        Status = status;
+        this.header = header;
+        Body = body;
+        this.owner = owner;
+    }
+
+    public int Status { get; }
+    public Stream Body { get; }
+
+    /// <summary>A response header, case-insensitively; null when absent.</summary>
+    public string? Header(string name) => header(name);
+
+    public void Dispose()
+    {
+        Body.Dispose();
+        owner?.Dispose();
+    }
+}
+
+/// <summary>Opens GETs whose bodies are read as they come: HttpClient on the TV, a fake in tests.</summary>
+public delegate Task<StreamResponse> StreamTransport(HttpRequest request);
+
 /// <summary>Why a request got no answer, in the Android app's words (<see cref="Transports.Reason"/>).</summary>
 public enum NetworkFailure
 {
@@ -218,6 +251,54 @@ public static class Transports
 
     /// <summary>The app's transport, made by <see cref="Create"/> with Core's own handlers.</summary>
     public static readonly Transport Http = Create();
+
+    /// <summary>
+    /// The app's GETs read as they come, with Core's own handlers: the connection and the first
+    /// answer are timed as a request's, the body not at all (it lasts as long as it's read).
+    /// Redirects are the answer.
+    /// </summary>
+    public static readonly StreamTransport Streams = CreateStreams();
+
+    static StreamTransport CreateStreams()
+    {
+        var clientFor = Clients(null);
+        return req => Open(clientFor, req);
+    }
+
+    static async Task<StreamResponse> Open(Func<int, HttpClient> clientFor, HttpRequest req)
+    {
+        var connectMs = req.ConnectTimeoutMs ?? ConnectTimeoutFor(req.Url);
+        using var idle = new CancellationTokenSource();
+        using var both = CancellationTokenSource.CreateLinkedTokenSource(idle.Token, req.Cancel);
+        idle.CancelAfter(connectMs + req.TimeoutMs);
+        try
+        {
+            using var message = new HttpRequestMessage(HttpMethod.Get, req.Url);
+            foreach (var h in req.Headers ?? new Dictionary<string, string>()) message.Headers.TryAddWithoutValidation(h.Key, h.Value);
+            var res = await clientFor(connectMs).SendAsync(message, HttpCompletionOption.ResponseHeadersRead, both.Token).ConfigureAwait(false);
+            try
+            {
+                var body = await res.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                var headers = res.Headers.Concat(res.Content.Headers).ToList();
+                string? Header(string name) => headers.Where(h => h.Key.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    .Select(h => string.Join(", ", h.Value)).FirstOrDefault();
+                return new StreamResponse((int)res.StatusCode, Header, body, res);
+            }
+            catch (Exception)
+            {
+                res.Dispose();
+                throw;
+            }
+        }
+        catch (Exception e) when (e is not NetworkException)
+        {
+            if (req.Cancel.IsCancellationRequested) throw new NetworkException(NetworkFailure.Cancelled, e);
+            if (idle.IsCancellationRequested) throw new NetworkException(NetworkFailure.NoAnswerInTime, e);
+            var failure = Failure(e);
+            if (failure == null) throw;
+            throw failure;
+        }
+    }
 
     /// <summary><paramref name="inner"/>, every request introducing the app as <paramref name="userAgent"/>.</summary>
     public static Transport WithUserAgent(Transport inner, string userAgent) => req =>

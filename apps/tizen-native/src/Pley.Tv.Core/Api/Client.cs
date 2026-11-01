@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -139,12 +140,14 @@ public sealed class Api
 
     readonly Tokens tokens;
     readonly Transport http;
+    readonly StreamTransport streams;
 
-    public Api(string server, Tokens tokens, Transport http)
+    public Api(string server, Tokens tokens, Transport http, StreamTransport? streams = null)
     {
         Server = server;
         this.tokens = tokens;
         this.http = http;
+        this.streams = streams ?? Transports.Streams;
     }
 
     public string Server { get; }
@@ -175,6 +178,42 @@ public sealed class Api
         }
         if (res.Status >= 200 && res.Status < 300) return res;
         throw ToError(res);
+    }
+
+    /// <summary>
+    /// GET <paramref name="path"/> with the token, its body read as it comes for as long as it lasts
+    /// (a live channel's MPEG-TS); refused, an <see cref="ApiException"/>, as <see cref="Send"/>'s.
+    /// </summary>
+    public async Task<StreamResponse> Open(string path, CancellationToken cancel = default)
+    {
+        var token = await tokens.AccessToken().ConfigureAwait(false) ?? throw new SignedOutException();
+        var res = await OpenOnce(path, token, cancel).ConfigureAwait(false);
+        if (res.Status == 401 && OwnServer(path) && InvalidToken(res.Header("WWW-Authenticate")))
+        {
+            var fresh = await Refreshed(token).ConfigureAwait(false);
+            if (fresh != null)
+            {
+                res.Dispose();
+                res = await OpenOnce(path, fresh, cancel).ConfigureAwait(false);
+            }
+        }
+        if (res.Status >= 200 && res.Status < 300) return res;
+        using (res)
+        {
+            // A refusal is a sentence: as much of it as an error keeps.
+            var bytes = new byte[MaxErrorBody];
+            var length = 0;
+            int n;
+            while (length < bytes.Length && (n = await res.Body.ReadAsync(bytes, length, bytes.Length - length, cancel).ConfigureAwait(false)) > 0) length += n;
+            throw ToError(new HttpResponse(res.Status, res.Header, text: Encoding.UTF8.GetString(bytes, 0, length)));
+        }
+    }
+
+    Task<StreamResponse> OpenOnce(string path, string token, CancellationToken cancel)
+    {
+        var headers = new Dictionary<string, string> { ["Accept"] = "*/*" };
+        if (OwnServer(path)) headers["Authorization"] = "Bearer " + token;
+        return streams(new HttpRequest { Url = Url(path), Headers = headers, Cancel = cancel });
     }
 
     /// <summary>
@@ -521,6 +560,23 @@ public sealed class Api
         catch (ApiException e) when (e.Status == 410)
         {
             return e.Message;
+        }
+    }
+
+    /// <summary>
+    /// GET /api/live/sessions/{session}/plan: what the session's channel is made into, the server
+    /// waiting up to 3 s to know; null when it didn't know in time.
+    /// </summary>
+    public async Task<LivePlan?> LivePlan(string session, CancellationToken cancel = default)
+    {
+        var res = await Send($"/api/live/sessions/{Uri.EscapeDataString(session)}/plan", cancel: cancel, timeoutMs: 8_000).ConfigureAwait(false);
+        try
+        {
+            return JsonSerializer.Deserialize<LivePlan?>(res.Text ?? "null", ApiJson.Options);
+        }
+        catch (JsonException e)
+        {
+            throw new UnreadableAnswerException(res.Status, e);
         }
     }
 

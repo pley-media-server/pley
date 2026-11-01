@@ -34,6 +34,17 @@ public static class LiveRules
     /// <summary>At most this many groups show for a search.</summary>
     public const int FoundGroupsMax = 12;
 
+    /// <summary>
+    /// Whether this TV plays a channel's stream.ts as the provider sends it: its picture sent as it
+    /// is (or none), its sound sent as it is or in a format every Samsung TV decodes itself (AC3,
+    /// MP2…), which the plan converts for players that can't. Deviation from Android, which plays
+    /// only what the plan sends as it is (<see cref="LivePlan.Direct"/>): its devices decode
+    /// different things, and HLS made a converted channel start later.
+    /// </summary>
+    public static bool PlaysAsSent(LivePlan plan) =>
+        plan.Video is "copy" or "none"
+        && (plan.Audio is "copy" or "none" || (plan.AudioCodec != null && Player.TizenCaps.DecodedAudio.Contains(plan.AudioCodec)));
+
     static readonly Regex LeadingBars = new Regex(@"^\|+\s*", RegexOptions.CultureInvariant);
     static readonly Regex Bracketed = new Regex(@"^\[([^\]]{1,16})]\s*(.+)$", RegexOptions.CultureInvariant);
     static readonly Regex Barred = new Regex(@"^([^|]{1,16})\|\s*(.+)$", RegexOptions.CultureInvariant);

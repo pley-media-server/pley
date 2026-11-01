@@ -50,6 +50,9 @@ public sealed record TizenFacts
 /// </summary>
 public static class TizenCaps
 {
+    /// <summary>The sound every Samsung TV decodes itself, whatever its year (later years add more).</summary>
+    public static readonly IReadOnlyList<string> DecodedAudio = new[] { "aac", "ac3", "eac3", "mp3", "mp2", "flac", "vorbis", "pcm_s16le", "pcm_s24le" };
+
     static readonly string[] Containers = { "mkv", "mp4", "m4v", "mov", "ts", "m2ts", "mpegts", "webm", "avi", "mpg", "mpeg", "mp3", "m4a", "aac", "flac", "ogg", "oga", "wav", "mka" };
 
     /// <summary>Subtitles the app draws itself as WebVTT from the server; pictures come from their .mks.</summary>
@@ -93,7 +96,7 @@ public static class TizenCaps
         }
 
         // Sound: what the TV decodes, what goes to a receiver as it is.
-        var decode = new List<string> { "aac", "ac3", "eac3", "mp3", "mp2", "flac", "vorbis", "pcm_s16le", "pcm_s24le" };
+        var decode = new List<string>(DecodedAudio);
         if (y >= 2018) decode.Add("opus");
         if (y >= 2018 && f.Ac4 != false) decode.Add("ac4");
         // DTS until 2017: Samsung dropped it from 2018 sets on.

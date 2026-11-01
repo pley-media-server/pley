@@ -94,6 +94,10 @@ sealed class LivePlayerScreen : Sheet
         watches.Add(model.Now.Watch(_ => Draw()));
         watches.Add(model.Category.Watch(_ => Draw()));
         watches.Add(model.Digits.Watch(Digits));
+#if PROFILE
+        // From tuning to the picture: the engine's marks fall between these.
+        watches.Add(model.State.Watch(s => Profile.Mark($"live: {s.Is.GetType().Name}{(s.Buffering ? ", stalled" : "")}{(s.Is is LivePhase.Tuning ? $" {model.Channel.Value?.Number} {model.Channel.Value?.Name}" : "")}")));
+#endif
 
         keys = shell.Input.Push(OnKey);
         shell.Shown += Shown;

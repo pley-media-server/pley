@@ -420,6 +420,18 @@ Android's, its music pauses while the app is hidden, since a hidden app
 gives up the TV's player, and plays on from there when the app is back.
 The other pages come next.
 
+A channel starts as on Android: its `stream.ts` (the provider's MPEG-TS,
+from its last keyframe) is read while the server says what it makes of the
+channel, and plays when that is the channel as it is, or with sound every
+Samsung TV decodes itself (AC3, E-AC3, MP2), which the server converts for
+other players; otherwise, or when it fails, the channel's HLS. The TV's
+player can't send the `Authorization` header `stream.ts` needs, and the
+server takes an app's token nowhere else, so the app reads it with its
+token and hands it on to the player as it comes, on the TV's loopback
+address under a random path that lasts one channel (`Net/StreamRelay.cs`).
+Live channels start once 0.5 s is buffered, 1.5 s after a stall, as on
+Android.
+
 | | |
 |---|---|
 | Folder | `apps/tizen-native` |

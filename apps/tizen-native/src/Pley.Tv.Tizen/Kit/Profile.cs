@@ -96,7 +96,7 @@ static class Profile
             if (trail == null) return;
             try
             {
-                File.AppendAllText(trail, $"{DateTime.Now:HH:mm:ss.fff} {line}\n");
+                lock (Http) File.AppendAllText(trail, $"{DateTime.Now:HH:mm:ss.fff} {line}\n");
             }
             catch (Exception)
             {
@@ -133,6 +133,8 @@ static class Profile
         {
             Trail(dataDir);
             CatchCrashes(dataDir);
+            // Core's marks too (the relay's, Live TV's), from whatever thread they come on.
+            Core.Marks.Listener = Mark;
             WatchStalls();
             WatchMemory();
             // Held here: NUI calls it from native code, which doesn't keep it from being collected.

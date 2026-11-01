@@ -552,6 +552,151 @@ public class LivePlayerTests
         Assert.True(p.State.Value.AudioOnly);
     }
 
+    const string Relayed = "http://127.0.0.1:5000/r/stream.ts";
+    static string Hls(long id) => $"{FakeLive.Server}/api/live/media/pley_mk_{id}/index.m3u8";
+    static readonly LivePlan AsItIs = new LivePlan { Video = "copy", Audio = "copy" };
+
+    [Fact]
+    public void Sent_as_it_is_a_channel_plays_from_its_stream_ts_read_under_an_id_of_its_own()
+    {
+        live.StreamAt = _ => Relayed;
+        live.HoldPlan = true;
+        var p = Playback();
+        p.Tune(1);
+        Assert.Contains("stream 1 tizen-1-stream", live.Sent);
+        var engine = Assert.Single(engines);
+        // Ready while the plan is asked for, played once it says the channel is sent as it is.
+        Assert.Equal(new EngineSource(Relayed, Hls: false, Live: true), engine.Source);
+        Assert.Equal(new[] { $"prepare {Relayed} paused" }, engine.Calls);
+        Assert.Contains("plan s1", live.Sent);
+        live.AnswerPlan(AsItIs);
+        Assert.Equal("play", engine.Calls.Last());
+        engine.Start();
+        Assert.True(p.State.Value.Playing);
+        Assert.DoesNotContain(live.Sent, s => s.StartsWith("prefetch", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Made_into_something_else_or_not_known_in_time_a_channel_plays_its_hls()
+    {
+        live.StreamAt = _ => Relayed;
+        live.PlanAnswer = new LivePlan { Video = "h264_vaapi", Audio = "aac" };
+        var p = Playback();
+        p.Tune(1);
+        Assert.Equal(new EngineSource(Hls(1), Hls: true, Live: true), engines[0].Source);
+        Assert.Equal("end stream", live.Sent[live.Sent.IndexOf("plan s1") + 1]);
+        live.PlanAnswer = null;
+        p.Tune(2);
+        Assert.Equal(new EngineSource(Hls(2), Hls: true, Live: true), engines[0].Source);
+    }
+
+    [Fact]
+    public void Sound_the_tv_decodes_itself_plays_from_stream_ts_though_the_plan_converts_it()
+    {
+        // Deviation from Android, which plays only what the plan sends as it is: every Samsung TV decodes AC3.
+        live.StreamAt = _ => Relayed;
+        live.PlanAnswer = new LivePlan { Video = "copy", Audio = "aac", AudioCodec = "ac3", AudioChannels = 6 };
+        var p = Playback();
+        p.Tune(1);
+        Assert.Equal("play", engines[0].Calls.Last());
+        Assert.Equal(Relayed, engines[0].Source?.Url);
+        Assert.False(LiveRules.PlaysAsSent(new LivePlan { Video = "copy", Audio = "aac", AudioCodec = "dts" }));
+        Assert.False(LiveRules.PlaysAsSent(new LivePlan { Video = "h264_vaapi", Audio = "copy", AudioCodec = "aac" }));
+        Assert.True(LiveRules.PlaysAsSent(new LivePlan { Video = "copy", Audio = "none" }));
+    }
+
+    [Fact]
+    public void The_stream_ts_is_asked_for_with_the_channel_or_after_it_when_taking_a_connection_over()
+    {
+        live.StreamAt = _ => Relayed;
+        live.PlanAnswer = AsItIs;
+        var p = Playback();
+        p.Tune(1);
+        Assert.True(live.Sent.IndexOf("stream 1 tizen-1-stream") < live.Sent.IndexOf("watch 1 tizen-1"));
+        live.Sent.Clear();
+        p.Retry(takeOver: 3);
+        Assert.True(live.Sent.IndexOf("watch 1 tizen-1 take 3") < live.Sent.IndexOf("stream 1 tizen-1-stream"));
+    }
+
+    [Fact]
+    public void A_stream_ts_that_fails_before_it_plays_is_watched_again_as_hls()
+    {
+        live.StreamAt = _ => Relayed;
+        live.PlanAnswer = AsItIs;
+        var p = Playback();
+        p.Tune(1);
+        engines[0].Fail(new EngineError.Unsupported("the TV's player can't read it"));
+        Assert.Equal(2, live.Sent.Count(s => s.StartsWith("watch 1", StringComparison.Ordinal)));
+        Assert.Single(live.Sent, s => s.StartsWith("stream 1", StringComparison.Ordinal));
+        Assert.Equal(new EngineSource(Hls(1), Hls: true, Live: true), engines[0].Source);
+        Assert.IsType<LivePhase.Tuning>(p.State.Value.Is);
+    }
+
+    [Fact]
+    public void A_stream_ts_that_never_starts_is_watched_as_hls_after_its_wait()
+    {
+        // Deviation from Android, whose player says when it can't: the TV's may wait on.
+        live.StreamAt = _ => Relayed;
+        live.PlanAnswer = AsItIs;
+        var p = Playback();
+        p.Tune(1);
+        scheduler.Advance(LivePlayback.DirectWaitMs - 1);
+        Assert.Equal(Relayed, engines[0].Source?.Url);
+        scheduler.Advance(1);
+        Assert.Equal(new EngineSource(Hls(1), Hls: true, Live: true), engines[0].Source);
+    }
+
+    [Fact]
+    public void A_stream_ts_that_breaks_off_says_why_watching_ended_or_is_watched_again_as_hls()
+    {
+        live.StreamAt = _ => Relayed;
+        live.PlanAnswer = AsItIs;
+        var p = Playback();
+        p.Tune(1);
+        engines[0].Start();
+        live.Ended = "Ann took this connection over to watch Sky.";
+        engines[0].Status(EngineStatus.Ended);
+        Assert.Equal(new LiveTrouble(LiveTroubleKind.Stopped, "Ann took this connection over to watch Sky."), p.State.Value.Trouble);
+        Assert.Contains("end stream", live.Sent);
+
+        live.Ended = null;
+        p.Retry();
+        engines[0].Start();
+        engines[0].Fail(new EngineError.Network("the network went"));
+        Assert.Equal(new EngineSource(Hls(1), Hls: true, Live: true), engines[0].Source);
+        Assert.IsType<LivePhase.Tuning>(p.State.Value.Is);
+    }
+
+    [Fact]
+    public void A_stall_of_a_stream_ts_asks_nothing_of_its_unread_hls_session()
+    {
+        live.StreamAt = _ => Relayed;
+        live.PlanAnswer = AsItIs;
+        var p = Playback();
+        p.Tune(1);
+        engines[0].Start();
+        engines[0].Status(EngineStatus.Buffering);
+        live.Ended = "this channel isn't being watched any more";
+        scheduler.Advance(LivePlayback.StallCheckMs);
+        Assert.True(p.State.Value.Playing);
+        Assert.True(p.State.Value.Buffering);
+    }
+
+    [Fact]
+    public void Leaving_or_zapping_ends_the_stream_handed_on()
+    {
+        live.StreamAt = _ => Relayed;
+        live.PlanAnswer = AsItIs;
+        var p = Playback();
+        p.Tune(1);
+        live.Sent.Clear();
+        p.Tune(2);
+        Assert.Equal("end stream", live.Sent.First());
+        live.Sent.Clear();
+        p.Stop();
+        Assert.Contains("end stream", live.Sent);
+    }
+
     [Fact]
     public void Zapping_lets_the_last_channel_go_and_keeps_the_one_player()
     {

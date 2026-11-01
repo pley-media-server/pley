@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Auth;
+using Pley.Tv.Core.Net;
 
 namespace Pley.Tv.Core.Live;
 
@@ -69,6 +70,19 @@ public interface ILiveServer
     /// <summary>Why a session ended (its connection taken over, say), or null while it goes on.</summary>
     Task<string?> WhyEnded(string session);
 
+    /// <summary>
+    /// The channel's MPEG-TS as the provider sends it (<c>stream.ts</c>, read under
+    /// <paramref name="clientId"/>), on an address the TV's player can open, in place of the one
+    /// before; null where there is none.
+    /// </summary>
+    string? Stream(long channelId, string clientId);
+
+    /// <summary>Stops handing on the channel's MPEG-TS: its address goes, and its reading.</summary>
+    void EndStream();
+
+    /// <summary>What the session's channel is made into; null when that isn't known in time, or asking failed.</summary>
+    Task<LivePlan?> Plan(string session);
+
     /// <summary>Stops watching <paramref name="session"/>, in the background.</summary>
     void Leave(string session);
 }
@@ -120,6 +134,40 @@ public sealed class AppLiveSource : ILiveSource, ILiveServer
     public Task Prefetch(string url, int timeoutMs, CancellationToken cancel) => Api.Media(url, timeoutMs, cancel);
 
     public Task<string?> WhyEnded(string session) => Api.WhyLiveEnded(session);
+
+    /// <summary>Hands the channel's MPEG-TS on to the TV's player, which can't send the token.</summary>
+    readonly StreamRelay relay = new StreamRelay();
+
+    public string? Stream(long channelId, string clientId)
+    {
+        var api = app.Api.Value;
+        if (api == null) return null;
+        var path = $"/api/live/channels/{channelId}/stream.ts?client_id={Uri.EscapeDataString(clientId)}";
+        try
+        {
+            return relay.Serve(cancel => api.Open(path, cancel));
+        }
+        catch (Exception)
+        {
+            // No loopback to listen on: the channel's HLS.
+            return null;
+        }
+    }
+
+    public void EndStream() => relay.Stop();
+
+    public async Task<LivePlan?> Plan(string session)
+    {
+        try
+        {
+            return await Api.LivePlan(session).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Not had: the channel's HLS, as before there were plans.
+            return null;
+        }
+    }
 
     public void Leave(string session)
     {

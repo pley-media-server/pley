@@ -167,6 +167,33 @@ sealed class FakeLive : ILiveSource, ILiveServer
 
     public Task<string?> WhyEnded(string session) => Task.FromResult(Ended);
 
+    /// <summary>Where the channel's stream.ts is handed on; null (none, HLS only) by default.</summary>
+    public Func<long, string?> StreamAt { get; set; } = _ => null;
+
+    /// <summary>What <see cref="Plan"/> answers; held until <see cref="AnswerPlan"/> while <see cref="HoldPlan"/>.</summary>
+    public LivePlan? PlanAnswer { get; set; }
+    public bool HoldPlan { get; set; }
+    TaskCompletionSource<LivePlan?>? heldPlan;
+
+    public string? Stream(long channelId, string clientId)
+    {
+        var url = StreamAt(channelId);
+        if (url != null) Sent.Add($"stream {channelId} {clientId}");
+        return url;
+    }
+
+    public void EndStream() => Sent.Add("end stream");
+
+    public Task<LivePlan?> Plan(string session)
+    {
+        Sent.Add($"plan {session}");
+        if (!HoldPlan) return Task.FromResult(PlanAnswer);
+        heldPlan = new TaskCompletionSource<LivePlan?>();
+        return heldPlan.Task;
+    }
+
+    public void AnswerPlan(LivePlan? plan) => heldPlan!.SetResult(plan);
+
     public void Leave(string session) => Left.Add(session);
 
     public string LastWatch => Sent.Last(s => s.StartsWith("watch", StringComparison.Ordinal));
