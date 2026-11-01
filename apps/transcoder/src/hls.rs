@@ -352,6 +352,11 @@ fn audio_codec(a: &AudioOut, src: Option<&MediaStream>) -> String {
         "mp3" => "mp4a.40.34".into(),
         "ac3" => "ac-3".into(),
         "eac3" => "ec-3".into(),
+        // Copied Opus and FLAC are named by their sample entries, as RFC
+        // 6381 asks: AVPlayer refuses a master playlist that says `opus` or
+        // `flac` ("Cannot Open"); hls.js and Media3 read either spelling.
+        "opus" => "Opus".into(),
+        "flac" => "fLaC".into(),
         other => other.to_owned(),
     }
 }
@@ -672,5 +677,8 @@ mod tests {
         assert_eq!(copied("mp3", None), "mp4a.40.34");
         assert_eq!(copied("ac3", None), "ac-3");
         assert_eq!(copied("eac3", Some("Dolby Digital Plus + Dolby Atmos")), "ec-3");
+        assert_eq!(copied("opus", None), "Opus");
+        assert_eq!(copied("flac", None), "fLaC");
+        assert_eq!(copied("alac", None), "alac");
     }
 }

@@ -2371,7 +2371,9 @@ index.m3u8
 ```
 
 - `CODECS` per RFC 6381: `avc1.PPCCLL`, `hvc1.P.C.LLLL.B0`, `mp4a.40.2`
-  (AAC), `mp4a.40.34` (MP3), `ac-3`, `ec-3`.
+  (AAC), `mp4a.40.34` (MP3), `ac-3`, `ec-3`, and copied Opus and FLAC by
+  their sample entries, `Opus` and `fLaC` (AVPlayer refuses a master
+  playlist that writes them in lowercase).
 - Dolby Vision kept in the remux is named: profile 5 as `dvh1.05.LL` alone
   (no base layer anything else decodes); profile 8 as the HEVC codec with
   `SUPPLEMENTAL-CODECS="dvh1.08.LL/db1p"` (8.1, `VIDEO-RANGE=PQ`), `/db4h`
