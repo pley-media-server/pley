@@ -9,7 +9,8 @@ import SwiftUI
 /// (Quality, each with its second line, Audio, Subtitles, Subtitle sync,
 /// Chapters and Details) under
 /// its top row. Options shows with the system's controls (a tap shows it
-/// for 3 seconds) and stays while paused. Skip Intro, Skip Credits and the
+/// for 3 seconds) and stays while paused; an open menu stays open when
+/// the button hides. Skip Intro, Skip Credits and the
 /// Up Next card show bottom trailing (`PlayerOverlay`). A notice shows at
 /// the top for 4 seconds.
 struct PlayerScreen: View {
@@ -75,19 +76,22 @@ struct PlayerScreen: View {
             }
             Spacer()
         }
-        if controlsShown {
-            VStack {
-                // Below the system's top row (Close, AirPlay, volume).
-                HStack {
-                    Spacer()
-                    options
-                }
-                .padding(.horizontal)
-                .padding(.top, 52)
+        // Always in the view: hidden rather than removed when the controls
+        // hide, since removing a Menu closes it while it is open.
+        VStack {
+            // Below the system's top row (Close, AirPlay, volume).
+            HStack {
                 Spacer()
+                options
             }
-            .transition(.opacity)
+            .padding(.horizontal)
+            .padding(.top, 52)
+            Spacer()
         }
+        .opacity(controlsShown ? 1 : 0)
+        .allowsHitTesting(controlsShown)
+        .animation(.easeInOut(duration: 0.2), value: controlsShown)
+        .accessibilityHidden(!controlsShown)
         switch controller.state.phase {
         case .preparing where controller.player?.currentItem == nil:
             ProgressView().controlSize(.large).tint(.white)

@@ -595,7 +595,10 @@ func run() async throws {
         let (_, media) = try await playlists(api, session.info)
         try check(media.contains(#"#EXT-X-MAP:URI="init.mp4""#), "the media playlist has no fMP4 init segment")
         try check(media.contains(".m4s"), "the media playlist has no .m4s segments")
-        return "fMP4 segments (init.mp4, .m4s)"
+        // No captions in the frames: AVKit offers no captions menu beside the app's subtitles.
+        let (master, _) = try await playlists(api, session.info)
+        try check(master.contains("CLOSED-CAPTIONS=NONE"), "the master playlist doesn't say CLOSED-CAPTIONS=NONE")
+        return "fMP4 segments (init.mp4, .m4s), CLOSED-CAPTIONS=NONE"
     }
 
     try await play("(c) HDR10", api: api, caps: caps, reporter: reporter, itemId: try item("HEVC HDR10")) { _, session in

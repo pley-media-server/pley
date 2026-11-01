@@ -759,7 +759,8 @@ activity, the session's status and the item:
   and after a seek and closing, the place saved within 1.5 seconds and the
   session gone;
 - an MKV with H.264 and AC-3 is repackaged, in fMP4 segments
-  (`#EXT-X-MAP` and `.m4s` in its playlist);
+  (`#EXT-X-MAP` and `.m4s` in its playlist), its master playlist saying
+  `CLOSED-CAPTIONS=NONE`;
 - HEVC HDR10 is repackaged with `VIDEO-RANGE=PQ` on a screen that shows
   HDR, and converted to SDR, saying so, on one that doesn't;
 - MPEG-2 is converted, and DTS repackaged with its audio converted;
