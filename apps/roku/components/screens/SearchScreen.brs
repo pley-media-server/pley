@@ -1,4 +1,7 @@
 ' Search with the on-screen keyboard, once typing rests for half a second.
+' Before anything is typed, the recent searches: the last 10 whose results
+' were opened, kept on the Roku for each server and profile; OK searches
+' one again (and moves it to the top), Clear forgets them.
 ' What the libraries have (GET /api/search) comes in rows by kind, as on
 ' the other apps (lib/Search.brs): People, Live TV (cards; OK watches the
 ' channel), Movies, Shows, Seasons, Episodes, Artists, Albums, Tracks.
@@ -17,6 +20,11 @@ sub init()
     m.channels = []
     m.message = m.top.findNode("message")
     m.debounce = m.top.findNode("debounce")
+    m.recentTitle = m.top.findNode("recentTitle")
+    m.recentList = m.top.findNode("recent")
+    ' The recent searches, newest first, and where they are kept.
+    m.recent = []
+    m.recentKey = ""
     m.started = false
     m.discover = false
     ' The search asked last: answers for earlier ones are dropped.
@@ -45,6 +53,7 @@ sub init()
     m.grid.observeField("itemSelected", "onSelected")
     m.grid.observeField("itemFocused", "onFocused")
     m.rows.observeField("rowItemSelected", "onRowTile")
+    m.recentList.observeField("itemSelected", "onRecent")
     m.top.observeField("active", "onActive")
     m.top.observeField("requestSummary", "onSummary")
     m.top.observeField("requestNote", "onRequestNote")
@@ -55,6 +64,7 @@ sub onActive()
         m.lastFocus = m.keyboard
         if m.grid.isInFocusChain() then m.lastFocus = m.grid
         if m.rows.isInFocusChain() then m.lastFocus = m.rows
+        if m.recentList.isInFocusChain() then m.lastFocus = m.recentList
         return
     end if
     if not m.started then firstShow()
@@ -71,7 +81,12 @@ sub firstShow()
     m.discover = httpTrue(m.top.params.discover)
     m.mayAsk = reqMayAsk(reqSummaryOf(m.top.requestSummary))
     if m.discover then m.title.text = "Discover"
-    showMessage(placeholder())
+    if not m.discover
+        session = m.global.session
+        m.recentKey = searchRecentKey(session.server, session.profileId)
+        m.recent = searchRecentLoad(recentSection(), m.recentKey)
+    end if
+    showIdle()
     query = httpString(m.top.params.query)
     if query <> ""
         m.keyboard.text = query
@@ -85,6 +100,67 @@ function placeholder() as string
     if m.mayAsk then return "Type to search your libraries and TMDB."
     return "Type to search your libraries."
 end function
+
+' --- Recent searches ---
+
+function recentSection() as object
+    return CreateObject("roRegistrySection", "searches")
+end function
+
+' Before anything is typed: the recent searches (the libraries' search
+' only), else what to type.
+sub showIdle()
+    if m.discover or m.recent.Count() = 0
+        hideRecent()
+        showMessage(placeholder())
+        return
+    end if
+    items = []
+    for each query in m.recent
+        items.Push({ title: query })
+    end for
+    items.Push({ title: "Clear" })
+    m.recentList.content = nodesContent(items)
+    m.message.visible = false
+    m.recentTitle.visible = true
+    m.recentList.visible = true
+end sub
+
+' The keyboard takes the focus before the list it was on goes.
+sub hideRecent()
+    if m.recentList.isInFocusChain() then m.keyboard.setFocus(true)
+    m.recentTitle.visible = false
+    m.recentList.visible = false
+end sub
+
+' The words searched, as one of the recent searches: one of their results
+' was wanted.
+sub remember()
+    if m.discover or m.query = "" then return
+    m.recent = searchRemember(m.recent, m.query)
+    searchRecentSave(recentSection(), m.recentKey, m.recent)
+end sub
+
+' A recent search is searched again, at once, and moves to the top; Clear
+' forgets them all. The focus goes back to the keyboard.
+sub onRecent(event as object)
+    at = event.getData()
+    m.keyboard.setFocus(true)
+    if at >= 0 and at < m.recent.Count()
+        query = m.recent[at]
+        m.recent = searchRemember(m.recent, query)
+        searchRecentSave(recentSection(), m.recentKey, m.recent)
+        m.keyboard.text = query
+        ' Typing goes on after the words, not before them.
+        if m.keyboard.textEditBox <> invalid then m.keyboard.textEditBox.cursorPosition = Len(query)
+        m.debounce.control = "stop"
+        search()
+        return
+    end if
+    m.recent = []
+    searchRecentSave(recentSection(), m.recentKey, m.recent)
+    showIdle()
+end sub
 
 sub onTitleChanged(change as object)
     if m.grid.visible then uiPatchTiles(m.grid.content, change)
@@ -106,7 +182,7 @@ sub onSummary()
     m.mayAsk = mayAsk
     m.query = ""
     hideResults()
-    showMessage(placeholder())
+    showIdle()
     search()
 end sub
 
@@ -127,9 +203,10 @@ sub search()
     m.libraryMessage = ""
     if query = ""
         hideResults()
-        showMessage(placeholder())
+        showIdle()
         return
     end if
+    hideRecent()
     if m.discover
         startPages()
         return
@@ -177,6 +254,7 @@ end sub
 ' OK on a channel watches it; up and down in the player go through what
 ' the search found.
 sub watch(channelId as dynamic)
+    remember()
     for each channel in m.channels
         if channel.id = channelId then uiNavigate({ to: "livePlayer", params: { channel: channel, category: "search:" + m.query, categoryName: "Results for “" + m.query + "”" } })
     end for
@@ -280,7 +358,8 @@ sub showRows()
 end sub
 
 ' A tile opens its title, or Discover's search; a channel's card watches
-' it; TMDB's Try again asks again.
+' it; TMDB's Try again asks again. The words searched join the recent
+' searches.
 sub onRowTile(event as object)
     position = event.getData()
     row = m.rows.content.getChild(position[0])
@@ -296,6 +375,7 @@ sub onRowTile(event as object)
         watch(tile.channelId)
         return
     end if
+    remember()
     uiOpenTile(tile)
 end sub
 
@@ -424,11 +504,15 @@ end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
+    if key = "right" and m.keyboard.isInFocusChain() and m.recentList.visible
+        m.recentList.setFocus(true)
+        return true
+    end if
     if key = "right" and m.keyboard.isInFocusChain() and (m.grid.visible or m.rows.visible)
         focusResults()
         return true
     end if
-    if (key = "left" or key = "back") and (m.grid.isInFocusChain() or m.rows.isInFocusChain())
+    if (key = "left" or key = "back") and (m.grid.isInFocusChain() or m.rows.isInFocusChain() or m.recentList.isInFocusChain())
         m.keyboard.setFocus(true)
         return true
     end if

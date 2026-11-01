@@ -349,6 +349,8 @@ async function playedBy(what) {
 const library = { letters: false, jumped: false };
 // From when Home's See all was left.
 const seeAll = { after: -1 };
+// A recent search was searched again from the list.
+const searched = { again: false };
 
 async function walk() {
   // A cold start of brs-node can take a while.
@@ -780,6 +782,19 @@ async function walk() {
   await settle();
   const asked = seen(/^GET \/api\/hubs\/home$/, since);
   home.kept = age < 55000 ? !asked : age > 65000 ? asked : true;
+  // Search again: before anything is typed, the recent searches, "mo"
+  // first since one of its results was opened; OK on it searches it again
+  // at once. Back to Home.
+  since = mark();
+  await openFromMenu(6, /^GET \/api\/search\?.*q=mo/, "a recent search searched again", async () => {
+    await sleep(800);
+    shoot("search-recent");
+    await press("right", 7); // past the keyboard's last column
+    await press("select");
+  });
+  searched.again = seen(/^GET \/api\/search\?.*q=mo/, since);
+  await press("back");
+  await settle();
   // Playlists: one opened, its first entry moved down one with the Options
   // key's Move, then taken out, and the playlist played from the top. Then
   // New playlist, for Movies & TV, named on the keyboard: it opens, made.
@@ -1162,6 +1177,8 @@ const checks = [
   ["played a playlist from its top, the next entry to come", fixture.playbacks.some((p) => p.item === 101)],
   ["searched", asked(/^GET \/api\/search\?/)],
   ["showed search's results in rows by kind, People first, a person's page opened from it", asked(/^GET \/api\/people\/11$/)],
+  ["searched a recent search again from the list shown before typing", searched.again],
+  ["kept the recent searches on the Roku for the server and profile", registry !== null && /searches\.http[^"]*\|1","\[\\"mo\\"\]"/.test(JSON.stringify([...registry]))],
   ["showed Live TV's guide, its programmes for the channels in view", fixture.liveGuides.length > 0 && fixture.liveGuides.every((g) => g.ids.length > 0 && g.ids.length <= 50)],
   ["listed channels a page at a time", fixture.liveBrowses.length > 0 && fixture.liveBrowses.every((b) => b.limit <= 50)],
   ["opened Live TV back at the channel watched", fixture.liveBrowses.some((b) => b.around === 3)],

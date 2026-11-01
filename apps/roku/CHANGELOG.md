@@ -64,6 +64,8 @@ describes how they are made.
 - Search shows its results in rows by kind, as the other apps do: People,
   Live TV, Movies, Shows, Seasons, Episodes, Artists, Albums and Tracks,
   then On TMDB.
+- Search lists your recent searches before anything is typed: OK searches
+  one again, Clear forgets them.
 
 ### Fixed
 

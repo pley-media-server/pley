@@ -140,6 +140,11 @@ the player go through what was found), Movies, Shows, Seasons, Episodes,
 Artists, Albums and Tracks; then On TMDB for those who may ask (below).
 Right from the keyboard's last column reaches them.
 
+Before anything is typed it lists the recent searches: the last 10 whose
+results were opened, newest first, kept on the Roku for each server and
+profile. OK searches one again at once and moves it to the top; Clear
+forgets them.
+
 ### Music
 
 Music plays on while other screens show, and Home's menu has Now Playing
@@ -326,7 +331,7 @@ Rules the code keeps:
   Roku's sockets have no TLS.
 - Settings and views are kept in registry sections: `playback`,
   `subtitleSync`, `libraryViews`, `liveViews`, `household`, `startAs`,
-  `requests`.
+  `requests`, `searches`.
 - Sign-in asks for `library play playlists profiles`, and `requests
   approvals` when the server's metadata lists them in `scopes_supported`
   (an older server refuses scopes it doesn't know). A sign-in from before

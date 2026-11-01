@@ -1,5 +1,6 @@
 ' Search as the other apps have it (the web TV app's search screen,
-' Android's SearchViewModel): the results in rows by kind.
+' Android's SearchViewModel): the results in rows by kind, and the recent
+' searches kept on the Roku.
 
 ' The rows results come in, in order: [{ key, title }]; key is a title's
 ' kind, "person" or "channel" (Live TV).
@@ -55,4 +56,43 @@ function searchRowSize(key as string) as object
     if key = "episode" then return { size: [300, 250], height: 310 }
     if contentMusic(key) then return { size: [196, 280], height: 340 }
     return { size: [196, 370], height: 430 }
+end function
+
+' --- Recent searches ---
+
+' The last 10 searches whose results were wanted, newest first, kept on
+' the Roku for each server and profile.
+
+function searchRecentKey(server as string, profileId as dynamic) as string
+    return server + "|" + urlValue(profileId)
+end function
+
+function searchRecentLoad(section as object, key as string) as object
+    recent = []
+    for each query in httpArray(httpJson(section.Read(key)))
+        text = httpSentence(query)
+        if text <> "" and recent.Count() < 10 then recent.Push(text)
+    end for
+    return recent
+end function
+
+sub searchRecentSave(section as object, key as string, recent as object)
+    if recent.Count() = 0
+        section.Delete(key)
+    else
+        section.Write(key, FormatJson(recent))
+    end if
+    section.Flush()
+end sub
+
+' recent with query at the top, the same words in other letters' case
+' taken out, 10 at most.
+function searchRemember(recent as object, query as string) as object
+    text = query.Trim()
+    if text = "" then return recent
+    out = [text]
+    for each earlier in recent
+        if LCase(earlier) <> LCase(text) and out.Count() < 10 then out.Push(earlier)
+    end for
+    return out
 end function

@@ -1,4 +1,4 @@
-' Search's rows by kind.
+' Search's rows by kind and its recent searches.
 
 sub test_search_rows_by_kind_in_order()
     data = {
@@ -40,4 +40,36 @@ sub test_search_row_sizes()
     tkEqual(searchRowSize("channel"), { size: [220, 240], height: 300 })
     tkEqual(searchRowSize("episode"), { size: [300, 250], height: 310 })
     tkEqual(searchRowSize("track"), { size: [196, 280], height: 340 })
+end sub
+
+sub test_search_remembers_the_last_ten()
+    recent = searchRemember([], "  dune ")
+    tkEqual(recent, ["dune"])
+    recent = searchRemember(recent, "Arrival")
+    tkEqual(recent, ["Arrival", "dune"], "newest first")
+    recent = searchRemember(recent, "Dune")
+    tkEqual(recent, ["Dune", "Arrival"], "again: to the top, once, as last typed")
+    tkEqual(searchRemember(recent, "   "), recent, "nothing typed")
+    for i = 1 to 12
+        recent = searchRemember(recent, "query " + i.ToStr())
+    end for
+    tkEqual(recent.Count(), 10)
+    tkEqual(recent[0], "query 12")
+    tkEqual(recent[9], "query 3")
+end sub
+
+sub test_search_recent_kept_per_server_and_profile()
+    section = CreateObject("roRegistrySection", "searchesTest")
+    key = searchRecentKey("http://nas:7539", 4)
+    tkEqual(key, "http://nas:7539|4")
+    section.Delete(key)
+    tkEqual(searchRecentLoad(section, key), [])
+    searchRecentSave(section, key, ["Dune", "Arrival"])
+    tkEqual(searchRecentLoad(section, key), ["Dune", "Arrival"])
+    section.Write(key, "[""ok"", 3, """", ""fine""]")
+    tkEqual(searchRecentLoad(section, key), ["ok", "fine"], "only words")
+    section.Write(key, "not json")
+    tkEqual(searchRecentLoad(section, key), [])
+    searchRecentSave(section, key, [])
+    tkFalse(section.Exists(key), "cleared")
 end sub
