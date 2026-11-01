@@ -572,7 +572,33 @@ sealed class TizenMediaEngine : IVideoEngine
         Profile.Mark($"engine: picture {width}x{height}");
         if (width <= 0 || height <= 0) return;
         hasVideo = true;
+        Place(width, height);
         VideoSize?.Invoke(width, height);
+    }
+
+    /// <summary>The picture where <see cref="PictureArea"/> puts it, as the bars do; the TV's own letterboxing where it can't be told.</summary>
+    void Place(int width, int height)
+    {
+        var p = player;
+        if (p == null || !video) return;
+        try
+        {
+            var (sw, sh) = PictureArea.Screen;
+            var (x, y, w, h) = PictureArea.Of(width, height, sw, sh);
+            p.DisplaySettings.Mode = Media.PlayerDisplayMode.Roi;
+            p.DisplaySettings.SetRoi(new Media.Rectangle(x, y, w, h));
+        }
+        catch (Exception)
+        {
+            try
+            {
+                p.DisplaySettings.Mode = Media.PlayerDisplayMode.LetterBox;
+            }
+            catch (Exception)
+            {
+                // Between states: its own.
+            }
+        }
     }
 
     void Completed()

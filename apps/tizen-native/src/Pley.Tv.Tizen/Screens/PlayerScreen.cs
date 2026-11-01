@@ -675,7 +675,8 @@ sealed class PlayerScreen : Sheet
     /// <summary>
     /// Black where the letterboxed picture isn't: the window is clear over the whole video plane,
     /// and the TV leaves the plane's bars empty, so without these the TV's own screens show there.
-    /// Each bar reaches a pixel into the picture, so no seam shows between them.
+    /// The bars go round <see cref="PictureArea"/>'s rectangle, where the engine has the TV put the
+    /// picture, and reach a pixel into it, so no seam shows between them whatever the film's shape.
     /// </summary>
     void Bars(int videoWidth, int videoHeight)
     {
@@ -686,24 +687,25 @@ sealed class PlayerScreen : Sheet
             bar.Dispose();
         }
         if (videoWidth <= 0 || videoHeight <= 0) return;
-        var w = Ui.Dp(PleyTv.CanvasWidth);
-        var h = Ui.Dp(PleyTv.CanvasHeight);
-        var scale = Math.Min(w / videoWidth, h / videoHeight);
-        var left = (float)Math.Floor((w - videoWidth * scale) / 2);
-        var top = (float)Math.Floor((h - videoHeight * scale) / 2);
+        // The rectangle the engine told the TV to put the picture in.
+        var (sw, sh) = PictureArea.Screen;
+        var area = PictureArea.Of(videoWidth, videoHeight, sw, sh);
+        float w = sw, h = sh, left = area.X, top = area.Y;
+        const float into = 1;
         void Bar(float x, float y, float bw, float bh)
         {
             if (bw >= 1 && bh >= 1) bars.Add(new View { Position = new Position(x, y), Size = new Size(bw, bh), BackgroundColor = Color.Black });
         }
-        if (top >= 1)
+        float bottom = area.Y + area.Height, right = area.X + area.Width;
+        if (top >= 1 || bottom <= h - 1)
         {
-            Bar(0, 0, w, top + 1);
-            Bar(0, h - top - 1, w, top + 1);
+            Bar(0, 0, w, top + into);
+            Bar(0, bottom - into, w, h - bottom + into);
         }
-        if (left >= 1)
+        if (left >= 1 || right <= w - 1)
         {
-            Bar(0, 0, left + 1, h);
-            Bar(w - left - 1, 0, left + 1, h);
+            Bar(0, 0, left + into, h);
+            Bar(right - into, 0, w - right + into, h);
         }
     }
 

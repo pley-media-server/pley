@@ -219,3 +219,6 @@ It has no releases yet: it is built and installed by hand
 - The native app's animations (a tile's focus, a film's title as it
   begins, pictures fading in) are held while they run, where one could be
   collected mid-way and close the app.
+- The native app's black bars meet a letterboxed film's picture exactly,
+  whatever its shape, where a sliver of the TV's menu could show between
+  them.
