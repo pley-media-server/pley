@@ -317,7 +317,7 @@ public final class PlaybackController: ObservableObject {
     public func playNext() {
         guard !closed, !stopped else { return }
         if let next { return switchTo(next) }
-        let episode = item?.kind == .episode
+        let episode = item?.kind == .episode && request.queue == nil
         lookUpNext { [weak self] found in
             guard let self else { return }
             if let found {
@@ -941,7 +941,7 @@ public final class PlaybackController: ObservableObject {
         updateCues()
         setPhase(.ended)
         // What comes next, with its countdown (again, when its card was cancelled).
-        guard let item, NextUp.hasNext(item.kind), !closed, !stopped else { return }
+        guard let item, NextUp.hasNext(item.kind, queue: request.queue), !closed, !stopped else { return }
         lookUpNext { [weak self] found in
             guard let self, let found, self.ended else { return }
             self.showUpNext(found, countdown: self.countdownLeftMs == nil)
@@ -1020,7 +1020,7 @@ public final class PlaybackController: ObservableObject {
         let label = marker.map(Markers.label)
         if state.skipLabel != label { state.skipLabel = label }
         if credits.entered(marker) != nil { onCredits() }
-        if !nextAsked, let item, NextUp.hasNext(item.kind), state.durationMs > 0,
+        if !nextAsked, let item, NextUp.hasNext(item.kind, queue: request.queue), state.durationMs > 0,
            Double(position) >= Double(state.durationMs) * NextUp.lookAheadShare {
             lookUpNext { _ in }
         }
@@ -1037,7 +1037,7 @@ public final class PlaybackController: ObservableObject {
 
     /// The credits began: what comes next shows, counting down.
     private func onCredits() {
-        guard let item, NextUp.hasNext(item.kind), state.upNext == nil else { return }
+        guard let item, NextUp.hasNext(item.kind, queue: request.queue), state.upNext == nil else { return }
         lookUpNext { [weak self] found in
             guard let self, let found, !self.closed, !self.stopped else { return }
             self.showUpNext(found, countdown: true)
@@ -1057,9 +1057,9 @@ public final class PlaybackController: ObservableObject {
         nextAsked = true
         if let next { return then(next) }
         nextLookup?.cancel()
-        let (api, id, kind) = (env.api, item.id, item.kind)
+        let (api, id, kind, queue) = (env.api, item.id, item.kind, request.queue)
         nextLookup = Task { [weak self] in
-            let found = try? await NextUp.after(id, kind: kind, api: api)
+            let found = try? await NextUp.after(id, kind: kind, queue: queue, api: api)
             guard let self, !Task.isCancelled, self.item?.id == id, !self.closed else { return }
             if let found { self.next = found }
             then(found)
@@ -1118,7 +1118,9 @@ public final class PlaybackController: ObservableObject {
         let position = livePosition()
         endSession(at: position)
         engine?.pause()
-        request = PlayRequest(itemId: target.id, startMs: NextUp.startOf(target))
+        // Through a queue, the next of its items; otherwise the next episode by itself.
+        let queue = request.queue.flatMap { $0.nextId == target.id ? $0.advanced() : nil }
+        request = PlayRequest(itemId: target.id, startMs: NextUp.startOf(target), queue: queue)
         item = nil
         file = nil
         next = nil

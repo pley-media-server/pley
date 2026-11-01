@@ -46,8 +46,10 @@ import Testing
         shell.select(.home)
         #expect(shell.path(for: .home).isEmpty)
         // A section this device doesn't show isn't chosen.
-        shell.select(.playlists)
+        shell.select(.settings)
         #expect(shell.section == .home)
+        shell.select(.playlists)
+        #expect(shell.section == .playlists)
     }
 
     @Test func musicHasItsOwnPages() {
@@ -91,6 +93,16 @@ import Testing
         }
         #expect(ShellSection(key: "library:x") == nil)
         #expect(ShellSection(key: "live") == nil)
+    }
+
+    @Test func playlistsHaveATabASidebarRowAndAnAppleTVTab() {
+        #expect(ShellModel.sections(tv: false, libraries: []) == [.home, .libraries, .playlists, .me])
+        let libraries = [Library(id: 1, name: "Movies", kind: .movies), Library(id: 2, name: "Shows", kind: .shows)]
+        #expect(ShellModel.sections(tv: true, libraries: libraries)
+            == [.home, .library(1), .library(2), .playlists, .settings])
+        let shell = ShellModel(settings: freshSettings(), tv: false)
+        shell.setLibraries(libraries)
+        #expect(shell.sidebar == [.home, .playlists, .library(1), .library(2)])
     }
 
     @Test func aToastsUndoRunsOnce() {

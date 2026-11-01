@@ -2,11 +2,12 @@ import PleyModel
 import PleyScreens
 import SwiftUI
 
-/// A library's page for the sofa: Recommended and Library as buttons
-/// across the top, then on Library a row of Sort, the order and Filter
-/// (with Clear while filtered), a row of letters when sorted by title, and
-/// the grid, read 100 titles at a time. Each row is a focus section, so up
-/// and down go from one to the next.
+/// A library's page for the sofa: Recommended, Library and Collections
+/// (not for music) as buttons across the top. Recommended ends with the
+/// library's collections. On Library a row of Sort, the order, Filter (with
+/// Clear while filtered) and Save as Smart Playlist, a row of letters when
+/// sorted by title, and the grid, read 100 titles at a time. Each row is a
+/// focus section, so up and down go from one to the next.
 struct LibraryView: View {
     @ObservedObject private var app: AppModel
     @StateObject private var model: LibraryModel
@@ -63,7 +64,9 @@ struct LibraryView: View {
                 switch model.params.tab {
                 case .recommended:
                     recommended
-                case .library, .collections:
+                case .collections:
+                    CollectionsGrid(app: app, model: model.collections)
+                case .library:
                     controls
                     if let grid = model.grid {
                         GridPage(app: app, model: model, grid: grid)
@@ -79,7 +82,7 @@ struct LibraryView: View {
 
     @ViewBuilder private var recommended: some View {
         if let rows = model.rows {
-            if rows.isEmpty {
+            if rows.isEmpty && model.collections.cards.isEmpty {
                 StateView(kind: .empty(symbol: "sparkles", text: LibraryModel.emptyTitle, action: nil))
             } else {
                 ScrollView {
@@ -90,8 +93,10 @@ struct LibraryView: View {
                                 app.shell.open(item: tile.item)
                             }
                         }
+                        CollectionsRow(app: app, model: model.collections)
                     }
                 }
+                .scrollClipDisabled()
             }
         } else {
             StateView(kind: .loading)
@@ -153,6 +158,12 @@ struct LibraryView: View {
                         .accessibilityIdentifier("library.filter.clear")
                 }
             }
+            Button {
+                model.saveAs()
+            } label: {
+                Label("Save as Smart Playlist", systemImage: "text.badge.plus")
+            }
+            .accessibilityIdentifier("library.saveAs")
         }
         .focusSection()
         .padding(.horizontal, Metrics.gutter)
@@ -188,6 +199,8 @@ private struct GridPage: View {
                             .padding(.vertical, 40)
                         }
                         .scrollClipDisabled()
+                        // Down from any button above reaches the grid, however few titles it has.
+                        .focusSection()
                         .accessibilityIdentifier("library.grid")
                     }
                 }

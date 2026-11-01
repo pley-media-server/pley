@@ -5,10 +5,12 @@
 # a disposable server (a temporary data folder, a free port on 127.0.0.1,
 # no Bonjour, no Plex port, no tray), and sets up its household: an
 # administrator ("Admin", with a PIN) and the managed profile Kids (with a
-# PIN), and the libraries Movies, Shows, Clips and Music. Then it runs the
+# PIN), the libraries Movies, Shows, Clips and Music, and once they are
+# scanned the collection "Test collection" of two movies. Then it runs the
 # UI tests (PleyUITests on each iPhone and iPad simulator, PleyTVUITests on
 # the Apple TV one): sign in with a code, "Who's watching?", Home, an item,
-# Me (Settings on Apple TV), a switch back by PIN, and Sign out. The server
+# a library, a collection, a playlist made, changed and deleted, Me
+# (Settings on Apple TV), a switch back by PIN, and Sign out. The server
 # and the temporary folder are removed afterwards, whatever happens. macOS
 # only.
 #
@@ -131,6 +133,13 @@ if [[ $scanned == no ]]; then
   echo "check-screens: the libraries didn't finish scanning" >&2
   exit 1
 fi
+
+# A collection of the first two movies, for the collection's walk.
+movies=$(admin GET /api/libraries |
+  python3 -c 'import json,sys;print(next(l["id"] for l in json.load(sys.stdin) if l["name"]=="Movies"))')
+two=$(admin GET "/api/libraries/$movies/items?limit=2" |
+  python3 -c 'import json,sys;print(",".join(str(i["id"]) for i in json.load(sys.stdin)["items"][:2]))')
+admin POST "/api/libraries/$movies/collections" "{\"title\":\"Test collection\",\"item_ids\":[$two]}" >/dev/null
 
 # The simulator's UDID by its name.
 udid() {

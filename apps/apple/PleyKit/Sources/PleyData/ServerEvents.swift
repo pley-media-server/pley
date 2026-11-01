@@ -19,11 +19,14 @@ public struct ServerChange: Hashable, Sendable {
     public var parentIds: Set<Int> = []
     /// My List.
     public var watchlist = false
+    /// The profile's playlists (this app's own changes: the server sends no event for them).
+    public var playlists = false
     /// Everything: the stream connected again, and what came meanwhile is unknown.
     public var everything = false
 
     public init(serial: Int = 0, home: Bool = false, libraries: Bool = false, libraryIds: Set<Int> = [],
-                itemIds: Set<Int> = [], parentIds: Set<Int> = [], watchlist: Bool = false, everything: Bool = false) {
+                itemIds: Set<Int> = [], parentIds: Set<Int> = [], watchlist: Bool = false, playlists: Bool = false,
+                everything: Bool = false) {
         self.serial = serial
         self.home = home
         self.libraries = libraries
@@ -31,11 +34,12 @@ public struct ServerChange: Hashable, Sendable {
         self.itemIds = itemIds
         self.parentIds = parentIds
         self.watchlist = watchlist
+        self.playlists = playlists
         self.everything = everything
     }
 
     public var isEmpty: Bool {
-        !home && !libraries && libraryIds.isEmpty && itemIds.isEmpty && !watchlist && !everything
+        !home && !libraries && libraryIds.isEmpty && itemIds.isEmpty && !watchlist && !playlists && !everything
     }
 
     /// Whether a screen showing `itemId` (whose parent is `parentId`, if any) fetches it again.
@@ -54,6 +58,7 @@ public struct ServerChange: Hashable, Sendable {
         itemIds.formUnion(other.itemIds)
         parentIds.formUnion(other.parentIds)
         watchlist = watchlist || other.watchlist
+        playlists = playlists || other.playlists
         everything = everything || other.everything
     }
 }

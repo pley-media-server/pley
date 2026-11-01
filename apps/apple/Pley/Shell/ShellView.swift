@@ -3,11 +3,12 @@ import PleyScreens
 import SwiftUI
 
 /// The signed-in app. On iPhone, and on iPad in a narrow window, a tab bar
-/// with Home, Libraries and Me; on iPad at regular width and on the Mac, a
-/// sidebar with Home, the libraries in the profile's order (Edit, or a
-/// drag, puts them in another), and at its foot the profile signed in
-/// (Me). Each section keeps its own navigation, and choosing the section
-/// showing goes back to its start. The toast shows at the bottom; while
+/// with Home, Libraries, Playlists and Me; on iPad at regular width and on
+/// the Mac, a sidebar with Home and Playlists, the libraries in the
+/// profile's order (Edit, or a drag, puts them in another), and at its foot
+/// the profile signed in (Me). Each section keeps its own navigation, and
+/// choosing the section showing goes back to its start. Add to playlist and
+/// New playlist are sheets over it; the toast shows at the bottom; while
 /// the player is open VoiceOver reads only the player.
 struct ShellView: View {
     @ObservedObject var app: AppModel
@@ -28,6 +29,9 @@ struct ShellView: View {
             }
         }
         .overlay(alignment: .bottom) { ToastView(shell: shell) }
+        .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { sheet in
+            ShellSheet(app: app, sheet: sheet)
+        }
         .accessibilityHidden(app.player != nil)
     }
 
@@ -117,6 +121,7 @@ struct ShellView: View {
         case .home: HomeView(app: app)
         case .libraries: LibrariesView(app: app)
         case .library(let id): LibraryView(app: app, libraryId: id)
+        case .playlists: PlaylistsView(app: app)
         case .me, .settings: MeView(app: app)
         default: EmptyView()
         }
@@ -147,7 +152,7 @@ struct ShellView: View {
     }
 }
 
-/// The sidebar: Home, then the libraries in the profile's order, each
+/// The sidebar: Home and Playlists, then the libraries in the profile's order, each
 /// with its kind's symbol; a drag (or Edit on iPad, or VoiceOver's Move up
 /// and Move down) puts them in another order.
 private struct Sidebar: View {
@@ -167,6 +172,9 @@ private struct Sidebar: View {
             Label(ShellView.title(.home), systemImage: ShellView.symbol(.home))
                 .tag(ShellSection.home)
                 .accessibilityIdentifier("shell.sidebar.home")
+            Label(ShellView.title(.playlists), systemImage: ShellView.symbol(.playlists))
+                .tag(ShellSection.playlists)
+                .accessibilityIdentifier("shell.sidebar.playlists")
             Section("Libraries") {
                 ForEach(model.entries) { entry in
                     HStack {
@@ -208,8 +216,7 @@ private struct Sidebar: View {
     }
 }
 
-/// The page a `Screen` names. Artists and albums open the item's page
-/// until they have pages of their own.
+/// The page a `Screen` names.
 struct ScreenView: View {
     let app: AppModel
     let screen: Screen
@@ -228,6 +235,12 @@ struct ScreenView: View {
             LibraryView(app: app, libraryId: id, view: view)
         case .libraries:
             LibrariesView(app: app)
+        case .collection(let id):
+            CollectionView(app: app, collectionId: id)
+        case .collections(let library):
+            CollectionsPage(app: app, libraryId: library)
+        case .playlist(let id):
+            PlaylistView(app: app, playlistId: id)
         default:
             EmptyView()
         }

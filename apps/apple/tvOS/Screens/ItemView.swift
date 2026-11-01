@@ -410,7 +410,17 @@ struct ItemView: View {
                     InfoLine(label: line.label, value: line.names)
                 }
                 if !page.partOf.isEmpty {
-                    InfoLine(label: "Part of", value: page.partOf.map(\.title).joined(separator: ", "))
+                    // Each collection is a button to its page.
+                    HStack(alignment: .firstTextBaseline, spacing: 20) {
+                        Text("Part of").foregroundStyle(.secondary).frame(width: 260, alignment: .leading)
+                        ForEach(page.partOf, id: \.id) { collection in
+                            Button(collection.title) { app.shell.open(.collection(collection.id)) }
+                                .accessibilityLabel("Part of \(collection.title)")
+                                .accessibilityHint("Opens the collection")
+                                .accessibilityIdentifier("item.partOf.\(collection.id)")
+                        }
+                    }
+                    .font(.callout)
                 }
                 ForEach(rows, id: \.label) { row in
                     InfoLine(label: row.label, value: row.value)

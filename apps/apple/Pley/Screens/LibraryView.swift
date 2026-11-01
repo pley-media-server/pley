@@ -2,11 +2,13 @@ import PleyModel
 import PleyScreens
 import SwiftUI
 
-/// A library's page: Recommended (its own rows) and Library (every title,
-/// sorted and filtered, in a grid read 100 at a time). Sort is a menu with
-/// the order beside it; the filters are a sheet on iPhone and a menu on
-/// iPad and Mac. Sorted by title, a strip of letters down the side jumps
-/// through the grid. The page opens as it was left, or as See all asks.
+/// A library's page: Recommended (its own rows, then its collections),
+/// Library (every title, sorted and filtered, in a grid read 100 at a time)
+/// and Collections (not for music). Sort is a menu with the order beside
+/// it; the filters are a sheet on iPhone and a menu on iPad and Mac; More
+/// has Save as Smart Playlist. Sorted by title, a strip of letters down the
+/// side jumps through the grid. The page opens as it was left, or as See
+/// all asks.
 struct LibraryView: View {
     @ObservedObject private var app: AppModel
     @StateObject private var model: LibraryModel
@@ -73,7 +75,9 @@ struct LibraryView: View {
                 switch model.params.tab {
                 case .recommended:
                     recommended
-                case .library, .collections:
+                case .collections:
+                    CollectionsGrid(app: app, model: model.collections)
+                case .library:
                     Text(listing)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -95,7 +99,7 @@ struct LibraryView: View {
 
     @ViewBuilder private var recommended: some View {
         if let rows = model.rows {
-            if rows.isEmpty {
+            if rows.isEmpty && model.collections.cards.isEmpty {
                 StateView(kind: .empty(symbol: "sparkles", text: LibraryModel.emptyTitle, action: nil))
             } else {
                 ScrollView {
@@ -106,6 +110,7 @@ struct LibraryView: View {
                                 app.shell.open(item: tile.item)
                             }
                         }
+                        CollectionsRow(app: app, model: model.collections)
                     }
                     .padding(.vertical)
                 }
@@ -117,7 +122,7 @@ struct LibraryView: View {
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
-        if model.state == .loaded, model.params.tab != .recommended {
+        if model.state == .loaded, model.params.tab == .library {
             ToolbarItemGroup(placement: .primaryAction) {
                 Menu {
                     Picker("Sort by", selection: Binding(get: { model.params.sort }, set: { model.sort(by: $0) })) {
@@ -156,6 +161,15 @@ struct LibraryView: View {
                             .accessibilityIdentifier("library.filter")
                     }
                 }
+                Menu {
+                    Button { model.saveAs() } label: {
+                        Label("Save as Smart Playlist…", systemImage: "text.badge.plus")
+                    }
+                    .accessibilityIdentifier("library.saveAs")
+                } label: {
+                    Label("More", systemImage: "ellipsis.circle")
+                }
+                .accessibilityIdentifier("library.more")
                 #if os(macOS)
                 Button {
                     Task { await model.reload() }

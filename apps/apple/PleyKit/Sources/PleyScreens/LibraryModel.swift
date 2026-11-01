@@ -4,9 +4,11 @@ import PleyData
 import PleyModel
 import PleyNetwork
 
-/// A library's page: its tabs (Recommended, its rows; Library, every title
-/// sorted and filtered), opened on the tab and view it was left in on this
-/// device, or on the view See all asks for. A tab reads only once shown.
+/// A library's page: its tabs (Recommended, its rows then its collections;
+/// Library, every title sorted and filtered; Collections, not for music),
+/// opened on the tab and view it was left in on this device, or on the view
+/// See all asks for. A tab reads only once shown. Save as… keeps the
+/// Library tab's filters and order as a smart playlist.
 /// The Library tab's grid reads 100 titles at a time (`LibraryGrid`); sorted
 /// by title with more than 30 and at most 2,000 titles it reads them all
 /// for the A to Z (`alpha`).
@@ -39,6 +41,8 @@ public final class LibraryModel: ObservableObject {
     @Published public private(set) var alpha: AlphaIndex?
     /// Why the last read failed while something still shows.
     @Published public private(set) var notice: String?
+    /// Its collections: the Collections tab, and the Recommended tab's last row.
+    public let collections: CollectionsModel
 
     public let app: AppModel
     public let libraryId: Int
@@ -48,12 +52,16 @@ public final class LibraryModel: ObservableObject {
     /// The tab being shown after a change of sort or filter.
     private var changing: Task<Void, Never>?
     private var listener: AnyCancellable?
+    /// The collections' changes show on the page too (Recommended's last row).
+    private var forwarding: AnyCancellable?
 
     public init(app: AppModel, libraryId: Int, view: String? = nil) {
         self.app = app
         self.libraryId = libraryId
         asked = view
         params = LibraryParams.parse(view ?? "")
+        collections = CollectionsModel(app: app, libraryId: libraryId)
+        forwarding = collections.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         listener = app.$change.compactMap { $0 }.sink { [weak self] change in
             guard let self, self.follows(change) else { return }
             Task { await self.followed(change) }
@@ -63,10 +71,8 @@ public final class LibraryModel: ObservableObject {
     /// The library's name, for the title.
     public var title: String { library?.name ?? "" }
 
-    /// The tabs this library has. Collections come with their own pages.
-    public var tabs: [LibraryTab] {
-        LibraryParams.tabs(for: library?.kind).filter { $0 != .collections }
-    }
+    /// The tabs this library has: music has no collections.
+    public var tabs: [LibraryTab] { LibraryParams.tabs(for: library?.kind) }
 
     /// The sorts this library offers.
     public var sorts: [LibrarySort] { LibraryParams.sorts(for: library?.kind ?? .movies) }
@@ -85,8 +91,8 @@ public final class LibraryModel: ObservableObject {
             self.library = library
             var params = LibraryParams.parse(asked ?? remembered() ?? "")
             params = params.valid(for: library.kind)
-            if params.tab == .collections { params.tab = .library }
             self.params = params
+            collections.kind = library.kind
             state = .loaded
             notice = nil
             // The genres and years to filter by; without them the menus offer watched only.
@@ -108,11 +114,21 @@ public final class LibraryModel: ObservableObject {
     public func reload() async {
         if library == nil { return await load() }
         switch params.tab {
-        case .recommended: await loadRows()
-        default:
+        case .recommended:
+            await loadRows()
+            if library?.kind != .music { await collections.load() }
+        case .collections:
+            await collections.load()
+        case .library:
             if let grid { await grid.reload() } else { await showTab() }
             refreshAlpha()
         }
+    }
+
+    /// Save as…: the smart playlist sheet, with the Library tab's filters
+    /// and order in Plex's syntax.
+    public func saveAs() {
+        app.shell.sheet = .saveSmartPlaylist(libraryId: libraryId, query: SmartFilter.of(params))
     }
 
     public func select(_ tab: LibraryTab) {
@@ -182,7 +198,10 @@ public final class LibraryModel: ObservableObject {
         switch params.tab {
         case .recommended:
             if rows == nil { await loadRows() }
-        case .library, .collections:
+            if library?.kind != .music, !collections.loaded { await collections.load() }
+        case .collections:
+            if !collections.loaded { await collections.load() }
+        case .library:
             if grid == nil { await startGrid() }
         }
     }

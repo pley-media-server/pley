@@ -2,10 +2,11 @@ import PleyScreens
 import SwiftUI
 
 /// The signed-in app on Apple TV: tabs across the top, Home, a tab per
-/// library (or one Libraries tab when there are more than four), and
-/// Settings (which holds the profile, the server, Switch profile, Servers
-/// and Sign out). Each tab keeps its own navigation; Menu goes back through it,
-/// then to the tabs, then out of the app. While the player is open
+/// library (or one Libraries tab when there are more than four), Playlists
+/// and Settings (which holds the profile, the server, Switch profile,
+/// Servers and Sign out). Each tab keeps its own navigation; Menu goes back
+/// through it, then to the tabs, then out of the app. Add to playlist and
+/// New playlist are a panel down the right. While the player is open
 /// VoiceOver reads only the player.
 struct ShellView: View {
     @ObservedObject var app: AppModel
@@ -26,6 +27,9 @@ struct ShellView: View {
             }
         }
         .overlay(alignment: .topTrailing) { ToastView(shell: shell) }
+        .fullScreenCover(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { sheet in
+            ShellSheet(app: app, sheet: sheet)
+        }
         .accessibilityHidden(app.player != nil)
     }
 
@@ -45,6 +49,7 @@ struct ShellView: View {
         case .home: HomeView(app: app)
         case .libraries: LibrariesView(app: app)
         case .library(let id): LibraryView(app: app, libraryId: id)
+        case .playlists: PlaylistsView(app: app)
         case .settings, .me: SettingsView(app: app)
         default: EmptyView()
         }
@@ -89,8 +94,7 @@ struct ShellView: View {
     }
 }
 
-/// The page a `Screen` names. Artists and albums open the item's page
-/// until they have pages of their own.
+/// The page a `Screen` names.
 struct ScreenView: View {
     let app: AppModel
     let screen: Screen
@@ -109,6 +113,12 @@ struct ScreenView: View {
             LibraryView(app: app, libraryId: id, view: view)
         case .libraries:
             LibrariesView(app: app)
+        case .collection(let id):
+            CollectionView(app: app, collectionId: id)
+        case .collections(let library):
+            CollectionsPage(app: app, libraryId: library)
+        case .playlist(let id):
+            PlaylistView(app: app, playlistId: id)
         default:
             EmptyView()
         }

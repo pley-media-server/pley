@@ -128,4 +128,34 @@ enum Admin {
     static func resetLibraryOrder() async {
         _ = await call("DELETE", "/api/me/libraries/order")
     }
+
+    /// The administrator's playlists: their JSON.
+    static func playlists() async -> [[String: Any]] {
+        ((await call("GET", "/api/playlists").1 as? [String: Any])?["playlists"] as? [[String: Any]]) ?? []
+    }
+
+    /// The administrator's playlist called `title`, if there is one.
+    static func playlist(titled title: String) async -> [String: Any]? {
+        await playlists().first { $0["title"] as? String == title }
+    }
+
+    /// Playlist `id`'s entries in order: each entry's id and its item's.
+    static func entries(_ id: Int) async -> [(entry: Int, item: Int)] {
+        let entries = (await call("GET", "/api/playlists/\(id)").1 as? [String: Any])?["entries"] as? [[String: Any]]
+        return (entries ?? []).compactMap { entry in
+            guard let id = entry["entry_id"] as? Int, let item = (entry["item"] as? [String: Any])?["id"] as? Int
+            else { return nil }
+            return (id, item)
+        }
+    }
+
+    /// Deletes the administrator's playlists called any of `titles`, left
+    /// by the walk on another device or an earlier run.
+    static func deletePlaylists(titled titles: Set<String>) async {
+        for playlist in await playlists() {
+            if let title = playlist["title"] as? String, titles.contains(title), let id = playlist["id"] as? Int {
+                _ = await call("DELETE", "/api/playlists/\(id)")
+            }
+        }
+    }
 }

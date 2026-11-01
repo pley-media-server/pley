@@ -3,8 +3,10 @@ import PleyModel
 import PleyNetwork
 
 /// What plays after an item (a port of the Android app's `NextUp`, without
-/// queues and downloads, which come later): the next episode, fetched
-/// fresh so its watch state is today's; movies and extras have none.
+/// downloads, which come later): the queue's next video when playing
+/// through a collection or a playlist, else the next episode. It is read
+/// fresh, so its watch state is today's; movies and extras played by
+/// themselves have none.
 public enum NextUp {
     /// How long the Up Next card counts down before the next one plays.
     public static let countdownSeconds = 10
@@ -13,11 +15,19 @@ public enum NextUp {
     /// The width the card's picture is asked for at.
     public static let imageWidth = 480
 
-    /// Whether `kind` can have something next, before asking.
-    public static func hasNext(_ kind: ItemKind) -> Bool { kind == .episode }
+    /// Whether `kind`, played through `queue`, can have something next, before asking.
+    public static func hasNext(_ kind: ItemKind, queue: PlayQueue? = nil) -> Bool {
+        queue.map { $0.nextId != nil } ?? (kind == .episode)
+    }
 
-    /// What follows `itemId` (of `kind`); `nil` at the end, or for anything but an episode.
-    public static func after(_ itemId: Int, kind: ItemKind, api: PleyAPI) async throws -> ItemSummary? {
+    /// What follows `itemId` (of `kind`): the queue's next item, else the
+    /// next episode; `nil` at the end, or for anything else.
+    public static func after(_ itemId: Int, kind: ItemKind, queue: PlayQueue? = nil,
+                             api: PleyAPI) async throws -> ItemSummary? {
+        if let queue {
+            guard let next = queue.nextId else { return nil }
+            return try await api.item(next).summary
+        }
         guard hasNext(kind) else { return nil }
         return try await api.next(itemId)
     }

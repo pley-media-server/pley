@@ -1,0 +1,211 @@
+import PleyModel
+import PleyPlayer
+import PleyScreens
+import SwiftUI
+
+/// Opens the player: full screen on iPhone and iPad, its own window on the Mac.
+struct Launcher: DynamicProperty {
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
+
+    @MainActor func play(_ app: AppModel, _ request: PlayRequest?) {
+        guard let request else { return }
+        #if os(macOS)
+        openWindow(id: PlayerWindow.id, value: request)
+        #else
+        Task { await app.play(request) }
+        #endif
+    }
+}
+
+/// A collection's tile: its poster with how many titles it holds, its
+/// TMDB or Smart badge, and its title and count below. One element for
+/// VoiceOver ("Dune Collection, collection, 2 movies").
+struct CollectionTile: View {
+    let app: AppModel
+    let card: CollectionCard
+    let width: CGFloat
+    let open: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: open) {
+            VStack(alignment: .leading, spacing: 6) {
+                ServerImage(app: app, paths: card.pictures, width: width, symbol: "square.stack")
+                    .frame(width: width, height: Metrics.pictureHeight(.poster, width: width))
+                    .overlay(alignment: .topTrailing) {
+                        Text(card.count)
+                            .font(.caption2.bold().monospacedDigit())
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.black.opacity(0.7), in: Capsule())
+                            .padding(6)
+                    }
+                    .overlay(alignment: .topLeading) {
+                        if card.smart || card.automatic {
+                            ListBadge(text: card.smart ? "Smart" : "TMDB").padding(6)
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: Metrics.corner))
+                    .overlay {
+                        if hovering && reduceMotion {
+                            RoundedRectangle(cornerRadius: Metrics.corner).strokeBorder(Color.accentColor, lineWidth: 2)
+                        }
+                    }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(card.title)
+                        .font(.footnote.weight(.medium))
+                        .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                    Text(card.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(width: width, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        #if os(iOS)
+        .hoverEffect(.lift)
+        #else
+        .scaleEffect(hovering && !reduceMotion ? 1.03 : 1)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
+        .onHover { hovering = $0 }
+        #endif
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(card.spokenLabel)
+        .accessibilityHint("Opens its page")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("tile.collection.\(card.id)")
+    }
+}
+
+/// A small word over a picture: "Smart", "TMDB".
+struct ListBadge: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.caption2.bold())
+            .foregroundStyle(.white)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 4))
+            .accessibilityHidden(true)
+    }
+}
+
+/// A playlist's picture: its first four entries' pictures two by two, or
+/// the first alone when it has fewer, square.
+struct PlaylistMosaic: View {
+    let app: AppModel
+    let artwork: [String]
+    let video: Bool
+    let size: CGFloat
+
+    var body: some View {
+        Group {
+            if artwork.count >= 4 {
+                VStack(spacing: 1) {
+                    HStack(spacing: 1) { cell(0); cell(1) }
+                    HStack(spacing: 1) { cell(2); cell(3) }
+                }
+            } else {
+                ServerImage(app: app, paths: Array(artwork.prefix(1)), width: size, symbol: symbol)
+                    .frame(width: size, height: size)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: Metrics.corner))
+        .accessibilityHidden(true)
+    }
+
+    private var symbol: String { video ? "list.and.film" : "music.note.list" }
+
+    private func cell(_ index: Int) -> some View {
+        ServerImage(app: app, path: artwork[index], width: (size - 1) / 2, symbol: symbol)
+            .frame(width: (size - 1) / 2, height: (size - 1) / 2)
+            .clipped()
+    }
+}
+
+/// A playlist's tile: its mosaic, its title and "12 items · 3h 12m".
+struct PlaylistTile: View {
+    let app: AppModel
+    let card: PlaylistCard
+    let width: CGFloat
+    let open: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        Button(action: open) {
+            VStack(alignment: .leading, spacing: 6) {
+                PlaylistMosaic(app: app, artwork: card.artwork, video: card.video, size: width)
+                    .overlay(alignment: .topLeading) {
+                        if card.smart { ListBadge(text: "Smart").padding(6) }
+                    }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(card.title)
+                        .font(.footnote.weight(.medium))
+                        .lineLimit(typeSize.isAccessibilitySize ? 3 : 2)
+                    Text(card.meta)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(width: width, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        #if os(iOS)
+        .hoverEffect(.lift)
+        #endif
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(card.spokenLabel)
+        .accessibilityHint("Opens it")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("tile.playlist.\(card.id)")
+    }
+}
+
+/// Play and Shuffle, for collections and playlists.
+struct PlayShuffleButtons: View {
+    let prefix: String
+    let canPlay: Bool
+    let canShuffle: Bool
+    let play: () -> Void
+    let shuffle: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: play) {
+                Label("Play", systemImage: "play.fill")
+                    .frame(minWidth: 90)
+                    // In a list's row the symbol takes the accent colour, the
+                    // button's own, and vanishes; it is drawn as the words are.
+                    .foregroundStyle(canPlay ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!canPlay)
+            .accessibilityIdentifier("\(prefix).play")
+            Button(action: shuffle) {
+                Label("Shuffle", systemImage: "shuffle")
+                    .frame(minWidth: 90)
+            }
+            .buttonStyle(.bordered)
+            .disabled(!canShuffle)
+            .accessibilityIdentifier("\(prefix).shuffle")
+        }
+        #if os(iOS)
+        .controlSize(.large)
+        #endif
+    }
+}

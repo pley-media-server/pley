@@ -215,7 +215,7 @@ extension FixtureServer {
                 switch parts[3] {
                 case "hubs": return library.generated ? json(200, ["hubs": []]) : fixture("libraries/hubs.json")
                 case "filters": return fixture("libraries/filters.json")
-                case "collections": return fixture("libraries/collections.json")
+                case "collections": return json(200, ["collections": libraryCollections(s, library.id)])
                 case "items": return items(&s, library, request)
                 default: return notFound(request.path)
                 }
@@ -387,7 +387,7 @@ extension FixtureServer {
     }
 
     /// An item's watch state and rating as the fixture keeps them.
-    private static func patched(_ s: State, _ item: [String: Any]) -> [String: Any] {
+    static func patched(_ s: State, _ item: [String: Any]) -> [String: Any] {
         guard let id = item["id"] as? Int else { return item }
         var item = item
         var state = item["user_state"] as? [String: Any] ?? [:]
@@ -459,7 +459,7 @@ extension FixtureServer {
     }
 
     /// Every item the fixtures list, by id, as summaries.
-    private static func summaries(_ s: State) -> [Int: [String: Any]] {
+    static func summaries(_ s: State) -> [Int: [String: Any]] {
         var out: [Int: [String: Any]] = [:]
         let lists: [[[String: Any]]] = [
             object("libraries/items.json")?["items"] as? [[String: Any]] ?? [],
@@ -476,7 +476,7 @@ extension FixtureServer {
     }
 
     /// Item `id`'s details: its fixture's when there is one, else its summary.
-    private static func detailJSON(_ s: State, _ id: Int) -> [String: Any]? {
+    static func detailJSON(_ s: State, _ id: Int) -> [String: Any]? {
         for file in ["items/movie_detail.json", "items/show_detail.json", "items/episode_detail.json",
                      "items/track_detail.json", "items/extra.json"] {
             if let detail = object(file), detail["id"] as? Int == id { return patched(s, detail) }
@@ -489,7 +489,7 @@ extension FixtureServer {
         return summaries(s)[id]
     }
 
-    private static func object(_ path: String) -> [String: Any]? {
+    static func object(_ path: String) -> [String: Any]? {
         guard let data = try? Fixtures.data(path) else { return nil }
         return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
     }

@@ -190,6 +190,7 @@ public final class FixtureServer: Sendable {
         var wrongPins: [Int: Int] = [:]
         var lockedPins: Set<Int> = []
         var playables: [Int: Playable] = [:]
+        var lists = Lists()
         var sessions: [String: PlaySession] = [:]
         var progress: [ProgressRecord] = []
         var playbackBodies: [Data] = []
@@ -661,6 +662,7 @@ public final class FixtureServer: Sendable {
             }
         }
         if let answer = browse(&s, request, parts) { return answer }
+        if let answer = lists(&s, request, parts) { return answer }
         if let answer = playback(&s, request, parts) { return answer }
         if get, parts.count == 4, parts[0] == "api", parts[1] == "users", let id = Int(parts[2]), parts[3] == "avatar" {
             return withToken(&s, request) { _, _ in

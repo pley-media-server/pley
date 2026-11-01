@@ -39,6 +39,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Full title pages: seasons and episodes, cast and crew, extras and
   trailers, More Like This, media info, your rating, watched marks and My
   List; people's pages; artist and album pages.
+- Collections and playlists: play or shuffle them, add titles to playlists,
+  make, rename, reorder and delete playlists, and save a library's filters
+  as a smart playlist.
 
 ### Fixed
 

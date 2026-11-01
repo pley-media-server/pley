@@ -251,7 +251,7 @@ private func item(_ id: Int, _ kind: ItemKind, positionMs: Int = 0, durationMs: 
         let model = LibraryModel(app: app, libraryId: 1)
         await model.load()
         #expect(model.params == LibraryParams())
-        #expect(model.tabs == [.recommended, .library])
+        #expect(model.tabs == [.recommended, .library, .collections])
         model.sort(by: .year)
         model.filter(watched: false)
         #expect(model.filterSummary == "Unwatched")

@@ -136,8 +136,8 @@ public final class ItemActionsModel: ObservableObject {
         case open(Screen)
     }
 
-    /// The actions offered for now: Add to playlist comes with the playlists' screens.
-    public static let offered: Set<ItemAction> = Set(ItemAction.allCases).subtracting([.addToPlaylist])
+    /// The actions offered.
+    public static let offered: Set<ItemAction> = Set(ItemAction.allCases)
 
     /// Watched marks made here and not yet read back from the server.
     @Published public private(set) var watched: [Int: Bool] = [:]

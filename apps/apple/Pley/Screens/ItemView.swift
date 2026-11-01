@@ -257,9 +257,18 @@ struct ItemView: View {
                     .accessibilityLabel("Genres: \(page.genres.joined(separator: ", "))")
             }
             if !page.partOf.isEmpty {
-                Text("Part of \(page.partOf.map(\.title).joined(separator: ", "))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                FlowLayout(spacing: 6) {
+                    Text("Part of")
+                        .foregroundStyle(.secondary)
+                    ForEach(page.partOf, id: \.id) { collection in
+                        Button(collection.title) { app.shell.open(.collection(collection.id)) }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("Part of \(collection.title)")
+                            .accessibilityHint("Opens the collection")
+                            .accessibilityIdentifier("item.partOf.\(collection.id)")
+                    }
+                }
+                .font(.subheadline)
             }
             crew(page.details.crew)
         }

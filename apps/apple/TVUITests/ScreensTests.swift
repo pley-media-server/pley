@@ -4,7 +4,9 @@ import XCTest
 /// with a code, "Who's watching?" with Kids by PIN, Home, an item,
 /// Settings, back to the administrator by PIN, See all, a title's actions,
 /// a movie's, a show's, a season's, an episode's, an artist's and an
-/// album's pages, a library tab's sort, filter and letters, and Sign out.
+/// album's pages, a library tab's sort, filter and letters, Save as Smart
+/// Playlist, a collection's page, a playlist made, changed and deleted,
+/// and Sign out.
 /// A person's page is walked when a title has cast, which comes from a
 /// metadata source; the test server has none, so it is skipped.
 @MainActor
@@ -47,6 +49,9 @@ final class ScreensTests: XCTestCase {
         walk.musicPages()
         walk.openLibraryTab("Movies")
         walk.sortAndFilter()
+        await walk.saveAsSmartPlaylist()
+        walk.collectionPage()
+        await walk.playlistWalk(movies: libraries["Movies"] ?? 0)
         walk.openLibraryTab("Clips")
         walk.jumpByLetter()
         walk.openSettings()
