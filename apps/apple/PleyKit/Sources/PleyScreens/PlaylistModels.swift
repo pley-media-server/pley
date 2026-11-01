@@ -115,7 +115,7 @@ public final class PlaylistsModel: ObservableObject {
 
     public init(app: AppModel) {
         self.app = app
-        listener = app.$change.compactMap { $0 }.sink { [weak self] change in
+        listener = app.$change.dropFirst().compactMap { $0 }.sink { [weak self] change in
             guard let self, change.playlists || change.everything else { return }
             Task { await self.load() }
         }
@@ -207,7 +207,7 @@ public final class PlaylistModel: ObservableObject {
     public init(app: AppModel, playlistId: Int) {
         self.app = app
         self.playlistId = playlistId
-        listener = app.$change.compactMap { $0 }.sink { [weak self] change in
+        listener = app.$change.dropFirst().compactMap { $0 }.sink { [weak self] change in
             guard let self, self.detail != nil else { return }
             let shown = Set(self.detail?.entries.map(\.item.id) ?? [])
             guard change.everything || change.playlists || !shown.isDisjoint(with: change.itemIds) else { return }

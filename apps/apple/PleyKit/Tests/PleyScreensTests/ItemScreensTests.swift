@@ -241,6 +241,26 @@ private let english = Locale(identifier: "en_US")
         #expect(model.request(for: try #require(page.trailer)) == PlayRequest(itemId: 102))
     }
 
+    @Test func aPageOpenedAfterAChangeReadsOnce() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        #expect(await eventually { server.openEventStreams == 1 })
+        // Back from the background: everything shown was read again.
+        app.note(ServerChange(home: true, libraries: true, watchlist: true, everything: true))
+        #expect(await eventually { app.change != nil })
+        // A page opened afterwards doesn't take that change as its own.
+        let model = ItemModel(app: app, itemId: 101)
+        await model.load()
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(server.requests("/api/items/101").count == 1)
+        // Nor does Home (on iPad, made again at each sidebar switch).
+        let home = HomeModel(app: app)
+        await home.reload()
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(server.requests("/api/hubs/home").count == 1)
+    }
+
     @Test func aShowsPageListsTheSeasonOfItsNextEpisodeAndAnotherOnRequest() async throws {
         let server = try await fixture()
         defer { server.stop() }

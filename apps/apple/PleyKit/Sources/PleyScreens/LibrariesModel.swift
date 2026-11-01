@@ -59,7 +59,7 @@ public final class LibrariesModel: ObservableObject {
 
     public init(app: AppModel) {
         self.app = app
-        app.$change.compactMap { $0 }.sink { [weak self] change in
+        app.$change.dropFirst().compactMap { $0 }.sink { [weak self] change in
             guard let self, change.libraries || change.everything else { return }
             Task { await self.reload() }
         }.store(in: &listeners)

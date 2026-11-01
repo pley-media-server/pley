@@ -84,7 +84,7 @@ public final class ItemModel: ObservableObject {
         app.actions.$listed.dropFirst().sink { [weak self] _ in
             Task { @MainActor in self?.rebuild() }
         }.store(in: &listeners)
-        app.$change.compactMap { $0 }.sink { [weak self] change in
+        app.$change.dropFirst().compactMap { $0 }.sink { [weak self] change in
             guard let self, self.writing == 0, self.follows(change) else { return }
             Task { await self.load() }
         }.store(in: &listeners)

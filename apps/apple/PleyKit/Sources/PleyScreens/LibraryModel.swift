@@ -62,7 +62,7 @@ public final class LibraryModel: ObservableObject {
         params = LibraryParams.parse(view ?? "")
         collections = CollectionsModel(app: app, libraryId: libraryId)
         forwarding = collections.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
-        listener = app.$change.compactMap { $0 }.sink { [weak self] change in
+        listener = app.$change.dropFirst().compactMap { $0 }.sink { [weak self] change in
             guard let self, self.follows(change) else { return }
             Task { await self.followed(change) }
         }

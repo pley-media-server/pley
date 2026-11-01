@@ -112,7 +112,7 @@ public final class CollectionModel: ObservableObject {
     public init(app: AppModel, collectionId: Int) {
         self.app = app
         self.collectionId = collectionId
-        listener = app.$change.compactMap { $0 }.sink { [weak self] change in
+        listener = app.$change.dropFirst().compactMap { $0 }.sink { [weak self] change in
             guard let self, self.detail != nil else { return }
             let shown = Set(self.tiles.map(\.id))
             guard change.everything || change.touches(library: self.detail?.collection.libraryId ?? -1)
