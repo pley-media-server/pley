@@ -134,6 +134,10 @@ sub showDetail()
     m.line.text = m.detail.line
     m.genres.text = m.detail.genres
     m.tagline.text = m.detail.tagline
+    ' Seven buttons take a line from the summary (three, as on Android TV):
+    ' under a heading of two lines they would reach the rows' title.
+    m.summary.maxLines = 4
+    if m.detail.buttons.Count() > 6 then m.summary.maxLines = 3
     m.summary.text = m.detail.summary
     m.note.text = m.detail.note
     layoutText()
@@ -382,6 +386,9 @@ sub onButton(event as object)
         uiNavigate({ to: "player", params: { itemId: tile.itemId, startMs: playerStartOf(tile.positionMs, tile.durationMs) } })
     else if action = "episodes"
         uiNavigate({ to: "show", params: { showId: m.detail.itemId, seasonId: 0 } })
+    else if action = "trailer"
+        ' From its start, as on the other TVs.
+        uiNavigate({ to: "player", params: { itemId: m.detail.trailerId, startMs: 0 } })
     else if action = "tracks"
         openTracks()
     else if action = "more"

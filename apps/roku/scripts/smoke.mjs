@@ -976,10 +976,20 @@ async function walk() {
   pickedSince = mark();
   await press("back");
   await waitFor(/^DELETE \/api\/playback\//, pickedSince, "the version's session closed");
-  // Back on its page, More…, past My List: Media info, its two files and
-  // their streams; Back to More, to the buttons, to the requests.
+  // Back on its page, its Trailer, past My List, played from its start;
+  // then More…: Media info, its two files and their streams; Back to More,
+  // to the buttons, to the requests.
   await settle();
+  shoot("movie-details");
+  pickedSince = mark();
   await press("down", 4);
+  await press("select"); // Trailer
+  await waitFor(/^POST \/api\/playback$/, pickedSince, "the trailer played");
+  pickedSince = mark();
+  await press("back");
+  await waitFor(/^DELETE \/api\/playback\//, pickedSince, "the trailer's session closed");
+  await settle();
+  await press("down");
   await press("select"); // Rate, Media info, Add to playlist
   await sleep(500);
   await press("down");
@@ -1239,6 +1249,7 @@ const checks = [
   ["turned its subtitles off on its page, the audio picked there kept", fixture.streams.some((s) => s.item === 1011 && s.audio_index === 2 && s.subtitle_index === null)],
   ["played the version chosen on its page", fixture.playbacks.some((p) => p.item === 1011 && p.file_id === 10011)],
   ["showed a movie's media info from its More", mediaInfo.shown],
+  ["played a movie's trailer from its page, from the start", fixture.playbacks.some((p) => p.item === 4000 && p.start_ms === 0)],
   ["asked for a show's More Like This and collections", asked(/^GET \/api\/items\/99\/related\?limit=20$/) && asked(/^GET \/api\/items\/99\/collections$/)],
   ["opened a person's page", asked(/^GET \/api\/people\/7$/)],
   ["opened a title from a person's row of what they directed", person.opened],

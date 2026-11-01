@@ -146,7 +146,15 @@ const albumTracks = (of, first, places) => places.map(([disc, index], i) => ({
   parent_index: disc, grandparent_id: 5000, grandparent_title: "The Fixtures", duration_ms: 200000, added_at: 0, user_state: state(),
 }));
 const tracks = [...albumTracks(album, 5201, [[1, 1], [1, 2], [2, 1]]), ...albumTracks(newerAlbum, 5211, [[1, 1], [1, 2]])];
-const items = new Map([...movies, show, ...seasons, ...episodes, artist, album, newerAlbum, ...tracks].map((item) => [item.id, item]));
+// Every movie's trailer, among its extras, which the title's Trailer plays.
+const trailer = {
+  id: 4000, library_id: 1, kind: "extra", title: "Official Trailer", sort_title: "Official Trailer", extra_type: "trailer", duration_ms: 150000,
+  added_at: 0, thumb_url: "/api/items/4000/images/thumb?v=1", user_state: state(),
+};
+// The movie a ready-to-watch notice opens has a summary as long as its page
+// shows, over six buttons: the page near its fullest.
+movies[11].summary = "A linguist is called in when twelve ships come to rest above the earth, and she must find a way to speak with those inside before the nations watching them lose patience. As she learns their language, her memories start to come loose from time, and what she remembers of her daughter changes what she will choose to do.";
+const items = new Map([...movies, show, ...seasons, ...episodes, artist, album, newerAlbum, ...tracks, trailer].map((item) => [item.id, item]));
 // Collections: TMDB's of five movies, and a smart one a filter fills with
 // the show.
 const collections = [
@@ -199,13 +207,13 @@ function detail(item, myList, picks) {
     file.streams = [{ index: 0, kind: "audio", codec: "mp3", channels: 2 }];
     file.chapters = [];
   }
-  const playable = item.kind === "movie" || item.kind === "episode" || item.kind === "track";
+  const playable = item.kind === "movie" || item.kind === "episode" || item.kind === "track" || item.kind === "extra";
   return {
     ...item, summary: item.summary ?? `About ${item.title}.`, original_title: null, tagline: item.kind === "movie" ? "A tagline." : null,
     genres: ["Drama", "Mystery"], studio: null, content_rating: "PG-13", tmdb_id: null, imdb_id: null,
     files: playable ? (item.kind === "movie" ? [file, cut] : [file]) : [],
     markers: item.kind === "episode" ? [{ file_id: file.id, kind: "credits", start_ms: item.duration_ms - 60000, end_ms: item.duration_ms, source: "chapter" }] : [],
-    extras: item.kind === "movie" ? [{ id: 4000, library_id: 1, kind: "extra", title: "Official Trailer", sort_title: "Official Trailer", extra_type: "trailer", duration_ms: 150000, added_at: 0, thumb_url: "/api/items/4000/images/thumb?v=1", user_state: state() }] : [],
+    extras: item.kind === "movie" ? [trailer] : [],
     cast: [{ id: 7, name: "Ada Lovelace", role: "actor", character: "Herself", photo_url: "/api/people/7/photo?v=1" }, { id: 8, name: "Alan Turing", role: "actor", character: "The Machine" }],
     crew: [{ id: 9, name: "Grace Hopper", role: "director" }, { id: 9, name: "Grace Hopper", role: "writer" }],
     in_watchlist: myList.includes(item.id),
@@ -621,7 +629,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       const fileId = ask.file_id ?? files[0];
       const burn = ask.subtitle_index ?? null;
       if (burn !== null && burn !== PICTURE_SUBTITLES) problems.push(`subtitles ${burn} to draw, which aren't pictures`);
-      fixture.playbacks.push({ item: ask.item_id, kind: item?.kind, file_id: fileId, subtitle_index: burn, mode: ask.mode, max_bitrate: ask.max_bitrate ?? null });
+      fixture.playbacks.push({ item: ask.item_id, kind: item?.kind, file_id: fileId, start_ms: ask.start_ms ?? 0, subtitle_index: burn, mode: ask.mode, max_bitrate: ask.max_bitrate ?? null });
       sessions += 1;
       const session = `s${sessions}`;
       if (fixture.playbackDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, fixture.playbackDelayMs));

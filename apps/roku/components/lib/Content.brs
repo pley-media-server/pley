@@ -317,11 +317,11 @@ end function
 ' it shows and which buttons it has. actions match buttons: "resume",
 ' "start", "playNext" (a show's next episode, onDeck), "episodes",
 ' "watched", "unwatched", "tracks" (Audio and subtitles), "listAdd",
-' "listRemove" and "more". More holds what is used less, as on the other
-' TVs ([{ label, action }]): "rate", "show" (an episode's), "info" (Media
-' info) and "playlist".
-' onDeck is a show's episode to play next (ItemSummary), invalid until the
-' server said or when there is none.
+' "listRemove", "trailer" (trailerId's) and "more". More holds what is
+' used less, as on the other TVs ([{ label, action }]): "rate", "show" (an
+' episode's), "info" (Media info) and "playlist". onDeck is a show's
+' episode to play next (ItemSummary), invalid until the server said or
+' when there is none.
 function contentDetail(detail as object, server as string, onDeck = invalid as dynamic) as object
     kind = httpString(detail.kind)
     title = httpSentence(detail.title)
@@ -409,6 +409,12 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
             actions.Push("listAdd")
         end if
     end if
+    trailerId = 0
+    if kind = "movie" or kind = "show" or kind = "episode" then trailerId = contentTrailer(detail)
+    if trailerId > 0
+        buttons.Push("Trailer")
+        actions.Push("trailer")
+    end if
     stars = 0
     if state <> invalid then stars = contentStars(state.rating)
     more = []
@@ -445,11 +451,21 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
         stars: stars,
         showId: httpNumber(detail.grandparent_id, 0),
         seasonId: httpNumber(detail.parent_id, 0),
+        trailerId: trailerId,
         buttons: buttons,
         actions: actions,
         more: more,
         note: note
     }
+end function
+
+' The title's first trailer among its extras (extra_type "trailer"), which
+' the server lists first: its id, 0 for none.
+function contentTrailer(detail as object) as dynamic
+    for each extra in httpArray(detail.extras)
+        if GetInterface(extra, "ifAssociativeArray") <> invalid and LCase(httpString(extra.extra_type)) = "trailer" then return httpNumber(extra.id, 0)
+    end for
+    return 0
 end function
 
 ' Whether a title's page offers Audio and subtitles before playing: it has

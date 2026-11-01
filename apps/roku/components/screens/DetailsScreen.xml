@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A movie, an episode or a show: its backdrop and poster, what it is, and
      its buttons (Resume / Play from start, a show's next episode and its
-     episodes, Mark as watched, Audio and subtitles, My List, More…). Audio
-     and subtitles and More open a panel over the right of the page: the
-     version and tracks to play; the rating, Go to show, Media info, Add to
-     playlist. The text is laid out top to bottom, leaving out what a title
-     doesn't have. Under it, rows of a show's seasons, cast and crew,
-     extras, More Like This and the collections it is part of: Down slides
-     the page up to them. Under the poster, how a request for the title
-     stands; a show the person may ask more seasons of ends its seasons
-     with Request more seasons. -->
+     episodes, Mark as watched, Audio and subtitles, My List, Trailer,
+     More…). Audio and subtitles and More open a panel over the right of
+     the page: the version and tracks to play; the rating, Go to show,
+     Media info, Add to playlist. The text is laid out top to bottom,
+     leaving out what a title doesn't have. Under it, rows of a show's
+     seasons, cast and crew, extras, More Like This and the collections it
+     is part of: Down slides the page up to them. Under the poster, how a
+     request for the title stands; a show the person may ask more seasons
+     of ends its seasons with Request more seasons. -->
 <component name="DetailsScreen" extends="Group">
     <interface>
         <field id="route" type="string" />

@@ -173,9 +173,10 @@ stops. Stop, or the queue's end, turns the timer off.
 
 A movie's, an episode's or a show's page has its buttons in a column at
 the left, Play (or Resume and Play from start) first, then Mark as
-watched, Audio and subtitles, My List and More…. Audio and subtitles and
-More open a panel at the right; Back closes it, and Down from the
-buttons goes to the rows under them.
+watched, Audio and subtitles, My List, Trailer (where its extras have
+one: it plays from its start) and More…. Audio and subtitles and More
+open a panel at the right; Back closes it, and Down from the buttons goes
+to the rows under them.
 
 - **Audio and subtitles** (a movie or an episode with several files, or
   whose file has two audio tracks or more, or subtitles):

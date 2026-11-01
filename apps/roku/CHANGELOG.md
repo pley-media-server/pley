@@ -26,6 +26,8 @@ describes how they are made.
   GB).
 - More… → Media info: each file of a movie or an episode and every one of
   its streams in full, as on the other apps.
+- A title with a trailer among its extras has Trailer on its page, which
+  plays it from the start.
 - A playlist's entries move: the Options key's Move lifts one, Up and Down
   carry it, OK puts it there and Back puts it back.
 - Settings has Always start as, for a household of several profiles: the

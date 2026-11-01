@@ -159,6 +159,18 @@ sub test_content_details_offer_audio_and_subtitles()
     tkTrue(contentHasTracks(detail), "versions to choose from")
 end sub
 
+sub test_content_details_offer_the_trailer()
+    detail = contentTestDetail()
+    detail.extras = [{ id: 40, kind: "extra", extra_type: "behind_the_scenes" }, { id: 41, kind: "extra", extra_type: "Trailer" }]
+    shown = contentDetail(detail, contentTestServer())
+    tkEqual(shown.buttons, ["Resume from 10:00", "Play from start", "Mark as watched", "Add to My List", "Trailer", "More…"])
+    tkEqual(shown.actions[4], "trailer")
+    tkEqual(shown.trailerId, 41)
+    detail.extras = [{ id: 40, kind: "extra", extra_type: "featurette" }]
+    tkEqual(contentDetail(detail, contentTestServer()).trailerId, 0, "no trailer among the extras")
+    tkEqual(contentTrailer({ extras: invalid }), 0)
+end sub
+
 sub test_content_show_details_offer_its_next_episode_and_episodes()
     show = ParseJson("{""id"":99,""kind"":""show"",""title"":""Severance"",""year"":2022,""child_count"":2,""content_rating"":""TV-MA"",""user_state"":{""position_ms"":0,""watched"":false,""play_count"":0},""files"":[],""in_watchlist"":true}")
     detail = contentDetail(show, contentTestServer())
