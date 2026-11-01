@@ -144,6 +144,22 @@ public class StateTests
     }
 
     [Fact]
+    public async Task Signing_out_after_signing_in_again_to_the_same_server_is_heard()
+    {
+        var store = new MemoryKeyValue();
+        var scheduler = new FakeScheduler();
+        var state = State(store, new FakeServer(), scheduler);
+        var heard = 0;
+        state.SignedOut.Changed += signedOut => heard += signedOut ? 1 : 0;
+        SignIn(state, store, scheduler);
+        await state.SignOutNow();
+        SignIn(state, store, scheduler);
+        Assert.False(state.SignedOut.Value);
+        await state.SignOutNow();
+        Assert.Equal(2, heard);
+    }
+
+    [Fact]
     public async Task The_same_home_again_is_neither_shown_nor_saved_again()
     {
         var store = new MemoryKeyValue();

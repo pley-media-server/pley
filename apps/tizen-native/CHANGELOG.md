@@ -196,3 +196,5 @@ It has no releases yet: it is built and installed by hand
   after it was stopped, a sign-in code no longer changes while it is
   read, and the subtitles and the reports to the server no longer do
   more work after each seek or pause.
+- Signing out of the native app goes back to signing in each time, also
+  after signing in again to the same server.

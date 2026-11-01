@@ -310,7 +310,12 @@ public sealed class AppState
     {
         var home = Addresses.Origin(server);
         if (home == null) return;
-        if (Server.Value == home && Api.Value != null) return;
+        if (Server.Value == home && Api.Value != null)
+        {
+            // Signed in again to the same server: the next sign-out has to be a change, to be heard.
+            SignedOut.Value = false;
+            return;
+        }
         events?.Stop();
         events = null;
         if (Server.Value != null && Server.Value != home) LeaveServer();
