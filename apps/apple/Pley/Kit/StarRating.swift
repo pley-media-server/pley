@@ -1,9 +1,12 @@
 import SwiftUI
 
 /// The profile's own rating: five stars in half steps (1 to 10, two points
-/// a star). A tap or a drag across the stars sets it; tapping the rating
-/// it has takes it away. For VoiceOver it is one adjustable element,
-/// "Your rating, 3.5 stars", swiped up or down a half star at a time.
+/// a star). A tap sets it, the left half of a star a half star; tapping the
+/// rating it has takes it away. Only a tap rates, so a scroll that starts
+/// on the stars scrolls the page. On the Mac the stars take the keyboard
+/// focus: left and right arrows change it a half star, Delete takes it
+/// away. For VoiceOver it is one adjustable element, "Your rating, 3.5
+/// stars", swiped up or down a half star at a time.
 struct StarRating: View {
     /// 1 to 10; `nil`: unrated.
     let rating: Int?
@@ -20,12 +23,24 @@ struct StarRating: View {
             }
         }
         .contentShape(Rectangle())
-        .gesture(DragGesture(minimumDistance: 0).onEnded { drag in
+        .gesture(SpatialTapGesture().onEnded { tap in
             // Five stars and the four gaps between them.
             let width = size * 5 + 16
-            let value = Int((max(0, min(drag.location.x, width)) / width * 10).rounded(.up))
+            let value = Int((max(0, min(tap.location.x, width)) / width * 10).rounded(.up))
             rate(value == rating ? nil : max(1, value))
         })
+        #if os(macOS)
+        .focusable()
+        .onMoveCommand { direction in
+            let now = rating ?? 0
+            switch direction {
+            case .right, .up: rate(min(10, now + 1))
+            case .left, .down: rate(now > 1 ? now - 1 : nil)
+            @unknown default: break
+            }
+        }
+        .onDeleteCommand { rate(nil) }
+        #endif
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Your rating")
         .accessibilityValue(spoken)

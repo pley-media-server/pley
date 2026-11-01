@@ -269,9 +269,11 @@ behind it.
   season plays its next episode: "Play S1 · E3"), **From start** when
   part played, **Watched**, **My List** (movies and shows), **Trailer**
   when there is one, and **More** with the rest of the title's actions.
-  The profile's own rating, in half stars: a tap or a drag on iPhone, iPad
-  and Mac (one adjustable element for VoiceOver, "Your rating, 3.5
-  stars"), a list on Apple TV. A movie's or episode's pickers: the
+  The profile's own rating, in half stars: a tap on iPhone, iPad and Mac
+  (the left half of a star for a half star; a scroll that starts on the
+  stars only scrolls), the arrow keys and Delete on the Mac, one
+  adjustable element for VoiceOver ("Your rating, 3.5 stars"), a list on
+  Apple TV. A movie's or episode's pickers: the
   version when there are several, the audio track, with **Automatic**
   first ("Automatic (English)": the profile's languages pick the track,
   which a track picked here replaces), and the subtitles, with Off; each
