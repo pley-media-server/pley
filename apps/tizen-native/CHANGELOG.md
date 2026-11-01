@@ -168,3 +168,4 @@ It has no releases yet: it is built and installed by hand
 - In the native app's libraries, focus stays on the chip after a sort or
   filter is chosen, where it was lost and no key moved it; anywhere a page
   draws a row again under focus, the next key brings focus back to it.
+- The native app's cast and crew circles no longer sit on dark squares.

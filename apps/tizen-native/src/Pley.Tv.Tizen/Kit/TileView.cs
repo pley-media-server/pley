@@ -145,8 +145,15 @@ sealed class TileView : View
         pictureAsked = false;
         picture.Opacity = 0;
         picture.ResourceUrl = "";
-        var (from, to) = Placeholder.Colors(model.Title);
-        well.Background = Gradients.Diagonal(AvatarView.Rgb(from), AvatarView.Rgb(to));
+        // A person's circle is Surface2, as on Android (the gradient is for a title, which it has
+        // none of): the TV's gradient visual stays square whatever its corner radius, and drew a
+        // dark square behind each round picture. A colour takes the well's.
+        if (kind.Round) well.BackgroundColor = PleyColors.Surface2;
+        else
+        {
+            var (from, to) = Placeholder.Colors(model.Title);
+            well.Background = Gradients.Diagonal(AvatarView.Rgb(from), AvatarView.Rgb(to));
+        }
         if (placeholder != null) placeholder.Text = model.Title;
         foreach (var child in overlays.Children.ToList())
         {
