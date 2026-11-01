@@ -426,12 +426,27 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     // The household: two profiles until the walk switched, then one, so the
     // second start opens on Home, as the walk times it.
     if (path === "/api/oauth/profiles") return json(200, fixture.switched.length ? fixture.household.filter((p) => p.current) : fixture.household);
-    // Playlists: the profile's one, its entries, taking one out.
+    // Playlists: the profile's one, its entries, taking one out, and those
+    // made since, empty, of the kind asked for.
     const playlist = () => ({
       id: 1, title: "Road trip", kind: "video", item_count: fixture.playlistEntries.length, duration_ms: 9300000,
       artwork: ["/api/items/1000/images/poster?v=1"], smart_filter: null, library_id: null, created_at: 0, updated_at: 0,
     });
-    if (path === "/api/playlists" && req.method === "GET") return json(200, { playlists: [playlist()] });
+    if (path === "/api/playlists" && req.method === "GET") {
+      return json(200, { playlists: [playlist(), ...fixture.playlistsMade].sort((a, b) => a.title.localeCompare(b.title)) });
+    }
+    if (path === "/api/playlists" && req.method === "POST") {
+      const asked = JSON.parse(body);
+      fixture.playlistsAsked.push(asked);
+      if (typeof asked.title !== "string" || !asked.title.trim()) return json(400, { code: "bad_request", message: "A playlist needs a title." });
+      if (asked.kind !== undefined && asked.kind !== "video" && asked.kind !== "audio") return json(400, { code: "bad_request", message: "kind is video or audio" });
+      const made = {
+        id: 2 + fixture.playlistsMade.length, title: asked.title.trim(), kind: asked.kind ?? "video", item_count: 0, duration_ms: 0,
+        artwork: [], smart_filter: null, library_id: null, created_at: 0, updated_at: 0,
+      };
+      fixture.playlistsMade.push(made);
+      return json(201, { ...made, entries: [] });
+    }
     if (path === "/api/playlists/1" && req.method === "GET") {
       return json(200, { ...playlist(), entries: fixture.playlistEntries.map(([entry_id, id]) => ({ entry_id, item: items.get(id) })) });
     }
@@ -440,6 +455,10 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       fixture.playlistOrders.push(ids);
       fixture.playlistEntries = ids.map((id) => fixture.playlistEntries.find(([entry]) => entry === id)).filter(Boolean);
       return json(200, { ...playlist(), entries: fixture.playlistEntries.map(([entry_id, id]) => ({ entry_id, item: items.get(id) })) });
+    }
+    if ((match = path.match(/^\/api\/playlists\/(\d+)$/)) && req.method === "GET") {
+      const made = fixture.playlistsMade.find((p) => p.id === Number(match[1]));
+      return made ? json(200, { ...made, entries: [] }) : json(404, { code: "not_found", message: `playlist ${match[1]} not found` });
     }
     if ((match = path.match(/^\/api\/playlists\/1\/items\/(\d+)$/)) && req.method === "DELETE") {
       fixture.playlistRemoved.push(Number(match[1]));
@@ -684,7 +703,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     return json(404, { code: "not_found", message: `nothing at ${path}` });
   });
 
-  const fixture = { issuer: "", down: false, qr: true, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], streams: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [],
+  const fixture = { issuer: "", down: false, qr: true, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], streams: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [],
     household: [{ id: 1, name: "Anna", avatar_url: null, avatar_color: "#38bdf8", current: true, needs: "none" }, { id: 2, name: "Ben", avatar_url: null, avatar_color: "#f472b6", current: false, needs: "none" }],
     switched: [], subtitlesAdded: [], probed: false, networkTold: [], speedTests: [], requestsAsked: [], requestsActed: [], discoverPictures: [], problems, requests, progress, closed, close: () => server.close(),
     liveRecent: [2], liveBrowses: [], liveFavorites: [], liveFavoriteChanges: [], liveGuides: [], liveWatches: [], liveSessions: new Map(), livePlaylists: [], liveLeft: [] };

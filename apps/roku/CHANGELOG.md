@@ -40,6 +40,8 @@ describes how they are made.
 - An artist's page has Play and Shuffle, which play every track of theirs
   with the music player, and Now playing while music plays; their albums
   are newest first, each with its year.
+- Playlists has New playlist: Movies & TV or Music, then a name typed on
+  the Roku's keyboard; the new playlist opens.
 
 ## [0.1.1] - 2026-11-01
 

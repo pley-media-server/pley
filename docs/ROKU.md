@@ -80,6 +80,11 @@ theirs to the music player, album by album, and open Now Playing (Now
 playing goes back to it while music plays); their albums are on the
 right, newest first.
 
+Playlists has New playlist at the right of its heading: what it is for
+(Movies & TV or Music), then its name on the Roku's keyboard. The new
+playlist opens, empty; Add to playlist, the Options key on a title, fills
+it.
+
 Fast forward and rewind show seek previews in Roku's own bar: the server's
 previews of the file as a BIF file, which the Video node fetches beside the
 media (`previews.bif`). While the server is still making them, the bar
@@ -317,10 +322,10 @@ bun run images    # the nine-patch focus and watched-mark images
   and walks every screen, saving each in `out/smoke/`. It fails on a
   BrightScript error, a request without the User-Agent, a token in an
   address, or a refresh token used twice. On the way it plays a collection
-  of movies and a smart one of shows, and an artist's tracks, asks for a
-  movie and three seasons from Discover, approves a request, opens a title
-  from its ready-to-watch notice, and checks that a server without
-  requests is asked nothing but the summary.
+  of movies and a smart one of shows, and an artist's tracks, makes a
+  playlist, asks for a movie and three seasons from Discover, approves a
+  request, opens a title from its ready-to-watch notice, and checks that a
+  server without requests is asked nothing but the summary.
 - **brs-node limits:** its own fonts, no video (Skip intro and Up Next have
   only unit tests), one fetch at a time, the odd dropped key, and no
   measure of a Roku's speed.

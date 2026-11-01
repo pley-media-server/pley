@@ -434,7 +434,7 @@ sub apiBuild(job as object, answer as object)
     else if job.build = "playlists"
         tiles = pagePlaylistTiles(data.playlists, server)
         job.request.content = nodesContent(tiles)
-        answer.data = { title: "Playlists", line: "", summary: "", shown: tiles.Count() }
+        answer.data = { shown: tiles.Count() }
     else if job.build = "playlist"
         rows = pagePlaylistEntries(data.entries, server)
         job.request.content = nodesContent(rows)
