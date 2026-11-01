@@ -102,7 +102,7 @@ sealed class RowView : View
             this.seeAll = new SeeAllTile(kind, more.Label, item) { Position = new Position(models.Count * step, 0) };
             strip.Add(this.seeAll);
         }
-        // A tile costs a few milliseconds (3.5 on the Frame), and a row has up to 20: the ones on
+        // A tile costs a few milliseconds on a TV, and a row has up to 20: the ones on
         // screen are made now, the rest one at a time after, or at once when focus gets there first.
         Make(Ahead(0));
         if (tiles.Count < models.Count)

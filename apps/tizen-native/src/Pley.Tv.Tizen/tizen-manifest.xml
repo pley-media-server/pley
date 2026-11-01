@@ -6,9 +6,9 @@
     <!-- Beside the web app on the same TV, so the two can be told apart. -->
     <label>Pley (native)</label>
     <icon>icon.png</icon>
-    <!-- Its code compiled as it's installed, not as it first runs: measured on a 2024 Frame, the
-         player took 0.37 s to open the first time and 0.04 s after, and the app 1.4 to 5.5 s to reach
-         its own code. -->
+    <!-- Its code compiled as it's installed, not as it first runs: compiled as it ran, the player
+         took about ten times as long to open the first time, and the app seconds to reach its own
+         code. -->
     <metadata key="http://tizen.org/metadata/prefer_dotnet_aot" value="true" />
   </ui-application>
   <privileges>
