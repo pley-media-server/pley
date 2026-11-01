@@ -56,7 +56,9 @@ sealed class TizenMediaEngine : IVideoEngine
                 try
                 {
                     var asked = Profile.Start();
+                    Profile.Enter("player: its position");
                     if (p.State is Media.PlayerState.Playing or Media.PlayerState.Paused) lastPosition = p.GetPlayPosition();
+                    Profile.Leave();
                     Slow("its position", asked);
                 }
                 catch (Exception)
@@ -143,11 +145,14 @@ sealed class TizenMediaEngine : IVideoEngine
                 await Task.Delay(OpaqueMs);
                 if (mine != generation) return;
             }
+            Profile.Enter("window: its alpha on");
             Window.Instance.SetTransparency(true);
+            Profile.Leave();
             opaque = false;
         }
         try
         {
+            Profile.Enter("player: set up (display, source)");
             if (video) p.Display = new Media.Display(Window.Instance);
             p.ErrorOccurred += (_, e) => Post(mine, () => Fail(ErrorOf(e.Error)));
             p.PlaybackCompleted += (_, _) => Post(mine, Completed);
@@ -160,8 +165,14 @@ sealed class TizenMediaEngine : IVideoEngine
             p.SetSource(new Media.MediaUriSource(s.Url));
             Buffer(p, s);
 #if PROFILE
-            p.BufferingProgressChanged += (_, e) => Profile.Mark($"engine: buffered {e.Percent} %");
+            // Off the player's thread, its first and last only: a callback of the TV's player returns at once.
+            p.BufferingProgressChanged += (_, e) =>
+            {
+                var percent = e.Percent;
+                if (percent is 0 or 100) Post(mine, () => Profile.Mark($"engine: buffered {percent} %"));
+            };
 #endif
+            Profile.Leave();
         }
         catch (Exception e)
         {
@@ -170,11 +181,14 @@ sealed class TizenMediaEngine : IVideoEngine
         }
         try
         {
+            Profile.Enter("player: prepare (the call)");
             preparing = p.PrepareAsync();
+            Profile.Leave();
             await preparing;
             if (mine != generation) return;
             prepared = true;
             Profile.Mark("engine: prepared");
+            Profile.Enter("player: after prepare (display mode, streams, duration)");
             if (video)
             {
                 p.DisplaySettings.Mode = Media.PlayerDisplayMode.LetterBox;
@@ -209,12 +223,16 @@ sealed class TizenMediaEngine : IVideoEngine
             {
                 // A live stream has none.
             }
+            Profile.Leave();
             // A file's timeline is the file's: a conversion that starts there still seeks there. Live starts at its edge.
             var start = pendingSeek ?? (s.Live ? 0 : s.StartMs);
             if (start >= 1000)
             {
                 Profile.Mark($"engine: going to {start / 1000} s");
-                await p.SetPlayPositionAsync((int)start, false);
+                Profile.Enter("player: seek (the call)");
+                var going = p.SetPlayPositionAsync((int)start, false);
+                Profile.Leave();
+                await going;
                 Profile.Mark("engine: there");
                 if (mine != generation) return;
                 lastPosition = start;
@@ -269,7 +287,9 @@ sealed class TizenMediaEngine : IVideoEngine
         if (p == null || !prepared) return;
         try
         {
+            Profile.Enter("player: pause");
             if (p.State == Media.PlayerState.Playing) p.Pause();
+            Profile.Leave();
         }
         catch (Exception)
         {
@@ -294,7 +314,10 @@ sealed class TizenMediaEngine : IVideoEngine
     {
         try
         {
-            await p.SetPlayPositionAsync((int)ms, false);
+            Profile.Enter("player: seek (the call)");
+            var going = p.SetPlayPositionAsync((int)ms, false);
+            Profile.Leave();
+            await going;
         }
         catch (Exception)
         {
@@ -361,6 +384,7 @@ sealed class TizenMediaEngine : IVideoEngine
         if (p == null || !prepared) return false;
         try
         {
+            Profile.Enter("player: audio track");
             var info = p.AudioTrackInfo;
             if (ordinal < 0 || ordinal >= info.GetCount()) return false;
             if (language != null)
@@ -375,6 +399,10 @@ sealed class TizenMediaEngine : IVideoEngine
         catch (Exception)
         {
             return false;
+        }
+        finally
+        {
+            Profile.Leave();
         }
     }
 
@@ -430,6 +458,7 @@ sealed class TizenMediaEngine : IVideoEngine
         var p = player;
         if (p == null || !prepared) return null;
         if (stats != null && statsFor == generation) return stats;
+        Profile.Enter("player: its streams (Info)");
         int? width = null, height = null, bitrate = null, audioBitrate = null, channels = null;
         double? fps = null;
         string? codec = null, audioCodec = null;
@@ -461,6 +490,7 @@ sealed class TizenMediaEngine : IVideoEngine
         {
             // No sound, or not known.
         }
+        Profile.Leave();
         Slow("its stats", asked);
         var total = (bitrate ?? 0) + (audioBitrate ?? 0);
         var read = new EngineStats
@@ -488,7 +518,9 @@ sealed class TizenMediaEngine : IVideoEngine
         if (p == null || mine != generation) return;
         try
         {
+            Profile.Enter("player: start");
             if (p.State != Media.PlayerState.Playing) p.Start();
+            Profile.Leave();
             Profile.Mark("engine: started");
         }
         catch (Exception e)
@@ -538,8 +570,10 @@ sealed class TizenMediaEngine : IVideoEngine
         try
         {
             var asked = Profile.Start();
+            Profile.Enter("player: its position (watch)");
             playing = p.State == Media.PlayerState.Playing;
             position = playing ? lastPosition = p.GetPlayPosition() : lastPosition;
+            Profile.Leave();
             Slow("its position (watch)", asked);
         }
         catch (Exception)
@@ -608,8 +642,10 @@ sealed class TizenMediaEngine : IVideoEngine
         {
             var (sw, sh) = PictureArea.Screen;
             var (x, y, w, h) = PictureArea.Of(width, height, sw, sh);
+            Profile.Enter("player: its region");
             p.DisplaySettings.Mode = Media.PlayerDisplayMode.Roi;
             p.DisplaySettings.SetRoi(new Media.Rectangle(x, y, w, h));
+            Profile.Leave();
         }
         catch (Exception)
         {
@@ -718,7 +754,9 @@ sealed class TizenMediaEngine : IVideoEngine
             // The picture goes once the window is drawn without its alpha: stopped at once, the
             // video plane emptied before the screen's black was drawn, and the TV's menu showed
             // through for a moment as a channel changed.
+            Profile.Enter("window: its alpha off (close)");
             Window.Instance.SetTransparency(false);
+            Profile.Leave();
             opaque = cover = true;
         }
         Releasing = Release(p, prepare, Releasing, cover);
@@ -749,8 +787,10 @@ sealed class TizenMediaEngine : IVideoEngine
         // to the window, held the UI 8 s as a film was left, and the app died moments later.
         try
         {
+            Profile.Enter("player: stop and unprepare (release)");
             if (p.State is Media.PlayerState.Playing or Media.PlayerState.Paused) p.Stop();
             if (p.State != Media.PlayerState.Idle) p.Unprepare();
+            Profile.Leave();
         }
         catch (Exception)
         {
@@ -758,7 +798,9 @@ sealed class TizenMediaEngine : IVideoEngine
         }
         try
         {
+            Profile.Enter("player: dispose (release)");
             p.Dispose();
+            Profile.Leave();
         }
         catch (Exception)
         {
@@ -769,7 +811,9 @@ sealed class TizenMediaEngine : IVideoEngine
         if (cover && opening == 0 && opaque)
         {
             opaque = false;
+            Profile.Enter("window: its alpha on (release)");
             if (Covered?.Invoke() != false) Window.Instance.SetTransparency(true);
+            Profile.Leave();
         }
     }
 

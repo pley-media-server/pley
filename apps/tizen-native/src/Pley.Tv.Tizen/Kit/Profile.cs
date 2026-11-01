@@ -31,6 +31,16 @@ static class Profile
     [Conditional("PROFILE")]
     public static void Mark(string what) => Run.Mark(what);
 
+    /// <summary>
+    /// The UI thread goes into <paramref name="what"/>, a call into the TV (its player, its window):
+    /// a hang there is named by the watchdog. <see cref="Leave"/> as it comes back.
+    /// </summary>
+    [Conditional("PROFILE")]
+    public static void Enter(string what) => Run.Enter(what);
+
+    [Conditional("PROFILE")]
+    public static void Leave() => Run.Leave();
+
     /// <summary>Marks when <paramref name="task"/> ends, from now.</summary>
     [Conditional("PROFILE")]
     public static void Ends(string what, Task task)
@@ -67,6 +77,10 @@ static class Profile
         static string? trail;
         static Timer? beat, memory;
         static long beatAt;
+        /// <summary>The call the UI thread is in, and since when (ms); null between calls.</summary>
+        static volatile string? busy;
+        static long busyAt;
+        static Thread? watchdog;
         static int pictures;
         static double picturesMs;
         static Counter? counter;
@@ -87,27 +101,45 @@ static class Profile
 
         static double Now => Before + Since.Elapsed.TotalMilliseconds;
 
+        /// <summary>
+        /// Lines on their way, to the trail on the TV (Mark's) and the listener: written by a thread
+        /// of their own, so a mark costs its caller a queue's add. Marked from the TV player's own
+        /// threads (its buffering), a file written and a post started there held the player's
+        /// callbacks, twenty at once after a seek, and the app died moments later.
+        /// </summary>
+        static readonly System.Collections.Concurrent.BlockingCollection<(string Line, bool Keep)> Outgoing =
+            new System.Collections.Concurrent.BlockingCollection<(string, bool)>(new System.Collections.Concurrent.ConcurrentQueue<(string, bool)>(), 4096);
+        static Thread? writer;
+
         public static void Mark(string what)
         {
             last = what;
-            var line = $"profile {Now,8:0} ms  {what}";
-            Send(line);
-            // On the TV too, at once: a native crash takes the posts on their way with the process.
-            if (trail == null) return;
-            try
-            {
-                lock (Http) File.AppendAllText(trail, $"{DateTime.Now:HH:mm:ss.fff} {line}\n");
-            }
-            catch (Exception)
-            {
-                // Nowhere to write.
-            }
+            Outgoing.TryAdd(($"profile {Now,8:0} ms  {what}", true));
         }
 
-        public static void Send(string line)
+        public static void Send(string line) => Outgoing.TryAdd((line, false));
+
+        /// <summary>The thread that writes the trail and posts the lines, in order.</summary>
+        static void Write()
         {
-            if (Address == null) return;
-            _ = Post(line);
+            writer = new Thread(() =>
+            {
+                foreach (var (line, keep) in Outgoing.GetConsumingEnumerable())
+                {
+                    if (Address != null) _ = Post(line);
+                    // On the TV too, at once: a native crash takes the posts on their way with the process.
+                    if (!keep || trail == null) continue;
+                    try
+                    {
+                        File.AppendAllText(trail, $"{DateTime.Now:HH:mm:ss.fff} {line}\n");
+                    }
+                    catch (Exception)
+                    {
+                        // Nowhere to write.
+                    }
+                }
+            }) { IsBackground = true, Name = "pley-marks" };
+            writer.Start();
         }
 
         static async Task Post(string line)
@@ -133,10 +165,12 @@ static class Profile
         {
             Trail(dataDir);
             CatchCrashes(dataDir);
+            Write();
             // Core's marks too (the relay's, Live TV's), from whatever thread they come on.
             Core.Marks.Listener = Mark;
             WatchStalls();
             WatchMemory();
+            Watchdog();
             // Held here: NUI calls it from native code, which doesn't keep it from being collected.
             counter = new Counter(window);
             window.AddFrameUpdateCallback(counter);
@@ -205,6 +239,50 @@ static class Profile
             TaskScheduler.UnobservedTaskException += (s, e) => Send("UNOBSERVED TASK: " + e.Exception?.ToString().Replace("\n", " | "));
         }
 
+        public static void Enter(string what)
+        {
+            Interlocked.Exchange(ref busyAt, Since.ElapsedMilliseconds);
+            busy = what;
+        }
+
+        public static void Leave() => busy = null;
+
+        /// <summary>
+        /// A thread of its own watching the UI thread's beat: one missing for 1.5 s is a hang, told
+        /// from this thread (the UI's own marks stop with it) with the call it's in and the mark
+        /// before, again every 2 s while it lasts, and when it ends. A crash ends the marks with no
+        /// hang told; a hang the TV ends by closing the app ends them after one.
+        /// </summary>
+        static void Watchdog()
+        {
+            watchdog = new Thread(() =>
+            {
+                long toldAt = 0;
+                var hung = false;
+                while (true)
+                {
+                    Thread.Sleep(250);
+                    var now = Since.ElapsedMilliseconds;
+                    var gap = now - Interlocked.Read(ref beatAt);
+                    if (gap >= 1500 && (!hung || now - toldAt >= 2000))
+                    {
+                        hung = true;
+                        toldAt = now;
+                        var b = busy;
+                        var line = $"profile {Now,8:0} ms  UI HUNG {gap} ms, in: {b ?? "(no call of the TV's)"}{(b != null ? $" for {now - Interlocked.Read(ref busyAt)} ms" : "")}, after: {last}, gc0={GC.CollectionCount(0)} gc2={GC.CollectionCount(2)}";
+                        // To the trail too: a hang the TV ends by closing the app leaves it there.
+                        Outgoing.TryAdd((line, true));
+                    }
+                    else if (hung && gap < 1500)
+                    {
+                        hung = false;
+                        Send($"profile {Now,8:0} ms  UI back");
+                    }
+                }
+            }) { IsBackground = true, Name = "pley-watchdog" };
+            watchdog.Start();
+        }
+
         /// <summary>A beat on the UI thread every 16 ms: one late by more than 50 ms is a stall, named by the mark before it.</summary>
         static void WatchStalls()
         {
@@ -213,8 +291,8 @@ static class Profile
             beat.Tick += (s, e) =>
             {
                 var now = Since.ElapsedMilliseconds;
-                var gap = now - beatAt;
-                beatAt = now;
+                var gap = now - Interlocked.Read(ref beatAt);
+                Interlocked.Exchange(ref beatAt, now);
                 if (gap > 66) Send($"profile {Now,8:0} ms  STALL {gap} ms on the UI thread, after: {last}");
                 return true;
             };
