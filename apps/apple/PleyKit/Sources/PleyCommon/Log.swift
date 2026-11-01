@@ -19,4 +19,10 @@ public enum Log {
     public static let player = Logger(subsystem: subsystem, category: "player")
 
     static let subsystem = "app.pley.apple"
+
+    /// A request's path as it may be logged: a keyed media address keeps
+    /// only `/api/media/…`, since its key stands for the session.
+    public static func path(_ path: String) -> String {
+        path.lowercased().hasPrefix("/api/media/") ? "/api/media/…" : path
+    }
 }

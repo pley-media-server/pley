@@ -95,7 +95,7 @@ public final class HTTPTransport: Sendable {
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.httpShouldHandleCookies = false
         let method = request.httpMethod ?? "GET"
-        let path = url.path(percentEncoded: true)
+        let path = Log.path(url.path(percentEncoded: true))
 
         let observer = TaskObserver(redirects: redirects, maxBytes: maxBytes)
         let answer: TaskObserver.Answer
@@ -164,7 +164,7 @@ extension HTTPTransport {
         var request = request
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.httpShouldHandleCookies = false
-        let path = url.path(percentEncoded: true)
+        let path = Log.path(url.path(percentEncoded: true))
         let observer = StreamObserver(redirects: redirects, read: read)
         let answer: StreamObserver.Answer
         do {
