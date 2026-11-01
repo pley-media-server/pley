@@ -14,11 +14,14 @@
 #   5. MPEG2 (1999).mkv           MPEG-2 + MP2
 #   6. DTS (2005).mkv             H.264 + DTS 5.1
 #   7. AV1 (2024).mkv             AV1 10-bit 1080p, 30 s
+#   9. Opus (2023).mkv            H.264 + Opus stereo, 30 s
+#  10. FLAC (2023).mkv            H.264 + FLAC stereo, 30 s
+#  11. Opus MP4 (2023).mp4        H.264 + Opus stereo in MP4, 30 s
 #   8. Pley Test Show - S01E01.mkv and S01E02.mkv, 75 s each, with chapters
 #      Prologue, Intro (10-30 s), Story and Credits (55-75 s)
 #
-# FFmpeg needs libx264, libx265, libsvtav1 and its own AAC, AC-3, E-AC-3,
-# DTS (dca) and MP2 encoders. Files already there are kept.
+# FFmpeg needs libx264, libx265, libsvtav1, libopus and its own AAC, AC-3,
+# E-AC-3, DTS (dca), MP2 and FLAC encoders. Files already there are kept.
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
@@ -139,6 +142,24 @@ if [[ ! -e "$f" ]]; then
     -c:v libsvtav1 -preset 10 -crf 40 -pix_fmt yuv420p10le -g 48 -svtav1-params "lp=4" -c:a aac -ac 2 "$f"
 fi
 made "7 AV1"
+
+# 9-11. Opus and FLAC, as rips have them: in Matroska, and Opus in MP4.
+f=$(movie "Opus (2023)" mkv)
+if [[ ! -e "$f" ]]; then
+  ff -f lavfi -i "$(video 30)" -f lavfi -i "$(stereo 30)" "${h264[@]}" -c:a libopus -ac 2 -b:a 128k "$f"
+fi
+made "9 Opus"
+f=$(movie "FLAC (2023)" mkv)
+if [[ ! -e "$f" ]]; then
+  ff -f lavfi -i "$(video 30)" -f lavfi -i "$(stereo 30)" "${h264[@]}" -c:a flac -ac 2 "$f"
+fi
+made "10 FLAC"
+f=$(movie "Opus MP4 (2023)" mp4)
+if [[ ! -e "$f" ]]; then
+  ff -f lavfi -i "$(video 30)" -f lavfi -i "$(stereo 30)" "${h264[@]}" -c:a libopus -ac 2 -b:a 128k \
+    -movflags +faststart "$f"
+fi
+made "11 Opus MP4"
 
 # 8. Two episodes with chapters: the intro and the credits come from their names.
 show="$out/Shows/Pley Test Show/Season 01"

@@ -469,6 +469,7 @@ enum Table {
     static let av1 = "AV1 video not supported."
     static let mpeg2 = "MPEG-2 video not supported."
     static let mp2 = "MP2 audio not supported."
+    static let opus = "Opus audio not supported."
     static let hdrDevices: Set<String> = ["iphone_a16_hdr", "tv_4k_dv", "mac_m3_xdr", "tv_4k_hdr10"]
 
     struct Cell: Equatable, CustomStringConvertible {
@@ -490,6 +491,11 @@ enum Table {
                 : Cell(method: .transcode, audioConverted: false, reasons: [mkv, "HDR10 converted to SDR."])
         case "MPEG2": Cell(method: .transcode, audioConverted: true, reasons: [mkv, mpeg2, mp2])
         case "DTS": Cell(method: .remux, audioConverted: true, reasons: [mkv, dts])
+        // Streams copy only AAC, MP3, AC-3 and E-AC-3: Opus and FLAC become AAC.
+        // iPadOS 16 doesn't report Opus, so it is told why.
+        case "Opus":
+            Cell(method: .remux, audioConverted: true, reasons: device == "ipad_5th_gen" ? [mkv, opus] : [mkv])
+        case "FLAC": Cell(method: .remux, audioConverted: true, reasons: [mkv])
         default:
             device == "mac_m3_xdr"
                 ? Cell(method: .remux, audioConverted: false, reasons: [mkv])
@@ -502,7 +508,7 @@ func checkDecisions(api: PleyAPI, fixtures: URL, items: [String: Int]) async thr
     let names = try FileManager.default.contentsOfDirectory(atPath: fixtures.path)
         .filter { $0.hasPrefix("apple_") && $0.hasSuffix("_v2.json") }.sorted()
     try check(names.count == 7, "\(names.count) Apple caps fixtures, not 7")
-    let files = ["Direct H264", "Remux H264 AC3", "HEVC HDR10", "MPEG2", "DTS", "AV1"]
+    let files = ["Direct H264", "Remux H264 AC3", "HEVC HDR10", "MPEG2", "DTS", "AV1", "Opus", "FLAC"]
     var differences: [String] = []
     for name in names {
         let device = String(name.dropFirst("apple_".count).dropLast("_v2.json".count))
@@ -554,7 +560,7 @@ func run() async throws {
     var page = AdminPage(origin: origin)
     page.userAgent = "pley-apple-play"
     try await page.login(username: admin, password: password)
-    let movies = try await library(page, name: "Movies", kind: "movies", path: media + "/Movies", count: 7)
+    let movies = try await library(page, name: "Movies", kind: "movies", path: media + "/Movies", count: 10)
     let shows = try await library(page, name: "Shows", kind: "shows", path: media + "/Shows", count: 1)
     say("libraries: \(movies.count) movies, \(shows.count) show(s)")
     let items = Dictionary(uniqueKeysWithValues: movies.map { title, id in
@@ -615,6 +621,22 @@ func run() async throws {
         try check(session.info.method == .remux, "file 6 plays by \(session.info.method.rawValue), not remux")
         try check(session.info.audioConverted, "file 6's DTS isn't converted")
         return "audio converted"
+    }
+
+    // Opus and FLAC in Matroska: the video copied, the audio made AAC.
+    for name in ["Opus", "FLAC"] {
+        try await play("(k) \(name) MKV", api: api, caps: caps, reporter: reporter, itemId: try item(name)) { _, session in
+            try check(session.info.method == .remux, "the \(name) MKV plays by \(session.info.method.rawValue), not remux")
+            try check(session.info.audioConverted, "the \(name) MKV's audio isn't converted")
+            return "audio converted"
+        }
+    }
+    // Opus in MP4 plays as it is where AVPlayer decodes it (this Mac's macOS does).
+    try await play("(k) Opus MP4", api: api, caps: caps, reporter: reporter, itemId: try item("Opus MP4")) { run, session in
+        try check(session.info.method == .direct, "the Opus MP4 plays by \(session.info.method.rawValue), not direct")
+        try check(run.engine?.player.currentItem?.tracks.contains { $0.assetTrack?.mediaType == .audio } == true,
+                  "the Opus MP4 plays without its audio")
+        return "Opus decoded here"
     }
 
     try await checkSubtitles(api: api, caps: caps, reporter: reporter, direct: try item("Direct H264"),

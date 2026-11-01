@@ -12,8 +12,21 @@ public enum CapsBuilder {
     /// Containers AVPlayer opens: no Matroska, and no MPEG-TS file.
     public static let containers = ["mp4", "m4v", "mov", "m4a", "mp3", "flac", "wav"]
     /// Audio AVFoundation decodes, by ffprobe's names. No TrueHD, no DTS: the
-    /// server converts them.
+    /// server converts them. Opus only from iOS and iPadOS 17 (`audioDecode(_:)`).
     public static let audioDecode = ["aac", "mp3", "alac", "flac", "opus", "ac3", "eac3"]
+
+    /// `audioDecode` for this device: Opus in MP4 and in HLS's fMP4 is known
+    /// to play from the iOS 17 releases on (tvOS 18 and macOS 15, the
+    /// oldest these apps run on, are of that generation or later); on
+    /// iPadOS 16 the server converts it.
+    public static func audioDecode(_ input: ProbeInput) -> [String] {
+        let major = Int(input.osVersion.split(separator: ".").first ?? "") ?? 0
+        let opus = switch input.platform {
+        case .iOS, .iPadOS: major >= 17
+        case .tvOS, .macOS: true
+        }
+        return opus ? audioDecode : audioDecode.filter { $0 != "opus" }
+    }
     /// Subtitles the app draws itself: text from the server's WebVTT, and
     /// pictures (PGS, VobSub, DVB) from its `.mks` of the track.
     public static let subtitles = ["subrip", "ass", "ssa", "webvtt", "mov_text", "hdmv_pgs_subtitle", "dvd_subtitle",
@@ -37,17 +50,18 @@ public enum CapsBuilder {
         let dvProfiles = dolbyVision
             ? dolbyVisionProfiles.map { DolbyVisionCaps(profile: $0, maxLevel: deviceClass.dolbyVisionMaxLevel) }
             : []
+        let audio = audioDecode(input)
         let report = ClientCaps(
             containers: containers,
             videoCodecs: unique(video.map(\.codec)),
-            audioCodecs: audioDecode,
+            audioCodecs: audio,
             hdr: hdrTypes.contains(.hdr10) || hdrTypes.contains(.hlg),
             dolbyVision: dolbyVision && dvProfiles.contains { $0.profile == 5 },
             capsVersion: ClientCaps.version2,
             video: video,
             hdrTypes: hdrTypes,
             dolbyVisionProfiles: dvProfiles,
-            audioDecode: audioDecode,
+            audioDecode: audio,
             // Apple decodes everything itself, and sends PCM (or E-AC-3
             // with Atmos, made by the system) to a receiver.
             audioPassthrough: [],

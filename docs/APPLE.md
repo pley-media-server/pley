@@ -276,8 +276,11 @@ the system says and from a table of Apple's devices (`PleyCaps`):
   class's level. Never profile 7, whose two layers AVPlayer doesn't decode:
   the server makes it 8.1 for these apps, or plays its HDR10 base layer.
 - **Audio**: AAC, MP3, ALAC, FLAC, Opus, AC-3 and E-AC-3 are decoded on the
-  device; nothing is passed through, since the system decodes everything
-  and sends PCM (or Dolby Atmos in E-AC-3 on Apple TV) to a receiver.
+  device (Opus from iOS and iPadOS 17; iPadOS 16 gets it converted). A
+  stream copies only AAC, MP3, AC-3 and E-AC-3, so the server converts
+  Opus and FLAC to AAC when it repackages a file. Nothing is passed
+  through, since the system decodes everything and sends PCM (or Dolby
+  Atmos in E-AC-3 on Apple TV) to a receiver.
   TrueHD and DTS are converted by the server, to E-AC-3 5.1 when the output
   takes surround sound. The channels are the output's: 6 with spatial
   audio (AirPods), 2 for Bluetooth, headphones and built-in speakers, what
@@ -760,6 +763,8 @@ activity, the session's status and the item:
 - HEVC HDR10 is repackaged with `VIDEO-RANGE=PQ` on a screen that shows
   HDR, and converted to SDR, saying so, on one that doesn't;
 - MPEG-2 is converted, and DTS repackaged with its audio converted;
+- MKVs with Opus and with FLAC are repackaged with their audio made AAC,
+  and an MP4 with Opus plays as it is, with its sound;
 - the show's first episode, its markers asked for and made from its
   chapters: Skip Intro lands past the intro, entering the credits brings
   up Up Next for the second episode, and Play Next (past 90 %) marks the
@@ -773,7 +778,7 @@ activity, the session's status and the item:
   from the server's `.mks`, while the session stays repackaged with
   nothing burned in;
 - for every recorded Apple device class's caps report
-  (`apps/server/tests/fixtures/caps`), the server's decision for six of
+  (`apps/server/tests/fixtures/caps`), the server's decision for eight of
   the files (method, converted audio and reasons) is the one
   `playback_apple.rs` expects.
 
@@ -785,9 +790,10 @@ keyed address.
 tones: an H.264 MP4 with an SRT beside it, an MP4 with two audio tracks, an
 MKV with H.264, AC-3, an SRT and a PGS track (written by
 `scripts/make-pgs.py`, since FFmpeg can't encode PGS), HEVC HDR10 with
-E-AC-3, MPEG-2 with MP2, H.264 with DTS, AV1 10-bit, and a show's two
-episodes with an intro and credits chapters. It needs FFmpeg with libx264,
-libx265 and libsvtav1.
+E-AC-3, MPEG-2 with MP2, H.264 with DTS, AV1 10-bit, MKVs with Opus and
+with FLAC, an MP4 with Opus, and a show's two episodes with an intro and
+credits chapters. It needs FFmpeg with libx264, libx265, libsvtav1 and
+libopus.
 
 To try the apps
 by hand, start a server the same way and keep it running:

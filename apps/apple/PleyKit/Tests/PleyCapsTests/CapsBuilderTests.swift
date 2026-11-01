@@ -183,7 +183,9 @@ struct CapsBuilderTests {
             let caps = report(try probe(name))
             #expect(caps.capsVersion == 2)
             #expect(caps.containers == ["mp4", "m4v", "mov", "m4a", "mp3", "flac", "wav"])
-            #expect(caps.audioDecode == ["aac", "mp3", "alac", "flac", "opus", "ac3", "eac3"])
+            // Opus from iOS and iPadOS 17: the iPad 5th generation's iPadOS 16 leaves it out.
+            let opus = name == "ipad_5th_gen" ? [] : ["opus"]
+            #expect(caps.audioDecode == ["aac", "mp3", "alac", "flac"] + opus + ["ac3", "eac3"])
             #expect(caps.audioCodecs == caps.audioDecode)
             #expect(caps.videoCodecs == caps.video?.map(\.codec))
             // Text and pictures alike, drawn by the app; pictures from the server's .mks, never burned in.
@@ -195,6 +197,13 @@ struct CapsBuilderTests {
             #expect(caps.video?.first?.codec == "h264")
             #expect(caps.video?.first?.maxBitDepth == 8)
         }
+    }
+
+    @Test func opusIsReportedFromIOS17() throws {
+        #expect(report(try probe("ipad_5th_gen")).audioDecode?.contains("opus") == false)
+        #expect(report(try probe("ipad_5th_gen") { $0.osVersion = "17.0" }).audioDecode?.contains("opus") == true)
+        #expect(report(try probe("iphone_a16_hdr") { $0.osVersion = "16.7.10" }).audioDecode?.contains("opus") == false)
+        #expect(report(try probe("tv_hd") { $0.osVersion = "18.0" }).audioDecode?.contains("opus") == true)
     }
 
     @Test func linesSayItInWords() throws {

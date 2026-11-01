@@ -110,7 +110,7 @@ struct Source {
     subtitle: Option<i64>,
 }
 
-const FILES: [&str; 10] = [
+const FILES: [&str; 12] = [
     "MP4 H.264 AAC",
     "MKV H.264 AC-3",
     "MKV HEVC HDR10 E-AC-3",
@@ -121,6 +121,8 @@ const FILES: [&str; 10] = [
     "MKV MPEG-2 MP2",
     "MKV H.264 DTS 5.1",
     "MKV H.264 PGS picked",
+    "MKV H.264 Opus",
+    "MKV H.264 FLAC",
 ];
 
 fn source(name: &str) -> Source {
@@ -138,6 +140,8 @@ fn source(name: &str) -> Source {
         "MKV MPEG-2 MP2" => ("mkv", vec![video("mpeg2video", "Main", 8, 8, DynamicRange::Sdr), audio("mp2", 2)], None),
         "MKV H.264 DTS 5.1" => ("mkv", vec![h264(), audio("dts", 6)], None),
         "MKV H.264 PGS picked" => ("mkv", vec![h264(), audio("aac", 2), pgs()], Some(2)),
+        "MKV H.264 Opus" => ("mkv", vec![h264(), audio("opus", 2)], None),
+        "MKV H.264 FLAC" => ("mkv", vec![h264(), audio("flac", 2)], None),
         other => panic!("{other}"),
     };
     Source { container, streams, subtitle }
@@ -216,6 +220,7 @@ const DTS: &str = "DTS audio not supported.";
 const AV1: &str = "AV1 video not supported.";
 const MPEG2: &str = "MPEG-2 video not supported.";
 const MP2: &str = "MP2 audio not supported.";
+const OPUS: &str = "Opus audio not supported.";
 const SDR: Option<&str> = Some("SDR (tone-mapped)");
 
 /// One cell: the method, the audio converted to, the video range and the
@@ -268,8 +273,13 @@ const HDR10_TV_ROWS: [Cell; 4] = [
     ),
 ];
 
+/// Opus and FLAC in Matroska: the video is copied, and the audio converted
+/// to AAC, since streams copy only AAC, MP3, AC-3 and E-AC-3. iPadOS 16
+/// doesn't report Opus at all, so the iPad 5th generation is told why.
+const OPUS_FLAC_CONVERTED: Cell = ("R", "aac", None, &[MKV]);
+
 /// The device's row of the table, the files in `FILES`' order.
-fn expected(device: &str) -> [Cell; 10] {
+fn expected(device: &str) -> [Cell; 12] {
     let [hdr10, dv81, dv5, dv7] = match device {
         "iphone_a16_hdr" | "tv_4k_dv" => dolby_vision_rows("eac3"),
         "mac_m3_xdr" => dolby_vision_rows("aac"),
@@ -278,7 +288,21 @@ fn expected(device: &str) -> [Cell; 10] {
     };
     let av1 = if device == "mac_m3_xdr" { ("R", "", None, &[MKV] as &[&str]) } else { AV1_CONVERTED };
     let dts = if matches!(device, "iphone_a16_hdr" | "tv_4k_hdr10" | "tv_4k_dv") { "eac3" } else { "aac" };
-    [MP4_H264, MKV_H264_AC3, hdr10, dv81, dv5, dv7, av1, MPEG2_MP2, ("R", dts, None, &[MKV, DTS]), PGS_PICKED]
+    let opus = if device == "ipad_5th_gen" { ("R", "aac", None, &[MKV, OPUS] as &[&str]) } else { OPUS_FLAC_CONVERTED };
+    [
+        MP4_H264,
+        MKV_H264_AC3,
+        hdr10,
+        dv81,
+        dv5,
+        dv7,
+        av1,
+        MPEG2_MP2,
+        ("R", dts, None, &[MKV, DTS]),
+        PGS_PICKED,
+        opus,
+        OPUS_FLAC_CONVERTED,
+    ]
 }
 
 /// Every recorded Apple device against every file of the test matrix.
