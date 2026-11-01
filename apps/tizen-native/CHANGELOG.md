@@ -209,3 +209,7 @@ It has no releases yet: it is built and installed by hand
   switch: the app goes on as that profile, and the pages offer Retry.
 - Exiting the native app while music plays ends the music's session on
   the server, with where it stopped.
+- The native app's Info no longer closes the app during a film: it reads
+  the TV player's stream details once, and again when the picture changes,
+  rather than every second; it opens with them, where it said "Asking the
+  server…" for a moment first.

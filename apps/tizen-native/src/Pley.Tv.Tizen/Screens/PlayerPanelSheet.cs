@@ -41,6 +41,9 @@ sealed class PlayerPanelSheet : Sheet
         this.shell = shell;
         this.model = model;
         this.kind = kind;
+        // The details first, then the panel: a file played as it is has them at once, and the panel
+        // showed "Asking the server…" for a second when made before them.
+        if (kind == PlayerPanelKind.Info) model.SetDetailsOpen(true);
         var panel = model.Panel(kind);
         width = panel.Wide ? PlayerPanel.InfoWidth : PlayerPanel.Width;
         inner = width - Inset - PleyTv.SafeHorizontal;
@@ -67,8 +70,7 @@ sealed class PlayerPanelSheet : Sheet
         Fill(panel, panel.Focus);
         if (kind == PlayerPanelKind.Info)
         {
-            // The details are asked for while Info shows; its numbers read again each second.
-            model.SetDetailsOpen(true);
+            // Its numbers read again each second while it shows.
             reader = new Timer((uint)Readout.ReadMs);
             reader.Tick += (_, _) =>
             {
@@ -95,7 +97,7 @@ sealed class PlayerPanelSheet : Sheet
         card.PositionX = Ui.Dp(PleyTv.CanvasWidth);
         var slide = new Animation(PleyMotion.OverlayMs) { DefaultAlphaFunction = new AlphaFunction(AlphaFunction.BuiltinFunctions.EaseOut) };
         slide.AnimateTo(card, "PositionX", Ui.Dp(PleyTv.CanvasWidth - width));
-        slide.Play();
+        slide.PlayHeld();
     }
 
     public void Close()

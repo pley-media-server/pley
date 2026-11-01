@@ -142,7 +142,11 @@ sealed class TizenMediaEngine : IVideoEngine
             p.ErrorOccurred += (_, e) => Post(mine, () => Fail(ErrorOf(e.Error)));
             p.PlaybackCompleted += (_, _) => Post(mine, Completed);
             p.PlaybackInterrupted += (_, _) => Post(mine, () => Fail(new EngineError.Other("the TV took its player for something else")));
-            p.VideoStreamChanged += (_, e) => Post(mine, () => Picture(e.Size.Width, e.Size.Height));
+            p.VideoStreamChanged += (_, e) => Post(mine, () =>
+            {
+                stats = null;
+                Picture(e.Size.Width, e.Size.Height);
+            });
             p.SetSource(new Media.MediaUriSource(s.Url));
             Buffer(p, s);
 #if PROFILE
@@ -365,10 +369,18 @@ sealed class TizenMediaEngine : IVideoEngine
     static bool Same(string a, string b) =>
         a.StartsWith(b, StringComparison.OrdinalIgnoreCase) || b.StartsWith(a, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// What the player says of its streams, read once for each source and again when its picture
+    /// changes: Info asks every second, and a TV asked that often while it played closed the app.
+    /// </summary>
+    EngineStats? stats;
+    int statsFor = -1;
+
     public EngineStats? Stats()
     {
         var p = player;
         if (p == null || !prepared) return null;
+        if (stats != null && statsFor == generation) return stats;
         int? width = null, height = null, bitrate = null, audioBitrate = null, channels = null;
         double? fps = null;
         string? codec = null, audioCodec = null;
@@ -400,7 +412,7 @@ sealed class TizenMediaEngine : IVideoEngine
             // No sound, or not known.
         }
         var total = (bitrate ?? 0) + (audioBitrate ?? 0);
-        return new EngineStats
+        var read = new EngineStats
         {
             Width = width,
             Height = height,
@@ -410,6 +422,13 @@ sealed class TizenMediaEngine : IVideoEngine
             AudioCodec = string.IsNullOrEmpty(audioCodec) ? null : audioCodec,
             AudioChannels = channels,
         };
+        // Kept once the picture is known; a source still starting is asked again.
+        if (width != null || audioCodec != null)
+        {
+            stats = read;
+            statsFor = generation;
+        }
+        return read;
     }
 
     void StartPlayer(int mine)
