@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A search result in Search's rows: a Live TV channel's card (LiveCard),
+     or a title's or a person's tile (Tile), passing the row's fields on to
+     it. -->
+<component name="ResultTile" extends="Group">
+    <interface>
+        <field id="itemContent" type="node" onChange="onContent" />
+        <field id="width" type="float" onChange="onSize" />
+        <field id="height" type="float" onChange="onSize" />
+        <field id="itemHasFocus" type="boolean" onChange="onFocus" />
+        <field id="rowHasFocus" type="boolean" value="true" onChange="onFocus" />
+        <field id="rowListHasFocus" type="boolean" value="true" onChange="onFocus" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/items/ResultTile.brs" />
+</component>

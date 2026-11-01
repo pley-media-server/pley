@@ -729,7 +729,9 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     if (path === "/api/search") {
       const q = (url.searchParams.get("q") ?? "").toLowerCase();
       const channels = liveChannels().filter((c) => c.name.toLowerCase().includes(q) || c.number.startsWith(q)).slice(0, 12);
-      return json(200, { items: [...movies, show].filter((item) => item.title.toLowerCase().includes(q)).slice(0, 40), people: [], channels });
+      // A person whose name matches, for search's first row.
+      const people = [{ id: 11, name: "Monty Fixture", photo_url: "/api/people/11/photo?v=1" }].filter((p) => p.name.toLowerCase().includes(q));
+      return json(200, { items: [...movies, show].filter((item) => item.title.toLowerCase().includes(q)).slice(0, 40), people, channels });
     }
     if (path.startsWith("/api/files/")) {
       res.writeHead(200, { "Content-Type": "application/octet-stream" });

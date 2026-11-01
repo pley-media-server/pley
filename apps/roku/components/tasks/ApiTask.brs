@@ -403,16 +403,21 @@ sub apiBuild(job as object, answer as object)
     else if job.build = "tiles"
         items = httpArray(data.items)
         tiles = contentTiles(items, server)
-        ' Search: the people found, after the titles.
-        for each person in httpArray(data.people)
-            if GetInterface(person, "ifAssociativeArray") <> invalid and httpNumber(person.id, 0) > 0 then tiles.Push(pagePersonTile(person, server, ""))
-        end for
         job.request.content = nodesContent(contentPlaceholders(job.pad))
         nodesAppend(job.request.content, tiles)
         ' listed: the page's items (the next page's offset), shown or not.
-        ' Search: the Live TV channels found too (12 at most), for a row of
-        ' their own.
-        answer.data = { total: httpNumber(data.total, -1), listed: items.Count(), shown: tiles.Count(), channels: liveChannels(data.channels, server) }
+        answer.data = { total: httpNumber(data.total, -1), listed: items.Count(), shown: tiles.Count() }
+    else if job.build = "searchRows"
+        ' Search's results in rows by kind (Search.brs), the Live TV
+        ' channels among them as cards; the channels themselves too, for
+        ' the player.
+        rows = searchRows(data, server, apiNow(), apiTwelveHour())
+        job.request.content = nodesRows(rows)
+        keys = []
+        for each row in rows
+            keys.Push(row.key)
+        end for
+        answer.data = { rows: keys, channels: liveChannels(data.channels, server) }
     else if job.build = "letters"
         ' A page of a library sorted by title, for its A to Z: where each
         ' letter's titles start, and no ContentNodes.

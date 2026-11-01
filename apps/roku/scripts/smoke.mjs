@@ -760,6 +760,16 @@ async function walk() {
     await press("lit_o");
   });
   shoot("search");
+  // The results in rows by kind, People first: Right past the keyboard's
+  // last column reaches them, and OK on the first opens their page.
+  since = mark();
+  await press("right", 7);
+  await press("select");
+  await waitFor(/^GET \/api\/people\/11$/, since, "the person found, first of the results");
+  shoot("search-person");
+  await press("back"); // Search, on the rows
+  await settle();
+  await press("left"); // the keyboard
   // Back from Search nothing played: Home stays as it is, unless its rows
   // are a minute old by now (a slow run), when it asks again. They are as
   // old as Home's last asking.
@@ -1151,6 +1161,7 @@ const checks = [
   ["played the track OK was on under an album's second disc", music.disc === 5203],
   ["played a playlist from its top, the next entry to come", fixture.playbacks.some((p) => p.item === 101)],
   ["searched", asked(/^GET \/api\/search\?/)],
+  ["showed search's results in rows by kind, People first, a person's page opened from it", asked(/^GET \/api\/people\/11$/)],
   ["showed Live TV's guide, its programmes for the channels in view", fixture.liveGuides.length > 0 && fixture.liveGuides.every((g) => g.ids.length > 0 && g.ids.length <= 50)],
   ["listed channels a page at a time", fixture.liveBrowses.length > 0 && fixture.liveBrowses.every((b) => b.limit <= 50)],
   ["opened Live TV back at the channel watched", fixture.liveBrowses.some((b) => b.around === 3)],

@@ -61,6 +61,9 @@ describes how they are made.
 - See all ends Home's Recently Added rows, and a library's Recently Added,
   Recently Released and Top Rated rows: the library's titles in the row's
   order.
+- Search shows its results in rows by kind, as the other apps do: People,
+  Live TV, Movies, Shows, Seasons, Episodes, Artists, Albums and Tracks,
+  then On TMDB.
 
 ### Fixed
 

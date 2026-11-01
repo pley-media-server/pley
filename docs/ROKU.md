@@ -85,6 +85,25 @@ Playlists has New playlist at the right of its heading: what it is for
 playlist opens, empty; Add to playlist, the Options key on a title, fills
 it.
 
+Fast forward and rewind show seek previews in Roku's own bar: the server's
+previews of the file as a BIF file, which the Video node fetches beside the
+media (`previews.bif`). While the server is still making them, the bar
+shows the time alone.
+
+Settings has the audio and subtitle defaults, Quality, Play the next
+episode by itself (Up Next counts down only while it is on), Watch
+history, Switch profile, Always start as, Sort libraries, Switch server
+and Sign out. It says where the account is managed on the web (the
+server's address and `/account`), and carries TMDB's notice. Right of the
+settings, Diagnostics shows this Roku and what it tells the server it
+plays (`capsLines` in `components/lib/Caps.brs`), and Open-source licences
+shows Pley's licence and the notices of what the package bundles.
+
+Always start as, for a household of several profiles, names the profile
+the app starts as, or Ask who's watching. As on the other TVs it only
+skips "Who's watching?" at a start: the app starts as the profile it was
+left on. It is kept on the Roku for each server.
+
 ### Libraries
 
 A library has the tabs Recommended, Library and Collections (a music
@@ -112,22 +131,14 @@ left on, kept on the Roku for each server, profile and library.
   (`POST /api/playlists` with `library_id` and `smart_filter`, written as
   the other apps write it), named on the Roku's keyboard, and opens it.
 
-Fast forward and rewind show seek previews in Roku's own bar: the server's
-previews of the file as a BIF file, which the Video node fetches beside the
-media (`previews.bif`). While the server is still making them, the bar
-shows the time alone.
+### Search
 
-Settings has the audio and subtitle defaults, Quality, Play the next
-episode by itself (Up Next counts down only while it is on), Watch
-history, Switch profile, Always start as (for a household of several
-profiles: a profile, or Ask who's watching), Sort libraries, Switch server
-and Sign out. It says where the account is managed on the web (the
-server's address and `/account`), and carries TMDB's notice. Right of the
-settings, Diagnostics shows this Roku and what it tells the server it
-plays (`capsLines` in `components/lib/Caps.brs`), and Open-source licences
-shows Pley's licence and the notices of what the package bundles. As on the other TVs, Always start
-as only skips "Who's watching?" at a start; it is kept on the Roku for
-each server.
+Search is typed on the Roku's keyboard and asked once typing rests half a
+second. What the libraries have comes in rows by kind, in the other apps'
+order: People, Live TV (cards: OK watches the channel, and Up and Down in
+the player go through what was found), Movies, Shows, Seasons, Episodes,
+Artists, Albums and Tracks; then On TMDB for those who may ask (below).
+Right from the keyboard's last column reaches them.
 
 ### Music
 
