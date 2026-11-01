@@ -23,14 +23,18 @@ sub init()
     m.choices = m.top.findNode("choices")
     m.column.visible = false
     ' What the panel shows: "" (closed), a menu ("more", "tracks"), or the
-    ' choices of one of its entries ("rating", "audio", "subtitles"); the
-    ' menu Back goes back to ("" for none), and the values of the choices.
+    ' choices of one of its entries ("rating", "version", "audio",
+    ' "subtitles"); the menu Back goes back to ("" for none), and the values
+    ' of the choices.
     m.panelKind = ""
     m.panelBack = ""
     m.panelValues = []
-    ' Audio and subtitles' entries, in order; the audio picked on this page
-    ' (-1 Automatic, -2 none), which subtitles picked after are saved with.
+    ' Audio and subtitles' entries, in order; the version chosen (its file's
+    ' id, invalid for the first), which isn't saved, as on the other apps;
+    ' the audio picked on this page (-1 Automatic, -2 none), which subtitles
+    ' picked after are saved with.
     m.trackKinds = []
+    m.fileId = invalid
     m.audioPick = -2
     m.started = false
     ' What the server says of requests for the title (GET
@@ -368,7 +372,9 @@ sub onButton(event as object)
         startMs = 0
         if action = "resume" then startMs = m.detail.positionMs
         ' The player has the item already: one request less before it plays.
-        uiNavigate({ to: "player", params: { itemId: m.detail.itemId, startMs: startMs, item: m.item } })
+        params = { itemId: m.detail.itemId, startMs: startMs, item: m.item }
+        if m.fileId <> invalid then params.fileId = m.fileId
+        uiNavigate({ to: "player", params: params })
     else if action = "playNext"
         if m.onDeck = invalid then return
         tile = contentTile(m.onDeck, m.global.session.server, true)
@@ -432,6 +438,11 @@ sub showChoices(kind as string, title as string, labels as object, values as obj
     m.panelBack = back
     m.panelValues = values
     m.panelTitle.text = title
+    ' A version's line is long: smaller letters keep it whole.
+    size = "Medium"
+    if kind = "version" then size = "Small"
+    m.choices.font = "font:" + size + "SystemFont"
+    m.choices.focusedFont = "font:" + size + "BoldSystemFont"
     m.choices.content = nodesContent(items)
     m.choices.checkedItem = current
     if current > 0 then m.choices.jumpToItem = current
@@ -481,8 +492,12 @@ sub onChoice(event as object)
     if kind = "rating"
         rate(m.panelValues[at])
         openMore()
-    else if kind = "audio" or kind = "subtitles"
-        pickTrack(kind, m.panelValues[at])
+    else if kind = "version" or kind = "audio" or kind = "subtitles"
+        if kind = "version"
+            chooseVersion(m.panelValues[at])
+        else
+            pickTrack(kind, m.panelValues[at])
+        end if
         if m.panelBack = "tracks"
             openTracks()
         else
@@ -504,18 +519,24 @@ end sub
 
 ' --- Audio and subtitles ---
 
-' The file Play plays.
+' The file Play plays: the version chosen, else the first.
 function playingFile() as dynamic
-    return contentFile(m.item, invalid)
+    return contentFile(m.item, m.fileId)
 end function
 
-' The file's audio (two tracks or more) and subtitles (any), as on the
-' other TVs: each an entry saying what plays, whose choices are saved at
-' once. With only one of them its choices open at once.
+' The title's versions (several files), and the file's audio (two tracks
+' or more) and subtitles (any), as on the other TVs: each an entry saying
+' what plays; the tracks chosen are saved at once. With only one of them
+' its choices open at once.
 sub openTracks()
+    versions = mediaVersions(m.item, m.fileId)
     tracks = mediaTracks(playingFile())
     labels = []
     m.trackKinds = []
+    if versions.values.Count() > 1
+        labels.Push("Version: " + versions.labels[versions.current])
+        m.trackKinds.Push("version")
+    end if
     if tracks.audio.labels.Count() > 0
         labels.Push("Audio: " + tracks.audio.labels[tracks.audio.current])
         m.trackKinds.Push("audio")
@@ -532,6 +553,11 @@ sub openTracks()
 end sub
 
 sub openTrackChoices(kind as string, back as string)
+    if kind = "version"
+        versions = mediaVersions(m.item, m.fileId)
+        showChoices("version", "Version", versions.labels, versions.values, versions.current, back)
+        return
+    end if
     tracks = mediaTracks(playingFile())
     if kind = "audio"
         showChoices("audio", "Audio", tracks.audio.labels, tracks.audio.values, tracks.audio.current, back)
@@ -557,6 +583,13 @@ sub pickTrack(kind as string, index as integer)
     mediaPick(m.item, file.id, m.audioPick, subtitle)
     body = tracksStreamsBody(file.id, m.audioPick, subtitle)
     uiRequest({ method: "PUT", path: "/api/items/" + urlValue(m.item.id) + "/streams", jsonText: FormatJson(body) }, "onTracksSaved")
+end sub
+
+' Play plays the version chosen (file_id in POST /api/playback), its
+' tracks as the server picks them; it isn't saved, as on the other apps.
+sub chooseVersion(fileId as dynamic)
+    m.fileId = fileId
+    m.audioPick = -2
 end sub
 
 sub onTracksSaved(event as object)

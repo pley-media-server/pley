@@ -64,12 +64,13 @@
         </Group>
         <Label id="message" translation="[96, 480]" width="1100" wrap="true" color="0xA1A9B6FF" text="Loading…" font="font:MediumSystemFont" />
         <!-- A menu (Audio and subtitles, More), or the choices of one of its
-             entries. -->
+             entries. It leaves the buttons in view, and is wider than
+             Settings' for a version's long line. -->
         <Group id="panel" visible="false">
-            <Rectangle translation="[1000, 0]" width="920" height="1080" color="0x1E222AFF" />
-            <Label id="panelTitle" translation="[1056, 56]" width="808" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <LabelList id="menu" translation="[1056, 150]" itemSize="[808, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" />
-            <RadioButtonList id="choices" translation="[1056, 150]" itemSize="[808, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" visible="false" />
+            <Rectangle translation="[720, 0]" width="1200" height="1080" color="0x1E222AFF" />
+            <Label id="panelTitle" translation="[776, 56]" width="1088" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <LabelList id="menu" translation="[776, 150]" itemSize="[1088, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" />
+            <RadioButtonList id="choices" translation="[776, 150]" itemSize="[1088, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" visible="false" />
         </Group>
         <!-- The title's request asked again while it downloads. -->
         <Timer id="requestPoll" duration="10" />

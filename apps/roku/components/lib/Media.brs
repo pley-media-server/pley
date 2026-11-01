@@ -1,7 +1,7 @@
 ' A title's files as its page shows them, in the other apps' words
-' (packages/tv/src/format/format.ts, the Android app's format): the audio
-' and subtitles to start with, which the person picks before playing.
-' Tracks are saved with Tracks.brs's rules.
+' (packages/tv/src/format/format.ts, the Android app's format): the
+' version, audio and subtitles to start with, which the person picks
+' before playing. Tracks are saved with Tracks.brs's rules.
 
 ' A track's language by name: "English", "Unknown" for und; a code not
 ' among the 34 in capitals ("KUR"), a longer tag as it is; "" for none.
@@ -195,3 +195,93 @@ sub mediaPick(item as object, fileId as dynamic, audioIndex as integer, subtitle
         end if
     end for
 end sub
+
+' --- Versions ---
+
+' 1536 → "1.5 KB", 150 MiB → "150 MB", "62.0 GB": three digits, in units
+' of 1024, as the other apps write sizes. A size past 32 bits comes as a
+' LongInteger, which the first division makes a Float.
+function mediaBytes(bytes as dynamic) as string
+    size = httpNumber(bytes, -1)
+    if size < 0 then return ""
+    units = ["B", "KB", "MB", "GB", "TB"]
+    at = 0
+    while size >= 1024 and at < units.Count() - 1
+        size = size / 1024
+        at = at + 1
+    end while
+    if size >= 100 or at = 0 then return urlValue(Int(size + 0.5)) + " " + units[at]
+    tenths = Int(size * 10 + 0.5)
+    return urlValue(Int(tenths / 10)) + "." + urlValue(tenths mod 10) + " " + units[at]
+end function
+
+' A file's first video stream, invalid for none.
+function mediaVideo(file as object) as dynamic
+    for each stream in httpArray(file.streams)
+        if httpObject(stream) <> invalid and httpString(stream.kind) = "video" then return stream
+    end for
+    return invalid
+end function
+
+' The audio a file is described by: the profile's pick, else the default,
+' else the first. Without a pick each device plays its best track of the
+' language, so the line doesn't name one as if it would play.
+function mediaStartingAudio(file as object) as dynamic
+    audio = tracksAudioStreams(file)
+    if mediaPicked(file)
+        for each stream in audio
+            if httpNumber(stream.index, -2) = httpNumber(file.selected_audio, -1) then return stream
+        end for
+    end if
+    for each stream in audio
+        if httpTrue(stream.default) then return stream
+    end for
+    if audio.Count() > 0 then return audio[0]
+    return invalid
+end function
+
+' A version as a title's page lists it, as the other TVs do: "Final Cut ·
+' 4K · HEVC · DV P8.1 · TrueHD Atmos 7.1 · 62.0 GB" ("Version 2" when
+' nothing is known). Dolby Vision is shortened as badges shorten it, so
+' the line fits the panel.
+function mediaVersionLine(file as object, number as integer) as string
+    video = mediaVideo(file)
+    width = file.width
+    height = file.height
+    codec = file.video_codec
+    range = ""
+    if video <> invalid
+        if httpNumber(width, 0) <= 0 then width = video.width
+        if httpNumber(height, 0) <= 0 then height = video.height
+        if httpString(codec) = "" then codec = video.codec
+        range = detRange(video).Replace("Dolby Vision", "DV")
+    end if
+    audio = mediaStartingAudio(file)
+    parts = []
+    for each part in [httpSentence(file.edition), detResolution(width, height), detCodec(codec), range]
+        if part <> "" then parts.Push(part)
+    end for
+    if audio <> invalid
+        format = mediaAudioFormat(audio)
+        if format <> "" then parts.Push(format)
+    end if
+    if httpNumber(file.size, 0) > 0 then parts.Push(mediaBytes(file.size))
+    if parts.Count() = 0 then return "Version " + urlValue(number)
+    return parts.Join(" · ")
+end function
+
+' A title's versions, one per file: { labels, values (file ids), current
+' (the one fileId names, else the first) }.
+function mediaVersions(item as object, fileId as dynamic) as object
+    out = { labels: [], values: [], current: 0 }
+    wanted = httpNumber(fileId, -1)
+    for each file in httpArray(item.files)
+        if httpObject(file) <> invalid
+            id = httpNumber(file.id, 0)
+            if id = wanted then out.current = out.values.Count()
+            out.labels.Push(mediaVersionLine(file, out.values.Count() + 1))
+            out.values.Push(id)
+        end if
+    end for
+    return out
+end function

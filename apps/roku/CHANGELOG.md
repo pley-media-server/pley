@@ -21,6 +21,9 @@ describes how they are made.
 - A movie's or an episode's page has Audio and subtitles: the audio
   (Automatic, named by its language, or a track) and the subtitles (Off or
   a track) to play, saved for the movie or show before it plays.
+- A title with several files plays the version chosen in Audio and
+  subtitles, one line each (4K · HEVC · DV P8.1 · TrueHD Atmos 7.1 · 62.0
+  GB).
 - A playlist's entries move: the Options key's Move lifts one, Up and Down
   carry it, OK puts it there and Back puts it back.
 - Settings has Always start as, for a household of several profiles: the

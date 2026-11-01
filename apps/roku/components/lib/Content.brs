@@ -450,9 +450,11 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
     }
 end function
 
-' Whether a title's page offers Audio and subtitles before playing: its
-' file has two audio tracks or more, or subtitles.
+' Whether a title's page offers Audio and subtitles before playing: it has
+' versions to choose from, or its file has two audio tracks or more, or
+' subtitles.
 function contentHasTracks(detail as object) as boolean
+    if httpArray(detail.files).Count() > 1 then return true
     file = httpObject(contentFile(detail, invalid))
     if file = invalid then return false
     audio = 0

@@ -154,6 +154,8 @@ sub test_content_details_offer_audio_and_subtitles()
     tkTrue(contentHasTracks(detail), "subtitles")
     detail.files = []
     tkFalse(contentHasTracks(detail), "no file")
+    detail.files = [{ id: 7, streams: [] }, { id: 8, streams: [] }]
+    tkTrue(contentHasTracks(detail), "versions to choose from")
 end sub
 
 sub test_content_show_details_offer_its_next_episode_and_episodes()

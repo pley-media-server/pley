@@ -232,7 +232,7 @@ sub open(itemId as dynamic, startMs as integer, item as dynamic, mode as string)
     askPlayback()
 end sub
 
-' POST /api/playback for the first file (the server's default too), with
+' POST /api/playback for the version chosen, else the first file, with
 ' its picture subtitles to draw when the person's choices pick some, at the
 ' quality chosen in Settings (or Automatic's). A title's first opening in
 ' Automatic asks the server what it knows of the network first.
@@ -300,7 +300,9 @@ sub requestPlayback(choice as string, ceilingKbps as float)
     ' Keyed addresses: Roku fetches the seek previews itself, without the
     ' Authorization header.
     spec = { op: "play", itemId: m.itemId, startMs: m.startMs, mode: m.mode, attempt: m.attempt, keyed: true }
-    file = contentFile(m.item, invalid)
+    ' The version chosen on the title's page; a title played next has none
+    ' of its files, so it plays its first (the server's default too).
+    file = contentFile(m.item, m.top.params.fileId)
     if file <> invalid
         spec.fileId = httpNumber(file.id, 0)
         burn = playerBurnIndex(file)

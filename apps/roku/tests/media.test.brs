@@ -95,3 +95,32 @@ sub test_media_picks_shown_before_the_server_says()
     mediaPick(item, 8, 3, 5)
     tkEqual(item.files[0].selected_subtitle, invalid, "another file's pick")
 end sub
+
+sub test_media_sizes_as_the_other_apps()
+    tkEqual(mediaBytes(512), "512 B")
+    tkEqual(mediaBytes(1536), "1.5 KB")
+    tkEqual(mediaBytes(157286400), "150 MB")
+    tkEqual(mediaBytes(66571993088&), "62.0 GB", "past 32 bits")
+    tkEqual(mediaBytes(1000000), "977 KB", "three digits")
+    tkEqual(mediaBytes(1048576), "1.0 MB")
+    tkEqual(mediaBytes(invalid), "")
+end sub
+
+sub test_media_versions_one_line_each()
+    file = mediaTestFile()
+    tkEqual(mediaVersionLine(file, 1), "4K · HEVC · DV P8.1 · TrueHD Atmos 7.1 · 62.0 GB", "the default audio: none picked")
+    file.edition = "Final Cut"
+    file.audio_picked = true
+    file.selected_audio = 2
+    tkEqual(mediaVersionLine(file, 1), "Final Cut · 4K · HEVC · DV P8.1 · AC3 5.1 · 62.0 GB", "the audio picked")
+    tkEqual(mediaVersionLine({ id: 9, size: 0, streams: [] }, 2), "Version 2", "nothing known")
+    sd = { id: 8, size: 1536, width: invalid, height: invalid, video_codec: invalid, streams: [{ index: 0, kind: "video", codec: "mpeg2video", width: 720, height: 576 }] }
+    tkEqual(mediaVersionLine(sd, 3), "576p · MPEG-2 · 1.5 KB", "the video stream's size and codec when the file doesn't say")
+
+    item = { files: [mediaTestFile(), { id: 8, size: 1073741824, width: 1920, height: 1080, video_codec: "h264", streams: [] }] }
+    versions = mediaVersions(item, 8)
+    tkEqual(versions.labels, ["4K · HEVC · DV P8.1 · TrueHD Atmos 7.1 · 62.0 GB", "1080p · H.264 · 1.0 GB"])
+    tkEqual(versions.values, [7, 8])
+    tkEqual(versions.current, 1)
+    tkEqual(mediaVersions(item, invalid).current, 0, "the first plays unless another was chosen")
+end sub

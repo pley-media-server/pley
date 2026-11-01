@@ -183,6 +183,17 @@ function detail(item, myList, picks) {
     }
     file.selected_subtitle = pick.subtitle_index ?? null;
   }
+  // A movie has a second version: its Director's Cut, in 4K.
+  const cut = {
+    id: 9000 + item.id, path: `${item.title} {edition-Director's Cut}.mkv`, size: 66571993088, container: "mkv",
+    duration_ms: item.duration_ms ?? null, bitrate: 61000000, width: 3840, height: 2160, video_codec: "hevc", audio_codec: "truehd",
+    streams: [
+      { index: 0, kind: "video", codec: "hevc", width: 3840, height: 2160, frame_rate: 23.976, bit_depth: 10, pix_fmt: "yuv420p10le", profile: "Main 10", level: 153, dynamic_range: "dolby_vision", dv_profile: 8, dv_bl_compat: 1, dv_level: 6, color_primaries: "bt2020", color_transfer: "smpte2084", color_space: "bt2020nc" },
+      { index: 1, kind: "audio", codec: "truehd", language: "eng", channels: 8, channel_layout: "7.1", sample_rate: 48000, profile: "Dolby TrueHD + Dolby Atmos", default: true },
+      { index: 2, kind: "subtitle", codec: "subrip", language: "eng", title: "English SDH", text_based: true },
+    ],
+    edition: "Director's Cut", selected_audio: 1, selected_subtitle: null, audio_picked: false, chapters: [],
+  };
   if (item.kind === "track") {
     file.container = "mp3";
     file.streams = [{ index: 0, kind: "audio", codec: "mp3", channels: 2 }];
@@ -192,7 +203,7 @@ function detail(item, myList, picks) {
   return {
     ...item, summary: item.summary ?? `About ${item.title}.`, original_title: null, tagline: item.kind === "movie" ? "A tagline." : null,
     genres: ["Drama", "Mystery"], studio: null, content_rating: "PG-13", tmdb_id: null, imdb_id: null,
-    files: playable ? [file] : [],
+    files: playable ? (item.kind === "movie" ? [file, cut] : [file]) : [],
     markers: item.kind === "episode" ? [{ file_id: file.id, kind: "credits", start_ms: item.duration_ms - 60000, end_ms: item.duration_ms, source: "chapter" }] : [],
     extras: item.kind === "movie" ? [{ id: 4000, library_id: 1, kind: "extra", title: "Official Trailer", sort_title: "Official Trailer", extra_type: "trailer", duration_ms: 150000, added_at: 0, thumb_url: "/api/items/4000/images/thumb?v=1", user_state: state() }] : [],
     cast: [{ id: 7, name: "Ada Lovelace", role: "actor", character: "Herself", photo_url: "/api/people/7/photo?v=1" }, { id: 8, name: "Alan Turing", role: "actor", character: "The Machine" }],
@@ -604,11 +615,13 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       if (ask.caps?.caps_version !== 2) problems.push("a playback request without caps_version 2");
       if (!ask.caps?.hls?.master_playlist) problems.push("a playback request without hls.master_playlist");
       const item = items.get(ask.item_id);
-      const fileId = 7000 + ask.item_id;
-      if (ask.file_id != null && ask.file_id !== fileId) problems.push(`playback of file ${ask.file_id} for item ${ask.item_id}`);
+      // A movie's Director's Cut is its second file.
+      const files = item?.kind === "movie" ? [7000 + ask.item_id, 9000 + ask.item_id] : [7000 + ask.item_id];
+      if (ask.file_id != null && !files.includes(ask.file_id)) problems.push(`playback of file ${ask.file_id} for item ${ask.item_id}`);
+      const fileId = ask.file_id ?? files[0];
       const burn = ask.subtitle_index ?? null;
       if (burn !== null && burn !== PICTURE_SUBTITLES) problems.push(`subtitles ${burn} to draw, which aren't pictures`);
-      fixture.playbacks.push({ item: ask.item_id, kind: item?.kind, subtitle_index: burn, mode: ask.mode, max_bitrate: ask.max_bitrate ?? null });
+      fixture.playbacks.push({ item: ask.item_id, kind: item?.kind, file_id: fileId, subtitle_index: burn, mode: ask.mode, max_bitrate: ask.max_bitrate ?? null });
       sessions += 1;
       const session = `s${sessions}`;
       if (fixture.playbackDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, fixture.playbackDelayMs));

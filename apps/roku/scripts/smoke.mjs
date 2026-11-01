@@ -928,13 +928,14 @@ async function walk() {
   notice.opened = true;
   // Its page: Audio and subtitles, after Play and the watched mark. French
   // picked, saved with the subtitles shown; then subtitles off, saved with
-  // the French picked here.
+  // the French picked here; then the Director's Cut, which Play plays.
   await settle();
   let pickedSince = mark();
   await press("down", 2);
-  await press("select"); // Audio: Automatic (English), Subtitles: English (SRT)
+  await press("select"); // Version, Audio: Automatic (English), Subtitles: English (SRT)
   await sleep(500);
   shoot("movie-tracks");
+  await press("down");
   await press("select"); // Audio's choices, Automatic checked
   await press("down", 2);
   shoot("movie-audio");
@@ -946,7 +947,20 @@ async function walk() {
   await press("up");
   await press("select"); // Off
   await waitFor(/^PUT \/api\/items\/1011\/streams$/, pickedSince, "the subtitles turned off, saved");
-  await press("back"); // the buttons
+  await press("up", 2);
+  await press("select"); // Version's choices, the first checked
+  await press("down");
+  shoot("movie-versions");
+  await press("select"); // the Director's Cut, then the menu: its subtitles
+  await sleep(500);
+  await press("back"); // the buttons, on Audio and subtitles
+  await press("up", 2);
+  pickedSince = mark();
+  await press("select"); // Play
+  await waitFor(/^POST \/api\/playback$/, pickedSince, "the version chosen played");
+  pickedSince = mark();
+  await press("back");
+  await waitFor(/^DELETE \/api\/playback\//, pickedSince, "the version's session closed");
   await press("back"); // the requests
   await settle();
   shoot("requests-approved");
@@ -1196,6 +1210,7 @@ const checks = [
   ["rated a show 4 stars from its page's More", fixture.ratings.some((r) => r.item === 99 && r.rating === 8)],
   ["picked a movie's audio on its page, saved with the subtitles shown", fixture.streams.some((s) => s.item === 1011 && s.file_id === 8011 && s.audio_index === 2 && s.subtitle_index === 3)],
   ["turned its subtitles off on its page, the audio picked there kept", fixture.streams.some((s) => s.item === 1011 && s.audio_index === 2 && s.subtitle_index === null)],
+  ["played the version chosen on its page", fixture.playbacks.some((p) => p.item === 1011 && p.file_id === 10011)],
   ["asked for a show's More Like This and collections", asked(/^GET \/api\/items\/99\/related\?limit=20$/) && asked(/^GET \/api\/items\/99\/collections$/)],
   ["opened a person's page", asked(/^GET \/api\/people\/7$/)],
   ["opened a title from a person's row of what they directed", person.opened],

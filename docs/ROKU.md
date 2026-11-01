@@ -177,14 +177,18 @@ watched, Audio and subtitles, My List and More…. Audio and subtitles and
 More open a panel at the right; Back closes it, and Down from the
 buttons goes to the rows under them.
 
-- **Audio and subtitles** (a movie's or an episode's file with two audio
-  tracks or more, or subtitles): Audio, Automatic first, named by the
-  language the profile's defaults pick ("Automatic (English)"), then the
-  file's tracks ("French (AC3 5.1)"); Subtitles, Off first, then the
-  file's ("English – SDH (SRT)"). A choice is saved at once for the show
-  or movie (`PUT /api/items/{id}/streams`) and Play starts with it. The
-  audio goes with it only when picked here, Automatic as none, as on the
-  other TVs.
+- **Audio and subtitles** (a movie or an episode with several files, or
+  whose file has two audio tracks or more, or subtitles):
+  - Version, for several files: one line each ("Director's Cut · 4K ·
+    HEVC · DV P8.1 · TrueHD Atmos 7.1 · 62.0 GB"). Play plays the one
+    chosen (`file_id` in `POST /api/playback`), with the tracks the server
+    picks; it isn't saved, as on the other apps.
+  - Audio, Automatic first, named by the language the profile's defaults
+    pick ("Automatic (English)"), then the file's tracks ("French (AC3
+    5.1)"); Subtitles, Off first, then the file's ("English – SDH (SRT)").
+    A choice is saved at once for the show or movie (`PUT
+    /api/items/{id}/streams`) and Play starts with it. The audio goes with
+    it only when picked here, Automatic as none, as on the other TVs.
 - **More**, what is used less, as on the other TVs: Rate (Your rating,
   once given: No rating, or 1 to 5 stars, kept for the profile on the
   server), Go to show and Add to playlist.
