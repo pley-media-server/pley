@@ -41,6 +41,13 @@ sealed class GridView : View
     Animation? scroll;
     int topRow;
     bool heldHere;
+    /// <summary>
+    /// While Up or Down is held, one ring stays still on the top row and the rows slide up or down
+    /// under it, the tiles keeping their resting look (a row's held Left and Right, RowView.Slide):
+    /// a tile growing and shrinking at each step, the ring with it, made the page stutter.
+    /// </summary>
+    readonly View slideRing;
+    bool quiet;
 
     /// <param name="height">The grid's height in dp, from its top (the wells' top less <see cref="TileRoom"/>).</param>
     /// <param name="badgeAt">A count on a tile's top right (a collection's titles).</param>
@@ -58,6 +65,18 @@ sealed class GridView : View
         ClippingMode = ClippingModeType.ClipChildren;
         content.PositionY = Ui.Dp(TileRoom);
         Add(content);
+        var reach = Ui.Dp(PleyShape.RingOffset + PleyShape.RingStroke / 2);
+        slideRing = new View
+        {
+            Size = new Size(Ui.Dp(kind.Width) + 2 * reach, Ui.Dp(kind.Height) + 2 * reach),
+            PositionY = Ui.Dp(TileRoom) - reach,
+            BorderlineWidth = Ui.Dp(PleyShape.RingStroke),
+            BorderlineColor = PleyColors.AccentBright,
+            BorderlineOffset = -1f,
+            CornerRadius = kind.Round ? (Ui.Dp(kind.Width) + 2 * reach) / 2 : Ui.Dp(PleyShape.TileRadius) + reach,
+        };
+        slideRing.Hide();
+        Add(slideRing);
         Group = new FocusGroup(Axis.Grid, "grid") { Columns = columns };
         Group.ChildFocused += Focused;
         gate.HoldEnded += Landed;
@@ -150,10 +169,13 @@ sealed class GridView : View
 
     void Focused(int index)
     {
+        var took = Profile.Start();
         Current = index;
         var row = index / Columns;
         if (row != topRow)
         {
+            // A held Up or Down: the rows slide under a still ring (quiet).
+            if (gate.Holding && !quiet) Quieten(true);
             topRow = row;
             scroll?.Stop();
             scroll = Scrolling.Glide(gate);
@@ -162,15 +184,29 @@ sealed class GridView : View
             Showing?.Invoke(row * Columns);
         }
         if (gate.Holding) heldHere = true;
+        if (quiet) slideRing.PositionX = Ui.Dp(PleyTv.Gutter + index % Columns * (kind.Width + PleyTv.TileGap)) - Ui.Dp(PleyShape.RingOffset + PleyShape.RingStroke / 2);
         Draw();
         Moved?.Invoke(index);
+        Profile.Took("grid: a move", took);
     }
 
     void Landed()
     {
-        if (!heldHere || Disposed) return;
+        if (Disposed) return;
+        if (quiet) Quieten(false);
+        if (!heldHere) return;
         heldHere = false;
         LoadPictures();
+    }
+
+    /// <summary>The tiles keep their resting look under the still ring (on), or show their focus again (off).</summary>
+    void Quieten(bool on)
+    {
+        quiet = on;
+        if (on) slideRing.Show();
+        else slideRing.Hide();
+        foreach (var cell in cells.Values)
+            if (cell is TileView tile) tile.Quiet = on;
     }
 
     /// <summary>Tiles off screen, kept to show the rows coming on: making a row's tiles was most of a move's cost.</summary>
@@ -243,6 +279,7 @@ sealed class GridView : View
             view = new TileView(tile, kind, items[position], gate, images);
             view.Sync();
         }
+        view.Quiet = quiet;
         if (badgeAt?.Invoke(position) is { } badge)
         {
             var text = Text.Label(badge, PleyType.Badge, PleyColors.Fg);

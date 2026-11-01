@@ -182,3 +182,5 @@ It has no releases yet: it is built and installed by hand
 - The native app's "Exit Pley?" is a narrower dialog.
 - Coming back from a film in the native app, posters already shown stay
   as they were rather than flashing to their titles and fading in again.
+- Holding Up or Down in the native app's libraries slides the posters
+  under a highlight that stays still, as rows do for Left and Right.
