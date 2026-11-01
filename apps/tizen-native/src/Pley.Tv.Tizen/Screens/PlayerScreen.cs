@@ -1196,6 +1196,7 @@ sealed class PlayerScreen : Sheet
         if (gone) return;
         gone = true;
         tick.Stop();
+        StopTimers();
         spin.Stop();
         keys.Dispose();
         mediaKeys.Dispose();
@@ -1222,14 +1223,39 @@ sealed class PlayerScreen : Sheet
     /// <summary>Runs <paramref name="action"/> after <paramref name="ms"/>, unless the player has gone by then.</summary>
     void After(long ms, Action action)
     {
+        foreach (var done in spent) done.Dispose();
+        spent.Clear();
         var timer = new Timer((uint)Math.Max(1, ms));
+        pending.Add(timer);
         timer.Tick += (_, _) =>
         {
+            // Not disposed in its own tick: let go of on the next After, or as the player goes.
+            pending.Remove(timer);
+            spent.Add(timer);
             if (!gone) action();
-            timer.Dispose();
             return false;
         };
         timer.Start();
+    }
+
+    /// <summary>
+    /// Timers waiting to fire, held here: held by nothing, one could be collected while the TV
+    /// still had it, and the app died when it fired (a seek waits 5 s for OK).
+    /// </summary>
+    readonly List<Timer> pending = new List<Timer>();
+
+    /// <summary>Timers that have fired, disposed later.</summary>
+    readonly List<Timer> spent = new List<Timer>();
+
+    void StopTimers()
+    {
+        foreach (var t in pending.Concat(spent))
+        {
+            t.Stop();
+            t.Dispose();
+        }
+        pending.Clear();
+        spent.Clear();
     }
 
     /// <summary>A 40 dp arc in the accent, turning while the stream comes.</summary>
