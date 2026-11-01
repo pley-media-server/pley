@@ -161,7 +161,19 @@ private func fixture() async throws -> FixtureServer {
     @Test func picturesAreMadeSmall() async throws {
         let loader = ImageLoader { _, _ in FixtureImages.make(width: 1200, height: 1800) }
         let image = try await loader.image(path: "/api/items/1/images/poster", widthPx: 300)
-        #expect(max(image.width, image.height) == 300)
+        #expect(image.width == 300 && image.height == 450)
+    }
+
+    @Test func aTallPictureKeepsTheWidthAsked() throws {
+        let image = try ImageLoader.decode(FixtureImages.make(width: 200, height: 300), maxWidth: 100)
+        #expect(image.width == 100 && image.height == 150)
+        let wide = try ImageLoader.decode(FixtureImages.make(width: 300, height: 200), maxWidth: 100)
+        #expect(wide.width == 100 && wide.height <= 67)
+    }
+
+    @Test func aPictureIsNeverMadeLarger() throws {
+        let image = try ImageLoader.decode(FixtureImages.make(width: 80, height: 120), maxWidth: 100)
+        #expect(image.width == 80 && image.height == 120)
     }
 
     @Test func picturesFromTheServerAreFetchedAtTheirWidth() async throws {
@@ -178,7 +190,7 @@ private func fixture() async throws -> FixtureServer {
         let tokens = Tokens(issuer: server.origin, store: store, endpoints: EndpointClient(transport: http))
         let loader = ImageLoader(api: PleyAPI(client: APIClient(origin: server.origin, tokens: tokens, transport: http)))
         let image = try await loader.image(path: "/api/items/7/images/poster?v=1", widthPx: 220)
-        #expect(image.width == 220 * 2 / 3 || image.height == 220)
+        #expect(image.width == 220 && image.height == 330)
         #expect(server.requests("/api/items/7/images/poster").first?.query["w"] == "220")
     }
 

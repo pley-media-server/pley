@@ -399,7 +399,7 @@ private func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         let item = try #require(hubs.first?.items.first)
         let path = try #require(HomeModel.posterPath(item))
         let image = try await app.images.image(path: path, widthPx: HomeModel.pixels(110, scale: 3))
-        #expect(max(image.width, image.height) <= 330)
+        #expect(image.width == 330)
     }
 
     @Test func tilesAskForTheScreensPixels() {
