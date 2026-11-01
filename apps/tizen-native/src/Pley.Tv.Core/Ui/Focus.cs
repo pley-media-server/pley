@@ -29,6 +29,9 @@ public abstract class FocusNode
 {
     public FocusGroup? Parent { get; internal set; }
 
+    /// <summary>The group it was last taken out of: where focus goes back to if it was here.</summary>
+    internal FocusGroup? FormerParent { get; set; }
+
     /// <summary>Whether focus can land on this node or inside it now.</summary>
     public abstract bool CanTakeFocus { get; }
 }
@@ -167,13 +170,18 @@ public class FocusGroup : FocusNode
         if (i < 0) return;
         children.RemoveAt(i);
         node.Parent = null;
+        node.FormerParent = this;
         if (Last == i) Last = -1;
         else if (Last > i) Last--;
     }
 
     public void Clear()
     {
-        foreach (var c in children) c.Parent = null;
+        foreach (var c in children)
+        {
+            c.Parent = null;
+            c.FormerParent = this;
+        }
         children.Clear();
         Last = -1;
     }
@@ -244,6 +252,7 @@ public sealed class FocusTree
     public bool Move(Direction direction)
     {
         if (Current == null) return Enter(Root);
+        if (Lost) return Recover();
         FocusNode child = Current;
         for (var g = Current.Parent; g != null; child = g, g = g.Parent)
         {
@@ -255,6 +264,26 @@ public sealed class FocusTree
             }
             if (g.Exit?.Invoke(direction) == true) return true;
         }
+        return false;
+    }
+
+    /// <summary>
+    /// Focus is on an item taken out of the tree: a page drew a row again under it (a library's
+    /// chips as a sort or filter changes their labels) without putting focus back. No key moves
+    /// from there, as it has no groups to go out through.
+    /// </summary>
+    public bool Lost => Current != null && !InTree(Current);
+
+    /// <summary>
+    /// Focus goes back into the group the lost item was taken out of, or the nearest one still in
+    /// the tree, or the root's: at the child it remembers, else its first.
+    /// </summary>
+    public bool Recover()
+    {
+        for (FocusNode? n = Current?.Parent ?? Current?.FormerParent; n != null; n = n.Parent ?? n.FormerParent)
+            if (InTree(n) && Enter(n)) return true;
+        if (Enter(Root)) return true;
+        Blur();
         return false;
     }
 

@@ -62,7 +62,9 @@ sealed class Input
     void Dispatch(string key, bool down)
     {
         var focus = tree();
-        var item = focus?.Current;
+        // An item taken off screen under focus takes no keys: OK does nothing, and a direction
+        // brings focus back to where it was (FocusTree.Recover).
+        var item = focus?.Lost == true ? null : focus?.Current;
         if (item?.OwnKey?.Invoke(key, down) == true) return;
         for (var i = handlers.Count - 1; i >= 0; i--)
             if (handlers[i](key, down)) return;

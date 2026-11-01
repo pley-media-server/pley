@@ -318,7 +318,10 @@ sealed class LibraryScreen : ShellPage
             if (count != null && line != null) Text.Show(count, line);
             return;
         }
-        var focusedChip = Tree.Current?.Parent == chips ? Tree.Current.Name : null;
+        // Focus stays on the chip of the same kind, by kind and not by its label: a sort chosen
+        // changes the Sort chip's label, and focus was left on the chip that went, with nowhere to go.
+        var focusedAt = Tree.Current?.Parent == chips ? chips.Children.ToList().IndexOf(Tree.Current) : -1;
+        LibraryChipKind? focusedKind = focusedAt >= 0 && focusedAt < shownChips.Count ? shownChips[focusedAt].Kind : null;
         shownChips = list;
         foreach (var child in chipsView.Children.ToList())
         {
@@ -339,9 +342,11 @@ sealed class LibraryScreen : ShellPage
             button.PositionX = Ui.Dp(x);
             chipsView.Add(button);
             chips.Add(button.Item);
-            if (button.Item.Name == focusedChip) again = button.Item;
+            if (again == null && chip.Kind == focusedKind) again = button.Item;
             x += button.WidthDp + 10;
         }
+        // Its kind gone: the chip in its place.
+        if (again == null && focusedAt >= 0 && chips.Children.Count > 0) again = chips.Children[Math.Min(focusedAt, chips.Children.Count - 1)] as FocusItem;
         count = Text.Label(line ?? "", PleyType.Caption, PleyColors.Muted, width: 300);
         count.Position = new Position(Ui.Dp(x - 10 + 8), Ui.Dp((ChipHeight - PleyType.Caption.Line) / 2));
         chipsView.Add(count);

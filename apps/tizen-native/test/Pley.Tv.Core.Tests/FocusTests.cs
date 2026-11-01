@@ -40,6 +40,37 @@ public class FocusTests
     }
 
     [Fact]
+    public void Focus_on_an_item_drawn_away_comes_back_to_its_row_on_the_next_key()
+    {
+        var s = new Shell(2, 3);
+        s.Tree.Enter(s.Page);
+        s.Keys(Direction.Right);
+        var row = s.Page.Children[0] as FocusGroup;
+        Assert.Equal("0.1", s.At);
+        // The row drawn again, its items new, focus left on the one that went.
+        row!.Clear();
+        foreach (var name in new[] { "a", "b", "c" }) row.Add(new FocusItem(name));
+        Assert.True(s.Tree.Lost);
+        Assert.True(s.Tree.Move(Direction.Down));
+        Assert.Equal("a", s.At);
+        Assert.False(s.Tree.Lost);
+        s.Keys(Direction.Down);
+        Assert.Equal("1.0", s.At);
+    }
+
+    [Fact]
+    public void Focus_on_an_item_whose_row_went_too_goes_to_the_nearest_group_still_there()
+    {
+        var s = new Shell(2, 3);
+        s.Tree.Enter(s.Page);
+        s.Keys(Direction.Down);
+        Assert.Equal("1.0", s.At);
+        s.Page.Remove(s.Page.Children[1]);
+        Assert.True(s.Tree.Move(Direction.Up));
+        Assert.Equal("0.0", s.At);
+    }
+
+    [Fact]
     public void Rows_move_left_and_right_and_stop_at_their_end()
     {
         var s = new Shell(2, 3);
