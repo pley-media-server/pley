@@ -1,0 +1,15 @@
+// Apple TV's UI tests (TVUITests/): they drive the Pley app on a simulator
+// with the remote against a test server (scripts/check-screens.sh).
+
+#include "Signing.xcconfig"
+
+PRODUCT_NAME = PleyTVUITests
+SDKROOT = appletvos
+SUPPORTED_PLATFORMS = appletvos appletvsimulator
+TARGETED_DEVICE_FAMILY = 3
+TVOS_DEPLOYMENT_TARGET = 18.0
+TEST_TARGET_NAME = PleyTV
+PRODUCT_BUNDLE_IDENTIFIER = $(PLEY_BUNDLE_ID).tvuitests
+GENERATE_INFOPLIST_FILE = YES
+SWIFT_VERSION = 6.0
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/Frameworks @loader_path/Frameworks

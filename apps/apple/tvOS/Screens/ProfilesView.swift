@@ -54,6 +54,7 @@ struct ProfilesView: View {
             .buttonStyle(.card)
             .disabled(!ProfilesModel.canChoose(profile) || model.switching != nil)
             .accessibilityLabel(profile.name)
+            .accessibilityIdentifier("profiles.profile.\(profile.name)")
             HStack(spacing: 8) {
                 Text(profile.name).font(.headline).lineLimit(1)
                 if profile.needs == .pin { Image(systemName: "lock.fill").accessibilityLabel("PIN") }
@@ -83,12 +84,14 @@ private struct PinView: View {
                 .keyboardType(.numberPad)
                 .frame(maxWidth: 600)
                 .onSubmit { Task { await model.submitPin() } }
+                .accessibilityIdentifier("profiles.pin")
             if let error = model.pinError {
                 Text(asSentence(error)).foregroundStyle(.red)
             }
             HStack(spacing: 40) {
                 Button("Continue") { Task { await model.submitPin() } }
                     .disabled(model.switching != nil)
+                    .accessibilityIdentifier("profiles.pin.continue")
                 Button("Cancel", role: .cancel) { model.cancelPin() }
                 if model.switching != nil { ProgressView() }
             }

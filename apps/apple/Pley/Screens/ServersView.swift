@@ -65,9 +65,11 @@ struct ServersView: View {
                     #endif
                     .submitLabel(.go)
                     .onSubmit { Task { await model.add() } }
+                    .accessibilityIdentifier("servers.address")
                     .disabled(model.adding)
                 HStack {
                     Button("Connect") { Task { await model.add() } }
+                        .accessibilityIdentifier("servers.connect")
                         .disabled(model.adding || model.address.trimmingCharacters(in: .whitespaces).isEmpty)
                     if model.adding { ProgressView().controlSize(.small) }
                 }
@@ -114,6 +116,7 @@ struct ServersView: View {
         }
         .buttonStyle(.plain)
         .disabled(model.opening != nil)
+        .accessibilityIdentifier("servers.server.\(entry.name)")
     }
 
     private var blockedNotice: some View {

@@ -30,16 +30,24 @@ public actor LateReports {
     private let file: URL
     private let clock: any PlayerClock
     private var entries: [Entry]?
+    /// A `send` is under way: another one at the same time returns at once,
+    /// so no report goes twice.
+    private var sending = false
 
     /// The reports of `origin` and `profileId`, in `directory` (the app's
     /// `Application Support/Pley` by default).
     public init(origin: String, profileId: Int?, directory: URL? = nil, clock: any PlayerClock = SystemPlayerClock()) {
         let base = directory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Pley", isDirectory: true)
-        let key = SHA256.hash(data: Data("\(origin)\n\(profileId.map(String.init) ?? "")".utf8))
-            .map { String(format: "%02x", $0) }.joined()
-        file = base.appendingPathComponent("late-reports-\(key).json")
+        file = base.appendingPathComponent("late-reports-\(Self.key(origin: origin, profileId: profileId)).json")
         self.clock = clock
+    }
+
+    /// The SHA-256 of the server and profile, in hex: the file's name, and
+    /// the key of the one queue the app keeps for them.
+    public static func key(origin: String, profileId: Int?) -> String {
+        SHA256.hash(data: Data("\(origin)\n\(profileId.map(String.init) ?? "")".utf8))
+            .map { String(format: "%02x", $0) }.joined()
     }
 
     /// The reports kept, oldest first.
@@ -57,10 +65,14 @@ public actor LateReports {
     /// Sends what is kept, oldest first, without a session and with its
     /// age. A report the server answered (2xx, or a 4xx refusal) is done;
     /// one that can't reach it stays, with the rest after it.
+    /// One send at a time: a second while one runs returns at once (the
+    /// first sends what is kept). A report kept meanwhile stays for the next.
     public func send(using api: PleyAPI) async {
-        var left = load()
-        guard !left.isEmpty else { return }
-        while let entry = left.first {
+        guard !sending, !load().isEmpty else { return }
+        sending = true
+        defer { sending = false }
+        var sent: [Entry] = []
+        for entry in load() {
             let age = max(Int64(clock.wall().timeIntervalSince1970 * 1000) - entry.madeAt, 0)
             let report = ProgressReport(positionMs: entry.positionMs, durationMs: entry.durationMs, state: entry.state,
                                         ageMs: Int(age))
@@ -69,8 +81,10 @@ public actor LateReports {
             } catch let error where !Self.answered(error) {
                 break
             } catch {}
-            left.removeFirst()
+            sent.append(entry)
         }
+        // The actor runs `keep` between the reports: only what went is taken out.
+        let left = load().filter { !sent.contains($0) }
         save(left)
         Log.player.info("late reports sent; \(left.count, privacy: .public) left")
     }

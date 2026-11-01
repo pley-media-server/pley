@@ -185,11 +185,27 @@ struct SubtitleControllerTests {
         #expect(sent.map(\.subtitleIndex) == [nil])
         #expect(sent.first?.caps.pictureSubtitlesSideload == true)
         #expect(rig.controller.session?.info.method == .remux)
-        // Closing deletes the download.
-        await rig.controller.close()
+        // Closing deletes the download, and the folder the playback made for it.
         let pictures = rig.folder.appendingPathComponent("pictures")
-        let left = try? FileManager.default.contentsOfDirectory(atPath: pictures.path)
-        #expect((left ?? []).isEmpty)
+        #expect(FileManager.default.fileExists(atPath: pictures.path))
+        await rig.controller.close()
+        #expect(!FileManager.default.fileExists(atPath: pictures.path))
+    }
+
+    @Test func aPicturesFolderThatWasThereStays() async throws {
+        let rig = try await subtitleRig(method: "remux", selected: 3)
+        defer { rig.cleanUp() }
+        let pictures = rig.folder.appendingPathComponent("pictures")
+        try FileManager.default.createDirectory(at: pictures, withIntermediateDirectories: true)
+        rig.server.serveFile(path: "/api/files/510/subtitles/3.mks", type: "video/x-matroska", body: pgsTrack)
+        try await started(rig)
+        try await until("the picture") {
+            at(rig, 1_500)
+            return rig.controller.state.cues != .none
+        }
+        await rig.controller.close()
+        #expect(FileManager.default.fileExists(atPath: pictures.path))
+        #expect((try FileManager.default.contentsOfDirectory(atPath: pictures.path)).isEmpty)
     }
 
     @Test func withoutTheMksTheStreamStartsAgainWithThePicturesBurnedIn() async throws {

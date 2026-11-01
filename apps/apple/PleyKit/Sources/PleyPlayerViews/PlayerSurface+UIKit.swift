@@ -27,12 +27,12 @@ public struct PlayerSurface: UIViewControllerRepresentable {
     let player: AVPlayer?
     let state: PlayerState
     let onTap: () -> Void
-    let onQuality: (String) -> Void
+    let onQuality: @MainActor (String) -> Void
     /// Apple TV: what the transport bar's menus and the contextual actions act on.
     let controller: PlaybackController?
 
     public init(player: AVPlayer?, state: PlayerState, onTap: @escaping () -> Void = {},
-                onQuality: @escaping (String) -> Void = { _ in }, controller: PlaybackController? = nil) {
+                onQuality: @escaping @MainActor (String) -> Void = { _ in }, controller: PlaybackController? = nil) {
         self.player = player
         self.state = state
         self.onTap = onTap
@@ -92,11 +92,13 @@ public struct PlayerSurface: UIViewControllerRepresentable {
             coordinator.qualities = state.qualities
             coordinator.audio = state.audio
             coordinator.subtitleMenu = subtitleMenu
-            var menus = [Self.qualityMenu(state.qualities, onQuality)]
+            var actions = PlayerMenus.Actions(playback)
+            actions.quality = onQuality
+            var menus = [PlayerMenus.quality(state.qualities, actions)]
             if state.audio.count > 1 {
-                menus.append(Self.audioMenu(state.audio) { playback?.selectAudio($0) })
+                menus.append(PlayerMenus.audio(state.audio, actions))
             }
-            if !state.subtitles.isEmpty { menus.append(Self.subtitlesMenu(state, playback)) }
+            if !state.subtitles.isEmpty { menus.append(PlayerMenus.subtitles(state, actions)) }
             controller.transportBarCustomMenuItems = menus
         }
         let actions = Self.contextualActions(state, playback)
@@ -117,59 +119,6 @@ public struct PlayerSurface: UIViewControllerRepresentable {
     }
 
     #if os(tvOS)
-    /// The transport bar's Quality menu: each choice with its second line,
-    /// the one playing checked.
-    static func qualityMenu(_ choices: [MenuChoice], _ select: @escaping (String) -> Void) -> UIMenu {
-        let actions = choices.map { choice in
-            let action = UIAction(title: choice.label, state: choice.selected ? .on : .off) { _ in select(choice.id) }
-            action.subtitle = choice.detail
-            return action
-        }
-        return UIMenu(title: "Quality", image: UIImage(systemName: "slider.horizontal.3"), children: actions)
-    }
-
-    /// The transport bar's Audio menu, the track playing checked.
-    static func audioMenu(_ choices: [MenuChoice], _ select: @escaping (Int) -> Void) -> UIMenu {
-        let actions = choices.map { choice in
-            UIAction(title: choice.label, state: choice.selected ? .on : .off) { _ in
-                if let index = Int(choice.id) { select(index) }
-            }
-        }
-        return UIMenu(title: "Audio", image: UIImage(systemName: "speaker.wave.2"), children: actions)
-    }
-
-    /// The transport bar's Subtitles menu: Off and each track, the one
-    /// shown checked, then the sync (0.1 s earlier or later, kept open
-    /// while it is moved, and back to 0) when they can be moved.
-    @MainActor
-    static func subtitlesMenu(_ state: PlayerState, _ playback: PlaybackController?) -> UIMenu {
-        let tracks = state.subtitles.map { choice in
-            let action = UIAction(title: choice.label, state: choice.selected ? .on : .off) { _ in
-                playback?.selectSubtitle(choice.id == MenuChoice.off ? nil : Int(choice.id))
-            }
-            action.subtitle = choice.detail
-            return action
-        }
-        var children: [UIMenuElement] = [UIMenu(title: "", options: .displayInline, children: tracks)]
-        if state.canSyncSubtitles {
-            let offset = state.subtitleOffsetMs
-            let sync = UIMenu(title: "Subtitle sync", subtitle: state.subtitleOffsetLabel,
-                              image: UIImage(systemName: "timer"), children: [
-                UIAction(title: "Earlier", subtitle: "−0.1 s", attributes: .keepsMenuPresented) { _ in
-                    playback?.moveSubtitles(steps: -1)
-                },
-                UIAction(title: "Later", subtitle: "+0.1 s", attributes: .keepsMenuPresented) { _ in
-                    playback?.moveSubtitles(steps: 1)
-                },
-                UIAction(title: "Reset", attributes: offset == 0 ? .disabled : []) { _ in
-                    playback?.setSubtitleOffset(0)
-                },
-            ])
-            children.append(sync)
-        }
-        return UIMenu(title: "Subtitles", image: UIImage(systemName: "captions.bubble"), children: children)
-    }
-
     /// What the Subtitles menu shows, so it is made again only when that changes.
     struct SubtitleMenuKey: Equatable {
         var choices: [MenuChoice] = []

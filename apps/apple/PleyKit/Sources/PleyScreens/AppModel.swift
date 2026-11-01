@@ -10,36 +10,22 @@ import PleyPlayer
 import PleySubtitles
 
 /// The app's state above its screens: which server is open, who is signed
-/// in, which screen shows, and what plays. Both apps' views follow it: a
-/// `NavigationStack` with `root` at the bottom and `path` on top, so Back
-/// (and Menu on the Siri Remote) goes where people expect. One playback at
-/// a time: starting another closes the one before, as on Android.
+/// in, what shows, and what plays. Both apps' views follow `root`: the
+/// servers (a navigation with a server's sign-in on top), "Who's watching?"
+/// by itself, or the signed-in app, whose navigation is `shell`'s. One
+/// playback at a time: starting another closes the one before, as on Android.
 @MainActor
 public final class AppModel: ObservableObject {
-    /// The bottom of the navigation.
+    /// What fills the window.
     public enum Root: Hashable, Sendable {
         /// Opening the server used last, at start.
         case starting
+        /// The servers, with `signingIn` on top.
         case servers
-        case home
-    }
-
-    /// A screen on top of the root.
-    public enum Screen: Hashable, Sendable {
-        case signIn(ServerEntry)
+        /// "Who's watching?", by itself.
         case profiles
-        /// An item's page.
-        case item(Int)
-    }
-
-    /// The screen showing.
-    public enum Route: Hashable, Sendable {
-        case starting
-        case servers
-        case signIn(ServerEntry)
-        case profiles
-        case home
-        case item(Int)
+        /// The signed-in app: `shell`'s sections.
+        case signedIn
     }
 
     /// What the player needs beside the server: this install's client id,
@@ -75,8 +61,12 @@ public final class AppModel: ObservableObject {
     }
 
     @Published public private(set) var root: Root = .starting
-    /// Bound to the `NavigationStack`, so Back pops it.
-    @Published public var path: [Screen] = []
+    /// The servers' navigation: a server's sign-in on top of the list.
+    /// Bound to its `NavigationStack`, so Back pops it.
+    @Published public var signingIn: [ServerEntry] = []
+    /// "Who's watching?" was opened from the signed-in app (Switch profile),
+    /// so it can go back without a choice.
+    @Published public private(set) var profilesFromShell = false
     /// Who the app acts as on the open server, when signed in.
     @Published public private(set) var user: User?
     /// The server open, by the name it gave.
@@ -103,31 +93,25 @@ public final class AppModel: ObservableObject {
     /// player's last report and the end of its session still go out.
     public let reporter = SessionReporter()
     public let playerSetup: PlayerSetup
+    /// This device's settings.
+    public let settings: AppSettings
+    /// The signed-in app's sections and their navigation.
+    public let shell: ShellModel
 
     private var listener: Task<Void, Never>?
     /// Counts playbacks asked for, so only the latest of two quick ones opens.
     private var plays = 0
-
-    public var route: Route {
-        switch path.last {
-        case .signIn(let entry): return .signIn(entry)
-        case .profiles: return .profiles
-        case .item(let id): return .item(id)
-        case nil:
-            switch root {
-            case .starting: return .starting
-            case .servers: return .servers
-            case .home: return .home
-            }
-        }
-    }
+    /// One queue of late reports per server and profile, shared by every
+    /// sign-in and playback, so two never send the same report.
+    private var late: [String: LateReports] = [:]
 
     public var client: AppClient { session.client }
 
     public init(session: SessionManager, servers: ServerRepository, transport: HTTPTransport,
                 authenticator: (any WebAuthenticator)?,
                 discover: @escaping @Sendable () -> AsyncStream<DiscoveryState>,
-                caps: DeviceCaps? = nil, playerSetup: PlayerSetup = PlayerSetup()) {
+                caps: DeviceCaps? = nil, playerSetup: PlayerSetup = PlayerSetup(),
+                settings: AppSettings = AppSettings()) {
         self.session = session
         self.servers = servers
         self.transport = transport
@@ -135,6 +119,8 @@ public final class AppModel: ObservableObject {
         self.discover = discover
         self.caps = caps ?? DeviceCaps()
         self.playerSetup = playerSetup
+        self.settings = settings
+        shell = ShellModel(settings: settings)
         // One loader for the app, always with the open server's API.
         images = ImageLoader { [session] path, width in
             guard let api = await session.api else { throw PleyError.signedOut }
@@ -184,26 +170,30 @@ public final class AppModel: ObservableObject {
     public func open(_ entry: ServerEntry) async throws {
         let state = try await session.open(origin: entry.origin, id: entry.id)
         notice = nil
+        let before = server?.origin
         await opened(entry.origin, id: entry.id, name: entry.name, saved: entry.saved, found: entry.found)
         switch state {
         case .signedIn(let user):
+            // Another server's pages don't belong to this one.
+            if before != server?.origin { shell.reset() }
             show(user, chooseProfile: false)
         case .signedOut:
             user = nil
             root = .servers
-            path = [.signIn(server ?? entry)]
+            signingIn = [server ?? entry]
         }
     }
 
-    /// A sign-in finished: Home, with the household first when it has
-    /// more than one profile.
+    /// A sign-in finished: Home, with "Who's watching?" first when the
+    /// household has more than one profile.
     public func signedIn(_ user: User) async {
         notice = nil
         let household = (try? await session.profiles?.profiles()) ?? []
+        shell.reset()
         show(user, chooseProfile: household.count > 1)
     }
 
-    /// The sign-in moved to another profile.
+    /// The sign-in moved to another profile: Home, as that profile.
     public func profileChanged() async {
         await closePlayer()
         if let api = await session.api, let user = try? await api.me() {
@@ -211,7 +201,9 @@ public final class AppModel: ObservableObject {
             signedInNow(user)
         }
         homeVersion += 1
-        path = []
+        shell.reset()
+        profilesFromShell = false
+        root = .signedIn
     }
 
     /// Ends the sign-in on the open server; the servers show.
@@ -219,8 +211,9 @@ public final class AppModel: ObservableObject {
         await closePlayer()
         await session.signOut()
         user = nil
+        shell.reset()
         root = .servers
-        path = []
+        signingIn = []
     }
 
     /// Signs out of `entry` and removes it from the list.
@@ -236,21 +229,26 @@ public final class AppModel: ObservableObject {
     public func showServers() {
         Task { await closePlayer() }
         root = .servers
-        path = []
+        signingIn = []
     }
 
+    /// Back from a server's sign-in to the servers.
+    public func closeSignIn() {
+        signingIn = []
+    }
+
+    /// "Who's watching?", from the signed-in app (Switch profile).
     public func showProfiles() {
-        path = [.profiles]
+        guard user != nil else { return }
+        profilesFromShell = true
+        root = .profiles
     }
 
-    /// An item's page, on top of the screen showing.
-    public func showItem(_ id: Int) {
-        path.append(.item(id))
-    }
-
-    /// Back from the screen on top.
-    public func back() {
-        if !path.isEmpty { path.removeLast() }
+    /// "Who's watching?" ends without a switch: the profile in use stays.
+    public func keepProfile() {
+        guard user != nil else { return }
+        profilesFromShell = false
+        root = .signedIn
     }
 
     // MARK: Playing
@@ -287,9 +285,15 @@ public final class AppModel: ObservableObject {
         await current.close()
     }
 
-    /// The reports of this server and profile that couldn't go out before.
-    private func lateReports(origin: String, profileId: Int) -> LateReports {
-        LateReports(origin: origin, profileId: profileId, directory: playerSetup.lateReports, clock: playerSetup.clock)
+    /// The reports of this server and profile that couldn't go out before:
+    /// one queue per file, whoever asks for it.
+    func lateReports(origin: String, profileId: Int) -> LateReports {
+        let key = LateReports.key(origin: origin, profileId: profileId)
+        if let queue = late[key] { return queue }
+        let queue = LateReports(origin: origin, profileId: profileId, directory: playerSetup.lateReports,
+                                clock: playerSetup.clock)
+        late[key] = queue
+        return queue
     }
 
     // MARK: Inside
@@ -297,8 +301,9 @@ public final class AppModel: ObservableObject {
     private func show(_ user: User, chooseProfile: Bool) {
         self.user = user
         homeVersion += 1
-        root = .home
-        path = chooseProfile ? [.profiles] : []
+        signingIn = []
+        profilesFromShell = false
+        root = chooseProfile ? .profiles : .signedIn
         signedInNow(user)
     }
 
@@ -340,8 +345,9 @@ public final class AppModel: ObservableObject {
         Task { await closePlayer() }
         user = nil
         notice = message
+        shell.reset()
         root = .servers
-        path = [.signIn(server)]
+        signingIn = [server]
     }
 }
 

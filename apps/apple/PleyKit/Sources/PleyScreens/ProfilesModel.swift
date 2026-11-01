@@ -47,7 +47,7 @@ public final class ProfilesModel: ObservableObject {
     public func choose(_ profile: HouseholdProfile) async {
         error = nil
         if profile.current {
-            app.back()
+            app.keepProfile()
             return
         }
         switch profile.needs {

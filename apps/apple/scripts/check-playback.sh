@@ -72,14 +72,29 @@ for _ in $(seq 1 100); do
 done
 curl -fsS "$origin/api/health" >/dev/null
 
+# The player's picture subtitles go to the temporary folder, never to the
+# user's Caches; the check says so if the run left a folder there.
+caches="$HOME/Library/Caches/pley/picture-subtitles"
+cached_before=no
+if [[ -e "$caches" ]]; then cached_before=yes; fi
+
 if ! swift run --skip-build --package-path apps/apple/PleyKit pley-apple-play \
-  --server "$origin" --admin checkadmin --media "$media" --caps-fixtures apps/server/tests/fixtures/caps; then
+  --server "$origin" --admin checkadmin --media "$media" --caps-fixtures apps/server/tests/fixtures/caps \
+  --work-dir "$temp/player"; then
   echo "check-playback: the server's last lines:" >&2
   tail -n 30 "$temp/server.log" | redacted >&2
   exit 1
 fi
 if grep -q "pley_mk_" "$temp/server.log"; then
   echo "check-playback: the server's log names a keyed media address" >&2
+  exit 1
+fi
+if [[ $cached_before == no && -e "$caches" ]]; then
+  echo "check-playback: the run left $caches behind" >&2
+  exit 1
+fi
+if [[ -e "$temp/player/picture-subtitles" ]]; then
+  echo "check-playback: the player left its picture-subtitles folder behind" >&2
   exit 1
 fi
 echo "check-playback: passed"

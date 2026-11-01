@@ -3,10 +3,12 @@
 // scripts/check-playback.sh makes the media, starts the server and runs
 // this; never point it at a server people use.
 //
-//   pley-apple-play --server http://127.0.0.1:7712 --admin <username> --media <dir> --caps-fixtures <dir>
+//   pley-apple-play --server http://127.0.0.1:7712 --admin <username> --media <dir> --caps-fixtures <dir> [--work-dir <dir>]
 //
 // `--media` is what make-test-media.sh wrote; `--caps-fixtures` the server's
-// recorded Apple caps (apps/server/tests/fixtures/caps). The administrator's
+// recorded Apple caps (apps/server/tests/fixtures/caps); `--work-dir` where
+// the player downloads picture subtitles (inside the check's temporary
+// folder, so nothing is left in the user's Caches). The administrator's
 // password comes from PLEY_CHECK_PASSWORD. It prints one line per check and
 // stops at the first failure. Nothing it prints holds a token, a code, a
 // password or a keyed media address.
@@ -58,6 +60,9 @@ func pause(seconds: Double) async throws {
 }
 
 func short(_ id: String) -> String { String(id.prefix(8)) }
+
+/// Where the player works (`--work-dir`); `nil`: the app's own Caches.
+nonisolated(unsafe) var workDir: URL?
 
 // MARK: Setting up
 
@@ -122,7 +127,9 @@ final class Run {
                                           let engine = AVPlayerEngine()
                                           made = engine
                                           return engine
-                                      })
+                                      },
+                                      pictureFolder: workDir?.appendingPathComponent("picture-subtitles",
+                                                                                     isDirectory: true))
         controller = PlaybackController(request: PlayRequest(itemId: itemId, fromStart: true), environment: env)
         controller.start()
         engine = made
@@ -543,8 +550,10 @@ func run() async throws {
     guard let server = options["server"], let admin = options["admin"], let media = options["media"],
           let fixtures = options["caps-fixtures"]
     else {
-        throw CheckFailure("usage: pley-apple-play --server <origin> --admin <username> --media <dir> --caps-fixtures <dir>")
+        throw CheckFailure("usage: pley-apple-play --server <origin> --admin <username> --media <dir> --caps-fixtures <dir>"
+            + " [--work-dir <dir>]")
     }
+    workDir = options["work-dir"].map { URL(fileURLWithPath: $0, isDirectory: true) }
     guard let password = ProcessInfo.processInfo.environment["PLEY_CHECK_PASSWORD"], !password.isEmpty else {
         throw CheckFailure("set PLEY_CHECK_PASSWORD to the administrator's password")
     }

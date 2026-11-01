@@ -38,7 +38,8 @@ private struct FakeWebAuthenticator: WebAuthenticator {
 func app(_ store: any TokenStore = MemoryTokenStore(), servers: [SavedServer] = [],
          client: AppClient = .ios,
          discover: @escaping @Sendable () -> AsyncStream<DiscoveryState> = { AsyncStream { $0.finish() } },
-         engines: @escaping @MainActor () -> any PlayerEngine = { StillEngine() })
+         engines: @escaping @MainActor () -> any PlayerEngine = { StillEngine() },
+         settings: AppSettings = freshSettings())
     -> AppModel {
     let transport = HTTPTransport(userAgent: testAgent)
     let repository = ServerRepository(store: MemoryServerListStore(servers))
@@ -49,7 +50,16 @@ func app(_ store: any TokenStore = MemoryTokenStore(), servers: [SavedServer] = 
                     authenticator: client.signsInWithBrowser ? FakeWebAuthenticator() : nil, discover: discover,
                     caps: DeviceCaps(probe: RecordedProbe()),
                     playerSetup: .init(clientId: "apple-test", lateReports: late, quality: MemoryQuality(),
-                                       ceilings: { _ in MemoryCeiling() }, engines: engines))
+                                       ceilings: { _ in MemoryCeiling() }, engines: engines),
+                    settings: settings)
+}
+
+/// Settings of their own, gone with the test.
+func freshSettings() -> AppSettings {
+    let name = "pley-test-\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: name)!
+    defaults.removePersistentDomain(forName: name)
+    return AppSettings(defaults: defaults)
 }
 
 /// Tokens the fixture gave, kept as a sign-in keeps them.
@@ -76,9 +86,9 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
 @Suite struct AppModelTests {
     @Test func withNoServerTheServersShow() async {
         let app = app()
-        #expect(app.route == .starting)
+        #expect(app.root == .starting)
         await app.start()
-        #expect(app.route == .servers)
+        #expect(app.root == .servers && app.signingIn.isEmpty)
     }
 
     @Test func theLastServerOpensAtStartWhenSignedIn() async throws {
@@ -92,7 +102,7 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         ])
         await app.start()
         // At start, Home shows straight away: choosing a profile is for after a sign-in.
-        #expect(app.route == .home)
+        #expect(app.root == .signedIn)
         #expect(app.user?.name == "Alex")
         #expect(app.server?.name == "Living Room")
         #expect(app.server?.id == "abc")
@@ -103,7 +113,7 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         defer { server.stop() }
         let app = app(servers: [SavedServer(origin: server.origin, name: "Living Room", lastUsed: Date())])
         await app.start()
-        #expect(app.route == .servers)
+        #expect(app.root == .servers && app.signingIn.isEmpty)
         #expect(app.user == nil)
     }
 
@@ -113,7 +123,7 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         server.stop()
         let app = app(servers: [SavedServer(origin: origin, name: "Gone", lastUsed: Date())])
         await app.start()
-        #expect(app.route == .servers)
+        #expect(app.root == .servers && app.signingIn.isEmpty)
         #expect(app.notice?.hasPrefix("Gone: ") == true)
     }
 
@@ -124,12 +134,12 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         try await keepSignIn(server, in: store)
         let app = app(store, servers: [SavedServer(origin: server.origin, name: "Living Room", lastUsed: Date())])
         await app.start()
-        #expect(app.route == .home)
+        #expect(app.root == .signedIn)
         server.refuseEveryToken()
         let home = HomeModel(app: app)
         await home.reload()
-        #expect(await eventually { if case .signIn = app.route { true } else { false } })
-        guard case .signIn(let entry) = app.route else { return }
+        #expect(await eventually { app.signingIn.last != nil })
+        guard let entry = app.signingIn.last else { return }
         #expect(entry.origin == server.origin)
         #expect(app.notice == PleyError.signedOut.userMessage)
         #expect(app.user == nil)
@@ -144,7 +154,7 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         let app = app(store, servers: [SavedServer(origin: server.origin, name: "Living Room", lastUsed: Date())])
         await app.start()
         await app.signOut()
-        #expect(app.route == .servers)
+        #expect(app.root == .servers && app.signingIn.isEmpty)
         #expect(server.requests("/api/oauth/revoke").count == 1)
         #expect(try await store.load(issuer: server.origin) == nil)
     }
@@ -162,8 +172,8 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         await servers.add()
         #expect(servers.error == nil)
         #expect(servers.address.isEmpty)
-        guard case .signIn(let entry) = app.route else {
-            Issue.record("no sign-in: \(app.route)")
+        guard let entry = app.signingIn.last else {
+            Issue.record("no sign-in: \(app.root)")
             return
         }
         #expect(entry.origin == server.origin)
@@ -180,7 +190,7 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         servers.address = server.origin
         await servers.add()
         #expect(servers.error == PleyError.notPley.userMessage)
-        #expect(app.route == .servers)
+        #expect(app.root == .servers && app.signingIn.isEmpty)
     }
 
     @Test func foundAndSavedServersAreListedApart() async throws {
@@ -223,7 +233,7 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
 @Suite struct SignInModelTests {
     private func signIn(_ app: AppModel, _ server: FixtureServer) async throws -> SignInModel {
         try await app.open(ServerEntry(origin: server.origin, name: "Living Room", saved: false, found: false))
-        guard case .signIn(let entry) = app.route else { throw AuthError.noCode }
+        guard let entry = app.signingIn.last else { throw AuthError.noCode }
         return SignInModel(app: app, entry: entry)
     }
 
@@ -236,10 +246,10 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         #expect(!model.unencryptedWarning)
         model.signInWithBrowser()
         // The fixture's household has five profiles, so they show first.
-        #expect(await eventually { app.route == .profiles })
+        #expect(await eventually { app.root == .profiles })
         #expect(app.user?.name == "Alex")
-        app.back()
-        #expect(app.route == .home)
+        app.keepProfile()
+        #expect(app.root == .signedIn)
     }
 
     @Test func aCodeIsShownWithItsQRCodeAndSignsIn() async throws {
@@ -256,7 +266,7 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         #expect(qr != nil)
         #expect(model.secondsLeft > 0)
         server.approveDevice()
-        #expect(await eventually { app.route == .profiles })
+        #expect(await eventually { app.root == .profiles })
     }
 
     @Test func aRefusedCodeSaysSoAndCanBeTriedAgain() async throws {
@@ -348,7 +358,7 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         await model.submitPin()
         #expect(model.pinError == ProfileSwitchError.wrongPin.message)
         #expect(model.pin.isEmpty)
-        #expect(app.route == .profiles)
+        #expect(app.root == .profiles)
         #expect(app.user?.name == "Alex")
         let version = app.homeVersion
 
@@ -356,7 +366,7 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         await model.submitPin()
         #expect(model.pinFor == nil)
         #expect(app.user?.name == "Sam")
-        #expect(app.route == .home)
+        #expect(app.root == .signedIn)
         #expect(app.homeVersion == version + 1)
     }
 
@@ -374,7 +384,7 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         let kids = try #require(model.profiles.first { $0.name == "Kids" })
         await model.choose(kids)
         #expect(app.user?.name == "Kids")
-        #expect(app.route == .home)
+        #expect(app.root == .signedIn)
     }
 
     @Test func avatars() {
@@ -447,7 +457,7 @@ func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
             return
         }
         #expect(!hubs.isEmpty)
-        let item = try #require(hubs.first?.items.first)
+        let item = try #require(hubs.first?.tiles.first?.item)
         let path = try #require(HomeModel.posterPath(item))
         let image = try await app.images.image(path: path, widthPx: HomeModel.pixels(110, scale: 3))
         #expect(image.width == 330)

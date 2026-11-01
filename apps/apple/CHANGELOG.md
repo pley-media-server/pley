@@ -31,3 +31,11 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Subtitles, text and picture (PGS, VobSub, DVB) alike, drawn over the
   video in your caption style, with a sync control; picture subtitles no
   longer force a conversion.
+- A tab bar on iPhone, a sidebar on iPad and Mac, and tabs across the top on
+  Apple TV; your profile, servers and sign-out are under Me.
+
+### Fixed
+
+- The iPhone's Quality menu keeps each choice's second line when it is
+  checked.
+- VoiceOver no longer reads the page behind the player.

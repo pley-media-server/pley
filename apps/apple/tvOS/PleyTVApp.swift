@@ -1,3 +1,4 @@
+import PleyCommon
 import PleyScreens
 import SwiftUI
 import UIKit
@@ -15,27 +16,18 @@ struct PleyTVApp: App {
     }
 }
 
-/// The screen `app.route` names: the root at the bottom of a navigation
-/// stack, sign-in, the profiles or an item on top, so Menu goes back, and
-/// leaves the app from the root as the system does. The player covers it
-/// all; Menu closes it.
+/// What `app.root` names: the servers with a server's sign-in on top,
+/// "Who's watching?", or the signed-in shell. Menu goes back, and leaves
+/// the app from the root as the system does. The player covers it all;
+/// Menu closes it.
 struct RootView: View {
     @ObservedObject var app: AppModel
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        NavigationStack(path: $app.path) {
-            root
-                .navigationDestination(for: AppModel.Screen.self) { screen in
-                    switch screen {
-                    case .signIn(let entry): SignInView(app: app, entry: entry)
-                    case .profiles: ProfilesView(app: app)
-                    case .item(let id): ItemView(app: app, itemId: id)
-                    }
-                }
-        }
-        // Another root starts a new stack.
-        .id(app.root)
+        root
+            // Another root starts again.
+            .id(app.root)
         .fullScreenCover(item: Binding(get: { app.player },
                                        set: { if $0 == nil { Task { await app.closePlayer() } } })) { controller in
             PlayerScreen(app: app, controller: controller)
@@ -66,9 +58,20 @@ struct RootView: View {
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .servers:
-            ServersView(app: app)
-        case .home:
-            HomeView(app: app)
+            NavigationStack(path: $app.signingIn) {
+                ServersView(app: app)
+                    .navigationDestination(for: ServerEntry.self) { entry in
+                        SignInView(app: app, entry: entry)
+                    }
+            }
+        case .profiles:
+            NavigationStack {
+                ProfilesView(app: app)
+            }
+            // Menu, from the shell's Switch profile: the profile in use stays.
+            .onExitCommand(perform: app.profilesFromShell ? { app.keepProfile() } : nil)
+        case .signedIn:
+            ShellView(app: app)
         }
     }
 }

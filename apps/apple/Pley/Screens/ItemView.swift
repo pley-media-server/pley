@@ -12,7 +12,6 @@ struct ItemView: View {
     /// A player was open: once it closes, the page reads the item again
     /// for its new resume point.
     @State private var sawPlayer = false
-    @Environment(\.displayScale) private var displayScale
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
     #endif
@@ -72,11 +71,10 @@ struct ItemView: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 16) {
             if let item = model.item {
-                ServerImage(app: app, path: HomeModel.posterPath(item.summary),
-                            widthPx: HomeModel.pixels(120, scale: Double(displayScale)))
+                ServerImage(app: app, paths: Tile.posters(item.summary), width: 120,
+                            symbol: Metrics.symbol(item.summary.kind))
                     .frame(width: 120, height: 180)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .accessibilityHidden(true)
+                    .clipShape(RoundedRectangle(cornerRadius: Metrics.corner))
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text(model.title).font(.title2.bold())
@@ -105,8 +103,10 @@ struct ItemView: View {
                         Label(resume, systemImage: "play.fill")
                     }
                     .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("item.play")
                     Button("Play from start") { play(model.request(fromStart: true)) }
                         .buttonStyle(.bordered)
+                        .accessibilityIdentifier("item.playFromStart")
                 } else {
                     Button {
                         play(model.request())
@@ -114,6 +114,7 @@ struct ItemView: View {
                         Label("Play", systemImage: "play.fill")
                     }
                     .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("item.play")
                 }
             }
             .controlSize(.large)

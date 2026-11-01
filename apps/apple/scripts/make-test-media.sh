@@ -2,7 +2,7 @@
 # Makes the Apple apps' test media with FFmpeg (and make-pgs.py for the
 # picture subtitles): generated pictures and tones, nothing copied.
 #
-#   make-test-media.sh <dir>
+#   make-test-media.sh [--screens] <dir>
 #
 # writes into <dir>/Movies/<Title> (<Year>)/ and
 # <dir>/Shows/Pley Test Show/Season 01/:
@@ -20,12 +20,24 @@
 #   8. Pley Test Show - S01E01.mkv and S01E02.mkv, 75 s each, with chapters
 #      Prologue, Intro (10-30 s), Story and Credits (55-75 s)
 #
+# With --screens, the media for the screens' UI tests (check-screens.sh)
+# instead: 1 and 8, a third episode, and
+#
+#  12. <dir>/Clips/Clip 01.mp4 to Clip 40.mp4, 2 s each: rows and grids
+#      longer than a screen
+#  13. <dir>/Music/Test Artist/Test Album/01 First.m4a and 02 Second.m4a
+#
 # FFmpeg needs libx264, libx265, libsvtav1, libopus and its own AAC, AC-3,
 # E-AC-3, DTS (dca), MP2 and FLAC encoders. Files already there are kept.
 set -euo pipefail
 
+screens=no
+if [[ ${1:-} == --screens ]]; then
+  screens=yes
+  shift
+fi
 if [[ $# -ne 1 ]]; then
-  echo "usage: make-test-media.sh <dir>" >&2
+  echo "usage: make-test-media.sh [--screens] <dir>" >&2
   exit 2
 fi
 out=$1
@@ -89,6 +101,7 @@ if [[ ! -e "$f" ]]; then
 fi
 made "1 Direct H264"
 
+if [[ $screens == no ]]; then
 # 2. Two Audio (2020).mp4: AAC stereo in English and AC-3 5.1 in French.
 f=$(movie "Two Audio (2020)" mp4)
 if [[ ! -e "$f" ]]; then
@@ -160,6 +173,7 @@ if [[ ! -e "$f" ]]; then
     -movflags +faststart "$f"
 fi
 made "11 Opus MP4"
+fi
 
 # 8. Two episodes with chapters: the intro and the credits come from their names.
 show="$out/Shows/Pley Test Show/Season 01"
@@ -187,7 +201,9 @@ START=55000
 END=75000
 title=Credits
 EOF
-for episode in 01 02; do
+episodes=(01 02)
+if [[ $screens == yes ]]; then episodes+=(03); fi
+for episode in "${episodes[@]}"; do
   f="$show/Pley Test Show - S01E$episode.mkv"
   if [[ ! -e "$f" ]]; then
     ff -f lavfi -i "$(video 75 1280x720)" -f lavfi -i "$(stereo 75)" -i "$work/chapters.txt" \
@@ -195,3 +211,31 @@ for episode in 01 02; do
   fi
   made "8 Pley Test Show S01E$episode"
 done
+
+if [[ $screens == yes ]]; then
+  # 12. Forty short clips, small, for rows and grids longer than a screen.
+  mkdir -p "$out/Clips"
+  for n in $(seq -w 1 40); do
+    f="$out/Clips/Clip $n.mp4"
+    if [[ ! -e "$f" ]]; then
+      ff -f lavfi -i "$(video 2 320x180)" -f lavfi -i "$(stereo 2)" "${h264[@]}" -c:a aac -ac 2 -b:a 64k \
+        -metadata title="Clip $n" -movflags +faststart "$f"
+    fi
+  done
+  made "12 Clips"
+
+  # 13. An album of two tracks, tagged.
+  album="$out/Music/Test Artist/Test Album"
+  mkdir -p "$album"
+  number=1
+  for title in First Second; do
+    f="$album/0$number $title.m4a"
+    if [[ ! -e "$f" ]]; then
+      ff -f lavfi -i "sine=frequency=$((330 + 110 * number)):sample_rate=44100:duration=20" -c:a aac -b:a 128k \
+        -metadata title="$title" -metadata artist="Test Artist" -metadata album_artist="Test Artist" \
+        -metadata album="Test Album" -metadata track="$number/2" -metadata date=2024 "$f"
+    fi
+    number=$((number + 1))
+  done
+  made "13 Test Album"
+fi

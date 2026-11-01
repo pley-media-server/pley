@@ -219,6 +219,8 @@ public final class PlaybackController: ObservableObject {
     /// The picture subtitles downloaded by this playback, deleted at its end.
     private var pictureFiles: Set<URL> = []
     private let pictureToken = UUID().uuidString
+    /// This playback made the pictures' folder: at its end, an empty one goes too.
+    private var madePictureFolder = false
 
     public init(request: PlayRequest, environment: PlaybackEnvironment) {
         self.request = request
@@ -520,6 +522,7 @@ public final class PlaybackController: ObservableObject {
         nextLookup?.cancel()
         hideSubtitles()
         deletePictureFiles()
+        removePictureFolder()
         endSession(at: position)
         engine?.close()
         await env.reporter.flush(timeoutMs: Self.flushMs, clock: env.clock)
@@ -1272,9 +1275,14 @@ public final class PlaybackController: ObservableObject {
         let folder = env.pictureFolder
         let file = folder.appendingPathComponent("\(pictureToken)-\(fileId)-\(index).mks")
         pictureFiles.insert(file)
+        // Made here, before the feed starts, so a close that comes first
+        // still knows to remove it.
+        if !FileManager.default.fileExists(atPath: folder.path),
+           (try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)) != nil {
+            madePictureFolder = true
+        }
         let (client, clock) = (env.api.client, env.clock)
         feed = Task { [weak self] in
-            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             var shown = false
             while !Task.isCancelled {
                 do {
@@ -1367,6 +1375,16 @@ public final class PlaybackController: ObservableObject {
     private func deletePictureFiles() {
         for file in pictureFiles { try? FileManager.default.removeItem(at: file) }
         pictureFiles = []
+    }
+
+    /// The pictures' folder, when this playback made it and nothing else is in it.
+    private func removePictureFolder() {
+        guard madePictureFolder else { return }
+        madePictureFolder = false
+        let folder = env.pictureFolder
+        if (try? FileManager.default.contentsOfDirectory(atPath: folder.path))?.isEmpty == true {
+            try? FileManager.default.removeItem(at: folder)
+        }
     }
 
     // MARK: Quality

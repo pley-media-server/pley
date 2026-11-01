@@ -137,6 +137,27 @@ struct LateReportsTests {
         #expect(!FileManager.default.fileExists(atPath: file.path))
     }
 
+    @Test func twoSendsAtOnceSendEachReportOnce() async throws {
+        let server = FixtureServer()
+        try await server.start()
+        defer { server.stop() }
+        let directory = folder()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let late = LateReports(origin: server.origin, profileId: 2, directory: directory, clock: FakeClock())
+        for item in 1...5 { await late.keep(itemId: item, report(item * 1_000)) }
+        let api = api(server)
+        async let first: Void = late.send(using: api)
+        async let second: Void = late.send(using: api)
+        async let third: Void = late.send(using: api)
+        _ = await (first, second, third)
+        #expect(server.progressReports.map(\.itemId) == [1, 2, 3, 4, 5])
+        #expect(await late.pending().isEmpty)
+        // Kept while a send runs: it stays for the next send.
+        await late.keep(itemId: 9, report(9_000))
+        await late.send(using: api)
+        #expect(server.progressReports.map(\.itemId) == [1, 2, 3, 4, 5, 9])
+    }
+
     @Test func theyStayWhileTheServerCantBeReached() async throws {
         let server = FixtureServer()
         try await server.start()

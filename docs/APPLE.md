@@ -40,10 +40,26 @@ and browse for Bonjour's `_pley._tcp`.
 
 ## Screens
 
-Both apps have the same screens, each built for its device: the iPhone,
-iPad and Mac app in a navigation stack with Back, the Apple TV app for the
-focus engine and the Siri Remote, where Menu goes back and leaves the app
-from Home.
+Both apps have the same screens, each built for its device. Signed in,
+the app is in sections, each with a navigation of its own that Back goes
+through; choosing the section showing goes back to its start, and the app
+opens on the section shown last. Switching profile, signing out or signing
+in to another server starts every section again at Home.
+
+- **iPhone**, and iPad in a narrow window (Slide Over, a third of Split
+  View): a tab bar with Home and Me.
+- **iPad** at regular width, and the **Mac**: a sidebar with Home, and at
+  its foot the profile signed in, its picture, name and server, which
+  opens Me. The Mac's window is at least 800 by 560 points, and opens at
+  1100 by 720.
+- **Apple TV**: tabs across the top, Home and Settings (which holds what
+  Me holds elsewhere). The focus engine and the Siri Remote move through
+  it; Menu goes back, then to the tabs, then out of the app.
+
+A short message (a toast) shows at the bottom of the window (on Apple TV,
+top trailing, without taking the focus), and VoiceOver reads it out.
+While the player is open, VoiceOver reads only the player, never the page
+behind it.
 
 - **Servers**: the servers found on this network ("On this network") and
   the ones opened before ("Your servers", which can be forgotten: that
@@ -58,15 +74,32 @@ from Home.
   `/link` page with the code in it, the code, the page's address and how
   long the code lasts. A code that runs out or is refused offers a new one.
 - **Who's watching?**: after signing in, when the household has more than
-  one profile, and from Home's menu. Each profile shows its picture, or its
-  initials on its colour; one with a PIN asks for it (4 to 8 digits, typed
-  on the number pad), one that needs its password says how to choose it,
-  and a locked one can't be chosen.
-- **Home**: the server's rows for the profile, each a line of posters with
-  their titles, drawn at the screen's size from pictures fetched at that
-  width. iPhone and iPad pull to refresh. A menu (on Apple TV, buttons
-  above the rows) switches profile, goes to the servers, or signs out
-  after asking. Choosing a poster opens its page.
+  one profile, and from Me's Switch profile (where Cancel, or Menu on
+  Apple TV, keeps the profile in use). Each profile shows its picture, or
+  its initials on its colour; one with a PIN asks for it (4 to 8 digits,
+  typed on the number pad), one that needs its password says how to choose
+  it, and a locked one can't be chosen.
+- **Home**: the server's rows for the profile, each a line of tiles in the
+  row's shape: stills for Continue Watching and episodes, posters for
+  films and shows, squares for music. A tile shows its picture, its title
+  and a second line (the year, "S2 · E5", the artist), how far it was
+  played, a check once watched, and a show's unwatched episodes; VoiceOver
+  reads it as one ("Arrival, 2016", "watched"). Tiles grow with the text
+  size, up to 1.6 times. Pictures are fetched at the width they show,
+  rounded up to a multiple of 64 pixels, and fade in except under Reduce
+  Motion. At most 6 are fetched at once, the newest asked for first, and
+  one scrolled away before it comes isn't fetched. They are kept in memory
+  up to 32 MB on a device with 3 GB of memory or less (otherwise 64 MB on
+  Apple TV and 96 MB elsewhere), half of that when the app goes to the
+  background, and none after a memory warning. While loading, still grey rows show; a load that fails says why
+  with Try again; a server with nothing to show says so. iPhone and iPad
+  pull to refresh, the Mac has Reload (⌘R). Choosing a tile opens its
+  page.
+- **Me** (Settings on Apple TV): the profile's picture and name ("Managed
+  profile" for one without a password of its own), the server's name and
+  address, Switch profile (when the household has another profile), the
+  servers, and Sign out after asking. A profile's name, picture and PIN
+  are changed in Pley on the web.
 - **An item's page**: the poster, the title, the year and running time,
   the file's video and sound ("1080p · H.264 · AAC Stereo") and the
   summary. A show or season shows its on-deck episode ("S1 E2 · Pilot")
@@ -682,14 +715,54 @@ PLEY_BONJOUR_TEST=1 swift test --package-path apps/apple/PleyKit --filter aServe
 server bound only to 127.0.0.1 announces nothing: announcements go out on
 the adapters with addresses on the local network.
 
+### UI tests
+
+Two UI-test targets drive the apps on the simulators: `PleyUITests`
+(`UITests/`, iPhone and iPad) and `PleyTVUITests` (`TVUITests/`, Apple TV,
+with the remote), each with a shared scheme of its name. They walk the
+screens as a person does, by the views' accessibility identifiers, which
+read `<screen>.<part>[.<id>]` (`servers.address`, `signIn.userCode`,
+`profiles.profile.Kids`, `home.row.recently_added:1`, `tile.item.42`,
+`me.signOut`):
+
+1. Add the server by its address and sign in with a code, which the test
+   allows as the administrator through the consent page's endpoints.
+2. "Who's watching?": Kids, by its PIN.
+3. Home with its tiles; an item's page with Play, and back.
+4. Me (Settings on Apple TV) says Kids; Switch profile back to the
+   administrator, by its PIN.
+5. Sign out, confirmed; the servers show.
+
+They need a server set up for them, so a script runs them:
+
+```sh
+apps/apple/scripts/check-screens.sh
+```
+
+It builds the server, makes the screens' media
+(`make-test-media.sh --screens`), starts a disposable server as the other
+checks do, and gives it a household and libraries: the administrator
+"Admin" and the managed profile Kids, each with a random PIN, and Movies,
+Shows, Clips and Music. It removes the app from each simulator, so the walk
+starts at the servers, runs `PleyUITests` on iPhone 17 and iPad (A16)
+(turned to landscape, where the sidebar shows) and `PleyTVUITests` on Apple
+TV 4K (4th generation), and stops the server and deletes its folder
+afterwards. `PLEY_IOS_SIMS` (names separated by `;`) and `PLEY_TV_SIM` name
+other simulators, `PLEY_SHOTS` a folder for the walk's screenshots, and
+`PLEY_SCREENS_LOGS` a folder for the logs of a simulator that failed. The
+server's address, the administrator's token and the PINs reach the tests
+as `TEST_RUNNER_` variables; nothing the script prints holds them. Run
+without the script, the UI tests skip.
+
 ## Code layout
 
 | Path | What |
 |---|---|
-| `Pley.xcodeproj` | The project: two targets, `Pley` and `PleyTV`, with shared schemes of the same names. Its folders are synchronized, so adding a file doesn't change `project.pbxproj` |
+| `Pley.xcodeproj` | The project: the apps `Pley` and `PleyTV` and their UI tests `PleyUITests` and `PleyTVUITests`, with shared schemes of the same names. Its folders are synchronized, so adding a file doesn't change `project.pbxproj` |
 | `Config/` | Build settings (`.xcconfig`), the apps' Info.plist keys and the Mac's entitlements; `project.pbxproj` holds no settings |
-| `Pley/` | The iPhone, iPad and Mac app's screens |
-| `tvOS/` | The Apple TV app's screens |
+| `Pley/` | The iPhone, iPad and Mac app: `Shell/` (the tab bar, the sidebar and Me), `Kit/` (the views the screens share: `ArtworkTile`, `TileRow`, `TileGrid`, `ServerImage`, `StateView`, `ToastView`, and `Metrics` and `Motion` for sizes and Reduce Motion) and `Screens/` |
+| `tvOS/` | The Apple TV app, laid out the same way: `Shell/` (the tabs and Settings), `Kit/` (the same views, built for the focus engine) and `Screens/` |
+| `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `Admin.swift` (the administrator's side), `Walk.swift` (the steps, by accessibility identifier) and `ScreensTests.swift` |
 | `PleyKit/` | One Swift package with everything else, a module per target |
 
 PleyKit's modules, each depending only on those before it:
@@ -700,12 +773,12 @@ PleyKit's modules, each depending only on those before it:
 | `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, Bonjour (browsing, TXT records, resolving), logging |
 | `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), downloads to a file resumed with `Range`, and the typed API calls |
 | `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the scope guard and profile switching |
-| `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, and pictures made small and cached |
+| `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, the app's settings (`AppSettings`, under `pley.settings.` in UserDefaults), and pictures (`ImageLoader`) |
 | `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
 | `PleySubtitles` | Subtitles the app draws: the WebVTT reader, text cues by time, the subtitle sync and its offsets, the server's tracks read with `X-Pley-Complete`, and a port of `packages/picture-subtitles` (the Matroska reader, the PGS, VobSub and DVB decoders, and the pictures by time) |
 | `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, and the Mac player's keys |
 | `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Chapters, Details), the subtitles drawn over the video in the system's caption style (`SubtitleLayer`), Apple TV's contextual actions and chapter markers, and the audio session |
-| `PleyScreens` | What the screens show and do, shared by both apps without any views: the route between screens, the servers, signing in (with the QR code, from Core Image), profiles, Home and an item's page, as `ObservableObject`s; `AppModel` also owns the one playback at a time, the device's caps and the session reports |
+| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast (`ShellModel`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), Me and an item's page, as `ObservableObject`s; `AppModel` also owns the one playback at a time, the device's caps, the session reports and the reports kept for later, one set per server and profile |
 | `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens, playback sessions with keyed media, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
 | `pley-apple-play` | A command-line tool, on the Mac only, that plays a real server's test media through the player ([A server to test against](#a-server-to-test-against)) |
@@ -796,7 +869,9 @@ MKV with H.264, AC-3, an SRT and a PGS track (written by
 E-AC-3, MPEG-2 with MP2, H.264 with DTS, AV1 10-bit, MKVs with Opus and
 with FLAC, an MP4 with Opus, and a show's two episodes with an intro and
 credits chapters. It needs FFmpeg with libx264, libx265, libsvtav1 and
-libopus.
+libopus. With `--screens` it makes the UI tests' media instead: the H.264
+MP4, the show with a third episode, forty 2-second clips (rows and grids
+longer than a screen) and an album of two tracks.
 
 To try the apps
 by hand, start a server the same way and keep it running:
@@ -823,8 +898,10 @@ address, to have it found by Bonjour. Delete the folder afterwards.
   10 seconds.
 - Home loads when it is shown, after a profile switch and on pull to
   refresh; it doesn't follow changes on the server as they happen.
-- The Mac app's only menu of its own is Playback, and iPad and Mac show
-  the same stack of screens as iPhone, without a sidebar.
+- The Mac app's only menu of its own is Playback.
+- The sections are Home and Me (Settings on Apple TV): no libraries,
+  search or playlists yet, so Home's rows have no See all.
+- Artists and albums open the item's page, without pages of their own.
 - The app doesn't ask "Who's watching?" by itself at start, so a profile
   with a PIN stays chosen until someone switches.
 - Plain http reaches IP addresses, names without dots and `.local` names

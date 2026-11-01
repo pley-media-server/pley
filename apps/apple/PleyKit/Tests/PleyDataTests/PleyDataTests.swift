@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import os
 import PleyAuth
@@ -243,4 +244,115 @@ private func fixture() async throws -> FixtureServer {
         _ = try await loader.image(path: "/api/items/1/images/poster", widthPx: 200)
         #expect(fetches.withLock { $0 } == 2)
     }
+
+    @Test func theBudgetFollowsTheDevicesMemory() {
+        // The iPad 5th generation: 2 GB.
+        #expect(ImageLoader.budget(physicalMemory: 2 << 30, appleTV: false) == 32 << 20)
+        #expect(ImageLoader.budget(physicalMemory: 3 << 30, appleTV: true) == 32 << 20)
+        #expect(ImageLoader.budget(physicalMemory: 4 << 30, appleTV: true) == 64 << 20)
+        #expect(ImageLoader.budget(physicalMemory: 8 << 30, appleTV: false) == 96 << 20)
+    }
+
+    @Test func nearSizesAskForOneWidth() {
+        #expect(ImageLoader.pixels(points: 110, scale: 3) == 384)
+        #expect(ImageLoader.pixels(points: 112, scale: 3) == 384)
+        #expect(ImageLoader.pixels(points: 250, scale: 1) == 256)
+        #expect(ImageLoader.pixels(points: 64, scale: 1) == 64)
+        #expect(ImageLoader.pixels(points: 5000, scale: 2, limit: 1920) == 1920)
+    }
+
+    @Test func theCacheKeepsThePicturesUsedLastWithinItsBudget() async throws {
+        let sample = try ImageLoader.decode(FixtureImages.make(width: 100, height: 150), maxWidth: 100)
+        let each = sample.bytesPerRow * sample.height
+        // Room for 3.
+        let fetched = OSAllocatedUnfairLock(initialState: [String]())
+        let loader = ImageLoader(cacheBytes: each * 3 + each / 2) { path, _ in
+            fetched.withLock { $0.append(path) }
+            return FixtureImages.make(width: 100, height: 150)
+        }
+        for id in 1...3 { _ = try await loader.image(path: "/\(id)", widthPx: 100) }
+        _ = try await loader.image(path: "/1", widthPx: 100)
+        _ = try await loader.image(path: "/4", widthPx: 100)
+        let usage = await loader.cacheUsage
+        #expect(usage.bytes == each * 3)
+        // 2 went, used longest ago; 1 stayed, used again.
+        _ = try await loader.image(path: "/1", widthPx: 100)
+        _ = try await loader.image(path: "/2", widthPx: 100)
+        #expect(fetched.withLock { $0 } == ["/1", "/2", "/3", "/4", "/2"])
+        await loader.trim(to: each + each / 2)
+        #expect(await loader.cacheUsage.bytes == each)
+        await loader.empty()
+        #expect(await loader.cacheUsage.bytes == 0)
+    }
+
+    @Test func aFetchIsCancelledWhenItsLastRequestIs() async throws {
+        let started = OSAllocatedUnfairLock(initialState: 0)
+        let cancelled = OSAllocatedUnfairLock(initialState: 0)
+        let loader = ImageLoader { _, _ in
+            started.withLock { $0 += 1 }
+            do {
+                try await Task.sleep(for: .seconds(10))
+            } catch {
+                cancelled.withLock { $0 += 1 }
+                throw error
+            }
+            return FixtureImages.make(width: 10, height: 10)
+        }
+        let path = "/api/items/1/images/poster"
+        let first = Task { try await loader.image(path: path, widthPx: 100) }
+        let second = Task { try await loader.image(path: path, widthPx: 100) }
+        #expect(await waitFor { started.withLock { $0 } == 1 })
+        first.cancel()
+        try await Task.sleep(for: .milliseconds(100))
+        // The second still waits for it.
+        #expect(cancelled.withLock { $0 } == 0)
+        second.cancel()
+        #expect(await waitFor { cancelled.withLock { $0 } == 1 })
+        await #expect(throws: CancellationError.self) { try await second.value }
+        #expect(await waitFor { await loader.running == 0 })
+    }
+
+    @Test func atMostSixFetchesRunAndTheNewestWaitingGoesFirst() async throws {
+        let order = OSAllocatedUnfairLock(initialState: [String]())
+        let gate = OSAllocatedUnfairLock(initialState: Set<String>())
+        let loader = ImageLoader { path, _ in
+            order.withLock { $0.append(path) }
+            while !gate.withLock({ $0.contains(path) }) {
+                try await Task.sleep(for: .milliseconds(5))
+            }
+            return FixtureImages.make(width: 10, height: 10)
+        }
+        var tasks: [Task<CGImage, any Error>] = []
+        for id in 1...6 {
+            tasks.append(Task { try await loader.image(path: "/\(id)", widthPx: 64) })
+        }
+        #expect(await waitFor { order.withLock { $0.count } == 6 })
+        for id in 7...9 {
+            tasks.append(Task { try await loader.image(path: "/\(id)", widthPx: 64) })
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        #expect(order.withLock { $0.count } == 6)
+        #expect(await loader.running == ImageLoader.maxFetches)
+        gate.withLock { _ = $0.insert("/1") }
+        #expect(await waitFor { order.withLock { $0.count } == 7 })
+        #expect(order.withLock { $0.last } == "/9")
+        // One still waiting, cancelled, never starts.
+        tasks[6].cancel()
+        gate.withLock { _ = $0.insert("/2") }
+        #expect(await waitFor { order.withLock { $0.count } == 8 })
+        #expect(order.withLock { $0.last } == "/8")
+        gate.withLock { $0.formUnion((1...9).map { "/\($0)" }) }
+        for (n, task) in tasks.enumerated() where n != 6 { _ = try await task.value }
+        #expect(!order.withLock { $0 }.contains("/7"))
+        #expect(await waitFor { await loader.running == 0 })
+    }
+}
+
+/// Waits until `condition` holds, for at most 5 seconds.
+private func waitFor(_ condition: () async -> Bool) async -> Bool {
+    for _ in 0..<500 {
+        if await condition() { return true }
+        try? await Task.sleep(for: .milliseconds(10))
+    }
+    return await condition()
 }

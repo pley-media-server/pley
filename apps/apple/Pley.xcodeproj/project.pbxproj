@@ -27,11 +27,34 @@
 		0A0000000000000000000107 /* Pley-macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Pley-macOS.entitlements"; sourceTree = "<group>"; };
 		0A0000000000000000000202 /* Pley.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pley.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A0000000000000000000302 /* Pley.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pley.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0A000000000000000000040C /* UITests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = UITests.xcconfig; sourceTree = "<group>"; };
+		0A0000000000000000000402 /* PleyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PleyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0A000000000000000000050C /* TVUITests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = TVUITests.xcconfig; sourceTree = "<group>"; };
+		0A0000000000000000000502 /* PleyTVUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PleyTVUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXContainerItemProxy section */
+		0A000000000000000000040A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0A0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0A0000000000000000000201;
+			remoteInfo = Pley;
+		};
+		0A000000000000000000050A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0A0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0A0000000000000000000301;
+			remoteInfo = PleyTV;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		0A0000000000000000000203 /* Pley */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Pley; sourceTree = "<group>"; };
 		0A0000000000000000000303 /* tvOS */ = {isa = PBXFileSystemSynchronizedRootGroup; path = tvOS; sourceTree = "<group>"; };
+		0A0000000000000000000403 /* UITests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = UITests; sourceTree = "<group>"; };
+		0A0000000000000000000503 /* TVUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = TVUITests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,6 +80,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0A0000000000000000000405 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0A0000000000000000000505 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -65,6 +102,8 @@
 			children = (
 				0A0000000000000000000203 /* Pley */,
 				0A0000000000000000000303 /* tvOS */,
+				0A0000000000000000000403 /* UITests */,
+				0A0000000000000000000503 /* TVUITests */,
 				0A0000000000000000000004 /* Config */,
 				0A0000000000000000000003 /* Products */,
 			);
@@ -75,6 +114,8 @@
 			children = (
 				0A0000000000000000000202 /* Pley.app */,
 				0A0000000000000000000302 /* Pley.app */,
+				0A0000000000000000000402 /* PleyUITests.xctest */,
+				0A0000000000000000000502 /* PleyTVUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -89,6 +130,8 @@
 				0A0000000000000000000105 /* Pley-Info.plist */,
 				0A0000000000000000000106 /* PleyTV-Info.plist */,
 				0A0000000000000000000107 /* Pley-macOS.entitlements */,
+				0A000000000000000000040C /* UITests.xcconfig */,
+				0A000000000000000000050C /* TVUITests.xcconfig */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -148,6 +191,46 @@
 			productReference = 0A0000000000000000000302 /* Pley.app */;
 			productType = "com.apple.product-type.application";
 		};
+		0A0000000000000000000401 /* PleyUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0A0000000000000000000407 /* Build configuration list for PBXNativeTarget "PleyUITests" */;
+			buildPhases = (
+				0A0000000000000000000404 /* Sources */,
+				0A0000000000000000000405 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0A000000000000000000040B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				0A0000000000000000000403 /* UITests */,
+			);
+			name = PleyUITests;
+			productName = PleyUITests;
+			productReference = 0A0000000000000000000402 /* PleyUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		0A0000000000000000000501 /* PleyTVUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0A0000000000000000000507 /* Build configuration list for PBXNativeTarget "PleyTVUITests" */;
+			buildPhases = (
+				0A0000000000000000000504 /* Sources */,
+				0A0000000000000000000505 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0A000000000000000000050B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				0A0000000000000000000503 /* TVUITests */,
+			);
+			name = PleyTVUITests;
+			productName = PleyTVUITests;
+			productReference = 0A0000000000000000000502 /* PleyTVUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -163,6 +246,14 @@
 					};
 					0A0000000000000000000301 = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					0A0000000000000000000401 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = 0A0000000000000000000201;
+					};
+					0A0000000000000000000501 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = 0A0000000000000000000301;
 					};
 				};
 			};
@@ -185,6 +276,8 @@
 			targets = (
 				0A0000000000000000000201 /* Pley */,
 				0A0000000000000000000301 /* PleyTV */,
+				0A0000000000000000000401 /* PleyUITests */,
+				0A0000000000000000000501 /* PleyTVUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -221,7 +314,34 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0A0000000000000000000404 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0A0000000000000000000504 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0A000000000000000000040B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0A0000000000000000000201 /* Pley */;
+			targetProxy = 0A000000000000000000040A /* PBXContainerItemProxy */;
+		};
+		0A000000000000000000050B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0A0000000000000000000301 /* PleyTV */;
+			targetProxy = 0A000000000000000000050A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0A0000000000000000000006 /* Debug */ = {
@@ -266,6 +386,34 @@
 			};
 			name = Release;
 		};
+		0A0000000000000000000408 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0A000000000000000000040C /* UITests.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		0A0000000000000000000409 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0A000000000000000000040C /* UITests.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		0A0000000000000000000508 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0A000000000000000000050C /* TVUITests.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		0A0000000000000000000509 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0A000000000000000000050C /* TVUITests.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -292,6 +440,24 @@
 			buildConfigurations = (
 				0A0000000000000000000308 /* Debug */,
 				0A0000000000000000000309 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0A0000000000000000000407 /* Build configuration list for PBXNativeTarget "PleyUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0A0000000000000000000408 /* Debug */,
+				0A0000000000000000000409 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0A0000000000000000000507 /* Build configuration list for PBXNativeTarget "PleyTVUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0A0000000000000000000508 /* Debug */,
+				0A0000000000000000000509 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

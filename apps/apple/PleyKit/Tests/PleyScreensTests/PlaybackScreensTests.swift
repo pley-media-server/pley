@@ -57,7 +57,7 @@ private func signedIn(_ server: FixtureServer,
     let app = app(store, servers: [SavedServer(origin: server.origin, name: "Living Room", lastUsed: Date())],
                   engines: engines)
     await app.start()
-    try #require(app.route == .home)
+    try #require(app.root == .signedIn)
     return app
 }
 
@@ -104,8 +104,8 @@ private func addShow(to server: FixtureServer) {
         defer { server.stop() }
         server.addPlayable(.init(itemId: 7, fileId: 70, title: "Arrival", durationMs: 6_960_000))
         let app = try await signedIn(server)
-        app.showItem(7)
-        #expect(app.route == .item(7))
+        app.shell.open(.item(7))
+        #expect(app.shell.path(for: app.shell.section).last == .item(7))
         let model = ItemModel(app: app, itemId: 7)
         await model.load()
         guard case .loaded = model.state else {

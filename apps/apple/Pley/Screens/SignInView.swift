@@ -66,6 +66,7 @@ struct SignInView: View {
                         Text("Sign in with your browser").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("signIn.browser")
                     .controlSize(.large)
                 }
                 if model.canUseCode {
@@ -75,6 +76,7 @@ struct SignInView: View {
                         Text(model.usingCode ? "Get a new code" : "Sign in with a code").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("signIn.code")
                     .controlSize(.large)
                 }
             }
@@ -101,6 +103,7 @@ private struct CodeView: View {
             Text(code.userCode)
                 .font(.system(size: 44, weight: .bold, design: .monospaced))
                 .textSelection(.enabled)
+                .accessibilityIdentifier("signIn.userCode")
             Text("Go to \(code.verificationURL.absoluteString) and type this code, or scan the QR code.")
                 .multilineTextAlignment(.center)
             HStack(spacing: 8) {
@@ -114,6 +117,7 @@ private struct CodeView: View {
                 .monospacedDigit()
             Button("Cancel", role: .cancel, action: cancel)
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("signIn.cancel")
         }
     }
 }

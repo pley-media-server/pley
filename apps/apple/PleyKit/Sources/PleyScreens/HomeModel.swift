@@ -4,14 +4,43 @@ import PleyData
 import PleyModel
 import PleyNetwork
 
+/// One row of Home: a hub of the server's, its tiles made.
+public struct HomeRow: Identifiable, Hashable, Sendable {
+    /// The hub's key (`continue_watching`, `recently_added:3`): stable, the row's id.
+    public let key: String
+    /// "Continue Watching", "Recently Added in Movies", as the server says it.
+    public let title: String
+    public let shape: RowShape
+    public let tiles: [Tile]
+    /// Where See all goes: the library, listed as the row is; `nil` for rows without one.
+    public let seeAll: Screen?
+
+    public var id: String { key }
+
+    public init(_ hub: Hub) {
+        key = hub.key
+        title = hub.title
+        let shape = RowShape.of(hub)
+        self.shape = shape
+        tiles = hub.items.map { Tile($0, shape: shape) }
+        seeAll = ShellModel.seeAll(hub)
+    }
+}
+
 /// Home: the server's rows for the profile signed in.
 @MainActor
 public final class HomeModel: ObservableObject {
     public enum State {
         case loading
-        case loaded([Hub])
+        /// The rows with something in them, in the server's order; none: "Nothing here yet".
+        case loaded([HomeRow])
         case failed(String)
     }
+
+    /// What Home says when it couldn't load and has nothing to show.
+    public static let failedTitle = "Couldn't load your home screen"
+    /// What it says with no rows.
+    public static let emptyTitle = "Nothing here yet"
 
     @Published public private(set) var state: State = .loading
 
@@ -34,7 +63,7 @@ public final class HomeModel: ObservableObject {
         }
         if case .failed = state { state = .loading }
         do {
-            state = .loaded(try await HomeRepository(api: api).load())
+            state = .loaded(try await HomeRepository(api: api).load().map(HomeRow.init))
         } catch is CancellationError {
         } catch PleyError.signedOut {
             // The session says so, and sign-in shows.

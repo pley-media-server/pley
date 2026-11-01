@@ -29,6 +29,7 @@ struct ProfilesView: View {
                         .buttonStyle(.plain)
                         .disabled(!ProfilesModel.canChoose(profile) || model.switching != nil)
                         .accessibilityLabel(profile.name)
+                        .accessibilityIdentifier("profiles.profile.\(profile.name)")
                     }
                 }
                 if let error = model.error {
@@ -92,6 +93,7 @@ private struct PinSheet: View {
                         #endif
                         .textContentType(.password)
                         .onSubmit { Task { await model.submitPin() } }
+                        .accessibilityIdentifier("profiles.pin")
                 } header: {
                     Text("\(profile.name)'s PIN")
                 } footer: {
@@ -113,6 +115,7 @@ private struct PinSheet: View {
                         ProgressView()
                     } else {
                         Button("Continue") { Task { await model.submitPin() } }
+                            .accessibilityIdentifier("profiles.pin.continue")
                     }
                 }
             }

@@ -64,6 +64,8 @@ let package = Package(
         .testTarget(name: "PleyPlayerTests",
                     dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyNetwork", "PleyModel", "PleyCommon",
                                    "PleyTesting"]),
+        // UIKit's menus: run on the iOS and tvOS simulators, empty on the Mac.
+        .testTarget(name: "PleyPlayerViewsTests", dependencies: ["PleyPlayerViews", "PleyPlayer"]),
         .testTarget(name: "PleyScreensTests",
                     dependencies: ["PleyScreens", "PleyPlayer", "PleyCaps", "PleyData", "PleyAuth", "PleyNetwork",
                                    "PleyModel", "PleyCommon", "PleyTesting"]),

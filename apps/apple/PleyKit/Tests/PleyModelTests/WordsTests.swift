@@ -108,3 +108,73 @@ import Testing
         #expect(Words.episode(season: nil, episode: nil) == "")
     }
 }
+
+/// Tiles' words, as Android's `Labels.kt` and `Durations.kt` say them.
+@Suite struct TileWordsTests {
+    private func item(_ kind: ItemKind, _ title: String = "Glasshouse") -> ItemSummary {
+        ItemSummary(id: 1, libraryId: 1, kind: kind, title: title)
+    }
+
+    @Test func cardSubtitlesByKind() {
+        var movie = item(.movie, "Arrival")
+        movie.year = 2016
+        #expect(Words.cardSubtitle(movie) == "2016")
+        var show = item(.show, "Severance")
+        show.childCount = 2
+        #expect(Words.cardSubtitle(show) == "2 seasons")
+        show.childCount = 0
+        show.leafCount = 1
+        #expect(Words.cardSubtitle(show) == "1 episode")
+        var episode = item(.episode)
+        episode.parentIndex = 2
+        episode.index = 5
+        #expect(Words.cardSubtitle(episode) == "S2 · E5")
+        var album = item(.album, "Discovery")
+        album.parentTitle = "Daft Punk"
+        album.year = 2001
+        #expect(Words.cardSubtitle(album) == "Daft Punk · 2001")
+        #expect(Words.cardSubtitle(item(.extra)) == "")
+        #expect(Words.episodeLabel(season: nil, episode: 3) == "E3")
+        #expect(Words.pluralize(1, "movie") == "1 movie")
+        #expect(Words.pluralize(0, "movie") == "0 movies")
+        #expect(Words.pluralize(3, "child", "children") == "3 children")
+    }
+
+    @Test func progressAndTimeLeft() {
+        var episode = item(.episode)
+        episode.durationMs = 3_480_000
+        episode.userState.positionMs = 1_920_000
+        #expect(Words.isInProgress(episode))
+        #expect(Words.timeLeft(positionMs: episode.userState.positionMs, durationMs: episode.durationMs) == "26 min left")
+        #expect(abs(Words.progress(episode) - 0.5517) < 0.001)
+        episode.userState.watched = true
+        #expect(!Words.isInProgress(episode))
+        #expect(Words.timeLeft(positionMs: 0, durationMs: nil) == "")
+        #expect(Words.spokenDuration(ms: 4_320_000) == "1 hour 12 minutes")
+        #expect(Words.spokenDuration(ms: 45_000) == "1 minute")
+        #expect(Words.spokenDuration(ms: 20_000) == "20 seconds")
+    }
+
+    @Test func whatVoiceOverSays() {
+        var episode = item(.episode)
+        episode.grandparentTitle = "The Office"
+        episode.parentIndex = 2
+        episode.index = 5
+        episode.durationMs = 3_480_000
+        episode.userState.positionMs = 1_920_000
+        let spoken = Words.tileSpoken(episode)
+        #expect(spoken.label == "Glasshouse, The Office, Season 2 Episode 5")
+        #expect(spoken.value == "26 minutes left")
+        var show = item(.show, "Severance")
+        show.childCount = 2
+        show.leafCount = 19
+        show.viewedLeafCount = 13
+        #expect(Words.tileSpoken(show).label == "Severance, 2 seasons")
+        #expect(Words.tileSpoken(show).value == "6 unwatched episodes")
+        var movie = item(.movie, "Arrival")
+        movie.year = 2016
+        movie.userState.watched = true
+        #expect(Words.tileSpoken(movie).label == "Arrival, 2016")
+        #expect(Words.tileSpoken(movie).value == "watched")
+    }
+}

@@ -45,7 +45,6 @@ private struct UpNextCardView: View {
     let app: AppModel
     let card: UpNextCard
     let controller: PlaybackController
-    @Environment(\.displayScale) private var displayScale
 #if os(iOS)
     @Environment(\.horizontalSizeClass) private var sizeClass
     private var compact: Bool { sizeClass == .compact }
@@ -86,8 +85,7 @@ private struct UpNextCardView: View {
     }
 
     private func picture(width: CGFloat, height: CGFloat) -> some View {
-        ServerImage(app: app, path: card.imagePath,
-                    widthPx: min(NextUp.imageWidth, Int(width * displayScale)))
+        ServerImage(app: app, paths: card.imagePath.map { [$0] } ?? [], width: width, limit: NextUp.imageWidth)
             .frame(width: width, height: height)
             .clipShape(RoundedRectangle(cornerRadius: 6))
     }

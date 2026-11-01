@@ -1,3 +1,4 @@
+import PleyCommon
 import PleyPlayer
 import PleyScreens
 import SwiftUI
@@ -20,11 +21,11 @@ struct PleyApp: App {
                     await app.start()
                 }
                 #if os(macOS)
-                .frame(minWidth: 640, minHeight: 480)
+                .frame(minWidth: 800, minHeight: 560)
                 #endif
         }
         #if os(macOS)
-        .defaultSize(width: 1000, height: 700)
+        .defaultSize(width: 1100, height: 720)
         .commands { PlaybackCommands() }
         #endif
 
@@ -39,9 +40,9 @@ struct PleyApp: App {
     }
 }
 
-/// The screen `app.route` names: the root at the bottom of a navigation
-/// stack, sign-in, the profiles or an item on top, so Back goes where
-/// people expect. On iPhone and iPad the player covers it all.
+/// What `app.root` names: the servers with a server's sign-in on top,
+/// "Who's watching?", or the signed-in shell. On iPhone and iPad the
+/// player covers it all.
 struct RootView: View {
     @ObservedObject var app: AppModel
     #if os(iOS)
@@ -49,18 +50,9 @@ struct RootView: View {
     #endif
 
     var body: some View {
-        NavigationStack(path: $app.path) {
-            root
-                .navigationDestination(for: AppModel.Screen.self) { screen in
-                    switch screen {
-                    case .signIn(let entry): SignInView(app: app, entry: entry)
-                    case .profiles: ProfilesView(app: app)
-                    case .item(let id): ItemView(app: app, itemId: id)
-                    }
-                }
-        }
-        // Another root starts a new stack.
-        .id(app.root)
+        root
+            // Another root starts again.
+            .id(app.root)
         #if os(iOS)
         .fullScreenCover(item: Binding(get: { app.player },
                                        set: { if $0 == nil { Task { await app.closePlayer() } } })) { controller in
@@ -83,9 +75,26 @@ struct RootView: View {
                 .controlSize(.large)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .servers:
-            ServersView(app: app)
-        case .home:
-            HomeView(app: app)
+            NavigationStack(path: $app.signingIn) {
+                ServersView(app: app)
+                    .navigationDestination(for: ServerEntry.self) { entry in
+                        SignInView(app: app, entry: entry)
+                    }
+            }
+        case .profiles:
+            NavigationStack {
+                ProfilesView(app: app)
+                    .toolbar {
+                        if app.profilesFromShell {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Cancel") { app.keepProfile() }
+                                    .accessibilityIdentifier("profiles.cancel")
+                            }
+                        }
+                    }
+            }
+        case .signedIn:
+            ShellView(app: app)
         }
     }
 

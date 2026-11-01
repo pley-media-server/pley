@@ -44,9 +44,10 @@ struct SignInView: View {
                     }
                     Button("Cancel", role: .cancel) {
                         model.cancel()
-                        app.back()
+                        app.closeSignIn()
                     }
                     .focused($focus, equals: .cancel)
+                    .accessibilityIdentifier("signIn.cancel")
                 }
             }
             .frame(maxWidth: 900, alignment: .leading)
@@ -73,6 +74,7 @@ struct SignInView: View {
         case .code(let code, _):
             Text(code.userCode)
                 .font(.system(size: 88, weight: .bold, design: .monospaced))
+                .accessibilityIdentifier("signIn.userCode")
             Text("Go to \(code.verificationURL.absoluteString) on your phone or computer and type this code, "
                 + "or scan the QR code.")
             HStack(spacing: 16) {

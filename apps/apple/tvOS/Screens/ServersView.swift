@@ -60,6 +60,7 @@ struct ServersView: View {
                 } label: {
                     Label("Add a server", systemImage: "plus")
                 }
+                .accessibilityIdentifier("servers.add")
                 .focusSection()
             }
             .padding(.horizontal, 80)
@@ -113,6 +114,7 @@ struct ServersView: View {
         }
         .buttonStyle(.card)
         .disabled(model.opening != nil)
+        .accessibilityIdentifier("servers.server.\(entry.name)")
     }
 }
 
@@ -129,11 +131,13 @@ private struct AddServerView: View {
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .onSubmit { connect() }
+                .accessibilityIdentifier("servers.address")
             if let error = model.error {
                 Text(asSentence(error)).foregroundStyle(.red)
             }
             HStack(spacing: 40) {
                 Button("Connect") { connect() }
+                    .accessibilityIdentifier("servers.connect")
                     .disabled(model.adding || model.address.trimmingCharacters(in: .whitespaces).isEmpty)
                 Button("Cancel", role: .cancel, action: done)
                 if model.adding { ProgressView() }

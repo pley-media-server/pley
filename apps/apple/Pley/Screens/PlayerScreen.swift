@@ -113,106 +113,11 @@ struct PlayerScreen: View {
         }
     }
 
+    /// UIKit's menu, so a checked Quality keeps its second line, and the
+    /// sync's offset moves while its menu is open.
     private var options: some View {
-        Menu {
-            Section("Quality") {
-                ForEach(controller.state.qualities) { choice in
-                    Button {
-                        controller.selectQuality(choice.id)
-                    } label: {
-                        // A menu shows a second Text as the choice's second line.
-                        if choice.selected {
-                            Label {
-                                Text(choice.label)
-                                if let detail = choice.detail { Text(detail) }
-                            } icon: {
-                                Image(systemName: "checkmark")
-                            }
-                        } else {
-                            Text(choice.label)
-                            if let detail = choice.detail { Text(detail) }
-                        }
-                    }
-                }
-            }
-            if controller.state.audio.count > 1 {
-                Section("Audio") {
-                    ForEach(controller.state.audio) { choice in
-                        Button {
-                            if let index = Int(choice.id) { controller.selectAudio(index) }
-                        } label: {
-                            if choice.selected {
-                                Label(choice.label, systemImage: "checkmark")
-                            } else {
-                                Text(choice.label)
-                            }
-                        }
-                    }
-                }
-            }
-            if !controller.state.subtitles.isEmpty {
-                Section("Subtitles") {
-                    ForEach(controller.state.subtitles) { choice in
-                        Button {
-                            controller.selectSubtitle(choice.id == MenuChoice.off ? nil : Int(choice.id))
-                        } label: {
-                            if choice.selected {
-                                Label {
-                                    Text(choice.label)
-                                    if let detail = choice.detail { Text(detail) }
-                                } icon: {
-                                    Image(systemName: "checkmark")
-                                }
-                            } else {
-                                Text(choice.label)
-                                if let detail = choice.detail { Text(detail) }
-                            }
-                        }
-                    }
-                }
-                if controller.state.canSyncSubtitles {
-                    Menu {
-                        // Kept open while it is moved, a step at a time.
-                        Button("Earlier (−0.1 s)") { controller.moveSubtitles(steps: -1) }
-                            .keepsMenuOpen()
-                        Button("Later (+0.1 s)") { controller.moveSubtitles(steps: 1) }
-                            .keepsMenuOpen()
-                        Button("Reset") { controller.setSubtitleOffset(0) }
-                            .disabled(controller.state.subtitleOffsetMs == 0)
-                    } label: {
-                        Text("Subtitle sync")
-                        Text(controller.state.subtitleOffsetLabel)
-                    }
-                }
-            }
-            if !controller.state.chapters.isEmpty {
-                Menu("Chapters") {
-                    ForEach(controller.state.chapters) { chapter in
-                        Button {
-                            controller.jumpToChapter(chapter.index)
-                        } label: {
-                            if chapter.current {
-                                Label(chapter.label, systemImage: "checkmark")
-                            } else {
-                                Text(chapter.label)
-                            }
-                        }
-                    }
-                }
-            }
-            Section("Details") {
-                ForEach(PlayerDetails.lines(controller.state), id: \.self) { line in
-                    Text("\(line.title): \(line.text)")
-                }
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.body.weight(.semibold))
-                .frame(width: 44, height: 44)
-                .background(.ultraThinMaterial, in: Circle())
-        }
-        .accessibilityLabel("Options")
-        .simultaneousGesture(TapGesture().onEnded { showControls() })
+        PlayerOptionsButton(state: controller.state, actions: PlayerMenus.Actions(controller), onTap: showControls)
+            .frame(width: 44, height: 44)
     }
 
     private func showControls() {
@@ -223,16 +128,6 @@ struct PlayerScreen: View {
             guard !Task.isCancelled else { return }
             // Read again: the body works out whether they still show.
             controlsUntil = controlsUntil
-        }
-    }
-}
-private extension View {
-    /// A menu's button that leaves the menu open, where the system can (iOS 16.4 and later).
-    @ViewBuilder func keepsMenuOpen() -> some View {
-        if #available(iOS 16.4, *) {
-            menuActionDismissBehavior(.disabled)
-        } else {
-            self
         }
     }
 }

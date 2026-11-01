@@ -13,7 +13,6 @@ struct ItemView: View {
     /// A player was open: once it closes, the page reads the item again
     /// for its new resume point.
     @State private var sawPlayer = false
-    @Environment(\.displayScale) private var displayScale
 
     init(app: AppModel, itemId: Int) {
         self.app = app
@@ -47,11 +46,10 @@ struct ItemView: View {
             ScrollView {
                 HStack(alignment: .top, spacing: 60) {
                     if let item = model.item {
-                        ServerImage(app: app, path: HomeModel.posterPath(item.summary),
-                                    widthPx: HomeModel.pixels(400, scale: Double(displayScale)))
+                        ServerImage(app: app, paths: Tile.posters(item.summary), width: 400,
+                                    symbol: Metrics.symbol(item.summary.kind))
                             .frame(width: 400, height: 600)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .accessibilityHidden(true)
+                            .clipShape(RoundedRectangle(cornerRadius: Metrics.corner))
                     }
                     VStack(alignment: .leading, spacing: 24) {
                         details
@@ -96,13 +94,16 @@ struct ItemView: View {
                     } label: {
                         Label(resume, systemImage: "play.fill")
                     }
+                    .accessibilityIdentifier("item.play")
                     Button("Play from start") { play(model.request(fromStart: true)) }
+                        .accessibilityIdentifier("item.playFromStart")
                 } else {
                     Button {
                         play(model.request())
                     } label: {
                         Label("Play", systemImage: "play.fill")
                     }
+                    .accessibilityIdentifier("item.play")
                 }
             }
         }

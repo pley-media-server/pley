@@ -252,4 +252,121 @@ public enum Words {
     public static func episode(season: Int?, episode: Int?) -> String {
         [season.map { "S\($0)" }, episode.map { "E\($0)" }].compactMap { $0 }.joined(separator: " ")
     }
+
+    /// "26 min left", "1h 12m left"; empty without a duration or once nothing is left.
+    public static func timeLeft(positionMs: Int, durationMs: Int?) -> String {
+        guard let durationMs, durationMs > 0 else { return "" }
+        let left = runtime(ms: max(0, durationMs - positionMs))
+        return left.isEmpty ? "" : "\(left) left"
+    }
+
+    /// A duration for VoiceOver, in words: "34 minutes", "1 hour 12 minutes", "45 seconds".
+    public static func spokenDuration(ms: Int?) -> String {
+        guard let ms, ms > 0 else { return "" }
+        let minutes = Int((Double(ms) / 60_000).rounded(.toNearestOrAwayFromZero))
+        if minutes < 1 { return pluralize(max(1, Int((Double(ms) / 1000).rounded())), "second") }
+        let h = minutes / 60, m = minutes % 60
+        return [h > 0 ? pluralize(h, "hour") : nil, m > 0 ? pluralize(m, "minute") : nil]
+            .compactMap { $0 }.joined(separator: " ")
+    }
+
+    /// "34 minutes left", for VoiceOver; empty once nothing is left.
+    public static func spokenTimeLeft(positionMs: Int, durationMs: Int?) -> String {
+        guard let durationMs, durationMs > 0 else { return "" }
+        let left = spokenDuration(ms: max(0, durationMs - positionMs))
+        return left.isEmpty ? "" : "\(left) left"
+    }
+
+    // MARK: Titles and counts
+
+    /// "1 movie", "0 movies", "12,345 movies": the count with its noun.
+    public static func pluralize(_ n: Int, _ one: String, _ many: String? = nil) -> String {
+        let number = NumberFormatter.localizedString(from: NSNumber(value: n), number: .decimal)
+        return "\(number) \(n == 1 ? one : many ?? one + "s")"
+    }
+
+    /// "S1 · E3", "E3", or "" with neither number: the screens' episode label.
+    public static func episodeLabel(season: Int?, episode: Int?) -> String {
+        [season.map { "S\($0)" }, episode.map { "E\($0)" }].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    /// "Season 2 Episode 5", for VoiceOver; the parts that are known.
+    public static func spokenEpisode(season: Int?, episode: Int?) -> String {
+        [season.map { $0 == 0 ? "Specials" : "Season \($0)" }, episode.map { "Episode \($0)" }]
+            .compactMap { $0 }.joined(separator: " ")
+    }
+
+    /// The short line under a tile, by kind: a year, "3 seasons", "S2 · E5", "Daft Punk · 2001".
+    public static func cardSubtitle(_ item: ItemSummary) -> String {
+        switch item.kind {
+        case .movie:
+            return item.year.map(String.init) ?? ""
+        case .show:
+            if let seasons = item.childCount, seasons > 0 { return pluralize(seasons, "season") }
+            if let episodes = item.leafCount { return pluralize(episodes, "episode") }
+            return item.year.map(String.init) ?? ""
+        case .season:
+            return item.leafCount.map { pluralize($0, "episode") } ?? ""
+        case .episode:
+            return episodeLabel(season: item.parentIndex, episode: item.index)
+        case .artist:
+            return item.childCount.map { pluralize($0, "album") } ?? ""
+        case .album:
+            return [nonEmpty(item.parentTitle), item.year.map(String.init)].compactMap { $0 }.joined(separator: " · ")
+        case .track:
+            return [nonEmpty(item.grandparentTitle), nonEmpty(item.parentTitle)].compactMap { $0 }
+                .joined(separator: " · ")
+        default:
+            return ""
+        }
+    }
+
+    /// Started, not finished and not marked watched: its resume point is worth showing.
+    public static func isInProgress(_ item: ItemSummary) -> Bool {
+        guard let duration = item.durationMs else { return false }
+        return !item.userState.watched && item.userState.positionMs > 0 && item.userState.positionMs < duration
+    }
+
+    /// How much of `item` has been played, 0 to 1.
+    public static func progress(_ item: ItemSummary) -> Double {
+        guard item.userState.positionMs > 0, let duration = item.durationMs, duration > 0 else { return 0 }
+        return min(1, max(0, Double(item.userState.positionMs) / Double(duration)))
+    }
+
+    /// Episodes of a show or season not watched yet; 0 for other kinds.
+    public static func unwatchedCount(_ item: ItemSummary) -> Int {
+        guard let leaves = item.leafCount else { return 0 }
+        return max(0, leaves - (item.viewedLeafCount ?? 0))
+    }
+
+    /// What VoiceOver says for a tile, its label and its state apart:
+    /// "Glasshouse, The Office, Season 2 Episode 5" and "26 minutes left";
+    /// "Arrival, 2016" and "watched"; "Severance, 2 seasons" and "6 unwatched episodes".
+    public static func tileSpoken(_ item: ItemSummary) -> (label: String, value: String) {
+        let context: String
+        if item.kind == .episode {
+            context = [nonEmpty(item.grandparentTitle).flatMap { $0 == item.title ? nil : $0 },
+                       nonEmpty(spokenEpisode(season: item.parentIndex, episode: item.index))]
+                .compactMap { $0 }.joined(separator: ", ")
+        } else {
+            context = cardSubtitle(item)
+        }
+        let unwatched = unwatchedCount(item)
+        let state: String
+        if isInProgress(item) {
+            state = spokenTimeLeft(positionMs: item.userState.positionMs, durationMs: item.durationMs)
+        } else if item.userState.watched {
+            state = "watched"
+        } else if item.kind == .show || item.kind == .season, unwatched > 0 {
+            state = pluralize(unwatched, "unwatched episode")
+        } else {
+            state = ""
+        }
+        return ([item.title, context].filter { !$0.isEmpty }.joined(separator: ", "), state)
+    }
+
+    private static func nonEmpty(_ text: String?) -> String? {
+        guard let text, !text.isEmpty else { return nil }
+        return text
+    }
 }
