@@ -3,7 +3,7 @@
 # dependencies and target folder stay apart. Cargo reads .cargo/config.toml
 # from the folder it runs in, so run cargo from here.
 #
-# Every crate is under LICENSE (Restricted) and none may depend on a crate that
+# Every crate is under LICENSE (AGPL-3.0-only) and none may depend on a crate that
 # is only available under a copyleft licence (LICENSING.md); the TV's own
 # libraries are opened at run time, never linked or shipped.
 [workspace]

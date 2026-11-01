@@ -319,7 +319,7 @@ mod tests {
     #[test]
     fn flags_disallowed_and_undeclared_licences_but_not_the_workspace() {
         let allowed = allow(&["MIT"]);
-        let own = package("pley-lg", Some("LicenseRef-Restricted"), PathBuf::from("."), None);
+        let own = package("pley-lg", Some("AGPL-3.0-only"), PathBuf::from("."), None);
         let good = package("good", Some("MIT"), PathBuf::from("."), Some("registry"));
         let bad = package("bad", Some("GPL-3.0-only"), PathBuf::from("."), Some("registry"));
         let none = package("none", None, PathBuf::from("."), Some("registry"));
@@ -346,7 +346,7 @@ mod tests {
         let a = package("alpha", Some("MIT OR Apache-2.0"), with, Some("registry"));
         let b = package("beta", Some("MIT"), without, Some("registry"));
         let c = package("gamma", Some("Apache-2.0"), same, Some("registry"));
-        let own = package("pley-lg", Some("LicenseRef-Restricted"), dir.clone(), None);
+        let own = package("pley-lg", Some("AGPL-3.0-only"), dir.clone(), None);
         let (text, missing) = notices(&[&a, &b, &c, &own], &ws.root).unwrap();
         fs::remove_dir_all(&dir).unwrap();
         assert!(text.contains("--- LICENSE-APACHE: the same text as alpha 1.0.0's LICENSES/Apache-2.0.txt ---\n"));

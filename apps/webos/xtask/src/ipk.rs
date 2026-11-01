@@ -131,7 +131,7 @@ impl AppInfo {
     pub fn control(&self, installed_kib: u64) -> String {
         format!(
             "Package: {}\nVersion: {}\nSection: misc\nPriority: optional\nArchitecture: arm\nInstalled-Size: {installed_kib}\n\
-             Maintainer: {MAINTAINER}\nHomepage: {HOMEPAGE}\nLicense: LicenseRef-Restricted\nDescription: Pley for LG TV\n\
+             Maintainer: {MAINTAINER}\nHomepage: {HOMEPAGE}\nLicense: AGPL-3.0-only\nDescription: Pley for LG TV\n\
              webOS-Package-Format-Version: 2\nwebOS-Packager-Version: pley-xtask/1\n",
             self.id, self.version
         )
@@ -508,7 +508,7 @@ mod tests {
                 b"ISC".to_vec(),
                 false,
             ),
-            File::new(format!("{dir}/LICENSE.txt"), b"Restricted".to_vec(), false),
+            File::new(format!("{dir}/LICENSE.txt"), b"AGPL-3.0-only".to_vec(), false),
             File::new(format!("{dir}/LICENSING.md"), b"# Licensing".to_vec(), false),
             File::new(format!("{dir}/NOTICES.txt"), b"Notices".to_vec(), false),
         ]

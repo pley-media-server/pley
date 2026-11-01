@@ -4,7 +4,7 @@ version = "0.0.0"
 edition = "2024"
 rust-version = "1.95"
 description = "Pley for LG TV: the server's API, sign-in, discovery, saved data and app state"
-license = "LicenseRef-Restricted"
+license = "AGPL-3.0-only"
 publish = false
 
 [dependencies]

@@ -196,7 +196,7 @@ mod tests {
     fn reads_metadata_and_selects_packages() {
         let json = serde_json::json!({
             "packages": [
-                {"name": "pley-lg", "version": "0.1.0", "license": "LicenseRef-Restricted",
+                {"name": "pley-lg", "version": "0.1.0", "license": "AGPL-3.0-only",
                  "manifest_path": "/w/crates/app/Cargo.toml", "source": null, "authors": []},
                 {"name": "alpha", "version": "1.0.0", "license": "MIT", "manifest_path": "/r/alpha/Cargo.toml",
                  "source": "registry+https://github.com/rust-lang/crates.io-index", "authors": ["A"],
