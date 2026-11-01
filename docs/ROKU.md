@@ -102,6 +102,15 @@ shows Pley's licence and the notices of what the package bundles. As on the othe
 as only skips "Who's watching?" at a start; it is kept on the Roku for
 each server.
 
+### Music
+
+Music plays on while other screens show, and Home's menu has Now Playing
+while it does. Now Playing shows the track, its cover and how far along it
+is, Previous, Pause, Next and Stop, and Up next: the tracks after the one
+playing, numbered by their place in the queue. OK on one plays it, and the
+queue goes on from there. Play pauses or goes on; fast forward and rewind
+go to the next track or back.
+
 ### Audio and subtitles
 
 - Roku shows a subtitle track only with captions on, a Roku-wide setting.
@@ -323,9 +332,10 @@ bun run images    # the nine-patch focus and watched-mark images
   BrightScript error, a request without the User-Agent, a token in an
   address, or a refresh token used twice. On the way it plays a collection
   of movies and a smart one of shows, and an artist's tracks, makes a
-  playlist, asks for a movie and three seasons from Discover, approves a
-  request, opens a title from its ready-to-watch notice, and checks that a
-  server without requests is asked nothing but the summary.
+  playlist, plays a track from Now Playing's Up next, asks for a movie and
+  three seasons from Discover, approves a request, opens a title from its
+  ready-to-watch notice, and checks that a server without requests is
+  asked nothing but the summary.
 - **brs-node limits:** its own fonts, no video (Skip intro and Up Next have
   only unit tests), one fetch at a time, the odd dropped key, and no
   measure of a Roku's speed.

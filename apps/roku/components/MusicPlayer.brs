@@ -13,6 +13,7 @@ sub init()
     m.audio.observeField("position", "onPosition")
     m.top.observeField("play", "onPlay")
     m.top.observeField("control", "onControl")
+    m.top.observeField("jump", "onJump")
     m.global.session.observeFieldScoped("accessToken", "onToken")
     m.clock = CreateObject("roTimespan")
     m.queue = []
@@ -39,11 +40,24 @@ sub onPlay()
     ' The track playing ends before the new queue replaces it.
     finishTrack()
     m.queue = request.queue
-    m.top.queueSize = m.queue.Count()
+    showQueue()
     at = Int(httpNumber(request.at, 0))
     if at < 0 or at >= m.queue.Count() then at = 0
     m.top.message = ""
     playTrack(at, "auto")
+end sub
+
+' The queue as Now Playing lists it.
+sub showQueue()
+    m.top.queue = m.queue
+    m.top.queueSize = m.queue.Count()
+    m.top.queueId = m.top.queueId + 1
+end sub
+
+' A track of Up next: it plays, and the queue goes on from it.
+sub onJump()
+    at = m.top.jump
+    if at >= 0 and at < m.queue.Count() then playTrack(at, "auto")
 end sub
 
 ' The track at, from its start; its session and its details are asked for
@@ -193,7 +207,7 @@ sub stopAll()
     m.attempt = m.attempt + 1
     m.audio.control = "stop"
     m.queue = []
-    m.top.queueSize = 0
+    showQueue()
     m.top.state = "stopped"
 end sub
 

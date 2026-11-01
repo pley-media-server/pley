@@ -8,12 +8,19 @@
         <field id="play" type="assocarray" alwaysNotify="true" />
         <!-- "toggle", "pause", "resume", "next", "previous", "stop". -->
         <field id="control" type="string" alwaysNotify="true" />
+        <!-- Plays the track at this place in the queue. -->
+        <field id="jump" type="integer" alwaysNotify="true" />
         <!-- "stopped", "loading", "playing", "paused". -->
         <field id="state" type="string" value="stopped" />
-        <!-- The track playing, its place in the queue, and how far along. -->
-        <field id="track" type="assocarray" />
-        <field id="at" type="integer" />
+        <!-- The queue: its tracks in the order they play, and a number
+             that changes with it. -->
+        <field id="queue" type="array" />
+        <field id="queueId" type="integer" />
         <field id="queueSize" type="integer" />
+        <!-- The track playing, its place in the queue (told again after
+             the queue changes), and how far along. -->
+        <field id="track" type="assocarray" />
+        <field id="at" type="integer" alwaysNotify="true" />
         <field id="positionMs" type="integer" />
         <field id="durationMs" type="integer" />
         <!-- What went wrong with the track before, or "". -->

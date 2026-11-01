@@ -42,6 +42,8 @@ describes how they are made.
   are newest first, each with its year.
 - Playlists has New playlist: Movies & TV or Music, then a name typed on
   the Roku's keyboard; the new playlist opens.
+- Now Playing lists Up next, the tracks after the one playing, as the other
+  apps do; OK on one plays it.
 
 ## [0.1.1] - 2026-11-01
 

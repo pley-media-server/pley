@@ -163,3 +163,18 @@ function musicPreviousAt(at as integer, positionMs as integer) as integer
     if positionMs > 3000 or at = 0 then return at
     return at - 1
 end function
+
+' Now Playing's Up next (QueueRow): the tracks of queue after the one at
+' at, numbered by their place in it ("4. Song"), their artist and album,
+' and how long each is.
+function musicUpNextRows(queue as object, at as integer) as object
+    rows = []
+    for i = at + 1 to queue.Count() - 1
+        track = queue[i]
+        parts = []
+        if track.artist <> "" then parts.Push(track.artist)
+        if track.album <> "" then parts.Push(track.album)
+        rows.Push({ title: urlValue(i + 1) + ". " + track.title, subtitle: parts.Join(" · "), duration: fmtClock(track.durationMs) })
+    end for
+    return rows
+end function

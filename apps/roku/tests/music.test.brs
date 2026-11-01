@@ -34,6 +34,21 @@ sub test_music_previous_goes_back_or_to_the_start()
     tkEqual(musicPreviousAt(0, 1000), 0)
 end sub
 
+sub test_music_up_next_is_what_follows_the_track_playing()
+    tracks = []
+    for i = 1 to 4
+        track = musicTrack(musicTestTrack(), "http://nas:7539")
+        track.title = "Song " + urlValue(i)
+        tracks.Push(track)
+    end for
+    tracks[3].album = ""
+    rows = musicUpNextRows(tracks, 1)
+    tkEqual(rows.Count(), 2)
+    tkEqual(rows[0], { title: "3. Song 3", subtitle: "The Fixtures · Blue", duration: "3:20" }, "numbered by its place in the queue")
+    tkEqual(rows[1].subtitle, "The Fixtures", "without an album")
+    tkEqual(musicUpNextRows(tracks, 3).Count(), 0, "the last track: nothing after it")
+end sub
+
 sub test_music_tiles_are_square()
     tile = contentTile({ id: 5100, kind: "album", title: "Blue", parent_title: "The Fixtures", year: 2001 }, "http://nas:7539", false)
     tkTrue(tile.square)
