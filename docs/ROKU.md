@@ -70,7 +70,8 @@ Settings has the audio and subtitle defaults, Quality, Play the next
 episode by itself (Up Next counts down only while it is on), Watch
 history, Switch profile, Always start as (for a household of several
 profiles: a profile, or Ask who's watching), Sort libraries, Switch server
-and Sign out, and carries TMDB's notice. As on the other TVs, Always start
+and Sign out. It says where the account is managed on the web (the
+server's address and `/account`), and carries TMDB's notice. As on the other TVs, Always start
 as only skips "Who's watching?" at a start; it is kept on the Roku for
 each server.
 

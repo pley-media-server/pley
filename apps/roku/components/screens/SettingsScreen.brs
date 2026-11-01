@@ -13,6 +13,7 @@ sub init()
     m.profile = m.top.findNode("profile")
     m.device = m.top.findNode("device")
     m.version = m.top.findNode("version")
+    m.web = m.top.findNode("web")
     m.buttons = m.top.findNode("buttons")
     m.message = m.top.findNode("message")
     m.panel = m.top.findNode("panel")
@@ -45,6 +46,7 @@ sub onActive()
     m.server.text = session.serverName + " (" + urlDisplayAddress(session.server) + ")"
     m.device.text = session.device
     m.version.text = session.appVersion
+    m.web.text = webAddress()
     if m.panel.visible
         m.choices.setFocus(true)
     else

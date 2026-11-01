@@ -4,7 +4,7 @@
      the right, and whether the next episode plays by itself; the watch
      history, switch profile, the profile to always start as, sort the
      libraries, switch server or sign out. Under the app's version, TMDB's
-     notice. -->
+     notice, then where the account is managed on the web. -->
 <component name="SettingsScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -38,7 +38,12 @@
         <!-- Discover's titles and pictures come from TMDB. -->
         <Label translation="[1000, 372]" width="824" wrap="true" maxLines="2" text="This product uses the TMDB API but is not endorsed or certified by TMDB." color="0x8B95A5FF" font="font:SmallestSystemFont" />
         <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[96, 400]" minWidth="840" maxWidth="840" />
-        <Label id="message" translation="[1000, 470]" width="824" wrap="true" maxLines="4" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+        <!-- What the other TVs' "Manage your account on the web" says: Roku
+             has no QR code of its own, so the address alone. -->
+        <Label translation="[1000, 460]" text="Manage your account on the web" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <Label id="web" translation="[1000, 496]" width="824" color="0x7DD3FCFF" font="font:MediumSystemFont" />
+        <Label translation="[1000, 552]" width="824" wrap="true" maxLines="2" text="Name, picture, password, PIN, two-step, devices and apps, from a phone or computer on the same network." color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <Label id="message" translation="[1000, 650]" width="824" wrap="true" maxLines="4" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         <!-- The choices of one row, over the right half. -->
         <Group id="panel" visible="false">
             <Rectangle translation="[1000, 0]" width="920" height="1080" color="0x1E222AFF" />
