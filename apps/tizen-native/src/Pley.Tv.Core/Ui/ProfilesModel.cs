@@ -211,7 +211,15 @@ public sealed class AppProfilesSource : IProfilesSource
     {
         var tokens = app.TokenStore ?? throw new SignedOutException();
         await tokens.SwitchProfile(id, pin);
-        await app.Switched(id);
+        try
+        {
+            await app.Switched(id);
+        }
+        catch (Exception)
+        {
+            // The switch is made: who is watching and the libraries failed to load after it, which
+            // AppState keeps for the pages' Retry (AccountError), as Android's switch doesn't wait for them.
+        }
     }
 
     public async Task<PinCheck> ConfirmPin(long id, string pin)

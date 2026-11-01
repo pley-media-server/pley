@@ -160,6 +160,24 @@ public class StateTests
     }
 
     [Fact]
+    public async Task A_profile_switch_the_server_made_stands_when_the_account_then_fails_to_load()
+    {
+        var store = new MemoryKeyValue();
+        var scheduler = new FakeScheduler();
+        var server = new FakeServer();
+        server.On("POST", Home + "/t", 200, @"{""access_token"":""pley_at_2"",""token_type"":""Bearer"",""expires_in"":3600,""refresh_token"":""pley_rt_2"",""scope"":""library play""}");
+        server.On("GET", Home + "/api/auth/me", 500, @"{""error"":""internal""}");
+        server.On("GET", Home + "/api/libraries", 200, "[]");
+        server.On("GET", Home + "/api/hubs/home", 200, @"{""hubs"":[]}");
+        var state = State(store, server, scheduler);
+        SignIn(state, store, scheduler);
+        await new Pley.Tv.Core.Ui.AppProfilesSource(state).SwitchTo(2, null);
+        Assert.Equal("pley_at_2", state.TokenStore!.Load()!.AccessToken);
+        // Kept for the pages' Retry.
+        Assert.NotNull(state.AccountError.Value);
+    }
+
+    [Fact]
     public async Task The_same_home_again_is_neither_shown_nor_saved_again()
     {
         var store = new MemoryKeyValue();

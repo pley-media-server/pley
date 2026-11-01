@@ -204,3 +204,6 @@ It has no releases yet: it is built and installed by hand
   its page has the new resume point and watched mark.
 - Held keys and a held OK keep working in the native app on a TV that has
   been on for more than 106 days.
+- Choosing a profile in the native app no longer leaves Who's watching?
+  stuck when the server fails to send the profile's libraries after the
+  switch: the app goes on as that profile, and the pages offer Retry.
