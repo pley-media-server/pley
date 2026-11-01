@@ -4,7 +4,9 @@
 // installs only packages signed with a Samsung certificate. The .NET SDK
 // builds the .tpk; the CLI, found on PATH or in TIZEN_STUDIO, signs it.
 // PLEY_TIZEN_METRICS (an address of scripts/metrics.mjs, http://<pc>:7531)
-// makes a profiling build that sends its marks there; without it, none.
+// makes a profiling build that sends its marks there; without it, none. A profiling build is an
+// app of its own, app.pley.tizen.debug ("Pley (debug)"), in out/pley-tizen-debug.tpk, so it
+// installs beside a release.
 
 import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
@@ -49,5 +51,6 @@ if (win) execFileSync("cmd.exe", ["/d", "/c", cli].concat(args), { stdio: "inher
 else execFileSync(cli, args, { stdio: "inherit" });
 
 mkdirSync(out, { recursive: true });
-copyFileSync(tpk, join(out, "pley-tizen.tpk"));
-console.log(`out/pley-tizen.tpk (signed with the "${profile}" profile)`);
+const name = metrics ? "pley-tizen-debug.tpk" : "pley-tizen.tpk";
+copyFileSync(tpk, join(out, name));
+console.log(`out/${name} (signed with the "${profile}" profile)`);

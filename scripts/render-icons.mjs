@@ -17,7 +17,13 @@
 //   apps/desktop/src-tauri/icons/icon.icns  on Apple's grid (an 824 plate in 1024,
 //                                           a soft shadow), as macOS draws its apps
 //   apps/tizen/assets/icon.png              Samsung's 512×423, full bleed, as a
-//                                           24-bit RGB PNG at 72 dpi (Samsung's spec)
+//                                           24-bit RGB PNG at 72 dpi (Samsung's spec),
+//                                           marked WEB in blue: the web app beside the native one
+//   apps/tizen-native/src/Pley.Tv.Tizen/shared/res/icon.png
+//                                           the native Samsung app's, unmarked
+//   apps/tizen-native/src/Pley.Tv.Tizen/icon-debug.png
+//                                           a profiling build's, marked DEBUG in yellow (its
+//                                           project packages it in the other's place)
 //   apps/webos/assets/icon.png, largeIcon.png
 //                                           LG's 80 and 130 px, full bleed on the
 //                                           tile's colour, which appinfo.json's
@@ -63,7 +69,9 @@ import { renderer } from "./svg-render.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const logo = readFileSync(join(root, "apps/web/public/favicon.svg"), "utf8");
 const defs = logo.match(/<defs>[\s\S]*<\/defs>/)[0];
-const glyph = logo.match(/<g>[\s\S]*?<\/g>/)[0];
+// The mark's paths, in the 64-unit logo's places: the favicon scales them up to fill a tab, and the
+// pictures here place and scale them themselves.
+const glyph = `<g>${logo.match(/<g[^>]*>([\s\S]*?)<\/g>/)[1]}</g>`;
 const TILE = "#0a1622";
 
 /** The mark alone on the tile's colour to the edges, scaled [s] about the 64-unit logo's centre. */
@@ -75,6 +83,22 @@ function maskable(size, s) {
 /** The mark on the tile's colour to the edges of a width × height picture, the 64-unit logo at [s] with its top left at (x, y). */
 function onTile(width, height, s, x, y) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${defs}<rect width="${width}" height="${height}" fill="${TILE}"/><g transform="translate(${x} ${y}) scale(${s})">${glyph}</g></svg>`;
+}
+
+/**
+ * The mark on the tile's colour above a band saying [label] in [ink] on [fill], a width × height picture:
+ * which of Pley's Samsung apps it is, told apart on a TV that has more than one.
+ */
+function labelled(width, height, label, fill, ink) {
+  const band = Math.round(height * 0.26);
+  const s = 360 / 64;
+  // The mark (40 × 33 of the logo's 64, about its centre) centred in what the band leaves.
+  const x = width / 2 - 32 * s;
+  const y = (height - band) / 2 - 32 * s;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${defs}<rect width="${width}" height="${height}" fill="${TILE}"/>
+  <g transform="translate(${x} ${y}) scale(${s})">${glyph}</g>
+  <rect y="${height - band}" width="${width}" height="${band}" fill="${fill}"/>
+  <text x="${width / 2}" y="${height - band / 2}" dominant-baseline="central" text-anchor="middle" font-family="Roboto, 'Segoe UI', system-ui, sans-serif" font-size="${Math.round(band * 0.6)}" font-weight="700" letter-spacing="2" fill="${ink}">${label}</text></svg>`;
 }
 
 /**
@@ -299,8 +323,13 @@ try {
   );
 
   // Samsung's 512×423: the mark where a 360 px logo centred in it puts it, the tile's colour to the edges.
+  // The native app's plain; the web app's and a native profiling build's marked, as all three may be
+  // on one TV.
   const tizen = join(root, "apps/tizen/assets");
-  writeFileSync(join(tizen, "icon.png"), rgb72(await r.png(onTile(512, 423, 360 / 64, 76, 31.5), 512, 423)));
+  writeFileSync(join(tizen, "icon.png"), rgb72(await r.png(labelled(512, 423, "WEB", "#0284c7", "#ffffff"), 512, 423)));
+  const native = join(root, "apps/tizen-native/src/Pley.Tv.Tizen");
+  writeFileSync(join(native, "shared/res/icon.png"), rgb72(await r.png(onTile(512, 423, 360 / 64, 76, 31.5), 512, 423)));
+  writeFileSync(join(native, "icon-debug.png"), rgb72(await r.png(labelled(512, 423, "DEBUG", "#facc15", "#0a1622"), 512, 423)));
 
   // LG's: the logo at full size without its rounded corners, on the colour appinfo.json's iconColor
   // gives the TV's tile; and the launch picture with the mark's middle (32, 32 of the logo's 64)

@@ -258,8 +258,12 @@ bun run --cwd apps/webos build       # only an app's dist/ (apps/tizen too); --d
   Tizen Studio is deprecated), found through `TIZEN_STUDIO` or `tizen` on
   the PATH, and a security profile named by `PLEY_TIZEN_PROFILE` (default
   `pley-dev`).
-- **Icons:** `bun scripts/render-icons.mjs` draws Samsung's 512×423 icon,
-  LG's 80 and 130 px icons and LG's 1920×1080 launch picture.
+- **Icons:** `bun scripts/render-icons.mjs` draws Samsung's 512×423 icons,
+  LG's 80 and 130 px icons and LG's 1920×1080 launch picture. One TV may
+  have more than one of Pley's Samsung apps, so the native app's icon is
+  plain, the web app's says WEB on blue, and a profiling build of the native
+  app (an app of its own, `app.pley.tizen.debug`, "Pley (debug)") says DEBUG
+  on yellow.
 
 ### Testing without a TV
 

@@ -10,6 +10,9 @@ It has no releases yet: it is built and installed by hand
 
 ### Added
 
+- A profiling build of the native app is an app of its own, "Pley (debug)",
+  with a DEBUG icon on a yellow band, so it installs beside the app rather
+  than in its place; the app's own icon is the plain logo.
 - A native app for Samsung TVs with Tizen 9, beside the web app: so far the
   Android TV app's "Choose your server" screen, with servers found on the
   network, an address pad, the TV's keyboard and forgetting a server; its
