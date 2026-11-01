@@ -1,0 +1,20 @@
+[package]
+name = "pley-text"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: text shaping, line breaking and glyph rasterisation"
+license = "LicenseRef-Restricted"
+publish = false
+
+[dependencies]
+pley-base = { path = "../base" }
+ab_glyph_rasterizer = "0.1.10"
+memmap2 = "0.9.12"
+rustybuzz = "0.20.1"
+unicode-bidi = "0.3.18"
+unicode-linebreak = "0.1.5"
+unicode-script = "0.5.8"
+
+[dev-dependencies]
+miniz_oxide = "0.8.9"

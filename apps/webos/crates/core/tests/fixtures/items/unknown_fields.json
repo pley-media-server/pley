@@ -1,0 +1,49 @@
+{
+  "id": 108,
+  "library_id": 1,
+  "kind": "clip",
+  "title": "Gag Reel",
+  "sort_title": "Gag Reel",
+  "added_at": 1761300000,
+  "user_state": { "position_ms": 0, "watched": false, "play_count": 0, "favourite": true },
+  "extra_type": "bloopers",
+  "aspect_ratio": 2.39,
+  "labels": ["Kept", { "name": "nested" }],
+  "media": { "bitrate": 8000000, "size": 1200000000, "width": 1920, "height": 800, "video_codec": "vvc", "dynamic_range": "hdr_vivid", "audio_codec": "opus" },
+  "genres": [],
+  "files": [
+    {
+      "id": 505,
+      "path": "Gag Reel.mkv",
+      "size": 1200000000,
+      "container": "mkv",
+      "duration_ms": 432000,
+      "bitrate": 8000000,
+      "width": 1920,
+      "height": 800,
+      "video_codec": "vvc",
+      "audio_codec": "opus",
+      "hash": "b9e1",
+      "streams": [
+        { "index": 0, "kind": "video", "codec": "vvc", "language": null, "title": null, "default": true, "forced": false, "dynamic_range": "hdr_vivid", "film_grain": true },
+        { "index": 1, "kind": "audio", "codec": "opus", "language": "eng", "title": null, "default": true, "forced": false, "channels": 2, "spatial": "binaural" },
+        { "index": 2, "kind": "attachment", "codec": "ttf", "language": null, "title": "font.ttf", "default": false, "forced": false }
+      ],
+      "edition": null,
+      "selected_audio": 1,
+      "audio_picked": false,
+      "selected_subtitle": null,
+      "chapters": []
+    }
+  ],
+  "markers": [
+    { "file_id": 505, "kind": "recap", "start_ms": 0, "end_ms": 45000, "source": "model", "confidence": 0.93 }
+  ],
+  "locked_fields": [],
+  "extras": [],
+  "cast": [
+    { "id": 713, "name": "Jóhann Jóhannsson", "role": "composer", "photo_url": null }
+  ],
+  "crew": [],
+  "rights": { "region": "EU" }
+}

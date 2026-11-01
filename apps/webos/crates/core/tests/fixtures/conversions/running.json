@@ -1,0 +1,8 @@
+{
+  "id": "0123456789abcdef0123456789abcdef",
+  "state": "running",
+  "progress": 0.42,
+  "size": null,
+  "error": null,
+  "url": "/api/conversions/0123456789abcdef0123456789abcdef/file"
+}

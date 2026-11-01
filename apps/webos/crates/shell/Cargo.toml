@@ -1,0 +1,16 @@
+[package]
+name = "pley-shell"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: routes, screens, navigation, the rail"
+license = "LicenseRef-Restricted"
+publish = false
+
+[dependencies]
+pley-base = { path = "../base" }
+pley-core = { path = "../core" }
+pley-ui = { path = "../ui" }
+pley-kit = { path = "../kit" }
+pley-player = { path = "../player" }
+pley-subs = { path = "../subs" }

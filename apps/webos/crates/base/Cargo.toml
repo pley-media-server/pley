@@ -1,0 +1,10 @@
+[package]
+name = "pley-base"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: geometry, colours, input, the display list and the contracts between the app's crates"
+license = "LicenseRef-Restricted"
+publish = false
+
+[dependencies]

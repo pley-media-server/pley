@@ -1,0 +1,10 @@
+[package]
+name = "xtask"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV's build tasks: the .ipk, notices and release checks"
+license = "LicenseRef-Restricted"
+publish = false
+
+[dependencies]

@@ -1,0 +1,53 @@
+# Pley for LG TV: a native webOS app (docs/LG.md). A workspace of its own, like
+# the desktop app's, so the server's builds never compile it and its
+# dependencies and target folder stay apart. Cargo reads .cargo/config.toml
+# from the folder it runs in, so run cargo from here.
+#
+# Every crate is under LICENSE (Restricted) and none may depend on a crate that
+# is only available under a copyleft licence (LICENSING.md); the TV's own
+# libraries are opened at run time, never linked or shipped.
+[workspace]
+resolver = "3"
+members = [
+    "crates/base",
+    "crates/text",
+    "crates/gfx",
+    "crates/platform",
+    "crates/core",
+    "crates/ui",
+    "crates/kit",
+    "crates/subs",
+    "crates/player",
+    "crates/webos",
+    "crates/shell",
+    "crates/fixtures",
+    "crates/screens/onboarding",
+    "crates/screens/home",
+    "crates/screens/browse",
+    "crates/screens/item",
+    "crates/screens/search",
+    "crates/screens/music",
+    "crates/screens/settings",
+    "crates/screens/live",
+    "crates/screens/player",
+    "crates/app",
+    "xtask",
+]
+default-members = ["crates/app"]
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+
+# The fake server draws pictures and seek previews; unoptimised it takes a
+# third of a second for the first big one.
+[profile.dev.package.pley-fixtures]
+opt-level = 2

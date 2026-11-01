@@ -1,0 +1,23 @@
+{
+  "id": 2,
+  "username": "alex",
+  "name": "Alex",
+  "display_name": "Alex",
+  "is_admin": false,
+  "managed": false,
+  "home": true,
+  "has_pin": true,
+  "avatar_url": "/api/users/2/avatar?v=1761100000",
+  "avatar_color": "#38bdf8",
+  "all_libraries": true,
+  "library_ids": [],
+  "max_age": null,
+  "disabled": false,
+  "created_at": 1758000000,
+  "audio_language": "eng",
+  "subtitle_language": null,
+  "subtitle_mode": "foreign",
+  "has_password": true,
+  "two_step": false,
+  "scope": "library play playlists profiles"
+}

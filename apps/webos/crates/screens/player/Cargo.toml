@@ -1,0 +1,17 @@
+[package]
+name = "pley-player-ui"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: the video player screen"
+license = "LicenseRef-Restricted"
+publish = false
+
+[dependencies]
+pley-base = { path = "../../base" }
+pley-core = { path = "../../core" }
+pley-ui = { path = "../../ui" }
+pley-kit = { path = "../../kit" }
+pley-shell = { path = "../../shell" }
+pley-player = { path = "../../player" }
+pley-subs = { path = "../../subs" }

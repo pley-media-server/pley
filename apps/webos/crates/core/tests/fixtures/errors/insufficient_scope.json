@@ -1,0 +1,4 @@
+{
+  "code": "insufficient_scope",
+  "message": "this app wasn't allowed to play titles, and keep the profile's place, watched marks, ratings and track choices: sign in to it again to allow it"
+}

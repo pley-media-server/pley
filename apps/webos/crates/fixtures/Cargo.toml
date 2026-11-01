@@ -1,0 +1,16 @@
+[package]
+name = "pley-fixtures"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: a fake Pley server for the simulator and tests"
+license = "LicenseRef-Restricted"
+publish = false
+
+[dependencies]
+flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+
+[dev-dependencies]
+jpeg-decoder = { version = "0.3", default-features = false }

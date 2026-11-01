@@ -1,0 +1,21 @@
+[package]
+name = "pley-core"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: the server's API, sign-in, discovery, saved data and app state"
+license = "LicenseRef-Restricted"
+publish = false
+
+[dependencies]
+pley-base = { path = "../base" }
+# Answers are gzip when the server or a proxy in front of it compresses them; miniz_oxide is pure Rust.
+flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
+httparse = "1.10.1"
+# Random bytes for the install id and digests for snapshot folder names: already here for rustls.
+ring = "0.17.14"
+# TLS for servers behind an https proxy, with roots built in: the TV's own store is frozen at its release.
+rustls = { version = "0.23.46", default-features = false, features = ["ring", "std", "tls12"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+webpki-roots = "1.0.11"

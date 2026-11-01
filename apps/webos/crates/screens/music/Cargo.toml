@@ -1,0 +1,16 @@
+[package]
+name = "pley-music"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: artists, albums and Now Playing"
+license = "LicenseRef-Restricted"
+publish = false
+
+[dependencies]
+pley-base = { path = "../../base" }
+pley-core = { path = "../../core" }
+pley-ui = { path = "../../ui" }
+pley-kit = { path = "../../kit" }
+pley-shell = { path = "../../shell" }
+pley-player = { path = "../../player" }

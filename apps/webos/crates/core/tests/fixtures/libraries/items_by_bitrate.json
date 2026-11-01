@@ -1,0 +1,19 @@
+{
+  "total": 37,
+  "items": [
+    {
+      "id": 201, "library_id": 2, "kind": "show", "title": "Severance", "sort_title": "Severance", "year": 2022, "rating": 8.4,
+      "added_at": 1761200000, "poster_url": "/api/items/201/images/poster?v=1761200400",
+      "user_state": { "position_ms": 0, "watched": false, "play_count": 0, "last_played_at": 1761250000 },
+      "leaf_count": 19, "viewed_leaf_count": 1, "child_count": 2, "release_date": "2022-02-18",
+      "media": { "bitrate": 6617000, "size": 54123456789, "width": 1920, "height": 1080, "video_codec": null, "dynamic_range": null }
+    },
+    {
+      "id": 209, "library_id": 2, "kind": "show", "title": "Slow Horses", "sort_title": "Slow Horses", "year": 2022, "rating": 8.1,
+      "added_at": 1761200100, "poster_url": "/api/items/209/images/poster?v=1761200400",
+      "user_state": { "position_ms": 0, "watched": false, "play_count": 0 },
+      "leaf_count": 24, "viewed_leaf_count": 0, "child_count": 4, "release_date": "2022-04-01",
+      "media": { "bitrate": 4210000, "size": 31987654321, "width": 1920, "height": 1080, "video_codec": null, "dynamic_range": null }
+    }
+  ]
+}

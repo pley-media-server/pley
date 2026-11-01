@@ -1,0 +1,35 @@
+[package]
+name = "pley-lg"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: a native webOS app for Pley"
+license = "LicenseRef-Restricted"
+publish = false
+
+[[bin]]
+name = "pley"
+path = "src/main.rs"
+
+[dependencies]
+pley-base = { path = "../base" }
+pley-gfx = { path = "../gfx" }
+pley-text = { path = "../text" }
+pley-platform = { path = "../platform" }
+pley-core = { path = "../core" }
+pley-ui = { path = "../ui" }
+pley-kit = { path = "../kit" }
+pley-subs = { path = "../subs" }
+pley-player = { path = "../player" }
+pley-webos = { path = "../webos" }
+pley-shell = { path = "../shell" }
+pley-fixtures = { path = "../fixtures" }
+pley-onboarding = { path = "../screens/onboarding" }
+pley-home = { path = "../screens/home" }
+pley-browse = { path = "../screens/browse" }
+pley-item = { path = "../screens/item" }
+pley-search = { path = "../screens/search" }
+pley-music = { path = "../screens/music" }
+pley-settings = { path = "../screens/settings" }
+pley-live = { path = "../screens/live" }
+pley-player-ui = { path = "../screens/player" }

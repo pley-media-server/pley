@@ -1,0 +1,19 @@
+{
+  "session_id": "0b6d5e9a2c4f4a7e8d1c3b5a7f9e2d4c",
+  "method": "direct",
+  "url": "/api/files/601/stream",
+  "hls": false,
+  "file_id": 601,
+  "duration_ms": 3427000,
+  "audio_index": 1,
+  "subtitle_index": null,
+  "burn_subtitles": false,
+  "audio_converted": false,
+  "subtitles": [
+    { "index": 3, "codec": "subrip", "language": "eng", "title": "SDH", "default": false, "forced": false, "external": false, "text_based": true, "url": "/api/files/601/subtitles/3.vtt" },
+    { "index": 4, "codec": "subrip", "language": "ger", "title": null, "default": false, "forced": false, "external": false, "text_based": true, "url": "/api/files/601/subtitles/4.vtt" }
+  ],
+  "reasons": [],
+  "reason": null,
+  "auto_quality": null
+}

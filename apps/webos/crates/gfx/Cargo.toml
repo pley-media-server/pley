@@ -1,0 +1,28 @@
+[package]
+name = "pley-gfx"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: the GLES2 renderer, its atlas, icons, and the picture cache"
+license = "LicenseRef-Restricted"
+publish = false
+
+[dependencies]
+pley-base = { path = "../base" }
+pley-text = { path = "../text" }
+glow = "0.18.0"
+# Pure-Rust decoders, one per format the server sends (RES/plx-ui-gfx.md §6.2):
+# the `image` crate would add a colour-management engine the TV doesn't need.
+zune-jpeg = { version = "0.5.15", default-features = false, features = ["std", "x86"] }
+zune-core = { version = "0.5.3", default-features = false, features = ["std"] }
+png = "0.18.1"
+image-webp = "0.2.4"
+gif = { version = "0.14.2", default-features = false, features = ["std"] }
+# Icons are Lucide's SVG paths, rasterised at device pixels.
+tiny-skia = { version = "0.12.0", default-features = false, features = ["std", "simd"] }
+
+[dev-dependencies]
+pley-platform = { path = "../platform" }
+
+[[example]]
+name = "gallery"

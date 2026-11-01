@@ -1,0 +1,17 @@
+{
+  "items": [
+    {
+      "id": 106, "library_id": 1, "kind": "movie", "title": "Sicario", "sort_title": "Sicario", "year": 2015, "duration_ms": 7287000,
+      "rating": 7.4, "added_at": 1761300000, "poster_url": "/api/items/106/images/poster?v=1761300500",
+      "backdrop_url": "/api/items/106/images/backdrop?v=1761300500", "thumb_url": "/api/items/106/images/thumb?v=1761300500",
+      "user_state": { "position_ms": 0, "watched": false, "play_count": 0 }, "release_date": "2015-09-18"
+    },
+    {
+      "id": 105, "library_id": 1, "kind": "movie", "title": "Dune", "sort_title": "Dune", "year": 2021, "duration_ms": 9339000,
+      "rating": 7.8, "added_at": 1761300000, "poster_url": "/api/items/105/images/poster?v=1761300500",
+      "backdrop_url": "/api/items/105/images/backdrop?v=1761300500", "thumb_url": "/api/items/105/images/thumb?v=1761300500",
+      "user_state": { "position_ms": 0, "watched": true, "play_count": 2, "last_played_at": 1760000000, "rating": 8.0 },
+      "release_date": "2021-10-22"
+    }
+  ]
+}

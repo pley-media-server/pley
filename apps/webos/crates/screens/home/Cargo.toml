@@ -1,0 +1,15 @@
+[package]
+name = "pley-home"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: Home and the libraries list"
+license = "LicenseRef-Restricted"
+publish = false
+
+[dependencies]
+pley-base = { path = "../../base" }
+pley-core = { path = "../../core" }
+pley-ui = { path = "../../ui" }
+pley-kit = { path = "../../kit" }
+pley-shell = { path = "../../shell" }

@@ -1,0 +1,80 @@
+[
+  {
+    "id": 1,
+    "source_id": 1,
+    "name": "Pley News HD",
+    "number": "101",
+    "group": "News",
+    "logo": "/api/live/channels/1/logo",
+    "favorite": false,
+    "has_guide": true,
+    "now": {
+      "channel_id": 1,
+      "start": 1761750000,
+      "stop": 1761753600,
+      "title": "Morning Briefing",
+      "subtitle": "Part 7",
+      "description": "Everything you need to know.",
+      "categories": ["News"],
+      "image": null,
+      "season": 1,
+      "episode": 7,
+      "is_new": true,
+      "is_live": false,
+      "rating": null
+    },
+    "next": {
+      "channel_id": 1,
+      "start": 1761753600,
+      "stop": 1761755400,
+      "title": "World at One",
+      "subtitle": null,
+      "description": null,
+      "categories": [],
+      "image": null,
+      "season": null,
+      "episode": null,
+      "is_new": false,
+      "is_live": false,
+      "rating": null
+    }
+  },
+  {
+    "id": 2,
+    "source_id": 1,
+    "name": "Sport 1080i",
+    "number": "102",
+    "group": "Sport",
+    "logo": "/api/live/channels/2/logo",
+    "favorite": true,
+    "has_guide": true,
+    "now": {
+      "channel_id": 2,
+      "start": 1761750000,
+      "stop": 1761757200,
+      "title": "Match of the Day",
+      "subtitle": null,
+      "description": "The goals of the weekend.",
+      "categories": ["Sport"],
+      "image": "/api/live/channels/2/programs/1761750000/image",
+      "season": null,
+      "episode": null,
+      "is_new": false,
+      "is_live": true,
+      "rating": "PG"
+    },
+    "next": null
+  },
+  {
+    "id": 5,
+    "source_id": 1,
+    "name": "Weather Now",
+    "number": "105",
+    "group": "News",
+    "logo": null,
+    "favorite": false,
+    "has_guide": false,
+    "now": null,
+    "next": null
+  }
+]

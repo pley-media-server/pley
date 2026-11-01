@@ -1,0 +1,13 @@
+[package]
+name = "pley-webos"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: the TV itself (SDL2, luna-service2, facts, capability report, media pipeline)"
+license = "LicenseRef-Restricted"
+publish = false
+
+[dependencies]
+pley-base = { path = "../base" }
+pley-core = { path = "../core" }
+pley-platform = { path = "../platform" }

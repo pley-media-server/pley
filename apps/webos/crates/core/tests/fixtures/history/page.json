@@ -1,0 +1,45 @@
+{
+  "total": 57,
+  "entries": [
+    {
+      "id": 1003,
+      "viewed_at": 1761250000,
+      "device": "pley for Android on Pixel 9",
+      "user": { "id": 2, "name": "Alex", "avatar_url": "/api/users/2/avatar?v=1761100000", "avatar_color": "#38bdf8" },
+      "item": {
+        "id": 203, "library_id": 2, "kind": "episode", "title": "Good News About Hell", "sort_title": "Good News About Hell", "year": 2022, "index": 1,
+        "parent_id": 202, "parent_title": "Season 1", "parent_index": 1, "grandparent_id": 201, "grandparent_title": "Severance",
+        "duration_ms": 3427000, "rating": 8.0, "added_at": 1761200000,
+        "poster_url": "/api/items/202/images/poster?v=1761200400", "backdrop_url": "/api/items/201/images/backdrop?v=1761200400",
+        "thumb_url": "/api/items/203/images/thumb?v=1761200400",
+        "user_state": { "position_ms": 0, "watched": true, "play_count": 1, "last_played_at": 1761250000 },
+        "summary": "Mark is promoted to lead his team of severed employees at Lumon, and a new hire has trouble settling in.",
+        "release_date": "2022-02-18"
+      }
+    },
+    {
+      "id": 1002,
+      "viewed_at": 1760000000,
+      "user": { "id": 2, "name": "Alex", "avatar_url": "/api/users/2/avatar?v=1761100000", "avatar_color": "#38bdf8" },
+      "item": {
+        "id": 105, "library_id": 1, "kind": "movie", "title": "Dune", "sort_title": "Dune", "year": 2021, "duration_ms": 9339000,
+        "rating": 7.8, "added_at": 1761300000, "poster_url": "/api/items/105/images/poster?v=1761300500",
+        "backdrop_url": "/api/items/105/images/backdrop?v=1761300500", "thumb_url": "/api/items/105/images/thumb?v=1761300500",
+        "user_state": { "position_ms": 0, "watched": true, "play_count": 2, "last_played_at": 1760000000, "rating": 8.0 },
+        "release_date": "2021-10-22"
+      }
+    },
+    {
+      "id": 1001,
+      "viewed_at": 1759000000,
+      "device": "Chrome on Windows",
+      "user": { "id": 2, "name": "Alex" },
+      "item": {
+        "id": 303, "library_id": 3, "kind": "track", "title": "The Whole Universe Wants to Be Touched", "sort_title": "Whole Universe Wants to Be Touched",
+        "year": 2018, "index": 2, "parent_id": 302, "parent_title": "All Melody", "parent_index": 1, "grandparent_id": 301,
+        "grandparent_title": "Nils Frahm", "duration_ms": 245000, "added_at": 1761100000, "poster_url": "/api/items/302/images/poster?v=1761100300",
+        "user_state": { "position_ms": 0, "watched": false, "play_count": 7, "last_played_at": 1761380000 }
+      }
+    }
+  ]
+}
