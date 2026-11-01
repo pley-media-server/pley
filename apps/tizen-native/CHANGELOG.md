@@ -186,3 +186,5 @@ It has no releases yet: it is built and installed by hand
   under a highlight that stays still, as rows do for Left and Right.
 - The native app's seek preview keeps its picture inside its rounded
   edge, where the picture's square corners showed past it.
+- Posters in the native app no longer stay empty, until the app starts
+  again, after a library's sort or filter changes while they load.

@@ -64,9 +64,15 @@ sealed class Images
                 var url = Artwork.Sized(candidate, px);
                 if (missing.ContainsKey(url)) continue;
                 var asked = Profile.Start();
-                file = await loading.GetOrAdd(url, u => Fetch(u, cancel)).ConfigureAwait(false);
+                try
+                {
+                    file = await Shared(url, cancel).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
                 if (file != null) Profile.Picture(asked);
-                loading.TryRemove(url, out _);
                 if (file != null) break;
             }
             if (cancel.IsCancellationRequested) return;
@@ -75,6 +81,34 @@ sealed class Images
         }
     }
 
+    /// <summary>
+    /// <paramref name="url"/>'s download, shared with whoever asked for it first. It goes from the
+    /// shared ones as it ends, however it ends: one cancelled and left there answered everyone who
+    /// asked after with nothing, until the app started again. When the one who asked first gave up,
+    /// another who still wants it asks again.
+    /// </summary>
+    async Task<string?> Shared(string url, CancellationToken cancel)
+    {
+        while (true)
+        {
+            var task = loading.GetOrAdd(url, u => Fetch(u, cancel));
+            try
+            {
+                return await task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!cancel.IsCancellationRequested)
+            {
+                // Another's download, given up: this one asks again.
+            }
+            finally
+            {
+                // Only this download: one asked again since may stand in its place.
+                ((ICollection<KeyValuePair<string, Task<string?>>>)loading).Remove(new KeyValuePair<string, Task<string?>>(url, task));
+            }
+        }
+    }
+
+    /// <summary>The file for <paramref name="url"/>, null when it can't be had; cancelled only when <paramref name="cancel"/> is.</summary>
     async Task<string?> Fetch(string url, CancellationToken cancel)
     {
         var file = Path.Combine(dir, Hash(url) + ".img");
@@ -115,6 +149,11 @@ sealed class Images
         {
             missing[url] = true;
             return null;
+        }
+        catch (OperationCanceledException) when (cancel.IsCancellationRequested)
+        {
+            // Given up by the one who asked, not timed out: others who want it ask again.
+            throw;
         }
         catch (Exception)
         {
