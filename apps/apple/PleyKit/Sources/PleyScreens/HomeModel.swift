@@ -16,14 +16,22 @@ public final class HomeModel: ObservableObject {
     @Published public private(set) var state: State = .loading
 
     public let app: AppModel
+    /// The `homeVersion` the rows shown are for.
+    private var version: Int?
 
     public init(app: AppModel) {
         self.app = app
     }
 
-    /// Loads the rows again; the rows shown stay until the new ones come.
+    /// Loads the rows again. The rows shown stay until the new ones come,
+    /// unless they belong to another sign-in or profile: those go at once,
+    /// so a failed load never leaves one profile's rows on another's Home.
     public func reload() async {
         guard let api = await app.session.api else { return }
+        if version != app.homeVersion {
+            version = app.homeVersion
+            state = .loading
+        }
         if case .failed = state { state = .loading }
         do {
             state = .loaded(try await HomeRepository(api: api).load())

@@ -382,6 +382,48 @@ private func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
 
 @MainActor
 @Suite struct HomeModelTests {
+    @Test func aFailedRefreshKeepsTheRowsShown() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let store = MemoryTokenStore()
+        try await keepSignIn(server, in: store)
+        let app = app(store, servers: [SavedServer(origin: server.origin, name: "Living Room", lastUsed: Date())])
+        await app.start()
+        let home = HomeModel(app: app)
+        await home.reload()
+        server.stop()
+        await home.reload()
+        guard case .loaded(let hubs) = home.state, !hubs.isEmpty else {
+            Issue.record("the rows went: \(home.state)")
+            return
+        }
+    }
+
+    @Test func aFailedReloadNeverLeavesTheLastProfilesRows() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let store = MemoryTokenStore()
+        try await keepSignIn(server, in: store)
+        let app = app(store, servers: [SavedServer(origin: server.origin, name: "Living Room", lastUsed: Date())])
+        await app.start()
+        let home = HomeModel(app: app)
+        await home.reload()
+        guard case .loaded = home.state else {
+            Issue.record("not loaded: \(home.state)")
+            return
+        }
+        let profiles = ProfilesModel(app: app)
+        await profiles.load()
+        await profiles.choose(try #require(profiles.profiles.first { $0.name == "Kids" }))
+        #expect(app.user?.name == "Kids")
+        server.stop()
+        await home.reload()
+        guard case .failed = home.state else {
+            Issue.record("the last profile's rows stayed: \(home.state)")
+            return
+        }
+    }
+
     @Test func homeShowsTheRowsWithPosters() async throws {
         let server = try await fixture()
         defer { server.stop() }
