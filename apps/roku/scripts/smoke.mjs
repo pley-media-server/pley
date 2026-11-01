@@ -844,7 +844,8 @@ async function walk() {
   await press("down", 4); // past the keyboard's four rows to Create
   await press("select");
   await waitFor(/^POST \/api\/playlists$/, since, "a new playlist");
-  await waitFor(/^GET \/api\/playlists\/2$/, since, "the new playlist opened");
+  // Numbered after the smart playlist the library's Save as… made.
+  await waitFor(/^GET \/api\/playlists\/3$/, since, "the new playlist opened");
   shoot("new-playlist-made");
   since = mark();
   await press("back"); // the playlists, the new one among them
