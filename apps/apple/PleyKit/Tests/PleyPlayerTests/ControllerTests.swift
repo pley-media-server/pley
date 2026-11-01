@@ -239,4 +239,62 @@ struct ControllerTests {
         #expect(!canRetry)
         #expect(rig.engine.loads.isEmpty)
     }
+
+    @Test func thePlayAndPauseOfTheSystemsControlsAreFollowed() async throws {
+        let rig = try await rig()
+        defer { rig.cleanUp() }
+        _ = try await playing(rig)
+        rig.engine.playing(at: 5_000)
+        rig.engine.emit(.pauseRequested)
+        try await until("the pause") { rig.controller.state.phase == .paused }
+        #expect(await rig.reports().last?.state == .paused)
+        // Standing still while paused there is no stall: no new session, however long.
+        rig.engine.current.playing = false
+        for _ in 0..<40 {
+            rig.clock.advance(ms: 500)
+            rig.controller.tick()
+        }
+        #expect(await rig.requests().count == 1)
+        #expect(rig.controller.state.phase == .paused)
+
+        rig.engine.emit(.playRequested)
+        try await until("playing again") { rig.engine.calls.contains("play") }
+        rig.engine.playing(at: 6_000)
+        rig.controller.tick()
+        #expect(rig.controller.state.phase == .playing)
+        await rig.controller.close()
+    }
+
+    @Test func aJumpOfTheScrubberIsReportedASecondLater() async throws {
+        let rig = try await rig()
+        defer { rig.cleanUp() }
+        _ = try await playing(rig)
+        let before = await rig.reports().count
+        rig.engine.playing(at: 300_000)
+        rig.engine.emit(.jumped)
+        try await Task.sleep(for: .milliseconds(50))
+        rig.clock.advance(ms: 1_000)
+        rig.controller.tick()
+        let reports = await rig.reports()
+        #expect(reports.count == before + 1)
+        #expect(reports.last?.positionMs == 300_000)
+        #expect(reports.last?.state == .playing)
+        await rig.controller.close()
+    }
+
+    @Test func theScrubberMovedAfterTheEndStartsANewSessionThere() async throws {
+        let rig = try await rig()
+        defer { rig.cleanUp() }
+        let first = try await playing(rig)
+        rig.engine.emit(.ended)
+        try await until("the end") { rig.controller.state.phase == .ended }
+        await rig.reporter.flush()
+        #expect(!rig.server.openSessions.contains(first.id))
+        rig.engine.current.positionMs = 120_000
+        rig.engine.emit(.jumped)
+        try await until("a new session") { rig.engine.loads.count == 2 }
+        #expect(rig.engine.loads.last?.startMs == 120_000)
+        #expect(await rig.requests().last?.startMs == 120_000)
+        await rig.controller.close()
+    }
 }

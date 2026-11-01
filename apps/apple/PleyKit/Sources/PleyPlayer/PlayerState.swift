@@ -26,6 +26,8 @@ public struct PlayerState: Equatable, Sendable {
     public var subtitle: String?
     /// How the session plays; `nil` before the server answered.
     public var method: PlaybackMethod?
+    /// The audio is converted while the video plays as it is or repackaged.
+    public var audioConverted = false
     /// Why it isn't played as it is (the server's reasons).
     public var reasons: [String] = []
     /// What the screen gets of HDR video ("HDR10", "SDR (tone-mapped)").
@@ -34,8 +36,48 @@ public struct PlayerState: Equatable, Sendable {
     public var notice: String?
     /// The server stopped the session (an administrator, or the profile elsewhere).
     public var stoppedByServer = false
+    /// The Quality menu, the one playing selected.
+    public var qualities: [MenuChoice] = [MenuChoice(id: MenuChoice.original, label: "Original", selected: true)]
 
     public init() {}
+
+    /// "Direct play", "Direct stream", "Transcoding", "Direct stream · Audio
+    /// transcoding", as the other apps say it; `nil` before the server answered.
+    public var methodLabel: String? {
+        guard let method else { return nil }
+        let base = switch method {
+        case .direct: "Direct play"
+        case .remux: "Direct stream"
+        case .transcode: "Transcoding"
+        default: method.rawValue.capitalized
+        }
+        return audioConverted && method != .transcode ? "\(base) · Audio transcoding" : base
+    }
+
+    /// Whether the player is past preparing and hasn't failed.
+    public var isFailed: Bool {
+        if case .failed = phase { return true }
+        return false
+    }
+}
+
+/// A choice in one of the player's menus.
+public struct MenuChoice: Equatable, Hashable, Sendable, Identifiable {
+    /// The Quality menu's Original.
+    public static let original = "original"
+
+    public var id: String
+    public var label: String
+    /// A second line ("The file as it is").
+    public var detail: String?
+    public var selected: Bool
+
+    public init(id: String, label: String, detail: String? = nil, selected: Bool = false) {
+        self.id = id
+        self.label = label
+        self.detail = detail
+        self.selected = selected
+    }
 }
 
 /// The player's words for people.

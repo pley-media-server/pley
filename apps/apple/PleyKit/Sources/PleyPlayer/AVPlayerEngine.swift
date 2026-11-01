@@ -14,6 +14,9 @@ import PleyCommon
 ///   show (`Recovery.onNoVideo`).
 /// - The access log gives the bandwidth and the dropped frames, the error
 ///   log the HTTP status of a failed playlist or segment.
+/// - The system's controls act on the player itself: a play or pause they
+///   make, and a jump in time, are told to the controller as events.
+/// - Subtitles are the app's to draw: the asset's own are never selected.
 @MainActor
 public final class AVPlayerEngine: PlayerEngine {
     public let player: AVPlayer
@@ -24,6 +27,7 @@ public final class AVPlayerEngine: PlayerEngine {
     private var output: AVPlayerItemVideoOutput?
     private var status: NSKeyValueObservation?
     private var observers: [any NSObjectProtocol] = []
+    private var playerObservers: [any NSObjectProtocol] = []
     private var startMs = 0
     private var wantsPlay = false
     private var ready = false
@@ -36,7 +40,14 @@ public final class AVPlayerEngine: PlayerEngine {
     public init() {
         player = AVPlayer()
         player.automaticallyWaitsToMinimizeStalling = true
+        player.appliesMediaSelectionCriteriaAutomatically = false
         (events, continuation) = AsyncStream.makeStream(of: EngineEvent.self, bufferingPolicy: .bufferingNewest(32))
+        playerObservers = [
+            NotificationCenter.default.addObserver(forName: AVPlayer.rateDidChangeNotification, object: player,
+                                                   queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.rateChanged() }
+            },
+        ]
     }
 
     public func load(url: URL, startMs: Int, play: Bool) {
@@ -70,6 +81,10 @@ public final class AVPlayerEngine: PlayerEngine {
             center.addObserver(forName: AVPlayerItem.newErrorLogEntryNotification, object: item, queue: .main) {
                 [weak self] _ in
                 Task { @MainActor in self?.readErrorLog() }
+            },
+            center.addObserver(forName: AVPlayerItem.timeJumpedNotification, object: item, queue: .main) {
+                [weak self] _ in
+                Task { @MainActor in self?.jumped() }
             },
         ]
         player.replaceCurrentItem(with: item)
@@ -122,6 +137,8 @@ public final class AVPlayerEngine: PlayerEngine {
         guard !closed else { return }
         closed = true
         player.pause()
+        playerObservers.forEach(NotificationCenter.default.removeObserver)
+        playerObservers = []
         detach()
         player.replaceCurrentItem(with: nil)
         continuation.finish()
@@ -162,6 +179,32 @@ public final class AVPlayerEngine: PlayerEngine {
         ready = true
         if wantsPlay { player.play() }
         send(.ready)
+        Task { [weak self] in await self?.deselectSubtitles(of: item) }
+    }
+
+    /// The asset's own subtitles stay off: the app draws the server's.
+    private func deselectSubtitles(of item: AVPlayerItem) async {
+        guard let group = try? await item.asset.loadMediaSelectionGroup(for: .legible), self.item === item else {
+            return
+        }
+        item.select(nil, in: group)
+    }
+
+    /// The rate changed. One the engine didn't ask for came from the
+    /// system's controls (or an interruption): the controller hears of it.
+    /// Stopping at the end and a failure don't count.
+    private func rateChanged() {
+        guard !closed, ready, let item, item.status == .readyToPlay, item.error == nil else { return }
+        let playing = player.rate != 0
+        if playing == wantsPlay { return }
+        if !playing, let end = Self.ms(item.duration), let at = Self.ms(item.currentTime()), at >= end - 500 { return }
+        wantsPlay = playing
+        send(playing ? .playRequested : .pauseRequested)
+    }
+
+    private func jumped() {
+        guard !closed, ready else { return }
+        send(.jumped)
     }
 
     private func began(_ seeking: ObjectIdentifier) {

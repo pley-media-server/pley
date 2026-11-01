@@ -171,6 +171,13 @@ public final class PlaybackController: ObservableObject {
         seek(toMs: livePosition() + delta)
     }
 
+    /// A choice of the Quality menu (`state.qualities`). Original, the one
+    /// there is for now, is what plays.
+    public func selectQuality(_ id: String) {
+        guard state.qualities.contains(where: { $0.id == id }) else { return }
+        for i in state.qualities.indices { state.qualities[i].selected = state.qualities[i].id == id }
+    }
+
     /// Try again after an error: every recovery budget again, from where it was.
     public func retry() {
         guard !closed, !stopped else { return }
@@ -336,6 +343,7 @@ public final class PlaybackController: ObservableObject {
         }
         let info = started.info
         state.method = info.method
+        state.audioConverted = info.audioConverted
         state.reasons = info.reasons
         state.videoRange = info.videoRange
         if info.durationMs > 0 { state.durationMs = info.durationMs }
@@ -385,7 +393,15 @@ public final class PlaybackController: ObservableObject {
     // MARK: The engine
 
     private func heard(_ event: EngineEvent) {
-        guard !closed, let session else { return }
+        guard !closed else { return }
+        switch event {
+        // The system's controls act on AVPlayer itself: the controller follows them.
+        case .playRequested: return play()
+        case .pauseRequested: return pause()
+        case .jumped: return jumped()
+        default: break
+        }
+        guard let session else { return }
         switch event {
         case .ready:
             mediaShown = true
@@ -396,7 +412,26 @@ public final class PlaybackController: ObservableObject {
             onEnded()
         case .failed(let error):
             onError(error, in: session)
+        case .playRequested, .pauseRequested, .jumped:
+            break
         }
+    }
+
+    /// The time jumped (the system's scrubber, or a seek): reported a
+    /// second later, as a seek is. A playback that ended, or whose session
+    /// expired, starts a new session where the scrubber left it.
+    private func jumped() {
+        guard mediaShown, !stopped, let engine else { return }
+        let now = env.clock.now()
+        if ended || expired || session == nil {
+            guard sessionTask == nil else { return }
+            restart(at: engine.sample().positionMs)
+            return
+        }
+        schedule.sought(at: now)
+        recovery.onJump()
+        noPictureFrom = nil
+        lastAdvanceAt = now
     }
 
     private func onError(_ error: EngineError, in session: ServerPlaybackSession) {
@@ -556,3 +591,6 @@ public final class PlaybackController: ObservableObject {
         return ".…!?".contains(capital.last!) ? capital : capital + "."
     }
 }
+
+/// One playback, told apart from another by identity (the player screens are presented with it).
+extension PlaybackController: Identifiable {}

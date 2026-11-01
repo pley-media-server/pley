@@ -22,6 +22,12 @@ public enum EngineEvent: Sendable, Equatable {
     /// It played to its end.
     case ended
     case failed(EngineError)
+    /// Someone played or paused with the system's own controls (or the
+    /// system paused it: a call, headphones unplugged).
+    case playRequested
+    case pauseRequested
+    /// The time moved by a jump: a seek, the system's scrubber or skip buttons.
+    case jumped
 }
 
 /// The engine's state at one moment, read every 500 ms.
