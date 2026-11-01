@@ -381,8 +381,8 @@ is attached to every item, and the frames it gives are counted for that
 last rule.
 
 **Leaving the app.** On iPhone, iPad and Apple TV, going to the background
-pauses and reports at once. Back after more than a minute, the session is
-checked, and one the server forgot starts again where it was, paused.
+pauses and reports at once. Back after more than a minute (time the
+device slept counts), the session is checked, and one the server forgot starts again where it was, paused.
 
 ### Resume, skips, Up Next and chapters
 
@@ -507,7 +507,8 @@ app's numbers (`AutoQuality`):
   reports.
 - When the server can't say, the device's own memory decides: the ceiling
   at the last step down, kept per server for 30 minutes on the time since
-  the device started (`UserDefaults`), so a restart forgets it.
+  the device started, time asleep included (`UserDefaults`), so a restart
+  forgets it.
 - It watches the waits, the seconds of video loaded ahead and AVPlayer's
   own measure of the network (`observedBitrate` in the access log), every
   half second, and the dropped frames (the access log's count against the

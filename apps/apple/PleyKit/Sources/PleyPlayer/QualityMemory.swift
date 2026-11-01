@@ -24,9 +24,10 @@ public final class MemoryCeiling: CeilingMemory, @unchecked Sendable {
 }
 
 /// The ceiling of one server (its origin), in `UserDefaults`. Its time is
-/// on `SystemPlayerClock`'s clock, the time since the device started: a
-/// ceiling from before a restart reads as from the future, and Automatic
-/// forgets it, as the Android app's elapsedRealtime does.
+/// on `SystemPlayerClock`'s clock, the time since the device started,
+/// sleep included: a ceiling outlives 30 minutes asleep no more than 30
+/// awake, and one from before a restart reads as from the future, and
+/// Automatic forgets it, as the Android app's elapsedRealtime does.
 public final class DefaultsCeiling: CeilingMemory, @unchecked Sendable {
     // Unchecked Sendable: UserDefaults is thread-safe.
     private let defaults: UserDefaults
