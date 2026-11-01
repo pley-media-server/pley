@@ -9,6 +9,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- The LG TV app's sign-ins are listed as "Pley for LG TV", with the TV's
+  webOS and model, now that the app names itself.
+
 ## [0.1.3] - 2026-11-02
 
 ### Added

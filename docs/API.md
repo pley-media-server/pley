@@ -1081,9 +1081,10 @@ profiles when the app's profile is in the household, else nothing:
 - The Android app may also sign in with a code, on a TV ([TVs](#tvs)). The
   Kodi, Roku, Samsung and LG apps sign in only that way: with no return
   address, `/oauth/authorize` never sends them a code.
-- The Samsung and LG apps can't set their own User-Agent: the TV's web
-  engine names the TV ("Samsung TV", "LG TV"; for an app's grant its
-  system, "Tizen 7.0", "webOS 23").
+- The Samsung app can't set its own User-Agent: the TV's web engine names
+  the TV ("Samsung TV"; for an app's grant its system, "Tizen 7.0"). The LG
+  app says `pleyLG/<version> (webOS <n>; <model>)`; a TV still on the
+  earlier LG web app is named by its web engine ("LG TV", "webOS 23").
 - The consent page marks them "Pley's own app". No other app may use a
   client ID on their host.
 
@@ -1855,8 +1856,8 @@ the language's default track.
 ### Keyed URLs
 
 Some players can't send headers with their media requests (Samsung's AVPlay
-sets only a cookie and a User-Agent; LG's media pipeline only what the web
-engine gives it), and an app's token goes only in the Authorization header.
+sets only a cookie and a User-Agent; LG's media pipeline takes only an
+address), and an app's token goes only in the Authorization header.
 A play request with `keyed_urls: true` gets a session whose addresses carry
 a key of their own instead. Pley's Samsung, LG and Roku apps ask for keyed
 URLs.
