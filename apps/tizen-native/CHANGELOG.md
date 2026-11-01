@@ -160,3 +160,5 @@ It has no releases yet: it is built and installed by hand
 - In the native app's live player, the controls go once a channel is
   picked from the list they opened, and Back no longer leaves the channel
   while they seem to show.
+- OK on the native app's live player opens the channel list at once;
+  holding OK shows the controls (the list, the favourite), as OK did.

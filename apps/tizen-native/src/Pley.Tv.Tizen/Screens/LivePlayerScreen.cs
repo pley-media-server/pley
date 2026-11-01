@@ -16,8 +16,9 @@ namespace Pley.Tv.Tizen.Screens;
 /// <summary>
 /// The live player (the Android app's TvLivePlayerScreen): the channel full screen on the TV's
 /// own player, under a clear window. With nothing over it, Up and Down and Channel up and down
-/// change channel (Up the next), digits tune a number; OK shows the controls (the channel list,
-/// the favourite) over what's on; Menu or Guide opens the channel list; Info shows what's on for
+/// change channel (Up the next), digits tune a number; OK, Menu or Guide opens the channel list;
+/// OK held shows the controls (the channel list, the favourite) over what's on, where Android's
+/// OK shows them and opens no list; Info shows what's on for
 /// 5 s; Back hides what shows, then leaves. Live TV is watched as it airs: play, pause, rewind,
 /// fast forward, Left and Right do nothing. A channel that doesn't start says why, with Try again
 /// (or Watch here instead, every connection being in use), Other channels and Back to the guide.
@@ -103,6 +104,7 @@ sealed class LivePlayerScreen : Sheet
         shell.Shown += Shown;
         Back = OnBack;
         Gone += Ended;
+        okTimer.Tick += OkHeld;
         tick = new Timer(TickMs);
         tick.Tick += (_, _) =>
         {
@@ -131,6 +133,13 @@ sealed class LivePlayerScreen : Sheet
     bool OnKey(string key, bool down)
     {
         if (gone || shell.Top != this) return false;
+        // OK held showed the controls: the rest of that press is ours, or its release would press
+        // the button the controls focused.
+        if (okHeld && key is "Return" or "KP_Enter")
+        {
+            if (!down) okHeld = false;
+            return true;
+        }
         if (controlsShown) Poke();
         if (RemoteKeys.ChannelUp(key) || RemoteKeys.ChannelDown(key))
         {
@@ -168,12 +177,43 @@ sealed class LivePlayerScreen : Sheet
                 return true;
             case "Return":
             case "KP_Enter":
-                // On the way up, as OK selects elsewhere.
-                if (!down) ShowControls(true);
+                // The channel list on the way up, as OK selects elsewhere; held, the controls
+                // (the favourite, the list), as a long press opens actions elsewhere. Timed from
+                // the press, not counted in the remote's repeats, which the TV may not send.
+                if (down)
+                {
+                    if (okTiming) return true;
+                    okTiming = true;
+                    okTimer.Start();
+                }
+                else if (okTiming)
+                {
+                    okTiming = false;
+                    okTimer.Stop();
+                    OpenList();
+                }
                 return true;
         }
         return false;
     }
+
+    /// <summary>Times OK from its press (<see cref="okTiming"/>): still down when it fires, it was held.</summary>
+    readonly Timer okTimer = new Timer((uint)Input.LongPressMs);
+
+    bool okTiming;
+
+    /// <summary>OK held: the controls, and the rest of the press is ours (<see cref="okHeld"/>).</summary>
+    bool OkHeld(object source, Timer.TickEventArgs e)
+    {
+        okTiming = false;
+        if (gone) return false;
+        okHeld = true;
+        ShowControls(true);
+        return false;
+    }
+
+    /// <summary>OK was held long enough to show the controls, and isn't up yet.</summary>
+    bool okHeld;
 
     bool OnBack()
     {
@@ -747,6 +787,7 @@ sealed class LivePlayerScreen : Sheet
         if (gone) return;
         gone = true;
         tick.Stop();
+        okTimer.Stop();
         spin.Stop();
         foreach (var s in spins) s.Stop();
         keys.Dispose();

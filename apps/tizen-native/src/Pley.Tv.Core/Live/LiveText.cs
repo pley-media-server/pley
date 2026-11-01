@@ -109,7 +109,7 @@ public static class LiveText
     public const string SearchChannels = "Search channels";
     public const string Live = "Live";
     public const string Radio = "Sound only";
-    public const string Hint = "▲▼ change channel · OK for more";
+    public const string Hint = "▲▼ change channel · OK for channels · hold OK for more";
     public const string PlayerRetry = "Try again";
     public const string OtherChannels = "Other channels";
     public const string BackToGuide = "Back to the guide";

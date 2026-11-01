@@ -13,7 +13,7 @@ namespace Pley.Tv.Tizen.Kit;
 sealed class Input
 {
     /// <summary>How long OK is held before it counts as a long press (Android's long-press timeout).</summary>
-    const long LongPressMs = 500;
+    public const long LongPressMs = 500;
 
     readonly Func<FocusTree?> tree;
     readonly KeyRepeatGate gate;

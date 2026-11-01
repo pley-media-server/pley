@@ -38,6 +38,11 @@ and LG web apps (`packages/tv`) · **Roku** · **Kodi**.
 
 ## Live TV
 
+- [ ] **OK opens the channel list; OK held shows the controls.** On the live player with
+  nothing over the channel, OK (on its release) opens the channel list at once; held 0.5 s, it
+  shows the controls (Channels, Favourite), and its release presses nothing. Timed from the
+  press, as the TV sends no repeats of a held OK. Up/Down still change channel. Native "OK opens
+  the live player's channel list". To: AndTV, TV, Roku, Kodi.
 - [ ] **stream.ts for sound the device decodes.** The plan's `direct` asks for video and audio
   as they are; the native app also plays `stream.ts` when the audio is converted only for players
   that can't decode it (AC3, E-AC3, MP2 on every Samsung TV), where HLS took ~0.8 s longer and

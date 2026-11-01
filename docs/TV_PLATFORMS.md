@@ -395,7 +395,8 @@ page's address and QR code, signing out); Diagnostics (the TV's facts and
 what it tells the server it plays); Live TV's page (the categories and
 their search, the guide and the channels' tiles, a programme's details
 and favourites) and its live player (changing channel, number keys, what's
-on, the channel list, and why a channel doesn't play); music's artist and
+on, the channel list on OK and the controls on OK held, and why a channel
+doesn't play); music's artist and
 album pages (Play, Shuffle, the albums, the tracks by disc) and Now Playing
 (the scrubber, the controls, the sleep timer and the queue), with the
 music playing on behind the other pages, driven by the remote's media keys
