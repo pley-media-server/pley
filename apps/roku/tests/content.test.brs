@@ -66,11 +66,32 @@ sub test_content_home_rows_of_every_kind()
     tkEqual(rows[1].title, "Recently Added in Movies")
     tkFalse(rows[1].wide)
     tkFalse(rows[1].square)
+    tkEqual(rows[0].tiles.Count(), 2, "Continue Watching has no See all")
+    tkEqual(rows[1].tiles.Count(), 2, "the movie, then See all")
+    tkEqual(rows[1].tiles[1], contentSeeAllTile(1, "added", false, false))
     tkTrue(rows[2].square, "a music library's albums")
     tkTrue(rows[2].tiles[0].square)
+    tkTrue(rows[2].tiles[1].square, "See all in the row's shape")
     tkEqual(rows[2].tiles[0].image, "http://nas:7539/api/items/5/images/poster?w=260", "an album's cover, asked for square")
     tkEqual(contentRowSize(false, true), { size: [260, 340], height: 400 })
     tkEqual(contentLibraries(libraries), [{ id: 1, name: "Movies", kind: "movies", itemCount: 245 }, { id: 2, name: "TV Shows", kind: "shows", itemCount: 31 }, { id: 3, name: "Music", kind: "music", itemCount: 120 }])
+end sub
+
+sub test_content_see_all_by_row()
+    tkEqual(contentSeeAllSort("recently_added:3"), "added")
+    tkEqual(contentSeeAllSort("recently_added"), "added", "a library's own rows")
+    tkEqual(contentSeeAllSort("recently_released:1"), "release")
+    tkEqual(contentSeeAllSort("top_rated:1"), "rating")
+    tkEqual(contentSeeAllSort("continue_watching:1"), "")
+    tkEqual(contentSeeAllSort("my_list"), "")
+    hubs = [
+        { key: "top_rated:1", title: "Top Rated", library_id: 1, items: [contentTestMovie()] },
+        { key: "recently_added", title: "Recently Added", library_id: invalid, items: [contentTestMovie()] }
+    ]
+    rows = contentHomeRows(hubs, contentTestServer())
+    tkEqual(rows[0].tiles[1].sort, "rating")
+    tkEqual(rows[0].tiles[1].libraryId, 1)
+    tkEqual(rows[1].tiles.Count(), 1, "without its library: no See all")
 end sub
 
 sub test_content_seasons_and_episodes()

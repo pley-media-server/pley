@@ -56,7 +56,8 @@ end function
 ' collection, a person and an artist, their page; a playlist, its
 ' entries; a track, its album; an extra plays at once. A
 ' TMDB title opens its page (Request more seasons, with its season
-' picker); See all, its list, or Discover's search for its words.
+' picker); See all, its list, or Discover's search for its words (a
+' library row's See all is its screen's to open: invalid here).
 function navForTile(tile as object) as dynamic
     kind = httpString(tile.kind)
     if kind = "discover" or kind = "askMore"
@@ -67,6 +68,7 @@ function navForTile(tile as object) as dynamic
         return { to: "requestTitle", params: { kind: tmdbKind, tmdbId: tmdbId, title: httpString(tile.title) } }
     end if
     if kind = "more"
+        if httpString(tile.sort) <> "" then return invalid
         query = httpString(tile.query)
         list = httpString(tile.list)
         if query <> "" then return { to: "search", params: { discover: true, query: query } }

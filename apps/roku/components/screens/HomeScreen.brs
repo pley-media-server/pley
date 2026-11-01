@@ -326,10 +326,20 @@ sub refocus(focus as dynamic, rows as object)
     end for
 end sub
 
+' A title opens; See all, its library on the Library tab in the row's
+' order.
 sub onTile(event as object)
     position = event.getData()
     row = m.rows.content.getChild(position[0])
-    if row <> invalid then uiOpenTile(row.getChild(position[1]))
+    if row = invalid then return
+    tile = row.getChild(position[1])
+    if tile <> invalid and tile.kind = "more" and tile.hasField("sort")
+        for each library in m.libraries
+            if library.id = tile.libraryId then uiNavigate({ to: "library", params: { library: library, sort: tile.sort } })
+        end for
+        return
+    end if
+    uiOpenTile(tile)
 end sub
 
 sub onMenu(event as object)

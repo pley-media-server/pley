@@ -24,6 +24,8 @@ sub init()
     m.library = invalid
     m.view = libDefaultView()
     m.viewKey = ""
+    ' Whether the view is a row's See all's, which isn't kept.
+    m.seeAll = false
     m.tabList = []
     ' The Library tab's titles: their places so far (empty frames where a
     ' page hasn't come), how many in all, the pages asked for ({ "3": true
@@ -83,6 +85,12 @@ sub onActive()
         session = m.global.session
         m.viewKey = libViewKey(session.server, session.profileId, m.library.id)
         m.view = libLoadView(viewSection(), m.viewKey, m.library.kind)
+        ' A row's See all (params.sort): the Library tab in the row's order.
+        sort = httpString(m.top.params.sort)
+        if sort <> ""
+            m.view = libSeeAllView(sort, m.library.kind)
+            m.seeAll = true
+        end if
         m.tabList = libTabs(m.library.kind)
         ' A music library's artists are square.
         if m.library.kind = "music"
@@ -122,6 +130,17 @@ function viewSection() as object
     return CreateObject("roRegistrySection", "libraryViews")
 end function
 
+' Keeps the view on the Roku. In a See all's order only the tab is kept:
+' the sort and filters kept before stay until the person changes them.
+sub keepView()
+    kept = m.view
+    if m.seeAll
+        kept = libLoadView(viewSection(), m.viewKey, m.library.kind)
+        kept.tab = m.view.tab
+    end if
+    libSaveView(viewSection(), m.viewKey, kept)
+end sub
+
 sub onTitleChanged(change as object)
     uiPatchTiles(m.content, change)
     uiPatchTiles(m.recommended, change)
@@ -137,7 +156,7 @@ end sub
 ' Shows tab, loading it the first time; the Roku keeps it for next time.
 sub showTab(wanted as string)
     m.view.tab = wanted
-    libSaveView(viewSection(), m.viewKey, m.view)
+    keepView()
     for i = 0 to m.tabList.Count() - 1
         if m.tabList[i] = wanted
             m.tabs.current = i
@@ -366,29 +385,46 @@ sub onSelected(event as object)
     uiOpenTile(m.grid.content.getChild(event.getData()))
 end sub
 
+' A title opens; See all shows the Library tab in its row's order, which
+' isn't kept, the focus in the titles once they come.
 sub onRowTile(event as object)
     position = event.getData()
     row = m.rows.content.getChild(position[0])
-    if row <> invalid then uiOpenTile(row.getChild(position[1]))
+    if row = invalid then return
+    tile = row.getChild(position[1])
+    if tile <> invalid and tile.kind = "more" and tile.hasField("sort")
+        m.view = libSeeAllView(tile.sort, m.library.kind)
+        m.seeAll = true
+        m.focusContent = true
+        relist()
+        showTab("library")
+        return
+    end if
+    uiOpenTile(tile)
 end sub
 
 ' The sort and the filters as chips, at the right of the tabs.
 sub showViewChips()
-    sortLabel = libSortLabel(m.view.sort, m.view.order)
+    ' As wide as their words, the filters' at most 420 pixels, so that a
+    ' long sort ("Date added, recently added first") clears the tabs.
     filterLabel = libFilterLabel(m.view)
-    sortWidth = 120 + Len(sortLabel) * 15
-    filterWidth = 120 + Len(filterLabel) * 15
-    if filterWidth > 420 then filterWidth = 420
-    m.viewChips.chips = [{ label: sortLabel, width: sortWidth }, { label: filterLabel, width: filterWidth }]
+    filterWidth = 0
+    if Len(filterLabel) > 20 then filterWidth = 420
+    m.viewChips.chips = [{ label: libSortLabel(m.view.sort, m.view.order), width: 0 }, { label: filterLabel, width: filterWidth }]
     m.viewChips.current = -1
     if libFiltered(m.view) then m.viewChips.current = 1
-    m.viewChips.translation = [1824 - sortWidth - 16 - filterWidth, 132]
+    m.viewChips.translation = [1824 - m.viewChips.rowWidth, 132]
 end sub
 
-' A new sort or filters: the Roku keeps them, and the titles come again,
-' with their A to Z.
+' A new sort or filters: the Roku keeps them, and the titles come again.
 sub applyView()
-    libSaveView(viewSection(), m.viewKey, m.view)
+    m.seeAll = false
+    keepView()
+    relist()
+end sub
+
+' The Library tab's titles of the view, from the top, with their A to Z.
+sub relist()
     showViewChips()
     m.listing = m.listing + 1
     m.content = CreateObject("roSGNode", "ContentNode")

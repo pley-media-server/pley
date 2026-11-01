@@ -94,6 +94,11 @@ left on, kept on the Roku for each server, profile and library.
 - **Library** is a grid of posters, 70 at a time as the focus comes near
   the next ones; places a jump passes over show empty frames until their
   titles come.
+- **See all** ends the rows of a library's newest, newly released and top
+  rated titles, on Home and on a library's Recommended tab. It shows the
+  library's Library tab in the row's order (date added, release date or
+  rating, newest or best first), nothing filtered, for that visit: the
+  sort and filters kept stay as they were until changed there.
 - **A to Z:** sorted by title with more than 30 titles, "#" and A to Z
   stand in a column right of the grid, the letter of the title in focus
   marked and the letters no title starts with dimmed. Right from the

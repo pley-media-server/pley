@@ -58,6 +58,9 @@ describes how they are made.
   title, however far down.
 - Save as… in a library's Filter panel saves the filters and the order as
   a smart playlist, named on the keyboard, which keeps up with the library.
+- See all ends Home's Recently Added rows, and a library's Recently Added,
+  Recently Released and Top Rated rows: the library's titles in the row's
+  order.
 
 ### Fixed
 

@@ -148,21 +148,42 @@ function contentLibraries(libraries as dynamic) as object
     return out
 end function
 
-' Home's rows from GET /api/hubs/home: [{ key, title, wide, square,
-' tiles }]. Titles of kinds this version doesn't show are left out, and
-' rows left empty with them.
+' Home's rows from GET /api/hubs/home (a library's Recommended rows too):
+' [{ key, title, wide, square, tiles }]. Titles of kinds this version
+' doesn't show are left out, and rows left empty with them. A library's
+' newest, newly released and top rated end with See all.
 function contentHomeRows(hubs as dynamic, server as string) as object
     rows = []
     for each hub in httpArray(hubs)
         key = httpString(hub.key)
         wide = key = "continue_watching"
+        square = contentRowSquare(hub)
         items = []
         for each item in httpArray(hub.items)
             if GetInterface(item, "ifAssociativeArray") <> invalid and contentShown(httpString(item.kind)) then items.Push(contentTile(item, server, wide))
         end for
-        if items.Count() > 0 then rows.Push({ key: key, title: httpSentence(hub.title), wide: wide, square: contentRowSquare(hub), tiles: items })
+        sort = contentSeeAllSort(key)
+        libraryId = httpNumber(hub.library_id, 0)
+        if items.Count() > 0 and sort <> "" and libraryId > 0 then items.Push(contentSeeAllTile(libraryId, sort, wide, square))
+        if items.Count() > 0 then rows.Push({ key: key, title: httpSentence(hub.title), wide: wide, square: square, tiles: items })
     end for
     return rows
+end function
+
+' The Library tab's sort a row's See all shows its library in, as the row
+' lists it (newest or best first, the web's and Android's): "" for rows
+' without one.
+function contentSeeAllSort(key as string) as string
+    if Left(key, 14) = "recently_added" then return "added"
+    if Left(key, 17) = "recently_released" then return "release"
+    if Left(key, 9) = "top_rated" then return "rating"
+    return ""
+end function
+
+' See all at a row's end, in the row's shape: its library's Library tab in
+' sort's order.
+function contentSeeAllTile(libraryId as dynamic, sort as string, wide as boolean, square as boolean) as object
+    return { title: "See all", subtitle: "", image: "", wide: wide, square: square, progress: 0.0, watched: false, itemId: 0, kind: "more", list: "", query: "", libraryId: libraryId, sort: sort }
 end function
 
 ' Whether a hub's row is of square tiles: a music library's, by its first

@@ -347,6 +347,8 @@ async function playedBy(what) {
 }
 // The A to Z showed with W in focus, and the grid went to a W title.
 const library = { letters: false, jumped: false };
+// From when Home's See all was left.
+const seeAll = { after: -1 };
 
 async function walk() {
   // A cold start of brs-node can take a while.
@@ -447,6 +449,18 @@ async function walk() {
   shoot("home-options");
   await press("select");
   await waitFor(/^POST \/api\/items\/103\/watched$/, since, "a title marked watched");
+  // See all at the end of Recently Added in Music: the library's Library
+  // tab, newest added first, for this visit only; Back to Home.
+  await settle();
+  since = mark();
+  await press("down", 4); // past Continue Watching, My List, Movies and TV Shows
+  await press("right"); // See all, after the album
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/3\/items\?.*sort=added/, since, "Recently Added's See all");
+  shoot("see-all");
+  await press("back");
+  await settle();
+  seeAll.after = mark();
   // Live TV: the categories and the guide of every channel (a page, its
   // programmes for those channels), OK on what's on now watches the
   // channel, Up the next one (the server ends the first by the
@@ -536,7 +550,16 @@ async function walk() {
   await press("select");
   await waitFor(/^GET \/api\/libraries\/2\/hubs$/, since, "a library's recommendations");
   shoot("library-recommended");
-  await press("right", 2); // Collections
+  // See all after Recently Added's one show: the Library tab, newest added
+  // first.
+  since = mark();
+  await press("down"); // the rows
+  await press("right"); // See all
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/2\/items\?.*sort=added/, since, "a library row's See all");
+  shoot("library-see-all");
+  await press("up"); // the tabs, on Library
+  await press("right"); // Collections
   await press("select");
   await waitFor(/^GET \/api\/libraries\/2\/collections$/, since, "a library's collections");
   shoot("library-collections");
@@ -563,7 +586,7 @@ async function walk() {
   await press("right", 2); // past Collections to the sort
   await press("select");
   await sleep(500);
-  await press("down"); // Year
+  await press("up"); // Year, above Date added (See all's order)
   await press("select");
   await waitFor(/^GET \/api\/libraries\/2\/items\?.*sort=year/, since, "the library sorted by year");
   shoot("library-sorted");
@@ -1095,6 +1118,12 @@ const checks = [
   ["came back to Home asking again only for rows a minute old", home.kept],
   ["loaded a season's episodes", asked(/^GET \/api\/items\/100\/children$/)],
   ["showed a library's Recommended and Collections tabs", asked(/^GET \/api\/libraries\/2\/hubs$/) && asked(/^GET \/api\/libraries\/2\/collections$/)],
+  ["opened a library from Home's See all, newest added first", asked(/^GET \/api\/libraries\/3\/items\?.*order=desc.*sort=added/)],
+  [
+    "kept nothing of See all's order: the library opened from the menu by title",
+    seeAll.after >= 0 && /sort=title/.test(fixture.requests.slice(seeAll.after).find((r) => /^\/api\/libraries\/3\/items\?/.test(r.path))?.path ?? ""),
+  ],
+  ["showed a library's Library tab from its Recommended row's See all", asked(/^GET \/api\/libraries\/2\/items\?.*order=desc.*sort=added/)],
   ["sorted a library by year, newest first", asked(/^GET \/api\/libraries\/2\/items\?.*order=desc.*sort=year/)],
   ["kept the library's tab and sort on the Roku", registry !== null && /libraryViews.*\\"sort\\":\\"year\\"/.test(JSON.stringify([...registry]))],
   [

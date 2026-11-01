@@ -61,6 +61,14 @@ sub test_library_views_kept_and_checked()
     section.Delete(key)
 end sub
 
+sub test_library_see_all_views()
+    view = libSeeAllView("added", "movies")
+    tkEqual(view, { tab: "library", sort: "added", order: "desc", watched: "", genre: "", year: 0 }, "newest first, nothing filtered")
+    tkEqual(libSeeAllView("rating", "shows").order, "desc")
+    tkEqual(libSeeAllView("release", "music").sort, "title", "a sort music doesn't offer")
+    tkEqual(libSeeAllView("release", "music").order, "asc")
+end sub
+
 sub test_library_filters_as_a_smart_filter()
     view = libDefaultView()
     tkEqual(libSmartFilter(view), "sort=titleSort")

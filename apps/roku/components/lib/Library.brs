@@ -71,6 +71,18 @@ function libDefaultView() as object
     return { tab: "library", sort: "title", order: "asc", watched: "", genre: "", year: 0 }
 end function
 
+' The view a row's See all opens a library on: the Library tab in the
+' row's order (newest or best first), nothing filtered; a sort the library
+' doesn't offer is Title. It isn't kept until the person changes it.
+function libSeeAllView(sort as string, kind as string) as object
+    view = libDefaultView()
+    for each known in libSorts(kind)
+        if known.id = sort then view.sort = sort
+    end for
+    view.order = libDefaultOrder(view.sort)
+    return view
+end function
+
 ' The query of the Library tab's page at offset.
 function libQuery(view as object, offset as integer, limit as integer) as object
     query = { sort: view.sort, order: view.order, offset: offset, limit: limit }
