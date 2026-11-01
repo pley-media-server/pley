@@ -15,9 +15,12 @@ and LG web apps (`packages/tv`) · **Roku** · **Kodi**.
 - [ ] **Chapters as a row of cards (YouTube-style).** While a seek waits for OK (Right or Left
   on the scrubber), Up opens a row of chapter cards (picture: the chapter's own, else the
   trickplay frame a moment in; name; start time), from where the seek was going, and hides Skip
-  Intro. Pauses while open, plays on as it was when it closes; Left/Right move the scrubber's
-  thumb and times to each chapter's start; OK jumps there; Down/Back close. Up with no seek
-  waiting does what it did (Skip Intro while it shows). Native `d80bdfb1` and "seeking that waits for OK"
+  Intro. The cards are the seek preview's size, where it shows, and the video plays on;
+  Left/Right move the scrubber's thumb and times to each chapter's start; OK jumps there;
+  Down/Back close, focus going back where they opened from. The control row's Chapters button
+  opens them too, in place of its side panel. Up with no seek waiting does what it did (Skip
+  Intro while it shows). Native
+  `d80bdfb1`, "seeking that waits for OK" and "chapter cards the size of the seek preview"
   (`Screens/ChapterStrip.cs`). To: AndTV, TV, Roku, Kodi; Web/AndPh could get a similar picker.
 - [ ] **A seek waits for OK; a held key speeds up smoothly (YouTube's TV app).** Left/Right
   move the target with its preview while the video plays on; OK goes there, Back lets it go, and

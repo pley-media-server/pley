@@ -90,8 +90,8 @@ sealed class PlayerScreen : Sheet
     readonly View thumbRing;
     readonly SeekPreviewView preview;
     readonly ChapterStrip chapterStrip;
-    /// <summary>The top of the chapters' cards: over the times, under the seek preview.</summary>
-    static readonly float ChaptersTop = TimesTop - 8 - ChapterStrip.CardHeight - 12;
+    /// <summary>The top of the chapters' row: its cards (6 dp in, for the focus ring) where the seek preview is.</summary>
+    const float ChaptersTop = PreviewTop - 6;
     /// <summary>The start of the chapter focused in the cards: the scrubber and the preview show it.</summary>
     long? chapterAt;
     readonly FocusItem scrubber;
@@ -248,7 +248,7 @@ sealed class PlayerScreen : Sheet
 
         // The control row: Chapters · Sleep timer · Speed at the left; Previous · Back 10 ·
         // Play/Pause · Forward 10 · Next centred; Subtitles · Audio · Quality · Info at the right.
-        chapters = new PlayerButton(PlayerText.Chapters, "list-video", Button, PleyTv.IconSize, () => OpenPanel(PlayerPanelKind.Chapters));
+        chapters = new PlayerButton(PlayerText.Chapters, "list-video", Button, PleyTv.IconSize, OpenChapters);
         sleep = new PlayerButton(PlayerText.Sleep, "moon", Button, PleyTv.IconSize, () => OpenPanel(PlayerPanelKind.Sleep));
         speed = new PlayerButton(PlayerText.Speed, "fast-forward", Button, PleyTv.IconSize, () => OpenPanel(PlayerPanelKind.Speed));
         previous = new PlayerButton(PlayerText.Previous, "skip-back", Button, TransportIcon, () => model.Previous(seeker.Target ?? model.LivePositionMs()));
@@ -1008,20 +1008,19 @@ sealed class PlayerScreen : Sheet
         model.SeekTo(ms);
     }
 
-    /// <summary>Shows or hides the controls; shown, focus goes to <paramref name="focus"/> (where it was, when null and already shown).</summary>
     /// <summary>
-    /// The chapters as cards over the scrubber, on the chapter where the scrubber is. It pauses
-    /// while they show, as YouTube's TV app does, and plays on as it was once they go; as focus goes
-    /// through them, the scrubber's thumb shows the chapter's start.
+    /// The chapters as cards over the scrubber, on the chapter where the scrubber is, in the seek
+    /// preview's place and size: from a waiting seek (Up) or the Chapters button. The video plays
+    /// on while they show; as focus goes through them, the scrubber's thumb shows the chapter's start.
     /// </summary>
     void OpenChapters()
     {
+        if (model.State.Value.Chapters.Count == 0) return;
         // The seek gives way to the chapters, which start where it was going: chosen, one goes there;
-        // closed, it plays on from where it was.
+        // closed, it plays on from where it is.
         var from = seeker.Target ?? model.LivePositionMs();
         seeker.Cancel();
-        playOnAfterChapters = model.WantsToPlay;
-        if (playOnAfterChapters) model.Pause();
+        chaptersFrom = Tree.Current;
         chapterStrip.Focused = start =>
         {
             chapterAt = start;
@@ -1033,23 +1032,22 @@ sealed class PlayerScreen : Sheet
         Poke();
     }
 
-    /// <summary>Whether it played when the chapters opened: it plays on when they go.</summary>
-    bool playOnAfterChapters;
+    /// <summary>Where focus was as the chapters opened: the scrubber, or the Chapters button.</summary>
+    FocusItem? chaptersFrom;
 
-    /// <summary>The cards go; focus back on the scrubber, and it plays on if it played before.</summary>
+    /// <summary>The cards go; focus back where they were opened from.</summary>
     void CloseChapters()
     {
         if (!chapterStrip.Open) return;
         chapterAt = null;
-        if (playOnAfterChapters && !gone) model.Play();
-        playOnAfterChapters = false;
         chapterStrip.Hide();
         if (chapterStrip.Item.Parent != null) Root.Remove(chapterStrip.Item);
-        if (shown) Tree.Focus(scrubber);
+        if (shown && !(chaptersFrom != null && Tree.Focus(chaptersFrom))) Tree.Focus(scrubber);
+        chaptersFrom = null;
         Layout();
     }
 
-    /// <summary>A chapter chosen: it goes to its start, and the cards go (playing on if it played before).</summary>
+    /// <summary>A chapter chosen: it goes to its start, and the cards go.</summary>
     void GoToChapter(long startMs)
     {
         seeker.Cancel();
@@ -1057,6 +1055,7 @@ sealed class PlayerScreen : Sheet
         CloseChapters();
     }
 
+    /// <summary>Shows or hides the controls; shown, focus goes to <paramref name="focus"/> (where it was, when null and already shown).</summary>
     void ShowControls(bool on, FocusItem? focus = null)
     {
         if (!on) CloseChapters();

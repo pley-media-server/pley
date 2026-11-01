@@ -105,9 +105,10 @@ It has no releases yet: it is built and installed by hand
 - The native app's player has Android TV's control row and side panels:
   Subtitles (the track, Sync, and the subtitles' size, background, font
   and position), Audio, Quality (with Play original after it switched by
-  itself), Chapters, Sleep timer, Speed where the TV plays other speeds,
-  and Info, the playback's details, read again each second. The sleep
-  timer says "Pausing in 30 s" with Keep watching before it pauses.
+  itself), Sleep timer, Speed where the TV plays other speeds, and Info,
+  the playback's details, read again each second; Chapters opens the
+  chapters' cards over the scrubber. The sleep timer says "Pausing in
+  30 s" with Keep watching before it pauses.
 - Music's pages in the native app, from a music library, Home or search:
   an artist's page with their picture, Play and Shuffle for every track of
   theirs and their albums, newest first; an album's page with its art, the
@@ -130,9 +131,9 @@ It has no releases yet: it is built and installed by hand
   does: the preview shows where it goes, OK goes there, Back lets it go,
   and it goes by itself 5 s after the last key; a held key runs faster the
   longer it's held. While a seek waits, Up opens the film's chapters as a
-  row of cards (each one's picture, name and start), pausing while it
-  shows: Left and Right go through them, moving the scrubber to each one's
-  start, and OK goes there. Chapters named only for where they start
+  row of cards in the preview's place and size (each one's picture, name
+  and start), the video playing on: Left and Right go through them,
+  moving the scrubber to each one's start, and OK goes there. Chapters named only for where they start
   ("00:06:19.212") are numbered instead. The scrubber is blue up to its
   thumb while seeking. Skip Intro and Skip Credits show over the scrubber
   as on Android TV, where Up reaches them, and give way to a seek's preview
@@ -162,3 +163,6 @@ It has no releases yet: it is built and installed by hand
   while they seem to show.
 - OK on the native app's live player opens the channel list at once;
   holding OK shows the controls (the list, the favourite), as OK did.
+- The native app's seek previews and chapter cards show a widescreen
+  film's frames letterboxed, as the film plays, rather than stretched to
+  fill their box.

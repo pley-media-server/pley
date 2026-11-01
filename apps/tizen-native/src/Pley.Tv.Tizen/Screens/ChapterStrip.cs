@@ -9,14 +9,15 @@ using Tizen.NUI.BaseComponents;
 namespace Pley.Tv.Tizen.Screens;
 
 /// <summary>
-/// The chapters as a row of cards over the scrubber, as YouTube's TV app has them: Up from the
-/// scrubber opens it on the chapter playing, Left and Right go through the chapters, OK goes to
-/// the one focused, Down or Back closes it. Each card has the chapter's picture (its own, else the
-/// server's preview at its start), its name and when it starts.
+/// The chapters as a row of cards over the scrubber, as YouTube's TV app has them: Up while a seek
+/// waits opens it on the chapter the seek was going to, Left and Right go through the chapters, OK
+/// goes to the one focused, Down or Back closes it. Each card has the chapter's picture (its own,
+/// else the server's preview at its start), its name and when it starts, at the seek preview's size.
 /// </summary>
 sealed class ChapterStrip : View
 {
-    public const float CardWidth = 176, PictureHeight = 99, Gap = 14;
+    /// <summary>The seek preview's size, so a seek going to the chapters changes nothing but what shows.</summary>
+    public const float CardWidth = SeekPreviewView.PictureWidth, PictureHeight = SeekPreviewView.PictureHeight, Gap = 14;
     /// <summary>A card's height: the picture, 6 dp, then the name and the time.</summary>
     public static readonly float CardHeight = PictureHeight + 6 + PleyType.Label.Line + PleyType.Caption.Line;
 
@@ -30,6 +31,8 @@ sealed class ChapterStrip : View
     readonly Dictionary<string, string> sheets = new Dictionary<string, string>();
     IReadOnlyList<ChapterMark> chapters = Array.Empty<ChapterMark>();
     int index;
+    /// <summary>The card drawn focused; -1 when none is.</summary>
+    int looked = -1;
     Animation? slide;
 
     /// <param name="previewAt">The server's preview at a time (the player model's), null without.</param>
@@ -88,6 +91,7 @@ sealed class ChapterStrip : View
             chapters = marks;
             foreach (var card in cards) card.Dispose();
             cards.Clear();
+            looked = -1;
             for (var i = 0; i < marks.Count; i++)
             {
                 var card = new Card(marks[i], i);
@@ -121,7 +125,11 @@ sealed class ChapterStrip : View
     /// <summary>The focused card's look; the row slides so it stays in view, the first at the gutter.</summary>
     void Focus(bool animate)
     {
-        for (var i = 0; i < cards.Count; i++) cards[i].Look(i == index);
+        var took = Profile.Start();
+        // The card that had focus and the one that has it: each look set draws its name again.
+        if (looked >= 0 && looked < cards.Count && looked != index) cards[looked].Look(false);
+        if (index < cards.Count) cards[index].Look(true);
+        looked = index;
         if (index < chapters.Count) Focused?.Invoke(chapters[index].StartMs);
         // Pictures for the cards near the focused one.
         for (var i = Math.Max(0, index - 2); i <= Math.Min(cards.Count - 1, index + 5); i++) Picture(cards[i], i);
@@ -129,6 +137,7 @@ sealed class ChapterStrip : View
         var content = cards.Count * (CardWidth + Gap) - Gap;
         var x = content <= room ? 0 : -Math.Min(index * (CardWidth + Gap), content - room);
         slide?.Stop();
+        Profile.Took("chapters: a move", took);
         if (!animate)
         {
             strip.PositionX = Ui.Dp(x);
@@ -171,6 +180,7 @@ sealed class ChapterStrip : View
     /// <summary>A chapter: its picture on Surface2, its name, its start; focused, the accent ring and Fg text.</summary>
     sealed class Card : View
     {
+        readonly View well;
         readonly ImageView picture;
         readonly View ring;
         readonly TextLabel name;
@@ -179,7 +189,10 @@ sealed class ChapterStrip : View
         public Card(ChapterMark chapter, int index)
         {
             Size = new Size(Ui.Dp(CardWidth), Ui.Dp(CardHeight));
-            var well = new View
+            // Not clipped: each clip is a pass of its own for the TV's GPU, and a row of clipped cards
+            // slid at 20 fps. A letterboxed picture doesn't reach the well's corners (its bars do, in
+            // the well's own colour); one that fills it rounds its own.
+            well = new View
             {
                 Size = new Size(Ui.Dp(CardWidth), Ui.Dp(PictureHeight)),
                 CornerRadius = Ui.Dp(PleyShape.TileRadius),
@@ -227,10 +240,7 @@ sealed class ChapterStrip : View
         public void Show(string file, TrickplayFrame? crop)
         {
             if (Disposed) return;
-            picture.ResourceUrl = file;
-            picture.PixelArea = crop == null
-                ? new RelativeVector4(0, 0, 1, 1)
-                : new RelativeVector4(crop.Left / (float)crop.SheetWidth, crop.Top / (float)crop.SheetHeight, crop.Width / (float)crop.SheetWidth, crop.Height / (float)crop.SheetHeight);
+            Letterbox.Show(picture, well, file, crop);
         }
     }
 }

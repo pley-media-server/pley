@@ -475,6 +475,56 @@ sealed class MethodBadge : View
 }
 
 /// <summary>
+/// A video's frame in a box of another shape (the seek preview, a chapter's card), as the player
+/// shows the video: as large as fits, centred, black where it doesn't reach; never stretched to the
+/// box. The server's previews keep the video's shape (a 2.39:1 film's are 320 × 134).
+/// </summary>
+static class Letterbox
+{
+    /// <summary>
+    /// Shows <paramref name="picture"/> as <paramref name="crop"/>, the frame's part of its sheet
+    /// (null: the whole picture, its shape known once it has loaded), in <paramref name="box"/>.
+    /// </summary>
+    public static void Show(ImageView picture, View box, string file, TrickplayFrame? crop)
+    {
+        box.BackgroundColor = Color.Black;
+        var loaded = picture.ResourceUrl == file && picture.NaturalSize2D.Height > 0;
+        picture.ResourceUrl = file;
+        picture.PixelArea = crop == null
+            ? new RelativeVector4(0, 0, 1, 1)
+            : new RelativeVector4(crop.Left / (float)crop.SheetWidth, crop.Top / (float)crop.SheetHeight, crop.Width / (float)crop.SheetWidth, crop.Height / (float)crop.SheetHeight);
+        if (crop != null) Fit(picture, box, crop.Width / (float)crop.Height);
+        else if (loaded) Fit(picture, box, picture.NaturalSize2D.Width / (float)picture.NaturalSize2D.Height);
+        else
+        {
+            // Its shape is the picture's own, once it's read.
+            Fit(picture, box, 0);
+            void Ready(object? s, EventArgs e)
+            {
+                picture.ResourceReady -= Ready;
+                if (picture.ResourceUrl != file) return;
+                var natural = picture.NaturalSize2D;
+                Fit(picture, box, natural.Height > 0 ? natural.Width / (float)natural.Height : 0);
+            }
+            picture.ResourceReady += Ready;
+        }
+    }
+
+    /// <summary><paramref name="picture"/> at <paramref name="aspect"/> (width over height) in <paramref name="box"/>, centred; 0 fills it.</summary>
+    static void Fit(View picture, View box, float aspect)
+    {
+        float w = box.SizeWidth, h = box.SizeHeight;
+        if (aspect > 0)
+        {
+            if (w / aspect <= h) h = w / aspect;
+            else w = h * aspect;
+        }
+        picture.Size = new Size(w, h);
+        picture.Position = new Position((box.SizeWidth - w) / 2, (box.SizeHeight - h) / 2);
+    }
+}
+
+/// <summary>
 /// The seek preview while scrubbing (design spec §2.7): 240 × 135 with a 2 dp Fg 20 % edge, the
 /// server's preview for the target (a part of one of its sheets) or the chapter's picture; the
 /// target time under it and the chapter's name. Without a picture, only the time and chapter show.
@@ -546,13 +596,7 @@ sealed class SeekPreviewView : View
 
     void Show(string url, TrickplayFrame? crop)
     {
-        void Apply(string file)
-        {
-            picture.ResourceUrl = file;
-            picture.PixelArea = crop == null
-                ? new RelativeVector4(0, 0, 1, 1)
-                : new RelativeVector4(crop.Left / (float)crop.SheetWidth, crop.Top / (float)crop.SheetHeight, crop.Width / (float)crop.SheetWidth, crop.Height / (float)crop.SheetHeight);
-        }
+        void Apply(string file) => Letterbox.Show(picture, frame, file, crop);
         asked = url;
         if (sheets.TryGetValue(url, out var known))
         {

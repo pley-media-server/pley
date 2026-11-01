@@ -410,9 +410,9 @@ for a few seconds as each item begins, text subtitles in Settings' look
 (the CAPTIONS key turns them off and on), picture subtitles (PGS, VobSub,
 DVB) decoded from the server's `.mks` and drawn as the web app draws them,
 burned in by the server only when it can't make that file, the side
-panels (Subtitles with Sync and the subtitles' look, Audio, Quality,
-Chapters, the sleep timer, Speed where the TV's player has other speeds,
-and Info), Skip Intro and Skip Credits (over the scrubber, where Up
+panels (Subtitles with Sync and the subtitles' look, Audio, Quality, the
+sleep timer, Speed where the TV's player has other speeds, and Info),
+Chapters opening the chapters' cards, Skip Intro and Skip Credits (over the scrubber, where Up
 reaches them, as on Android TV), Up
 Next (the next episode, or the next in a playlist or collection),
 recovering by itself from stalls and a server out of reach, and Try again
