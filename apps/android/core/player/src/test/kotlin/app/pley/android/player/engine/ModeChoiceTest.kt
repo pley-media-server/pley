@@ -8,6 +8,7 @@ import app.pley.android.model.DynamicRange
 import app.pley.android.model.MediaStream
 import app.pley.android.model.StreamKind
 import app.pley.android.model.caps.DolbyVisionCaps
+import app.pley.android.testing.caps.TestDevices
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -30,6 +31,52 @@ class ModeChoiceTest {
     private fun decide(display: DisplayState, request: MatchRequest, sdk: Int = 34) = ModeChoice.decide(display, request, sdk)
 
     private fun switchTo(id: Int) = ModeDecision.Switch(id, STREAMER.modes.first { it.id == id }.refreshRate)
+
+    /**
+     * A TV that shows Dolby Vision at 23.976 Hz, not at its home screen's
+     * 60 Hz: Dolby Vision is shown where the video plays.
+     */
+    @Test
+    fun dolbyVisionIsShownInTheModeTheVideoPlaysIn() {
+        val modes = listOf(
+            DisplayModeInfo(1, 3840, 2160, 60f, hdrTypes = listOf(2)),
+            DisplayModeInfo(2, 3840, 2160, 23.976f, hdrTypes = listOf(1, 2)),
+        )
+        val display = DisplayState(modes, activeModeId = 1, hdrCapabilities = listOf(2), matchContent = MatchContent.Always)
+        val withDv = listOf(DynamicRange.Hdr10, DynamicRange.DolbyVision)
+        fun caps(state: DisplayState, screen: List<DynamicRange> = withDv) =
+            CapsDetails(input = TestDevices.googleTvStreamer.copy(display = state), screenHdrTypes = screen)
+        val film = request(23.976, hdr = setOf(ModeChoice.HDR_DOLBY_VISION), dolbyVision = true)
+        assertEquals("switched to 23.976 Hz", true, ModeChoice.dolbyVisionShown(caps(display), film, sdk = 34))
+        assertEquals("no switch: the home screen's mode", false, ModeChoice.dolbyVisionShown(caps(display), null, sdk = 34))
+        val never = display.copy(matchContent = MatchContent.Never)
+        assertEquals("the device's setting is Never", false, ModeChoice.dolbyVisionShown(caps(never), film, sdk = 34))
+        assertEquals("not on the screen at all", false, ModeChoice.dolbyVisionShown(caps(display, listOf(DynamicRange.Hdr10)), film, sdk = 34))
+        // A quirk adds Dolby Vision, which no mode lists: shown in every one.
+        val unlisted = display.copy(modes = modes.map { it.copy(hdrTypes = listOf(2)) })
+        assertEquals(true, ModeChoice.dolbyVisionShown(caps(unlisted), null, sdk = 34))
+        assertNull("no probe", ModeChoice.dolbyVisionShown(CapsDetails(), film, sdk = 34))
+        // Turned off in the system's settings, as seen in a mode that lists it: in no mode.
+        val off = setOf(ModeChoice.HDR_DOLBY_VISION)
+        assertEquals(false, ModeChoice.dolbyVisionShown(caps(display), film, sdk = 34, turnedOff = off))
+        assertEquals(false, ModeChoice.dolbyVisionShown(caps(unlisted), null, sdk = 34, turnedOff = off))
+        // The display as it is now, rather than the probe's.
+        val at24 = display.copy(activeModeId = 2, hdrCapabilities = listOf(1, 2))
+        assertEquals(true, ModeChoice.dolbyVisionShown(caps(display), null, sdk = 34, display = at24))
+    }
+
+    @Test
+    fun aDisplayMatchIsAskedForFilmsOnTvsOnly() {
+        val film = MediaStream(index = 0, kind = StreamKind.Video, codec = "hevc", frameRate = 23.976)
+        val hours = 2 * 60 * 60 * 1000L
+        assertEquals(23.976, ModeChoice.matchFor(true, film, hours, null, RefreshRateMatching.Auto)?.fps)
+        assertEquals(true, ModeChoice.matchFor(true, film, hours, null, RefreshRateMatching.Auto, gaveUp = true)?.gaveUp)
+        assertNull("a phone", ModeChoice.matchFor(false, film, hours, null, RefreshRateMatching.Auto))
+        assertNull("turned off", ModeChoice.matchFor(true, film, hours, null, RefreshRateMatching.Off))
+        assertNull("under 10 minutes", ModeChoice.matchFor(true, film, ModeChoice.MIN_DURATION_MS - 1, null, RefreshRateMatching.Auto))
+        assertNull("no frame rate", ModeChoice.matchFor(true, film.copy(frameRate = null), hours, null, RefreshRateMatching.Auto))
+        assertNull("no video", ModeChoice.matchFor(true, null, hours, null, RefreshRateMatching.Auto))
+    }
 
     @Test
     fun theStreamerSwitchesToEachFilmAndTvRate() {

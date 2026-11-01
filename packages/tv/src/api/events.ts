@@ -11,7 +11,9 @@ export const STABLE_MS = 30_000;
  * The server's events (`GET /api/events`) over XMLHttpRequest: EventSource
  * can't send the Authorization header, which is the only place pley takes
  * an app's token. Reconnects as the Android app's EventStream does; tells
- * `onReconnect` on every connection, since nothing is replayed.
+ * `onReconnect` on every connection, since nothing is replayed, and
+ * `onDown` whenever it isn't connected (until it is again), so what
+ * follows the events can ask instead meanwhile.
  */
 export class EventStream {
   private xhr: XMLHttpRequest | null = null;
@@ -22,12 +24,14 @@ export class EventStream {
   private readonly tokens: Tokens;
   private readonly onEvent: (e: ServerEvent) => void;
   private readonly onReconnect: () => void;
+  private readonly onDown: () => void;
 
-  constructor(server: string, tokens: Tokens, onEvent: (e: ServerEvent) => void, onReconnect: () => void) {
+  constructor(server: string, tokens: Tokens, onEvent: (e: ServerEvent) => void, onReconnect: () => void, onDown: () => void = () => undefined) {
     this.server = server;
     this.tokens = tokens;
     this.onEvent = onEvent;
     this.onReconnect = onReconnect;
+    this.onDown = onDown;
   }
 
   start(): void {
@@ -42,6 +46,14 @@ export class EventStream {
     this.timer = null;
     this.xhr?.abort();
     this.xhr = null;
+  }
+
+  /** Another profile signed in: a stream that runs starts over with its token, so the last one's events end here. */
+  restart(): void {
+    if (this.stopped) return;
+    this.stop();
+    this.failures = 0;
+    this.start();
   }
 
   /** The server answers again: a stream waiting out its back-off connects now. False when none was waiting. */
@@ -77,6 +89,7 @@ export class EventStream {
       token = null;
     }
     if (!token || this.stopped) {
+      if (!this.stopped) this.onDown();
       this.failures++;
       this.later(this.retryDelay());
       return;
@@ -123,6 +136,7 @@ export class EventStream {
       if (this.xhr !== xhr) return;
       this.xhr = null;
       if (this.stopped) return;
+      this.onDown();
       if (xhr.status === 401) {
         this.tokens.refresh(token).then(
           () => this.later(0),

@@ -118,8 +118,17 @@ class TokensTest(unittest.TestCase):
         with self.assertRaises(auth.SignedOut):
             self.tokens.access()
 
+    def test_another_sign_in_is_another_identity(self):
+        # Someone else may have approved it, on the same server, with no
+        # profile switched to.
+        self.store.save(self.record(sign_in="a"))
+        first = self.tokens.identity()
+        self.assertEqual(first, (self.server.url, None, "a"))
+        self.store.save(self.record(sign_in="bb", access_token="at-9", refresh_token="rt-9"))
+        self.assertNotEqual(self.tokens.identity(), first)
+
     def test_switching_profiles(self):
-        self.assertEqual(self.tokens.identity(), (self.server.url, None))
+        self.assertEqual(self.tokens.identity(), (self.server.url, None, None))
         # A wrong PIN spends nothing.
         with self.assertRaises(api.ApiError) as refused:
             self.tokens.switch_profile(3, "9999")
@@ -133,7 +142,7 @@ class TokensTest(unittest.TestCase):
         saved = self.store.load()
         self.assertEqual((saved["access_token"], saved["refresh_token"], saved["profile"]), ("at-2", "rt-2", 3))
         self.assertEqual(self.tokens.access(), "at-2")
-        self.assertEqual(self.tokens.identity(), (self.server.url, 3))
+        self.assertEqual(self.tokens.identity(), (self.server.url, 3, None))
         # A refresh keeps the profile.
         self.assertEqual(self.tokens.refreshed("at-2"), "at-3")
         self.assertEqual(self.store.load()["profile"], 3)
@@ -180,6 +189,7 @@ class DeviceSignInTest(unittest.TestCase):
     def setUp(self):
         self.answers = []
         self.meta = None
+        self.asked = []
         self.server = support.FakeServer(self.handle)
 
     def tearDown(self):
@@ -189,7 +199,7 @@ class DeviceSignInTest(unittest.TestCase):
         if request.path == "/.well-known/oauth-authorization-server":
             return support.answer(200, self.meta or support.metadata(self.server.url))
         if request.path == "/api/oauth/device":
-            self.assertEqual(request.form(), {"client_id": auth.CLIENT_ID, "scope": auth.SCOPE})
+            self.asked.append(request.form())
             self.assertTrue(request.headers["user-agent"].startswith("pleyKodi/"))
             return support.answer(
                 200,
@@ -207,6 +217,7 @@ class DeviceSignInTest(unittest.TestCase):
     def test_the_code_is_polled_until_someone_answers(self):
         flow = auth.DeviceSignIn(self.server.url, "pleyKodi/0.1.0 (Kodi 21.3; Windows)")
         self.assertEqual(flow.start()["user_code"], "BCDF-GHJK")
+        self.assertEqual(self.asked, [{"client_id": auth.CLIENT_ID, "scope": "library play playlists profiles"}])
         tokens = {"access_token": "at", "refresh_token": "rt", "expires_in": 3600, "scope": "library play"}
         self.answers = [
             support.answer(400, {"error": "authorization_pending"}),
@@ -225,6 +236,27 @@ class DeviceSignInTest(unittest.TestCase):
         self.assertEqual(record["expires_at"], 3700)
         self.assertEqual(record["token_endpoint"], self.server.url + "/api/oauth/token")
         self.assertEqual(record["server"], self.server.url)
+        # Each sign-in is named anew: whoever approves the code picks the account.
+        self.assertRegex(record["sign_in"], "^[0-9a-f]{16}$")
+        self.assertNotEqual(flow.record(tokens, "Living room", "abc")["sign_in"], record["sign_in"])
+
+    def test_requests_are_asked_for_where_the_server_offers_them(self):
+        # A server that lists them, one that lists only `requests`, and one
+        # from before them (asking for a scope it doesn't know would fail
+        # the whole sign-in).
+        offered = ["library", "play", "playlists", "profiles", "requests", "approvals", "admin"]
+        for supported, scope in (
+            (offered, "library play playlists profiles requests approvals"),
+            (offered[:5], "library play playlists profiles requests"),
+            (offered[:4], "library play playlists profiles"),
+        ):
+            self.meta = dict(support.metadata(self.server.url), scopes_supported=supported)
+            flow = auth.DeviceSignIn(self.server.url, "pleyKodi/test")
+            flow.start()
+            self.assertEqual(self.asked.pop()["scope"], scope)
+            # A token answer without its scope keeps what was asked.
+            record = flow.record({"access_token": "at", "refresh_token": "rt"}, "Living room", "abc")
+            self.assertEqual(record["scope"], scope)
 
     def test_a_server_that_isnt_the_one_asked_is_refused(self):
         self.meta = support.metadata("http://elsewhere.example:7539")

@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -42,9 +43,9 @@ class LinkViewModelTest {
         ProfileGate.passed = false
     }
 
-    private fun TestScope.link(purpose: LinkPurpose = LinkPurpose.SignIn): LinkViewModel {
+    private fun TestScope.link(purpose: LinkPurpose = LinkPurpose.SignIn, requests: Boolean = true): LinkViewModel {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
-        return LinkViewModel(source, server, purpose) { testScheduler.currentTime }.also { vm = it }
+        return LinkViewModel(source, server, purpose, requests) { testScheduler.currentTime }.also { vm = it }
     }
 
     @Test
@@ -60,6 +61,54 @@ class LinkViewModelTest {
         assertEquals("$server/link?code=BCDFGHJK", code.qr)
         assertEquals(LinkStatus.Waiting, vm.state.value.status)
         assertEquals(1, source.polling)
+    }
+
+    @Test
+    fun aTvsCodeAsksForNoScopesOfRequests() = runTest {
+        val phone = link()
+        phone.started()
+        runCurrent()
+        phone.viewModelScope.cancel()
+        link(requests = false).started()
+        runCurrent()
+        assertEquals(listOf(true, false), source.requestScopes)
+    }
+
+    @Test
+    fun saysWhenTheServerRequiresTwoStepSignIn() = runTest {
+        source.answer(server, twoStepRequired = true)
+        val vm = link()
+        assertFalse(vm.state.value.twoStepRequired)
+        vm.started()
+        runCurrent()
+        assertTrue(vm.state.value.twoStepRequired)
+        // Beside the code, which didn't wait for it.
+        assertEquals("BCDF-GHJK", vm.state.value.code?.userCode)
+        assertEquals(LinkStatus.Waiting, vm.state.value.status)
+        assertEquals(listOf(server), source.probed)
+    }
+
+    @Test
+    fun saysNothingOfTwoStepSignInOtherwise() = runTest {
+        // Not required, or a server from before it.
+        source.answer(server)
+        val notRequired = link()
+        runCurrent()
+        assertFalse(notRequired.state.value.twoStepRequired)
+        notRequired.viewModelScope.cancel()
+        // No answer.
+        source.answers.clear()
+        val unreachable = link()
+        runCurrent()
+        assertFalse(unreachable.state.value.twoStepRequired)
+        unreachable.viewModelScope.cancel()
+        // A profile's approval doesn't ask.
+        source.answer(server, twoStepRequired = true)
+        source.probed.clear()
+        val approve = link(LinkPurpose.Profile(3))
+        runCurrent()
+        assertFalse(approve.state.value.twoStepRequired)
+        assertTrue(source.probed.isEmpty())
     }
 
     @Test

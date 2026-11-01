@@ -55,8 +55,15 @@ async fn start(config: Config) -> (String, TrayContext, JoinHandle<anyhow::Resul
     (format!("127.0.0.1:{port}"), ctx, server)
 }
 
-async fn stopped(server: JoinHandle<anyhow::Result<()>>, within: Duration) -> anyhow::Result<()> {
-    tokio::time::timeout(within, server).await.expect("pley stopped in time").expect("pley did not panic")
+/// How long pley may take to stop once asked, beyond the grace for requests
+/// in progress: [`pley::run_with_tray`] gives stopping the transcoder and
+/// closing the database 25 s. Closing the database copies its write-ahead
+/// log into it and flushes it to disk, which takes as long as the disk does:
+/// seconds on a busy one.
+const STOPS_WITHIN: Duration = Duration::from_secs(30);
+
+async fn stopped(server: JoinHandle<anyhow::Result<()>>) -> anyhow::Result<()> {
+    tokio::time::timeout(STOPS_WITHIN, server).await.expect("pley stopped in time").expect("pley did not panic")
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -88,7 +95,7 @@ async fn more_addresses_are_served_and_one_taken_is_tried_until_free() {
     }
 
     ctx.send(Command::Quit);
-    stopped(server, Duration::from_secs(10)).await.unwrap();
+    stopped(server).await.unwrap();
     assert!(!answers(second).await, "{second} closed with pley");
 }
 
@@ -162,7 +169,7 @@ async fn where_pley_listens_changes_while_it_runs() {
     }
 
     ctx.send(Command::Quit);
-    stopped(server, Duration::from_secs(10)).await.unwrap();
+    stopped(server).await.unwrap();
     assert!(!answers(b).await && !answers(later).await, "closed with pley");
 }
 
@@ -178,11 +185,18 @@ async fn one_server_per_data_directory() {
     assert!(message.starts_with(&format!("another Pley (process {}) uses", std::process::id())), "{message}");
 
     ctx.send(Command::Quit);
-    stopped(server, Duration::from_secs(5)).await.unwrap();
-    // The lock went with the server that held it.
+    stopped(server).await.unwrap();
+    // The lock went with the server that held it. On Linux and macOS a
+    // process another test starts meanwhile shares the lock's descriptor
+    // until it runs its program, so it may stay a moment longer.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while let Err(err) = pley::instance::InstanceLock::acquire(data.path()) {
+        assert!(Instant::now() < deadline, "the lock stayed after its server stopped: {err:#}");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
     let (_, ctx, server) = start(config(data.path())).await;
     ctx.send(Command::Quit);
-    stopped(server, Duration::from_secs(5)).await.unwrap();
+    stopped(server).await.unwrap();
 }
 
 #[tokio::test]
@@ -232,7 +246,7 @@ async fn why_the_server_could_not_start_is_in_its_log() {
     let holder = format!("Pley could not start: another Pley (process {}) uses the data", std::process::id());
     assert!(log.contains(&holder), "{log}");
     ctx.send(Command::Quit);
-    stopped(server, Duration::from_secs(5)).await.unwrap();
+    stopped(server).await.unwrap();
 
     // pley.toml can't be read: the log of the data directory it is in.
     let broken = tempfile::tempdir().unwrap();
@@ -265,7 +279,7 @@ async fn a_second_pley_stops_when_one_answers_on_its_port() {
     assert!(!other.path().join("pley.db").exists(), "it stopped before the database");
 
     ctx.send(Command::Quit);
-    stopped(server, Duration::from_secs(5)).await.unwrap();
+    stopped(server).await.unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -288,7 +302,7 @@ async fn reset_password_works_next_to_a_running_server() {
     assert_eq!(login.status(), reqwest::StatusCode::OK, "the running server sees the new account");
 
     ctx.send(Command::Quit);
-    stopped(server, Duration::from_secs(5)).await.unwrap();
+    stopped(server).await.unwrap();
 }
 
 #[tokio::test]
@@ -324,7 +338,7 @@ async fn the_tray_quit_stops_its_server() {
     assert_ne!(ctx.status(), "shutting down");
 
     ctx.send(Command::Quit);
-    stopped(server, Duration::from_secs(5)).await.unwrap();
+    stopped(server).await.unwrap();
     assert!(http.get(format!("http://{addr}/api/health")).send().await.is_err(), "the listener is closed");
 }
 
@@ -352,6 +366,9 @@ async fn requests_in_progress_get_a_grace_period_and_no_more() {
 
     let asked = Instant::now();
     ctx.send(Command::Quit);
-    stopped(server, Duration::from_secs(5)).await.unwrap();
-    assert!(asked.elapsed() >= Duration::from_millis(500), "the request in progress had its grace period");
+    stopped(server).await.unwrap();
+    let took = asked.elapsed();
+    assert!(took >= Duration::from_millis(500), "the request in progress had its grace period");
+    // Waiting for the request would have lasted until its body timed out.
+    assert!(took < pley::http::BODY_IDLE_TIMEOUT / 2, "and no more: {took:?}");
 }

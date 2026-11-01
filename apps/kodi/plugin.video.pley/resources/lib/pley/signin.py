@@ -1,6 +1,7 @@
 """The sign-in window, as the Android TV app's link screen: where to go,
 the code to type there, and the same as a QR code the server draws, while
-the plugin asks the server for the answer."""
+the plugin asks the server for the answer; and a note when the server
+requires two-step sign-in, which the phone sets up."""
 
 from __future__ import annotations
 
@@ -31,6 +32,8 @@ class SignIn(xbmcgui.WindowXMLDialog):
         self.code = ""
         self.status = ""
         self.qr = ""
+        # The server requires two-step sign-in: a note says the phone sets it up.
+        self.two_step = False
         self.cancelled = False
         # Change server was chosen: the plugin offers the servers after.
         self.change = False
@@ -44,12 +47,22 @@ class SignIn(xbmcgui.WindowXMLDialog):
         if self.ready:
             self.getControl(L.SIGNIN_STATUS).setLabel(status)
 
+    def show_two_step(self) -> None:
+        """The server requires two-step sign-in, as it answered on another
+        thread, before or after onInit: marked before `ready` is read, so
+        one of them shows the note, and neither ever clears it."""
+        self.two_step = True
+        if self.ready:
+            self.getControl(L.SIGNIN_TWO_STEP).setLabel(text("two_step_required"))
+
     def onInit(self) -> None:
         self.ready = True
         first, second = halves(self.code)
         self.getControl(L.SIGNIN_CODE_A).setLabel(first)
         self.getControl(L.SIGNIN_CODE_B).setLabel(second)
         self.getControl(L.SIGNIN_STATUS).setLabel(self.status)
+        if self.two_step:
+            self.getControl(L.SIGNIN_TWO_STEP).setLabel(text("two_step_required"))
         # Without a QR code (an older server) the steps are two, and "Go to".
         qr = bool(self.qr)
         self.getControl(L.SIGNIN_ADDRESS).setLabel(text("or_go_to" if qr else "go_to") % shown(self.address))

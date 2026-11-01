@@ -409,8 +409,8 @@ fn check_request(params: &[(String, String)], client: &clients::Client, issuer: 
 
 /// The scopes an app asks for in `scope` (here and at the device endpoint):
 /// none means `library`; names pley doesn't know (openid among them),
-/// `profiles` for apps by other publishers, and more than the app's
-/// description allows are refused.
+/// `profiles` and `approvals` for apps by other publishers, and more than
+/// the app's description allows are refused.
 fn asked_scopes(scope: Option<&str>, client: &clients::Client) -> Result<Scopes, ReturnedError> {
     let fail = |description: &str| ReturnedError { error: "invalid_scope", description: description.to_owned() };
     let asked = match scope.map(Scopes::parse) {
@@ -428,6 +428,10 @@ fn asked_scopes(scope: Option<&str>, client: &clients::Client) -> Result<Scopes,
     if asked.contains(Scope::Profiles) && !client.first_party {
         // A profile's PIN is typed into the app: pley's own apps only.
         return Err(fail("only Pley's own apps can switch profiles (profiles): ask the app's publisher to fix it"));
+    }
+    if asked.contains(Scope::Approvals) && !client.first_party {
+        // Deciding what everyone asks for: pley's own apps only.
+        return Err(fail("only Pley's own apps can approve requests (approvals): ask the app's publisher to fix it"));
     }
     if client.scope_cap.as_deref().is_some_and(|cap| !asked.is_subset_of(Scopes::from_stored(cap))) {
         return Err(fail("this app asked for more than its description allows: ask the app's publisher to fix it"));
@@ -1151,8 +1155,9 @@ async fn switch_profile(
         .parse()
         .map_err(|_| OAuthError::invalid_request("profile must be the id of a profile"))?;
     form.check_resource(headers)?;
-    let holder =
-        grants::holder(&state.db, token, client_id).await.map_err(|err| refused_refresh(state, client_id, err))?;
+    let holder = grants::holder(&state.db, token, client_id, state.auth.two_step_required())
+        .await
+        .map_err(|err| refused_refresh(state, client_id, err))?;
     if clients::builtin(client_id).is_none() {
         return Err(OAuthError::new("unauthorized_client", "only Pley's own apps can switch profiles"));
     }
@@ -1173,7 +1178,7 @@ async fn switch_profile(
             return Err(OAuthError::invalid_request(SAME_PROFILE));
         }
     } else {
-        check_switch(state, &holder.user, profile, form.get("pin"), None, None).await.map_err(refused_switch)?;
+        check_switch(state, &holder.user, profile, form.get("pin"), None, None, None).await.map_err(refused_switch)?;
     }
     let input = SwitchInput {
         token: token.to_owned(),
@@ -1241,6 +1246,12 @@ fn refused_switch(err: SwitchError) -> OAuthError {
             "this profile can see more than yours: sign in to the app again, and pick the profile in the browser"
                 .to_owned(),
         ),
+        // It sets up two-step sign-in with its password, in the browser.
+        // Apps never see passwords or codes, nor anyone's sign-in settings.
+        SwitchError::SetUpFirst => (
+            "browser",
+            "this profile takes its password: sign in to the app again, and pick the profile in the browser".to_owned(),
+        ),
         SwitchError::Internal(err) => return OAuthError::server_error(err),
     };
     OAuthError { reason: Some(reason), ..OAuthError::invalid_grant(description) }
@@ -1257,7 +1268,8 @@ pub struct AppProfile {
     /// The profile the app acts as.
     current: bool,
     /// What switching to it takes: none, pin, password (in the browser) or
-    /// locked.
+    /// locked. A profile that has to set up two-step sign-in, which the
+    /// server requires, takes its password, which sets it up there.
     needs: &'static str,
 }
 
@@ -1273,6 +1285,7 @@ pub async fn profiles(State(state): State<AppState>, user: AuthUser) -> ApiResul
     }
     let targets: HashMap<i64, SwitchTarget> =
         switch_targets(&state, user.id).await?.into_iter().map(|target| (target.id, target)).collect();
+    let required = state.auth.two_step_required();
     let listed = all
         .into_iter()
         .filter(|u| u.home && !u.disabled)
@@ -1284,7 +1297,7 @@ pub async fn profiles(State(state): State<AppState>, user: AuthUser) -> ApiResul
                 avatar_url: u.avatar_url,
                 avatar_color: u.avatar_color,
                 current: u.id == user.id,
-                needs: switch_needs(&user, target).name(),
+                needs: switch_needs(&user, target, required).name(),
             })
         })
         .collect();

@@ -2,11 +2,13 @@ package app.pley.android.player.engine
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
+import android.view.Display
 import android.view.Window
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
@@ -27,13 +29,16 @@ import androidx.media3.exoplayer.source.MediaLoadData
 import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.trackselection.ExoTrackSelection
+import app.pley.android.caps.AndroidDisplayInfo
 import app.pley.android.caps.CapsDetails
 import app.pley.android.caps.CapsGraph
 import app.pley.android.caps.CapsSnapshot
 import app.pley.android.caps.DecoderPolicy
 import app.pley.android.caps.DeviceCapabilities
+import app.pley.android.caps.DisplayState
 import app.pley.android.common.DeviceProfile
 import app.pley.android.model.DynamicRange
+import app.pley.android.model.MediaStream
 import app.pley.android.network.NetworkGraph
 import app.pley.android.player.EngineSource
 import app.pley.android.player.PlayerEngine
@@ -47,6 +52,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.io.IOException
 
@@ -129,9 +135,17 @@ class Media3Engine(
 
     private val details: CapsDetails? get() = caps()?.details
 
+    /** Whether the video being played comes out as Dolby Vision ([ModeChoice.dolbyVisionShown]); read on Media3's thread. */
+    @Volatile
+    private var dolbyVisionShown: Boolean? = null
+
+    /** The video decoder started last, with the MIME type it was started for: a decoder can take more than one. */
+    @Volatile
+    private var videoCodec: Pair<String, String>? = null
+
     private val rules = DecoderRules(
         policy = { details?.policy ?: DecoderPolicy(tv = profile.isTv) },
-        dolbyVisionScreen = { details?.takeIf { it.input != null }?.let { DynamicRange.DolbyVision in it.screenHdrTypes } },
+        dolbyVisionShown = { dolbyVisionShown },
     )
 
     private val loadControl = PleyLoadControl(BufferPlan.of(profile))
@@ -147,6 +161,7 @@ class Media3Engine(
                 asyncQueueing = details?.forceAsyncQueueing ?: profile.fireTv,
                 music = music,
                 audioDelay = if (music) null else audioDelay,
+                onVideoCodec = { name, mimeType -> videoCodec = name to mimeType },
             ),
         )
         .setTrackSelector(trackSelector)
@@ -193,10 +208,11 @@ class Media3Engine(
         reconnect.buffered(player.bufferedPosition)
         publishReconnecting()
     }
-    private val analytics = PlaybackAnalytics(now, ::isHardware) { stats -> mutableState.update { it.copy(stats = stats) } }
+    private val analytics = PlaybackAnalytics(now, ::isHardware, ::decoderMime) { stats -> mutableState.update { it.copy(stats = stats) } }
 
     private var window: Window? = null
     private var frameRate: FrameRateController? = null
+    private var loaded: EngineSource? = null
     private var matchJob: Job? = null
     private var matchPending = false
     private var request: MatchRequest? = null
@@ -261,6 +277,8 @@ class Media3Engine(
         mutableState.update { EngineState(stats = it.stats) }
         val asked = matchRequest(source)
         request = asked
+        loaded = source
+        dolbyVisionShown = source.dolbyVision ?: details?.let { ModeChoice.dolbyVisionShown(it, asked, sdk) }
         matchPending = asked != null
         Log.i(TAG, "prepare at $startMs ms: play $playWhenReady, display match ${if (asked != null) "asked" else "none"}, window ${window != null}")
         snapToKeyFrame = startMs > 0 && !music && !source.hls
@@ -270,6 +288,30 @@ class Media3Engine(
         setPlayWhenReady(playWhenReady && !matchPending)
         player.prepare()
         if (matchPending && window != null) startMatch()
+    }
+
+    /**
+     * The mode [video] would play in, as the display match will choose it
+     * (the live display, and Auto given up on it), and whether the screen
+     * shows Dolby Vision there, with the HDR types seen turned off on it.
+     */
+    override suspend fun dolbyVisionShown(video: MediaStream?, durationMs: Long?): Boolean? = withContext(Dispatchers.Main.immediate) {
+        val caps = details
+        if (caps == null || music) return@withContext null
+        val controller = frameRate
+        val key = controller?.displayKey ?: displayKey(app.getSystemService(DisplayManager::class.java), Display.DEFAULT_DISPLAY)
+        val live = controller?.read() ?: AndroidDisplayInfo(app) { Display.DEFAULT_DISPLAY }.read()
+        val gaveUp = frameRateMemory.timeouts(key) >= FrameRateController.GIVE_UP_AFTER
+        val asked = ModeChoice.matchFor(profile.isTv, video, durationMs, caps, settings().refreshRate, gaveUp)
+        ModeChoice.dolbyVisionShown(caps, asked, sdk, live ?: caps.input?.display, turnedOff(key, live))
+    }
+
+    /** The HDR types turned off on the display [key] names: what [live] tells now, and what was seen before. */
+    private suspend fun turnedOff(key: String, live: DisplayState?): Set<Int> {
+        val remembered = frameRateMemory.turnedOffHdrTypes(key)
+        val seen = live?.turnedOffHdrTypes(remembered) ?: return remembered
+        if (seen != remembered) frameRateMemory.setTurnedOffHdrTypes(key, seen)
+        return seen
     }
 
     override fun setAudioDelay(delayMs: Long) {
@@ -317,15 +359,8 @@ class Media3Engine(
     }
 
     /** The display match a video on a TV needs; `null` when nothing is to match. */
-    private fun matchRequest(source: EngineSource): MatchRequest? {
-        if (!profile.isTv || music) return null
-        val setting = settings().refreshRate
-        if (setting == RefreshRateMatching.Off) return null
-        val video = source.video ?: return null
-        if ((video.frameRate ?: 0.0) <= 1.0) return null
-        if ((source.durationMs ?: 0) < ModeChoice.MIN_DURATION_MS) return null
-        return ModeChoice.requestFor(video, source.durationMs, details, setting)
-    }
+    private fun matchRequest(source: EngineSource): MatchRequest? =
+        if (music) null else ModeChoice.matchFor(profile.isTv, source.video, source.durationMs, details, settings().refreshRate)
 
     private fun startMatch() {
         val controller = frameRate
@@ -348,8 +383,28 @@ class Media3Engine(
             analytics.onDisplayMode(controller.requestedModeId.takeIf { it != 0 })
             // The screen's HDR types and the receiver's formats may have changed with the mode.
             if (outcome.switched) applyTrackParameters()
+            recheckDolbyVision(controller)
             setPlayWhenReady(wantPlay)
         }
+    }
+
+    /**
+     * What the screen shows in the mode the video plays in, now that it is
+     * set: Dolby Vision turned off in the system's settings shows only in a
+     * mode that lists it. Remembered for the next video; this one, should
+     * its Dolby Vision decoder have started, loads again on its base layer's.
+     */
+    private suspend fun recheckDolbyVision(controller: FrameRateController) {
+        val caps = details ?: return
+        val live = controller.read() ?: return
+        val turnedOff = turnedOff(controller.displayKey, live)
+        if (dolbyVisionShown != true || ModeChoice.dolbyVisionShown(caps, null, sdk, live, turnedOff) != false) return
+        dolbyVisionShown = false
+        val source = loaded ?: return
+        if (source.live || player.videoFormat?.sampleMimeType != MimeTypes.VIDEO_DOLBY_VISION) return
+        Log.i(TAG, "Dolby Vision isn't shown in this mode: loads again on the base layer's decoder")
+        player.setMediaSource(loading.mediaSource(source), player.currentPosition)
+        player.prepare()
     }
 
     private fun applyTrackParameters() {
@@ -402,6 +457,9 @@ class Media3Engine(
     }
 
     private fun isHardware(name: String): Boolean? = details?.input?.decoders?.firstOrNull { it.name == name }?.hardware
+
+    private fun decoderMime(name: String): String? =
+        videoCodec?.takeIf { it.first == name }?.second ?: details?.input?.decoders?.firstOrNull { it.name == name }?.mime
 
     /** [EngineState.reconnecting] as the watcher has it, looked at again while it lasts. */
     private fun publishReconnecting() {

@@ -11,10 +11,15 @@ interface Toast {
   message: ReactNode;
 }
 
+interface ToastOptions {
+  /** How long it stays, in ms (errors 6 s, others 3.5 s). */
+  duration?: number;
+}
+
 interface ToastApi {
-  success: (message: ReactNode) => void;
-  error: (message: ReactNode) => void;
-  info: (message: ReactNode) => void;
+  success: (message: ReactNode, options?: ToastOptions) => void;
+  error: (message: ReactNode, options?: ToastOptions) => void;
+  info: (message: ReactNode, options?: ToastOptions) => void;
 }
 
 const ToastContext = createContext<ToastApi | null>(null);
@@ -28,19 +33,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const push = useCallback(
-    (tone: ToastTone, message: ReactNode) => {
+    (tone: ToastTone, message: ReactNode, options?: ToastOptions) => {
       const id = nextId.current++;
       setToasts((t) => [...t.slice(-3), { id, tone, message }]);
-      window.setTimeout(() => dismiss(id), tone === "error" ? 6000 : 3500);
+      window.setTimeout(() => dismiss(id), options?.duration ?? (tone === "error" ? 6000 : 3500));
     },
     [dismiss],
   );
 
   const api = useMemo<ToastApi>(
     () => ({
-      success: (m) => push("success", m),
-      error: (m) => push("error", m),
-      info: (m) => push("info", m),
+      success: (m, o) => push("success", m, o),
+      error: (m, o) => push("error", m, o),
+      info: (m, o) => push("info", m, o),
     }),
     [push],
   );

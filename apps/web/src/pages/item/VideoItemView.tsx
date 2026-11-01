@@ -18,6 +18,7 @@ import { MediaInfo } from "./MediaInfo";
 import { MoreLikeThis } from "./MoreLikeThis";
 import { EditDialogs, type EditDialog } from "./EditMenu";
 import { MoreActions } from "./ItemActions";
+import { ItemRequestLine } from "./ItemRequest";
 import {
   ContentRating,
   Genres,
@@ -159,7 +160,8 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
                 formatDuration(item.duration_ms),
                 item.content_rating ? <ContentRating key="cr" value={item.content_rating} /> : null,
                 item.rating != null && item.rating > 0 ? <RatingBadge key="r" rating={item.rating} /> : null,
-                qualityBadgeLabels(item).length ? <QualityBadges key="q" item={item} /> : null,
+                // The quality of the version that plays.
+                qualityBadgeLabels(file).length ? <QualityBadges key="q" file={file} /> : null,
               ]}
             />
             <StarRating item={item} />
@@ -202,6 +204,7 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
             <WatchedButton item={item} />
             <MoreActions item={item} file={file} />
           </div>
+          {item.kind === "movie" ? <ItemRequestLine item={item} /> : null}
 
           {item.kind === "movie" && item.tmdb_id == null && !item.summary ? <MissingKeyNotice className="max-w-3xl" /> : null}
           <EditDialogs item={item} dialog={edit} onClose={() => setEdit(null)} />

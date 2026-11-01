@@ -12,32 +12,45 @@ import app.pley.android.data.DataGraph
 import app.pley.android.data.Loadable
 import app.pley.android.data.PlayTarget
 import app.pley.android.data.map
+import app.pley.android.data.mayAsk
+import app.pley.android.data.summary
 import app.pley.android.data.valueOrNull
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
+import app.pley.android.model.ItemRequest
 import app.pley.android.model.ItemSummary
 import app.pley.android.network.ApiException
 import app.pley.android.player.PlayRequest
 import app.pley.android.screens.PlayerLauncher
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.requests.ItemRequestState
+import app.pley.android.screens.requests.RequestsViewModel
+import app.pley.android.screens.requests.moving
 import app.pley.android.screens.screensGraph
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -67,7 +80,7 @@ sealed interface ItemEvent {
  * Watched marks, ratings and My List show at once and are undone if the server
  * refuses.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class ItemViewModel(
     private val data: DataGraph,
     private val launcher: PlayerLauncher,
@@ -185,12 +198,91 @@ class ItemViewModel(
         }
     }
 
-    /** The page first drew its content: the end of [TraceNames.NAV_ITEM]. */
+    /**
+     * The page first drew its content: the end of [TraceNames.NAV_ITEM],
+     * and what requests say of it may be asked now.
+     */
     fun onShown() {
+        endTrace()
+        drawn.value = true
+    }
+
+    private fun endTrace() {
         if (traced) {
             traced = false
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) Trace.endAsyncSection(TraceNames.NAV_ITEM, itemId.toInt())
         }
+    }
+
+    /** The page has drawn ([onShown]): until then nothing is asked of requests. */
+    private val drawn = MutableStateFlow(false)
+
+    /**
+     * What requests say of this movie or show: asked for
+     * once the page has drawn, never before, and only when the person may
+     * ask or has requests; read again every 3 s, 4 times at most, while it
+     * fails or TMDB's details haven't come (Request more seasons waits for
+     * them), then when one of its requests changes, and every 10 s while
+     * its request downloads or goes into the library (download progress
+     * sends no events). `null`: nothing to show (not a movie or show, no
+     * TMDB match, or requests don't apply).
+     */
+    val request: StateFlow<ItemRequestState?> = combine(
+        drawn,
+        data.requests.state,
+        data.items.detail(itemId).map { it.valueOrNull?.kind }.distinctUntilChanged(),
+    ) { shown, gate, kind ->
+        val wanted = gate.mayAsk || gate.summary?.let { it.own > 0 && it.yourRequests } == true
+        if (shown && wanted && (kind == ItemKind.Movie || kind == ItemKind.Show)) RequestGate(gate.mayAsk, gate.summary?.manage == true) else null
+    }
+        .distinctUntilChanged()
+        .flatMapLatest { gate -> if (gate == null) flowOf(null) else itemRequests(gate) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_MS), null)
+
+    private data class RequestGate(val mayAsk: Boolean, val manage: Boolean)
+
+    private fun itemRequests(gate: RequestGate): Flow<ItemRequestState?> = flow {
+        // The server waits for TMDB 2 s at most: a later read has what this one lacked.
+        var answer: ItemRequest? = null
+        for (attempt in 0..AGAIN_READS) {
+            if (attempt > 0) delay(AGAIN_MS)
+            val read = readItemRequest()
+            // No TMDB match: nothing to show, ever.
+            if (read.isSuccess && read.getOrNull() == null) return@flow emit(null)
+            read.getOrNull()?.let {
+                answer = it
+                emit(ItemRequestState.of(it, gate.mayAsk, gate.manage))
+            }
+            if (answer?.askable != null) break
+        }
+        var shown = answer ?: return@flow emit(null)
+        val downloading = MutableStateFlow(shown.request?.moving == true)
+        val changes = data.requests.changes
+            .filter { it.about(shown.kind, shown.tmdbId) || (it.requestId != null && it.requestId == shown.request?.id) }
+            .debounce(REQUEST_CHANGES_MS)
+            .map { }
+        val ticks = downloading.transformLatest { on ->
+            while (on) {
+                delay(RequestsViewModel.MOVING_MS)
+                emit(Unit)
+            }
+        }
+        merge(changes, ticks).collect {
+            // A failure keeps what shows: an extra, the page shows without it.
+            val again = readItemRequest().getOrNull() ?: return@collect
+            shown = again
+            downloading.value = again.request?.moving == true
+            emit(ItemRequestState.of(again, gate.mayAsk, gate.manage))
+        }
+    }
+
+    /** What requests say of this item: `null` without a TMDB match, or why it couldn't be read. */
+    private suspend fun readItemRequest(): Result<ItemRequest?> = try {
+        Result.success(data.requests.itemRequest(itemId))
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 
     /** Loads the page again after it failed. */
@@ -310,7 +402,7 @@ class ItemViewModel(
     }
 
     override fun onCleared() {
-        onShown()
+        endTrace()
     }
 
     private data class Shape(val kind: ItemKind, val parentId: Long?)
@@ -327,6 +419,15 @@ class ItemViewModel(
     companion object {
         /** Keeps loading this long after the page stops showing (rotation, a quick look elsewhere). */
         const val STOP_MS = 5_000L
+
+        /** Request events gathered before the item's request is read again. */
+        const val REQUEST_CHANGES_MS = 500L
+
+        /** How long after a failed first read, or one without TMDB's details, the item's request is read again. */
+        const val AGAIN_MS = 3_000L
+
+        /** How many times it is: the server has the details once TMDB answers. */
+        const val AGAIN_READS = 4
 
         /** The page of [itemId], made with the app's graph. */
         fun factory(itemId: Long): ViewModelProvider.Factory = viewModelFactory {

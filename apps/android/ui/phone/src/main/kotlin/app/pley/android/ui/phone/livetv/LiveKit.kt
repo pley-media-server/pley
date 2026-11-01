@@ -26,7 +26,6 @@ import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveProgram
 import app.pley.android.screens.livetv.LiveTv
 import app.pley.android.ui.phone.R
-import java.util.Calendar
 import java.util.Date
 
 /** "20:00" or "8:00 PM", as the device writes times. */
@@ -60,11 +59,10 @@ internal fun timeLeft(program: LiveProgram, now: Long): String {
 @Composable
 internal fun dayOf(seconds: Long, now: Long): String {
     val context = LocalContext.current
-    fun day(t: Long) = Calendar.getInstance().apply { timeInMillis = t * 1000 }.let { it.get(Calendar.YEAR) * 1000 + it.get(Calendar.DAY_OF_YEAR) }
-    return when (day(seconds)) {
-        day(now) -> stringResource(R.string.livetv_today)
-        day(now + 86_400) -> stringResource(R.string.livetv_tomorrow)
-        day(now - 86_400) -> stringResource(R.string.livetv_yesterday)
+    return when (LiveTv.daysApart(seconds, now)) {
+        0L -> stringResource(R.string.livetv_today)
+        1L -> stringResource(R.string.livetv_tomorrow)
+        -1L -> stringResource(R.string.livetv_yesterday)
         else -> DateFormat.getMediumDateFormat(context).format(Date(seconds * 1000))
     }
 }

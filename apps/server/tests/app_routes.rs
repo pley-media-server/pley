@@ -80,6 +80,9 @@ async fn an_administrators_app_is_answered_as_an_app() {
     let set = app.put(DEFAULTS, &token, json!({"subtitle_mode": "off"})).await;
     assert_eq!(set.status, StatusCode::OK, "{}", set.text());
     assert_eq!((&set.body["is_admin"], &set.body["scope"]), (&json!(false), &json!("play")));
+    // Still the administrator's account: what asking from one of pley's
+    // own apps does.
+    assert_eq!(set.body["request_access"], json!("auto"));
 }
 
 #[tokio::test]

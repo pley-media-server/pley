@@ -1,5 +1,5 @@
 import { signal } from "@preact/signals";
-import type { LibrarySort } from "../../api/types";
+import type { DiscoverList, LibrarySort, TitleKind } from "../../api/types";
 import type { PlayRequest } from "../../player/plan";
 
 /** The app's pages (the Android app's PleyKeys). */
@@ -29,6 +29,14 @@ export type PageKey =
   | { name: "history" }
   | { name: "diagnostics" }
   | { name: "nowPlaying" }
+  /** Discover; `query`: its search, from search's "See all on Discover". */
+  | { name: "discover"; query?: string }
+  /** One of Discover's rows, whole. */
+  | { name: "discoverList"; list: DiscoverList }
+  /** A movie or show from TMDB; `pick`: its season picker opens (Request more seasons). */
+  | { name: "title"; kind: TitleKind; tmdbId: number; pick?: boolean }
+  /** Your requests (for managers Requests, opening on Needs attention). */
+  | { name: "requests" }
   | { name: "player"; request: PlayRequest; pressedAt: number }
   /** Live TV: the guide, or the channels as cards. */
   | { name: "live" }

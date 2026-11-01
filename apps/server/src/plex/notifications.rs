@@ -208,7 +208,13 @@ impl Listener {
             | ServerEvent::UserStateChanged { .. }
             | ServerEvent::SessionStopped { .. }
             | ServerEvent::LiveChannelsChanged
-            | ServerEvent::LiveTunersChanged => Ok(Vec::new()),
+            | ServerEvent::LiveTunersChanged
+            | ServerEvent::RequestsChanged { .. }
+            | ServerEvent::RequestAvailable { .. }
+            | ServerEvent::RequestDecided { .. }
+            | ServerEvent::RequestCreated { .. }
+            | ServerEvent::RequestFailed { .. }
+            | ServerEvent::RequestsSettingsChanged { .. } => Ok(Vec::new()),
         };
         result.unwrap_or_else(|err| {
             tracing::debug!("notification socket: {err}");
@@ -239,7 +245,7 @@ impl Listener {
             let reported = match last {
                 Some(last) => Reported { state, position_ms: play.position_ms, ..last },
                 None => {
-                    let (key, client) = playback::session_key(&session.id);
+                    let (key, client) = playback::session_key(&self.state, &session.id);
                     let client =
                         client.identifier.or_else(|| session.client_id.clone()).unwrap_or_else(|| session.id.clone());
                     Reported { key, client, item_id: session.item_id, state, position_ms: play.position_ms }
@@ -258,7 +264,7 @@ impl Listener {
             }
         }
         // Keys stay for quiet sessions, which may wake.
-        playback::forget_ended(&self.state.sessions.list());
+        playback::forget_ended(&self.state, &self.state.sessions.list());
         notes
     }
 

@@ -80,6 +80,14 @@ impl TestApp {
         Self { api, plex, state, media: tempfile::tempdir().unwrap(), _data: data }
     }
 
+    /// A new pley on the same data folder, as after a restart: what was
+    /// saved stays, and what it keeps in memory starts over.
+    pub async fn restart(&mut self) {
+        self.state = AppState::init(self.state.config.clone()).await.unwrap();
+        self.api = pley::api::router(self.state.clone());
+        self.plex = pley::plex::service(self.state.clone());
+    }
+
     pub fn media_file(&self, rel: &str, bytes: usize) {
         let path = self.media.path().join(rel);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();

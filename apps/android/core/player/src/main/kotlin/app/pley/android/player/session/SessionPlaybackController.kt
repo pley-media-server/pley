@@ -150,6 +150,14 @@ class SessionPlaybackController(
     private var caps: CapsSnapshot? = null
     private var file: MediaFile? = null
 
+    /**
+     * Whether the file about to play comes out as Dolby Vision, as the
+     * engine judged it for the display mode it plays in ([judgeDolbyVision]),
+     * and [caps] as the server is told of it then.
+     */
+    private var dolbyVision: Boolean? = null
+    private var fileCaps: CapsSnapshot? = null
+
     /** The item's files downloaded here, of the same file ([downloadedFiles]). */
     private var downloads: Set<Long> = emptySet()
 
@@ -418,8 +426,26 @@ class SessionPlaybackController(
         if (endSession(atMs)) withTimeoutOrNull(END_WAIT_MS) { env.reporter.flush() }
         reset(atMs, handoff = false)
         playingConverted = local?.converted == true
+        judgeDolbyVision(detail, chosen)
         if (local != null) return beginLocal(detail, chosen, local, atMs)
         loadSession(detail, chosen, startSession(detail, chosen, choicesAt(detail, chosen, atMs), keepPrevious = false), atMs)
+    }
+
+    /**
+     * Asks the engine whether [chosen]'s video comes out as Dolby Vision in
+     * the display mode it plays in, before the server is asked: the server
+     * is told the screen's Dolby Vision only where it is shown, and the
+     * engine's decoder follows the same answer.
+     */
+    private suspend fun judgeDolbyVision(detail: ItemDetail, chosen: MediaFile) {
+        dolbyVision = try {
+            link?.dolbyVisionShown(PlaybackPlan.videoStream(chosen), chosen.durationMs ?: detail.durationMs)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+        fileCaps = PlaybackPlan.capsFor(caps, dolbyVision)
     }
 
     /**
@@ -437,6 +463,7 @@ class SessionPlaybackController(
         // The stall watch starts over: the next session is on its way.
         lastAdvanceAt = env.now()
         try {
+            judgeDolbyVision(detail, chosen)
             val started = try {
                 startSession(detail, chosen, choicesAt(detail, chosen, atMs), keepPrevious = true)
             } catch (e: ApiException) {
@@ -502,7 +529,7 @@ class SessionPlaybackController(
     private fun choicesAt(detail: ItemDetail, chosen: MediaFile, atMs: Long): PlaybackPlan.Choices {
         // A lower quality is always a transcode; the original keeps a fallback's mode, or a guard's.
         val mode = if (!quality.original) PlaybackMode.Transcode else recovery.fallbackMode ?: guardMode ?: quality.mode
-        val decision = caps?.let { c -> runCatching { env.policy.decide(detail, chosen.id, c) }.getOrNull() }
+        val decision = fileCaps?.let { c -> runCatching { env.policy.decide(detail, chosen.id, c) }.getOrNull() }
         // Automatic audio names no track: the server picks it again.
         val wanted = audio?.takeIf { audioPicked }
         return PlaybackPlan.Choices(
@@ -512,7 +539,7 @@ class SessionPlaybackController(
             subtitle = subtitle,
             quality = quality,
             mode = mode,
-            streaming = PlaybackPlan.streams(mode, decision, chosen, wanted, caps),
+            streaming = PlaybackPlan.streams(mode, decision, chosen, wanted, fileCaps),
             sideload = sideload,
         )
     }
@@ -523,20 +550,20 @@ class SessionPlaybackController(
      */
     private suspend fun startSession(detail: ItemDetail, chosen: MediaFile, first: PlaybackPlan.Choices, keepPrevious: Boolean): ServerPlaybackSession {
         var choices = first
-        var sent = PlaybackPlan.request(detail.id, choices, env.clientId(), caps, keepPrevious)
+        var sent = PlaybackPlan.request(detail.id, choices, env.clientId(), fileCaps, keepPrevious)
         var started = ServerPlaybackSession.start(env.api, sent, env.reporter)
 
-        DvGuards.retryMode(started.info, chosen, caps)?.let { guarded ->
+        DvGuards.retryMode(started.info, chosen, fileCaps)?.let { guarded ->
             started.discard()
             guardMode = guarded
             choices = choices.copy(mode = guarded, streaming = true)
-            sent = PlaybackPlan.request(detail.id, choices, env.clientId(), caps, keepPrevious)
+            sent = PlaybackPlan.request(detail.id, choices, env.clientId(), fileCaps, keepPrevious)
             started = ServerPlaybackSession.start(env.api, sent, env.reporter)
         }
         if (PlaybackPlan.needsIndexes(started.info, sent, choices)) {
             started.discard()
             choices = choices.copy(streaming = true)
-            sent = PlaybackPlan.request(detail.id, choices, env.clientId(), caps, keepPrevious)
+            sent = PlaybackPlan.request(detail.id, choices, env.clientId(), fileCaps, keepPrevious)
             started = ServerPlaybackSession.start(env.api, sent, env.reporter)
         }
         return started
@@ -579,6 +606,7 @@ class SessionPlaybackController(
             mimeType = if (info.hls) null else PlaybackPlan.mimeTypeOf(chosen.container),
             video = video,
             durationMs = info.durationMs.takeIf { it > 0 } ?: chosen.durationMs ?: detail.durationMs,
+            dolbyVision = dolbyVision.takeIf { info.method != PlaybackMethod.Transcode },
         )
         engineLink.prepare(source, atMs, wantPlay.value)
         engineLink.setSpeed(speed)
@@ -637,6 +665,7 @@ class SessionPlaybackController(
             mimeType = PlaybackPlan.mimeTypeOf(chosen.container),
             video = PlaybackPlan.videoStream(chosen),
             durationMs = info.durationMs.takeIf { it > 0 },
+            dolbyVision = dolbyVision,
         )
         engineLink.prepare(source, atMs, wantPlay.value)
         engineLink.setSpeed(speed)

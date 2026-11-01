@@ -15,7 +15,7 @@ import urllib.parse
 
 import xbmc
 
-from . import api, auth, autoquality, kodi, overlay, prompts, tracks
+from . import api, auth, autoquality, kodi, news, overlay, prompts, requests, tracks
 from .events import CHANGES, Events, Refresher
 from .proxy import Proxy, new_secret
 
@@ -779,21 +779,27 @@ class QualitySetting:
 
 
 class Monitor(xbmc.Monitor):
-    """Kodi's word that the add-on's settings changed."""
+    """Kodi's word that the add-on's settings changed, and the plugin's that
+    it did something to requests (requests.ASKING)."""
 
-    def __init__(self, changed):
+    def __init__(self, changed, asking=lambda: None):
         super().__init__()
         self.changed = changed
+        self.asking = asking
 
     def onSettingsChanged(self) -> None:
         self.changed()
+
+    def onNotification(self, sender, method, data) -> None:
+        if sender == kodi.ADDON_ID and method.endswith(requests.ASKING):
+            self.asking()
 
 
 def run() -> None:
     profile = kodi.profile_dir()
     user_agent = kodi.user_agent()
     quality = QualitySetting(user_agent)
-    monitor = Monitor(lambda: worker.put(quality.read))
+    monitor = Monitor(lambda: worker.put(quality.read), asking=lambda: told.asked())
     tokens = auth.Tokens(auth.Store(os.path.join(profile, "tokens.json")), user_agent)
     config = proxy_config(profile)
     worker = Worker()
@@ -814,7 +820,16 @@ def run() -> None:
         save_proxy_config(profile, {"port": port, "secret": config["secret"]})
     kodi.set_property(kodi.PROXY, proxy.base)
     kodi.log("proxy on 127.0.0.1:%d" % port)
-    events = Events(tokens, user_agent, player.heard)
+    # Requests' news, on a worker of its own: playback's reports never
+    # wait for it.
+    news_worker = Worker()
+    told = news.News(player.call, tokens.identity, news_worker.put, player.isPlayingVideo, lambda: proxy.base)
+
+    def heard(event: dict) -> None:
+        player.heard(event)
+        told.heard(event)
+
+    events = Events(tokens, user_agent, heard, opened=told.opened)
     events.start()
     # A quality chosen before Automatic, shown in the settings as it was.
     worker.put(quality.read)
@@ -823,8 +838,16 @@ def run() -> None:
             player.tick()
         except Exception as e:  # noqa: BLE001 - the loop outlives any one turn
             kodi.log("service turn failed: %r" % e, xbmc.LOGERROR)
+        try:
+            told.tick(events.open.is_set())
+        except Exception as e:  # noqa: BLE001 - the loop outlives any one turn
+            kodi.log("requests' news failed: %r" % e, xbmc.LOGERROR)
     player.close_overlay()
     kodi.clear_property(kodi.PROXY)
+    kodi.clear_property(requests.SUMMARY)
+    # Ends after what it is doing, unwaited for: the last report has the
+    # seconds Kodi gives.
+    news_worker.put(None)
     events.stop()
     refresher.cancel()
     proxy.stop()

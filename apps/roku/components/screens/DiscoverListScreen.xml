@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One of Discover's lists whole (See all): a grid of posters with their
+     badges, a page at a time as the focus nears its end. -->
+<component name="DiscoverListScreen" extends="Group">
+    <interface>
+        <field id="route" type="string" />
+        <field id="params" type="assocarray" />
+        <field id="navigate" type="assocarray" alwaysNotify="true" />
+        <field id="active" type="boolean" alwaysNotify="true" />
+        <field id="requestSummary" type="assocarray" />
+        <!-- Set by the scene: a title's request changed (its badge follows). -->
+        <field id="requestNote" type="assocarray" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/screens/DiscoverListScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/RequestBadges.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
+    <children>
+        <Label id="title" translation="[96, 56]" width="1300" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="credit" translation="[96, 128]" width="1600" text="Details and pictures from TMDB." color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <MarkupGrid id="grid" translation="[96, 200]" itemComponentName="Tile" numColumns="7" numRows="2" itemSize="[220, 410]" itemSpacing="[28, 24]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <Label id="message" translation="[96, 480]" width="1728" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" visible="false" />
+        <!-- Why the list can't be shown, and what to do about it. -->
+        <LayoutGroup id="problem" translation="[96, 360]" layoutDirection="vert" itemSpacings="[20, 48]" visible="false">
+            <Label id="problemTitle" width="1400" wrap="true" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="problemText" width="1400" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
+            <ButtonGroup id="problemButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="420" />
+        </LayoutGroup>
+    </children>
+</component>

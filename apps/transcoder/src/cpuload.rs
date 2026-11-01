@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! How busy the processors the transcoder may use are, and how much of them
 //! other programs take: the share of their time that went to any work, and
 //! the cores other programs' work kept from this transcoder and its FFmpeg

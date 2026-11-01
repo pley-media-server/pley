@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! HLS transcode jobs.
 //!
 //! A job owns a fixed segment layout (its VOD playlist never changes) and at

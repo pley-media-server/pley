@@ -91,13 +91,21 @@ def build(
         # video, asked for with `subtitle_index`.
         "picture_subtitles_sideload": True,
         "audio_track_switching": True,
-        "hls": {"master_playlist": True, "segments": ["ts"]},
+        # Kodi's HLS player (FFmpeg's) reads no CODECS, and MPEG-TS segments
+        # carry no Dolby Vision configuration: Dolby Vision the server names
+        # only in master.m3u8 would play as HDR10, so it isn't asked for.
+        "hls": {"master_playlist": False, "segments": ["ts"]},
         "device": {"form": "tv", "model": model},
     }
     if "dolby_vision" in types:
         # CoreELEC plays profile 7 with its enhancement layer; elsewhere its
         # base layer, which the server repackages.
         caps["dolby_vision_profiles"] = [{"profile": p} for p in ((5, 7, 8) if coreelec else (5, 8))]
+        # CoreELEC's own Dolby Vision shows it with HDR10+ beside it; on
+        # Android, Kodi gets the platform's decoder, which many TV devices
+        # show black with (androidx/media#1895).
+        if coreelec:
+            caps["dolby_vision_hdr10plus"] = True
     if width and height:
         caps["display"] = {"width": width, "height": height}
     return caps

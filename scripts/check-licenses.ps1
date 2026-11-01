@@ -1,6 +1,6 @@
 # Verifies the licensing rules (see LICENSING.md):
 #  * the server (pley-server) and the transcoder (pley-transcoder), both
-#    under LICENSE (Restricted), must not depend on any crate that is only
+#    under LICENSE (AGPL-3.0-only), must not depend on any crate that is only
 #    available under a copyleft license ((L/A)GPL and the like);
 #  * the server must not depend on the transcoder crate: it is a separate
 #    program, spoken to only over HTTP.
@@ -20,6 +20,10 @@ $packages = @{}
 foreach ($p in $meta.packages) { $packages[$p.id] = $p }
 $nodes = @{}
 foreach ($n in $meta.resolve.nodes) { $nodes[$n.id] = $n }
+# Pley's own crates are under LICENSE themselves; the rule is about the
+# crates they use.
+$own = @{}
+foreach ($id in $meta.workspace_members) { $own[$id] = $true }
 
 function Get-Closure([string]$name) {
     $start = ($meta.packages | Where-Object { $_.name -eq $name } | Select-Object -First 1).id
@@ -59,6 +63,7 @@ foreach ($program in "pley-server", "pley-transcoder") {
             Write-Host "  ERROR: pley-server depends on pley-transcoder (a separate program)" -ForegroundColor Red
             $failed = $true
         }
+        if ($own.ContainsKey($p.id)) { continue }
         if (Test-CopyleftOnly $p.license) {
             Write-Host "  ERROR: $($p.name) $($p.version) is $($p.license)" -ForegroundColor Red
             $failed = $true

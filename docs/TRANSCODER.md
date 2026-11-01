@@ -169,8 +169,8 @@ Errors are `{"code": "...", "message": "..."}`:
 |---|---|
 | `name`, `version`, `api_version` | the program and its API version |
 | `commit` | the build's short hash, when known |
-| `license` | the program's licence, as SPDX: `LicenseRef-Restricted` |
-| `source` | where its source can be obtained, if it is offered (`null`) |
+| `license` | the program's licence, as SPDX: `AGPL-3.0-only` |
+| `source` | where its source can be obtained: Pley's repository, or a changed build's own |
 | `started_at_ms` | start time |
 | `capabilities` | what this transcoder and its FFmpeg can do (below) |
 | `limits` | `max_jobs`, `max_hw_jobs` |
@@ -1148,10 +1148,11 @@ python scripts/bench-transcoder.py --media bench --hdr 4k-hdr10.mkv \
 `pley-transcoder --license` prints:
 
 ```
-pley-transcoder  Copyright (c) 2026 the Pley authors. All rights reserved.
-Restricted: its licence terms are to be determined, and no licence to copy,
-modify or distribute it is granted until then. It comes with ABSOLUTELY NO
-WARRANTY. See the LICENSE file.
+pley-transcoder  Copyright (c) 2026 the Pley authors
+This program comes with ABSOLUTELY NO WARRANTY. It is free software: you can
+redistribute it and/or modify it under the terms of the GNU Affero General
+Public License, version 3. See the LICENSE file.
+Source: https://github.com/pley-media-server/pley
 ```
 
 FFmpeg is run as a separate program, never linked, and has its own licence

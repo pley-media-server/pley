@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- An entry of Home's menu: its name, in the accent box while focused,
+     and a number after it (the requests waiting, news), red while some
+     failed. -->
+<component name="MenuRow" extends="Group">
+    <interface>
+        <field id="itemContent" type="node" onChange="onContent" />
+        <field id="itemHasFocus" type="boolean" onChange="onFocus" />
+        <field id="listHasFocus" type="boolean" value="true" onChange="onFocus" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/items/MenuRow.brs" />
+    <children>
+        <Poster id="focus" width="300" height="72" uri="pkg:/images/button-focus.9.png" visible="false" />
+        <Label id="name" translation="[24, 0]" width="252" height="72" vertAlign="center" color="0xEBEBEBFF" font="font:MediumSystemFont" />
+        <Rectangle id="countBack" translation="[0, 16]" height="40" visible="false" />
+        <Label id="count" translation="[0, 16]" height="40" horizAlign="center" vertAlign="center" color="0x16191EFF" font="font:SmallestBoldSystemFont" visible="false" />
+    </children>
+</component>

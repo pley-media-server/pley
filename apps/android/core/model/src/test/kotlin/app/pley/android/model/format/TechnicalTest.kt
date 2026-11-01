@@ -68,6 +68,10 @@ class TechnicalTest {
         assertEquals("Profile 5 · Level 6 · no compatible base layer", dolbyVisionDetails(p5))
         val p7 = video(range = DynamicRange.DolbyVision, dvProfile = 7, dvLevel = 6, dvBlCompat = 6)
         assertEquals("Profile 7 · Level 6 · Blu-ray HDR10-compatible base layer", dolbyVisionDetails(p7))
+        // A profile 7 converted elsewhere, its id kept: profile 8, as its label says.
+        val p8BluRay = p7.copy(dvProfile = 8)
+        assertEquals("Profile 8 · Level 6 · Blu-ray HDR10-compatible base layer", dolbyVisionDetails(p8BluRay))
+        assertEquals("Dolby Vision P8", hdrFormatLabel(p8BluRay))
         assertNull(dolbyVisionDetails(video()))
         assertEquals("HDR10", hdrFormatLabel(video()))
         assertEquals("SDR", hdrFormatLabel(video(range = DynamicRange.Sdr)))

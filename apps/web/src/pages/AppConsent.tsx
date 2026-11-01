@@ -16,6 +16,8 @@ const SCOPE_WORDS: Record<string, (profile: string) => string> = {
   play: (p) => `Play titles, and keep ${p}'s place, watched marks, ratings, track choices and library order.`,
   playlists: (p) => `Make, change and delete ${p}'s playlists.`,
   profiles: () => "Switch to the household's other profiles. Profiles with a PIN still ask for it.",
+  requests: (p) => `Ask for movies and shows the libraries don't have, and follow ${p}'s requests.`,
+  approvals: () => "Approve and decline what people ask for, where the account is an administrator.",
 };
 
 /** How long the page must have been seen before Allow can be pressed. */
@@ -167,6 +169,8 @@ export function AppConsent({
 
   const over = isApiError(error, 404);
   const canSwitch = (profiles.data?.length ?? 0) > 1;
+  // The one administrator right an app can get: managing requests.
+  const approves = user.is_admin && request.scopes.includes("approvals");
 
   return (
     <AuthLayout title={`${app} wants to use your Pley account`} subtitle={server.data ? `on ${server.data.name}` : undefined}>
@@ -227,9 +231,17 @@ export function AppConsent({
             ))}
           </ul>
           <p className="mt-3 text-muted">
-            It can't change your password, sign-in settings or devices, and it never gets administrator rights.
+            {approves
+              ? "It can't change your password, sign-in settings or devices."
+              : "It can't change your password, sign-in settings or devices, and it never gets administrator rights."}
           </p>
-          {user.is_admin ? <p className="mt-1 text-muted">Your administrator rights stay in Pley's web app.</p> : null}
+          {user.is_admin ? (
+            <p className="mt-1 text-muted">
+              {approves
+                ? "Of your administrator rights it gets only approving and declining requests: the others stay in Pley's web app."
+                : "Your administrator rights stay in Pley's web app."}
+            </p>
+          ) : null}
         </div>
 
         <Destination redirect={redirect} />

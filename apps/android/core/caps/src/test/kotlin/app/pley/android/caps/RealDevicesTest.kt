@@ -39,12 +39,13 @@ class RealDevicesTest {
         assertEquals(listOf(DynamicRange.Hdr10), caps.details.screenHdrTypes)
         assertEquals(listOf(DynamicRange.Hdr10), report.hdrTypes)
         assertTrue(report.hdr)
-        // Dolby Vision decoders for profiles 4, 5, 8, 9 and 10 (not 7), up to 2160p60, unused on this screen.
+        // Dolby Vision decoders for profiles 4, 5, 8, 9 and 10 (not 7), up to 2160p60, unused on this
+        // screen: listed, so the server says the screen is what doesn't show Dolby Vision.
         assertEquals(
             listOf(4, 5, 8, 9, 10).map { DolbyVisionCaps(it, 9) },
             caps.details.dolbyVisionProfiles,
         )
-        assertEquals(emptyList<DolbyVisionCaps>(), report.dolbyVisionProfiles)
+        assertEquals(caps.details.dolbyVisionProfiles, report.dolbyVisionProfiles)
         assertFalse(report.dolbyVision)
 
         assertEquals(3840 to 2160, report.display!!.width to report.display!!.height)
@@ -67,11 +68,22 @@ class RealDevicesTest {
     fun googleTvStreamerOnADolbyVisionTv() {
         // The same box on a screen that shows Dolby Vision: its profiles go to the server.
         val input = RealDevices.googleTvStreamer
-        val dvScreen = input.display!!.copy(modes = input.display!!.modes.map { it.copy(hdrTypes = listOf(1, 2, 3)) })
+        val dvScreen = input.display!!.copy(modes = input.display!!.modes.map { it.copy(hdrTypes = listOf(1, 2, 3)) }, hdrCapabilities = listOf(1, 2, 3))
         val caps = capsOf(input.copy(display = dvScreen))
         assertEquals(listOf(4, 5, 8, 9, 10), caps.report.dolbyVisionProfiles!!.map { it.profile })
         assertTrue(caps.report.dolbyVision)
         assertEquals(listOf(DynamicRange.Hdr10, DynamicRange.Hlg, DynamicRange.DolbyVision), caps.report.hdrTypes)
+    }
+
+    @Test
+    fun googleTvStreamerWithDolbyVisionTurnedOff() {
+        // The TV shows Dolby Vision, but the person turned it off in the system's settings: the
+        // modes still list it, getHdrCapabilities doesn't, and Media3 wouldn't decode it.
+        val input = RealDevices.googleTvStreamer
+        val off = input.display!!.copy(modes = input.display!!.modes.map { it.copy(hdrTypes = listOf(1, 2, 3)) }, hdrCapabilities = listOf(2, 3))
+        val caps = capsOf(input.copy(display = off))
+        assertEquals(listOf(DynamicRange.Hdr10, DynamicRange.Hlg), caps.report.hdrTypes)
+        assertFalse(caps.report.dolbyVision)
     }
 
     @Test

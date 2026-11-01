@@ -109,6 +109,7 @@ const ADMIN: &[(&str, &str)] = &[
     ("GET", "/api/settings"),
     ("PUT", "/api/settings"),
     ("POST", "/api/settings/test"),
+    ("POST", "/api/settings/arr"),
     ("GET", "/api/network"),
     ("PUT", "/api/network"),
     ("GET", "/api/fs"),
@@ -280,6 +281,18 @@ fn every_route_is_classified() {
     // picture (PATCH /api/me) stay the web's.
     assert_eq!(app_route("PUT", "/api/me/track-defaults"), Some(Need::Scope(pley::auth::scopes::Scope::Play)));
     assert!(FIRST_PARTY.contains(&("PATCH", "/api/me")));
+    // Whether requests are on, for any app; asking with `requests`,
+    // managing with `approvals`.
+    assert_eq!(app_route("GET", "/api/requests/summary"), Some(Need::AnyApp));
+    let requests = Some(Need::Scope(pley::auth::scopes::Scope::Requests));
+    assert_eq!(app_route("GET", "/api/discover/images/{kind}/{file}"), requests);
+    assert_eq!(app_route("GET", "/api/items/{id}/request"), requests);
+    assert_eq!(app_route("POST", "/api/requests/seen"), requests);
+    assert_eq!(app_route("DELETE", "/api/requests/{id}/watch"), requests);
+    let approvals = Some(Need::Scope(pley::auth::scopes::Scope::Approvals));
+    assert_eq!(app_route("POST", "/api/requests/{id}/decline"), approvals);
+    assert_eq!(app_route("POST", "/api/requests/{id}/handled"), approvals);
+    assert_eq!(app_route("GET", "/api/requests/options"), approvals);
     // TVs: anyone starts with a code, which only pley's own page takes.
     assert!(PUBLIC.contains(&("POST", "/api/oauth/device")));
     assert!(PUBLIC.contains(&("GET", "/api/oauth/device/qr")));
@@ -349,7 +362,7 @@ async fn an_administrators_app_token_opens_only_app_routes() {
     let admin = app.setup_admin().await;
     app.media_file("movies/Film (2020).mkv", 2048);
     app.library(&admin, "Movies", "movies", "movies").await;
-    let (token, _) = app.app_token(1, "library play playlists profiles").await;
+    let (token, _) = app.app_token(1, "library play playlists profiles requests approvals").await;
     for (method, path) in api_routes() {
         if PUBLIC.iter().any(|(m, p)| *m == method && *p == path) {
             // No sign-in needed (and logout would end the grant).
@@ -384,7 +397,7 @@ async fn each_scope_opens_only_its_routes() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
     let (_, ann) = app.user(&admin, "ann", json!({})).await;
-    for scope in ["library", "play", "playlists", "profiles"] {
+    for scope in ["library", "play", "playlists", "profiles", "requests", "approvals"] {
         let (token, _) = app.app_token(ann, scope).await;
         for (method, path, need) in APP_ROUTES {
             let uri = concrete(path);

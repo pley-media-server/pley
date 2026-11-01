@@ -408,6 +408,12 @@ export interface PlaybackRequest {
 
 export type PlaybackState = "playing" | "paused" | "stopped";
 
+/**
+ * The server's events. Request events reach a sign-in with `requests`
+ * (the managers' ones with `approvals` too); an older server sends
+ * `requests_changed` and `request_available` with fewer fields, so those
+ * past `type` may be missing.
+ */
 export type ServerEvent =
   | { type: "library_changed"; library_id: Id }
   | { type: "libraries_changed" }
@@ -420,7 +426,28 @@ export type ServerEvent =
   /** Live TV's sources, channels or guide changed: ask again. */
   | { type: "live_channels_changed" }
   /** A live channel was tuned or let go, or its viewers changed. */
-  | { type: "live_tuners_changed" };
+  | { type: "live_tuners_changed" }
+  /** Any change of a request (its stage included); all three null when many changed (after Your requests was seen elsewhere). */
+  | { type: "requests_changed"; request_id?: Id | null; kind?: TitleKind | null; tmdb_id?: number | null }
+  /** Ready to watch, or some seasons of a show are (`complete` false, `seasons` the ones newly ready); `item_id` as this profile can open it. */
+  | {
+      type: "request_available";
+      request_id: Id;
+      title: string;
+      kind?: TitleKind;
+      tmdb_id?: number;
+      item_id: Id | null;
+      poster_url?: string | null;
+      seasons?: number[] | null;
+      complete?: boolean;
+    }
+  | { type: "request_decided"; request_id: Id; title: string; kind: TitleKind; tmdb_id: number; status: "approved" | "declined"; reason: string | null }
+  /** To managers: someone asked (`pending` waits for one of them). */
+  | { type: "request_created"; request_id: Id; title: string; kind: TitleKind; tmdb_id: number; seasons: number[] | null; requested_by: RequestUser; status: "pending" | "approved" }
+  /** To managers: a request couldn't be sent and the server won't try again by itself. */
+  | { type: "request_failed"; request_id: Id; title: string; kind: TitleKind; reason: string | null; retry_at: Timestamp | null }
+  /** Requests turned on or off, the limits or the TMDB key changed, or this profile's access did: the summary is asked again. */
+  | { type: "requests_settings_changed" };
 
 // ---- Live TV (docs/API.md, "Live TV")
 
@@ -521,6 +548,215 @@ export interface LiveBusyConnection {
   yours: boolean;
   /** You may take it over: it's yours, or you're an administrator and nobody watching it is. */
   can_take_over: boolean;
+}
+
+// ---- requests and Discover (docs/API.md, "Requests")
+
+export type TitleKind = "movie" | "show";
+export type RequestAccess = "off" | "ask" | "auto";
+/** The decision. */
+export type RequestStatus = "pending" | "approved" | "declined" | "failed" | "available";
+/** Where it has got to, from the decision to the library. */
+export type RequestStage = "pending" | "declined" | "failed" | "approved" | "waiting" | "searching" | "downloading" | "importing" | "partial" | "available" | "gone";
+/** What this sign-in may do to a request now, in the order to list them. */
+export type RequestAction = "withdraw" | "unwatch" | "approve" | "retry" | "decline" | "handled" | "delete" | "ask_again";
+export type DiscoverList = "trending" | "movies" | "shows" | "upcoming" | "anime";
+/** A title for this profile: the first of these that holds, in this order. */
+export type TitleStatus = "library" | "restricted" | "requested" | "declined" | "partial" | "none";
+/** A season for this profile, by the server's own rule for a whole season. */
+export type SeasonState = "library" | "partial" | "requested" | "missing" | "unaired";
+
+/** What requests are for this sign-in (`GET /api/requests/summary`, any app may ask). */
+export interface RequestSummary {
+  /** Requests are on, and TMDB has a key. */
+  enabled: boolean;
+  /** What asking from this sign-in does. */
+  access: RequestAccess;
+  /** What may still be asked for in the last 7 days; `null`: no limit. */
+  movies_left: number | null;
+  seasons_left: number | null;
+  /** The limits per 7 days; `null`: none. */
+  movies_limit: number | null;
+  seasons_limit: number | null;
+  /** None left: when one more may be asked for. */
+  movies_next_at: Timestamp | null;
+  seasons_next_at: Timestamp | null;
+  /** This sign-in approves and declines (an administrator's, with `approvals`). */
+  manage: boolean;
+  /** For managers: requests waiting for a decision, and failed ones the server won't try again by itself. */
+  pending: number;
+  failed: number;
+  /** This profile's requests (and those it follows) with news since Your requests was last seen. */
+  unseen: number;
+  /** This profile's requests and those it follows, any status. */
+  own: number;
+  /** The newest change among the requests this sign-in sees: without events, a change here means asking again. */
+  changed_at: Timestamp | null;
+  /** The sign-in predates what it needs: "requests" to ask at all, "approvals" to decide. */
+  sign_in_again: "requests" | "approvals" | null;
+}
+
+export interface DiscoverTitle {
+  kind: TitleKind;
+  tmdb_id: number;
+  title: string;
+  year: number | null;
+  overview: string;
+  /** Server paths (`/api/discover/images/…`), sized with `w` as library artwork is. */
+  poster_url: string | null;
+  backdrop_url: string | null;
+  /** TMDB users', 0–10; `null` with too few votes. */
+  rating: number | null;
+  status: TitleStatus;
+  /** In a library this profile can open. */
+  item_id: Id | null;
+  /** An active request for it this profile made or follows (any, for managers), whatever `status` says. */
+  request_id: Id | null;
+}
+
+export interface DiscoverPage {
+  page: number;
+  /** 0 to 500; a page may hold fewer than 20 (even none) before the last. */
+  total_pages: number;
+  results: DiscoverTitle[];
+}
+
+export interface CastMember {
+  name: string;
+  character: string | null;
+  photo_url: string | null;
+}
+
+export interface DiscoverSeason {
+  /** 0: specials. */
+  number: number;
+  name: string;
+  episodes: number;
+  aired: number;
+  air_date: string | null;
+  poster_url: string | null;
+  in_library: number;
+  requested: boolean;
+  /** What the season is for this profile: drawn from this, never from the counts. */
+  state: SeasonState;
+  /** A request for it this profile made or followed was declined in the last 30 days. */
+  declined: boolean;
+  /** The active request asking for it, where this profile made or follows it (any, for managers). */
+  request_id: Id | null;
+}
+
+export interface DiscoverDetail extends DiscoverTitle {
+  original_title: string | null;
+  tagline: string | null;
+  genres: string[];
+  release_date: string | null;
+  runtime_minutes: number | null;
+  certification: string | null;
+  network: string | null;
+  show_status: string | null;
+  anime: boolean;
+  cast: CastMember[];
+  /** Shows, in TMDB's order; `null` for movies. */
+  seasons: DiscoverSeason[] | null;
+  imdb_id: string | null;
+  /** This profile's (or one it followed), within its 30 days; `reason` is null for a follower. */
+  declined: { reason: string | null; at: Timestamp; again_at: Timestamp } | null;
+  /** Why it can't be asked for ("Rated R: above this account's age limit"). */
+  restriction: string | null;
+  /** This profile follows an active request for it. */
+  watching: boolean;
+  /** This profile's and those it follows (everyone's, for managers), newest first. */
+  requests: MediaRequest[];
+  movies_left: number | null;
+  seasons_left: number | null;
+  movies_next_at: Timestamp | null;
+  seasons_next_at: Timestamp | null;
+}
+
+export interface RequestUser {
+  id: Id;
+  name: string;
+  avatar_url: string | null;
+  avatar_color: string | null;
+}
+
+export interface RequestDownload {
+  /** 0–1, over everything queued for it. */
+  progress: number;
+  state: "queued" | "downloading" | "paused" | "importing" | "warning";
+  eta: Timestamp | null;
+  episodes: number;
+}
+
+export interface MediaRequest {
+  id: Id;
+  kind: TitleKind;
+  tmdb_id: number;
+  title: string;
+  year: number | null;
+  poster_url: string | null;
+  backdrop_url: string | null;
+  /** Shows: the seasons asked for; `null` for movies. */
+  seasons: number[] | null;
+  /** Shows: those ready. */
+  available_seasons: number[];
+  anime: boolean;
+  status: RequestStatus;
+  stage: RequestStage;
+  /** Waiting: when it comes out (an episode's airing exactly; a release known by its day at 12:00 UTC). */
+  stage_at: Timestamp | null;
+  /** Declined: the administrator's (null for followers); failed: what went wrong, for managers. */
+  reason: string | null;
+  /** For managers: what to know about it. */
+  note: string | null;
+  /** This profile made it. */
+  mine: boolean;
+  /** This profile follows it. */
+  watching: boolean;
+  /** For managers: how many follow it. */
+  watchers: number;
+  /** It became available, partly available or declined since this profile last looked. */
+  unseen: boolean;
+  actions: RequestAction[];
+  /** `null` for someone else's request seen by someone who doesn't manage. */
+  requested_by: RequestUser | null;
+  decided_by: RequestUser | null;
+  decided_at: Timestamp | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+  available_at: Timestamp | null;
+  /** Failed: when the server tries again by itself; `null`: it won't. */
+  retry_at: Timestamp | null;
+  sent_to: { service: "radarr" | "sonarr"; quality_profile: string | null; root_folder: string | null } | null;
+  /** The library's title, where this profile can open it. */
+  item_id: Id | null;
+  download: RequestDownload | null;
+}
+
+export interface RequestList {
+  total: number;
+  /** Every filter but `status` applied. */
+  counts: Record<RequestStatus, number>;
+  requests: MediaRequest[];
+  /** For managers: everyone with a request matching every filter but the person, by name. */
+  people: RequestUser[];
+}
+
+/** A library title's place in requests (`GET /api/items/{id}/request`). */
+export interface ItemRequest {
+  kind: TitleKind;
+  tmdb_id: number;
+  status: TitleStatus;
+  /** The newest active request for it this profile made or follows (any, for managers). */
+  request: MediaRequest | null;
+  /** The seasons the picker would tick with no limit (`[]` for movies); `null` while the server has no TMDB details for it. */
+  askable: number[] | null;
+}
+
+export interface NewRequest {
+  kind: TitleKind;
+  tmdb_id: number;
+  seasons?: number[];
 }
 
 export interface HistoryEntry {

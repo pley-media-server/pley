@@ -3,7 +3,21 @@ package app.pley.android.network
 import app.pley.android.common.Addresses
 import app.pley.android.common.ImageUrls
 import app.pley.android.model.Added
+import app.pley.android.model.Approval
+import app.pley.android.model.Asked
 import app.pley.android.model.CollectionDetail
+import app.pley.android.model.Decline
+import app.pley.android.model.DiscoverDetail
+import app.pley.android.model.DiscoverList
+import app.pley.android.model.DiscoverPage
+import app.pley.android.model.ItemRequest
+import app.pley.android.model.MediaRequest
+import app.pley.android.model.NewRequest
+import app.pley.android.model.RequestList
+import app.pley.android.model.RequestOptions
+import app.pley.android.model.RequestQuery
+import app.pley.android.model.RequestSummary
+import app.pley.android.model.TitleKind
 import app.pley.android.model.CollectionList
 import app.pley.android.model.EntryIds
 import app.pley.android.model.Health
@@ -410,6 +424,67 @@ class HttpPleyApi(
 
     override suspend fun reorderPlaylist(id: Long, entries: EntryIds): PlaylistDetail =
         send("PUT", PlaylistDetail.serializer(), json(EntryIds.serializer(), entries), "api", "playlists", id, "order")
+
+    // ---------------------------------------------------------------- requests
+
+    override suspend fun requestSummary(): RequestSummary = get(RequestSummary.serializer(), "api", "requests", "summary")
+
+    override suspend fun discover(list: DiscoverList, page: Int): DiscoverPage =
+        get(DiscoverPage.serializer(), "api", "discover", list.wire, query = listOf("page" to page.toString()))
+
+    override suspend fun discoverSearch(query: String, page: Int, missing: Boolean): DiscoverPage = get(
+        DiscoverPage.serializer(),
+        "api", "discover", "search",
+        query = listOf("q" to query, "page" to page.toString(), "missing" to if (missing) "1" else null),
+    )
+
+    override suspend fun discoverTitle(kind: TitleKind, tmdbId: Long): DiscoverDetail =
+        get(DiscoverDetail.serializer(), "api", "discover", kind.wire, tmdbId)
+
+    override suspend fun itemRequest(itemId: Long): ItemRequest = get(ItemRequest.serializer(), "api", "items", itemId, "request")
+
+    override suspend fun requests(query: RequestQuery): RequestList = get(
+        RequestList.serializer(),
+        "api", "requests",
+        query = listOf(
+            "status" to query.statuses.takeIf { it.isNotEmpty() }?.joinToString(",") { it.wire },
+            "attention" to if (query.attention) "1" else null,
+            "kind" to query.kind?.wire,
+            "user_id" to query.userId?.toString(),
+            "q" to query.q?.takeIf { it.isNotBlank() },
+            "order" to if (query.oldest) "oldest" else null,
+            "mine" to if (query.mine) "1" else null,
+            "unseen" to if (query.unseen) "1" else null,
+            "changed_since" to query.changedSince?.toString(),
+            "offset" to query.offset.toString(),
+            "limit" to query.limit?.toString(),
+        ),
+    )
+
+    override suspend fun request(id: Long): MediaRequest = get(MediaRequest.serializer(), "api", "requests", id)
+
+    override suspend fun ask(request: NewRequest): Asked {
+        val call = jsonRequest(address(listOf("api", "requests"))).post(json(NewRequest.serializer(), request)).build()
+        // 201: a new request; 200: what was asked for is asked for already, and now followed.
+        return http().fetch(call) { response -> Asked(response.decode(MediaRequest.serializer()), created = response.code == 201) }
+    }
+
+    override suspend fun deleteRequest(id: Long) = call("DELETE", null, "api", "requests", id)
+
+    override suspend fun unwatchRequest(id: Long) = call("DELETE", null, "api", "requests", id, "watch")
+
+    override suspend fun requestsSeen() = call("POST", EMPTY, "api", "requests", "seen")
+
+    override suspend fun approveRequest(id: Long, approval: Approval): MediaRequest =
+        send("POST", MediaRequest.serializer(), json(Approval.serializer(), approval), "api", "requests", id, "approve")
+
+    override suspend fun declineRequest(id: Long, decline: Decline): MediaRequest =
+        send("POST", MediaRequest.serializer(), json(Decline.serializer(), decline), "api", "requests", id, "decline")
+
+    override suspend fun requestHandled(id: Long): MediaRequest =
+        send("POST", MediaRequest.serializer(), EMPTY, "api", "requests", id, "handled")
+
+    override suspend fun requestOptions(): RequestOptions = get(RequestOptions.serializer(), "api", "requests", "options")
 
     // ---------------------------------------------------------------- plumbing
 

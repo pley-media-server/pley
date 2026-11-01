@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import { BACKOFF_MS, DeviceSignIn, type DeviceCode } from "../../../auth/device";
 import { AuthError, UnreachableError } from "../../../auth/metadata";
+import { probe } from "../../../auth/servers";
 import { useUi } from "../../context";
 import { Pill, TextButton } from "../../kit/buttons";
 import { G } from "../../kit/focusable";
@@ -41,6 +42,27 @@ export function codeHalves(code: string): string[] {
 /** The address to type: the verification URI without its scheme ("192.168.1.20:7539/link"). */
 export function typedAddress(uri: string): string {
   return uri.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//, "");
+}
+
+/** Under the title, when the server requires two-step sign-in: the phone sets it up for whoever hasn't. */
+export const TWO_STEP_REQUIRED = "This server requires two-step sign-in: your phone sets it up if you haven't yet.";
+
+/**
+ * Whether `server` requires two-step sign-in (GET /api/server), once it
+ * answers. Signing in on the phone sets it up, so this only says so.
+ */
+function useTwoStepRequired(server: string): boolean {
+  const app = useApp();
+  const [required, setRequired] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    probe(app.http, server).then(
+      (info) => alive && setRequired(!!info?.twoStepRequired),
+      () => undefined,
+    );
+    return () => void (alive = false);
+  }, [server]);
+  return required;
 }
 
 /**
@@ -185,11 +207,13 @@ export function LinkScreen(p: { server: string }) {
     setTimeout(() => ui.nav.restart({ name: "home" }), SIGNED_IN_MS);
     return name;
   });
+  const twoStep = useTwoStepRequired(p.server);
   return (
     <LinkContent
       status={link.status}
       code={link.code}
       onNewCode={link.newCode}
+      intro={twoStep ? TWO_STEP_REQUIRED : undefined}
       backLabel="Change server"
       onBack={() => {
         app.forgetServer();

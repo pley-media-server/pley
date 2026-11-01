@@ -63,6 +63,8 @@ class PlaybackAnalytics(
     private val now: () -> Long,
     /** Whether a decoder (by name) is hardware; `null` when unknown. */
     private val isHardware: (String) -> Boolean?,
+    /** The MIME type a decoder (by name) decodes; `null` when unknown. */
+    private val decoderMime: (String) -> String? = { null },
     private val onChange: (PlaybackStats) -> Unit,
 ) : AnalyticsListener {
     var stats = PlaybackStats()
@@ -72,11 +74,15 @@ class PlaybackAnalytics(
     private var seeking = false
     private var hasBeenReady = false
 
+    /** The video's format as it arrives, judged again once its decoder is known. */
+    private var videoFormat: Format? = null
+
     /** Called at each prepare: a new item starts counting. */
     fun onPrepare(displayModeId: Int?) {
         preparedAt = now()
         seeking = false
         hasBeenReady = false
+        videoFormat = null
         update(PlaybackStats(displayModeId = displayModeId))
     }
 
@@ -106,7 +112,17 @@ class PlaybackAnalytics(
         decoderName: String,
         initializedTimestampMs: Long,
         initializationDurationMs: Long,
-    ) = update(stats.copy(videoDecoder = decoderName, videoDecoderHardware = isHardware(decoderName)))
+    ) {
+        val mime = decoderMime(decoderName)
+        update(
+            stats.copy(
+                videoDecoder = decoderName,
+                videoDecoderHardware = isHardware(decoderName),
+                videoDecoderMime = mime,
+                dynamicRange = videoFormat?.let { rangeOf(it, mime) } ?: stats.dynamicRange,
+            ),
+        )
+    }
 
     override fun onAudioDecoderInitialized(
         eventTime: AnalyticsListener.EventTime,
@@ -116,13 +132,14 @@ class PlaybackAnalytics(
     ) = update(stats.copy(audioDecoder = decoderName))
 
     override fun onVideoInputFormatChanged(eventTime: AnalyticsListener.EventTime, format: Format, decoderReuseEvaluation: DecoderReuseEvaluation?) {
+        videoFormat = format
         update(
             stats.copy(
                 videoCodec = listOfNotNull(format.sampleMimeType, format.codecs).joinToString(" "),
                 width = format.width.takeIf { it > 0 },
                 height = format.height.takeIf { it > 0 },
                 frameRate = format.frameRate.takeIf { it > 0 },
-                dynamicRange = rangeOf(format),
+                dynamicRange = rangeOf(format, stats.videoDecoderMime),
                 colorInfo = format.colorInfo?.takeIf { it.isValid }?.let(ColorInfo::toLogString),
                 bitDepth = format.colorInfo?.lumaBitdepth?.takeIf { it > 0 },
                 videoBitrate = format.bitrate.takeIf { it > 0 },
@@ -191,8 +208,13 @@ class PlaybackAnalytics(
         fun isPassthrough(encoding: Int): Boolean =
             encoding != Format.NO_VALUE && encoding != C.ENCODING_INVALID && !Util.isEncodingLinearPcm(encoding)
 
-        fun rangeOf(format: Format): String = when {
-            format.sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION -> "Dolby Vision"
+        /**
+         * The range [decoderMime] makes of [format]: Dolby Vision decoded by
+         * another codec's decoder (Media3's fallback to the base layer) is
+         * that layer's, HDR10, HLG or SDR.
+         */
+        fun rangeOf(format: Format, decoderMime: String? = null): String = when {
+            format.sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION && (decoderMime == null || decoderMime == MimeTypes.VIDEO_DOLBY_VISION) -> "Dolby Vision"
             format.colorInfo?.colorTransfer == C.COLOR_TRANSFER_ST2084 -> "HDR10"
             format.colorInfo?.colorTransfer == C.COLOR_TRANSFER_HLG -> "HLG"
             else -> "SDR"

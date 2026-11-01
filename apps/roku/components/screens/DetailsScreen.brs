@@ -14,8 +14,18 @@ sub init()
     m.buttons = m.top.findNode("buttons")
     m.rows = m.top.findNode("rows")
     m.message = m.top.findNode("message")
+    m.stage = m.top.findNode("stage")
+    m.stageLine = m.top.findNode("stageLine")
+    m.requestPoll = m.top.findNode("requestPoll")
     m.column.visible = false
     m.started = false
+    ' What the server says of requests for the title (GET
+    ' /api/items/{id}/request), invalid for nothing to show; the asks (an
+    ' answer to an earlier one is left out); Request more seasons' tile
+    ' while the person may ask for some.
+    m.itemRequest = invalid
+    m.requestAsks = 0
+    m.askMore = invalid
     ' The item's JSON, which the player starts with, and what it shows; a
     ' show's episode to play next, once the server said (invalid for none).
     m.item = invalid
@@ -28,7 +38,10 @@ sub init()
     m.rowKeys = []
     m.buttons.observeField("buttonSelected", "onButton")
     m.rows.observeField("rowItemSelected", "onTile")
+    m.requestPoll.observeField("fire", "askItemRequest")
     m.top.observeField("active", "onActive")
+    m.top.observeField("requestSummary", "onSummary")
+    m.top.observeField("requestsChanged", "onRequestsChanged")
 end sub
 
 ' Loaded each time it shows: back from the player, the place has changed.
@@ -37,7 +50,10 @@ end sub
 ' whatever the answer, and a second Back goes back. The rows come with the
 ' first answer.
 sub onActive()
-    if not m.top.active then return
+    if not m.top.active
+        m.requestPoll.control = "stop"
+        return
+    end if
     uiChangesSince()
     if m.rows.visible and m.page.translation[1] < 0
         m.rows.setFocus(true)
@@ -75,6 +91,7 @@ sub onDetail(event as object)
     end if
     if first then askRows(event.getRoSGNode(), answer, kind)
     showDetail()
+    askItemRequest()
 end sub
 
 ' A show's next episode: its button comes first.
@@ -170,6 +187,7 @@ sub onRow(event as object)
     row.title = request.spec.title
     row.appendChildren(request.content.getChildren(-1, 0))
     keepRow(request.spec.row, row, false)
+    if request.spec.row = "seasons" then placeAskTile()
     showRows()
 end sub
 
@@ -232,6 +250,88 @@ sub onTile(event as object)
     position = event.getData()
     row = m.rows.content.getChild(position[0])
     if row <> invalid then uiOpenTile(row.getChild(position[1]))
+end sub
+
+' --- Requests ---
+
+' Once the page has drawn, a movie's or show's requests, where the person
+' may ask or has asked for something: how its request stands, and whether
+' more seasons may be asked for.
+sub askItemRequest()
+    m.requestPoll.control = "stop"
+    if m.item = invalid then return
+    kind = httpString(m.item.kind)
+    summary = reqSummaryOf(m.top.requestSummary)
+    if (kind <> "movie" and kind <> "show") or not (reqMayAsk(summary) or summary.own > 0) then return
+    m.requestAsks = m.requestAsks + 1
+    uiRequest({ method: "GET", path: "/api/items/" + urlValue(m.item.id) + "/request", ask: m.requestAsks }, "onItemRequest")
+end sub
+
+' No match on TMDB (404), or requests off: nothing shows. The server not
+' answering leaves it as it was. While the request downloads or goes into
+' a library, it is asked again each 10 s.
+sub onItemRequest(event as object)
+    if event.getRoSGNode().spec.ask <> m.requestAsks then return
+    answer = event.getData()
+    if answer.ok
+        m.itemRequest = httpObject(answer.data)
+    else if answer.error <> "network"
+        m.itemRequest = invalid
+    end if
+    showItemRequest()
+    request = invalid
+    if m.itemRequest <> invalid then request = httpObject(m.itemRequest.request)
+    if request <> invalid and reqBusy(httpString(request.stage)) and m.top.active then m.requestPoll.control = "start"
+end sub
+
+sub showItemRequest()
+    if m.item = invalid then return
+    shown = reqItemRequest(m.itemRequest, reqSummaryOf(m.top.requestSummary), CreateObject("roDateTime").AsSeconds(), fmtZoneSeconds())
+    stage = shown.stage
+    if stage = invalid
+        m.stage.visible = false
+        m.stageLine.visible = false
+    else
+        m.stage.color = reqToneColor(stage.tone)
+        m.stage.progress = stage.progress
+        m.stage.text = stage.text
+        m.stageLine.text = stage.line
+        m.stage.visible = true
+        m.stageLine.visible = stage.line <> ""
+    end if
+    m.askMore = invalid
+    if shown.askMore and shown.kind = "show" and shown.tmdbId > 0 then m.askMore = reqAskMoreTile(shown.kind, shown.tmdbId, httpSentence(m.item.title))
+    placeAskTile()
+end sub
+
+' Request more seasons at the end of the show's seasons, once they show,
+' while more may be asked for.
+sub placeAskTile()
+    if not m.rowNodes.DoesExist("seasons") then return
+    row = m.rowNodes.seasons.node
+    count = row.getChildCount()
+    placed = count > 0 and row.getChild(count - 1).kind = "askMore"
+    if placed and m.askMore = invalid then row.removeChildIndex(count - 1)
+    if not placed and m.askMore <> invalid then nodesAppend(row, [m.askMore])
+end sub
+
+' The summary changed: the requests asked for, if they weren't yet;
+' else whether more may be asked for.
+sub onSummary()
+    if m.item = invalid then return
+    if m.requestAsks = 0
+        askItemRequest()
+    else
+        showItemRequest()
+    end if
+end sub
+
+' Requests changed: this title's (or many) are asked for again.
+sub onRequestsChanged()
+    change = m.top.requestsChanged
+    tmdbId = httpNumber(change.tmdbId, 0)
+    if tmdbId > 0 and m.itemRequest <> invalid and httpNumber(m.itemRequest.tmdb_id, 0) <> tmdbId then return
+    askItemRequest()
 end sub
 
 ' --- The buttons ---

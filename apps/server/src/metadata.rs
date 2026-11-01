@@ -27,7 +27,7 @@ use crate::store::{self, Store};
 use crate::util::{normalize_key, now, sort_title};
 
 pub(crate) const API: &str = "https://api.themoviedb.org/3";
-const IMAGES: &str = "https://image.tmdb.org/t/p";
+pub(crate) const IMAGES: &str = "https://image.tmdb.org/t/p";
 
 pub struct MetadataAgent {
     db: Db,
@@ -294,7 +294,7 @@ struct FindResults {
 }
 
 #[derive(Debug, thiserror::Error)]
-enum TmdbError {
+pub(crate) enum TmdbError {
     #[error("TMDB rejected the API key")]
     Unauthorized,
     #[error("not found")]
@@ -744,7 +744,7 @@ impl MetadataAgent {
         self.providers.check(check).await
     }
 
-    async fn get<T: DeserializeOwned>(&self, path: &str, query: &[(&str, String)]) -> Result<T, TmdbError> {
+    pub(crate) async fn get<T: DeserializeOwned>(&self, path: &str, query: &[(&str, String)]) -> Result<T, TmdbError> {
         let key = self.settings.get().tmdb_api_key.clone();
         self.get_with(&key, path, query).await
     }
@@ -785,7 +785,8 @@ impl MetadataAgent {
         Err(TmdbError::Other(anyhow::anyhow!("TMDB rate limit")))
     }
 
-    fn region(&self) -> String {
+    /// The country of `metadata_language` ("US" for "en-US"; "US" without one).
+    pub(crate) fn region(&self) -> String {
         let lang = self.settings.get().metadata_language.clone();
         lang.split(['-', '_']).nth(1).unwrap_or("US").to_ascii_uppercase()
     }

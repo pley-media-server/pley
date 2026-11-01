@@ -1,0 +1,20 @@
+{
+  "radarr": {
+    "quality_profiles": [{ "id": 4, "name": "HD-1080p" }, { "id": 5, "name": "Ultra-HD" }],
+    "root_folders": [{ "path": "/movies", "free_bytes": 1832000000000 }, { "path": "/movies-4k", "free_bytes": null }],
+    "quality_profile": 4,
+    "root_folder": "/movies",
+    "anime_quality_profile": null,
+    "anime_root_folder": null,
+    "error": null
+  },
+  "sonarr": {
+    "quality_profiles": [{ "id": 1, "name": "Any" }, { "id": 6, "name": "WEB-1080p" }],
+    "root_folders": [{ "path": "/tv", "free_bytes": 912000000000 }, { "path": "/anime", "free_bytes": 912000000000 }],
+    "quality_profile": 6,
+    "root_folder": "/tv",
+    "anime_quality_profile": 1,
+    "anime_root_folder": "/anime",
+    "error": null
+  }
+}

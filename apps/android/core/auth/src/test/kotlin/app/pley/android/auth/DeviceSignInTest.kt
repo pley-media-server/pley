@@ -34,6 +34,7 @@ class DeviceSignInTest {
 
     private var deviceEndpoint: String? = "/api/oauth/device"
     private var grantTypes = listOf("authorization_code", "refresh_token", DEVICE_CODE_GRANT)
+    private var scopes = listOf("library", "play", "playlists", "profiles", "admin")
     private var codeAnswer: () -> MockResponse = {
         MockResponse().setBody(
             JSONObject()
@@ -67,7 +68,7 @@ class DeviceSignInTest {
                             .apply { deviceEndpoint?.let { put("device_authorization_endpoint", if (it.startsWith("/")) issuer + it else it) } }
                             .put("grant_types_supported", JSONArray(grantTypes))
                             .put("code_challenge_methods_supported", JSONArray(listOf("S256")))
-                            .put("scopes_supported", JSONArray(listOf("library", "play", "playlists", "profiles", "admin")))
+                            .put("scopes_supported", JSONArray(scopes))
                             .toString(),
                     )
                 "/api/oauth/device" -> {
@@ -116,6 +117,17 @@ class DeviceSignInTest {
         assertEquals("$issuer/api/oauth/token", code.tokenEndpoint)
         // Printing never shows the device code.
         assertFalse(code.toString().contains("the-device-code"))
+    }
+
+    @Test
+    fun aTvAsksForNoScopesOfRequests() = runTest {
+        scopes = listOf("library", "play", "playlists", "profiles", "requests", "approvals", "admin")
+        grant().start(server.url("/").toString())
+        grant().start(server.url("/").toString(), requests = false)
+        assertEquals(
+            listOf("library play playlists profiles requests approvals", "library play playlists profiles"),
+            codeRequests.map { it["scope"] },
+        )
     }
 
     @Test

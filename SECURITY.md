@@ -37,7 +37,8 @@ protect your server.
   only ([deploy/docker/README.md](deploy/docker/README.md#security)).
 - **Turn on two-step sign-in** for administrators of a server reachable from
   the internet (**Account → Two-step sign-in**), and keep the recovery codes
-  somewhere safe.
+  somewhere safe. To have everyone use it, require it
+  (**Settings → Server → Sign-in**).
 - **Leave apps by other publishers off** (**Settings → Server → Apps**)
   unless you need one.
 
@@ -73,10 +74,12 @@ protect your server.
 
 ### Two-step sign-in
 
-- Optional. After the password, it takes a code from an authenticator app
-  (TOTP) or one of ten recovery codes.
+- Optional, unless an administrator requires it. After the password, it
+  takes a code from an authenticator app (TOTP) or one of ten recovery
+  codes.
 - Turning it on takes the password and a first code; turning it off, the
-  password and a code.
+  password and a code. Moving it to another authenticator app takes the
+  password and a code of the current one, then the new app's first code.
 - A code works once. Wrong codes are limited to 5 every 15 minutes per
   account, and after 100 in a row only a recovery code signs in.
 - Authenticator secrets are encrypted with a key kept in the data folder
@@ -84,6 +87,33 @@ protect your server.
   Recovery codes are stored hashed.
 - Switching to a profile with a password takes its code too. Apps sign in on
   the same page, so they take the code as well.
+- **Required of everyone** (`require_two_step`): only an administrator who
+  uses it can turn it on, so nobody locks themselves out. Everyone with a
+  password and without it is signed out everywhere, browsers and apps; no
+  session or app token of an account without it works while it is
+  required, checked on every request and refresh. Each sets it up at their
+  next sign-in, after the password, before any session exists; a PIN never
+  sets it up. It can't be turned off then, only moved to another app.
+- Until someone sets it up, their password alone lets whoever has it set it
+  up with their own authenticator app. A secret being set up goes only to
+  the sign-in it was shown to: another one with the password gets a new
+  secret, which replaces it, so the owner sees their QR code stop working
+  rather than share it unknowingly. Once it is required, check
+  **Settings → Users** for people who haven't set it up yet. An
+  administrator who resets someone's two-step sign-in signs them out too.
+- While the server can't use `secret.key` (the log says why at start),
+  authenticator apps can't be set up or their codes checked. Requiring it
+  holds all the same: accounts that haven't set it up can't sign in at
+  all, and accounts that have sign in with a recovery code. An
+  administrator who signs in so can stop requiring it (**Settings →
+  Server → Sign-in**).
+- An administrator with no recovery code left then, or whose two-step
+  sign-in `pley reset-password` turned off, can't sign in until
+  `secret.key` is fixed on the server and Pley restarted: give the file
+  back to Pley's account (after a change of PUID and PGID, say), restore
+  it from a backup of the data folder, or delete it for Pley to make a new
+  one (authenticator apps set up before then stop working; recovery codes
+  still sign in).
 
 ### Sessions
 
@@ -217,6 +247,25 @@ Apps sign in on Pley's own page with OAuth 2.1.
 - A converted download several people asked for stops only when the last of
   them, or an administrator, cancels it.
 
+### Requests
+
+- Radarr's and Sonarr's API keys are never shown again once saved, only
+  whether one is.
+- A key goes only to the address it was saved with: a new address takes its
+  key again, and checking another address in Settings takes that address's
+  key. Their redirects aren't followed, so a key isn't sent on elsewhere,
+  nor to a link-local address, where clouds answer for the machine
+  itself: neither one typed in nor one a name resolves to, checked on the
+  connection itself. Their answers are read 32 MB at most.
+- Only administrators approve and decline, see everyone's requests, and ask
+  Radarr and Sonarr anything; others see their own.
+- Discover shows TMDB's titles whatever their rating, so profiles without a
+  password and accounts with an age limit may not ask until an administrator
+  allows it. An account that may not ask gets none of TMDB's pictures
+  through the server but those of its own requests.
+- TMDB's pictures are fetched 8 at once, 10 MB each at most, and kept up
+  to 256 MB in all.
+
 ### The desktop app
 
 - Its window shows the server's own pages only; other sites open in the
@@ -225,6 +274,10 @@ Apps sign in on Pley's own page with OAuth 2.1.
   downloads in the system's player or file manager.
 - Server pages get none of its commands; only the pages bundled with the
   app do.
+- While the window isn't in front, it follows that server's event stream
+  with the window's own session, sent to that server's origin only, and
+  tells of requests in the system's notifications: titles, seasons and
+  names, never pictures or links.
 
 ### The Android app
 

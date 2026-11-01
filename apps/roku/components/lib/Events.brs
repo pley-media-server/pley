@@ -187,10 +187,11 @@ function evHex(text as string) as integer
 end function
 
 ' Whether an event changes what Home and the libraries' rows show: watch
-' state, My List, a library's titles or the libraries themselves.
+' state, My List, a library's titles, the libraries themselves, or Live
+' TV's channels (the menu has Live TV only while there are some).
 function evChangesHome(event as object) as boolean
     kind = httpString(event.type)
-    return kind = "user_state_changed" or kind = "watchlist_changed" or kind = "library_changed" or kind = "libraries_changed"
+    return kind = "user_state_changed" or kind = "watchlist_changed" or kind = "library_changed" or kind = "libraries_changed" or kind = "live_channels_changed"
 end function
 
 ' How long before connecting again after the stream ended or failed: 2 s,

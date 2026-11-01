@@ -1,0 +1,80 @@
+{
+  "total": 6,
+  "counts": { "pending": 1, "approved": 2, "declined": 1, "failed": 1, "available": 1 },
+  "requests": [
+    {
+      "id": 48, "kind": "movie", "tmdb_id": 1022789, "title": "Inside Out 2", "year": 2024,
+      "poster_url": "/api/discover/images/poster/vpnVM9B6NMmQpWeZvzLvDESb2QY.jpg", "backdrop_url": null,
+      "seasons": null, "available_seasons": [], "anime": false,
+      "status": "failed", "stage": "failed", "stage_at": null,
+      "reason": null, "note": null, "mine": true, "watching": false, "watchers": 0, "unseen": false,
+      "actions": ["withdraw"],
+      "requested_by": { "id": 2, "name": "Sam", "avatar_url": null, "avatar_color": "#38bdf8" },
+      "decided_by": null, "decided_at": null,
+      "created_at": 1761599000, "updated_at": 1761599100, "available_at": null, "retry_at": 1761599400,
+      "sent_to": null, "item_id": null, "download": null
+    },
+    {
+      "id": 47, "kind": "show", "tmdb_id": 95396, "title": "Severance", "year": 2022,
+      "poster_url": "/api/discover/images/poster/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg", "backdrop_url": null,
+      "seasons": [2], "available_seasons": [], "anime": false,
+      "status": "approved", "stage": "waiting", "stage_at": 1762257600,
+      "reason": null, "note": null, "mine": false, "watching": true, "watchers": 0, "unseen": false,
+      "actions": ["unwatch"],
+      "requested_by": null, "decided_by": null, "decided_at": null,
+      "created_at": 1761580000, "updated_at": 1761590000, "available_at": null, "retry_at": null,
+      "sent_to": null, "item_id": 201, "download": null
+    },
+    {
+      "id": 46, "kind": "movie", "tmdb_id": 945961, "title": "Alien: Romulus", "year": 2024,
+      "poster_url": null, "backdrop_url": null,
+      "seasons": null, "available_seasons": [], "anime": false,
+      "status": "declined", "stage": "declined", "stage_at": null,
+      "reason": "We have enough aliens for now", "note": null, "mine": true, "watching": false, "watchers": 0, "unseen": false,
+      "actions": [],
+      "requested_by": { "id": 2, "name": "Sam", "avatar_url": null, "avatar_color": "#38bdf8" },
+      "decided_by": { "id": 1, "name": "Ann", "avatar_url": null, "avatar_color": "#f472b6" }, "decided_at": 1761400000,
+      "created_at": 1761300000, "updated_at": 1761400000, "available_at": null, "retry_at": 1763992000,
+      "sent_to": null, "item_id": null, "download": null
+    },
+    {
+      "id": 45, "kind": "movie", "tmdb_id": 329865, "title": "Arrival", "year": 2016,
+      "poster_url": "/api/discover/images/poster/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg", "backdrop_url": null,
+      "seasons": null, "available_seasons": [], "anime": false,
+      "status": "available", "stage": "available", "stage_at": null,
+      "reason": null, "note": null, "mine": true, "watching": false, "watchers": 0, "unseen": true,
+      "actions": [],
+      "requested_by": { "id": 2, "name": "Sam", "avatar_url": null, "avatar_color": "#38bdf8" },
+      "decided_by": { "id": 1, "name": "Ann", "avatar_url": null, "avatar_color": "#f472b6" }, "decided_at": 1761200100,
+      "created_at": 1761200000, "updated_at": 1761590500, "available_at": 1761590500, "retry_at": null,
+      "sent_to": null, "item_id": 101, "download": null
+    },
+    {
+      "id": 44, "kind": "movie", "tmdb_id": 933260, "title": "The Substance", "year": 2024,
+      "poster_url": "/api/discover/images/poster/lqoMzCcZYEFK729d6qzt349fB4o.jpg", "backdrop_url": null,
+      "seasons": null, "available_seasons": [], "anime": false,
+      "status": "pending", "stage": "pending", "stage_at": null,
+      "reason": null, "note": null, "mine": true, "watching": false, "watchers": 0, "unseen": false,
+      "actions": ["withdraw"],
+      "requested_by": { "id": 2, "name": "Sam", "avatar_url": null, "avatar_color": "#38bdf8" },
+      "decided_by": null, "decided_at": null,
+      "created_at": 1761550000, "updated_at": 1761550000, "available_at": null, "retry_at": null,
+      "sent_to": null, "item_id": null, "download": null
+    },
+    {
+      "id": 42, "kind": "show", "tmdb_id": 1396, "title": "Breaking Bad", "year": 2008,
+      "poster_url": "/api/discover/images/poster/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg",
+      "backdrop_url": "/api/discover/images/backdrop/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg",
+      "seasons": [1, 2], "available_seasons": [], "anime": false,
+      "status": "approved", "stage": "downloading", "stage_at": null,
+      "reason": null, "note": null, "mine": true, "watching": false, "watchers": 0, "unseen": false,
+      "actions": [],
+      "requested_by": { "id": 2, "name": "Sam", "avatar_url": null, "avatar_color": "#38bdf8" },
+      "decided_by": { "id": 1, "name": "Ann", "avatar_url": null, "avatar_color": "#f472b6" }, "decided_at": 1761500100,
+      "created_at": 1761500000, "updated_at": 1761600000, "available_at": null, "retry_at": null,
+      "sent_to": null, "item_id": null,
+      "download": { "progress": 0.42, "state": "downloading", "eta": 1761601200, "episodes": 20 }
+    }
+  ],
+  "people": []
+}

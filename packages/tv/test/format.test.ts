@@ -40,6 +40,9 @@ describe("formats, named as the server, the web and Android name them", () => {
     expect(dolbyVisionDetails({ ...p7, dv_el: "fel" })).toBe(
       "Profile 7 · Level 6 · Blu-ray HDR10-compatible base layer · full enhancement layer",
     );
+    // A profile 7 converted elsewhere, its id kept: profile 8, as its label says.
+    expect(dolbyVisionDetails({ ...p7, dv_profile: 8 })).toBe("Profile 8 · Level 6 · Blu-ray HDR10-compatible base layer");
+    expect(streamRange({ ...p7, dv_profile: 8 })).toBe("Dolby Vision P8");
     const facts = streamBlock({ ...p81, hdr10plus: true }, "Video").facts;
     expect(facts.filter((f) => f.label === "HDR")[0]?.value).toBe("Dolby Vision P8.1 + HDR10+");
   });

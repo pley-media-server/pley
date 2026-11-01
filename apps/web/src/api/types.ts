@@ -35,7 +35,12 @@ export interface User {
   has_password: boolean;
   /** Signs in with a code from an authenticator app after the password. */
   two_step: boolean;
+  /** Requests: may not ask, asks an administrator, or approved as made ("auto" for administrators). Absent from servers before requests. */
+  request_access?: RequestAccess;
 }
+
+/** May not ask for titles; asks an administrator; approved as made. */
+export type RequestAccess = "off" | "ask" | "auto";
 
 /**
  * When subtitles come on by themselves: never, only forced ones (foreign
@@ -85,9 +90,16 @@ export interface ServerStatus {
   version: string;
   /** The server build's short commit hash; "unknown" without the repository. */
   commit?: string;
+  /** Where the server's source code is offered. */
+  source?: string;
   setup_required: boolean;
   /** Setting up takes the code in the server's log. */
   setup_code_required?: boolean;
+  /**
+   * Every account with a password signs in with two-step sign-in: one
+   * without it sets it up as it signs in. Absent from servers before it.
+   */
+  two_step_required?: boolean;
 }
 
 /** `GET /api/me/two-step`: two-step sign-in for the signed-in user. */
@@ -108,6 +120,11 @@ export interface TwoStepSetup {
   qr: { size: number; path: string };
   /** The secret must be confirmed with a code before then. */
   expires_at: Timestamp;
+  /**
+   * Sent back as `setup_id` with the first code when signing in sets it up:
+   * only with it is this secret shown again, or turned on.
+   */
+  id: string;
 }
 
 /** Shown once: each signs in once instead of a code from the app. */
@@ -119,6 +136,8 @@ export interface LoginResponse {
   user: User;
   /** Only for clients that aren't browsers: browsers keep the session in a cookie. */
   token?: string;
+  /** Two-step sign-in was set up on the way in (the server requires it): its recovery codes, shown once. */
+  recovery_codes?: string[];
 }
 
 export type LibraryKind = "movies" | "shows" | "music";
@@ -670,7 +689,49 @@ export type ServerEvent =
   /** Live TV's sources, channels or guide changed. */
   | { type: "live_channels_changed" }
   /** A live channel started or stopped being watched: the connections in use changed. */
-  | { type: "live_tuners_changed" };
+  | { type: "live_tuners_changed" }
+  /**
+   * A request changed (made, decided, followed, its stage, withdrawn,
+   * deleted), to its maker, its followers and managers; all three `null`
+   * when many did (or this account's other streams marked them seen).
+   */
+  | { type: "requests_changed"; request_id: Id | null; kind: TitleKindName | null; tmdb_id: number | null }
+  /**
+   * Something this account asked for or follows is ready (`item_id`: where
+   * it may open it), or some of a show's seasons are (`complete: false`,
+   * `seasons`: those newly ready).
+   */
+  | {
+      type: "request_available";
+      request_id: Id;
+      title: string;
+      kind: TitleKindName;
+      tmdb_id: number;
+      item_id: Id | null;
+      poster_url: string | null;
+      seasons: number[] | null;
+      complete: boolean;
+    }
+  /** A request this account made was approved or declined (declined: its followers too, without the reason). */
+  | { type: "request_decided"; request_id: Id; title: string; kind: TitleKindName; tmdb_id: number; status: "approved" | "declined"; reason: string | null }
+  /** Managers: someone asked for something (they're told of `pending` ones). */
+  | {
+      type: "request_created";
+      request_id: Id;
+      title: string;
+      kind: TitleKindName;
+      tmdb_id: number;
+      seasons: number[] | null;
+      requested_by: { id: Id; name: string; avatar_url: string | null; avatar_color: string | null };
+      status: "pending" | "approved";
+    }
+  /** Managers: a request couldn't be sent to Radarr or Sonarr, and waits for one of them. */
+  | { type: "request_failed"; request_id: Id; title: string; kind: TitleKindName; reason: string | null; retry_at: Timestamp | null }
+  /** Requests were turned on or off, their limits or the TMDB key changed, or this account's access did. */
+  | { type: "requests_settings_changed" };
+
+/** A request's kind of title. */
+type TitleKindName = "movie" | "show";
 
 /** `vulkan` (h264_vulkan) isn't offered: it can only be set through the API. */
 export type HwAccel = "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "vulkan";
@@ -723,6 +784,12 @@ export interface Settings {
   /** Apps by other publishers may sign in (pley's own apps always can); turning it off signs them out. */
   third_party_apps: boolean;
   /**
+   * Every account with a password signs in with two-step sign-in. Turning it
+   * on (only an administrator who uses it can) signs out everyone without it,
+   * who sets it up at their next sign-in. Absent from servers before it.
+   */
+  require_two_step?: boolean;
+  /**
    * Addresses with a port pley is reached at through a reverse proxy that
    * leaves the port out of `Host` (`https://media.example.com:9999`).
    * Absent from servers before it.
@@ -736,7 +803,46 @@ export interface Settings {
   opensubtitles_password?: string;
   /** A password is saved. */
   opensubtitles_password_set?: boolean;
+  /** People may ask for movies and shows (needs a TMDB key). Absent from servers before requests, as are those after it. */
+  requests?: boolean;
+  /** Requests an account may make in 7 days, 0–1000 (administrators: no limit); 0 = no limit. */
+  request_limit_movies?: number;
+  /** As many seasons (a show counts its seasons). */
+  request_limit_seasons?: number;
+  /** "http://localhost:7878"; "" = no Radarr: movies approved are added by hand. */
+  radarr_url?: string;
+  /** Sent only to change it (never sent back): left out, the saved one stays; "" = none. A new `radarr_url` needs it too. */
+  radarr_api_key?: string;
+  radarr_api_key_set?: boolean;
+  /** Radarr's id; 0 = not chosen (approving fails until one is). */
+  radarr_quality_profile?: number;
+  /** "" = not chosen (approving fails until one is). */
+  radarr_root_folder?: string;
+  /** For anime; 0 = `radarr_quality_profile`. */
+  radarr_anime_quality_profile?: number;
+  /** For anime; "" = `radarr_root_folder`. */
+  radarr_anime_root_folder?: string;
+  /** When Radarr may take a release. */
+  radarr_minimum_availability?: MinimumAvailability;
+  /** Search as soon as a movie is added. */
+  radarr_search?: boolean;
+  /** "http://localhost:8989"; "" = no Sonarr. */
+  sonarr_url?: string;
+  sonarr_api_key?: string;
+  sonarr_api_key_set?: boolean;
+  sonarr_quality_profile?: number;
+  sonarr_root_folder?: string;
+  /** Sonarr 3's language profile; 0 = its first (Sonarr 4 has none). */
+  sonarr_language_profile?: number;
+  sonarr_anime_quality_profile?: number;
+  sonarr_anime_root_folder?: string;
+  /** A folder for each season. */
+  sonarr_season_folders?: boolean;
+  /** Search for the seasons asked for as soon as they're added. */
+  sonarr_search?: boolean;
 }
+
+export type MinimumAvailability = "announced" | "in_cinemas" | "released";
 
 /** A service the settings can test (`POST /api/settings/test`). */
 export type TestedService = "tmdb" | "tvdb" | "tvmaze" | "musicbrainz" | "transcoder" | "opensubtitles";
@@ -917,6 +1023,11 @@ export interface SystemInfo {
   arch: string;
   uptime_secs: number;
   data_dir: string;
+  /**
+   * The server can use its secret.key: without it, authenticator apps can't
+   * be set up or checked. Absent from servers before it.
+   */
+  secret_key_ok?: boolean;
   transcode_dir: TranscodeDir;
   transcoder: TranscoderInfo;
   counts: {

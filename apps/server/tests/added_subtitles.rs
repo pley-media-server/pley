@@ -135,6 +135,7 @@ async fn world() -> World {
             musicbrainz: format!("{base}/mb"),
             cover_art: format!("{base}/caa"),
             tmdb: format!("{base}/tmdb"),
+            tmdb_images: format!("{base}/tmdb-images"),
             opensubtitles: format!("{base}/os"),
         });
     })

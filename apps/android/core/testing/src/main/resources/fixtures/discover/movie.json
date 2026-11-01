@@ -1,0 +1,31 @@
+{
+  "kind": "movie", "tmdb_id": 1184918, "title": "The Wild Robot", "year": 2024,
+  "overview": "After a shipwreck, an intelligent robot called Roz is stranded on an uninhabited island. To survive the harsh environment, Roz bonds with the island's animals and cares for an orphaned baby goose.",
+  "poster_url": "/api/discover/images/poster/wTnV3PCVW5O92JMrFvvrRcV39RU.jpg",
+  "backdrop_url": "/api/discover/images/backdrop/v9acaWVVFdZT5yAU7J2QjwfhXyD.jpg",
+  "rating": 8.4, "status": "none", "item_id": null, "request_id": null,
+  "original_title": null,
+  "tagline": "Discover your true nature.",
+  "genres": ["Animation", "Science Fiction", "Family"],
+  "release_date": "2024-09-12",
+  "runtime_minutes": 102,
+  "certification": "PG",
+  "network": "DreamWorks Animation",
+  "show_status": null,
+  "anime": false,
+  "cast": [
+    { "name": "Lupita Nyong'o", "character": "Roz (voice)", "photo_url": "/api/discover/images/profile/y3sOPBBnFzGqAW9oI2cMhBUXhMH.jpg" },
+    { "name": "Pedro Pascal", "character": "Fink (voice)", "photo_url": null },
+    { "name": "Kit Connor", "character": null, "photo_url": null }
+  ],
+  "seasons": null,
+  "imdb_id": "tt29623480",
+  "declined": null,
+  "restriction": null,
+  "watching": false,
+  "requests": [],
+  "movies_left": 2,
+  "seasons_left": 5,
+  "movies_next_at": null,
+  "seasons_next_at": null
+}

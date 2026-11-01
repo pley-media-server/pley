@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Edits of the HEVC stream inside finished MPEG-TS segments, for what
 //! FFmpeg's stream copy can't do (see [`crate::dovi`]): Dolby Vision
 //! profile 7 made 8.1 (the enhancement layer left out, the RPUs rewritten)

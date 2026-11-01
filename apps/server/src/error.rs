@@ -32,6 +32,11 @@ pub enum AppError {
     /// The second step of a sign-in is missing or wrong (see `crate::two_step`).
     #[error("{0}")]
     TwoStep(String),
+    /// A sign-in that sets up two-step sign-in first, which the server
+    /// requires: `401` with `{ code: "two_step_setup", message, setup }`,
+    /// `setup` being the secret to add to an authenticator app.
+    #[error("{0}")]
+    TwoStepSetup(String, serde_json::Value),
     /// An app's token that is expired, signed out or unknown, a refresh
     /// token sent as a bearer token, or one whose account is disabled.
     #[error("this token doesn't work any more: refresh it, or sign in again")]
@@ -86,6 +91,7 @@ impl AppError {
             Self::NotImplemented(m) => Self::NotImplemented(m.clone()),
             Self::TooManyRequests(m) => Self::TooManyRequests(m.clone()),
             Self::TwoStep(m) => Self::TwoStep(m.clone()),
+            Self::TwoStepSetup(m, s) => Self::TwoStepSetup(m.clone(), s.clone()),
             Self::InvalidToken => Self::InvalidToken,
             Self::TokenPlacement => Self::TokenPlacement,
             Self::InsufficientScope(scope) => Self::InsufficientScope(*scope),
@@ -105,6 +111,7 @@ impl AppError {
             Self::NotImplemented(_) => (StatusCode::NOT_IMPLEMENTED, "not_implemented"),
             Self::TooManyRequests(_) => (StatusCode::TOO_MANY_REQUESTS, "too_many_requests"),
             Self::TwoStep(_) => (StatusCode::UNAUTHORIZED, "two_step"),
+            Self::TwoStepSetup(..) => (StatusCode::UNAUTHORIZED, "two_step_setup"),
             Self::InvalidToken => (StatusCode::UNAUTHORIZED, "unauthorized"),
             Self::TokenPlacement => (StatusCode::BAD_REQUEST, "bad_request"),
             Self::InsufficientScope(_) => (StatusCode::FORBIDDEN, "insufficient_scope"),
@@ -166,6 +173,9 @@ impl IntoResponse for AppError {
             }
             return (status, Json(body)).into_response();
         }
+        if let Self::TwoStepSetup(message, setup) = &self {
+            return (status, Json(json!({ "code": code, "message": message, "setup": setup }))).into_response();
+        }
         let challenge = self.challenge();
         let message = match &self {
             Self::Internal(err) => {
@@ -204,6 +214,7 @@ mod tests {
             (AppError::TooManyRequests("no".into()), 429, "too_many_requests"),
             (AppError::Unavailable("no".into()), 503, "unavailable"),
             (AppError::TwoStep("no".into()), 401, "two_step"),
+            (AppError::TwoStepSetup("no".into(), json!({})), 401, "two_step_setup"),
             (AppError::InvalidToken, 401, "unauthorized"),
             (AppError::TokenPlacement, 400, "bad_request"),
             (AppError::InsufficientScope(None), 403, "insufficient_scope"),
@@ -216,6 +227,14 @@ mod tests {
             assert_eq!(answer(again).await.0, status);
         }
         assert_eq!(answer(AppError::not_found("item 42 not found")).await.1["message"], "item 42 not found");
+    }
+
+    #[tokio::test]
+    async fn a_sign_in_that_sets_up_two_step_sign_in_carries_the_secret() {
+        let setup = json!({"secret": "JBSWY3DPEHPK3PXP", "uri": "otpauth://totp/…", "expires_at": 1});
+        let (status, body) = answer(AppError::TwoStepSetup("add Pley to an app".into(), setup.clone())).await;
+        assert_eq!(status, 401);
+        assert_eq!(body, json!({"code": "two_step_setup", "message": "add Pley to an app", "setup": setup}));
     }
 
     #[tokio::test]

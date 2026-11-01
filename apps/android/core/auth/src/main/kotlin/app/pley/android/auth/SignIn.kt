@@ -43,6 +43,14 @@ const val REDIRECT_URI = "$REDIRECT_SCHEME:$REDIRECT_PATH"
 /** What the app asks for: no more than its built-in document allows. */
 val SCOPES = listOf("library", "play", "playlists", "profiles")
 
+/**
+ * What the app asks for too, only where the server lists it in
+ * `scopes_supported`: asking for movies and shows, and approving them on
+ * an administrator's account. A server that doesn't know a scope refuses
+ * the whole sign-in for it.
+ */
+val LISTED_SCOPES = listOf("requests", "approvals")
+
 /** The extension grant for switching profiles (pley servers with profiles). */
 const val SWITCH_PROFILE_GRANT = "urn:pley:params:oauth:grant-type:switch-profile"
 
@@ -252,12 +260,16 @@ class SignIn(
 
         /**
          * The scopes to ask [metadata]'s server for: all of [SCOPES] it
-         * offers. Servers without profile switching don't know "profiles"
-         * and would refuse the whole sign-in for it.
+         * offers, and with [requests] those of [LISTED_SCOPES] it lists.
+         * Servers without profile switching don't know "profiles", nor
+         * older ones "requests", and would refuse the whole sign-in for
+         * them. Android TV has no requests: it asks for neither.
          */
-        fun scopeFor(metadata: ServerMetadata): String {
+        fun scopeFor(metadata: ServerMetadata, requests: Boolean = true): String {
             val offered = metadata.scopesSupported
-            return SCOPES.filter { offered == null || it in offered }.ifEmpty { listOf("library") }.joinToString(" ")
+            val base = SCOPES.filter { offered == null || it in offered }.ifEmpty { listOf("library") }
+            val listed = if (requests) LISTED_SCOPES.filter { offered != null && it in offered } else emptyList()
+            return (base + listed).joinToString(" ")
         }
 
         /** The sign-in page's address for [flow] (OAuth 2.1 §4.1.1). */

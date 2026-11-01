@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};

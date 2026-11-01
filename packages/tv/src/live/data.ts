@@ -66,10 +66,15 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 /** "Today", "Tomorrow", "Yesterday", or "Fri 30 Oct". */
 export function formatGuideDay(ts: number, now: number): string {
-  const day = (t: number) => new Date(t * 1000).toDateString();
-  if (day(ts) === day(now)) return "Today";
-  if (day(ts) === day(now + 86_400)) return "Tomorrow";
-  if (day(ts) === day(now - 86_400)) return "Yesterday";
+  // Dates apart, not 24-hour steps: a day is 23 or 25 hours when daylight saving starts or ends.
+  const date = (t: number) => {
+    const d = new Date(t * 1000);
+    return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86_400_000;
+  };
+  const apart = date(ts) - date(now);
+  if (apart === 0) return "Today";
+  if (apart === 1) return "Tomorrow";
+  if (apart === -1) return "Yesterday";
   const d = new Date(ts * 1000);
   return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }

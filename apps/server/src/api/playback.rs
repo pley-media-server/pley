@@ -937,6 +937,12 @@ pub async fn keyed_media(
         user.is_admin = false;
         user.app = Some(Arc::new(access));
     }
+    // Signed out since because the server requires two-step sign-in.
+    for id in std::iter::once(user.id).chain(user.app.as_ref().map(|app| app.approved_by)) {
+        if state.auth.lacks_two_step(id).await? {
+            return Err(gone());
+        }
+    }
     if session.transcode.is_some() {
         return session_hls(&state, &user, &session, &file).await;
     }

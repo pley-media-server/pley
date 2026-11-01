@@ -13,6 +13,10 @@
         <field id="tokenRefused" type="string" alwaysNotify="true" />
         <!-- Each ServerEvent as it comes. -->
         <field id="event" type="assocarray" alwaysNotify="true" />
+        <!-- The stream is up: the server answered, and tells what changes.
+             false while it isn't (an https server, or connecting again),
+             when the scene asks for itself. -->
+        <field id="live" type="boolean" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/tasks/EventsTask.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -68,6 +69,7 @@ import app.pley.android.ui.phone.kit.HubRow
 import app.pley.android.ui.phone.kit.OfflineBanner
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleyTopAppBar
+import app.pley.android.ui.phone.requests.ItemRequestBlock
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.shell.ReportLoad
@@ -145,6 +147,8 @@ private fun ItemPageBody(page: ItemPage, model: ItemViewModel, navigator: Naviga
         season = page.context?.seasonTitle?.let { stringResource(R.string.item_more_episodes, it) } ?: stringResource(R.string.item_episodes),
     )
     val rows = remember(page, titles) { phoneRows(page, titles) }
+    // What requests say of it, read once the page has drawn.
+    val request by model.request.collectAsStateWithLifecycle()
     // The sections keep clear of the bars and the cutout at the sides, as the rows do.
     val sides = Modifier.padding(start = metrics.marginStart, end = metrics.marginEnd)
     Box(Modifier.fillMaxSize()) {
@@ -153,7 +157,9 @@ private fun ItemPageBody(page: ItemPage, model: ItemViewModel, navigator: Naviga
             modifier = Modifier.fillMaxSize().testTag(ITEM_PAGE),
             contentPadding = PaddingValues(bottom = 32.dp),
         ) {
-            item(key = "header", contentType = "header") { ItemHeader(page, actions) }
+            item(key = "header", contentType = "header") {
+                ItemHeader(page, actions) { request?.let { ItemRequestBlock(it) } }
+            }
             item(key = "tracks", contentType = "tracks") { TrackSelects(page, actions, sides) }
             val seasons = page.seasons
             if (seasons != null && page.kind != ItemKind.Episode) {
@@ -201,15 +207,24 @@ private fun ItemPageBody(page: ItemPage, model: ItemViewModel, navigator: Naviga
     }
 }
 
-/**
- * The bar over the page (design spec §3.1): transparent over the backdrop
- * with a 96 dp scrim behind back and More. It turns [bg][PleyColors.Bg] as
- * the header's title comes up to it, so that title slides under a solid
- * bar, and shows the title itself only once the header's has gone under
- * it: the two never show at once. Read while drawing only.
- */
+/** The bar over the page, with More. */
 @Composable
 private fun ItemTopBar(page: ItemPage, list: LazyListState, onBack: () -> Unit, onMore: () -> Unit) {
+    BackdropTopBar(page.title, list, onBack) {
+        PleyIconButton(PleyIcons.Ellipsis, stringResource(R.string.item_more_actions), onMore)
+    }
+}
+
+/**
+ * The bar over a page that opens on a backdrop (design spec §3.1): the
+ * item page's and a Discover title's. Transparent over the backdrop with
+ * a 96 dp scrim behind back and [actions]. It turns [bg][PleyColors.Bg] as
+ * the header's title comes up to it, so that title slides under a solid
+ * bar, and shows [title] itself only once the header's has gone under it:
+ * the two never show at once. Read while drawing only.
+ */
+@Composable
+internal fun BackdropTopBar(title: String, list: LazyListState, onBack: () -> Unit, actions: @Composable RowScope.() -> Unit = {}) {
     val density = LocalDensity.current
     val metrics = LocalPhoneMetrics.current
     val titleTop = itemTitleTop(itemBackdropHeight(metrics.widthClass != WidthClass.Compact))
@@ -239,14 +254,14 @@ private fun ItemTopBar(page: ItemPage, list: LazyListState, onBack: () -> Unit, 
             ) {
                 PleyIconButton(PleyIcons.ArrowLeft, stringResource(R.string.kit_back), onBack)
                 Text(
-                    page.title,
+                    title,
                     style = MaterialTheme.typography.headlineSmall,
                     color = PleyColors.Fg,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).padding(horizontal = 4.dp).graphicsLayer { alpha = titleShown() },
                 )
-                PleyIconButton(PleyIcons.Ellipsis, stringResource(R.string.item_more_actions), onMore)
+                actions()
             }
         }
         OfflineBanner()
@@ -255,7 +270,7 @@ private fun ItemTopBar(page: ItemPage, list: LazyListState, onBack: () -> Unit, 
 
 /** The loading page (design spec §8): the backdrop's block, the title's and the button's, shimmering together. */
 @Composable
-private fun ItemSkeleton(onBack: () -> Unit) {
+internal fun ItemSkeleton(onBack: () -> Unit) {
     val skeleton = rememberSkeleton(animated = true)
     val metrics = LocalPhoneMetrics.current
     val loading = stringResource(R.string.item_loading)

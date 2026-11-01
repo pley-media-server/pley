@@ -1,9 +1,26 @@
 import { isApiError } from "@/api/client";
+import type { ServerStatus, TwoStepSetup, User } from "@/api/types";
 import { saveFile } from "./download";
 
 /** The server's answer to a sign-in that needs its second step, or got a wrong code. */
 export function isTwoStepError(err: unknown): boolean {
   return isApiError(err, 401) && err.code === "two_step";
+}
+
+/**
+ * The secret to add to an authenticator app, when the server answered a
+ * sign-in (or a switch, or an invitation) by asking to set up two-step
+ * sign-in first, which it requires; `null` for any other answer.
+ */
+export function twoStepSetupOf(err: unknown): TwoStepSetup | null {
+  if (!isApiError(err, 401) || err.code !== "two_step_setup") return null;
+  const setup = (err.body as { setup?: TwoStepSetup } | undefined)?.setup;
+  return setup && typeof setup.secret === "string" && typeof setup.uri === "string" && setup.qr ? setup : null;
+}
+
+/** Whether `user` has to set up two-step sign-in, which the server requires, at their next sign-in. */
+export function mustSetUpTwoStep(user: User, server: ServerStatus | undefined): boolean {
+  return !!server?.two_step_required && user.has_password && !user.managed && !user.two_step;
 }
 
 /** What a typed code is: one from the authenticator app (6 digits), a recovery code, or neither yet. */

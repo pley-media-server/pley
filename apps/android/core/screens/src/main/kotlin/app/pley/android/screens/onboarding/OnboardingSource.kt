@@ -20,12 +20,14 @@ import app.pley.android.data.SessionRepository
 import app.pley.android.network.Discovery
 import app.pley.android.network.LocalNetworkAccess
 import app.pley.android.network.NetworkSweep
+import app.pley.android.network.ProbeResult
 import app.pley.android.network.ServerProbe
 import app.pley.android.screens.ScreensGraph
 import app.pley.android.screens.screensGraph
 import java.net.Inet4Address
 import java.util.ServiceLoader
 import java.util.concurrent.Callable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -106,6 +108,24 @@ fun CreationExtras.onboardingSource(): OnboardingSource {
 }
 
 /**
+ * Whether [server] requires two-step sign-in (GET /api/server), for the
+ * sign-in screens to say so: false when it says nothing of it or can't be
+ * asked. A server at home isn't asked before the system allows the home
+ * network: nothing here asks the system for that.
+ */
+internal suspend fun OnboardingSource.twoStepRequired(server: String): Boolean {
+    if (localNetwork.missingFor(server).isNotEmpty()) return false
+    val answer = try {
+        probe.probe(server)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        return false
+    }
+    return answer is ProbeResult.Pley && answer.info.twoStepRequired
+}
+
+/**
  * The app's graph, with the sign-in module's work moved off the main
  * thread: keeping tokens writes to disk and opens the Keystore, which the
  * view models' coroutines (on the main thread) mustn't do themselves.
@@ -132,7 +152,7 @@ private class GraphOnboardingSource(private val graph: ScreensGraph, private val
     override val deviceSignIn: DeviceSignIn by lazy {
         val inner = graph.auth.deviceSignIn
         object : DeviceSignIn {
-            override suspend fun start(server: String): DeviceCode = withContext(Dispatchers.IO) { inner.start(server) }
+            override suspend fun start(server: String, requests: Boolean): DeviceCode = withContext(Dispatchers.IO) { inner.start(server, requests) }
 
             override fun poll(code: DeviceCode): Flow<DevicePoll> = inner.poll(code).flowOn(Dispatchers.IO)
         }

@@ -8,6 +8,50 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-01
+
+### Added
+
+- Requests: ask for movies and shows the server doesn't have yet. Discover
+  searches TMDB and lists Trending this week, Popular movies, Popular
+  shows, Coming to cinemas and Popular anime, each title with its badge
+  ("In library", "Requested", "Declined"); OK does its one main action
+  (Request, Open, Tell me too…) and the rest is in its context menu. A
+  show's seasons each say their state, and Which seasons? picks the ones
+  to ask for. Needs a server with requests turned on; for a sign-in from
+  before, Discover offers "Sign in again".
+- Your requests: each request's stage ("Waiting for approval",
+  "Downloading 42% · in 20 min", "Ready to watch"…), what it says and when
+  it was asked for, with Withdraw and Stop following. Administrators get
+  Requests, opening on Needs attention, with filters (Yours for their
+  own), Approve, Decline, Decline with a reason… (typed on Kodi's
+  keyboard), Mark as added by hand and Delete. The entry carries the
+  number of what is new or waits.
+- Search shows On TMDB after the libraries' results, and a library show's
+  menu has Request more seasons. In Pley's look, the profile's menu opens
+  Discover and Your requests in Kodi's lists, search has an On TMDB row,
+  and a show's More has Request more seasons.
+- "“Heat” is ready to watch." pops up with the poster as soon as it is
+  ("Season 2 of “X” is ready to watch." for a show), and as Kodi starts
+  for news that came while it was off; never over a playing video, where
+  the last three wait for it to stop.
+- Signing in with a code says when the server requires two-step sign-in:
+  the phone that approves the code sets it up for whoever hasn't.
+
+### Fixed
+
+- Dolby Vision the server repackages (with HDR10+, or profile 7 outside
+  CoreELEC) plays as its HDR10 or HDR10+ base layer, as the server says,
+  instead of being sent as Dolby Vision that Kodi showed as HDR10.
+- On CoreELEC, Dolby Vision with HDR10+ plays as Dolby Vision, as it is,
+  rather than as its HDR10+ base layer (with a server from the same
+  release).
+- The rail of Pley's window shows or drops Live TV as soon as it is set up
+  or its last source removed, without reopening the window.
+- Live TV's guide says Today, Tomorrow and Yesterday on the days daylight
+  saving starts or ends too: a programme just after midnight tomorrow
+  showed its date, or the day after tomorrow showed as Tomorrow.
+
 ## [0.1.0] - 2026-10-30
 
 ### Added
@@ -62,6 +106,7 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/kodi-v0.1.0...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/kodi-v0.1.1...HEAD
+[0.1.1]: https://github.com/pley-media-server/pley/releases/tag/kodi-v0.1.1
 [0.1.0]: https://github.com/pley-media-server/pley/releases/tag/kodi-v0.1.0
 [0.0.1]: https://github.com/pley-media-server/pley/releases/tag/kodi-v0.0.1

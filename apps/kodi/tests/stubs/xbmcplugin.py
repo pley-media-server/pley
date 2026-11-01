@@ -1,5 +1,7 @@
 SORT_METHOD_UNSORTED, SORT_METHOD_LABEL, SORT_METHOD_VIDEO_YEAR = 0, 1, 2
 calls = []
+# Sorts added: (method, labelMask, label2Mask).
+sorts = []
 
 
 def addDirectoryItem(handle, url, listitem, isFolder=False, totalItems=0):
@@ -25,5 +27,5 @@ def setContent(handle, content):
     calls.append(("content", content))
 
 
-def addSortMethod(handle, method):
-    pass
+def addSortMethod(handle, sortMethod, labelMask="", label2Mask=""):
+    sorts.append((sortMethod, labelMask, label2Mask))

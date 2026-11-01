@@ -91,9 +91,10 @@ async fn turning_it_on_takes_the_password_and_a_first_code() {
     let users = app.get("/api/users", &admin).await.body;
     assert!(users.as_array().unwrap().iter().any(|u| u["username"] == "bob" && u["two_step"] == true));
 
-    // Once: another authenticator means turning it off first.
+    // Setting it up again moves it to another authenticator, which takes a
+    // code of this one too, as turning it off does.
     let again = app.post("/api/me/two-step/setup", &bob, json!({"password": "test-pass-1"})).await;
-    assert_eq!(again.status, StatusCode::CONFLICT);
+    assert_eq!((again.status, &again.body["code"]), (StatusCode::UNAUTHORIZED, &json!("two_step")));
 
     // The database alone can't make codes: the secret is sealed, the
     // recovery codes hashed.
@@ -275,4 +276,26 @@ async fn a_database_without_its_key_leaves_recovery_codes() {
         other => panic!("expected the key to be missed, got {other:?}"),
     }
     assert!(moved.check(&throttle, bob_id, Some(&codes[0])).await.is_ok());
+}
+
+#[tokio::test]
+async fn a_key_the_server_cant_use_spends_no_recovery_code_on_another_app() {
+    let (mut app, _admin, bob, _, secret, codes) = with_bob().await;
+    // Pley can't read it any more (its account changed, say).
+    std::fs::write(app.state.config.data_dir.join("secret.key"), "not a key").unwrap();
+    app.restart().await;
+
+    // The authenticator's codes can't be checked: fixing the key brings them
+    // back, a recovery code signs in meanwhile.
+    let code = sign_in(&app, "bob", "test-pass-1", Some(&next_code(&secret))).await;
+    assert_eq!(code.status, StatusCode::SERVICE_UNAVAILABLE, "{}", code.text());
+    assert!(code.mentions("fixes its secret.key") && code.mentions("recovery code"), "{}", code.text());
+    // No other app can be set up either, which is said before the code is
+    // checked: the recovery code stays.
+    let body = json!({"password": "test-pass-1", "code": codes[0]});
+    let moving = app.post("/api/me/two-step/setup", &bob, body).await;
+    assert_eq!(moving.status, StatusCode::SERVICE_UNAVAILABLE, "{}", moving.text());
+    assert!(moving.mentions("secret.key"), "{}", moving.text());
+    assert_eq!(two_step_of(&app, &bob).await["recovery_codes_left"], 10);
+    assert_eq!(sign_in(&app, "bob", "test-pass-1", Some(&codes[0])).await.status, StatusCode::OK);
 }

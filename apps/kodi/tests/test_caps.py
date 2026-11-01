@@ -28,7 +28,7 @@ class CapsTest(unittest.TestCase):
         self.assertIn("mkv", report["containers"])
         self.assertEqual(report["display"], {"width": 1920, "height": 1080})
         self.assertEqual(report["device"], {"form": "tv", "model": "Kodi 21.3 on Windows"})
-        self.assertEqual(report["hls"], {"master_playlist": True, "segments": ["ts"]})
+        self.assertEqual(report["hls"], {"master_playlist": False, "segments": ["ts"]})
 
     def test_passthrough_follows_kodis_audio_settings(self):
         report = caps.build("", AUDIO_ON, (0, 0), "Kodi")
@@ -45,6 +45,9 @@ class CapsTest(unittest.TestCase):
         self.assertEqual([p["profile"] for p in android["dolby_vision_profiles"]], [5, 8])
         coreelec = caps.build("HDR10, Dolby Vision", {}, (3840, 2160), "Kodi 21.3 on Linux", coreelec=True)
         self.assertEqual([p["profile"] for p in coreelec["dolby_vision_profiles"]], [5, 7, 8])
+        # Dolby Vision with HDR10+ beside it: CoreELEC shows it, Android's decoders often don't.
+        self.assertTrue(coreelec["dolby_vision_hdr10plus"])
+        self.assertNotIn("dolby_vision_hdr10plus", android)
 
 
 if __name__ == "__main__":

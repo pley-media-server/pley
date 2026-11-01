@@ -69,6 +69,18 @@ describe("request", () => {
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
   });
 
+  it("doesn't take a second step, or setting it up, for an expired session", async () => {
+    mockApi({
+      "POST /api/code": () => apiError(401, "two_step", "enter the 6-digit code"),
+      "POST /api/setup-first": () => apiError(401, "two_step_setup", "set up two-step sign-in"),
+    });
+    const onUnauthorized = vi.fn();
+    setUnauthorizedHandler(onUnauthorized);
+    await expect(api.post("/api/code", {})).rejects.toMatchObject({ status: 401, code: "two_step" });
+    await expect(api.post("/api/setup-first", {})).rejects.toMatchObject({ status: 401, code: "two_step_setup" });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
   it("explains network failures and passes aborts through", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValueOnce(new TypeError("Failed to fetch")));
     await expect(api.get("/api/x")).rejects.toMatchObject({ status: 0, code: "network" });

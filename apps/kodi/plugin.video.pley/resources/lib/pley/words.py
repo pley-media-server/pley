@@ -5,7 +5,10 @@ numbers and quality badges."""
 
 from __future__ import annotations
 
+import datetime
+
 MINUTE_MS = 60_000
+DAY = 86400
 
 
 def whole_minutes(ms: float) -> int:
@@ -248,6 +251,70 @@ def date(text) -> str:
         return "%s %d, %d" % (MONTHS[month - 1], day, year)
     except (ValueError, IndexError):
         return text or ""
+
+
+def relative(at, now) -> str:
+    """How far `at` is from `now` (Unix seconds), as pley's apps say it
+    (Kodi has nothing that says it): "in 20 min", "in 5 hours",
+    "tomorrow", "in 12 days"; before now "just now", "20 min ago",
+    "5 hours ago", "yesterday", "3 days ago", and further back the date.
+    Days are the calendar's, here."""
+    if at is None:
+        return ""
+    ahead = at >= now
+    seconds = abs(at - now)
+    if seconds < 3600:
+        if not ahead and seconds < 60:
+            return "just now"
+        minutes = min(max(int(seconds / 60 + 0.5), 1), 59)
+        return "in %d min" % minutes if ahead else "%d min ago" % minutes
+    if seconds < DAY - 1800:
+        hours = plural(int(seconds / 3600 + 0.5), "hour")
+        return "in " + hours if ahead else hours + " ago"
+    days = max(abs((datetime.date.fromtimestamp(at) - datetime.date.fromtimestamp(now)).days), 1)
+    if ahead:
+        return "tomorrow" if days == 1 else "in %d days" % days
+    if days == 1:
+        return "yesterday"
+    if days < 30:
+        return "%d days ago" % days
+    return date(datetime.date.fromtimestamp(at).isoformat())
+
+
+def day(value, now) -> str:
+    """A day as pley's apps show one: "Nov 4", with its year when it isn't
+    this year's ("Nov 4, 2027"). `value`: Unix seconds, or "2026-11-04"
+    (as given when it isn't a date)."""
+    try:
+        if isinstance(value, str):
+            year, month, number = (int(part) for part in value.split("-"))
+        else:
+            found = datetime.date.fromtimestamp(value)
+            year, month, number = found.year, found.month, found.day
+        name = "%s %d" % (MONTHS[month - 1], number)
+    except (ValueError, IndexError, TypeError, OverflowError, OSError):
+        return value if isinstance(value, str) else ""
+    return name if year == datetime.date.fromtimestamp(now).year else "%s, %d" % (name, year)
+
+
+def seasons_label(numbers) -> str:
+    """Seasons asked for, or ready: "Season 2", "Seasons 1–3, 5", "Seasons
+    1–2 and specials", "Specials" (the web's seasonsLabel)."""
+    numbers = sorted({n for n in numbers or [] if isinstance(n, int) and n >= 0})
+    numbered = [n for n in numbers if n > 0]
+    specials = bool(numbers) and numbers[0] == 0
+    if not numbered:
+        return "Specials" if specials else ""
+    ranges = []
+    first = last = numbered[0]
+    for number in numbered[1:] + [None]:
+        if number is not None and number == last + 1:
+            last = number
+            continue
+        ranges.append(str(first) if first == last else "%d–%d" % (first, last))
+        first = last = number
+    label = ("Season %s" if len(numbered) == 1 else "Seasons %s") % ", ".join(ranges)
+    return label + " and specials" if specials else label
 
 
 def year_range(year, seasons=None) -> str:

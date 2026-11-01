@@ -3,13 +3,26 @@ import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { errorMessage, isApiError } from "@/api/client";
 import { fetchProfiles, useLogin, useMe, useServer } from "@/api/hooks";
+import type { TwoStepSetup } from "@/api/types";
 import { Splash } from "@/auth";
 import { Button, Field, TextInput } from "@/components/ui";
 import { useDocumentTitle } from "@/lib/hooks";
 import { appShell, SWITCH_SERVER_PATH } from "@/lib/shell";
-import { codeKind, isTwoStepError } from "@/lib/twoStep";
+import { codeKind, isTwoStepError, twoStepSetupOf } from "@/lib/twoStep";
 import { AuthLayout } from "./AuthLayout";
 import { safeNext } from "./ProfilesPage";
+import { RecoveryCodesView, ScanSetup } from "./TwoStepSetup";
+
+/**
+ * After the password: a code from the authenticator app; or, when the server
+ * requires two-step sign-in and the account doesn't use it yet, setting it up
+ * (the secret came with the answer), then its recovery codes.
+ */
+type Step =
+  | { kind: "password" }
+  | { kind: "code" }
+  | { kind: "setup"; setup: TwoStepSetup }
+  | { kind: "codes"; codes: string[]; username: string };
 
 export function LoginPage() {
   useDocumentTitle("Sign in");
@@ -27,8 +40,7 @@ export function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [signingIn, setSigningIn] = useState(false);
-  /** The account has two-step sign-in: a code comes after the password. */
-  const [step, setStep] = useState<"password" | "code">("password");
+  const [step, setStep] = useState<Step>({ kind: "password" });
   const [code, setCode] = useState("");
   /** A recovery code instead of one from the app. */
   const [recovery, setRecovery] = useState(false);
@@ -37,22 +49,28 @@ export function LoginPage() {
   if (me.data && !signingIn) return <Navigate to={next} replace />;
   if (server.isPending || (me.isPending && me.fetchStatus === "fetching")) return <Splash />;
 
-  const signIn = (withCode?: string) => {
+  // A household with several profiles picks one first.
+  const goOn = () => {
+    void fetchProfiles(qc)
+      .catch(() => [])
+      .then((profiles) => navigate(profiles.length > 1 ? `/profiles?next=${encodeURIComponent(next)}` : next, { replace: true }));
+  };
+
+  const signIn = (withCode?: string, setupId?: string) => {
     setSigningIn(true);
     login.mutate(
-      { username: username.trim(), password, ...(withCode ? { code: withCode } : {}) },
+      { username: username.trim(), password, ...(withCode ? { code: withCode } : {}), ...(setupId ? { setup_id: setupId } : {}) },
       {
-        // A household with several profiles picks one first.
-        onSuccess: () => {
-          void fetchProfiles(qc)
-            .catch(() => [])
-            .then((profiles) =>
-              navigate(profiles.length > 1 ? `/profiles?next=${encodeURIComponent(next)}` : next, { replace: true }),
-            );
+        onSuccess: (res) => {
+          // Set up on the way in: its recovery codes are shown once, first.
+          if (res.recovery_codes?.length) setStep({ kind: "codes", codes: res.recovery_codes, username: res.user.username });
+          else goOn();
         },
         onError: (err) => {
           setSigningIn(false);
-          if (!withCode && isTwoStepError(err)) setStep("code");
+          const setup = twoStepSetupOf(err);
+          if (setup) setStep({ kind: "setup", setup });
+          else if (!withCode && isTwoStepError(err)) setStep({ kind: "code" });
         },
       },
     );
@@ -83,16 +101,16 @@ export function LoginPage() {
   };
 
   const back = () => {
-    setStep("password");
+    setStep({ kind: "password" });
     setPassword("");
     chooseRecovery(false);
   };
 
   // 403: disabled account, 429: too many attempts; the server explains both,
-  // and a wrong code. Asking for the code isn't an error.
+  // and a wrong code. Asking for the code, or to set it up, isn't an error.
   const error = !login.error
     ? null
-    : isTwoStepError(login.error)
+    : isTwoStepError(login.error) || twoStepSetupOf(login.error)
       ? login.variables?.code
         ? errorMessage(login.error)
         : null
@@ -100,7 +118,38 @@ export function LoginPage() {
         ? "Wrong username or password."
         : errorMessage(login.error);
 
-  if (step === "code") {
+  if (step.kind === "codes") {
+    return (
+      <AuthLayout title="Save your recovery codes" subtitle="Two-step sign-in is on.">
+        <RecoveryCodesView codes={step.codes} username={step.username} serverName={server.data?.name} onDone={goOn} />
+      </AuthLayout>
+    );
+  }
+
+  if (step.kind === "setup") {
+    return (
+      <AuthLayout
+        title="Set up two-step sign-in"
+        subtitle={`${server.data?.name ?? "This server"} asks everyone for a code from an authenticator app after their password. It takes a minute.`}
+      >
+        <ScanSetup
+          // A new secret (the last one expired) starts the code over.
+          key={step.setup.secret}
+          stacked
+          appsHint
+          setup={step.setup}
+          busy={login.isPending || (signingIn && !login.isError)}
+          error={error}
+          submitLabel="Turn on and sign in"
+          onCode={(value) => signIn(value, step.setup.id)}
+          onCancel={back}
+          cancelLabel="Back"
+        />
+      </AuthLayout>
+    );
+  }
+
+  if (step.kind === "code") {
     return (
       <AuthLayout
         title="Two-step sign-in"
@@ -120,7 +169,8 @@ export function LoginPage() {
               inputMode={recovery ? "text" : "numeric"}
               autoCapitalize="off"
               spellCheck={false}
-              maxLength={recovery ? 24 : 6}
+              // An app's code keeps its 6 digits whatever comes with them ("123 456" pasted).
+              maxLength={recovery ? 24 : undefined}
               placeholder={recovery ? "xxxx-xxxx-xxxx-xxxx" : undefined}
               value={code}
               onChange={(e) => typeCode(e.target.value)}

@@ -48,6 +48,15 @@ object SnapshotKeys {
     /** Whether [key] is Live TV's: what the server's Live TV events ask for again. */
     fun isLive(key: String): Boolean = key == LIVE || key.startsWith("live:")
 
+    /** GET /api/requests/summary. */
+    const val REQUESTS = "requests"
+
+    /** The first page of one of Discover's lists. */
+    fun discover(list: String) = "discover:$list"
+
+    /** A Discover title page: GET /api/discover/{kind}/{tmdb_id}. */
+    fun discoverTitle(kind: String, tmdbId: Long) = "discover:$kind:$tmdbId"
+
     fun libraryHubs(libraryId: Long) = "libhubs:$libraryId"
 
     /** The first items of a library's listing, for the first frame. */

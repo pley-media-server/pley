@@ -375,6 +375,7 @@ async fn invitations() {
         (json!("Ann"), json!(false), json!(12))
     );
     assert_eq!(user["library_ids"], json!([movies]));
+    assert_eq!(user["request_access"], json!("off"), "an age limit: no asking until an administrator lets it");
     assert!(first.headers[header::SET_COOKIE].to_str().unwrap().starts_with("pley_token="));
     let second = accept(&app, &code, json!({"username": "ben", "password": "test-pass-1"})).await;
     assert_eq!(second.status, StatusCode::OK);
@@ -382,6 +383,9 @@ async fn invitations() {
     assert_eq!(third.status, StatusCode::NOT_FOUND);
     let check = app.call(Method::GET, &format!("/api/invites/{code}"), None, None, &[]).await;
     assert_eq!(check.status, StatusCode::NOT_FOUND, "used up");
+    let open = invite(json!({})).await.body["code"].as_str().unwrap().to_owned();
+    let joined = accept(&app, &open, json!({"username": "fay", "password": "test-pass-1"})).await;
+    assert_eq!(joined.body["user"]["request_access"], json!("ask"), "{:?}", joined.body);
 
     // Expired and deleted invitations.
     let week = invite(json!({})).await.body["code"].as_str().unwrap().to_owned();

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Which seasons? (the season picker): a show's seasons, specials last,
+     each with how it stands, those to ask for ticked; at the right what
+     asking does, what may still be asked for, and Request. -->
+<component name="RequestSeasonsScreen" extends="Group">
+    <interface>
+        <field id="route" type="string" />
+        <field id="params" type="assocarray" />
+        <field id="navigate" type="assocarray" alwaysNotify="true" />
+        <field id="active" type="boolean" alwaysNotify="true" />
+        <!-- The scene's: what requests let the profile do. -->
+        <field id="requestSummary" type="assocarray" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/screens/RequestSeasonsScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
+    <children>
+        <Label translation="[96, 56]" text="Which seasons?" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="subtitle" translation="[96, 132]" width="1000" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+        <MarkupList id="seasons" translation="[96, 210]" itemComponentName="SeasonPickRow" itemSize="[1000, 88]" itemSpacing="[0, 10]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <LayoutGroup id="side" translation="[1200, 210]" layoutDirection="vert" itemSpacings="[24, 40, 24]">
+            <Label id="words" width="624" wrap="true" color="0xEBEBEBFF" font="font:SmallSystemFont" />
+            <Label id="allowance" width="624" wrap="true" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+            <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="520" />
+            <!-- What stands in for Request (none ticked, too many), or what
+                 came of asking. -->
+            <Label id="line" width="624" wrap="true" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+        </LayoutGroup>
+    </children>
+</component>

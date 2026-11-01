@@ -179,7 +179,15 @@ export function Toggle({
   );
 }
 
-export function Badge({ children, className, tone = "neutral" }: { children: ReactNode; className?: string; tone?: "neutral" | "accent" | "success" | "danger" | "info" }) {
+export function Badge({
+  children,
+  className,
+  tone = "neutral",
+}: {
+  children: ReactNode;
+  className?: string;
+  tone?: "neutral" | "accent" | "success" | "danger" | "info" | "warning";
+}) {
   return (
     <span
       className={cn(
@@ -189,6 +197,7 @@ export function Badge({ children, className, tone = "neutral" }: { children: Rea
         tone === "success" && "bg-success/15 text-success",
         tone === "danger" && "bg-danger/15 text-danger",
         tone === "info" && "bg-info/15 text-info",
+        tone === "warning" && "bg-warning/15 text-warning",
         className,
       )}
     >
@@ -236,10 +245,12 @@ export function EmptyState({
   );
 }
 
-export function ProgressBar({ value, className, barClassName }: { value: number; className?: string; barClassName?: string }) {
+/** How far something is (0–1); with a `label`, a progress bar screen readers read, with its value. */
+export function ProgressBar({ value, className, barClassName, label }: { value: number; className?: string; barClassName?: string; label?: string }) {
   const pct = Math.max(0, Math.min(1, value)) * 100;
+  const named = label ? { role: "progressbar", "aria-label": label, "aria-valuemin": 0, "aria-valuemax": 100, "aria-valuenow": Math.round(pct) } : {};
   return (
-    <div className={cn("h-1 w-full overflow-hidden rounded-full bg-white/15", className)}>
+    <div className={cn("h-1 w-full overflow-hidden rounded-full bg-white/15", className)} {...named}>
       <div className={cn("h-full rounded-full bg-accent transition-[width] duration-300", barClassName)} style={{ width: `${pct}%` }} />
     </div>
   );

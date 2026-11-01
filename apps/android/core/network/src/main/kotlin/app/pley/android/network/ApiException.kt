@@ -20,6 +20,9 @@ import okhttp3.Response
  * (RFC 6750): [bearerError] is its `error` ("invalid_token",
  * "invalid_request", "insufficient_scope"). A 403 `insufficient_scope`
  * keeps the [scope] that would open the route, `null` when none does.
+ *
+ * [details] is the rest of pley's JSON body, for the refusals that say
+ * more (requests: `setup`, `retry`, `retry_at`, the request as it is now).
  */
 class ApiException(
     val status: Int,
@@ -29,12 +32,16 @@ class ApiException(
     val scope: String? = null,
     /** A `409` from watching a live channel: the connections in use, and which may be taken over. */
     val connections: List<BusyConnection> = emptyList(),
+    val details: ApiErrorBody? = null,
 ) : java.io.IOException(message), UserFacing {
     /** The token doesn't work any more: expired, signed out, or its account disabled. */
     val signedOut: Boolean get() = status == 401 && (bearerError == "invalid_token" || code == "unauthorized")
 
     /** The app wasn't allowed this: signing in again can ask for [scope]. */
     val needsScope: Boolean get() = status == 403 && (code == "insufficient_scope" || bearerError == "insufficient_scope")
+
+    /** When asking again may work: a decline's 30 days, a limit's 7 (`retry_at`). */
+    val retryAt: Long? get() = details?.retryAt
 
     override fun toString(): String = "ApiException($status, $code, $message)"
 
@@ -78,6 +85,7 @@ class ApiException(
                 bearerError = challenge?.error,
                 scope = challenge?.scope,
                 connections = json?.connections.orEmpty(),
+                details = json,
             )
         }
 

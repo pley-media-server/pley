@@ -193,6 +193,23 @@ describe("AuthorizePage", () => {
     expect(screen.getByText("Only allow this if you just started signing in to the app.")).toBeInTheDocument();
   });
 
+  it("says what requests let an app do, and which administrator right it gets", async () => {
+    serve({ answer: () => consent({ scopes: ["library", "requests", "approvals"] }) });
+    renderPage();
+
+    await consentShown();
+    const rows = screen.getAllByRole("listitem").map((li) => li.textContent);
+    expect(rows).toEqual([
+      "See Admin's libraries, playlists and watch history.",
+      "Ask for movies and shows the libraries don't have, and follow Admin's requests.",
+      "Approve and decline what people ask for, where the account is an administrator.",
+    ]);
+    expect(screen.getByText("It can't change your password, sign-in settings or devices.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Of your administrator rights it gets only approving and declining requests: the others stay in Pley's web app."),
+    ).toBeInTheDocument();
+  });
+
   it("leaves out the administrator line for others", async () => {
     serve({ answer: () => consent({ scopes: ["library", "profiles"], redirect: { kind: "loopback", to: "127.0.0.1" } }) });
     renderPage({ user: { ...testUser, name: "Kid", is_admin: false } });

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Live channels (IPTV): an MPEG-TS stream sent in as the channel sends it
 //! (`PUT /v1/live/{id}/input`) made into a live HLS stream, a sliding window
 //! of short segments (1 s, or a copied channel's keyframe interval) that

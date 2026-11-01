@@ -10,8 +10,8 @@ default-members = ["apps/server", "apps/transcoder"]
 # libraries), so server builds don't compile it.
 exclude = ["apps/desktop/src-tauri"]
 
-# NOTE: all three are under LICENSE (Restricted), and none may depend on a
-# GPL-only crate (scripts/check-licenses.ps1, LICENSING.md).
+# NOTE: all three are under LICENSE (AGPL-3.0-only), and none may depend on a
+# copyleft-only crate (scripts/check-licenses.ps1, LICENSING.md).
 # - apps/server               pley-server; must never depend on pley-transcoder
 # - apps/transcoder           pley-transcoder; a separate program, spoken to only over HTTP
 # - packages/transcoder-api   pley-transcoder-api; wire types shared by both

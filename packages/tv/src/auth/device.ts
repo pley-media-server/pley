@@ -4,7 +4,9 @@ import { AuthError, DEVICE_CODE_GRANT, fetchMetadata, NO_CODES, signsInWithCodes
 import { parseTokenResponse, postForm, stored, TokenError, type StoredTokens } from "./tokens";
 
 /** Everything pley's own TV apps may ask for (docs/API.md, "Scopes"). */
-export const SCOPES = ["library", "play", "playlists", "profiles"];
+export const SCOPES = ["library", "play", "playlists", "profiles", "requests", "approvals"];
+/** Asked for only where the server lists them: one that doesn't know a scope refuses the whole sign-in. */
+const LISTED_ONLY = ["requests", "approvals"];
 
 /**
  * A code for signing in a TV (RFC 8628): shown as `userCode` with
@@ -45,10 +47,10 @@ export const SLOW_DOWN_MS = 5_000;
 /** The waits after network failures in a row. */
 export const BACKOFF_MS = [2_000, 4_000, 8_000, 16_000, 30_000];
 
-/** The scope to ask for: what the server offers of pley's own. */
+/** The scope to ask for: what the server offers of pley's own; a server that lists none gets the ones every server knows. */
 export function scopeFor(metadata: ServerMetadata): string {
   const offered = metadata.scopesSupported;
-  return (offered ? SCOPES.filter((s) => offered.indexOf(s) >= 0) : SCOPES).join(" ");
+  return SCOPES.filter((s) => (offered ? offered.indexOf(s) >= 0 : LISTED_ONLY.indexOf(s) < 0)).join(" ");
 }
 
 /**

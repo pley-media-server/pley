@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Process-wide counters, exposed as JSON (`/v1/status`) and in the Prometheus
 //! text format (`/metrics`).
 

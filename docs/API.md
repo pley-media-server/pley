@@ -112,7 +112,7 @@ Each endpoint table has a **Who** column:
 | `public` | anyone, without a token |
 | `user` | any signed-in user; an app's token is refused (`403 insufficient_scope`) |
 | `any app` | any signed-in user, and every app's token |
-| `library`, `play`, `playlists`, `profiles` | any signed-in user, and an app's token with that [scope](#scopes) (`HEAD` as `GET`) |
+| `library`, `play`, `playlists`, `profiles`, `requests`, `approvals` | any signed-in user, and an app's token with that [scope](#scopes) (`HEAD` as `GET`) |
 | `admin` | administrators only (`403` for others), never an app's token |
 | `page` | Pley's consent page only ([its endpoints](#the-consent-pages-endpoints)) |
 
@@ -156,6 +156,7 @@ Non-2xx answers carry:
 | `bad_request` | `400` | |
 | `unauthorized` | `401` | |
 | `two_step` | `401` | the account has two-step sign-in, and the code is missing or wrong |
+| `two_step_setup` | `401` | the server requires two-step sign-in, and the account sets it up first: the body also has `setup`, the secret to add to an authenticator app ([Two-step sign-in](#two-step-sign-in)) |
 | `forbidden` | `403` | |
 | `insufficient_scope` | `403` | an app's token on a route its scopes don't open |
 | `not_found` | `404` | also anything the user [may not see](#access-rules) |
@@ -203,6 +204,12 @@ interface User {
   subtitle_mode: "off" | "forced" | "foreign" | "always";
   has_password: boolean;            // false: a managed profile, or an account without a password
   two_step: boolean;                // two-step sign-in is on
+  request_access: "off" | "ask" | "auto"; // Requests: may not ask, asks an administrator, or approved as
+                                    // made. Administrators: "auto" (in /api/auth/me, "ask" for an app by
+                                    // another publisher: what asking from there does). Left out when made,
+                                    // and for an invitation's accounts: "off" for managed profiles and
+                                    // accounts with an age limit, else "ask". Adding an age limit to an
+                                    // "ask" account makes it "off", unless the same change sets it
 }
 
 type LibraryKind = "movies" | "shows" | "music";
@@ -438,7 +445,14 @@ interface PlaybackInfo {
                                     // null when a quality was asked for
   video_range: string | null;       // what the screen gets of HDR video, for the player's details (null for
                                     // SDR): "Dolby Vision P8.1", "Dolby Vision P7 FEL", "HDR10+", "HLG",
-                                    // "HDR10 (Dolby Vision base layer)", "HDR10+ (Dolby Vision base layer)",
+                                    // "HDR10 (Dolby Vision base layer, as this screen doesn't show Dolby
+                                    // Vision)", "HDR10+ (Dolby Vision base layer, as this player doesn't
+                                    // decode profile 7)": the base layer plays for the screen, the
+                                    // player's profiles or level, a remux that doesn't name Dolby Vision,
+                                    // or HDR10+ in the stream; "as Dolby Vision isn't shown here" for a
+                                    // player that lists no profiles (Kodi and Roku can't tell their
+                                    // screen from their decoders);
+                                    // "HDR10 (Dolby Vision base layer)" when the video is converted from it,
                                     // "Dolby Vision P8.1 (converted from P7 FEL)",
                                     // "Dolby Vision P8.1 (HDR10+ left out)",
                                     // "HDR10 (this screen doesn't show HDR10+)", "HDR10 (HDR10+ left out)",
@@ -472,21 +486,34 @@ lists carry (Kodi).
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/health` | `public` | `{ "status": "ok" }` |
-| GET | `/api/server` | `public` | `{ name, version, commit, setup_required, setup_code_required }` |
+| GET | `/api/server` | `public` | `{ name, version, commit, source, setup_required, setup_code_required, two_step_required }` |
 | GET | `/api/oauth/device/qr?code=` | `public` | where to type a TV's code, as a QR code (PNG): see [TVs](#tvs) |
 | POST | `/api/setup` | `public` | `{ username, password, setup_code }` → `{ user: User, token? }`: creates the first (admin) account and signs in |
-| POST | `/api/auth/login` | `public` | `{ username, password, code? }` → `{ user: User, token? }` |
+| POST | `/api/auth/login` | `public` | `{ username, password, code?, setup_id? }` → `{ user: User, token?, recovery_codes? }` |
 
 - `/api/server`: `commit` is the build's short hash, `"unknown"` when built
-  without the repository. The setup code is in the server's log.
+  without the repository. `source` is where the server's source code is
+  offered; the web app's Account page links to it. The setup code is in
+  the server's log. `two_step_required`: the server requires two-step
+  sign-in of every account with a password
+  ([Two-step sign-in](#two-step-sign-in)), so signing in may set it up
+  first.
 - `/api/setup`: `409` once a user exists; `403` without the right
   `setup_code`. 5 tries per 15 minutes from each address and 1000 from all
   addresses, then `429`.
 - `/api/auth/login`: `401` for bad credentials. With two-step sign-in,
   `code` is a code from the authenticator app or a recovery code; without
-  it, or with a wrong one, `401` with `code: "two_step"`. Attempts are
-  limited as in [Errors](#errors). A disabled account gets `403`, and its
-  sessions stop working.
+  it, or with a wrong one, `401` with `code: "two_step"`. When the server
+  requires two-step sign-in and the account doesn't use it yet, the same
+  request sets it up: `401` with `code: "two_step_setup"` and `setup` (the
+  secret, as `POST /api/me/two-step/setup` answers it, and its `id`) until
+  `code` is the first code of that secret, sent with `setup_id`, its `id`;
+  then the answer signs in and has `recovery_codes`, shown once. Only a
+  request with `setup_id` gets the same secret again; any other gets a new
+  one, which replaces it, so two people with the password never share
+  one. Attempts are limited as in
+  [Errors](#errors). A disabled account gets `403`, and its sessions stop
+  working.
 
 ## Auth
 
@@ -496,7 +523,7 @@ lists carry (Kodi).
 | GET | `/api/auth/me` | `any app` | `User` |
 | PUT | `/api/auth/password` | `user` | `{ current_password, new_password }` → `204` |
 | GET | `/api/auth/profiles` | `user` | `User[]`: home profiles this user can switch to (empty for non-home users) |
-| POST | `/api/auth/switch` | `user` | `{ user_id, pin?, password?, code? }` → `{ user, token? }`: this device becomes that profile |
+| POST | `/api/auth/switch` | `user` | `{ user_id, pin?, password?, code?, setup_id? }` → `{ user, token?, recovery_codes? }`: this device becomes that profile |
 
 - `GET /api/auth/me` with an app's token: `User & { scope: string }`.
   `scope` is what the app was allowed (`"library play"`); `is_admin`,
@@ -511,31 +538,73 @@ lists carry (Kodi).
   - a profile without a PIN that can see more than yours (an administrator,
     a higher age limit, libraries yours can't open): its password, and its
     `code` with two-step sign-in, unless you are an administrator;
-  - a managed profile without a PIN can't be switched to.
+  - a managed profile without a PIN can't be switched to;
+  - while the server requires two-step sign-in, a profile with a password
+    that doesn't use it yet: its password, whatever else it has and
+    whoever switches (`403` without one). Then it sets two-step sign-in up
+    as a sign-in does (`two_step_setup` until `code` is the secret's first
+    code, with `setup_id`), and the answer has its `recovery_codes`.
 
   `429` after 5 wrong tries in 15 minutes.
 
 ### Two-step sign-in
 
-Optional for each account with a password. After the password comes a
-6-digit code from an authenticator app (TOTP: SHA-1, 30-second steps) or one
-of ten recovery codes. Each code works once. Wrong codes count like wrong
+Optional for each account with a password, unless an administrator
+requires it of every one (below). After the password comes a 6-digit code
+from an authenticator app (TOTP: SHA-1, 30-second steps) or one of ten
+recovery codes. Each code works once. Wrong codes count like wrong
 passwords; after 100 in a row only a recovery code signs in.
 `pley reset-password` turns it off.
 
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/me/two-step` | `user` | `{ enabled, since: Timestamp \| null, recovery_codes_left }` |
-| POST | `/api/me/two-step/setup` | `user` | `{ password }` → `{ secret, uri, qr: { size, path }, expires_at }`; `409` when it is on already |
-| POST | `/api/me/two-step` | `user` | `{ code }` → `{ recovery_codes: string[] }`: turns it on |
-| DELETE | `/api/me/two-step` | `user` | `{ password, code }` → `204`: turns it off |
+| POST | `/api/me/two-step/setup` | `user` | `{ password, code? }` → `{ secret, uri, qr: { size, path }, expires_at, id }` |
+| POST | `/api/me/two-step` | `user` | `{ code }` → `{ recovery_codes: string[] }`: turns it on, or moves it to the new secret |
+| DELETE | `/api/me/two-step` | `user` | `{ password, code }` → `204`: turns it off; `403` while the server requires it |
 | POST | `/api/me/two-step/recovery-codes` | `user` | `{ password }` → `{ recovery_codes }`: new codes; the old ones stop working |
 
 - `setup` makes a new secret: `secret` is base32, `uri` its `otpauth://`
-  URI, and `qr` a QR code of it (`path` draws its dark modules on a
-  `size`-wide grid).
+  URI (on a phone, a link to an authenticator app on it), and `qr` a QR
+  code of it (`path` draws its dark modules on a `size`-wide grid).
+- While it is on, `setup` moves it to another authenticator app, and takes
+  `code` too: a code from the current app or a recovery code, as turning
+  it off does (`401 two_step` without a right one). Until the new secret's
+  first code, the current app keeps working.
+- While the server can't use its `secret.key` (the log says why), `setup`
+  answers `503` before checking anything, so no recovery code is spent,
+  and codes from the authenticator app get `503` at sign-in: recovery
+  codes still sign in.
 - `POST /api/me/two-step` takes a code from the new secret within 30
-  minutes, 5 tries. Recovery codes are shown once.
+  minutes, 5 tries (then `setup` again). It answers new recovery codes,
+  shown once; after a move the old app's codes and the old recovery codes
+  stop working.
+
+**Requiring it.** An administrator who uses two-step sign-in can require
+it of every account with a password (`require_two_step` in the
+[settings](#system-admin), Settings → Server → Sign-in):
+
+- Turning it on signs out everyone without it, on every device and app
+  (sessions, apps acting as them or allowed by them, consent requests and
+  codes in progress). Their sessions and app tokens stop working, and
+  refreshes get `invalid_grant`, even ones that slip past the sign-out.
+- Each sets it up at their next sign-in, right after the password, in the
+  same request: `/api/auth/login` (above), an invitation's acceptance
+  ([Invitations](#invitations)) and a switch to their profile
+  ([Auth](#auth)) answer `two_step_setup` with the secret until its first
+  code comes. Apps sign in on Pley's own pages, which do the same: a TV's
+  person sets it up on the phone where they type the TV's code.
+- Turning it off is refused (`403`): it can move to another app instead.
+  An administrator turning it off for someone ([Users](#users-admin)) signs
+  them out everywhere, and they set it up again at their next sign-in, as
+  after `pley reset-password`.
+- Managed profiles and accounts without a password have nothing to set up.
+- While the server can't use its `secret.key` (the log says why, and
+  `secret_key_ok` in [`/api/system`](#system-admin) is `false`), it stays
+  required and nobody can set it up: a sign-in, invitation or switch that
+  would set it up answers `503` instead, and makes no session or account.
+  Accounts that use it sign in with a recovery code, and an administrator
+  signed in so can stop requiring it.
 
 ## Your account
 
@@ -638,7 +707,7 @@ Every other `/.well-known/` path answers `404`.
   "token_endpoint_auth_methods_supported": ["none"],
   "revocation_endpoint_auth_methods_supported": ["none"],
   "code_challenge_methods_supported": ["S256"],
-  "scopes_supported": ["library", "play", "playlists", "profiles"],
+  "scopes_supported": ["library", "play", "playlists", "profiles", "requests", "approvals"],
   "authorization_response_iss_parameter_supported": true,
   "client_id_metadata_document_supported": false,
   "service_documentation": "https://github.com/pley-media-server/pley/blob/master/docs/API.md"
@@ -766,8 +835,10 @@ optional (wider than allowed: `invalid_scope`; narrower: ignored).
   A refresh answer lost on the network means signing in again.
 - `invalid_grant` also for an unknown, expired or other app's refresh
   token; a disabled account (the profile's, or the one that allowed it);
-  apps by other publishers turned off; a grant with 10,000 refresh tokens on
-  record (which ends).
+  while the server [requires two-step sign-in](#two-step-sign-in), either
+  account signing in with a password alone ("this server requires
+  two-step sign-in: sign in again to set it up"); apps by other publishers
+  turned off; a grant with 10,000 refresh tokens on record (which ends).
 - Refreshes never read an app's description again.
 
 **`grant_type=urn:pley:params:oauth:grant-type:switch-profile`**: Pley's own
@@ -846,8 +917,10 @@ for Roku, and the Samsung and LG apps.
    `Cache-Control: no-store`). It looks nothing up, so anyone may ask; `400`
    for something that isn't a code.
 2. The person opens **`/link`** (a web app page) on a phone or computer,
-   signs in if needed, and types the code (any case, with or without the
-   dash and spaces; from the QR code it comes filled in). The page shows the
+   signs in if needed (setting up two-step sign-in first when the server
+   [requires it](#two-step-sign-in) and they don't use it yet), and types
+   the code (any case, with or without the dash and spaces; from the QR
+   code it comes filled in). The page shows the
    same consent as `/oauth/authorize`, with what the TV said it is and where
    it asked from. Nothing goes back through the browser.
 3. Meanwhile the TV asks the token endpoint every `interval` seconds with
@@ -888,7 +961,8 @@ everyone, in 10 minutes, no code is looked up (`429`).
   used is signed out.
 - Apps are signed out when they or the person sign them out
   ([Signed-in apps](#signed-in-apps)), and by a new password, "Sign out
-  everywhere", `pley reset-password` and deleting the account. That covers
+  everywhere", `pley reset-password`, deleting the account, and requiring
+  two-step sign-in of an account without it. That covers
   every app acting as the account or allowed by it, and the apps it was
   signing in (codes not exchanged yet, allowed TVs that haven't fetched
   their answer).
@@ -905,6 +979,8 @@ everyone, in 10 minutes, no code is looked up (`429`).
 | `play` | play titles; keep the profile's place, watched marks, ratings, track choices and library order |
 | `playlists` | make, change and delete the profile's playlists |
 | `profiles` | switch to the household's other profiles. Pley's own apps only, since a profile's PIN is typed into the app |
+| `requests` | ask for movies and shows the libraries don't have ([Requests](#requests)), and follow the profile's requests |
+| `approvals` | approve and decline what people ask for, where the account is an administrator. Pley's own apps only; it does nothing on other accounts |
 
 An app's token opens only the routes whose **Who** is `any app` or one of
 its scopes (`HEAD` as `GET`). Every other route answers
@@ -918,10 +994,15 @@ What apps see:
 - An app's token never has administrator rights. On an administrator's
   account it sees every library without an age limit, as the account does,
   and administers nothing: history, sessions and collections answer it as
-  they would anyone else.
+  they would anyone else. The one exception: on an administrator's account,
+  one of Pley's own apps allowed `approvals` manages requests (approves and
+  declines them, marks them as added by hand, sees and deletes everyone's,
+  and hears the managers' request events; see [Requests](#requests)).
 - Libraries' `paths` are empty, and files' `path` is the file name only.
-- `/api/users/{id}/avatar` shows only the app's own profile and its
-  household.
+- `/api/users/{id}/avatar` shows only the app's own profile, its
+  household, and, to an app allowed `requests` while requests are on, the
+  people named in the requests it may read: who decided its own, and for a
+  manager who made or decided any.
 - When the transcoder can't read a file, its words (which name the file)
   are replaced by Pley's own: "this title's file can't be read right now",
   and "the conversion failed" for a session's `last_error`.
@@ -929,7 +1010,8 @@ What apps see:
   every request, HLS playlists and segments included (see
   [Keyed URLs](#keyed-urls) for players that can't).
 - The event stream ends when its token expires or the app is signed out;
-  the app connects again with a new token.
+  the app connects again with a new token. It carries request events only
+  with `requests` ([Request events](#request-events)).
 
 ### Signed-in apps
 
@@ -968,7 +1050,9 @@ profiles when the app's profile is in the household, else nothing:
 
 - `current`: the profile the app acts as.
 - `needs`: what switching to it takes, by the rules above: `none`, `pin`,
-  `password` (in the browser) or `locked`.
+  `password` (in the browser) or `locked`. A profile that has to set up
+  two-step sign-in, which the server requires, needs `password`: picked in
+  the browser, its password sets it up there.
 - Usernames, roles, libraries, age limits and sign-in settings are left
   out.
 
@@ -985,7 +1069,9 @@ profiles when the app's profile is in the household, else nothing:
 
 - Their descriptions are built into the server and never fetched, so they
   sign in to servers without internet access.
-- All get refresh tokens and may ask for every scope.
+- All get refresh tokens and may ask for every scope, but the desktop app
+  for `requests` and `approvals`: its window shows the server's own pages,
+  signed in as the web app is.
 - The Android app may also sign in with a code, on a TV ([TVs](#tvs)). The
   Kodi, Roku, Samsung and LG apps sign in only that way: with no return
   address, `/oauth/authorize` never sends them a code.
@@ -1019,7 +1105,7 @@ server's.
 | `grant_types` | optional (default `["authorization_code"]`): must list `authorization_code`; refresh tokens only with `refresh_token` |
 | `response_types` | optional: must list `code` |
 | `token_endpoint_auth_method` | optional: `none` |
-| `scope` | optional: the most the app may ask for (never `profiles`) |
+| `scope` | optional: the most the app may ask for (never `profiles` or `approvals`) |
 
 `client_secret` and `client_secret_expires_at` are refused. Other fields
 (`logo_uri`, `client_uri`, `tos_uri`, `policy_uri`, `jwks`, `jwks_uri`, …)
@@ -1632,7 +1718,9 @@ removed or reordered (`400`).
       max_level?: number;         // numbered as a stream's `level` (HEVC 5.1 = 153, H.264 5.1 = 51)
     }[];
     hdr_types?: ("hdr10" | "hdr10plus" | "hlg" | "dolby_vision")[]; // what the screen shows, a decoder feeding it
-    dolby_vision_profiles?: { profile: number; max_level?: number }[]; // only with a Dolby Vision screen
+    dolby_vision_profiles?: { profile: number; max_level?: number }[]; // decoded; used only with
+                                  // `dolby_vision` in hdr_types, else they say the screen is what lacks it
+    dolby_vision_hdr10plus?: boolean; // shows Dolby Vision + HDR10+ streams as Dolby Vision (below)
     audio_decode?: string[];      // decoded on the device
     audio_passthrough?: string[]; // sent as they are to a receiver: "ac3", "eac3", "truehd", "dts"
     audio_channels?: number;      // the most channels the output takes: 2, 6, 8
@@ -2033,14 +2121,16 @@ become:
   stream's level; otherwise the HDR10 base layer plays.
 - **Dolby Vision + HDR10+** (`hdr10plus: true` on the stream, found when the
   file is analyzed) never plays as it is for a player that would decode it
-  as Dolby Vision, on any model: Dolby Vision decoders show black or freeze
-  with HDR10+ in the stream (androidx/media#1895). It is repackaged with
-  the HDR10+ messages taken out and Dolby Vision kept ("…plays as Dolby
-  Vision without its HDR10+…"); without a master playlist, as its base
-  layer with HDR10+ ("…plays as its HDR10+ base layer, repackaged…").
-  Players without Dolby Vision play these files normally. Files analyzed by
-  an older server don't carry the flag until a forced scan of their library
-  analyzes them again.
+  as Dolby Vision, unless the player says its decoding shows these
+  (`dolby_vision_hdr10plus`, Kodi on CoreELEC): many Android TV devices'
+  Dolby Vision decoders show black or freeze with HDR10+ in the stream
+  (androidx/media#1895), whatever app plays it. It is repackaged with the
+  HDR10+ messages taken out and Dolby Vision kept ("…plays as Dolby Vision
+  without its HDR10+…"); without a master playlist, as its base layer with
+  HDR10+ ("…plays as its HDR10+ base layer, repackaged…"). Players without
+  Dolby Vision play these files normally. Files analyzed by an older server
+  don't carry the flag until a forced scan of their library analyzes them
+  again.
 - A server whose transcoder lacks `hls_master_playlist` in its capabilities
   decides as if no player read master playlists.
 
@@ -2225,6 +2315,527 @@ interface HistoryEntry {
 }
 ```
 
+## Requests
+
+People ask for movies and shows the libraries don't have, found on TMDB
+(*Discover*). A manager approves or declines each request; administrators'
+own requests, and those of accounts whose `request_access` is `"auto"`, are
+approved as they're made. Asking for what someone asked for already follows
+their request instead, so its news comes to the follower too. An approved
+request goes to Radarr (movies) or Sonarr (shows) where the
+[settings](#system-admin) connect them, which find and download it, and is
+*available* once a library has it: the movie, or every season asked for,
+whole.
+
+**Who.** A *manager* approves, declines and marks requests as added by
+hand, and sees and deletes everyone's: an administrator's own sign-in, or
+one of Pley's own apps on an administrator's account whose token has
+`approvals` (other publishers' apps can't be allowed it). Anyone else, an
+administrator's app without `approvals` included, sees only the requests it
+made or follows. Discover and asking need `request_access` `"ask"` or
+`"auto"`; an account whose `request_access` is `"off"` still lists, reads
+and withdraws its own requests, with their pictures, and stops following
+others'. An
+administrator's account asks without limits, and its requests are approved
+as made from the web, the desktop app and Pley's own apps; from other
+publishers' apps they wait for a manager (its `access` there is `"ask"`, in
+the summary and in `/api/auth/me`).
+
+Requests are off until `requests` is on in the settings, and need a TMDB
+key. Until then every endpoint here but the summary answers `503
+unavailable`. Every endpoint answers in the error envelope, malformed
+requests too (a body that isn't JSON or has the wrong types, an id that
+isn't a number: `400 bad_request`), and checks in this order: requests on
+(`503`), who asks (`403`), the query and the body (`400`), then the rest.
+An app's token without the route's scope is refused before all of it
+(`403 insufficient_scope`, as everywhere).
+
+| Status | `code` | When |
+|---|---|---|
+| `503` | `unavailable` (`setup: false`) | requests are off |
+| `503` | `tmdb_key` (`setup: true`, `retry: false`) | TMDB refuses the server's key: an administrator fixes it in Settings → Server, trying again won't help |
+| `503` | `tmdb_down` (`setup: true`) | TMDB isn't answering: try again |
+| `403` | `no_access` | the account may not ask |
+| `403` | `forbidden` | a managers' route, for anyone else |
+| `403` | `restricted` | the title is above the account's age limit; `message` says why |
+| `409` | `in_library` | the libraries the account can open have all that was asked for |
+| `409` | `declined` (`retry_at`) | asking: what is left to ask for was declined for the account in the last 30 days; `retry_at` is when all of it may be asked for again |
+| `409` | `conflict` (`request`, `retry_at`) | what was asked can't be done to the request as it is now: `request` is the request as this session reads it, `retry_at` when it may be done (a declined request its maker may remove, or a follower stop following, once its 30 days are over), else `null` |
+| `429` | `too_many_requests` (`retry_at`) | past the account's limits (below), with `Retry-After` when `retry_at` is set |
+| `502` | `tmdb_down` | a picture: TMDB's picture server isn't answering (`Cache-Control: no-store`) |
+
+| Method | Path | Who | What |
+|---|---|---|---|
+| GET | `/api/requests/summary` | `any app` | `RequestSummary`: what this session may do with requests, and what there is to see |
+| GET | `/api/discover/{list}?page=` | `requests` | `DiscoverPage`. `list`: `trending`, `movies`, `shows`, `upcoming` or `anime` |
+| GET | `/api/discover/search?q=&page=&missing=` | `requests` | `DiscoverPage`: movies and shows matching `q` (1-200 characters); `missing=1` leaves out those whose `status` is `library` |
+| GET | `/api/discover/movie/{tmdb_id}` | `requests` | `DiscoverDetail` |
+| GET | `/api/discover/show/{tmdb_id}` | `requests` | `DiscoverDetail`, with `seasons` |
+| GET | `/api/discover/images/{kind}/{file}?w=` | `requests` | one of TMDB's pictures (below); with `request_access` `"off"`, only the posters and backdrops of the requests the account made or follows (others: `403 no_access`) |
+| GET | `/api/items/{id}/request` | `requests` | `ItemRequest`: a library's movie or show as Discover sees it, whatever the account's `request_access` |
+| GET | `/api/requests?status=&attention=&kind=&user_id=&q=&order=&mine=&unseen=&changed_since=&offset=&limit=` | `requests` | `RequestList` (below) |
+| POST | `/api/requests` | `requests` | `{ kind, tmdb_id, seasons? }` → `201` with the new `MediaRequest`, or `200` with the one followed when nothing was left to ask for |
+| POST | `/api/requests/seen` | `requests` | `204`: what had news for this account is seen (`unseen` 0) |
+| GET | `/api/requests/{id}` | `requests` | `MediaRequest` |
+| DELETE | `/api/requests/{id}` | `requests` | `204`: its maker withdraws it (below); managers delete it, for everyone |
+| DELETE | `/api/requests/{id}/watch` | `requests` | `204`: the account follows it no more |
+| POST | `/api/requests/{id}/approve` | `approvals` | managers: `{ quality_profile?, root_folder?, seasons? }` → `MediaRequest` |
+| POST | `/api/requests/{id}/decline` | `approvals` | managers: `{ reason? }` → `MediaRequest` |
+| POST | `/api/requests/{id}/handled` | `approvals` | managers: → `MediaRequest`, approved as added by hand |
+| GET | `/api/requests/options` | `approvals` | managers: `RequestOptions`, what approving may choose in Radarr and Sonarr |
+
+- **The summary** answers every session and every app, so an app learns
+  whether to show requests at all. `enabled` and `access` are always real.
+  While requests are off, and for an app whose token hasn't `requests`,
+  every number is 0, `manage` false and `changed_at` null; such an app gets
+  `sign_in_again: "requests"` while requests are on and `access` isn't
+  `"off"` (signing in again lets it ask). An administrator's account on one
+  of Pley's own apps whose token has `requests` but not `approvals` gets
+  `sign_in_again: "approvals"`.
+- **Limits** (`request_limit_movies`, `request_limit_seasons`, 0 = none)
+  count an account's own requests of the last 7 days (a show its seasons):
+  those it made in them, and those it took over in them as their earliest
+  follower (below); pending, approved and available ones count, declined
+  and failed ones don't, and following costs nothing. They never apply to
+  administrators. Asking for more than is left answers `429` with
+  `retry_at`: when enough of what counts is older than 7 days for all that
+  was asked; `null` when more was asked than the limit itself (pick
+  fewer). `*_next_at` in the summary and `DiscoverDetail` is when one more
+  may be asked for, once none is left.
+- **Lists** (`/api/discover/…`): up to 20 titles a page in TMDB's order,
+  `page` from 1 (default) to 500. `trending`: this week's movies and shows;
+  `movies` and `shows`: the most popular; `upcoming`: movies coming to
+  cinemas in the server's region (`metadata_language`'s country);
+  `anime`: the most popular anime shows. Adult titles are left out for
+  everyone (a title page and asking answer `404` to all but managers).
+  TMDB's answers are reused for an hour, details for six. For an account
+  with an age limit, titles above it, unrated ones and those whose details
+  TMDB doesn't give are left out, as in the libraries; its `movies` and
+  `upcoming` come from TMDB's own search rated at most the highest
+  certification of the region within the limit, so that few are. A page
+  may hold fewer titles than 20, even none, before the last: load the next
+  one. The same title may show on two pages.
+- **A title's `status`** for the account asking, from the libraries it can
+  open only, is the first of these that holds: `library` (a library has the
+  movie, or every aired season of the show but specials, whole);
+  `restricted` (above the account's age limit, unrated titles included:
+  only on a title page, with `restriction`); `requested` (active requests,
+  pending, approved or failed, whoever made them, ask for all it lacks);
+  `declined` (the last request for it that the account made or follows was
+  declined in the last 30 days, or what a show lacks was); `partial`
+  (shows: a library or active requests have some of it, and aired seasons
+  are left to ask for); `none`. A movie matches by TMDB's or IMDb's id, a
+  show by TMDB's, TheTVDB's or IMDb's (lists look up a show's other ids
+  where a library show has no TMDB id). On lists, a show a library has or a
+  request asks for is looked at season by season from its details (8 at a
+  time); without them it is `library` where a library has it, else
+  `requested`.
+- **Seasons** (`DiscoverDetail.seasons`): `state` for the account, the
+  first that holds: `library` (whole in a library it can open: as many
+  episodes as have aired), `requested` (an active request asks for it),
+  `unaired`, `partial` (some of its episodes are there), `missing`.
+  `declined`: a request for it that the account made or follows was
+  declined in the last 30 days. `request_id`: the active request asking for
+  it, where the account made or follows it (any, for managers).
+- **Pictures** (`/api/discover/images/{kind}/{file}`): every picture field
+  here is such a path, so no client contacts TMDB. `kind` is `poster`,
+  `backdrop`, `profile` (cast) or `still`; `file` is TMDB's name, 1-64
+  letters and digits then `.jpg` or `.png` (anything else: `404`). `w`, the
+  width drawn, picks the smallest of TMDB's sizes at least that wide
+  (posters w92 w154 w185 w342 w500 w780, backdrops w300 w780 w1280,
+  profiles w45 w185 h632, which counts as 421, stills w92 w185 w300), the
+  largest above them, and TMDB's original from 2000; without `w` (or one
+  that isn't a number), posters w342, backdrops w1280, profiles w185, stills
+  w300. Pley fetches each once however many ask at once, 8 pictures at a
+  time (past 256 being fetched or waiting, more answer `502` until some
+  are done), keeps them under `cache/discover` (docs/STORAGE.md), 256 MB
+  at most, and answers with `Cache-Control: private, max-age=604800,
+  immutable`. TMDB's "no such picture" is `404`, believed for a day.
+- **A library title's page** (`GET /api/items/{id}/request`): `404` for an
+  item the account can't open, one that isn't a movie or show, or one TMDB
+  doesn't know (Pley looks it up by TheTVDB's or IMDb's id where the item
+  has no TMDB id; the answer is kept). It waits for TMDB 2 seconds at most
+  in all: `askable` is `null` until the details come (later calls have
+  them), and `503 tmdb_down` while TMDB hasn't said which title an item
+  known only by those ids is (`tmdb_key` when it refuses the key).
+- **Asking** (`POST /api/requests`) checks, in this order: requests on
+  (`503`), the account may ask (`403 no_access`), the body (`400`: seasons
+  for a movie, `seasons: []`), the title (`404` for one TMDB doesn't know,
+  and for an adult one but to managers), its age limit (`403 restricted`),
+  every season one TMDB lists (`400`), the libraries it can open (`409
+  in_library` when they have the movie, or every season asked for whole).
+  `seasons` (shows only) are TMDB's season numbers, 0 for specials. Left
+  out, they are the aired seasons but specials that the libraries it can
+  open lack whole, less those declined for the account in the last 30 days
+  (all of them, should each have been; every aired one, where none lacks);
+  before any has aired, every season TMDB lists but specials (`400` when it
+  lists none). Seasons a library it can open has whole are dropped. Then:
+  - the account follows each active request (pending, approved or failed),
+    whoever made it, that asks for the movie or for any of the seasons
+    asked for; its own change nothing; one that stops being active
+    meanwhile (declined, deleted or available) is left out, as if it
+    weren't there;
+  - approved as it asks (`access` `"auto"`), it approves those of them
+    still pending, as if it had just asked for them (`decided_by`: the
+    account), and they are sent;
+  - what no active request asks for yet becomes a new request, answered
+    `201`: unless some of it was declined for the account in the last 30
+    days (a request it made or follows), `409 declined` with `retry_at`, or
+    it is past its limits, `429`;
+  - with nothing left to ask for, the answer is `200` with the request for
+    the movie, or for the lowest season asked for (the account's own first,
+    then the newest): `watching: true`, or `mine: true` for its own.
+
+  A refused ask changes nothing: nothing is followed or approved. Following
+  costs nothing against the limits, so a title page's *Tell me too* is this
+  call (for a show, with the seasons whose `state` is `requested`).
+- **Following**: an account follows requests by asking (above), and
+  `DELETE /api/requests/{id}/watch` stops it (`409` where it doesn't follow
+  the request, its own included, and for a declined one until its 30 days
+  are over, with `retry_at`: they hold for its followers as for its maker;
+  `404` for one it can't read). Followers read a request as *Who sees
+  what* says, and hear its news ([events](#request-events)). When its
+  maker withdraws a request others follow, or the maker's account is
+  deleted, the request stays: its earliest follower becomes its maker, and
+  it counts toward their limits from then as if they had asked for it; the
+  others keep following.
+- **Withdrawing and deleting** (`DELETE /api/requests/{id}`): its maker
+  withdraws a pending or failed request, and removes a declined one once
+  its 30 days are over (before then `409 conflict` with `retry_at`, when it
+  may; an approved or available one, `409`). A follower gets `409`: it
+  stops following instead. A manager's delete, of its own requests too,
+  removes the request for everyone, its followers included, and deleting a
+  declined one lifts its 30 days. Nothing is removed from Radarr or Sonarr.
+- **Approving** (managers) a pending, failed or declined request, or an
+  approved one not sent (one added by hand too): it answers at once with
+  the request `approved`, its stage `approved` while it is being sent. In
+  the background, where Radarr or Sonarr is connected for its kind (its
+  address, key, quality profile and root folder are all set), the title is
+  added there, monitored, with the settings' quality profile and root
+  folder (anime's own where set) or those given, and searched for unless
+  `radarr_search` / `sonarr_search` is off. A title already there is
+  monitored again, the seasons asked for too, and searched for. Should that
+  fail, the request is `failed`, `reason` says why and managers hear it
+  (`request_failed`); approving it again (`retry`) tries again. The request
+  keeps what its approval chose while it is being sent: a send a restart
+  cut short is made again when the server starts, and should how it went
+  not be saved, the request is `failed` too. Without Radarr or Sonarr
+  connected for its kind, it is simply approved, for an administrator to
+  add by hand. The body may choose `quality_profile` (a profile's id, from
+  the options below), `root_folder` (a path, 512 characters at most) and
+  `seasons`, which keeps only those of the seasons asked for: the others
+  leave the request, stop counting toward its maker's limits, and may be
+  asked for again (`400` for an id below 1, an empty path, a season it
+  doesn't ask for, none, or seasons of a movie). A request sent already,
+  or being sent, is answered as it is (`200`: a second approve), and so is
+  one another session approved meanwhile (a race); an available one
+  answers `409`.
+- **Declining** (managers) a pending or failed request, or an approved one
+  not yet available (others: `409`), keeps `reason` (500 characters at
+  most) for its maker to read. The title is declined for its maker and its
+  followers for 30 days (`status` above), and they hear it
+  (`request_decided`), followers without the reason.
+- **Added by hand** (managers, `POST /api/requests/{id}/handled`): a
+  pending, failed or declined request, or an approved one not sent, is
+  approved as added to Radarr or Sonarr by hand. It is never sent
+  afterwards (`sent_to` `null`, `note` "Added by hand", stage `approved`),
+  and waits for the library like any other; approving it makes it one to
+  send after all (sent at once where Radarr or Sonarr is connected). One
+  added by hand already, or by another session meanwhile, is answered as
+  it is; one sent, being sent or available answers `409`.
+- **Options** (managers, `GET /api/requests/options`): what approving may
+  choose in Radarr and in Sonarr, each `null` where it isn't connected:
+  their quality profiles and root folders, and the settings' choices, which
+  an approval preselects (anime's for anime). The lists are kept 5 minutes,
+  then asked for again (one question at a time) and waited for 3 seconds at
+  most: a service that hasn't answered by then has the lists it gave last
+  (none, if it never did), and `error` says why ("Radarr isn't answering",
+  or what went wrong).
+- **Actions** (`MediaRequest.actions`): what this session may do to the
+  request now, in the order clients list them. Clients offer exactly these
+  and work out none themselves; one refused anyway, after a race, answers
+  `409 conflict` with the request as it is now.
+  - `withdraw`: its maker, unless a manager (who deletes), while pending or
+    failed, or declined once its 30 days are over: `DELETE
+    /api/requests/{id}` (*Remove*, on a declined one);
+  - `unwatch`: a follower, but of a declined request only once its 30
+    days are over: `DELETE /api/requests/{id}/watch`;
+  - `approve`: managers, while pending or declined, or approved and not
+    sent where Radarr or Sonarr is connected for its kind;
+  - `retry`: managers, while failed: `POST /api/requests/{id}/approve`;
+  - `decline`: managers, while pending, failed or approved;
+  - `handled`: managers, while pending, failed or declined, or approved and
+    neither sent nor added by hand;
+  - `delete`: managers: `DELETE /api/requests/{id}`, for everyone;
+  - `ask_again`: an account that may ask, on a `gone` request it made or
+    follows, or its own declined one once its 30 days are over: `POST
+    /api/requests` with its `kind`, `tmdb_id` and `seasons`.
+
+  A request being sent offers neither `approve` nor `handled`.
+- **Available**: looked at after every library scan and every 5 minutes,
+  for active requests: the title in a library its maker can open, matched
+  as in `status` above, with every season asked for whole there (as many
+  episodes as TMDB says have aired; with fewer, the last one there and
+  Sonarr saying it has them all, as files of several episodes are counted
+  once). Libraries its maker can't open don't count, as it may ask for
+  what only they have. `available_seasons` lists those whole so far. A
+  pending request whose title arrives this way is available too.
+- **Unseen**: a request has news for its maker and its followers when it
+  becomes available, more of its seasons do, or it is declined; `unseen`
+  counts those of the account's since it last called `POST
+  /api/requests/seen`. That sends `requests_changed` (`request_id` `null`)
+  to the account's other streams, not those of the session that called it,
+  so its other devices clear their badges.
+- **Listing** (`GET /api/requests`): the requests the account made or
+  follows; a manager's has everyone's, unless `mine=1`. Each filter given
+  narrows it:
+  - `status`: one status, or several separated by commas
+    (`pending,failed`);
+  - `attention=1`: pending and failed requests: what the summary's
+    `pending` and `failed` count for managers (*Needs attention* is
+    `attention=1&order=oldest`);
+  - `kind`: `movie` or `show`;
+  - `user_id`: managers: the requests that account made (ignored for
+    others);
+  - `q`: titles containing it, at most 200 characters, whatever the case
+    of the letters A to Z;
+  - `unseen=1`: only those the account made or follows with news it
+    hasn't seen, for managers too, newest news first;
+  - `changed_since`: those whose `updated_at` is later than it;
+  - `order`: `newest` (the default) or `oldest`, by `created_at` (with
+    `unseen=1`, by when their news came);
+  - `offset` (default 0) and `limit` (default 50, at most 200).
+
+  `1`, `true` and `yes` turn a flag on; another `status`, `kind` or
+  `order`, or a number that isn't one, answers `400`. `total` counts what
+  the filters keep, `counts` each status of it with every filter but
+  `status`, and `people`, for managers, everyone who made a request that
+  every filter but `user_id` keeps, by name (the person filter, as apps
+  can't list users; `[]` for others).
+- **Events**: see [Request events](#request-events).
+  `requests_settings_changed` says the summary may have changed.
+- **`download`**: an approved request's download in Radarr or Sonarr while
+  one is queued or running, from their queues as last fetched: answers
+  never wait for Radarr or Sonarr. A queue is fetched again in the
+  background once 10 seconds old (a minute, after it couldn't be read), and
+  when the server starts.
+- **`stage`**: a pending, declined or failed request's is its `status`; an
+  available one whose title no library has any more is `gone` (available
+  again once a library has it, without news). An approved
+  one is `downloading` or `importing` while `download` says so, `partial`
+  while some of the seasons asked for are ready, `searching` once sent to
+  Radarr or Sonarr, and `approved` while it isn't sent: being sent, with no
+  Radarr or Sonarr connected for its kind, or added by hand.
+- **Who sees what**: a request's maker and the accounts following it read
+  it; managers read everyone's. Followers don't see who asked or decided,
+  nor why it was declined, and one who became its maker still doesn't
+  for a decision made before then. What went wrong, `note`, `sent_to` and
+  `watchers` are for managers. `item_id` is there only for an account that
+  can open the library's title, and `actions` are this session's.
+
+```ts
+type TitleKind = "movie" | "show";
+type RequestStatus = "pending" | "approved" | "declined" | "failed" | "available";
+type RequestAccess = "off" | "ask" | "auto"; // may not ask; asks an administrator; approved as made
+
+interface RequestSummary {
+  enabled: boolean;                 // requests are on (and TMDB has a key)
+  access: RequestAccess;            // what asking from this session does: an administrator's "auto", but
+                                    // "ask" from other publishers' apps; given to apps without `requests` too
+  movies_left: number | null;       // movies it may still ask for (last 7 days); null = no limit
+  seasons_left: number | null;
+  movies_limit: number | null;      // the limits that apply to it, per 7 days; null = none
+  seasons_limit: number | null;
+  movies_next_at: Timestamp | null; // with no movies left: when one more may be asked for
+  seasons_next_at: Timestamp | null; // with no seasons left: likewise
+  manage: boolean;                  // this session is a manager
+  pending: number;                  // managers: requests waiting for a decision (others: 0)
+  failed: number;                   // managers: failed requests, which wait for one (others: 0)
+  unseen: number;                   // the requests it made or follows with news since it last looked
+  own: number;                      // the requests it made or follows, any status
+  changed_at: Timestamp | null;     // the newest updated_at of the requests this session sees (managers:
+                                    // everyone's): clients without events refetch when it moves
+  sign_in_again: "requests" | "approvals" | null; // the scope signing in again would give this app
+}
+
+interface DiscoverTitle {
+  kind: TitleKind;
+  tmdb_id: number;
+  title: string;
+  year: number | null;
+  overview: string;
+  poster_url: string | null;        // "/api/discover/images/poster/abc.jpg"
+  backdrop_url: string | null;      // "/api/discover/images/backdrop/def.jpg"
+  rating: number | null;            // TMDB's users', 0-10; null with too few votes
+  status: "library" | "restricted" | "requested" | "declined" | "partial" | "none";
+  item_id: Id | null;               // in a library this account can open: the title
+  request_id: Id | null;            // an active request for it this account made or follows (any, for
+                                    // managers), whatever `status` says: never work status out from it
+}
+
+interface DiscoverPage {
+  page: number;
+  total_pages: number;
+  results: DiscoverTitle[];
+}
+
+interface DiscoverDetail extends DiscoverTitle {
+  original_title: string | null;    // where it differs from `title`
+  tagline: string | null;
+  genres: string[];
+  release_date: string | null;      // "2024-05-01": a movie's release, a show's first air date
+  runtime_minutes: number | null;   // movies
+  certification: string | null;     // "PG-13", "TV-MA": the server's region's
+  network: string | null;           // a show's first network, a movie's first studio
+  show_status: string | null;       // shows: TMDB's ("Returning Series", "Ended")
+  anime: boolean;                   // TMDB's "anime" keyword, or Japanese animation: anime's folder and profile
+  imdb_id: string | null;
+  cast: { name: string; character: string | null; photo_url: string | null }[]; // 12 at most;
+                                    // photo_url: "/api/discover/images/profile/…"
+  seasons: DiscoverSeason[] | null; // shows, in order (specials, 0, first)
+  declined: { reason: string | null; at: Timestamp; again_at: Timestamp } | null; // the newest request for
+                                    // it that the account made or follows, declined in the last 30 days
+                                    // (shows: for some seasons); reason: null for a follower, then too
+                                    // once it became its maker
+  restriction: string | null;       // why the account can't ask: "Rated R: above this account's age limit"
+  watching: boolean;                // the account follows an active request for it
+  requests: MediaRequest[];         // for it: this account's and those it follows (everyone's for managers),
+                                    // newest first
+  movies_left: number | null;       // as in the summary, so the page needs no other call
+  seasons_left: number | null;
+  movies_next_at: Timestamp | null;
+  seasons_next_at: Timestamp | null;
+}
+
+interface DiscoverSeason {
+  number: number;                   // 0: specials
+  name: string;
+  episodes: number;                 // TMDB lists
+  aired: number;                    // of those, aired by now
+  air_date: string | null;          // its first episode's
+  poster_url: string | null;        // "/api/discover/images/poster/…"
+  in_library: number;               // episodes of it in the libraries this account can open
+  requested: boolean;               // an active request asks for it
+  state: "library" | "requested" | "unaired" | "partial" | "missing"; // draw a season from this
+  declined: boolean;                // a request for it that the account made or follows was declined in
+                                    // the last 30 days
+  request_id: Id | null;            // the active request asking for it, where this account made or follows
+                                    // it (any, for managers)
+}
+
+interface ItemRequest {
+  kind: TitleKind;
+  tmdb_id: number;
+  status: DiscoverTitle["status"];
+  request: MediaRequest | null;     // the newest active request for it this account made or follows (any,
+                                    // for managers)
+  askable: number[] | null;         // the seasons the season picker would tick were there no limit: those
+                                    // missing or partly there, but specials and those declined lately; [] for
+                                    // movies and titles above the age limit; null without TMDB's details yet
+}
+
+type RequestStage =
+  | "pending" | "declined" | "failed"
+  | "approved"                      // approved, not sent: being sent, no Radarr or Sonarr connected for its
+                                    // kind, or added by hand
+  | "searching"                     // sent; nothing downloading yet
+  | "downloading"                   // see `download`
+  | "importing"                     // downloaded; going into the library
+  | "partial"                       // shows: some of the seasons asked for are ready
+  | "available"
+  | "gone";                         // was available; no library has it any more
+
+interface MediaRequest {
+  id: Id;
+  kind: TitleKind;
+  tmdb_id: number;
+  title: string;                    // as TMDB had it when asked
+  year: number | null;
+  poster_url: string | null;        // "/api/discover/images/poster/…"
+  backdrop_url: string | null;
+  seasons: number[] | null;         // shows: the seasons asked for; null for movies
+  available_seasons: number[];      // shows: those a library has whole
+  anime: boolean;
+  status: RequestStatus;            // the decision
+  stage: RequestStage;              // where it is: draw a request from this
+  stage_at: null;                   // always null: no stage says when it ends
+  reason: string | null;            // declined: the administrator's (or null), for its maker and managers;
+                                    // failed: what went wrong, for managers; null for others
+  note: string | null;              // managers: what to know of it ("Added by hand")
+  mine: boolean;                    // this account made it
+  watching: boolean;                // this account follows it
+  watchers: number;                 // managers: how many follow it; 0 for others
+  unseen: boolean;                  // its maker's or a follower's: it became available, partly available or
+                                    // declined since the account last looked
+  actions: RequestAction[];         // what this session may do to it now, in the order to list them
+  requested_by: RequestUser | null; // its maker and managers; null for followers
+  decided_by: RequestUser | null;   // who approved or declined it, for its maker and managers: the maker where
+                                    // approved as made; null for an account deleted since, for followers, and
+                                    // for a maker who inherited it after the decision
+  decided_at: Timestamp | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+  available_at: Timestamp | null;
+  retry_at: null;                   // always null: a failed request waits for a manager
+  sent_to: { service: "radarr" | "sonarr"; quality_profile: string | null; root_folder: string | null } | null;
+                                    // managers: where it was sent (the profile's name), where known
+  item_id: Id | null;               // a library's title once there, where this account may open it
+  download: RequestDownload | null;
+}
+
+interface RequestUser {
+  id: Id;
+  name: string;
+  avatar_url: string | null;
+  avatar_color: string | null;
+}
+
+interface RequestDownload {
+  progress: number;                 // 0-1, of everything of it queued
+  state: "queued" | "downloading" | "paused" | "importing" | "warning";
+  eta: Timestamp | null;            // the queue's estimate, where it has one
+  episodes: number;                 // shows: episodes queued (movies: 1)
+}
+
+type RequestAction =                // see Actions above
+  | "withdraw"                      // its maker: DELETE /api/requests/{id} ("Remove" on a declined one)
+  | "unwatch"                       // a follower: DELETE /api/requests/{id}/watch
+  | "approve"                       // managers: POST /api/requests/{id}/approve
+  | "retry"                         // managers, a failed one: POST /api/requests/{id}/approve
+  | "decline"                       // managers: POST /api/requests/{id}/decline
+  | "handled"                       // managers: POST /api/requests/{id}/handled
+  | "delete"                        // managers: DELETE /api/requests/{id}, for everyone
+  | "ask_again";                    // POST /api/requests with its kind, tmdb_id and seasons
+
+interface RequestList {
+  total: number;                    // the requests the filters keep (requests: a page of them)
+  counts: Record<RequestStatus, number>; // of each status, with every filter but `status`
+  requests: MediaRequest[];
+  people: RequestUser[];            // managers: who made requests every filter but `user_id` keeps, by
+                                    // name; [] for others
+}
+
+interface RequestOptions {          // GET /api/requests/options
+  radarr: ApprovalOptions | null;   // null: not connected
+  sonarr: ApprovalOptions | null;
+}
+
+interface ApprovalOptions {
+  quality_profiles: { id: number; name: string }[]; // [] while it has never answered
+  root_folders: { path: string; free_bytes: number | null }[];
+  quality_profile: number | null;   // the settings' choices: what an approval preselects
+  root_folder: string | null;
+  anime_quality_profile: number | null; // for anime requests; null: as above
+  anime_root_folder: string | null;
+  error: string | null;             // it didn't answer: "Radarr isn't answering"; the lists are its last
+}
+```
+
+A `409 conflict` about a request is `{ code: "conflict", message, request:
+MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
+`{ code: "declined", message, retry_at: Timestamp }`. Clients show when from
+`retry_at`, never from the date in `message`.
+
 ## Activity & events
 
 | Method | Path | Who | What |
@@ -2299,6 +2910,47 @@ holding them. A play reaching 90 % also sends `library_changed`. Pley's apps
 gather both for 0.3 s and ask once, and leave alone what they fetched after
 the event came (their own change).
 
+### Request events
+
+A [request](#requests)'s events say whom they are for: the accounts they
+name (its maker, its followers) and whether managers get them. A stream gets
+one when its account is named, or when it is a manager's and the event is
+for managers. An app's stream gets none without `requests`, and those for
+managers only on an administrator's account whose token has `approvals`
+too. Whether a stream is a manager's is checked again as its session is
+(an account made an administrator, or no longer one).
+
+- `requests_changed`: a request was made, followed or no longer, approved,
+  declined, added by hand, sent, failed, partly or wholly available,
+  withdrawn or deleted: to its maker, its followers and managers (those it
+  had before, for one withdrawn, deleted or no longer followed).
+  `request_id`, `kind` and `tmdb_id` are all `null` when many changed: to
+  an account's other streams after `POST /api/requests/seen` (not those of
+  the session that called it), and to managers and those who inherited one
+  when an account with requests is deleted.
+- `request_available`: a request became available (`complete: true`), or
+  more of a show's seasons did (`complete: false`); `seasons` are a show's
+  newly ready ones (`null` for a movie). One event each to its maker and to
+  each follower who can open the library's title, with `item_id` where that
+  account may open it (`null` for a maker who can't); other followers get
+  only `requests_changed`.
+- `request_decided`: a pending or declined request was approved (by a
+  manager, marked as added by hand too, or by an account approved as it
+  asks that asked for it too), or a request was declined: to its maker
+  unless they decided it, with `reason` when declined; and when declined,
+  to its followers but the one who declined it, with `reason` `null`.
+- `request_created`: a new request, `pending` or approved as made: to
+  managers but its maker.
+- `request_failed`: a request couldn't be sent to Radarr or Sonarr and
+  waits for a manager: to managers (`retry_at` is always `null`).
+- `requests_settings_changed` has no audience: see the union below.
+
+Clients fetch the request summary again on each, and what shows that
+request (`GET /api/requests/{id}` when only it shows). A title's badge
+comes from the title (`GET /api/discover/{kind}/{tmdb_id}`), never from
+one of its requests: it depends on all of them and on who asks. Nothing
+is replayed, so a stream that connects again fetches the summary too.
+
 ```ts
 interface AnalysisStatus {          // intro and credits detection of one season
   item_id: Id;                      // the season
@@ -2372,7 +3024,23 @@ type ServerEvent =
   | { type: "user_state_changed"; item_ids: Id[]; children: boolean } // their watch state (their streams only)
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean } // theirs only
   | { type: "live_channels_changed" }                // Live TV's sources, channels or guide changed: refetch
-  | { type: "live_tuners_changed" };                 // a channel was tuned or let go, or its viewers changed
+  | { type: "live_tuners_changed" }                  // a channel was tuned or let go, or its viewers changed
+  | { type: "requests_changed"; request_id: Id | null; kind: TitleKind | null; tmdb_id: number | null }
+                                                     // a request changed; all three null: many did (Request events)
+  | { type: "request_available"; request_id: Id; title: string; kind: TitleKind; tmdb_id: number;
+      item_id: Id | null; poster_url: string | null; seasons: number[] | null; complete: boolean }
+                                                     // ready, or more of a show's seasons are (`seasons`: those);
+                                                     // item_id: where this account may open it
+  | { type: "request_decided"; request_id: Id; title: string; kind: TitleKind; tmdb_id: number;
+      status: "approved" | "declined"; reason: string | null } // reason: declined, to its maker only
+  | { type: "request_created"; request_id: Id; title: string; kind: TitleKind; tmdb_id: number;
+      seasons: number[] | null; requested_by: RequestUser; status: "pending" | "approved" } // to managers
+  | { type: "request_failed"; request_id: Id; title: string; kind: TitleKind; reason: string;
+      retry_at: null }                               // to managers: it waits for one
+  | { type: "requests_settings_changed" };           // fetch the request summary again: requests were turned on or
+                                                     // off, their limits or the TMDB key changed (every stream, apps'
+                                                     // included), or one account's request_access, role, age limit
+                                                     // or libraries did (its streams only)
 ```
 
 ## Live TV
@@ -2545,14 +3213,14 @@ interface LiveTuner {                  // a connection in use
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/users` | `admin` | `User[]` |
-| POST | `/api/users` | `admin` | `{ username, password?, display_name?, is_admin?, managed?, home? (true), all_libraries? (true), library_ids?, max_age?, pin? }` → `201` `User`; managed profiles need no password and can't be administrators (`400`) |
-| PATCH | `/api/users/{id}` | `admin` | `{ password?, display_name?, is_admin?, home?, disabled?, all_libraries?, library_ids?, max_age?, pin? }` (`null` clears nullable fields) → `User` |
-| DELETE | `/api/users/{id}` | `admin` | `204` (not yourself); their apps end with them |
+| POST | `/api/users` | `admin` | `{ username, password?, display_name?, is_admin?, managed?, home? (true), all_libraries? (true), library_ids?, max_age?, pin?, request_access? }` → `201` `User`; managed profiles need no password and can't be administrators (`400`) |
+| PATCH | `/api/users/{id}` | `admin` | `{ password?, display_name?, is_admin?, home?, disabled?, all_libraries?, library_ids?, max_age?, pin?, request_access? }` (`null` clears nullable fields) → `User` |
+| DELETE | `/api/users/{id}` | `admin` | `204` (not yourself); their apps end with them, and each of their [requests](#requests) someone follows goes to its earliest follower (the others go with them) |
 | GET | `/api/users/{id}/devices` | `admin` | `Device[]` |
 | DELETE | `/api/users/{id}/devices` | `admin` | `204`: signs the user out everywhere, apps included |
 | GET | `/api/users/{id}/apps` | `admin` | `AppGrant[]` ([Signed-in apps](#signed-in-apps)) |
 | DELETE | `/api/users/{id}/apps/{grant}` | `admin` | `204`: signs that app out; `404` unless it acts as that user or they allowed it |
-| DELETE | `/api/users/{id}/two-step` | `admin` | `204`: turns two-step sign-in off (for someone who lost their phone and recovery codes) |
+| DELETE | `/api/users/{id}/two-step` | `admin` | `204`: turns two-step sign-in off (for someone who lost their phone and recovery codes). While the server requires it, they are signed out everywhere and set it up again at their next sign-in |
 
 `PATCH /api/users/{id}`:
 
@@ -2561,7 +3229,10 @@ interface LiveTuner {                  // a connection in use
   own device stays) and in every app using the account or allowed by it.
 - A change to `is_admin`, `all_libraries`, `library_ids` or `max_age` sends
   `libraries_changed` to the user's streams, so their devices fetch what
-  they may see again.
+  they may see again; a change to those or to `request_access`,
+  `requests_settings_changed`, so they fetch the request summary again.
+- An age limit added to an account whose `request_access` is `"ask"` makes
+  it `"off"`, unless the same change sets `request_access`.
 
 ## Invitations
 
@@ -2571,7 +3242,7 @@ interface LiveTuner {                  // a connection in use
 | POST | `/api/invites` | `admin` | `{ expires_in_days? (7; 0 = never), uses? (1, at most 1000), all_libraries? (true), library_ids?, max_age?, note? (200 characters kept) }` → `201` `Invite`; share `/invite/{code}` |
 | DELETE | `/api/invites/{code}` | `admin` | `204` |
 | GET | `/api/invites/{code}` | `public` | `{ server_name, expires_at }`; `404` when invalid, used up or expired |
-| POST | `/api/invites/{code}/accept` | `public` | `{ username, password, display_name? }` → `{ user, token? }` (as `/api/auth/login`): a new (non-home) account with the invitation's access, signed in; `404` when the invitation is invalid, used up or expired, `409` for a username taken |
+| POST | `/api/invites/{code}/accept` | `public` | `{ username, password, display_name? }` → `{ user, token? }` (as `/api/auth/login`): a new (non-home) account with the invitation's access, signed in; with an age limit, its `request_access` is `"off"`; `404` when the invitation is invalid, used up or expired, `409` for a username taken. While the server requires two-step sign-in, the account is made but not signed in: `401 two_step_setup` with the secret, and the client goes on with `POST /api/auth/login` and its first code |
 
 ## System *(admin)*
 
@@ -2586,9 +3257,10 @@ interface LiveTuner {                  // a connection in use
 | GET | `/api/system/backups` | `admin` | `{ health: { ok, problem?, checked_at }, backups: { name, path, bytes, created_at }[] }`, newest first (`ok` and `checked_at` `null` until checked) |
 | POST | `/api/system/backups` | `admin` | the new backup: a checked `VACUUM INTO` copy; the last 3 are kept |
 | GET | `/api/transcoder` | `admin` | `TranscoderStatus`: the transcoder's live metrics (all jobs, counters) |
-| GET | `/api/settings` | `admin` | `Settings` (never with `opensubtitles_password`) |
+| GET | `/api/settings` | `admin` | `Settings` (never with `opensubtitles_password`, `radarr_api_key` or `sonarr_api_key`) |
 | PUT | `/api/settings` | `admin` | partial `Settings` → `Settings` |
 | POST | `/api/settings/test` | `admin` | `{ service, api_key?, pin?, username?, password? }` → `{ ok, message, ms }` |
+| POST | `/api/settings/arr` | `admin` | `{ service: "radarr" \| "sonarr", url?, api_key? }` → `ArrOptions`: what Radarr or Sonarr offers requests |
 | GET | `/api/fs?path=` | `admin` | `{ path: string \| null, parent: string \| null, entries: { name, path }[] }`: directories only (`path` left out: roots and drives) |
 | GET | `/api/network` | `admin` | `Network`: where Pley listens, and could |
 | PUT | `/api/network` | `admin` | `{ web, plex, plex_on_web?, discovery }` → `Network` |
@@ -2636,6 +3308,25 @@ interface LiveTuner {                  // a connection in use
   key, or with a `username`, a sign-in of that account (`password` left
   out: the saved one, for the saved username). `message` says what
   happened, for people.
+- **`settings/arr`** asks Radarr or Sonarr at `url` with `api_key` (not
+  saved), else the saved ones, for what [requests](#requests) can be sent
+  with. The saved key goes only to the saved address: a new `url` needs its
+  `api_key` (`400`). Where it can't be reached or refuses the key, `400`
+  with what went wrong in `message`, for people. An error answer without
+  Radarr's or Sonarr's own JSON message (`{ message }`, or validation
+  errors) is reported by its HTTP status only (`HTTP 502`), as when sending
+  requests.
+- **`PUT /api/settings`** keeps `radarr_url` and `sonarr_url` as URLs are
+  written (`HTTP://Box:7878/` is `http://box:7878`), less a trailing `/`
+  (`""` = none): http or https, with a host and no password, not a
+  link-local address (`169.254.0.0/16`, `fe80::/10`), else `400`; a name
+  is never connected to at a link-local address it resolves to either. A new address needs its `radarr_api_key` or `sonarr_api_key` too
+  (`400`: the saved key goes to the saved address only), and `""` forgets
+  the key with the address. `requests` on without a TMDB key (turning them
+  on, or removing the key while they are), a limit above 1000, and a
+  `radarr_minimum_availability` other than those below answer `400`. A
+  change to `requests`, `request_limit_movies`, `request_limit_seasons` or
+  `tmdb_api_key` sends `requests_settings_changed` to every event stream.
 - **`PUT /api/network`** answers once the new listeners listen or have
   tried for a moment (3 s at most). Saved in the config file for the next
   start (`plex_bind`: `"web"`, `"off"` or the addresses). `400` for
@@ -2694,6 +3385,10 @@ interface Settings {
                                     // (%, 10-100, default 50; 100: never). Outside: 400
   third_party_apps: boolean;        // apps by other publishers may sign in (default false); turning it off
                                     // signs them out. Pley's own apps always may
+  require_two_step: boolean;        // every account with a password uses two-step sign-in (default false):
+                                    // turning it on signs out everyone without it, who sets it up at their
+                                    // next sign-in. Only an administrator who uses it may turn it on (else
+                                    // 400), and only while the server can use its secret.key (else 400)
   proxy_addresses: string[];        // addresses with a port Pley is reached at through a reverse proxy that
                                     // drops the port from `Host` ("https://media.example.com:9999"; see
                                     // Discovery). http or https with a port and no path, one per scheme and
@@ -2704,6 +3399,37 @@ interface Settings {
                                     // API key's own (smaller) quota. A new username forgets the saved password
   opensubtitles_password?: string;  // PUT only, never sent back. Left out: the saved one stays; "" = none
   opensubtitles_password_set: boolean; // GET: a password is saved
+  // Requests (see Requests):
+  requests: boolean;                // people may ask for movies and shows (default false); needs a TMDB key
+  request_limit_movies: number;     // requests an account may make in 7 days, 0-1000 (administrators:
+  request_limit_seasons: number;    // no limit); 0 (default) = no limit. A show counts its seasons
+  radarr_url: string;               // "http://localhost:7878"; "" = no Radarr: movies approved are added by hand
+  radarr_api_key?: string;          // PUT only, never sent back. Left out: the saved one stays; "" = none
+  radarr_api_key_set: boolean;      // GET: a key is saved
+  radarr_quality_profile: number;   // Radarr's id; 0 = not chosen (approving fails until one is)
+  radarr_root_folder: string;       // "" = not chosen (approving fails until one is)
+  radarr_anime_quality_profile: number; // for anime; 0 = radarr_quality_profile
+  radarr_anime_root_folder: string; // for anime; "" = radarr_root_folder
+  radarr_minimum_availability: "announced" | "in_cinemas" | "released"; // when Radarr may take a release
+                                    // (default "released")
+  radarr_search: boolean;           // search as soon as a movie is added (default true)
+  sonarr_url: string;               // "http://localhost:8989"; "" = no Sonarr
+  sonarr_api_key?: string;          // as radarr_api_key
+  sonarr_api_key_set: boolean;
+  sonarr_quality_profile: number;
+  sonarr_root_folder: string;
+  sonarr_language_profile: number;  // Sonarr 3's language profile; 0 = its first (Sonarr 4 has none)
+  sonarr_anime_quality_profile: number;
+  sonarr_anime_root_folder: string;
+  sonarr_season_folders: boolean;   // a folder for each season (default true)
+  sonarr_search: boolean;           // search for the seasons asked for as soon as they're added (default true)
+}
+
+interface ArrOptions {
+  version: string;                  // "5.14.0.9383"
+  quality_profiles: { id: number; name: string }[];
+  root_folders: { path: string; free_bytes: number | null }[];
+  language_profiles: { id: number; name: string }[]; // Sonarr 3 only; [] otherwise
 }
 
 interface SystemInfo {
@@ -2715,6 +3441,8 @@ interface SystemInfo {
   uptime_secs: number;
   data_dir: string;
   database: { ok: boolean | null; problem?: string; checked_at: Timestamp | null }; // integrity check at start
+  secret_key_ok: boolean;           // the server can use its secret.key: without it, authenticator apps can't
+                                    // be set up or checked (the log says why)
   transcode_dir: {                  // the transcoder's work folder
     in_use: string;
     next: string | null;            // the one the next start uses, when another
@@ -2728,7 +3456,7 @@ interface SystemInfo {
     url: string | null;
     version: string | null;
     commit: string | null;
-    license: string | null;         // the transcoder's, as SPDX: "LicenseRef-Restricted"
+    license: string | null;         // the transcoder's, as SPDX: "AGPL-3.0-only"
     ffmpeg_version: string | null;
     encoders: string[];             // working video encoders: ["h264_nvenc", "libx264"]
     active_encoder: string | null;  // encoder new transcodes use with the current settings

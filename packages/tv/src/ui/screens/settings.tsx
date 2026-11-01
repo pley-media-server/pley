@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { errorMessage, isApiError } from "../../api/client";
 import type { HistoryEntry, SubtitleMode } from "../../api/types";
 import { displayAddress } from "../../auth/addresses";
-import { episodeLabel } from "../../format/format";
+import { episodeLabel, relativeTime } from "../../format/format";
 import { AUTO, ORIGINAL, PRESETS, presetById } from "../../player/quality";
 import type { AppState, Settings } from "../../state";
 import { fontsHere, SUBTITLE_FONTS, SUBTITLE_POSITIONS } from "../../subs/style";
@@ -20,6 +20,7 @@ import { licenseRows } from "../../licenses";
 import { pageOf } from "./item-actions";
 import { librarySorting, SORT_NEEDS_NEWER } from "./library";
 import { ProfileAvatar, QrCode } from "./onboarding/kit";
+import { TMDB_NOTICE } from "../../requests";
 
 type Category = "profile" | "playback" | "audio" | "display" | "server" | "diagnostics" | "about" | "signout";
 
@@ -438,6 +439,13 @@ export function SettingsScreen(p: { entry: Entry }) {
       );
       // Their texts are in the app's package, in NOTICES.txt.
       for (const [name, licence] of licenseRows()) rows.push(<SettingRow key={name} fid={`row-lic-${name}`} label={name} value={licence} onSelect={() => undefined} />);
+      rows.push(
+        <div key="credits" class="settings-heading t-label c-subtle">
+          Credits
+        </div>,
+      );
+      // Discover's titles and pictures (TMDB's terms ask for this line).
+      rows.push(<SettingRow key="tmdb" fid="row-tmdb" label="TMDB" value={TMDB_NOTICE} onSelect={() => undefined} />);
       break;
     case "signout":
       rows.push(
@@ -615,22 +623,8 @@ function WebDialog(p: { url: string; onClose: () => void }) {
 
 // ---- Watch history
 
-/** "3 hours ago", "yesterday", "now". */
-export function relativeTime(seconds: number, now = Date.now()): string {
-  const diff = Math.max(0, now / 1000 - seconds);
-  if (diff < 60) return "now";
-  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
-  if (diff < 86400) {
-    const h = Math.floor(diff / 3600);
-    return h === 1 ? "1 hour ago" : `${h} hours ago`;
-  }
-  const days = Math.floor(diff / 86400);
-  if (days === 1) return "yesterday";
-  if (days < 30) return `${days} days ago`;
-  const d = new Date(seconds * 1000);
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-}
+/** "3 hours ago" and the like, which History was the first to write. */
+export { relativeTime };
 
 /** Watch history (TvHistoryScreen): newest first, 15 at a time, each removable. */
 export function HistoryScreen(p: { entry: Entry }) {

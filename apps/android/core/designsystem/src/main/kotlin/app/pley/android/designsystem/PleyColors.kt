@@ -69,8 +69,11 @@ object PleyColors {
     /** The logo's tile. */
     val BrandTile = Color(0xFF0A1622)
 
-    /** "Signed in", "On this network" dots. */
+    /** "Signed in", "On this network" dots; a request ready to watch (6.9:1 on [Surface]). */
     val Success = Color(0xFF3FB27F)
+
+    /** Waiting on someone: a request waiting for approval (9.4:1 on [Surface]). */
+    val Amber = Color(0xFFF2B347)
 
     /** Destructive fills, with [Bg] content (5.0:1). Never text on surfaces: that is [DangerText]. */
     val Danger = Color(0xFFE5484D)

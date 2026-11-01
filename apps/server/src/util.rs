@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// When this server process started (unix ms): part of tags that a newer
 /// version may answer differently.
@@ -52,6 +52,38 @@ pub fn now_ms() -> i64 {
 
 pub fn system_time_secs(t: SystemTime) -> i64 {
     t.duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or_default()
+}
+
+/// `YYYY-MM-DD` (and whatever follows it) → unix seconds (UTC midnight).
+pub fn date_secs(date: &str) -> Option<i64> {
+    let mut parts = date.get(..10)?.split('-');
+    let (y, m, d): (i64, i64, i64) =
+        (parts.next()?.parse().ok()?, parts.next()?.parse().ok()?, parts.next()?.parse().ok()?);
+    if !(1..=12).contains(&m) || !(1..=31).contains(&d) {
+        return None;
+    }
+    // Days from civil (Howard Hinnant's algorithm).
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let mp = (m + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    Some((era * 146_097 + doe - 719_468) * 86_400)
+}
+
+/// A UTC time as `2024-05-01T12:30:45Z` (fractions of a second left out)
+/// → unix seconds.
+pub fn utc_secs(time: &str) -> Option<i64> {
+    let day = date_secs(time)?;
+    let clock = time.get(10..)?.strip_prefix('T')?.trim_end_matches('Z');
+    let mut parts = clock.split('.').next()?.split(':');
+    let (h, m, s): (i64, i64, i64) =
+        (parts.next()?.parse().ok()?, parts.next()?.parse().ok()?, parts.next()?.parse().ok()?);
+    if parts.next().is_some() || h > 23 || m > 59 || s > 60 {
+        return None;
+    }
+    Some(day + h * 3600 + m * 60 + s)
 }
 
 /// The UTC date and time of unix time `secs`: year, month, day, hour,
@@ -362,6 +394,39 @@ pub fn sort_title(title: &str) -> String {
     lower
 }
 
+/// Deletes the files in the folders of `dir` older than `drop_after`, then
+/// the oldest while they take more than `max_bytes` (down to nine tenths of
+/// it): how many went. For caches of pictures (Live TV's, Discover's).
+pub fn prune(dir: &Path, drop_after: Duration, max_bytes: u64) -> anyhow::Result<usize> {
+    let mut files = Vec::new();
+    let Ok(subdirs) = std::fs::read_dir(dir) else { return Ok(0) };
+    for sub in subdirs.flatten() {
+        let Ok(entries) = std::fs::read_dir(sub.path()) else { continue };
+        for entry in entries.flatten() {
+            let Ok(meta) = entry.metadata() else { continue };
+            if meta.is_file() {
+                let age = meta.modified().ok().and_then(|t| t.elapsed().ok()).unwrap_or_default();
+                files.push((entry.path(), age, meta.len()));
+            }
+        }
+    }
+    let mut gone = 0;
+    let mut total: u64 = files.iter().map(|f| f.2).sum();
+    let keep = if total > max_bytes { max_bytes / 10 * 9 } else { u64::MAX };
+    // Oldest first: the stale ones, then as many more as are too many.
+    files.sort_by_key(|f| std::cmp::Reverse(f.1));
+    for (path, age, len) in files {
+        if age <= drop_after && total <= keep {
+            break;
+        }
+        if std::fs::remove_file(&path).is_ok() {
+            gone += 1;
+            total -= len;
+        }
+    }
+    Ok(gone)
+}
+
 /// Run a blocking closure on the blocking pool and flatten the join error.
 pub async fn blocking<T, F>(f: F) -> anyhow::Result<T>
 where
@@ -374,6 +439,38 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn utc_times_are_read() {
+        assert_eq!(utc_secs("1970-01-02T00:00:01Z"), Some(86_401));
+        assert_eq!(utc_secs("2024-05-01T12:30:45.1234567Z"), Some(date_secs("2024-05-01").unwrap() + 45_045));
+        assert_eq!(utc(utc_secs("2024-02-29T23:59:59Z").unwrap()), [2024, 2, 29, 23, 59, 59]);
+        for wrong in ["2024-05-01", "2024-05-01T12:30Z", "2024-05-01T25:00:00Z", "2024-05-01T12:30:45+02:00", ""] {
+            assert_eq!(utc_secs(wrong), None, "{wrong}");
+        }
+    }
+
+    #[test]
+    fn pictures_go_when_stale_or_too_many() {
+        let dir = tempfile::tempdir().unwrap();
+        let sub = dir.path().join("ab");
+        std::fs::create_dir_all(&sub).unwrap();
+        let file = |name: &str, len: usize, days_old: u64| {
+            let path = sub.join(name);
+            std::fs::write(&path, vec![0u8; len]).unwrap();
+            let at = SystemTime::now() - Duration::from_secs(days_old * 86_400);
+            std::fs::File::options().write(true).open(&path).unwrap().set_modified(at).unwrap();
+            path
+        };
+        let stale = file("stale.png", 10, 40);
+        let (old, newer, newest) = (file("old.png", 100, 3), file("newer.png", 100, 2), file("newest.png", 100, 1));
+        assert_eq!(prune(dir.path(), Duration::from_secs(30 * 86_400), 1000).unwrap(), 1, "only the stale one");
+        assert!(!stale.exists() && old.exists());
+        // Too many: the oldest go, down to nine tenths of what they may take.
+        assert_eq!(prune(dir.path(), Duration::from_secs(30 * 86_400), 150).unwrap(), 2);
+        assert!(!old.exists() && !newer.exists() && newest.exists());
+        assert_eq!(prune(&dir.path().join("none"), Duration::ZERO, 0).unwrap(), 0, "nothing kept yet");
+    }
 
     #[cfg(windows)]
     #[test]

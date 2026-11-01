@@ -52,7 +52,7 @@ fn store(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join("servers.json"))
 }
 
-fn load(app: &AppHandle) -> Vec<SavedServer> {
+pub(crate) fn load(app: &AppHandle) -> Vec<SavedServer> {
     store(app)
         .ok()
         .and_then(|path| std::fs::read(path).ok())

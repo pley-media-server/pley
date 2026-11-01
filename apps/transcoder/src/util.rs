@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 use std::ffi::OsString;
 use std::io::Write;
 use std::path::{Path, PathBuf};

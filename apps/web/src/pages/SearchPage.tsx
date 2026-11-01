@@ -3,12 +3,16 @@ import { Search } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useSearch } from "@/api/hooks";
 import { programProgress, type Channel } from "@/api/livetv";
+import { mayRequest, requestProblem, uniqueTitles, useDiscoverSearch, useFillPages, useRequestSummary } from "@/api/requests";
 import type { ItemKind, ItemSummary } from "@/api/types";
 import { aspectFor, CardSkeleton, MediaCard } from "@/components/cards";
 import { PersonCard } from "@/components/PersonCard";
 import { Button, EmptyState, SectionTitle, Spinner } from "@/components/ui";
 import { useDocumentTitle, useElementWidth } from "@/lib/hooks";
 import { ChannelLogo, liveUrl, useNow } from "@/pages/livetv/common";
+import { problemWords } from "@/lib/requests";
+import { discoverUrl } from "@/lib/urls";
+import { ScrollRowSkeleton, TitleCards } from "./requests/shared";
 
 const GROUPS: { kind: ItemKind; title: string }[] = [
   { kind: "movie", title: "Movies" },
@@ -84,11 +88,50 @@ function ChannelResults({ channels }: { channels: Channel[] }) {
   );
 }
 
+/** How many of TMDB's titles the search shows (more are on Discover). */
+const TMDB_TITLES = 20;
+
+/**
+ * What TMDB has for the words that the libraries don't, after their
+ * results: asked for in parallel with them, never holding them back.
+ * `alone`: the libraries had nothing, so it says when TMDB has nothing too.
+ */
+function OnTmdb({ q, manage, alone }: { q: string; manage: boolean; alone: boolean }) {
+  const search = useDiscoverSearch(q, { missing: true });
+  useFillPages(search, TMDB_TITLES, 3);
+  const titles = uniqueTitles(search.data?.pages).slice(0, TMDB_TITLES);
+
+  if (search.isPending) return <ScrollRowSkeleton title="On TMDB" inset />;
+  if (titles.length) return <TitleCards titles={titles} title="On TMDB" link={discoverUrl(q)} linkLabel="See all on Discover" inset />;
+  // All TMDB has is in a library already: nothing to add under the libraries' results.
+  if (!search.isError && !alone) return null;
+  const problem = search.isError ? requestProblem(search.error) : null;
+  const words = problem ? problemWords(problem, { manage }) : null;
+  return (
+    <section>
+      <SectionTitle>On TMDB</SectionTitle>
+      {search.isError ? (
+        <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="text-danger">{words ? words.title : `Couldn't search TMDB: ${errorMessage(search.error)}`}</span>
+          {!words || words.retry ? (
+            <Button size="sm" loading={search.isFetching} onClick={() => void search.refetch()}>
+              Retry
+            </Button>
+          ) : null}
+        </div>
+      ) : (
+        <p className="text-sm text-muted">Nothing there either. Try a different spelling or a shorter query.</p>
+      )}
+    </section>
+  );
+}
+
 export function SearchPage() {
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
   useDocumentTitle(q ? `Search: ${q}` : "Search");
   const search = useSearch(q);
+  const summary = useRequestSummary(q.trim() !== "").data;
 
   if (!q.trim()) {
     return (
@@ -101,26 +144,33 @@ export function SearchPage() {
     );
   }
 
+  // Where this account may ask for titles: what the libraries lack, on TMDB.
+  const tmdb = (alone = false) => (summary && mayRequest(summary) ? <OnTmdb q={q.trim()} manage={summary.manage} alone={alone} /> : null);
+
   if (search.isPending) {
     return (
-      <div className="px-4 py-8 sm:px-8">
+      <div className="space-y-10 px-4 py-8 sm:px-8">
         <div className="grid gap-x-[18px] gap-y-6" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
           {Array.from({ length: 12 }, (_, i) => (
             <CardSkeleton key={i} aspect="poster" />
           ))}
         </div>
+        {tmdb()}
       </div>
     );
   }
 
   if (search.isError) {
     return (
-      <EmptyState
-        className="min-h-[60vh]"
-        title="Couldn't search your libraries"
-        description={errorMessage(search.error)}
-        action={<Button onClick={() => void search.refetch()}>Retry</Button>}
-      />
+      <div className="px-4 pb-8 sm:px-8">
+        <EmptyState
+          className="min-h-[40vh]"
+          title="Couldn't search your libraries"
+          description={errorMessage(search.error)}
+          action={<Button onClick={() => void search.refetch()}>Retry</Button>}
+        />
+        {tmdb()}
+      </div>
     );
   }
 
@@ -128,6 +178,18 @@ export function SearchPage() {
   const people = search.data?.people ?? [];
   const channels = search.data?.channels ?? [];
   if (!results.length && !people.length && !channels.length) {
+    // TMDB's titles still show, under a line saying the libraries have none.
+    if (mayRequest(summary)) {
+      return (
+        <div className="space-y-8 px-4 py-8 sm:px-8">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">Results for “{q}”</h1>
+            <p className="mt-1 text-sm text-muted">Nothing in your libraries matches.</p>
+          </div>
+          {tmdb(true)}
+        </div>
+      );
+    }
     return (
       <EmptyState
         className="min-h-[60vh]"
@@ -163,6 +225,7 @@ export function SearchPage() {
         const items = results.filter((r) => r.kind === kind);
         return items.length ? <ResultGroup key={kind} title={title} items={items} /> : null;
       })}
+      {tmdb()}
     </div>
   );
 }

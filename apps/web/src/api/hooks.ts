@@ -26,6 +26,7 @@ import type {
   NetworkSettings,
   PersonDetail,
   RecoveryCodes,
+  RequestAccess,
   Resources,
   ProfilePatch,
   SearchResults,
@@ -114,8 +115,11 @@ export function useMe(enabled = true) {
 export function useLogin() {
   const qc = useQueryClient();
   return useMutation({
-    /** `code`: the second step, for accounts with two-step sign-in. */
-    mutationFn: (body: { username: string; password: string; code?: string }) =>
+    /**
+     * `code`: the second step, for accounts with two-step sign-in; with
+     * `setup_id`, the first code of the secret it shows (see TwoStepSetup).
+     */
+    mutationFn: (body: { username: string; password: string; code?: string; setup_id?: string }) =>
       api.post<LoginResponse>("/api/auth/login", body, { noAuthRedirect: true }),
     onSuccess: (res) => {
       qc.setQueryData(keys.me, res.user);
@@ -150,11 +154,15 @@ export function useTwoStep(enabled = true) {
   return useQuery({ queryKey: keys.twoStep, queryFn: () => api.get<TwoStepStatus>("/api/me/two-step"), enabled });
 }
 
-/** A new secret to add to an authenticator app; two-step sign-in turns on with its first code. */
+/**
+ * A new secret to add to an authenticator app; two-step sign-in turns on with
+ * its first code. While it is on, the secret moves it to another app, and
+ * takes a `code` of the current one (or a recovery code) too.
+ */
 export function useStartTwoStep() {
   return useMutation({
-    mutationFn: (password: string) =>
-      api.post<TwoStepSetup>("/api/me/two-step/setup", { password }, { noAuthRedirect: true }),
+    mutationFn: (body: { password: string; code?: string }) =>
+      api.post<TwoStepSetup>("/api/me/two-step/setup", body, { noAuthRedirect: true }),
   });
 }
 
@@ -235,7 +243,7 @@ export function fetchProfiles(qc: QueryClient) {
 export function useSwitchProfile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { user_id: Id; pin?: string; password?: string; code?: string }) =>
+    mutationFn: (body: { user_id: Id; pin?: string; password?: string; code?: string; setup_id?: string }) =>
       api.post<LoginResponse>("/api/auth/switch", body, { noAuthRedirect: true }),
     onSuccess: (res) => {
       const server = qc.getQueryData<ServerStatus>(keys.server);
@@ -929,6 +937,7 @@ export interface NewUserInput {
   library_ids?: Id[];
   max_age?: number | null;
   pin?: string;
+  request_access?: RequestAccess;
 }
 
 export function useCreateUser() {
@@ -953,6 +962,7 @@ export interface UserPatch {
   library_ids?: Id[];
   max_age?: number | null;
   pin?: string | null;
+  request_access?: RequestAccess;
 }
 
 export function useUpdateUser() {

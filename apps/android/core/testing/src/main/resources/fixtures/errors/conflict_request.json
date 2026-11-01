@@ -1,0 +1,16 @@
+{
+  "code": "conflict",
+  "message": "this request was approved already",
+  "request": {
+    "id": 44, "kind": "movie", "tmdb_id": 933260, "title": "The Substance", "year": 2024,
+    "poster_url": "/api/discover/images/poster/lqoMzCcZYEFK729d6qzt349fB4o.jpg", "backdrop_url": null,
+    "seasons": null, "available_seasons": [], "anime": false,
+    "status": "approved", "stage": "searching", "stage_at": null,
+    "reason": null, "note": null, "mine": false, "watching": false, "watchers": 1, "unseen": false,
+    "actions": ["decline", "delete"],
+    "requested_by": { "id": 2, "name": "Sam", "avatar_url": null, "avatar_color": "#38bdf8" },
+    "decided_by": { "id": 4, "name": "Jo", "avatar_url": null, "avatar_color": "#fbbf24" }, "decided_at": 1761600400,
+    "created_at": 1761550000, "updated_at": 1761600400, "available_at": null, "retry_at": null,
+    "sent_to": { "service": "radarr", "quality_profile": "HD-1080p", "root_folder": "/movies" }, "item_id": null, "download": null
+  }
+}

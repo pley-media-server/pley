@@ -15,6 +15,7 @@ import app.pley.android.data.PeopleRepository
 import app.pley.android.data.PlayItem
 import app.pley.android.data.PlayTarget
 import app.pley.android.data.PlaylistsRepository
+import app.pley.android.data.RequestsRepository
 import app.pley.android.data.SearchRepository
 import app.pley.android.data.ServersRepository
 import app.pley.android.data.SessionRepository
@@ -164,6 +165,9 @@ class FakeData : DataGraph {
     override val trackDefaults: TrackDefaultsRepository get() = unused()
     override val liveUpdates: LiveUpdates get() = unused()
     override val settings: AppSettings get() = unused()
+
+    /** Off unless a test says otherwise; set it before the page's model is made. */
+    override var requests: RequestsRepository = RequestsRepository.None
 
     private fun unused(): Nothing = error("item pages don't use this")
 }

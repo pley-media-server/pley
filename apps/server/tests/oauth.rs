@@ -340,7 +340,7 @@ async fn metadata_names_the_address_it_was_asked_at() {
             "token_endpoint_auth_methods_supported": ["none"],
             "revocation_endpoint_auth_methods_supported": ["none"],
             "code_challenge_methods_supported": ["S256"],
-            "scopes_supported": ["library", "play", "playlists", "profiles"],
+            "scopes_supported": ["library", "play", "playlists", "profiles", "requests", "approvals"],
             "authorization_response_iss_parameter_supported": true,
             "client_id_metadata_document_supported": false,
             "service_documentation": "https://github.com/pley-media-server/pley/blob/master/docs/API.md",

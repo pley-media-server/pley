@@ -917,3 +917,415 @@ msgstr ""
 msgctxt "#30278"
 msgid "Watch here instead"
 msgstr ""
+
+msgctxt "#30447"
+msgid "Discover"
+msgstr ""
+
+msgctxt "#30448"
+msgid "Your requests"
+msgstr ""
+
+msgctxt "#30449"
+msgid "Requests"
+msgstr ""
+
+msgctxt "#30450"
+msgid "Trending this week"
+msgstr ""
+
+msgctxt "#30451"
+msgid "Popular movies"
+msgstr ""
+
+msgctxt "#30452"
+msgid "Popular shows"
+msgstr ""
+
+msgctxt "#30453"
+msgid "Coming to cinemas"
+msgstr ""
+
+msgctxt "#30454"
+msgid "Popular anime"
+msgstr ""
+
+msgctxt "#30455"
+msgid "Search TMDB for movies and shows"
+msgstr ""
+
+msgctxt "#30456"
+msgid "Nothing on TMDB for “%s”"
+msgstr ""
+
+msgctxt "#30457"
+msgid "Details and pictures from TMDB."
+msgstr ""
+
+msgctxt "#30458"
+msgid "In library"
+msgstr ""
+
+msgctxt "#30459"
+msgid "Partly in library"
+msgstr ""
+
+msgctxt "#30460"
+msgid "Requested"
+msgstr ""
+
+msgctxt "#30461"
+msgid "Declined"
+msgstr ""
+
+msgctxt "#30462"
+msgid "Request"
+msgstr ""
+
+msgctxt "#30463"
+msgid "Request more seasons"
+msgstr ""
+
+msgctxt "#30464"
+msgid "Following"
+msgstr ""
+
+msgctxt "#30465"
+msgid "Stop following"
+msgstr ""
+
+msgctxt "#30466"
+msgid "Tell me too"
+msgstr ""
+
+msgctxt "#30467"
+msgid "Someone asked for it already."
+msgstr ""
+
+msgctxt "#30468"
+msgid "Declined: “%s”."
+msgstr ""
+
+msgctxt "#30469"
+msgid "You can ask again %s."
+msgstr ""
+
+msgctxt "#30470"
+msgid "Waiting for approval"
+msgstr ""
+
+msgctxt "#30471"
+msgid "Approved"
+msgstr ""
+
+msgctxt "#30472"
+msgid "Out %s"
+msgstr ""
+
+msgctxt "#30473"
+msgid "Airs %s"
+msgstr ""
+
+msgctxt "#30474"
+msgid "Not out yet"
+msgstr ""
+
+msgctxt "#30475"
+msgid "Searching"
+msgstr ""
+
+msgctxt "#30476"
+msgid "Downloading"
+msgstr ""
+
+msgctxt "#30477"
+msgid "Adding to the library"
+msgstr ""
+
+msgctxt "#30478"
+msgid "%s ready"
+msgstr ""
+
+msgctxt "#30479"
+msgid "Ready to watch"
+msgstr ""
+
+msgctxt "#30480"
+msgid "No longer in a library"
+msgstr ""
+
+msgctxt "#30481"
+msgid "Couldn't send: %s"
+msgstr ""
+
+msgctxt "#30482"
+msgid "Not sent yet"
+msgstr ""
+
+msgctxt "#30483"
+msgid "It couldn't be sent to download yet: an administrator will look at it."
+msgstr ""
+
+msgctxt "#30484"
+msgid "Trying again %s."
+msgstr ""
+
+msgctxt "#30485"
+msgid "Waiting to download"
+msgstr ""
+
+msgctxt "#30486"
+msgid "Download paused"
+msgstr ""
+
+msgctxt "#30487"
+msgid "The download has a problem"
+msgstr ""
+
+msgctxt "#30488"
+msgid "Asked for by someone else"
+msgstr ""
+
+msgctxt "#30489"
+msgid "Ready, in a library you can't open: ask an administrator"
+msgstr ""
+
+msgctxt "#30490"
+msgid "You can ask for %s."
+msgstr ""
+
+msgctxt "#30491"
+msgid "Limits: %s per 7 days."
+msgstr ""
+
+msgctxt "#30492"
+msgid "You've asked for all the movies you can for now: you can ask for more %s."
+msgstr ""
+
+msgctxt "#30493"
+msgid "You've asked for all the seasons you can for now: you can ask for more %s."
+msgstr ""
+
+msgctxt "#30494"
+msgid "You've asked for all you can for now: more movies %s, more seasons %s."
+msgstr ""
+
+msgctxt "#30495"
+msgid "later"
+msgstr ""
+
+msgctxt "#30496"
+msgid "Asked for “%s”: an administrator decides."
+msgstr ""
+
+msgctxt "#30497"
+msgid "“%s” is approved and on its way."
+msgstr ""
+
+msgctxt "#30498"
+msgid "Asked for “%s”, but it couldn't be sent to download yet."
+msgstr ""
+
+msgctxt "#30499"
+msgid "You'll hear when “%s” is ready."
+msgstr ""
+
+msgctxt "#30500"
+msgid "Which seasons?"
+msgstr ""
+
+msgctxt "#30501"
+msgid "Pick a season."
+msgstr ""
+
+msgctxt "#30502"
+msgid "Withdraw"
+msgstr ""
+
+msgctxt "#30503"
+msgid "Withdraw your request for “%s”?"
+msgstr ""
+
+msgctxt "#30504"
+msgid "Remove"
+msgstr ""
+
+msgctxt "#30505"
+msgid "Remove “%s” from your requests?"
+msgstr ""
+
+msgctxt "#30506"
+msgid "Approve"
+msgstr ""
+
+msgctxt "#30507"
+msgid "Decline"
+msgstr ""
+
+msgctxt "#30508"
+msgid "Decline with a reason…"
+msgstr ""
+
+msgctxt "#30509"
+msgid "Mark as added by hand"
+msgstr ""
+
+msgctxt "#30510"
+msgid "Delete this request? Radarr and Sonarr keep what they have."
+msgstr ""
+
+msgctxt "#30511"
+msgid "Request again"
+msgstr ""
+
+msgctxt "#30512"
+msgid "“%s” is ready to watch."
+msgstr ""
+
+msgctxt "#30513"
+msgid "%s of “%s” is ready to watch."
+msgstr ""
+
+msgctxt "#30514"
+msgid "%s of “%s” are ready to watch."
+msgstr ""
+
+msgctxt "#30515"
+msgid "%s of your requests have news"
+msgstr ""
+
+msgctxt "#30516"
+msgid "Requests are off"
+msgstr ""
+
+msgctxt "#30517"
+msgid "This server doesn't take requests for movies and shows."
+msgstr ""
+
+msgctxt "#30518"
+msgid "Requests aren't open to this account"
+msgstr ""
+
+msgctxt "#30519"
+msgid "An administrator can let it ask for movies and shows."
+msgstr ""
+
+msgctxt "#30520"
+msgid "TMDB isn't answering"
+msgstr ""
+
+msgctxt "#30521"
+msgid "TMDB refused this server's key"
+msgstr ""
+
+msgctxt "#30522"
+msgid "Check it on the web, in Settings → Server."
+msgstr ""
+
+msgctxt "#30523"
+msgid "An administrator needs to check it."
+msgstr ""
+
+msgctxt "#30524"
+msgid "You can ask for more %s."
+msgstr ""
+
+msgctxt "#30525"
+msgid "You can ask for at most %s per 7 days: pick fewer."
+msgstr ""
+
+msgctxt "#30526"
+msgid "Sign in again to ask for movies and shows"
+msgstr ""
+
+msgctxt "#30527"
+msgid "This app signed in before it could ask. Signing in again lets it."
+msgstr ""
+
+msgctxt "#30528"
+msgid "Sign in again"
+msgstr ""
+
+msgctxt "#30529"
+msgid "Sign in again to approve and decline here."
+msgstr ""
+
+msgctxt "#30530"
+msgid "On TMDB"
+msgstr ""
+
+msgctxt "#30531"
+msgid "See all on Discover"
+msgstr ""
+
+msgctxt "#30532"
+msgid "Nothing in your libraries matches"
+msgstr ""
+
+msgctxt "#30533"
+msgid "Needs attention"
+msgstr ""
+
+msgctxt "#30534"
+msgid "Pending"
+msgstr ""
+
+msgctxt "#30535"
+msgid "Available"
+msgstr ""
+
+msgctxt "#30536"
+msgid "Failed"
+msgstr ""
+
+msgctxt "#30537"
+msgid "Movies and shows"
+msgstr ""
+
+msgctxt "#30538"
+msgid "Everyone"
+msgstr ""
+
+msgctxt "#30539"
+msgid "You haven't asked for anything yet."
+msgstr ""
+
+msgctxt "#30540"
+msgid "Nothing needs attention."
+msgstr ""
+
+msgctxt "#30541"
+msgid "Asked for %s"
+msgstr ""
+
+msgctxt "#30542"
+msgid "%s asked for it %s"
+msgstr ""
+
+msgctxt "#30543"
+msgid "Seasons"
+msgstr ""
+
+msgctxt "#30544"
+msgid "%s of %s episodes in library"
+msgstr ""
+
+msgctxt "#30545"
+msgid "There's nothing more of “%s” to ask for."
+msgstr ""
+
+msgctxt "#30546"
+msgid "Movie"
+msgstr ""
+
+msgctxt "#30547"
+msgid "Show"
+msgstr ""
+
+msgctxt "#30548"
+msgid "Yours"
+msgstr ""
+
+msgctxt "#30279"
+msgid "This server requires two-step sign-in: your phone sets it up if you haven't yet."
+msgstr ""

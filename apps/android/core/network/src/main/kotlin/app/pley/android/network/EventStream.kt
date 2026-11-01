@@ -76,6 +76,8 @@ internal class OkHttpSseConnection(private val client: () -> OkHttpClient, priva
  * - [LiveEvent.Reconnected] comes on every connection, the first one
  *   included: the server replays nothing, so whatever was read before may
  *   be stale.
+ * - A connection that opened says it was lost ([LiveEvent.Dropped]) when
+ *   it ends, however it ended: opening it again may fail.
  * - A stream the server ended after [stableMs] or more (it ends streams
  *   when their access token expires, apps/server/src/api/activity.rs) is
  *   opened again at once: the new request carries the refreshed token.
@@ -112,6 +114,7 @@ internal class EventStream(
             }
             val error = ended
             if (error is AuthException || (error is ApiException && (error.status == 401 || error.status == 403))) throw error
+            if (openedAt >= 0) emit(LiveEvent.Dropped)
             if (error == null && openedAt >= 0 && now() - openedAt >= stableMs) continue
             failures++
             delay(retryDelay(failures))

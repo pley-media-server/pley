@@ -3,14 +3,15 @@
 //
 //   bun scripts/version.mjs                   every unit's version
 //   bun scripts/version.mjs get <unit>        one unit's version
-//   bun scripts/version.mjs info <unit>       ...with its tag and name, as JSON
+//   bun scripts/version.mjs info <unit>       ...with its name, as JSON
 //   bun scripts/version.mjs set <unit> 1.2.3  writes it into the unit's manifests
 //   bun scripts/version.mjs check [unit...]   fails when a unit's manifests disagree
 //
-// A unit is what is released on its own: server (with its transcoder and the
-// web app it embeds), desktop, android, samsung, lg, kodi and roku. Its
-// releases are tagged <unit>-v<version>. `bun scripts/release.mjs` bumps a
-// unit and moves its CHANGELOG's Unreleased section under the new version.
+// A unit is what has its own version: server (with its transcoder and the
+// web app it embeds), desktop, android, samsung, lg, kodi and roku. A release
+// takes the units whose versions went up, under one tag.
+// `bun scripts/release.mjs` bumps a unit and moves its CHANGELOG's Unreleased
+// section under the new version.
 // Builds add the commit they were made from (scripts/commit.mjs), which every
 // app shows beside its version.
 
@@ -152,7 +153,6 @@ export const UNITS = {
 };
 
 export const UNIT_NAMES = Object.keys(UNITS);
-export const tagOf = (unit, version) => `${unit}-v${version}`;
 
 /** The unit by name, or an error that lists them. */
 export function unitOf(name) {
@@ -281,7 +281,7 @@ function main(args) {
     const unit = rest[0];
     const { title } = unitOf(unit);
     const version = versionOf(unit);
-    console.log(JSON.stringify({ unit, version, tag: tagOf(unit, version), title, changelog: UNITS[unit].changelog }));
+    console.log(JSON.stringify({ unit, version, title, changelog: UNITS[unit].changelog }));
   } else if (command === "set") {
     const [unit, version] = rest;
     unitOf(unit);

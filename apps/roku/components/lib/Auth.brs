@@ -23,8 +23,8 @@ end function
 ' The server's metadata (RFC 8414), kept only when it is this server's own:
 ' its issuer is the address the app used, and every endpoint is on it, so
 ' an answer can't send the app's codes or tokens anywhere else.
-' { ok, issuer, tokenEndpoint, revocationEndpoint, deviceEndpoint } or
-' { ok: false, message }.
+' { ok, issuer, tokenEndpoint, revocationEndpoint, deviceEndpoint, scopes
+' (scopes_supported) } or { ok: false, message }.
 function authParseMetadata(text as dynamic, server as string) as object
     data = invalid
     data = httpObject(httpJson(text))
@@ -34,7 +34,11 @@ function authParseMetadata(text as dynamic, server as string) as object
     if issuer <> server
         return { ok: false, message: "This server calls itself " + httpSentence(Left(issuer, 100)) + ": open it by that address, or check that the proxy in front of it passes Host." }
     end if
-    result = { ok: true, issuer: issuer, tokenEndpoint: "", revocationEndpoint: "", deviceEndpoint: "" }
+    scopes = []
+    for each name in httpArray(data.scopes_supported)
+        if GetInterface(name, "ifString") <> invalid then scopes.Push(name)
+    end for
+    result = { ok: true, issuer: issuer, tokenEndpoint: "", revocationEndpoint: "", deviceEndpoint: "", scopes: scopes }
     names = { tokenEndpoint: "token_endpoint", revocationEndpoint: "revocation_endpoint", deviceEndpoint: "device_authorization_endpoint" }
     for each key in names.Keys()
         url = httpString(data[names[key]])
@@ -51,6 +55,22 @@ function authParseMetadata(text as dynamic, server as string) as object
     end for
     if not deviceGrant then return { ok: false, message: authNoCodes() }
     return result
+end function
+
+' What the app asks for at sign-in: its own scopes (httpScope), then
+' asking for movies and shows (requests) and approving them (approvals)
+' where the server's metadata offers them: a server that doesn't know a
+' scope refuses the whole sign-in.
+function authScopeFor(supported as object) as string
+    offered = {}
+    for each name in supported
+        offered[name] = true
+    end for
+    scope = httpScope()
+    for each name in ["requests", "approvals"]
+        if offered.DoesExist(name) then scope = scope + " " + name
+    end for
+    return scope
 end function
 
 ' A token answer (RFC 6749 §5.1) as kept: { ok, access, refresh, expiresAt,
@@ -328,4 +348,16 @@ function authDeviceRefusal(status as integer, text as dynamic) as string
         if description <> "" then return description
     end if
     return httpStatusSentence(status)
+end function
+
+' What the sign-in screen says of two-step sign-in, from the answer to
+' GET /api/server: a server that requires it of every account with a
+' password says so, and the phone that approves the code sets it up for
+' whoever hasn't. "" for any other answer, as from servers before it,
+' which don't say.
+function authTwoStepNote(answer as object) as string
+    data = invalid
+    if httpTrue(answer.ok) then data = httpObject(answer.data)
+    if data = invalid or not httpTrue(data.two_step_required) then return ""
+    return "This server requires two-step sign-in: your phone sets it up if you haven't yet."
 end function

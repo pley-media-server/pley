@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { LogOut, Menu as MenuIcon, RefreshCw, Search, Server, Settings, UserRound, Users, X } from "lucide-react";
 import { useActivity, useLibraries, useLogout, useProfiles } from "@/api/hooks";
+import { useRequestSummary } from "@/api/requests";
 import type { ScanPhase } from "@/api/types";
 import { useAudioPlayer } from "@/audio/AudioPlayer";
 import { useAuth } from "@/auth";
 import { cn } from "@/lib/cn";
+import { pluralize } from "@/lib/format";
 import { useDebouncedValue, useOnChange } from "@/lib/hooks";
+import { requestsBadge } from "@/lib/requests";
 import { appShell, SWITCH_SERVER_PATH } from "@/lib/shell";
 import { AppDownloads, DOWNLOADS_PLACE } from "./AppDownloads";
 import { Avatar } from "./Avatar";
@@ -234,12 +237,36 @@ function UserMenu() {
   );
 }
 
+/** The menu's button, small screens' way to the sidebar: it carries the number on Requests, as the sidebar's entry does. */
+function MenuButton({ onMenu }: { onMenu: () => void }) {
+  const summary = useRequestSummary();
+  const { count, danger } = requestsBadge(summary.data);
+  return (
+    <IconButton
+      className="relative lg:hidden"
+      label={count > 0 ? `Open menu, ${pluralize(count, "request")} waiting` : "Open menu"}
+      onClick={onMenu}
+    >
+      <MenuIcon className="size-5" />
+      {count > 0 ? (
+        <span
+          aria-hidden
+          className={cn(
+            "absolute right-1 top-1 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4",
+            danger ? "bg-danger text-white" : "bg-accent text-accent-fg",
+          )}
+        >
+          {count > 9 ? "9+" : count}
+        </span>
+      ) : null}
+    </IconButton>
+  );
+}
+
 export function TopBar({ onMenu }: { onMenu: () => void }) {
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-white/[0.04] bg-bg/85 px-3 backdrop-blur-md sm:gap-3 sm:px-6 lg:px-8">
-      <IconButton className="lg:hidden" label="Open menu" onClick={onMenu}>
-        <MenuIcon className="size-5" />
-      </IconButton>
+      <MenuButton onMenu={onMenu} />
       <SearchBox className="min-w-0 max-w-xl flex-1" />
       <div className="ml-auto flex items-center gap-1.5">
         {appShell() === "desktop" ? <AppDownloads /> : null}

@@ -8,6 +8,8 @@ import app.pley.android.model.LiveGroups
 import app.pley.android.model.LiveGuide
 import app.pley.android.model.LiveProgram
 import app.pley.android.testing.Fixtures
+import java.time.LocalDate
+import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -116,5 +118,28 @@ class LiveTvTest {
     fun `a group's region comes with it`() {
         val g = LiveGroup("UK| News", "UK", "News", 21)
         assertEquals("UK · News", LiveTv.groupName(g, g.name))
+    }
+
+    @Test
+    fun `days are dates apart, when daylight saving starts or ends too`() {
+        // A day is 23 or 25 hours when daylight saving starts or ends; every day of a year covers a zone's changes.
+        for (zone in listOf("America/New_York", "Europe/London", "Australia/Sydney").map(ZoneId::of)) {
+            fun at(date: LocalDate, hour: Int, minute: Int) = date.atTime(hour, minute).atZone(zone).toEpochSecond()
+            for (d in 0L until 366L) {
+                val day = LocalDate.of(2026, 1, 1).plusDays(d)
+                for ((hour, minute) in listOf(0 to 30, 23 to 30)) {
+                    val now = at(day, hour, minute)
+                    val message = "$zone, now ${day.atTime(hour, minute)}"
+                    assertEquals(message, 0L, LiveTv.daysApart(at(day, 0, 1), now, zone))
+                    assertEquals(message, 0L, LiveTv.daysApart(at(day, 23, 59), now, zone))
+                    assertEquals(message, 1L, LiveTv.daysApart(at(day.plusDays(1), 0, 1), now, zone))
+                    assertEquals(message, 1L, LiveTv.daysApart(at(day.plusDays(1), 23, 59), now, zone))
+                    assertEquals(message, -1L, LiveTv.daysApart(at(day.minusDays(1), 0, 1), now, zone))
+                    assertEquals(message, -1L, LiveTv.daysApart(at(day.minusDays(1), 23, 59), now, zone))
+                    assertEquals(message, 2L, LiveTv.daysApart(at(day.plusDays(2), 0, 1), now, zone))
+                    assertEquals(message, -2L, LiveTv.daysApart(at(day.minusDays(2), 23, 59), now, zone))
+                }
+            }
+        }
     }
 }

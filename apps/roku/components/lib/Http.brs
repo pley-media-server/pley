@@ -7,7 +7,8 @@ function httpClientId() as string
 end function
 
 ' What the app asks to be allowed: browsing, playing, the profile's
-' playlists and switching to the household's other profiles, as Kodi.
+' playlists and switching to the household's other profiles, as Kodi; and
+' where the server has them, requests and approvals (authScopeFor).
 function httpScope() as string
     return "library play playlists profiles"
 end function

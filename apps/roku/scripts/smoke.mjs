@@ -1,16 +1,19 @@
 // Runs the whole app, SceneGraph and Tasks included, in brs-node against
 // a fake pley server on 127.0.0.1 (scripts/fixture-server.mjs), and walks
-// it with the remote: sign in with the TV code and its QR code, Home, a
+// it with the remote: sign in with the TV code and its QR code on a server
+// that requires two-step sign-in, Home, a
 // title's details, the player, the Options key, a library's grid and its
 // next page, a show's page, its episodes and a person's page, Live TV (its
 // guide, a channel watched, the next one, the channel list, a favourite,
-// every connection in use, the Channels tab), Search,
-// Settings, the server gone and Try again, then signing out and in
-// again on a server too old for QR codes. Then it starts the app again,
-// signed in, and times how soon Home is asked for. Fails on a BrightScript
-// error or on anything the fake server found wrong; saves what the screen
-// showed at each step in out/smoke/. brs-node is a simulator: layouts and
-// the player differ from a Roku, and so does its speed.
+// every connection in use, the Channels tab), Search, Discover (a movie
+// asked for, a show's seasons picked), the managers' Requests (Approve, a
+// ready-to-watch notice, then Yours), Settings, the server gone and Try
+// again, then signing out and in again on a server too old for QR codes,
+// requests and two-step sign-in. Then it starts the app again, signed in,
+// and times how soon Home is asked for. Fails on a BrightScript error or
+// on anything the fake server found wrong; saves what the screen showed
+// at each step in out/smoke/. brs-node is a simulator: layouts and the
+// player differ from a Roku, and so does its speed.
 //
 //   node scripts/smoke.mjs
 
@@ -99,6 +102,19 @@ function qrDrawn() {
   const at = (y * frame.width + x) * 4;
   return frame.data[at] > 200 && frame.data[at + 1] > 200 && frame.data[at + 2] > 200;
 }
+// Whether the sign-in screen says the server requires two-step sign-in:
+// muted text under the server's name (LinkScreen.xml, from 96, 306), where
+// the walk's sign-ins show nothing else (no reason to sign in again).
+function twoStepDrawn() {
+  if (!frame) return false;
+  for (let y = 310; y < 334; y += 2) {
+    for (let x = 100; x < 700; x += 2) {
+      const at = (Math.round(y * (frame.height / 1080)) * frame.width + Math.round(x * (frame.width / 1920))) * 4;
+      if (frame.data[at] > 130 && frame.data[at + 1] > 130 && frame.data[at + 2] > 140) return true;
+    }
+  }
+  return false;
+}
 // The subtitle sync panel's title, in the accent, at the top of the player
 // (from 608, 112).
 function syncDrawn() {
@@ -170,6 +186,8 @@ if (restarting > 0) {
 // first request for a title's details is refused (401 invalid_token): the
 // app refreshes and asks again.
 const fixture = await startFixture({ accessSeconds: 302, refuse: ["/api/items/103"] });
+// The first sign-in is on a server that requires two-step sign-in.
+fixture.twoStep = true;
 
 // Saved and chosen: the app opens at sign-in (no search of the network).
 const server = fixture.issuer;
@@ -212,11 +230,12 @@ async function waitFor(pattern, since, what, { ms = 30000, settles = true } = {}
 }
 
 // brs-node drops a key now and then: menu entries are reached from the
-// top of the menu and checked by the request they lead to.
+// top of the menu (twelve entries at most: Live TV, Discover and Requests come before
+// Settings) and checked by the request they lead to.
 async function openFromMenu(index, pattern, what, then = async () => {}) {
   for (let attempt = 0; attempt < 3; attempt++) {
     await press("left", 3);
-    await press("up", 9);
+    await press("up", 11);
     await press("down", index);
     const since = mark();
     await press("select");
@@ -250,17 +269,24 @@ async function signOut() {
 }
 
 const qr = { shown: false, hidden: false };
+// The line saying the server requires two-step sign-in.
+const twoStep = { shown: false, hidden: false };
 // The player's notice when every connection is in use.
 const live = { busy: false };
 const sync = { label: false };
 // Home asks again only after playing, or when its rows are a minute old.
 const home = { kept: false };
+// From when the server knew nothing of requests (an older one).
+const older = { since: -1 };
+// The ready-to-watch notice's Open led to the title.
+const notice = { opened: false };
 
 async function walk() {
   // A cold start of brs-node can take a while.
   await waitFor(/^POST \/api\/oauth\/device$/, 0, "a TV code", { ms: 60000, settles: false });
   await waitFor(/^GET \/api\/oauth\/device\/qr\?code=BCDFGHJK$/, 0, "the code's QR code", { settles: false });
   qr.shown = await drawnWithin(2500, qrDrawn);
+  twoStep.shown = seen(/^GET \/api\/server$/, 0) && (await drawnWithin(1000, twoStepDrawn));
   shoot("sign-in");
   await waitFor(/^GET \/api\/hubs\/home$/, 0, "Home");
   shoot("home");
@@ -515,7 +541,79 @@ async function walk() {
     await press("back"); // the playlists, Home
     await settle();
   }
-  await openFromMenu(7, /^GET \/api\/auth\/me$/, "Settings");
+  // Discover: the first trending title over its backdrop, its Request
+  // asked after a question (Anna's asks are approved as she asks), then a
+  // show of the trending row, its seasons picked.
+  await openFromMenu(7, /^GET \/api\/discover\/trending\?page=1$/, "Discover");
+  shoot("discover");
+  since = mark();
+  await press("select"); // the hero's Request: its page, asking at once
+  await waitFor(/^GET \/api\/discover\/movie\/7001$/, since, "the hero's title on TMDB");
+  shoot("discover-ask");
+  since = mark();
+  await press("select"); // Request
+  await waitFor(/^POST \/api\/requests$/, since, "a movie asked for");
+  shoot("discover-asked");
+  await press("select"); // OK: its page, saying how it stands
+  await settle();
+  shoot("discover-title");
+  await press("back"); // Discover, on the hero
+  await settle();
+  await press("down"); // the rows
+  await press("right"); // a show
+  since = mark();
+  await press("select");
+  await waitFor(/^GET \/api\/discover\/show\/8004$/, since, "a show on TMDB");
+  shoot("discover-show");
+  since = mark();
+  await press("select"); // Request: which seasons, those missing ticked
+  await sleep(800);
+  shoot("request-seasons");
+  await press("right"); // Request 3 seasons
+  await press("select");
+  await waitFor(/^POST \/api\/requests$/, since, "the seasons asked for");
+  shoot("request-seasons-asked");
+  await press("select"); // OK: the show's page
+  for (let i = 0; i < 3; i++) {
+    await press("back"); // Discover's rows, its hero, Home
+    await settle();
+  }
+  // The managers' Requests, on Needs attention: the Options key on the
+  // oldest, Approve. Meanwhile Anna's download came into a library, which
+  // no event told of: the summary asked after Approve has news, and its
+  // notice opens the title. Then Yours, the last tab, which marks Anna's
+  // news seen.
+  await openFromMenu(8, /^GET \/api\/requests\?.*attention=1/, "Requests");
+  shoot("requests");
+  since = mark();
+  await press("options");
+  await sleep(500);
+  shoot("requests-options");
+  fixture.requestArrives(3, 1011);
+  await press("select"); // Approve
+  await waitFor(/^POST \/api\/requests\/1\/approve$/, since, "a request approved");
+  await waitFor(/^GET \/api\/requests\?.*unseen=1/, since, "the requests with news");
+  await sleep(800);
+  shoot("ready-to-watch");
+  since = mark();
+  await press("select"); // Open
+  await waitFor(/^GET \/api\/items\/1011$/, since, "the title the notice opens");
+  notice.opened = true;
+  await press("back"); // the requests
+  await settle();
+  shoot("requests-approved");
+  for (let attempt = 0; attempt < 3 && !seen(/^GET \/api\/requests\?.*mine=1/, since); attempt++) {
+    await press("up"); // the tabs
+    await press("left", 8);
+    await press("right", 7); // Yours
+    await press("select");
+    await sleep(1500);
+  }
+  await waitFor(/^POST \/api\/requests\/seen$/, since, "the news marked seen");
+  shoot("requests-yours");
+  await press("back");
+  await settle();
+  await openFromMenu(9, /^GET \/api\/auth\/me$/, "Settings");
   shoot("settings");
   // Quality, after Audio language and Subtitles: Automatic checked, then
   // 8 Mbps 1080p chosen, kept on the Roku.
@@ -554,7 +652,7 @@ async function walk() {
   await press("back"); // Home, which asks for its libraries again
   await waitFor(/^GET \/api\/libraries$/, since, "Home's libraries after sorting");
   await press("right"); // the rows, where the next steps start
-  await openFromMenu(7, /^GET \/api\/auth\/me$/, "Settings");
+  await openFromMenu(9, /^GET \/api\/auth\/me$/, "Settings");
   // Subtitles: from "Only for foreign dialogue" to "Always", saved at once
   // with the languages left as they were; Subtitle language shows then.
   await settle();
@@ -583,7 +681,7 @@ async function walk() {
   await sleep(1500);
   fixture.down = true;
   await press("left", 3);
-  await press("up", 9);
+  await press("up", 11);
   await press("down", 2);
   await press("select");
   await sleep(3000);
@@ -593,17 +691,23 @@ async function walk() {
   await press("select"); // Try again
   await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=0/, since, "the library after Try again");
   shoot("retried");
-  // Signed out, and in again with a server that has no QR codes yet: the
-  // code shows on its own.
+  // Signed out, and in again with a server that has no QR codes yet, nor
+  // requests, and doesn't say whether it requires two-step sign-in: the
+  // code shows on its own, the sign-in asks for no scope the server
+  // doesn't know, and nothing is said of two-step sign-in.
   await press("back");
-  await openFromMenu(7, /^GET \/api\/auth\/me$/, "Settings");
+  await openFromMenu(9, /^GET \/api\/auth\/me$/, "Settings");
   fixture.qr = false;
+  fixture.requestScopes = false;
+  fixture.twoStep = false;
   since = mark();
+  older.since = since;
   await signOut();
   await waitFor(/^POST \/api\/oauth\/device$/, since, "a new TV code", { settles: false });
   await waitFor(/^GET \/api\/oauth\/device\/qr\?code=LMNPQRST$/, since, "the new code's QR code", { settles: false });
   // The code stays up until the third poll, two seconds on.
   qr.hidden = !(await drawnWithin(1500, qrDrawn)) && seen(/^POST \/api\/oauth\/device$/, since) && !seen(/^GET \/api\/hubs\/home$/, since);
+  twoStep.hidden = seen(/^GET \/api\/server$/, since) && !twoStepDrawn() && !seen(/^GET \/api\/hubs\/home$/, since);
   shoot("sign-in-again");
   await waitFor(/^GET \/api\/hubs\/home$/, since, "Home after signing in again");
 }
@@ -667,6 +771,7 @@ const asked = (pattern) => fixture.requests.some((r) => pattern.test(`${r.method
 const checks = [
   ["asked for a TV code", asked(/^POST \/api\/oauth\/device$/)],
   ["showed the code's QR code", qr.shown],
+  ["said the server requires two-step sign-in", twoStep.shown],
   ["polled with the device code", asked(/^POST \/api\/oauth\/token$/)],
   ["refreshed its token", fixture.refreshes > 0],
   ["loaded Home", asked(/^GET \/api\/hubs\/home$/)],
@@ -716,10 +821,30 @@ const checks = [
   ["said every connection is in use", live.busy],
   ["took over the connection with Watch here instead", fixture.liveWatches.some((w) => w.id === 3 && w.take_over === 1)],
   ["left the channels it watched", fixture.liveLeft.length > 0 && fixture.liveSessions.size === 0],
+  ["asked what requests let the profile do", asked(/^GET \/api\/requests\/summary$/)],
+  ["asked at the start which requests had news", asked(/^GET \/api\/requests\?.*unseen=1/)],
+  ["searched TMDB beside the libraries for what they lack", asked(/^GET \/api\/discover\/search\?.*missing=1/)],
+  ["showed Discover's rows", asked(/^GET \/api\/discover\/trending\?page=1$/) && asked(/^GET \/api\/discover\/movies\?page=1$/)],
+  ["asked for TMDB's pictures through the server, at the size drawn", fixture.discoverPictures.length > 0 && fixture.discoverPictures.every((p) => /^\d+$/.test(p.w ?? ""))],
+  ["asked for a movie once its question was answered", fixture.requestsAsked.some((a) => a.kind === "movie" && a.tmdb_id === 7001 && !("seasons" in a))],
+  ["asked for a show's missing seasons, ticked to start with", fixture.requestsAsked.some((a) => a.kind === "show" && a.tmdb_id === 8004 && JSON.stringify(a.seasons) === "[1,2,3]")],
+  ["approved a request from the Options key", fixture.requestsActed.some((a) => a.id === 1 && a.action === "approve")],
+  ["marked the profile's news seen once its requests showed", fixture.requestsActed.some((a) => a.action === "seen")],
+  ["told of a title ready to watch, which Open opened", notice.opened],
+  ["asked a show's page what of it may still be asked for", asked(/^GET \/api\/items\/99\/request$/)],
+  [
+    "asked a server without requests for nothing of them but the summary",
+    older.since >= 0 && fixture.requests.slice(older.since).every((r) => !/^\/api\/(discover|requests)([/?]|$)/.test(r.path) || r.path === "/api/requests/summary"),
+  ],
   ["asked again with a new token after a 401", new Set(fixture.requests.filter((r) => r.path === "/api/items/103").map((r) => r.auth)).size > 1],
   ["sent the token in the header only", fixture.requests.every((r) => !/[?&]token=/.test(r.path))],
   ["signed out", asked(/^POST \/api\/oauth\/revoke$/)],
   ["left out a QR code the server doesn't draw", qr.hidden],
+  [
+    "asked for requests and approvals only where the server offers them",
+    fixture.scopesAsked[0] === "library play playlists profiles requests approvals" && fixture.scopesAsked.at(-1) === "library play playlists profiles",
+  ],
+  ["said nothing of two-step sign-in on a server that doesn't", twoStep.hidden],
   ["started again signed in", started !== null],
 ];
 for (const [what, ok] of checks) if (!ok) failures.push(`never ${what}`);

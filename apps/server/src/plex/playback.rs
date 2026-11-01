@@ -3,8 +3,8 @@
 //! endpoints mapped onto pley playback sessions.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
-use std::sync::{Arc, LazyLock};
 
 use axum::Json;
 use axum::extract::{Path, Request, State};
@@ -25,42 +25,54 @@ use crate::library::sidecar::EXTERNAL_INDEX_BASE;
 use crate::playback::{Caps, Method, PlaybackMode, PlaybackRequest, Session};
 use crate::state::AppState;
 
-/// Plex client details of sessions (by pley session id) and the small
-/// integer `sessionKey`s Plex tools expect.
+/// Plex client details of a server's sessions (by pley session id) and the
+/// small integer `sessionKey`s Plex tools expect. Each server has its own:
+/// one forgetting the sessions it no longer has must not forget another's
+/// (tests run several servers in one process).
+#[derive(Default)]
+pub struct SessionKeys {
+    tracked: Mutex<HashMap<String, Tracked>>,
+    last_key: AtomicI64,
+}
+
 struct Tracked {
     key: i64,
     client: ClientInfo,
 }
 
-static TRACKED: LazyLock<Mutex<HashMap<String, Tracked>>> = LazyLock::new(Mutex::default);
-static NEXT_KEY: AtomicI64 = AtomicI64::new(1);
 /// Sessions tracked before those that ended are forgotten here too: only
 /// tools asking for sessions forget them otherwise, and a client making up
 /// a new identifier for every report would add one each time.
 const FORGET_ENDED_AT: usize = 512;
 
+impl SessionKeys {
+    fn entry<'a>(&self, tracked: &'a mut HashMap<String, Tracked>, session_id: &str) -> &'a mut Tracked {
+        tracked.entry(session_id.to_owned()).or_insert_with(|| Tracked {
+            key: self.last_key.fetch_add(1, Ordering::Relaxed) + 1,
+            client: ClientInfo::default(),
+        })
+    }
+}
+
 fn remember(state: &AppState, session_id: &str, client: &ClientInfo) {
-    let mut tracked = TRACKED.lock();
+    let keys = &state.plex_session_keys;
+    let mut tracked = keys.tracked.lock();
     if tracked.len() >= FORGET_ENDED_AT {
         let live: std::collections::HashSet<String> = state.sessions.list().iter().map(|s| s.id.clone()).collect();
         tracked.retain(|id, _| live.contains(id));
     }
-    let entry = tracked
-        .entry(session_id.to_owned())
-        .or_insert_with(|| Tracked { key: NEXT_KEY.fetch_add(1, Ordering::Relaxed), client: ClientInfo::default() });
-    entry.client = client.clone();
+    keys.entry(&mut tracked, session_id).client = client.clone();
 }
 
-pub(super) fn session_key(session_id: &str) -> (i64, ClientInfo) {
-    let mut tracked = TRACKED.lock();
-    let entry = tracked
-        .entry(session_id.to_owned())
-        .or_insert_with(|| Tracked { key: NEXT_KEY.fetch_add(1, Ordering::Relaxed), client: ClientInfo::default() });
+pub(super) fn session_key(state: &AppState, session_id: &str) -> (i64, ClientInfo) {
+    let keys = &state.plex_session_keys;
+    let mut tracked = keys.tracked.lock();
+    let entry = keys.entry(&mut tracked, session_id);
     (entry.key, entry.client.clone())
 }
 
-pub(super) fn forget_ended(live: &[Arc<Session>]) {
-    TRACKED.lock().retain(|id, _| live.iter().any(|s| &s.id == id));
+pub(super) fn forget_ended(state: &AppState, live: &[Arc<Session>]) {
+    state.plex_session_keys.tracked.lock().retain(|id, _| live.iter().any(|s| &s.id == id));
 }
 
 // ------------------------------------------------------------------ files
@@ -442,7 +454,7 @@ fn transcode_node(session: &Session, job: &JobStatus) -> Node {
 /// `/status/sessions`: what is playing now (admins see every user).
 pub async fn sessions(State(state): State<AppState>, PlexUser(user): PlexUser) -> PlexResult<Node> {
     let all = state.sessions.list();
-    forget_ended(&all);
+    forget_ended(&state, &all);
     let now = crate::util::now();
     let sessions: Vec<Arc<Session>> =
         all.into_iter().filter(|s| (user.is_admin || s.user_id == user.id) && s.is_active(now)).collect();
@@ -470,7 +482,7 @@ pub async fn sessions(State(state): State<AppState>, PlexUser(user): PlexUser) -
             &sections,
             Detail { guids: true, full: true, media: true, markers: false },
         );
-        let (key, client) = session_key(&session.id);
+        let (key, client) = session_key(&state, &session.id);
         let play = session.play.lock().clone();
         node.set("sessionKey", key.to_string());
         node.set("viewOffset", play.position_ms);
@@ -658,7 +670,8 @@ pub async fn universal_start(
 /// Session playlists and segments. The session id (128 random bits) is the
 /// credential, like the URLs Plex hands to players. Not for sessions an app
 /// started (its token is what stops it, not this listener), nor for disabled
-/// accounts.
+/// accounts, nor for accounts signed out because the server requires
+/// two-step sign-in and they don't use it.
 pub async fn universal_file(
     State(state): State<AppState>,
     Path((session_id, file)): Path<(String, String)>,
@@ -668,6 +681,9 @@ pub async fn universal_file(
         return Err(PlexError::NotFound);
     }
     let user = AuthUser::load(&state.db, session.user_id).await?.ok_or(PlexError::NotFound)?;
+    if state.auth.lacks_two_step(user.id).await? {
+        return Err(PlexError::NotFound);
+    }
     crate::api::playback::hls_file(State(state), user, Path((session_id, file))).await.map_err(PlexError::from)
 }
 

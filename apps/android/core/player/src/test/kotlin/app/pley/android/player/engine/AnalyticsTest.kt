@@ -95,6 +95,28 @@ class AnalyticsTest {
         assertEquals(1, latest.droppedFrames)
     }
 
+    @Test
+    fun dolbyVisionIsWhatItsDecoderMakesOfIt() {
+        var latest = PlaybackStats()
+        val decoders = mapOf("c2.vendor.dvhe.decoder" to MimeTypes.VIDEO_DOLBY_VISION, "c2.vendor.hevc.decoder" to MimeTypes.VIDEO_H265)
+        val analytics = PlaybackAnalytics({ 0L }, { true }, { decoders[it] }) { latest = it }
+        val time = AnalyticsListener.EventTime(0, Timeline.EMPTY, 0, null, 0, Timeline.EMPTY, 0, null, 0, 0)
+        val hdr10 = ColorInfo.Builder().setColorSpace(C.COLOR_SPACE_BT2020).setColorTransfer(C.COLOR_TRANSFER_ST2084).build()
+        val dv = Format.Builder().setSampleMimeType(MimeTypes.VIDEO_DOLBY_VISION).setCodecs("dvhe.08.06").setColorInfo(hdr10).build()
+        analytics.onPrepare(displayModeId = null)
+        // The format comes before its decoder: Dolby Vision until it's known.
+        analytics.onVideoInputFormatChanged(time, dv, null)
+        assertEquals("Dolby Vision", latest.dynamicRange)
+        // Media3 fell back to the base layer's decoder: HDR10.
+        analytics.onVideoDecoderInitialized(time, "c2.vendor.hevc.decoder", 0, 10)
+        assertEquals("HDR10", latest.dynamicRange)
+        assertEquals(MimeTypes.VIDEO_H265, latest.videoDecoderMime)
+        analytics.onPrepare(displayModeId = null)
+        analytics.onVideoInputFormatChanged(time, dv, null)
+        analytics.onVideoDecoderInitialized(time, "c2.vendor.dvhe.decoder", 0, 10)
+        assertEquals("Dolby Vision", latest.dynamicRange)
+    }
+
     private companion object {
         val POSITION = Player.PositionInfo(null, 0, null, null, 0, 0, 0, C.INDEX_UNSET, C.INDEX_UNSET)
     }

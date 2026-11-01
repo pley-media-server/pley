@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Remuxes with Dolby Vision through FFmpeg, as jobs make them: segments
 //! written by the planned command line, edited (`tsedit`), and read back
 //! with ffprobe; the master playlist next to them. Skipped without FFmpeg

@@ -12,6 +12,7 @@ use crate::error::{ApiResult, AppError};
 use crate::network::{self, Adapter, Fixed, Listen, Listener};
 use crate::playback::{TranscodeInfo, transcode_info};
 use crate::providers::{Check, ProviderError};
+use crate::requests::arr;
 use crate::settings::{AdminSettings, SettingsPatch};
 use crate::state::AppState;
 
@@ -23,10 +24,25 @@ pub async fn get_settings(State(state): State<AppState>, _admin: AdminUser) -> J
 
 pub async fn put_settings(
     State(state): State<AppState>,
-    _admin: AdminUser,
+    AdminUser(admin): AdminUser,
     Json(mut patch): Json<SettingsPatch>,
 ) -> ApiResult<Json<AdminSettings>> {
     let before = state.settings.get();
+    if patch.require_two_step == Some(true) && !before.require_two_step {
+        // Whoever turns it on uses it, so nobody locks themselves out, and
+        // everyone else can set it up.
+        if !state.two_step.can_set_up() {
+            return Err(AppError::bad_request(format!(
+                "two-step sign-in can't be set up on this server: it can't use its {} (the log says why)",
+                crate::two_step::KEY_FILE
+            )));
+        }
+        if !state.two_step.is_on(admin.id).await? {
+            return Err(AppError::bad_request(
+                "turn on two-step sign-in for your own account first (Account → Two-step sign-in)",
+            ));
+        }
+    }
     // A choice that can't work here is refused; one saved before (another
     // GPU, another FFmpeg) stays, and the transcoder does without it.
     let info = state.transcoder.info();
@@ -59,12 +75,47 @@ pub async fn put_settings(
         let ended = state.auth.end_grants_except_clients(crate::oauth::clients::BUILTIN_IDS).await?;
         tracing::info!("apps by other publishers were turned off: {} signed out", ended.len());
     }
+    if before.require_two_step != after.require_two_step {
+        require_two_step(&state, after.require_two_step).await?;
+    }
     // A new key or source: fetch metadata for everything that has none yet
     // (shows are fetched again from a new TV source).
     if crate::providers::settings_changed(&state.db, &before, &after).await? {
         state.scanner.enqueue_all(false).await?;
     }
+    // Requests turned on or off, other limits, another TMDB key: every app
+    // fetches its summary again.
+    if before.requests != after.requests
+        || before.request_limit_movies != after.request_limit_movies
+        || before.request_limit_seasons != after.request_limit_seasons
+        || before.tmdb_api_key != after.tmdb_api_key
+    {
+        state.events.send(crate::events::ServerEvent::RequestsSettingsChanged { user_id: None });
+    }
     Ok(Json(after.for_admin()))
+}
+
+/// Requires two-step sign-in of every account with a password, or stops
+/// requiring it. Turned on, whoever signs in with a password alone is
+/// signed out everywhere, browsers and apps, and sets it up at their next
+/// sign-in; sessions and apps that slip past this (one signing in at that
+/// moment) stop working anyway ([`crate::auth::AuthService::require_two_step`]).
+async fn require_two_step(state: &AppState, on: bool) -> ApiResult<()> {
+    state.auth.require_two_step(on);
+    if !on {
+        tracing::info!("two-step sign-in is no longer required");
+        return Ok(());
+    }
+    let without = state.two_step.accounts_without().await?;
+    for &id in &without {
+        state.oauth.forget_user(id);
+        state.auth.sign_out_everywhere(id, None).await?;
+    }
+    tracing::info!(
+        "two-step sign-in is required: {} account(s) without it were signed out, and set it up at their next sign-in",
+        without.len()
+    );
+    Ok(())
 }
 
 /// The transcoder's operating system, when known: a managed one runs on
@@ -236,6 +287,53 @@ fn object(name: &str) -> String {
         Some(rest) => format!("the {rest}"),
         None => name.to_owned(),
     }
+}
+
+#[derive(Deserialize)]
+pub struct ArrRequest {
+    service: arr::Service,
+    /// An address typed in the form, maybe not saved yet; the saved one otherwise.
+    #[serde(default)]
+    url: Option<String>,
+    /// Likewise its key: the saved one goes to the saved address only.
+    #[serde(default)]
+    api_key: Option<String>,
+}
+
+/// `POST /api/settings/arr`: what Radarr or Sonarr offers requests (its
+/// quality profiles, root folders and language profiles), asked at the
+/// address and with the key typed in, before they are saved.
+pub async fn arr_options(
+    State(state): State<AppState>,
+    _admin: AdminUser,
+    Json(req): Json<ArrRequest>,
+) -> ApiResult<Json<arr::Options>> {
+    let settings = state.settings.get();
+    let name = req.service.name();
+    let (saved_url, saved_key) = match req.service {
+        arr::Service::Radarr => (&settings.radarr_url, &settings.radarr_api_key),
+        arr::Service::Sonarr => (&settings.sonarr_url, &settings.sonarr_api_key),
+    };
+    let url = match req.url.as_deref().map(str::trim).filter(|u| !u.is_empty()) {
+        Some(url) => crate::settings::arr_url(url)?,
+        None => saved_url.clone(),
+    };
+    if url.is_empty() {
+        return Err(AppError::bad_request(format!("give {name}'s address")));
+    }
+    let key = match req.api_key.map(|k| k.trim().to_owned()).filter(|k| !k.is_empty()) {
+        Some(key) => key,
+        None if url == *saved_url && !saved_key.is_empty() => saved_key.clone(),
+        None if url == *saved_url => return Err(AppError::bad_request(format!("give {name}'s API key"))),
+        None => {
+            let message =
+                format!("type {name}'s API key for this address: the saved one goes to the saved address only");
+            return Err(AppError::bad_request(message));
+        }
+    };
+    let to = arr::Connection { url, key };
+    let options = state.requests.arr().options(req.service, &to).await;
+    options.map(Json).map_err(|err| AppError::bad_request(err.to_string()))
 }
 
 // ------------------------------------------------------------------ network
@@ -533,6 +631,8 @@ pub async fn system(State(state): State<AppState>, _admin: AdminUser) -> ApiResu
         "data_dir": state.config.data_dir.to_string_lossy(),
         "transcode_dir": transcode_dir(&state),
         "database": state.backups.health(),
+        // Without it, authenticator apps can't be set up or checked.
+        "secret_key_ok": state.two_step.can_set_up(),
         "transcoder": transcoder,
         "counts": counts,
     })))

@@ -8,10 +8,12 @@
 //! to the system). Pages from servers get no access to the app's commands:
 //! only the picker, bundled with the app, has it. The files a server's page
 //! downloads are fetched by the app, to play while the server is away
-//! (`downloads`).
+//! (`downloads`), and the system's notifications tell of requests while the
+//! window isn't in front (`notices`).
 
 mod discovery;
 mod downloads;
+mod notices;
 mod servers;
 
 use std::sync::Mutex;
@@ -98,6 +100,7 @@ fn show_picker<R: Runtime>(window: &WebviewWindow<R>) {
         places.server = None;
         places.picker.clone()
     };
+    window.state::<notices::Notices>().follow(None);
     let Some(mut picker) = picker else { return };
     picker.set_query(Some("pick"));
     let _ = window.navigate(picker);
@@ -120,6 +123,7 @@ fn open_in_browser<R: Runtime>(app: &AppHandle<R>, url: &Url) {
 fn open_server(window: WebviewWindow, url: String) -> Result<(), String> {
     let origin = servers::server_origin(&url)?;
     window.state::<Pages>().0.lock().unwrap().server = Some(origin.clone());
+    window.state::<notices::Notices>().follow(Some(origin.clone()));
     window.navigate(origin).map_err(|e| e.to_string())
 }
 
@@ -134,7 +138,9 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(Pages::default())
+        .manage(notices::Notices::default())
         .invoke_handler(tauri::generate_handler![
             servers::saved_servers,
             servers::save_server,
@@ -201,8 +207,10 @@ pub fn run() {
                     }
                 })
                 .build()?;
-            // After the window: downloads use its cookies (the servers' sessions).
+            // After the window: downloads and notices use its cookies (the
+            // servers' sessions).
             tauri::async_runtime::spawn(downloads::run(app.handle().clone()));
+            tauri::async_runtime::spawn(notices::run(app.handle().clone()));
             Ok(())
         })
         .run(tauri::generate_context!())
@@ -229,6 +237,12 @@ mod tests {
         assert_eq!(at("http://192.168.1.20:7539/item/kx7bq2m"), Navigation::Allow);
         assert_eq!(at("http://192.168.1.20:7539/__app/servers"), Navigation::Picker);
         assert_eq!(at("https://www.themoviedb.org/movie/603"), Navigation::Browser);
+        assert_eq!(at("https://www.themoviedb.org/tv/1399"), Navigation::Browser);
+        assert_eq!(at("https://www.imdb.com/title/tt0113277/"), Navigation::Browser);
+        // Discover and requests are the server's pages.
+        for page in ["/discover?q=heat", "/discover/movie/603", "/discover/show/1399", "/requests?status=pending"] {
+            assert_eq!(at(&format!("http://192.168.1.20:7539{page}")), Navigation::Allow, "{page}");
+        }
         assert_eq!(at("http://192.168.1.20:8080/"), Navigation::Browser, "another port is another site");
         assert_eq!(at("about:blank"), Navigation::Allow);
         // Other kinds of addresses go nowhere: not to the system either.

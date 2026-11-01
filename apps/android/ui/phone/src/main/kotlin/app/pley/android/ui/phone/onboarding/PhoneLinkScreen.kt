@@ -158,6 +158,10 @@ internal fun PhoneLinkContent(state: LinkUiState, onNewCode: () -> Unit, onChang
             }
             Spacer(Modifier.height(16.dp))
             Text(stringResource(R.string.onboarding_link_other_device), style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted)
+            if (state.twoStepRequired) {
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.onboarding_link_two_step_required), style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted)
+            }
             Spacer(Modifier.height(24.dp))
             Status(status)
             if (status == LinkStatus.Declined || status == LinkStatus.Expired) {

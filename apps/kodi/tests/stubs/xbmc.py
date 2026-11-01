@@ -85,8 +85,36 @@ class PlayList:
 
 
 class Monitor:
+    def abortRequested(self):
+        return False
+
     def waitForAbort(self, seconds=0):
         return True
+
+
+class Keyboard:
+    """Kodi's keyboard: each one shown takes the next of `typed` (None:
+    cancelled), and is kept in `shown` as (heading, its text at first)."""
+
+    typed = []
+    shown = []
+
+    def __init__(self, line="", heading="", hidden=False):
+        self.line, self.heading = line, heading
+        self.text, self.confirmed = line, False
+
+    def doModal(self, autoclose=0):
+        Keyboard.shown.append((self.heading, self.line))
+        answer = Keyboard.typed.pop(0)
+        self.confirmed = answer is not None
+        if self.confirmed:
+            self.text = answer
+
+    def isConfirmed(self):
+        return self.confirmed
+
+    def getText(self):
+        return self.text
 
 
 class Actor:

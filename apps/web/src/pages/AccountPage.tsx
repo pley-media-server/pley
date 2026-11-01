@@ -672,14 +672,26 @@ export function AccountPage() {
   );
 }
 
-/** Which pley this is: the web app's build and, when it differs, the server's. */
+/**
+ * Which Pley this is: the web app's build and, when it differs, the
+ * server's; and where the server's source is offered.
+ */
 function BuildLine() {
   const server = useServer().data;
   const web = versionLabel(WEB_VERSION, WEB_COMMIT);
   const serverLabel = server ? versionLabel(server.version, server.commit) : null;
+  const source = server?.source;
   return (
     <p className="text-center text-xs text-muted" data-testid="build">
       {serverLabel && serverLabel !== web ? `Pley ${web} · server ${serverLabel}` : `Pley ${web}`}
+      {source ? (
+        <>
+          {" · "}
+          <a href={source} target="_blank" rel="noreferrer" className="hover:underline">
+            Source code
+          </a>
+        </>
+      ) : null}
     </p>
   );
 }

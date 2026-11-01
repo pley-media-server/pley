@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Segments kept in memory ([`TranscodeOptions::in_memory`]).
 //!
 //! FFmpeg writes a job's segments as files, so memory is a folder in RAM:

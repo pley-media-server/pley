@@ -107,7 +107,7 @@ class SkinTest(unittest.TestCase):
         wanted = {
             L.SIGNIN_CHANGE, L.SIGNIN_ADDRESS, L.SIGNIN_STATUS, L.SIGNIN_SCAN, L.SIGNIN_QR, L.SIGNIN_CODE_A,
             L.SIGNIN_CODE_B, L.SIGNIN_STEP_SCAN, L.SIGNIN_STEP_GO, L.SIGNIN_STEP_ENTER, L.SIGNIN_NUMBER_GO,
-            L.SIGNIN_NUMBER_ENTER, L.SIGNIN_QR_CARD,
+            L.SIGNIN_NUMBER_ENTER, L.SIGNIN_QR_CARD, L.SIGNIN_TWO_STEP,
         }
         self.assertEqual(sorted(wanted - ids), [])
 

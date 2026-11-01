@@ -70,7 +70,7 @@ class FakeDeviceSignIn : DeviceSignIn {
         answers.trySend(poll)
     }
 
-    override suspend fun start(server: String): DeviceCode {
+    override suspend fun start(server: String, requests: Boolean): DeviceCode {
         started += server
         startError?.let { throw it }
         return code(server)

@@ -1,6 +1,7 @@
 package app.pley.android.screens
 
 import androidx.navigation3.runtime.NavKey
+import app.pley.android.model.TitleKind
 import kotlinx.serialization.Serializable
 
 /**
@@ -79,6 +80,20 @@ sealed interface PleyKey : NavKey {
     /** Live TV: the guide and the channels (the player is a window of its own: PlayerLauncher.watchLive). */
     @Serializable
     data object LiveTv : PleyKey
+
+    // Requests.
+
+    /** Discover: what TMDB has to ask for; [query] opens its search with those words. */
+    @Serializable
+    data class Discover(val query: String = "") : PleyKey
+
+    /** A movie or show found on TMDB; [pick] opens its season picker once the page shows (Request more seasons). */
+    @Serializable
+    data class DiscoverTitle(val kind: TitleKind, val tmdbId: Long, val pick: Boolean = false) : PleyKey
+
+    /** Your requests; for managers, everyone's (Requests), opening on Needs attention. */
+    @Serializable
+    data object Requests : PleyKey
 
     // Yours.
 

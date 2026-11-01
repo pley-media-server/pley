@@ -12,6 +12,7 @@ use serde::Serialize;
 
 use crate::db::Db;
 use crate::error::AppError;
+use crate::requests::RequestAccess;
 use crate::streams::SubtitleMode;
 
 /// Stored instead of a password hash for managed profiles: never verifies.
@@ -38,6 +39,7 @@ struct UserRow {
     subtitle_mode: String,
     has_password: bool,
     two_step: bool,
+    request_access: String,
 }
 
 /// A user as the API shows it.
@@ -71,12 +73,15 @@ pub struct UserDto {
     pub has_password: bool,
     /// Signs in with a code from an authenticator app after the password.
     pub two_step: bool,
+    /// Whether it may ask for movies and shows (`crate::requests`):
+    /// administrators always are approved as they ask.
+    pub request_access: RequestAccess,
 }
 
 const USER_COLUMNS: &str = "id, username, display_name, is_admin, managed, home, pin_hash IS NOT NULL AS has_pin,
     avatar, avatar_color, all_libraries, max_age, disabled, created_at, audio_language, subtitle_language,
     subtitle_mode, password_hash NOT LIKE '!%' AS has_password,
-    EXISTS (SELECT 1 FROM two_step t WHERE t.user_id = users.id) AS two_step";
+    EXISTS (SELECT 1 FROM two_step t WHERE t.user_id = users.id) AS two_step, request_access";
 
 impl UserRow {
     fn into_dto(self, library_ids: Vec<i64>) -> UserDto {
@@ -101,6 +106,11 @@ impl UserRow {
             subtitle_mode: SubtitleMode::parse(&self.subtitle_mode),
             has_password: self.has_password,
             two_step: self.two_step,
+            request_access: if self.is_admin {
+                RequestAccess::Auto
+            } else {
+                RequestAccess::parse(&self.request_access)
+            },
         }
     }
 }
@@ -684,6 +694,7 @@ mod tests {
             subtitle_mode: "foreign".into(),
             has_password: true,
             two_step: false,
+            request_access: "off".into(),
         }
     }
 
@@ -694,9 +705,11 @@ mod tests {
         assert_eq!((dto.all_libraries, dto.max_age, dto.library_ids), (false, Some(12), vec![3]));
         assert_eq!(dto.avatar_url.as_deref(), Some("/api/users/7/avatar?v=1734567890"));
         assert_eq!(user_row(false, Some("Kiddo")).into_dto(vec![]).name, "Kiddo");
+        assert_eq!(dto.request_access, RequestAccess::Off);
         // Administrators are never restricted, whatever is stored.
         let admin = user_row(true, None).into_dto(vec![]);
         assert_eq!((admin.all_libraries, admin.max_age), (true, None));
+        assert_eq!(admin.request_access, RequestAccess::Auto, "administrators' requests are approved as made");
         assert_eq!(avatar_url(1, None), None);
     }
 }

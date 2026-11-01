@@ -113,6 +113,8 @@ class TvAppTest {
         app(StartFacts("http://s", false))
         compose.onNodeWithText("Sign in to Pley").assertExists()
         compose.onNodeWithText("Change server").assertIsFocused()
+        // A TV has no requests: its code asks for none of their scopes.
+        assertEquals(listOf(false), onboarding.requestScopes)
     }
 
     @Test

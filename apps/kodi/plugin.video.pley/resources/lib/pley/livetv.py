@@ -17,6 +17,7 @@ changing channel lets go of the one before.
 
 from __future__ import annotations
 
+import datetime
 import re
 import time
 from urllib.parse import urlencode
@@ -196,11 +197,13 @@ def kodi_string(number: int, english: str) -> str:
 
 def day(ts: float, now: float) -> str:
     """"Today", "Tomorrow", "Yesterday", or "Fri 30 Oct"."""
+    # Dates apart, not 24-hour steps: a day is 23 or 25 hours when daylight
+    # saving starts or ends.
+    apart = (datetime.date.fromtimestamp(ts) - datetime.date.fromtimestamp(now)).days
+    name = {0: "today", 1: "tomorrow", -1: "yesterday"}.get(apart)
+    if name:
+        return kodi.text(name)
     when = time.localtime(ts)
-    for offset, name in ((0, "today"), (1, "tomorrow"), (-1, "yesterday")):
-        other = time.localtime(now + offset * 86_400)
-        if (when.tm_year, when.tm_yday) == (other.tm_year, other.tm_yday):
-            return kodi.text(name)
     weekday = kodi_string(SHORT_DAYS + when.tm_wday, ENGLISH_DAYS[when.tm_wday])
     month = kodi_string(SHORT_MONTHS + when.tm_mon - 1, ENGLISH_MONTHS[when.tm_mon - 1])
     return "%s %d %s" % (weekday, when.tm_mday, month)

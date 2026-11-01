@@ -6,7 +6,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } f
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { addEntries, entryOf, findSection, notes, plainText, release, sections } from "./changelog.mjs";
-import { parseArgs, plan } from "./release.mjs";
+import { RELEASE_TAG, parseArgs, pending, plan, status } from "./release.mjs";
 import {
   ROOT,
   UNITS,
@@ -17,7 +17,6 @@ import {
   limitProblem,
   planSet,
   problems,
-  tagOf,
   versionOf,
   versions,
   write,
@@ -57,6 +56,20 @@ function fixture() {
     git("commit", "-q", "-m", subject);
   };
   return { dir, git, change };
+}
+
+/** The unit's Unreleased with a fix in it, not committed. */
+function addEntry(dir, unit, entry = "A fix") {
+  const path = join(dir, UNITS[unit].changelog);
+  writeFileSync(path, readFileSync(path, "utf8").replace("## [Unreleased]\n", `## [Unreleased]\n\n### Fixed\n\n- ${entry}\n`));
+}
+
+/** Bumps the unit, as `release.mjs <unit> <how> --commit` does. */
+function bumped({ dir, git }, unit, how, date = "2026-11-01") {
+  const p = plan({ unit, how, date, root: dir });
+  write(p.changes, dir);
+  git("commit", "-q", "-am", `${unit}: release ${p.to}`);
+  return p;
 }
 
 const SAMPLE = `# Changelog
@@ -222,14 +235,13 @@ describe("changelog", () => {
 });
 
 describe("release", () => {
-  test("bumps a unit, drafts its commits since its tag, and writes Kodi's news", () => {
-    const { dir, git, change } = fixture();
-    git("tag", tagOf("kodi", "0.0.1"));
+  test("bumps a unit, drafts its commits since its version was set, and writes Kodi's news", () => {
+    const { dir, change } = fixture();
     change("apps/kodi/plugin.video.pley/resources/a.py", "a\n", "kodi: subtitles load faster");
     change("apps/roku/source/b.brs", "b\n", "roku: something else");
     change("apps/kodi/tests/c.py", "c\n", "kodi, roku: Automatic settles");
     const p = plan({ unit: "kodi", how: "patch", date: "2026-11-01", withDraft: true, root: dir });
-    expect([p.from, p.to, p.tag]).toEqual(["0.0.1", "0.0.2", "kodi-v0.0.2"]);
+    expect([p.from, p.to, p.tag]).toEqual(["0.0.1", "0.0.2", "release-2026-11-01"]);
     expect(p.drafted.commits).toBe(2);
     expect(p.notes).toBe("### Changed\n\n- Subtitles load faster\n- Automatic settles");
     expect(p.changes.map((c) => c.path)).toEqual(["apps/kodi/plugin.video.pley/addon.xml", "apps/kodi/CHANGELOG.md"]);
@@ -240,23 +252,19 @@ describe("release", () => {
     expect(versionOf("kodi", dir)).toBe("0.0.1");
   });
 
-  test("refuses an empty Unreleased, a lower version, an existing tag, and drafting without a tag", () => {
-    const { dir, git } = fixture();
+  test("refuses an empty Unreleased, a lower version and a wrong date", () => {
+    const { dir } = fixture();
     expect(() => plan({ unit: "roku", how: "patch", root: dir })).toThrow(/Unreleased .* is empty/);
-    expect(() => plan({ unit: "roku", how: "patch", withDraft: true, root: dir })).toThrow(/no roku-v\* tag/);
-    const changelog = join(dir, UNITS.roku.changelog);
-    writeFileSync(changelog, readFileSync(changelog, "utf8").replace("## [Unreleased]\n", "## [Unreleased]\n\n### Fixed\n\n- A fix\n"));
+    expect(() => plan({ unit: "roku", how: "patch", withDraft: true, root: dir })).toThrow(/none of the 0 commits/);
+    addEntry(dir, "roku");
     expect(() => plan({ unit: "roku", how: "0.0.1", root: dir })).toThrow(/isn't above/);
-    git("tag", "roku-v0.0.2");
-    expect(() => plan({ unit: "roku", how: "patch", root: dir })).toThrow(/exists already/);
     expect(plan({ unit: "roku", how: "minor", root: dir, date: "2026-11-01" }).to).toBe("0.1.0");
     expect(() => plan({ unit: "roku", how: "minor", root: dir, date: "1 Nov" })).toThrow(/YYYY-MM-DD/);
   });
 
   test("Android's bump keeps its version code in the Gradle build", () => {
     const { dir } = fixture();
-    const changelog = join(dir, UNITS.android.changelog);
-    writeFileSync(changelog, readFileSync(changelog, "utf8").replace("## [Unreleased]\n", "## [Unreleased]\n\n### Added\n\n- New\n"));
+    addEntry(dir, "android");
     const p = plan({ unit: "android", how: "minor", root: dir, date: "2026-11-01" });
     expect(p.changes[0].after).toContain('\nval appVersion = "0.1.0"');
   });
@@ -264,13 +272,13 @@ describe("release", () => {
   test("parses options", () => {
     expect(parseArgs(["kodi", "patch", "--dry-run", "--since", "abc", "--draft"])).toEqual({
       positional: ["kodi", "patch"],
-      opts: { dryRun: true, draft: true, commit: false, since: "abc", date: undefined },
+      opts: { dryRun: true, draft: true, commit: false, json: false, since: "abc", date: undefined },
     });
     expect(() => parseArgs(["kodi", "patch", "--since"])).toThrow(/needs a value/);
     expect(() => parseArgs(["kodi", "patch", "--force"])).toThrow(/unknown option/);
   });
 
-  test("prints each unit's notes, as the Release workflow reads them", () => {
+  test("prints each unit's notes", () => {
     for (const unit of UNIT_NAMES) {
       const out = spawnSync("bun", [join(ROOT, "scripts/release.mjs"), unit, "notes"], { encoding: "utf8" });
       expect(out.status).toBe(0);
@@ -282,4 +290,79 @@ describe("release", () => {
     expect(missing.status).toBe(2);
     expect(missing.stderr).toContain("no section for 9.9.9");
   });
+});
+
+// These run git many times, which takes seconds on Windows.
+const SLOW = 30_000;
+
+describe("releases", () => {
+  test("take the units bumped since the last release, under one tag", () => {
+    const f = fixture();
+    const { dir, git } = f;
+    git("tag", "release-2026-10-31");
+    expect(pending(dir)).toMatchObject({ since: "release-2026-10-31", tag: null, units: [], problems: [] });
+
+    addEntry(dir, "kodi", "Kodi's fix");
+    bumped(f, "kodi", "patch");
+    const one = pending(dir);
+    expect(one).toMatchObject({ tag: "release-2026-11-01", title: "Pley for Kodi 0.0.2", problems: [] });
+    expect(one.units.map((u) => [u.unit, u.from, u.to, u.later])).toEqual([["kodi", "0.0.1", "0.0.2", []]]);
+    expect(one.notes).toBe("### Fixed\n\n- Kodi's fix");
+
+    // Another unit joins the release, with its own version.
+    addEntry(dir, "roku", "Roku's fix");
+    expect(bumped(f, "roku", "minor").tag).toBe("release-2026-11-01");
+    const two = pending(dir);
+    expect(two).toMatchObject({ tag: "release-2026-11-01", title: "Pley 2026-11-01", problems: [] });
+    expect(two.units.map((u) => `${u.unit} ${u.to}`)).toEqual(["kodi 0.0.2", "roku 0.1.0"]);
+    expect(two.notes).toBe("## Pley for Kodi 0.0.2\n\n### Fixed\n\n- Kodi's fix\n\n## Pley for Roku 0.1.0\n\n### Fixed\n\n- Roku's fix");
+    expect(status(dir).filter((u) => u.waits).map((u) => u.unit)).toEqual(["kodi", "roku"]);
+
+    // A unit waiting for its release isn't bumped again.
+    addEntry(dir, "kodi");
+    expect(() => plan({ unit: "kodi", how: "patch", date: "2026-11-01", root: dir })).toThrow(/isn't released yet/);
+    git("checkout", "-q", "--", ".");
+
+    // Once tagged, nothing waits, and the day's next release takes the next tag.
+    git("tag", "release-2026-11-01");
+    expect(pending(dir)).toMatchObject({ since: "release-2026-11-01", units: [] });
+    addEntry(dir, "android");
+    expect(bumped(f, "android", "patch").tag).toBe("release-2026-11-01.2");
+    expect(RELEASE_TAG.test("release-2026-11-01.2")).toBe(true);
+    expect(RELEASE_TAG.test("kodi-v0.0.2")).toBe(false);
+  }, SLOW);
+
+  test("tell what would ship without being in the notes", () => {
+    const f = fixture();
+    const { dir, git, change } = f;
+    git("tag", "release-2026-10-31");
+    addEntry(dir, "kodi");
+    bumped(f, "kodi", "patch");
+    change("apps/kodi/plugin.video.pley/resources/late.py", "x\n", "kodi: a late fix");
+    const changelog = readFileSync(join(dir, UNITS.kodi.changelog), "utf8");
+    change(UNITS.kodi.changelog, changelog.replace("## [Unreleased]\n", "## [Unreleased]\n\n### Fixed\n\n- A late fix\n"), "kodi: its entry");
+    const p = pending(dir);
+    expect(p.units[0].later.map((c) => c.replace(/^\S+ /, ""))).toEqual(["kodi: a late fix", "kodi: its entry"]);
+    expect(p.problems).toEqual([
+      `${UNITS.kodi.changelog} has entries under Unreleased, which would ship in kodi 0.0.2 without being in its notes: move them under 0.0.2`,
+    ]);
+  }, SLOW);
+
+  test("the Release workflow runs when a unit's version changes, and builds every unit", () => {
+    const workflow = readFileSync(join(ROOT, ".github/workflows/release.yml"), "utf8");
+    for (const unit of UNIT_NAMES) {
+      expect(workflow).toContain(`\n      - ${UNITS[unit].manifests[0].path}\n`);
+      expect(workflow).toContain(`contains(fromJSON(needs.prepare.outputs.units || '[]'), '${unit}')`);
+    }
+  });
+
+  test("count the per-unit tags from before as releases", () => {
+    const f = fixture();
+    f.git("tag", "kodi-v0.0.1");
+    addEntry(f.dir, "kodi");
+    bumped(f, "kodi", "patch");
+    const p = pending(f.dir);
+    expect(p).toMatchObject({ since: "kodi-v0.0.1", tag: "release-2026-11-01", problems: [] });
+    expect(p.units.map((u) => u.unit)).toEqual(["kodi"]);
+  }, SLOW);
 });

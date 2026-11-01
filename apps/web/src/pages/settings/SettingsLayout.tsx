@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { NavLink, Outlet } from "react-router";
-import { Cpu, LayoutDashboard, LibraryBig, MailPlus, Network, Server, Tv2, Users } from "lucide-react";
+import { Cpu, Inbox, LayoutDashboard, LibraryBig, MailPlus, Network, Server, Tv2, Users } from "lucide-react";
 import { RequireAdmin } from "@/auth";
 import { PageSpinner } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -13,6 +13,7 @@ const NAV = [
   { to: "/settings/livetv", label: "Live TV", icon: Tv2 },
   { to: "/settings/users", label: "Users", icon: Users },
   { to: "/settings/invitations", label: "Invitations", icon: MailPlus },
+  { to: "/settings/requests", label: "Requests", icon: Inbox },
   { to: "/settings/server", label: "Server", icon: Server },
   { to: "/settings/transcoder", label: "Transcoder", icon: Cpu },
   { to: "/settings/network", label: "Network", icon: Network },

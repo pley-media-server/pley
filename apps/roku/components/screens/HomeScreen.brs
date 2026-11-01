@@ -146,7 +146,9 @@ sub onRows(event as object)
 end sub
 
 ' The menu: Home, Live TV where the server has it, the libraries,
-' Playlists, Search, Settings, and Now Playing while music plays.
+' Playlists, Search, Discover and the requests (Your requests, a
+' manager's Requests, with their number) where the summary has them,
+' Settings, and Now Playing while music plays.
 sub buildMenu()
     items = [{ title: "Home" }]
     m.menuActions = ["home"]
@@ -162,18 +164,55 @@ sub buildMenu()
         m.menuActions.Push("library")
         m.menuLibraries.Push(library)
     end for
-    for each entry in [["Playlists", "playlists"], ["Search", "search"], ["Settings", "settings"]]
+    for each entry in [["Playlists", "playlists"], ["Search", "search"]]
         items.Push({ title: entry[0] })
         m.menuActions.Push(entry[1])
     end for
+    m.requestEntries = requestEntries()
+    for each entry in m.requestEntries
+        items.Push(entry)
+        m.menuActions.Push(entry.action)
+    end for
+    items.Push({ title: "Settings" })
+    m.menuActions.Push("settings")
     m.musicShown = m.global.music.state <> "stopped"
     if m.musicShown
         items.Push({ title: "Now playing" })
         m.menuActions.Push("nowPlaying")
     end if
+    ' The focus stays on its entry as entries come or go above it (the
+    ' requests' once the summary comes, Live TV, libraries).
+    focusedKey = ""
     focused = m.menu.itemFocused
+    if m.menuKeys <> invalid and focused >= 0 and focused < m.menuKeys.Count() then focusedKey = m.menuKeys[focused]
+    m.menuKeys = []
+    for i = 0 to m.menuActions.Count() - 1
+        key = m.menuActions[i]
+        if key = "library" then key = key + ":" + urlValue(m.menuLibraries[i].id)
+        m.menuKeys.Push(key)
+    end for
     m.menu.content = nodesContent(items)
-    if focused > 0 and focused < items.Count() then m.menu.jumpToItem = focused
+    at = navMenuFocus(m.menuKeys, focusedKey, focused)
+    if at > 0 then m.menu.jumpToItem = at
+end sub
+
+' The menu's entries for requests, from the summary: Discover, and the
+' requests with their number.
+function requestEntries() as object
+    summary = reqSummaryOf(m.top.requestSummary)
+    entries = []
+    if reqShowsDiscover(summary) then entries.Push({ title: "Discover", action: "discover" })
+    if reqShowsRequests(summary)
+        badge = reqBadge(summary)
+        entries.Push({ title: reqPageName(summary), action: "requests", count: badge.count, danger: badge.danger })
+    end if
+    return entries
+end function
+
+' The summary changed: the menu follows when its entries do.
+sub onRequestSummary()
+    if m.requestEntries = invalid then return
+    if FormatJson(requestEntries()) <> FormatJson(m.requestEntries) then buildMenu()
 end sub
 
 sub showMessage(text as string)
@@ -307,6 +346,10 @@ sub onMenu(event as object)
         uiNavigate({ to: "grid", params: { kind: "playlists", id: 0, title: "Playlists" } })
     else if action = "search"
         uiNavigate({ to: "search" })
+    else if action = "discover"
+        uiNavigate({ to: "discover" })
+    else if action = "requests"
+        uiNavigate({ to: "requests" })
     else if action = "settings"
         uiNavigate({ to: "settings" })
     else if m.global.music.state = "stopped"

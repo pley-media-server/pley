@@ -6,10 +6,15 @@ the service's Skip Intro and Up Next.
 One window (layout.WINDOW) holds every screen; this shows one at a time and
 keeps the ones under it, so Back goes to them as they were. What the
 screens show comes through the service's proxy, as the plugin's listings.
+Discover and the requests are the plugin's (asking.py): the profile's menu
+opens them in Kodi's lists, and what is asked for from here (search's On
+TMDB, a show's Request more seasons) is the plugin's too, in Kodi's dialogs
+over the window.
 """
 
 from __future__ import annotations
 
+import json
 import threading
 import time
 import unicodedata
@@ -18,8 +23,9 @@ from urllib.parse import quote_plus, urlencode
 import xbmc
 import xbmcgui
 
-from . import api, kodi, livetv, playback, profiles, tiles, tracks, words
+from . import api, kodi, livetv, playback, profiles, requests, tiles, tracks, words
 from . import layout as L
+from .asking import FOUND_SHOWN
 from .listing import image, list_item
 
 T = kodi.text
@@ -241,8 +247,10 @@ class Window(xbmcgui.WindowXML):
         self.monitor = None
         self.closing = False
         self.focus = None
-        # What to do once the window is closed: "choose_server", "sign_in".
+        # What to do once the window is closed: "choose_server", "sign_in";
+        # "listing": open the plugin's listing at self.listing.
         self.after = None
+        self.listing = None
 
     # ------------------------------------------------------------ controls
 
@@ -357,15 +365,20 @@ class Window(xbmcgui.WindowXML):
 
     def changed(self) -> None:
         """The server said something changed (the watch state, My List, a
-        library): the screen shows it."""
+        library, Live TV's channels): the screen shows it."""
         with self.lock:
             if self.closing or self.screen is None:
                 return
             self.session.forget()
             rail = self.getFocusId() if self.focus_in_rail() else None
             try:
-                # A library added, renamed, moved (on any of the profile's devices) or scanned.
-                self.take_libraries(self.session.get("/api/libraries"))
+                # A library added, renamed, moved (on any of the profile's devices) or scanned,
+                # or Live TV set up or emptied.
+                libraries, live = api.together(
+                    lambda: self.session.get("/api/libraries"),
+                    lambda: livetv.summary(self.session.client),
+                )
+                self.take_libraries(libraries, live)
                 self.screen.refresh()
             except api.ApiError as e:
                 kodi.log("refreshing %s: %s" % (self.screen.name, e.message), xbmc.LOGWARNING)
@@ -529,6 +542,12 @@ class Window(xbmcgui.WindowXML):
 
     def account(self) -> None:
         actions = []
+        s = self.requests_summary()
+        if requests.discovers(s):
+            # Kodi's own lists (asking.py), with the window closed.
+            actions.append((T("discover"), lambda: self.leave_for_listing(route="discover")))
+        if requests.lists(s):
+            actions.append((requests.entry_label(s, T), lambda: self.leave_for_listing(route="requests")))
         if self.household is None:
             # Signed in before the add-on asked for `profiles`.
             actions.append((T("switch_profile"), self.sign_in_to_switch))
@@ -655,10 +674,15 @@ class Window(xbmcgui.WindowXML):
             self.screen.refresh()
         return True
 
-    def take_libraries(self, libraries: list) -> None:
-        """The libraries as the server lists them now: the rail redrawn if
-        what it shows of them changed (the rest is the Libraries page's)."""
-        if [rail_view(lib) for lib in libraries] != [rail_view(lib) for lib in self.libraries]:
+    def take_libraries(self, libraries: list, live: dict = None) -> None:
+        """The libraries as the server lists them now, and Live TV's summary
+        when it was asked for too: the rail redrawn if what it shows of them
+        changed (the rest is the Libraries page's)."""
+        was_live = livetv.available(self.live)
+        if live is not None:
+            self.live = live
+        redraw = [rail_view(lib) for lib in libraries] != [rail_view(lib) for lib in self.libraries]
+        if redraw or livetv.available(self.live) != was_live:
             self.place_libraries(libraries)
         else:
             self.libraries = libraries
@@ -678,6 +702,30 @@ class Window(xbmcgui.WindowXML):
         """Closes the window, and does `after` (run())."""
         self.after = after
         self.close()
+
+    def leave_for_listing(self, **params) -> None:
+        """Closes the window for one of the plugin's listings, in Kodi's own
+        window (Discover, the requests)."""
+        self.listing = plugin_url(**params)
+        self.leave_for("listing")
+
+    def requests_summary(self, ask: bool = True):
+        """The requests' summary as the service keeps it (news.py), asked of
+        the server (`ask`) only while it has none: {"enabled": false} where
+        requests are off, None where it can't be read."""
+        try:
+            found = json.loads(kodi.get_property(requests.SUMMARY) or "null")
+        except ValueError:
+            found = None
+        if isinstance(found, dict) or not ask:
+            return found if isinstance(found, dict) else None
+        try:
+            found = requests.summary(self.session.client) or {"enabled": False}
+        except api.ApiError as e:
+            kodi.log("requests' summary: %s %s" % (e.code, e.message), xbmc.LOGWARNING)
+            return None
+        kodi.set_property(requests.SUMMARY, json.dumps(found))
+        return found
 
     # -------------------------------------------------------------- events
 
@@ -945,7 +993,18 @@ class Window(xbmcgui.WindowXML):
 def play_url(item_id: int) -> str:
     """The plugin's play route for `item_id`, which Kodi asks as it comes
     to it in a playlist."""
-    return "plugin://%s/?%s" % (kodi.ADDON_ID, urlencode({"route": "play", "id": item_id}))
+    return plugin_url(route="play", id=item_id)
+
+
+def plugin_url(**params) -> str:
+    """One of the plugin's routes: a listing, or an action."""
+    return "plugin://%s/?%s" % (kodi.ADDON_ID, urlencode(params))
+
+
+def run_plugin(**params) -> None:
+    """One of the plugin's actions (asking.py's), its dialogs over the
+    window; what it did shows once it is done (kodi.refresh_listing)."""
+    xbmc.executebuiltin("RunPlugin(%s)" % plugin_url(**params))
 
 
 def newest_first(albums: list) -> list:
@@ -1011,7 +1070,8 @@ def luminance(hex_rgb: str) -> float:
 
 class Rows:
     """A screen's rows of tiles: slots the skin holds, filled and placed
-    here. A row: {"key", "title", "shape", "items", "see_all"}."""
+    here. A row: {"key", "title", "shape", "items", "see_all"}, and "tile"
+    (an item's tile) where its tiles aren't the library's."""
 
     def __init__(self, win: Window, base: int, slots: int, shapes: tuple):
         self.win = win
@@ -1022,33 +1082,47 @@ class Rows:
 
     def fill(self, rows: list) -> None:
         self.rows = rows[: self.slots]
+        for i in range(self.slots):
+            self.fill_slot(i)
+
+    def append(self, row: dict) -> bool:
+        """A row that came after the others (search's On TMDB) in the next
+        slot, theirs left as they are: False when none is free."""
+        if len(self.rows) >= self.slots:
+            return False
+        self.rows.append(row)
+        self.fill_slot(len(self.rows) - 1)
+        return True
+
+    def fill_slot(self, i: int) -> None:
         win = self.win
         base = win.session.base
-        for i in range(self.slots):
-            group = L.slot(self.base, i)
-            if i >= len(self.rows):
-                win.visible(group, False)
-                continue
-            row = self.rows[i]
-            win.put(L.slot_header(self.base, i), row["title"])
-            for shape in self.shapes:
-                found = win.c(L.slot_list(self.base, i, shape))
-                found.reset()
-                if shape == row["shape"]:
-                    if shape == "person":
-                        items = [tiles.person(base, credit) for credit in row["items"]]
-                    elif shape == "channel":
-                        now = time.time()
-                        items = [channel_tile(base, channel, now) for channel in row["items"]]
-                    else:
-                        items = [tiles.tile(base, item, shape) for item in row["items"]]
-                    if row.get("see_all") is not None:
-                        items.append(tiles.see_all(T("see_all")))
-                    found.addItems(items)
-                    found.setVisible(True)
+        group = L.slot(self.base, i)
+        if i >= len(self.rows):
+            win.visible(group, False)
+            return
+        row = self.rows[i]
+        win.put(L.slot_header(self.base, i), row["title"])
+        for shape in self.shapes:
+            found = win.c(L.slot_list(self.base, i, shape))
+            found.reset()
+            if shape == row["shape"]:
+                if row.get("tile") is not None:
+                    items = [row["tile"](item) for item in row["items"]]
+                elif shape == "person":
+                    items = [tiles.person(base, credit) for credit in row["items"]]
+                elif shape == "channel":
+                    now = time.time()
+                    items = [channel_tile(base, channel, now) for channel in row["items"]]
                 else:
-                    found.setVisible(False)
-            win.visible(group, True)
+                    items = [tiles.tile(base, item, shape) for item in row["items"]]
+                if row.get("see_all") is not None:
+                    items.append(tiles.see_all(T("see_all")))
+                found.addItems(items)
+                found.setVisible(True)
+            else:
+                found.setVisible(False)
+        win.visible(group, True)
 
     def place(self, focused, top: int) -> None:
         """Places the rows: from `top`, or with row `focused` under the info
@@ -1471,6 +1545,9 @@ class Item(Screen):
         self.model = []
         self.first_y = 800
         self.first_button = L.ITEM_PLAY
+        # A show's TMDB title, as GET /api/items/{id}/request says it
+        # (asked once the page has drawn): More's Request more seasons.
+        self.asking = None
 
     # -- loading
 
@@ -1574,6 +1651,23 @@ class Item(Screen):
             self.restore()
         else:
             self.hero_mode()
+        if not filled:
+            self.ask_about()
+
+    def ask_about(self) -> None:
+        """Once the page has drawn, never before: what of a show may still
+        be asked for, where this profile may ask."""
+        d = self.detail
+        if d.get("kind") != "show" or not requests.may_ask(self.win.requests_summary(ask=False)):
+            self.asking = None
+            return
+
+        def took(found):
+            if self.detail is d:
+                self.asking = found if isinstance(found, dict) else None
+
+        # 404: the show has no TMDB match, and nothing to ask for.
+        self.win.later(lambda: self.session.get("/api/items/%d/request" % d["id"]), took)
 
     def draw(self) -> None:
         win, d = self.win, self.detail
@@ -1677,6 +1771,10 @@ class Item(Screen):
             actions.append((T("go_to_show"), lambda: self.win.open(Item(self.win, d["parent_id"]))))
         if d["kind"] == "album" and d.get("parent_id"):
             actions.append((T("go_to_artist"), lambda: self.win.open(Item(self.win, d["parent_id"]))))
+        if self.asking is not None and self.asking.get("askable") != []:
+            # The plugin's picker (null: TMDB's seasons weren't known yet).
+            title = d.get("title") or ""
+            actions.append((T("request_more_seasons"), lambda: run_plugin(route="more_seasons", id=d["id"], title=title)))
         actions.append((T("your_rating"), self.rate))
         return actions
 
@@ -1883,6 +1981,7 @@ class Item(Screen):
         else:
             self.last_focus = focus
             self.restore()
+        self.ask_about()
 
 
 def cast_and_crew(detail: dict) -> list:
@@ -2280,7 +2379,10 @@ def collection_tile(base: str, collection: dict) -> xbmcgui.ListItem:
 
 
 class Search(Screen):
-    """Search (TvSearchScreen): the field, then what was found, by kind."""
+    """Search (TvSearchScreen): the field, then what was found, by kind;
+    where this profile may ask, On TMDB after them: titles
+    the libraries don't have, looked for beside their search and never
+    waited for, their row coming once they do."""
 
     name = "search"
     rail = "search"
@@ -2289,6 +2391,12 @@ class Search(Screen):
         super().__init__(win)
         self.query = ""
         self.found = []
+        # On TMDB's titles (None: not looked for, or on their way), whether
+        # they are on their way, and the searches made (an older one's
+        # titles come too late).
+        self.tmdb = None
+        self.looking = False
+        self.asked = 0
         self.rows = Rows(win, L.SEARCH_ROWS, L.SEARCH_SLOTS, ("poster", "episode", "person", "square", "channel"))
 
     def show(self, filled: bool) -> None:
@@ -2298,25 +2406,82 @@ class Search(Screen):
             self.draw()
         win.setFocusId(self.last_focus if filled and self.last_focus else L.SEARCH_FIELD)
 
-    def draw(self) -> None:
-        win = self.win
-        self.rows.fill(self.found)
-        self.rows.place(None, 200)
-        if not self.query:
-            win.put(L.SEARCH_EMPTY_TITLE, T("search_empty"))
-            win.put(L.SEARCH_EMPTY_BODY, T("search_empty_body"))
-        elif not self.found:
-            win.put(L.SEARCH_EMPTY_TITLE, T("nothing_found_for") % self.query)
-            win.put(L.SEARCH_EMPTY_BODY, "")
-        else:
-            win.put(L.SEARCH_EMPTY_TITLE, "")
-            win.put(L.SEARCH_EMPTY_BODY, "")
+    def model(self) -> list:
+        """The libraries' rows, then On TMDB (in a slot of its own)."""
+        return self.found + ([self.tmdb_row()] if self.tmdb else [])
 
-    def search(self, query: str) -> None:
+    def tmdb_row(self) -> dict:
+        """On TMDB, its See all (on Discover: the tile has room for no more)
+        opening Discover's search."""
+        base = self.session.base
+        return {
+            "key": "tmdb",
+            "title": T("on_tmdb"),
+            "shape": "poster",
+            "items": self.tmdb,
+            "tile": lambda title: tiles.discover(base, title, tmdb_caption(title)),
+            "see_all": self.query,
+        }
+
+    def draw(self) -> None:
+        self.rows.fill(self.model())
+        self.place(self.focused_row())
+        self.say()
+
+    def focused_row(self):
+        found = self.rows.find(self.win.getFocusId())
+        return found[0] if found is not None else None
+
+    def say(self) -> None:
+        """What the page says over its rows: what to look for; that nothing
+        was found; that the libraries have nothing, over On TMDB."""
+        if not self.query:
+            title, body = T("search_empty"), T("search_empty_body")
+        elif self.found:
+            title, body = "", ""
+        elif self.tmdb or self.looking:
+            title, body = T("nothing_in_libraries"), ""
+        else:
+            title, body = T("nothing_found_for") % self.query, ""
+        self.win.put(L.SEARCH_EMPTY_TITLE, title)
+        self.win.put(L.SEARCH_EMPTY_BODY, body)
+
+    def top(self) -> int:
+        """Where the rows start: under the field (not an info block), or
+        under "Nothing in your libraries matches"."""
+        return 320 if self.query and not self.found else 200
+
+    def place(self, focused=None) -> None:
+        """The rows down from the top; with row `focused` focused, from it,
+        the ones above out of sight."""
+        y = self.top()
+        for i, row in enumerate(self.rows.rows):
+            group = L.slot(L.SEARCH_ROWS, i)
+            if focused is not None and i < focused:
+                self.win.place(group, 0, -2 * L.HEIGHT)
+                continue
+            self.win.place(group, 0, y)
+            y += L.row_height(L.SHAPES[row["shape"]]) + L.ROW_GAP
+
+    def search(self, query: str, again: bool = False) -> None:
+        """What `query` finds; `again`: the same search, On TMDB's row kept
+        until its titles come again."""
         self.query = query.strip()
         self.found = []
+        self.asked += 1
+        self.looking = False
+        asks = bool(self.query) and requests.may_ask(self.win.requests_summary(ask=False))
+        if not again or not asks:
+            self.tmdb = None
         if self.query:
-            answer = self.session.get("/api/search", q=self.query, limit=100, summaries=1)
+            if asks:
+                self.look_on_tmdb()
+            try:
+                answer = self.session.get("/api/search", q=self.query, limit=100, summaries=1)
+            except api.ApiError:
+                # The page stays as it was: On TMDB's titles aren't put under it.
+                self.asked += 1
+                raise
             items = answer.get("items", [])
             by_kind = lambda kinds: [i for i in items if i.get("kind") in kinds]  # noqa: E731
             for title, kinds, shape in (
@@ -2339,6 +2504,49 @@ class Search(Screen):
         self.win.put(L.SEARCH_FIELD, self.query or color(T("search_hint"), L.MUTED))
         self.draw()
 
+    def look_on_tmdb(self) -> None:
+        """GET /api/discover/search?missing=1, beside the libraries' search."""
+        asked, query = self.asked, self.query
+        self.looking = True
+
+        def took(answer, found=None):
+            if asked != self.asked:
+                return
+            if found is None:
+                found = [t for t in (answer or {}).get("results") or [] if isinstance(t, dict)]
+            self.looking = False
+            self.tmdb = found[:FOUND_SHOWN]
+            if self.win.owner.get(self.name) is self:
+                # Drawn even under another page: Back finds it there.
+                self.came()
+
+        # Refused (TMDB away): the libraries' rows alone.
+        self.win.later(lambda: self.session.get("/api/discover/search", q=query, missing=1), took, lambda: took(None, []))
+
+    def came(self) -> None:
+        """On TMDB's titles came: their row after the libraries', theirs
+        and focus left as they are."""
+        rows = self.rows.rows
+        at = next((i for i, row in enumerate(rows) if row["key"] == "tmdb"), None)
+        if at is not None and self.tmdb:
+            # Searched again (something was asked for): its badges anew.
+            listed = self.win.c(L.slot_list(L.SEARCH_ROWS, at, "poster"))
+            position = listed.getSelectedPosition()
+            rows[at] = self.tmdb_row()
+            self.rows.fill_slot(at)
+            if position > 0:
+                listed.selectItem(min(position, len(self.tmdb)))
+        elif at is not None:
+            return self.draw()
+        elif not self.tmdb:
+            # Nothing found there.
+            return self.say()
+        else:
+            # The last slot is kept for it: the libraries fill the others at most.
+            self.rows.append(self.tmdb_row())
+        self.place(self.focused_row())
+        self.say()
+
     def click(self, control_id: int) -> None:
         win = self.win
         if control_id == L.SEARCH_FIELD:
@@ -2357,35 +2565,61 @@ class Search(Screen):
             # A channel plays, the others found queued: Next and Previous.
             channels = found[1]["items"]
             return play_channels(self.session.base, channels, next(i for i, c in enumerate(channels) if c is found[2]))
+        if found is not None and found[1]["key"] == "tmdb":
+            return self.open_title(found[2])
         if found is not None:
             item = dict(found[2])
             if found[1]["key"] == "people":
                 item["kind"] = "person"
             win.open_item(item)
 
+    def open_title(self, title: dict) -> None:
+        """A title found on TMDB: the library's page where one has it, else
+        its main action (the plugin's); See all on Discover: Discover's
+        search for the same words, in Kodi's lists."""
+        if title.get("kind") == "seeall":
+            return self.win.leave_for_listing(route="discover_search", q=self.query)
+        if title.get("item_id") and title.get("status") in ("library", "partial"):
+            return self.win.open(Item(self.win, title["item_id"]))
+        run_plugin(route="title", kind="show" if title.get("kind") == "show" else "movie", tmdb=title.get("tmdb_id"))
+
     def focused(self, control_id: int) -> None:
         found = self.rows.find(control_id)
         if found is not None:
-            # Under the field, not an info block: rows start at 200.
-            y = 200
-            for i, row in enumerate(self.rows.rows):
-                group = L.slot(L.SEARCH_ROWS, i)
-                if i < found[0]:
-                    self.win.place(group, 0, -2 * L.HEIGHT)
-                    continue
-                self.win.place(group, 0, y)
-                y += L.row_height(L.SHAPES[row["shape"]]) + L.ROW_GAP
+            self.place(found[0])
         elif control_id == L.SEARCH_FIELD:
-            self.rows.place(None, 200)
+            self.place()
 
     def menu(self, control_id: int) -> None:
         found = self.rows.selected(control_id)
-        if found is not None and found[1]["key"] not in ("people", "channels"):
-            self.win.tile_menu(found[2])
+        if found is None or found[1]["key"] in ("people", "channels"):
+            return
+        title = found[2]
+        if found[1]["key"] != "tmdb":
+            return self.win.tile_menu(title)
+        if title.get("kind") == "show" and title.get("item_id") and title.get("status") == "partial":
+            # OK opens the library's seasons; more of them are asked for here.
+            tmdb = title.get("tmdb_id")
+            self.win.choose([(T("request_more_seasons"), lambda: run_plugin(route="title", kind="show", tmdb=tmdb, more=1))])
 
     def refresh(self) -> None:
-        if self.query:
-            self.search(self.query)
+        if not self.query:
+            return
+        focus = self.win.getFocusId()
+        at = self.win.c(focus).getSelectedPosition() if self.rows.find(focus) is not None else 0
+        self.search(self.query, again=True)
+        if at > 0 and self.rows.find(focus) is not None:
+            # Focus stays on the tile it was on (a title just asked for).
+            self.win.c(focus).selectItem(at)
+
+
+def tmdb_caption(title: dict) -> str:
+    """Under a TMDB title's poster: its badge, else its year and kind."""
+    badge = requests.colored(*requests.badge(title, T))
+    if badge:
+        return badge
+    year = str(title["year"]) if title.get("year") else ""
+    return " · ".join(p for p in (year, T("show") if title.get("kind") == "show" else T("movie")) if p)
 
 
 class Grid(Screen):
@@ -3434,7 +3668,7 @@ def run(plugin, base: str) -> None:
         window.session = Session(base)
         window.plugin = plugin
         window.doModal()
-        after = window.after
+        after, listing = window.after, window.listing
         del window
         kodi.clear_property(UI)
         if after == "choose_server":
@@ -3443,6 +3677,11 @@ def run(plugin, base: str) -> None:
             plugin.route_sign_in()
         elif after == "sign_out":
             plugin.sign_out()
+            return
+        elif after == "listing":
+            # Back from its top goes back to Kodi, as from the add-on's
+            # other lists; pley's window opens again from the add-on.
+            xbmc.executebuiltin("ActivateWindow(Videos,%s,return)" % listing)
             return
         else:
             return

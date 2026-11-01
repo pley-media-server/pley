@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Keyframe index used to segment stream-copied (remuxed) video exactly on
 //! keyframes, cached on disk per file version.
 //!

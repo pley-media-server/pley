@@ -500,7 +500,7 @@ export class PlaybackController {
    * ready while this one plays on (`begin`), when one plays. A recovery
    * starts again at once.
    */
-  private restart(atMs: number, prepared = false): void {
+  private restart(atMs: number, prepared = false, away: Outage | null = null): void {
     if (this.stopped || this.closed) return;
     const alongside = prepared && this.canPrepare;
     const generation = this.nextGeneration();
@@ -511,10 +511,11 @@ export class PlaybackController {
     this.begin(atMs, generation, alongside).then(settled, (e) => {
       if (generation !== this.generation) return;
       settled();
-      // Mid-playback, a server that doesn't answer is waited for.
-      if (this.shownOnce && unreachable(e)) {
+      // Mid-playback, a server or transcoder that doesn't answer is waited for: 90 s in all, however
+      // often the server answers in between (`away`, the wait this start ended).
+      if (this.shownOnce && outOfReach(e) && !(away && this.now() - away.since >= OUTAGE_MS)) {
         this.lastPositionMs = alongside ? this.livePosition() : atMs;
-        this.reachLost(true);
+        this.reachLost(true, away);
       } else this.failWith(e);
     });
   }
@@ -843,7 +844,7 @@ export class PlaybackController {
         (e: unknown) => {
           if (this.info?.session_id !== sessionId) return;
           if (e instanceof SessionStoppedError) this.stopByServer(e.note, true);
-          else if (unreachable(e)) this.reachLost(true);
+          else if (outOfReach(e)) this.reachLost(true);
           else if (e instanceof ApiError && e.status === 404) this.recover({ kind: "http", status: 404, detail: e.message }, info);
           else this.recover(error, info);
         },
@@ -876,7 +877,7 @@ export class PlaybackController {
           (e: unknown) => {
             if (this.info !== info) return;
             // A stall with the server gone isn't the video's fault: wait for the server rather than convert.
-            if (unreachable(e)) this.reachLost(false);
+            if (outOfReach(e)) this.reachLost(false);
             else if (e instanceof SessionStoppedError) this.stopByServer(e.note, true);
             else this.act(this.recovery.afterServerCheck(null, starving), starving);
           },
@@ -1029,7 +1030,7 @@ export class PlaybackController {
       },
       (e: unknown) => {
         if (this.info !== info || this.outage || this.closed) return;
-        if (unreachable(e)) this.reachLost(false);
+        if (outOfReach(e)) this.reachLost(false);
         else if (e instanceof SessionStoppedError) this.stopByServer(e.note, true);
         else this.act(this.recovery.onStall(info.method, starving), starving);
       },
@@ -1845,19 +1846,20 @@ export class PlaybackController {
   // ---------------------------------------------------------------- the server out of reach
 
   /**
-   * The server stopped answering mid-playback (the Android app's
-   * MediaLoading and ReconnectWatcher): the player keeps its place, says
-   * "Reconnecting…" and asks again after 0.5 s, 1 s, then every 2 s, for
-   * 90 s, as long as the server waits for a player it doesn't hear from.
-   * No recovery is spent on it, and no stall makes it convert the video.
+   * The server stopped answering mid-playback, or its transcoder did (the
+   * Android app's MediaLoading and ReconnectWatcher): the player keeps its
+   * place, says "Reconnecting…" and asks again after 0.5 s, 1 s, then every
+   * 2 s, for 90 s, as long as the server waits for a player it doesn't hear
+   * from. No recovery is spent on it, and no stall makes it convert the
+   * video. `away`: the wait before, which a new session ended too soon, goes on.
    */
-  private reachLost(engineFailed: boolean): void {
+  private reachLost(engineFailed: boolean, away: Outage | null = null): void {
     if (this.closed || this.stopped) return;
     if (this.outage) {
       if (engineFailed) this.outage.engineFailed = true;
       return;
     }
-    this.outage = { since: this.now(), attempts: 0, timer: null, engineFailed, atMs: this.lastPositionMs };
+    this.outage = { since: away ? away.since : this.now(), attempts: away ? away.attempts : 0, timer: null, engineFailed, atMs: this.lastPositionMs };
     this.update({ reconnecting: true, skipLabel: null });
     if (this.state.value.phase.kind !== "error") this.phase({ kind: "buffering" });
     this.askAgainLater(this.outage);
@@ -1883,7 +1885,7 @@ export class PlaybackController {
         if (e instanceof SessionStoppedError) {
           this.endOutage();
           this.stopByServer(e.note, true);
-        } else if (!unreachable(e)) {
+        } else if (!outOfReach(e)) {
           // It answers again, but the session went (404) or failed: a new one.
           this.reachBack(outage, true);
         } else if (this.now() - outage.since >= OUTAGE_MS) {
@@ -1906,7 +1908,7 @@ export class PlaybackController {
       this.phase({ kind: "playing" });
       return;
     }
-    this.restart(at);
+    this.restart(at, false, outage);
   }
 
   private endOutage(): void {
@@ -1918,6 +1920,15 @@ export class PlaybackController {
     this.lastAdvanceAt = this.now();
     this.update({ reconnecting: false });
   }
+}
+
+/**
+ * Nothing answers, or the server says it can't play just now (`503
+ * unavailable`: its transcoder restarts, say). Pages show the server's
+ * words for such a 503; mid-playback it is waited out like the server.
+ */
+function outOfReach(e: unknown): boolean {
+  return unreachable(e) || (isApiError(e, 503) && e.code === "unavailable");
 }
 
 /** Keyed playback URLs live under `/api/media/` (docs/API.md, "Keyed URLs"). */

@@ -228,6 +228,18 @@
       <scroll>false</scroll>
       <label>$ADDON[plugin.video.pley 30176]</label>
     </control>
+    <control type="label" id="3121">
+      <left>192</left>
+      <top>880</top>
+      <width>1100</width>
+      <height>40</height>
+      <font>font27</font>
+      <textcolor>FFA1A9B6</textcolor>
+      <align>left</align>
+      <aligny>center</aligny>
+      <scroll>false</scroll>
+      <label />
+    </control>
     <control type="image">
       <left>192</left>
       <top>964</top>

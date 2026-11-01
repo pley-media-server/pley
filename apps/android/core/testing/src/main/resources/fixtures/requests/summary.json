@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "access": "ask",
+  "movies_left": 2,
+  "seasons_left": 5,
+  "movies_limit": 3,
+  "seasons_limit": 10,
+  "movies_next_at": null,
+  "seasons_next_at": null,
+  "manage": false,
+  "pending": 0,
+  "failed": 0,
+  "unseen": 1,
+  "own": 4,
+  "changed_at": 1761600000,
+  "sign_in_again": null
+}

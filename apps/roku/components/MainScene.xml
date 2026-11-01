@@ -27,6 +27,22 @@
         <!-- The Live TV channel watched last in this launch: Live TV opens back
              at it. -->
         <field id="liveChannel" type="integer" />
+        <!-- What requests let the profile signed in do (lib/Requests.brs's
+             reqSummary; known false until the server said): the menu's
+             Discover and requests, and their number. -->
+        <field id="requestSummary" type="assocarray" />
+        <!-- A title's request changed ({ key, status, libraryId },
+             uiNoteRequest): the screens showing its tile give it its
+             badge. -->
+        <field id="requestNote" type="assocarray" alwaysNotify="true" />
+        <!-- A screen did something to a request ({ requestId (0 for
+             none), kind, tmdbId }): the summary is asked at once, and
+             without the event stream the request's title gets its badge
+             where it shows. -->
+        <field id="requestTouched" type="assocarray" alwaysNotify="true" />
+        <!-- The server's event stream is up: what changes elsewhere is
+             told, so pages showing requests need not ask on their own. -->
+        <field id="eventsLive" type="boolean" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
@@ -34,8 +50,17 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Events.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
     <children>
         <Group id="screens" />
         <Timer id="gather" duration="0.3" />
+        <!-- Request events, gathered for a second: the summary is asked
+             once for those that come together. -->
+        <Timer id="requestGather" duration="1" />
+        <!-- Without the event stream, the summary each minute. -->
+        <Timer id="requestPoll" duration="60" repeat="true" />
     </children>
 </component>

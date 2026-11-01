@@ -21,7 +21,7 @@ import time
 import unittest
 
 import support  # noqa: F401
-from pley import api, auth, autoquality, caps, profiles, service
+from pley import api, auth, autoquality, caps, kodi, profiles, requests, service
 from pley.api import path_in
 from pley.events import Events
 from pley.proxy import Proxy
@@ -124,10 +124,13 @@ class EndToEndTest(unittest.TestCase):
 
     def sign_in(self, store):
         flow = auth.DeviceSignIn(self.server, AGENT)
+        # This server offers asking for titles and deciding on them: the
+        # add-on asks for both.
+        self.assertEqual(flow.scope, "library play playlists profiles requests approvals")
         started = flow.start()
         shown = self.browser("POST", "/api/oauth/device/verify", {"user_code": started["user_code"]})
         self.assertEqual(shown["client"]["name"], "Pley for Kodi")
-        self.assertEqual(shown["scopes"], ["library", "play", "playlists", "profiles"])
+        self.assertCountEqual(shown["scopes"], ["library", "play", "playlists", "profiles", "requests", "approvals"])
         self.assertEqual(self.browser("POST", "/api/oauth/requests/%s" % shown["id"], {"allow": True}), {"done": True})
         time.sleep(flow.interval)
         state, tokens = flow.poll(started["device_code"])
@@ -138,7 +141,7 @@ class EndToEndTest(unittest.TestCase):
     def test_the_add_on_against_a_real_server(self):
         store = auth.Store(os.path.join(self.dir, "tokens.json"))
         tokens = self.sign_in(store)
-        self.assertEqual(tokens["scope"], "library play playlists profiles")
+        self.assertCountEqual(tokens["scope"].split(), ["library", "play", "playlists", "profiles", "requests", "approvals"])
         holder = auth.Tokens(store, AGENT)
         proxy = Proxy(holder, AGENT, "e2e-secret")
         proxy.start()
@@ -153,6 +156,16 @@ class EndToEndTest(unittest.TestCase):
         libraries = client.get("/api/libraries")
         self.assertEqual([(l["name"], l["paths"]) for l in libraries], [("Movies", [])], "apps don't see paths")
         self.assertEqual(client.get("/api/libraries/%d/items" % self.library)["total"], 1)
+
+        # Requests are off on a server without a TMDB key: the summary says
+        # so, and Discover answers in pley's words, not as a server away.
+        summary = requests.summary(client)
+        self.assertEqual((summary["enabled"], summary["sign_in_again"]), (False, None))
+        self.assertFalse(requests.discovers(summary) or requests.lists(summary))
+        with self.assertRaises(api.ApiError) as off:
+            client.get("/api/discover/trending")
+        self.assertEqual(off.exception.status, 503)
+        self.assertEqual(requests.problem(off.exception, kodi.text)[0], "Requests are off")
         item = self.item["id"]
         report = caps.build("", {}, (1920, 1080), "Kodi 21.3 on Windows")
 
@@ -190,11 +203,8 @@ class EndToEndTest(unittest.TestCase):
         request = {"item_id": item, "client_id": "kodi-e2e", "caps": report, "max_bitrate": 2000, "max_height": 480}
         info = client.post("/api/playback", request)
         self.assertEqual((info["method"], info["hls"]), ("transcode", True))
-        self.assertTrue(info["url"].endswith("/master.m3u8"), info["url"])
-        master = client.request("GET", info["url"]).body.decode()
-        self.assertIn("index.m3u8", master)
-        playlist_url = info["url"].rsplit("/", 1)[0] + "/index.m3u8"
-        playlist = client.request("GET", playlist_url).body.decode()
+        self.assertTrue(info["url"].endswith("/index.m3u8"), info["url"])
+        playlist = client.request("GET", info["url"]).body.decode()
         first = next(line for line in playlist.splitlines() if line.endswith(".ts"))
         segment = client.request("GET", info["url"].rsplit("/", 1)[0] + "/" + first)
         self.assertEqual(segment.status, 200)
@@ -244,13 +254,13 @@ class EndToEndTest(unittest.TestCase):
         self.assertEqual(refused.exception.code, "wrong_pin")
         profiles.switch(client, kid["id"], "2468")
         self.assertEqual(client.get("/api/auth/me")["id"], kid["id"])
-        self.assertEqual(holder.identity(), (self.server, kid["id"]))
+        self.assertEqual(holder.identity(), (self.server, kid["id"], saved["sign_in"]))
         self.assertEqual(client.get("/api/libraries/%d/items" % self.library)["total"], 1)
 
         # Listed with the account's apps, then signed out.
         apps = self.admin.get("/api/me/apps")
-        kodi = [a for a in apps if a["client_id"] == auth.CLIENT_ID]
-        self.assertEqual((kodi[0]["name"], kodi[0]["device"]), ("Pley for Kodi", "Kodi 21.3; Windows"))
+        ours = [a for a in apps if a["client_id"] == auth.CLIENT_ID]
+        self.assertEqual((ours[0]["name"], ours[0]["device"]), ("Pley for Kodi", "Kodi 21.3; Windows"))
         client.request("POST", "/sign-out")
         self.assertEqual([a for a in self.admin.get("/api/me/apps") if a["client_id"] == auth.CLIENT_ID], [])
         self.assertEqual(client.request("GET", "/api/libraries").status, 401)

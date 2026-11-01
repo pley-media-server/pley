@@ -58,7 +58,7 @@ class ServerEventsTest {
         server.enqueue(MockPley.events(event("scan_started"), event("unknown_type"), event("scan_progress"), "not json", event("library_changed")))
         server.enqueue(MockPley.events(event("libraries_changed")))
 
-        val got = stream().events().take(6).toList()
+        val got = stream().events().take(7).toList()
 
         assertEquals(
             listOf(
@@ -66,7 +66,8 @@ class ServerEventsTest {
                 LiveEvent.Event(ServerEvent.ScanStarted(1)),
                 LiveEvent.Event(ServerEvent.ScanProgress(1, ScanPhase.Probing, 118, 412)),
                 LiveEvent.Event(ServerEvent.LibraryChanged(2)),
-                // The server ended the stream: connected again, and said so.
+                // The server ended the stream at once: lost, connected again, and said so.
+                LiveEvent.Dropped,
                 LiveEvent.Reconnected,
                 LiveEvent.Event(ServerEvent.LibrariesChanged),
             ),
@@ -156,9 +157,14 @@ class ServerEventsTest {
         EventStream(connection, now = { testScheduler.currentTime }).events().test {
             assertEquals(LiveEvent.Reconnected, awaitItem())
             assertEquals(LiveEvent.Event(ServerEvent.ScanStarted(1)), awaitItem())
+            // Dropped after a second: lost until it opens again.
+            assertEquals(LiveEvent.Dropped, awaitItem())
             assertEquals(LiveEvent.Reconnected, awaitItem())
             assertEquals(LiveEvent.Event(ServerEvent.LibraryChanged(2)), awaitItem())
+            // Ended as planned (an expired token): lost, should opening again fail, and opened again at once.
+            assertEquals(LiveEvent.Dropped, awaitItem())
             assertEquals(LiveEvent.Reconnected, awaitItem())
+            assertEquals(LiveEvent.Dropped, awaitItem())
             assertTrue(awaitError() is SignedOutException)
         }
         val opened = 2_000L + 4_000

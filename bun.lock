@@ -7,7 +7,7 @@
     },
     "apps/desktop": {
       "name": "pley-desktop",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@tauri-apps/api": "^2.12.4",
       },
@@ -33,7 +33,7 @@
     },
     "apps/web": {
       "name": "pley-web",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@tanstack/react-query": "^5.105.0",
         "@tanstack/react-virtual": "^3.14.23",
@@ -71,7 +71,7 @@
     },
     "apps/webos": {
       "name": "pley-webos",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "pley-tv": "*",
       },

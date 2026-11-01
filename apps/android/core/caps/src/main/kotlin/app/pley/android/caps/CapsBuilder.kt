@@ -74,7 +74,7 @@ object CapsBuilder {
         val videoCodecs = video.map { it.codec }.distinct()
 
         // The screen's HDR types, corrected by the quirks.
-        val screen = (screenHdrTypes(input.display, device.isTv) + applied.flatMap { it.add.hdrTypes }) -
+        val screen = (screenHdrTypes(input.display, device.isTv, settings.modeSwitching) + applied.flatMap { it.add.hdrTypes }) -
             applied.flatMap { it.remove.hdrTypes }.toSet()
 
         // Dolby Vision profiles: hardware decoders, plus and minus the quirks.
@@ -122,7 +122,9 @@ object CapsBuilder {
             capsVersion = ClientCaps.VERSION_2,
             video = video,
             hdrTypes = hdrTypes,
-            dolbyVisionProfiles = if (dvScreen) dvProfiles else emptyList(),
+            // Whatever the screen: without Dolby Vision in hdrTypes, the server
+            // says the screen is what doesn't show it.
+            dolbyVisionProfiles = dvProfiles,
             audioDecode = audioDecode,
             audioPassthrough = passthroughNames,
             audioChannels = channels,
@@ -222,20 +224,28 @@ object CapsBuilder {
     }
 
     /**
-     * The HDR types of the screen: per mode on Android 14 and up (on a TV
-     * the union over its modes, since the player switches modes; on a phone
-     * the mode in use), else what getHdrCapabilities says.
+     * The HDR types of the screen in the modes a video plays in: per mode on
+     * Android 14 and up (on a TV the mode in use and those the player may
+     * switch to, on a phone the mode in use), less the ones the person
+     * turned off; else what getHdrCapabilities says. Media3 decodes Dolby
+     * Vision as its base layer in a mode that doesn't show it, so a mode the
+     * player never uses mustn't promise it.
      */
-    fun screenHdrTypes(display: DisplayState?, tv: Boolean): List<DynamicRange> {
+    fun screenHdrTypes(display: DisplayState?, tv: Boolean, switching: ModeSwitching = ModeSwitching.Auto): List<DynamicRange> {
         display ?: return emptyList()
-        val perMode = display.modes.mapNotNull { it.hdrTypes }
-        val types = when {
-            perMode.isEmpty() || perMode.all { it.isEmpty() } -> display.hdrCapabilities
-            tv -> perMode.flatten()
-            else -> display.activeMode?.hdrTypes ?: display.hdrCapabilities
-        }
-        return types.mapNotNull { dynamicRange(it) }.distinct().sortedBy { it.ordinal }
+        val modes = if (tv) display.videoModes(switching) else listOfNotNull(display.activeMode)
+        if (modes.isEmpty()) return ranges(display.hdrCapabilities)
+        return ranges(modes.flatMap { hdrTypesIn(display, it) })
     }
+
+    /** The HDR types [display] shows in [mode], as [screenHdrTypes] counts them. */
+    fun hdrTypesShownIn(display: DisplayState, mode: DisplayModeInfo?): List<DynamicRange> = ranges(hdrTypesIn(display, mode))
+
+    /** Modes that all list nothing (or the version before Android 14): getHdrCapabilities. */
+    private fun hdrTypesIn(display: DisplayState, mode: DisplayModeInfo?): List<Int> =
+        if (display.modes.all { it.hdrTypes.isNullOrEmpty() }) display.hdrCapabilities else display.hdrTypesIn(mode)
+
+    private fun ranges(types: List<Int>): List<DynamicRange> = types.mapNotNull { dynamicRange(it) }.distinct().sortedBy { it.ordinal }
 
     /**
      * The encodings sent as they are: Media3's, corrected by the quirks, then

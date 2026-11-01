@@ -13,6 +13,7 @@ import { CastRow, CrewRows, hasCrew } from "./Credits";
 import { ExtrasRow } from "./Extras";
 import { MoreLikeThis } from "./MoreLikeThis";
 import { MoreActions } from "./ItemActions";
+import { ItemRequestLine } from "./ItemRequest";
 import {
   ContentRating,
   Genres,
@@ -76,6 +77,7 @@ export function ShowView({ item }: { item: ItemDetail }) {
             <WatchedButton item={item} />
             <MoreActions item={item} />
           </div>
+          <ItemRequestLine item={item} />
           {item.tagline ? <p className="text-base italic text-fg/75">{item.tagline}</p> : null}
           <Summary text={item.summary} />
           {hasCrew(item.crew) ? (

@@ -8,6 +8,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
@@ -29,6 +30,8 @@ class PleyRenderersFactory(
     asyncQueueing: Boolean,
     private val music: Boolean,
     private val audioDelay: AudioDelay? = null,
+    /** Each video decoder started, with the MIME type it decodes; before Media3's listeners hear of it. */
+    private val onVideoCodec: (name: String, mimeType: String) -> Unit = { _, _ -> },
 ) : DefaultRenderersFactory(context) {
     init {
         setEnableDecoderFallback(true)
@@ -56,7 +59,7 @@ class PleyRenderersFactory(
             .setEventHandler(eventHandler)
             .setEventListener(eventListener)
             .setMaxDroppedFramesToNotify(MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY)
-        out.add(PolicyVideoRenderer(builder, rules))
+        out.add(PolicyVideoRenderer(builder, context, rules, onVideoCodec))
     }
 
     override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink? {
@@ -69,13 +72,29 @@ class PleyRenderersFactory(
 
 /**
  * Media3's video renderer, asking the decoder lists through a selector that
- * knows the format: the same renderer otherwise.
+ * knows the format, with Dolby Vision decoders first for Dolby Vision that
+ * comes out as Dolby Vision ([DecoderRules.dolbyVisionDecoders]), and
+ * saying which MIME type each decoder it starts was chosen for (a Dolby
+ * Vision stream's base layer goes to an HEVC decoder): the same renderer
+ * otherwise.
  */
 @OptIn(markerClass = [UnstableApi::class])
 internal class PolicyVideoRenderer(
     builder: MediaCodecVideoRenderer.Builder,
+    private val context: Context,
     private val rules: DecoderRules,
+    private val onCodec: (name: String, mimeType: String) -> Unit = { _, _ -> },
 ) : MediaCodecVideoRenderer(builder) {
+    override fun onCodecInitialized(
+        name: String,
+        configuration: MediaCodecAdapter.Configuration,
+        initializedTimestampMs: Long,
+        initializationDurationMs: Long,
+    ) {
+        onCodec(name, configuration.codecInfo.mimeType)
+        super.onCodecInitialized(name, configuration, initializedTimestampMs, initializationDurationMs)
+    }
+
     override fun supportsFormat(mediaCodecSelector: MediaCodecSelector, format: Format): Int =
         super.supportsFormat(rules.selectorFor(mediaCodecSelector, format), format)
 
@@ -83,5 +102,7 @@ internal class PolicyVideoRenderer(
         mediaCodecSelector: MediaCodecSelector,
         format: Format,
         requiresSecureDecoder: Boolean,
-    ): List<MediaCodecInfo> = super.getDecoderInfos(rules.selectorFor(mediaCodecSelector, format), format, requiresSecureDecoder)
+    ): List<MediaCodecInfo> =
+        rules.dolbyVisionDecoders(context, mediaCodecSelector, format, requiresSecureDecoder, configuration.tunneling)
+            ?: super.getDecoderInfos(rules.selectorFor(mediaCodecSelector, format), format, requiresSecureDecoder)
 }

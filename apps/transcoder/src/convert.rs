@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Conversions: a [`JobRequest`] made into one Matroska file, in one FFmpeg
 //! run at full speed (a converted download, for a device that doesn't play
 //! the original as it is). One runs at a time, in a transcode slot like a

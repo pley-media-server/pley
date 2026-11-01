@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The GPUs this computer (or container) shows FFmpeg: the render node VAAPI
 //! uses, and what [`crate::ffmpeg`]'s cached detection depends on besides
 //! FFmpeg, so that a GPU given later (a Docker add-on, a driver installed) is

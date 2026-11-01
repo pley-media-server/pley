@@ -1,8 +1,10 @@
 import { Route, Routes } from "react-router";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { keys } from "@/api/hooks";
 import { apiError, LocationDisplay, mockApi, renderWithProviders, testUser } from "@/test/render";
+import { makeRequest, makeRequestList, makeSummary } from "@/test/requests";
 import { RequireAdmin, RequireAuth, useAuth } from "./auth";
 
 beforeEach(() => {
@@ -74,6 +76,46 @@ describe("RequireAuth", () => {
     mockApi({ "GET /api/server": () => server, "GET /api/auth/me": () => apiError(500, "internal", "database is locked") });
     renderApp();
     expect(await screen.findByText("Database is locked")).toBeInTheDocument();
+  });
+
+  it("listens afresh for another profile: an event stream and request notices of its own", async () => {
+    const streams: { url: string; closed: boolean }[] = [];
+    vi.stubGlobal(
+      "EventSource",
+      class {
+        static readonly OPEN = 1;
+        static readonly CLOSED = 2;
+        readonly stream = { url: "", closed: false };
+        constructor(url: string) {
+          this.stream.url = url;
+          streams.push(this.stream);
+        }
+        close() {
+          this.stream.closed = true;
+        }
+      },
+    );
+    let me = { ...testUser, name: "Sam" };
+    const news = makeRequest({ id: 4, title: "Heat", status: "available", unseen: true, updated_at: 1_700_000_500 });
+    const requests = mockApi({
+      "GET /api/server": () => server,
+      "GET /api/auth/me": () => me,
+      "GET /api/requests/summary": () => makeSummary({ unseen: 1, own: 1 }),
+      "GET /api/requests": () => makeRequestList([news]),
+    });
+    const { client } = renderApp("/");
+    expect(await screen.findByText("“Heat” is ready to watch.")).toBeInTheDocument();
+    const catchUps = () => requests.filter((r) => r.path === "/api/requests?unseen=1&limit=20");
+    expect(catchUps()).toHaveLength(1);
+
+    me = { ...testUser, id: 2, name: "Ann", is_admin: false };
+    act(() => {
+      client.setQueryData(keys.me, me);
+    });
+    expect(await screen.findByText("Hello Ann")).toBeInTheDocument();
+    expect(streams.map((s) => s.closed)).toEqual([true, false]);
+    // Ann's news is hers to hear, however many Sam had.
+    await waitFor(() => expect(catchUps()).toHaveLength(2));
   });
 });
 

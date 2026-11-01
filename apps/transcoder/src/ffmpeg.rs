@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Discovery of the local FFmpeg installation: version, working encoders
 //! (test-encodes, not just "compiled in"), tone mappers, throttling support and
 //! segment muxer semantics. Results are cached on disk keyed by the binaries'

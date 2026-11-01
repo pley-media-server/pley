@@ -1,0 +1,4 @@
+{
+  "type": "request_available", "request_id": 42, "title": "Breaking Bad", "kind": "show", "tmdb_id": 1396, "item_id": 230,
+  "poster_url": "/api/discover/images/poster/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg", "seasons": [1, 2], "complete": false
+}

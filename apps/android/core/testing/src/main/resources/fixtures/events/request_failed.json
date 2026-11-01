@@ -1,0 +1,1 @@
+{ "type": "request_failed", "request_id": 50, "title": "Inside Out 2", "kind": "movie", "reason": "Radarr refused the key", "retry_at": null }

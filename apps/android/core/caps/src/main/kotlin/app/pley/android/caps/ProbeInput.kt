@@ -2,6 +2,7 @@ package app.pley.android.caps
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.math.abs
 
 /**
  * Everything the probe reads from the device, before any rule is applied:
@@ -108,6 +109,46 @@ data class DisplayState(
     val matchContent: MatchContent = MatchContent.Unknown,
 ) {
     val activeMode: DisplayModeInfo? get() = modes.firstOrNull { it.id == activeModeId } ?: modes.firstOrNull()
+
+    /**
+     * The HDR types the mode in use lists that getHdrCapabilities leaves out
+     * (Android 14 and up): the ones the person turned off in the system's
+     * settings, which the platform and Media3 don't use.
+     */
+    val turnedOffHdrTypes: Set<Int> get() = activeMode?.hdrTypes.orEmpty().toSet() - hdrCapabilities.toSet()
+
+    /**
+     * The HDR types turned off, as this display tells and as [remembered]
+     * from other modes: one the mode in use doesn't list stays as it was
+     * seen (the setting holds in every mode, but each mode shows only the
+     * types it lists). Before Android 14, [remembered].
+     */
+    fun turnedOffHdrTypes(remembered: Set<Int>): Set<Int> {
+        val listed = activeMode?.hdrTypes ?: return remembered
+        return remembered - listed.toSet() + turnedOffHdrTypes
+    }
+
+    /** The HDR types shown in [mode]: its own on Android 14 and up, less those turned off; else getHdrCapabilities. */
+    fun hdrTypesIn(mode: DisplayModeInfo?): List<Int> = mode?.hdrTypes?.let { it - turnedOffHdrTypes } ?: hdrCapabilities
+
+    /**
+     * The modes a TV's player shows a video in: the one in use, and those of
+     * its size the player may switch to for the video's frame rate. With
+     * [ModeSwitching.Auto] the person's match-content choice says which:
+     * none for Never, the seamless ones for SeamlessOnly.
+     */
+    fun videoModes(switching: ModeSwitching): List<DisplayModeInfo> {
+        val active = activeMode ?: return emptyList()
+        val preference = if (switching == ModeSwitching.Always) MatchContent.Always else matchContent
+        val switchable = modes.filter { mode ->
+            mode.width == active.width && mode.height == active.height && when {
+                switching == ModeSwitching.Off || preference == MatchContent.Never -> false
+                preference == MatchContent.SeamlessOnly -> active.alternativeRefreshRates.any { abs(it - mode.refreshRate) <= 0.01f }
+                else -> true
+            }
+        }
+        return (listOf(active) + switchable).distinctBy { it.id }
+    }
 }
 
 /** One mode of the screen. */

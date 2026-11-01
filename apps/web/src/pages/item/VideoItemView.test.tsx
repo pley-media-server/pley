@@ -93,3 +93,23 @@ describe("the title page's audio", () => {
     expect(saveStreamChoice).toHaveBeenLastCalledWith(5, { file_id: 7, audio_index: null, subtitle_index: null });
   });
 });
+
+describe("the title page's quality badges", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response("[]", { headers: { "Content-Type": "application/json" } }))));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("follow the version picked", async () => {
+    const user = userEvent.setup();
+    const video = (range: Partial<MediaFile["streams"][number]>) =>
+      makeStream({ index: 0, kind: "video", codec: "hevc", width: 3840, height: 2160, ...range });
+    const hdr10 = file({ id: 7, streams: [video({ dynamic_range: "hdr10" })] });
+    const dv = file({ id: 8, path: "Alien.1979.DV.mkv", streams: [video({ dynamic_range: "dolby_vision", dv_profile: 8, dv_bl_compat: 1 })] });
+    renderWithProviders(<VideoItemView item={{ ...movie(hdr10), files: [hdr10, dv] }} />);
+    expect(screen.getByText("HDR10")).toBeInTheDocument();
+    await user.selectOptions(screen.getByRole("combobox", { name: "Version" }), "8");
+    expect(screen.getByText("DV P8.1")).toBeInTheDocument();
+    expect(screen.queryByText("HDR10")).not.toBeInTheDocument();
+  });
+});

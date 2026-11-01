@@ -14,11 +14,16 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Auth.brs" />
     <children>
         <Label id="wordmark" translation="[96, 72]" text="Pley" color="0x38BDF8FF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="title" translation="[96, 180]" width="1500" text="Sign in to Pley" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="server" translation="[96, 262]" width="1500" color="0xA1A9B6FF" font="font:SmallerSystemFont" />
         <Label id="intro" translation="[96, 306]" width="1500" color="0xEB6B70FF" visible="false" font="font:SmallerSystemFont" />
+        <!-- Shown when the server requires two-step sign-in (older servers
+             don't say): here, or below the intro when that shows, with the
+             steps, the status and the buttons a line lower. -->
+        <Label id="twoStep" translation="[96, 306]" width="1500" color="0xA1A9B6FF" visible="false" font="font:SmallerSystemFont" />
         <Group id="steps">
             <Label translation="[96, 380]" text="On your phone or computer, go to" color="0xEBEBEBFF" font="font:MediumSystemFont" />
             <Label id="url" translation="[96, 432]" width="1248" maxLines="2" color="0x7DD3FCFF" font="font:ExtraLargeBoldSystemFont" />

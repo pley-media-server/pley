@@ -71,14 +71,14 @@ function contentTile(item as object, server as string, wide as boolean) as objec
     else if kind = "track"
         subtitle = httpSentence(item.grandparent_title)
     else if kind = "episode"
-        show = httpSentence(item.grandparent_title)
+        showTitle = httpSentence(item.grandparent_title)
         code = fmtEpisode(item.parent_index, item.index)
         parts = []
         if code <> "" then parts.Push(code)
         if title <> "" then parts.Push(title)
-        if show <> ""
+        if showTitle <> ""
             subtitle = parts.Join(" · ")
-            title = show
+            title = showTitle
         else
             subtitle = code
         end if
@@ -310,12 +310,12 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
         if score > 0 then parts.Push("★ " + fmtOneDecimal(score))
         line = parts.Join(" · ")
     else if kind = "episode"
-        show = httpSentence(detail.grandparent_title)
+        showTitle = httpSentence(detail.grandparent_title)
         code = fmtEpisode(detail.parent_index, detail.index)
-        if show <> "" then heading = show
+        if showTitle <> "" then heading = showTitle
         parts = []
         if code <> "" then parts.Push(code)
-        if show <> "" then parts.Push(title)
+        if showTitle <> "" then parts.Push(title)
         meta = fmtMeta(detail)
         if meta <> "" then parts.Push(meta)
         line = parts.Join(" · ")
@@ -486,8 +486,8 @@ function contentPlayerTitle(detail as object) as string
     title = httpSentence(detail.title)
     if httpString(detail.kind) <> "episode" then return title
     parts = []
-    show = httpSentence(detail.grandparent_title)
-    if show <> "" then parts.Push(show)
+    showTitle = httpSentence(detail.grandparent_title)
+    if showTitle <> "" then parts.Push(showTitle)
     code = fmtEpisode(detail.parent_index, detail.index)
     if code <> "" then parts.Push(code)
     if title <> "" then parts.Push(title)

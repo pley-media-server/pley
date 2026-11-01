@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Delete, Lock } from "lucide-react";
 import { errorMessage, isApiError } from "@/api/client";
-import { useProfiles, useSwitchProfile } from "@/api/hooks";
-import type { User } from "@/api/types";
+import { useProfiles, useServer, useSwitchProfile } from "@/api/hooks";
+import type { ServerStatus, TwoStepSetup, User } from "@/api/types";
 import { useOptionalAudioPlayer } from "@/audio/AudioPlayer";
 import { useAuth } from "@/auth";
 import { Avatar } from "@/components/Avatar";
@@ -11,7 +11,8 @@ import { Logo } from "@/components/Logo";
 import { Button, Spinner, TextInput } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { useDocumentTitle } from "@/lib/hooks";
-import { codeKind } from "@/lib/twoStep";
+import { codeKind, mustSetUpTwoStep, twoStepSetupOf } from "@/lib/twoStep";
+import { RecoveryCodesView, ScanSetup } from "./TwoStepSetup";
 
 /**
  * Where to go after signing in (`?next=`): a path on this site, but not the
@@ -43,9 +44,14 @@ export function freer(target: User, me: User): boolean {
   return !me.all_libraries && (target.all_libraries || target.library_ids.some((id) => !me.library_ids.includes(id)));
 }
 
-/** What switching to `target` asks for (`locked`: nothing would do, until it gets a PIN). */
-export function challenge(target: User, me: User): "none" | "pin" | "password" | "locked" {
+/**
+ * What switching to `target` asks for (`locked`: nothing would do, until it
+ * gets a PIN). A profile that has to set up two-step sign-in, which the
+ * server requires, takes its password whatever else it has: that sets it up.
+ */
+export function challenge(target: User, me: User, server?: ServerStatus): "none" | "pin" | "password" | "setup" | "locked" {
   if (target.id === me.id) return "none";
+  if (mustSetUpTwoStep(target, server)) return "setup";
   if (target.has_pin) return "pin";
   if (freer(target, me)) return target.has_password ? "password" : "locked";
   return "none";
@@ -150,12 +156,15 @@ function PinPad({
 
 function PasswordPrompt({
   target,
+  setUp,
   busy,
   error,
   onSubmit,
   onCancel,
 }: {
   target: User;
+  /** It has to set up two-step sign-in, which its password does next. */
+  setUp: boolean;
   busy: boolean;
   error: string | null;
   /** With the code from the profile's authenticator app, when it has two-step sign-in. */
@@ -174,10 +183,13 @@ function PasswordPrompt({
       <Avatar user={target} size="lg" />
       <div className="mt-3 text-lg font-semibold">{target.name}</div>
       <p className="mt-1 text-center text-sm text-muted">
-        {target.is_admin ? "This is an administrator profile." : "This profile can see more than yours."}{" "}
-        {target.two_step
-          ? "Enter its password and the code from its authenticator app to switch."
-          : "Enter its password to switch."}
+        {setUp
+          ? `This server requires two-step sign-in, which ${target.name} hasn't set up yet. Enter the profile's password to set it up now.`
+          : `${target.is_admin ? "This is an administrator profile." : "This profile can see more than yours."} ${
+              target.two_step
+                ? "Enter its password and the code from its authenticator app to switch."
+                : "Enter its password to switch."
+            }`}
       </p>
       <TextInput
         autoFocus
@@ -215,10 +227,18 @@ function PasswordPrompt({
   );
 }
 
+/**
+ * Setting up two-step sign-in for the profile being switched to, with the
+ * password typed for it (the secret came with the server's answer), then its
+ * recovery codes.
+ */
+type SettingUp = { kind: "scan"; password: string; setup: TwoStepSetup } | { kind: "codes"; codes: string[]; username: string };
+
 /** "Who's watching?": pick a home profile for this device. */
 export function ProfilesPage() {
   useDocumentTitle("Who's watching?");
   const me = useAuth();
+  const server = useServer();
   const [params] = useSearchParams();
   const next = safeNext(params.get("next"));
   const navigate = useNavigate();
@@ -228,17 +248,27 @@ export function ProfilesPage() {
   const [target, setTarget] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [failures, setFailures] = useState(0);
+  const [settingUp, setSettingUp] = useState<SettingUp | null>(null);
 
-  const doSwitch = (user: User, secret: { pin?: string; password?: string; code?: string } = {}) => {
+  const doSwitch = (user: User, secret: { pin?: string; password?: string; code?: string; setup_id?: string } = {}) => {
     setError(null);
     switchProfile.mutate(
       { user_id: user.id, ...secret },
       {
-        onSuccess: () => {
+        onSuccess: (res) => {
           audio?.close();
-          void navigate(next, { replace: true });
+          // It set up two-step sign-in on the way: its recovery codes first.
+          if (res.recovery_codes?.length) setSettingUp({ kind: "codes", codes: res.recovery_codes, username: res.user.username });
+          else void navigate(next, { replace: true });
         },
         onError: (err) => {
+          const setup = twoStepSetupOf(err);
+          if (setup && secret.password) {
+            setSettingUp({ kind: "scan", password: secret.password, setup });
+            // Asking to set it up isn't a mistake; a wrong code is.
+            if (secret.code) setError(errorMessage(err));
+            return;
+          }
           setError(switchError(err));
           setFailures((n) => n + 1);
         },
@@ -247,7 +277,7 @@ export function ProfilesPage() {
   };
 
   const choose = (user: User) => {
-    const needs = challenge(user, me);
+    const needs = challenge(user, me, server.data);
     if (user.id === me.id) return navigate(next, { replace: true });
     setError(null);
     if (needs === "locked") setError(`${user.name} can see more than your profile: an administrator can give it a PIN to switch to it.`);
@@ -255,8 +285,14 @@ export function ProfilesPage() {
     else setTarget(user);
   };
 
+  const cancel = () => {
+    setTarget(null);
+    setSettingUp(null);
+    setError(null);
+  };
+
   const list = profiles.data ?? [];
-  const needs = target ? challenge(target, me) : "none";
+  const needs = target ? challenge(target, me, server.data) : "none";
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-12">
@@ -270,7 +306,34 @@ export function ProfilesPage() {
       />
       <div className="relative flex w-full max-w-4xl animate-pop-in flex-col items-center">
         <Logo className="mb-10 h-9" />
-        {target && needs === "pin" ? (
+        {settingUp?.kind === "codes" ? (
+          <div className="w-full max-w-md text-left">
+            <h1 className="mb-4 text-xl font-semibold tracking-tight">Save the recovery codes</h1>
+            <RecoveryCodesView
+              codes={settingUp.codes}
+              username={settingUp.username}
+              serverName={server.data?.name}
+              onDone={() => void navigate(next, { replace: true })}
+            />
+          </div>
+        ) : target && settingUp?.kind === "scan" ? (
+          <div className="w-full max-w-md text-left">
+            <h1 className="text-xl font-semibold tracking-tight">Set up two-step sign-in for {target.name}</h1>
+            <p className="mb-5 mt-1.5 text-sm text-muted">
+              {target.name} will sign in with a code from an authenticator app after the password, from now on.
+            </p>
+            <ScanSetup
+              key={settingUp.setup.secret}
+              appsHint
+              setup={settingUp.setup}
+              busy={switchProfile.isPending}
+              error={error}
+              submitLabel="Turn on and switch"
+              onCode={(code) => doSwitch(target, { password: settingUp.password, code, setup_id: settingUp.setup.id })}
+              onCancel={cancel}
+            />
+          </div>
+        ) : target && needs === "pin" ? (
           <PinPad
             // Every failed attempt starts the pad over (clears the dots).
             key={failures}
@@ -278,21 +341,16 @@ export function ProfilesPage() {
             busy={switchProfile.isPending}
             error={error}
             onSubmit={(pin) => doSwitch(target, { pin })}
-            onCancel={() => {
-              setTarget(null);
-              setError(null);
-            }}
+            onCancel={cancel}
           />
-        ) : target && needs === "password" ? (
+        ) : target && (needs === "password" || needs === "setup") ? (
           <PasswordPrompt
             target={target}
+            setUp={needs === "setup"}
             busy={switchProfile.isPending}
             error={error}
             onSubmit={(password, code) => doSwitch(target, code ? { password, code } : { password })}
-            onCancel={() => {
-              setTarget(null);
-              setError(null);
-            }}
+            onCancel={cancel}
           />
         ) : (
           <>

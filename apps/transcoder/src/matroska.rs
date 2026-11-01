@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Matroska/WebM files read through their index, the Cues element, never
 //! cluster by cluster:
 //!

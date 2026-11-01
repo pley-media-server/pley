@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Background work keeps out of the way of playbacks and transcodes.
 //!
 //! Seek previews, audio fingerprints, the key frames of credits, keyframe

@@ -1,31 +1,48 @@
 # Licensing
 
-Pley is under one licence, [LICENSE](LICENSE): **Restricted**, its terms to
-be determined. Until they are published, no right to copy, modify or
-distribute Pley is granted except by a separate written agreement; if it was
-shared with you, you may view and run it for the purpose it was shared with
-you. The Kodi add-on is the one exception, and third-party code keeps its
-own licences.
+Pley is free software under the GNU Affero General Public License, version
+3 only ([LICENSE](LICENSE), `AGPL-3.0-only`). Copyright (c) 2026 the Pley
+authors. The Kodi add-on is the one exception, and third-party code keeps
+its own licences.
+
+In short, the AGPL means:
+
+- Anyone may run, study, change and share Pley, for any purpose.
+- Whoever distributes Pley, changed or not (a build, an image, an app),
+  passes on the same rights: its source code, under the AGPL.
+- Whoever changes Pley and lets people use the changed version over a
+  network, a server they host for others say, offers those people its
+  source code too (the licence's section 13). Running Pley unchanged asks
+  nothing more.
 
 | Component | Path | License | Contents |
 |---|---|---|---|
-| **Pley server** | `apps/server`, `apps/web` | Restricted (`LicenseRef-Restricted`) | Libraries, scanner, metadata, users, sessions, HTTP API, web UI |
-| **Pley transcoder** | `apps/transcoder` | Restricted (`LicenseRef-Restricted`) | Everything that runs FFmpeg: probing, HLS transcoding/remuxing, HDR/Dolby Vision tone mapping, subtitles, thumbnails, metrics |
-| **protocol types** | `packages/transcoder-api` | Restricted (`LicenseRef-Restricted`) | Plain serde structs shared by the server and the transcoder |
-| **Pley for desktop** | `apps/desktop` | Restricted (`LicenseRef-Restricted`) | A window on a server's web app (Tauri, MIT OR Apache-2.0) |
-| **Pley for Android** | `apps/android` | Restricted | A native app for phones, tablets and TVs (Kotlin and Compose): AndroidX, Media3, OkHttp, Coil and kotlinx under Apache-2.0, Lucide's icons under ISC, Nayuki's QR code generator under MIT |
-| **Pley for Roku** | `apps/roku` | Restricted | A native SceneGraph app in BrightScript, built with BrighterScript (MIT), which adds its runtime helpers, bslib (MIT), to the package |
-| **Pley for Samsung TV and LG TV** | `apps/tizen`, `apps/webos`, `packages/tv` | Restricted | Web apps for the TVs' own engines in TypeScript: Preact and its signals (MIT), Lucide's icons (ISC, and MIT for those from Feather), a QR code generator (MIT) and the Roboto font (OFL-1.1) |
-| **Pley for Samsung TV, native** | `apps/tizen-native` | Restricted | A Tizen .NET app in C# with NUI screens, on Tizen.NET (Apache-2.0) and .NET Standard (MIT), which the TV provides, Lucide's icons (ISC, and MIT for those from Feather), Nayuki's QR code generator (MIT, `Net.Codecrete.QrCodeGenerator`) and the Roboto font (OFL-1.1) |
+| **Pley server** | `apps/server`, `apps/web` | AGPL-3.0-only | Libraries, scanner, metadata, users, sessions, HTTP API, web UI |
+| **Pley transcoder** | `apps/transcoder` | AGPL-3.0-only | Everything that runs FFmpeg: probing, HLS transcoding/remuxing, HDR/Dolby Vision tone mapping, subtitles, thumbnails, metrics |
+| **protocol types** | `packages/transcoder-api` | AGPL-3.0-only | Plain serde structs shared by the server and the transcoder |
+| **Pley for desktop** | `apps/desktop` | AGPL-3.0-only | A window on a server's web app (Tauri, MIT OR Apache-2.0) |
+| **Pley for Android** | `apps/android` | AGPL-3.0-only | A native app for phones, tablets and TVs (Kotlin and Compose): AndroidX, Media3, OkHttp, Coil and kotlinx under Apache-2.0, Lucide's icons under ISC, Nayuki's QR code generator under MIT |
+| **Pley for Roku** | `apps/roku` | AGPL-3.0-only | A native SceneGraph app in BrightScript, built with BrighterScript (MIT), which adds its runtime helpers, bslib (MIT), to the package |
+| **Pley for Samsung TV and LG TV** | `apps/tizen`, `apps/webos`, `packages/tv` | AGPL-3.0-only | Web apps for the TVs' own engines in TypeScript: Preact and its signals (MIT), Lucide's icons (ISC, and MIT for those from Feather), a QR code generator (MIT) and the Roboto font (OFL-1.1) |
+| **Pley for Samsung TV, native** | `apps/tizen-native` | AGPL-3.0-only | A Tizen .NET app in C# with NUI screens, on Tizen.NET (Apache-2.0) and .NET Standard (MIT), which the TV provides, Lucide's icons (ISC, and MIT for those from Feather), Nayuki's QR code generator (MIT, `Net.Codecrete.QrCodeGenerator`) and the Roboto font (OFL-1.1) |
 | **Pley for Kodi** | `apps/kodi` | **GPL-2.0-or-later** (`plugin.video.pley/LICENSE.txt`) | A Kodi add-on in Python, on Python's standard library alone, with pictures drawn from Lucide's icons under ISC |
+
+## Source code
+
+Pley's source is at <https://github.com/pley-media-server/pley>, and each
+release is tagged there (`server-v<version>`, `android-v<version>` and so
+on, [docs/RELEASING.md](docs/RELEASING.md)). The web app's Account page
+links to it, from the server's `GET /api/server`, and the transcoder gives
+it in `GET /v1/info` and `--license`. A changed version that others use
+over a network points these at its own source.
 
 ## The Kodi add-on
 
-The add-on is the only part of Pley under the GPL, because it has to be: it
-runs inside Kodi (GPL-2.0-or-later) and calls Kodi's own modules (`xbmc`,
-`xbmcgui`, `xbmcplugin` and the rest), which makes it part of a work under
-Kodi's licence. Like the other apps, it talks to the server over HTTP, as a
-browser does, which leaves the rest of Pley's licence unaffected. Its code is
+The add-on is under Kodi's licence, the GPL version 2 or later, because it
+has to be: it runs inside Kodi (GPL-2.0-or-later) and calls Kodi's own
+modules (`xbmc`, `xbmcgui`, `xbmcplugin` and the rest), which makes it part
+of a work under Kodi's licence. Like the other apps, it talks to the server
+over HTTP, as a browser does, so each keeps its own licence. Its code is
 never copied into the server or another app, and it ships with its
 `LICENSE.txt` and `NOTICES.txt` (the zip of `apps/kodi/package.py` holds its
 whole folder, source included).
@@ -34,8 +51,9 @@ whole folder, source included).
 
 Pley contains no FFmpeg. The transcoder runs `ffmpeg` and `ffprobe` as
 separate programs and links none of FFmpeg's libraries: linking them would
-put it under FFmpeg's licence (the GPL, for the builds Pley uses). Where a
-build of Pley ships FFmpeg beside it, FFmpeg keeps its own licence:
+make the transcoder one work with FFmpeg, bound by FFmpeg's licence (the
+GPL, for the builds Pley uses) as well as Pley's. Where a build of Pley
+ships FFmpeg beside it, FFmpeg keeps its own licence:
 
 - **The Docker image** installs Debian's `ffmpeg` package, unmodified. Its
   licence is in the image (`/usr/share/doc/ffmpeg/copyright`, as for every
@@ -57,6 +75,13 @@ build of Pley ships FFmpeg beside it, FFmpeg keeps its own licence:
 - **The other server archives** don't contain FFmpeg.
 
 ## What keeps it this way
+
+Pley is under the AGPL alone, the Kodi add-on aside, and so are
+contributions to it ([CONTRIBUTING.md](CONTRIBUTING.md)). A dependency
+that is only available under a copyleft licence (GPL, LGPL, AGPL and the
+like), or FFmpeg linked in, would bind the programs that use it to that
+licence's terms too, and some of them, the GPL version 2 only for one,
+can't be combined with the AGPL at all.
 
 - **No copyleft code in Pley's own programs.** `scripts/check-licenses.ps1`
   walks the real dependency graphs of the server and the transcoder and fails

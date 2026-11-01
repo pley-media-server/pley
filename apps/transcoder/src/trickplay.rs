@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Seek-bar preview thumbnails ("trickplay"): one small frame every few
 //! seconds, tiled into JPEG sprite sheets. Only keyframes are decoded, so even
 //! a long film takes seconds to a minute (paused while a playback starts or a

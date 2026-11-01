@@ -21,7 +21,21 @@ data class CapsSnapshot(
     val lines: List<String>,
     /** What the report was made from, and what the player needs beyond it. */
     val details: CapsDetails = CapsDetails(),
-)
+) {
+    /**
+     * This snapshot for a video the screen doesn't show as Dolby Vision (the
+     * display mode it plays in doesn't): Dolby Vision left out of what the
+     * screen shows, its decoders' profiles kept, so the server sends what
+     * plays and says the screen is why.
+     */
+    fun withoutDolbyVisionScreen(): CapsSnapshot {
+        if (DynamicRange.DolbyVision !in report.hdrTypes.orEmpty() + details.screenHdrTypes) return this
+        return copy(
+            report = report.copy(hdrTypes = report.hdrTypes?.minus(DynamicRange.DolbyVision), dolbyVision = false),
+            details = details.copy(screenHdrTypes = details.screenHdrTypes - DynamicRange.DolbyVision),
+        )
+    }
+}
 
 /** The parts of a probe the player and Diagnostics read, besides the report. */
 @Serializable

@@ -101,6 +101,14 @@ class SignInTest {
     }
 
     @Test
+    fun requestsAreAskedForOnlyWhereTheServerListsThem() = runBlocking {
+        scopes = listOf("library", "play", "playlists", "profiles", "requests", "approvals", "admin")
+        assertEquals("library play playlists profiles requests approvals", query(signIn.start(server.url("/").toString()))["scope"])
+        scopes = listOf("library", "play", "playlists", "profiles", "requests")
+        assertEquals("library play playlists profiles requests", query(signIn.start(server.url("/").toString()))["scope"])
+    }
+
+    @Test
     fun oneSignInWaitsPerServerAndOutlivesTheProcess() = runBlocking {
         val first = query(signIn.start(server.url("/").toString()))["state"]!!
         val second = query(signIn.start(server.url("/").toString()))["state"]!!

@@ -40,7 +40,13 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
    page from a phone or computer that is signed in.
 
 - The add-on signs in only with a code, and gets a viewer's rights
-  (`library play playlists profiles`).
+  (`library play playlists profiles`), and `requests approvals` where the
+  server lists them in `scopes_supported` (ask for movies and shows; decide
+  on them, on an administrator's account). A sign-in from before is
+  offered Sign in again where it would help ([Requests](#requests)).
+- When the server requires two-step sign-in, the screen with the code says
+  so under its notes. Someone who doesn't use it yet sets it up on the
+  phone or computer where they approve the code.
 - In a household of more than one profile, Kodi asks "Who's watching?" each
   time it starts. A PIN is typed in Kodi's number dialog and never kept.
 - The same server found at another address must be signed in to again,
@@ -54,6 +60,8 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
   channels), the first three libraries, Playlists, Collections and
   Settings. With more than three libraries, Libraries takes Collections'
   place.
+- **The profile's menu** has Discover and Your requests where the server
+  takes requests; they open in Kodi's lists ([Requests](#requests)).
 - **The menu key** on a tile: mark watched, My List, add to a playlist,
   remove from Continue Watching, go to the show. In a playlist it also
   moves and removes entries.
@@ -144,6 +152,85 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Kodi:
   instead" where the server allows it. A connection taken by someone else
   ends with "The server stopped this stream." (`stream.ts` can't say who).
 
+### Requests
+
+Where the server takes requests (its summary, `GET /api/requests/summary`,
+says `enabled`, and the account may ask), the add-on asks TMDB, through the
+server, for movies and shows its libraries don't have, and the server's
+Radarr and Sonarr fetch them once approved. The add-on's root lists
+**Discover** and **Your requests** after Search; in Pley's look the
+profile's menu opens them, in Kodi's lists (the window closes, Back from
+their top goes back to Kodi, and the add-on opens Pley's look again).
+
+- **Discover**: Search (Kodi's keyboard), then Trending this week, Popular
+  movies, Popular shows, Coming to cinemas and Popular anime as folders,
+  then Your requests. Each list shows at least 20 titles at once (TMDB's
+  pages come short where titles are left out), with Next page, and sorts
+  by the server's order, by name or by year.
+- **A title** shows its poster, backdrop, year, rating and overview, and
+  its badge (In library, Partly in library, Requested, Declined) on the
+  right and atop its plot. OK does its one main action: Request; Open for
+  one in a library; Tell me too for one someone asked for; what its request
+  says, or why it can't be asked for (declined until a date, the
+  allowance used up, an age limit, an account that may not ask). The
+  context menu has the rest: a show's Seasons, Open, Request more seasons,
+  and what may be done to its request.
+- **A show's seasons**: its main action atop, then each season with its
+  state ("In library", "4 of 10 episodes in library", "Waiting for
+  approval", "Airs Nov 4", "Declined"); OK on one that may be asked for
+  opens the picker with it ticked, and on the others opens or says what
+  they are.
+- **Which seasons?** is Kodi's multiselect, of the seasons that may be
+  asked for, each with its state: the missing ones are ticked, lowest
+  first and as many as may be asked for, specials and seasons not out yet
+  left unticked. Picking none says "Pick a season."; picking more than
+  the allowance says what it allows.
+- **Your requests**, newest first: each one's stage on the right ("Waiting
+  for approval", "Downloading 42% · in 20 min", "Ready to watch"), then its
+  seasons, what it says and when it was asked for. OK opens the title once
+  a library has it, else offers what may be done: Withdraw (Remove for a
+  declined one), Stop following, Request again. Opening the list marks its
+  news seen; it is shown again every 10 seconds while something on it
+  downloads.
+- **Requests**, for an administrator's account (signed in with
+  `approvals`), opens on Needs attention, oldest first, with filters atop
+  (which requests, movies or shows, whose, a title's words). Yours, the
+  last choice of which requests, lists the account's own and marks their
+  news seen; the others leave it unseen. Each request offers Approve, Try
+  again, Decline, Decline with a reason… (typed on Kodi's keyboard), Mark
+  as added by hand and Delete (asked first). The entry carries what
+  waits, new requests and news, red while one couldn't be sent.
+- **Search** lists On TMDB after the libraries' results: TMDB's first
+  titles the libraries don't have, then See all on Discover. It is looked
+  for beside the libraries' search and shows once it comes, without
+  holding them up. Kodi's lists wait 3 seconds for it at most, as Kodi
+  keeps the add-on's Python busy meanwhile; slower, On TMDB opens it on
+  Discover.
+- **Library shows** have Request more seasons in their context menu while
+  the profile may ask: the show's picker, or what stops it.
+- **Notices**: "“Heat” is ready to watch." (with "Season 2 of “X” is ready
+  to watch." for a show partly there) pops up with the poster as soon as
+  it is, from the event stream; news that came while Kodi was off or the
+  stream was down shows once as Kodi starts ("3 of your requests have
+  news" for several). A request ready, or a season of it, is said once per
+  server and account (`remembered.json` keeps the last 300), whatever else
+  changes in the request; none shows over a playing video: the last three
+  wait for it to stop. As on the other TV apps, decisions, new requests
+  and failures show only in the lists and the entry's number. Unlike
+  theirs, the notices have no Open: Kodi's notifications take no button,
+  so the title opens from Your requests.
+- **Off, or not open to the account**: no Discover, no Your requests
+  (an account that may no longer ask keeps its own requests). A sign-in
+  made before the server took requests shows only "Sign in again to ask
+  for movies and shows" on Discover; an administrator's without
+  `approvals`, "Sign in again to approve and decline here." atop the list.
+  "TMDB isn't answering" offers Try again; a key TMDB refuses tells
+  administrators where to fix it.
+
+Discover's plots end with "Details and pictures from TMDB."; the add-on's
+description, in its information in Kodi, ends with "This product uses the
+TMDB API but is not endorsed or certified by TMDB."
+
 ## Building and testing
 
 ### How it works
@@ -159,11 +246,31 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Kodi:
   Kodi's lists, and asks to play with what this Kodi plays
   (`resources/lib/pley/caps.py`): every container and codec, the formats
   its audio settings pass through, HDR10, HLG, and Dolby Vision where Kodi
-  says the screen shows it (profiles 5 and 8; 7 too on CoreELEC).
+  says the screen shows it (profiles 5 and 8; on CoreELEC 7 too, and
+  Dolby Vision with HDR10+ beside it, which many Android devices' decoders
+  show black). Kodi doesn't tell its decoders apart from its screen, so a
+  box on a screen without Dolby Vision lists no profiles, and its details
+  read "as Dolby Vision isn't shown here". It doesn't ask for master
+  playlists: Kodi's HLS player reads no `CODECS`, and MPEG-TS segments
+  carry no Dolby Vision configuration, so Dolby Vision plays as it is only
+  from the file. A remux plays its HDR10 (or HDR10+) base layer; profile
+  5, which has none, is converted instead.
 - **Progress** goes to the server every 10 seconds while playing, every 30
   while paused, and on stop.
 - **Events:** the service keeps `GET /api/events` open and refreshes what
   is on screen, never behind a playing video.
+- **Requests** (`requests.py` holds the rules and words, `asking.py` the
+  listings, `news.py` the service's part): the service reads the summary
+  as Kodi starts, on another sign-in or profile, when the event stream
+  opens again, right after the add-on did something to a request, a second
+  after request events (once for a burst), and every 60 seconds while the
+  stream is down or the summary, or the news it says there is, can't be
+  read; a server without requests (404, or 403 from a build before apps
+  could ask) is asked again only when the stream opens again.
+  It keeps the summary in a window property for the plugin and Pley's
+  window, so listings ask nothing more. TMDB's pictures
+  (`/api/discover/images/…`) come through the proxy as library artwork
+  does, at their drawn width.
 - **Discovery:** a broadcast of `pley?` to UDP port 7539
   (`discovery.py`, answered by `apps/server/src/discovery.rs`).
 - **The window:** one window (`window.py`) holds every screen.
@@ -194,7 +301,10 @@ needs the server and transcoder built
 PLEY_BIN=target/debug/pley PLEY_FFMPEG_DIR=/usr/bin python -m unittest test_e2e
 ```
 
-CI runs all of them.
+`test_asking.py` covers Discover, the picker and the requests' lists and
+actions, `test_news.py` the service's summary, refreshes and notices, and
+`test_requests.py` the rules and words; none reaches TMDB. CI runs all of
+them.
 
 By hand, use a portable Kodi (`kodi.exe -p` on Windows) with the add-on
 copied into `portable_data/addons`. With JSON-RPC on (Settings → Services →
@@ -222,6 +332,8 @@ add-on's changelog.
   one opens its page).
 - Picture subtitles picked in Kodi's player during a converted stream don't
   show; the profile's choice is burned in from the start.
+- Discover and the requests open in Kodi's lists, not Pley's own screens.
+  Approve takes what was asked: no choice of profile, folder or seasons.
 - Live TV has no guide grid: Kodi draws one only for PVR add-ons. Kodi's
   PVR IPTV Simple client isn't used either: it would mean another add-on to
   set up, and favourites and recents the server doesn't know.

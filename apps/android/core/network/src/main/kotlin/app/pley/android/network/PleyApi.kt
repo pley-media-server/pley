@@ -1,7 +1,21 @@
 package app.pley.android.network
 
 import app.pley.android.model.Added
+import app.pley.android.model.Approval
+import app.pley.android.model.Asked
 import app.pley.android.model.CollectionDetail
+import app.pley.android.model.Decline
+import app.pley.android.model.DiscoverDetail
+import app.pley.android.model.DiscoverList
+import app.pley.android.model.DiscoverPage
+import app.pley.android.model.ItemRequest
+import app.pley.android.model.MediaRequest
+import app.pley.android.model.NewRequest
+import app.pley.android.model.RequestList
+import app.pley.android.model.RequestOptions
+import app.pley.android.model.RequestQuery
+import app.pley.android.model.RequestSummary
+import app.pley.android.model.TitleKind
 import app.pley.android.model.CollectionList
 import app.pley.android.model.EntryIds
 import app.pley.android.model.Health
@@ -415,4 +429,61 @@ interface PleyApi {
 
     /** PUT /api/playlists/{id}/order: these entries first, in this order, the rest after. */
     suspend fun reorderPlaylist(id: Long, entries: EntryIds): PlaylistDetail
+
+    // ---------------------------------------------------------------- requests (any app)
+
+    /**
+     * GET /api/requests/summary: what this sign-in may do with requests,
+     * and its badge's numbers. Any app may ask; an older server answers 404.
+     */
+    suspend fun requestSummary(): RequestSummary
+
+    // ---------------------------------------------------------------- requests (scope requests)
+
+    /** GET /api/discover/{list}?page=: a page of one of Discover's lists. */
+    suspend fun discover(list: DiscoverList, page: Int = 1): DiscoverPage
+
+    /** GET /api/discover/search?q=&page=&missing=: TMDB's titles matching [query]; [missing] leaves out those in a library. */
+    suspend fun discoverSearch(query: String, page: Int = 1, missing: Boolean = false): DiscoverPage
+
+    /** GET /api/discover/movie/{tmdb_id} or /show/{tmdb_id}: a title page. */
+    suspend fun discoverTitle(kind: TitleKind, tmdbId: Long): DiscoverDetail
+
+    /** GET /api/items/{id}/request: a library title as Discover sees it; 404 without a TMDB match. */
+    suspend fun itemRequest(itemId: Long): ItemRequest
+
+    /** GET /api/requests: requests matching [query], with the counts and people of its filters. */
+    suspend fun requests(query: RequestQuery = RequestQuery()): RequestList
+
+    /** GET /api/requests/{id}. */
+    suspend fun request(id: Long): MediaRequest
+
+    /**
+     * POST /api/requests: asks for a movie or seasons of a show, or follows
+     * the requests that ask for them already (then [Asked.created] is false).
+     */
+    suspend fun ask(request: NewRequest): Asked
+
+    /** DELETE /api/requests/{id}: withdraws this account's request (managers: deletes anyone's). */
+    suspend fun deleteRequest(id: Long)
+
+    /** DELETE /api/requests/{id}/watch: stops following someone else's request. */
+    suspend fun unwatchRequest(id: Long)
+
+    /** POST /api/requests/seen: this account has looked at its requests' news. */
+    suspend fun requestsSeen()
+
+    // ---------------------------------------------------------------- requests (scope approvals)
+
+    /** POST /api/requests/{id}/approve: approves (or, failed, tries again) with [approval]'s choices. */
+    suspend fun approveRequest(id: Long, approval: Approval = Approval()): MediaRequest
+
+    /** POST /api/requests/{id}/decline. */
+    suspend fun declineRequest(id: Long, decline: Decline = Decline()): MediaRequest
+
+    /** POST /api/requests/{id}/handled: approved without sending, as added by hand. */
+    suspend fun requestHandled(id: Long): MediaRequest
+
+    /** GET /api/requests/options: Radarr's and Sonarr's quality profiles and folders, for the approve dialog. */
+    suspend fun requestOptions(): RequestOptions
 }

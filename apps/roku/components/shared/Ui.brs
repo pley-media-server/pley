@@ -146,6 +146,13 @@ function uiNoteChange(change as object) as object
     return change
 end function
 
+' Notes that a title's request changed, here or elsewhere ({ key
+' ("movie:603"), status (DiscoverTitle's), libraryId }): the screens
+' showing its tile give it its badge (the scene hands it to them).
+sub uiNoteRequest(note as object)
+    m.top.getScene().requestNote = note
+end sub
+
 ' The changes noted since this screen last asked (none the first time).
 function uiChangesSince() as object
     scene = m.top.getScene()

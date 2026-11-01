@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Dolby Vision and HDR10+ metadata inside HEVC NAL units, for remuxes:
 //!
 //! - [`rpu_to_p81`] rewrites a profile 7 RPU (NAL unit type 62) as a

@@ -1,18 +1,30 @@
 package app.pley.android.screens.search
 
 import app.pley.android.data.Loadable
+import app.pley.android.data.RequestChange
+import app.pley.android.data.RequestsRepository
 import app.pley.android.data.SearchRepository
+import app.pley.android.model.DiscoverPage
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.LiveChannel
+import app.pley.android.model.MediaRequest
 import app.pley.android.model.PersonSummary
+import app.pley.android.model.RequestAccess
+import app.pley.android.model.RequestStatus
+import app.pley.android.model.RequestSummary
 import app.pley.android.model.SearchResults
 import app.pley.android.player.PlayRequest
 import app.pley.android.screens.PlayerLauncher
+import app.pley.android.model.TitleKind
+import app.pley.android.model.TitleStatus
+import app.pley.android.network.ApiException
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.library.FakeTile
 import app.pley.android.screens.library.FakeTiles
 import app.pley.android.screens.library.TileLook
+import app.pley.android.testing.Fixtures
+import app.pley.android.testing.data.FakeRequests
 import java.io.IOException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -87,10 +99,11 @@ class SearchViewModelTest {
         }
     }
 
-    private fun TestScope.viewModel(initial: String = ""): SearchViewModel<FakeTile> {
+    private fun TestScope.viewModel(initial: String = "", requests: RequestsRepository = RequestsRepository.None): SearchViewModel<FakeTile> {
         val tiles = SearchTiles.of(FakeTiles) { person, origin -> FakeTile(person.id, person.name, TileLook.Poster, "person $origin") }
-        val vm = SearchViewModel(initial, SearchDeps(search, MutableStateFlow("http://pley"), dispatcher, launcher), tiles)
+        val vm = SearchViewModel(initial, SearchDeps(search, MutableStateFlow("http://pley"), dispatcher, launcher, requests), tiles)
         backgroundScope.launch { vm.state.collect {} }
+        backgroundScope.launch { vm.tmdb.collect {} }
         return vm
     }
 
@@ -272,5 +285,91 @@ class SearchViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf(7L to "all"), watched)
         assertEquals("sport", vm.state.value.recent.first())
+    }
+
+    // ------------------------------------------------------------ On TMDB
+
+    private val summary: RequestSummary = Fixtures.decode("requests/summary.json")
+    private val trending: DiscoverPage = Fixtures.decode("discover/trending.json")
+
+    @Test
+    fun onTmdbAsksForWhatNoLibraryHasBesideTheResultsWithoutHoldingThemUp() = runTest(dispatcher) {
+        val requests = FakeRequests(summary)
+        val tmdb = CompletableDeferred<DiscoverPage>()
+        val asked = mutableListOf<Triple<String, Int, Boolean>>()
+        requests.searches = { q, page, missing ->
+            asked += Triple(q, page, missing)
+            tmdb.await()
+        }
+        val vm = viewModel(requests = requests)
+        runCurrent()
+        assertEquals(TmdbSection.Hidden, vm.tmdb.value)
+        vm.type("robot")
+        advanceTimeBy(251)
+        assertEquals(listOf(Triple("robot", 1, true)), asked)
+        assertEquals(TmdbSection.Loading("robot"), vm.tmdb.value)
+        // The libraries' results show while TMDB is still asked.
+        search.answer("robot").complete(SearchResults(items = listOf(item(1, ItemKind.Movie, "Robots"))))
+        runCurrent()
+        assertTrue(vm.results() is SearchResultsState.Ready)
+        tmdb.complete(trending)
+        runCurrent()
+        val ready = vm.tmdb.value as TmdbSection.Ready
+        assertEquals("robot", ready.query)
+        assertEquals(trending.results.map { it.tmdbId }, ready.titles.map { it.tmdbId })
+        assertEquals("http://pley", ready.origin)
+    }
+
+    @Test
+    fun onTmdbReadsOnPastAPageWhoseTitlesAreAllInALibrary() = runTest(dispatcher) {
+        val requests = FakeRequests(summary)
+        val asked = mutableListOf<Int>()
+        requests.searches = { _, page, _ ->
+            asked += page
+            // missing=1 left out every title of the first page: it isn't the end.
+            if (page == 1) DiscoverPage(1, 2, emptyList()) else trending.copy(page = 2, totalPages = 2)
+        }
+        val vm = viewModel("robot", requests)
+        advanceUntilIdle()
+        assertEquals(listOf(1, 2), asked)
+        assertEquals(trending.results.map { it.tmdbId }, (vm.tmdb.value as TmdbSection.Ready).titles.map { it.tmdbId })
+    }
+
+    @Test
+    fun onTmdbBadgesFollowRequests() = runTest(dispatcher) {
+        val requests = FakeRequests(summary)
+        val vm = viewModel("sub", requests)
+        advanceUntilIdle()
+        val substance = (vm.tmdb.value as TmdbSection.Ready).titles.first { it.tmdbId == 933260L }
+        assertEquals(TitleStatus.Requested, substance.status)
+        requests.api.answer(
+            "request",
+            MediaRequest(id = 44, kind = TitleKind.Movie, tmdbId = 933260, title = "The Substance", status = RequestStatus.Declined),
+        )
+        requests.change(RequestChange(44, TitleKind.Movie, 933260))
+        advanceUntilIdle()
+        assertEquals(TitleStatus.Declined, (vm.tmdb.value as TmdbSection.Ready).titles.first { it.tmdbId == 933260L }.status)
+    }
+
+    @Test
+    fun onTmdbIsHiddenWhenAskingDoesNotWorkOrTmdbHasNothing() = runTest(dispatcher) {
+        // May not ask: TMDB isn't asked at all.
+        val off = FakeRequests(summary.copy(access = RequestAccess.Off))
+        val vm = viewModel("robot", off)
+        advanceUntilIdle()
+        assertEquals(TmdbSection.Hidden, vm.tmdb.value)
+        assertTrue(off.api.calls("discoverSearch").isEmpty())
+
+        // TMDB away, or nothing there: the libraries' results alone.
+        val down = FakeRequests(summary)
+        down.searches = { _, _, _ -> throw ApiException(503, "tmdb_down", "TMDB isn't answering") }
+        val away = viewModel("robot", down)
+        advanceUntilIdle()
+        assertEquals(TmdbSection.Hidden, away.tmdb.value)
+        val empty = FakeRequests(summary)
+        empty.searches = { _, page, _ -> DiscoverPage(page, 1, emptyList()) }
+        val nothing = viewModel("robot", empty)
+        advanceUntilIdle()
+        assertEquals(TmdbSection.Hidden, nothing.tmdb.value)
     }
 }

@@ -1,6 +1,7 @@
 package app.pley.android.player.session
 
 import app.pley.android.fixtures.FixtureIds
+import app.pley.android.model.DynamicRange
 import app.pley.android.model.PlaybackMode
 import app.pley.android.player.PlayRequest
 import app.pley.android.testing.caps.TestDevices
@@ -103,9 +104,24 @@ class QualityAndGuardsTest {
     @Test
     fun `Dolby Vision profile 7 plays as it is with a decoder for it`() {
         use(SessionHarness(caps = TestCaps.hdrTv(dv = listOf(7, 8))))
+        h.engine.dolbyVision = true
         h.play(PlayRequest(FixtureIds.DOLBY_VISION_P7))
         assertEquals(listOf(PlaybackMode.Auto), h.playbackRequests().map { it.mode })
         assertFalse(h.engine.source!!.hls)
+        assertEquals("the engine's decoder follows what the server was told", true, h.engine.source!!.dolbyVision)
+    }
+
+    @Test
+    fun `Dolby Vision the display mode it plays in doesn't show is asked for without it`() {
+        use(SessionHarness(caps = TestCaps.hdrTv(dv = listOf(7, 8))))
+        h.engine.dolbyVision = false
+        h.play(PlayRequest(FixtureIds.DOLBY_VISION_P7))
+        val sent = h.playbackRequests().first().caps
+        assertFalse(DynamicRange.DolbyVision in sent.hdrTypes.orEmpty())
+        assertEquals("its decoders still say what they decode", listOf(7, 8), sent.dolbyVisionProfiles.orEmpty().map { it.profile })
+        // No screen that shows profile 7 then: its HDR10 base layer, remuxed.
+        assertEquals(listOf(PlaybackMode.Auto, PlaybackMode.Remux), h.playbackRequests().map { it.mode })
+        assertEquals(false, h.engine.source!!.dolbyVision)
     }
 
     @Test

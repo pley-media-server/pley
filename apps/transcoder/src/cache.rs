@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Pruning of the work directory's caches (keyframe indexes, converted
 //! subtitles, seek-preview sheets, libplacebo's shaders), which would otherwise grow with every file
 //! ever played. Entries unused for too long go, then the least recently used

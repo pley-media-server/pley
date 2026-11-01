@@ -1,0 +1,5 @@
+{
+  "code": "tmdb_down",
+  "message": "TMDB isn't answering",
+  "setup": true
+}

@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // pley-transcoder — FFmpeg media engine for the Pley media server.
-// Copyright (c) 2026 the Pley authors. All rights reserved. See LICENSE.
+// Copyright (c) 2026 the Pley authors. See LICENSE.
 
 //! Standalone transcoding service. It is the only pley component that runs
 //! FFmpeg; the media server talks to it over HTTP (docs/TRANSCODER.md).
@@ -49,10 +49,14 @@ use clap::{CommandFactory, FromArgMatches, Parser, ValueEnum};
 use pley_transcoder_api::{API_VERSION, Announce, Limits, TOKEN_ENV, TranscoderInfo};
 use tokio::io::AsyncReadExt;
 
-const LICENSE_NOTICE: &str = "pley-transcoder  Copyright (c) 2026 the Pley authors. All rights reserved.
-Restricted: its licence terms are to be determined, and no licence to copy,
-modify or distribute it is granted until then. It comes with ABSOLUTELY NO
-WARRANTY. See the LICENSE file.";
+const LICENSE_NOTICE: &str = "pley-transcoder  Copyright (c) 2026 the Pley authors
+This program comes with ABSOLUTELY NO WARRANTY. It is free software: you can
+redistribute it and/or modify it under the terms of the GNU Affero General
+Public License, version 3. See the LICENSE file.";
+
+/// Where this program's source is offered (`TranscoderInfo::source`). A
+/// modified build points it at its own source, as the AGPL asks.
+const SOURCE: &str = "https://github.com/pley-media-server/pley";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -132,7 +136,7 @@ fn main() -> anyhow::Result<()> {
     let matches = Args::command().get_matches();
     let args = Args::from_arg_matches(&matches).unwrap_or_else(|err| err.exit());
     if args.license {
-        println!("{LICENSE_NOTICE}");
+        println!("{LICENSE_NOTICE}\nSource: {SOURCE}");
         return Ok(());
     }
     let filter = if args.log.contains('=') { args.log.clone() } else { format!("{},hyper=warn", args.log) };
@@ -464,8 +468,8 @@ async fn run(args: Args) -> anyhow::Result<()> {
         version: env!("CARGO_PKG_VERSION").into(),
         commit: Some(env!("PLEY_COMMIT")).filter(|c| *c != "unknown").map(Into::into),
         api_version: API_VERSION,
-        license: "LicenseRef-Restricted".into(),
-        source: None,
+        license: "AGPL-3.0-only".into(),
+        source: Some(SOURCE.into()),
         started_at_ms: util::now_ms(),
         // Not FFmpeg's: this program's own (master playlists, segment edits,
         // subtitle tracks copied into files of their own).

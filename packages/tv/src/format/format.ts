@@ -427,6 +427,72 @@ export function formatTimeOfDay(date: Date, hours24: boolean): string {
   return `${h12}:${m} ${h < 12 ? "AM" : "PM"}`;
 }
 
+/*
+ * Relative times are written here: the TVs' engines (Chromium 53 and 56)
+ * have no Intl.RelativeTimeFormat.
+ */
+
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Calendar days from `now`'s day to `at`'s, on the TV's clock (1: tomorrow). */
+function daysBetween(now: Date, at: Date): number {
+  const a = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const b = new Date(at.getFullYear(), at.getMonth(), at.getDate()).getTime();
+  return Math.round((b - a) / 86_400_000);
+}
+
+/** Unix seconds → "Nov 4", with the year when it isn't `now`'s (or with `year`). */
+export function shortDate(seconds: number, now = Date.now(), year = false): string {
+  const d = new Date(seconds * 1000);
+  const withYear = year || d.getFullYear() !== new Date(now).getFullYear();
+  return `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}${withYear ? `, ${d.getFullYear()}` : ""}`;
+}
+
+/** "3 hours ago", "yesterday", "now"; a month on, the date. */
+export function relativeTime(seconds: number, now = Date.now()): string {
+  const diff = Math.max(0, now / 1000 - seconds);
+  if (diff < 60) return "now";
+  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+  if (diff < 86400) {
+    const h = Math.floor(diff / 3600);
+    return h === 1 ? "1 hour ago" : `${h} hours ago`;
+  }
+  const days = Math.floor(diff / 86400);
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days} days ago`;
+  return shortDate(seconds, now, true);
+}
+
+/**
+ * How long until `seconds`, to follow a verb ("you can ask for more in 3
+ * days"): "in 5 min" and "in 2 hours" within a day, then by the calendar,
+ * "tomorrow", "in 3 days"; "now" once it has come.
+ */
+export function timeUntil(seconds: number, now = Date.now()): string {
+  const diff = seconds - now / 1000;
+  if (diff <= 30) return "now";
+  if (diff < 3600) return `in ${Math.max(1, Math.round(diff / 60))} min`;
+  if (diff < 86400) {
+    const h = Math.max(1, Math.round(diff / 3600));
+    return h === 1 ? "in 1 hour" : `in ${h} hours`;
+  }
+  const days = Math.max(1, daysBetween(new Date(now), new Date(seconds * 1000)));
+  return days === 1 ? "tomorrow" : `in ${days} days`;
+}
+
+/**
+ * When something comes out, after "Out" or "Airs": its day ("today",
+ * "tomorrow", "Nov 4"), and with `time` its time as well within the next
+ * 24 hours ("today at 21:05").
+ */
+export function dayAndTime(seconds: number, opts: { time: boolean; hours24: boolean }, now = Date.now()): string {
+  const at = new Date(seconds * 1000);
+  const days = daysBetween(new Date(now), at);
+  const ahead = seconds * 1000 - now;
+  const day = days === 0 ? "today" : days === 1 ? "tomorrow" : shortDate(seconds, now);
+  return opts.time && ahead > 0 && ahead <= 86_400_000 ? `${day} at ${formatTimeOfDay(at, opts.hours24)}` : day;
+}
+
 // ---- sizes
 
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];

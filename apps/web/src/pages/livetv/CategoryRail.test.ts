@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { categoryKey, parseCategory, type LiveGroup } from "@/api/livetv";
 import { categoryName, groupSections } from "./CategoryRail";
-import { channelName, liveUrl, splitRegion } from "./common";
+import { channelName, formatGuideDay, liveUrl, splitRegion } from "./common";
 
 const group = (name: string, region: string | null, label: string, count = 1): LiveGroup => ({ name, region, label, count });
 
@@ -55,5 +55,30 @@ describe("categories", () => {
     expect(liveUrl(seven)).toBe("/live/a1b2c3/7");
     expect(liveUrl(seven, { kind: "all" })).toBe("/live/a1b2c3/7");
     expect(liveUrl(seven, { kind: "group", group: "UK| Sport" })).toBe("/live/a1b2c3/7?in=group%3AUK%7C%20Sport");
+  });
+});
+
+describe("formatGuideDay", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  // Times on local dates, not now ± 24 hours: a day is 23 or 25 hours when
+  // daylight saving starts or ends. Every day of a year covers a zone's changes.
+  it.each(["the browser's zone", "America/New_York", "Europe/London", "Australia/Sydney"])("names today, tomorrow and yesterday by date in %s", (zone) => {
+    if (zone.includes("/")) vi.stubEnv("TZ", zone);
+    const today = new Date();
+    const at = (days: number, hour: number, minute: number) =>
+      new Date(today.getFullYear(), today.getMonth(), today.getDate() + days, hour, minute).getTime() / 1000;
+    for (let days = 0; days < 366; days++) {
+      for (const now of [at(days, 0, 30), at(days, 23, 30)]) {
+        expect(formatGuideDay(at(days, 0, 1), now)).toBe("Today");
+        expect(formatGuideDay(at(days, 23, 59), now)).toBe("Today");
+        expect(formatGuideDay(at(days + 1, 0, 1), now)).toBe("Tomorrow");
+        expect(formatGuideDay(at(days + 1, 23, 59), now)).toBe("Tomorrow");
+        expect(formatGuideDay(at(days - 1, 0, 1), now)).toBe("Yesterday");
+        expect(formatGuideDay(at(days - 1, 23, 59), now)).toBe("Yesterday");
+        expect(formatGuideDay(at(days + 2, 0, 1), now)).not.toMatch(/^(Today|Tomorrow)$/);
+        expect(formatGuideDay(at(days - 2, 23, 59), now)).not.toMatch(/^(Today|Yesterday)$/);
+      }
+    }
   });
 });

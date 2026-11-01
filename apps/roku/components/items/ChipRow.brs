@@ -5,7 +5,8 @@ sub init()
     m.top.observeField("focusedChild", "onLook")
 end sub
 
-' Chips side by side, 16 pixels apart.
+' Chips side by side, 16 pixels apart; a chip of width 0 is as wide as its
+' words, with room either side.
 sub onChips()
     m.top.removeChildrenIndex(m.top.getChildCount(), 0)
     m.backs = []
@@ -13,21 +14,25 @@ sub onChips()
     x = 0
     for each chip in m.top.chips
         back = m.top.createChild("Rectangle")
-        back.translation = [x, 0]
-        back.width = chip.width
-        back.height = 56
         label = m.top.createChild("Label")
+        label.font = "font:SmallSystemFont"
+        label.text = chip.label
+        width = chip.width
+        if width <= 0 then width = Int(label.boundingRect().width) + m.top.pad
+        back.translation = [x, 0]
+        back.width = width
+        back.height = 56
         label.translation = [x, 0]
-        label.width = chip.width
+        label.width = width
         label.height = 56
         label.horizAlign = "center"
         label.vertAlign = "center"
-        label.font = "font:SmallSystemFont"
-        label.text = chip.label
         m.backs.Push(back)
         m.labels.Push(label)
-        x = x + chip.width + 16
+        x = x + width + 16
     end for
+    m.top.rowWidth = x - 16
+    if x = 0 then m.top.rowWidth = 0
     if m.top.focusIndex >= m.backs.Count() then m.top.focusIndex = 0
     onLook()
 end sub

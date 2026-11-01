@@ -37,12 +37,16 @@ pub struct Inner {
     pub metadata: Arc<MetadataAgent>,
     /// Subtitle search and downloads (see [`crate::subtitles`]).
     pub opensubtitles: Arc<crate::providers::opensubtitles::OpenSubtitles>,
+    /// Movies and shows people ask for (`crate::requests`).
+    pub requests: Arc<crate::requests::Requests>,
     pub store: Arc<Store>,
     pub backups: Arc<Backups>,
     pub scanner: Arc<Scanner>,
     pub watcher: Arc<LibraryWatcher>,
     pub images: Images,
     pub sessions: Arc<Sessions>,
+    /// The `sessionKey`s Plex tools know the sessions by.
+    pub(crate) plex_session_keys: crate::plex::SessionKeys,
     /// When library work runs (see [`crate::schedule`]).
     pub schedule: Arc<Scheduler>,
     pub markers: Arc<MarkerService>,
@@ -119,6 +123,14 @@ impl AppState {
         ));
         let scanner =
             Scanner::new(db.clone(), transcoder.clone(), events.clone(), metadata.clone(), store.clone(), &config);
+        // Discover's pictures, from TMDB's picture server (none in tests
+        // without endpoints).
+        let pictures = crate::discover::pictures::Pictures::new(
+            config.cache_dir().join("discover"),
+            config.metadata_endpoints.as_ref().map(|e| e.tmdb_images.clone()),
+        );
+        let requests =
+            crate::requests::Requests::new(db.clone(), settings.clone(), events.clone(), metadata.clone(), pictures);
         let watcher = LibraryWatcher::new(db.clone(), scanner.clone(), settings.clone());
         let images = Images::new(config.cache_dir().join("images"));
         let sessions = Arc::new(Sessions::default());
@@ -151,6 +163,15 @@ impl AppState {
         let oauth = crate::oauth::AuthorizationServer::new(&config);
         let two_step = crate::two_step::TwoStep::new(db.clone(), &config.data_dir);
         two_step.check_key().await;
+        let require_two_step = settings.get().require_two_step;
+        if require_two_step && !two_step.can_set_up() {
+            tracing::error!(
+                "two-step sign-in is required, but the server can't use its {}: until it can, accounts that haven't \
+                 set it up can't sign in, and accounts that have sign in with a recovery code",
+                crate::two_step::KEY_FILE
+            );
+        }
+        auth.require_two_step(require_two_step);
         // After two-step sign-in, which makes the key it derives its own from.
         let bandwidth = crate::bandwidth::Bandwidth::new(db.clone(), &config.data_dir);
         let users: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users").fetch_one(&db.read).await?;
@@ -163,6 +184,7 @@ impl AppState {
                 resources,
                 auth,
                 sessions,
+                plex_session_keys: Default::default(),
                 schedule,
                 markers,
                 trickplay,
@@ -179,6 +201,7 @@ impl AppState {
                 transcoder,
                 metadata,
                 opensubtitles,
+                requests,
                 store,
                 backups,
                 scanner,
@@ -195,6 +218,7 @@ impl AppState {
         self.resources.start(self.stopping.clone());
         self.schedule.start(self.stopping.clone());
         self.live.start(self.stopping.clone());
+        self.requests.start(&self.events, self.stopping.clone());
         let metadata = self.metadata.clone();
         tokio::spawn(async move {
             metadata.prune_people().await;

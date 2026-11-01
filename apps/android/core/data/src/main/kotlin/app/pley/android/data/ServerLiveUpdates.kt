@@ -89,6 +89,10 @@ internal class ServerLiveUpdates(
     override val answered: Flow<Unit>
         get() = connected.asSharedFlow().also { start() }
 
+    private val _streaming = MutableStateFlow(false)
+
+    override val streaming: StateFlow<Boolean> get() = _streaming.asStateFlow()
+
     override fun start() {
         if (!started.compareAndSet(false, true)) return
         app.launch {
@@ -117,10 +121,12 @@ internal class ServerLiveUpdates(
             eventsOf(issuer).events().collect { live ->
                 when (live) {
                     LiveEvent.Reconnected -> {
+                        _streaming.value = true
                         connected.tryEmit(Unit)
                         cache.revalidate(STALE_MS) { _, _ -> true }
                         if (session.meState.value?.fresh != true) launch { session.refresh() }
                     }
+                    LiveEvent.Dropped -> _streaming.value = false
                     is LiveEvent.Event -> handle(live.event, pending, watchState)
                 }
             }
@@ -129,6 +135,7 @@ internal class ServerLiveUpdates(
         } catch (_: IOException) {
             // Refused (signed out, not allowed): stopped until the next start.
         } finally {
+            _streaming.value = false
             // Changes heard but not yet acted on: asked again when next shown.
             for ((libraryId, job) in pending) {
                 job.cancel()
@@ -178,6 +185,9 @@ internal class ServerLiveUpdates(
                 }
             }
             ServerEvent.LiveChannelsChanged -> cache.revalidate { key, _ -> SnapshotKeys.isLive(key) }
+            // Requests follow these themselves (RequestsRepository), from [events].
+            is ServerEvent.RequestsChanged, is ServerEvent.RequestAvailable, is ServerEvent.RequestDecided,
+            is ServerEvent.RequestCreated, is ServerEvent.RequestFailed, ServerEvent.RequestsSettingsChanged,
             ServerEvent.SessionsChanged, is ServerEvent.SessionStopped, ServerEvent.LiveTunersChanged, is ServerEvent.Unknown -> Unit
         }
     }

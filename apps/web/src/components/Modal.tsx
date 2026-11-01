@@ -92,7 +92,8 @@ export function Modal({ open, onClose, title, children, footer, size = "md", loc
         )}
       >
         <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3.5">
-          <h2 id={titleId} className="truncate text-base font-semibold">
+          {/* A question naming a long title wraps, rather than losing its end. */}
+          <h2 id={titleId} className="min-w-0 break-words text-base font-semibold">
             {title}
           </h2>
           <IconButton label="Close" size="sm" onClick={onClose} disabled={locked}>

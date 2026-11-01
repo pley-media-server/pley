@@ -1,12 +1,13 @@
 import { signal } from "@preact/signals";
-import { Api, isApiError, unreachable } from "./api/client";
+import { Api, ApiError, isApiError, unreachable } from "./api/client";
 import { EventStream } from "./api/events";
-import type { Hub, HouseholdProfile, ItemDetail, Library, LiveChannel, LiveSummary, ServerEvent, User } from "./api/types";
+import type { Hub, HouseholdProfile, ItemDetail, Library, LiveChannel, LiveSummary, MediaRequest, RequestSummary, ServerEvent, TitleKind, TitleStatus, User } from "./api/types";
 import { origin } from "./auth/addresses";
 import { SignedOutError, Tokens, type KeyValue } from "./auth/tokens";
 import { xhrTransport, type Transport } from "./net/transport";
 import type { Platform, Probe } from "./platform";
 import { Reporter } from "./player/reporter";
+import { isSummary, newsKeys, newsText, readyNews, readyText, statusFromRequest, titleKey } from "./requests";
 import type { SubtitleFont, SubtitlePosition } from "./subs/style";
 import { OffsetStore } from "./subs/sync";
 
@@ -65,6 +66,41 @@ const STATE_GATHER_MS = 300;
 const OFFLINE_NOTICE_MS = 6_000;
 /** While the server is out of reach it is asked this often (and given as long to answer). */
 const OFFLINE_ASK_MS = 5_000;
+/** The requests summary as last heard: the rail has its entry before the server answers. */
+const REQUESTS_KEY = "pley.requests";
+/** The ready-to-watch news announced, per server and profile (`pley.requestNews.<server>.<profile>`). */
+const NEWS_KEY = "pley.requestNews";
+/** Request events come in bursts (a scan, an import, a manager's round): the summary is asked for once, this long after the last. */
+const SUMMARY_GATHER_MS = 1_000;
+/** …and the pages that show requests hear once, this long after the last. */
+const REQUEST_GATHER_MS = 300;
+/** While the events are down, the summary is asked for this often (and the pages when it moved). */
+export const SUMMARY_POLL_MS = 60_000;
+/** Ready-to-watch notices kept while they can't show (a video plays): the last three. */
+const NOTICES_KEPT = 3;
+
+/** News of requests popped up over the pages: on TVs, only what is ready to watch. */
+export interface RequestNotice {
+  id: number;
+  text: string;
+  /** Open goes to the title in the library; `null` goes to Your requests. */
+  itemId: number | null;
+  /** The title's poster (TMDB's, through the server); none for news of several. */
+  poster: string | null;
+}
+
+/** A title's badge as a request event left it, newer than the pages that drew it before `at`. */
+export interface TitleMark {
+  status: TitleStatus;
+  item_id: number | null;
+  at: number;
+}
+
+/** What changed in requests: one title (`kind:tmdb_id`), or `null` for many. */
+export interface RequestChange {
+  n: number;
+  title: string | null;
+}
 
 /** A server this TV signed in to or chose, newest first on the server list. */
 export interface SavedServer {
@@ -131,6 +167,20 @@ export class AppState {
   /** "Showing what pley had saved. Reconnecting…" shows, for 6 s from going offline; then the rail's avatar keeps a mark. */
   readonly offlineNotice = signal(false);
   /**
+   * The requests summary (docs/API.md, "Requests"): whether Discover and
+   * the requests show, and the rail's number. `null` while unknown, and for
+   * a server without requests.
+   */
+  readonly requests = signal<RequestSummary | null>(null);
+  /** Bumped when requests changed (their events, or the summary's `changed_at` while the events are down): pages that show requests ask again. */
+  readonly requestChanges = signal<RequestChange>({ n: 0, title: null });
+  /** Titles' badges as request events left them, by `kind:tmdb_id`: rows already drawn show them without asking again. */
+  readonly marks = signal<Record<string, TitleMark>>({});
+  /** Ready-to-watch news waiting to pop up, oldest first; the shell shows the first when nothing plays. */
+  readonly notices = signal<RequestNotice[]>([]);
+  /** The events aren't connected: pages that show requests ask on their own meanwhile. */
+  readonly eventsDown = signal(false);
+  /**
    * "Who's watching?" was answered in this launch (a profile picked, a PIN
    * checked, or a sign-in approved on a phone): the current profile's PIN
    * isn't asked again until the app starts over.
@@ -154,6 +204,31 @@ export class AppState {
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
   private awayTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly leavers: (() => void)[] = [];
+  /** Another profile, sign-in or server since: what was asked for the one before is dropped. */
+  private generation = 0;
+  /** The server has no requests (404) or an older build of them (403): not asked again until the events reconnect. */
+  private requestsMissing = false;
+  private summaryTimer: ReturnType<typeof setTimeout> | null = null;
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  private changeTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly changedTitles = new Set<string>();
+  /** News events heard since the last summary: the `unseen` they raised needs no catching up. */
+  private newsHeard = 0;
+  /** This profile's news was caught up with since it was picked (or one waits for who it is). */
+  private caughtUp = false;
+  private catchUpWaiting = false;
+  private catchingUp = false;
+  /** Pages that draw titles' badges: request events fetch their request for its badge only meanwhile. */
+  private markWatchers = 0;
+  /**
+   * Asked for in one round: the requests events named in the last 0.3 s,
+   * with their titles, and the titles whose details say their badge.
+   */
+  private readonly markNamed = new Map<number, { kind: TitleKind; tmdbId: number }>();
+  private readonly markAsked = new Map<string, { kind: TitleKind; tmdbId: number }>();
+  private markTimer: ReturnType<typeof setTimeout> | null = null;
+  private noticeIds = 0;
+  private noticeOnScreen: number | null = null;
 
   constructor(platform: Platform, http: Transport = xhrTransport) {
     this.platform = platform;
@@ -181,10 +256,12 @@ export class AppState {
     const me = readJson<User>(this.store, ME_KEY);
     const libraries = readJson<Library[]>(this.store, LIBRARIES_KEY);
     const live = readJson<LiveSummary>(this.store, LIVE_KEY);
+    const requests = readJson<unknown>(this.store, REQUESTS_KEY);
     this.home.value = Array.isArray(home) ? home : null;
     this.me.value = me && typeof me === "object" && typeof me.id === "number" ? me : null;
     this.libraries.value = Array.isArray(libraries) ? libraries : null;
     this.live.value = live && typeof live === "object" && typeof live.available === "boolean" && Array.isArray(live.recent) ? live : null;
+    this.requests.value = isSummary(requests) ? requests : null;
   }
 
   /** The first screen, from what the TV kept. */
@@ -304,7 +381,12 @@ export class AppState {
     for (const fn of this.leavers.slice()) fn();
   }
 
-  /** The app acts as another profile now: what was shown for the one before goes. */
+  /**
+   * The app acts as another profile now: what was shown for the one before
+   * goes, and its event stream, which would bring its news here, starts
+   * over. Its summary still on the way is dropped, so this one's is asked
+   * for after it.
+   */
   async switched(): Promise<void> {
     this.endPlayback();
     this.forgetAccount();
@@ -314,6 +396,8 @@ export class AppState {
     this.me.value = null;
     this.live.value = null;
     this.forgetLive();
+    this.events?.restart();
+    void this.loadRequests(true);
     await this.loadAccount();
     void this.loadHome();
   }
@@ -381,12 +465,30 @@ export class AppState {
 
   // ---- what the server has
 
-  /** What was saved of the profile signed in (Home, who it is, its libraries): another profile, sign-in or server comes. */
+  /**
+   * What was saved of the profile signed in (Home, who it is, its
+   * libraries, its requests): another profile, sign-in or server comes.
+   */
   private forgetAccount(): void {
     this.store.remove(HOME_KEY);
     this.store.remove(ME_KEY);
     this.store.remove(LIBRARIES_KEY);
     this.store.remove(LIVE_KEY);
+    this.store.remove(REQUESTS_KEY);
+    this.generation++;
+    this.requests.value = null;
+    this.marks.value = {};
+    this.markNamed.clear();
+    this.markAsked.clear();
+    if (this.markTimer !== null) clearTimeout(this.markTimer);
+    this.markTimer = null;
+    this.notices.value = [];
+    this.noticeOnScreen = null;
+    this.newsHeard = 0;
+    this.caughtUp = false;
+    this.catchUpWaiting = false;
+    if (this.summaryTimer !== null) clearTimeout(this.summaryTimer);
+    this.summaryTimer = null;
   }
 
   /**
@@ -398,6 +500,8 @@ export class AppState {
   async loadAccount(): Promise<void> {
     const api = this.api.value;
     if (!api) return;
+    // What requests are for it, alongside.
+    void this.loadRequests();
     let me: User;
     let libraries: Library[];
     try {
@@ -416,6 +520,8 @@ export class AppState {
       () => undefined,
     );
     void this.loadLive();
+    // The news waited to know whose it is.
+    if (this.catchUpWaiting) void this.catchUp();
   }
 
   /**
@@ -655,10 +761,19 @@ export class AppState {
     const server = this.server.value;
     if (!on || !server || !this.tokens?.signedIn) {
       this.events?.stop();
+      // Hidden, nothing asks: shown again, the events connect (or fail, and the asking starts over).
+      if (this.pollTimer !== null) clearTimeout(this.pollTimer);
+      this.pollTimer = null;
       return;
     }
     if (!this.events) {
-      this.events = new EventStream(server, this.tokens, (e) => this.handleEvent(e), () => this.reconnected());
+      this.events = new EventStream(
+        server,
+        this.tokens,
+        (e) => this.handleEvent(e),
+        () => this.reconnected(),
+        () => this.eventsLost(),
+      );
     }
     this.events.start();
   }
@@ -668,12 +783,36 @@ export class AppState {
   private reconnected(): void {
     // Nothing is replayed: what is older than 30 s, or anything after the server was out of reach, is fetched again.
     const away = this.offline.value;
+    const down = this.eventsDown.value;
     this.serverAnswered();
+    this.eventsDown.value = false;
+    if (this.pollTimer !== null) clearTimeout(this.pollTimer);
+    this.pollTimer = null;
+    // The server may have restarted, newer: one without requests is asked again.
+    this.requestsMissing = false;
+    void this.loadRequests();
+    if (down) this.requestsChanged(null);
     if (away || Date.now() - this.lastSync > 30_000) {
       this.lastSync = Date.now();
       this.items.clear();
       this.refresh();
     }
+  }
+
+  /** The events stopped (or couldn't connect): until they connect again, the summary is asked for every 60 s. */
+  private eventsLost(): void {
+    this.eventsDown.value = true;
+    this.pollRequests();
+  }
+
+  private pollRequests(): void {
+    if (this.pollTimer !== null) return;
+    this.pollTimer = setTimeout(() => {
+      this.pollTimer = null;
+      if (!this.eventsDown.value || !this.events) return;
+      if (this.visible.value) void this.loadRequests();
+      this.pollRequests();
+    }, SUMMARY_POLL_MS);
   }
 
   private handleEvent(e: ServerEvent): void {
@@ -704,10 +843,296 @@ export class AppState {
         if (this.stateTimer === null) this.stateTimer = setTimeout(() => this.applyStateChanges(), STATE_GATHER_MS);
         break;
       }
+      case "requests_changed":
+        this.requestsSoon();
+        this.requestsChanged(e.kind && typeof e.tmdb_id === "number" ? titleKey({ kind: e.kind, tmdb_id: e.tmdb_id }) : null);
+        if (typeof e.request_id === "number" && e.kind && typeof e.tmdb_id === "number") this.markFromRequest(e.request_id, e.kind, e.tmdb_id);
+        break;
+      case "request_available": {
+        this.newsHeard++;
+        this.requestsSoon();
+        const complete = e.complete !== false;
+        if (e.kind && typeof e.tmdb_id === "number") {
+          this.requestsChanged(titleKey({ kind: e.kind, tmdb_id: e.tmdb_id }));
+          // A movie is in the library at once; a show wholly ready may still lack seasons nobody asked for: its details say.
+          if (!complete) this.markTitle(e.kind, e.tmdb_id, "partial", e.item_id ?? null);
+          else if (e.kind === "movie") this.markTitle(e.kind, e.tmdb_id, "library", e.item_id ?? null);
+          else this.markFromTitle(e.kind, e.tmdb_id);
+        } else {
+          this.requestsChanged(null);
+        }
+        if (this.remember(newsKeys(e.request_id, complete, e.seasons))) {
+          this.notify({ text: readyText(e.title, e.seasons, complete), itemId: e.item_id ?? null, poster: e.poster_url ?? null });
+        }
+        break;
+      }
+      case "request_decided":
+        // Declined news raises `unseen`; TVs show it as the number and in the lists, never as a pop-up.
+        this.newsHeard++;
+        this.requestsSoon();
+        this.requestsChanged(null);
+        break;
+      case "request_created":
+      case "request_failed":
+        this.requestsSoon();
+        this.requestsChanged(null);
+        break;
+      case "requests_settings_changed":
+        this.requestsMissing = false;
+        this.requestsSoon();
+        break;
       default:
         break;
     }
     for (const l of this.eventListeners.slice()) l(e);
+  }
+
+  // ---- requests
+
+  /**
+   * The requests summary: at start, after a profile switch, when the
+   * events reconnect, on request events (once, 1 s after a burst) and
+   * every 60 s while the events are down. A server without requests (404)
+   * or with an older build of them (403) has none until its events
+   * reconnect or the app starts; one out of reach keeps what was heard.
+   * One at a time: `changed` (an event came since the one in flight was
+   * asked for) asks once more after it.
+   */
+  loadRequests(changed = false): Promise<void> {
+    if (this.summaryLoad) {
+      if (changed) this.summaryAgain = true;
+      return this.summaryLoad;
+    }
+    const after = (): Promise<void> | undefined => {
+      this.summaryLoad = null;
+      if (!this.summaryAgain) return;
+      this.summaryAgain = false;
+      return this.loadRequests();
+    };
+    const run = this.fetchRequests().then(after, after);
+    this.summaryLoad = run;
+    return run;
+  }
+
+  private summaryLoad: Promise<void> | null = null;
+  private summaryAgain = false;
+
+  private async fetchRequests(): Promise<void> {
+    const api = this.api.value;
+    if (!api || !this.tokens?.signedIn || this.requestsMissing) return;
+    const generation = this.generation;
+    let summary: RequestSummary;
+    try {
+      summary = await api.requestSummary();
+    } catch (e) {
+      if (this.api.value !== api || this.generation !== generation) return;
+      if (e instanceof ApiError && (e.status === 404 || e.status === 403)) {
+        this.requestsMissing = true;
+        this.keepRequests(null);
+      }
+      return;
+    }
+    if (this.api.value !== api || this.generation !== generation) return;
+    const before = this.requests.value;
+    this.keepRequests(summary);
+    // Asked instead of hearing: what is on screen asks again when something changed.
+    if (this.eventsDown.value && before && summary.changed_at !== before.changed_at) this.requestsChanged(null);
+    // News no event explained (it came while the app wasn't listening): caught up with, once at start as well.
+    const unexplained = !!before && summary.unseen > before.unseen && this.newsHeard === 0;
+    this.newsHeard = 0;
+    if (summary.enabled && summary.sign_in_again !== "requests" && summary.unseen > 0 && (!this.caughtUp || unexplained)) void this.catchUp();
+  }
+
+  private keepRequests(summary: RequestSummary | null): void {
+    this.requests.value = summary;
+    if (summary) this.store.set(REQUESTS_KEY, JSON.stringify(summary));
+    else this.store.remove(REQUESTS_KEY);
+  }
+
+  /** The summary once, a second after the last request event of a burst. */
+  private requestsSoon(): void {
+    if (this.summaryTimer !== null) clearTimeout(this.summaryTimer);
+    this.summaryTimer = setTimeout(() => {
+      this.summaryTimer = null;
+      void this.loadRequests(true);
+    }, SUMMARY_GATHER_MS);
+  }
+
+  /** The pages that show requests ask again, once for a burst: about one title (`kind:tmdb_id`), or about any (`null`). */
+  requestsChanged(title: string | null): void {
+    this.changedTitles.add(title ?? "*");
+    if (this.changeTimer !== null) return;
+    this.changeTimer = setTimeout(() => {
+      this.changeTimer = null;
+      const titles = Array.from(this.changedTitles);
+      this.changedTitles.clear();
+      const one = titles.length === 1 && titles[0] !== "*" ? titles[0]! : null;
+      this.requestChanges.value = { n: this.requestChanges.value.n + 1, title: one };
+    }, REQUEST_GATHER_MS);
+  }
+
+  /** A page draws titles' badges: request events keep them right meanwhile. Returns the end of it. */
+  watchMarks(): () => void {
+    this.markWatchers++;
+    let done = false;
+    return () => {
+      if (done) return;
+      done = true;
+      this.markWatchers--;
+    };
+  }
+
+  /** A title's badge from now on, in every row already drawn (asking, an event). */
+  markTitle(kind: TitleKind, tmdbId: number, status: TitleStatus, itemId: number | null): void {
+    this.marks.value = { ...this.marks.value, [titleKey({ kind, tmdb_id: tmdbId })]: { status, item_id: itemId, at: Date.now() } };
+  }
+
+  /**
+   * A request changed: its title's badge follows it (`statusFromRequest`).
+   * The requests named within 0.3 s are asked for once each, then the
+   * details of the titles only they can tell, and the badges change
+   * together, so the pages that draw them do once.
+   */
+  private markFromRequest(id: number, kind: TitleKind, tmdbId: number): void {
+    if (!this.api.value || this.markWatchers <= 0) return;
+    this.markNamed.set(id, { kind, tmdbId });
+    this.markSoon();
+  }
+
+  /** A title's badge from its details (`GET /api/discover/{kind}/{tmdb_id}`), in the next round. */
+  private markFromTitle(kind: TitleKind, tmdbId: number): void {
+    if (!this.api.value || this.markWatchers <= 0) return;
+    this.markAsked.set(titleKey({ kind, tmdb_id: tmdbId }), { kind, tmdbId });
+    this.markSoon();
+  }
+
+  private markSoon(): void {
+    if (this.markTimer === null) this.markTimer = setTimeout(() => this.markRound(), REQUEST_GATHER_MS);
+  }
+
+  private markRound(): void {
+    this.markTimer = null;
+    const named = Array.from(this.markNamed.entries());
+    const asked = new Map(this.markAsked);
+    this.markNamed.clear();
+    this.markAsked.clear();
+    const api = this.api.value;
+    if (!api || this.markWatchers <= 0) return;
+    const generation = this.generation;
+    type Found = { key: string; status: TitleStatus; itemId: number | null };
+    const requests = named.map(([id, t]) =>
+      api.request(id).then(
+        (r) => ({ t, status: statusFromRequest(r), itemId: r.item_id }),
+        (e: unknown) => ({ t, status: isApiError(e, 404) ? statusFromRequest(null) : null, itemId: null }),
+      ),
+    );
+    void Promise.all(requests)
+      .then((answers) => {
+        if (this.generation !== generation) return [];
+        const found: Found[] = [];
+        for (const a of answers) {
+          const key = titleKey({ kind: a.t.kind, tmdb_id: a.t.tmdbId });
+          if (a.status === "ask") asked.set(key, a.t);
+          else if (a.status !== null) found.push({ key, status: a.status, itemId: a.itemId });
+        }
+        const titles = Array.from(asked.entries()).map(([key, t]) =>
+          api.discoverTitle(t.kind, t.tmdbId).then(
+            (d): Found | null => ({ key, status: d.status, itemId: d.item_id }),
+            () => null,
+          ),
+        );
+        // What the details say comes last, over what a request said of the same title.
+        return Promise.all(titles).then((told) => found.concat(told.filter((x): x is Found => x !== null)));
+      })
+      .then((all) => {
+        if (this.generation !== generation || !all.length) return;
+        const marks = { ...this.marks.value };
+        const at = Date.now();
+        for (const a of all) marks[a.key] = { status: a.status, item_id: a.itemId, at };
+        this.marks.value = marks;
+      });
+  }
+
+  /** A pop-up that waits its turn (while a video plays, among the last three); the one on screen stays until it closes. */
+  private notify(n: Omit<RequestNotice, "id">): void {
+    const all = this.notices.value.concat([{ ...n, id: ++this.noticeIds }]);
+    const waiting = all.filter((x) => x.id !== this.noticeOnScreen).slice(-NOTICES_KEPT);
+    this.notices.value = all.filter((x) => x.id === this.noticeOnScreen || waiting.indexOf(x) >= 0);
+  }
+
+  /** The shell shows this notice (`null`: none). */
+  showingNotice(id: number | null): void {
+    this.noticeOnScreen = id;
+  }
+
+  /** The notice was opened, closed or timed out. */
+  dropNotice(id: number): void {
+    if (id === this.noticeOnScreen) this.noticeOnScreen = null;
+    this.notices.value = this.notices.value.filter((n) => n.id !== id);
+  }
+
+  /** The news announced to this profile on this server: the newest `updated_at`, and each piece once. */
+  private newsKept(): { key: string; at: number; keys: string[] } | null {
+    const server = this.server.value;
+    const me = this.me.value;
+    if (!server || !me) return null;
+    const key = `${NEWS_KEY}.${server}.${me.id}`;
+    const kept = readJson<{ at?: unknown; keys?: unknown }>(this.store, key);
+    const at = kept && typeof kept.at === "number" ? kept.at : 0;
+    const keys = kept && Array.isArray(kept.keys) ? kept.keys.filter((k): k is string => typeof k === "string") : [];
+    return { key, at, keys };
+  }
+
+  /** Keeps `keys` as announced; false when every one was already (or whose news it is isn't known yet: it is announced anyway). */
+  private remember(keys: string[], at = 0): boolean {
+    const kept = this.newsKept();
+    if (!kept) return true;
+    const fresh = keys.filter((k) => kept.keys.indexOf(k) < 0);
+    const newest = Math.max(kept.at, at);
+    if (fresh.length || newest !== kept.at) this.store.set(kept.key, JSON.stringify({ at: newest, keys: kept.keys.concat(fresh).slice(-200) }));
+    return fresh.length > 0;
+  }
+
+  /**
+   * News that came while the app wasn't listening: the profile's
+   * unseen requests, of which TVs announce what is ready to watch, each
+   * once and only what is newer than the last announced: one title by its
+   * words, several as "3 of your requests have news".
+   */
+  private async catchUp(): Promise<void> {
+    const api = this.api.value;
+    if (!api || this.catchingUp) return;
+    const kept = this.newsKept();
+    if (!kept) {
+      // Whose news it is comes with who is watching (loadAccount).
+      this.catchUpWaiting = true;
+      return;
+    }
+    this.catchUpWaiting = false;
+    this.catchingUp = true;
+    const generation = this.generation;
+    try {
+      const list = await api.requests({ unseen: true, limit: 20 });
+      if (this.generation !== generation) return;
+      this.caughtUp = true;
+      const keys = (r: MediaRequest) => newsKeys(r.id, r.stage === "available", r.available_seasons);
+      const news = list.requests.filter((r) => readyNews(r) && r.updated_at > kept.at && keys(r).some((k) => kept.keys.indexOf(k) < 0));
+      if (!news.length) return;
+      this.remember(
+        news.reduce((all: string[], r) => all.concat(keys(r)), []),
+        Math.max(...news.map((r) => r.updated_at)),
+      );
+      const one = news[0]!;
+      this.notify(
+        news.length === 1
+          ? { text: readyText(one.title, one.available_seasons, one.stage === "available"), itemId: one.item_id, poster: one.poster_url }
+          : { text: newsText(news.length), itemId: null, poster: null },
+      );
+    } catch {
+      // Asked again with the next summary that has news.
+    } finally {
+      this.catchingUp = false;
+    }
   }
 
   /** The watch state changes of the last 0.3 s: their details go, and Home and the pages ask again once (with a pending library change). */

@@ -92,7 +92,7 @@ class CapsBuilderTest {
     }
 
     @Test
-    fun dolbyVisionProfilesComeFromHardwareDecodersAndTheScreen() {
+    fun dolbyVisionProfilesComeFromHardwareDecoders() {
         val phone = capsOf(TestDevices.dvPhone)
         assertEquals(listOf(DolbyVisionCaps(5, 7), DolbyVisionCaps(8, 7)), phone.report.dolbyVisionProfiles)
         assertTrue(phone.report.dolbyVision)
@@ -104,7 +104,9 @@ class CapsBuilderTest {
         assertTrue(max.details.dvHdr10PlusHybridsBroken)
 
         val onSdr = capsOf(TestDevices.dvPhone.copy(display = TestDevices.sdrPhone.display))
-        assertEquals("only with a Dolby Vision screen", emptyList<DolbyVisionCaps>(), onSdr.report.dolbyVisionProfiles)
+        // Listed whatever the screen: the server then says the screen is what doesn't show it.
+        assertEquals(listOf(5, 8), onSdr.report.dolbyVisionProfiles!!.map { it.profile })
+        assertFalse(DynamicRange.DolbyVision in onSdr.report.hdrTypes.orEmpty())
         assertFalse(onSdr.report.dolbyVision)
         assertEquals("still known for Diagnostics", listOf(5, 8), onSdr.details.dolbyVisionProfiles.map { it.profile })
 
@@ -201,6 +203,81 @@ class CapsBuilderTest {
         assertEquals(listOf(DynamicRange.Hdr10, DynamicRange.Hlg), CapsBuilder.screenHdrTypes(older, tv = true))
         val empty = DisplayState(modes.map { it.copy(hdrTypes = emptyList()) }, activeModeId = 1, hdrCapabilities = listOf(2))
         assertEquals("modes that list nothing fall back", listOf(DynamicRange.Hdr10), CapsBuilder.screenHdrTypes(empty, tv = true))
+    }
+
+    /** Dolby Vision at 24 Hz only: a TV promises it only where its player can switch to 24 Hz. */
+    @Test
+    fun screenHdrTypesCountTheModesAVideoPlaysIn() {
+        val modes = listOf(
+            DisplayModeInfo(1, 3840, 2160, 60f, hdrTypes = listOf(2)),
+            DisplayModeInfo(2, 3840, 2160, 24f, hdrTypes = listOf(1, 2)),
+            DisplayModeInfo(3, 1920, 1080, 24f, hdrTypes = listOf(1, 2)),
+        )
+        val dv = listOf(DynamicRange.Hdr10, DynamicRange.DolbyVision)
+        val hdr10 = listOf(DynamicRange.Hdr10)
+        fun types(match: MatchContent, switching: ModeSwitching = ModeSwitching.Auto, seamless: List<Float> = emptyList()): List<DynamicRange> {
+            val state = DisplayState(
+                modes.map { if (it.id == 1) it.copy(alternativeRefreshRates = seamless) else it },
+                activeModeId = 1,
+                hdrCapabilities = listOf(2),
+                matchContent = match,
+            )
+            return CapsBuilder.screenHdrTypes(state, tv = true, switching = switching)
+        }
+        assertEquals(dv, types(MatchContent.Always))
+        assertEquals("the device never switches", hdr10, types(MatchContent.Never))
+        assertEquals("unless pley's own setting says Always", dv, types(MatchContent.Never, ModeSwitching.Always))
+        assertEquals("pley's setting is Off", hdr10, types(MatchContent.Always, ModeSwitching.Off))
+        assertEquals("seamless only, and 24 Hz isn't", hdr10, types(MatchContent.SeamlessOnly))
+        assertEquals(dv, types(MatchContent.SeamlessOnly, seamless = listOf(24f)))
+    }
+
+    /** The person turned Dolby Vision off: the mode lists it, getHdrCapabilities doesn't, and neither does Media3. */
+    @Test
+    fun hdrTypesTurnedOffAreLeftOut() {
+        val modes = listOf(
+            DisplayModeInfo(1, 3840, 2160, 60f, hdrTypes = listOf(1, 2)),
+            DisplayModeInfo(2, 3840, 2160, 24f, hdrTypes = listOf(1, 2)),
+        )
+        val state = DisplayState(modes, activeModeId = 1, hdrCapabilities = listOf(2), matchContent = MatchContent.Always)
+        assertEquals(setOf(1), state.turnedOffHdrTypes)
+        assertEquals(listOf(DynamicRange.Hdr10), CapsBuilder.screenHdrTypes(state, tv = true))
+        assertEquals(listOf(DynamicRange.Hdr10), CapsBuilder.screenHdrTypes(state, tv = false))
+        val on = state.copy(hdrCapabilities = listOf(1, 2))
+        assertEquals(listOf(DynamicRange.Hdr10, DynamicRange.DolbyVision), CapsBuilder.screenHdrTypes(on, tv = true))
+    }
+
+    @Test
+    fun hdrTypesTurnedOffAreRememberedFromTheModesThatListThem() {
+        val modes = listOf(
+            DisplayModeInfo(1, 3840, 2160, 60f, hdrTypes = listOf(2)),
+            DisplayModeInfo(2, 3840, 2160, 24f, hdrTypes = listOf(1, 2)),
+        )
+        val home = DisplayState(modes, activeModeId = 1, hdrCapabilities = listOf(2))
+        // The 60 Hz mode doesn't list Dolby Vision: what was seen at 24 Hz stays.
+        assertEquals(setOf(1), home.turnedOffHdrTypes(remembered = setOf(1)))
+        assertEquals(emptySet<Int>(), home.turnedOffHdrTypes(remembered = emptySet()))
+        // At 24 Hz the display tells: off, or on again.
+        val film = home.copy(activeModeId = 2)
+        assertEquals(setOf(1), film.turnedOffHdrTypes(remembered = emptySet()))
+        assertEquals(emptySet<Int>(), film.copy(hdrCapabilities = listOf(1, 2)).turnedOffHdrTypes(remembered = setOf(1)))
+        // Before Android 14 modes list nothing: as remembered.
+        val old = DisplayState(modes.map { it.copy(hdrTypes = null) }, activeModeId = 2, hdrCapabilities = listOf(2))
+        assertEquals(setOf(1), old.turnedOffHdrTypes(remembered = setOf(1)))
+    }
+
+    @Test
+    fun aVideoTheScreenDoesntShowAsDolbyVisionIsAskedForWithoutIt() {
+        val streamer = TestDevices.googleTvStreamer
+        val dvScreen = streamer.display!!.copy(modes = streamer.display!!.modes.map { it.copy(hdrTypes = listOf(1, 2, 3)) }, hdrCapabilities = listOf(1, 2, 3))
+        val snapshot = capsOf(streamer.copy(display = dvScreen))
+        assertTrue(DynamicRange.DolbyVision in snapshot.report.hdrTypes.orEmpty())
+        val without = snapshot.withoutDolbyVisionScreen()
+        assertFalse(DynamicRange.DolbyVision in without.report.hdrTypes.orEmpty())
+        assertFalse(DynamicRange.DolbyVision in without.details.screenHdrTypes)
+        assertFalse(without.report.dolbyVision)
+        assertEquals("the decoders' profiles stay", snapshot.report.dolbyVisionProfiles, without.report.dolbyVisionProfiles)
+        assertEquals(snapshot.report.hdrTypes.orEmpty() - DynamicRange.DolbyVision, without.report.hdrTypes)
     }
 
     @Test

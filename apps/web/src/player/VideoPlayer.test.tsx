@@ -5,7 +5,7 @@ import { useServerEvents } from "@/api/events";
 import type { ItemDetail, PlaybackInfo, ServerEvent } from "@/api/types";
 import { makeItem, makeStream } from "@/test/fixtures";
 import { pgsMks } from "@/test/pictures";
-import { mockApi, renderWithProviders, type FakeRequest } from "@/test/render";
+import { mockApi, renderWithProviders, testUser, type FakeRequest } from "@/test/render";
 import { forgetNetwork } from "./network";
 import { VideoPlayer, startSize } from "./VideoPlayer";
 
@@ -270,7 +270,7 @@ class FakeEventSource {
 
 /** The player with the app's event stream open, as signed in. */
 function PlayerWithEvents() {
-  useServerEvents(true);
+  useServerEvents(testUser.id);
   return <VideoPlayer item={detail()} startMs={0} fileId={null} audio={null} sub={null} />;
 }
 

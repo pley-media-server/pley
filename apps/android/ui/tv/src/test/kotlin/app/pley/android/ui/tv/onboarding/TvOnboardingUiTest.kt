@@ -191,8 +191,8 @@ class TvOnboardingUiTest {
 
     private val code = LinkCode("BCDF-GHJK", "192.168.1.20:7539/link", "http://192.168.1.20:7539/link?code=BCDFGHJK", Long.MAX_VALUE)
 
-    private fun link(status: LinkStatus): () -> Int {
-        var state by mutableStateOf(LinkUiState("http://192.168.1.20:7539", code, LinkStatus.Waiting))
+    private fun link(status: LinkStatus, twoStepRequired: Boolean = false): () -> Int {
+        var state by mutableStateOf(LinkUiState("http://192.168.1.20:7539", code, LinkStatus.Waiting, twoStepRequired = twoStepRequired))
         var newCodes = 0
         compose.setContent {
             TvTheme(reducedMotion = true) {
@@ -214,6 +214,17 @@ class TvOnboardingUiTest {
         compose.onNodeWithText("GHJK", useUnmergedTree = true).assertExists()
         // Read letter by letter, as one node.
         compose.onNodeWithTag(CODE_TAG).assertContentDescriptionEquals("The code: B C D F, G H J K")
+        compose.onNodeWithText("two-step", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun theLinkScreenSaysWhenTheServerRequiresTwoStepSignIn() {
+        link(LinkStatus.Waiting, twoStepRequired = true)
+        compose.onNodeWithText("This server requires two-step sign-in: your phone sets it up if you haven't yet.").assertExists()
+        // The rest of the screen is as it was.
+        compose.onNodeWithText("BCDF", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Waiting for approval…").assertExists()
+        compose.onNodeWithTag(BACK_TAG).assertIsFocused()
     }
 
     @Test

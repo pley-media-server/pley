@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! HTTP API of the transcoder (see docs/TRANSCODER.md).
 
 use std::path::PathBuf;

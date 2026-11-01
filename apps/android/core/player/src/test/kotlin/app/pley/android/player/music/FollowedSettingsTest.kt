@@ -1,5 +1,6 @@
 package app.pley.android.player.music
 
+import app.pley.android.caps.ModeSwitching
 import app.pley.android.caps.Override
 import app.pley.android.caps.PassthroughFormat
 import app.pley.android.data.FrameRateMatching
@@ -33,8 +34,15 @@ class FollowedSettingsTest {
 
     @Test
     fun passthroughChoicesBecomeTheProbesOverrides() {
-        val caps = capsSettings(Settings(passthrough = mapOf("eac3-joc" to Passthrough.On, "dts" to Passthrough.Off, "ac3" to Passthrough.Auto)))
+        val caps = capsSettings(Settings(passthrough = mapOf("eac3-joc" to Passthrough.On, "dts" to Passthrough.Off, "ac3" to Passthrough.Auto)), tv = true)
         assertEquals(mapOf(PassthroughFormat.Atmos to Override.On, PassthroughFormat.Dts to Override.Off), caps.passthrough)
-        assertTrue(capsSettings(Settings(allowSoftwareVideo = true)).allowSoftwareDecoders)
+        assertTrue(capsSettings(Settings(allowSoftwareVideo = true), tv = false).allowSoftwareDecoders)
+    }
+
+    @Test
+    fun aTvsRefreshRateChoiceSaysWhichModesTheProbeCounts() {
+        assertEquals(ModeSwitching.Auto, capsSettings(Settings(), tv = true).modeSwitching)
+        assertEquals(ModeSwitching.Always, capsSettings(Settings(frameRateMatching = FrameRateMatching.Always), tv = true).modeSwitching)
+        assertEquals(ModeSwitching.Off, capsSettings(Settings(frameRateMatching = FrameRateMatching.Off), tv = true).modeSwitching)
     }
 }

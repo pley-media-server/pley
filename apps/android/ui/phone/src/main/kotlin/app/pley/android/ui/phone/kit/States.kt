@@ -37,14 +37,14 @@ import kotlinx.coroutines.delay
 
 /**
  * A page with nothing to show (design spec §8): an optional [icon], the
- * [title] in headlineSmall and the [body] in bodyMedium
+ * [title] in headlineSmall and the [body] (when there is one) in bodyMedium
  * [muted][PleyColors.Muted], centred, then an optional action ("Clear
  * filters"). "No libraries yet", "Nothing here yet", "No matches".
  */
 @Composable
 fun EmptyState(
     title: String,
-    body: String,
+    body: String?,
     modifier: Modifier = Modifier,
     icon: PleyIcon? = null,
     action: (@Composable () -> Unit)? = null,
@@ -65,8 +65,10 @@ fun EmptyState(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics { heading() },
             )
-            Spacer(Modifier.height(8.dp))
-            Text(body, style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted, textAlign = TextAlign.Center)
+            if (body != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(body, style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted, textAlign = TextAlign.Center)
+            }
             if (action != null) {
                 Spacer(Modifier.height(24.dp))
                 action()

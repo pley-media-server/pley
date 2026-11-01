@@ -55,3 +55,45 @@ sub test_format_meta_line()
     tkEqual(fmtMeta({}), "")
     tkEqual(fmtOneDecimal(7.25), "7.3")
 end sub
+
+' Sunday 1 November 2026, 12:00 UTC.
+sub test_format_times_to_come()
+    now = 1793534400
+    tkEqual(fmtUntil(now + 30, now), "in a moment")
+    tkEqual(fmtUntil(now - 600, now), "in a moment", "due already")
+    tkEqual(fmtUntil(now + 20 * 60, now), "in 20 min")
+    tkEqual(fmtUntil(now + 3590, now), "in 1 hour")
+    tkEqual(fmtUntil(now + 3 * 3600, now), "in 3 hours")
+    tkEqual(fmtUntil(now + 23 * 3600 + 2400, now), "tomorrow")
+    tkEqual(fmtUntil(now + 3 * 86400, now), "in 3 days")
+    tkEqual(fmtUntil(now + 12 * 86400 + 600, now), "in 12 days")
+    tkEqual(fmtUntil(invalid, now), "in a moment")
+end sub
+
+sub test_format_times_gone()
+    now = 1793534400
+    tkEqual(fmtAgo(now - 30, now, 0), "now")
+    tkEqual(fmtAgo(now - 12 * 60, now, 0), "12 min ago")
+    tkEqual(fmtAgo(now - 3600, now, 0), "1 hour ago")
+    tkEqual(fmtAgo(now - 3 * 3600, now, 0), "3 hours ago")
+    tkEqual(fmtAgo(now - 86400, now, 0), "yesterday")
+    tkEqual(fmtAgo(now - 3 * 86400, now, 0), "3 days ago")
+    tkEqual(fmtAgo(now - 40 * 86400, now, 0), "Sep 22, 2026")
+end sub
+
+sub test_format_days_in_local_time()
+    now = 1793534400
+    tkEqual(fmtDay(now + 3 * 86400, now, 0), "Nov 4")
+    tkEqual(fmtDay(now + 65 * 86400, now, 0), "Jan 5, 2027")
+    late = now + 3 * 86400 + 11 * 3600 + 1800
+    tkEqual(fmtDay(late, now, -5 * 3600), "Nov 4", "18:30 in New York")
+    tkEqual(fmtDay(late, now, 2 * 3600), "Nov 5", "01:30 in Athens")
+    tkEqual(fmtTimeOfDay(now + 9 * 3600 + 300, 0), "9:05 PM")
+    tkEqual(fmtTimeOfDay(now - 12 * 3600, 0), "12:00 AM")
+    tkEqual(fmtTimeOfDay(now, 3600), "1:00 PM")
+    tkEqual(fmtDateText("2026-11-04", now, 0), "Nov 4")
+    tkEqual(fmtDateText("2027-01-05", now, 0), "Jan 5, 2027")
+    tkEqual(fmtDateText("2026-13-01", now, 0), "")
+    tkEqual(fmtDateText(invalid, now, 0), "")
+    tkTrue(Abs(fmtZoneSeconds()) <= 14 * 3600)
+end sub

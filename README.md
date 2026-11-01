@@ -13,6 +13,7 @@
 - Plays files as they are, or transcodes on the GPU
 - HDR10, HLG and Dolby Vision tone mapping
 - Live TV from M3U and Xtream Codes, with XMLTV guides
+- Requests for movies and shows, fetched by Radarr and Sonarr
 - Profiles, PINs and two-step sign-in
 - Works offline on the home network
 
@@ -51,5 +52,8 @@ Then [first start](docs/CONFIGURATION.md#first-start).
 
 ## License
 
-Restricted, terms to be determined ([LICENSE](LICENSE)). The Kodi add-on is
-GPL-2.0-or-later. Third-party notices: [LICENSING.md](LICENSING.md).
+Pley is free software under the GNU Affero General Public License, version
+3 ([LICENSE](LICENSE)). The Kodi add-on is GPL-2.0-or-later. What that
+means, and third-party notices: [LICENSING.md](LICENSING.md). How to
+contribute, and the licence of a contribution:
+[CONTRIBUTING.md](CONTRIBUTING.md).

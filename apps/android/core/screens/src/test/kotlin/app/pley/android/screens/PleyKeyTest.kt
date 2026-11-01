@@ -1,5 +1,6 @@
 package app.pley.android.screens
 
+import app.pley.android.model.TitleKind
 import kotlinx.serialization.descriptors.elementNames
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -26,6 +27,9 @@ class PleyKeyTest {
         PleyKey.Playlists,
         PleyKey.Playlist(5),
         PleyKey.LiveTv,
+        PleyKey.Discover("arrival"),
+        PleyKey.DiscoverTitle(TitleKind.Show, 1396, pick = true),
+        PleyKey.Requests,
         PleyKey.Me,
         PleyKey.History,
         PleyKey.Downloads,

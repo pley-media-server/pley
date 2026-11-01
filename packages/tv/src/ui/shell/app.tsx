@@ -11,7 +11,8 @@ import { Screen } from "../screens/screens";
 import { Icon } from "../kit/icons";
 import { Toast } from "../kit/toast";
 import { Navigator, type Entry, type PageKey } from "./navigator";
-import { currentEntry, OFFLINE_TEXT, Rail, railEntries, type RailApi } from "./rail";
+import { RequestNotices, type NoticeApi } from "./notice";
+import { currentEntry, OFFLINE_TEXT, Rail, railEntries, requestsEntry, type RailApi } from "./rail";
 
 /** Pages without the rail: sign-in, "Who's watching?" and the players. */
 function railless(key: PageKey | undefined): boolean {
@@ -41,6 +42,7 @@ export function App(p: ShellProps) {
   const nav = useMemo(() => new Navigator(), []);
   const music = useMemo(() => initMusic(state), []);
   const rail = useRef<RailApi | null>(null);
+  const notice = useRef<NoticeApi | null>(null);
   const toast = useSignal<{ text: string; error: boolean; id: number } | null>(null);
   const curtain = useSignal(0);
   const exiting = useSignal(false);
@@ -152,7 +154,11 @@ export function App(p: ShellProps) {
   // A held direction key: rows and tiles move without animating. Told as keys come, so an idle TV runs no timer.
   useEffect(() => {
     input.onHolding = (holding) => document.getElementById("app")?.classList.toggle("holding", holding);
-    input.onPointOutside = (el) => rail.current?.pointTo(el);
+    input.onPointOutside = (el) => {
+      // A notice holding focus closes as the pointer moves onto the page; the rail opens for it as ever.
+      notice.current?.pointedAway(el);
+      rail.current?.pointTo(el);
+    };
     return () => {
       input.onHolding = null;
       input.onPointOutside = null;
@@ -230,7 +236,14 @@ export function App(p: ShellProps) {
   const libraries = state.libraries.value;
   const playing = music.now.value !== null;
   const live = !!state.live.value?.available;
-  const entries = useMemo(() => railEntries(libraries, playing, live), [libraries, playing, live]);
+  // Discover for whoever may ask, else their requests; with the one number that waits there.
+  const requests = requestsEntry(state.requests.value);
+  const entries = useMemo(
+    () => railEntries(libraries, playing, live, requests),
+    [libraries, playing, live, requests?.id ?? null, requests?.badge?.count ?? 0, requests?.badge?.danger ?? false],
+  );
+  // Ready-to-watch news pops up only where nothing else holds focus: not over a video, a panel, a dialog, the rail or typing.
+  const noticeFree = () => !!pageRoot.current && focus.root === pageRoot.current && !rail.current?.hasFocus() && !input.typing && !exiting.value;
   return (
     <AppContext.Provider value={state}>
       <UiContext.Provider value={ui}>
@@ -252,6 +265,14 @@ export function App(p: ShellProps) {
             <Icon name="server-off" size={20} color="var(--muted)" />
             <span>{OFFLINE_TEXT}</span>
           </div>
+        )}
+        {showRail && top?.key.name !== "requests" && (
+          <RequestNotices
+            state={state}
+            free={noticeFree}
+            noticeRef={(n) => (notice.current = n)}
+            onOpen={(n) => (n.itemId !== null ? nav.open({ name: "item", id: n.itemId }) : nav.open({ name: "requests" }))}
+          />
         )}
         {exiting.value && (
           <Dialog

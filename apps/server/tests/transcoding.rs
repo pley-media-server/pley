@@ -249,7 +249,7 @@ async fn start_fake() -> (Fake, String) {
                     name: "pley-transcoder".into(),
                     version: "9.9.9".into(),
                     api_version: API_VERSION,
-                    license: "LicenseRef-Restricted".into(),
+                    license: "AGPL-3.0-only".into(),
                     capabilities: Capabilities {
                         ffmpeg_available: true,
                         ffprobe_available: true,

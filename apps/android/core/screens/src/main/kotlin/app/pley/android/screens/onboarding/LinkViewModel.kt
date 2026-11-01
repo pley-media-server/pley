@@ -68,6 +68,11 @@ data class LinkUiState(
     val server: String,
     val code: LinkCode? = null,
     val status: LinkStatus = LinkStatus.Starting,
+    /**
+     * The server requires two-step sign-in: the phone that approves the
+     * code sets it up for whoever hasn't. False until the server says so.
+     */
+    val twoStepRequired: Boolean = false,
 )
 
 /** What the code signs in for. */
@@ -90,11 +95,16 @@ sealed interface LinkPurpose {
  * trouble counts down to the next try (2, 4, 8, 16, then 30 s). A code
  * that expired while the screen was away is replaced at once. Once
  * approved, "Signed in as <name>" shows for half a second, then Home.
+ *
+ * Signing in, the server is asked once whether it requires two-step
+ * sign-in, for the screen to say so; the code never waits for the answer.
  */
 class LinkViewModel(
     private val source: OnboardingSource,
     val server: String,
     private val purpose: LinkPurpose = LinkPurpose.SignIn,
+    /** The code asks for the scopes of requests too: phones. Android TV has no requests. */
+    private val requests: Boolean = true,
     /** The sign-in module's clock: codes expire by it. */
     private val clock: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
@@ -111,6 +121,15 @@ class LinkViewModel(
     private var visible = false
     private var renewals = 0
     private var startFailures = 0
+
+    init {
+        // A profile's approval is about the household, not the server's sign-in.
+        if (purpose == LinkPurpose.SignIn) {
+            viewModelScope.launch {
+                if (source.twoStepRequired(server)) _state.update { it.copy(twoStepRequired = true) }
+            }
+        }
+    }
 
     /** The screen is started: a code is asked about (a new one if the old one ran out). */
     fun started() {
@@ -149,7 +168,7 @@ class LinkViewModel(
         if (!silent) _state.update { it.copy(status = LinkStatus.Starting) }
         job = viewModelScope.launch {
             val code = try {
-                source.deviceSignIn.start(server)
+                source.deviceSignIn.start(server, requests)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: AuthException) {

@@ -39,6 +39,10 @@ class FrameRateControllerTest {
             timeouts[displayKey] = count
         }
 
+        override suspend fun turnedOffHdrTypes(displayKey: String) = emptySet<Int>()
+
+        override suspend fun setTurnedOffHdrTypes(displayKey: String, types: Set<Int>) = Unit
+
         override suspend fun takeHint(): Boolean = !hintTaken.also { hintTaken = true }
     }
 

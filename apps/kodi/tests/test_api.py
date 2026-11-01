@@ -82,6 +82,14 @@ class ErrorsTest(unittest.TestCase):
         self.assertEqual((oauth.code, oauth.message), ("invalid_grant", "used"))
         bare = api.error_of(api.Response(502, {}, b"<html>bad gateway</html>"))
         self.assertEqual((bare.code, bare.message), ("http_502", "the server answered 502"))
+        self.assertEqual(bare.body, {})
+
+    def test_what_a_refusal_says_besides_is_kept(self):
+        # When to ask again, which a sentence alone would hide.
+        body = b'{"code": "declined", "message": "declined", "retry_at": 1700000000}'
+        refusal = api.error_of(api.Response(409, {}, body))
+        self.assertEqual(refusal.body["retry_at"], 1700000000)
+        self.assertEqual(api.ApiError(0, "unreachable", "down").body, {})
 
 
 if __name__ == "__main__":

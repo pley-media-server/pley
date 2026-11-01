@@ -29,6 +29,18 @@ export function useConnectionLost(): boolean {
 }
 
 /**
+ * Whether the server's event stream is open, so changes arrive as they
+ * happen: while it isn't, what would hear of them asks again now and then.
+ */
+let live = false;
+
+export const eventsLive = (): boolean => live;
+
+export function setEventsLive(value: boolean): void {
+  live = value;
+}
+
+/**
  * Whether the server answers at all (its health check), within `timeoutMs`:
  * a stream it refused (a sign-in that ended) is no lost connection.
  */

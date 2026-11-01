@@ -72,11 +72,15 @@ function colour(table: Record<string, string>, name: string | null | undefined):
   return table[name] ?? name;
 }
 
-/** "Profile 8.1 · Level 6 · HDR10-compatible base layer". */
+/**
+ * "Profile 8.1 · Level 6 · HDR10-compatible base layer"; "Profile 8 · … ·
+ * Blu-ray HDR10-compatible base layer" for compatibility 6, as the labels
+ * name it (8.1, 8.2 and 8.4 only).
+ */
 export function dolbyVisionDetails(s: MediaStream): string | null {
   if (s.dv_profile == null) return null;
   const compat = s.dv_bl_compat ?? 0;
-  const parts = [`Profile ${s.dv_profile}${s.dv_profile >= 8 && compat > 0 ? `.${compat}` : ""}`];
+  const parts = [`Profile ${s.dv_profile}${s.dv_profile >= 8 && [1, 2, 4].includes(compat) ? `.${compat}` : ""}`];
   if (s.dv_level != null) parts.push(`Level ${s.dv_level}`);
   const base: Record<number, string> = { 0: "no compatible base layer", 1: "HDR10", 2: "SDR", 4: "HLG", 6: "Blu-ray HDR10" };
   const b = base[compat];

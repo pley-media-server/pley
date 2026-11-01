@@ -3,11 +3,15 @@ import { SignedOutError, type Tokens } from "../auth/tokens";
 import { Cancel, NetworkError, TIMED_OUT, withQuery, type HttpRequest, type HttpResponse, type Transport } from "../net/transport";
 import type {
   Collection,
+  DiscoverDetail,
+  DiscoverList,
+  DiscoverPage,
   Hub,
   HistoryEntry,
   HouseholdProfile,
   Id,
   ItemDetail,
+  ItemRequest,
   ItemSummary,
   Library,
   LiveChannel,
@@ -16,8 +20,10 @@ import type {
   LiveGuide,
   LiveSummary,
   LiveWatching,
+  MediaRequest,
   NetworkAnswer,
   NetworkReport,
+  NewRequest,
   LibrarySort,
   PersonDetail,
   PersonSummary,
@@ -26,13 +32,38 @@ import type {
   PlaybackState,
   Playlist,
   PlaylistEntry,
+  RequestList,
+  RequestStatus,
+  RequestSummary,
   SessionStatus,
   SubtitleMode,
   SubtitleResult,
   SubtitleTrack,
+  TitleKind,
+  Timestamp,
   Trickplay,
   User,
 } from "./types";
+
+/** Which requests to list (`GET /api/requests`): each left out means any. */
+export interface RequestQuery {
+  status?: RequestStatus[];
+  /** Managers: pending ones, and failed ones the server won't try again by itself. */
+  attention?: boolean;
+  kind?: TitleKind;
+  /** Managers: one person's. */
+  userId?: Id;
+  /** The title has these words. */
+  q?: string;
+  order?: "newest" | "oldest";
+  /** Managers: only this profile's and those it follows. */
+  mine?: boolean;
+  /** Only those with news since Your requests was last seen, newest news first. */
+  unseen?: boolean;
+  changedSince?: Timestamp;
+  offset?: number;
+  limit?: number;
+}
 
 /** An answer that isn't 2xx, with pley's `{ code, message }`. */
 export class ApiError extends Error {
@@ -70,10 +101,25 @@ export function errorMessage(e: unknown): string {
   return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
 }
 
-/** The server answered nothing: no connection, no answer in time, or a gateway in front of it saying it has none (502–504). */
+/**
+ * The server answered nothing: no connection, no answer in time, or a
+ * gateway in front of it saying it has none (502, 504, and a 503 that
+ * isn't Pley's). A 503 with Pley's `{ code, … }` is the server's answer
+ * (requests are off, TMDB isn't answering), as Roku has it: nothing goes
+ * offline for one, though the player waits out a `503 unavailable`
+ * mid-film as it does the server.
+ */
 export function unreachable(e: unknown): boolean {
   if (e instanceof NetworkError) return !e.cancelled;
-  return e instanceof ApiError && (e.status === 502 || e.status === 503 || e.status === 504);
+  if (!(e instanceof ApiError)) return false;
+  if (e.status === 502 || e.status === 504) return true;
+  return e.status === 503 && !pleyAnswer(e);
+}
+
+/** The answer is pley's own JSON, with its `code`. */
+function pleyAnswer(e: ApiError): boolean {
+  const body = e.body as { code?: unknown } | undefined;
+  return !!body && typeof body.code === "string";
 }
 
 /** Why the server answered nothing, as the Android app says it: "Nothing answers there." or "No answer in time." */
@@ -549,6 +595,95 @@ export class Api {
   /** Stops watching: the connection is let go once nobody else watches. */
   leaveChannel(session: string): Promise<unknown> {
     return this.call("DELETE", `/api/live/sessions/${encodeURIComponent(session)}`);
+  }
+
+  // ---- requests and Discover
+
+  /** What requests are for this sign-in: on or off, what asking does, the limits and the counts (any app may ask). */
+  requestSummary(cancel?: Cancel): Promise<RequestSummary> {
+    return this.get("/api/requests/summary", { cancel });
+  }
+
+  /** One page of a Discover list. */
+  discover(list: DiscoverList, page: number, cancel?: Cancel): Promise<DiscoverPage> {
+    return this.get(`/api/discover/${list}`, { query: { page }, cancel });
+  }
+
+  /** TMDB's movies and shows for `q`; `missing`: without those a library has whole (search, which shows those already). */
+  discoverSearch(q: string, page: number, missing = false, cancel?: Cancel): Promise<DiscoverPage> {
+    return this.get("/api/discover/search", { query: { q, page, missing: missing ? 1 : undefined }, cancel });
+  }
+
+  /** A movie's or show's page; TMDB numbers the two separately, so `kind` is the one it came with. */
+  discoverTitle(kind: TitleKind, tmdbId: number, cancel?: Cancel): Promise<DiscoverDetail> {
+    return this.get(`/api/discover/${kind}/${tmdbId}`, { cancel });
+  }
+
+  /** A library title's place in requests: its status, the request for it, the seasons left to ask for. */
+  itemRequest(id: Id, cancel?: Cancel): Promise<ItemRequest> {
+    return this.get(`/api/items/${id}/request`, { cancel });
+  }
+
+  requests(q: RequestQuery, cancel?: Cancel): Promise<RequestList> {
+    const flag = (on: boolean | undefined) => (on ? 1 : undefined);
+    return this.get("/api/requests", {
+      query: {
+        status: q.status && q.status.length ? q.status.join(",") : undefined,
+        attention: flag(q.attention),
+        kind: q.kind,
+        user_id: q.userId,
+        q: q.q ? q.q : undefined,
+        order: q.order,
+        mine: flag(q.mine),
+        unseen: flag(q.unseen),
+        changed_since: q.changedSince,
+        offset: q.offset,
+        limit: q.limit,
+      },
+      cancel,
+    });
+  }
+
+  request(id: Id, cancel?: Cancel): Promise<MediaRequest> {
+    return this.get(`/api/requests/${id}`, { cancel });
+  }
+
+  /**
+   * Asks for a title, or follows the requests that cover it: `created` is
+   * true for a new request (201), false when it only follows (200).
+   */
+  askFor(body: NewRequest): Promise<{ request: MediaRequest; created: boolean }> {
+    return this.send("/api/requests", { method: "POST", body, timeoutMs: 30_000 }).then((r) => ({ request: r.body as MediaRequest, created: r.status === 201 }));
+  }
+
+  /** Withdraws this profile's own request (or removes a declined one); a manager's deletes anyone's. */
+  deleteRequest(id: Id): Promise<unknown> {
+    return this.call("DELETE", `/api/requests/${id}`);
+  }
+
+  /** Stops following someone else's request. */
+  unwatchRequest(id: Id): Promise<unknown> {
+    return this.call("DELETE", `/api/requests/${id}/watch`);
+  }
+
+  /** Your requests was seen: its news is no longer new, on this profile's other devices too. */
+  markRequestsSeen(): Promise<unknown> {
+    return this.call("POST", "/api/requests/seen");
+  }
+
+  /** Managers: approves (or tries again) with the settings' choices; the request as it is now. */
+  approveRequest(id: Id): Promise<MediaRequest> {
+    return this.call("POST", `/api/requests/${id}/approve`) as Promise<MediaRequest>;
+  }
+
+  /** Managers: declines, with what its maker reads as the reason, if any. */
+  declineRequest(id: Id, reason: string | null): Promise<MediaRequest> {
+    return this.call("POST", `/api/requests/${id}/decline`, reason ? { reason } : undefined) as Promise<MediaRequest>;
+  }
+
+  /** Managers: approved without sending it anywhere, as added to the library by hand. */
+  markRequestHandled(id: Id): Promise<MediaRequest> {
+    return this.call("POST", `/api/requests/${id}/handled`) as Promise<MediaRequest>;
   }
 }
 

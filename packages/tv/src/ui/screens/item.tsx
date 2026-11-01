@@ -2,7 +2,7 @@ import { useSignal, type Signal } from "@preact/signals";
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { errorMessage, isApiError, unreachable } from "../../api/client";
-import type { Credit, CreditRole, ItemDetail, ItemSummary, MediaFile, MediaStream } from "../../api/types";
+import type { Credit, CreditRole, ItemDetail, ItemSummary, MediaFile, MediaRequest, MediaStream } from "../../api/types";
 import {
   codecLabel,
   episodeLabel,
@@ -23,6 +23,7 @@ import {
   audioFormatLabel,
 } from "../../format/format";
 import { mediaFacts } from "../../format/media-info";
+import { mayAsk } from "../../requests";
 import { audioStreams, subtitleStreams, withTracks } from "../../player/plan";
 import { useUi } from "../context";
 import { artCandidates } from "../kit/art";
@@ -37,6 +38,7 @@ import type { Entry } from "../shell/navigator";
 import { ActionsPanel } from "./actions";
 import { failedTitle, Message, PageBadge, problem, sentence, useApp, useLoad } from "./common";
 import { openPlayer, pageOf, prefetchPlayback, setInMyList, setWatched } from "./item-actions";
+import { ItemRequestLine, useItemRequest } from "./request-kit";
 
 /** Where the focused part of the page sits. */
 const TABS_LINE = 218;
@@ -271,13 +273,17 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
   const heroEl = useRef<HTMLDivElement | null>(null);
   const [heroH, setHeroH] = useState(HERO_H);
   const target: ItemSummary | null = kind === "show" || kind === "season" ? onDeck.data ?? null : item;
+  // A movie's or show's request, once the page has drawn: its stage, and Request more seasons.
+  const titleRequest = useItemRequest(item.id, kind);
+  const requested = titleRequest?.request ?? null;
+  const askMore = titleRequest && titleRequest.askable && titleRequest.askable.length > 0 && mayAsk(app.requests.value) ? titleRequest : null;
   // The hero's height, measured when what it says changes: reading it lays the page out.
   useLayoutEffect(() => {
     const el = heroEl.current;
     if (!el) return;
     const h = HERO_PAD + el.offsetHeight;
     if (h !== heroH) setHeroH(h);
-  }, [item, target, fileId, partOf.data]);
+  }, [item, target, fileId, partOf.data, !!requested, !!askMore]);
 
   // ---- the primary button
   const playable = kind === "movie" || kind === "episode" ? item.files.length > 0 : !!target;
@@ -354,6 +360,8 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
         onPlaylist={() => ui.nav.open({ name: "addToPlaylist", itemIds: [item.id], title: item.title })}
         onMore={() => setPanel("more")}
         onSummaryCut={setSummaryCut}
+        request={requested}
+        onRequestMore={askMore ? () => ui.nav.open({ name: "title", kind: askMore.kind, tmdbId: askMore.tmdb_id, pick: true }) : null}
       />,
     ],
   });
@@ -711,6 +719,10 @@ function ItemHero(p: {
   onPlaylist: () => void;
   onMore: () => void;
   onSummaryCut: (cut: boolean) => void;
+  /** The title's request (any of its stage); `null` without one. */
+  request: MediaRequest | null;
+  /** The title's page with its season picker; `null` when nothing more may be asked for. */
+  onRequestMore: (() => void) | null;
 }) {
   const app = useApp();
   const item = p.item;
@@ -741,6 +753,7 @@ function ItemHero(p: {
       <div style="margin-top:12px">
         <ItemMeta item={item} file={p.file} />
       </div>
+      {p.request && <ItemRequestLine request={p.request} />}
       {p.resume && p.target && (
         <div class="t-caption c-fg" style="margin-top:8px">
           {formatTimeLeft(p.target.user_state.position_ms, p.target.duration_ms)}
@@ -781,6 +794,7 @@ function ItemHero(p: {
           </F>
         </div>
         {p.resume && <Round label="From start" icon="rotate-ccw" fid="fromStart" onFocus={focus} onSelect={() => p.onPlay(true)} />}
+        {p.onRequestMore && <Round label="Request more seasons" icon="plus" fid="requestMore" onFocus={focus} onSelect={p.onRequestMore} />}
         <Round
           label={p.watched ? "Mark as unwatched" : "Mark as watched"}
           icon={p.watched ? "eye-off" : "circle-check"}

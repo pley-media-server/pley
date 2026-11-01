@@ -779,7 +779,7 @@ impl LiveTv {
             *last = Some(Instant::now());
         }
         let dir = self.pictures.clone();
-        let pruned = crate::util::blocking(move || prune(&dir, PICTURE_DROP, PICTURES_MAX_BYTES)).await;
+        let pruned = crate::util::blocking(move || crate::util::prune(&dir, PICTURE_DROP, PICTURES_MAX_BYTES)).await;
         match pruned {
             Ok(0) => {}
             Ok(n) => tracing::info!("{n} live TV pictures let go"),
@@ -2144,39 +2144,6 @@ fn lightened(img: &image::DynamicImage) -> Option<image::RgbaImage> {
     Some(rgba)
 }
 
-/// Deletes the files under `dir` older than `drop_after`, then the oldest
-/// while they take more than `max_bytes` (down to nine tenths of it): how
-/// many went.
-fn prune(dir: &std::path::Path, drop_after: Duration, max_bytes: u64) -> anyhow::Result<usize> {
-    let mut files = Vec::new();
-    let Ok(subdirs) = std::fs::read_dir(dir) else { return Ok(0) };
-    for sub in subdirs.flatten() {
-        let Ok(entries) = std::fs::read_dir(sub.path()) else { continue };
-        for entry in entries.flatten() {
-            let Ok(meta) = entry.metadata() else { continue };
-            if meta.is_file() {
-                let age = meta.modified().ok().and_then(|t| t.elapsed().ok()).unwrap_or_default();
-                files.push((entry.path(), age, meta.len()));
-            }
-        }
-    }
-    let mut gone = 0;
-    let mut total: u64 = files.iter().map(|f| f.2).sum();
-    let keep = if total > max_bytes { max_bytes / 10 * 9 } else { u64::MAX };
-    // Oldest first: the stale ones, then as many more as are too many.
-    files.sort_by_key(|f| std::cmp::Reverse(f.1));
-    for (path, age, len) in files {
-        if age <= drop_after && total <= keep {
-            break;
-        }
-        if std::fs::remove_file(&path).is_ok() {
-            gone += 1;
-            total -= len;
-        }
-    }
-    Ok(gone)
-}
-
 struct Listed {
     entries: Vec<m3u::Entry>,
     guide_url: Option<String>,
@@ -2303,28 +2270,6 @@ mod tests {
         let small = image::load_from_memory(&made_fit(&encode(&huge)).unwrap().unwrap()).unwrap();
         assert_eq!((small.width(), small.height()), (LOGO_SIDE, LOGO_SIDE / 2));
         assert!(made_fit(b"<svg/>").is_err(), "not a picture");
-    }
-
-    #[test]
-    fn pictures_go_when_stale_or_too_many() {
-        let dir = tempfile::tempdir().unwrap();
-        let sub = dir.path().join("ab");
-        std::fs::create_dir_all(&sub).unwrap();
-        let file = |name: &str, len: usize, days_old: u64| {
-            let path = sub.join(name);
-            std::fs::write(&path, vec![0u8; len]).unwrap();
-            let at = std::time::SystemTime::now() - Duration::from_secs(days_old * 86_400);
-            std::fs::File::options().write(true).open(&path).unwrap().set_modified(at).unwrap();
-            path
-        };
-        let stale = file("stale.png", 10, 40);
-        let (old, newer, newest) = (file("old.png", 100, 3), file("newer.png", 100, 2), file("newest.png", 100, 1));
-        assert_eq!(prune(dir.path(), Duration::from_secs(30 * 86_400), 1000).unwrap(), 1, "only the stale one");
-        assert!(!stale.exists() && old.exists());
-        // Too many: the oldest go, down to nine tenths of what they may take.
-        assert_eq!(prune(dir.path(), Duration::from_secs(30 * 86_400), 150).unwrap(), 2);
-        assert!(!old.exists() && !newer.exists() && newest.exists());
-        assert_eq!(prune(&dir.path().join("none"), Duration::ZERO, 0).unwrap(), 0, "nothing kept yet");
     }
 
     #[test]

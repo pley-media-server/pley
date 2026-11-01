@@ -1,0 +1,53 @@
+{
+  "kind": "show", "tmdb_id": 1396, "title": "Breaking Bad", "year": 2008,
+  "overview": "Walter White, a New Mexico chemistry teacher, is diagnosed with Stage III cancer and given a prognosis of only two years left to live.",
+  "poster_url": "/api/discover/images/poster/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg",
+  "backdrop_url": "/api/discover/images/backdrop/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg",
+  "rating": 8.9, "status": "partial", "item_id": null, "request_id": 42,
+  "original_title": null,
+  "tagline": "Change the equation.",
+  "genres": ["Drama", "Crime"],
+  "release_date": "2008-01-20",
+  "runtime_minutes": null,
+  "certification": "TV-MA",
+  "network": "AMC",
+  "show_status": "Ended",
+  "anime": false,
+  "cast": [
+    { "name": "Bryan Cranston", "character": "Walter White", "photo_url": "/api/discover/images/profile/7Jahy5LZX2Fo8fGJltMreAI49hC.jpg" },
+    { "name": "Aaron Paul", "character": "Jesse Pinkman", "photo_url": null }
+  ],
+  "seasons": [
+    { "number": 0, "name": "Specials", "episodes": 9, "aired": 9, "air_date": "2009-02-17", "poster_url": null, "in_library": 0, "requested": false, "state": "missing", "declined": false, "request_id": null },
+    { "number": 1, "name": "Season 1", "episodes": 7, "aired": 7, "air_date": "2008-01-20", "poster_url": "/api/discover/images/poster/1BP4xYv9ZG4ZVHkL7ocOziBbSYH.jpg", "in_library": 0, "requested": true, "state": "requested", "declined": false, "request_id": 42 },
+    { "number": 2, "name": "Season 2", "episodes": 13, "aired": 13, "air_date": "2009-03-08", "poster_url": null, "in_library": 0, "requested": true, "state": "requested", "declined": false, "request_id": 42 },
+    { "number": 3, "name": "Season 3", "episodes": 13, "aired": 13, "air_date": "2010-03-21", "poster_url": null, "in_library": 0, "requested": false, "state": "missing", "declined": false, "request_id": null },
+    { "number": 4, "name": "Season 4", "episodes": 13, "aired": 13, "air_date": "2011-07-17", "poster_url": null, "in_library": 0, "requested": false, "state": "missing", "declined": true, "request_id": null },
+    { "number": 5, "name": "Season 5", "episodes": 16, "aired": 16, "air_date": "2012-07-15", "poster_url": null, "in_library": 0, "requested": false, "state": "missing", "declined": false, "request_id": null }
+  ],
+  "imdb_id": "tt0903747",
+  "declined": null,
+  "restriction": null,
+  "watching": false,
+  "requests": [
+    {
+      "id": 42, "kind": "show", "tmdb_id": 1396, "title": "Breaking Bad", "year": 2008,
+      "poster_url": "/api/discover/images/poster/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg",
+      "backdrop_url": "/api/discover/images/backdrop/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg",
+      "seasons": [1, 2], "available_seasons": [], "anime": false,
+      "status": "approved", "stage": "downloading", "stage_at": null,
+      "reason": null, "note": null, "mine": true, "watching": false, "watchers": 0, "unseen": false,
+      "actions": [],
+      "requested_by": { "id": 2, "name": "Sam", "avatar_url": null, "avatar_color": "#38bdf8" },
+      "decided_by": { "id": 1, "name": "Ann", "avatar_url": null, "avatar_color": "#f472b6" },
+      "decided_at": 1761500100,
+      "created_at": 1761500000, "updated_at": 1761600000, "available_at": null, "retry_at": null,
+      "sent_to": null, "item_id": null,
+      "download": { "progress": 0.42, "state": "downloading", "eta": 1761601200, "episodes": 20 }
+    }
+  ],
+  "movies_left": 2,
+  "seasons_left": 5,
+  "movies_next_at": null,
+  "seasons_next_at": null
+}

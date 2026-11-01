@@ -3,6 +3,46 @@
 use serde::Serialize;
 use tokio::sync::broadcast;
 
+use crate::discover::TitleKind;
+use crate::requests::{RequestStatus, RequestUser};
+
+/// Whom a request's event is for: the accounts it names (its maker, its
+/// followers) and whether managers get it too
+/// ([`crate::auth::AuthUser::manages_requests`]). Apps' streams get request
+/// events only with `requests`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Audience {
+    pub users: Vec<i64>,
+    pub managers: bool,
+    /// Left out even as a manager: the request's maker, of its own
+    /// `request_created`.
+    pub except_user: Option<i64>,
+    /// Left out: the streams of this token (its hash), the session that
+    /// caused the event.
+    pub except_token: Option<String>,
+}
+
+impl Audience {
+    /// The accounts named, and managers.
+    pub fn of(users: Vec<i64>) -> Audience {
+        Audience { users, managers: true, ..Audience::default() }
+    }
+
+    /// Only these accounts.
+    pub fn only(users: Vec<i64>) -> Audience {
+        Audience { users, ..Audience::default() }
+    }
+
+    /// Whether a stream of account `user_id`, opened with the token hashed
+    /// `token`, gets the event: `manager` while it manages requests.
+    pub fn reaches(&self, user_id: i64, manager: bool, token: &str) -> bool {
+        if self.except_token.as_deref() == Some(token) || self.except_user == Some(user_id) {
+            return false;
+        }
+        self.users.contains(&user_id) || (self.managers && manager)
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ScanPhase {
@@ -81,6 +121,81 @@ pub enum ServerEvent {
     /// A live channel started or stopped being pulled, or someone started
     /// or stopped watching one: the connections in use changed.
     LiveTunersChanged,
+    /// A request changed (made, followed, decided, sent, failed, ready,
+    /// withdrawn, deleted, or its stage), to its maker, its followers and
+    /// managers; or many did (`request_id`, `kind` and `tmdb_id` all
+    /// `None`): an account saw its news (to its other streams), or one was
+    /// deleted with its requests (to managers and those who inherited
+    /// some). Clients fetch the summary and what shows that request again.
+    RequestsChanged {
+        #[serde(skip)]
+        to: Audience,
+        request_id: Option<i64>,
+        kind: Option<TitleKind>,
+        tmdb_id: Option<i64>,
+    },
+    /// A request became available, or some more of a show's seasons did
+    /// (`seasons`: those newly ready; `complete`: all it asks for): to its
+    /// maker and to each follower who can open the title, one event each,
+    /// with the library's title where that account may open it.
+    RequestAvailable {
+        #[serde(skip)]
+        to: Audience,
+        request_id: i64,
+        title: String,
+        kind: TitleKind,
+        tmdb_id: i64,
+        item_id: Option<i64>,
+        poster_url: Option<String>,
+        seasons: Option<Vec<i64>>,
+        complete: bool,
+    },
+    /// A request was approved (to its maker, unless they approved it
+    /// themselves) or declined (to its maker with the reason, and to its
+    /// followers without).
+    RequestDecided {
+        #[serde(skip)]
+        to: Audience,
+        request_id: i64,
+        title: String,
+        kind: TitleKind,
+        tmdb_id: i64,
+        status: RequestStatus,
+        reason: Option<String>,
+    },
+    /// Someone asked for a title: to managers but its maker.
+    RequestCreated {
+        #[serde(skip)]
+        to: Audience,
+        request_id: i64,
+        title: String,
+        kind: TitleKind,
+        tmdb_id: i64,
+        seasons: Option<Vec<i64>>,
+        requested_by: RequestUser,
+        status: RequestStatus,
+    },
+    /// A request couldn't be sent to Radarr or Sonarr and is left for a
+    /// manager: to managers. `retry_at` is always `None`: nothing is tried
+    /// again by itself.
+    RequestFailed {
+        #[serde(skip)]
+        to: Audience,
+        request_id: i64,
+        title: String,
+        kind: TitleKind,
+        reason: String,
+        retry_at: Option<i64>,
+    },
+    /// What the request summary says may have changed: requests were turned
+    /// on or off, their limits or TMDB's key changed (`user_id: None`: to
+    /// every stream, apps' without `requests` included), or one account's
+    /// access to them (its request access, administrator role, age limit or
+    /// libraries). Clients fetch the summary again.
+    RequestsSettingsChanged {
+        #[serde(skip)]
+        user_id: Option<i64>,
+    },
 }
 
 impl ServerEvent {
@@ -98,17 +213,37 @@ impl ServerEvent {
             | ServerEvent::UserStateChanged { .. }
             | ServerEvent::SessionStopped { .. }
             | ServerEvent::LiveChannelsChanged
-            | ServerEvent::LiveTunersChanged => None,
+            | ServerEvent::LiveTunersChanged
+            | ServerEvent::RequestsChanged { .. }
+            | ServerEvent::RequestAvailable { .. }
+            | ServerEvent::RequestDecided { .. }
+            | ServerEvent::RequestCreated { .. }
+            | ServerEvent::RequestFailed { .. }
+            | ServerEvent::RequestsSettingsChanged { .. } => None,
         }
     }
 
-    /// The only user the event is for, if it is for one.
+    /// The only user the event is for, if it is for one (request events
+    /// say whom with [`ServerEvent::audience`]).
     pub fn user_id(&self) -> Option<i64> {
         match self {
             ServerEvent::WatchlistChanged { user_id }
             | ServerEvent::OwnLibrariesChanged { user_id }
             | ServerEvent::UserStateChanged { user_id, .. }
             | ServerEvent::SessionStopped { user_id, .. } => Some(*user_id),
+            ServerEvent::RequestsSettingsChanged { user_id } => *user_id,
+            _ => None,
+        }
+    }
+
+    /// Whom a request's event is for.
+    pub fn audience(&self) -> Option<&Audience> {
+        match self {
+            ServerEvent::RequestsChanged { to, .. }
+            | ServerEvent::RequestAvailable { to, .. }
+            | ServerEvent::RequestDecided { to, .. }
+            | ServerEvent::RequestCreated { to, .. }
+            | ServerEvent::RequestFailed { to, .. } => Some(to),
             _ => None,
         }
     }
@@ -171,5 +306,67 @@ mod tests {
         })
         .unwrap();
         assert_eq!(json, r#"{"type":"session_stopped","session_id":"s1","message":null,"by_admin":true}"#);
+        // Request events say whom they are for, and stay off the
+        // per-user path.
+        let event = ServerEvent::RequestsChanged {
+            to: Audience::of(vec![4, 5]),
+            request_id: Some(2),
+            kind: Some(TitleKind::Movie),
+            tmdb_id: Some(949),
+        };
+        assert_eq!((event.user_id(), event.audience().map(|a| a.managers)), (None, Some(true)));
+        let json = serde_json::to_string(&event).unwrap();
+        assert_eq!(json, r#"{"type":"requests_changed","request_id":2,"kind":"movie","tmdb_id":949}"#);
+        let many =
+            ServerEvent::RequestsChanged { to: Audience::only(vec![4]), request_id: None, kind: None, tmdb_id: None };
+        let json = serde_json::to_string(&many).unwrap();
+        assert_eq!(json, r#"{"type":"requests_changed","request_id":null,"kind":null,"tmdb_id":null}"#);
+        let event = ServerEvent::RequestAvailable {
+            to: Audience::only(vec![4]),
+            request_id: 2,
+            title: "Heat".into(),
+            kind: TitleKind::Show,
+            tmdb_id: 7,
+            item_id: Some(9),
+            poster_url: None,
+            seasons: Some(vec![1, 2]),
+            complete: false,
+        };
+        assert_eq!(
+            serde_json::to_string(&event).unwrap(),
+            r#"{"type":"request_available","request_id":2,"title":"Heat","kind":"show","tmdb_id":7,"item_id":9,"poster_url":null,"seasons":[1,2],"complete":false}"#
+        );
+        let event = ServerEvent::RequestDecided {
+            to: Audience::only(vec![4]),
+            request_id: 2,
+            title: "Heat".into(),
+            kind: TitleKind::Movie,
+            tmdb_id: 949,
+            status: RequestStatus::Declined,
+            reason: None,
+        };
+        assert_eq!(
+            serde_json::to_string(&event).unwrap(),
+            r#"{"type":"request_decided","request_id":2,"title":"Heat","kind":"movie","tmdb_id":949,"status":"declined","reason":null}"#
+        );
+        let everyone = ServerEvent::RequestsSettingsChanged { user_id: None };
+        assert_eq!((everyone.user_id(), everyone.audience()), (None, None));
+        assert_eq!(serde_json::to_string(&everyone).unwrap(), r#"{"type":"requests_settings_changed"}"#);
+        let one = ServerEvent::RequestsSettingsChanged { user_id: Some(4) };
+        assert_eq!((one.user_id(), one.audience()), (Some(4), None));
+    }
+
+    #[test]
+    fn an_audience_names_accounts_and_managers() {
+        let to = Audience::of(vec![4]);
+        assert!(to.reaches(4, false, "a"), "named");
+        assert!(to.reaches(7, true, "b"), "a manager");
+        assert!(!to.reaches(7, false, "b"), "neither");
+        let only = Audience::only(vec![4]);
+        assert!(!only.reaches(7, true, "b"), "not for managers");
+        let created = Audience { except_user: Some(4), ..Audience::of(Vec::new()) };
+        assert!(!created.reaches(4, true, "a") && created.reaches(7, true, "b"), "its maker is left out");
+        let seen = Audience { except_token: Some("a".into()), ..Audience::only(vec![4]) };
+        assert!(!seen.reaches(4, false, "a") && seen.reaches(4, false, "c"), "the account's other streams");
     }
 }

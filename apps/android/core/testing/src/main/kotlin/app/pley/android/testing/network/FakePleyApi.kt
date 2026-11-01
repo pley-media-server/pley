@@ -1,7 +1,25 @@
 package app.pley.android.testing.network
 
 import app.pley.android.model.Added
+import app.pley.android.model.Approval
+import app.pley.android.model.Asked
 import app.pley.android.model.CollectionDetail
+import app.pley.android.model.Decline
+import app.pley.android.model.DiscoverDetail
+import app.pley.android.model.DiscoverList
+import app.pley.android.model.DiscoverPage
+import app.pley.android.model.ItemRequest
+import app.pley.android.model.MediaRequest
+import app.pley.android.model.NewRequest
+import app.pley.android.model.RequestAction
+import app.pley.android.model.RequestList
+import app.pley.android.model.RequestOptions
+import app.pley.android.model.RequestQuery
+import app.pley.android.model.RequestStage
+import app.pley.android.model.RequestStatus
+import app.pley.android.model.RequestSummary
+import app.pley.android.model.TitleKind
+import app.pley.android.model.TitleStatus
 import app.pley.android.model.CollectionList
 import app.pley.android.model.EntryIds
 import app.pley.android.model.Health
@@ -374,6 +392,96 @@ class FakePleyApi(val issuer: String = "http://127.0.0.1:7539") : PleyApi {
         val detail = fixture<PlaylistDetail>("playlists/detail.json")
         val first = entries.entryIds.mapNotNull { e -> detail.entries.firstOrNull { it.entryId == e } }
         detail.copy(entries = first + detail.entries.filter { it !in first })
+    }
+
+    // ---------------------------------------------------------------- requests
+
+    override suspend fun requestSummary(): RequestSummary = respond("requestSummary") { fixture("requests/summary.json") }
+
+    override suspend fun discover(list: DiscoverList, page: Int): DiscoverPage = respond("discover", list, page) {
+        fixture<DiscoverPage>("discover/trending.json").copy(page = page)
+    }
+
+    override suspend fun discoverSearch(query: String, page: Int, missing: Boolean): DiscoverPage =
+        respond("discoverSearch", query, page, missing) {
+            val all = fixture<DiscoverPage>("discover/trending.json")
+            all.copy(page = page, results = all.results.filter { !missing || it.status != TitleStatus.Library })
+        }
+
+    override suspend fun discoverTitle(kind: TitleKind, tmdbId: Long): DiscoverDetail = respond("discoverTitle", kind, tmdbId) {
+        fixture(if (kind == TitleKind.Show) "discover/show.json" else "discover/movie.json")
+    }
+
+    override suspend fun itemRequest(itemId: Long): ItemRequest = respond("itemRequest", itemId) { fixture("requests/item_request.json") }
+
+    override suspend fun requests(query: RequestQuery): RequestList = respond("requests", query) {
+        val list = fixture<RequestList>(if (query.attention) "requests/attention.json" else "requests/list.json")
+        list.copy(
+            requests = list.requests.filter { r ->
+                (query.kind == null || r.kind == query.kind) && (query.q.isNullOrBlank() || r.title.contains(query.q!!, ignoreCase = true)) &&
+                    (query.statuses.isEmpty() || r.status in query.statuses) && (!query.unseen || r.unseen)
+            },
+        )
+    }
+
+    override suspend fun request(id: Long): MediaRequest = respond("request", id) { knownRequest(id) }
+
+    override suspend fun ask(request: NewRequest): Asked = respond("ask", request) {
+        Asked(
+            MediaRequest(
+                id = 60,
+                kind = request.kind,
+                tmdbId = request.tmdbId,
+                title = "Asked for",
+                seasons = request.seasons,
+                status = RequestStatus.Pending,
+                stage = RequestStage.Pending,
+                mine = true,
+                actions = listOf(RequestAction.Withdraw),
+            ),
+            created = true,
+        )
+    }
+
+    override suspend fun deleteRequest(id: Long) = respond("deleteRequest", id) { }
+
+    override suspend fun unwatchRequest(id: Long) = respond("unwatchRequest", id) { }
+
+    override suspend fun requestsSeen() = respond("requestsSeen") { }
+
+    override suspend fun approveRequest(id: Long, approval: Approval): MediaRequest = respond("approveRequest", id, approval) {
+        knownRequest(id).copy(
+            status = RequestStatus.Approved,
+            stage = RequestStage.Approved,
+            seasons = approval.seasons ?: knownRequest(id).seasons,
+            actions = listOf(RequestAction.Decline, RequestAction.Delete),
+        )
+    }
+
+    override suspend fun declineRequest(id: Long, decline: Decline): MediaRequest = respond("declineRequest", id, decline) {
+        knownRequest(id).copy(
+            status = RequestStatus.Declined,
+            stage = RequestStage.Declined,
+            reason = decline.reason,
+            actions = listOf(RequestAction.Approve, RequestAction.Handled, RequestAction.Delete),
+        )
+    }
+
+    override suspend fun requestHandled(id: Long): MediaRequest = respond("requestHandled", id) {
+        knownRequest(id).copy(
+            status = RequestStatus.Approved,
+            stage = RequestStage.Approved,
+            note = "Added by hand",
+            actions = listOf(RequestAction.Decline, RequestAction.Delete),
+        )
+    }
+
+    override suspend fun requestOptions(): RequestOptions = respond("requestOptions") { fixture("requests/options.json") }
+
+    /** Request [id] of the fixtures' lists, else the first one as [id]. */
+    private fun knownRequest(id: Long): MediaRequest {
+        val all = fixture<RequestList>("requests/list.json").requests + fixture<RequestList>("requests/attention.json").requests
+        return all.firstOrNull { it.id == id } ?: all.first().copy(id = id)
     }
 
     companion object {

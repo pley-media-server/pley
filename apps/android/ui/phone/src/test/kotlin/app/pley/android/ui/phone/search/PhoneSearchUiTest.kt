@@ -10,12 +10,16 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.model.LiveChannel
+import app.pley.android.model.DiscoverPage
+import app.pley.android.model.TitleKind
 import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.search.SearchGroup
 import app.pley.android.screens.search.SearchGroupKind
 import app.pley.android.screens.search.SearchResultsState
 import app.pley.android.screens.search.SearchUiState
+import app.pley.android.screens.search.TmdbSection
+import app.pley.android.testing.Fixtures
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.theme.PhoneTheme
 import org.junit.Assert.assertEquals
@@ -25,7 +29,11 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** The phone's search: the field up first, recent searches, the groups with their counts, and the empty page's words. */
+/**
+ * The phone's search: the field up first, recent searches, the groups
+ * with their counts, the empty page's words, and Discover in it: its way
+ * in before typing, and what TMDB has after the libraries' results.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w412dp-h915dp-xxhdpi")
 class PhoneSearchUiTest {
@@ -46,8 +54,14 @@ class PhoneSearchUiTest {
     private val chosen = mutableListOf<String>()
     private val watched = mutableListOf<LiveChannel>()
     private var cleared = 0
+    private val trending: DiscoverPage = Fixtures.decode("discover/trending.json")
 
-    private fun show(state: SearchUiState<ArtworkTileModel>, field: TextFieldState = TextFieldState(state.query)) {
+    private fun show(
+        state: SearchUiState<ArtworkTileModel>,
+        field: TextFieldState = TextFieldState(state.query),
+        tmdb: TmdbSection = TmdbSection.Hidden,
+        discover: Boolean = false,
+    ) {
         compose.setContent {
             PhoneTheme {
                 CompositionLocalProvider(LocalPhoneNavigator provides navigator) {
@@ -59,6 +73,8 @@ class PhoneSearchUiTest {
                         onClearRecent = { cleared++ },
                         open = { group, id -> if (group == SearchGroupKind.People) PleyKey.Person(id) else PleyKey.Item(id) },
                         onWatch = { watched += it },
+                        tmdb = tmdb,
+                        discover = discover,
                     )
                 }
             }
@@ -117,5 +133,45 @@ class PhoneSearchUiTest {
         show(SearchUiState("zzz", emptyList(), SearchResultsState.Empty("zzz")))
         compose.onNodeWithText("No results for “zzz”").assertExists()
         compose.onNodeWithText("Try a different spelling or fewer words.").assertExists()
+    }
+
+    @Test
+    fun discoverHeadsThePageBeforeTypingWhereRequestsAreOpen() {
+        show(SearchUiState("", listOf("north"), SearchResultsState.Idle), discover = true)
+        compose.onNodeWithText("Find movies and shows to ask for").assertExists()
+        compose.onNodeWithTag(SEARCH_DISCOVER).performClick()
+        assertEquals(listOf<PleyKey>(PleyKey.Discover()), opened)
+        // The recent searches follow it.
+        compose.onNodeWithText("north").assertExists()
+    }
+
+    @Test
+    fun withoutRequestsThereIsNoWayToDiscover() {
+        show(SearchUiState("", emptyList(), SearchResultsState.Idle))
+        compose.onNodeWithTag(SEARCH_DISCOVER).assertDoesNotExist()
+    }
+
+    @Test
+    fun whatTmdbHasFollowsTheResultsAndSeeAllOpensDiscover() {
+        val groups = listOf(SearchGroup(SearchGroupKind.Movies, listOf(tile(1, "Northern Lights")), listOf(1)))
+        show(
+            SearchUiState("robot", emptyList(), SearchResultsState.Ready("robot", groups, loading = false)),
+            tmdb = TmdbSection.Ready("robot", trending.results.take(2)),
+        )
+        compose.onNodeWithText("On TMDB").assertExists()
+        compose.onNodeWithText("The Wild Robot", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("See all on Discover").performClick()
+        assertEquals(listOf(PleyKey.DiscoverTitle(TitleKind.Movie, 1184918), PleyKey.Discover("robot")), opened)
+    }
+
+    @Test
+    fun withNothingInTheLibrariesTmdbStillAnswers() {
+        show(
+            SearchUiState("robot", emptyList(), SearchResultsState.Empty("robot")),
+            tmdb = TmdbSection.Ready("robot", trending.results.take(1)),
+        )
+        compose.onNodeWithText("Nothing in your libraries matches").assertExists()
+        compose.onNodeWithText("On TMDB").assertExists()
+        compose.onNodeWithText("No results for “robot”").assertDoesNotExist()
     }
 }

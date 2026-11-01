@@ -120,8 +120,13 @@ class PreparedSwitchTest {
         val requests = h.playbackRequests()
         assertEquals(listOf(null, true, true), requests.map { it.keepPrevious })
         assertEquals(listOf(null, 4_000, 2_000), requests.map { it.maxBitrate })
-        // The first one made ready is deleted without a stop (it never played), then the original ends.
-        assertEquals(listOf("start", "start", "start", "delete", "progress stopped", "delete"), moves())
+        // The first one made ready is deleted without a stop (it never played) as the second is asked
+        // for: the delete goes through the reports' queue and the start doesn't, so the server may hear
+        // either first. Then the original ends.
+        val moves = moves()
+        assertEquals(listOf("start", "start"), moves.take(2))
+        assertEquals(listOf("delete", "start"), moves.subList(2, 4).sorted())
+        assertEquals(listOf("progress stopped", "delete"), moves.drop(4))
         val (dropped, original) = h.deletes()
         assertEquals(h.progress(FixtureIds.SAMPLE_1080P).last().second.sessionId, original)
         assertTrue(dropped != original)

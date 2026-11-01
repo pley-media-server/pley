@@ -165,6 +165,104 @@ sealed interface ServerEvent {
         override val type: String get() = TYPE
     }
 
+    /**
+     * A request changed (its stage too): for its maker, its followers and
+     * managers. All three `null` when many changed (another device looked
+     * at its requests, an account was deleted).
+     */
+    @Serializable
+    data class RequestsChanged(
+        val requestId: Long? = null,
+        val kind: TitleKind? = null,
+        val tmdbId: Long? = null,
+    ) : ServerEvent {
+        override val type: String get() = TYPE
+
+        companion object {
+            const val TYPE = "requests_changed"
+        }
+    }
+
+    /**
+     * A request is ready to watch, for its maker and followers: [itemId] is
+     * where this account can open it. A show's request also says so when
+     * some of its seasons are ready ([seasons], not [complete]).
+     */
+    @Serializable
+    data class RequestAvailable(
+        val requestId: Long,
+        val title: String = "",
+        val kind: TitleKind = TitleKind.Unknown,
+        val tmdbId: Long = 0,
+        val itemId: Long? = null,
+        val posterUrl: String? = null,
+        val seasons: List<Int>? = null,
+        val complete: Boolean = true,
+    ) : ServerEvent {
+        override val type: String get() = TYPE
+
+        companion object {
+            const val TYPE = "request_available"
+        }
+    }
+
+    /** A request was approved or declined: for its maker, and when declined its followers ([reason] `null` for them). */
+    @Serializable
+    data class RequestDecided(
+        val requestId: Long,
+        val title: String = "",
+        val kind: TitleKind = TitleKind.Unknown,
+        val tmdbId: Long = 0,
+        val status: RequestStatus = RequestStatus.Unknown,
+        val reason: String? = null,
+    ) : ServerEvent {
+        override val type: String get() = TYPE
+
+        companion object {
+            const val TYPE = "request_decided"
+        }
+    }
+
+    /** Someone else asked for something: for managers. */
+    @Serializable
+    data class RequestCreated(
+        val requestId: Long,
+        val title: String = "",
+        val kind: TitleKind = TitleKind.Unknown,
+        val tmdbId: Long = 0,
+        val seasons: List<Int>? = null,
+        val requestedBy: RequestUser? = null,
+        val status: RequestStatus = RequestStatus.Unknown,
+    ) : ServerEvent {
+        override val type: String get() = TYPE
+
+        companion object {
+            const val TYPE = "request_created"
+        }
+    }
+
+    /** A request couldn't be sent and waits for a manager: for managers. */
+    @Serializable
+    data class RequestFailed(
+        val requestId: Long,
+        val title: String = "",
+        val kind: TitleKind = TitleKind.Unknown,
+        val reason: String? = null,
+        val retryAt: Long? = null,
+    ) : ServerEvent {
+        override val type: String get() = TYPE
+
+        companion object {
+            const val TYPE = "request_failed"
+        }
+    }
+
+    /** Requests were turned on or off, their limits or TMDB's key changed, or what this account may do with them. */
+    data object RequestsSettingsChanged : ServerEvent {
+        const val TYPE = "requests_settings_changed"
+        override val type: String get() = TYPE
+    }
+
     /** An event this app doesn't know: skipped, but not an error. */
     data class Unknown(override val type: String) : ServerEvent
 
@@ -195,6 +293,12 @@ sealed interface ServerEvent {
                 UserStateChanged.TYPE -> json.decodeFromJsonElement(UserStateChanged.serializer(), fields)
                 LiveChannelsChanged.TYPE -> LiveChannelsChanged
                 LiveTunersChanged.TYPE -> LiveTunersChanged
+                RequestsChanged.TYPE -> json.decodeFromJsonElement(RequestsChanged.serializer(), fields)
+                RequestAvailable.TYPE -> json.decodeFromJsonElement(RequestAvailable.serializer(), fields)
+                RequestDecided.TYPE -> json.decodeFromJsonElement(RequestDecided.serializer(), fields)
+                RequestCreated.TYPE -> json.decodeFromJsonElement(RequestCreated.serializer(), fields)
+                RequestFailed.TYPE -> json.decodeFromJsonElement(RequestFailed.serializer(), fields)
+                RequestsSettingsChanged.TYPE -> RequestsSettingsChanged
                 else -> Unknown(type)
             }
         }
@@ -209,7 +313,12 @@ sealed interface ServerEvent {
                 is LibraryChanged -> json.encodeToJsonElement(LibraryChanged.serializer(), value).jsonObject
                 is SessionStopped -> json.encodeToJsonElement(SessionStopped.serializer(), value).jsonObject
                 is UserStateChanged -> json.encodeToJsonElement(UserStateChanged.serializer(), value).jsonObject
-                LibrariesChanged, SessionsChanged, WatchlistChanged, LiveChannelsChanged, LiveTunersChanged, is Unknown -> emptyMap()
+                is RequestsChanged -> json.encodeToJsonElement(RequestsChanged.serializer(), value).jsonObject
+                is RequestAvailable -> json.encodeToJsonElement(RequestAvailable.serializer(), value).jsonObject
+                is RequestDecided -> json.encodeToJsonElement(RequestDecided.serializer(), value).jsonObject
+                is RequestCreated -> json.encodeToJsonElement(RequestCreated.serializer(), value).jsonObject
+                is RequestFailed -> json.encodeToJsonElement(RequestFailed.serializer(), value).jsonObject
+                LibrariesChanged, SessionsChanged, WatchlistChanged, LiveChannelsChanged, LiveTunersChanged, RequestsSettingsChanged, is Unknown -> emptyMap()
             }
             output.encodeJsonElement(JsonObject(mapOf<String, JsonElement>("type" to JsonPrimitive(value.type)) + fields))
         }

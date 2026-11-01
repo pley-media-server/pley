@@ -14,6 +14,18 @@ import kotlinx.serialization.Serializable
 data class ApiErrorBody(
     val code: String? = null,
     val message: String? = null,
+    /**
+     * A 503 of something the server lacks: `false` while it is off
+     * (requests, subtitle search), `true` when it is on but what it needs
+     * fails (TMDB's key, or TMDB itself).
+     */
+    val setup: Boolean? = null,
+    /** `false`: trying again won't help (TMDB refused the server's key). */
+    val retry: Boolean? = null,
+    /** When asking again may work: a decline's 30 days, a limit's 7. */
+    val retryAt: Long? = null,
+    /** A 409 of a request that changed meanwhile: the request as it is now. */
+    val request: MediaRequest? = null,
     val connections: List<BusyConnection> = emptyList(),
 )
 

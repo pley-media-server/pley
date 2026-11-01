@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.pley" name="Pley" version="0.1.0" provider-name="the Pley authors">
+<addon id="plugin.video.pley" name="Pley" version="0.1.1" provider-name="the Pley authors">
   <requires>
     <import addon="xbmc.python" version="3.0.1"/>
   </requires>
@@ -13,7 +13,7 @@
     <!-- One Python for every call: modules load once, not for each listing. -->
     <reuselanguageinvoker>true</reuselanguageinvoker>
     <summary lang="en_GB">Your Pley server's movies, shows and music</summary>
-    <description lang="en_GB">Browse and play what is on your Pley server: Continue Watching, My List, every library, search and playlists. Pley plays files as they are whenever Kodi can, and converts the rest on the server. Sign in with a code shown on screen, typed on your server's link page.</description>
+    <description lang="en_GB">Browse and play what is on your Pley server: Continue Watching, My List, every library, search and playlists, and ask for movies and shows it doesn't have yet. Pley plays files as they are whenever Kodi can, and converts the rest on the server. Sign in with a code shown on screen, typed on your server's link page.[CR][CR]This product uses the TMDB API but is not endorsed or certified by TMDB.</description>
     <disclaimer lang="en_GB">Pley isn't affiliated with Plex Inc. or Team Kodi.</disclaimer>
     <platform>all</platform>
     <license>GPL-2.0-or-later AND ISC AND MIT</license>
@@ -24,20 +24,12 @@
       <fanart>resources/fanart.jpg</fanart>
     </assets>
     <!-- The version's CHANGELOG entries (scripts/release.mjs writes them). -->
-    <news>0.1.0 (2026-10-30)
+    <news>0.1.1 (2026-11-01)
 Added:
 
-- Live TV, where the server has channels: in the rail after Home, the categories (Search, Favourites, Recently watched, All channels, then the groups, a region's gathered under it), the channels of the one shown by number with what's on now and how far into it, a page at a time, and the focused one's programme and what comes next beside them; a channel's schedule; number keys to go to a channel. Kodi's lists have the same categories. A channel plays in Kodi's own player as the provider sends it (Kodi deinterlaces; surround sound passes through), Next and Previous change channel within its category, and every connection in use says what holds each, with Watch here instead where it may be taken over. Search finds channels too. A channel has no pause, back or forward, as in every app. Lineups of tens of thousands of channels open at once. Needs a server with Live TV.
-
-Security:
-
-- Plain http goes only to addresses on the home network, checked on the connection: sign-in codes and tokens never cross the internet unencrypted. Use the server's https address from elsewhere.
-- The proxy refuses a negative or unreadable Content-Length, and checks its secret in constant time.
-
-Changed:
-
-- The sign-in page names this app by its address on pley-media-server.github.io. It needs a server from the same release, which keeps it signed in.
-- Its links point at github.com/pley-media-server/pley.
-- PGS subtitles come to Kodi as a .sup file...</news>
+- Requests: ask for movies and shows the server doesn't have yet. Discover searches TMDB and lists Trending this week, Popular movies, Popular shows, Coming to cinemas and Popular anime, each title with its badge ("In library", "Requested", "Declined"); OK does its one main action (Request, Open, Tell me too…) and the rest is in its context menu. A show's seasons each say their state, and Which seasons? picks the ones to ask for. Needs a server with requests turned on; for a sign-in from before, Discover offers "Sign in again".
+- Your requests: each request's stage ("Waiting for approval", "Downloading 42% · in 20 min", "Ready to watch"…), what it says and when it was asked for, with Withdraw and Stop following. Administrators get Requests, opening on Needs attention, with filters (Yours for their own), Approve, Decline, Decline with a reason… (typed on Kodi's keyboard), Mark as added by hand and Delete. The entry carries the number of what is new or waits.
+- Search shows On TMDB after the libraries' results, and a library show's menu has Request more seasons. In Pley's look, the profile's menu opens Discover and Your requests in Kodi's lists, search has an On TMDB row, and a show's More has Request more seasons.
+- "“Heat” is ready to watch." pops up with the poster as soon as it is ("Season 2 of “X” is ready to watch." for a show), and as Kodi starts for news that came while it was off; never over a playing video, where the last three wait for...</news>
   </extension>
 </addon>

@@ -125,7 +125,28 @@
     "hdr_types": [
         "hdr10"
     ],
-    "dolby_vision_profiles": [],
+    "dolby_vision_profiles": [
+        {
+            "profile": 4,
+            "max_level": 9
+        },
+        {
+            "profile": 5,
+            "max_level": 9
+        },
+        {
+            "profile": 8,
+            "max_level": 9
+        },
+        {
+            "profile": 9,
+            "max_level": 9
+        },
+        {
+            "profile": 10,
+            "max_level": 9
+        }
+    ],
     "audio_decode": [
         "aac",
         "mp3",

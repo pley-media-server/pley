@@ -7,6 +7,8 @@ export type ApiErrorCode =
   | "too_many_requests"
   /** The second step of a sign-in: a code from the authenticator app is missing or wrong. */
   | "two_step"
+  /** A sign-in that sets up two-step sign-in first, which the server requires: the answer has the secret (`setup`). */
+  | "two_step_setup"
   | "unavailable"
   | "internal"
   | "network";
@@ -58,6 +60,11 @@ export interface RequestOptions {
 }
 
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+  return (await requestWithStatus<T>(path, opts)).data;
+}
+
+/** As {@link request}, with the answer's status, where 200 and 201 say different things. */
+export async function requestWithStatus<T>(path: string, opts: RequestOptions = {}): Promise<{ status: number; data: T }> {
   const { method = "GET", body, rawBody, form, signal, keepalive, noAuthRedirect } = opts;
   const headers: Record<string, string> = { Accept: "application/json" };
   if (rawBody) headers["Content-Type"] = rawBody.type || "application/octet-stream";
@@ -92,20 +99,20 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
     } catch {
       // not JSON
     }
-    // A second step asked for is not an expired session.
-    if (res.status === 401 && !noAuthRedirect && code !== "two_step") unauthorizedHandler?.();
+    // A second step asked for, or to set up, is not an expired session.
+    if (res.status === 401 && !noAuthRedirect && code !== "two_step" && code !== "two_step_setup") unauthorizedHandler?.();
     throw new ApiError(res.status, code, message, answer);
   }
 
   if (res.status === 204 || res.status === 202) {
     // Body may be empty (or ignored).
     const text = await res.text().catch(() => "");
-    return (text ? safeJson(text) : undefined) as T;
+    return { status: res.status, data: (text ? safeJson(text) : undefined) as T };
   }
   const contentType = res.headers.get("content-type") ?? "";
-  if (contentType.includes("application/json")) return (await res.json()) as T;
+  if (contentType.includes("application/json")) return { status: res.status, data: (await res.json()) as T };
   const text = await res.text();
-  return (text ? safeJson(text) : undefined) as T;
+  return { status: res.status, data: (text ? safeJson(text) : undefined) as T };
 }
 
 function safeJson(text: string): unknown {

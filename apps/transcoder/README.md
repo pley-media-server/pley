@@ -10,8 +10,9 @@ standalone HTTP service that does
 - thumbnails and cover art,
 - metrics in JSON and Prometheus formats.
 
-It is Restricted, as all of Pley is ([LICENSE](../../LICENSE)), and the Pley
-server talks to it only over HTTP ([LICENSING.md](../../LICENSING.md)).
+It is under the AGPL-3.0, as all of Pley is ([LICENSE](../../LICENSE)), and
+the Pley server talks to it only over HTTP
+([LICENSING.md](../../LICENSING.md)).
 
 ## Run it
 

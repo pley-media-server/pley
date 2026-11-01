@@ -83,6 +83,7 @@ import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.model.LiveChannel
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.library.TileLook
+import app.pley.android.screens.requests.RequestsEntryViewModel
 import app.pley.android.screens.screensGraph
 import app.pley.android.screens.search.SearchDeps
 import app.pley.android.screens.search.SearchGroup
@@ -91,6 +92,7 @@ import app.pley.android.screens.search.SearchResultsState
 import app.pley.android.screens.search.SearchTiles
 import app.pley.android.screens.search.SearchUiState
 import app.pley.android.screens.search.SearchViewModel
+import app.pley.android.screens.search.TmdbSection
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.DelayedSpinner
 import app.pley.android.ui.phone.kit.EmptyState
@@ -111,10 +113,11 @@ import kotlinx.coroutines.delay
 /**
  * Search on the phone (design spec §4.5; the web's SearchPage): a search
  * bar docked at the top with the keyboard up when the tab opens empty.
- * Before typing, the profile's recent searches with Clear; while typing,
- * the results as rows, grouped and counted (People, Live TV, Movies,
- * Shows…), the ones shown staying while the next load. A channel found
- * plays at once.
+ * Before typing, the way to Discover where requests are open, and the
+ * profile's recent searches with Clear; while typing, the results as
+ * rows, grouped and counted (People, Live TV, Movies, Shows…), the ones
+ * shown staying while the next load, then what TMDB has that no library
+ * has. A channel found plays at once.
  */
 @Composable
 internal fun PhoneSearchScreen(key: PleyKey.Search) {
@@ -122,7 +125,10 @@ internal fun PhoneSearchScreen(key: PleyKey.Search) {
     val vm: SearchViewModel<ArtworkTileModel> = viewModel {
         SearchViewModel(key.query, SearchDeps.of(screensGraph()), phoneSearchTiles(PhoneTiles(resources)))
     }
+    val entries: RequestsEntryViewModel = viewModel(factory = RequestsEntryViewModel.factory)
     val state by vm.state.collectAsStateWithLifecycle()
+    val tmdb by vm.tmdb.collectAsStateWithLifecycle()
+    val entry by entries.entry.collectAsStateWithLifecycle()
     val field = rememberTextFieldState(key.query)
     LaunchedEffect(field, vm) {
         snapshotFlow { field.text.toString() }.collect(vm::onQueryChange)
@@ -139,6 +145,8 @@ internal fun PhoneSearchScreen(key: PleyKey.Search) {
         open = vm::open,
         onRetry = vm::retry,
         onWatch = vm::watch,
+        tmdb = tmdb,
+        discover = entry.discover,
     )
 }
 
@@ -157,6 +165,9 @@ internal fun SearchContent(
     open: (SearchGroupKind, Long) -> PleyKey?,
     onRetry: () -> Unit = {},
     onWatch: (LiveChannel) -> Unit = {},
+    tmdb: TmdbSection = TmdbSection.Hidden,
+    /** Discover shows: its way in heads the page before typing. */
+    discover: Boolean = false,
 ) {
     val navigator = LocalPhoneNavigator.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -183,18 +194,23 @@ internal fun SearchContent(
         OfflineBanner()
         Box(Modifier.weight(1f).fillMaxWidth().nestedScroll(hideOnScroll)) {
             when (val results = state.results) {
-                SearchResultsState.Idle -> Recent(state.recent, onRecent, onClearRecent)
+                SearchResultsState.Idle -> Recent(state.recent, onRecent, onClearRecent, discover = discover)
                 is SearchResultsState.Loading -> Skeletons()
-                is SearchResultsState.Empty -> Message(
-                    title = stringResource(R.string.search_none_title, results.query),
-                    body = stringResource(R.string.search_none_body),
-                    icon = PleyIcons.Search,
-                )
+                is SearchResultsState.Empty -> if (tmdb == TmdbSection.Hidden) {
+                    Message(
+                        title = stringResource(R.string.search_none_title, results.query),
+                        body = stringResource(R.string.search_none_body),
+                        icon = PleyIcons.Search,
+                    )
+                } else {
+                    OnlyOnTmdb(results.query, tmdb)
+                }
                 is SearchResultsState.Failed -> Column(Modifier.fillMaxSize().padding(top = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     ErrorState(stringResource(R.string.search_failed), results.error, onRetry = onRetry)
                 }
                 is SearchResultsState.Ready -> Results(
                     results,
+                    tmdb = tmdb,
                     onOpen = { group, id -> open(group, id)?.let(navigator::open) },
                     onActions = { id -> navigator.open(PleyKey.ItemActions(id)) },
                     onWatch = onWatch,
@@ -204,13 +220,33 @@ internal fun SearchContent(
     }
 }
 
-/**
- * The search bar docked at the top: a 56 dp pill in [surface3][PleyColors.Surface3]
- * with the search glyph, the field and Clear. The keyboard's action is
- * Search. [autoFocus] raises the keyboard the first time the page shows.
- */
+/** The search bar docked at the top, under the status bar: [SearchField] for the libraries. */
 @Composable
 private fun SearchBar(field: TextFieldState, onSubmit: () -> Unit, autoFocus: Boolean) {
+    SearchField(
+        field = field,
+        label = stringResource(R.string.search_field),
+        onSubmit = onSubmit,
+        autoFocus = autoFocus,
+        modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars),
+    )
+}
+
+/**
+ * A search pill: 56 dp in [surface3][PleyColors.Surface3] with the search
+ * glyph, the field saying [label] while empty, and Clear. The keyboard's
+ * action is Search. [autoFocus] raises the keyboard the first time the
+ * page shows. Search's bar, and Discover's.
+ */
+@Composable
+internal fun SearchField(
+    field: TextFieldState,
+    label: String,
+    onSubmit: () -> Unit,
+    autoFocus: Boolean,
+    modifier: Modifier = Modifier,
+    tag: String = SEARCH_FIELD,
+) {
     val metrics = LocalPhoneMetrics.current
     val focus = remember { FocusRequester() }
     var focusedOnce by rememberSaveable { mutableStateOf(false) }
@@ -219,9 +255,8 @@ private fun SearchBar(field: TextFieldState, onSubmit: () -> Unit, autoFocus: Bo
         focusedOnce = true
     }
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.statusBars)
             .padding(start = metrics.marginStart, end = metrics.marginEnd, top = 8.dp, bottom = 8.dp)
             .height(56.dp)
             .background(PleyColors.Surface3, PleyShape.Pill)
@@ -230,7 +265,6 @@ private fun SearchBar(field: TextFieldState, onSubmit: () -> Unit, autoFocus: Bo
     ) {
         Icon(PleyIcons.Search, contentDescription = null, size = 22.dp, tint = PleyColors.Muted)
         Spacer(Modifier.width(12.dp))
-        val label = stringResource(R.string.search_field)
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             if (field.text.isEmpty()) {
                 Text(label, style = MaterialTheme.typography.bodyLarge, color = PleyColors.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -241,7 +275,7 @@ private fun SearchBar(field: TextFieldState, onSubmit: () -> Unit, autoFocus: Bo
                     .fillMaxWidth()
                     .focusRequester(focus)
                     .semantics { contentDescription = label }
-                    .testTag(SEARCH_FIELD),
+                    .testTag(tag),
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = PleyColors.Fg),
                 cursorBrush = SolidColor(PleyColors.AccentBright),
                 lineLimits = TextFieldLineLimits.SingleLine,
@@ -257,15 +291,21 @@ private fun SearchBar(field: TextFieldState, onSubmit: () -> Unit, autoFocus: Bo
     }
 }
 
-/** Before typing: the recent searches with Clear, or what search finds. */
+/** Before typing: the way to Discover where requests are open, then the recent searches with Clear, or what search finds. */
 @Composable
-private fun Recent(recent: List<String>, onRecent: (String) -> Unit, onClear: () -> Unit) {
+private fun Recent(recent: List<String>, onRecent: (String) -> Unit, onClear: () -> Unit, discover: Boolean) {
     if (recent.isEmpty()) {
-        Message(stringResource(R.string.search_empty_title), stringResource(R.string.search_empty_body), icon = PleyIcons.Search)
+        Column(Modifier.fillMaxSize()) {
+            if (discover) DiscoverEntry()
+            Message(stringResource(R.string.search_empty_title), stringResource(R.string.search_empty_body), icon = PleyIcons.Search)
+        }
         return
     }
     val metrics = LocalPhoneMetrics.current
     LazyColumn(Modifier.fillMaxSize().testTag(SEARCH_RECENT), contentPadding = PaddingValues(bottom = 24.dp)) {
+        if (discover) {
+            item(key = "discover", contentType = "discover") { DiscoverEntry() }
+        }
         item(key = "header", contentType = "header") {
             Row(
                 Modifier.fillMaxWidth().padding(start = metrics.marginStart, end = metrics.marginEnd - 8.dp, top = 8.dp),
@@ -299,11 +339,13 @@ private fun Recent(recent: List<String>, onRecent: (String) -> Unit, onClear: ()
 
 /**
  * The results: a line saying what they are for (with a spinner while newer
- * ones load), then a row per group, Live TV's after People (the web's order).
+ * ones load), then a row per group, Live TV's after People (the web's
+ * order), then what TMDB has ([tmdb]).
  */
 @Composable
 private fun Results(
     results: SearchResultsState.Ready<ArtworkTileModel>,
+    tmdb: TmdbSection,
     onOpen: (SearchGroupKind, Long) -> Unit,
     onActions: (Long) -> Unit,
     onWatch: (LiveChannel) -> Unit,
@@ -344,6 +386,9 @@ private fun Results(
         }
         items(rest, key = { it.kind.name }, contentType = { it.kind.tileKind }) { group ->
             ResultRow(group, onOpen = { onOpen(group.kind, it) }, onActions = onActions)
+        }
+        if (tmdb != TmdbSection.Hidden) {
+            item(key = "tmdb", contentType = "tmdb") { OnTmdb(results.query, tmdb) }
         }
     }
 }

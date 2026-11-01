@@ -21,18 +21,53 @@ function navScreen(name as string) as string
         settings: "SettingsScreen",
         history: "HistoryScreen",
         sortLibraries: "SortLibrariesScreen",
-        unreachable: "UnreachableScreen"
+        unreachable: "UnreachableScreen",
+        discover: "DiscoverScreen",
+        discoverList: "DiscoverListScreen",
+        requestTitle: "RequestTitleScreen",
+        requestSeasons: "RequestSeasonsScreen",
+        requests: "RequestsScreen"
     }
     if not screens.DoesExist(name) then return ""
     return screens[name]
 end function
 
+' Where a menu's focus goes as it is built again (keys: its entries'):
+' to the entry it was on (key; "" for none), wherever that moved, else
+' as far down as it was (at), within the menu.
+function navMenuFocus(keys as object, key as string, at as integer) as integer
+    if key <> ""
+        for i = 0 to keys.Count() - 1
+            if keys[i] = key then return i
+        end for
+    end if
+    if at >= keys.Count() then at = keys.Count() - 1
+    if at < 0 then at = 0
+    return at
+end function
+
 ' The screen a tile opens: { to, params }, or invalid for kinds this
 ' version doesn't open. A season opens its show on that season; a person
 ' and a collection, a grid of their titles, an artist of their albums; a
-' playlist, its entries; a track, its album; an extra plays at once.
+' playlist, its entries; a track, its album; an extra plays at once. A
+' TMDB title opens its page (Request more seasons, with its season
+' picker); See all, its list, or Discover's search for its words.
 function navForTile(tile as object) as dynamic
     kind = httpString(tile.kind)
+    if kind = "discover" or kind = "askMore"
+        tmdbId = httpNumber(tile.tmdbId, 0)
+        tmdbKind = httpString(tile.tmdbKind)
+        if tmdbId = 0 or (tmdbKind <> "movie" and tmdbKind <> "show") then return invalid
+        if kind = "askMore" then return { to: "requestTitle", params: { kind: tmdbKind, tmdbId: tmdbId, title: httpString(tile.showTitle), pick: true } }
+        return { to: "requestTitle", params: { kind: tmdbKind, tmdbId: tmdbId, title: httpString(tile.title) } }
+    end if
+    if kind = "more"
+        query = httpString(tile.query)
+        list = httpString(tile.list)
+        if query <> "" then return { to: "search", params: { discover: true, query: query } }
+        if list = "requests" then return { to: "requests", params: { view: "mine" } }
+        return { to: "discoverList", params: { list: list } }
+    end if
     id = httpNumber(tile.itemId, 0)
     if id = 0 then return invalid
     if kind = "movie" or kind = "episode" or kind = "show" then return { to: "details", params: { itemId: id } }

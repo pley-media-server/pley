@@ -98,11 +98,12 @@ holding it.
 ## Versions and releases
 
 Each app (the server with its transcoder and web app, desktop, Android,
-Samsung, LG, Kodi and Roku) has its own version, `CHANGELOG.md` and release
-tag (`kodi-v0.0.2`). `bun scripts/release.mjs <app> patch` bumps one and
-dates its changelog; the Release workflow, run by hand, builds and publishes
-it. Every app shows the commit it was built from beside its version, as
-"0.0.1 (1a2b3c4d5)". [RELEASING.md](RELEASING.md) has the details.
+Samsung, LG, Kodi and Roku) has its own version and `CHANGELOG.md`. A release
+takes the apps whose versions went up, under one tag (`release-2026-11-02`):
+the Prepare release workflow bumps them in a pull request, and merging it
+builds and publishes them. Every app shows the commit it was built from
+beside its version, as "0.0.1 (1a2b3c4d5)". [RELEASING.md](RELEASING.md) has
+the details.
 
 ## Contributing
 

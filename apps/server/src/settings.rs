@@ -86,6 +86,11 @@ pub struct Settings {
     /// are read from the internet: see [`crate::oauth`]). pley's own apps
     /// always may. Off by default; turning it off signs them out.
     pub third_party_apps: bool,
+    /// Every account with a password uses two-step sign-in (see
+    /// [`crate::two_step`]): one without it sets it up at its next sign-in,
+    /// and is signed out everywhere until then. Off by default; only an
+    /// administrator who uses it may turn it on.
+    pub require_two_step: bool,
     /// Addresses with a port that pley is reached at through a reverse
     /// proxy which leaves the port out of `Host` (nginx's `$host`, Nginx
     /// Proxy Manager's default): `https://media.example.com:9999`. A request
@@ -102,22 +107,76 @@ pub struct Settings {
     /// Its password: saved, never sent back ([`Settings::for_admin`]).
     #[serde(skip_serializing_if = "String::is_empty")]
     pub opensubtitles_password: String,
+    /// People may ask for movies and shows the libraries don't have
+    /// ([`crate::requests`]); needs a TMDB key.
+    pub requests: bool,
+    /// Requests an account may make in 7 days (administrators: any number);
+    /// 0: no limit. A show counts each season asked for.
+    pub request_limit_movies: u32,
+    pub request_limit_seasons: u32,
+    /// Radarr, which approved movie requests go to: its address
+    /// (`http://localhost:7878`, a base path kept, no `/` at its end); empty:
+    /// none, and approved movies are added by hand.
+    pub radarr_url: String,
+    /// Its API key: saved, never sent back ([`Settings::for_admin`]).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub radarr_api_key: String,
+    /// What Radarr adds movies with: a quality profile's id (0: none chosen)
+    /// and a root folder; anime's own where set (0, empty: the same).
+    pub radarr_quality_profile: i64,
+    pub radarr_root_folder: String,
+    pub radarr_anime_quality_profile: i64,
+    pub radarr_anime_root_folder: String,
+    pub radarr_minimum_availability: MinimumAvailability,
+    /// Radarr searches for a movie as soon as it's added.
+    pub radarr_search: bool,
+    /// Sonarr, as Radarr for movies, for shows.
+    pub sonarr_url: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub sonarr_api_key: String,
+    pub sonarr_quality_profile: i64,
+    pub sonarr_root_folder: String,
+    /// Sonarr 3's language profile (0: its first); Sonarr 4 has none.
+    pub sonarr_language_profile: i64,
+    pub sonarr_anime_quality_profile: i64,
+    pub sonarr_anime_root_folder: String,
+    pub sonarr_season_folders: bool,
+    /// Sonarr searches for the seasons asked for as soon as they're added.
+    pub sonarr_search: bool,
+}
+
+/// When Radarr may take a release of a movie it was sent.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MinimumAvailability {
+    Announced,
+    InCinemas,
+    #[default]
+    Released,
 }
 
 /// The settings as administrators see them: everything but the
-/// OpenSubtitles password, which only says whether one is saved.
+/// OpenSubtitles password and Radarr's and Sonarr's API keys, which only
+/// say whether one is saved.
 #[derive(Debug, Clone, Serialize)]
 pub struct AdminSettings {
     #[serde(flatten)]
     pub settings: Settings,
     pub opensubtitles_password_set: bool,
+    pub radarr_api_key_set: bool,
+    pub sonarr_api_key_set: bool,
 }
 
 impl Settings {
     pub fn for_admin(&self) -> AdminSettings {
         let mut settings = self.clone();
-        let set = !std::mem::take(&mut settings.opensubtitles_password).is_empty();
-        AdminSettings { settings, opensubtitles_password_set: set }
+        let set = |secret: &mut String| !std::mem::take(secret).is_empty();
+        AdminSettings {
+            opensubtitles_password_set: set(&mut settings.opensubtitles_password),
+            radarr_api_key_set: set(&mut settings.radarr_api_key),
+            sonarr_api_key_set: set(&mut settings.sonarr_api_key),
+            settings,
+        }
     }
 }
 
@@ -150,10 +209,31 @@ impl Default for Settings {
             library_work_to: 7,
             library_work_max_cpu: 50,
             third_party_apps: false,
+            require_two_step: false,
             proxy_addresses: Vec::new(),
             opensubtitles_api_key: String::new(),
             opensubtitles_username: String::new(),
             opensubtitles_password: String::new(),
+            requests: false,
+            request_limit_movies: 0,
+            request_limit_seasons: 0,
+            radarr_url: String::new(),
+            radarr_api_key: String::new(),
+            radarr_quality_profile: 0,
+            radarr_root_folder: String::new(),
+            radarr_anime_quality_profile: 0,
+            radarr_anime_root_folder: String::new(),
+            radarr_minimum_availability: MinimumAvailability::Released,
+            radarr_search: true,
+            sonarr_url: String::new(),
+            sonarr_api_key: String::new(),
+            sonarr_quality_profile: 0,
+            sonarr_root_folder: String::new(),
+            sonarr_language_profile: 0,
+            sonarr_anime_quality_profile: 0,
+            sonarr_anime_root_folder: String::new(),
+            sonarr_season_folders: true,
+            sonarr_search: true,
         }
     }
 }
@@ -183,6 +263,38 @@ fn proxy_address(value: &str) -> Result<String, AppError> {
         )));
     }
     Ok(url.origin().ascii_serialization())
+}
+
+/// A Radarr or Sonarr address as kept (`http://192.168.1.5:7878/radarr`):
+/// http or https and a host, its path (a base URL) kept without the `/` at
+/// its end; empty: none.
+pub(crate) fn arr_url(value: &str) -> Result<String, AppError> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Ok(String::new());
+    }
+    let wrong = || AppError::bad_request(format!("{value} isn't an address like http://localhost:7878"));
+    let url = url::Url::parse(value).map_err(|_| wrong())?;
+    let plain = matches!(url.scheme(), "http" | "https")
+        && url.host().is_some()
+        && url.username().is_empty()
+        && url.password().is_none()
+        && url.query().is_none()
+        && url.fragment().is_none();
+    if !plain {
+        return Err(wrong());
+    }
+    // An address typed in; those a name leads to are checked as they are
+    // resolved.
+    let link_local = match url.host() {
+        Some(url::Host::Ipv4(ip)) => crate::requests::arr::link_local(ip.into()),
+        Some(url::Host::Ipv6(ip)) => crate::requests::arr::link_local(ip.into()),
+        _ => false,
+    };
+    if link_local {
+        return Err(AppError::bad_request(format!("{value} is a link-local address: Radarr and Sonarr aren't there")));
+    }
+    Ok(url.as_str().trim_end_matches('/').to_owned())
 }
 
 impl Settings {
@@ -455,11 +567,34 @@ pub struct SettingsPatch {
     pub library_work_to: Option<u8>,
     pub library_work_max_cpu: Option<u8>,
     pub third_party_apps: Option<bool>,
+    pub require_two_step: Option<bool>,
     pub proxy_addresses: Option<Vec<String>>,
     pub opensubtitles_api_key: Option<String>,
     pub opensubtitles_username: Option<String>,
     /// Left out: the saved one stays; empty: none.
     pub opensubtitles_password: Option<String>,
+    pub requests: Option<bool>,
+    pub request_limit_movies: Option<u32>,
+    pub request_limit_seasons: Option<u32>,
+    pub radarr_url: Option<String>,
+    /// Left out: the saved one stays; empty: none.
+    pub radarr_api_key: Option<String>,
+    pub radarr_quality_profile: Option<i64>,
+    pub radarr_root_folder: Option<String>,
+    pub radarr_anime_quality_profile: Option<i64>,
+    pub radarr_anime_root_folder: Option<String>,
+    pub radarr_minimum_availability: Option<MinimumAvailability>,
+    pub radarr_search: Option<bool>,
+    pub sonarr_url: Option<String>,
+    /// As Radarr's.
+    pub sonarr_api_key: Option<String>,
+    pub sonarr_quality_profile: Option<i64>,
+    pub sonarr_root_folder: Option<String>,
+    pub sonarr_language_profile: Option<i64>,
+    pub sonarr_anime_quality_profile: Option<i64>,
+    pub sonarr_anime_root_folder: Option<String>,
+    pub sonarr_season_folders: Option<bool>,
+    pub sonarr_search: Option<bool>,
 }
 
 pub struct SettingsStore {
@@ -582,6 +717,9 @@ impl SettingsStore {
         if let Some(v) = patch.third_party_apps {
             next.third_party_apps = v;
         }
+        if let Some(v) = patch.require_two_step {
+            next.require_two_step = v;
+        }
         if let Some(v) = patch.proxy_addresses {
             let mut addresses: Vec<String> = Vec::new();
             for value in v.iter().filter(|value| !value.trim().is_empty()) {
@@ -625,6 +763,95 @@ impl SettingsStore {
             || next.opensubtitles_password.chars().count() > 256
         {
             return Err(AppError::bad_request("the OpenSubtitles key, username or password is too long"));
+        }
+        if let Some(v) = patch.requests {
+            next.requests = v;
+        }
+        if next.requests && next.tmdb_api_key.is_empty() {
+            return Err(AppError::bad_request("requests need a TMDB key: titles are found on TMDB"));
+        }
+        for (limit, field) in [
+            (patch.request_limit_movies, &mut next.request_limit_movies),
+            (patch.request_limit_seasons, &mut next.request_limit_seasons),
+        ] {
+            if let Some(v) = limit {
+                if v > 1000 {
+                    return Err(AppError::bad_request("request limits are 0 (none) to 1000"));
+                }
+                *field = v;
+            }
+        }
+        // A saved key goes only to the address it was saved for: a new one
+        // needs its key, and no address keeps none.
+        let addresses = [
+            (
+                "Radarr",
+                patch.radarr_url,
+                &mut next.radarr_url,
+                &mut next.radarr_api_key,
+                patch.radarr_api_key.is_some(),
+            ),
+            (
+                "Sonarr",
+                patch.sonarr_url,
+                &mut next.sonarr_url,
+                &mut next.sonarr_api_key,
+                patch.sonarr_api_key.is_some(),
+            ),
+        ];
+        for (name, url, field, key, key_given) in addresses {
+            let Some(v) = url else { continue };
+            let v = arr_url(&v)?;
+            if v.is_empty() {
+                key.clear();
+            } else if v != *field && !key.is_empty() && !key_given {
+                return Err(AppError::bad_request(format!("type {name}'s API key again for its new address")));
+            }
+            *field = v;
+        }
+        let texts = [
+            (patch.radarr_api_key, &mut next.radarr_api_key),
+            (patch.radarr_root_folder, &mut next.radarr_root_folder),
+            (patch.radarr_anime_root_folder, &mut next.radarr_anime_root_folder),
+            (patch.sonarr_api_key, &mut next.sonarr_api_key),
+            (patch.sonarr_root_folder, &mut next.sonarr_root_folder),
+            (patch.sonarr_anime_root_folder, &mut next.sonarr_anime_root_folder),
+        ];
+        for (text, field) in texts {
+            if let Some(v) = text {
+                let v = v.trim();
+                if v.chars().count() > 512 {
+                    return Err(AppError::bad_request("a Radarr or Sonarr key or folder is too long"));
+                }
+                *field = v.to_owned();
+            }
+        }
+        let ids = [
+            (patch.radarr_quality_profile, &mut next.radarr_quality_profile),
+            (patch.radarr_anime_quality_profile, &mut next.radarr_anime_quality_profile),
+            (patch.sonarr_quality_profile, &mut next.sonarr_quality_profile),
+            (patch.sonarr_language_profile, &mut next.sonarr_language_profile),
+            (patch.sonarr_anime_quality_profile, &mut next.sonarr_anime_quality_profile),
+        ];
+        for (id, field) in ids {
+            if let Some(v) = id {
+                if v < 0 {
+                    return Err(AppError::bad_request("Radarr's and Sonarr's profiles are chosen by their ids"));
+                }
+                *field = v;
+            }
+        }
+        if let Some(v) = patch.radarr_minimum_availability {
+            next.radarr_minimum_availability = v;
+        }
+        for (on, field) in [
+            (patch.radarr_search, &mut next.radarr_search),
+            (patch.sonarr_season_folders, &mut next.sonarr_season_folders),
+            (patch.sonarr_search, &mut next.sonarr_search),
+        ] {
+            if let Some(v) = on {
+                *field = v;
+            }
         }
         let json = serde_json::to_string(&next).map_err(|e| AppError::Internal(e.into()))?;
         sqlx::query(
@@ -782,6 +1009,22 @@ mod tests {
         assert!(s.third_party_apps);
         let s = store.update(&db, patch(serde_json::json!({"third_party_apps": false}))).await.unwrap();
         assert!(!s.third_party_apps);
+    }
+
+    #[tokio::test]
+    async fn two_step_sign_in_is_required_only_once_asked_for() {
+        let (_dir, db, store) = store().await;
+        assert!(!store.get().require_two_step, "off on a new server");
+        sqlx::query("INSERT INTO settings (key, value) VALUES ('server', '{\"server_name\":\"Attic\"}')")
+            .execute(&db.write)
+            .await
+            .unwrap();
+        assert!(!SettingsStore::load(&db).await.unwrap().get().require_two_step, "off after an upgrade");
+        let s = store.update(&db, patch(serde_json::json!({"require_two_step": true}))).await.unwrap();
+        assert!(s.require_two_step);
+        assert!(SettingsStore::load(&db).await.unwrap().get().require_two_step, "kept");
+        let s = store.update(&db, patch(serde_json::json!({"server_name": "Den"}))).await.unwrap();
+        assert!(s.require_two_step, "other changes leave it alone");
     }
 
     fn encoder(name: &str, accel: HwAccel) -> pley_transcoder_api::EncoderInfo {
@@ -988,6 +1231,73 @@ mod tests {
         assert_eq!(s.opensubtitles_password, "pw");
         let s = set(serde_json::json!({"opensubtitles_username": ""})).await.unwrap();
         assert!(!s.for_admin().opensubtitles_password_set);
+    }
+
+    #[tokio::test]
+    async fn radarr_and_sonarr_keep_their_keys_to_themselves() {
+        let (_dir, db, store) = store().await;
+        let set = |json: serde_json::Value| store.update(&db, patch(json));
+        let s = set(serde_json::json!({
+            "radarr_url": " http://192.168.1.5:7878/radarr/ ",
+            "radarr_api_key": " r4dd ",
+            "sonarr_url": "HTTPS://Box.lan:8989",
+            "sonarr_api_key": "s0nn",
+            "radarr_minimum_availability": "in_cinemas",
+            "sonarr_quality_profile": 4,
+        }))
+        .await
+        .unwrap();
+        assert_eq!(s.radarr_url, "http://192.168.1.5:7878/radarr");
+        assert_eq!(s.sonarr_url, "https://box.lan:8989");
+        assert_eq!((s.radarr_api_key.as_str(), s.sonarr_api_key.as_str()), ("r4dd", "s0nn"));
+        assert_eq!(s.radarr_minimum_availability, MinimumAvailability::InCinemas);
+        let shown = serde_json::to_value(s.for_admin()).unwrap();
+        assert_eq!(shown["radarr_api_key_set"], serde_json::json!(true));
+        assert_eq!(shown["sonarr_api_key_set"], serde_json::json!(true));
+        assert_eq!(shown["radarr_minimum_availability"], serde_json::json!("in_cinemas"));
+        for secret in ["r4dd", "s0nn"] {
+            assert!(!shown.to_string().contains(secret), "{shown}");
+        }
+        // Saved, and kept by changes that leave them out, for the address
+        // they were saved for only.
+        let s = set(serde_json::json!({"radarr_url": "http://192.168.1.5:7878/radarr", "radarr_search": false}))
+            .await
+            .unwrap();
+        assert_eq!((s.radarr_api_key.as_str(), s.radarr_search), ("r4dd", false));
+        assert_eq!(SettingsStore::load(&db).await.unwrap().get().sonarr_api_key, "s0nn");
+        let moved = set(serde_json::json!({"radarr_url": "http://evil.example:7878"})).await;
+        assert!(moved.is_err(), "the saved key would go elsewhere");
+        assert_eq!(store.get().radarr_url, "http://192.168.1.5:7878/radarr", "nothing changed");
+        let s = set(serde_json::json!({"radarr_url": "http://localhost:7878", "radarr_api_key": "n3w"})).await.unwrap();
+        assert_eq!((s.radarr_url.as_str(), s.radarr_api_key.as_str()), ("http://localhost:7878", "n3w"));
+        let s = set(serde_json::json!({"sonarr_url": ""})).await.unwrap();
+        assert!(s.sonarr_url.is_empty() && !s.for_admin().sonarr_api_key_set, "no address keeps no key");
+        let s = set(serde_json::json!({"radarr_api_key": ""})).await.unwrap();
+        assert!(!s.for_admin().radarr_api_key_set);
+        let s = set(serde_json::json!({"radarr_url": "http://box.lan:7878"})).await.unwrap();
+        assert_eq!(s.radarr_url, "http://box.lan:7878", "no key saved: none goes anywhere");
+
+        for bad in [
+            serde_json::json!({"radarr_url": "localhost:7878"}),
+            serde_json::json!({"sonarr_url": "ftp://box.lan"}),
+            serde_json::json!({"radarr_url": "http://user:pw@box.lan:7878"}),
+            serde_json::json!({"radarr_url": "http://169.254.169.254/latest"}),
+            serde_json::json!({"sonarr_url": "http://[fe80::1]:8989"}),
+            serde_json::json!({"sonarr_url": "http://[::ffff:169.254.1.1]:8989"}),
+            serde_json::json!({"request_limit_movies": 1001}),
+            serde_json::json!({"radarr_quality_profile": -1}),
+        ] {
+            assert!(set(bad.clone()).await.is_err(), "{bad}");
+        }
+        // An availability Radarr no longer has.
+        let tba = serde_json::json!({"radarr_minimum_availability": "tba"});
+        assert!(serde_json::from_value::<SettingsPatch>(tba).is_err());
+        // Requests find titles on TMDB.
+        assert!(set(serde_json::json!({"requests": true})).await.is_err());
+        let s =
+            set(serde_json::json!({"requests": true, "tmdb_api_key": "k", "request_limit_seasons": 10})).await.unwrap();
+        assert!(s.requests && s.request_limit_seasons == 10);
+        assert!(set(serde_json::json!({"tmdb_api_key": ""})).await.is_err(), "the key stays while requests are on");
     }
 
     #[tokio::test]

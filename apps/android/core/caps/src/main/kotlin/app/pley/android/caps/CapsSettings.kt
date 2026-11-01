@@ -52,14 +52,33 @@ enum class PassthroughFormat(val encodings: List<Int>, val codec: String) {
 }
 
 /**
+ * Settings → Playback's refresh-rate matching on a TV, as the screen's
+ * modes go: whether the player switches the display mode for a video.
+ */
+@Serializable
+enum class ModeSwitching {
+    /** As the device's own match-content setting says (always below Android 12). */
+    @SerialName("auto")
+    Auto,
+
+    @SerialName("always")
+    Always,
+
+    @SerialName("off")
+    Off,
+}
+
+/**
  * What the person chose that changes the report: passthrough per format,
- * and (debug builds) software decoders for emulators.
+ * the display modes a TV may switch to (the HDR they show), and (debug
+ * builds) software decoders for emulators.
  */
 @Serializable
 data class CapsSettings(
     val passthrough: Map<PassthroughFormat, Override> = emptyMap(),
     /** Debug builds only: software video decoders allowed at any size, for tests on emulators. */
     val allowSoftwareDecoders: Boolean = false,
+    val modeSwitching: ModeSwitching = ModeSwitching.Auto,
 ) {
     fun passthrough(format: PassthroughFormat): Override = passthrough[format] ?: Override.Auto
 }

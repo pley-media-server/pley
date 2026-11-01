@@ -54,19 +54,22 @@ import app.pley.android.screens.account.TrackDefaultsUi
 import app.pley.android.screens.account.TrackField
 import app.pley.android.screens.account.TrackLanguages
 import app.pley.android.screens.downloads.DownloadsViewModel
+import app.pley.android.screens.requests.RequestsEntryViewModel
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.Avatar
 import app.pley.android.ui.phone.kit.ConfirmDialog
 import app.pley.android.ui.phone.kit.PleyTextButton
 import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.TonalButton
+import app.pley.android.ui.phone.requests.RequestsRows
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
 
 /**
  * Me (design spec §4.8; apps/web/src/pages/AccountPage.tsx): who is signed
- * in, with Switch profile; the profile's audio and subtitle defaults,
+ * in, with Switch profile; Discover and the person's requests, where the
+ * server takes requests; the profile's audio and subtitle defaults,
  * saved on the server and read-only (to change on the web) where the server
  * doesn't let apps change them; watch history; this device's downloads,
  * settings and diagnostics; the account on the web, linking a TV, another
@@ -78,6 +81,8 @@ internal fun MeScreen() {
     val state by model.state.collectAsStateWithLifecycle()
     val downloads: DownloadsViewModel = viewModel(factory = DownloadsViewModel.factory)
     val downloaded by downloads.byItem.collectAsStateWithLifecycle()
+    val entry: RequestsEntryViewModel = viewModel(factory = RequestsEntryViewModel.factory)
+    val requests by entry.entry.collectAsStateWithLifecycle()
     val navigator = LocalPhoneNavigator.current
     val shell = LocalPhoneShell.current
     val context = LocalContext.current
@@ -120,6 +125,11 @@ internal fun MeScreen() {
         ) {
             item(key = "profile", contentType = "profile") {
                 ProfileHeader(state.profile, onSwitch = { navigator.open(PleyKey.Profiles) })
+            }
+            if (requests.discover || requests.requests) {
+                item(key = "requests", contentType = "group") {
+                    Group(null) { RequestsRows(requests) }
+                }
             }
             item(key = "defaults", contentType = "group") {
                 TrackDefaultsGroup(state.trackDefaults, onOpen = { sheet = it }, onWeb = { openWeb("/account") })

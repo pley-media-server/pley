@@ -130,8 +130,8 @@ class Proxy:
 
 class NetworkMemo:
     """The server's answers about this Kodi's network (GET and PUT
-    /api/playback/network) as (status, body), for each sign-in (server
-    and profile) and client id, kept NETWORK_KEEP seconds. Every ceiling
+    /api/playback/network) as (status, body), for each sign-in (its
+    identity) and client id, kept NETWORK_KEEP seconds. Every ceiling
     Automatic sets is told to the server through the proxy, whose answer
     replaces what is kept; one the server didn't take leaves nothing kept,
     so the next play asks again."""

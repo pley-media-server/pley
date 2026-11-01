@@ -209,6 +209,46 @@ class ServersViewModelTest {
     }
 
     @Test
+    fun theChosenServerSaysWhetherItRequiresTwoStepSignIn() = runTest {
+        val source = FakeOnboardingSource(found = listOf(FoundServer(nas, "Living room NAS", "a", "1.0"), FoundServer(office, "Office", "b", "1.0")))
+        source.answer(nas, twoStepRequired = true)
+        source.answer(office)
+        val vm = servers(source)
+        advanceUntilIdle()
+        // The first card is chosen, and asked.
+        assertEquals(nas, vm.state.value.selected)
+        assertTrue(vm.state.value.rows.single { it.url == nas }.twoStepRequired)
+        assertFalse(vm.state.value.rows.single { it.url == office }.twoStepRequired)
+        assertEquals(listOf(nas), source.probed)
+        // Another card is asked once chosen; each server once.
+        vm.select(office)
+        advanceUntilIdle()
+        vm.select(nas)
+        advanceUntilIdle()
+        assertEquals(listOf(nas, office), source.probed)
+        assertFalse(vm.state.value.rows.single { it.url == office }.twoStepRequired)
+        assertTrue(vm.state.value.rows.single { it.url == nas }.twoStepRequired)
+    }
+
+    @Test
+    fun twoStepSignInIsAskedOnlyOnceTheServerMayBeReached() = runTest {
+        val source = FakeOnboardingSource(saved = listOf(SavedServer(nas, "Living room NAS", null, 1)))
+        source.missing = listOf(ACCESS)
+        source.answer(nas, twoStepRequired = true)
+        val vm = servers(source)
+        advanceUntilIdle()
+        assertEquals(nas, vm.state.value.selected)
+        assertTrue(source.probed.isEmpty())
+        assertFalse(vm.state.value.rows.single().twoStepRequired)
+        // Allowed: it is asked.
+        vm.asked()
+        source.missing = emptyList()
+        vm.permissionsAnswered()
+        advanceUntilIdle()
+        assertTrue(vm.state.value.rows.single().twoStepRequired)
+    }
+
+    @Test
     fun forgettingASavedServerEndsItsSignIn() = runTest {
         val source = FakeOnboardingSource(saved = listOf(SavedServer(nas, "Living room NAS", null, 1)))
         source.answer(nas)

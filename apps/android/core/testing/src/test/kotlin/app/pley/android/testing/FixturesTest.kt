@@ -3,6 +3,21 @@ package app.pley.android.testing
 import app.pley.android.model.AppProfile
 import app.pley.android.model.ApiErrorBody
 import app.pley.android.model.Added
+import app.pley.android.model.ArrService
+import app.pley.android.model.DiscoverDetail
+import app.pley.android.model.DiscoverPage
+import app.pley.android.model.DownloadState
+import app.pley.android.model.ItemRequest
+import app.pley.android.model.RequestAccess
+import app.pley.android.model.RequestAction
+import app.pley.android.model.RequestList
+import app.pley.android.model.RequestOptions
+import app.pley.android.model.RequestStage
+import app.pley.android.model.RequestStatus
+import app.pley.android.model.RequestSummary
+import app.pley.android.model.SeasonState
+import app.pley.android.model.TitleKind
+import app.pley.android.model.TitleStatus
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.CollectionList
 import app.pley.android.model.CollectionSort
@@ -149,6 +164,24 @@ class FixturesTest {
         "live/groups.json" to LiveGroups.serializer(),
         "live/browse.json" to LiveChannelPage.serializer(),
         "live/plan.json" to LivePlan.serializer(),
+        "events/requests_changed.json" to ServerEvent.Serializer,
+        "events/request_available.json" to ServerEvent.Serializer,
+        "events/request_decided.json" to ServerEvent.Serializer,
+        "events/request_created.json" to ServerEvent.Serializer,
+        "events/request_failed.json" to ServerEvent.Serializer,
+        "events/requests_settings_changed.json" to ServerEvent.Serializer,
+        "requests/summary.json" to RequestSummary.serializer(),
+        "requests/summary_manager.json" to RequestSummary.serializer(),
+        "requests/list.json" to RequestList.serializer(),
+        "requests/attention.json" to RequestList.serializer(),
+        "requests/options.json" to RequestOptions.serializer(),
+        "requests/item_request.json" to ItemRequest.serializer(),
+        "discover/trending.json" to DiscoverPage.serializer(),
+        "discover/movie.json" to DiscoverDetail.serializer(),
+        "discover/show.json" to DiscoverDetail.serializer(),
+        "errors/tmdb_down.json" to ApiErrorBody.serializer(),
+        "errors/declined.json" to ApiErrorBody.serializer(),
+        "errors/conflict_request.json" to ApiErrorBody.serializer(),
     )
 
     @Test
@@ -165,7 +198,7 @@ class FixturesTest {
         assertTrue("no fixtures found on the classpath", files.isNotEmpty())
         assertEquals("fixtures missing from the table", emptyList<String>(), files - table.keys)
         assertEquals("table entries without a file", emptyList<String>(), (table.keys - files.toSet()).toList())
-        assertEquals(74, files.size)
+        assertEquals(92, files.size)
     }
 
     @Test
@@ -271,6 +304,48 @@ class FixturesTest {
         assertEquals(listOf(1L, 2L), kids.libraryIds)
         assertEquals(10, kids.maxAge)
         assertEquals(SubtitleMode.Always, Fixtures.decode<TrackDefaults>("me/track_defaults.json").subtitleMode)
+    }
+
+    @Test
+    fun requestsReadAsTheServerSendsThem() {
+        val show = Fixtures.decode<DiscoverDetail>("discover/show.json")
+        assertEquals(TitleKind.Show, show.kind)
+        assertEquals(TitleStatus.Partial, show.status)
+        assertEquals(listOf(0, 1, 2, 3, 4, 5), show.seasons!!.map { it.number })
+        assertEquals(SeasonState.Requested, show.seasons!![1].state)
+        assertTrue(show.seasons!![4].declined)
+        val request = show.requests.single()
+        assertEquals(RequestStage.Downloading, request.stage)
+        assertEquals(DownloadState.Downloading, request.download?.state)
+        assertTrue("pictures are the server's", show.posterUrl!!.startsWith("/api/discover/images/poster/"))
+        assertNull(Fixtures.decode<DiscoverDetail>("discover/movie.json").seasons)
+
+        val list = Fixtures.decode<RequestList>("requests/list.json")
+        assertEquals(1, list.count(RequestStatus.Pending))
+        assertEquals(listOf(RequestAction.Unwatch), list.requests.single { it.watching }.actions)
+        assertNull(list.requests.single { it.watching }.requestedBy)
+        val attention = Fixtures.decode<RequestList>("requests/attention.json")
+        assertEquals(listOf("Kit", "Sam"), attention.people.map { it.name })
+        assertEquals(ArrService.Radarr, attention.requests.last().sentTo?.service)
+
+        val manager = Fixtures.decode<RequestSummary>("requests/summary_manager.json")
+        assertEquals(3, manager.badge)
+        assertTrue(manager.badgeAlarm)
+        assertEquals(RequestAccess.Auto, manager.access)
+        assertEquals(1, Fixtures.decode<RequestSummary>("requests/summary.json").badge)
+
+        val options = Fixtures.decode<RequestOptions>("requests/options.json")
+        assertEquals("/anime", options.of(TitleKind.Show)?.animeRootFolder)
+        assertEquals(4L, options.of(TitleKind.Movie)?.qualityProfile)
+        assertEquals(listOf(2), Fixtures.decode<ItemRequest>("requests/item_request.json").askable)
+
+        assertEquals(1763992000L, Fixtures.decode<ApiErrorBody>("errors/declined.json").retryAt)
+        assertEquals(RequestStatus.Approved, Fixtures.decode<ApiErrorBody>("errors/conflict_request.json").request?.status)
+        assertEquals(true, Fixtures.decode<ApiErrorBody>("errors/tmdb_down.json").setup)
+        val available = Fixtures.decode<ServerEvent>("events/request_available.json") as ServerEvent.RequestAvailable
+        assertEquals(listOf(1, 2), available.seasons)
+        assertFalse(available.complete)
+        assertEquals(ServerEvent.RequestsSettingsChanged, Fixtures.decode<ServerEvent>("events/requests_settings_changed.json"))
     }
 
     @Test

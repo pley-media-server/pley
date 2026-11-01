@@ -1,6 +1,7 @@
 import { useSignal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
-import type { Library, User } from "../../api/types";
+import type { Library, RequestSummary, User } from "../../api/types";
+import { hasRequests, mayAsk, requestsCount, requestsTitle } from "../../requests";
 import { useUi } from "../context";
 import { F, G } from "../kit/focusable";
 import { Icon, type IconName } from "../kit/icons";
@@ -11,6 +12,8 @@ export interface RailEntry {
   label: string;
   icon: IconName;
   key: PageKey;
+  /** A number beside the icon (what waits in requests), in the danger colour with `danger`. */
+  badge?: { count: number; danger: boolean };
 }
 
 /** At most this many libraries in the rail. */
@@ -24,14 +27,28 @@ export interface RailEntries {
 }
 
 /**
- * The rail's entries (the Android app's RailItems): Search, Home, Live TV
- * where the server has channels for this profile, up to three libraries,
- * then Libraries when there are more, Playlists, and Collections when
- * there are three or fewer; Settings at the foot. While music has a queue,
- * Now Playing comes last. Seven fit: past that, Collections goes first,
- * then the libraries from the last, Libraries listing them.
+ * The rail's way to requests, after Home: Discover where the profile may
+ * ask, else its requests ("Requests" for managers) where it has any to
+ * see; none without requests. It carries the requests' one number.
  */
-export function railEntries(libraries: Library[] | null, nowPlaying = false, live = false): RailEntries {
+export function requestsEntry(s: RequestSummary | null): RailEntry | null {
+  const { count, danger } = requestsCount(s);
+  const badge = count > 0 ? { count, danger } : undefined;
+  if (mayAsk(s)) return { id: "discover", label: "Discover", icon: "compass", key: { name: "discover" }, badge };
+  if (hasRequests(s)) return { id: "requests", label: requestsTitle(s), icon: "inbox", key: { name: "requests" }, badge };
+  return null;
+}
+
+/**
+ * The rail's entries (the Android app's RailItems): Search, Home,
+ * Discover (or the requests), Live TV where the server has channels for
+ * this profile, up to three libraries, then Libraries when there are more,
+ * Playlists, and Collections when there are three or fewer; Settings at
+ * the foot. While music has a queue, Now Playing comes last. Seven fit:
+ * past that, Collections goes first, then the libraries from the last,
+ * Libraries listing them.
+ */
+export function railEntries(libraries: Library[] | null, nowPlaying = false, live = false, requests: RailEntry | null = null): RailEntries {
   const libs = libraries ?? [];
   const icon = (l: Library): IconName => (l.kind === "movies" ? "clapperboard" : l.kind === "shows" ? "tv" : l.kind === "music" ? "music" : "film");
   let shown = Math.min(libs.length, MAX_LIBRARIES);
@@ -41,6 +58,7 @@ export function railEntries(libraries: Library[] | null, nowPlaying = false, liv
       { id: "search", label: "Search", icon: "search", key: { name: "search" } },
       { id: "home", label: "Home", icon: "house", key: { name: "home" } },
     ];
+    if (requests) top.push(requests);
     if (live) top.push({ id: "live", label: "Live TV", icon: "tv-minimal", key: { name: "live" } });
     for (const l of libs.slice(0, shown)) top.push({ id: `library:${l.id}`, label: l.name, icon: icon(l), key: { name: "library", id: l.id } });
     if (libs.length > shown) top.push({ id: "libraries", label: "Libraries", icon: "layers", key: { name: "libraries" } });
@@ -79,6 +97,12 @@ export function currentEntry(root: PageKey | null, entries: RailEntries): string
       return "settings";
     case "profiles":
       return "profile";
+    // Discover's pages, and the requests reached from it, under whichever of the two the rail has.
+    case "discover":
+    case "discoverList":
+    case "title":
+    case "requests":
+      return (top.find((e) => e.key.name === root.name) ?? top.find((e) => e.id === "discover" || e.id === "requests"))?.id ?? null;
     default:
       return top.find((e) => e.key.name === root.name)?.id ?? null;
   }
@@ -216,7 +240,7 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
     <F
       key={entry.id}
       class={`rail-item${p.current === entry.id ? " current" : ""}`}
-      label={entry.label}
+      label={entry.badge ? `${entry.label}, ${entry.badge.count}` : entry.label}
       onSelect={() => select(entry)}
       onKey={(key) => {
         if (key === "right") {
@@ -229,6 +253,11 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
       <span data-rail={entry.id} style="display:contents" />
       <Pill />
       <Icon name={entry.icon} size={20} />
+      {entry.badge && (
+        <span class={`rail-badge${entry.badge.danger ? " danger" : ""}`} aria-hidden="true">
+          {entry.badge.count > 99 ? "99+" : String(entry.badge.count)}
+        </span>
+      )}
       <span class="label t-label one-line">{entry.label}</span>
     </F>
   );

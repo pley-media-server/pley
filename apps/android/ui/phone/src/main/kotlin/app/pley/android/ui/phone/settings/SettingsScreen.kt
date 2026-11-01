@@ -48,13 +48,14 @@ import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
+import app.pley.android.screens.R as ScreensR
 
 /**
  * This phone's settings (design spec §4.8; P5-ACCOUNT): quality on Wi-Fi
  * and on mobile data, matching the refresh rate (only when seamless, or
  * off), autoplay, the playback details overlay, the subtitles' size and
- * background, the grid's density, the private sign-in tab, and About.
- * Every change is saved at once.
+ * background, the grid's density, the private sign-in tab, and About (with
+ * TMDB's notice). Every change is saved at once.
  */
 @Composable
 internal fun SettingsScreen() {
@@ -215,7 +216,12 @@ internal fun SettingsScreen() {
                 }
             }
             item(key = "about") {
-                SettingsGroup(stringResource(R.string.settings_about), Modifier.widthIn(max = MAX_WIDTH)) {
+                // TMDB's terms ask every app that shows its data to say this where it says what it is.
+                SettingsGroup(
+                    stringResource(R.string.settings_about),
+                    Modifier.widthIn(max = MAX_WIDTH),
+                    footer = stringResource(ScreensR.string.requests_credit_about),
+                ) {
                     val context = LocalContext.current
                     SettingsRow(
                         stringResource(R.string.settings_version),

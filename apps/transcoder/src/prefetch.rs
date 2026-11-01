@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Reading a file ahead of a playback ("prefetch"), when its page is opened or
 //! its Play button pointed at: the parts the player or FFmpeg read first come
 //! from a cache when Play is pressed (the share's and this host's), which is

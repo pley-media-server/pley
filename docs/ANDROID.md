@@ -33,6 +33,15 @@ keeps its saved servers and asks you to sign in again.
 
 ## Using it
 
+### Signing in
+
+Phones sign in on the server's own page in the browser; TVs, and phones
+without a browser, show a code and a QR code to approve at the server's
+`/link` page, on a phone or computer. When the server requires two-step
+sign-in, the sign-in screen says so, and whoever hasn't set it up yet does
+it on that page as they sign in (for a code, on the device that approves
+it).
+
 ### TVs and Fire TV
 
 - Select opens, holding Select or Menu (☰) opens a title's actions, Back
@@ -45,6 +54,19 @@ keeps its saved servers and asks you to sign in again.
   permission before the app searches the network.
 - **Watch Next** (Android TV and Google TV): the home screen's row shows
   the profile's Continue Watching, ten at most.
+- **Dolby Vision and HDR** go by the display mode each video plays in: the
+  one in use, or the one of its size the TV switches to for the frame rate
+  (the device's match-content setting, or Settings → Playback; not for
+  items under 10 minutes, nor once switching has timed out twice on that
+  display). The app judges this before asking the server, so the server is
+  told Dolby Vision only for a video the screen will show it in. A format
+  turned off in the system's settings isn't used; Android says so only in
+  a mode that lists it, so the app remembers it for each display. Dolby
+  Vision the screen doesn't show plays as its HDR10, HLG or SDR base layer
+  (a download of profile 5, which has none, on its Dolby Vision decoder),
+  and the player's details say why ("HDR10 (Dolby Vision base layer, as
+  this screen doesn't show Dolby Vision)"). Their Decoded line names what
+  the decoder makes: HEVC and HDR10 for a base layer.
 
 ### Audio and subtitles
 
@@ -86,9 +108,12 @@ The menu, Original and Automatic work as in
 
 This is how every Pley app shows Live TV; the [Kodi](KODI.md#live-tv),
 [Roku](ROKU.md#live-tv) and [Samsung and LG](TV_PLATFORMS.md#live-tv) docs
-list only what differs. It appears where `GET /api/live` says `available`:
-in the phone's Libraries tab, after Home in the TV's rail. Sources, the
-lineup and connections are set up in the web app ([API.md](API.md#live-tv)).
+list only what differs. It appears only where `GET /api/live` says
+`available` (a source with channels this profile may watch),
+administrators included: in the web app's sidebar, the phone's Libraries
+tab, after Home in the TV's rail. It comes and goes as sources are added
+or removed (`live_channels_changed`). Sources, the lineup and connections
+are set up in the web app's Settings → Live TV ([API.md](API.md#live-tv)).
 
 - **Categories:** Favourites, Recently watched, All channels, then the
   regions in alphabetical order, each opening to its groups ("UK| Sport"),
@@ -115,6 +140,46 @@ On Android the player reads the channel's MPEG-TS (`stream.ts`) at once
 while it asks for the session's `plan`: a channel the server sends as it is
 plays that MPEG-TS from its first keyframe; anything else plays the
 server's HLS. Leaving the player ends the session.
+
+### Requests
+
+Where the server takes requests ([API.md](API.md#requests)), people ask
+for movies and shows found on TMDB and administrators decide; Radarr and
+Sonarr fetch what is approved. On phones and tablets:
+
+- **Ways in**: Search before typing (Discover), Search's "On TMDB" row
+  after the libraries' results (See all on Discover), and Me's rows:
+  Discover, and Your requests (Requests for administrators) with its
+  number, which Me's tab carries too, in red while a request couldn't be
+  sent. An account that may not ask and has no requests sees none of it.
+- **Discover**: TMDB's search; a hero for the first trending title with
+  its main action; rows (Trending this week, Popular movies, Popular
+  shows, Coming to cinemas, Popular anime), each read as it comes into
+  view and page by page; the person's requests.
+- **A title's page** has the one main action (Request, Requested,
+  Following, Tell me too, Open, Request more seasons, or why not), the
+  requests for it with their stage, each season's state, and the cast.
+  Request on a show opens "Which seasons?", the missing seasons ticked up
+  to what the account may still ask for.
+- **Requests**: views with their counts (Needs attention, oldest first,
+  for administrators), movies or shows, and for administrators a person,
+  their own and a title. Cards show the stage, the download's progress,
+  why one was declined, and Watch once it's ready. Approve… picks the
+  quality profile, folder and seasons; Decline takes an optional reason;
+  Withdraw, Remove and Delete ask first. Pull to read the list again.
+- **A library title** from a request shows its stage under its actions,
+  and a show partly there offers Request more seasons.
+- **News** (ready to watch, approved, declined; for administrators, new
+  requests and ones that couldn't be sent) shows as a toast with Open
+  while the app is open, never over the player; what came while it was
+  closed is told at the next start.
+- **Signed in before requests**: Discover offers Sign in again, which asks
+  for the `requests` and `approvals` scopes the server now lists.
+- The summary follows the event stream; without it, the app reads the
+  summary every minute in the foreground and an open list every 30 s.
+  Download progress sends no events: a list, a title's page, a library
+  title or Discover's requests showing a download are read again every
+  10 s while they show.
 
 ### Offline and downloads
 
@@ -291,6 +356,9 @@ base64 -w0 pley-release.keystore   # the ANDROID_KEYSTORE_BASE64 secret
 ## Known limits
 
 - Downloads are on phones and tablets only; TVs stream everything.
+- Requests are on phones and tablets only: Android TV and Fire TV have no
+  Discover, no requests and none of their news, and their code sign-in
+  doesn't ask for the `requests` and `approvals` scopes.
 - No Watch Next row on phones or Fire TV.
 - Live TV has no picture in picture, and the TV's display mode isn't
   matched for live channels.

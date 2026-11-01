@@ -24,6 +24,11 @@ SWITCH_GRANT = "urn:pley:params:oauth:grant-type:switch-profile"
 # to playlist, a library's Save as…), and switch to the household's other
 # profiles ("Who's watching?").
 SCOPE = "library play playlists profiles"
+# And where the server offers them: ask for movies and shows the libraries
+# don't have and follow the profile's requests, and approve and decline what
+# people ask for (an administrator's account). A server refuses a sign-in
+# that asks for a scope it doesn't know, so these go only where listed.
+OFFERED = ("requests", "approvals")
 # Access tokens are refreshed this long before they expire.
 REFRESH_MARGIN = 300
 
@@ -50,6 +55,13 @@ def path_of(server: str, endpoint: str) -> str:
     return endpoint[len(server) :]
 
 
+def scope_for(meta: dict) -> str:
+    """What to ask `meta`'s server for: SCOPE, and those of OFFERED that its
+    metadata lists (scopes_supported)."""
+    supported = meta.get("scopes_supported") or []
+    return " ".join([SCOPE] + [name for name in OFFERED if name in supported])
+
+
 class DeviceSignIn:
     """One sign-in with a code: `start`, then `poll` every `interval`."""
 
@@ -57,12 +69,13 @@ class DeviceSignIn:
         self.server = server
         self.user_agent = user_agent
         self.meta = metadata(server, user_agent)
+        self.scope = scope_for(self.meta)
         self.client = Client(server, user_agent)
         self.interval = 5
 
     def start(self) -> dict:
         path = path_of(self.server, self.meta["device_authorization_endpoint"])
-        started = self.client.json("POST", path, form={"client_id": CLIENT_ID, "scope": SCOPE})
+        started = self.client.json("POST", path, form={"client_id": CLIENT_ID, "scope": self.scope})
         self.interval = max(int(started.get("interval") or 5), 1)
         return started
 
@@ -88,7 +101,8 @@ class DeviceSignIn:
         raise ApiError(response.status, error or "http_%d" % response.status, "the server refused the code")
 
     def record(self, tokens: dict, server_name: str, server_id: str, now: float | None = None) -> dict:
-        """What the token file keeps of a sign-in."""
+        """What the token file keeps of a sign-in, named anew each time
+        (Tokens.identity)."""
         return {
             "server": self.server,
             "server_name": server_name,
@@ -98,7 +112,8 @@ class DeviceSignIn:
             "access_token": tokens["access_token"],
             "expires_at": (now if now is not None else time.time()) + int(tokens.get("expires_in") or 3600),
             "refresh_token": tokens["refresh_token"],
-            "scope": tokens.get("scope", SCOPE),
+            "scope": tokens.get("scope", self.scope),
+            "sign_in": binascii.hexlify(os.urandom(8)).decode("ascii"),
         }
 
 
@@ -178,11 +193,13 @@ class Tokens:
         return data["server"] if data else None
 
     def identity(self):
-        """Who the sign-in acts as: the server, and the profile switched to
-        (None: the one that signed in). The event stream is opened again
-        when it changes."""
+        """Who the sign-in acts as: the server, the profile switched to
+        (None: the one picked as it signed in), and which sign-in it is,
+        since whoever approves a code picks the account and the file doesn't
+        say whom. The event stream is opened again, and requests' news
+        starts afresh, when it changes."""
         data = self.current()
-        return (data["server"], data.get("profile")) if data else None
+        return (data["server"], data.get("profile"), data.get("sign_in")) if data else None
 
     def access(self) -> str:
         """An access token good for a while yet."""

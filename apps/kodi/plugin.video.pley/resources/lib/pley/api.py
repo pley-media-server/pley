@@ -15,15 +15,16 @@ CONNECT_TIMEOUT = 4
 
 class ApiError(Exception):
     """A refusal from the server ({code, message}, or OAuth's {error,
-    error_description}), or no answer at all (status 0)."""
+    error_description}), or no answer at all (status 0). `body` is the
+    refusal's JSON whole: some say more (when to ask again, the request as
+    it is now)."""
 
-    def __init__(self, status: int, code: str, message: str, details=None):
+    def __init__(self, status: int, code: str, message: str, body: dict | None = None):
         super().__init__(message)
         self.status = status
         self.code = code
         self.message = message
-        # The rest of the refusal's body (a 409's `connections`).
-        self.details = details or {}
+        self.body = body or {}
 
 
 class Response:

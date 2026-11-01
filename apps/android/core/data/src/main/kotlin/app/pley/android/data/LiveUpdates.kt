@@ -2,7 +2,9 @@ package app.pley.android.data
 
 import app.pley.android.model.ServerEvent
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 
 /** A library scan the server is running. */
@@ -44,4 +46,13 @@ interface LiveUpdates {
      * break: the server answers now (the shells lower their offline notices).
      */
     val answered: Flow<Unit> get() = emptyFlow()
+
+    /**
+     * The event stream is open and connected now: false while it is closed
+     * (in the background, signed out, refused) or lost and trying again.
+     * What can't wait for events polls while it is false.
+     */
+    val streaming: StateFlow<Boolean> get() = NotStreaming
 }
+
+private val NotStreaming: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()

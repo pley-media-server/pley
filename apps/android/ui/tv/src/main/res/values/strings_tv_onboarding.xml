@@ -43,6 +43,7 @@
 
     <!-- Signing in with a code (design spec §2.8). -->
     <string name="tv_onboarding_link_title">Sign in to Pley</string>
+    <string name="tv_onboarding_two_step_required">This server requires two-step sign-in: your phone sets it up if you haven\'t yet.</string>
     <string name="tv_onboarding_link_scan_step">Scan the code with your phone</string>
     <string name="tv_onboarding_link_go_to">or go to</string>
     <string name="tv_onboarding_link_enter_step">and enter this code</string>

@@ -5,12 +5,18 @@
      the focus. -->
 <component name="ChipRow" extends="Group">
     <interface>
-        <!-- [{ label, width }]: a chip's width in pixels. -->
+        <!-- [{ label, width }]: a chip's width in pixels; 0, as wide as
+             its words. -->
         <field id="chips" type="array" onChange="onChips" />
+        <!-- The room either side of a chip's words, both sides together,
+             for chips of width 0. -->
+        <field id="pad" type="integer" value="64" />
         <field id="current" type="integer" value="-1" onChange="onLook" />
         <field id="focusIndex" type="integer" value="0" onChange="onLook" />
         <!-- The chip OK was pressed on. -->
         <field id="chosen" type="integer" alwaysNotify="true" />
+        <!-- How wide the chips are together, set with them. -->
+        <field id="rowWidth" type="integer" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/ChipRow.brs" />
 </component>

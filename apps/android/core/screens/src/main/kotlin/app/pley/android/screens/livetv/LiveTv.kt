@@ -9,6 +9,9 @@ import app.pley.android.model.LiveChannelPage
 import app.pley.android.model.LiveGroup
 import app.pley.android.model.LiveGuide
 import app.pley.android.model.LiveProgram
+import java.time.Instant
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -150,6 +153,14 @@ object LiveTv {
         val minutes = maxOf(1, Math.round((program.stop - now) / 60.0).toInt())
         return minutes / 60 to minutes % 60
     }
+
+    /**
+     * How many days [seconds]'s date is from [now]'s (unix seconds) in
+     * [zone]: 1 tomorrow, -1 yesterday. Dates, not 24-hour steps: a day is
+     * 23 or 25 hours when daylight saving starts or ends.
+     */
+    fun daysApart(seconds: Long, now: Long, zone: ZoneId = ZoneId.systemDefault()): Long =
+        ChronoUnit.DAYS.between(Instant.ofEpochSecond(now).atZone(zone).toLocalDate(), Instant.ofEpochSecond(seconds).atZone(zone).toLocalDate())
 
     private val LEADING_BARS = Regex("^\\|+\\s*")
     private val BRACKETED = Regex("^\\[([^\\]]{1,16})]\\s*(.+)$")

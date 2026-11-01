@@ -22,6 +22,8 @@ export function TextField(p: {
   type?: "text" | "url" | "search" | "number";
   onFocus?: (el: HTMLElement) => void;
   onTyping?: (typing: boolean) => void;
+  /** The TV's keyboard opens as the field shows (a dialog that only asks for words). */
+  typeNow?: boolean;
 }) {
   const ui = useUi();
   const input = useRef<HTMLInputElement>(null);
@@ -51,7 +53,11 @@ export function TextField(p: {
       // Number fields have no selection.
     }
   };
-  useEffect(() => () => stop(), []);
+  useEffect(() => {
+    // Once it has the app's focus (its `initial`), so that the keyboard closing leaves focus on it.
+    if (p.typeNow && box.current && ui.focus.current === box.current) start();
+    return () => stop();
+  }, []);
 
   return (
     <F

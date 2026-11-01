@@ -133,3 +133,104 @@ function fmtLanguageName(code as string, none as string) as string
     end for
     return code
 end function
+
+' --- Times to come and gone (requests' words, lib/Requests.brs) ---
+' Roku has no relative-time formatter: these are the app's own, in its
+' words. Times are unix seconds; zone is what fmtZoneSeconds gives.
+
+' The seconds to add to a UTC time for this Roku's local time (its time
+' zone, summer time as it is now).
+function fmtZoneSeconds() as integer
+    date = CreateObject("roDateTime")
+    utc = date.AsSeconds()
+    date.ToLocalTime()
+    return date.AsSeconds() - utc
+end function
+
+' How far ahead at is: "in a moment", "in 20 min", "in 1 hour", "in 3
+' hours", "tomorrow", "in 3 days".
+function fmtUntil(at as dynamic, now as integer) as string
+    diff = httpNumber(at, 0) - now
+    if diff < 60 then return "in a moment"
+    minutes = Int((diff + 30) / 60)
+    if minutes < 60 then return "in " + urlValue(minutes) + " min"
+    hours = Int((diff + 1800) / 3600)
+    if hours < 24
+        if hours = 1 then return "in 1 hour"
+        return "in " + urlValue(hours) + " hours"
+    end if
+    days = Int((diff + 43200) / 86400)
+    if days <= 1 then return "tomorrow"
+    return "in " + urlValue(days) + " days"
+end function
+
+' How long ago at was: "now", "12 min ago", "1 hour ago", "3 hours ago",
+' "yesterday", "3 days ago", else its day ("Mar 4, 2026").
+function fmtAgo(at as dynamic, now as integer, zone as integer) as string
+    seconds = httpNumber(at, 0)
+    diff = now - seconds
+    if diff < 60 then return "now"
+    if diff < 3600 then return urlValue(Int(diff / 60)) + " min ago"
+    if diff < 86400
+        hours = Int(diff / 3600)
+        if hours = 1 then return "1 hour ago"
+        return urlValue(hours) + " hours ago"
+    end if
+    days = Int(diff / 86400)
+    if days = 1 then return "yesterday"
+    if days < 30 then return urlValue(days) + " days ago"
+    return fmtMonthDay(seconds, zone, true)
+end function
+
+function fmtMonths() as object
+    return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+end function
+
+' at's day in local time: "Nov 4", with its year ("Nov 4, 2027") when
+' withYear.
+function fmtMonthDay(at as dynamic, zone as integer, withYear as boolean) as string
+    date = CreateObject("roDateTime")
+    date.FromSeconds(Int(httpNumber(at, 0) + zone))
+    text = fmtMonths()[date.GetMonth() - 1] + " " + urlValue(date.GetDayOfMonth())
+    if withYear then text = text + ", " + urlValue(date.GetYear())
+    return text
+end function
+
+' at's day in local time: "Nov 4" in the year now is in, else "Nov 4,
+' 2027".
+function fmtDay(at as dynamic, now as integer, zone as integer) as string
+    return fmtMonthDay(at, zone, fmtYear(at, zone) <> fmtYear(now, zone))
+end function
+
+function fmtYear(at as dynamic, zone as integer) as integer
+    date = CreateObject("roDateTime")
+    date.FromSeconds(Int(httpNumber(at, 0) + zone))
+    return date.GetYear()
+end function
+
+' at's time of day in local time: "9:05 PM".
+function fmtTimeOfDay(at as dynamic, zone as integer) as string
+    date = CreateObject("roDateTime")
+    date.FromSeconds(Int(httpNumber(at, 0) + zone))
+    hours = date.GetHours()
+    suffix = " AM"
+    if hours >= 12 then suffix = " PM"
+    hours = hours mod 12
+    if hours = 0 then hours = 12
+    return urlValue(hours) + ":" + fmtTwo(date.GetMinutes()) + suffix
+end function
+
+' A day as TMDB writes it ("2026-11-04"): "Nov 4" in the year now is in,
+' else "Nov 4, 2027"; "" for anything else. A day has no time zone.
+function fmtDateText(text as dynamic, now as integer, zone as integer) as string
+    re = CreateObject("roRegex", "^([0-9]{4})-([0-9]{2})-([0-9]{2})$", "")
+    groups = re.Match(httpString(text))
+    if groups.Count() < 4 then return ""
+    year = groups[1].ToInt()
+    month = groups[2].ToInt()
+    day = groups[3].ToInt()
+    if month < 1 or month > 12 or day < 1 or day > 31 then return ""
+    out = fmtMonths()[month - 1] + " " + urlValue(day)
+    if year <> fmtYear(now, zone) then out = out + ", " + urlValue(year)
+    return out
+end function

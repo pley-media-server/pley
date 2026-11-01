@@ -94,8 +94,9 @@ import app.pley.android.ui.phone.shell.LocalPhoneNavigator
  * type, and "Continue in browser", which opens the chosen server's own
  * sign-in page in a private Custom Tab. Only when no browser on the phone
  * opens that page does the button sign in with a code from another device
- * instead. [preselect] is the server the app was signed out of
- * (PleyKey.SignIn).
+ * instead. Over the button, a chosen server that requires two-step sign-in
+ * says so: its page sets it up. [preselect] is the server the app was
+ * signed out of (PleyKey.SignIn).
  */
 @Composable
 internal fun PhoneSignInScreen(preselect: String?) {
@@ -296,10 +297,14 @@ internal fun PhoneSignInContent(
                     .padding(start = 24.dp, end = 24.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                SignInStatus(signIn, state, onRetry, onOpenInBrowser)
                 // An address typed and not connected yet is what Continue means: the
                 // field's own Connect may be scrolled away under the keyboard.
                 val typed = addressOpen && address.isNotBlank()
+                // It's about the chosen card: hidden while Continue means a typed address.
+                if (!typed && state.rows.any { it.url == state.selected && it.twoStepRequired }) {
+                    Text(stringResource(R.string.onboarding_two_step_required), style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted)
+                }
+                SignInStatus(signIn, state, onRetry, onOpenInBrowser)
                 PrimaryButton(
                     text = stringResource(if (withoutBrowser) R.string.onboarding_code_primary else R.string.onboarding_continue),
                     onClick = when {

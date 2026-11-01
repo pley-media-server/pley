@@ -98,12 +98,14 @@ fun dvCompatLabel(blCompat: Int?): String? = when (blCompat) {
 
 /**
  * Dolby Vision in full: "Profile 8.1 · Level 6 · HDR10-compatible base
- * layer", "Profile 5 · Level 6 · no base layer". `null` for other streams.
+ * layer", "Profile 5 · Level 6 · no base layer", "Profile 8 · Level 6 ·
+ * Blu-ray HDR10-compatible base layer" (named as [dynamicRangeLabel] names
+ * it: 8.1, 8.2 and 8.4 only). `null` for other streams.
  */
 fun dolbyVisionDetails(s: MediaStream): String? {
     if (s.dynamicRange != DynamicRange.DolbyVision) return null
     val compat = s.dvBlCompat
-    val profile = s.dvProfile?.let { p -> "Profile $p" + (compat?.takeIf { p >= 8 && it > 0 }?.let { ".$it" } ?: "") }
+    val profile = s.dvProfile?.let { p -> "Profile $p" + (compat?.takeIf { p >= 8 && it in setOf(1, 2, 4) }?.let { ".$it" } ?: "") }
     val base = when {
         compat == null -> null
         compat == 0 -> "no compatible base layer"

@@ -1,0 +1,46 @@
+{
+  "total": 3,
+  "counts": { "pending": 2, "approved": 4, "declined": 1, "failed": 1, "available": 7 },
+  "requests": [
+    {
+      "id": 44, "kind": "movie", "tmdb_id": 933260, "title": "The Substance", "year": 2024,
+      "poster_url": "/api/discover/images/poster/lqoMzCcZYEFK729d6qzt349fB4o.jpg", "backdrop_url": null,
+      "seasons": null, "available_seasons": [], "anime": false,
+      "status": "pending", "stage": "pending", "stage_at": null,
+      "reason": null, "note": null, "mine": false, "watching": false, "watchers": 1, "unseen": false,
+      "actions": ["approve", "decline", "handled", "delete"],
+      "requested_by": { "id": 2, "name": "Sam", "avatar_url": null, "avatar_color": "#38bdf8" },
+      "decided_by": null, "decided_at": null,
+      "created_at": 1761550000, "updated_at": 1761550000, "available_at": null, "retry_at": null,
+      "sent_to": null, "item_id": null, "download": null
+    },
+    {
+      "id": 49, "kind": "show", "tmdb_id": 94605, "title": "Arcane", "year": 2021,
+      "poster_url": "/api/discover/images/poster/abf8tHznhSvl9BAElD2cQeRr7do.jpg", "backdrop_url": null,
+      "seasons": [1, 2, 3, 5], "available_seasons": [], "anime": true,
+      "status": "pending", "stage": "pending", "stage_at": null,
+      "reason": null, "note": "In Anime, which Kit can't open", "mine": false, "watching": false, "watchers": 0, "unseen": false,
+      "actions": ["approve", "decline", "handled", "delete"],
+      "requested_by": { "id": 3, "name": "Kit", "avatar_url": "/api/users/3/avatar?v=1761000000", "avatar_color": "#a3e635" },
+      "decided_by": null, "decided_at": null,
+      "created_at": 1761560000, "updated_at": 1761560000, "available_at": null, "retry_at": null,
+      "sent_to": null, "item_id": null, "download": null
+    },
+    {
+      "id": 50, "kind": "movie", "tmdb_id": 1022789, "title": "Inside Out 2", "year": 2024,
+      "poster_url": "/api/discover/images/poster/vpnVM9B6NMmQpWeZvzLvDESb2QY.jpg", "backdrop_url": null,
+      "seasons": null, "available_seasons": [], "anime": false,
+      "status": "failed", "stage": "failed", "stage_at": null,
+      "reason": "Radarr refused the key", "note": null, "mine": false, "watching": false, "watchers": 0, "unseen": false,
+      "actions": ["retry", "decline", "handled", "delete"],
+      "requested_by": { "id": 3, "name": "Kit", "avatar_url": "/api/users/3/avatar?v=1761000000", "avatar_color": "#a3e635" },
+      "decided_by": { "id": 1, "name": "Ann", "avatar_url": null, "avatar_color": "#f472b6" }, "decided_at": 1761570100,
+      "created_at": 1761570000, "updated_at": 1761570200, "available_at": null, "retry_at": null,
+      "sent_to": { "service": "radarr", "quality_profile": "HD-1080p", "root_folder": "/movies" }, "item_id": null, "download": null
+    }
+  ],
+  "people": [
+    { "id": 3, "name": "Kit", "avatar_url": "/api/users/3/avatar?v=1761000000", "avatar_color": "#a3e635" },
+    { "id": 2, "name": "Sam", "avatar_url": null, "avatar_color": "#38bdf8" }
+  ]
+}

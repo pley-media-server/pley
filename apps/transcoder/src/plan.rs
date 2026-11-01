@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Turns a [`JobRequest`] plus [`MediaInfo`] into a concrete plan (segment
 //! layout, encoder, filters, tone mapping) and renders ffmpeg command lines for
 //! any window of segments.

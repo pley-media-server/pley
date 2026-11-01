@@ -3,6 +3,7 @@ package app.pley.android.player
 import android.content.Context
 import app.pley.android.caps.CapsGraph
 import app.pley.android.caps.CapsSettings
+import app.pley.android.caps.ModeSwitching
 import app.pley.android.caps.Override
 import app.pley.android.caps.PassthroughFormat
 import app.pley.android.common.DeviceProfile
@@ -74,7 +75,7 @@ private class FollowedSettings(data: DataGraph, caps: CapsGraph, profile: Device
             try {
                 data.settings.settings.collect { s ->
                     engine = engineSettings(s, profile.isTv)
-                    caps.capabilities.updateSettings(capsSettings(s))
+                    caps.capabilities.updateSettings(capsSettings(s, profile.isTv))
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -96,8 +97,12 @@ internal fun engineSettings(settings: Settings, tv: Boolean): EngineSettings = E
     tunneling = tv && settings.tunneling,
 )
 
-/** The capability probe's view of [settings]: passthrough per format, software video in debug builds. */
-internal fun capsSettings(settings: Settings): CapsSettings = CapsSettings(
+/**
+ * The capability probe's view of [settings] on a phone ([tv] false) or a TV:
+ * passthrough per format, the display modes a TV switches to, software
+ * video in debug builds.
+ */
+internal fun capsSettings(settings: Settings, tv: Boolean): CapsSettings = CapsSettings(
     passthrough = PASSTHROUGH.mapNotNull { (key, format) ->
         when (settings.passthrough(key)) {
             Passthrough.On -> format to Override.On
@@ -106,6 +111,11 @@ internal fun capsSettings(settings: Settings): CapsSettings = CapsSettings(
         }
     }.toMap(),
     allowSoftwareDecoders = settings.allowSoftwareVideo,
+    modeSwitching = when (settings.frameRateMatching(tv)) {
+        FrameRateMatching.Off -> ModeSwitching.Off
+        FrameRateMatching.Always -> ModeSwitching.Always
+        FrameRateMatching.Auto, FrameRateMatching.Seamless -> ModeSwitching.Auto
+    },
 )
 
 /** Settings' passthrough keys and the probe's formats. */

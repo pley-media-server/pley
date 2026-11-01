@@ -198,6 +198,24 @@ class ServerChecksTest {
     }
 
     @Test
+    fun theProbeSaysWhetherTheServerRequiresTwoStepSignIn() = runBlocking {
+        suspend fun probe(answer: String): ProbeResult {
+            val home = Scripted { ok(answer) }
+            return HttpServerProbe(home.client, home.client).probe("nas")
+        }
+        assertEquals(
+            ProbeResult.Pley("http://nas:7539", ServerInfo("Living Room", "0.42.0", twoStepRequired = true)),
+            probe("""{"name":"Living Room","version":"0.42.0","two_step_required":true}"""),
+        )
+        assertEquals(ProbeResult.Pley("http://nas:7539", ServerInfo("Living Room", "0.42.0")), probe(pleyAnswer))
+        // An odd value doesn't make it something other than Pley.
+        assertEquals(
+            ProbeResult.Pley("http://nas:7539", ServerInfo("Living Room", "0.42.0")),
+            probe("""{"name":"Living Room","version":"0.42.0","two_step_required":"yes"}"""),
+        )
+    }
+
+    @Test
     fun aRedirectToHttpsOnTheSameHostIsFollowedByHand() = runBlocking {
         val internet = Scripted { url ->
             if (url.startsWith("http://")) ok("", code = 301, location = "https://pley.example.com/api/server") else ok(pleyAnswer)

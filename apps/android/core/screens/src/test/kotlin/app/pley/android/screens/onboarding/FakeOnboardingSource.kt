@@ -97,9 +97,9 @@ internal class FakeOnboardingSource(
         answers[input] ?: ProbeResult.Unreachable("nothing answers there")
     }
 
-    /** Pley at [url], named [name]. */
-    fun answer(input: String, url: String = input, name: String = "Living room NAS") {
-        answers[input] = ProbeResult.Pley(url, ServerInfo(name, "1.0.0"))
+    /** Pley at [url], named [name], requiring two-step sign-in or not. */
+    fun answer(input: String, url: String = input, name: String = "Living room NAS", twoStepRequired: Boolean = false) {
+        answers[input] = ProbeResult.Pley(url, ServerInfo(name, "1.0.0", twoStepRequired = twoStepRequired))
     }
 
     /** Permissions not held yet (Android 17's local network access…). */
@@ -120,6 +120,9 @@ internal class FakeOnboardingSource(
     var startError: Throwable? = null
     var starts = 0
 
+    /** Whether each code asked for the scopes of requests too. */
+    val requestScopes = mutableListOf<Boolean>()
+
     /** What each poll says after Waiting: the test sends them. */
     val polls = Channel<DevicePoll>(Channel.UNLIMITED)
 
@@ -128,8 +131,9 @@ internal class FakeOnboardingSource(
         private set
 
     override val deviceSignIn: DeviceSignIn = object : DeviceSignIn {
-        override suspend fun start(server: String): DeviceCode {
+        override suspend fun start(server: String, requests: Boolean): DeviceCode {
             starts++
+            requestScopes += requests
             startError?.let { throw it }
             return if (codes.size > 1) codes.removeFirst() else codes.firstOrNull() ?: code(server)
         }

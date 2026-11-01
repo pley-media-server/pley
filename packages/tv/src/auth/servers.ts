@@ -6,6 +6,11 @@ export interface ServerInfo {
   url: string;
   name: string;
   version: string;
+  /**
+   * It requires two-step sign-in of every account with a password: signing
+   * in on a phone sets it up for whoever hasn't. False from servers before it.
+   */
+  twoStepRequired: boolean;
 }
 
 /** Why an address isn't a server to sign in to. */
@@ -58,9 +63,14 @@ function timeoutFor(url: string): number {
 export async function probe(http: Transport, url: string, timeoutMs = timeoutFor(url)): Promise<ServerInfo | null> {
   const res = await http({ method: "GET", url: `${url}/api/server`, headers: { Accept: "application/json" }, responseType: "json", timeoutMs });
   if (res.status !== 200) return null;
-  const body = res.body as { name?: unknown; version?: unknown } | null;
+  const body = res.body as { name?: unknown; version?: unknown; two_step_required?: unknown } | null;
   if (!body || typeof body !== "object" || typeof body.version !== "string") return null;
-  return { url, name: typeof body.name === "string" && body.name.trim() ? body.name.trim() : displayAddress(url), version: body.version };
+  return {
+    url,
+    name: typeof body.name === "string" && body.name.trim() ? body.name.trim() : displayAddress(url),
+    version: body.version,
+    twoStepRequired: body.two_step_required === true,
+  };
 }
 
 function reasonOf(e: unknown): string {

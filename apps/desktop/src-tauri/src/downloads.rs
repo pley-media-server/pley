@@ -467,7 +467,7 @@ fn tell_page<R: Runtime>(app: &AppHandle<R>, origin: &str, download: &PageDownlo
 }
 
 /// The cookies the window has for `url`: the server's session.
-fn cookies<R: Runtime>(app: &AppHandle<R>, url: &Url) -> Option<String> {
+pub(crate) fn cookies<R: Runtime>(app: &AppHandle<R>, url: &Url) -> Option<String> {
     let window = app.get_webview_window("main")?;
     // Not on the main thread: on Windows, reading cookies there deadlocks.
     let cookies = window.cookies_for_url(url.clone()).ok()?;

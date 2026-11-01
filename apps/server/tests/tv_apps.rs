@@ -14,6 +14,7 @@ const CAPS: &str = r#"{"containers": ["mkv"], "video_codecs": ["h264"], "audio_c
 
 struct World {
     app: TestApp,
+    admin: String,
     viewer_id: i64,
     viewer: String,
     film: i64,
@@ -26,7 +27,7 @@ async fn world() -> World {
     let movies = app.library(&admin, "Movies", "movies", "movies").await;
     let film = app.ids(movies, &admin).await["Film"];
     let (viewer, viewer_id) = app.user(&admin, "viewer", json!({})).await;
-    World { app, viewer_id, viewer, film }
+    World { app, admin, viewer_id, viewer, film }
 }
 
 /// A play request of the film, as a TV app makes it: `keyed_urls` set.
@@ -74,6 +75,19 @@ async fn a_keyed_address_opens_the_sessions_file_and_nothing_else() {
     assert_eq!(bare(&w.app, &wrong, &[]).await.status, StatusCode::NOT_FOUND);
     // A key is no token: it opens no API route.
     assert_eq!(w.app.get("/api/hubs/home", &key).await.status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn a_key_ends_when_the_server_requires_two_step_sign_in_its_account_doesnt_use() {
+    let w = world().await;
+    let started = play(&w, &w.viewer, true).await;
+    let url = started["url"].as_str().unwrap().to_owned();
+    assert_eq!(bare(&w.app, &url, &[]).await.status, StatusCode::OK);
+    w.app.turn_on_two_step(&w.admin, "secret-one").await;
+    let required = w.app.put("/api/settings", &w.admin, json!({"require_two_step": true})).await;
+    assert_eq!(required.status, StatusCode::OK, "{}", required.text());
+    // The viewer signed in with a password alone: signed out, playing included.
+    assert_eq!(bare(&w.app, &url, &[]).await.status, StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]

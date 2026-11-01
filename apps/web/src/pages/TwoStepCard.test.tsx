@@ -7,15 +7,18 @@ import { TwoStepCard } from "./TwoStepCard";
 
 const CODES = Array.from({ length: 10 }, (_, i) => `${i}aaa-bbbb-cccc-dddd`);
 
-function serve(initial: TwoStepStatus = { enabled: false, since: null, recovery_codes_left: 0 }) {
+function serve(initial: TwoStepStatus = { enabled: false, since: null, recovery_codes_left: 0 }, { required = false } = {}) {
   let status = initial;
   return mockApi({
-    "GET /api/server": () => ({ name: "Living Room", version: "1.0.0", setup_required: false }),
+    "GET /api/server": () => ({ name: "Living Room", version: "1.0.0", setup_required: false, two_step_required: required }),
     "GET /api/me/two-step": () => status,
-    "POST /api/me/two-step/setup": (req) =>
-      (req.body as { password: string }).password === "hunter22"
-        ? { secret: "JBSWY3DPEHPK3PXP", uri: "otpauth://totp/pley:admin?secret=JBSWY3DPEHPK3PXP", qr: { size: 21, path: "M0 0h7v1h-7z" }, expires_at: 0 }
-        : apiError(403, "forbidden", "the password is wrong"),
+    "POST /api/me/two-step/setup": (req) => {
+      const { password, code } = req.body as { password: string; code?: string };
+      if (password !== "hunter22") return apiError(403, "forbidden", "the password is wrong");
+      // On already: moving it to another app takes a code of the current one.
+      if (status.enabled && code !== "654321") return apiError(401, "two_step", "that code didn't work");
+      return { secret: "JBSWY3DPEHPK3PXP", uri: "otpauth://totp/pley:admin?secret=JBSWY3DPEHPK3PXP", qr: { size: 21, path: "M0 0h7v1h-7z" }, expires_at: 0 };
+    },
     "POST /api/me/two-step": (req) => {
       if ((req.body as { code: string }).code !== "123456") return apiError(400, "bad_request", "that code didn't work");
       status = { enabled: true, since: 1_700_000_000, recovery_codes_left: 10 };
@@ -94,6 +97,40 @@ describe("TwoStepCard", () => {
     await user.click(screen.getByRole("button", { name: "Make new codes" }));
     expect(await screen.findByRole("list", { name: "Recovery codes" })).toBeInTheDocument();
     expect(screen.queryByText(/Devices already signed in/)).not.toBeInTheDocument();
+  });
+
+  it("moves to another app with the password and a code from the current one", async () => {
+    const user = userEvent.setup();
+    const requests = serve({ enabled: true, since: 1_700_000_000, recovery_codes_left: 4 });
+    renderWithProviders(<TwoStepCard />, { user: { ...testUser, two_step: true } });
+
+    await user.click(await screen.findByRole("button", { name: "Use another app" }));
+    expect(screen.getByText(/the current one keeps working/)).toBeInTheDocument();
+    const next = screen.getByRole("button", { name: "Continue" });
+    await user.type(screen.getByLabelText("Your password"), "hunter22");
+    expect(next).toBeDisabled();
+    await user.type(screen.getByLabelText("Code from your current app"), "111111");
+    await user.click(next);
+    expect(await screen.findByText("That code didn't work")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Code from your current app"));
+    await user.type(screen.getByLabelText("Code from your current app"), "654321");
+    await user.click(next);
+
+    await user.type(await screen.findByLabelText("Code from the app"), "123456");
+    expect(await screen.findByText("Two-step sign-in uses your new app")).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Recovery codes" })).toBeInTheDocument();
+    expect(screen.getByText(/old recovery codes, don't work any more/)).toBeInTheDocument();
+    expect(requests.filter((r) => r.path === "/api/me/two-step/setup").at(-1)?.body).toEqual({ password: "hunter22", code: "654321" });
+  });
+
+  it("stays on while the server requires it", async () => {
+    serve({ enabled: true, since: 1_700_000_000, recovery_codes_left: 10 }, { required: true });
+    renderWithProviders(<TwoStepCard />, { user: { ...testUser, two_step: true } });
+
+    expect(await screen.findByText(/This server requires it, so it stays on\./)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Turn off" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use another app" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New recovery codes" })).toBeInTheDocument();
   });
 
   it("isn't there for accounts without a password", async () => {

@@ -92,7 +92,8 @@ export function ServersScreen() {
       setSearching(true);
       if (app.platform.discover) {
         await app.platform
-          .discover((s) => found({ url: s.url, name: s.name, version: s.version }), () => stopped)
+          // A discovery answer doesn't say: signing in asks the server itself.
+          .discover((s) => found({ url: s.url, name: s.name, version: s.version, twoStepRequired: false }), () => stopped)
           .catch(() => undefined);
       } else if (net && !app.savedServers().length) {
         // No UDP on this TV: a first launch sweeps the network at once.

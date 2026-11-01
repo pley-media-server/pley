@@ -30,6 +30,8 @@
   --color-success: #3fb27f;
   --color-danger: #e5484d;
   --color-info: #4c9aff;
+  /* Waiting for someone (a request for a decision). */
+  --color-warning: #f0a83c;
 
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",

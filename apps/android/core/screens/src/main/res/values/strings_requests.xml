@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Requests and Discover, on phones and tablets.
+        Buttons say Request; running text says "ask for". Limits are "per
+        7 days" or "for now", never "this week".
+    -->
+
+    <!-- Pages. -->
+    <string name="requests_discover">Discover</string>
+    <string name="requests_yours">Your requests</string>
+    <!-- The managers' page: everyone's requests. -->
+    <string name="requests_manage">Requests</string>
+    <string name="requests_attention">Needs attention</string>
+    <!-- Under Discover's way in (search, Me). -->
+    <string name="requests_discover_hint">Find movies and shows to ask for</string>
+    <!-- Under Requests' way in, for managers. -->
+    <string name="requests_manage_hint">Approve, decline and follow what was asked for</string>
+    <!-- The number on the way into requests, said: "3 requests need you, 1 couldn't be sent". -->
+    <plurals name="requests_count_manage">
+        <item quantity="one">%1$d request needs you</item>
+        <item quantity="other">%1$d requests need you</item>
+    </plurals>
+    <plurals name="requests_count_failed">
+        <item quantity="one">%1$d couldn\'t be sent</item>
+        <item quantity="other">%1$d couldn\'t be sent</item>
+    </plurals>
+    <string name="requests_count_and">%1$s, %2$s</string>
+
+    <!-- Discover's rows, in their order. -->
+    <string name="requests_row_trending">Trending this week</string>
+    <string name="requests_row_movies">Popular movies</string>
+    <string name="requests_row_shows">Popular shows</string>
+    <string name="requests_row_upcoming">Coming to cinemas</string>
+    <string name="requests_row_anime">Popular anime</string>
+    <string name="requests_search_field">Search TMDB for movies and shows</string>
+    <string name="requests_search_none">Nothing on TMDB matches “%1$s”</string>
+    <string name="requests_search_none_body">Try a different spelling, or the title in its own language.</string>
+    <string name="requests_kind_movie">Movie</string>
+    <string name="requests_kind_show">Show</string>
+
+    <!-- Badges on posters. -->
+    <string name="requests_badge_library">In library</string>
+    <string name="requests_badge_partial">Partly in library</string>
+    <string name="requests_badge_requested">Requested</string>
+    <string name="requests_badge_declined">Declined</string>
+
+    <!-- A title page's main action. -->
+    <string name="requests_open">Open</string>
+    <string name="requests_request">Request</string>
+    <string name="requests_requested">Requested</string>
+    <string name="requests_following">Following</string>
+    <string name="requests_stop_following">Stop following</string>
+    <string name="requests_tell_me_too">Tell me too</string>
+    <string name="requests_asked_already">Someone asked for it already.</string>
+    <string name="requests_more_seasons">Request more seasons</string>
+    <!-- "Declined: “Not on our servers”. You can ask again in 12 days." -->
+    <string name="requests_declined_reason">Declined: “%1$s”. You can ask again %2$s.</string>
+    <string name="requests_declined_plain">Declined. You can ask again %1$s.</string>
+    <string name="requests_declined_reason_only">Declined: “%1$s”.</string>
+    <string name="requests_declined_only">Declined.</string>
+    <string name="requests_ready_elsewhere">Ready, in a library you can\'t open: ask an administrator</string>
+    <string name="requests_watch">Watch</string>
+    <string name="requests_details">Details</string>
+
+    <!-- Stage pills. -->
+    <string name="requests_stage_pending">Waiting for approval</string>
+    <string name="requests_stage_approved">Approved</string>
+    <!-- "Out Nov 4": a movie's release. -->
+    <string name="requests_stage_out">Out %1$s</string>
+    <!-- "Airs Nov 4": a show's next episode. -->
+    <string name="requests_stage_airs">Airs %1$s</string>
+    <string name="requests_stage_not_out">Not out yet</string>
+    <string name="requests_stage_searching">Searching</string>
+    <string name="requests_stage_downloading">Downloading %1$d%%</string>
+    <!-- After "Downloading 42%": " · in 20 min". -->
+    <string name="requests_stage_eta">%1$s · %2$s</string>
+    <string name="requests_stage_importing">Adding to the library</string>
+    <!-- "Seasons 1–2 ready". -->
+    <string name="requests_stage_partial">%1$s ready</string>
+    <string name="requests_stage_available">Ready to watch</string>
+    <string name="requests_stage_gone">No longer in a library</string>
+    <string name="requests_stage_declined">Declined</string>
+    <string name="requests_stage_failed">Couldn\'t send: %1$s</string>
+    <string name="requests_stage_failed_plain">Couldn\'t send</string>
+    <string name="requests_stage_not_sent">Not sent yet</string>
+    <string name="requests_not_sent_body">It couldn\'t be sent to download yet: an administrator will look at it.</string>
+    <!-- "Trying again in 5 min." -->
+    <string name="requests_trying_again">Trying again %1$s.</string>
+    <string name="requests_download_queued">Waiting to download</string>
+    <string name="requests_download_paused">Download paused</string>
+    <string name="requests_download_warning">The download has a problem</string>
+    <string name="requests_by_someone">Asked for by someone else</string>
+    <!-- "Ann · 3 days ago". -->
+    <string name="requests_by_when">%1$s · %2$s</string>
+    <string name="requests_stage_unknown">Requested</string>
+
+    <!-- When: "today, 9:00 PM", a day, or in so long. -->
+    <string name="requests_today_at">today, %1$s</string>
+    <string name="requests_tomorrow_at">tomorrow, %1$s</string>
+    <string name="requests_tomorrow">tomorrow</string>
+    <string name="requests_soon">in a moment</string>
+    <plurals name="requests_in_minutes">
+        <item quantity="one">in %1$d min</item>
+        <item quantity="other">in %1$d min</item>
+    </plurals>
+    <plurals name="requests_in_hours">
+        <item quantity="one">in %1$d hour</item>
+        <item quantity="other">in %1$d hours</item>
+    </plurals>
+    <plurals name="requests_in_days">
+        <item quantity="one">in %1$d day</item>
+        <item quantity="other">in %1$d days</item>
+    </plurals>
+
+    <!-- Allowance. -->
+    <plurals name="requests_more_movies">
+        <item quantity="one">%1$d more movie</item>
+        <item quantity="other">%1$d more movies</item>
+    </plurals>
+    <plurals name="requests_more_seasons_count">
+        <item quantity="one">%1$d more season</item>
+        <item quantity="other">%1$d more seasons</item>
+    </plurals>
+    <plurals name="requests_movies">
+        <item quantity="one">%1$d movie</item>
+        <item quantity="other">%1$d movies</item>
+    </plurals>
+    <plurals name="requests_seasons">
+        <item quantity="one">%1$d season</item>
+        <item quantity="other">%1$d seasons</item>
+    </plurals>
+    <!-- "You can ask for 2 more movies and 5 more seasons." -->
+    <string name="requests_allowance_both">You can ask for %1$s and %2$s.</string>
+    <string name="requests_allowance_one">You can ask for %1$s.</string>
+    <!-- "Limits: 3 movies and 10 seasons per 7 days." -->
+    <string name="requests_limits_both">Limits: %1$s and %2$s per 7 days.</string>
+    <string name="requests_limits_one">Limit: %1$s per 7 days.</string>
+    <string name="requests_all_movies">You\'ve asked for all the movies you can for now: you can ask for more %1$s.</string>
+    <string name="requests_all_seasons">You\'ve asked for all the seasons you can for now: you can ask for more %1$s.</string>
+    <!-- "You've asked for all you can for now: more movies in 3 days, more seasons in 5 days." -->
+    <string name="requests_all_both">You\'ve asked for all you can for now: more movies %1$s, more seasons %2$s.</string>
+    <string name="requests_all_for_now">You\'ve asked for all you can for now.</string>
+
+    <!-- Asking. -->
+    <string name="requests_asked_pending">Asked for “%1$s”: an administrator decides.</string>
+    <string name="requests_asked_approved">“%1$s” is approved and on its way.</string>
+    <string name="requests_asked_failed">Asked for “%1$s”, but it couldn\'t be sent to download yet.</string>
+    <string name="requests_asked_following">You\'ll hear when “%1$s” is ready.</string>
+    <string name="requests_picker_title">Which seasons?</string>
+    <plurals name="requests_picker_request">
+        <item quantity="one">Request %1$d season</item>
+        <item quantity="other">Request %1$d seasons</item>
+    </plurals>
+    <string name="requests_picker_none">Pick a season.</string>
+    <string name="requests_season_library">In library</string>
+    <string name="requests_season_requested">Requested</string>
+    <string name="requests_season_declined">Declined</string>
+    <string name="requests_season_partial">%1$d of %2$d episodes in library</string>
+    <string name="requests_season_unaired">Not aired yet</string>
+    <string name="requests_season_airs">Airs %1$s</string>
+    <plurals name="requests_season_episodes">
+        <item quantity="one">%1$d episode</item>
+        <item quantity="other">%1$d episodes</item>
+    </plurals>
+    <string name="requests_ask_again_at">You can ask again %1$s</string>
+    <string name="requests_ask_more_at">You can ask for more %1$s</string>
+    <!-- 429 with no time: more was asked than the limit itself. -->
+    <string name="requests_at_most_seasons">You can ask for at most %1$s per 7 days: pick fewer.</string>
+    <string name="requests_at_most_movies">You can ask for at most %1$s per 7 days.</string>
+
+    <!-- Actions on a request. -->
+    <string name="requests_withdraw">Withdraw</string>
+    <string name="requests_withdraw_confirm">Withdraw your request for “%1$s”?</string>
+    <string name="requests_remove">Remove</string>
+    <string name="requests_remove_confirm">Remove “%1$s” from your requests?</string>
+    <string name="requests_approve">Approve</string>
+    <string name="requests_approve_with">Approve…</string>
+    <string name="requests_try_again">Try again</string>
+    <string name="requests_decline">Decline</string>
+    <string name="requests_decline_with_reason">Decline with a reason…</string>
+    <string name="requests_handled">Mark as added by hand</string>
+    <string name="requests_delete">Delete</string>
+    <string name="requests_delete_confirm">Delete this request? Radarr and Sonarr keep what they have.</string>
+    <string name="requests_ask_again">Request again</string>
+    <string name="requests_cancel">Cancel</string>
+
+    <!-- The managers' dialogs. -->
+    <string name="requests_approve_title">Approve “%1$s”</string>
+    <string name="requests_approve_profile">Quality profile</string>
+    <string name="requests_approve_folder">Folder</string>
+    <string name="requests_approve_seasons">Seasons</string>
+    <string name="requests_approve_settings">Approve with the settings\' choices</string>
+    <string name="requests_approve_default">As in the settings</string>
+    <!-- "1.2 TB free". -->
+    <string name="requests_folder_free">%1$s free</string>
+    <string name="requests_decline_title">Decline “%1$s”?</string>
+    <string name="requests_decline_reason">Reason (optional)</string>
+    <string name="requests_decline_reason_hint">The person who asked sees it.</string>
+
+    <!-- Lists. -->
+    <string name="requests_filter_all">All</string>
+    <string name="requests_filter_pending">Pending</string>
+    <string name="requests_filter_approved">Approved</string>
+    <string name="requests_filter_available">Available</string>
+    <string name="requests_filter_declined">Declined</string>
+    <string name="requests_filter_failed">Failed</string>
+    <string name="requests_filter_movies">Movies</string>
+    <string name="requests_filter_shows">Shows</string>
+    <string name="requests_filter_everyone">Everyone</string>
+    <string name="requests_filter_mine">Yours</string>
+    <string name="requests_filter_title">Search requests</string>
+    <!-- A view with how many it holds: "Pending · 2". -->
+    <string name="requests_filter_count">%1$s · %2$d</string>
+    <string name="requests_none_title">Nothing asked for yet</string>
+    <string name="requests_none_body">Find movies and shows in Discover, and ask for what the libraries don\'t have.</string>
+    <string name="requests_none_body_off">Requests you made or follow show here.</string>
+    <string name="requests_attention_none">Nothing needs you</string>
+    <string name="requests_attention_none_body">Requests waiting for a decision, and those that couldn\'t be sent, show here.</string>
+    <string name="requests_filtered_none">No requests match</string>
+    <string name="requests_filtered_none_body">Try other filters.</string>
+    <plurals name="requests_watchers">
+        <item quantity="one">%1$d person follows it</item>
+        <item quantity="other">%1$d people follow it</item>
+    </plurals>
+    <!-- Managers: where it went. "Radarr · HD-1080p · /movies". -->
+    <string name="requests_sent_to_radarr">Radarr</string>
+    <string name="requests_sent_to_sonarr">Sonarr</string>
+
+    <!-- Notices. -->
+    <string name="requests_notice_ready">“%1$s” is ready to watch.</string>
+    <!-- "Season 2 of “Severance” is ready to watch." -->
+    <string name="requests_notice_season_ready">%1$s of “%2$s” is ready to watch.</string>
+    <string name="requests_notice_seasons_ready">%1$s of “%2$s” are ready to watch.</string>
+    <string name="requests_notice_approved">“%1$s” was approved.</string>
+    <string name="requests_notice_declined_reason">“%1$s” was declined: “%2$s”.</string>
+    <string name="requests_notice_declined">“%1$s” was declined.</string>
+    <!-- Managers: "Ann asked for “Arcane” (Seasons 1–3)." -->
+    <string name="requests_notice_asked_seasons">%1$s asked for “%2$s” (%3$s).</string>
+    <string name="requests_notice_asked">%1$s asked for “%2$s”.</string>
+    <string name="requests_notice_someone">Someone</string>
+    <string name="requests_notice_failed_radarr">“%1$s” couldn\'t be sent to Radarr: %2$s</string>
+    <string name="requests_notice_failed_sonarr">“%1$s” couldn\'t be sent to Sonarr: %2$s</string>
+    <string name="requests_notice_failed_radarr_plain">“%1$s” couldn\'t be sent to Radarr.</string>
+    <string name="requests_notice_failed_sonarr_plain">“%1$s” couldn\'t be sent to Sonarr.</string>
+    <plurals name="requests_notice_news">
+        <item quantity="one">%1$d of your requests has news</item>
+        <item quantity="other">%1$d of your requests have news</item>
+    </plurals>
+
+    <!-- Seasons: "Season 2", "Seasons 1–3, 5", "Seasons 1–2 and specials", "Specials". -->
+    <string name="requests_season">Season %1$s</string>
+    <string name="requests_seasons">Seasons %1$s</string>
+    <string name="requests_season_and_specials">Season %1$s and specials</string>
+    <string name="requests_seasons_and_specials">Seasons %1$s and specials</string>
+    <string name="requests_specials">Specials</string>
+
+    <!-- When requests can't be used. -->
+    <string name="requests_off_title">Requests are off</string>
+    <string name="requests_off_body">This server doesn\'t take requests for movies and shows.</string>
+    <string name="requests_no_access_title">Requests aren\'t open to this account</string>
+    <string name="requests_no_access_body">An administrator can let it ask for movies and shows.</string>
+    <string name="requests_tmdb_down">TMDB isn\'t answering</string>
+    <string name="requests_tmdb_down_body">Its details and pictures come back once it answers again.</string>
+    <string name="requests_tmdb_key">TMDB refused this server\'s key</string>
+    <string name="requests_tmdb_key_manage">Fix it in the server\'s settings: Settings → Server, on the web.</string>
+    <string name="requests_tmdb_key_others">An administrator needs to check it.</string>
+    <string name="requests_sign_in_title">Sign in again to ask for movies and shows</string>
+    <string name="requests_sign_in_body">This app signed in before it could ask. Signing in again lets it.</string>
+    <string name="requests_sign_in_approvals">Sign in again to approve and decline here.</string>
+    <string name="requests_sign_in">Sign in again</string>
+    <string name="requests_not_found">This title isn\'t on TMDB</string>
+    <string name="requests_not_found_body">It may have been taken off since.</string>
+    <string name="requests_retry">Retry</string>
+    <!-- Where Request would be, with access "off". -->
+    <string name="requests_no_access_line">Requests aren\'t open to this account.</string>
+    <!-- Any other failure, over the error's own sentence. -->
+    <string name="requests_discover_failed">Couldn\'t load Discover</string>
+    <string name="requests_title_failed">Couldn\'t load this title</string>
+    <string name="requests_list_failed">Couldn\'t load the requests</string>
+
+    <!-- A title page's sections. -->
+    <string name="requests_seasons_heading">Seasons</string>
+    <string name="requests_cast">Cast</string>
+    <string name="requests_more_actions">More actions</string>
+
+    <!-- Global search. -->
+    <string name="requests_on_tmdb">On TMDB</string>
+    <string name="requests_see_all">See all on Discover</string>
+    <string name="requests_nothing_in_libraries">Nothing in your libraries matches</string>
+
+    <!-- Credits. -->
+    <string name="requests_credit">Details and pictures from TMDB.</string>
+    <string name="requests_credit_about">This product uses the TMDB API but is not endorsed or certified by TMDB.</string>
+</resources>

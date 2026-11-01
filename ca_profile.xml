@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!-- Unraid's Community Apps reads this from the repository's root; the template is deploy/unraid/pley.xml. -->
+<CommunityApplications>
+  <Profile>Pley is a self-hosted media server: movies, shows and music, and live TV, streamed to the web, phones, TVs, Kodi and Roku, with hardware transcoding on Intel, AMD and NVIDIA GPUs. Its Docker image, ghcr.io/pley-media-server/pley, is built from this repository, and questions and problems go to its issues.</Profile>
+  <Icon>https://raw.githubusercontent.com/pley-media-server/pley/master/apps/web/public/icon-512.png</Icon>
+  <WebPage>https://github.com/pley-media-server/pley</WebPage>
+</CommunityApplications>

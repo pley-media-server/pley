@@ -14,6 +14,7 @@ pub mod collections;
 pub mod config;
 pub mod db;
 pub mod desktop;
+pub mod discover;
 pub mod discovery;
 pub mod error;
 pub mod events;
@@ -38,6 +39,7 @@ pub mod plex;
 pub mod providers;
 pub mod ratings;
 pub mod related;
+pub mod requests;
 pub mod resources;
 pub mod schedule;
 #[cfg(windows)]
@@ -69,6 +71,10 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const COMMIT: &str = env!("PLEY_COMMIT");
 /// What `pley --version` and the log say: "0.2.0 (1a2b3c4d5)".
 pub const VERSION_AND_COMMIT: &str = concat!(env!("CARGO_PKG_VERSION"), " (", env!("PLEY_COMMIT"), ")");
+/// Where this server's source is offered (`GET /api/server`). A modified
+/// build that others use over a network points it at its own, as the AGPL
+/// asks.
+pub const SOURCE: &str = "https://github.com/pley-media-server/pley";
 
 /// Woken by [`request_shutdown`].
 static SHUTDOWN: tokio::sync::Notify = tokio::sync::Notify::const_new();
@@ -383,7 +389,14 @@ pub async fn reset_password(config: Config, username: &str, password: &str, admi
                 .execute(&db.write)
                 .await?
                 .rows_affected();
-            let off = if two_step > 0 { "; two-step sign-in is off" } else { "" };
+            let required = settings::SettingsStore::load(&db).await?.get().require_two_step;
+            let off = match (two_step > 0, required) {
+                (true, true) => {
+                    "; two-step sign-in is off, and set up again at the next sign-in (the server requires it)"
+                }
+                (true, false) => "; two-step sign-in is off",
+                (false, _) => "",
+            };
             let apps = if apps > 0 { "; apps signed out" } else { "" };
             println!("password updated for '{username}'{off}{apps}");
         }

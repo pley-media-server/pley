@@ -8,6 +8,60 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-01
+
+### Added
+
+- Requests on phones and tablets, where the server takes them: Discover
+  (from Search and Me) shows what TMDB has, with trending and popular rows
+  and TMDB's search, each title marked In library, Requested or Declined.
+  A title's page asks for a movie, or for the seasons picked of a show,
+  and shows its seasons, its cast and how far its request is, with the
+  download's progress kept up to date.
+- Your requests, under Me: each request's stage, the download's progress,
+  why one was declined, and Watch once it's ready, with Withdraw, Remove
+  and Stop following. Pull to read them again.
+- Administrators get Requests, opening on Needs attention: Approve,
+  Approve… with the quality profile, folder and seasons, Decline with an
+  optional reason, Try again, Mark as added by hand and Delete. Me's tab
+  shows how many wait, in red while one couldn't be sent.
+- Search shows what TMDB has and the libraries don't, after the libraries'
+  results ("On TMDB", with See all on Discover), and when the libraries
+  have nothing.
+- A library's movie or show shows its request's stage and download, and a
+  show partly there offers Request more seasons.
+- News of requests (ready to watch, approved, declined; for administrators
+  new requests and ones that couldn't be sent) shows in a toast with Open,
+  never over the player. About credits TMDB.
+- Signing in says when the server requires two-step sign-in: on a phone,
+  you set it up on the server's page as you sign in; on a TV, the phone
+  that approves the code sets it up for whoever hasn't.
+
+### Changed
+
+- Pley for Android is free software under the GNU Affero General Public
+  License, version 3 (`AGPL-3.0-only`, `LICENSE`).
+
+### Fixed
+
+- Live TV's guide says Today, Tomorrow and Yesterday on the days daylight
+  saving starts or ends too: a programme just after midnight tomorrow
+  showed its date, or the day after tomorrow showed as Tomorrow.
+- Each video is promised Dolby Vision only where the display mode it plays
+  in shows it: a trailer, or a film once frame rate matching has given up,
+  stays in the mode in use. Dolby Vision turned off in the system's
+  settings is remembered once a mode shows it off. Those videos played as
+  HDR10 while their details said Dolby Vision.
+- Dolby Vision the screen shows starts with its own decoder even before
+  the TV has switched to the video's mode, instead of as HDR10.
+- With a server from the same release, the player's details say why
+  Dolby Vision plays as its base layer, telling a screen that doesn't show
+  it from a device that doesn't decode it.
+- The player's Decoded line says HEVC and HDR10 for Dolby Vision played
+  as its base layer, not Dolby Vision.
+- Dolby Vision details call a profile 8 with the Blu-ray's base layer
+  "Profile 8", as its label does, not "Profile 8.6".
+
 ## [0.1.0] - 2026-10-30
 
 ### Added
@@ -79,6 +133,7 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/android-v0.1.0...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/android-v0.1.1...HEAD
+[0.1.1]: https://github.com/pley-media-server/pley/releases/tag/android-v0.1.1
 [0.1.0]: https://github.com/pley-media-server/pley/releases/tag/android-v0.1.0
 [0.0.1]: https://github.com/pley-media-server/pley/releases/tag/android-v0.0.1

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Text subtitles as WebVTT, cue for cue as FFmpeg writes them with
 //! `-c:s webvtt -f webvtt`: subtitles read straight out of a Matroska file
 //! ([`crate::matroska::text_tracks`]) come out exactly as an extraction by

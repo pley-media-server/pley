@@ -170,6 +170,29 @@ class PleyJsonTest {
     }
 
     @Test
+    fun theServerSaysWhetherItRequiresTwoStepSignIn() {
+        fun required(field: String) =
+            PleyJson.decodeFromString(ServerInfo.serializer(), """{"name":"Den","version":"1.0.0"$field}""").twoStepRequired
+        assertTrue(required(""","two_step_required":true"""))
+        assertFalse(required(""","two_step_required":false"""))
+        // A server from before it says nothing of it.
+        assertFalse(required(""))
+        // Anything but true is no, and the rest of the answer still reads.
+        for (odd in listOf("null", "\"yes\"", "\"true\"", "1", "{}", "[true]")) {
+            assertFalse(odd, required(""","two_step_required":$odd"""))
+        }
+        assertEquals(
+            ServerInfo("Den", "1.0.0"),
+            PleyJson.decodeFromString(ServerInfo.serializer(), """{"name":"Den","version":"1.0.0","two_step_required":"yes"}"""),
+        )
+        // Written as the server writes it (the fixture server's answer).
+        assertEquals(
+            """{"name":"Den","version":"1.0.0","setup_required":false,"setup_code_required":false,"two_step_required":true}""",
+            PleyJson.encodeToString(ServerInfo.serializer(), ServerInfo("Den", "1.0.0", twoStepRequired = true)),
+        )
+    }
+
+    @Test
     fun errorBodiesRead() {
         val error = PleyJson.decodeFromString(ApiErrorBody.serializer(), """{"code":"not_found","message":"item 42 not found"}""")
         assertEquals("not_found", error.code)

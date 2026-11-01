@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! One-shot extractions: video frame thumbnails, embedded cover art,
 //! subtitles converted to WebVTT (read block by block through a Matroska
 //! file's Cues, or else all text tracks of a file in one FFmpeg pass, since

@@ -1,5 +1,6 @@
 package app.pley.android.testing.player.session
 
+import app.pley.android.model.MediaStream
 import app.pley.android.player.EngineSource
 import app.pley.android.player.PlayerEngine
 import app.pley.android.player.session.AudioOut
@@ -40,6 +41,9 @@ class FakeEngineLink(private val clock: () -> Long = { 0L }) : EngineLink {
 
     /** What [stats] answers. */
     var lines: List<String> = listOf("Video decoder: fake")
+
+    /** What [dolbyVisionShown] answers: `null`, the engine can't tell. */
+    var dolbyVision: Boolean? = null
 
     /** How the sound goes out: tests say when it passes through or is tunneled. */
     override var audioOut: AudioOut = AudioOut.Decoded
@@ -83,6 +87,8 @@ class FakeEngineLink(private val clock: () -> Long = { 0L }) : EngineLink {
     override fun setListener(listener: EngineLink.Listener?) {
         this.listener = listener
     }
+
+    override suspend fun dolbyVisionShown(video: MediaStream?, durationMs: Long?): Boolean? = dolbyVision
 
     override fun prepare(source: EngineSource, startMs: Long, playWhenReady: Boolean) {
         prepared += Prepared(source, startMs, playWhenReady)

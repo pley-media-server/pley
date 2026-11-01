@@ -121,6 +121,25 @@ async fn playback_states_with_the_keys_of_status_sessions() {
 }
 
 #[tokio::test]
+async fn another_server_does_not_change_the_keys() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Alien (1979).mkv", 1024);
+    let movies = app.library(&admin, "Movies", "movies", "movies").await;
+    let alien = app.ids(movies, &admin).await["Alien"];
+    let mut watching = connect(serve(&app).await, &admin).await;
+    report(&app, &admin, alien, "playing", 5_000).await;
+    let notes = notes_until(&mut watching, |n| !playing(n).is_empty()).await;
+
+    // A server in the same process forgets the sessions it doesn't have.
+    let other = TestApp::new().await;
+    let other_admin = other.setup_admin().await;
+    other.plex_json("/status/sessions", &other_admin).await;
+    let sessions = app.plex_json("/status/sessions", &admin).await;
+    assert_eq!(sessions["Metadata"][0]["sessionKey"], playing(&notes)[0]["sessionKey"]);
+}
+
+#[tokio::test]
 async fn new_items_and_scans_where_the_user_may_look() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;

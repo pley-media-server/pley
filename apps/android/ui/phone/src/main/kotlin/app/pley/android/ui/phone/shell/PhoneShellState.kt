@@ -12,12 +12,16 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import app.pley.android.auth.AuthEvent
 import app.pley.android.common.describe
 import app.pley.android.data.Loadable
+import app.pley.android.data.RequestNotice
 import app.pley.android.network.ApiException
 import app.pley.android.network.OfflineException
 import app.pley.android.player.NowPlaying
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.requests.RequestTexts
+import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.ToastHostState
+import app.pley.android.screens.R as ScreensR
 
 /**
  * What the shell shows around every screen, and how screens tell it
@@ -56,6 +60,10 @@ class PhoneShellState internal constructor(
 
     /** The music playing in the background, for the mini player. */
     var nowPlaying: NowPlaying? by mutableStateOf(null)
+        internal set
+
+    /** The ways into requests and their number, for Me's tab. */
+    var requests: RequestsEntry by mutableStateOf(RequestsEntry.None)
         internal set
 
     /**
@@ -100,6 +108,26 @@ class PhoneShellState internal constructor(
     /** Signs in to the server again (keeping it), or chooses one when there is none. */
     fun signInAgain() {
         navigation.restart(server?.let { PleyKey.SignIn(it) } ?: PleyKey.Servers)
+    }
+
+    /** Whether the person is in, past getting in: requests' news waits until then. */
+    internal val inside: Boolean get() = navigation.inside
+
+    private val requestTexts by lazy { RequestTexts(resources) }
+
+    /**
+     * Tells [notice], news of the person's requests, in a
+     * toast with Open: a title ready to watch opens it, the rest open the
+     * requests. One that couldn't be sent reads as an error.
+     */
+    internal fun tell(notice: RequestNotice) {
+        val open = (notice as? RequestNotice.Ready)?.itemId?.let { PleyKey.Item(it) } ?: PleyKey.Requests
+        toasts.show(
+            message = requestTexts.notice(notice),
+            actionLabel = resources.getString(ScreensR.string.requests_open),
+            onAction = { navigation.open(open) },
+            error = notice is RequestNotice.Failed,
+        )
     }
 
     /** The sign-in module ended a sign-in: if it was this server's, back to signing in to it, saying why. */

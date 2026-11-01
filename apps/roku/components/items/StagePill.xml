@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A request's stage (lib/Requests.brs's reqStage): its words in a box of
+     the stage's colour, as wide as they are, and its download's progress
+     after it while one goes on. -->
+<component name="StagePill" extends="Group">
+    <interface>
+        <field id="text" type="string" onChange="onLook" />
+        <field id="color" type="string" value="0x38BDF8FF" onChange="onLook" />
+        <!-- 0 to 1: the bar after the words; below 0, no bar. -->
+        <field id="progress" type="float" value="-1" onChange="onLook" />
+        <!-- The bar under the words, where the pill has little room, and
+             the widest the pill may be. -->
+        <field id="stacked" type="boolean" onChange="onLook" />
+        <field id="maxWidth" type="integer" value="936" onChange="onLook" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/items/StagePill.brs" />
+    <children>
+        <Rectangle id="back" height="44" />
+        <Label id="label" translation="[18, 0]" height="44" vertAlign="center" color="0x16191EFF" font="font:SmallestBoldSystemFont" />
+        <Rectangle id="track" width="240" height="10" color="0x2E3440FF" visible="false" />
+        <Rectangle id="fill" height="10" visible="false" />
+    </children>
+</component>

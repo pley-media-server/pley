@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! `ffprobe` wrapper producing a normalised [`MediaInfo`], including HDR10, HLG
 //! and Dolby Vision detection. Results are cached in memory per file version.
 

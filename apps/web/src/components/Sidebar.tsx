@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router";
-import { ArrowUpDown, Film, House, List, ListMusic, ListVideo, LoaderCircle, Music, Plus, Settings, Tv, Tv2, X } from "lucide-react";
+import { ArrowUpDown, Compass, Film, House, Inbox, List, ListMusic, ListVideo, LoaderCircle, Music, Plus, Settings, Tv, Tv2, X } from "lucide-react";
 import { useLibraries } from "@/api/hooks";
 import { useLiveSummary } from "@/api/livetv";
 import { usePlaylists } from "@/api/lists";
+import { hasRequests, mayRequest, useRequestSummary } from "@/api/requests";
 import type { LibraryKind } from "@/api/types";
 import { useAuth } from "@/auth";
 import { cn } from "@/lib/cn";
+import { requestsBadge } from "@/lib/requests";
 import { Logo } from "./Logo";
 import { keepTabInside } from "./Modal";
 import { SortLibrariesModal } from "./SortLibrariesModal";
 import { IconButton, Skeleton } from "./ui";
-import { libraryUrl, playlistUrl } from "@/lib/urls";
+import { discoverUrl, libraryUrl, playlistUrl, requestsUrl } from "@/lib/urls";
 
 export function LibraryIcon({ kind, className }: { kind: LibraryKind; className?: string }) {
   const cls = cn("size-[18px] shrink-0", className);
@@ -49,8 +51,8 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   const libs = useLibraries();
   const live = useLiveSummary();
   const [sorting, setSorting] = useState(false);
-  // Shown where it has channels, and to administrators to set it up.
-  const showLive = live.data ? live.data.available || (user.is_admin && live.data.allowed) : false;
+  // Shown once it has channels; administrators set it up in Settings.
+  const showLive = live.data?.available ?? false;
 
   return (
     <nav className="flex h-full flex-col overflow-y-auto px-3 pb-4 pt-4" aria-label="Main">
@@ -74,6 +76,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             Live TV
           </NavItem>
         ) : null}
+        <RequestsNav />
       </div>
 
       <div className="mb-0.5 mt-5 flex h-7 items-center justify-between pl-3 pr-1 text-xs font-medium text-subtle">
@@ -129,6 +132,49 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         </div>
       ) : null}
     </nav>
+  );
+}
+
+/**
+ * Discover, where this account may ask for titles, and its requests where
+ * it has any (everyone's, for managers), with how many wait to be looked
+ * at: in the danger colour while some failed.
+ */
+function RequestsNav() {
+  const summary = useRequestSummary();
+  const data = summary.data;
+  if (!hasRequests(data) && !data?.manage) return null;
+  const { count, danger } = requestsBadge(data);
+  return (
+    <>
+      {mayRequest(data) ? (
+        <NavItem to={discoverUrl()} icon={<Compass className="size-[18px]" />}>
+          Discover
+        </NavItem>
+      ) : null}
+      <NavItem
+        to={requestsUrl}
+        icon={<Inbox className="size-[18px]" />}
+        trailing={
+          // The spaces outside the spans, as names are made of their trimmed text: "Requests 3 waiting".
+          count > 0 ? (
+            <>
+              {" "}
+              <span
+                className={cn(
+                  "min-w-5 rounded-full px-1.5 text-center text-[11px] font-bold leading-5",
+                  danger ? "bg-danger text-white" : "bg-accent text-accent-fg",
+                )}
+              >
+                {count > 99 ? "99+" : count} <span className="sr-only">waiting</span>
+              </span>
+            </>
+          ) : null
+        }
+      >
+        {data?.manage ? "Requests" : "Your requests"}
+      </NavItem>
+    </>
   );
 }
 

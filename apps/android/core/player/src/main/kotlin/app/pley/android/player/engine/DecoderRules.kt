@@ -1,32 +1,42 @@
 package app.pley.android.player.engine
 
+import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import app.pley.android.caps.DecoderPolicy
 
 /**
  * The caps' decoder policy applied to Media3's decoder lists: TVs keep
  * hardware video decoders only; phones put hardware first and keep software
  * ones for pictures up to 1080p30, 8-bit and SDR; the debug switch allows
- * software at any size. Dolby Vision decoders are left out when the screen
- * can't show Dolby Vision, so Media3 falls back to the HEVC (or AVC, AV1)
- * decoder of the base layer. Audio decoders are never limited.
+ * software at any size. Dolby Vision decoders are left out when the video
+ * doesn't come out as Dolby Vision, so Media3 falls back to the HEVC (or
+ * AVC, AV1) decoder of the base layer, and come first when it does
+ * ([dolbyVisionDecoders]). Profiles 5 and 7 have no base layer another
+ * decoder plays: their Dolby Vision decoders stay, as Media3 keeps them.
+ * Audio decoders are never limited.
  */
 @OptIn(markerClass = [UnstableApi::class])
 class DecoderRules(
     private val policy: () -> DecoderPolicy,
-    /** Whether the screen shows Dolby Vision; `null` when unknown (Media3 then decides). */
-    private val dolbyVisionScreen: () -> Boolean? = { null },
+    /**
+     * Whether the video comes out as Dolby Vision: the display shows it in
+     * the mode the video plays in. `null` when unknown (Media3 then decides).
+     */
+    private val dolbyVisionShown: () -> Boolean? = { null },
 ) {
     /** A selector for a track of [format]: [base]'s decoders that may play it, hardware first. */
     fun selectorFor(base: MediaCodecSelector, format: Format?): MediaCodecSelector =
         MediaCodecSelector { mimeType, secure, tunneling ->
             val listed = base.getDecoderInfos(mimeType, secure, tunneling)
             if (!MimeTypes.isVideo(mimeType)) return@MediaCodecSelector listed
+            if (mimeType == MimeTypes.VIDEO_DOLBY_VISION && !dolbyVisionDecoded(format)) return@MediaCodecSelector emptyList()
             val picture = format?.let(Picture::of) ?: Picture.UNKNOWN
             val allowed = listed.filter { allows(mimeType, it.hardwareAccelerated, picture) }
             hardwareFirst(allowed) { it.hardwareAccelerated }
@@ -35,10 +45,38 @@ class DecoderRules(
     /** The selector for renderers that don't know the format (audio, and the factory's default). */
     fun selector(base: MediaCodecSelector = MediaCodecSelector.DEFAULT): MediaCodecSelector = selectorFor(base, null)
 
+    /**
+     * The decoders of [format], best first, when it is Dolby Vision that
+     * comes out as Dolby Vision: its own decoders, then its base layer's.
+     * Media3 lists them so only when the display's mode in use shows Dolby
+     * Vision, and a TV's decoder can start before the switch to the video's
+     * mode: its base layer would then play as HDR10. `null` otherwise:
+     * Media3's own list.
+     */
+    fun dolbyVisionDecoders(
+        context: Context,
+        base: MediaCodecSelector,
+        format: Format,
+        secure: Boolean,
+        tunneling: Boolean,
+    ): List<MediaCodecInfo>? {
+        if (format.sampleMimeType != MimeTypes.VIDEO_DOLBY_VISION || dolbyVisionShown() != true) return null
+        val listed = MediaCodecUtil.getDecoderInfosSoftMatch(selectorFor(base, format), format, secure, tunneling)
+        return MediaCodecUtil.getDecoderInfosSortedByFormatSupport(context, listed, format)
+    }
+
+    /**
+     * Whether Dolby Vision decoders may play [format]: not when it doesn't
+     * come out as Dolby Vision and its base layer has a decoder of its own
+     * (Media3's alternative: HEVC for profiles 4 and 8, AVC for 9, AV1 for
+     * 10). Without one (5, 7) nothing else plays it.
+     */
+    private fun dolbyVisionDecoded(format: Format?): Boolean =
+        dolbyVisionShown() != false || format == null || MediaCodecUtil.getAlternativeCodecMimeType(format) == null
+
     /** Whether a [hardware] (or software) decoder of [mimeType] may play [picture] here. */
     fun allows(mimeType: String, hardware: Boolean, picture: Picture): Boolean {
         if (!MimeTypes.isVideo(mimeType)) return true
-        if (mimeType == MimeTypes.VIDEO_DOLBY_VISION && dolbyVisionScreen() == false) return false
         return policy().allows(hardware, picture.width, picture.height, picture.fps, picture.bitDepth, picture.hdr)
     }
 

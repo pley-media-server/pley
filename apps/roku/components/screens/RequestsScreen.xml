@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The requests: Your requests (the account's own and those it follows),
+     or a manager's Requests (everyone's, opening on Needs attention, with
+     filters in a panel at the right). Tabs by status; a row for each
+     request with its poster, its stage and what to know of it. OK opens
+     the title's page; the Options key offers what can be done with the
+     request. -->
+<component name="RequestsScreen" extends="Group">
+    <interface>
+        <field id="route" type="string" />
+        <field id="params" type="assocarray" />
+        <field id="navigate" type="assocarray" alwaysNotify="true" />
+        <field id="active" type="boolean" alwaysNotify="true" />
+        <!-- The scene's: what requests let the profile do. -->
+        <field id="requestSummary" type="assocarray" />
+        <!-- Set by the scene: requests changed (the list asks again). -->
+        <field id="requestsChanged" type="assocarray" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/screens/RequestsScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/RequestActions.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
+    <children>
+        <Label id="heading" translation="[96, 40]" width="1000" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <!-- How many there are; for an administrator whose sign-in can't
+             approve, how to make it. -->
+        <Label id="count" translation="[1024, 60]" width="800" horizAlign="right" color="0xA1A9B6FF" font="font:SmallerSystemFont" />
+        <!-- Closer chips than a library's: a manager's eight tabs leave
+             room for the filters. -->
+        <ChipRow id="tabs" translation="[96, 132]" pad="44" visible="false" />
+        <!-- A manager's filters, or Sign in again. -->
+        <ChipRow id="side" translation="[1600, 132]" pad="44" visible="false" />
+        <MarkupList id="list" translation="[96, 212]" itemComponentName="RequestRow" itemSize="[1728, 184]" itemSpacing="[0, 16]" numRows="4" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+        <Label id="message" translation="[96, 480]" width="1728" wrap="true" horizAlign="center" color="0xA1A9B6FF" text="Loading…" font="font:MediumSystemFont" />
+        <Label id="hint" translation="[96, 1016]" width="1728" color="0x8B95A5FF" text="Press * on a request for what can be done with it." visible="false" font="font:SmallestSystemFont" />
+        <!-- Why the requests can't be shown, and what to do about it. -->
+        <LayoutGroup id="problem" translation="[96, 360]" layoutDirection="vert" itemSpacings="[20, 48]" visible="false">
+            <Label id="problemTitle" width="1400" wrap="true" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="problemText" width="1400" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
+            <ButtonGroup id="problemButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="420" />
+        </LayoutGroup>
+        <!-- The filters, each opening its choices, over the right half. -->
+        <Group id="panel" visible="false">
+            <Rectangle translation="[1000, 0]" width="920" height="1080" color="0x1E222AFF" />
+            <Label id="panelTitle" translation="[1056, 56]" width="808" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <RadioButtonList id="choices" translation="[1056, 150]" itemSize="[808, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" />
+            <LabelList id="menu" translation="[1056, 150]" itemSize="[808, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" visible="false" />
+        </Group>
+        <!-- The list asked again while one of its requests downloads. -->
+        <Timer id="busy" duration="10" />
+    </children>
+</component>

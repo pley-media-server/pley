@@ -209,7 +209,8 @@ internal object TvReadout {
             stats.frameRate?.let { frameRateLabel(it.toDouble()) },
             stats.bitDepth?.let { "$it-bit" },
             stats.dynamicRange,
-            stats.videoCodec?.let { codecName(it.substringBefore(' ')) },
+            // The decoder's codec: HEVC for Dolby Vision played as its base layer.
+            (stats.videoDecoderMime ?: stats.videoCodec?.substringBefore(' '))?.let(::codecName),
         )
         if (picture.isNotEmpty()) add(MediaFact(r.getString(R.string.tv_readout_decoded), picture.joinToString(" · ")))
         // What arrives (the file's stream, or the server's conversion): "hvc1.2.4.L153.B0", "dvhe.08.06".

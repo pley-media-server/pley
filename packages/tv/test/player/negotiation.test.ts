@@ -295,8 +295,11 @@ function world(detail: ItemDetail, answer: (req: PlaybackRequest) => PlaybackInf
   const listeners: ((e: ServerEvent) => void)[] = [];
   /** The tracks saved with PUT /api/items/{id}/streams: audio (undefined: left out), subtitles. */
   const saved: [number | null | undefined, number | null][] = [];
-  /** `down`: nothing answers (the Wi-Fi dropped, the server restarts). `busy`: no transcode free for a session asked for beside another (503). */
-  const net = { down: false, busy: false };
+  /**
+   * `down`: nothing answers (the Wi-Fi dropped, the server restarts). `busy`: no transcode free for a session asked for
+   * beside another (503). `transcoderGone`: the server answers, but starts no session until its transcoder is back (503).
+   */
+  const net = { down: false, busy: false, transcoderGone: false };
   /** How a stream's playlists and segments are answered (`api.media`); at once, unless a test says. */
   const media = { answer: (method: string, url: string): Promise<string> => Promise.resolve(method === "HEAD" ? "" : playlistFor(url)) };
   const answered = <T>(value: () => T): Promise<T> => (net.down ? Promise.reject(new NetworkError("Can't reach the server")) : Promise.resolve(value()));
@@ -311,6 +314,7 @@ function world(detail: ItemDetail, answer: (req: PlaybackRequest) => PlaybackInf
         requests.push(req);
         calls.push(`start ${req.mode}`);
         if (net.busy && req.keep_previous) throw new ApiError(503, "unavailable", "no transcode free");
+        if (net.transcoderGone) throw new ApiError(503, "unavailable", "the transcoder is not reachable", { code: "unavailable", message: "the transcoder is not reachable" });
         return answer(req);
       }),
     media: (method: string, url: string) => {
@@ -567,6 +571,41 @@ describe("the server out of reach", () => {
     w.net.down = false;
     await vi.advanceTimersByTimeAsync(2_100);
     expect(w.requests.map((r) => r.mode)).toEqual(["auto", "auto"]);
+    c.close();
+  });
+
+  it("waits for the transcoder as for the server when it restarts mid-film (503), then starts again where it was", async () => {
+    const { w, c } = await playing();
+    w.net.transcoderGone = true;
+    w.engine.state = "buffering";
+    w.engine.listener?.error({ kind: "http", status: 503, detail: "segment" });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(c.state.value.reconnecting).toBe(true);
+    expect(c.state.value.phase.kind).toBe("buffering");
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(c.state.value.reconnecting).toBe(true);
+    w.net.transcoderGone = false;
+    await vi.advanceTimersByTimeAsync(2_100);
+    expect(c.state.value.reconnecting).toBe(false);
+    expect(c.state.value.phase.kind).not.toBe("error");
+    expect(w.requests[w.requests.length - 1]!.start_ms).toBe(600_000);
+    c.close();
+  });
+
+  it("says what the server said once its transcoder has been gone 90 s, however often the server itself answered", async () => {
+    const { w, c } = await playing();
+    w.net.transcoderGone = true;
+    w.engine.listener?.error({ kind: "http", status: 503, detail: "segment" });
+    await vi.advanceTimersByTimeAsync(30_000);
+    // Asked every 2 s by then, not as often as the server answers.
+    const asked = w.requests.length;
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(w.requests.length - asked).toBeLessThanOrEqual(5);
+    await vi.advanceTimersByTimeAsync(48_000);
+    expect(c.state.value.phase.kind).toBe("buffering");
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(c.state.value.phase).toMatchObject({ kind: "error", message: "The transcoder is not reachable", canRetry: true });
+    expect(c.state.value.reconnecting).toBe(false);
     c.close();
   });
 });

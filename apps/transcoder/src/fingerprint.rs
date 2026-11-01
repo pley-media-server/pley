@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Audio fingerprints of parts of a file, computed by FFmpeg's `chromaprint`
 //! muxer. The server compares them across the episodes of a season to find
 //! the intro and credits they share. And how dark the key frames of part of

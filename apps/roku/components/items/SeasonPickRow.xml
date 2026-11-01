@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A season in the season picker: a box ticked when it is to be asked
+     for, its name, and how it stands at the right; faint when it can't be
+     asked for. -->
+<component name="SeasonPickRow" extends="Group">
+    <interface>
+        <field id="itemContent" type="node" onChange="onContent" />
+        <field id="itemHasFocus" type="boolean" onChange="onFocus" />
+        <field id="listHasFocus" type="boolean" value="true" onChange="onFocus" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/items/SeasonPickRow.brs" />
+    <children>
+        <Rectangle id="background" width="1000" height="88" color="0x1E222AFF" />
+        <Rectangle id="bar" width="6" height="88" color="0x38BDF8FF" visible="false" />
+        <Group id="body">
+            <Rectangle id="box" translation="[32, 22]" width="44" height="44" color="0x2E3440FF" />
+            <Poster id="tick" translation="[34, 24]" width="40" height="40" uri="pkg:/images/watched.png" visible="false" />
+            <Label id="name" translation="[104, 0]" width="500" height="88" vertAlign="center" color="0xEBEBEBFF" font="font:SmallBoldSystemFont" />
+            <Label id="state" translation="[620, 0]" width="350" height="88" vertAlign="center" horizAlign="right" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+        </Group>
+    </children>
+</component>

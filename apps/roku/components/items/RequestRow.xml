@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A request in the requests' list: its poster, its title and what it is
+     ("2008 · Show · Seasons 1–2"), its stage's pill with the download's
+     progress, who asked and when, and a line of what to know (why it isn't
+     sent, why it was declined, a manager's note). A mark before the title
+     while it has news the account hasn't seen. -->
+<component name="RequestRow" extends="Group">
+    <interface>
+        <field id="itemContent" type="node" onChange="onContent" />
+        <field id="itemHasFocus" type="boolean" onChange="onFocus" />
+        <field id="listHasFocus" type="boolean" value="true" onChange="onFocus" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/items/RequestRow.brs" />
+    <children>
+        <Rectangle id="background" width="1728" height="184" color="0x1E222AFF" />
+        <Rectangle id="bar" width="6" height="184" color="0x38BDF8FF" visible="false" />
+        <Rectangle id="frame" translation="[28, 14]" width="104" height="156" color="0x262B35FF" />
+        <Poster id="poster" translation="[28, 14]" width="104" height="156" loadWidth="104" loadHeight="156" loadDisplayMode="scaleToZoom" />
+        <Rectangle id="unseen" translation="[160, 29]" width="12" height="12" color="0x38BDF8FF" visible="false" />
+        <Label id="title" translation="[160, 14]" width="920" color="0xEBEBEBFF" font="font:SmallBoldSystemFont" />
+        <Label id="subtitle" translation="[160, 60]" width="920" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+        <Label id="who" translation="[1100, 20]" width="600" horizAlign="right" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+        <StagePill id="stage" translation="[160, 98]" />
+        <Label id="line" translation="[160, 150]" width="1540" color="0xA1A9B6FF" font="font:TinySystemFont" />
+    </children>
+</component>

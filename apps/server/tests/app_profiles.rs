@@ -430,7 +430,7 @@ fn other_document() -> String {
         "client_name": "Example Player",
         "redirect_uris": [OTHER_BACK],
         "grant_types": ["authorization_code", "refresh_token"],
-        "scope": "library play profiles",
+        "scope": "library play profiles requests approvals",
     })
     .to_string()
 }
@@ -464,6 +464,12 @@ async fn apps_by_other_publishers_never_get_profiles() {
     assert_eq!((asked.body["status"].as_str(), asked.body["error"].as_str()), (Some("error"), Some("invalid_scope")));
     let fine = start(authorization_query(OTHER_APP, OTHER_BACK, "library play")).await;
     assert_eq!(fine.body["status"], "consent", "{}", fine.text());
+    // Nor approvals (deciding what everyone asks for), though asking may be
+    // allowed to any app.
+    let approvals = start(authorization_query(OTHER_APP, OTHER_BACK, "library requests approvals")).await;
+    assert_eq!(approvals.body["error"], "invalid_scope", "{}", approvals.text());
+    let requests = start(authorization_query(OTHER_APP, OTHER_BACK, "library requests")).await;
+    assert_eq!(requests.body["scopes"], json!(["library", "requests"]), "{}", requests.text());
     // pley's own apps may ask for it.
     let own = start(authorization_query(ANDROID_APP, "app.pley.android:/oauth/callback", "library profiles")).await;
     assert_eq!(own.body["status"], "consent", "{}", own.text());

@@ -1,5 +1,6 @@
 // One ViewModel per screen, shared by the phone and TV interfaces, and the
-// routes between screens. No interface code.
+// routes between screens. No interface code; the words both interfaces
+// share (requests') are its resources.
 plugins {
     alias(libs.plugins.pley.android.library)
     alias(libs.plugins.kotlin.serialization)
@@ -22,7 +23,7 @@ dependencies {
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
-    // Live TV's fakes and fixtures, and the live player's engine on a Looper.
+    // Live TV's fakes and fixtures, the live player's engine on a Looper, FakeRequests; Robolectric for the requests' words.
     testImplementation(project(":core:testing"))
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)

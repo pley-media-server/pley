@@ -55,7 +55,10 @@ fn fingerprint(req: &FingerprintRequest) -> Fingerprint {
     let count = (req.duration_ms as f64 / item_ms()) as usize;
     let total = (DURATION_MS as f64 / item_ms()) as usize;
     let theme = theme_at(&req.path);
-    let own = req.path.bytes().fold(7u64, |h, b| h.wrapping_mul(31).wrapping_add(b as u64));
+    // From the file's name, not its path, which has the test's temporary
+    // folder in it: the same noise every run.
+    let name = std::path::Path::new(&req.path).file_name().unwrap().to_string_lossy();
+    let own = name.bytes().fold(7u64, |h, b| h.wrapping_mul(31).wrapping_add(b as u64));
     let data = (first..first + count)
         .map(|i| {
             if (theme..theme + THEME_ITEMS).contains(&i) {

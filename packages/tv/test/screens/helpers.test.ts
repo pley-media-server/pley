@@ -201,6 +201,16 @@ describe("finding a server", () => {
     await expect(connect(t, "pley.example.com")).resolves.toMatchObject({ url: "http://pley.example.com:7539", name: "Home" });
   });
 
+  it("learns whether the server requires two-step sign-in", async () => {
+    const required = http({ "http://192.168.1.20:7539/api/server": { name: "Den", version: "1.0.0", two_step_required: true } });
+    await expect(check(required, "http://192.168.1.20:7539")).resolves.toMatchObject({ twoStepRequired: true });
+    // Not required, or a server from before it.
+    const older = http({ "http://192.168.1.20:7539/api/server": { name: "Den", version: "0.9.0" } });
+    await expect(check(older, "http://192.168.1.20:7539")).resolves.toMatchObject({ twoStepRequired: false });
+    const odd = http({ "http://192.168.1.20:7539/api/server": { name: "Den", version: "1.0.0", two_step_required: "yes" } });
+    await expect(check(odd, "http://192.168.1.20:7539")).resolves.toMatchObject({ twoStepRequired: false });
+  });
+
   it("says what answered when it isn't pley, and why nothing did", async () => {
     await expect(connect(http({ "http://router:7539/api/server": 404 }), "router")).rejects.toMatchObject({ problem: { kind: "not_pley", address: "router:7539" } });
     await expect(connect(http({}), "192.168.1.77")).rejects.toMatchObject({ problem: { kind: "unreachable", address: "192.168.1.77:7539", reason: "nothing answers there" } });

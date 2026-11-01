@@ -1,22 +1,27 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { ItemSummary, LiveChannel, PersonSummary } from "../../api/types";
+import type { DiscoverTitle, ItemSummary, LiveChannel, PersonSummary } from "../../api/types";
 import { cardSubtitle, episodeLabel } from "../../format/format";
 import { nowAndNext, programProgress } from "../../live/data";
 import { Cancel } from "../../net/transport";
+import { addTitles, mayAsk, titleBadge, titleKey, titleSubtitle, titleTone } from "../../requests";
 import { useUi } from "../context";
 import { Chip, TextButton } from "../kit/buttons";
 import { TextField } from "../kit/field";
 import { F, G } from "../kit/focusable";
-import { Row, rowHeight, SectionPage, type Section } from "../kit/row";
-import { ArtTile, Tile, TILES, TileCaption, type TileKind } from "../kit/tile";
+import { Row, ROW_GAP, rowHeight, SectionPage, type Section } from "../kit/row";
+import { ArtTile, SeeAllTile, Tile, TILES, TileCaption, type TileKind } from "../kit/tile";
 import type { Entry } from "../shell/navigator";
 import { failedTitle, problem, useApp } from "./common";
+import { RowSkeleton } from "./discover";
 import { pageOf } from "./item-actions";
 import { RowsSkeleton } from "./library";
 import { ChannelLogo, ProgressLine, useNow } from "./live-kit";
+import { TitleTile, useMarks } from "./request-kit";
 
 const RECENTS = 10;
 const ROWS_TOP = 96;
+/** The line over On TMDB when the libraries have nothing. */
+const NONE_H = 20;
 
 /** The groups results come in, in order, with their headers and tiles. */
 const GROUPS: { kind: ItemSummary["kind"] | "person" | "channel"; title: string; tile: TileKind }[] = [
@@ -32,6 +37,8 @@ const GROUPS: { kind: ItemSummary["kind"] | "person" | "channel"; title: string;
 ];
 
 type Results = { items: ItemSummary[]; people: PersonSummary[]; channels: LiveChannel[] };
+/** What TMDB has for the words that the libraries lack (`at`: when it came, for the badges marked since); `failed`: no answer. */
+type OnTmdb = { query: string; titles: DiscoverTitle[]; at: number; failed: boolean };
 
 /** The recent searches kept on this TV, per server and profile. */
 function recentKey(server: string | null, user: number | null): string {
@@ -49,8 +56,9 @@ function subtitleOf(item: ItemSummary): string {
 /**
  * Search (TvSearchScreen): the field, typed with the TV's keyboard (and
  * its microphone); results 250 ms after typing pauses, grouped in rows
- * (Live TV channels among them, where it is open to the profile); recent
- * searches while the field is empty.
+ * (Live TV channels among them, where it is open to the profile), then On
+ * TMDB for whoever may ask: what the libraries lack, asked in parallel so
+ * it never holds them up; recent searches while the field is empty.
  */
 export function SearchScreen(p: { entry: Entry; query?: string }) {
   const app = useApp();
@@ -126,6 +134,37 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
     }, 250);
     return () => clearTimeout(t);
   }, [query]);
+
+  // On TMDB: asked beside the libraries' search, with the same pause, for whoever may ask.
+  const s = app.requests.value;
+  const asks = mayAsk(s) && s?.sign_in_again !== "requests";
+  const marked = useMarks();
+  const [tmdb, setTmdb] = useState<OnTmdb | null>((p.entry.state.tmdb as OnTmdb | undefined) ?? null);
+  useEffect(() => {
+    if (!asks || !query || (tmdb && tmdb.query === query && !tmdb.failed)) return;
+    const c = new Cancel();
+    const t = setTimeout(() => {
+      ui.api.discoverSearch(query, 1, true, c).then(
+        (page) => {
+          if (c.cancelled) return;
+          const found: OnTmdb = { query, titles: addTitles([], page.results), at: Date.now(), failed: false };
+          // New titles: the row starts at its first again.
+          const rows = p.entry.state.rowIndex as Record<string, number> | undefined;
+          if (rows) delete rows.tmdb;
+          setTmdb(found);
+          p.entry.state.tmdb = found;
+        },
+        () => {
+          // Nothing to say in search: the section stays out.
+          if (!c.cancelled) setTmdb({ query, titles: [], at: Date.now(), failed: true });
+        },
+      );
+    }, 250);
+    return () => {
+      clearTimeout(t);
+      c.cancel();
+    };
+  }, [query, asks]);
 
   const focusField = () => {
     const el = fieldRef.current?.querySelector<HTMLElement>("[data-f]");
@@ -250,6 +289,67 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
         ),
       });
     }
+  }
+
+  // On TMDB after the libraries' rows: grey wells while it comes; with nothing in the libraries, the line saying so above it.
+  const fromLibraries = sections.length;
+  const onTmdb = tmdb && tmdb.query === query ? tmdb : null;
+  if (asks && results && query && (!onTmdb || (!onTmdb.failed && onTmdb.titles.length > 0))) {
+    if (!fromLibraries) {
+      sections.push({ key: "none", height: NONE_H, anchor: null, render: () => <div class="t-body c-muted search-none">Nothing in your libraries matches</div> });
+    }
+    const titles = onTmdb ? onTmdb.titles.map((t) => marked(t, onTmdb.at)) : [];
+    sections.push({
+      key: "tmdb",
+      height: rowHeight("poster"),
+      // Under the line, where it is, so that the line stays in sight.
+      anchor: fromLibraries ? ROWS_TOP : ROWS_TOP + NONE_H + ROW_GAP,
+      render: (onFocus) =>
+        titles.length ? (
+          <Row
+            title="On TMDB"
+            kind="poster"
+            items={titles}
+            keyOf={(t) => titleKey(t)}
+            enterAt={rowIndex.tmdb}
+            onLeftEdge={ui.toRail}
+            onFocusIndex={(i) => {
+              rowIndex.tmdb = i;
+              onFocus();
+            }}
+            tile={(t, _i, place) => (
+              <TitleTile
+                name={t.title}
+                subtitle={titleSubtitle(t, true)}
+                poster={t.poster_url}
+                badge={titleBadge(t)}
+                tone={titleTone(t)}
+                fid={`tmdb/${titleKey(t)}`}
+                priority={place.priority}
+                onFocus={place.onFocus}
+                onSelect={() => {
+                  remember(query);
+                  ui.nav.open({ name: "title", kind: t.kind, tmdbId: t.tmdb_id });
+                }}
+              />
+            )}
+            seeAll={(place) => (
+              <SeeAllTile
+                kind="poster"
+                label="See all on Discover"
+                fid="tmdb/all"
+                onFocus={place.onFocus}
+                onSelect={() => {
+                  remember(query);
+                  ui.nav.open({ name: "discover", query });
+                }}
+              />
+            )}
+          />
+        ) : (
+          <RowSkeleton title="On TMDB" />
+        ),
+    });
   }
 
   const empty = !!results && query && !sections.length;

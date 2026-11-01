@@ -20,6 +20,10 @@ pub struct LoginResponse {
     /// For clients that aren't browsers (see [`login_response`]).
     #[serde(skip_serializing_if = "Option::is_none")]
     token: Option<String>,
+    /// Two-step sign-in was set up on the way in (see [`second_step`]):
+    /// its recovery codes, shown once.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    recovery_codes: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -30,6 +34,10 @@ pub struct Credentials {
     /// with two-step sign-in (see [`crate::two_step`]).
     #[serde(default)]
     code: Option<String>,
+    /// Setting up two-step sign-in, which the server requires: the `id` of
+    /// the secret the code comes from (see [`second_step`]).
+    #[serde(default)]
+    setup_id: Option<String>,
 }
 
 pub async fn server_status(State(state): State<AppState>) -> ApiResult<Json<serde_json::Value>> {
@@ -45,9 +53,12 @@ pub async fn server_status(State(state): State<AppState>) -> ApiResult<Json<serd
         "name": settings.server_name,
         "version": crate::VERSION,
         "commit": crate::COMMIT,
+        "source": crate::SOURCE,
         "setup_required": users == 0,
         // Setting up takes the code in the log (see crate::setup).
         "setup_code_required": users == 0,
+        // Signing in may take setting it up first (see second_step).
+        "two_step_required": state.auth.two_step_required(),
     })))
 }
 
@@ -56,6 +67,7 @@ pub(crate) async fn login_response(
     user_id: i64,
     headers: &HeaderMap,
     ip: Option<&str>,
+    recovery_codes: Option<Vec<String>>,
 ) -> ApiResult<Response> {
     let agent = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok());
     let token = state.auth.create_session(user_id, agent, ip).await?;
@@ -66,7 +78,50 @@ pub(crate) async fn login_response(
     // page, an injected one included, ever sees it. Scripts and apps that
     // sign in get the token to send.
     let token = (!headers.contains_key(header::ORIGIN)).then_some(token);
-    Ok(([(header::SET_COOKIE, cookie)], Json(LoginResponse { user, token })).into_response())
+    Ok(([(header::SET_COOKIE, cookie)], Json(LoginResponse { user, token, recovery_codes })).into_response())
+}
+
+/// The second step of signing in as `user_id`, whose password was right:
+/// a code from the authenticator app or a recovery code when two-step
+/// sign-in is on. When it is off and the server requires it, setting it up:
+/// the error carries a secret to add to an authenticator app until `code`
+/// is its first code, sent with the secret's `setup_id`, and then the new
+/// recovery codes come back. The password comes with every try, so nothing
+/// is signed in until then, nor while the server can't set it up
+/// ([`can_set_up_two_step`]).
+pub(crate) async fn second_step(
+    state: &AppState,
+    user_id: i64,
+    username: &str,
+    code: Option<&str>,
+    setup_id: Option<&str>,
+) -> ApiResult<Option<Vec<String>>> {
+    if state.two_step.is_on(user_id).await? {
+        state.two_step.check(&state.auth.throttle, user_id, code).await?;
+        return Ok(None);
+    }
+    if !state.auth.two_step_required() {
+        return Ok(None);
+    }
+    can_set_up_two_step(state)?;
+    let server_name = state.settings.get().server_name.clone();
+    let codes = state.two_step.set_up_signing_in(user_id, username, &server_name, setup_id, code).await?;
+    tracing::info!("'{username}' set up two-step sign-in, which this server requires, as they signed in");
+    Ok(Some(codes))
+}
+
+/// Refuses a way in for an account that has to set up two-step sign-in,
+/// which the server requires, while the server can't set it up (it can't
+/// use its key): requiring it holds, so the password alone lets nobody in.
+pub(crate) fn can_set_up_two_step(state: &AppState) -> ApiResult<()> {
+    if state.two_step.can_set_up() {
+        return Ok(());
+    }
+    Err(AppError::Unavailable(format!(
+        "this server requires two-step sign-in, but can't set it up until an administrator fixes its {} (its log \
+         says why)",
+        crate::two_step::KEY_FILE
+    )))
 }
 
 #[derive(Deserialize)]
@@ -120,7 +175,7 @@ pub async fn setup(
     let id = created.ok_or_else(|| AppError::conflict("Pley is already set up"))?;
     state.auth.setup.clear();
     tracing::info!("created administrator account '{}'", body.username.trim());
-    login_response(&state, id, &headers, ip.as_deref()).await
+    login_response(&state, id, &headers, ip.as_deref(), None).await
 }
 
 pub async fn login(
@@ -159,8 +214,8 @@ pub async fn login(
     if disabled {
         return Err(AppError::forbidden("this account is disabled"));
     }
-    state.two_step.check(&state.auth.throttle, id, body.code.as_deref()).await?;
-    login_response(&state, id, &headers, ip.as_deref()).await
+    let recovery_codes = second_step(&state, id, &username, body.code.as_deref(), body.setup_id.as_deref()).await?;
+    login_response(&state, id, &headers, ip.as_deref(), recovery_codes).await
 }
 
 /// Checks that the signed-in user may change how their account signs in:
@@ -218,6 +273,9 @@ pub async fn me(State(state): State<AppState>, user: AuthUser) -> ApiResult<Json
         dto.all_libraries = user.all_libraries;
         dto.max_age = user.max_age;
     }
+    // What asking from here does (an administrator's ask from other
+    // publishers' apps).
+    dto.request_access = state.requests.caller(&user).await?.access;
     Ok(Json(Me { user: dto, scope }))
 }
 
@@ -297,6 +355,10 @@ pub struct Switch {
     /// With the password, for a profile with two-step sign-in.
     #[serde(default)]
     code: Option<String>,
+    /// With the password and code, for a profile setting up two-step
+    /// sign-in (see [`second_step`]).
+    #[serde(default)]
+    setup_id: Option<String>,
 }
 
 /// What switching to a profile takes, from the profile one is on (see
@@ -308,7 +370,8 @@ pub(crate) enum Needs {
     /// Its PIN.
     Pin,
     /// Its password (and its code, with two-step sign-in): a freer profile
-    /// without a PIN.
+    /// without a PIN, or one that has to set up two-step sign-in, which the
+    /// server requires.
     Password,
     /// No way in from here: a freer profile with neither PIN nor password,
     /// or a PIN locked after too many wrong tries.
@@ -330,6 +393,7 @@ impl Needs {
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct SwitchTarget {
     pub id: i64,
+    pub username: String,
     /// Both are home members (the household's profile switcher).
     pub both_home: bool,
     pub disabled: bool,
@@ -341,12 +405,24 @@ pub(crate) struct SwitchTarget {
     pub max_age: Option<i64>,
     /// It sees a library the current profile can't.
     pub more_libraries: bool,
+    /// It uses two-step sign-in.
+    pub two_step: bool,
 }
 
-const SWITCH_TARGETS: &str = "SELECT t.id, t.home AND me.home AS both_home, t.disabled, t.is_admin, t.pin_hash,
-        t.pin_failures, t.password_hash, t.all_libraries, t.max_age,
+impl SwitchTarget {
+    /// It has to set up two-step sign-in, which the server requires
+    /// (`required`), before anyone acts as it: it signs in with a password
+    /// and doesn't use it yet.
+    pub fn sets_up_two_step(&self, required: bool) -> bool {
+        required && !self.two_step && !self.password_hash.starts_with('!')
+    }
+}
+
+const SWITCH_TARGETS: &str = "SELECT t.id, t.username, t.home AND me.home AS both_home, t.disabled, t.is_admin,
+        t.pin_hash, t.pin_failures, t.password_hash, t.all_libraries, t.max_age,
         EXISTS (SELECT library_id FROM user_libraries WHERE user_id = t.id
-                EXCEPT SELECT library_id FROM user_libraries WHERE user_id = me.id) AS more_libraries
+                EXCEPT SELECT library_id FROM user_libraries WHERE user_id = me.id) AS more_libraries,
+        EXISTS (SELECT 1 FROM two_step w WHERE w.user_id = t.id) AS two_step
  FROM users t, users me WHERE me.id = ?";
 
 /// Profile `target` as seen from `from`'s; `None` when there is no such
@@ -377,11 +453,15 @@ fn is_freer(from: &AuthUser, target: &SwitchTarget) -> bool {
 }
 
 /// What switching from `from`'s profile to `target` takes, by the rules of
-/// [`check_switch`]; not whether it is allowed at all (both home members,
-/// the target enabled).
-pub(crate) fn switch_needs(from: &AuthUser, target: &SwitchTarget) -> Needs {
+/// [`check_switch`] (`two_step_required`: the server requires two-step
+/// sign-in); not whether it is allowed at all (both home members, the
+/// target enabled).
+pub(crate) fn switch_needs(from: &AuthUser, target: &SwitchTarget, two_step_required: bool) -> Needs {
     if target.id == from.id {
         return Needs::None;
+    }
+    if target.sets_up_two_step(two_step_required) {
+        return Needs::Password;
     }
     match (&target.pin_hash, is_freer(from, target)) {
         (Some(_), _) if target.pin_failures >= accounts::MAX_PIN_FAILURES_IN_A_ROW => Needs::Locked,
@@ -410,8 +490,11 @@ pub(crate) enum SwitchError {
     NoWayIn,
     /// A freer profile without a PIN, and no password was given.
     PasswordNeeded,
+    /// A profile that has to set up two-step sign-in, which the server
+    /// requires, and no password was given: setting it up takes it.
+    SetUpFirst,
     WrongPassword,
-    /// Its second step (two-step sign-in) failed.
+    /// Its second step (two-step sign-in) failed, or is being set up.
     TwoStep(AppError),
     Internal(AppError),
 }
@@ -441,6 +524,7 @@ impl From<SwitchError> for AppError {
             SwitchError::PasswordNeeded => {
                 AppError::forbidden("this profile can see more than yours: it needs its password")
             }
+            SwitchError::SetUpFirst => AppError::forbidden(SET_UP_FIRST),
             SwitchError::WrongPassword => AppError::forbidden("wrong password"),
             SwitchError::Throttled(err) | SwitchError::TwoStep(err) | SwitchError::Internal(err) => err,
         }
@@ -453,6 +537,8 @@ pub(crate) const PIN_LOCKED: &str =
     "this profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it";
 pub(crate) const NO_WAY_IN: &str =
     "this profile can see more than yours: an administrator can give it a PIN to switch to it";
+pub(crate) const SET_UP_FIRST: &str =
+    "this profile has to set up two-step sign-in, which this server requires: switching to it takes its password";
 
 /// Checks that `from` may switch to profile `target`: both home members,
 /// and the target enabled. Then, unless it is the same profile: the
@@ -463,6 +549,11 @@ pub(crate) const NO_WAY_IN: &str =
 /// a profile at least as free, until it gets a PIN. Attempts are throttled
 /// per profile (`profile:{id}`) and wrong PINs counted in a row
 /// (`users.pin_failures`), for the web app and apps alike.
+///
+/// While the server requires two-step sign-in, a profile that has to set it
+/// up takes its password whatever else it has, administrators' switches
+/// too, and then sets it up as a sign-in does ([`second_step`]): its
+/// recovery codes come back. A PIN can't set up how an account signs in.
 pub(crate) async fn check_switch(
     state: &AppState,
     from: &AuthUser,
@@ -470,7 +561,8 @@ pub(crate) async fn check_switch(
     pin: Option<&str>,
     password: Option<&str>,
     code: Option<&str>,
-) -> Result<(), SwitchError> {
+    setup_id: Option<&str>,
+) -> Result<Option<Vec<String>>, SwitchError> {
     let Some(profile) = switch_target(state, from.id, target).await? else {
         return Err(SwitchError::NotFound);
     };
@@ -478,10 +570,19 @@ pub(crate) async fn check_switch(
         return Err(SwitchError::NotAllowed);
     }
     if target == from.id {
-        return Ok(());
+        return Ok(None);
     }
     let freer = is_freer(from, &profile);
     let attempt = state.auth.throttle.begin(&format!("profile:{target}")).map_err(SwitchError::Throttled)?;
+    if profile.sets_up_two_step(state.auth.two_step_required()) {
+        let Some(password) = password else { return Err(SwitchError::SetUpFirst) };
+        if !verify_password(password.to_owned(), profile.password_hash.clone()).await? {
+            attempt.failed();
+            return Err(SwitchError::WrongPassword);
+        }
+        attempt.succeeded();
+        return second_step(state, target, &profile.username, code, setup_id).await.map_err(SwitchError::TwoStep);
+    }
     let ok = match (&profile.pin_hash, freer) {
         (Some(pin_hash), _) => match pin {
             Some(pin) => check_pin(state, &profile, pin_hash, pin).await?,
@@ -503,7 +604,7 @@ pub(crate) async fn check_switch(
         state.two_step.check(&state.auth.throttle, target, code).await.map_err(SwitchError::TwoStep)?;
     }
     attempt.succeeded();
-    Ok(())
+    Ok(None)
 }
 
 /// Whether `pin` is `profile`'s PIN (`pin_hash`), counting it in a row
@@ -556,10 +657,18 @@ pub async fn switch(
     CurrentToken(token): CurrentToken,
     Json(body): Json<Switch>,
 ) -> ApiResult<Response> {
-    check_switch(&state, &user, body.user_id, body.pin.as_deref(), body.password.as_deref(), body.code.as_deref())
-        .await?;
+    let recovery_codes = check_switch(
+        &state,
+        &user,
+        body.user_id,
+        body.pin.as_deref(),
+        body.password.as_deref(),
+        body.code.as_deref(),
+        body.setup_id.as_deref(),
+    )
+    .await?;
     if let Some(token) = token {
         state.auth.revoke(&token).await;
     }
-    login_response(&state, body.user_id, &headers, ip.as_deref()).await
+    login_response(&state, body.user_id, &headers, ip.as_deref(), recovery_codes).await
 }

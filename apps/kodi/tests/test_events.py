@@ -167,6 +167,16 @@ class EventsTest(unittest.TestCase):
         self.assertTrue(wait_for(lambda: len(self.heard) == 2), self.heard)
         self.assertEqual([e["type"] for e in self.heard], ["a", "b"])
 
+    def test_each_opening_is_said(self):
+        # Nothing it missed is replayed: the service reads requests' summary again.
+        server = self.server([(200, [{"type": "a"}], False), (200, [], True)])
+        opened = []
+        self.stream = Events(Tokens(server.url), "pleyKodi/test", self.heard.append, retry=(0.05,),
+                             opened=lambda: opened.append(len(self.heard)))
+        self.stream.start()
+        self.assertTrue(wait_for(lambda: len(opened) == 2), opened)
+        self.assertEqual(opened, [0, 1], "each before its stream's events")
+
     def test_another_server_chosen_is_listened_to_instead(self):
         first = self.server([(200, [], True)])
         second = self.server([(200, [{"type": "from_the_second"}], True)])

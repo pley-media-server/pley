@@ -67,6 +67,9 @@ describe("PlaybackCard", () => {
   });
 });
 
+/** Where a modified server offers its source. */
+const SOURCE = "https://example.org/pley-fork";
+
 /**
  * The whole page as `user`, with nothing in its history or devices and
  * these apps; returns the requests it makes.
@@ -74,6 +77,7 @@ describe("PlaybackCard", () => {
 function renderAccount(user: User, apps: AppGrant[] = []) {
   let list = apps;
   const requests = mockApi({
+    "GET /api/server": () => ({ name: "Home", version: "1.2.3", source: SOURCE, setup_required: false }),
     "GET /api/me/two-step": () => ({ enabled: false, since: null, recovery_codes_left: 0 }),
     "GET /api/history": () => ({ total: 0, entries: [] }),
     "GET /api/me/devices": () => [],
@@ -220,5 +224,11 @@ describe("AccountPage", () => {
     expect(
       await screen.findByText("No apps use your account. Apps ask on a Pley page before they get access."),
     ).toBeInTheDocument();
+  });
+
+  it("links to the source code where the server says it is offered", async () => {
+    renderAccount({ ...testUser, is_admin: false });
+    const link = await within(screen.getByTestId("build")).findByRole("link", { name: "Source code" });
+    expect(link).toHaveAttribute("href", SOURCE);
   });
 });

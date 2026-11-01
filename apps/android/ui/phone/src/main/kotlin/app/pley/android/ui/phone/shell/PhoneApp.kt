@@ -42,6 +42,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,6 +79,7 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.ScreensGraph
+import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.account.accountEntries
 import app.pley.android.ui.phone.home.homeEntries
@@ -93,10 +95,13 @@ import app.pley.android.ui.phone.music.musicEntries
 import app.pley.android.ui.phone.onboarding.onboardingEntries
 import app.pley.android.ui.phone.livetv.liveTvEntries
 import app.pley.android.ui.phone.playlists.playlistsEntries
+import app.pley.android.ui.phone.requests.RequestsTabIcon
+import app.pley.android.ui.phone.requests.requestsEntries
 import app.pley.android.ui.phone.search.searchEntries
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
 import app.pley.android.ui.phone.theme.PhoneTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -176,8 +181,8 @@ internal fun PhoneShell(
  * (signed out by the server) and the session (signed out before the shell
  * listened, as when this device can't read its tokens anymore), the
  * server in use, live updates while the app is started, the music
- * playing, and the capability probe. The graph's parts are made off the
- * main thread.
+ * playing, requests (and their news, told while the app shows), and the
+ * capability probe. The graph's parts are made off the main thread.
  */
 @Composable
 private fun AfterFirstFrame(shell: PhoneShellState, graph: () -> ScreensGraph) {
@@ -212,6 +217,21 @@ private fun AfterFirstFrame(shell: PhoneShellState, graph: () -> ScreensGraph) {
             val answered = withContext(Dispatchers.Default) { g.data.liveUpdates.answered }
             answered.collect { shell.answered() }
         }
+        launch {
+            // Requests' news, told once in and while the app shows: video plays in its own activity, so never over it.
+            val requests = withContext(Dispatchers.Default) { g.data.requests.also { it.start() } }
+            launch { requests.state.collect { shell.requests = RequestsEntry.of(it) } }
+            val told = HashSet<Long>()
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                combine(requests.notices, snapshotFlow { shell.inside }) { notices, inside -> if (inside) notices else emptyList() }
+                    .collect { notices ->
+                        notices.forEach { notice ->
+                            if (told.add(notice.key)) shell.tell(notice)
+                            requests.dismiss(notice)
+                        }
+                    }
+            }
+        }
         launch(Dispatchers.Default) {
             runCatching { g.caps.capabilities.warmUp() }
         }
@@ -230,6 +250,7 @@ private fun shellEntries(): (NavKey) -> NavEntry<NavKey> {
         liveTvEntries()
         accountEntries()
         musicEntries()
+        requestsEntries()
     }
     return { key -> asSheetIfOne(key, provider(key)) }
 }
@@ -277,7 +298,10 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
                 NavigationSuiteItem(
                     selected = item == tab,
                     onClick = { navigation.select(item) },
-                    icon = { Icon(item.icon, contentDescription = null, tint = LocalContentColor.current) },
+                    icon = {
+                        val icon = @Composable { Icon(item.icon, contentDescription = null, tint = LocalContentColor.current) }
+                        if (item == PhoneTab.Me) RequestsTabIcon(shell.requests, icon) else icon()
+                    },
                     label = { FittedLabel(stringResource(item.label)) },
                     colors = itemColors,
                     modifier = Modifier.testTag(TAB_TAG + item.name),

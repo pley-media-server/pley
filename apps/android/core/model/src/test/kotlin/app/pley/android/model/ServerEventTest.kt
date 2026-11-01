@@ -36,6 +36,39 @@ class ServerEventTest {
     }
 
     @Test
+    fun requestEventsRead() {
+        assertEquals(
+            ServerEvent.RequestsChanged(42, TitleKind.Show, 1396),
+            ServerEvent.parse("""{"type":"requests_changed","request_id":42,"kind":"show","tmdb_id":1396}"""),
+        )
+        // Many changed: all three null.
+        assertEquals(ServerEvent.RequestsChanged(), ServerEvent.parse("""{"type":"requests_changed","request_id":null,"kind":null,"tmdb_id":null}"""))
+        assertEquals(
+            ServerEvent.RequestAvailable(42, "Breaking Bad", TitleKind.Show, 1396, itemId = 230, seasons = listOf(2), complete = false),
+            ServerEvent.parse(
+                """{"type":"request_available","request_id":42,"title":"Breaking Bad","kind":"show","tmdb_id":1396,"item_id":230,"poster_url":null,"seasons":[2],"complete":false}""",
+            ),
+        )
+        assertEquals(
+            ServerEvent.RequestDecided(46, "Alien: Romulus", TitleKind.Movie, 945961, RequestStatus.Declined, null),
+            ServerEvent.parse("""{"type":"request_decided","request_id":46,"title":"Alien: Romulus","kind":"movie","tmdb_id":945961,"status":"declined","reason":null}"""),
+        )
+        val created = ServerEvent.parse(
+            """{"type":"request_created","request_id":49,"title":"Arcane","kind":"show","tmdb_id":94605,"seasons":[1,2],"requested_by":{"id":3,"name":"Kit","avatar_url":null,"avatar_color":"#a3e635"},"status":"pending"}""",
+        ) as ServerEvent.RequestCreated
+        assertEquals("Kit", created.requestedBy?.name)
+        assertEquals(RequestStatus.Pending, created.status)
+        assertEquals(
+            ServerEvent.RequestFailed(50, "Inside Out 2", TitleKind.Movie, "Radarr refused the key", null),
+            ServerEvent.parse("""{"type":"request_failed","request_id":50,"title":"Inside Out 2","kind":"movie","reason":"Radarr refused the key","retry_at":null}"""),
+        )
+        assertEquals(ServerEvent.RequestsSettingsChanged, ServerEvent.parse("""{"type":"requests_settings_changed"}"""))
+        for (event in listOf(created, ServerEvent.RequestsSettingsChanged, ServerEvent.RequestsChanged(1, TitleKind.Movie, 2))) {
+            assertEquals(event, ServerEvent.parse(PleyJson.encodeToString(ServerEvent.serializer(), event)))
+        }
+    }
+
+    @Test
     fun unknownTypesAreKeptByName() {
         val event = ServerEvent.parse("""{"type":"markers_found","item_id":203}""")
         assertEquals(ServerEvent.Unknown("markers_found"), event)

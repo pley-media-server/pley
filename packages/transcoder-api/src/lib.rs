@@ -633,10 +633,10 @@ pub struct TranscoderInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub commit: Option<String>,
     pub api_version: u32,
-    /// SPDX license of the transcoder program (Pley's: `LicenseRef-Restricted`).
+    /// SPDX license of the transcoder program (Pley's: `AGPL-3.0-only`).
     pub license: String,
     /// Where its source code can be obtained, if it is offered (Pley's
-    /// transcoder offers none).
+    /// transcoder: its repository).
     pub source: Option<String>,
     pub started_at_ms: i64,
     pub capabilities: Capabilities,

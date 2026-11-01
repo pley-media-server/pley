@@ -5,6 +5,7 @@ import { LoaderCircle } from "lucide-react";
 import { ApiError, setUnauthorizedHandler } from "@/api/client";
 import { queries } from "@/api/hooks";
 import { liveQueries } from "@/api/livetv";
+import { requestQueries } from "@/api/requests";
 import { RequireAuth, Splash } from "@/auth";
 import { AppLayout } from "@/components/AppLayout";
 import { ToastProvider } from "@/components/Toast";
@@ -30,6 +31,8 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       retry: (count, err) => {
         if (err instanceof ApiError && [400, 401, 403, 404, 409].includes(err.status)) return false;
+        // Not set up on this server (requests, subtitle search): asking again won't change that.
+        if (err instanceof ApiError && (err.body as { setup?: unknown } | undefined)?.setup === false) return false;
         return count < 2;
       },
     },
@@ -147,6 +150,33 @@ const router = createBrowserRouter([
             ),
           },
           { path: "search", element: <SearchPage /> },
+          {
+            path: "discover",
+            ...onDemand(
+              () => import("@/pages/requests/DiscoverPage"),
+              (m) => m.DiscoverPage,
+              (prefetch) => [prefetch(requestQueries.summary())],
+            ),
+          },
+          {
+            path: "discover/:kind/:tmdbId",
+            ...onDemand(
+              () => import("@/pages/requests/TitlePage"),
+              (m) => m.TitlePage,
+              (prefetch, { kind, tmdbId }) =>
+                (kind === "movie" || kind === "show") && Number.isInteger(Number(tmdbId)) && Number(tmdbId) > 0
+                  ? [prefetch(requestQueries.summary()), prefetch(requestQueries.title(kind, Number(tmdbId)))]
+                  : [],
+            ),
+          },
+          {
+            path: "requests",
+            ...onDemand(
+              () => import("@/pages/requests/RequestsPage"),
+              (m) => m.RequestsPage,
+              (prefetch) => [prefetch(requestQueries.summary())],
+            ),
+          },
           { path: "account", element: <AccountPage /> },
           {
             path: "settings",
@@ -183,6 +213,14 @@ const router = createBrowserRouter([
                   () => import("@/pages/settings/InvitesSettings"),
                   (m) => m.InvitesSettings,
                   (prefetch) => [prefetch(queries.invites()), prefetch(queries.libraries())],
+                ),
+              },
+              {
+                path: "requests",
+                ...onDemand(
+                  () => import("@/pages/settings/RequestsSettings"),
+                  (m) => m.RequestsSettings,
+                  (prefetch) => [prefetch(queries.settings())],
                 ),
               },
               {

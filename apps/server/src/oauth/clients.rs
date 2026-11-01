@@ -819,7 +819,7 @@ mod tests {
                 name: Some("Pley for Android".into()),
                 first_party: true,
                 redirect_uris: vec!["app.pley.android:/oauth/callback".into()],
-                scope_cap: Some("library play playlists profiles".into()),
+                scope_cap: Some("library play playlists profiles requests approvals".into()),
                 refresh: true,
                 // The same app runs on phones, Android TV and Fire TV.
                 device: true,
@@ -830,6 +830,9 @@ mod tests {
         assert_eq!(desktop.redirect_uris, ["http://127.0.0.1/oauth/callback", "http://[::1]/oauth/callback"]);
         assert!(desktop.first_party && desktop.refresh);
         assert!(!desktop.device, "desktops have browsers");
+        // Its window shows the server's web pages, signed in as the web is:
+        // it never asks for movies and shows with its token.
+        assert_eq!(desktop.scope_cap.as_deref(), Some("library play playlists profiles"));
         assert_eq!(
             redirect_kind(android, "app.pley.android:/oauth/callback"),
             Ok(RedirectKind::App { scheme: "app.pley.android".into() })
@@ -856,7 +859,7 @@ mod tests {
             assert_eq!(tv.name.as_deref(), Some(name));
             assert!(tv.first_party && tv.refresh && tv.device);
             assert!(tv.redirect_uris.is_empty());
-            assert_eq!(tv.scope_cap.as_deref(), Some("library play playlists profiles"));
+            assert_eq!(tv.scope_cap.as_deref(), Some("library play playlists profiles requests approvals"));
             assert!(matches!(redirect_kind(tv, "app.pley.android:/oauth/callback"), Err(ClientError::Redirect(_))));
             assert!(parse_document(id, json.as_bytes(), false).is_err());
         }

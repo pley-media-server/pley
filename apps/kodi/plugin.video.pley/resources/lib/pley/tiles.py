@@ -105,8 +105,23 @@ def person(base: str, credit: dict) -> xbmcgui.ListItem:
     return li
 
 
+def discover(base: str, title: dict, subtitle: str) -> xbmcgui.ListItem:
+    """A title found on TMDB (search's On TMDB): its poster, through the
+    server as library artwork is, its title and `subtitle` (its badge, or
+    its year and kind)."""
+    name = title.get("title") or ""
+    li = xbmcgui.ListItem(name, subtitle, offscreen=True)
+    found = image(base, title.get("poster_url"), WIDTHS["poster"])
+    if found:
+        li.setArt({"tile": found})
+    li.setProperty("ph", words.placeholder(name))
+    li.setProperty("kind", "tmdb")
+    return li
+
+
 def see_all(text: str) -> xbmcgui.ListItem:
-    """The tile at the end of a library's row that opens the library."""
+    """The tile at the end of a library's row that opens the library (or of
+    search's On TMDB, that opens Discover's search)."""
     li = xbmcgui.ListItem(text, offscreen=True)
     li.setProperty("seeall", "1")
     li.setProperty("kind", "seeall")

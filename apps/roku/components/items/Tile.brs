@@ -7,6 +7,8 @@ sub init()
     m.watched = m.top.findNode("watched")
     m.title = m.top.findNode("title")
     m.subtitle = m.top.findNode("subtitle")
+    m.badgeBack = m.top.findNode("badgeBack")
+    m.badge = m.top.findNode("badge")
     m.wide = false
     m.square = false
     m.progress = 0.0
@@ -25,8 +27,19 @@ sub onContent()
     if item.hasField("progress") then m.progress = item.progress
     m.watched.visible = item.hasField("watched") and item.watched = true
     m.title.text = item.title
+    ' See all, a row's Try again or note, a grid's Look further and Request
+    ' more seasons: their words in the frame only.
+    if item.hasField("kind") and (item.kind = "more" or item.kind = "retry" or item.kind = "note" or item.kind = "further" or item.kind = "askMore") then m.title.text = ""
     m.subtitle.text = item.subtitle
+    m.subtitle.color = "0xA1A9B6FF"
+    if item.hasField("subtitleColor") then m.subtitle.color = item.subtitleColor
     m.fallback.text = item.title
+    badge = ""
+    if item.hasField("badge") then badge = item.badge
+    m.badge.text = badge
+    m.badge.visible = badge <> ""
+    m.badgeBack.visible = badge <> ""
+    if badge <> "" and item.hasField("badgeColor") then m.badgeBack.color = item.badgeColor
     ' The scene's agent carries the token; it changes with each refresh.
     m.poster.setHttpAgent(m.top.getScene().getHttpAgent())
     onLayout()
@@ -61,6 +74,20 @@ sub onLayout()
     m.track.visible = m.progress > 0
     m.fill.visible = m.progress > 0
     m.watched.translation = [w - 52, 12]
+    ' The badge at the poster's top left, as wide as its words; cut short
+    ' only when they don't fit (a label as wide as it measures can lose
+    ' its last letters to rounding).
+    if m.badge.visible
+        m.badge.width = 0
+        textWidth = m.badge.boundingRect().width
+        if textWidth > w - 48
+            textWidth = w - 48
+            m.badge.width = textWidth
+        end if
+        m.badge.translation = [24, 12]
+        m.badgeBack.translation = [12, 12]
+        m.badgeBack.width = textWidth + 24
+    end if
     m.title.translation = [0, imageHeight + 12]
     m.title.width = w
     m.subtitle.translation = [0, imageHeight + 44]

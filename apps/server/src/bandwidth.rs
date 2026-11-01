@@ -164,7 +164,7 @@ impl Bandwidth {
         .bind(now)
         .execute(&mut *tx)
         .await?;
-        sqlx::query("DELETE FROM playback_networks WHERE updated_at < ?")
+        sqlx::query("DELETE FROM playback_networks WHERE updated_at <= ?")
             .bind(now - PROBE_KEPT_MS)
             .execute(&mut *tx)
             .await?;

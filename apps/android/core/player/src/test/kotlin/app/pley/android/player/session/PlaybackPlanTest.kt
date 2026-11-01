@@ -12,6 +12,7 @@ import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.PlaybackMode
 import app.pley.android.model.StreamKind
 import app.pley.android.model.UserState
+import app.pley.android.model.caps.DolbyVisionCaps
 import app.pley.android.player.PlayRequest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -181,6 +182,9 @@ class PlaybackPlanTest {
         assertNull(DvGuards.retryMode(info(PlaybackMethod.Transcode), p5, tv))
         assertEquals(PlaybackMode.Remux, DvGuards.retryMode(info(PlaybackMethod.Direct), p7, tv))
         assertNull(DvGuards.retryMode(info(PlaybackMethod.Direct), p7, TestCaps.hdrTv(dv = listOf(7))))
+        // Profile 7's decoder, listed on a screen without Dolby Vision: its base layer is what plays.
+        val p7Decoder = tv.copy(report = tv.report.copy(dolbyVisionProfiles = listOf(DolbyVisionCaps(7, 9))))
+        assertEquals(PlaybackMode.Remux, DvGuards.retryMode(info(PlaybackMethod.Direct), p7, p7Decoder))
         assertNull(DvGuards.retryMode(info(PlaybackMethod.Remux), p7, tv))
         assertNull(DvGuards.retryMode(info(PlaybackMethod.Direct), p8, tv))
         assertNull(DvGuards.retryMode(info(PlaybackMethod.Remux), file, tv))

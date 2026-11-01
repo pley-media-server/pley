@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Discover: titles on TMDB to ask for. A hero of the first trending
+     title (its backdrop, what it is, a line of its overview, its main
+     action), then rows of posters with their badges (Trending this week,
+     Popular movies, Popular shows, Coming to cinemas, Popular anime), each
+     loaded as it comes into view and ending with See all, then Your
+     requests for those who have any. Search and the requests at the top;
+     Down slides the page up to the rows. A sign-in from before apps could
+     ask sees only how to sign in again. -->
+<component name="DiscoverScreen" extends="Group">
+    <interface>
+        <field id="route" type="string" />
+        <field id="params" type="assocarray" />
+        <field id="navigate" type="assocarray" alwaysNotify="true" />
+        <field id="active" type="boolean" alwaysNotify="true" />
+        <!-- The scene's: what requests let the profile do. -->
+        <field id="requestSummary" type="assocarray" />
+        <!-- Set by the scene: requests changed (Your requests asks again),
+             and a title's request changed (its badge follows). -->
+        <field id="requestsChanged" type="assocarray" alwaysNotify="true" />
+        <field id="requestNote" type="assocarray" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/screens/DiscoverScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/RequestBadges.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
+    <children>
+        <Poster id="backdrop" width="1920" height="1080" loadWidth="640" loadHeight="360" loadDisplayMode="scaleToZoom" opacity="0.4" />
+        <Rectangle id="shade" width="1260" height="1080" color="0x16191ED9" />
+        <Group id="page">
+            <Label id="heading" translation="[96, 48]" text="Discover" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+            <ChipRow id="chips" translation="[460, 62]" />
+            <Label id="credit" translation="[1124, 78]" width="700" horizAlign="right" text="Details and pictures from TMDB." color="0x8B95A5FF" font="font:SmallestSystemFont" />
+            <LayoutGroup id="hero" translation="[96, 196]" layoutDirection="vert" itemSpacings="[16, 20, 36, 20]" visible="false">
+                <Label id="heroName" width="1100" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+                <Label id="heroLine" width="1100" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+                <Label id="heroOverview" width="1080" wrap="true" maxLines="2" lineSpacing="6" color="0xEBEBEBFF" font="font:SmallerSystemFont" />
+                <ButtonGroup id="heroButtons" layoutDirection="horiz" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="300" />
+                <!-- In place of Request, with nothing of its kind left to ask for. -->
+                <Label id="heroNote" width="1100" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+            </LayoutGroup>
+            <!-- Its top shows under the hero; the page slides up to it. -->
+            <RowList id="rows" translation="[96, 700]" itemComponentName="Tile" itemSize="[1728, 470]" rowItemSize="[[220, 410]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+        </Group>
+        <!-- Why Discover can't be used, and what to do about it. -->
+        <LayoutGroup id="problem" translation="[96, 360]" layoutDirection="vert" itemSpacings="[20, 48]" visible="false">
+            <Label id="problemTitle" width="1400" wrap="true" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
+            <Label id="problemText" width="1400" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
+            <ButtonGroup id="problemButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="420" />
+        </LayoutGroup>
+        <!-- Your requests asked again while one of them downloads. -->
+        <Timer id="busy" duration="10" />
+    </children>
+</component>

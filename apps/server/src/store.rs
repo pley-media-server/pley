@@ -52,6 +52,7 @@ const CACHES: &[(&str, Duration)] = &[
     ("covers", Duration::from_secs(30 * DAY)),       // api/items.rs: albums without embedded covers
     ("subtitles", Duration::from_secs(90 * DAY)),    // api/playback.rs: WebVTT
     ("fingerprints", Duration::from_secs(90 * DAY)), // markers: audio fingerprints
+    ("discover", Duration::from_secs(30 * DAY)),     // discover/pictures.rs: TMDB's pictures
 ];
 
 /// Hosts pictures may be downloaded from (metadata providers' image servers).
@@ -1007,6 +1008,8 @@ mod tests {
             ("subtitles/7_4_100.vtt", 91),
             ("subtitles/8_4_100.vtt", 60),
             ("fingerprints/7_100_5_0_1000.fp", 91),
+            ("discover/w342/abc.jpg", 31),
+            ("discover/w342/def.jpg", 2),
             ("trickplay/7/index.bif", 400), // not one of the caches the clean-up prunes
         ];
         for (name, days) in files {
@@ -1016,7 +1019,7 @@ mod tests {
             age(&path, days * DAY);
         }
         let report = store.clean().await.unwrap();
-        assert_eq!((report.cache_files_removed, report.cache_bytes_freed), (4, 24));
+        assert_eq!((report.cache_files_removed, report.cache_bytes_freed), (5, 30));
         let mut left: Vec<String> = walkdir::WalkDir::new(&cache)
             .into_iter()
             .flatten()
@@ -1024,7 +1027,10 @@ mod tests {
             .map(|e| e.path().strip_prefix(&cache).unwrap().to_string_lossy().replace('\\', "/"))
             .collect();
         left.sort();
-        assert_eq!(left, ["images/ab/recent.jpg", "subtitles/8_4_100.vtt", "trickplay/7/index.bif"]);
+        assert_eq!(
+            left,
+            ["discover/w342/def.jpg", "images/ab/recent.jpg", "subtitles/8_4_100.vtt", "trickplay/7/index.bif"]
+        );
     }
 
     #[tokio::test]

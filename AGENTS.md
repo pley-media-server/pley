@@ -47,9 +47,10 @@ claimed as checked.
 
 ## Rules that must hold
 
-**Licensing** ([LICENSING.md](LICENSING.md)). Pley is Restricted
-(`LicenseRef-Restricted`, the root [LICENSE](LICENSE)); only the Kodi add-on
-is GPL-2.0-or-later.
+**Licensing** ([LICENSING.md](LICENSING.md)). Pley is under the GNU
+AGPL, version 3 only (`AGPL-3.0-only`, the root [LICENSE](LICENSE)); only
+the Kodi add-on is GPL-2.0-or-later. Contributions come under the same
+licences ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 - Add no dependency that is only available under a copyleft licence (GPL,
   LGPL, AGPL and the like) to the server, the transcoder or any app other
@@ -57,7 +58,7 @@ is GPL-2.0-or-later.
   this for Rust, `scripts/check-nuget-licenses.mjs` for the native Samsung
   app's NuGet packages.
 - The transcoder runs `ffmpeg` and `ffprobe` as programs. Never link
-  FFmpeg's libraries into it: that would put it under the GPL.
+  FFmpeg's libraries into it: that would bind it to FFmpeg's GPL.
 - The server never depends on the `pley-transcoder` crate; it talks to the
   transcoder over HTTP with the types in `packages/transcoder-api`.
 - Never copy the Kodi add-on's code into another part of Pley.
@@ -66,7 +67,7 @@ is GPL-2.0-or-later.
   apps' build fails on a bundled package that `packages/tv/src/licenses.ts`
   doesn't name.
 - Don't add licence texts or headers of your own; new transcoder files
-  start with `// SPDX-License-Identifier: LicenseRef-Restricted`, as the
+  start with `// SPDX-License-Identifier: AGPL-3.0-only`, as the
   others do.
 
 **Security** ([SECURITY.md](SECURITY.md)).

@@ -50,6 +50,9 @@ pub struct Endpoints {
     pub cover_art: String,
     /// TMDB's API (used once a TMDB key is set).
     pub tmdb: String,
+    /// TMDB's pictures, as Discover shows them (fetched by pley, see
+    /// [`crate::discover::pictures`]).
+    pub tmdb_images: String,
     /// OpenSubtitles.com's API (used once its key is set).
     pub opensubtitles: String,
 }
@@ -62,6 +65,7 @@ impl Default for Endpoints {
             musicbrainz: musicbrainz::API.into(),
             cover_art: musicbrainz::COVER_ART.into(),
             tmdb: crate::metadata::API.into(),
+            tmdb_images: crate::metadata::IMAGES.into(),
             opensubtitles: opensubtitles::API.into(),
         }
     }

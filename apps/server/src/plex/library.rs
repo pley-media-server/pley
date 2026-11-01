@@ -19,7 +19,7 @@ use crate::events::ServerEvent;
 use crate::library::LibraryRow;
 use crate::people;
 use crate::state::AppState;
-use crate::util::now;
+use crate::util::{date_secs, now};
 
 /// Libraries the user can see (per-user library access).
 pub(super) async fn visible_libraries(state: &AppState, user: &AuthUser) -> PlexResult<Vec<LibraryRow>> {
@@ -585,24 +585,6 @@ fn parse_date(value: &str, now: i64) -> Option<i64> {
     // Further back than an i64 reaches is the earliest time there is.
     let back = number.parse::<i64>().ok().and_then(|n| n.checked_mul(unit_secs));
     Some(back.map_or(i64::MIN, |back| now.saturating_sub(back)))
-}
-
-/// `YYYY-MM-DD` → unix seconds (UTC midnight).
-fn date_secs(date: &str) -> Option<i64> {
-    let mut parts = date.get(..10)?.split('-');
-    let (y, m, d): (i64, i64, i64) =
-        (parts.next()?.parse().ok()?, parts.next()?.parse().ok()?, parts.next()?.parse().ok()?);
-    if !(1..=12).contains(&m) || !(1..=31).contains(&d) {
-        return None;
-    }
-    // Days from civil (Howard Hinnant's algorithm).
-    let y = if m <= 2 { y - 1 } else { y };
-    let era = if y >= 0 { y } else { y - 399 } / 400;
-    let yoe = y - era * 400;
-    let mp = (m + 9) % 12;
-    let doy = (153 * mp + 2) / 5 + d - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    Some((era * 146_097 + doe - 719_468) * 86_400)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

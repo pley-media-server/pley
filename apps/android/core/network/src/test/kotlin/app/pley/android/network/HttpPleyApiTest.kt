@@ -1,7 +1,16 @@
 package app.pley.android.network
 
 import app.pley.android.model.AddSubtitle
+import app.pley.android.model.Approval
 import app.pley.android.model.ConversionState
+import app.pley.android.model.Decline
+import app.pley.android.model.DiscoverList
+import app.pley.android.model.MediaRequest
+import app.pley.android.model.NewRequest
+import app.pley.android.model.RequestList
+import app.pley.android.model.RequestQuery
+import app.pley.android.model.RequestStatus
+import app.pley.android.model.TitleKind
 import app.pley.android.model.NetworkReport
 import app.pley.android.model.PlaybackNetwork
 import app.pley.android.model.SubtitleResult
@@ -292,7 +301,96 @@ class HttpPleyApiTest {
                 "PUT /api/playlists/901/order",
                 body = PleyJson.encodeToString(EntryIds.serializer(), order),
             ) { reorderPlaylist(901, order) },
+            Golden("requestSummary", json("requests/summary.json"), "GET /api/requests/summary") { requestSummary() },
+            Golden("discover", json("discover/trending.json"), "GET /api/discover/anime?page=2") { discover(DiscoverList.Anime, 2) },
+            Golden("discoverSearch", json("discover/trending.json"), "GET /api/discover/search?q=the%20wild&page=1") { discoverSearch("the wild") },
+            Golden("discoverSearch (missing)", json("discover/trending.json"), "GET /api/discover/search?q=dune&page=3&missing=1") {
+                discoverSearch("dune", page = 3, missing = true)
+            },
+            Golden("discoverTitle", json("discover/show.json"), "GET /api/discover/show/1396") { discoverTitle(TitleKind.Show, 1396) },
+            Golden("itemRequest", json("requests/item_request.json"), "GET /api/items/201/request") { itemRequest(201) },
+            Golden("requests (defaults)", json("requests/list.json"), "GET /api/requests?offset=0") { requests() },
+            Golden(
+                "requests (every parameter)",
+                json("requests/attention.json"),
+                "GET /api/requests?status=pending%2Cfailed&attention=1&kind=show&user_id=3&q=arc&order=oldest&mine=1&unseen=1&changed_since=1761600000&offset=20&limit=20",
+            ) {
+                requests(
+                    RequestQuery(
+                        statuses = listOf(RequestStatus.Pending, RequestStatus.Failed),
+                        attention = true,
+                        kind = TitleKind.Show,
+                        userId = 3,
+                        q = "arc",
+                        oldest = true,
+                        mine = true,
+                        unseen = true,
+                        changedSince = 1761600000,
+                        offset = 20,
+                        limit = 20,
+                    ),
+                )
+            },
+            Golden("request", jsonAnswer(oneRequest), "GET /api/requests/44") { request(44) },
+            Golden(
+                "ask",
+                jsonAnswer(oneRequest, code = 201),
+                "POST /api/requests",
+                body = """{"kind":"show","tmdb_id":1396,"seasons":[3,5]}""",
+            ) { ask(NewRequest(TitleKind.Show, 1396, listOf(3, 5))) },
+            Golden("ask (the server's seasons)", jsonAnswer(oneRequest, code = 201), "POST /api/requests", body = """{"kind":"movie","tmdb_id":1184918}""") {
+                ask(NewRequest(TitleKind.Movie, 1184918))
+            },
+            Golden("deleteRequest", MockPley.noContent(), "DELETE /api/requests/44") { deleteRequest(44) },
+            Golden("unwatchRequest", MockPley.noContent(), "DELETE /api/requests/47/watch") { unwatchRequest(47) },
+            Golden("requestsSeen", MockPley.noContent(), "POST /api/requests/seen", body = "") { requestsSeen() },
+            Golden(
+                "approveRequest",
+                jsonAnswer(oneRequest),
+                "POST /api/requests/49/approve",
+                body = """{"quality_profile":6,"root_folder":"/anime","seasons":[1,2]}""",
+            ) { approveRequest(49, Approval(qualityProfile = 6, rootFolder = "/anime", seasons = listOf(1, 2))) },
+            Golden("approveRequest (the settings' choices)", jsonAnswer(oneRequest), "POST /api/requests/44/approve", body = "{}") { approveRequest(44) },
+            Golden("declineRequest", jsonAnswer(oneRequest), "POST /api/requests/44/decline", body = """{"reason":"Not this one"}""") {
+                declineRequest(44, Decline("Not this one"))
+            },
+            Golden("requestHandled", jsonAnswer(oneRequest), "POST /api/requests/44/handled") { requestHandled(44) },
+            Golden("requestOptions", json("requests/options.json"), "GET /api/requests/options") { requestOptions() },
         )
+    }
+
+    /** One request, as the routes that change one answer it. */
+    private val oneRequest: String
+        get() = PleyJson.encodeToString(MediaRequest.serializer(), Fixtures.decode<RequestList>("requests/list.json").requests.first())
+
+    @Test
+    fun askingSaysWhetherTheRequestIsNew() = runTest {
+        server.enqueue(jsonAnswer(oneRequest, code = 201))
+        assertTrue(api.ask(NewRequest(TitleKind.Movie, 1022789)).created)
+        // Asked for already by someone else: followed, nothing new.
+        server.enqueue(jsonAnswer(oneRequest, code = 200))
+        val followed = api.ask(NewRequest(TitleKind.Movie, 1022789))
+        assertFalse(followed.created)
+        assertEquals(48L, followed.request.id)
+    }
+
+    @Test
+    fun refusalsOfRequestsSayWhatTheyMean() = runTest {
+        server.enqueue(MockPley.fixture("errors/declined.json", code = 409))
+        val declined = runCatching { api.ask(NewRequest(TitleKind.Movie, 945961)) }.exceptionOrNull() as ApiException
+        assertEquals("declined", declined.code)
+        assertEquals(1763992000L, declined.retryAt)
+
+        server.enqueue(MockPley.fixture("errors/conflict_request.json", code = 409))
+        val raced = runCatching { api.approveRequest(44) }.exceptionOrNull() as ApiException
+        assertEquals(RequestStatus.Approved, raced.details?.request?.status)
+
+        // pley's own 503 is an answer, never the server being away.
+        server.enqueue(MockPley.fixture("errors/tmdb_down.json", code = 503))
+        val down = runCatching { api.discover(DiscoverList.Trending) }.exceptionOrNull()
+        assertTrue("$down", down is ApiException)
+        assertEquals("tmdb_down", (down as ApiException).code)
+        assertEquals(true, down.details?.setup)
     }
 
     @Test
@@ -346,6 +444,11 @@ class HttpPleyApiTest {
 
         server.enqueue(MockPley.fixture("libraries/list.json"))
         assertEquals(listOf(1L, 2L, 3L), api.libraries().map { it.id })
+
+        server.enqueue(MockPley.fixture("server/info.json"))
+        assertFalse(api.server().twoStepRequired)
+        server.enqueue(jsonAnswer("""{"name":"Living Room","version":"0.42.0","two_step_required":true}"""))
+        assertTrue(api.server().twoStepRequired)
     }
 
     @Test

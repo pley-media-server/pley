@@ -87,7 +87,20 @@ class PhoneOnboardingUiTest {
         compose.onNodeWithTag(CONTINUE_TAG).assertIsEnabled().performClick()
         // With a browser, there's no code to choose.
         compose.onNodeWithText("Use a code instead").assertDoesNotExist()
+        compose.onNodeWithText("two-step", substring = true).assertDoesNotExist()
         assertEquals(listOf("select ${office.url}", "continue"), events)
+    }
+
+    @Test
+    fun aChosenServerThatRequiresTwoStepSignInSaysSo() {
+        signIn(ServersUiState(rows = listOf(nas.copy(twoStepRequired = true), office), selected = nas.url, searched = true))
+        val twoStep = "This server requires two-step sign-in: you'll set it up as you sign in, if you haven't yet."
+        compose.onNodeWithText(twoStep).assertExists()
+        compose.onNodeWithTag(CONTINUE_TAG).assertIsEnabled()
+        // Continue means a typed address now, not that server.
+        compose.onNodeWithTag(ENTER_ADDRESS_TAG).performClick()
+        compose.onNodeWithTag(ADDRESS_FIELD_TAG).performTextInput("pley.example.com")
+        compose.onNodeWithText(twoStep).assertDoesNotExist()
     }
 
     @Test
@@ -147,8 +160,30 @@ class PhoneOnboardingUiTest {
         // Read out letter by letter, as one node.
         compose.onNodeWithTag(CODE_TAG).assertContentDescriptionEquals("The code: B C D F, G H J K")
         compose.onNodeWithText("Request declined").assertExists()
+        compose.onNodeWithText("two-step", substring = true).assertDoesNotExist()
         compose.onNodeWithTag(NEW_CODE_TAG).performClick()
         assertEquals(listOf("new"), events)
+    }
+
+    @Test
+    fun theCodePageSaysWhenTheServerRequiresTwoStepSignIn() {
+        compose.setContent {
+            PhoneTheme {
+                PhoneLinkContent(
+                    LinkUiState(
+                        "http://192.168.1.20:7539",
+                        LinkCode("BCDF-GHJK", "192.168.1.20:7539/link", "q", Long.MAX_VALUE),
+                        LinkStatus.Waiting,
+                        twoStepRequired = true,
+                    ),
+                    onNewCode = {},
+                    onChangeServer = {},
+                )
+            }
+        }
+        compose.onNodeWithText(
+            "This server requires two-step sign-in: the device that approves the code sets it up if you haven't yet.",
+        ).assertExists()
     }
 
     @Test

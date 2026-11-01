@@ -36,6 +36,8 @@ data class ServerRow(
     /** A saved server that didn't answer. */
     val unreachable: Boolean = false,
     val id: String? = null,
+    /** It requires two-step sign-in, as far as the app knows (the phone's chosen card is asked). */
+    val twoStepRequired: Boolean = false,
 )
 
 /** Whether the app may reach devices on the home network (Android 17, Fire OS 16). */
@@ -113,7 +115,8 @@ data class ChosenServer(
  * answer on the network as they come, an address to type (a name on the
  * internet is tried with https first), "Search this network", forgetting a
  * saved server (which ends its sign-in), and the demo server in debug
- * builds.
+ * builds. The chosen server is asked once whether it requires two-step
+ * sign-in, for the phone to say so before the browser opens.
  *
  * Nothing reaches the home network before the system allows it (Android
  * 17's local network access, Fire OS 16's nearby devices): [explainFirst]
@@ -142,6 +145,9 @@ class ServersViewModel(
 
     /** Saved servers being asked directly. */
     private val checking = mutableSetOf<String>()
+
+    /** What servers said of two-step sign-in, by address: each is asked once, and false until it answers. */
+    private val twoStep = mutableMapOf<String, Boolean>()
     private var searchJob: Job? = null
     private var sweepJob: Job? = null
 
@@ -220,6 +226,7 @@ class ServersViewModel(
     /** The phone's card [url] is the one "Continue in browser" signs in to. */
     fun select(url: String) {
         _state.update { it.copy(selected = url, problem = null) }
+        askTwoStep()
     }
 
     /**
@@ -282,6 +289,8 @@ class ServersViewModel(
                                 found[url] = FoundServer(url, answer.info.name, id = null, version = answer.info.version)
                                 typed += url
                                 unreachable -= url
+                                // Just asked: choosing it doesn't ask again.
+                                twoStep[url] = answer.info.twoStepRequired
                                 publish()
                                 _state.update { it.copy(selected = url) }
                                 if (open) keep(url, answer.info.name, idOf(url))
@@ -431,6 +440,23 @@ class ServersViewModel(
         }
     }
 
+    /**
+     * Asks the chosen server whether it requires two-step sign-in, once:
+     * in the background, so Continue never waits for it, and only once the
+     * app may reach it.
+     */
+    private fun askTwoStep() {
+        val url = _state.value.selected ?: return
+        if (url in twoStep || source.localNetwork.missingFor(url).isNotEmpty()) return
+        twoStep[url] = false
+        viewModelScope.launch {
+            if (source.twoStepRequired(url)) {
+                twoStep[url] = true
+                publish()
+            }
+        }
+    }
+
     private fun idOf(url: String): String? = found[url]?.id ?: saved.firstOrNull { it.url == url }?.id
 
     private fun publish() {
@@ -445,12 +471,14 @@ class ServersViewModel(
                 unencrypted = Servers.unencrypted(entry.url),
                 unreachable = !entry.found && entry.url in unreachable,
                 id = entry.id,
+                twoStepRequired = twoStep[entry.url] == true,
             )
         }
         _state.update { s ->
             val selected = s.selected?.takeIf { url -> rows.any { it.url == url } } ?: rows.firstOrNull()?.url
             s.copy(rows = rows, selected = selected)
         }
+        askTwoStep()
     }
 
     companion object {

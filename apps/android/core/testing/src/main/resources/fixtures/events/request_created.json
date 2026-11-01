@@ -1,0 +1,4 @@
+{
+  "type": "request_created", "request_id": 49, "title": "Arcane", "kind": "show", "tmdb_id": 94605, "seasons": [1, 2, 3, 5],
+  "requested_by": { "id": 3, "name": "Kit", "avatar_url": null, "avatar_color": "#a3e635" }, "status": "pending"
+}

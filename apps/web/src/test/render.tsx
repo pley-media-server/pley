@@ -3,7 +3,7 @@ import { MemoryRouter, useLocation } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { vi } from "vitest";
-import type { User } from "@/api/types";
+import type { TwoStepSetup, User } from "@/api/types";
 import { AuthUserProvider } from "@/auth";
 import { ToastProvider } from "@/components/Toast";
 
@@ -95,6 +95,29 @@ type Handler = (req: FakeRequest) => unknown;
 export function apiError(status: number, code: string, message: string): Response {
   return new Response(JSON.stringify({ code, message }), {
     status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+/** A secret to add to an authenticator app, as the server shows it. */
+export const testSetup: TwoStepSetup = {
+  secret: "JBSWY3DPEHPK3PXP",
+  uri: "otpauth://totp/Pley:admin?secret=JBSWY3DPEHPK3PXP&issuer=Pley",
+  qr: { size: 21, path: "M0 0h7v1h-7z" },
+  expires_at: 0,
+  id: "QXJHVZJ5TOFQGNLX4DPMHWU4KE",
+};
+
+/**
+ * The server's answer to a sign-in (or a switch, or an invitation) that sets
+ * up two-step sign-in first, which it requires: `setup` is the secret to add.
+ */
+export function twoStepSetupAnswer(
+  setup: TwoStepSetup = testSetup,
+  message = "this server requires two-step sign-in: add Pley to an authenticator app, then enter the 6-digit code it shows",
+): Response {
+  return new Response(JSON.stringify({ code: "two_step_setup", message, setup }), {
+    status: 401,
     headers: { "content-type": "application/json" },
   });
 }

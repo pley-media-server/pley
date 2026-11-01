@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LiveChannel, LiveProgram } from "../../src/api/types";
 import {
   categoryKey,
@@ -7,6 +7,7 @@ import {
   channelByNumber,
   channelName,
   chunkStarts,
+  formatGuideDay,
   GUIDE_CHUNK,
   browseQuery,
   groupSections,
@@ -57,6 +58,36 @@ describe("what's on", () => {
     expect(timeLeft({ stop: 3900 }, 0)).toBe("1 h 5 min left");
     expect(timeLeft({ stop: 7200 }, 0)).toBe("2 h left");
     expect(timeLeft({ stop: 10 }, 0)).toBe("1 min left");
+  });
+});
+
+describe("days", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  // Times on local dates, not now ± 24 hours: a day is 23 or 25 hours when
+  // daylight saving starts or ends. Every day of a year covers a zone's changes.
+  it.each(["the device's zone", "America/New_York", "Europe/London", "Australia/Sydney"])("are today, tomorrow and yesterday by date in %s", (zone) => {
+    if (zone.includes("/")) vi.stubEnv("TZ", zone);
+    const today = new Date();
+    const at = (days: number, hour: number, minute: number) =>
+      new Date(today.getFullYear(), today.getMonth(), today.getDate() + days, hour, minute).getTime() / 1000;
+    for (let days = 0; days < 366; days++) {
+      for (const now of [at(days, 0, 30), at(days, 23, 30)]) {
+        expect(formatGuideDay(at(days, 0, 1), now)).toBe("Today");
+        expect(formatGuideDay(at(days, 23, 59), now)).toBe("Today");
+        expect(formatGuideDay(at(days + 1, 0, 1), now)).toBe("Tomorrow");
+        expect(formatGuideDay(at(days + 1, 23, 59), now)).toBe("Tomorrow");
+        expect(formatGuideDay(at(days - 1, 0, 1), now)).toBe("Yesterday");
+        expect(formatGuideDay(at(days - 1, 23, 59), now)).toBe("Yesterday");
+        expect(formatGuideDay(at(days + 2, 0, 1), now)).not.toMatch(/^(Today|Tomorrow)$/);
+        expect(formatGuideDay(at(days - 2, 23, 59), now)).not.toMatch(/^(Today|Yesterday)$/);
+      }
+    }
+  });
+
+  it("are written as the web writes them past that", () => {
+    const now = new Date(2026, 9, 27, 20).getTime() / 1000;
+    expect(formatGuideDay(new Date(2026, 9, 30, 0, 1).getTime() / 1000, now)).toBe("Fri 30 Oct");
   });
 });
 

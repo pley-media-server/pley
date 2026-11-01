@@ -38,6 +38,11 @@ describe("image sizes", () => {
     expect(sizedImage(null, 300)).toBeNull();
     expect(sizedImage("", 300)).toBeNull();
   });
+
+  it("asks the server for TMDB's pictures at the width drawn, as for any other", () => {
+    vi.stubGlobal("devicePixelRatio", 1);
+    expect(sizedImage("/api/discover/images/poster/abc.jpg", 150)).toBe("/api/discover/images/poster/abc.jpg?w=160");
+  });
 });
 
 describe("artwork fallbacks", () => {

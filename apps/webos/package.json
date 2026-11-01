@@ -1,7 +1,7 @@
 {
   "name": "pley-webos",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pley for LG TVs: a webOS web app that plays through LG's own media pipeline.",
   "type": "module",
   "scripts": {

@@ -253,10 +253,16 @@ pub async fn issue(db: &Db, grant: NewGrant) -> Result<(Issued, Vec<i64>), Issue
     Ok((issued, dropped))
 }
 
+/// Why an app's refresh gets nothing while the server requires two-step
+/// sign-in of an account that doesn't use it (see
+/// [`super::AuthService::require_two_step`]).
+pub const TWO_STEP_REQUIRED: &str = "this server requires two-step sign-in: sign in again to set it up";
+
 /// Exchanges a refresh token for a new pair (OAuth 2.1 §4.3.1, rotated as
 /// RFC 9700 §4.14.2 says): the token is spent, and a spent one shown again
-/// ends its grant.
-pub async fn refresh(db: &Db, input: RefreshInput) -> Result<Issued, RefreshError> {
+/// ends its grant. With `two_step_required`, nothing for a grant acting as,
+/// or allowed by, an account that signs in with a password alone.
+pub async fn refresh(db: &Db, input: RefreshInput, two_step_required: bool) -> Result<Issued, RefreshError> {
     if !input.token.starts_with(REFRESH_PREFIX) {
         return Err(RefreshError::Invalid("unknown refresh token"));
     }
@@ -264,20 +270,33 @@ pub async fn refresh(db: &Db, input: RefreshInput) -> Result<Issued, RefreshErro
     let now = now();
     let mut tx = db.write.begin().await?;
     #[allow(clippy::type_complexity)]
-    let row: Option<(i64, i64, Option<i64>, String, String, i64, Option<i64>, bool, bool)> = sqlx::query_as(
-        "SELECT t.grant_id, t.expires_at, t.used_at, g.client_id, g.scope, g.expires_at, g.ends_at,
-                u.disabled, a.disabled
-         FROM app_tokens t
-         JOIN app_grants g ON g.id = t.grant_id
-         JOIN users u ON u.id = g.user_id
-         JOIN users a ON a.id = g.approved_by
-         WHERE t.token_hash = ? AND t.kind = 'refresh'",
-    )
-    .bind(&key)
-    .fetch_optional(&mut *tx)
-    .await?;
-    let Some((grant_id, token_expires, used_at, client_id, scope, grant_expires, ends_at, user_off, approver_off)) =
-        row
+    let row: Option<(i64, i64, Option<i64>, String, String, i64, Option<i64>, bool, bool, bool)> =
+        sqlx::query_as(sqlx::AssertSqlSafe(format!(
+            "SELECT t.grant_id, t.expires_at, t.used_at, g.client_id, g.scope, g.expires_at, g.ends_at,
+                    u.disabled, a.disabled, {} OR {}
+             FROM app_tokens t
+             JOIN app_grants g ON g.id = t.grant_id
+             JOIN users u ON u.id = g.user_id
+             JOIN users a ON a.id = g.approved_by
+             WHERE t.token_hash = ? AND t.kind = 'refresh'",
+            super::without_two_step("u"),
+            super::without_two_step("a")
+        )))
+        .bind(&key)
+        .fetch_optional(&mut *tx)
+        .await?;
+    let Some((
+        grant_id,
+        token_expires,
+        used_at,
+        client_id,
+        scope,
+        grant_expires,
+        ends_at,
+        user_off,
+        approver_off,
+        no_two_step,
+    )) = row
     else {
         return Err(RefreshError::Invalid("unknown refresh token"));
     };
@@ -294,6 +313,9 @@ pub async fn refresh(db: &Db, input: RefreshInput) -> Result<Issued, RefreshErro
     }
     if user_off || approver_off {
         return Err(RefreshError::Invalid("the account is disabled"));
+    }
+    if no_two_step && two_step_required {
+        return Err(RefreshError::Invalid(TWO_STEP_REQUIRED));
     }
     let on_record: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM app_tokens WHERE grant_id = ? AND kind = 'refresh'")
         .bind(grant_id)
@@ -367,10 +389,11 @@ pub struct Holder {
 
 /// Reads the grant of refresh token `token` of app `client_id`, as a
 /// refresh would ([`refresh`]), without spending it: unknown,
-/// another app's, expired, a disabled profile or approver, or a grant past
-/// its refresh limit get nothing. A spent one ends its grant, as a refresh
-/// does: someone has a copy.
-pub async fn holder(db: &Db, token: &str, client_id: &str) -> Result<Holder, RefreshError> {
+/// another app's, expired, a disabled profile or approver, one without
+/// two-step sign-in when `two_step_required`, or a grant past its refresh
+/// limit get nothing. A spent one ends its grant, as a refresh does: someone
+/// has a copy.
+pub async fn holder(db: &Db, token: &str, client_id: &str, two_step_required: bool) -> Result<Holder, RefreshError> {
     if !token.starts_with(REFRESH_PREFIX) {
         return Err(RefreshError::Invalid("unknown refresh token"));
     }
@@ -378,18 +401,21 @@ pub async fn holder(db: &Db, token: &str, client_id: &str) -> Result<Holder, Ref
     let now = now();
     let mut tx = db.write.begin().await?;
     #[allow(clippy::type_complexity)]
-    let row: Option<(i64, i64, Option<i64>, String, String, i64, i64, Option<i64>, bool, bool)> = sqlx::query_as(
-        "SELECT t.grant_id, t.expires_at, t.used_at, g.client_id, g.scope, g.approved_by, g.expires_at, g.ends_at,
-                u.disabled, a.disabled
-         FROM app_tokens t
-         JOIN app_grants g ON g.id = t.grant_id
-         JOIN users u ON u.id = g.user_id
-         JOIN users a ON a.id = g.approved_by
-         WHERE t.token_hash = ? AND t.kind = 'refresh'",
-    )
-    .bind(&key)
-    .fetch_optional(&mut *tx)
-    .await?;
+    let row: Option<(i64, i64, Option<i64>, String, String, i64, i64, Option<i64>, bool, bool, bool)> =
+        sqlx::query_as(sqlx::AssertSqlSafe(format!(
+            "SELECT t.grant_id, t.expires_at, t.used_at, g.client_id, g.scope, g.approved_by, g.expires_at,
+                    g.ends_at, u.disabled, a.disabled, {} OR {}
+             FROM app_tokens t
+             JOIN app_grants g ON g.id = t.grant_id
+             JOIN users u ON u.id = g.user_id
+             JOIN users a ON a.id = g.approved_by
+             WHERE t.token_hash = ? AND t.kind = 'refresh'",
+            super::without_two_step("u"),
+            super::without_two_step("a")
+        )))
+        .bind(&key)
+        .fetch_optional(&mut *tx)
+        .await?;
     let Some((
         grant_id,
         token_expires,
@@ -401,6 +427,7 @@ pub async fn holder(db: &Db, token: &str, client_id: &str) -> Result<Holder, Ref
         ends_at,
         user_off,
         approver_off,
+        no_two_step,
     )) = row
     else {
         return Err(RefreshError::Invalid("unknown refresh token"));
@@ -418,6 +445,9 @@ pub async fn holder(db: &Db, token: &str, client_id: &str) -> Result<Holder, Ref
     }
     if user_off || approver_off {
         return Err(RefreshError::Invalid("the account is disabled"));
+    }
+    if no_two_step && two_step_required {
+        return Err(RefreshError::Invalid(TWO_STEP_REQUIRED));
     }
     let on_record: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM app_tokens WHERE grant_id = ? AND kind = 'refresh'")
         .bind(grant_id)
@@ -441,6 +471,7 @@ pub async fn holder(db: &Db, token: &str, client_id: &str) -> Result<Holder, Ref
         id: user_id,
         username,
         is_admin: false,
+        account_admin: role_admin,
         all_libraries: all_libraries || role_admin,
         max_age: if role_admin { None } else { max_age },
         app: Some(std::sync::Arc::new(super::AppAccess {
@@ -773,6 +804,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn requiring_two_step_sign_in_leaves_apps_of_accounts_without_it_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = database(dir.path()).await;
+        let (issued, _) = issue(&db, grant(ANDROID, "library profiles")).await.unwrap();
+        let token = issued.refresh_token.unwrap();
+        // ann signs in with her password alone.
+        let refused = refresh(&db, exchange(&token, ANDROID), true).await;
+        assert!(matches!(refused, Err(RefreshError::Invalid(TWO_STEP_REQUIRED))), "{refused:?}");
+        assert!(matches!(holder(&db, &token, ANDROID, true).await, Err(RefreshError::Invalid(TWO_STEP_REQUIRED))));
+        // Nothing was spent: once she uses it, the app goes on.
+        sqlx::query("INSERT INTO two_step (user_id, secret, created_at) VALUES (1, 'sealed', 0)")
+            .execute(&db.write)
+            .await
+            .unwrap();
+        holder(&db, &token, ANDROID, true).await.unwrap();
+        let next = refresh(&db, exchange(&token, ANDROID), true).await.unwrap();
+        // Allowed by bob, who doesn't use it.
+        sqlx::query("UPDATE app_grants SET approved_by = 2").execute(&db.write).await.unwrap();
+        let token = next.refresh_token.unwrap();
+        let refused = refresh(&db, exchange(&token, ANDROID), true).await;
+        assert!(matches!(refused, Err(RefreshError::Invalid(TWO_STEP_REQUIRED))), "{refused:?}");
+        // An account without a password never needs it.
+        sqlx::query("UPDATE users SET password_hash = '!managed' WHERE id = 2").execute(&db.write).await.unwrap();
+        refresh(&db, exchange(&token, ANDROID), true).await.unwrap();
+    }
+
+    #[tokio::test]
     async fn app_tokens_are_prefixed_and_stored_hashed() {
         let dir = tempfile::tempdir().unwrap();
         let db = database(dir.path()).await;
@@ -812,7 +870,7 @@ mod tests {
         let db = database(dir.path()).await;
         let (first, _) = issue(&db, grant(ANDROID, "library")).await.unwrap();
         let old = first.refresh_token.clone().unwrap();
-        let second = refresh(&db, exchange(&old, ANDROID)).await.unwrap();
+        let second = refresh(&db, exchange(&old, ANDROID), false).await.unwrap();
         assert_eq!(second.grant_id, first.grant_id);
         let new = second.refresh_token.clone().unwrap();
         assert_ne!(new, old);
@@ -822,11 +880,11 @@ mod tests {
         assert_eq!((agent.as_str(), ip.as_str()), ("okhttp/5", "10.0.0.3"));
 
         // The spent token is kept, and shown again it ends everything.
-        let err = refresh(&db, exchange(&old, ANDROID)).await.unwrap_err();
+        let err = refresh(&db, exchange(&old, ANDROID), false).await.unwrap_err();
         assert!(matches!(err, RefreshError::Reused { grant_id } if grant_id == first.grant_id), "{err:?}");
         assert_eq!(grants(&db).await, 0);
         assert!(tokens(&db).await.is_empty(), "tokens go with their grant");
-        assert!(matches!(refresh(&db, exchange(&new, ANDROID)).await, Err(RefreshError::Invalid(_))));
+        assert!(matches!(refresh(&db, exchange(&new, ANDROID), false).await, Err(RefreshError::Invalid(_))));
     }
 
     #[tokio::test]
@@ -835,10 +893,10 @@ mod tests {
         let db = database(dir.path()).await;
         let (first, _) = issue(&db, grant(ANDROID, "library")).await.unwrap();
         let stolen = first.refresh_token.unwrap();
-        let second = refresh(&db, exchange(&stolen, ANDROID)).await.unwrap();
-        let third = refresh(&db, exchange(second.refresh_token.as_ref().unwrap(), ANDROID)).await.unwrap();
+        let second = refresh(&db, exchange(&stolen, ANDROID), false).await.unwrap();
+        let third = refresh(&db, exchange(second.refresh_token.as_ref().unwrap(), ANDROID), false).await.unwrap();
         assert!(third.refresh_token.is_some());
-        let err = refresh(&db, exchange(&stolen, ANDROID)).await.unwrap_err();
+        let err = refresh(&db, exchange(&stolen, ANDROID), false).await.unwrap_err();
         assert!(matches!(err, RefreshError::Reused { .. }), "{err:?}");
         assert_eq!(grants(&db).await, 0);
     }
@@ -849,7 +907,10 @@ mod tests {
         let db = database(dir.path()).await;
         let (first, _) = issue(&db, grant(ANDROID, "library")).await.unwrap();
         let token = first.refresh_token.unwrap();
-        let (a, b) = tokio::join!(refresh(&db, exchange(&token, ANDROID)), refresh(&db, exchange(&token, ANDROID)));
+        let (a, b) = tokio::join!(
+            refresh(&db, exchange(&token, ANDROID), false),
+            refresh(&db, exchange(&token, ANDROID), false)
+        );
         assert!(a.is_ok() != b.is_ok(), "one gets a pair, the other ends the grant");
         assert!(matches!(a.err().or(b.err()), Some(RefreshError::Reused { .. })));
         assert_eq!(grants(&db).await, 0);
@@ -862,11 +923,11 @@ mod tests {
         let (first, _) = issue(&db, grant(ANDROID, "library")).await.unwrap();
         let before = tokens(&db).await;
         for token in ["pley_rt_nothing", "garbage", "", &first.access_token] {
-            let err = refresh(&db, exchange(token, ANDROID)).await.unwrap_err();
+            let err = refresh(&db, exchange(token, ANDROID), false).await.unwrap_err();
             assert!(matches!(err, RefreshError::Invalid(_)), "{token}: {err:?}");
         }
         assert_eq!(tokens(&db).await, before);
-        assert!(refresh(&db, exchange(first.refresh_token.as_ref().unwrap(), ANDROID)).await.is_ok());
+        assert!(refresh(&db, exchange(first.refresh_token.as_ref().unwrap(), ANDROID), false).await.is_ok());
     }
 
     #[tokio::test]
@@ -876,10 +937,10 @@ mod tests {
         let (first, _) = issue(&db, grant(ANDROID, "library")).await.unwrap();
         let token = first.refresh_token.unwrap();
         let before = tokens(&db).await;
-        let err = refresh(&db, exchange(&token, OTHER)).await.unwrap_err();
+        let err = refresh(&db, exchange(&token, OTHER), false).await.unwrap_err();
         assert!(matches!(err, RefreshError::Invalid(_)), "{err:?}");
         assert_eq!(tokens(&db).await, before, "not spent");
-        assert!(refresh(&db, exchange(&token, ANDROID)).await.is_ok());
+        assert!(refresh(&db, exchange(&token, ANDROID), false).await.is_ok());
     }
 
     #[tokio::test]
@@ -890,11 +951,11 @@ mod tests {
         let token = first.refresh_token.unwrap();
         let mut wider = exchange(&token, ANDROID);
         wider.scope = Some(Scopes::all());
-        assert!(matches!(refresh(&db, wider).await, Err(RefreshError::WiderScope)));
+        assert!(matches!(refresh(&db, wider, false).await, Err(RefreshError::WiderScope)));
         // Narrower: ignored, the answer says what was issued.
         let mut narrower = exchange(&token, ANDROID);
         narrower.scope = Some(Scopes::default().with(Scope::Library));
-        let issued = refresh(&db, narrower).await.expect("the refused one wasn't spent");
+        let issued = refresh(&db, narrower, false).await.expect("the refused one wasn't spent");
         assert_eq!(issued.scopes.to_string(), "library play");
         let stored: String = sqlx::query_scalar("SELECT scope FROM app_grants").fetch_one(&db.read).await.unwrap();
         assert_eq!(stored, "library play");
@@ -942,7 +1003,7 @@ mod tests {
             .execute(&db.write)
             .await
             .unwrap();
-        let err = refresh(&db, exchange(own.refresh_token.as_ref().unwrap(), ANDROID)).await.unwrap_err();
+        let err = refresh(&db, exchange(own.refresh_token.as_ref().unwrap(), ANDROID), false).await.unwrap_err();
         assert!(matches!(err, RefreshError::Invalid(_)), "{err:?}");
         // A year for other publishers, however recently used.
         sqlx::query("UPDATE app_grants SET ends_at = ? WHERE id = ?")
@@ -951,7 +1012,7 @@ mod tests {
             .execute(&db.write)
             .await
             .unwrap();
-        let err = refresh(&db, exchange(other.refresh_token.as_ref().unwrap(), OTHER)).await.unwrap_err();
+        let err = refresh(&db, exchange(other.refresh_token.as_ref().unwrap(), OTHER), false).await.unwrap_err();
         assert!(matches!(err, RefreshError::Invalid(_)), "{err:?}");
         let (third, _) = issue(&db, grant(ANDROID, "library")).await.unwrap();
         sqlx::query("UPDATE app_tokens SET expires_at = ? WHERE token_hash = ?")
@@ -975,7 +1036,7 @@ mod tests {
             .execute(&db.write)
             .await
             .unwrap();
-        let next = refresh(&db, exchange(fourth.refresh_token.as_ref().unwrap(), OTHER)).await.unwrap();
+        let next = refresh(&db, exchange(fourth.refresh_token.as_ref().unwrap(), OTHER), false).await.unwrap();
         assert!(next.expires_in <= 100, "never past the grant's end");
     }
 
@@ -996,7 +1057,7 @@ mod tests {
         .execute(&db.write)
         .await
         .unwrap();
-        let err = refresh(&db, exchange(first.refresh_token.as_ref().unwrap(), ANDROID)).await.unwrap_err();
+        let err = refresh(&db, exchange(first.refresh_token.as_ref().unwrap(), ANDROID), false).await.unwrap_err();
         assert!(matches!(err, RefreshError::Ended { grant_id } if grant_id == first.grant_id), "{err:?}");
         assert_eq!(grants(&db).await, 0);
     }
@@ -1007,7 +1068,7 @@ mod tests {
         let db = database(dir.path()).await;
         let (mut issued, _) = issue(&db, grant(ANDROID, "library")).await.unwrap();
         for _ in 0..15 {
-            issued = refresh(&db, exchange(issued.refresh_token.as_ref().unwrap(), ANDROID)).await.unwrap();
+            issued = refresh(&db, exchange(issued.refresh_token.as_ref().unwrap(), ANDROID), false).await.unwrap();
         }
         let access: Vec<String> = sqlx::query_scalar("SELECT token_hash FROM app_tokens WHERE kind = 'access'")
             .fetch_all(&db.read)
@@ -1064,7 +1125,7 @@ mod tests {
         let (first, _) = issue(&db, grant(ANDROID, "library profiles")).await.unwrap();
         let token = first.refresh_token.unwrap();
         let before = tokens(&db).await;
-        let held = holder(&db, &token, ANDROID).await.unwrap();
+        let held = holder(&db, &token, ANDROID, false).await.unwrap();
         assert_eq!(tokens(&db).await, before, "reading spends nothing");
         assert_eq!((held.grant_id, held.approved_by), (first.grant_id, 1));
         assert_eq!(held.scopes.to_string(), "library profiles");
@@ -1072,8 +1133,8 @@ mod tests {
         // no age limit, never administration.
         assert_eq!((held.user.id, held.user.is_admin, held.user.all_libraries), (1, false, true));
         assert_eq!(held.user.max_age, None);
-        assert!(matches!(holder(&db, &token, OTHER).await, Err(RefreshError::Invalid(_))));
-        assert!(matches!(holder(&db, &first.access_token, ANDROID).await, Err(RefreshError::Invalid(_))));
+        assert!(matches!(holder(&db, &token, OTHER, false).await, Err(RefreshError::Invalid(_))));
+        assert!(matches!(holder(&db, &first.access_token, ANDROID, false).await, Err(RefreshError::Invalid(_))));
 
         let (moved, dropped) = switch_profile(&db, moving(&token, first.grant_id, 2)).await.unwrap();
         assert!(dropped.is_empty());
@@ -1090,7 +1151,7 @@ mod tests {
             .unwrap();
         assert_eq!(access, [hash_token(&moved.access_token)], "the old access token is gone");
         // The token shown was spent: shown again, it ends the grant.
-        let err = holder(&db, &token, ANDROID).await.unwrap_err();
+        let err = holder(&db, &token, ANDROID, false).await.unwrap_err();
         assert!(matches!(err, RefreshError::Reused { .. }), "{err:?}");
         assert_eq!(grants(&db).await, 0);
     }
@@ -1101,9 +1162,9 @@ mod tests {
         let db = database(dir.path()).await;
         let (first, _) = issue(&db, grant(ANDROID, "library profiles")).await.unwrap();
         let token = first.refresh_token.unwrap();
-        holder(&db, &token, ANDROID).await.unwrap();
+        holder(&db, &token, ANDROID, false).await.unwrap();
         // A refresh with the same token gets there first: two holders.
-        refresh(&db, exchange(&token, ANDROID)).await.unwrap();
+        refresh(&db, exchange(&token, ANDROID), false).await.unwrap();
         let err = switch_profile(&db, moving(&token, first.grant_id, 2)).await.unwrap_err();
         assert!(matches!(err, RefreshError::Reused { grant_id } if grant_id == first.grant_id), "{err:?}");
         assert_eq!(grants(&db).await, 0);

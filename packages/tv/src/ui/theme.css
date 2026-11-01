@@ -40,8 +40,12 @@
   --accent-bright: #7dd3fc;
   --on-accent: #03131f;
   --danger-text: #ff6b70;
+  /* Danger as a fill (a count of failed requests), with --bg on it: 5.0:1. */
+  --danger: #e5484d;
   --success: #3fb27f;
   --info: #4c9aff;
+  /* What waits on someone (a request waiting for approval): 10.6:1. */
+  --warning: #f2b544;
   --on-art: rgba(11, 13, 16, 0.8);
   --scrim: rgba(11, 13, 16, 0.6);
   --focus-ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -280,7 +284,7 @@ body {
   justify-content: center;
   color: var(--fg);
 }
-.see-all .t-label { margin-top: 8px; }
+.see-all .t-label { margin-top: 8px; padding: 0 10px; text-align: center; }
 
 .skeleton { background: var(--surface2); border-radius: 2px; }
 
@@ -388,6 +392,8 @@ body {
   transition: transform 300ms cubic-bezier(0, 0, 0.2, 1);
 }
 .round[data-focused] + .round-label { opacity: 1; }
+/* A round that starts its row: its label starts with it, inside the page's edge. */
+.buttons > .round-box:first-child > .round-label { left: 0; transform: none; }
 .pill[data-pressed],
 .round[data-pressed],
 .text-btn[data-pressed],
@@ -557,6 +563,9 @@ body {
   padding: 0;
 }
 .field .placeholder { color: var(--muted); }
+/* No browser clear button in a search field: the remote can't reach it. */
+.field input::-webkit-search-cancel-button,
+.field input::-webkit-search-decoration { -webkit-appearance: none; display: none; }
 
 /* Number keys: three columns of 64 px keys, 10 apart (no CSS grid before Chromium 57). */
 .keypad { display: flex; flex-wrap: wrap; width: 212px; }
@@ -711,6 +720,27 @@ body {
 .rail.open .rail-item[data-focused] .rail-pill { color: var(--accent); }
 .rail.open .rail-item[data-pressed] .rail-pill { color: var(--accent-bright); }
 .rail-item[data-focused]::before { display: none; }
+/* What waits in requests: a count astride the icon's upper right, ringed in the page's colour; danger while some failed. */
+.rail-badge {
+  position: absolute;
+  left: 29px;
+  top: 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 0 0 2px var(--bg);
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+.rail-badge.danger { background: var(--danger); color: var(--bg); }
+.rail-item[data-focused] .rail-badge:not(.danger) { background: var(--on-accent); color: var(--accent-bright); }
 .rail-item.avatar { height: 56px; margin-bottom: 4px; }
 .rail-avatar {
   position: absolute;
@@ -755,6 +785,28 @@ body {
   animation: info-in 150ms linear;
 }
 .offline-notice > * + * { margin-left: 10px; }
+/* Ready to watch: a card at the lower right, as Up next's, over the page and the closed rail but under panels and dialogs. */
+.request-notice {
+  position: absolute;
+  right: 48px;
+  bottom: 51px;
+  width: 360px;
+  box-sizing: border-box;
+  padding: 16px;
+  border-radius: 8px;
+  background: rgba(25, 29, 36, 0.96);
+  box-shadow: inset 0 1px 0 var(--surface4);
+  z-index: 25;
+  animation: info-in 150ms linear;
+}
+.reduced .request-notice { animation: none; }
+.request-notice-head { display: flex; align-items: center; }
+.request-notice-art { position: relative; flex: none; width: 40px; height: 60px; margin-right: 14px; border-radius: 4px; overflow: hidden; background: var(--surface3); }
+.request-notice-text { flex: 1; min-width: 0; display: flex; align-items: flex-start; }
+/* The tick on the words' first line. */
+.request-notice-text > .icon { flex: none; margin: -1px 10px 0 0; }
+.request-notice-buttons { display: flex; justify-content: flex-end; margin-top: 14px; }
+.request-notice-buttons > * + * { margin-left: 10px; }
 .rail-spacer { flex: 1; }
 
 .curtain {

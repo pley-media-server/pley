@@ -9,6 +9,7 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import app.pley.android.caps.DecoderPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -74,14 +75,36 @@ class DecoderRulesTest {
     }
 
     @Test
-    fun dolbyVisionDecodersAreLeftOutOnScreensWithoutDolbyVision() {
+    fun dolbyVisionDecodersAreLeftOutWhereDolbyVisionIsNotShown() {
         val format = video(MimeTypes.VIDEO_DOLBY_VISION, 3840, 2160, 23.976f, "dvh1.08.06")
-        val hdr10Screen = DecoderRules({ DecoderPolicy(tv = true) }, dolbyVisionScreen = { false })
+        val hdr10Screen = DecoderRules({ DecoderPolicy(tv = true) }, dolbyVisionShown = { false })
         assertEquals(emptyList<String>(), names(hdr10Screen, MimeTypes.VIDEO_DOLBY_VISION, format))
-        val dvScreen = DecoderRules({ DecoderPolicy(tv = true) }, dolbyVisionScreen = { true })
+        val dvScreen = DecoderRules({ DecoderPolicy(tv = true) }, dolbyVisionShown = { true })
         assertEquals(listOf("c2.vendor.dolby.decoder"), names(dvScreen, MimeTypes.VIDEO_DOLBY_VISION, format))
         val unknown = DecoderRules({ DecoderPolicy(tv = true) })
         assertEquals(listOf("c2.vendor.dolby.decoder"), names(unknown, MimeTypes.VIDEO_DOLBY_VISION, format))
+        // Profiles 5 and 7: no other decoder plays them, so theirs stays.
+        val p5 = video(MimeTypes.VIDEO_DOLBY_VISION, 3840, 2160, 23.976f, "dvhe.05.06")
+        assertEquals(listOf("c2.vendor.dolby.decoder"), names(hdr10Screen, MimeTypes.VIDEO_DOLBY_VISION, p5))
+        val p7 = video(MimeTypes.VIDEO_DOLBY_VISION, 3840, 2160, 23.976f, "dvhe.07.06")
+        assertEquals(listOf("c2.vendor.dolby.decoder"), names(hdr10Screen, MimeTypes.VIDEO_DOLBY_VISION, p7))
+    }
+
+    @Test
+    fun dolbyVisionShownGetsItsOwnDecodersFirstWhateverTheModeInUse() {
+        val context = RuntimeEnvironment.getApplication()
+        val format = video(MimeTypes.VIDEO_DOLBY_VISION, 3840, 2160, 23.976f, "dvh1.08.06")
+        val shown = DecoderRules({ DecoderPolicy(tv = true) }, dolbyVisionShown = { true })
+        assertEquals(
+            "then the base layer's, should the Dolby Vision decoder fail",
+            listOf("c2.vendor.dolby.decoder", "c2.vendor.hevc.decoder"),
+            shown.dolbyVisionDecoders(context, base, format, secure = false, tunneling = false)?.map { it.name },
+        )
+        // Not shown, unknown, or not Dolby Vision: Media3's own list.
+        assertNull(DecoderRules({ DecoderPolicy(tv = true) }, dolbyVisionShown = { false }).dolbyVisionDecoders(context, base, format, false, false))
+        assertNull(DecoderRules({ DecoderPolicy(tv = true) }).dolbyVisionDecoders(context, base, format, false, false))
+        val hevc = video(MimeTypes.VIDEO_H265, 3840, 2160, 23.976f, "hvc1.2.4.L153.B0")
+        assertNull(shown.dolbyVisionDecoders(context, base, hevc, false, false))
     }
 
     @Test

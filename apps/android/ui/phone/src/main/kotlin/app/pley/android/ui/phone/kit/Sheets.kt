@@ -138,13 +138,14 @@ fun SheetAction(
 /**
  * Asks before something that can't be undone (design spec §1.5): a
  * [surface2][PleyColors.Surface2] dialog with 16 dp corners, the [title]
- * and [body], Cancel and [confirmLabel]. A [destructive] confirmation
- * reads in [dangerText][PleyColors.DangerText] ("Sign out", "Delete").
+ * and [body] (a question alone needs none), Cancel and [confirmLabel]. A
+ * [destructive] confirmation reads in [dangerText][PleyColors.DangerText]
+ * ("Sign out", "Delete").
  */
 @Composable
 fun ConfirmDialog(
     title: String,
-    body: String,
+    body: String?,
     confirmLabel: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -166,7 +167,7 @@ fun ConfirmDialog(
             }
         },
         title = { Text(title, style = MaterialTheme.typography.headlineSmall) },
-        text = { Text(body, style = MaterialTheme.typography.bodyMedium) },
+        text = body?.let { { Text(it, style = MaterialTheme.typography.bodyMedium) } },
         shape = PleyShape.Dialog,
         containerColor = PleyColors.Surface2,
         titleContentColor = PleyColors.Fg,

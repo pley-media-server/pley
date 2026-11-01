@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Home: the menu on the left (Home, the libraries, Playlists, Search,
-     Settings) and
+     Discover and the requests where the server has them, Settings) and
      the server's home rows (GET /api/hubs/home). -->
 <component name="HomeScreen" extends="Group">
     <interface>
@@ -10,6 +10,9 @@
         <field id="active" type="boolean" alwaysNotify="true" />
         <!-- Set by the scene when other devices changed what Home shows. -->
         <field id="refresh" type="boolean" alwaysNotify="true" />
+        <!-- What requests let the profile do (the scene's): the menu's
+             Discover and requests, and their number. -->
+        <field id="requestSummary" type="assocarray" onChange="onRequestSummary" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/HomeScreen.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
@@ -23,10 +26,11 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
     <children>
         <Rectangle id="rail" width="380" height="1080" color="0x1E222AFF" />
         <Label id="wordmark" translation="[64, 56]" text="Pley" color="0x38BDF8FF" font="font:ExtraLargeBoldSystemFont" />
-        <LabelList id="menu" translation="[40, 200]" itemSize="[300, 72]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" />
+        <MarkupList id="menu" translation="[40, 200]" itemComponentName="MenuRow" itemSize="[300, 72]" numRows="11" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <RowList id="rows" translation="[440, 48]" itemComponentName="Tile" itemSize="[1480, 470]" numRows="3" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" visible="false" rowLabelFont="font:MediumBoldSystemFont" />
         <Label id="message" translation="[440, 480]" width="1380" wrap="true" horizAlign="center" color="0xA1A9B6FF" text="Loading…" font="font:MediumSystemFont" />
     </children>

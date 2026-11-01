@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "react-router";
-import { CircleAlert, CircleCheck, Info, Save } from "lucide-react";
+import { CircleAlert, CircleCheck, Eye, EyeOff, Info, Save } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useSaveSettings, useSettings, useTestService } from "@/api/hooks";
 import type { ServiceTest, Settings } from "@/api/types";
 import { useToast } from "@/components/Toast";
-import { Button, Card, EmptyState, PageSpinner } from "@/components/ui";
+import { Button, Card, EmptyState, IconButton, PageSpinner, TextInput } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { useOnChange } from "@/lib/hooks";
 
 /*
- * What the settings pages that edit the server's settings (Server and
- * Transcoder) share: the form, its save bar, and the rows it is made of.
+ * What the settings pages that edit the server's settings (Server,
+ * Transcoder, Requests) share: the form, its save bar, and the rows it is
+ * made of.
  */
 
 export function Group({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
@@ -50,6 +51,45 @@ export function Note({ notice, children }: { notice?: boolean; children: ReactNo
       {notice ? <CircleAlert className="mt-px size-3.5 shrink-0 text-danger" /> : <Info className="mt-px size-3.5 shrink-0" />}
       <span>{children}</span>
     </p>
+  );
+}
+
+/** A key or PIN: hidden unless asked for. */
+export function SecretInput({
+  id,
+  value,
+  onChange,
+  what,
+  placeholder = "Not set",
+  required,
+  className,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  what: string;
+  placeholder?: string;
+  required?: boolean;
+  className?: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="flex gap-2">
+      <TextInput
+        id={id}
+        type={visible ? "text" : "password"}
+        autoComplete="off"
+        spellCheck={false}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required={required}
+        className={cn("font-mono text-xs", className)}
+      />
+      <IconButton label={`${visible ? "Hide" : "Show"} ${what}`} onClick={() => setVisible((s) => !s)} className="rounded-md bg-surface-2">
+        {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </IconButton>
+    </div>
   );
 }
 

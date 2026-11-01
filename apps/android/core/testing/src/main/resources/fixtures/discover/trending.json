@@ -1,0 +1,48 @@
+{
+  "page": 1,
+  "total_pages": 3,
+  "results": [
+    {
+      "kind": "movie", "tmdb_id": 1184918, "title": "The Wild Robot", "year": 2024,
+      "overview": "After a shipwreck, an intelligent robot called Roz is stranded on an uninhabited island.",
+      "poster_url": "/api/discover/images/poster/wTnV3PCVW5O92JMrFvvrRcV39RU.jpg",
+      "backdrop_url": "/api/discover/images/backdrop/v9acaWVVFdZT5yAU7J2QjwfhXyD.jpg",
+      "rating": 8.4, "status": "none", "item_id": null, "request_id": null
+    },
+    {
+      "kind": "show", "tmdb_id": 95396, "title": "Severance", "year": 2022,
+      "overview": "Mark leads a team of office workers whose memories have been surgically divided between their work and personal lives.",
+      "poster_url": "/api/discover/images/poster/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg",
+      "backdrop_url": "/api/discover/images/backdrop/ixgFmf1X59PUZam2qbAfskx2gQr.jpg",
+      "rating": 8.4, "status": "partial", "item_id": 201, "request_id": null
+    },
+    {
+      "kind": "movie", "tmdb_id": 329865, "title": "Arrival", "year": 2016,
+      "overview": "Taking place after alien crafts land around the world, an expert linguist is recruited by the military to determine whether they come in peace or are a threat.",
+      "poster_url": "/api/discover/images/poster/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg",
+      "backdrop_url": "/api/discover/images/backdrop/yIZ1xendyqKvY3FGeeUYUd5X9Mm.jpg",
+      "rating": 7.6, "status": "library", "item_id": 101, "request_id": null
+    },
+    {
+      "kind": "movie", "tmdb_id": 933260, "title": "The Substance", "year": 2024,
+      "overview": "A fading celebrity decides to use a black market drug.",
+      "poster_url": "/api/discover/images/poster/lqoMzCcZYEFK729d6qzt349fB4o.jpg",
+      "backdrop_url": null,
+      "rating": 7.1, "status": "requested", "item_id": null, "request_id": 44
+    },
+    {
+      "kind": "show", "tmdb_id": 1396, "title": "Breaking Bad", "year": 2008,
+      "overview": "Walter White, a New Mexico chemistry teacher, is diagnosed with Stage III cancer.",
+      "poster_url": "/api/discover/images/poster/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg",
+      "backdrop_url": "/api/discover/images/backdrop/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg",
+      "rating": 8.9, "status": "partial", "item_id": null, "request_id": 42
+    },
+    {
+      "kind": "movie", "tmdb_id": 945961, "title": "Alien: Romulus", "year": 2024,
+      "overview": "While scavenging the deep ends of a derelict space station, a group of young space colonizers come face to face with the most terrifying life form in the universe.",
+      "poster_url": null,
+      "backdrop_url": null,
+      "rating": null, "status": "declined", "item_id": null, "request_id": null
+    }
+  ]
+}

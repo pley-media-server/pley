@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! A job's multivariant playlist, `master.m3u8`: its variants (the job's
 //! `index.m3u8`, then its lower renditions' `v1.m3u8`… for adaptive
 //! bitrate) and what a player needs to pick its decoders before it

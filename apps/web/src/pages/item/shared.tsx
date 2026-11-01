@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { BookmarkCheck, BookmarkPlus, Check, Eye, EyeOff, Star } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useSetInWatchlist, useSetWatched } from "@/api/hooks";
-import type { ItemDetail, ItemSummary } from "@/api/types";
+import type { ItemDetail, ItemSummary, MediaFile } from "@/api/types";
 import { Artwork } from "@/components/Artwork";
 import { ASPECT_CLASS, type CardAspect } from "@/components/cards";
 import { useToast } from "@/components/Toast";
@@ -216,9 +216,8 @@ export function MyListButton({ item }: { item: ItemDetail }) {
   );
 }
 
-/** Short quality labels for the first file: resolution, dynamic range, surround. */
-export function qualityBadgeLabels(item: ItemDetail): string[] {
-  const file = item.files[0];
+/** Short quality labels for a version: resolution, dynamic range, surround. */
+export function qualityBadgeLabels(file: MediaFile | undefined): string[] {
   if (!file) return [];
   const video = file.streams.find((s) => s.kind === "video");
   const audio = file.streams.find((s) => s.kind === "audio" && s.default) ?? file.streams.find((s) => s.kind === "audio");
@@ -234,8 +233,8 @@ export function qualityBadgeLabels(item: ItemDetail): string[] {
   return badges;
 }
 
-export function QualityBadges({ item }: { item: ItemDetail }) {
-  const badges = qualityBadgeLabels(item);
+export function QualityBadges({ file }: { file: MediaFile | undefined }) {
+  const badges = qualityBadgeLabels(file);
   if (!badges.length) return null;
   return (
     <span className="inline-flex gap-1">

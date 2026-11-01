@@ -4,13 +4,20 @@
      episodes, Mark as watched, My List, Go to show). The text is laid out
      top to bottom, leaving out what a title doesn't have. Under it, rows
      of a show's seasons, cast and crew, extras, More Like This and the
-     collections it is part of: Down slides the page up to them. -->
+     collections it is part of: Down slides the page up to them. Under the
+     poster, how a request for the title stands; a show the person may ask
+     more seasons of ends its seasons with Request more seasons. -->
 <component name="DetailsScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
         <field id="params" type="assocarray" />
         <field id="navigate" type="assocarray" alwaysNotify="true" />
         <field id="active" type="boolean" alwaysNotify="true" />
+        <!-- The scene's: what requests let the profile do. -->
+        <field id="requestSummary" type="assocarray" />
+        <!-- Set by the scene: requests changed (the title's is asked
+             again). -->
+        <field id="requestsChanged" type="assocarray" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/DetailsScreen.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
@@ -23,11 +30,16 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
     <children>
         <Poster id="backdrop" width="1920" height="1080" loadWidth="640" loadHeight="360" loadDisplayMode="scaleToZoom" opacity="0.4" />
         <Rectangle id="shade" width="1260" height="1080" color="0x16191ED9" />
         <Group id="page">
             <Poster id="poster" translation="[1404, 120]" width="420" height="630" loadWidth="420" loadHeight="630" loadDisplayMode="scaleToZoom" />
+            <!-- The title's request, where there is one (GET
+                 /api/items/{id}/request). -->
+            <StagePill id="stage" translation="[1404, 774]" stacked="true" maxWidth="420" visible="false" />
+            <Label id="stageLine" translation="[1404, 852]" width="420" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallestSystemFont" visible="false" />
             <LayoutGroup id="column" translation="[96, 96]" layoutDirection="vert" itemSpacings="[44]">
                 <!-- Only the labels with text stay in it (layoutText). -->
                 <LayoutGroup id="text" layoutDirection="vert">
@@ -44,5 +56,7 @@
             <RowList id="rows" translation="[96, 940]" itemComponentName="Tile" itemSize="[1728, 470]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
         </Group>
         <Label id="message" translation="[96, 480]" width="1100" wrap="true" color="0xA1A9B6FF" text="Loading…" font="font:MediumSystemFont" />
+        <!-- The title's request asked again while it downloads. -->
+        <Timer id="requestPoll" duration="10" />
     </children>
 </component>

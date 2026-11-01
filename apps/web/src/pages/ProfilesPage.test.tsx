@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { User } from "@/api/types";
-import { apiError, type FakeRequest, LocationDisplay, mockApi, renderWithProviders, testUser } from "@/test/render";
+import { apiError, type FakeRequest, LocationDisplay, mockApi, renderWithProviders, testSetup, testUser, twoStepSetupAnswer } from "@/test/render";
 import { challenge, ProfilesPage } from "./ProfilesPage";
 
 const me: User = { ...testUser, id: 1, name: "Sam", is_admin: false };
@@ -138,6 +138,50 @@ describe("ProfilesPage", () => {
     expect(await screen.findByTestId("location")).toHaveTextContent("/library/2");
   });
 
+  it("sets two-step sign-in up for a profile that has to, with its password, when the server requires it", async () => {
+    const user = userEvent.setup();
+    // Mom has a PIN, but hasn't set up two-step sign-in, which the server requires.
+    const mom: User = { ...testUser, id: 6, name: "Mom", is_admin: false, has_pin: true };
+    const codes = Array.from({ length: 10 }, (_, i) => `${i}aaa-bbbb-cccc-dddd`);
+    const requests = mockApi({
+      "GET /api/server": () => ({ name: "Living Room", version: "1.0.0", setup_required: false, two_step_required: true }),
+      "GET /api/auth/profiles": () => [me, mom],
+      "POST /api/auth/switch": (req) => {
+        const body = req.body as { password?: string; code?: string };
+        if (body.password !== "mom-pass-1") return apiError(403, "forbidden", "wrong password");
+        if (!body.code) return twoStepSetupAnswer();
+        if (body.code !== "123456") return twoStepSetupAnswer(undefined, "that code didn't work: check that your phone's clock is right");
+        return { user: { ...mom, two_step: true }, recovery_codes: codes };
+      },
+    });
+    renderProfiles();
+
+    // Her password, not her PIN: that's what sets it up.
+    await user.click(await screen.findByRole("button", { name: "Mom" }));
+    expect(screen.getByText(/requires two-step sign-in, which Mom hasn't set up yet/)).toBeInTheDocument();
+    expect(screen.queryByText("Enter the profile PIN")).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("Password"), "mom-pass-1");
+    await user.click(screen.getByRole("button", { name: "Switch" }));
+
+    expect(await screen.findByRole("heading", { name: "Set up two-step sign-in for Mom" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    const code = screen.getByLabelText("Code from the app");
+    await user.type(code, "999999");
+    expect(await screen.findByRole("alert")).toHaveTextContent("That code didn't work");
+    await user.clear(code);
+    await user.type(code, "123456");
+
+    expect(await screen.findByRole("list", { name: "Recovery codes" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "I've saved them" }));
+    expect(await screen.findByTestId("location")).toHaveTextContent("/library/2");
+    expect(lastSwitch(requests)?.body).toEqual({
+      user_id: mom.id,
+      password: "mom-pass-1",
+      code: "123456",
+      setup_id: testSetup.id,
+    });
+  });
+
   it("can skip choosing", async () => {
     const user = userEvent.setup();
     serve();
@@ -181,5 +225,17 @@ describe("challenge", () => {
     const both: User = { ...parent, id: 15, all_libraries: false, library_ids: [1, 2] };
     expect(challenge(both, one)).toBe("password");
     expect(challenge(one, both)).toBe("none");
+  });
+
+  it("asks a profile that has to set up two-step sign-in for its password, whatever else it has", () => {
+    const server = { name: "Den", version: "1.0.0", setup_required: false, two_step_required: true };
+    const withPin: User = { ...parent, id: 16, has_pin: true };
+    expect(challenge(withPin, parent, server)).toBe("setup");
+    expect(challenge({ ...parent, id: 17 }, testUser, server)).toBe("setup");
+    // Set up already, or without a password (managed), or not required: as ever.
+    expect(challenge({ ...withPin, two_step: true }, parent, server)).toBe("pin");
+    expect(challenge(child, parent, server)).toBe("none");
+    expect(challenge(withPin, parent, { ...server, two_step_required: false })).toBe("pin");
+    expect(challenge(withPin, withPin, server)).toBe("none");
   });
 });

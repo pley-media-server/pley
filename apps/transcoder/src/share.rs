@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! How transcodes that tone map with libplacebo share the GPU.
 //!
 //! Each process tone maps at the best quality the GPU keeps ahead of real

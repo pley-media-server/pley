@@ -11,7 +11,11 @@
 //!   codes are throttled like passwords, and after 100 in a row only a
 //!   recovery code signs in (NIST SP 800-63B, 5.2.2).
 //! * A secret shown for setting up stays in memory until a code from it
-//!   turns two-step sign-in on.
+//!   turns two-step sign-in on, or moves it to another authenticator app.
+//! * An administrator may require it of every account with a password
+//!   (`require_two_step`): one without it sets it up as it signs in, after
+//!   its password ([`TwoStep::set_up_signing_in`]), and has no session or
+//!   app until then (see [`crate::auth::AuthService::require_two_step`]).
 
 use std::fmt::Write as _;
 use std::io::Write as _;
@@ -57,6 +61,16 @@ const WRONG: &str = "that code didn't work: enter the newest code from your auth
 const USED: &str = "that code was used already: wait for the next one";
 const LOCKED: &str = "too many wrong codes in a row: sign in with a recovery code, or ask an administrator to turn two-step \
     sign-in off for you";
+/// Signing in, when the server requires two-step sign-in and it is off.
+const SET_UP: &str = "this server requires two-step sign-in: add Pley to an authenticator app, then enter the 6-digit \
+    code it shows";
+const SETUP_EXPIRED: &str = "setting up took too long: start again for a new QR code";
+/// Signing in: a new secret comes with the answer (the last one expired, or
+/// got too many wrong codes).
+const SETUP_EXPIRED_SIGNING_IN: &str = "that QR code doesn't work any more: add Pley to your authenticator app again with \
+    this new one, and delete the one you added before";
+const SETUP_NOT_DIGITS: &str = "enter the 6-digit code your authenticator app shows";
+const SETUP_WRONG: &str = "that code didn't work: check that your phone's clock is right, and enter the newest code";
 
 pub struct TwoStep {
     db: Db,
@@ -72,6 +86,34 @@ struct Pending {
     secret: [u8; SECRET_BYTES],
     since: Instant,
     wrong: u32,
+    /// Shown while two-step sign-in was on: its first code moves it to this
+    /// secret (another authenticator app) rather than turning it on.
+    replacing: bool,
+    /// [`Setup::id`]: whoever was shown it.
+    id: String,
+}
+
+/// What a code typed while setting up came to (see [`TwoStep::confirm`]).
+enum Confirm {
+    /// The secret shown is gone: it took too long, or got too many wrong codes.
+    Expired,
+    NotDigits,
+    /// Not the secret's code now: it stays, for another try.
+    Wrong,
+    /// Right: the secret is taken out of the ones waiting, to store.
+    Right {
+        secret: [u8; SECRET_BYTES],
+        step: i64,
+        replacing: bool,
+    },
+}
+
+/// Two-step sign-in set up: the new recovery codes, to show once.
+#[derive(Debug)]
+pub struct Finished {
+    pub recovery_codes: Vec<String>,
+    /// It was on, and moved to another authenticator app.
+    pub replaced: bool,
 }
 
 /// Two-step sign-in of an account, as its owner sees it.
@@ -94,6 +136,10 @@ pub struct Setup {
     pub qr: Qr,
     /// The secret must be confirmed with a code before then.
     pub expires_at: i64,
+    /// Sent back with the first code while signing in (`setup_id`): only
+    /// with it is the secret shown again, or taken (see
+    /// [`TwoStep::set_up_signing_in`]).
+    pub id: String,
 }
 
 /// A QR code: its width in modules, and an SVG path of its dark modules
@@ -146,11 +192,35 @@ impl TwoStep {
         }
     }
 
+    /// Whether authenticator apps can be set up, and their codes checked,
+    /// here: the server can use its key.
+    pub fn can_set_up(&self) -> bool {
+        self.key.is_some()
+    }
+
+    /// Fails as [`TwoStep::begin`] would while authenticator apps can't be
+    /// set up here, for a caller to say so before it checks or spends
+    /// anything.
+    pub fn ready_to_set_up(&self) -> Result<(), AppError> {
+        self.key().map(|_| ())
+    }
+
     pub async fn is_on(&self, user_id: i64) -> sqlx::Result<bool> {
         sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM two_step WHERE user_id = ?)")
             .bind(user_id)
             .fetch_one(&self.db.read)
             .await
+    }
+
+    /// The accounts that sign in with a password and don't use two-step
+    /// sign-in: the ones that set it up when the server requires it.
+    pub async fn accounts_without(&self) -> sqlx::Result<Vec<i64>> {
+        sqlx::query_scalar(
+            "SELECT id FROM users WHERE password_hash NOT LIKE '!%'
+             AND NOT EXISTS (SELECT 1 FROM two_step t WHERE t.user_id = users.id)",
+        )
+        .fetch_all(&self.db.read)
+        .await
     }
 
     pub async fn status(&self, user_id: i64) -> sqlx::Result<Status> {
@@ -166,40 +236,59 @@ impl TwoStep {
     }
 
     /// A new secret for `user_id`'s authenticator app, waiting for its first
-    /// code ([`TwoStep::finish`]). Apps list it as pley, `username` (at
+    /// code ([`TwoStep::finish`]); `replacing`, while two-step sign-in is on,
+    /// to move it to another app. Apps list it as pley, `username` (at
     /// `server_name`).
-    pub fn begin(&self, user_id: i64, username: &str, server_name: &str) -> Result<Setup, AppError> {
+    pub fn begin(&self, user_id: i64, username: &str, server_name: &str, replacing: bool) -> Result<Setup, AppError> {
         // Saying so now beats failing once the app has the secret.
         self.key()?;
         let mut secret = [0u8; SECRET_BYTES];
         getrandom::fill(&mut secret).expect("the system's random numbers");
+        let mut id = [0u8; 16];
+        getrandom::fill(&mut id).expect("the system's random numbers");
+        let id = base32(&id);
         self.pending.retain(|_, p| p.since.elapsed() < SETUP_TTL);
-        self.pending.insert(user_id, Pending { secret, since: Instant::now(), wrong: 0 });
-        let encoded = base32(&secret);
-        let server = server_name.trim();
-        let account = if server.is_empty() || server.eq_ignore_ascii_case("pley") {
-            username.to_owned()
-        } else {
-            format!("{username}@{server}")
-        };
-        let uri = otpauth_uri("Pley", &account, &encoded);
-        let qr = qr(&uri).ok_or_else(|| AppError::Internal(anyhow::anyhow!("the QR code of a secret doesn't fit")))?;
-        Ok(Setup { secret: encoded, uri, qr, expires_at: now() + SETUP_TTL.as_secs() as i64 })
+        self.pending.insert(user_id, Pending { secret, since: Instant::now(), wrong: 0, replacing, id: id.clone() });
+        setup_of(&secret, &id, username, server_name, SETUP_TTL)
     }
 
-    /// Turns two-step sign-in on with a code from the secret [`TwoStep::begin`]
-    /// showed; the new recovery codes, to show once.
-    pub async fn finish(&self, user_id: i64, code: &str) -> Result<Vec<String>, AppError> {
-        let expired = || AppError::bad_request("setting up took too long: start again for a new QR code");
-        let secret = match self.pending.get(&user_id) {
-            Some(p) if p.since.elapsed() < SETUP_TTL => p.secret,
-            _ => return Err(expired()),
+    /// The secret waiting for `user_id`'s first code while they sign in, as
+    /// it was shown (asking again doesn't change what their app has added),
+    /// to whoever shows its `id`; for anyone else, a new one, which replaces
+    /// it. Someone else with the password never gets the secret the owner
+    /// adds, and the owner sees theirs stop working.
+    fn pending_or_begin(
+        &self,
+        user_id: i64,
+        id: Option<&str>,
+        username: &str,
+        server_name: &str,
+    ) -> Result<Setup, AppError> {
+        let waiting = self.pending.get(&user_id).and_then(|p| {
+            let left = SETUP_TTL.checked_sub(p.since.elapsed())?;
+            (!p.replacing && !left.is_zero() && id == Some(p.id.as_str())).then(|| (p.secret, p.id.clone(), left))
+        });
+        match waiting {
+            Some((secret, id, left)) => setup_of(&secret, &id, username, server_name, left),
+            None => self.begin(user_id, username, server_name, false),
+        }
+    }
+
+    /// Checks `code` against the secret waiting for `user_id`, shown as `id`
+    /// when given. Wrong ones count: after a few, the secret is dropped
+    /// (guessing would hand out recovery codes). A right one takes it out, so
+    /// that only one request stores it.
+    fn confirm(&self, user_id: i64, id: Option<&str>, code: &str) -> Confirm {
+        let Some((secret, replacing)) = self
+            .pending
+            .get(&user_id)
+            .filter(|p| p.since.elapsed() < SETUP_TTL && id.is_none_or(|id| id == p.id))
+            .map(|p| (p.secret, p.replacing))
+        else {
+            return Confirm::Expired;
         };
-        let Some(entered) = digits(code) else {
-            return Err(AppError::bad_request("enter the 6-digit code your authenticator app shows"));
-        };
+        let Some(entered) = digits(code) else { return Confirm::NotDigits };
         let Some(step) = matching_step(&secret, entered, now()) else {
-            // A few tries: guessing would hand out recovery codes.
             let mut dropped = false;
             if let Some(mut p) = self.pending.get_mut(&user_id) {
                 p.wrong += 1;
@@ -207,32 +296,101 @@ impl TwoStep {
             }
             if dropped {
                 self.pending.remove(&user_id);
-                return Err(expired());
+                return Confirm::Expired;
             }
-            return Err(AppError::bad_request(
-                "that code didn't work: check that your phone's clock is right, and enter the newest code",
-            ));
+            return Confirm::Wrong;
         };
-        let sealed = self.seal(user_id, &secret)?;
+        match self.pending.remove_if(&user_id, |_, p| p.secret == secret) {
+            Some(_) => Confirm::Right { secret, step, replacing },
+            // Taken by another request with the same code, or replaced.
+            None => Confirm::Expired,
+        }
+    }
+
+    /// Turns two-step sign-in on with a code from the secret [`TwoStep::begin`]
+    /// showed, or moves it to that secret when it was shown to replace the
+    /// app; the new recovery codes, to show once.
+    pub async fn finish(&self, user_id: i64, code: &str) -> Result<Finished, AppError> {
+        match self.confirm(user_id, None, code) {
+            Confirm::Right { secret, step, replacing } => self.store(user_id, &secret, step, replacing).await,
+            Confirm::Expired => Err(AppError::bad_request(SETUP_EXPIRED)),
+            Confirm::NotDigits => Err(AppError::bad_request(SETUP_NOT_DIGITS)),
+            Confirm::Wrong => Err(AppError::bad_request(SETUP_WRONG)),
+        }
+    }
+
+    /// Sets two-step sign-in up for `user_id` as they sign in, their
+    /// password checked, when the server requires it and it is off: without
+    /// `code`, or with a wrong one, the error carries the secret to add to an
+    /// authenticator app ([`AppError::TwoStepSetup`]), the same one each time
+    /// for the `id` it came with, until it expires; a right code with that
+    /// `id` turns it on, and the new recovery codes come back.
+    pub async fn set_up_signing_in(
+        &self,
+        user_id: i64,
+        username: &str,
+        server_name: &str,
+        id: Option<&str>,
+        code: Option<&str>,
+    ) -> Result<Vec<String>, AppError> {
+        let ask = |message: &str| match self.pending_or_begin(user_id, id, username, server_name) {
+            Ok(setup) => match serde_json::to_value(setup) {
+                Ok(setup) => AppError::TwoStepSetup(message.to_owned(), setup),
+                Err(err) => AppError::Internal(err.into()),
+            },
+            Err(err) => err,
+        };
+        let Some(code) = code.map(str::trim).filter(|c| !c.is_empty()) else {
+            return Err(ask(SET_UP));
+        };
+        // Without the id it was shown with, no secret is anyone's to take.
+        match self.confirm(user_id, Some(id.unwrap_or_default()), code) {
+            Confirm::Right { secret, step, replacing: false } => {
+                Ok(self.store(user_id, &secret, step, false).await?.recovery_codes)
+            }
+            // Shown on the account page while it was on: not this one's to take.
+            Confirm::Right { replacing: true, .. } | Confirm::Expired => Err(ask(SETUP_EXPIRED_SIGNING_IN)),
+            Confirm::NotDigits => Err(ask(SETUP_NOT_DIGITS)),
+            Confirm::Wrong => Err(ask(SETUP_WRONG)),
+        }
+    }
+
+    /// Stores `secret` for `user_id` with new recovery codes: two-step
+    /// sign-in turns on, or with `replacing`, moves to it.
+    async fn store(&self, user_id: i64, secret: &[u8], step: i64, replacing: bool) -> Result<Finished, AppError> {
+        let sealed = self.seal(user_id, secret)?;
         let codes = new_recovery_codes();
         let mut tx = self.db.write.begin().await?;
-        let added = sqlx::query(
-            "INSERT INTO two_step (user_id, secret, last_step, created_at) VALUES (?, ?, ?, ?)
-             ON CONFLICT (user_id) DO NOTHING",
-        )
-        .bind(user_id)
-        .bind(sealed)
-        .bind(step)
-        .bind(now())
-        .execute(&mut *tx)
-        .await?;
-        if added.rows_affected() == 0 {
-            return Err(AppError::conflict("two-step sign-in is on already"));
+        let stored = if replacing {
+            // The new app's first code counts as used, as when it turns on.
+            sqlx::query("UPDATE two_step SET secret = ?, last_step = ?, failures = 0 WHERE user_id = ?")
+                .bind(sealed)
+                .bind(step)
+                .bind(user_id)
+                .execute(&mut *tx)
+                .await?
+        } else {
+            sqlx::query(
+                "INSERT INTO two_step (user_id, secret, last_step, created_at) VALUES (?, ?, ?, ?)
+                 ON CONFLICT (user_id) DO NOTHING",
+            )
+            .bind(user_id)
+            .bind(sealed)
+            .bind(step)
+            .bind(now())
+            .execute(&mut *tx)
+            .await?
+        };
+        if stored.rows_affected() == 0 {
+            return Err(if replacing {
+                AppError::bad_request("two-step sign-in was turned off meanwhile: set it up again")
+            } else {
+                AppError::conflict("two-step sign-in is on already")
+            });
         }
         store_recovery_codes(&mut tx, user_id, &codes).await?;
         tx.commit().await?;
-        self.pending.remove(&user_id);
-        Ok(codes)
+        Ok(Finished { recovery_codes: codes, replaced: replacing })
     }
 
     /// The second step of a sign-in as `user_id`: nothing when two-step
@@ -253,13 +411,20 @@ impl TwoStep {
             if failures >= MAX_FAILURES_IN_A_ROW {
                 return Err(AppError::TwoStep(LOCKED.into()));
             }
-            let secret = self.open(user_id, &sealed).ok_or_else(|| {
-                AppError::Unavailable(
+            let Some(secret) = self.open(user_id, &sealed) else {
+                // Without a key, no new app can be set up either: only fixing
+                // the key brings the codes back.
+                return Err(AppError::Unavailable(if self.key.is_none() {
+                    format!(
+                        "this server can't check authenticator codes until an administrator fixes its {KEY_FILE} \
+                         (its log says why): sign in with a recovery code meanwhile"
+                    )
+                } else {
                     "this server can't check your authenticator's codes any more (its key changed): sign in with a \
                      recovery code, then set up two-step sign-in again"
-                        .into(),
-                )
-            })?;
+                        .into()
+                }));
+            };
             match matching_step(&secret, entered, now()) {
                 Some(step) if step > last_step => {
                     // Once only, also against another sign-in with it right now.
@@ -367,6 +532,22 @@ impl TwoStep {
         let nonce = Nonce::try_assume_unique_for_key(&nonce).ok()?;
         key.open_in_place(nonce, Aad::from(aad(user_id)), &mut data).ok().map(|plain| plain.to_vec())
     }
+}
+
+/// What an authenticator app needs to add `secret`, shown as `id`, which
+/// waits `left` for its first code: apps list it as pley, `username` (at
+/// `server_name`).
+fn setup_of(secret: &[u8], id: &str, username: &str, server_name: &str, left: Duration) -> Result<Setup, AppError> {
+    let encoded = base32(secret);
+    let server = server_name.trim();
+    let account = if server.is_empty() || server.eq_ignore_ascii_case("pley") {
+        username.to_owned()
+    } else {
+        format!("{username}@{server}")
+    };
+    let uri = otpauth_uri("Pley", &account, &encoded);
+    let qr = qr(&uri).ok_or_else(|| AppError::Internal(anyhow::anyhow!("the QR code of a secret doesn't fit")))?;
+    Ok(Setup { secret: encoded, uri, qr, expires_at: now() + left.as_secs() as i64, id: id.to_owned() })
 }
 
 /// Binds a sealed secret to its account: moved to another, it doesn't open.
@@ -681,6 +862,99 @@ mod tests {
         assert!(code.path.split('M').skip(1).all(|run| run.ends_with('z')));
     }
 
+    /// A server with bob (id 7), who signs in with a password.
+    async fn with_bob(dir: &Path) -> TwoStep {
+        let db = Db::open(&dir.join("pley.db")).await.unwrap();
+        sqlx::query(
+            "INSERT INTO users (id, username, password_hash, is_admin, created_at) VALUES (7, 'bob', 'x', 0, 0)",
+        )
+        .execute(&db.write)
+        .await
+        .unwrap();
+        TwoStep::new(db, dir)
+    }
+
+    #[tokio::test]
+    async fn a_secret_shown_signing_in_is_shown_again_to_its_id_until_it_is_used_or_dropped() {
+        let dir = tempfile::tempdir().unwrap();
+        let two_step = with_bob(dir.path()).await;
+        let first = two_step.pending_or_begin(7, None, "bob", "Den").unwrap();
+        assert!(first.uri.contains("Pley:bob%40Den"), "{}", first.uri);
+        let again = two_step.pending_or_begin(7, Some(&first.id), "bob", "Den").unwrap();
+        assert_eq!((&again.secret, &again.qr.path, &again.id), (&first.secret, &first.qr.path, &first.id));
+        assert!(again.expires_at <= first.expires_at, "it keeps its time");
+        // Someone else with the password gets another, which replaces it:
+        // neither sees the other's.
+        let other = two_step.pending_or_begin(7, None, "bob", "Den").unwrap();
+        assert!(other.secret != first.secret && other.id != first.id);
+        let after = two_step.pending_or_begin(7, Some(&first.id), "bob", "Den").unwrap();
+        assert!(after.secret != first.secret && after.secret != other.secret);
+        // One shown on the account page to move it to another app isn't one
+        // to sign in with.
+        let replacing = two_step.begin(7, "bob", "Den", true).unwrap();
+        let fresh = two_step.pending_or_begin(7, Some(&replacing.id), "bob", "Den").unwrap();
+        assert!(fresh.secret != replacing.secret);
+        // Nor is one that expired.
+        if let Some(long_ago) = Instant::now().checked_sub(SETUP_TTL) {
+            two_step.pending.get_mut(&7).unwrap().since = long_ago;
+            assert_ne!(two_step.pending_or_begin(7, Some(&fresh.id), "bob", "Den").unwrap().secret, fresh.secret);
+        }
+    }
+
+    #[tokio::test]
+    async fn a_right_code_takes_its_secret_once_and_wrong_ones_drop_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let two_step = with_bob(dir.path()).await;
+        let shown = two_step.begin(7, "bob", "pley", false).unwrap();
+        assert!(shown.uri.contains("Pley:bob?"), "no server name for a server called pley: {}", shown.uri);
+        let secret = base32_decode(&shown.secret).unwrap();
+        let code = code_at(&secret, now());
+        assert!(matches!(two_step.confirm(7, None, "12 34"), Confirm::NotDigits));
+        // Not the id it was shown with: not this request's to take.
+        assert!(matches!(two_step.confirm(7, Some("someone else"), &code), Confirm::Expired));
+        assert!(matches!(two_step.confirm(7, Some(&shown.id), &code), Confirm::Right { replacing: false, .. }));
+        // Two requests with the same code: only the first stores it.
+        assert!(matches!(two_step.confirm(7, None, &code), Confirm::Expired));
+        assert!(matches!(two_step.confirm(8, None, &code), Confirm::Expired), "nothing waits for another account");
+
+        let shown = two_step.begin(7, "bob", "pley", true).unwrap();
+        let secret = base32_decode(&shown.secret).unwrap();
+        let near: Vec<String> = (-2..=2).map(|k| code_at(&secret, now() + k * STEP_SECS)).collect();
+        let wrong = (0..).map(|n| format!("{n:06}")).find(|c| !near.contains(c)).unwrap();
+        for _ in 1..SETUP_TRIES {
+            assert!(matches!(two_step.confirm(7, None, &wrong), Confirm::Wrong));
+        }
+        assert!(
+            matches!(two_step.confirm(7, None, &wrong), Confirm::Expired),
+            "dropped after {SETUP_TRIES} wrong codes"
+        );
+        assert!(matches!(two_step.confirm(7, None, &code_at(&secret, now())), Confirm::Expired));
+    }
+
+    #[tokio::test]
+    async fn moving_it_to_another_app_keeps_it_on_and_renews_the_recovery_codes() {
+        let dir = tempfile::tempdir().unwrap();
+        let two_step = with_bob(dir.path()).await;
+        let first = base32_decode(&two_step.begin(7, "bob", "pley", false).unwrap().secret).unwrap();
+        let on = two_step.finish(7, &code_at(&first, now())).await.unwrap();
+        assert!(!on.replaced);
+        let since = two_step.status(7).await.unwrap().since;
+        let second = base32_decode(&two_step.begin(7, "bob", "pley", true).unwrap().secret).unwrap();
+        let moved = two_step.finish(7, &code_at(&second, now())).await.unwrap();
+        assert!(moved.replaced);
+        assert!(moved.recovery_codes.iter().all(|c| !on.recovery_codes.contains(c)));
+        assert_eq!(two_step.status(7).await.unwrap().since, since);
+        let throttle = Throttle::default();
+        assert!(matches!(two_step.check(&throttle, 7, Some(&on.recovery_codes[0])).await, Err(AppError::TwoStep(_))));
+        two_step.check(&throttle, 7, Some(&code_at(&second, now() + STEP_SECS))).await.unwrap();
+        // Turned off meanwhile, a secret shown to move it turns nothing on.
+        let third = base32_decode(&two_step.begin(7, "bob", "pley", true).unwrap().secret).unwrap();
+        sqlx::query("DELETE FROM two_step WHERE user_id = 7").execute(&two_step.db.write).await.unwrap();
+        assert!(matches!(two_step.finish(7, &code_at(&third, now())).await, Err(AppError::BadRequest(_))));
+        assert!(!two_step.is_on(7).await.unwrap());
+        assert_eq!(two_step.accounts_without().await.unwrap(), [7]);
+    }
+
     #[tokio::test]
     async fn secrets_are_sealed_for_their_account_with_the_key_in_the_data_folder() {
         let dir = tempfile::tempdir().unwrap();
@@ -709,7 +983,9 @@ mod tests {
         std::fs::write(elsewhere.path().join(KEY_FILE), "not a key").unwrap();
         let broken = TwoStep::new(db, elsewhere.path());
         assert!(matches!(broken.seal(7, RFC_SECRET), Err(AppError::Unavailable(_))));
-        assert!(matches!(broken.begin(7, "bob", "pley"), Err(AppError::Unavailable(_))));
+        assert!(matches!(broken.begin(7, "bob", "pley", false), Err(AppError::Unavailable(_))));
+        assert!(!broken.can_set_up());
+        assert!(two_step.can_set_up());
         assert_eq!(std::fs::read_to_string(elsewhere.path().join(KEY_FILE)).unwrap(), "not a key");
     }
 }

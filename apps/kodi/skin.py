@@ -1266,8 +1266,9 @@ def window() -> ET.Element:
 def signin() -> ET.Element:
     """Signing in with a code (signin.py), as the Android TV app's link
     screen (TvLinkScreen): the logo, "Sign in to pley", three numbered
-    steps, the code in two fields, the notes, and what is happening; on
-    the right the QR code on white, and Change server."""
+    steps, the code in two fields, the notes (a third when the server
+    requires two-step sign-in), and what is happening; on the right the QR
+    code on white, and Change server."""
 
     def step(id_, number_id, number, top, text, text_id=None):
         return group(
@@ -1305,6 +1306,9 @@ def signin() -> ET.Element:
     ] + code_box(L.GUTTER + 396, L.SIGNIN_CODE_B) + [
         label(L.GUTTER, 776, 1100, 40, L.FONT_BODY, L.MUTED, "$ADDON[plugin.video.pley 30175]"),
         label(L.GUTTER, 828, 1100, 40, L.FONT_BODY, L.MUTED, "$ADDON[plugin.video.pley 30176]"),
+        # Empty until the server says it requires two-step sign-in, which
+        # it answers after the screen shows.
+        label(L.GUTTER, 880, 1100, 40, L.FONT_BODY, L.MUTED, id_=L.SIGNIN_TWO_STEP),
         image(L.GUTTER, 964, 16, 16, "circle.png", color=L.ACCENT, animations=[anim("Conditional", "effect=fade start=100 end=40 time=1000 pulse=true", "true")]),
         label(L.GUTTER + 40, 944, 1100, 56, L.FONT_BODY_LARGE, L.MUTED, id_=L.SIGNIN_STATUS),
         group(

@@ -8,7 +8,7 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
-use super::auth::{Me, confirm_password, login_response, me};
+use super::auth::{Me, can_set_up_two_step, confirm_password, login_response, me, second_step};
 use super::nullable;
 use crate::accounts::{self, NO_PASSWORD, UserDto};
 use crate::auth::{
@@ -16,6 +16,7 @@ use crate::auth::{
 };
 use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
+use crate::requests::{self, RequestAccess};
 use crate::state::AppState;
 use crate::streams::{self, SubtitleMode};
 use crate::util::now;
@@ -62,6 +63,10 @@ pub struct NewUser {
     max_age: Option<i64>,
     #[serde(default)]
     pin: Option<String>,
+    /// Left out: profiles without a password and accounts with an age limit
+    /// may not ask for titles, others ask an administrator.
+    #[serde(default)]
+    request_access: Option<RequestAccess>,
 }
 
 fn yes() -> bool {
@@ -101,10 +106,15 @@ pub async fn create_user(
     if exists.is_some() {
         return Err(AppError::conflict(format!("user '{username}' already exists")));
     }
+    let request_access = body.request_access.unwrap_or(if body.managed || body.max_age.is_some() {
+        RequestAccess::Off
+    } else {
+        RequestAccess::Ask
+    });
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO users (id, username, password_hash, display_name, is_admin, managed, home, all_libraries, max_age,
-                            pin_hash, created_at)
-         VALUES ((SELECT last + 1 FROM user_ids), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                            pin_hash, request_access, created_at)
+         VALUES ((SELECT last + 1 FROM user_ids), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
     )
     .bind(&username)
     .bind(password_hash)
@@ -115,6 +125,7 @@ pub async fn create_user(
     .bind(body.all_libraries)
     .bind(body.max_age)
     .bind(pin_hash)
+    .bind(request_access.as_str())
     .bind(now())
     .fetch_one(&state.db.write)
     .await?;
@@ -146,6 +157,8 @@ pub struct UserPatch {
     /// `null` removes the PIN.
     #[serde(default, deserialize_with = "nullable")]
     pin: Option<Option<String>>,
+    #[serde(default)]
+    request_access: Option<RequestAccess>,
 }
 
 pub async fn update_user(
@@ -271,9 +284,28 @@ pub async fn update_user(
             .execute(&state.db.write)
             .await?;
     }
+    if let Some(access) = body.request_access {
+        sqlx::query("UPDATE users SET request_access = ? WHERE id = ?")
+            .bind(access.as_str())
+            .bind(id)
+            .execute(&state.db.write)
+            .await?;
+    } else if current.max_age.is_none() && matches!(body.max_age, Some(Some(_))) {
+        // An age limit added: the account no longer asks until an
+        // administrator lets it, as those made with one.
+        sqlx::query("UPDATE users SET request_access = 'off' WHERE id = ? AND request_access = 'ask'")
+            .bind(id)
+            .execute(&state.db.write)
+            .await?;
+    }
     state.auth.forget_user(id);
     if sees_otherwise {
         state.events.send(ServerEvent::OwnLibrariesChanged { user_id: id });
+    }
+    // What they may ask for, and what Discover shows them, changed: their
+    // summary is fetched again.
+    if body.request_access.is_some() || sees_otherwise {
+        state.events.send(ServerEvent::RequestsSettingsChanged { user_id: Some(id) });
     }
     Ok(Json(accounts::user(&state.db, id).await?.ok_or_else(|| AppError::not_found("user not found"))?))
 }
@@ -288,9 +320,16 @@ pub async fn delete_user(
     }
     let avatar: Option<Option<String>> =
         sqlx::query_scalar("SELECT avatar FROM users WHERE id = ?").bind(id).fetch_optional(&state.db.read).await?;
-    let result = sqlx::query("DELETE FROM users WHERE id = ?").bind(id).execute(&state.db.write).await?;
+    let mut tx = state.db.write.begin().await?;
+    // Requests others follow stay, with a new maker.
+    let told = requests::hand_down(&mut tx, id).await?;
+    let result = sqlx::query("DELETE FROM users WHERE id = ?").bind(id).execute(&mut *tx).await?;
     if result.rows_affected() == 0 {
         return Err(AppError::not_found("user not found"));
+    }
+    tx.commit().await?;
+    if let Some(to) = told {
+        state.requests.account_deleted(to);
     }
     if let Some(Some(file)) = avatar {
         let _ = tokio::fs::remove_file(accounts::avatars_dir(&state.config.data_dir).join(file)).await;
@@ -582,7 +621,8 @@ pub async fn delete_avatar(State(state): State<AppState>, user: AuthUser) -> Api
 }
 
 pub async fn avatar(State(state): State<AppState>, user: AuthUser, Path(id): Path<i64>) -> ApiResult<Response> {
-    // Apps see their own profile's picture, and those of its household.
+    // Apps see their own profile's picture, those of its household, and
+    // those of the people named in the requests they may read.
     if user.app.is_some() && id != user.id {
         let household: bool = sqlx::query_scalar(
             "SELECT EXISTS (SELECT 1 FROM users me, users them
@@ -592,7 +632,7 @@ pub async fn avatar(State(state): State<AppState>, user: AuthUser, Path(id): Pat
         .bind(id)
         .fetch_one(&state.db.read)
         .await?;
-        if !household {
+        if !household && !state.requests.names(&user, id).await? {
             return Err(AppError::not_found("no picture"));
         }
     }
@@ -768,6 +808,10 @@ pub async fn accept_invite(
     validate_username(&username)?;
     validate_password(&body.password, &username)?;
     let invite = valid_invite(&state, &code).await?;
+    if state.auth.two_step_required() {
+        // No account that couldn't sign in: the invitation stays for later.
+        can_set_up_two_step(&state)?;
+    }
     let hash = hash_password(body.password).await?;
     let mut tx = state.db.write.begin().await?;
     // Claim a use first so concurrent sign-ups can't overdraw the invitation.
@@ -788,15 +832,20 @@ pub async fn accept_invite(
         return Err(AppError::conflict(format!("the username '{username}' is taken")));
     }
     // Invited people are friends of the server, not members of the home.
+    // With an age limit, they don't ask for titles until an administrator
+    // lets them (as accounts made with one).
+    let request_access = if invite.max_age.is_some() { RequestAccess::Off } else { RequestAccess::Ask };
     let id: i64 = sqlx::query_scalar(
-        "INSERT INTO users (id, username, password_hash, display_name, home, all_libraries, max_age, created_at)
-         VALUES ((SELECT last + 1 FROM user_ids), ?, ?, ?, 0, ?, ?, ?) RETURNING id",
+        "INSERT INTO users (id, username, password_hash, display_name, home, all_libraries, max_age, request_access,
+                            created_at)
+         VALUES ((SELECT last + 1 FROM user_ids), ?, ?, ?, 0, ?, ?, ?, ?) RETURNING id",
     )
     .bind(&username)
     .bind(hash)
     .bind(body.display_name.map(|n| n.trim().to_owned()).filter(|n| !n.is_empty()))
     .bind(invite.all_libraries)
     .bind(invite.max_age)
+    .bind(request_access.as_str())
     .bind(now())
     .fetch_one(&mut *tx)
     .await?;
@@ -805,5 +854,9 @@ pub async fn accept_invite(
         accounts::set_libraries(&state.db, id, &invite.library_ids).await?;
     }
     tracing::info!("'{username}' joined with an invitation");
-    login_response(&state, id, &headers, ip.as_deref()).await
+    // A server that requires two-step sign-in answers as a sign-in that sets
+    // it up does: the account is made, and the person goes on signing in to
+    // it with its first code.
+    second_step(&state, id, &username, None, None).await?;
+    login_response(&state, id, &headers, ip.as_deref(), None).await
 }

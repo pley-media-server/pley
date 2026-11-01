@@ -23,6 +23,21 @@ sub test_auth_reads_the_servers_own_metadata()
     tkEqual(meta.tokenEndpoint, "http://pley.local:7539/api/oauth/token")
     tkEqual(meta.revocationEndpoint, "http://pley.local:7539/api/oauth/revoke")
     tkEqual(meta.deviceEndpoint, "http://pley.local:7539/api/oauth/device")
+    tkEqual(meta.scopes, ["library", "play", "playlists", "profiles"])
+end sub
+
+' An older server doesn't know requests or approvals, and would refuse the
+' whole sign-in for them.
+sub test_auth_asks_for_requests_where_the_server_has_them()
+    tkEqual(authScopeFor(["library", "play", "playlists", "profiles"]), "library play playlists profiles")
+    tkEqual(authScopeFor(["library", "play", "playlists", "profiles", "requests", "approvals", "admin"]), "library play playlists profiles requests approvals")
+    tkEqual(authScopeFor(["approvals", "requests"]), "library play playlists profiles requests approvals", "in the app's order")
+    tkEqual(authScopeFor(["requests"]), "library play playlists profiles requests")
+    tkEqual(authScopeFor([]), "library play playlists profiles")
+    newer = authTestMetadata().Replace("""profiles""]", """profiles"",""requests"",""approvals""]")
+    tkEqual(authScopeFor(authParseMetadata(newer, "http://pley.local:7539").scopes), "library play playlists profiles requests approvals")
+    odd = authTestMetadata().Replace("""scopes_supported"":[""library"",""play"",""playlists"",""profiles""]", """scopes_supported"":[1,""requests"",null]")
+    tkEqual(authParseMetadata(odd, "http://pley.local:7539").scopes, ["requests"])
 end sub
 
 sub test_auth_refuses_metadata_of_another_address()
@@ -178,4 +193,19 @@ sub test_auth_explains_device_refusals()
     tkEqual(authDeviceRefusal(400, "{""error"":""unauthorized_client""}"), "This server doesn't let Pley for Roku sign in with a code.")
     tkEqual(authDeviceRefusal(429, "{""error"":""temporarily_unavailable""}"), "Too many sign-ins are waiting on this server: try again in a few minutes.")
     tkEqual(authDeviceRefusal(-7, ""), "The server can't be reached.")
+end sub
+
+sub test_auth_says_when_the_server_requires_two_step_sign_in()
+    note = "This server requires two-step sign-in: your phone sets it up if you haven't yet."
+    tkEqual(authTwoStepNote(httpAnswer(200, "{""name"":""Den"",""version"":""1.0.0"",""commit"":""abc1234"",""setup_required"":false,""setup_code_required"":false,""two_step_required"":true}")), note)
+    tkEqual(authTwoStepNote(httpAnswer(200, "{""name"":""Den"",""version"":""1.0.0"",""two_step_required"":false}")), "", "not required")
+    tkEqual(authTwoStepNote(httpAnswer(200, "{""name"":""Den"",""version"":""0.9.0""}")), "", "a server from before it")
+    tkEqual(authTwoStepNote(httpAnswer(200, "{""two_step_required"":""true""}")), "", "not a boolean")
+    tkEqual(authTwoStepNote(httpAnswer(200, "{""two_step_required"":1}")), "")
+    tkEqual(authTwoStepNote(httpAnswer(200, "{""two_step_required"":null}")), "")
+    tkEqual(authTwoStepNote(httpAnswer(200, "[true]")), "")
+    tkEqual(authTwoStepNote(httpAnswer(200, "<!doctype html>")), "", "not JSON")
+    tkEqual(authTwoStepNote(httpAnswer(200, "")), "")
+    tkEqual(authTwoStepNote(httpAnswer(503, "{""code"":""unavailable"",""two_step_required"":true}")), "", "a refusal")
+    tkEqual(authTwoStepNote(httpAnswer(-28, "")), "", "no answer in time")
 end sub

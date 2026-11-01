@@ -31,11 +31,16 @@ interface DisplayModeHost {
     suspend fun awaitMode(modeId: Int, timeoutMs: Long): Boolean
 }
 
-/** Timeouts per display and the one-time hint, kept across playbacks. */
+/** Timeouts and HDR types turned off per display, and the one-time hint, kept across playbacks. */
 interface FrameRateMemory {
     suspend fun timeouts(displayKey: String): Int
 
     suspend fun setTimeouts(displayKey: String, count: Int)
+
+    /** Display.HdrCapabilities types seen turned off in the system's settings ([DisplayState.turnedOffHdrTypes]). */
+    suspend fun turnedOffHdrTypes(displayKey: String): Set<Int>
+
+    suspend fun setTurnedOffHdrTypes(displayKey: String, types: Set<Int>)
 
     /** `true` the first time only: the hint is shown once. */
     suspend fun takeHint(): Boolean
@@ -71,6 +76,12 @@ class FrameRateController(
     /** The mode asked for, until [clear]. */
     var requestedModeId: Int = 0
         private set
+
+    /** The display's name in [memory]. */
+    val displayKey: String get() = host.displayKey
+
+    /** The display as it is now. */
+    fun read(): DisplayState? = host.read()
 
     /**
      * Matches the display to [request]; [onSwitching] runs once a change is
@@ -125,7 +136,7 @@ class WindowModeHost(private val window: Window) : DisplayModeHost {
         get() = window.decorView.display?.displayId ?: Display.DEFAULT_DISPLAY
 
     override val displayKey: String
-        get() = displays?.getDisplay(displayId)?.let { "${it.displayId}:${it.name}" } ?: "$displayId"
+        get() = displayKey(displays, displayId)
 
     override fun read(): DisplayState? = AndroidDisplayInfo(context) { displayId }.read()
 
@@ -168,6 +179,10 @@ class WindowModeHost(private val window: Window) : DisplayModeHost {
     }
 }
 
+/** A display's name in [FrameRateMemory]: its id and name, "0:HDMI". */
+fun displayKey(displays: DisplayManager?, displayId: Int): String =
+    displays?.getDisplay(displayId)?.let { "${it.displayId}:${it.name}" } ?: "$displayId"
+
 /** [FrameRateMemory] in the app's preferences, read and written off the main thread. */
 class PreferencesFrameRateMemory(context: Context) : FrameRateMemory {
     private val app = context.applicationContext
@@ -177,6 +192,14 @@ class PreferencesFrameRateMemory(context: Context) : FrameRateMemory {
 
     override suspend fun setTimeouts(displayKey: String, count: Int) = withContext(Dispatchers.IO) {
         prefs.edit { putInt(KEY_TIMEOUTS + displayKey, count) }
+    }
+
+    override suspend fun turnedOffHdrTypes(displayKey: String): Set<Int> = withContext(Dispatchers.IO) {
+        prefs.getString(KEY_HDR_OFF + displayKey, null).orEmpty().split(',').mapNotNull { it.toIntOrNull() }.toSet()
+    }
+
+    override suspend fun setTurnedOffHdrTypes(displayKey: String, types: Set<Int>) = withContext(Dispatchers.IO) {
+        prefs.edit { putString(KEY_HDR_OFF + displayKey, types.sorted().joinToString(",")) }
     }
 
     override suspend fun takeHint(): Boolean = withContext(Dispatchers.IO) {
@@ -191,6 +214,7 @@ class PreferencesFrameRateMemory(context: Context) : FrameRateMemory {
     private companion object {
         const val FILE = "pley_frame_rate"
         const val KEY_TIMEOUTS = "timeouts."
+        const val KEY_HDR_OFF = "hdr_off."
         const val KEY_HINT = "hint_shown"
     }
 }

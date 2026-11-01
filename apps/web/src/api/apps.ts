@@ -37,6 +37,8 @@ const SCOPE_LABELS: Record<string, string> = {
   play: "Play",
   playlists: "Playlists",
   profiles: "Profiles",
+  requests: "Ask for movies and shows",
+  approvals: "Approve requests",
 };
 
 /** What an app may do, in a few words: "Libraries · Play · Playlists". */

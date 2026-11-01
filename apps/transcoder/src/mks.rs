@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The Matroska files of one picture subtitle track (`.mks`) that players
 //! draw next to a stream (`POST /v1/subtitles/mks`): written here from the
 //! blocks read through a file's Cues, and, while FFmpeg writes one, how much

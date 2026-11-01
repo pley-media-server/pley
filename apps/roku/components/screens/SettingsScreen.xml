@@ -3,7 +3,7 @@
      and subtitle defaults and this Roku's quality, chosen in a panel at
      the right, and whether the next episode plays by itself; the watch
      history, switch profile, sort the libraries, switch server or sign
-     out. -->
+     out. Under the app's version, TMDB's notice. -->
 <component name="SettingsScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -32,8 +32,10 @@
         <Label id="device" translation="[1000, 206]" width="824" color="0xEBEBEBFF" font="font:MediumSystemFont" />
         <Label translation="[1000, 280]" text="Pley for Roku" color="0x8B95A5FF" font="font:SmallestSystemFont" />
         <Label id="version" translation="[1000, 316]" width="824" color="0xEBEBEBFF" font="font:MediumSystemFont" />
+        <!-- Discover's titles and pictures come from TMDB. -->
+        <Label translation="[1000, 372]" width="824" wrap="true" maxLines="2" text="This product uses the TMDB API but is not endorsed or certified by TMDB." color="0x8B95A5FF" font="font:SmallestSystemFont" />
         <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[96, 400]" minWidth="840" maxWidth="840" />
-        <Label id="message" translation="[1000, 420]" width="824" wrap="true" maxLines="4" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+        <Label id="message" translation="[1000, 470]" width="824" wrap="true" maxLines="4" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         <!-- The choices of one row, over the right half. -->
         <Group id="panel" visible="false">
             <Rectangle translation="[1000, 0]" width="920" height="1080" color="0x1E222AFF" />

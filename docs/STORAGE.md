@@ -88,3 +88,4 @@ space used.
 | `cache/fingerprints` | audio fingerprints (intro and credits detection) | 90 days |
 | `cache/live/pictures` | Live TV channel logos and programme pictures | fetched again after 7 days; removed after 30 days unused, or oldest first past 256 MB |
 | `cache/live/downloads` | guide files being read | emptied at every start |
+| `cache/discover` | TMDB's pictures for Discover and requests, as `<size>/<file>` (TMDB's size and file name), with no database row | 30 days, or oldest first past 256 MB |

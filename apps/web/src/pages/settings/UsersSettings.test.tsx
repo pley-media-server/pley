@@ -115,6 +115,35 @@ describe("UsersSettings", () => {
     expect(requests.find((r) => r.method === "DELETE")?.path).toBe("/api/users/3/two-step");
   });
 
+  it("shows who hasn't set up the two-step sign-in the server requires, and resets it for a new phone", async () => {
+    const user = userEvent.setup();
+    const bob: User = { ...testUser, id: 5, username: "bob", name: "Bob", is_admin: false };
+    const requests = mockApi({
+      "GET /api/server": () => ({ name: "Den", version: "1.0.0", setup_required: false, two_step_required: true }),
+      "GET /api/users": () => [admin, kid, ann, lee, bob],
+      "GET /api/libraries": () => libraries,
+      "GET /api/users/3/devices": () => [],
+      "GET /api/users/3/apps": () => [],
+      "DELETE /api/users/3/two-step": () => undefined,
+    });
+    renderWithProviders(<UsersSettings />, { user: admin });
+
+    const rows = await screen.findAllByRole("listitem");
+    const row = (name: string) => rows.find((r) => r.textContent?.includes(name))!;
+    await waitFor(() => expect(row("Bob")).toHaveTextContent("2FA not set up"));
+    // Managed profiles and accounts without a password have nothing to set up.
+    for (const name of ["Kiddo", "Lee", "Ann"]) expect(row(name)).not.toHaveTextContent("not set up");
+    expect(row("Ann")).toHaveTextContent("2FA");
+
+    await user.click(screen.getByRole("button", { name: /Ann/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Ann" });
+    expect(within(dialog).getByText(/Turning it off signs Ann out everywhere/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Turn off" }));
+    await user.click(within(dialog).getByRole("button", { name: "Turn off" }));
+    expect(await screen.findByText("Ann is signed out, and sets up two-step sign-in again at the next sign-in")).toBeInTheDocument();
+    expect(requests.find((r) => r.method === "DELETE")?.path).toBe("/api/users/3/two-step");
+  });
+
   it("says that an account without a password needs one to sign in", async () => {
     const user = userEvent.setup();
     renderUsers();
@@ -295,5 +324,91 @@ describe("UsersSettings", () => {
     expect(await screen.findByText("Kiddo was signed out everywhere")).toBeInTheDocument();
     expect(requests.some((r) => r.method === "DELETE" && r.path === "/api/users/2/devices")).toBe(true);
     expect(await within(dialog).findByText("No apps use this account.")).toBeInTheDocument();
+  });
+});
+
+describe("UsersSettings: requests", () => {
+  const boss: User = { ...admin, request_access: "auto" };
+  const bo: User = { ...testUser, id: 6, username: "bo", name: "Bo", is_admin: true, request_access: "auto" };
+  const annAsks: User = { ...ann, two_step: false, request_access: "ask" };
+
+  function serveRequests() {
+    const requests = mockApi({
+      "GET /api/users": () => [boss, annAsks, bo],
+      "GET /api/libraries": () => libraries,
+      "GET /api/users/1/apps": () => [],
+      "GET /api/users/1/devices": () => [],
+      "GET /api/users/3/apps": () => [],
+      "GET /api/users/3/devices": () => [],
+      "GET /api/users/6/apps": () => [],
+      "GET /api/users/6/devices": () => [],
+      "POST /api/users": (req) => ({ ...testUser, id: 7, is_admin: false, name: (req.body as { username: string }).username }),
+      "PATCH /api/users/3": (req) => ({ ...annAsks, ...(req.body as Partial<User>) }),
+      "PATCH /api/users/6": (req) => ({ ...bo, ...(req.body as Partial<User>) }),
+    });
+    renderWithProviders(<UsersSettings />, { user: boss });
+    return requests;
+  }
+
+  it("changes whether an account may ask, and whether it waits for approval", async () => {
+    const user = userEvent.setup();
+    const requests = serveRequests();
+    await user.click(await screen.findByRole("button", { name: /Ann/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Ann" });
+    expect(within(dialog).getByLabelText("Requests")).toHaveValue("ask");
+    await user.selectOptions(within(dialog).getByLabelText("Requests"), "auto");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("Saved Ann")).toBeInTheDocument();
+    expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ request_access: "auto" });
+  });
+
+  it("stops an account asking when it gets an age limit, unless asking is picked too", async () => {
+    const user = userEvent.setup();
+    const requests = serveRequests();
+    await user.click(await screen.findByRole("button", { name: /Ann/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Ann" });
+    const select = within(dialog).getByLabelText("Requests");
+    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "Kids (TV-Y7)");
+    expect(select).toHaveValue("off");
+    await user.selectOptions(select, "ask");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("Saved Ann")).toBeInTheDocument();
+    expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ max_age: 7, request_access: "ask" });
+  });
+
+  it("shows administrators' requests as approved as made, and keeps what one demoted gets", async () => {
+    const user = userEvent.setup();
+    const requests = serveRequests();
+    await user.click(await screen.findByRole("button", { name: /Bo/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Bo" });
+    const select = within(dialog).getByLabelText("Requests");
+    expect(select).toBeDisabled();
+    expect(select).toHaveValue("auto");
+    await user.click(within(dialog).getByRole("switch", { name: "Administrator" }));
+    expect(select).toBeEnabled();
+    expect(select).toHaveValue("ask");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("Saved Bo")).toBeInTheDocument();
+    expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ is_admin: false, request_access: "ask" });
+  });
+
+  it("starts new accounts asking, but not managed profiles or those with an age limit", async () => {
+    const requests = serveRequests();
+    const { user, dialog } = await openAddDialog();
+    const select = within(dialog).getByLabelText("Requests");
+    expect(select).toHaveValue("ask");
+    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "Kids (TV-Y7)");
+    expect(select).toHaveValue("off");
+    expect(within(dialog).getByText(/leaves out titles above the age limit/)).toBeInTheDocument();
+    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "No limit");
+    await user.click(within(dialog).getByRole("button", { name: /Managed profile/ }));
+    expect(select).toHaveValue("off");
+
+    // Chosen, it stays.
+    await user.selectOptions(select, "ask");
+    await user.type(within(dialog).getByLabelText("Username"), "little");
+    await user.click(within(dialog).getByRole("button", { name: "Add user" }));
+    expect(await screen.findByText("Added little")).toBeInTheDocument();
+    expect(requests.find((r) => r.method === "POST")?.body).toMatchObject({ managed: true, request_access: "ask" });
   });
 });

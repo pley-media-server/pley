@@ -66,7 +66,7 @@ import kotlinx.coroutines.delay
 internal fun TvLinkScreen(server: String) {
     val navigator = LocalTvNavigator.current
     val given = LocalOnboardingSource.current
-    val vm = viewModel(key = "link:$server") { LinkViewModel(given ?: onboardingSource(), server) }
+    val vm = viewModel(key = "link:$server") { LinkViewModel(given ?: onboardingSource(), server, requests = false) }
     LaunchedEffect(vm) { vm.navigation.collect { navigator.go(it) } }
     TvLinkRunner(vm)
     val state by vm.state.collectAsStateWithLifecycle()
@@ -86,7 +86,7 @@ internal fun TvLinkScreen(server: String) {
 internal fun TvApproveContent(server: String, profileId: Long, title: String, body: String, onBack: () -> Unit) {
     val navigator = LocalTvNavigator.current
     val given = LocalOnboardingSource.current
-    val vm = viewModel(key = "approve:$server:$profileId") { LinkViewModel(given ?: onboardingSource(), server, LinkPurpose.Profile(profileId)) }
+    val vm = viewModel(key = "approve:$server:$profileId") { LinkViewModel(given ?: onboardingSource(), server, LinkPurpose.Profile(profileId), requests = false) }
     LaunchedEffect(vm) { vm.navigation.collect { navigator.go(it) } }
     TvLinkRunner(vm)
     val state by vm.state.collectAsStateWithLifecycle()
@@ -127,7 +127,8 @@ internal fun TvLinkContent(
     backLabel: String,
     onBack: () -> Unit,
     title: String = stringResource(R.string.tv_onboarding_link_title),
-    intro: String? = null,
+    /** Under the title. Signing in, it says when the server requires two-step sign-in. */
+    intro: String? = if (state.twoStepRequired) stringResource(R.string.tv_onboarding_two_step_required) else null,
 ) {
     val status = state.status
     val code = state.code

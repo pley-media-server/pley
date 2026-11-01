@@ -72,6 +72,11 @@ curl -s -X POST http://localhost:7539/api/auth/login \
 # {"user":{…},"token":"<token>"}
 ```
 
+An account with two-step sign-in adds `"code"`, a code from its
+authenticator app. When the server requires two-step sign-in, a tool's
+account uses it too: requiring it signs the account out, so sign in as it
+on the web once to set it up, then ask for a new token with a code.
+
 Accepted:
 
 - this API's way: the `X-Plex-Token` header or query parameter;
@@ -159,7 +164,9 @@ them.
     track as for its own players
     ([API.md](API.md#the-audio-track)).
   - The master playlist points at `session/<id>/base/index.m3u8`. Session
-    URLs need no token: the 128-bit session id is the credential.
+    URLs need no token: the 128-bit session id is the credential. They stop
+    working (`404`) when the account is disabled, and while the server
+    requires two-step sign-in of an account that doesn't use it.
 - **Preview thumbnails and chapters.** Parts of files with seek previews have
   `indexes="sd"`; the BIF index is cut from Pley's previews. Details list the
   first version's `Chapter`s, with a `thumb` once the file has previews.

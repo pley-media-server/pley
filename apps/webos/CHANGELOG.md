@@ -8,6 +8,45 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-01
+
+### Added
+
+- Requests, on a server that has them turned on. Discover, in the rail,
+  shows what is trending and popular on TMDB, coming to cinemas, and
+  anime, each title marked with what the libraries have, and searches
+  TMDB. A title's page asks for a movie, or for a show's seasons picked
+  in a panel beside it, and says where its request is. Your requests
+  follows them, and a notice pops up once one is ready to watch;
+  administrators get Requests, opening on those that need attention, to
+  approve, decline (with a reason typed on the TV's keyboard), mark as
+  added by hand or delete. A number on the rail counts what needs
+  attention or has news. Search lists what TMDB has under On TMDB, and a
+  movie's or show's page in a library shows its request's stage, with
+  Request more seasons for a show missing some.
+- Signing in with a code says when the server requires two-step sign-in:
+  the phone that approves the code sets it up for whoever hasn't.
+
+### Changed
+
+- Pley for LG TV is free software under the GNU Affero General Public
+  License, version 3 (`AGPL-3.0-only`, `LICENSE`).
+
+### Fixed
+
+- Live TV's guide says Today, Tomorrow and Yesterday on the days daylight
+  saving starts or ends too: a programme just after midnight tomorrow
+  showed its date, or the day after tomorrow showed as Tomorrow.
+- A server answering that it can't do something right now (the
+  transcoder isn't running, a file can't be read) has its own message
+  shown, instead of "Can't reach your server", and the TV doesn't go
+  offline for it. Mid-film, the player waits for the transcoder as it
+  does for the server, 90 s at most, then shows the server's message.
+- The search field no longer shows a small cross at its end while you
+  type, one the remote's arrows can't reach.
+- Dolby Vision details call a profile 8 with the Blu-ray's base layer
+  "Profile 8", as its label does, not "Profile 8.6".
+
 ## [0.1.0] - 2026-10-30
 
 ### Security
@@ -60,6 +99,7 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/lg-v0.1.0...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/lg-v0.1.1...HEAD
+[0.1.1]: https://github.com/pley-media-server/pley/releases/tag/lg-v0.1.1
 [0.1.0]: https://github.com/pley-media-server/pley/releases/tag/lg-v0.1.0
 [0.0.1]: https://github.com/pley-media-server/pley/releases/tag/lg-v0.0.1

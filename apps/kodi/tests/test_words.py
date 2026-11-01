@@ -91,5 +91,44 @@ class WordsTest(unittest.TestCase):
         self.assertEqual(words.placeholder(""), "ph-00.png")
 
 
+# 2026-11-01 12:00 UTC: days are whole in any time zone near it.
+NOW = 1793534400
+DAY = 86400
+
+
+class WhenTest(unittest.TestCase):
+    """Times as the apps say them, which Kodi can't."""
+
+    def test_how_far_away_it_is(self):
+        self.assertEqual(words.relative(NOW + 20 * 60, NOW), "in 20 min")
+        self.assertEqual(words.relative(NOW + 10, NOW), "in 1 min")
+        self.assertEqual(words.relative(NOW + 3600, NOW), "in 1 hour")
+        self.assertEqual(words.relative(NOW + 5 * 3600, NOW), "in 5 hours")
+        self.assertEqual(words.relative(NOW + DAY, NOW), "tomorrow")
+        self.assertEqual(words.relative(NOW + 12 * DAY, NOW), "in 12 days")
+        self.assertEqual(words.relative(NOW - 30, NOW), "just now")
+        self.assertEqual(words.relative(NOW - 20 * 60, NOW), "20 min ago")
+        self.assertEqual(words.relative(NOW - 2 * 3600, NOW), "2 hours ago")
+        self.assertEqual(words.relative(NOW - DAY, NOW), "yesterday")
+        self.assertEqual(words.relative(NOW - 3 * DAY, NOW), "3 days ago")
+        self.assertEqual(words.relative(NOW - 40 * DAY, NOW), "Sep 22, 2026")
+        self.assertEqual(words.relative(None, NOW), "")
+
+    def test_days(self):
+        self.assertEqual(words.day(NOW + 3 * DAY, NOW), "Nov 4")
+        self.assertEqual(words.day("2026-11-04", NOW), "Nov 4")
+        self.assertEqual(words.day("2027-01-05", NOW), "Jan 5, 2027")
+        self.assertEqual(words.day("soon", NOW), "soon")
+
+    def test_seasons_as_the_web_names_them(self):
+        self.assertEqual(words.seasons_label([2]), "Season 2")
+        self.assertEqual(words.seasons_label([5, 1, 2, 3]), "Seasons 1–3, 5")
+        self.assertEqual(words.seasons_label([3, 1]), "Seasons 1, 3")
+        self.assertEqual(words.seasons_label([0, 1, 2]), "Seasons 1–2 and specials")
+        self.assertEqual(words.seasons_label([0, 3]), "Season 3 and specials")
+        self.assertEqual(words.seasons_label([0]), "Specials")
+        self.assertEqual(words.seasons_label(None), "")
+
+
 if __name__ == "__main__":
     unittest.main()

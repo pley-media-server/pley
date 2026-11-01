@@ -42,13 +42,19 @@ data class PlaybackStats(
     val videoDecoder: String? = null,
     /** Whether [videoDecoder] is a hardware decoder; `null` when unknown. */
     val videoDecoderHardware: Boolean? = null,
+    /** The MIME type [videoDecoder] decodes: `video/hevc` for Dolby Vision played as its base layer; `null` when unknown. */
+    val videoDecoderMime: String? = null,
     val audioDecoder: String? = null,
     /** The video's MIME type and codec string: `video/hevc hvc1.2.4.L153`. */
     val videoCodec: String? = null,
     val width: Int? = null,
     val height: Int? = null,
     val frameRate: Float? = null,
-    /** "HDR10", "HLG", "Dolby Vision", "SDR"; `null` before the video's format is known. */
+    /**
+     * "HDR10", "HLG", "Dolby Vision", "SDR", as the decoder makes it (Dolby
+     * Vision decoded as its base layer is that layer's); `null` before the
+     * video's format is known.
+     */
     val dynamicRange: String? = null,
     /** The colour information as Media3 reads it (primaries, transfer, range). */
     val colorInfo: String? = null,

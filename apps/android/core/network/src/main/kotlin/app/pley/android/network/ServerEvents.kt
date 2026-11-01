@@ -12,6 +12,13 @@ sealed interface LiveEvent {
      * nothing, so whatever was shown may be stale: refresh it.
      */
     data object Reconnected : LiveEvent
+
+    /**
+     * The connection was lost, and is tried again: until [Reconnected],
+     * nothing is heard (what polls the server while it can't hear it,
+     * requests' summary, polls now).
+     */
+    data object Dropped : LiveEvent
 }
 
 /**

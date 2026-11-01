@@ -1,5 +1,6 @@
 package app.pley.android.player.session
 
+import app.pley.android.model.MediaStream
 import app.pley.android.player.EngineSource
 import app.pley.android.player.PlayerEngine
 
@@ -126,6 +127,9 @@ interface EngineLink {
 
     /** Loads [source] at [startMs]; the track choices of the media before are forgotten. */
     fun prepare(source: EngineSource, startMs: Long, playWhenReady: Boolean)
+
+    /** The engine's [PlayerEngine.dolbyVisionShown]; `null` without an engine. */
+    suspend fun dolbyVisionShown(video: MediaStream?, durationMs: Long?): Boolean? = engine?.dolbyVisionShown(video, durationMs)
 
     fun play()
 

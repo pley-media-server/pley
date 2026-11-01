@@ -105,6 +105,29 @@ class FakeWindow(window.Window):
         self.opened.append(screen)
 
 
+ASKS = {"enabled": True, "access": "ask", "manage": False, "pending": 0, "failed": 0, "unseen": 0, "own": 0, "sign_in_again": None}
+
+
+def keep_summary(test, s):
+    """The requests' summary as the service keeps it (news.py), until the
+    test ends."""
+    window.kodi.set_property(window.requests.SUMMARY, json.dumps(s))
+    test.addCleanup(window.kodi.clear_property, window.requests.SUMMARY)
+
+
+def requests_off(test):
+    keep_summary(test, {"enabled": False})
+
+
+def at_once(work, then, failed=None):
+    """Window.later, with no thread: the answer at once."""
+    try:
+        answer = work()
+    except window.api.ApiError:
+        return failed and failed()
+    then(answer)
+
+
 class Client:
     """The server, as far as these tests ask it: posts are noted."""
 
@@ -568,6 +591,9 @@ class WindowTest(unittest.TestCase):
             def __init__(self, missing=False):
                 self.missing, self.calls = missing, []
 
+            def get(self, path, **query):
+                return {}
+
             def put(self, path, body=None):
                 self.calls.append(("PUT", path, body))
                 if self.missing:
@@ -630,6 +656,7 @@ class WindowTest(unittest.TestCase):
         win.leave_for = left.append
         window.kodi.xbmcaddon.settings["server_name"] = "Living room"
         self.addCleanup(window.kodi.xbmcaddon.settings.pop, "server_name", None)
+        requests_off(self)
         # The profile's menu: Choose a server, Audio and subtitles, Sign out.
         with Dialogs(picks=[2], yes=[False]) as asked:
             win.account()
@@ -799,6 +826,208 @@ class WindowTest(unittest.TestCase):
         self.assertLess(win.made[L.slot(L.HOME_ROWS, 0)].position[1], 0)
         self.assertEqual(rows.find(L.slot_list(L.HOME_ROWS, 1, "poster"))[0], 1)
         self.assertIsNone(rows.find(L.slot_header(L.HOME_ROWS, 1)))
+
+    def test_the_profiles_menu_opens_discover_and_the_requests(self):
+        win = FakeWindow()
+        win.libraries = []
+        left = []
+        win.leave_for = left.append
+        # A manager, one of whose requests couldn't be sent: the number in red.
+        keep_summary(self, dict(ASKS, access="auto", manage=True, pending=2, failed=1))
+        with Dialogs(picks=[1]) as asked:
+            win.account()
+        red = "[COLOR %s](3)[/COLOR]" % window.requests.RED
+        self.assertEqual(asked.shown[0][0], [
+            window.T("discover"), window.T("requests_page") + " " + red, window.T("choose_server"), window.T("tracks"), window.T("sign_out"),
+        ])
+        # Kodi's own list of them, once the window has closed.
+        self.assertEqual((left, win.listing), (["listing"], "plugin://plugin.video.pley/?route=requests"))
+        # The service has no summary yet: the server is asked, and its answer kept.
+        window.kodi.clear_property(window.requests.SUMMARY)
+        win.session.client = Client({"/api/requests/summary": dict(ASKS, unseen=2, own=3)})
+        with Dialogs(picks=[0]) as asked:
+            win.account()
+        self.assertEqual(asked.shown[0][0][:2], [window.T("discover"), window.T("your_requests") + " (2)"])
+        self.assertEqual(win.listing, "plugin://plugin.video.pley/?route=discover")
+        self.assertEqual(json.loads(window.kodi.get_property(window.requests.SUMMARY))["unseen"], 2)
+        # An account that may no longer ask keeps its requests.
+        keep_summary(self, dict(ASKS, access="off", own=1))
+        with Dialogs(picks=[-1]) as asked:
+            win.account()
+        self.assertEqual(asked.shown[0][0][:2], [window.T("your_requests"), window.T("choose_server")])
+        # A server without requests: the menu as it was.
+        requests_off(self)
+        with Dialogs(picks=[-1]) as asked:
+            win.account()
+        self.assertEqual(asked.shown[0][0][0], window.T("choose_server"))
+
+    def test_a_show_asks_for_more_seasons_from_its_page(self):
+        win = FakeWindow()
+        win.later = at_once
+        found = {"kind": "show", "tmdb_id": 1396, "status": "partial", "request": None, "askable": [3]}
+        asked_of = []
+
+        def get(path, **query):
+            asked_of.append(path)
+            return found
+
+        win.session.get = get
+        page = window.Item(win, 7)
+        page.detail = {"id": 7, "kind": "show", "title": "Breaking Bad"}
+        keep_summary(self, ASKS)
+        page.ask_about()
+        self.assertEqual(asked_of, ["/api/items/7/request"])
+        # More's Request more seasons: the plugin's picker, over the window.
+        del window.xbmc.builtins[:]
+        dict(page.more_actions())[window.T("request_more_seasons")]()
+        self.assertEqual(window.xbmc.builtins, ["RunPlugin(plugin://plugin.video.pley/?route=more_seasons&id=7&title=Breaking+Bad)"])
+        # Nothing more to ask for: no entry.
+        found = dict(found, askable=[])
+        page.ask_about()
+        self.assertNotIn(window.T("request_more_seasons"), dict(page.more_actions()))
+        # A profile that may not ask, or a movie: not even asked.
+        found = dict(found, askable=[3])
+        keep_summary(self, dict(ASKS, access="off", own=2))
+        page.ask_about()
+        self.assertNotIn(window.T("request_more_seasons"), dict(page.more_actions()))
+        keep_summary(self, ASKS)
+        page.detail = {"id": 8, "kind": "movie", "title": "Heat"}
+        page.ask_about()
+        self.assertEqual(len(asked_of), 2)
+
+    def test_search_shows_tmdb_after_the_libraries(self):
+        win = FakeWindow()
+        later = []
+        win.later = lambda work, then, failed=None: later.append((work, then, failed))
+        heat = {"id": 5, "kind": "movie", "title": "Heat", "user_state": {}}
+        tmdb = {"results": [
+            {"kind": "movie", "tmdb_id": 949, "title": "Heat 2", "year": 2027, "poster_url": "/api/discover/images/poster/h2.jpg", "status": "none"},
+            {"kind": "show", "tmdb_id": 1, "title": "Heatwave", "year": None, "poster_url": None, "status": "requested"},
+            {"kind": "show", "tmdb_id": 2, "title": "Heat Island", "year": 2019, "poster_url": None, "status": "partial", "item_id": 70},
+        ]}
+        asked_of = []
+
+        def get(path, **query):
+            asked_of.append((path, query))
+            return {"items": [heat], "people": []} if path == "/api/search" else tmdb
+
+        win.session.get = get
+        keep_summary(self, ASKS)
+        page = window.Search(win)
+        win.show(page)
+        page.search("heat")
+        # The libraries' rows at once; TMDB is looked at beside them, never waited for.
+        self.assertEqual([row["key"] for row in page.rows.rows], [window.T("movies")])
+        self.assertEqual(asked_of, [("/api/search", {"q": "heat", "limit": 100, "summaries": 1})])
+        work, then, _ = later.pop()
+        then(work())
+        self.assertEqual(asked_of[-1], ("/api/discover/search", {"q": "heat", "missing": 1}))
+        self.assertEqual([row["title"] for row in page.rows.rows], [window.T("movies"), window.T("on_tmdb")])
+        row = L.slot_list(L.SEARCH_ROWS, 1, "poster")
+        shown = win.made[row].items
+        self.assertEqual([(li.label, li.label2) for li in shown], [
+            ("Heat 2", "2027 · " + window.T("movie")),
+            ("Heatwave", "[COLOR %s]%s[/COLOR]" % (window.requests.BLUE, window.T("requested"))),
+            ("Heat Island", "[COLOR %s]%s[/COLOR]" % (window.requests.GREEN, window.T("partly_in_library"))),
+            # "See all on Discover", as a tile has room for it.
+            (window.T("see_all"), ""),
+        ])
+        # Posters through the server, as library artwork.
+        self.assertEqual(shown[0].art["tile"], window.image(BASE, "/api/discover/images/poster/h2.jpg", 320))
+        self.assertEqual(win.made[L.slot(L.SEARCH_ROWS, 1)].position, (0, 200 + L.row_height(L.SHAPES["poster"]) + L.ROW_GAP))
+        # OK: the title's main action, the plugin's; one partly in a library opens there.
+        del window.xbmc.builtins[:]
+        page.click(row)
+        self.assertEqual(window.xbmc.builtins, ["RunPlugin(plugin://plugin.video.pley/?route=title&kind=movie&tmdb=949)"])
+        win.made[row].selectItem(2)
+        page.click(row)
+        self.assertEqual(win.opened[-1].item_id, 70)
+        # Its menu asks for more of it.
+        with Dialogs(picks=[0]) as asked:
+            page.menu(row)
+        self.assertEqual(asked.shown[0][0], [window.T("request_more_seasons")])
+        self.assertEqual(window.xbmc.builtins[-1], "RunPlugin(plugin://plugin.video.pley/?route=title&kind=show&tmdb=2&more=1)")
+        # See all on Discover: Discover's search, in Kodi's lists.
+        left = []
+        win.leave_for = left.append
+        win.made[row].selectItem(3)
+        page.click(row)
+        self.assertEqual((left, win.listing), (["listing"], "plugin://plugin.video.pley/?route=discover_search&q=heat"))
+        # Shown again (a title was asked for): the row stays until its titles come, focus
+        # on the tile it was on.
+        win.setFocusId(row)
+        win.made[row].selectItem(1)
+        tmdb["results"][0] = dict(tmdb["results"][0], status="requested")
+        page.refresh()
+        self.assertEqual([row_["key"] for row_ in page.rows.rows], [window.T("movies"), "tmdb"])
+        work, then, _ = later.pop()
+        then(work())
+        self.assertEqual(win.made[row].items[0].label2, "[COLOR %s]%s[/COLOR]" % (window.requests.BLUE, window.T("requested")))
+        self.assertEqual(win.made[row].selected, 1)
+        # Focused, the row moves up under the field.
+        self.assertEqual(win.made[L.slot(L.SEARCH_ROWS, 1)].position, (0, 200))
+
+    def test_on_tmdb_has_a_row_whatever_the_libraries_found(self):
+        win = FakeWindow()
+        later = []
+        win.later = lambda work, then, failed=None: later.append((work, then, failed))
+        kinds = ("movie", "show", "episode", "album")
+        radio = {"id": 4, "source_id": 1, "name": "Radio Heat", "number": "104", "group": "Radio", "logo": None, "favorite": False,
+                 "has_guide": False, "now": None, "next": None}
+        answers = {
+            "/api/search": {"items": [{"id": n, "kind": kind, "title": "Heat", "user_state": {}} for n, kind in enumerate(kinds, 1)],
+                            "people": [{"id": 9, "name": "Heather"}], "channels": [radio]},
+            "/api/discover/search": {"results": [{"kind": "movie", "tmdb_id": 949, "title": "Heat 2", "status": "none"}]},
+        }
+        win.session.get = lambda path, **query: answers[path]
+        keep_summary(self, ASKS)
+        page = window.Search(win)
+        win.show(page)
+        page.search("heat")
+        self.assertEqual(len(page.rows.rows), 6, "a row of each kind the libraries have")
+        work, then, _ = later.pop()
+        then(work())
+        self.assertEqual([row["key"] for row in page.rows.rows][-1], "tmdb")
+        self.assertEqual(win.made[L.slot_list(L.SEARCH_ROWS, 6, "poster")].items[0].label, "Heat 2")
+
+    def test_search_when_the_libraries_have_nothing(self):
+        win = FakeWindow()
+        later = []
+        win.later = lambda work, then, failed=None: later.append((work, then, failed))
+        answers = {"/api/search": {"items": [], "people": []}, "/api/discover/search": {"results": [{"kind": "movie", "tmdb_id": 9, "title": "Zorro", "status": "none"}]}}
+        win.session.get = lambda path, **query: answers[path]
+        keep_summary(self, ASKS)
+        page = window.Search(win)
+        win.show(page)
+        page.search("zorro")
+        self.assertEqual(win.made[L.SEARCH_EMPTY_TITLE].label, window.T("nothing_in_libraries"))
+        work, then, _ = later.pop()
+        then(work())
+        # On TMDB under the sentence, focused too.
+        self.assertEqual([row["key"] for row in page.rows.rows], ["tmdb"])
+        self.assertEqual(win.made[L.slot(L.SEARCH_ROWS, 0)].position, (0, 320))
+        page.focused(L.slot_list(L.SEARCH_ROWS, 0, "poster"))
+        self.assertEqual(win.made[L.slot(L.SEARCH_ROWS, 0)].position, (0, 320))
+        self.assertEqual(win.made[L.SEARCH_EMPTY_TITLE].label, window.T("nothing_in_libraries"))
+        # An older search's titles come too late.
+        page.search("zorro returns")
+        older = later.pop()
+        page.search("mask")
+        older[1](older[0]())
+        self.assertEqual(page.rows.rows, [])
+        # Nothing on TMDB either, or TMDB away: nothing found.
+        answers["/api/discover/search"] = {"results": []}
+        work, then, _ = later.pop()
+        then(work())
+        self.assertEqual(win.made[L.SEARCH_EMPTY_TITLE].label, window.T("nothing_found_for") % "mask")
+        page.search("mask")
+        later.pop()[2]()
+        self.assertEqual(win.made[L.SEARCH_EMPTY_TITLE].label, window.T("nothing_found_for") % "mask")
+        # A profile that may not ask: TMDB isn't looked at.
+        keep_summary(self, dict(ASKS, access="off"))
+        page.search("mask")
+        self.assertEqual(later, [])
+        self.assertEqual(win.made[L.SEARCH_EMPTY_TITLE].label, window.T("nothing_found_for") % "mask")
 
 
 if __name__ == "__main__":

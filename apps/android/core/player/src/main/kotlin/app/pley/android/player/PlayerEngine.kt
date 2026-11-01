@@ -25,6 +25,11 @@ data class EngineSource(
     /** How long the item is; display modes only change for 10 minutes or more. */
     val durationMs: Long? = null,
     /**
+     * Whether the video comes out as Dolby Vision, as [PlayerEngine.dolbyVisionShown]
+     * told the session before it asked the server; `null`: the engine judges.
+     */
+    val dolbyVision: Boolean? = null,
+    /**
      * A live channel (its HLS, or its MPEG-TS as the provider sends it):
      * it starts at the live edge, whatever the start position.
      */
@@ -49,6 +54,14 @@ interface PlayerEngine {
 
     /** Loads [source] at [startMs]; plays at once when [playWhenReady]. */
     fun prepare(source: EngineSource, startMs: Long, playWhenReady: Boolean)
+
+    /**
+     * Whether [video], [durationMs] long, would come out as Dolby Vision
+     * here: the screen shows it in the display mode the video would play
+     * in. Asked before the server is, so it sends what plays; `null` when
+     * the engine can't tell.
+     */
+    suspend fun dolbyVisionShown(video: MediaStream?, durationMs: Long?): Boolean? = null
 
     /**
      * The player screen's window (its onStart): a TV changes the display mode

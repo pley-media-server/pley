@@ -146,6 +146,7 @@ async fn setup_login_and_permissions() {
     let app = TestApp::new().await;
     let status = app.call(Method::GET, "/api/server", None, None, &[]).await;
     assert_eq!(status.body["setup_required"], json!(true));
+    assert_eq!(status.body["source"], json!(pley::SOURCE));
 
     let admin = app.setup_admin().await;
     let again = app

@@ -70,12 +70,13 @@ import app.pley.android.ui.phone.theme.WidthClass
  * phone-show): the backdrop fading into the page, the breadcrumb and title
  * over its fade, the metadata line, what is left of a title being watched,
  * genres and collections, Play or Resume across the width, the actions
- * (From start, Watched, Playlist, Trailer), the tagline and a four-line
- * summary, and the profile's rating. From 600 dp the poster stands beside
- * it.
+ * (From start, Watched, Playlist, Trailer), what requests say of it
+ * ([requests]: its request's stage, Request more seasons), the tagline and
+ * a four-line summary, and the profile's rating. From 600 dp the poster
+ * stands beside it.
  */
 @Composable
-internal fun ItemHeader(page: ItemPage, actions: PageActions) {
+internal fun ItemHeader(page: ItemPage, actions: PageActions, requests: @Composable () -> Unit = {}) {
     val metrics = LocalPhoneMetrics.current
     val tier = LocalPhoneDeviceTier.current
     val wide = metrics.widthClass != WidthClass.Compact
@@ -116,10 +117,10 @@ internal fun ItemHeader(page: ItemPage, actions: PageActions) {
                             .clip(PleyShape.TilePhone),
                     )
                     Spacer(Modifier.width(24.dp))
-                    Column(Modifier.widthIn(max = TextColumnMax)) { HeaderText(page, actions, fullWidthPlay = false) }
+                    Column(Modifier.widthIn(max = TextColumnMax)) { HeaderText(page, actions, fullWidthPlay = false, requests) }
                 }
             } else {
-                HeaderText(page, actions, fullWidthPlay = true)
+                HeaderText(page, actions, fullWidthPlay = true, requests)
             }
         }
     }
@@ -143,7 +144,7 @@ internal fun itemTitleTop(backdropHeight: Dp): Dp = backdropHeight - TitleOverla
 private const val BACKDROP_MAX_SHARE = 0.62f
 
 @Composable
-private fun HeaderText(page: ItemPage, actions: PageActions, fullWidthPlay: Boolean) {
+private fun HeaderText(page: ItemPage, actions: PageActions, fullWidthPlay: Boolean, requests: @Composable () -> Unit) {
     Breadcrumb(page, actions)
     Text(
         page.title,
@@ -178,6 +179,7 @@ private fun HeaderText(page: ItemPage, actions: PageActions, fullWidthPlay: Bool
     PlayBlock(page, actions, fullWidthPlay)
     Spacer(Modifier.height(12.dp))
     ActionRow(page, actions)
+    requests()
     if (page.tagline != null || page.summary != null) Spacer(Modifier.height(12.dp))
     page.tagline?.let { tagline ->
         Text(
@@ -366,7 +368,7 @@ private class HeaderAction(
 
 /** The summary in four lines, "More" to read it all (Summary of shared.tsx). */
 @Composable
-private fun Summary(text: String, key: Long) {
+internal fun Summary(text: String, key: Long) {
     var expanded by rememberSaveable(key) { mutableStateOf(false) }
     var overflows by remember(text) { mutableStateOf(false) }
     Text(

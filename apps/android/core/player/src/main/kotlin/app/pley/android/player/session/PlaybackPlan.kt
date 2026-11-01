@@ -36,6 +36,14 @@ import app.pley.android.player.PlayRequest
  * In direct play both are switched here, by the engine.
  */
 object PlaybackPlan {
+    /**
+     * [caps] as the server is told of one video: without the screen's Dolby
+     * Vision when the engine says the display mode it plays in doesn't show
+     * it ([dolbyVisionShown] `false`).
+     */
+    fun capsFor(caps: CapsSnapshot?, dolbyVisionShown: Boolean?): CapsSnapshot? =
+        if (dolbyVisionShown == false) caps?.withoutDolbyVisionScreen() else caps
+
     /** The file to play: the one asked for, else the one that plays best here, else the first. */
     fun file(item: ItemDetail, requested: Long?, caps: CapsSnapshot?, policy: PlaybackCapsPolicy): MediaFile? {
         requested?.let { id -> item.files.firstOrNull { it.id == id }?.let { return it } }
@@ -276,8 +284,10 @@ object DvGuards {
             5 -> if (info.method == PlaybackMethod.Remux && !keepsDolbyVision(info)) PlaybackMode.Transcode else null
             7 -> {
                 val report = caps?.report
-                // Quirks (the Shield's) are in the snapshot's profiles already.
-                val decodesP7 = report?.dolbyVisionProfiles.orEmpty().any { it.profile == 7 }
+                // Quirks (the Shield's) are in the snapshot's profiles already;
+                // they're listed on any screen, and decoded only on a Dolby Vision one.
+                val decodesP7 = DynamicRange.DolbyVision in report?.hdrTypes.orEmpty() &&
+                    report?.dolbyVisionProfiles.orEmpty().any { it.profile == 7 }
                 when {
                     info.method != PlaybackMethod.Direct || decodesP7 -> null
                     DynamicRange.Hdr10 in report?.hdrTypes.orEmpty() || report?.hdr == true -> PlaybackMode.Remux

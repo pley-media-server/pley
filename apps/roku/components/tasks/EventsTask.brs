@@ -2,9 +2,10 @@
 ' there is a server and a token, again with each new token (the server
 ' ends a stream when its token does) and after the stream ends or fails,
 ' 2 s later and doubling to a minute. Each event goes to `event`, for the
-' scene. An https server's stream isn't followed: Roku's sockets have no
-' TLS. A socket that misbehaves is closed and tried again, never more: the
-' screens still ask the server as they show.
+' scene, and `live` says whether the stream is up (while it isn't, the
+' scene asks the server itself). An https server's stream isn't followed:
+' Roku's sockets have no TLS. A socket that misbehaves is closed and tried
+' again, never more: the screens still ask the server as they show.
 
 sub init()
     m.top.functionName = "eventsRun"
@@ -127,7 +128,10 @@ sub readSome()
         return
     end if
     events = evRead(m.reader, received)
-    if not m.reader.head and not m.reader.failed then m.failures = 0
+    if not m.reader.head and not m.reader.failed
+        m.failures = 0
+        if not m.top.live then m.top.live = true
+    end if
     ' The token ran out (the stream ends with it): the scene has the API
     ' task renew it, and the new one connects again.
     if m.reader.status = 401 then m.top.tokenRefused = m.top.token
@@ -148,4 +152,5 @@ sub close()
     m.socket = invalid
     m.reader = invalid
     m.unsent = ""
+    if m.top.live then m.top.live = false
 end sub

@@ -1,7 +1,14 @@
 package app.pley.android.network
 
 import app.pley.android.model.ConversionState
+import app.pley.android.model.Decline
+import app.pley.android.model.DiscoverList
 import app.pley.android.model.EntryIds
+import app.pley.android.model.NewRequest
+import app.pley.android.model.RequestQuery
+import app.pley.android.model.RequestStatus
+import app.pley.android.model.TitleKind
+import app.pley.android.model.TitleStatus
 import app.pley.android.model.ImageKind
 import app.pley.android.model.ItemIds
 import app.pley.android.model.LibraryIds
@@ -104,8 +111,25 @@ class FakePleyApiTest {
         val detail = api.playlist(901)
         val last = detail.entries.last().entryId
         assertEquals(last, api.reorderPlaylist(901, EntryIds(listOf(last))).entries.first().entryId)
+        assertTrue(api.requestSummary().enabled)
+        assertEquals(2, api.discover(DiscoverList.Movies, page = 2).page)
+        assertTrue(api.discoverSearch("a", missing = true).results.none { it.status == TitleStatus.Library })
+        assertEquals("Breaking Bad", api.discoverTitle(TitleKind.Show, 1396).title)
+        assertEquals("The Wild Robot", api.discoverTitle(TitleKind.Movie, 1184918).title)
+        assertEquals(listOf(2), api.itemRequest(201).askable)
+        assertEquals(6, api.requests().requests.size)
+        assertEquals(2, api.requests(RequestQuery(attention = true, kind = TitleKind.Movie)).requests.size)
+        assertEquals(44L, api.request(44).id)
+        assertTrue(api.ask(NewRequest(TitleKind.Movie, 1184918)).created)
+        api.deleteRequest(44)
+        api.unwatchRequest(47)
+        api.requestsSeen()
+        assertEquals(RequestStatus.Approved, api.approveRequest(44).status)
+        assertEquals("No", api.declineRequest(44, Decline("No")).reason)
+        assertEquals("Added by hand", api.requestHandled(49).note)
+        assertEquals(6L, api.requestOptions().sonarr?.qualityProfile)
 
-        val suspending = PleyApi::class.java.methods.filter { m -> m.parameterTypes.lastOrNull()?.name == "kotlin.coroutines.Continuation" }
+        val suspending =PleyApi::class.java.methods.filter { m -> m.parameterTypes.lastOrNull()?.name == "kotlin.coroutines.Continuation" }
         val called = api.calls.map { it.method }.toSet()
         assertEquals(suspending.map { it.name }.toSet() - called, emptySet<String>())
     }

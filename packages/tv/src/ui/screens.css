@@ -606,6 +606,7 @@
 .search-channel .tile-clip { display: flex; align-items: center; justify-content: center; background: var(--surface3); }
 .search-channel .search-channel-live { position: absolute; left: 6px; top: 6px; height: 17px; padding: 0 6px; font-size: 10px; }
 .search-channel .search-channel-progress { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 0; }
+.search-none { padding: 0 48px 0 96px; }
 
 .person-header { position: absolute; left: 96px; right: 48px; top: 58px; display: flex; align-items: center; }
 .person-photo {
@@ -753,6 +754,263 @@
 .queue-slot { position: absolute; left: 0; right: 0; }
 .queue-slot .track-line { height: 49px; margin-bottom: 0; }
 .now-dim { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 10; }
+
+/* ---------------------------------------------------------------- requests: tones, pills, badges */
+
+/*
+ * A request's colours: waiting amber, on its way blue, ready green, refused
+ * red, gone grey. A pill or badge in one is that colour at 20 % on art at
+ * 80 %, as the player's method badge, so it reads on posters and pages alike.
+ */
+.tone-amber,
+.tile-caption .tone-text-amber,
+.tone-text-amber { color: var(--warning); }
+.tone-blue,
+.tile-caption .tone-text-blue,
+.tone-text-blue { color: var(--info); }
+.tone-green,
+.tile-caption .tone-text-green,
+.tone-text-green { color: var(--success); }
+.tone-red,
+.tile-caption .tone-text-red,
+.tone-text-red { color: var(--danger-text); }
+.tone-gray,
+.tile-caption .tone-text-gray,
+.tone-text-gray { color: var(--muted); }
+.stage-pill.tone-amber,
+.title-badge.tone-amber { background: linear-gradient(rgba(242, 181, 68, 0.2), rgba(242, 181, 68, 0.2)), var(--on-art); }
+.stage-pill.tone-blue,
+.title-badge.tone-blue { background: linear-gradient(rgba(76, 154, 255, 0.2), rgba(76, 154, 255, 0.2)), var(--on-art); }
+.stage-pill.tone-green,
+.title-badge.tone-green { background: linear-gradient(rgba(63, 178, 127, 0.2), rgba(63, 178, 127, 0.2)), var(--on-art); }
+.stage-pill.tone-red,
+.title-badge.tone-red { background: linear-gradient(rgba(255, 107, 112, 0.2), rgba(255, 107, 112, 0.2)), var(--on-art); }
+.stage-pill.tone-gray,
+.title-badge.tone-gray { background: linear-gradient(rgba(161, 169, 182, 0.16), rgba(161, 169, 182, 0.16)), var(--on-art); }
+
+/* A request's stage: a dot and its words, 26 high (22 small); beside a 40 px button, centred on it. */
+.stage-pill {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  height: 26px;
+  padding: 0 12px 0 10px;
+  box-sizing: border-box;
+  border-radius: 13px;
+  vertical-align: middle;
+}
+.stage-pill > span { min-width: 0; }
+.stage-pill.small { height: 22px; padding: 0 10px 0 8px; border-radius: 11px; }
+.stage-dot { flex: none; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: currentColor; }
+.stage-pill.small .stage-dot { width: 6px; height: 6px; margin-right: 6px; }
+/* How much of a download is in: blue, as its stage. */
+.download-bar { height: 4px; margin-top: 8px; border-radius: 2px; background: rgba(233, 235, 239, 0.16); overflow: hidden; }
+.download-bar > div { height: 100%; border-radius: 2px; background: var(--info); }
+/* A stage with a download's bar 4 under it, as wide as the pill; beside a 40 px button, the two centred on it. */
+.stage-block { display: flex; flex-direction: column; align-items: flex-start; flex: 0 1 auto; min-width: 0; max-width: 100%; }
+.stage-block > .download-bar { align-self: stretch; margin-top: 4px; }
+.buttons > .stage-block { margin-top: 7px; }
+.buttons > .stage-block.with-bar { margin-top: 3px; }
+/* A title's badge on its poster ("In library", "Requested"…), at the upper left. */
+.title-badge {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  max-width: calc(100% - 12px);
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 2px;
+  line-height: 18px;
+  /* "Partly in library" whole on a poster at every scale. */
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* News since Your requests was last looked at: an accent dot. */
+.tile-news { position: absolute; top: 8px; right: 8px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--on-art); }
+/*
+ * What a title's main action says under it, muted and close together: a
+ * stage's line, the allowance, why it can't be asked for (its icon in the
+ * danger colour once declined). Over the buttons where no button of the
+ * main action's shows, and on Discover's hero (the first of it only).
+ */
+.title-notes { max-width: 464px; margin-top: 12px; color: var(--muted); }
+.title-notes.above { margin: 0 0 14px; }
+.title-note { display: flex; align-items: flex-start; }
+.title-note + .title-note { margin-top: 4px; }
+.title-note > .icon { flex: none; margin: 2px 8px 0 0; }
+.title-note.danger > .icon { color: var(--danger-text); }
+/* A library title's request under its facts: the stage, a download's bar beside it. */
+.item-request { display: flex; align-items: center; margin-top: 10px; }
+.item-request > .download-bar { flex: none; margin: 0 0 0 12px; }
+
+/* ---------------------------------------------------------------- Discover */
+
+.discover-page { position: absolute; left: 0; top: 0; width: 960px; height: 540px; overflow: hidden; }
+.discover-rows,
+.discover-results { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+/* TMDB's search and the way to the requests, where the search page has its field; it fades while focus is in the rows. */
+.discover-bar { position: absolute; left: 96px; top: 27px; display: flex; align-items: center; z-index: 3; transition: opacity 150ms linear; }
+.discover-bar > * + * { margin-left: 12px; }
+.discover-bar.hidden { opacity: 0; pointer-events: none; }
+.reduced .discover-bar { transition: none; }
+.chip-count {
+  min-width: 20px;
+  height: 20px;
+  margin-left: 8px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  line-height: 20px;
+  text-align: center;
+}
+.chip-count.danger { background: var(--danger); color: var(--bg); }
+.chip[data-focused] .chip-count:not(.danger) { background: var(--on-accent); color: var(--accent-bright); }
+/* Home's hero, under the search: its title's two lines end at 172 whatever their number, clear of the field. */
+.discover-hero {
+  position: absolute;
+  left: 96px;
+  top: 84px;
+  width: 464px;
+  transition: opacity 150ms linear;
+}
+.discover-hero .hero-title { height: 88px; }
+.discover-hero.hidden { opacity: 0; pointer-events: none; }
+.reduced .discover-hero { transition: none; }
+.discover-note { position: absolute; left: 96px; top: 108px; max-width: 560px; }
+/* Beside a grid's lone Show more or Retry, level with the middle of its well. */
+.discover-aside { position: absolute; left: 232px; top: 140px; max-width: 520px; }
+.discover-credit { padding: 0 48px 0 96px; }
+
+/* ---------------------------------------------------------------- a title from TMDB */
+
+/* No backdrop on TMDB: the poster stands at the right of the hero. */
+.title-poster { position: absolute; left: 664px; top: 52px; width: 200px; height: 300px; border-radius: 6px; overflow: hidden; background: var(--surface2); }
+/* A season's name, and its stage whole on up to two lines under it. */
+.tile-caption.season-caption { height: 51px; }
+.picker-for { padding: 0 0 8px 16px; }
+.picker-note { padding: 8px 16px 0; }
+.picker-note > * + * { margin-top: 4px; }
+.picker-over { display: flex; align-items: flex-start; color: var(--fg); }
+.picker-over > .icon { flex: none; margin: 1px 6px 0 0; color: var(--warning); }
+.picker-foot { padding: 16px 16px 8px; }
+/* A season's tick box at its row's end. */
+.tick {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-left: 12px;
+  box-sizing: border-box;
+  border: 2px solid var(--control);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tick.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.panel-row[data-focused] .tick { border-color: var(--on-accent); }
+.panel-row[data-focused] .tick.on { background: var(--on-accent); color: var(--accent-bright); }
+
+/* ---------------------------------------------------------------- requests */
+
+.requests-page { position: absolute; left: 0; top: 0; width: 960px; height: 540px; overflow: hidden; }
+.requests-tabs { position: absolute; left: 96px; right: 48px; top: 76px; display: flex; }
+.requests-tabs > * + * { margin-left: 8px; }
+/* Seven of them, counts and all, inside the page's edge. */
+.requests-tabs .tab { padding: 0 12px; }
+.tab-count {
+  min-width: 20px;
+  height: 20px;
+  margin-left: 8px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--surface4);
+  color: var(--fg);
+  font-size: 11px;
+  line-height: 20px;
+  font-weight: 700;
+  text-align: center;
+}
+.tab[data-focused] .tab-count { background: rgba(3, 19, 31, 0.16); color: var(--on-accent); }
+.requests-filters { position: absolute; left: 96px; right: 48px; top: 124px; height: 44px; display: flex; align-items: center; }
+.requests-filters > * + * { margin-left: 10px; }
+/* The title field as high as the chips beside it. */
+.requests-filters .field { height: 40px; }
+.requests-signin { flex: 0 1 auto; min-width: 0; }
+/* The list scrolls under the tabs (and filters), the full width so a focused card's ring is never cut. */
+.requests-viewport { position: absolute; left: 0; right: 0; bottom: 0; overflow: hidden; }
+.requests-viewport .scroll-y { padding-bottom: 27px; }
+.requests-list { padding: 8px 48px 0 96px; }
+.requests-more { padding: 4px 48px 0 96px; }
+/* More below: the list fades out over its last 40 px, rather than a card ending in a hard cut at the screen's foot. */
+.requests-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40px;
+  background: linear-gradient(rgba(11, 13, 16, 0), var(--bg));
+  opacity: 0;
+  transition: opacity 150ms linear;
+  pointer-events: none;
+}
+.requests-fade.shown { opacity: 1; }
+.reduced .requests-fade { transition: none; }
+.requests-note { position: absolute; left: 96px; right: 48px; }
+/* A request: its poster, its words, its stage at the right; focus lifts it with the tiles' ring. */
+.request-card {
+  position: relative;
+  height: 88px;
+  margin-bottom: 10px;
+  padding: 0 20px 0 12px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  color: var(--fg);
+  transition: transform 120ms var(--unfocus-ease);
+}
+.request-card[data-focused] { background: var(--surface3); transform: scale(1.02); transition: transform 150ms var(--focus-ease); }
+.request-card[data-pressed] { transform: scale(1); transition: transform 100ms linear; }
+.card-ring {
+  position: absolute;
+  left: -5.56px;
+  top: -5.56px;
+  right: -5.56px;
+  bottom: -5.56px;
+  border: 2.78px solid var(--accent-bright);
+  border-radius: 13.56px;
+  opacity: 0;
+  transition: opacity 120ms var(--unfocus-ease);
+  pointer-events: none;
+}
+.request-card[data-focused] .card-ring { opacity: 1; transition: opacity 150ms var(--focus-ease); }
+.holding .request-card,
+.holding .card-ring,
+.reduced .request-card,
+.reduced .card-ring { transition: none; }
+.request-poster { position: relative; flex: none; width: 48px; height: 72px; border-radius: 4px; overflow: hidden; background: var(--surface3); }
+.request-news { position: absolute; left: 54px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface); }
+.request-card[data-focused] .request-news { box-shadow: 0 0 0 2px var(--surface3); }
+.request-text { flex: 1; min-width: 0; margin: 0 16px; }
+.request-text .sub { margin-top: 3px; color: var(--muted); }
+.request-text .note { margin-top: 2px; color: var(--subtle); }
+.request-year { color: var(--muted); font-weight: 500; }
+.request-stage { flex: none; width: 260px; display: flex; flex-direction: column; align-items: flex-end; }
+.request-stage > .stage-block { align-items: flex-end; }
+.panel-request { padding: 4px 16px 12px; }
+.panel-request .download-bar { margin-top: 10px; }
+.panel-request > .t-caption + .t-caption { margin-top: 2px; }
+.panel-text { padding: 0 16px 12px; }
+.panel-field { padding: 4px 0 12px; }
 
 /* ---------------------------------------------------------------- player */
 

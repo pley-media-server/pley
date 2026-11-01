@@ -9,6 +9,102 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-01
+
+### Security
+
+- Radarr's and Sonarr's addresses can't be link-local (`169.254.0.0/16`,
+  `fe80::/10`), typed in or as their names resolve, and whatever answers
+  there in their stead is never quoted back: only its HTTP status. Their
+  answers are read 32 MB at most.
+
+### Added
+
+- Requests. Discover finds movies and shows on TMDB (trending, popular,
+  upcoming, anime, or a search) and marks what the libraries have. People
+  ask for a movie or a show's missing seasons; administrators approve or
+  decline them, and accounts may be allowed to have theirs approved as
+  asked, within limits per 7 days. Approved requests go to Radarr and
+  Sonarr, whose downloads' progress shows, and a request's maker is told
+  once a library has it. Turned on in Settings → Requests; who may ask is
+  in Settings → Users, where profiles without a password and accounts with
+  an age limit start without. `/api/discover`, `/api/requests` and
+  `POST /api/settings/arr` ([docs/API.md](../../docs/API.md#requests)).
+- Requests in Pley's apps: they ask with the new `requests` scope, and an
+  administrator's Pley apps approve and decline with `approvals`; an app
+  signed in before is told to sign in again. Discover's pictures come
+  through the server at the size each screen draws them, kept for 30 days
+  and 256 MB at most, so no app contacts TMDB. Discover marks shows partly
+  in a library, titles declined lately, and each season's state; accounts
+  with an age limit see only titles within it. A library title's page can
+  show its request (`GET /api/items/{id}/request`). The request summary
+  says what an account may do and what is new for it, and apps hear when
+  to fetch it again.
+- Accounts made from an invitation with an age limit, or given one later,
+  don't ask for titles until an administrator lets them; accounts that may
+  not ask still see and withdraw their own requests.
+- A request says where it is (waiting for an administrator, sent to Radarr
+  or Sonarr, downloading, importing, partly or wholly ready, or gone from
+  the library since) and whether it has news its maker hasn't seen. Why a
+  request failed, and where it was sent, are for administrators.
+- Asking for a title someone has asked for already follows their request
+  (*Tell me too*): its news comes to each follower, and following costs
+  nothing against the limits. When its maker withdraws a request others
+  follow, or their account is deleted, the earliest follower keeps it, and
+  it counts against their limits from then.
+  What was declined for an account may be asked for again after 30 days,
+  and the answer says from when.
+- Administrators' approvals answer at once while the request goes to
+  Radarr or Sonarr in the background. An approval may keep only some of
+  the seasons asked for and choose among Radarr's and Sonarr's quality
+  profiles and root folders (`GET /api/requests/options`); an approved
+  request not yet available may still be declined, and one may be marked
+  as added by hand, so it is never sent.
+- Requests are listed by several statuses at once, by what needs an
+  administrator, by kind, person, title or news, and oldest first. Each
+  request says what may be done to it, and request events say which
+  request changed and go only to whom it concerns: a new request to
+  administrators, a decision to its maker and followers, a request ready
+  to each account that can open it, a failure to administrators.
+
+- Administrators who use two-step sign-in can require it of everyone
+  (Settings → Server → Sign-in). Whoever hasn't set it up is signed out
+  everywhere, and sets it up at their next sign-in, right after the
+  password: a QR code, or on a phone a link to the authenticator app, then
+  the first code and the recovery codes. Joining with an invitation,
+  switching to their profile and signing in a TV at `/link` set it up the
+  same way. Settings → Users shows who hasn't set it up yet.
+- Two-step sign-in moves to another authenticator app (Account → Use
+  another app) with the password and a code of the current one, without
+  turning it off.
+- A code from the authenticator app pasted with a space in it ("123 456")
+  signs in.
+
+### Changed
+
+- Pley is free software under the GNU Affero General Public License,
+  version 3 (`AGPL-3.0-only`, `LICENSE`). The server and the transcoder
+  give the address of their source (`GET /api/server`, which the web
+  app's Account page links to; `GET /v1/info` and `--license`).
+
+### Fixed
+
+- The player's details say why Dolby Vision plays as its HDR10, HLG or
+  SDR base layer: the screen doesn't show it, the player doesn't decode
+  its profile or level, its remux doesn't name it, or HDR10+ comes with
+  it on a player that doesn't show the two together ("HDR10 (Dolby Vision
+  base layer, as this screen doesn't show Dolby Vision)").
+- Dolby Vision with HDR10+ plays as it is for a player that says it shows
+  the two together (`dolby_vision_hdr10plus`, Kodi on CoreELEC), rather
+  than without its HDR10+ or as its base layer.
+- The web app's title page shows the quality badges (4K, DV P8.1,
+  HDR10…) of the version picked, not always the first version's.
+- The web app's sidebar shows Live TV only once it has channels, for
+  administrators too; they set it up in Settings → Live TV.
+- Live TV's guide says Today, Tomorrow and Yesterday on the days daylight
+  saving starts or ends too: a programme just after midnight tomorrow
+  showed its date, or the day after tomorrow showed as Tomorrow.
+
 ## [0.1.0] - 2026-10-30
 
 ### Security
@@ -161,6 +257,7 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/server-v0.1.0...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/server-v0.1.1...HEAD
+[0.1.1]: https://github.com/pley-media-server/pley/releases/tag/server-v0.1.1
 [0.1.0]: https://github.com/pley-media-server/pley/releases/tag/server-v0.1.0
 [0.0.1]: https://github.com/pley-media-server/pley/releases/tag/server-v0.0.1

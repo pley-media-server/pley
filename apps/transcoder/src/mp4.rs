@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Instant keyframe index for MP4, MOV and other ISO base media files, read
 //! from the video track's sample tables (`stss` sync samples, `stts` decode
 //! durations, `ctts` composition offsets, the `elst` edit list) and, in

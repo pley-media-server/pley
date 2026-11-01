@@ -98,6 +98,16 @@ class TvReadoutTest {
     }
 
     @Test
+    fun `Dolby Vision decoded as its base layer says so`() {
+        val display = DisplayNow(3840, 2160, 23.976f, listOf(Display.HdrCapabilities.HDR_TYPE_HDR10))
+        val base = stats.copy(videoDecoderMime = "video/hevc", dynamicRange = "HDR10")
+        val tv = facts(ReadoutInput(details(), base, bufferedMs = 0, quality = "", display = display)).getValue("This TV")
+        assertEquals("3840×2160 · 23.976 fps · HDR10 · HEVC", tv["Decoded"])
+        // What arrives is still the file's Dolby Vision.
+        assertEquals("dvhe.08.06", tv["Codec string"])
+    }
+
+    @Test
     fun `HDR output says when the screen can't take the video's HDR`() {
         val sdrScreen = DisplayNow(1920, 1080, 60f, emptyList())
         assertEquals("Off, Dolby Vision shown as SDR", TvReadout.hdrOutput(r, stats, sdrScreen))
