@@ -3,13 +3,16 @@ import AppKit
 import AVKit
 import PleyCaps
 import PleyPlayer
+import PleySubtitles
 import SwiftUI
 
 /// The Mac's player: AVKit's `AVPlayerView` with floating controls and a
 /// full-screen button, showing the controller's AVPlayer.
 ///
 /// - Its action menu (the controls' "…") has Quality, each choice with its
-///   second line, Audio, Chapters and Details.
+///   second line, Audio, Subtitles, Subtitle sync, Chapters and Details.
+/// - The subtitles are drawn over the picture, in its content overlay
+///   (`SubtitleView`), placed in the video's bounds.
 /// - Automatic plays no stream size bigger than the view, in pixels.
 /// - The web player's keys work while its window is key (`PlayerKeys`).
 /// - When its window moves to another screen, or the screens change, the
@@ -32,6 +35,7 @@ public struct PlayerSurface: NSViewRepresentable {
         view.controlsStyle = .floating
         view.showsFullScreenToggleButton = true
         view.allowsPictureInPicturePlayback = false
+        view.addSubtitles()
         return view
     }
 
@@ -39,6 +43,7 @@ public struct PlayerSurface: NSViewRepresentable {
         view.controller = controller
         view.caps = caps
         if view.player !== controller.player { view.player = controller.player }
+        view.subtitles?.shown = state.cues
         if view.shownState != state {
             view.shownState = state
             view.actionPopUpButtonMenu = PlayerMenus.actionMenu(state, controller: controller)
@@ -56,6 +61,8 @@ public final class PleyPlayerView: AVPlayerView {
     weak var controller: PlaybackController?
     weak var caps: DeviceCaps?
     var shownState: PlayerState?
+    private(set) var subtitles: SubtitleView?
+    private var boundsWatch: NSKeyValueObservation?
     private var monitor: Any?
     private var tokens: [any NSObjectProtocol] = []
 
@@ -92,8 +99,25 @@ public final class PleyPlayerView: AVPlayerView {
         screenChanged()
     }
 
+    /// The subtitles over the video, kept in its bounds as the view and the video change size.
+    func addSubtitles() {
+        guard subtitles == nil, let overlay = contentOverlayView else { return }
+        let view = SubtitleView(frame: overlay.bounds)
+        overlay.addSubview(view)
+        subtitles = view
+        boundsWatch = observe(\.videoBounds, options: [.new]) { [weak self] _, _ in
+            Task { @MainActor in self?.placeSubtitles() }
+        }
+    }
+
+    private func placeSubtitles() {
+        guard let subtitles else { return }
+        subtitles.video = subtitles.convert(videoBounds, from: self)
+    }
+
     public override func layout() {
         super.layout()
+        placeSubtitles()
         // The player's size in pixels: Automatic plays no stream size bigger.
         let pixels = convertToBacking(bounds).size
         controller?.setViewPixelSize(width: Int(pixels.width), height: Int(pixels.height))
@@ -141,6 +165,9 @@ public final class PleyPlayerView: AVPlayerView {
         case .skip:
             guard controller.state.skipLabel != nil else { return false }
             controller.skip()
+        case .nextSubtitle:
+            guard !controller.state.subtitles.isEmpty else { return false }
+            controller.cycleSubtitles()
         }
         return true
     }
@@ -148,7 +175,8 @@ public final class PleyPlayerView: AVPlayerView {
 
 /// The Mac's player menus, shared by the action menu and the menu bar's Playback menu.
 public enum PlayerMenus {
-    /// Quality (the one playing checked), Audio (when there is a choice), Chapters and Details.
+    /// Quality (the one playing checked), Audio (when there is a choice),
+    /// Subtitles and their sync (when the file has some), Chapters and Details.
     @MainActor
     public static func actionMenu(_ state: PlayerState, controller: PlaybackController) -> NSMenu {
         let menu = NSMenu()
@@ -172,6 +200,10 @@ public enum PlayerMenus {
                 return item
             }))
         }
+        if !state.subtitles.isEmpty {
+            menu.addItem(subtitlesMenu(state, controller: controller))
+            if state.canSyncSubtitles { menu.addItem(syncMenu(state, controller: controller)) }
+        }
         if !state.chapters.isEmpty {
             menu.addItem(submenu("Chapters", state.chapters.map { chapter in
                 let item = ClosureMenuItem(title: chapter.label) { [weak controller] in
@@ -190,6 +222,39 @@ public enum PlayerMenus {
         }
         menu.addItem(details)
         return menu
+    }
+
+    /// Subtitles: Off and each track, the one shown checked.
+    @MainActor
+    public static func subtitlesMenu(_ state: PlayerState, controller: PlaybackController) -> NSMenuItem {
+        submenu("Subtitles", state.subtitles.map { choice in
+            let item = ClosureMenuItem(title: choice.label) { [weak controller] in
+                controller?.selectSubtitle(choice.id == MenuChoice.off ? nil : Int(choice.id))
+            }
+            item.state = choice.selected ? .on : .off
+            item.subtitle = choice.detail
+            return item
+        })
+    }
+
+    /// Subtitle sync: the offset, 0.1 s earlier or later, and back to 0.
+    @MainActor
+    public static func syncMenu(_ state: PlayerState, controller: PlaybackController) -> NSMenuItem {
+        let offset = state.subtitleOffsetMs
+        let now = NSMenuItem(title: "Offset: \(state.subtitleOffsetLabel)", action: nil, keyEquivalent: "")
+        now.isEnabled = false
+        let reset = ClosureMenuItem(title: "Reset") { [weak controller] in controller?.setSubtitleOffset(0) }
+        reset.isEnabled = offset != 0
+        return submenu("Subtitle Sync", [
+            now,
+            ClosureMenuItem(title: "Earlier (−0.1 s)") { [weak controller] in
+                controller?.moveSubtitles(steps: -1)
+            },
+            ClosureMenuItem(title: "Later (+0.1 s)") { [weak controller] in
+                controller?.moveSubtitles(steps: 1)
+            },
+            reset,
+        ])
     }
 
     private static func submenu(_ title: String, _ items: [NSMenuItem]) -> NSMenuItem {

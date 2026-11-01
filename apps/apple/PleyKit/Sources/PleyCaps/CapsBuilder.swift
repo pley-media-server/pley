@@ -14,8 +14,10 @@ public enum CapsBuilder {
     /// Audio AVFoundation decodes, by ffprobe's names. No TrueHD, no DTS: the
     /// server converts them.
     public static let audioDecode = ["aac", "mp3", "alac", "flac", "opus", "ac3", "eac3"]
-    /// Text subtitles the app draws itself.
-    public static let subtitles = ["subrip", "ass", "ssa", "webvtt", "mov_text"]
+    /// Subtitles the app draws itself: text from the server's WebVTT, and
+    /// pictures (PGS, VobSub, DVB) from its `.mks` of the track.
+    public static let subtitles = ["subrip", "ass", "ssa", "webvtt", "mov_text", "hdmv_pgs_subtitle", "dvd_subtitle",
+                                   "dvb_subtitle"]
     /// fMP4 first: Apple's players take HEVC, HDR and Dolby Vision in HLS
     /// only from fMP4 segments, and the server sends them only to players
     /// that put it first.
@@ -54,6 +56,7 @@ public enum CapsBuilder {
             // Only MP4 and MOV play as they are, and AVPlayer switches their
             // audio tracks.
             audioTrackSwitching: true,
+            pictureSubtitlesSideload: true,
             hls: hls,
             display: display(input),
             device: DeviceCapsInfo(

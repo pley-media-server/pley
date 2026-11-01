@@ -1,5 +1,6 @@
 import Foundation
 import PleyModel
+import PleySubtitles
 
 /// What the player screens show, from `PlaybackController`.
 public struct PlayerState: Equatable, Sendable {
@@ -56,8 +57,26 @@ public struct PlayerState: Equatable, Sendable {
     public var chapters: [ChapterChoice] = []
     /// The Audio menu: the file's audio tracks, the one playing selected; ids are stream indexes.
     public var audio: [MenuChoice] = []
+    /// The Subtitles menu: Off, then the file's subtitle tracks, the one
+    /// shown selected; ids are stream indexes (`MenuChoice.off` for Off).
+    /// Empty when the file has none.
+    public var subtitles: [MenuChoice] = []
+    /// The subtitles' offset, in ms (positive: later); see `SubtitleSync`.
+    public var subtitleOffsetMs = 0
+    /// The subtitles shown can be moved in time: those this player draws, not burned in.
+    public var canSyncSubtitles = false
+    /// The picture subtitles are burned into the video by the server's conversion.
+    public var subtitlesBurnedIn = false
+    /// What the subtitle layer draws now.
+    public var cues: ShownSubtitles = .none
 
     public init() {}
+
+    /// "Off", or the subtitles shown ("English (SRT)").
+    public var subtitleLabel: String { subtitles.first(where: \.selected)?.label ?? PlayerTexts.subtitlesOff }
+
+    /// "+0.5 s", "−1.2 s", "0.0 s".
+    public var subtitleOffsetLabel: String { SubtitleSync.label(subtitleOffsetMs) }
 
     /// "Direct play", "Direct stream", "Transcoding", "Direct stream · Audio
     /// transcoding", as the other apps say it; `nil` before the server answered.
@@ -129,6 +148,8 @@ public struct ChapterChoice: Equatable, Hashable, Sendable, Identifiable {
 public struct MenuChoice: Equatable, Hashable, Sendable, Identifiable {
     /// The Quality menu's Original.
     public static let original = "original"
+    /// The Subtitles menu's Off.
+    public static let off = "off"
 
     public var id: String
     public var label: String
@@ -152,6 +173,9 @@ enum PlayerTexts {
     static let automaticHint = "Dynamically adjust to conditions"
     static let lastEpisode = "This is the last episode"
     static let nothingNext = "Nothing plays next"
+    static let subtitlesOff = "Off"
+    static let subtitlesFailed = "The subtitles couldn't be loaded."
+    static let burnedIn = "Burned into the video"
 
     /// The menu's Automatic while it plays `playing`: "Automatic · 8 Mbps 1080p".
     static func automatic(_ playing: String) -> String { "Automatic · \(playing)" }

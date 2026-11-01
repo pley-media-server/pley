@@ -28,3 +28,6 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Resume where you left off, Skip Intro and Skip Credits, Up Next for the
   next episode, chapters, and an audio track choice the server remembers
   for the whole show.
+- Subtitles, text and picture (PGS, VobSub, DVB) alike, drawn over the
+  video in your caption style, with a sync control; picture subtitles no
+  longer force a conversion.

@@ -6,7 +6,8 @@ import SwiftUI
 #if os(iOS)
 /// The player on iPhone and iPad, full screen over the app: the system's
 /// player (its own Close ends the playback) with Pley's Options button
-/// (Quality, each with its second line, Audio, Chapters and Details) under
+/// (Quality, each with its second line, Audio, Subtitles, Subtitle sync,
+/// Chapters and Details) under
 /// its top row. Options shows with the system's controls (a tap shows it
 /// for 3 seconds) and stays while paused. Skip Intro, Skip Credits and the
 /// Up Next card show bottom trailing (`PlayerOverlay`). A notice shows at
@@ -145,6 +146,41 @@ struct PlayerScreen: View {
                     }
                 }
             }
+            if !controller.state.subtitles.isEmpty {
+                Section("Subtitles") {
+                    ForEach(controller.state.subtitles) { choice in
+                        Button {
+                            controller.selectSubtitle(choice.id == MenuChoice.off ? nil : Int(choice.id))
+                        } label: {
+                            if choice.selected {
+                                Label {
+                                    Text(choice.label)
+                                    if let detail = choice.detail { Text(detail) }
+                                } icon: {
+                                    Image(systemName: "checkmark")
+                                }
+                            } else {
+                                Text(choice.label)
+                                if let detail = choice.detail { Text(detail) }
+                            }
+                        }
+                    }
+                }
+                if controller.state.canSyncSubtitles {
+                    Menu {
+                        // Kept open while it is moved, a step at a time.
+                        Button("Earlier (−0.1 s)") { controller.moveSubtitles(steps: -1) }
+                            .keepsMenuOpen()
+                        Button("Later (+0.1 s)") { controller.moveSubtitles(steps: 1) }
+                            .keepsMenuOpen()
+                        Button("Reset") { controller.setSubtitleOffset(0) }
+                            .disabled(controller.state.subtitleOffsetMs == 0)
+                    } label: {
+                        Text("Subtitle sync")
+                        Text(controller.state.subtitleOffsetLabel)
+                    }
+                }
+            }
             if !controller.state.chapters.isEmpty {
                 Menu("Chapters") {
                     ForEach(controller.state.chapters) { chapter in
@@ -183,6 +219,16 @@ struct PlayerScreen: View {
             guard !Task.isCancelled else { return }
             // Read again: the body works out whether they still show.
             controlsUntil = controlsUntil
+        }
+    }
+}
+private extension View {
+    /// A menu's button that leaves the menu open, where the system can (iOS 16.4 and later).
+    @ViewBuilder func keepsMenuOpen() -> some View {
+        if #available(iOS 16.4, *) {
+            menuActionDismissBehavior(.disabled)
+        } else {
+            self
         }
     }
 }
@@ -315,6 +361,21 @@ struct PlaybackCommands: Commands {
                 }
             }
             .disabled((player?.state.audio.count ?? 0) < 2)
+            Menu("Subtitles") {
+                ForEach(player?.state.subtitles ?? []) { choice in
+                    Toggle(choice.label, isOn: Binding(get: { choice.selected }, set: { _ in
+                        player?.selectSubtitle(choice.id == MenuChoice.off ? nil : Int(choice.id))
+                    }))
+                }
+            }
+            .disabled(player?.state.subtitles.isEmpty ?? true)
+            Menu("Subtitle Sync (\(player?.state.subtitleOffsetLabel ?? "0.0 s"))") {
+                Button("Earlier (−0.1 s)") { player?.moveSubtitles(steps: -1) }
+                Button("Later (+0.1 s)") { player?.moveSubtitles(steps: 1) }
+                Button("Reset") { player?.setSubtitleOffset(0) }
+                    .disabled(player?.state.subtitleOffsetMs == 0)
+            }
+            .disabled(!(player?.state.canSyncSubtitles ?? false))
             Menu("Chapters") {
                 ForEach(player?.state.chapters ?? []) { chapter in
                     Toggle(chapter.label, isOn: Binding(get: { chapter.current },

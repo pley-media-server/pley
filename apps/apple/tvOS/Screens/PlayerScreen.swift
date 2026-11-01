@@ -4,8 +4,9 @@ import PleyScreens
 import SwiftUI
 
 /// The player on Apple TV: the system's player, full screen, with its
-/// transport bar's Quality menu (each choice with its second line) and
-/// Audio menu, a Details tab in its info panel, Skip Intro, Skip Credits
+/// transport bar's Quality menu (each choice with its second line), Audio
+/// menu and Subtitles menu (with the sync), the subtitles drawn over the
+/// video, a Details tab in its info panel, Skip Intro, Skip Credits
 /// and Up Next as its contextual actions, and the chapters as its
 /// navigation markers. Menu
 /// closes it (when the transport bar isn't showing), which ends the session.

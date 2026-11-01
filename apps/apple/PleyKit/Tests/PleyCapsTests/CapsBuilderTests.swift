@@ -186,9 +186,10 @@ struct CapsBuilderTests {
             #expect(caps.audioDecode == ["aac", "mp3", "alac", "flac", "opus", "ac3", "eac3"])
             #expect(caps.audioCodecs == caps.audioDecode)
             #expect(caps.videoCodecs == caps.video?.map(\.codec))
-            // Text only until the app draws picture subtitles.
-            #expect(caps.subtitleCodecs == ["subrip", "ass", "ssa", "webvtt", "mov_text"])
-            #expect(caps.pictureSubtitlesSideload == nil)
+            // Text and pictures alike, drawn by the app; pictures from the server's .mks, never burned in.
+            #expect(caps.subtitleCodecs == ["subrip", "ass", "ssa", "webvtt", "mov_text", "hdmv_pgs_subtitle",
+                                            "dvd_subtitle", "dvb_subtitle"])
+            #expect(caps.pictureSubtitlesSideload == true)
             #expect(caps.audioTrackSwitching == true)
             #expect(caps.hls == HlsCaps(masterPlaylist: true, segments: ["fmp4", "ts"], variants: true))
             #expect(caps.video?.first?.codec == "h264")

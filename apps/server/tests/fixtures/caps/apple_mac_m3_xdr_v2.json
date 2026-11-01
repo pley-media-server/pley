@@ -68,12 +68,16 @@
     ],
     "variants": true
   },
+  "picture_subtitles_sideload": true,
   "subtitle_codecs": [
     "subrip",
     "ass",
     "ssa",
     "webvtt",
-    "mov_text"
+    "mov_text",
+    "hdmv_pgs_subtitle",
+    "dvd_subtitle",
+    "dvb_subtitle"
   ],
   "video": [
     {

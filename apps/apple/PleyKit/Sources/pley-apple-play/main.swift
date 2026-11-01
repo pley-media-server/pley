@@ -20,6 +20,7 @@ import PleyCommon
 import PleyModel
 import PleyNetwork
 import PleyPlayer
+import PleySubtitles
 import PleyTesting
 
 struct CheckFailure: Error, CustomStringConvertible {
@@ -352,6 +353,76 @@ func checkAudio(api: PleyAPI, caps: DeviceCaps, reporter: SessionReporter, itemI
     }
 }
 
+/// (i) Subtitles drawn by the app: file 1's SRT beside it, from the
+/// server's WebVTT, while it plays as it is; file 3's PGS from the
+/// server's `.mks`, while the session stays a remux (nothing burned in).
+/// Each is paused inside a cue, so the check waits for the server however
+/// long it takes to read the track.
+@MainActor
+func checkSubtitles(api: PleyAPI, caps: DeviceCaps, reporter: SessionReporter, direct: Int, remux: Int) async throws {
+    var run = Run(api: api, caps: caps, reporter: reporter, itemId: direct)
+    do {
+        try await run.playing(past: 3_000, seconds: 30)
+        let session = try run.session
+        let file = try required(run.controller.file, "no file")
+        let beside = try required(file.streams(.subtitle).first { $0.external },
+                                  "file 1 has no subtitle file beside it")
+        run.controller.selectSubtitle(beside.index)
+        run.controller.seek(toMs: 8_500)
+        run.controller.pause()
+        try await wait("the second line", seconds: 30) {
+            guard case .text(let cues) = run.controller.state.cues else { return false }
+            return cues.map(\.plain) == ["The second line."]
+        }
+        try check(run.controller.session?.id == session.id, "the subtitles started a new session")
+        try check(session.info.method == .direct, "file 1 plays by \(session.info.method.rawValue), not direct")
+        say("(i) text: track \(beside.index) shows \"The second line.\" at 8.5 s, drawn by the app; the file plays "
+            + "as it is")
+        await run.controller.close()
+    } catch {
+        await run.controller.close()
+        throw error
+    }
+
+    run = Run(api: api, caps: caps, reporter: reporter, itemId: remux)
+    do {
+        try await run.playing(past: 3_000, seconds: 60)
+        let session = try run.session
+        try check(session.info.method == .remux, "file 3 plays by \(session.info.method.rawValue), not remux")
+        let file = try required(run.controller.file, "no file")
+        let pgs = try required(file.streams(.subtitle).first { $0.codec == "hdmv_pgs_subtitle" }, "file 3 has no PGS")
+        run.controller.selectSubtitle(pgs.index)
+        run.controller.seek(toMs: 12_500)
+        run.controller.pause()
+        var drawn: PictureFrame?
+        try await wait("the PGS picture", seconds: 60) {
+            if case .failed(let message, _) = run.controller.state.phase {
+                throw CheckFailure("playback failed: \(message)")
+            }
+            guard case .picture(let shown) = run.controller.state.cues, !shown.frame.bitmaps.isEmpty else {
+                return false
+            }
+            drawn = shown.frame
+            return true
+        }
+        let frame = try required(drawn, "no picture")
+        let box = try required(frame.bitmaps.first, "no bitmap")
+        try check(frame.planeWidth == 1920 && frame.planeHeight == 1080,
+                  "the picture's plane is \(frame.planeWidth)×\(frame.planeHeight)")
+        try check(box.width == 480 && box.height == 96, "the picture is \(box.width)×\(box.height), not 480×96")
+        let now = try run.session
+        try check(now.id == session.id, "the PGS started a new session")
+        try check(now.info.method == .remux && !now.info.burnSubtitles, "the PGS is burned in")
+        try check(!run.controller.state.subtitlesBurnedIn, "the player says the PGS is burned in")
+        say("(i) pictures: the PGS (track \(pgs.index)) shows a \(box.width)×\(box.height) picture at 12.5 s from "
+            + "the server's .mks; the session stays a remux, nothing burned in")
+        await run.controller.close()
+    } catch {
+        await run.controller.close()
+        throw error
+    }
+}
+
 /// Plays `itemId` until frames pass 3 s, checks it, and closes.
 @MainActor
 func play(_ name: String, api: PleyAPI, caps: DeviceCaps, reporter: SessionReporter, itemId: Int,
@@ -545,6 +616,9 @@ func run() async throws {
         try check(session.info.audioConverted, "file 6's DTS isn't converted")
         return "audio converted"
     }
+
+    try await checkSubtitles(api: api, caps: caps, reporter: reporter, direct: try item("Direct H264"),
+                             remux: try item("Remux H264 AC3"))
 
     try await checkDecisions(api: api, fixtures: URL(fileURLWithPath: fixtures), items: items)
     await reporter.flush()

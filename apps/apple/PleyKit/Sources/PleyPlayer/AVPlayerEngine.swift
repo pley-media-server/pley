@@ -155,6 +155,11 @@ public final class AVPlayerEngine: PlayerEngine {
         return sample
     }
 
+    public func positionMs() -> Int {
+        guard let item else { return 0 }
+        return Self.ms(item.currentTime()) ?? 0
+    }
+
     public func setMaximumResolution(width: Int, height: Int) {
         maximumResolution = CGSize(width: max(width, 0), height: max(height, 0))
         item?.preferredMaximumResolution = maximumResolution

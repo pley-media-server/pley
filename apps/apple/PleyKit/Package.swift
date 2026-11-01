@@ -37,8 +37,8 @@ let package = Package(
         .target(name: "PleyPlayer", dependencies: ["PleySubtitles", "PleyCaps", "PleyData", "PleyNetwork", "PleyModel",
                                                    "PleyCommon"]),
         // The screens' state, shared by the iPhone, iPad and Mac app and the Apple TV app; no views.
-        .target(name: "PleyScreens", dependencies: ["PleyPlayer", "PleyCaps", "PleyData", "PleyAuth", "PleyNetwork",
-                                                    "PleyModel", "PleyCommon"]),
+        .target(name: "PleyScreens", dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyData", "PleyAuth",
+                                                    "PleyNetwork", "PleyModel", "PleyCommon"]),
         // The player's surface on each platform (AVKit's own controls) and what the apps lay over it.
         .target(name: "PleyPlayerViews", dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyModel",
                                                         "PleyCommon"]),

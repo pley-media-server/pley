@@ -283,9 +283,10 @@ the system says and from a table of Apple's devices (`PleyCaps`):
   audio (AirPods), 2 for Bluetooth, headphones and built-in speakers, what
   HDMI reports on Apple TV (2, 6 or 8), and the default output device's on
   the Mac.
-- **Subtitles**: text subtitles (SRT, ASS/SSA, WebVTT, MP4 text) are left
-  to the app to draw; picture subtitles (PGS, VobSub, DVB) are burned in by
-  the server.
+- **Subtitles**: the app draws them all (`subtitle_codecs`): text
+  subtitles (SRT, ASS/SSA, WebVTT, MP4 text) and picture subtitles (PGS,
+  VobSub, DVB), which it reads from the server's `.mks` of the track
+  (`picture_subtitles_sideload`), so they never force a conversion.
 - **HLS**: master playlists, a stream's several sizes (AVPlayer moves
   between them), and fMP4 segments before MPEG-TS, which the server sends
   these apps for every HLS stream ([API.md, fMP4 segments](API.md#fmp4-segments)):
@@ -438,6 +439,53 @@ A track chosen in AVKit's own audio menu (a file played as it is, with
 several tracks) is saved the same way. A file played as it is starts with
 the track the server named.
 
+### Subtitles
+
+The subtitles shown are the ones the server names for the item
+(`selected_subtitle`: the profile's choice for the movie or show, else
+what its subtitle setting picks). The Subtitles menu lists Off and the
+file's tracks ("English (SRT)", "French (PGS, Forced)", "English (SRT,
+External)" for a file beside the video or one added on the server).
+Picking one saves it for the whole show, or the movie
+(`PUT /api/items/{id}/streams`, with the audio only when one was picked),
+and shows it at once, in the same session.
+
+The app draws every track itself, over the video, whatever the session
+plays (`PleySubtitles`):
+
+- **Text** comes from the server's WebVTT
+  (`/api/files/{id}/subtitles/{index}.vtt`, 16 MiB at most, read with the
+  token). Italics, bold and underlining are kept; a cue placed in the
+  upper half goes at the top.
+- **Pictures** (PGS, VobSub, DVB) come from the server's `.mks` of the
+  track (`/api/files/{id}/subtitles/{index}.mks`, 512 MiB at most),
+  downloaded into the app's caches and deleted when the player closes.
+  The app reads it with its own Matroska reader and decoders, ports of the
+  web app's (`packages/picture-subtitles`), and draws each picture where
+  its plane puts it, scaled to the video's bounds. A session asks for no
+  `subtitle_index`, so nothing is burned in and a file that plays as it
+  is, or repackaged, stays so.
+- While the server is still reading a track out of its file, its answer
+  is partial (`X-Pley-Complete: 0`): what came shows, and the rest is
+  asked for every 10 seconds (the `.mks` from where it stopped, with
+  `Range`), until the answer is whole.
+- A server that can't make the `.mks` (`404` for one without the route,
+  `503` when its transcoder can't) has the stream start again with the
+  pictures burned in (`subtitle_index`), as before; Details then says
+  they are burned in, and they can't be moved in time.
+
+The text is white and bold with a dark outline and no box, 4.8 % of the
+video's height and 6 % above its bottom, as on the web and Android. When
+a caption style is chosen in the system's settings (Accessibility →
+Subtitles & Captioning), what it sets wins: colours, background, font,
+size and edges; a change there shows at once.
+
+The subtitles are looked at as often as they change, 20 to 250 ms apart
+while it plays and every 500 ms while paused. **Subtitle sync** moves
+them 0.1 s at a time, up to 10 s earlier or later (positive: later), and
+the offset is kept on the device for the file and the profile, under the
+server's address (`UserDefaults`, never on the server).
+
 ### Quality
 
 The Quality menu is the one in [QUALITY.md](QUALITY.md#the-menu): Original,
@@ -496,17 +544,24 @@ One playback plays at a time: starting another, signing out, switching
 profile or going back to the servers closes the one before, and its
 session ends on the server. The player shows the item's title and
 episode, and AVPlayer picks no subtitle or audio track of its own: the
-audio is the one the server names ([Audio](#audio)).
+audio is the one the server names ([Audio](#audio)), and the subtitles
+are drawn by the app in the player's content overlay, under the controls
+([Subtitles](#subtitles)).
 
 - **iPhone and iPad**: full screen over the app. The system's Close ends
   the playback. An Options button under the top row (with the controls,
   and while paused) has Quality, Audio (when there are several tracks),
-  Chapters and Details: how the file plays (Direct play, Direct stream or
-  Transcoding, and whether the audio is converted), why, and the video.
+  Subtitles and Subtitle sync (Earlier, Later and Reset, the menu staying
+  open while it moves on iOS 16.4 and later), Chapters and Details: how
+  the file plays (Direct play, Direct stream or Transcoding, and whether
+  the audio is converted), why, the video, and the subtitles shown.
   Skip Intro, Skip Credits and the Up Next card show at the bottom right.
   Picture in Picture is off.
-- **Apple TV**: full screen, with Quality and Audio in the transport bar
-  and a Details tab in the info panel (swipe down). Skip Intro, Skip
+- **Apple TV**: full screen, with Quality, Audio and Subtitles in the
+  transport bar (Subtitles holding Subtitle sync, which stays open while
+  it moves) and a Details tab in the info panel (swipe down). Apple TV's
+  player doesn't say where the video shows: the subtitles go on the
+  picture's size fitted to the screen. Skip Intro, Skip
   Credits and Up Next ("Play Next (8)", Cancel) are the player's own
   contextual buttons, and the chapters its chapter markers, with their
   pictures. Menu closes the player when the transport bar isn't showing.
@@ -515,17 +570,20 @@ audio is the one the server names ([Audio](#audio)).
 - **Mac**: a window of its own per playback, opened from the item's page;
   closing the window ends the session, and starting another playback
   closes it. The controls float over the picture, with Quality, Audio,
-  Chapters and Details in their menu, Skip Intro, Skip Credits and the Up
-  Next card at the bottom right, and a Playback menu in the menu bar (Play
-  or Pause, Back and Forward 10 Seconds, Skip, Play Next, Quality, Audio,
+  Subtitles, Subtitle Sync, Chapters and Details in their menu, Skip
+  Intro, Skip Credits and the Up Next card at the bottom right, and a
+  Playback menu in the menu bar (Play or Pause, Back and Forward 10
+  Seconds, Skip, Play Next, Quality, Audio, Subtitles, Subtitle Sync,
   Chapters) acts on the window in front. The keys are the web player's:
   Space or K plays and pauses, ← or J and → or L go back and forward 10
   seconds, ↑ and ↓ change the volume, M mutes, F goes full screen and Esc
-  leaves it, and S skips the intro or the credits. The Mac going to sleep
+  leaves it, S skips the intro or the credits, and C goes to the next
+  subtitles (Off after the last). The Mac going to sleep
   pauses, a move to another screen reads the device's caps again, and
   quitting waits for the last reports (2 seconds at most).
 
-Quality's choices show their second line under them: as a subtitle in
+Quality's choices (and a subtitle track that would be burned in) show
+their second line under them: as a subtitle in
 the transport bar's menu on Apple TV and in the Mac's menus, as a second
 line in the Options menu on iPhone and iPad.
 
@@ -634,12 +692,13 @@ PleyKit's modules, each depending only on those before it:
 |---|---|
 | `PleyModel` | The server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read; the caps report the apps send; the words shown for codecs, tracks, versions and times (`Words`, the Android app's) |
 | `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, Bonjour (browsing, TXT records, resolving), logging |
-| `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), and the typed API calls |
+| `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), downloads to a file resumed with `Range`, and the typed API calls |
 | `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the scope guard and profile switching |
 | `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, and pictures made small and cached |
 | `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
-| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `TrackChoices`), the playback controller, the AVPlayer engine behind a protocol the tests replace, and the Mac player's keys |
-| `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Chapters, Details), Apple TV's contextual actions and chapter markers, and the audio session |
+| `PleySubtitles` | Subtitles the app draws: the WebVTT reader, text cues by time, the subtitle sync and its offsets, the server's tracks read with `X-Pley-Complete`, and a port of `packages/picture-subtitles` (the Matroska reader, the PGS, VobSub and DVB decoders, and the pictures by time) |
+| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, and the Mac player's keys |
+| `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Chapters, Details), the subtitles drawn over the video in the system's caption style (`SubtitleLayer`), Apple TV's contextual actions and chapter markers, and the audio session |
 | `PleyScreens` | What the screens show and do, shared by both apps without any views: the route between screens, the servers, signing in (with the QR code, from Core Image), profiles, Home and an item's page, as `ObservableObject`s; `AppModel` also owns the one playback at a time, the device's caps and the session reports |
 | `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens, playback sessions with keyed media, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
@@ -707,6 +766,11 @@ activity, the session's status and the item:
 - the MP4 with two audio tracks switches to its AC-3 track in the same
   session, and the server keeps the choice (`selected_audio`,
   `audio_picked`);
+- subtitles drawn by the app: the H.264 MP4's SRT beside it shows its
+  second line at 8.5 seconds, from the server's WebVTT, while the file
+  plays as it is; the MKV's PGS shows its 480×96 picture at 12.5 seconds,
+  from the server's `.mks`, while the session stays repackaged with
+  nothing burned in;
 - for every recorded Apple device class's caps report
   (`apps/server/tests/fixtures/caps`), the server's decision for six of
   the files (method, converted audio and reasons) is the one
@@ -739,11 +803,11 @@ address, to have it found by Bonjour. Delete the folder afterwards.
 
 ## Known limits
 
-- No subtitles drawn over the picture yet.
 - Up Next follows episodes only: no playlist or collection queues, and no
   setting to turn its countdown off.
 - No seek-bar previews.
-- A subtitle isn't shown over AirPlay.
+- Subtitles aren't shown over AirPlay: the app draws them over its own
+  view of the video, which AirPlay doesn't send.
 - No Live TV, music or downloads.
 - A playback stopped from elsewhere is noticed at the next report, within
   10 seconds.

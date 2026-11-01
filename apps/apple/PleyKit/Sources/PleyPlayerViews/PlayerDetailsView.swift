@@ -3,8 +3,8 @@ import SwiftUI
 
 /// How the video plays, for Details: the way ("Direct stream"), the
 /// quality and why Automatic went lower, why the server didn't play the
-/// file as it is, what the screen gets of HDR video, and what the server's
-/// conversion makes. Apple TV shows it as an info panel tab, the other devices in the
+/// file as it is, what the screen gets of HDR video, what the server's
+/// conversion makes, and the subtitles shown (and whether they are burned in). Apple TV shows it as an info panel tab, the other devices in the
 /// Options menu (iPhone and iPad) or the action menu (Mac).
 public struct PlayerDetailsView: View {
     let state: PlayerState
@@ -48,6 +48,10 @@ public enum PlayerDetails {
         }
         if let out = state.videoOut, !out.isEmpty {
             lines.append(Line(title: "Video out", text: out))
+        }
+        if state.subtitles.contains(where: { $0.selected && $0.id != MenuChoice.off }) {
+            let burned = state.subtitlesBurnedIn ? " · burned into the video" : ""
+            lines.append(Line(title: "Subtitles", text: state.subtitleLabel + burned))
         }
         return lines
     }

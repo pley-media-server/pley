@@ -140,7 +140,8 @@ struct TextSubtitlesTests {
 @Suite("Fetching subtitle tracks")
 struct SubtitleFetchTests {
     private func client(_ server: FixtureServer) -> APIClient {
-        APIClient(origin: server.origin, tokens: nil, transport: HTTPTransport(userAgent: "pleyApple/9.9.9 (macOS 15.2; Mac)"))
+        let transport = HTTPTransport(userAgent: "pleyApple/9.9.9 (macOS 15.2; Mac)")
+        return APIClient(origin: server.origin, tokens: nil, transport: transport)
     }
 
     @Test func readsWebVTTAndWhetherItIsComplete() async throws {

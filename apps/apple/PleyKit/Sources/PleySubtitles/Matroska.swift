@@ -228,7 +228,8 @@ public enum MatroskaPictureTrack {
 
     /// An EBML variable-length integer at `at`: an element id keeps its
     /// length marker (`stripMarker` false), a size or track number loses it.
-    private static func vint(_ bytes: [UInt8], at: Int, stripMarker: Bool) -> (value: Int, length: Int, unknown: Bool)? {
+    private static func vint(_ bytes: [UInt8], at: Int,
+                             stripMarker: Bool) -> (value: Int, length: Int, unknown: Bool)? {
         guard at >= 0, at < bytes.count, bytes[at] != 0 else { return nil }
         let first = Int(bytes[at])
         var length = 1

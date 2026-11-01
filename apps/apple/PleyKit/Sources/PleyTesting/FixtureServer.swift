@@ -82,6 +82,9 @@ public final class FixtureServer: Sendable {
         /// The audio picked for it (`PUT …/streams`).
         public var selectedAudio: Int?
         public var audioPicked = false
+        /// The file's subtitle streams, and the one the profile shows (`PUT …/streams` sets it).
+        public var subtitles: [MediaStream] = []
+        public var selectedSubtitle: Int?
 
         public init(itemId: Int, fileId: Int, title: String = "Test Movie", container: String = "mp4",
                     durationMs: Int = 4_000, positionMs: Int = 0, watched: Bool = false, media: Data = Data(),
@@ -583,7 +586,9 @@ public final class FixtureServer: Sendable {
         case 403: "Forbidden"
         case 404: "Not Found"
         case 410: "Gone"
+        case 416: "Range Not Satisfiable"
         case 501: "Not Implemented"
+        case 503: "Service Unavailable"
         default: "Status"
         }
     }
@@ -705,6 +710,8 @@ public final class FixtureServer: Sendable {
                     s.playables[id]?.selectedAudio = audio
                     s.playables[id]?.audioPicked = true
                 }
+                // Left out or null: subtitles off.
+                if let id = Int(parts[2]) { s.playables[id]?.selectedSubtitle = body["subtitle_index"] as? Int }
                 return Answer(status: 204, headers: [:], body: Data())
             }
         case ("GET", 5, "files") where parts[3] == "chapters" && parts[4].hasSuffix(".jpg"):
@@ -807,11 +814,23 @@ public final class FixtureServer: Sendable {
                                      videoOut: "H.264 \(lines * 16 / 9)×\(lines)")
         let hls = method != "direct"
         let autoQuality: Any = method == "transcode" && maxBitrate == nil ? s.autoQuality : NSNull()
+        // Picture subtitles asked for are burned into the stream.
+        let burned = (asked["subtitle_index"] as? Int).flatMap { index in
+            playable.subtitles.first { $0.index == index && $0.textBased == false && hls }?.index
+        }
+        let subtitles: [Any] = playable.subtitles.map { stream in
+            let text = stream.textBased != false
+            return ["index": stream.index, "codec": stream.codec, "language": stream.language as Any? ?? NSNull(),
+                    "default": stream.default, "forced": stream.forced, "external": stream.external,
+                    "text_based": text,
+                    "url": text ? "/api/files/\(playable.fileId)/subtitles/\(stream.index).vtt" : NSNull()]
+        }
         return json(200, [
             "session_id": id, "method": method, "hls": hls, "file_id": playable.fileId,
             "url": hls ? "/api/media/\(key)/index.m3u8" : "/api/media/\(key)/file.\(playable.container)",
-            "duration_ms": playable.durationMs, "audio_index": audioIndex, "subtitle_index": NSNull(), "burn_subtitles": false,
-            "audio_converted": false, "subtitles": [], "reasons": hls ? ["MKV not supported."] : [],
+            "duration_ms": playable.durationMs, "audio_index": audioIndex,
+            "subtitle_index": burned.map { $0 as Any } ?? NSNull(), "burn_subtitles": burned != nil,
+            "audio_converted": false, "subtitles": subtitles, "reasons": hls ? ["MKV not supported."] : [],
             "reason": NSNull(), "auto_quality": autoQuality, "video_range": NSNull(),
             "adaptive": hls && s.adaptive,
             "live_bitrate": false, "pts_offset_ms": hls ? 0 : NSNull(),
@@ -842,13 +861,16 @@ public final class FixtureServer: Sendable {
                                "width": p.width, "height": p.height, "frame_rate": 30.0, "bit_depth": 8, "level": 30,
                                "dynamic_range": "sdr"]]
         streams += p.audio.map(object(_:))
+        streams += p.subtitles.map(object(_:))
         var out = summary(p)
         out["files"] = [[
             "id": p.fileId, "path": "\(p.title).\(p.container)", "size": p.media.count, "container": p.container,
             "duration_ms": p.durationMs, "bitrate": p.bitrate, "width": p.width, "height": p.height,
             "video_codec": "h264", "audio_codec": p.audio.first.map { $0.codec as Any } ?? NSNull(),
             "streams": streams, "selected_audio": p.selectedAudio.map { $0 as Any } ?? NSNull(),
-            "audio_picked": p.audioPicked, "selected_subtitle": NSNull(), "chapters": p.chapters.map(object(_:)),
+            "audio_picked": p.audioPicked,
+            "selected_subtitle": p.selectedSubtitle.map { $0 as Any } ?? NSNull(),
+            "chapters": p.chapters.map(object(_:)),
         ]]
         out["markers"] = p.markers.map(object(_:))
         return out

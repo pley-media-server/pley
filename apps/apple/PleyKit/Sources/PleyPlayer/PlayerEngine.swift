@@ -76,6 +76,8 @@ public protocol PlayerEngine: AnyObject {
     func pause()
     func seek(toMs positionMs: Int)
     func sample() -> EngineSample
+    /// Where the playhead is, in ms: what `sample()` says, read cheaply (the subtitles ask often).
+    func positionMs() -> Int
     /// The largest picture the stream should play at, in pixels (AVPlayer's
     /// `preferredMaximumResolution`, for a stream in several sizes); 0×0 for no limit.
     func setMaximumResolution(width: Int, height: Int)
@@ -87,4 +89,8 @@ public protocol PlayerEngine: AnyObject {
     func selectAudio(_ option: EngineAudioOption) -> Bool
     /// Lets go of the media and the player.
     func close()
+}
+
+extension PlayerEngine {
+    public func positionMs() -> Int { sample().positionMs }
 }

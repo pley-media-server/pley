@@ -1,12 +1,15 @@
 #if os(iOS) || os(tvOS)
 import AVKit
 import PleyPlayer
+import PleySubtitles
 import SwiftUI
 import UIKit
 
 /// The system's player, `AVPlayerViewController`, showing the controller's
 /// AVPlayer with AVKit's own controls. Its item carries the title (and an
-/// episode's label) for the system's info.
+/// episode's label) for the system's info. The subtitles are drawn over
+/// the picture, in its content overlay (`SubtitleView`), placed in the
+/// video's bounds (on Apple TV, the picture's size fitted to the screen).
 ///
 /// - iPhone and iPad: a tap on the video is told (`onTap`), so the app's
 ///   own buttons over it show with the system's controls. Picture in
@@ -14,8 +17,9 @@ import UIKit
 /// - Apple TV: AVKit applies the content's frame rate and dynamic range to
 ///   the TV when the person turned on Match Content
 ///   (`appliesPreferredDisplayCriteriaAutomatically`, from the master
-///   playlist's `FRAME-RATE` and `VIDEO-RANGE`). The Quality and Audio
-///   menus sit in the transport bar, and Details is a tab of the info panel.
+///   playlist's `FRAME-RATE` and `VIDEO-RANGE`). The Quality, Audio and
+///   Subtitles menus (with the subtitle sync) sit in the transport bar, and
+///   Details is a tab of the info panel.
 ///   Skip Intro, Skip Credits and Up Next ("Play Next (8)", Cancel) are the
 ///   player's contextual actions, and the chapters its navigation markers,
 ///   with their pictures.
@@ -56,6 +60,11 @@ public struct PlayerSurface: UIViewControllerRepresentable {
         context.coordinator.details = details
         controller.customInfoViewControllers = [details]
         #endif
+        if let overlay = controller.contentOverlayView {
+            let subtitles = SubtitleView(frame: overlay.bounds)
+            overlay.addSubview(subtitles)
+            context.coordinator.follow(controller, subtitles: subtitles)
+        }
         return controller
     }
 
@@ -69,16 +78,25 @@ public struct PlayerSurface: UIViewControllerRepresentable {
             coordinator.watch(player)
         }
         coordinator.describeItem()
+        coordinator.subtitles?.shown = state.cues
+        #if os(tvOS)
+        // Apple TV's player doesn't say where the video shows: the picture, fitted to the screen.
+        coordinator.subtitles?.aspect = player?.currentItem?.presentationSize ?? .zero
+        #endif
         #if os(tvOS)
         coordinator.details?.rootView = AnyView(PlayerDetailsView(state: state).padding(40))
         let playback = self.controller
-        if coordinator.qualities != state.qualities || coordinator.audio != state.audio {
+        let subtitleMenu = SubtitleMenuKey(state)
+        if coordinator.qualities != state.qualities || coordinator.audio != state.audio
+            || coordinator.subtitleMenu != subtitleMenu {
             coordinator.qualities = state.qualities
             coordinator.audio = state.audio
+            coordinator.subtitleMenu = subtitleMenu
             var menus = [Self.qualityMenu(state.qualities, onQuality)]
             if state.audio.count > 1 {
                 menus.append(Self.audioMenu(state.audio) { playback?.selectAudio($0) })
             }
+            if !state.subtitles.isEmpty { menus.append(Self.subtitlesMenu(state, playback)) }
             controller.transportBarCustomMenuItems = menus
         }
         let actions = Self.contextualActions(state, playback)
@@ -120,6 +138,53 @@ public struct PlayerSurface: UIViewControllerRepresentable {
         return UIMenu(title: "Audio", image: UIImage(systemName: "speaker.wave.2"), children: actions)
     }
 
+    /// The transport bar's Subtitles menu: Off and each track, the one
+    /// shown checked, then the sync (0.1 s earlier or later, kept open
+    /// while it is moved, and back to 0) when they can be moved.
+    @MainActor
+    static func subtitlesMenu(_ state: PlayerState, _ playback: PlaybackController?) -> UIMenu {
+        let tracks = state.subtitles.map { choice in
+            let action = UIAction(title: choice.label, state: choice.selected ? .on : .off) { _ in
+                playback?.selectSubtitle(choice.id == MenuChoice.off ? nil : Int(choice.id))
+            }
+            action.subtitle = choice.detail
+            return action
+        }
+        var children: [UIMenuElement] = [UIMenu(title: "", options: .displayInline, children: tracks)]
+        if state.canSyncSubtitles {
+            let offset = state.subtitleOffsetMs
+            let sync = UIMenu(title: "Subtitle sync", subtitle: state.subtitleOffsetLabel,
+                              image: UIImage(systemName: "timer"), children: [
+                UIAction(title: "Earlier", subtitle: "−0.1 s", attributes: .keepsMenuPresented) { _ in
+                    playback?.moveSubtitles(steps: -1)
+                },
+                UIAction(title: "Later", subtitle: "+0.1 s", attributes: .keepsMenuPresented) { _ in
+                    playback?.moveSubtitles(steps: 1)
+                },
+                UIAction(title: "Reset", attributes: offset == 0 ? .disabled : []) { _ in
+                    playback?.setSubtitleOffset(0)
+                },
+            ])
+            children.append(sync)
+        }
+        return UIMenu(title: "Subtitles", image: UIImage(systemName: "captions.bubble"), children: children)
+    }
+
+    /// What the Subtitles menu shows, so it is made again only when that changes.
+    struct SubtitleMenuKey: Equatable {
+        var choices: [MenuChoice] = []
+        var offsetMs = 0
+        var canSync = false
+
+        init() {}
+
+        init(_ state: PlayerState) {
+            choices = state.subtitles
+            offsetMs = state.subtitleOffsetMs
+            canSync = state.canSyncSubtitles
+        }
+    }
+
     /// Skip Intro or Skip Credits, or Up Next's Play Next and Cancel; and
     /// what they are, so they are made again only when that changes.
     @MainActor
@@ -146,6 +211,7 @@ public struct PlayerSurface: UIViewControllerRepresentable {
         var details: UIHostingController<AnyView>?
         var qualities: [MenuChoice] = []
         var audio: [MenuChoice] = []
+        var subtitleMenu = SubtitleMenuKey()
         var actions = ""
         var chapters: [ChapterChoice] = []
         var durationMs = 0
@@ -156,6 +222,9 @@ public struct PlayerSurface: UIViewControllerRepresentable {
         private var pictures: [Int: Data] = [:]
         private var picturesTask: Task<Void, Never>?
         #endif
+        /// The subtitles over the video, and the watch on where the video shows (iPhone and iPad).
+        private(set) var subtitles: SubtitleView?
+        private var boundsWatch: NSKeyValueObservation?
         private weak var player: AVPlayer?
         private var itemWatch: NSKeyValueObservation?
         private weak var described: AVPlayerItem?
@@ -165,6 +234,21 @@ public struct PlayerSurface: UIViewControllerRepresentable {
 
         public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
                                       shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+
+        /// Keeps `subtitles` on the video: in its bounds, as the view and the video change size.
+        @MainActor
+        func follow(_ controller: AVPlayerViewController, subtitles: SubtitleView) {
+            self.subtitles = subtitles
+            #if os(iOS)
+            boundsWatch = controller.observe(\.videoBounds, options: [.initial, .new]) {
+                [weak subtitles, weak controller] _, _ in
+                Task { @MainActor in
+                    guard let subtitles, let controller, let view = controller.viewIfLoaded else { return }
+                    subtitles.video = subtitles.convert(controller.videoBounds, from: view)
+                }
+            }
+            #endif
+        }
 
         /// Follows the player's item, so each new one (a new session) is described too.
         @MainActor

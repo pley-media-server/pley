@@ -5,11 +5,12 @@ import PleyCaps
 import PleyCommon
 import PleyModel
 import PleyNetwork
+import PleySubtitles
 
 /// What a playback needs from the app: the server's API, what the device
 /// plays, this install's client id, the report queue and the late
 /// reports (both the app's, outliving any player), the quality picked and
-/// Automatic's ceiling as remembered, a clock and the engine.
+/// Automatic's ceiling as remembered, the subtitle offsets, a clock and the engine.
 @MainActor
 public struct PlaybackEnvironment {
     public var api: PleyAPI
@@ -26,12 +27,20 @@ public struct PlaybackEnvironment {
     /// Asks for a new stream ahead of the player, while the one before plays on.
     public var warmer: any StreamWarmer
     public var networkTiming: NetworkStart.Timing
+    /// The subtitle sync's offsets, per file and profile.
+    public var subtitleOffsets: any SubtitleOffsets
+    /// The profile watching, for the offsets' keys.
+    public var profileId: Int?
+    /// Where picture subtitles are downloaded while they show (the app's Caches, `picture-subtitles`).
+    public var pictureFolder: URL
 
     public init(api: PleyAPI, caps: DeviceCaps, clientId: String, reporter: SessionReporter, late: LateReports?,
                 quality: any QualityMemory = MemoryQuality(), ceiling: any CeilingMemory = MemoryCeiling(),
                 clock: any PlayerClock = SystemPlayerClock(),
                 engines: @escaping @MainActor () -> any PlayerEngine = { AVPlayerEngine() },
-                warmer: (any StreamWarmer)? = nil, networkTiming: NetworkStart.Timing = NetworkStart.Timing()) {
+                warmer: (any StreamWarmer)? = nil, networkTiming: NetworkStart.Timing = NetworkStart.Timing(),
+                subtitleOffsets: any SubtitleOffsets = MemorySubtitleOffsets(), profileId: Int? = nil,
+                pictureFolder: URL? = nil) {
         self.api = api
         self.caps = caps
         self.clientId = clientId
@@ -43,6 +52,12 @@ public struct PlaybackEnvironment {
         self.engines = engines
         self.warmer = warmer ?? APIStreamWarmer(client: api.client)
         self.networkTiming = networkTiming
+        self.subtitleOffsets = subtitleOffsets
+        self.profileId = profileId
+        // The app's own folder in Caches: on a Mac without a sandbox, Caches is the user's.
+        self.pictureFolder = pictureFolder ?? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(Bundle.main.bundleIdentifier ?? "pley", isDirectory: true)
+            .appendingPathComponent("picture-subtitles", isDirectory: true)
     }
 }
 
@@ -79,6 +94,14 @@ public struct PlaybackEnvironment {
 ///   saved for the movie or show (`PUT …/streams`) and switched by AVPlayer
 ///   in a file played as it is, else played by a new session beside this
 ///   one (`audio_index`, `keep_previous`).
+/// - **Subtitles.** The track the server names for the item
+///   (`selected_subtitle`) shows; another one picked is saved likewise.
+///   This player draws them all (`state.cues`): text from the server's
+///   WebVTT, pictures (PGS, VobSub, DVB) from its `.mks` of the track, both
+///   asked for again every 10 s while the server says it has more
+///   (`X-Pley-Complete: 0`). A server that can't make the `.mks` (`404`,
+///   `503`) has them burned into a stream instead. The sync moves them in
+///   time, remembered per file and profile.
 /// - **Background.** iPhone, iPad and Apple TV pause and report when the
 ///   app goes to the background; back after more than 60 s, the session is
 ///   checked and started again, paused, if the server forgot it.
@@ -107,6 +130,13 @@ public final class PlaybackController: ObservableObject {
     static let noTranscodeFree = 503
     /// The largest chapter picture read.
     static let chapterPictureMaxBytes = 10 * 1024 * 1024
+    /// How often the subtitles are looked at, at most and at least while
+    /// they play (the time to their next change, within these), and while paused.
+    static let cueMinMs = 20
+    static let cueMaxMs = 250
+    static let cueIdleMs = 500
+    /// How often a track the server is still reading is asked for again.
+    static let subtitleRefreshMs: Int64 = 10_000
 
     @Published public private(set) var state = PlayerState()
 
@@ -174,8 +204,21 @@ public final class PlaybackController: ObservableObject {
     private var pickedAudio: MediaStream?
     /// The audio track that plays.
     private var playingAudio: Int?
-    /// The subtitles as chosen, saved with an audio choice.
-    private var subtitleIndex: Int?
+    /// The subtitles chosen; `nil`: off.
+    private var subtitle: MediaStream?
+    /// The server can't make the `.mks` of picture subtitles: they are burned in instead.
+    private var picturesUnavailable = false
+    /// The subtitles' offset for this file, ms.
+    private var subtitleOffset = 0
+    /// What is read for the subtitles shown ("text /api/files/7/subtitles/2.vtt"), and the reading.
+    private var feedKey: String?
+    private var feed: Task<Void, Never>?
+    /// The track drawn, and the loop that draws it.
+    private var cueTrack: (any CueTrack)?
+    private var cueTask: Task<Void, Never>?
+    /// The picture subtitles downloaded by this playback, deleted at its end.
+    private var pictureFiles: Set<URL> = []
+    private let pictureToken = UUID().uuidString
 
     public init(request: PlayRequest, environment: PlaybackEnvironment) {
         self.request = request
@@ -246,6 +289,7 @@ public final class PlaybackController: ObservableObject {
             return
         }
         engine?.seek(toMs: target)
+        updateCues()
         schedule.sought(at: env.clock.now())
         recovery.onJump()
         struggle.reset()
@@ -305,13 +349,64 @@ public final class PlaybackController: ObservableObject {
         else { return }
         pickedAudio = stream
         playingAudio = index
-        saveAudio(item: item, file: file, index: index)
+        saveStreams(item: item, file: file)
         publishAudio()
         guard let session, mediaShown, !ended else { return }
         if session.info.method == .direct, PlaybackPlan.audioPlaysHere(stream, caps: caps), switchInEngine(index) {
             return
         }
         restart(at: livePosition(), alongside: true)
+    }
+
+    /// Shows the subtitle track `index` (a stream index of the file, from
+    /// `state.subtitles`), or none for `nil`, and saves the choice for the
+    /// movie or show with the audio picked, if any. Picture subtitles a
+    /// stream would burn in (a server without their `.mks`) start a new
+    /// session beside this one; everything else shows at once.
+    public func selectSubtitle(_ index: Int?) {
+        guard !closed, !stopped, let item, let file else { return }
+        var chosen: MediaStream?
+        if let index {
+            guard let stream = file.streams(.subtitle).first(where: { $0.index == index }) else { return }
+            chosen = stream
+        }
+        guard chosen?.index != subtitle?.index else { return }
+        subtitle = chosen
+        saveStreams(item: item, file: file)
+        publishSubtitles()
+        guard let info = session?.info else { return }
+        let burn = info.hls && PlaybackPlan.isPicture(chosen) && !sideloads
+        if burn != info.burnSubtitles || burn && info.subtitleIndex != chosen?.index {
+            restart(at: livePosition(), alongside: true)
+        } else {
+            applySubtitles()
+        }
+    }
+
+    /// The Subtitles menu's next choice, after the last Off again (the Mac's `c` key).
+    public func cycleSubtitles() {
+        let ids = state.subtitles.map(\.id)
+        guard !ids.isEmpty else { return }
+        let at = state.subtitles.firstIndex(where: \.selected) ?? 0
+        let next = ids[(at + 1) % ids.count]
+        selectSubtitle(next == MenuChoice.off ? nil : Int(next))
+    }
+
+    /// Moves the subtitles by `offsetMs` (positive: later), in 0.1 s steps
+    /// within ±10 s, remembered for the file and the profile.
+    public func setSubtitleOffset(_ offsetMs: Int) {
+        guard !closed else { return }
+        let moved = SubtitleSync.clamp(offsetMs)
+        guard moved != subtitleOffset else { return }
+        subtitleOffset = moved
+        state.subtitleOffsetMs = moved
+        if let file { env.subtitleOffsets.remember(offsetKey(file.id), offsetMs: moved) }
+        updateCues()
+    }
+
+    /// Moves the subtitles `steps` of 0.1 s later (negative: earlier).
+    public func moveSubtitles(steps: Int) {
+        setSubtitleOffset(subtitleOffset + steps * SubtitleSync.stepMs)
     }
 
     /// Chapter `index`'s picture (JPEG, 10 MiB at most), read with the
@@ -423,6 +518,8 @@ public final class PlaybackController: ObservableObject {
         tickTask?.cancel()
         eventTask?.cancel()
         nextLookup?.cancel()
+        hideSubtitles()
+        deletePictureFiles()
         endSession(at: position)
         engine?.close()
         await env.reporter.flush(timeoutMs: Self.flushMs, clock: env.clock)
@@ -483,7 +580,10 @@ public final class PlaybackController: ObservableObject {
         lastPositionMs = PlaybackPlan.startMs(item, request)
         state.positionMs = lastPositionMs
         markers = Markers.forFile(item, fileId: file.id)
-        subtitleIndex = file.selectedSubtitle
+        subtitle = file.streams(.subtitle).first { $0.index == file.selectedSubtitle }
+        subtitleOffset = SubtitleSync.clamp(env.subtitleOffsets.offset(offsetKey(file.id)))
+        state.subtitleOffsetMs = subtitleOffset
+        publishSubtitles()
         state.chapters = file.chapters.enumerated().map { n, chapter in
             ChapterChoice(index: n, title: chapter.title.flatMap { $0.isEmpty ? nil : $0 } ?? "Chapter \(n + 1)",
                           startMs: chapter.startMs)
@@ -592,10 +692,11 @@ public final class PlaybackController: ObservableObject {
         // A lower quality is always a transcode; the original keeps a fallback's mode.
         let mode: PlaybackMode = quality.original ? recovery.fallbackMode ?? .auto : .transcode
         let decision = caps.map { CapsPolicy.decide(file, $0) }
-        var choices = PlaybackPlan.Choices(file: file, startMs: atMs, audio: pickedAudio,
+        var choices = PlaybackPlan.Choices(file: file, startMs: atMs, audio: pickedAudio, subtitle: subtitle,
                                            maxBitrate: quality.maxBitrateKbps, maxHeight: quality.maxHeight, mode: mode,
                                            streaming: PlaybackPlan.streams(mode: mode, decision: decision, file: file,
-                                                                           audio: pickedAudio, caps: caps))
+                                                                           audio: pickedAudio, caps: caps),
+                                           sideload: sideloads)
         var sent = PlaybackPlan.request(itemId: item.id, choices, clientId: env.clientId, caps: caps,
                                         keepPrevious: keepPrevious)
         var started = try await ServerPlaybackSession.start(api: env.api, request: sent, reporter: env.reporter,
@@ -636,7 +737,9 @@ public final class PlaybackController: ObservableObject {
         state.reasons = info.reasons
         state.videoRange = info.videoRange
         state.videoOut = nil
+        state.subtitlesBurnedIn = info.burnSubtitles && PlaybackPlan.isPicture(subtitle)
         if info.durationMs > 0 { state.durationMs = info.durationMs }
+        publishSubtitles()
         playingAudio = pickedAudio?.index ?? info.audioIndex
         publishAudio()
         auto.jumped()
@@ -714,6 +817,7 @@ public final class PlaybackController: ObservableObject {
             if session.info.method == .transcode { describeConversion(session) }
             // A file played as it is plays the track the server named (or the one picked) of its own.
             if session.info.method == .direct, let playingAudio { switchInEngine(playingAudio) }
+            applySubtitles()
         case .ended:
             onEnded()
         case .failed(let error):
@@ -743,6 +847,7 @@ public final class PlaybackController: ObservableObject {
         auto.jumped()
         noPictureFrom = nil
         lastAdvanceAt = now
+        updateCues()
     }
 
     /// What the server's conversion makes of the video (Details), once it runs.
@@ -819,6 +924,7 @@ public final class PlaybackController: ObservableObject {
         endSession(at: end)
         state.positionMs = end
         state.skipLabel = nil
+        updateCues()
         setPhase(.ended)
         // What comes next, with its countdown (again, when its card was cancelled).
         guard let item, NextUp.hasNext(item.kind), !closed, !stopped else { return }
@@ -848,6 +954,7 @@ public final class PlaybackController: ObservableObject {
             }
             if let due = schedule.due(at: now) { session.progress(positionMs: sample.positionMs, state: due) }
             followMarkers(sample.positionMs)
+            updateCues()
         }
         if case .failed = state.phase { return }
         guard sessionTask == nil, preparing == nil else {
@@ -1006,6 +1113,10 @@ public final class PlaybackController: ObservableObject {
         credits.reset()
         pickedAudio = nil
         playingAudio = nil
+        subtitle = nil
+        subtitleOffset = 0
+        hideSubtitles()
+        deletePictureFiles()
         recovery = Recovery()
         autoNoticePending = false
         wantPlay = true
@@ -1019,6 +1130,10 @@ public final class PlaybackController: ObservableObject {
         state.skipLabel = nil
         state.chapters = []
         state.audio = []
+        state.subtitles = []
+        state.subtitleOffsetMs = 0
+        state.canSyncSubtitles = false
+        state.subtitlesBurnedIn = false
         state.subtitle = nil
         state.title = target.grandparentTitle ?? target.title
         state.itemId = target.id
@@ -1057,21 +1172,201 @@ public final class PlaybackController: ObservableObject {
         else { return }
         pickedAudio = stream
         playingAudio = stream.index
-        saveAudio(item: item, file: file, index: stream.index)
+        saveStreams(item: item, file: file)
         publishAudio()
     }
 
-    /// `PUT /api/items/{id}/streams` with the audio picked and the subtitles as they are.
-    private func saveAudio(item: ItemDetail, file: MediaFile, index: Int) {
-        let choice = StreamsChoice(fileId: file.id, audioIndex: index, subtitleIndex: subtitleIndex)
+    /// `PUT /api/items/{id}/streams` with the subtitles as they are, and
+    /// the audio only when one was picked (left out, the server keeps its own).
+    private func saveStreams(item: ItemDetail, file: MediaFile) {
+        let choice = StreamsChoice(fileId: file.id, audioIndex: pickedAudio?.index, subtitleIndex: subtitle?.index)
         let api = env.api
         Task {
             do {
                 try await api.setStreams(itemId: item.id, choice)
             } catch {
-                Log.player.notice("the audio choice wasn't saved")
+                Log.player.notice("the track choice wasn't saved")
             }
         }
+    }
+
+    // MARK: Subtitles
+
+    /// Pictures chosen for a stream are drawn by this player, not burned in:
+    /// the caps say so, and the server hasn't failed to make their `.mks`.
+    private var sideloads: Bool { !picturesUnavailable && caps?.pictureSubtitlesSideload == true }
+
+    /// Where the file's offset is kept (`SubtitleSync.key`).
+    private func offsetKey(_ fileId: Int) -> String {
+        SubtitleSync.key(origin: env.api.client.origin, fileId: fileId, profileId: env.profileId)
+    }
+
+    /// The Subtitles menu, the sync and whether it is burned in, as chosen now.
+    private func publishSubtitles() {
+        let streams = file?.streams(.subtitle) ?? []
+        let info = session?.info
+        let streaming = info?.hls ?? false
+        let menu = streams.isEmpty ? [] : [MenuChoice(id: MenuChoice.off, label: PlayerTexts.subtitlesOff,
+                                                      selected: subtitle == nil)]
+            + streams.map { stream in
+                let burns = streaming && PlaybackPlan.isPicture(stream) && !sideloads
+                return MenuChoice(id: String(stream.index), label: Words.stream(stream),
+                                  detail: burns ? PlayerTexts.burnedIn : nil, selected: stream.index == subtitle?.index)
+            }
+        if state.subtitles != menu { state.subtitles = menu }
+        // Text moves always; pictures when drawn here, not burned into the video.
+        let syncable = subtitle.map { !PlaybackPlan.isPicture($0) || info?.burnSubtitles != true } ?? false
+        if state.canSyncSubtitles != syncable { state.canSyncSubtitles = syncable }
+    }
+
+    /// Shows the subtitles chosen as the session plays them: text from the
+    /// server's WebVTT, pictures from its `.mks` unless burned in; else none.
+    private func applySubtitles() {
+        guard let info = session?.info, let sub = subtitle else { return hideSubtitles() }
+        if !PlaybackPlan.isPicture(sub) {
+            let given = info.subtitles.first { $0.index == sub.index }?.url
+            let path = given.flatMap { SubtitleFetch.isTrackPath($0) ? $0 : nil }
+                ?? SubtitleFetch.textPath(fileId: info.fileId, index: sub.index)
+            showText(path)
+        } else if !info.burnSubtitles && sideloads {
+            showPictures(fileId: info.fileId, index: sub.index)
+        } else {
+            hideSubtitles()
+        }
+    }
+
+    /// Reads the WebVTT at `path`, again every 10 s while it is partial.
+    private func showText(_ path: String) {
+        let key = "text \(path)"
+        guard feedKey != key else { return }
+        hideSubtitles()
+        feedKey = key
+        let (client, clock) = (env.api.client, env.clock)
+        feed = Task { [weak self] in
+            var track: TextCueTrack?
+            while !Task.isCancelled {
+                do {
+                    let (got, complete) = try await SubtitleFetch.text(client, path: path)
+                    guard let self, !Task.isCancelled else { return }
+                    let merged = track.map { $0.merge(got) } ?? got
+                    track = merged
+                    self.draw(merged)
+                    if complete { return }
+                } catch {
+                    guard let self, !Task.isCancelled else { return }
+                    // What was read stays; with nothing, the screen says so.
+                    if track == nil { return self.subtitlesFailed(error) }
+                }
+                do { try await clock.sleep(ms: Self.subtitleRefreshMs) } catch { return }
+            }
+        }
+    }
+
+    /// Downloads the `.mks` of picture track `index`, the rest of it every 10 s while it is partial.
+    private func showPictures(fileId: Int, index: Int) {
+        let path = SubtitleFetch.picturesPath(fileId: fileId, index: index)
+        let key = "pictures \(path)"
+        guard feedKey != key else { return }
+        hideSubtitles()
+        feedKey = key
+        let folder = env.pictureFolder
+        let file = folder.appendingPathComponent("\(pictureToken)-\(fileId)-\(index).mks")
+        pictureFiles.insert(file)
+        let (client, clock) = (env.api.client, env.clock)
+        feed = Task { [weak self] in
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            var shown = false
+            while !Task.isCancelled {
+                do {
+                    let (track, complete) = try await SubtitleFetch.pictures(client, path: path, file: file)
+                    guard let self, !Task.isCancelled else { return }
+                    guard let pictures = PictureSubtitles.of(track, id: "\(fileId)-\(index)") else {
+                        return self.subtitlesFailed(nil)
+                    }
+                    shown = true
+                    self.draw(pictures)
+                    if complete { return }
+                } catch {
+                    guard let self, !Task.isCancelled else { return }
+                    if case .api(let status, _, _)? = error as? PleyError, status == 404 || status == 503 {
+                        return self.picturesFailed()
+                    }
+                    if !shown { return self.subtitlesFailed(error) }
+                }
+                do { try await clock.sleep(ms: Self.subtitleRefreshMs) } catch { return }
+            }
+        }
+    }
+
+    /// The server can't make the pictures' `.mks` (a server without the
+    /// route, `404`; its transcoder can't, `503`): a stream starts again
+    /// with them burned in, as before side-loading. A file played as it is
+    /// can't burn them: the screen says they couldn't be loaded.
+    private func picturesFailed() {
+        guard !closed, !stopped, let info = session?.info, info.hls, !info.burnSubtitles else {
+            return subtitlesFailed(nil)
+        }
+        Log.player.notice("no picture subtitles from the server: burning them in")
+        picturesUnavailable = true
+        hideSubtitles()
+        publishSubtitles()
+        restart(at: livePosition(), alongside: true)
+    }
+
+    private func subtitlesFailed(_ error: (any Error)?) {
+        guard !closed else { return }
+        if let error {
+            Log.player.notice("subtitles not loaded: \(String(describing: type(of: error)), privacy: .public)")
+        }
+        hideSubtitles()
+        state.notice = PlayerTexts.subtitlesFailed
+    }
+
+    /// Draws `track` from now on, looking at it as often as its cues change.
+    private func draw(_ track: any CueTrack) {
+        cueTrack = track
+        guard cueTask == nil else {
+            updateCues()
+            return
+        }
+        let clock = env.clock
+        cueTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let wait = self?.updateCues() else { return }
+                do { try await clock.sleep(ms: Int64(wait)) } catch { return }
+            }
+        }
+    }
+
+    /// Stops reading and drawing subtitles.
+    private func hideSubtitles() {
+        feed?.cancel()
+        feed = nil
+        feedKey = nil
+        cueTask?.cancel()
+        cueTask = nil
+        cueTrack = nil
+        if state.cues != .none { state.cues = .none }
+    }
+
+    /// Shows what the track shows at the playhead, moved by the offset;
+    /// returns how long until it should be looked at again.
+    @discardableResult
+    func updateCues() -> Int {
+        guard let cueTrack, let engine, mediaShown, !ended, session != nil else {
+            if state.cues != .none { state.cues = .none }
+            return Self.cueIdleMs
+        }
+        let at = SubtitleSync.trackTime(engine.positionMs(), offsetMs: subtitleOffset)
+        let shown = cueTrack.shown(at: at)
+        if state.cues != shown { state.cues = shown }
+        guard wantPlay, let next = cueTrack.nextChangeAfter(at) else { return Self.cueIdleMs }
+        return min(max(next - at, Self.cueMinMs), Self.cueMaxMs)
+    }
+
+    private func deletePictureFiles() {
+        for file in pictureFiles { try? FileManager.default.removeItem(at: file) }
+        pictureFiles = []
     }
 
     // MARK: Quality

@@ -7,6 +7,7 @@ import PleyData
 import PleyModel
 import PleyNetwork
 import PleyPlayer
+import PleySubtitles
 
 /// The app's state above its screens: which server is open, who is signed
 /// in, which screen shows, and what plays. Both apps' views follow it: a
@@ -54,18 +55,22 @@ public final class AppModel: ObservableObject {
         public var ceilings: (String) -> any CeilingMemory
         public var clock: any PlayerClock
         public var engines: @MainActor () -> any PlayerEngine
+        /// The subtitle sync's offsets, per file and profile.
+        public var subtitleOffsets: any SubtitleOffsets
 
         public init(clientId: String = ClientID.current(), lateReports: URL? = nil,
                     quality: any QualityMemory = DefaultsQuality(),
                     ceilings: @escaping (String) -> any CeilingMemory = { DefaultsCeiling(origin: $0) },
                     clock: any PlayerClock = SystemPlayerClock(),
-                    engines: @escaping @MainActor () -> any PlayerEngine = { AVPlayerEngine() }) {
+                    engines: @escaping @MainActor () -> any PlayerEngine = { AVPlayerEngine() },
+                    subtitleOffsets: any SubtitleOffsets = DefaultsSubtitleOffsets()) {
             self.clientId = clientId
             self.lateReports = lateReports
             self.quality = quality
             self.ceilings = ceilings
             self.clock = clock
             self.engines = engines
+            self.subtitleOffsets = subtitleOffsets
         }
     }
 
@@ -264,7 +269,8 @@ public final class AppModel: ObservableObject {
         let environment = PlaybackEnvironment(
             api: api, caps: caps, clientId: playerSetup.clientId, reporter: reporter,
             late: lateReports(origin: origin, profileId: user.id), quality: playerSetup.quality,
-            ceiling: playerSetup.ceilings(origin), clock: playerSetup.clock, engines: playerSetup.engines)
+            ceiling: playerSetup.ceilings(origin), clock: playerSetup.clock, engines: playerSetup.engines,
+            subtitleOffsets: playerSetup.subtitleOffsets, profileId: user.id)
         let controller = PlaybackController(request: request, environment: environment)
         // Started first, so the screens get its AVPlayer with it.
         controller.start()

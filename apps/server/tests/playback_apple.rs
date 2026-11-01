@@ -164,7 +164,10 @@ struct Answer {
 fn answer(req: &PlaybackRequest, name: &str) -> Answer {
     let src = source(name);
     let mut req = req.clone();
-    req.subtitle_index = src.subtitle;
+    // As the apps ask: picture subtitles they draw from the `.mks` aren't sent, so nothing is burned in.
+    if !req.caps.sideloads_pictures("hdmv_pgs_subtitle") {
+        req.subtitle_index = src.subtitle;
+    }
     let info = MediaInfo {
         container: Some(src.container.into()),
         duration_ms: Some(60_000),
@@ -213,7 +216,6 @@ const DTS: &str = "DTS audio not supported.";
 const AV1: &str = "AV1 video not supported.";
 const MPEG2: &str = "MPEG-2 video not supported.";
 const MP2: &str = "MP2 audio not supported.";
-const PGS: &str = "PGS subtitles burned in.";
 const SDR: Option<&str> = Some("SDR (tone-mapped)");
 
 /// One cell: the method, the audio converted to, the video range and the
@@ -224,7 +226,8 @@ type Cell = (&'static str, &'static str, Option<&'static str>, &'static [&'stati
 const MP4_H264: Cell = ("D", "", None, &[]);
 const MKV_H264_AC3: Cell = ("R", "", None, &[MKV]);
 const MPEG2_MP2: Cell = ("T", "aac", None, &[MKV, MPEG2, MP2]);
-const PGS_PICKED: Cell = ("T", "", None, &[PGS, MKV]);
+/// The app draws the PGS from the server's `.mks`: the video is copied.
+const PGS_PICKED: Cell = ("R", "", None, &[MKV]);
 const AV1_CONVERTED: Cell = ("T", "", None, &[MKV, AV1]);
 /// A screen without HDR (or, on the iPad 5th generation, without a 10-bit
 /// HEVC decoder): HDR and Dolby Vision become SDR.
