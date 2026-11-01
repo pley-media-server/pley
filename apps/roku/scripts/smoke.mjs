@@ -516,8 +516,9 @@ async function walk() {
   await settle();
   const asked = seen(/^GET \/api\/hubs\/home$/, since);
   home.kept = age < 55000 ? !asked : age > 65000 ? asked : true;
-  // Playlists: one opened, its first entry taken out with the Options key,
-  // then played from the top; Back to Home.
+  // Playlists: one opened, its first entry moved down one with the Options
+  // key's Move, then taken out, and the playlist played from the top; Back
+  // to Home.
   await openFromMenu(5, /^GET \/api\/playlists$/, "Playlists");
   shoot("playlists");
   since = mark();
@@ -528,6 +529,18 @@ async function walk() {
   await press("right"); // the entries
   await press("options");
   await sleep(500);
+  await press("select"); // Move
+  await sleep(300);
+  await press("down");
+  await sleep(300);
+  shoot("playlist-move");
+  await press("select"); // put there
+  await waitFor(/^PUT \/api\/playlists\/1\/order$/, since, "the playlist's new order");
+  await settle();
+  since = mark();
+  await press("options"); // the entry moved, now second
+  await sleep(500);
+  await press("down");
   await press("select"); // Remove from playlist
   await waitFor(/^DELETE \/api\/playlists\/1\/items\/\d+$/, since, "an entry removed");
   since = mark();
@@ -806,7 +819,8 @@ const checks = [
   ["marked a title watched with the Options key", fixture.marks.some((m) => m.item === 103 && m.action === "watched")],
   ["asked for a show's More Like This and collections", asked(/^GET \/api\/items\/99\/related\?limit=20$/) && asked(/^GET \/api\/items\/99\/collections$/)],
   ["opened a person's page", asked(/^GET \/api\/people\/7$/)],
-  ["took an entry out of a playlist", fixture.playlistRemoved.length > 0],
+  ["moved a playlist's first entry down one", JSON.stringify(fixture.playlistOrders[0]) === JSON.stringify([2, 1, 3])],
+  ["took the entry moved out of the playlist", fixture.playlistRemoved[0] === 1],
   ["switched to another profile of the household", fixture.switched.includes(2)],
   ["showed the watch history", asked(/^GET \/api\/history\?/)],
   ["played an album's tracks with the music player", fixture.playbacks.some((p) => p.item === 5201) && fixture.progress.some((p) => p.item >= 5201 && p.item <= 5203)],

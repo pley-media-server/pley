@@ -15,6 +15,8 @@ describes how they are made.
   server from the same release.
 - A title's page has Rate: No rating, or 1 to 5 stars, as on the other
   apps; once given, the button says it (Your rating: 4 stars).
+- A playlist's entries move: the Options key's Move lifts one, Up and Down
+  carry it, OK puts it there and Back puts it back.
 
 ## [0.1.1] - 2026-11-01
 

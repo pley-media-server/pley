@@ -43,7 +43,8 @@ than one profile.
 | Key | Where | What it does |
 |---|---|---|
 | Options (\*) | A title | Mark watched, My List, Add to playlist, Remove from Continue Watching, Go to show |
-| Options (\*) | Watch history, a playlist entry | Removes it |
+| Options (\*) | Watch history | Removes it |
+| Options (\*) | A playlist entry | Move (Up and Down carry it, OK puts it there, Back puts it back), Remove from playlist |
 | Options (\*) | A request | What can be done with it (Approve, Decline, Withdraw…) |
 | Down | The player | Pley's menu: Quality, Subtitle sync, Chapters, Find subtitles…, Playback details |
 | Options (\*) | The player | Roku's own options: subtitles and audio tracks |
@@ -306,6 +307,5 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
   requests' summary refresh once a minute, a title page with a request
   each 30 s.
 - Audio other than the file's default isn't played as it is.
-- Not yet: reordering a playlist, "Always start as", an editable music
-  queue.
+- Not yet: "Always start as", an editable music queue.
 
