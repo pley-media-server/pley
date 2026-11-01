@@ -1,4 +1,4 @@
-//! The frame loop (DESIGN §4.1): wait for events (no longer than the earliest due time, not at all
+//! The frame loop: wait for events (no longer than the earliest due time, not at all
 //! while something animates), apply input, answers and timers, then build the display list,
 //! render and present. An idle app waits without a timeout and uses no CPU.
 
@@ -53,7 +53,7 @@ fn repository_assets() -> PathBuf {
     PathBuf::from("assets")
 }
 
-/// The GPU budget for pictures of a TV of `tier` (DESIGN §4.2).
+/// The GPU budget for pictures of a TV of `tier`.
 fn gpu_budget(tier: Tier) -> usize {
     match tier {
         Tier::Low => ImageCacheConfig::GPU_LOW,

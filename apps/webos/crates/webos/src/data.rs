@@ -1,4 +1,4 @@
-//! Where the app keeps its data on the TV (DESIGN.md §5.7, RES/plx-net-data.md §6).
+//! Where the app keeps its data on the TV.
 //!
 //! No folder is writable under every jail: Developer Mode mounts
 //! `/media/developer` read-write, the Homebrew Channel's jail

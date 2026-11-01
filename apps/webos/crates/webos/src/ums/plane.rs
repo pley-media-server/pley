@@ -1,5 +1,5 @@
 //! How the picture of a uMediaServer playback reaches the screen, per webOS
-//! version (RES/plx-media.md §18.2).
+//! version.
 //!
 //! On webOS 5 and later the exported window's id in the load payload is the
 //! whole binding. On 4.x nothing is established: the candidates are tried in

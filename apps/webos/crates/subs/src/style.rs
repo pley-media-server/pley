@@ -4,7 +4,7 @@
 //! the player's controls have lifted the text.
 //!
 //! The numbers are the Android TV app's (`ScreenCaptions.kt`,
-//! `TvPlayerScreen.kt`; `RES/android-player.md §9.6`) on its 960×540 dp
+//! `TvPlayerScreen.kt`) on its 960×540 dp
 //! canvas: text 3.8 to 7.6 % of the height, white and bold with a black
 //! outline or on a 66 % black box, its last line 40 dp above the bottom,
 //! raised by 0, 5, 10 or 15 % of the height, 48 dp from the sides and 27 dp

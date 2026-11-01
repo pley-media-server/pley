@@ -1,5 +1,5 @@
 //! The controller's clocks on `SimEngine`: the reports' cadence, Up Next's
-//! timing, and the sleep timer (RES/tv-player-logic.md §4.12, §4.13, §10.2).
+//! timing, and the sleep timer.
 
 mod common;
 

@@ -45,7 +45,7 @@ pub enum AppEvent {
     Device(DeviceEvent),
 }
 
-/// A page of the app (DESIGN §3.5). Screens are kept on the back stack while pages above them
+/// A page of the app. Screens are kept on the back stack while pages above them
 /// show, so they keep their state; only the top one draws.
 pub trait Screen {
     /// Draws the page and handles what was done to it this frame.

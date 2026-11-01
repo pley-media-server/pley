@@ -6,7 +6,7 @@
 //! a half-transparent scrim over an opaque page leaves it opaque, and the video
 //! plane under the interface shows only where the interface is transparent.
 //! This leaves the same framebuffer as the straight-alpha separate blend
-//! measured on LG's panels (RES/plx-media.md §1 finding 4). Dithering is off
+//! measured on LG's panels. Dithering is off
 //! (on Mali it printed a dot pattern on faint gradients); no depth or stencil
 //! buffer is used.
 
@@ -53,8 +53,7 @@ void main() {
 "#;
 
 /// Texture coordinates stay `highp` where the GPU has it: Midgard Malis
-/// interpolate `mediump` in 16 bits, a texel off across a wide quad
-/// (RES/plx-ui-gfx.md §2.2).
+/// interpolate `mediump` in 16 bits, a texel off across a wide quad.
 const FRAGMENT_HEADER: &str = r#"
 #ifdef GL_ES
 precision mediump float;
@@ -123,7 +122,7 @@ struct RawTexture {
 
 /// A tiny target new textures are drawn into once, so the driver allocates
 /// them then rather than in the middle of the next frame's first draw (a
-/// 1280×720 backdrop cost 116 ms there on a 2019 set: RES/plx-ui-gfx.md §2.2).
+/// 1280×720 backdrop cost 116 ms there on a 2019 set).
 struct Warm {
     framebuffer: glow::Framebuffer,
     target: glow::Texture,
@@ -601,7 +600,7 @@ fn premultiplied(c: Color) -> [f32; 4] {
 }
 
 /// Linear filtering, clamped edges, no mipmaps: pictures come at the size they
-/// are drawn (RES/plx-ui-gfx.md §2.2).
+/// are drawn.
 unsafe fn texture_params(gl: &glow::Context) {
     // SAFETY: the caller holds the context current with a texture bound.
     unsafe {

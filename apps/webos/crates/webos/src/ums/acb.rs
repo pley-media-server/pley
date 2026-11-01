@@ -1,6 +1,5 @@
 //! LG's app-switching control block (`libAcbAPI.so.1`, webOS 4.x only), one
-//! of webOS 4's candidates for binding an address playback's picture
-//! (RES/plx-media.md §4.2, §18.2).
+//! of webOS 4's candidates for binding an address playback's picture.
 //!
 //! The handle is made and initialised once per process with the app id SAM
 //! launched (a wrong id binds the plane for another app: sound, a black

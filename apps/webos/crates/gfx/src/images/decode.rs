@@ -2,8 +2,8 @@
 //! decoders into premultiplied RGBA, and shrinking them to the width they are
 //! drawn at.
 //!
-//! Every decode is bounded before it allocates (RES/plx-ui-gfx.md §6.2: an
-//! allocation failure aborts the process, so a hostile or broken file must be
+//! Every decode is bounded before it allocates (an allocation failure
+//! aborts the process, so a hostile or broken file must be
 //! refused from its header), and a decoder that panics yields a broken
 //! picture, not a crashed worker.
 
@@ -16,7 +16,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 pub const MAX_SIDE: u32 = 4096;
 
 /// The most memory one decode may take for its pixels: the largest picture the
-/// app asks for is about 21 MiB (RES/plx-ui-gfx.md §6.2).
+/// app asks for is about 21 MiB.
 pub const MAX_BYTES: usize = 32 << 20;
 
 /// A decoded picture: premultiplied RGBA, 8 bits a channel, rows top to

@@ -1,6 +1,6 @@
 //! The TV's window, GL context, remote and lifecycle, over the firmware's own
 //! SDL2 (`libSDL2-2.0.so.0`: 2.0.5 on webOS 4, 2.0.10 on 5–6, 2.0.14 on 7 and
-//! later), opened at run time (DESIGN.md §5.1, RES/plx-ui-gfx.md §1).
+//! later), opened at run time.
 //!
 //! The window is 1920×1080 at 0,0 with a GLES 2 context, RGBA8888 with no
 //! depth or stencil (a tiler would write an unused depth buffer back every
@@ -353,7 +353,7 @@ impl WebosPlatform {
 const MAX_EVENTS_PER_WAIT: usize = 256;
 /// The longest SDL is waited on before GLib's default context is pumped again.
 const WAIT_SLICE: Duration = Duration::from_millis(20);
-/// Most sources of GLib's default context dispatched per slice (plx-native's bound).
+/// Most sources of GLib's default context dispatched per slice.
 const GLIB_DISPATCHES: usize = 8;
 
 impl Platform for WebosPlatform {
@@ -471,7 +471,7 @@ struct WmInfo([u8; 512]);
 type Marshal = unsafe extern "C" fn(*mut c_void, u32, ...);
 
 /// Clears the Wayland surface's opaque region so the compositor shows the
-/// video plane under transparent pixels (RES/plx-media.md §4.4). The commit is
+/// video plane under transparent pixels. The commit is
 /// left to the next swap: a commit of the app's own presents a null buffer.
 fn clear_opaque_region(sdl: &Sdl, window: *mut c_void) -> Result<(), &'static str> {
     static MARSHAL: OnceLock<Option<Marshal>> = OnceLock::new();

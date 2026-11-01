@@ -1,6 +1,5 @@
-//! The remote's keys as LG's SDL delivers them (DESIGN.md §5.2,
-//! RES/plx-ui-gfx.md §10.1, RES/webos-ecosystem.md §2.7), and what each means
-//! to the app (RES/tv-app-core.md §15.1).
+//! The remote's keys as LG's SDL delivers them, and what each means to the
+//! app.
 //!
 //! Arrows, OK and the digits arrive as ordinary SDL keys; LG's own keys as
 //! scancodes from 300 up with keycode 0, so those are matched on the

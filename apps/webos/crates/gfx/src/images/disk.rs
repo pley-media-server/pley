@@ -4,7 +4,7 @@
 //! Files are written to a temporary name and renamed, so a reader never sees
 //! half a file; each starts with a small header (a check hash of the address
 //! and the body's length), so a truncated or colliding file reads as a miss.
-//! Addresses are only ever stored hashed (RES/plx-ui-gfx.md §6.5).
+//! Addresses are only ever stored hashed.
 
 use std::collections::HashMap;
 use std::fs;

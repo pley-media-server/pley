@@ -1,6 +1,6 @@
 //! Saved answers, per server and profile, so every screen draws what it
 //! showed last before the server answers, and while it doesn't (the Android
-//! app's `FileSnapshotStore`, `RES/android-settings-auth-live.md §9.2`).
+//! app's `FileSnapshotStore`).
 //!
 //! `snapshots/<server digest>/<profile id>/<key>`: written whole and
 //! atomically, not rewritten when unchanged; 25 MB in all, the least recently

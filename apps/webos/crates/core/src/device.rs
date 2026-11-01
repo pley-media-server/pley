@@ -49,8 +49,8 @@ pub struct CapsReport {
     pub dv_containers: Vec<String>,
 }
 
-/// The playback settings that change the capability report
-/// (`RES/tv-player-logic.md §3.4`): which surround formats are sent as they are.
+/// The playback settings that change the capability report: which surround
+/// formats are sent as they are.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct CapsOverrides {
     pub passthrough: PassthroughChoices,

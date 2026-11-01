@@ -1,4 +1,4 @@
-//! The simulator's command line (DESIGN §6). Every option is optional; the TV starts the binary
+//! The simulator's command line. Every option is optional; the TV starts the binary
 //! with none (webOS passes its launch parameters as one JSON argument, which is ignored here).
 
 use std::path::PathBuf;

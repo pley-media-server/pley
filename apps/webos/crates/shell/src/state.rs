@@ -1,5 +1,5 @@
 //! The app's state: the port of `packages/tv/src/state.ts` with the Android app's "saved first,
-//! fresh after" (`RES/android-settings-auth-live.md §9`).
+//! fresh after".
 //!
 //! It holds the server in use and its sign-in, who is watching, the libraries, Live TV's summary,
 //! Home, the household, the settings and whether the server is out of reach. At start it reads

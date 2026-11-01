@@ -2,7 +2,7 @@
 //!
 //! A `DT_NEEDED` entry the firmware can't satisfy kills the process before
 //! `main`, and a strong reference to a symbol a firmware lacks kills it at the
-//! first call (RES/plx-build.md §5). So nothing of the TV's is linked: each
+//! first call. So nothing of the TV's is linked: each
 //! library is opened by the first of its SONAME candidates that loads, its
 //! functions are looked up by name, and a table is all or nothing. Handles are
 //! never closed: unmapping a media library with live threads unmaps running

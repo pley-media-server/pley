@@ -1,9 +1,8 @@
 //! What the engine sends uMediaServer (`luna://com.webos.media`), URI mode:
-//! the methods and their payloads (RES/webos-ecosystem.md §4.1–§4.2,
-//! RES/plx-media.md §18.3), and the declared ceiling of an HLS stream.
+//! the methods and their payloads, and the declared ceiling of an HLS stream.
 //!
-//! The load payload carries what the web app's `mediaOption` carried
-//! (RES/tv-player-logic.md §3.5): the start in `option.transmission`, never a
+//! The load payload carries what the web app's `mediaOption` carried: the
+//! start in `option.transmission`, never a
 //! seek after loading (that buffers from the beginning first), none for live
 //! (the pipeline starts at the live edge), and `mediaTransportType: "HLS"`
 //! with an `adaptiveStreaming` ceiling for HLS. Natively it adds `appId`, which
@@ -25,7 +24,7 @@ pub fn uri(method: &str) -> String {
 
 /// The largest picture a stream declares, which LG's pipeline allocates its
 /// decoder for (from webOS 10, literally: an H.264 declared at 4K 60 is
-/// refused, RES/plx-media.md §7.6).
+/// refused).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Ceiling {
     pub width: u32,

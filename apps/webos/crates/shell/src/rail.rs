@@ -1,4 +1,4 @@
-//! The rail at the left edge (`RES/android-shell-browse.md §6.3–§6.4`, Android's `TvRail.kt` and
+//! The rail at the left edge (Android's `TvRail.kt` and
 //! `RailItems.kt`, the TV app's `ui/shell/rail.tsx`): icons alone while the page has focus, and
 //! labels on a panel while it has focus, which is exactly when it is open.
 //!

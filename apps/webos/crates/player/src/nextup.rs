@@ -70,8 +70,8 @@ pub fn thumbnail_at(info: &TrickplayInfo, position_ms: i64) -> Thumbnail {
     Thumbnail { sheet: info.sheet_of(k), x: column * info.width, y: row * info.height }
 }
 
-/// The seek preview shown for a target: the 2 s bucket it falls in
-/// (RES/tv-player-logic.md §4.15), so the sheet changes no more often than that.
+/// The seek preview shown for a target: the 2 s bucket it falls in, so the
+/// sheet changes no more often than that.
 pub fn preview_bucket(target_ms: i64) -> i64 {
     target_ms.div_euclid(2000) * 2000
 }

@@ -3,8 +3,7 @@
 //! changed rows are uploaded once per draw.
 //!
 //! When the page is full it is emptied and refilled with what the frames go
-//! on to draw (RES/plx-ui-gfx.md §16.4 sizes a page at 2048² for a 1080p
-//! interface: 4 MiB).
+//! on to draw (a page of 2048² is enough for a 1080p interface: 4 MiB).
 
 use std::collections::HashMap;
 

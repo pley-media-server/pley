@@ -6,9 +6,8 @@
 //! A track still being copied out of its video (`X-Pley-Complete: 0`) comes
 //! as far as it is written, up to its last whole cluster; the server serves
 //! the file with `Range`, so [`MksReader`] reads it as it grows from the new
-//! bytes alone (`RES/tv-player-logic.md §18.2`: the TV app fetched the whole
-//! file every time). Block data isn't copied: samples share the answers'
-//! buffers.
+//! bytes alone (the TV web apps fetched the whole file every time). Block
+//! data isn't copied: samples share the answers' buffers.
 
 use std::fmt;
 use std::ops::Range;

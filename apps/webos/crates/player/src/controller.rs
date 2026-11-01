@@ -1342,7 +1342,7 @@ impl PlaybackController {
             let ordinal = audio_streams(self.file.as_ref()).iter().position(|s| s.index == audio.index);
             if let Some(ordinal) = ordinal {
                 // LG's pipeline lists its tracks once the file is open: the
-                // track is switched to then (RES/tv-player-logic.md §18.2).
+                // track is switched to then.
                 self.audio_pending = Some((ordinal, audio.language.clone()));
                 self.apply_pending_audio();
             }

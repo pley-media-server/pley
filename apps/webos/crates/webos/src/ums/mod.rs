@@ -1,8 +1,8 @@
 //! The player engine on LG's own media pipeline: uMediaServer
-//! (`luna://com.webos.media`) in URI mode, as the web app's `<video>` used it
-//! (DESIGN.md §5.3, RES/plx-media.md §18). The TV fetches, demuxes and decodes
-//! the keyed address itself, with its hardware decoders, HDR, Dolby Vision
-//! and sound output; the app sends commands and listens.
+//! (`luna://com.webos.media`) in URI mode, as the web app's `<video>` used it.
+//! The TV fetches, demuxes and decodes the keyed address itself, with its
+//! hardware decoders, HDR, Dolby Vision and sound output; the app sends
+//! commands and listens.
 //!
 //! [`machine::Machine`] holds every rule and is tested on scripted messages;
 //! [`UmsEngine`] runs its calls on the luna thread, makes and places the

@@ -1,4 +1,4 @@
-//! The TV's log file (DESIGN.md §5.7, RES/plx-net-data.md §10).
+//! The TV's log file.
 //!
 //! Everything the app prints to stderr (its own lines, panics, other crates'
 //! `eprintln!`, the TV libraries' own complaints) goes through a pipe to one

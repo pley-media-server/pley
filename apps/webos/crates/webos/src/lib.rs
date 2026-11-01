@@ -2,13 +2,12 @@
 //! the facts the TV tells about itself, the capability report, and the player
 //! engine on LG's media pipeline. Every firmware library is opened at run time.
 //!
-//! - [`sdl::WebosPlatform`]: the window, GLES2 context, remote and lifecycle
-//!   (DESIGN.md §5.1, §5.2, §5.2b).
-//! - [`luna::Luna`]: the luna thread and its handle (§5.5).
-//! - [`facts::WebosFacts`] and [`caps::webos_caps`]: what the TV is and plays (§5.4).
+//! - [`sdl::WebosPlatform`]: the window, GLES2 context, remote and lifecycle.
+//! - [`luna::Luna`]: the luna thread and its handle.
+//! - [`facts::WebosFacts`] and [`caps::webos_caps`]: what the TV is and plays.
 //! - [`device::WebosDevice`]: pley-core's `Device` for the TV, with the data
-//!   folder it probes (§5.7).
-//! - [`ums::UmsEngine`]: pley-core's `PlayerEngine` on uMediaServer (§5.3).
+//!   folder it probes.
+//! - [`ums::UmsEngine`]: pley-core's `PlayerEngine` on uMediaServer.
 //! - [`log`] and [`launch`]: the TV's log file and the launch payload.
 
 pub mod caps;

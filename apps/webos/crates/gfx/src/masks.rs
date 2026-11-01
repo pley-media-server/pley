@@ -3,7 +3,7 @@
 //! A rounded rectangle is drawn as flat pieces plus four corner pieces whose
 //! coverage comes from one of these masks in the atlas, so the fragment shader
 //! never computes a distance: on the TV's Mali GPUs the frame is bound by
-//! fragment arithmetic (RES/plx-ui-gfx.md §4.2), and a texture read costs the
+//! fragment arithmetic, and a texture read costs the
 //! arithmetic pipe almost nothing.
 //!
 //! A mask covers one corner, the top-left one: texel (0, 0) is the rectangle's

@@ -1,5 +1,5 @@
 //! How the TV started the app: the JSON the application manager passes as
-//! the only argument (RES/plx-build.md §8.1), e.g.
+//! the only argument, e.g.
 //! `{"event":"launch","reason":"…","appId":"app.pley.tv","parameters":{…},"interfaceVersion":2}`.
 //!
 //! `parameters` is whatever the caller of `com.webos.applicationManager/launch`

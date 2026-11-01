@@ -3,7 +3,7 @@
 //! (desktop OpenGL 2.1, or GLES 2.0 through EGL where that is what the system
 //! offers).
 //!
-//! Keys follow the simulator's map (DESIGN §6): arrows, Enter (OK), Escape or
+//! Keys follow the simulator's map: arrows, Enter (OK), Escape or
 //! Backspace (Back), M or F1 (menu), I (info), F2 to F5 (the colour keys),
 //! Space (play/pause), `,` and `.` (rewind, fast forward), Page Up and Page
 //! Down (CH+ and CH−), digits; the mouse is the Magic Remote.
@@ -101,7 +101,7 @@ impl DesktopPlatform {
             .with_title(options.title.clone())
             .with_inner_size(PhysicalSize::new(options.width.max(1), options.height.max(1)));
         // An alpha channel like the TV's surface, and no depth or stencil
-        // buffer: the renderer uses neither (RES/plx-ui-gfx.md §1.2).
+        // buffer: the renderer uses neither.
         let template = ConfigTemplateBuilder::new().with_alpha_size(8).with_depth_size(0).with_stencil_size(0);
         let (window, config) = DisplayBuilder::new()
             .with_window_attributes(Some(attributes))

@@ -2,7 +2,7 @@
 //! of the data directory, each written atomically (a temporary file, flushed,
 //! then renamed over the old one), read synchronously at start.
 //!
-//! The keys and shapes follow the web TV app's (`RES/tv-app-core.md §11`):
+//! The keys and shapes follow the TV web apps' (`packages/tv/src/state.ts`):
 //! servers, sign-ins (tokens per server), the install id, settings, subtitle
 //! offsets, Automatic's memory, Live TV's view and category, households,
 //! library views and recent searches. Saved answers per server and profile

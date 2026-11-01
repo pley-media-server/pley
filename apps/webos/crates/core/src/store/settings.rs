@@ -1,5 +1,5 @@
 //! The device's settings, each with its default (the Android TV app's
-//! Settings, `RES/android-settings-auth-live.md §6`): stored only when they
+//! Settings): stored only when they
 //! differ from the default, so a new default reaches everyone who never
 //! changed it; read one by one, so a value this version doesn't know falls
 //! back to the default without losing the others.

@@ -1,5 +1,5 @@
 //! The exported window LG's media pipeline draws video into, webOS 5 and
-//! later (RES/plx-media.md §4.3, RES/webos-ecosystem.md §2.4).
+//! later.
 //!
 //! The app exports a region of its own surface; the compositor answers with an
 //! id shaped `_Window_Id_<n>`, which the load payload names as

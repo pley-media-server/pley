@@ -1,9 +1,8 @@
 //! What the TV says of itself that decides what it plays: the webOS
 //! version, the panel, the HDR formats it shows, where its sound goes, and
-//! what its media pipeline decodes. The port of the web app's `facts.ts`
-//! (RES/tv-player-logic.md §3.3), with the native sources in place of the web
-//! runtime's (§18.1): the webOS version comes from nyx's platform version,
-//! never a user agent; the screen from LG's SDL.
+//! what its media pipeline decodes. The port of the LG web app's, with the
+//! native sources in place of the web runtime's: the webOS version comes
+//! from nyx's platform version, never a user agent; the screen from LG's SDL.
 //!
 //! Read once at start, every source bounded: files capped in size, every
 //! luna call with a timeout. Anything that doesn't answer is left at what is
@@ -20,7 +19,7 @@ use crate::luna::Luna;
 pub const OS_INFO: &str = "/var/run/nyx/os_info.json";
 /// nyx's identity of the set (`modelName`…; spellings vary by release).
 pub const DEVICE_INFO: &str = "/var/run/nyx/device_info.json";
-/// What uMediaServer's URI player decodes, per codec (RES/plx-media.md §7.1).
+/// What uMediaServer's URI player decodes, per codec.
 pub const CODEC_TABLE: &str = "/etc/umediaserver/device_codec_capability_config.json";
 
 /// The configuration names the web app asks for (`facts.ts:65-77`).
@@ -292,7 +291,7 @@ pub fn clock_24h(locale_settings: &Value) -> bool {
     !(TWELVE_HOUR_REGIONS.contains(&region) || (lang == "ar" && !ui.is_empty()))
 }
 
-/// The URI player's codec table (RES/plx-media.md §7.1): per video codec the
+/// The URI player's codec table: per video codec the
 /// largest picture, frame rate and bitrate; per audio codec the channels.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CodecTable {

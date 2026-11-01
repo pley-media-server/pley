@@ -1,5 +1,5 @@
 //! The .ipk a TV installs: an `ar` archive of `debian-binary`, `control.tar.gz` and
-//! `data.tar.gz` (DESIGN.md §5.6; RES/plx-build.md §6), the same bytes from the same inputs.
+//! `data.tar.gz`, the same bytes from the same inputs.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{Read, Write};
@@ -16,10 +16,10 @@ pub const MAINTAINER: &str = "Pley <pley-media-server@users.noreply.github.com>"
 /// `Homepage` in the control file.
 pub const HOMEPAGE: &str = "https://github.com/pley-media-server/pley";
 /// The date of every entry: 2020-01-01T00:00:00Z. A fixed date keeps the package reproducible;
-/// not 1970, which TVs refuse (RES/webos-ecosystem.md §0).
+/// not 1970, which TVs refuse.
 pub const MTIME: u64 = 1_577_836_800;
 /// The `ar` members, in the order and with the bare names the TV's installer looks for: GNU
-/// `ar`'s `name/` makes it fail with "Failed to extract package" (RES/plx-build.md §6.1).
+/// `ar`'s `name/` makes it fail with "Failed to extract package".
 pub const MEMBERS: [&str; 3] = ["debian-binary", "control.tar.gz", "data.tar.gz"];
 /// Id prefixes reserved for the system's own apps.
 const RESERVED_IDS: [&str; 4] = ["com.palm", "com.webos", "com.lge", "com.palmdts"];
@@ -59,7 +59,7 @@ pub struct AppInfo {
     pub pictures: Vec<(String, (u32, u32))>,
 }
 
-/// The pictures `appinfo.json` may name and the sizes LG's launcher wants (RES/plx-build.md §6.2).
+/// The pictures `appinfo.json` may name and the sizes LG's launcher wants.
 const PICTURES: [(&str, (u32, u32)); 3] =
     [("icon", (80, 80)), ("largeIcon", (130, 130)), ("splashBackground", (1920, 1080))];
 

@@ -947,7 +947,7 @@ fn goes_on_as_it_was_when_the_server_doesnt_change_the_bitrate_and_stops_asking_
     assert_eq!(t.a.playing, "8m");
 }
 
-/// RES/tv-player-logic.md §7.4: a 1080p file transcoded at `8m` on a
+/// A worked example: a 1080p file transcoded at `8m` on a
 /// `live_bitrate` session (top 8000, floor 3000); a 2 s wait with delivery
 /// 0.6 gives a ceiling of 3600, so 3 Mbps, remembered as 3600.
 #[test]

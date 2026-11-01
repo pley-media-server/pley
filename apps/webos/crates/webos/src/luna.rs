@@ -1,5 +1,5 @@
 //! The TV's system services (luna-service2) from native code, on a thread of
-//! their own (DESIGN.md §5.5, RES/plx-net-data.md §12).
+//! their own.
 //!
 //! One anonymous registration (`LSRegister(NULL)`: a jailed native app can't
 //! take its app id's name; what it may call is still its role file's
@@ -372,7 +372,7 @@ struct Api {
 /// Dispatches what is waiting on GLib's default context, at most `max`
 /// sources. LG's SDL and ACB deliver their own luna answers there (SAM's
 /// relaunch and close among them), and nothing else runs that context, so the
-/// interface's thread pumps it between waits (RES/plx-net-data.md §12.3).
+/// interface's thread pumps it between waits.
 /// Never blocks: a context another thread holds is left alone.
 pub fn pump_default_context(max: usize) {
     let Some(api) = api() else { return };

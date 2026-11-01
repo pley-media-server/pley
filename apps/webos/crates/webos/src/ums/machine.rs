@@ -3,7 +3,7 @@
 //! events come out. [`super::UmsEngine`] runs the calls; tests script the
 //! messages.
 //!
-//! The rules (DESIGN.md §5.3, RES/plx-media.md §11 and §18.4):
+//! The rules:
 //! - the start position goes in the load, and commands given while loading
 //!   wait for `loadCompleted`;
 //! - "has this session shown a picture" is its own flag; until it is set any

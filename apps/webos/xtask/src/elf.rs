@@ -9,7 +9,7 @@ use crate::Result;
 /// The only libraries the binary may ask the loader for: glibc's and GCC's unwinder (which
 /// Rust's panics use), present under these names on every webOS release. SDL2, EGL and GLES,
 /// luna-service2, GLib and LG's media libraries are opened at run time with `dlopen`, so a
-/// library missing on one firmware can't stop the app before `main` (RES/plx-build.md §4.3, §5).
+/// library missing on one firmware can't stop the app before `main`.
 pub const ALLOWED_NEEDED: &[&str] = &[
     "ld-linux.so.3",
     "libc.so.6",
@@ -22,13 +22,13 @@ pub const ALLOWED_NEEDED: &[&str] = &[
 ];
 
 /// The newest glibc symbol version the binary may need: webOS 4.0, the oldest release Pley
-/// supports (LG's 2018 TVs), ships glibc 2.24 (RES/plx-build.md §1.3). The toolchain's
+/// supports (LG's 2018 TVs), ships glibc 2.24. The toolchain's
 /// sysroot is glibc 2.12, so a newer version can only come from a changed toolchain.
 pub const GLIBC_FLOOR: (u32, u32) = (2, 24);
 
 /// libm's functions that compiler-builtins also defines, weakly and without the FPU. A local
 /// definition means the link took those instead of glibc's VFP ones, because libm came after
-/// the Rust libraries on the link line (RES/plx-build.md §3.2; `.cargo/config.toml`).
+/// the Rust libraries on the link line (`.cargo/config.toml`).
 pub const LIBM_NAMES: &[&str] = &[
     "cbrt", "cbrtf", "ceil", "ceilf", "floor", "floorf", "fma", "fmaf", "fmod", "fmodf", "round", "roundf", "sqrt",
     "sqrtf", "trunc", "truncf",
@@ -43,7 +43,7 @@ pub const POLYFILL_PREFIXES: &[&str] = &["_getauxval_", "_glibc_polyfills", "_al
 pub const SIZE_BUDGET: u64 = 16 * 1024 * 1024;
 
 /// The dynamic loader of webOS userland: the soft-float EABI one (a hard-float system's is
-/// `ld-linux-armhf.so.3`; RES/plx-build.md §1.2).
+/// `ld-linux-armhf.so.3`).
 pub const LOADER: &str = "/lib/ld-linux.so.3";
 
 /// `e_flags`'s EABI version field, and version 5 (ARM IHI 0044, "ELF for the Arm Architecture").

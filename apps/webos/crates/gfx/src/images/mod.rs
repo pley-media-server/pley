@@ -6,7 +6,7 @@
 //! (everything on screen is asked every frame, so what scrolled away sinks),
 //! then in the order they came; a request not asked again within two seconds
 //! leaves the queue unless a worker already took it. Textures live under a
-//! byte budget by device tier (DESIGN §4.2: 64, 128 or 192 MB), the least
+//! byte budget by device tier (64, 128 or 192 MB), the least
 //! recently drawn going first.
 
 pub mod decode;
@@ -47,13 +47,13 @@ pub struct DiskCacheConfig {
 }
 
 impl ImageCacheConfig {
-    /// The GPU budget of a low-tier TV (DESIGN §4.2).
+    /// The GPU budget of a low-tier TV.
     pub const GPU_LOW: usize = 64 << 20;
     /// The GPU budget of a mid-tier TV, the default.
     pub const GPU_MID: usize = 128 << 20;
     /// The GPU budget of a high-tier TV.
     pub const GPU_HIGH: usize = 192 << 20;
-    /// The disk cache's budget unless the device says otherwise (DESIGN §5.7).
+    /// The disk cache's budget unless the device says otherwise.
     pub const DISK_DEFAULT: u64 = 128 << 20;
 }
 
@@ -411,7 +411,7 @@ impl Drop for ImageCache {
 }
 
 /// Seconds before asking again after `attempts` failures: 1, 2, 4, 8, 16,
-/// then 30 (RES/plx-ui-gfx.md §6.3).
+/// then 30.
 fn retry_delay(attempts: u8) -> f64 {
     (1u32 << attempts.saturating_sub(1).min(5)).min(30) as f64
 }

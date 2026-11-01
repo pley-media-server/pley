@@ -25,7 +25,7 @@ const NOTICE_ICON: f32 = 20.0;
 const NOTICE_GAP: f32 = 10.0;
 
 /// The screen dims after this long without a key or the pointer, outside playback: webOS never
-/// blanks a native app in the foreground (`RES/plx-net-data.md §12.5`), so the app protects the
+/// blanks a native app in the foreground, so the app protects the
 /// panel itself. The time and depth are Android's Now Playing dimming (120 s, to 30 %).
 pub const DIM_AFTER: f64 = 120.0;
 /// How much of the picture the dimmer takes away.

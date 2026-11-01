@@ -11,7 +11,7 @@ publish = false
 pley-base = { path = "../base" }
 pley-text = { path = "../text" }
 glow = "0.18.0"
-# Pure-Rust decoders, one per format the server sends (RES/plx-ui-gfx.md §6.2):
+# Pure-Rust decoders, one per format the server sends:
 # the `image` crate would add a colour-management engine the TV doesn't need.
 zune-jpeg = { version = "0.5.15", default-features = false, features = ["std", "x86"] }
 zune-core = { version = "0.5.3", default-features = false, features = ["std"] }

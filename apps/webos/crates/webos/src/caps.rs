@@ -1,6 +1,6 @@
 //! What an LG TV plays, reported to the server (capabilities version 2) so
 //! it sends files as they are whenever the TV's pipeline takes them: the port
-//! of the web app's `caps.ts` (RES/tv-player-logic.md §3.4). From LG's format
+//! of the LG web app's capability report. From LG's format
 //! pages per webOS version, the TV's own HDR and sound flags, and what other
 //! players found on real sets. Pure: the same facts give the same report, byte
 //! for byte the web app's (its snapshots are this crate's golden tests).

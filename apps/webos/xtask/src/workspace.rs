@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use crate::Result;
 
-/// The TV's target: the ARMv7 soft-float ABI of webOS userland (DESIGN.md §7).
+/// The TV's target: the ARMv7 soft-float ABI of webOS userland.
 pub const TV_TARGET: &str = "armv7-unknown-linux-gnueabi";
 /// The package that builds the app's binary.
 pub const APP_PACKAGE: &str = "pley-lg";

@@ -2,11 +2,10 @@
 //! SDL, and turned into the platform's events.
 //!
 //! LG's fork inserts an `inputSource` word after `windowID` in keyboard and
-//! text events, which moves their fields 4 bytes from upstream SDL's
-//! (RES/plx-build.md §8.1, RES/webos-ecosystem.md §2.1): a binding generated
-//! from upstream headers would misread every key. So events are read by
+//! text events, which moves their fields 4 bytes from upstream SDL's: a
+//! binding generated from upstream headers would misread every key. So events are read by
 //! explicit offsets, never through such a binding. Mouse events keep SDL's
-//! layout (RES/plx-ui-gfx.md §10.2).
+//! layout.
 
 use pley_base::{KeyEvent, Point, PointerEvent};
 use pley_platform::PlatformEvent;

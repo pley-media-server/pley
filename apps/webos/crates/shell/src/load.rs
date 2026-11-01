@@ -1,5 +1,5 @@
 //! "Saved first, fresh after" for one answer a screen shows (the Android app's `ResourceCache`
-//! and `Loadable`, `RES/android-settings-auth-live.md §9.3`): what was saved for the server and
+//! and `Loadable`): what was saved for the server and
 //! profile shows at once (read off the main thread), the server is asked, and its answer replaces
 //! it and is saved in turn. A failure keeps what showed; an unreachable server raises the
 //! offline state, and the first fresh answer after such a failure lowers it.

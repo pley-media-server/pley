@@ -349,8 +349,7 @@ impl Shell {
     pub fn finish(&mut self, state: &mut AppState, ui: &mut UiState, now: f64) -> bool {
         let before = self.stack.last().map(|e| e.id);
         if !std::mem::replace(&mut self.asked, true) {
-            // The first frame drew what was saved; now the server is asked, and its events followed
-            // (RES/tv-app-core.md §13).
+            // The first frame drew what was saved; now the server is asked, and its events followed.
             state.revalidate();
             state.listen(state.visible());
         }

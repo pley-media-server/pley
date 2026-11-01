@@ -1,6 +1,6 @@
 //! pley-core's `Device` for an LG TV: what the TV is and plays, its folders,
 //! its network address, its clock and Audio Guidance, the screen saver,
-//! leaving the app, and the player engine (DESIGN.md §3.3, §5).
+//! leaving the app, and the player engine.
 //!
 //! Every method is quick. The facts are read once at start on a thread of
 //! their own (nyx's files, the config, settings and ARC services); Audio
