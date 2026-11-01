@@ -99,7 +99,7 @@ sealed class TizenMediaEngine : IVideoEngine
         lastPosition = source.Live ? 0 : Math.Max(0, source.StartMs);
         var p = new Media.Player();
         player = p;
-        Profile.Mark("engine: source given, preparing");
+        Profile.Mark($"engine: {(source.Hls ? "HLS" : source.Live ? "live stream" : "file")} given, preparing");
         SetStatus(mine, EngineStatus.Buffering);
         _ = Open(p, source, mine);
     }
@@ -107,7 +107,15 @@ sealed class TizenMediaEngine : IVideoEngine
     async Task Open(Media.Player p, EngineSource s, int mine)
     {
         // The player before (this engine's or another's) has let go of the video plane first.
-        await Releasing;
+        opening++;
+        try
+        {
+            await Releasing;
+        }
+        finally
+        {
+            opening--;
+        }
         if (mine != generation) return;
         if (video)
         {
@@ -115,11 +123,17 @@ sealed class TizenMediaEngine : IVideoEngine
             // takes the display: played one after another under the window's alpha (the next
             // episode, a channel tuned again), every second player showed the TV's menu where its
             // picture was, with its sound. Off and on at once did nothing: the window has to be
-            // drawn without it. The screen is black here, as it starts.
-            Window.Instance.SetTransparency(false);
-            await Task.Delay(OpaqueMs);
-            if (mine != generation) return;
+            // drawn without it. The screen is black here, as it starts. A player let go just before
+            // went opaque already (Close), for longer than this.
+            if (!opaque)
+            {
+                Window.Instance.SetTransparency(false);
+                opaque = true;
+                await Task.Delay(OpaqueMs);
+                if (mine != generation) return;
+            }
             Window.Instance.SetTransparency(true);
+            opaque = false;
         }
         try
         {
@@ -129,6 +143,10 @@ sealed class TizenMediaEngine : IVideoEngine
             p.PlaybackInterrupted += (_, _) => Post(mine, () => Fail(new EngineError.Other("the TV took its player for something else")));
             p.VideoStreamChanged += (_, e) => Post(mine, () => Picture(e.Size.Width, e.Size.Height));
             p.SetSource(new Media.MediaUriSource(s.Url));
+            if (s.Live) Buffer(p);
+#if PROFILE
+            p.BufferingProgressChanged += (_, e) => Profile.Mark($"engine: buffered {e.Percent} %");
+#endif
         }
         catch (Exception e)
         {
@@ -156,6 +174,18 @@ sealed class TizenMediaEngine : IVideoEngine
                 }
             }
             hasVideo ??= HasPicture(p);
+#if PROFILE
+            try
+            {
+                var v = p.StreamInfo.GetVideoProperties();
+                var a = p.StreamInfo.GetAudioProperties();
+                Profile.Mark($"engine: the player reads video {p.StreamInfo.GetVideoCodec()} {v.Size.Width}x{v.Size.Height} {v.Fps} fps, audio {p.StreamInfo.GetAudioCodec()} {a.Channels} ch, picture {hasVideo}");
+            }
+            catch (Exception e)
+            {
+                Profile.Mark($"engine: the player says nothing of its streams ({e.GetType().Name})");
+            }
+#endif
             try
             {
                 durationMs = Math.Max(0, p.StreamInfo.GetDuration());
@@ -179,6 +209,30 @@ sealed class TizenMediaEngine : IVideoEngine
         catch (Exception e)
         {
             if (mine == generation) Post(mine, () => Fail(ErrorOf(e)));
+        }
+    }
+
+    /// <summary>A live channel plays once this much is buffered (the Android app's live threshold).</summary>
+    const int LiveStartBufferMs = 500;
+
+    /// <summary>After a stall, it plays again once this much is buffered (the Android app's).</summary>
+    const int LiveRestartBufferMs = 1_500;
+
+    /// <summary>
+    /// A live channel's buffering as the Android app's: left to the TV, its player waited seconds
+    /// after each stall, and stalled again soon after.
+    /// </summary>
+    static void Buffer(Media.Player p)
+    {
+        try
+        {
+            var before = p.BufferingTime;
+            Profile.Mark($"engine: the TV's own buffering {before.PreBufferMillisecond} ms, {before.ReBufferMillisecond} ms after a stall");
+            p.BufferingTime = new Media.PlayerBufferingTime(LiveStartBufferMs, LiveRestartBufferMs);
+        }
+        catch (Exception)
+        {
+            // Not settable on this TV: its own.
         }
     }
 
@@ -442,10 +496,10 @@ sealed class TizenMediaEngine : IVideoEngine
 
     const uint WatchMs = 500;
     /// <summary>How often the position is read until it first moves: the screen's black lifts then.</summary>
-    const uint StartWatchMs = 100;
+    const uint StartWatchMs = 40;
     const int StillMs = 1500;
     /// <summary>How far the position moves from where it began before the source counts as started.</summary>
-    const long FirstMoveMs = 200;
+    const long FirstMoveMs = 80;
     bool moved;
     long firstAt = -1;
     long watchedAt = -1;
@@ -454,6 +508,7 @@ sealed class TizenMediaEngine : IVideoEngine
 
     void Picture(int width, int height)
     {
+        Profile.Mark($"engine: picture {width}x{height}");
         if (width <= 0 || height <= 0) return;
         hasVideo = true;
         VideoSize?.Invoke(width, height);
@@ -532,6 +587,9 @@ sealed class TizenMediaEngine : IVideoEngine
     /// <summary>How long the window goes without its alpha before a player takes the display: a few frames.</summary>
     const int OpaqueMs = 120;
 
+    /// <summary>The window is without its alpha: a player showing a picture is being let go, or the next is starting.</summary>
+    static bool opaque;
+
     /// <summary>The prepare of the player playing, while it runs.</summary>
     Task? preparing;
 
@@ -544,7 +602,16 @@ sealed class TizenMediaEngine : IVideoEngine
         preparing = null;
         prepared = false;
         if (p == null) return;
-        Releasing = Release(p, prepare, Releasing);
+        var cover = false;
+        if (video && !opaque)
+        {
+            // The picture goes once the window is drawn without its alpha: stopped at once, the
+            // video plane emptied before the screen's black was drawn, and the TV's menu showed
+            // through for a moment as a channel changed.
+            Window.Instance.SetTransparency(false);
+            opaque = cover = true;
+        }
+        Releasing = Release(p, prepare, Releasing, cover);
     }
 
     /// <summary>
@@ -552,9 +619,11 @@ sealed class TizenMediaEngine : IVideoEngine
     /// on preparing and held the video plane, and the next source played with sound and no
     /// picture (the TV's menu under a channel or a film). So it goes once its prepare has ended.
     /// </summary>
-    static async Task Release(Media.Player p, Task? prepare, Task before)
+    static async Task Release(Media.Player p, Task? prepare, Task before, bool cover)
     {
         await before;
+        // The window drawn without its alpha first (Close).
+        if (cover) await Task.Delay(OpaqueMs);
         if (prepare != null)
         {
             try
@@ -566,24 +635,42 @@ sealed class TizenMediaEngine : IVideoEngine
                 // It failed: there is nothing to stop.
             }
         }
-        try
+        // Off the UI thread: stopping and unpreparing wait on the TV's player, and held the UI for
+        // 100 to 300 ms as each channel changed. Back on it after, for the window.
+        await Task.Run(() =>
         {
-            if (p.State is Media.PlayerState.Playing or Media.PlayerState.Paused) p.Stop();
-            if (p.State != Media.PlayerState.Idle) p.Unprepare();
-        }
-        catch (Exception)
+            try
+            {
+                if (p.State is Media.PlayerState.Playing or Media.PlayerState.Paused) p.Stop();
+                if (p.State != Media.PlayerState.Idle) p.Unprepare();
+            }
+            catch (Exception)
+            {
+                // Already stopped.
+            }
+            try
+            {
+                p.Dispose();
+            }
+            catch (Exception)
+            {
+                // Gone already.
+            }
+        });
+        // No player waiting to take the display (it would turn the alpha back on itself): as it was,
+        // with its alpha while a player still covers the screen; the shell made it opaque if not.
+        if (cover && opening == 0 && opaque)
         {
-            // Already stopped.
-        }
-        try
-        {
-            p.Dispose();
-        }
-        catch (Exception)
-        {
-            // Gone already.
+            opaque = false;
+            if (Covered?.Invoke() != false) Window.Instance.SetTransparency(true);
         }
     }
+
+    /// <summary>Whether a player covers the screen (the shell's): the window has its alpha only then.</summary>
+    public static Func<bool>? Covered { get; set; }
+
+    /// <summary>Players waiting for the ones before to be let go.</summary>
+    static int opening;
 
     /// <summary>What the TV's player said, in Core's terms.</summary>
     static EngineError ErrorOf(Media.PlayerError error) => error switch

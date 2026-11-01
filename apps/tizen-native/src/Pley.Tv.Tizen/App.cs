@@ -42,6 +42,7 @@ class App : NUIApplication
         FocusManager.Instance.FocusIndicator = new View();
         gate = new KeyRepeatGate();
         shell = new Shell(window, gate, Exit);
+        TizenMediaEngine.Covered = () => shell.Covered;
         images = new Images(Current.DirectoryInfo.Cache);
         var made = Profile.Start();
         state = new AppState(Platform.Of());

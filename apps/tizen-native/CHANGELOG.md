@@ -154,3 +154,6 @@ It has no releases yet: it is built and installed by hand
   segments before; channels with surround sound the TV decodes (AC3) play
   that way too. A channel the TV can't play this way falls back to the
   server's HLS by itself.
+- Changing channel in the native app no longer flashes the TV's menu, and
+  doesn't hold the remote while the last channel lets go; a channel buffers
+  as on Android and shows its picture as soon as it moves.

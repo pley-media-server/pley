@@ -145,6 +145,13 @@ sealed class GuideView : View
         Item.LongSelected = Details;
         Item.Menu = Details;
         Item.FocusChanged += _ => Draw();
+        // Shown again (this or a page it is on): what changed meanwhile.
+        VisibilityChanged += (_, e) =>
+        {
+            if (!e.Visibility || !stale || Disposed || !Showing()) return;
+            stale = false;
+            Draw();
+        };
         model.ShowingTimes(cursor.Left, cursor.Left + GuideLayout.ViewS);
         Header();
     }
@@ -349,11 +356,29 @@ sealed class GuideView : View
         }
     }
 
+    /// <summary>Something changed while the guide was hidden: drawn when it shows again.</summary>
+    bool stale;
+
+    /// <summary>Whether the guide and every view it is on are shown: a player hides the pages under it.</summary>
+    bool Showing()
+    {
+        for (var v = (View?)this; v != null; v = v.GetParent() as View)
+            if (!v.Visibility) return false;
+        return true;
+    }
+
     /// <summary>Draws what changed: the focused programme's description, and the rows in view (and one either side).</summary>
     void Draw()
     {
-        Profile.Mark("live guide: draw");
         if (Disposed) return;
+        // Under a player, its pages hidden: drawn once they show again, not as each channel tuned
+        // there changes Recent or the clock moves, which held the UI thread as the channel started.
+        if (!Showing())
+        {
+            stale = true;
+            return;
+        }
+        Profile.Mark("live guide: draw");
         var focused = Item.Focused;
         var channel = pages[cursor.Row];
         var programs = Programs(cursor.Row);
