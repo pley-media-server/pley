@@ -88,8 +88,9 @@ each server.
   way. The server shifts the cues (`offset_ms`) and the stream reopens
   where it was. The offset is kept per file per server (the latest 50).
 - **Find subtitles…** searches OpenSubtitles in the profile's subtitle
-  language (`components/lib/SubtitleSearch.brs`). OK adds the one in focus
-  on the server and shows it.
+  language, or another that Language, above the results, picks
+  (`components/lib/SubtitleSearch.brs`). OK on a result adds it on the
+  server and shows it.
 - The server picks the audio this Roku plays best in the profile's
   language. Any audio but the file's default makes the file a stream with
   its video copied.
@@ -313,7 +314,6 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
 ## Known limits
 
 - No playback speed or audio delay: the Video node has neither.
-- Find subtitles… searches only the profile's subtitle language.
 - Live updates need an `http://` server; with `https://`, Home and the
   requests' summary refresh once a minute, a title page with a request
   each 30 s.

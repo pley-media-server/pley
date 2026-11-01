@@ -22,6 +22,8 @@ describes how they are made.
 - The player's menu has a sleep timer: 15 to 90 minutes or the end of
   what plays, then the video pauses; in its last 30 s, Keep watching adds
   the same time again.
+- Find subtitles… looks in another language too: Language, above the
+  results, picks it.
 
 ## [0.1.1] - 2026-11-01
 

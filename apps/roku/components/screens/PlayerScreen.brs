@@ -44,7 +44,10 @@ sub init()
     m.menuKind = ""
     m.menuActions = []
     m.menuValues = []
-    ' Find subtitles…: the results listed ([{ id, label, hint }]).
+    ' Find subtitles…: the language looked in ("": the person's subtitle
+    ' language), and the results listed ([{ id, label, hint }]) after the
+    ' Language entry.
+    m.findLanguage = ""
     m.found = []
     m.menuList.observeField("itemSelected", "onMenuEntry")
     m.menuList.observeField("itemFocused", "onMenuEntryFocused")
@@ -1191,7 +1194,11 @@ end function
 
 sub onMenuEntry(event as object)
     if m.menuKind = "found"
-        addSubtitles(event.getData())
+        if event.getData() = 0
+            openFindLanguages()
+        else
+            addSubtitles(event.getData() - 1)
+        end if
         return
     end if
     action = m.menuActions[event.getData()]
@@ -1280,6 +1287,12 @@ sub onMenuChoice(event as object)
     if at < 0 or at >= m.menuValues.Count() then return
     value = m.menuValues[at]
     kind = m.menuKind
+    ' A language to look in: the menu stays, and looks there.
+    if kind = "findLanguage"
+        m.findLanguage = value
+        findSubtitles()
+        return
+    end if
     closeMenu()
     if kind = "chapters"
         seekTo(value)
@@ -1414,7 +1427,20 @@ sub findSubtitles()
     m.top.setFocus(true)
     fileId = 0
     if m.info <> invalid then fileId = m.info.file_id
-    uiRequest({ method: "GET", path: ssSearchPath(m.itemId, fileId), timeoutMs: 30000, session: m.sessionId }, "onSubtitlesFound")
+    uiRequest({ method: "GET", path: ssSearchPath(m.itemId, fileId, m.findLanguage), timeoutMs: 30000, session: m.sessionId }, "onSubtitlesFound")
+end sub
+
+' The languages to look in, the one looked in checked.
+sub openFindLanguages()
+    m.menuKind = "findLanguage"
+    m.menuTitle.text = "Subtitle language"
+    choice = ssLanguageChoices(m.findLanguage)
+    items = []
+    for each label in choice.labels
+        items.Push({ title: label })
+    end for
+    m.menuValues = choice.values
+    showMenuChoices(items, choice.current)
 end sub
 
 sub showMenuText(text as string)
@@ -1433,17 +1459,18 @@ sub onSubtitlesFound(event as object)
         return
     end if
     m.found = ssResults(answer.data)
-    if m.found.Count() = 0
-        showMenuText("No subtitles were found for this file in your subtitle language.")
-        return
-    end if
     m.menuKind = "found"
-    items = []
+    items = [{ title: ssLanguageEntry(m.findLanguage) }]
     for each result in m.found
         items.Push({ title: result.label })
     end for
     m.menuList.content = nodesContent(items)
-    m.menuList.jumpToItem = 0
+    ' The first result in focus, the Language entry above it.
+    if m.found.Count() > 0
+        m.menuList.jumpToItem = 1
+    else
+        m.menuList.jumpToItem = 0
+    end if
     m.menuText.visible = false
     m.menuChoices.visible = false
     m.menuList.visible = true
@@ -1453,8 +1480,14 @@ end sub
 
 sub onMenuEntryFocused()
     if m.menuKind <> "found" then return
-    at = m.menuList.itemFocused
-    if at >= 0 and at < m.found.Count() then m.menuHint.text = m.found[at].hint
+    at = m.menuList.itemFocused - 1
+    if at >= 0 and at < m.found.Count()
+        m.menuHint.text = m.found[at].hint
+    else if m.found.Count() = 0
+        m.menuHint.text = ssNothingFound(m.findLanguage)
+    else
+        m.menuHint.text = "The language the search looks in."
+    end if
 end sub
 
 ' The result picked is added on the server, then shown.

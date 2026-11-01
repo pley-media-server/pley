@@ -353,6 +353,14 @@ async function walk() {
   await press("select");
   await waitFor(/^GET \/api\/items\/103\/subtitles\/search\?file_id=7103$/, since, "the subtitles found for the file");
   shoot("player-find-subtitles");
+  // Another language: Language, above the results, then Arabic.
+  since = mark();
+  await press("up");
+  await press("select");
+  await sleep(300);
+  await press("down"); // Arabic
+  await press("select");
+  await waitFor(/^GET \/api\/items\/103\/subtitles\/search\?file_id=7103&language=ara$/, since, "the subtitles found in another language");
   since = mark();
   await press("select");
   await waitFor(/^POST \/api\/items\/103\/subtitles$/, since, "the subtitles picked, added");
@@ -811,6 +819,7 @@ const checks = [
   ["asked to play with its capabilities", asked(/^POST \/api\/playback$/)],
   ["asked for the picture subtitles to be drawn", fixture.playbacks.some((p) => p.item === 103 && p.subtitle_index === 4)],
   ["found subtitles from the player's menu and added the first", fixture.subtitlesAdded.some((a) => a.item === 103 && a.result === "opensubtitles:1" && a.file_id === 7103)],
+  ["looked for subtitles in a language picked above the results", asked(/^GET \/api\/items\/103\/subtitles\/search\?file_id=7103&language=ara$/)],
   ["saved the added subtitles as the pick", fixture.streams.some((s) => s.item === 103 && s.subtitle_index === 10001)],
   ["asked the server what it knows of the network before playing in Automatic", asked(/^GET \/api\/playback\/network\?client_id=/)],
   ["ran a speed test of 8 MiB where the server asked for one", fixture.speedTests.length > 0 && fixture.speedTests.every((n) => n === 8388608)],
