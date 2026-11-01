@@ -120,6 +120,8 @@ sealed class Images
         var api = Api;
         if (api == null) return null;
         await slots.WaitAsync(cancel).ConfigureAwait(false);
+        // Written whole, then renamed: a half-written picture is never shown, and one that failed goes.
+        var part = file + ".part";
         try
         {
             // To the file as it comes, a buffer at a time: read whole into memory, a preview sheet of
@@ -128,8 +130,6 @@ sealed class Images
             using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancel);
             limit.CancelAfter(FetchMs);
             using var res = await api.Open(url, limit.Token).ConfigureAwait(false);
-            // Written whole, then renamed: a half-written picture is never shown.
-            var part = file + ".part";
             long length;
             using (var to = new FileStream(part, FileMode.Create, FileAccess.Write, FileShare.None, BufferBytes, useAsync: true))
             {
@@ -150,10 +150,11 @@ sealed class Images
             missing[url] = true;
             return null;
         }
-        catch (OperationCanceledException) when (cancel.IsCancellationRequested)
+        catch (Exception) when (cancel.IsCancellationRequested)
         {
-            // Given up by the one who asked, not timed out: others who want it ask again.
-            throw;
+            // Given up by the one who asked, not timed out: others who want it ask again. While the
+            // server hadn't answered yet, the transport says so as a NetworkException.
+            throw new OperationCanceledException(cancel);
         }
         catch (Exception)
         {
@@ -162,6 +163,14 @@ sealed class Images
         finally
         {
             slots.Release();
+            try
+            {
+                File.Delete(part);
+            }
+            catch (Exception)
+            {
+                // Overwritten by the next download of the same picture.
+            }
         }
     }
 
