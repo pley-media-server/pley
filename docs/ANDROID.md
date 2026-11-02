@@ -66,6 +66,11 @@ heard it for that profile, the start asks "Who's watching?".
 - Select opens, holding Select or Menu (☰) opens a title's actions, Back
   goes back. In the player, OK within two seconds of a seek plays on from
   there; later, OK pauses.
+- A direction key held for 180 ms moves focus by itself, every 45 ms
+  (about 22 a second), on the app's own clock: the system's repeats start
+  later and come unevenly, so the app drops them. A tile's focus look
+  changes evenly from one tile to the next meanwhile, and backdrops and
+  info blocks wait until focus has rested 400 ms.
 - **Fire TV** runs the same APK and TV screens. The app spots it by the
   `amazon.hardware.fire_tv` feature and follows Amazon's player guidelines
   (asynchronous decoder queueing, surround from Fire OS's audio setting,

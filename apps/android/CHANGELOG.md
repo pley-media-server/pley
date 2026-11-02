@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- On Android TV and Fire TV, a held direction key starts moving after
+  180 ms rather than half a second, and moves about 22 times a second at
+  an even pace, as on the native Samsung app.
+
 ### Fixed
 
 - Settings' Always start as no longer starts the TV as a profile with a

@@ -1,6 +1,7 @@
 package app.pley.android.ui.tv.kit
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -71,7 +72,8 @@ import kotlinx.coroutines.launch
  * outside the scaled layer, turns bold. Select opens; holding Select calls
  * [onLongClick], the item's actions (rule 6), which are also buttons on its
  * page; so does the remote's Menu key, the way Fire TV apps open them.
- * While a key repeats the tile snaps to its focus look (rule 5).
+ * Under a held key the look changes evenly over the time between moves
+ * (rule 5, [KeyRepeatGate.GLIDE_MS]).
  *
  * [focusModifier] goes on the focusable itself: a FocusRequester,
  * [initialFocus] or [rememberedFocus].
@@ -198,13 +200,19 @@ internal class TileFocusLook(private val scope: CoroutineScope, private val gate
         if (on == focused) return
         focused = on
         val target = if (on) 1f else 0f
-        // Held keys snap; T0 animates the focused tile only (design spec §6).
-        val snap = reduced || gate.holding || (!on && tier == Tier.T0)
+        // T0 animates the focused tile only (design spec §6). A held key's move changes the look
+        // evenly over the time to the next, so focus glides from tile to tile rather than pulsing.
+        val snap = reduced || (!on && tier == Tier.T0)
+        val spec: FiniteAnimationSpec<Float> = when {
+            gate.holding -> KeyRepeatGate.glide()
+            on -> PleyMotion.focus()
+            else -> PleyMotion.unfocus()
+        }
         scope.launch {
             if (snap) {
                 progress.snapTo(target)
             } else {
-                progress.animateTo(target, if (on) PleyMotion.focus() else PleyMotion.unfocus())
+                progress.animateTo(target, spec)
             }
         }
     }
