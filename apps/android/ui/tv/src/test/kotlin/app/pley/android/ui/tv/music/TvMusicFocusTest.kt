@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.Tier
+import app.pley.android.player.MusicQueueState
 import app.pley.android.player.NowPlaying
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepState
@@ -34,8 +35,8 @@ import org.robolectric.annotation.Config
 /**
  * Music on TV with the D-pad: an album starts on Play and plays from a
  * track chosen on the right, opening Now Playing; an album opened from a
- * track starts on it; Now Playing starts on Play/Pause, and the queue
- * under it jumps to a track.
+ * track starts on it; Now Playing starts on Play/Pause, the queue under it
+ * jumps to a track, and Down from the controls lands on the track playing.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi", application = TvAccountTestApplication::class)
@@ -98,6 +99,18 @@ class TvMusicFocusTest {
         compose.press(Key.DirectionDown, times = 2)
         compose.press(Key.DirectionCenter)
         assertEquals(1, graph.music.jumps.size)
+    }
+
+    @Test
+    fun downFromTheControlsLandsOnTheTrackPlaying() {
+        // The last track: the queue can't bring it to its top, so it isn't the nearest line.
+        graph.music.queueState.value = MusicQueueState(TvAccountTestGraph.TRACKS, 11)
+        graph.music.now.value = NowPlaying(512, "Song 12", "Harbour Lights", playing = true, album = "Deep Water", count = 12, index = 11)
+        show { TvNowPlayingScreen() }
+        waitFor("Harbour Lights · Deep Water")
+        compose.onNodeWithTag(TV_PLAY_PAUSE).assertIsFocused()
+        compose.press(Key.DirectionDown)
+        compose.focused().assert(hasText("Song 12"))
     }
 
     @Test

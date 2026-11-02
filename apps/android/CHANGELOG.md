@@ -20,6 +20,8 @@ describes how they are made.
   answering an error, say) no longer ends at once as "This track can't be
   played": the app asks the server, and plays it again as a conversion or
   in a new session, or says the server stopped it.
+- On TVs, Now Playing dims and wakes with a short fade (none with reduced
+  motion), and Down from its controls lands on the track playing.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
