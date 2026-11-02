@@ -1233,7 +1233,9 @@ the file downloads as it is or is made for the device, which the app
 follows every 5 seconds while Pley is open, giving up after 15 minutes
 without progress. The file comes through a background `URLSession`, so
 the system goes on while the app is in the background or closed, and
-wakes it when pieces finish:
+wakes it when pieces finish. Woken with no window, the app asks for the
+next piece as the profile signed in last on the server used last, with
+the sign-in kept in the Keychain and without waiting for the server:
 
 - in pieces of 256 MiB, each a `Range` request with an access token that
   lasts at least 10 more minutes, read just before the piece starts; a

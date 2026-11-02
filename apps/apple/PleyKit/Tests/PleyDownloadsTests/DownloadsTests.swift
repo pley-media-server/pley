@@ -336,6 +336,33 @@ private func movie(_ server: FixtureServer, bytes: Int = 4_500, container: Strin
         #expect(h.entry(61)?.watched == true && h.entry(61)?.positionMs == 0)
     }
 
+    @Test func aPieceThatEndsWithNoOneSignedInGoesOnOnceTheyAre() async throws {
+        let server = try await started()
+        let h = Harness(server: server)
+        defer { h.close() }
+        let original = movie(server)
+        server.delay(path: PleyAPI.fileStreamPath(610), ms: 300)
+        try await h.downloads.download([61])
+        for _ in 0..<500 where server.downloadRanges.isEmpty {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        // Woken in the background with no window: no one is signed in yet.
+        let scope = DownloadScope(origin: server.origin, profileId: 2, api: h.api, tokens: h.tokens,
+                                  caps: { ClientCaps(containers: ["mp4", "mov"]) })
+        h.downloads.signedIn(nil)
+        let key = try #require(h.downloads.store.all.first?.key)
+        for _ in 0..<500 where h.downloads.store.get(key)?.state != .queued {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(h.downloads.store.get(key)?.state == .queued)
+        #expect(server.downloadRanges == ["bytes=0-999"])
+        server.delay(path: PleyAPI.fileStreamPath(610), ms: 0)
+        h.downloads.signedIn(scope)
+        #expect(await h.waitFor(61, .done))
+        #expect(try Data(contentsOf: try #require(h.downloads.local?.file(610)).url) == original)
+        #expect(server.downloadRanges.prefix(2) == ["bytes=0-999", "bytes=1000-1999"])
+    }
+
     @Test func theSystemIsToldTheEventsAreHandledWhicheverCameFirst() async throws {
         let server = try await started()
         let h = Harness(server: server)

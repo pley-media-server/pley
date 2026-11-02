@@ -227,6 +227,40 @@ private func snapshotFolder() -> URL {
         #expect(downloads.asked == [episodes])
     }
 
+    @Test func wokenInTheBackgroundTheDownloadsGoOnAsTheProfileUsedLast() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let store = MemoryTokenStore()
+        try await keepSignIn(server, in: store)
+        let settings = freshSettings()
+        settings.setLastProfile(2, origin: server.origin)
+        let downloads = FakeDownloads()
+        let app = app(store, servers: [SavedServer(origin: server.origin, name: "Living Room", lastUsed: Date())],
+                      settings: settings, downloads: downloads)
+        let asked = server.journal.count
+        // No window: nothing shows, and the server isn't asked.
+        await app.wakeForDownloads()
+        #expect(downloads.scope?.origin == server.origin && downloads.scope?.profileId == 2)
+        #expect(app.root == .starting && app.user == nil)
+        #expect(server.journal.count == asked)
+        // A window opens later: the app starts as ever.
+        await app.start()
+        #expect(app.root == .signedIn && app.user?.id == 2)
+        #expect(await eventually { downloads.scope?.profileId == 2 && downloads.scope?.origin == server.origin })
+    }
+
+    @Test func wokenWithNoSignInKeptTheDownloadsWait() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let settings = freshSettings()
+        settings.setLastProfile(2, origin: server.origin)
+        let downloads = FakeDownloads()
+        let app = app(servers: [SavedServer(origin: server.origin, name: "Living Room", lastUsed: Date())],
+                      settings: settings, downloads: downloads)
+        await app.wakeForDownloads()
+        #expect(downloads.scope == nil && app.root == .starting)
+    }
+
     @Test func appleTVHasNoDownloads() async throws {
         let server = try await fixture()
         defer { server.stop() }

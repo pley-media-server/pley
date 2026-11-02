@@ -74,13 +74,21 @@ struct PleyApp: App {
 /// iPhone and iPad: the system wakes the app when the downloads' background
 /// session has finished pieces while it was away. The session, made again
 /// with the model, hands them over; the system is told once they are handled.
+/// A closed app relaunched this way shows no window, so the sign-in the
+/// next piece needs is read here, without the server, before the handler
+/// is handed over.
 final class PhoneAppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,
                      completionHandler: @escaping () -> Void) {
-        guard let downloads = PleyApp.model.downloads as? Downloads,
+        let app = PleyApp.model
+        guard let downloads = app.downloads as? Downloads,
               identifier == PieceTransfer.backgroundIdentifier(bundle: Bundle.main.bundleIdentifier ?? "")
         else { return completionHandler() }
-        downloads.handleBackgroundEvents(completionHandler)
+        // The sign-in first: the system may suspend the app once the handler is called.
+        Task {
+            await app.wakeForDownloads()
+            downloads.handleBackgroundEvents(completionHandler)
+        }
     }
 }
 #endif

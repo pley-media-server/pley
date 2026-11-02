@@ -167,6 +167,9 @@ public final class AppModel: ObservableObject, SnapshotCache {
     /// How long a try waits for the server's answer.
     public static let reconnectWait: Duration = .seconds(10)
     private var reconnectTask: Task<Void, Never>?
+    /// The sign-in read for the downloads after a wake in the background.
+    private var wake: Task<Void, Never>?
+    private var started = false
     /// Wakes the reconnect loop when the network changes.
     private var paths: NWPathMonitor?
     /// The network changed since the last try.
@@ -289,7 +292,10 @@ public final class AppModel: ObservableObject, SnapshotCache {
     /// At start: opens the server used last when the app is signed in to
     /// it, and shows the servers otherwise.
     public func start() async {
-        guard root == .starting else { return }
+        guard root == .starting, !started else { return }
+        started = true
+        // A wake for the downloads opens the session too: it finishes first.
+        await wake?.value
         listen()
         guard let last = await servers.lastUsed() else {
             root = .servers
@@ -301,14 +307,39 @@ public final class AppModel: ObservableObject, SnapshotCache {
                 await opened(last.origin, id: last.id, name: last.name)
                 await startAs(user)
             case .signedOut:
+                downloads.signedIn(nil)
                 root = .servers
             }
         } catch {
             // Out of reach: what was saved shows, while the app tries again.
             if LateReports.unreachable(error), await startOffline(last) { return }
+            downloads.signedIn(nil)
             root = .servers
             notice = "\(last.name): \(describe(error))"
         }
+    }
+
+    /// iPhone and iPad: the system woke the app in the background for the
+    /// downloads, and no window shows, so `start()` doesn't run. The
+    /// downloads go on as the profile signed in last on the server used
+    /// last, with the sign-in kept for it and without asking the server.
+    public func wakeForDownloads() async {
+        guard downloads.available, !started else { return }
+        if wake == nil {
+            wake = Task { [weak self] in await self?.scopeDownloadsAsLast() }
+        }
+        await wake?.value
+    }
+
+    private func scopeDownloadsAsLast() async {
+        guard let last = await servers.lastUsed(), let profileId = settings.lastProfile(origin: last.origin),
+              !started, await session.openSaved(origin: last.origin, id: last.id),
+              let api = await session.api, let origin = await session.origin
+        else { return }
+        let tokens = await session.tokens
+        let caps = caps
+        downloads.signedIn(DownloadScope(origin: origin, profileId: profileId, api: api, tokens: tokens,
+                                         caps: { await caps.warmUp().report }))
     }
 
     /// Starts on `last` without the server, as the profile used last, from

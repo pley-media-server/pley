@@ -170,6 +170,16 @@ final class DownloadRunner {
         pump()
     }
 
+    /// `handler` once the download being prepared has asked for its piece:
+    /// the system may suspend the app as soon as it is called.
+    private func whenStarted(_ handler: @escaping () -> Void) {
+        guard let pending = work else { return handler() }
+        Task {
+            await pending.value
+            handler()
+        }
+    }
+
     // MARK: Extras
 
     /// The details (for playing and listing offline), a picture and the
@@ -372,7 +382,7 @@ final class DownloadRunner {
                 return
             }
             finishedEvents = nil
-            handler()
+            whenStarted(handler)
         }
     }
 
@@ -381,7 +391,7 @@ final class DownloadRunner {
     func backgroundEvents(_ completion: @escaping () -> Void) {
         if delivered {
             delivered = false
-            completion()
+            whenStarted(completion)
         } else {
             finishedEvents = completion
         }
