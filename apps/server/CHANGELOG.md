@@ -18,6 +18,9 @@ describes how they are made.
 
 ### Changed
 
+- Seek previews, fingerprints and other background work pause while the
+  picture subtitles of a film being played are read, so on a NAS they come
+  as quickly beside a big remux's seek previews as on their own.
 - Picture subtitles (PGS, VobSub, DVB) that the apps draw show within a few
   seconds of a playback starting, where they could take up to a minute:
   the transcoder reads those around where the playback is out of a
