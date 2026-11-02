@@ -174,6 +174,10 @@ while it asks for the session's `plan`: a channel the server sends as it is
 plays that MPEG-TS from its first keyframe; anything else plays the
 server's HLS. Leaving the player ends the session.
 
+On TVs, OK in the player opens the channel list, as Menu and Guide do;
+holding OK shows the controls (the channel list and the favourite) over
+what's on.
+
 ### Requests
 
 Where the server takes requests ([API.md](API.md#requests)), people ask

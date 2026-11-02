@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- In the TV live player, OK opens the channel list, as on Samsung TVs;
+  holding OK shows the controls (the channel list and the favourite).
+
 ### Fixed
 
 - Settings' Always start as no longer starts the TV as a profile with a

@@ -109,9 +109,9 @@ private enum class Overlay { None, Controls, Channels }
  *
  * - Up and Down, and Channel up and down, change channel (Up the next
  *   number), digits tune a number;
- * - OK shows the controls (the channel list, the favourite) over what's
- *   on; Menu or Guide shows the channel list; Back hides what shows, then
- *   leaves.
+ * - OK opens the channel list, as Menu and Guide do; held, it shows the
+ *   controls (the channel list, the favourite) over what's on; Back hides
+ *   what shows, then leaves.
  *
  * Live TV is watched as it airs, as the web's: no pause, no going back,
  * so play, pause, rewind and fast forward, Left and Right do nothing.
@@ -132,6 +132,10 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
     var peek by remember { mutableIntStateOf(0) }
     var poked by remember { mutableIntStateOf(0) }
     var showInfo by remember { mutableStateOf(false) }
+    // OK went down with nothing over the picture: its release opens the channel list, unless it was held.
+    var okPressed by remember { mutableStateOf(false) }
+    // OK held showed the controls: the rest of that press is the picture's.
+    var okHeld by remember { mutableStateOf(false) }
     val root = remember { FocusRequester() }
     val playing = state.phase == LivePhase.Playing
     val failed = state.phase is LivePhase.Failed
@@ -168,6 +172,11 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
             .onPreviewKeyEvent { event ->
                 val code = event.key.nativeKeyCode
                 val down = event.type == KeyEventType.KeyDown
+                // Or its release would press the button the controls focused.
+                if (okHeld && code in OK_KEYS) {
+                    if (!down) okHeld = false
+                    return@onPreviewKeyEvent true
+                }
                 if (overlay == Overlay.Controls) poked++
                 when {
                     code == KeyEvent.KEYCODE_CHANNEL_UP -> {
@@ -203,8 +212,18 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
                             true
                         }
                         KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> true
-                        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                            if (!down) overlay = Overlay.Controls
+                        // The channel list on the way up, as OK selects elsewhere; held, the controls, as a long press opens actions elsewhere.
+                        in OK_KEYS -> {
+                            if (down && event.nativeKeyEvent.repeatCount == 0) {
+                                okPressed = true
+                            } else if (down && okPressed) {
+                                okPressed = false
+                                okHeld = true
+                                overlay = Overlay.Controls
+                            } else if (!down && okPressed) {
+                                okPressed = false
+                                overlay = Overlay.Channels
+                            }
                             true
                         }
                         else -> false
@@ -743,6 +762,9 @@ private const val INFO_MS = 5_000L
 
 /** The controls hide after this long untouched while playing. */
 private const val CONTROLS_MS = 6_000L
+
+/** The keys that select: the remote's OK, and Enter on a keyboard or keypad. */
+private val OK_KEYS = setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER)
 
 /** Media keys that would pause, seek or skip: Live TV has none of that. */
 private val NOT_LIVE_KEYS = setOf(
