@@ -68,7 +68,11 @@ Sign-in, server discovery (a broadcast, then a sweep of the TV's subnet),
 the screens, the player's keys and panels, music and offline behaviour
 follow the Android TV app. The TV shows a code to type on the server's
 `/link` page (or a QR code to it), and asks "Who's watching?" at start
-when the household has more than one profile. What differs on LG:
+when the household has more than one profile. With Always start as, a
+start never goes on as a profile with a PIN without it: the TV keeps the
+profile it was left on (`GET /api/auth/me`, with `has_pin`), opens on its
+PIN pad when it has one, and until it knows, asks "Who's watching?". What
+differs on LG:
 
 ### Remote and Magic Remote
 

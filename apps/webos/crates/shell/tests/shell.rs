@@ -98,13 +98,32 @@ fn the_start_gate_picks_the_first_page_from_what_the_tv_kept() {
     let mut app = TestApp::new(device.clone(), s.clone(), h.clone(), Registry::new());
     assert_eq!(app.shell.top_route(), Some(&Route::Profiles));
     assert_eq!(app.state.household_size(), 3);
-    // …unless Settings' "Always start as" names one, or it was answered in this launch.
-    app.state.set_always_start_as(Some(2));
+    // "Always start as" asks too while the TV doesn't know whether the profile has a PIN…
+    app.state.set_always_start_as(Some(pley_fixtures::ids::ALEX));
+    assert_eq!(app.state.start_route(), Route::Profiles);
+    // …and goes on as it once that is known and it has none.
+    assert!(app.until(|a| a.state.me().is_some()));
     assert_eq!(app.state.start_route(), Route::Home);
     app.state.set_always_start_as(None);
     assert_eq!(app.state.start_route(), Route::Profiles);
+    // Answered in this launch: Home.
     app.state.pass_profile_gate();
     assert_eq!(app.state.start_route(), Route::Home);
+    drop(app);
+
+    // "Always start as" never goes past a PIN: the profile's pad comes first.
+    let device = common::device();
+    let (s, h) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::SAM, &s, &h);
+    s.set_household(&url, &three).unwrap();
+    let mut app = TestApp::new(device.clone(), s.clone(), h.clone(), Registry::new());
+    app.state.set_always_start_as(Some(pley_fixtures::ids::SAM));
+    assert!(app.until(|a| a.state.me().is_some()));
+    assert_eq!(app.state.start_route(), Route::Pin { profile: pley_fixtures::ids::SAM });
+    drop(app);
+    // The next start, from what the TV kept, opens on the pad.
+    let app = TestApp::new(device.clone(), s.clone(), h.clone(), Registry::new());
+    assert_eq!(app.shell.top_route(), Some(&Route::Pin { profile: pley_fixtures::ids::SAM }));
 }
 
 #[test]

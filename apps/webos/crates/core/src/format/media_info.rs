@@ -141,13 +141,15 @@ fn colour(table: fn(&str) -> Option<&'static str>, name: Option<&str>) -> Option
     Some(table(name).map_or_else(|| name.to_string(), str::to_string))
 }
 
-/// "Profile 8.1 · Level 6 · HDR10-compatible base layer".
+/// "Profile 8.1 · Level 6 · HDR10-compatible base layer". Only 8.1, 8.2 and 8.4 carry their
+/// compatibility in the name, as the labels do: compatibility 6 reads "Profile 8 · … · Blu-ray
+/// HDR10-compatible base layer".
 pub fn dolby_vision_details(s: &MediaStream) -> Option<String> {
     let profile = s.dv_profile?;
     let compat = s.dv_bl_compat.unwrap_or(0);
     let mut parts = vec![format!(
         "Profile {profile}{}",
-        if profile >= 8 && compat > 0 { format!(".{compat}") } else { String::new() }
+        if profile >= 8 && matches!(compat, 1 | 2 | 4) { format!(".{compat}") } else { String::new() }
     )];
     if let Some(level) = s.dv_level {
         parts.push(format!("Level {level}"));

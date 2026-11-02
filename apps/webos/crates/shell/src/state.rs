@@ -376,17 +376,22 @@ impl AppState {
     }
 
     /// The first page, from what the TV kept (the Android app's `StartGate`): no server → Servers;
-    /// no sign-in → Link; a household of more than one without "Always start as" (and not
-    /// answered in this launch) → Profiles; else Home.
+    /// no sign-in → Link; a household of one, or "Who's watching?" answered in this launch → Home.
+    /// Else "Always start as" goes on as the profile the TV was left on, but never past its PIN:
+    /// its pad comes first when it has one, and "Who's watching?" while the TV doesn't know
+    /// whether it has one (or without "Always start as").
     pub fn start_route(&self) -> Route {
         let Some(server) = self.server.clone() else { return Route::Servers };
         if !self.signed_in() {
             return Route::Link { server };
         }
-        if self.household_size() > 1 && self.always_start_as().is_none() && !self.profile_gate_passed {
-            Route::Profiles
-        } else {
-            Route::Home
+        if self.household_size() <= 1 || self.profile_gate_passed {
+            return Route::Home;
+        }
+        match (self.always_start_as(), &self.me) {
+            (Some(_), Some(me)) if me.has_pin => Route::Pin { profile: me.id },
+            (Some(_), Some(_)) => Route::Home,
+            _ => Route::Profiles,
         }
     }
 

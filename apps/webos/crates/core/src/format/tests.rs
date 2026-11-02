@@ -92,6 +92,10 @@ fn gives_the_info_panel_the_profile_level_base_layer_and_enhancement_layer() {
         dolby_vision_details(&with(p7(), |s| s.dv_el = Some("fel".into()))).as_deref(),
         Some("Profile 7 · Level 6 · Blu-ray HDR10-compatible base layer · full enhancement layer")
     );
+    assert_eq!(
+        dolby_vision_details(&with(p81(), |s| s.dv_bl_compat = Some(6))).as_deref(),
+        Some("Profile 8 · Level 6 · Blu-ray HDR10-compatible base layer")
+    );
     let block = stream_block(&with(p81(), |s| s.hdr10plus = Some(true)), "Video");
     assert_eq!(block.value("HDR"), Some("Dolby Vision P8.1 + HDR10+"));
 }
