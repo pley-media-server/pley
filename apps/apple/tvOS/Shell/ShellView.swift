@@ -27,9 +27,9 @@ struct ShellView: View {
                     .accessibilityIdentifier("shell.tab.\(section.key)")
             }
         }
-        .onPlayPauseCommand {
-            if app.music.state.active { app.music.toggle() }
-        }
+        // Only while music has a queue: a handler here, even one that does
+        // nothing, keeps Play/Pause from a video's tile.
+        .onPlayPauseCommand(perform: shell.nowPlaying ? { app.music.toggle() } : nil)
         .overlay(alignment: .topTrailing) { ToastView(shell: shell) }
         .fullScreenCover(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { sheet in
             ShellSheet(app: app, sheet: sheet)
