@@ -224,7 +224,7 @@ export function NumberPad(p: {
               fid={p.fid ? `${p.fid}/${id}` : undefined}
               initial={enabled && id === (p.initialKey ?? "5")}
               disabled={!enabled}
-              label={k.kind === "text" ? (/^\d$/.test(k.text) ? `digit ${k.text}` : k.text) : PAD_LABELS[k.kind]}
+              label={k.kind === "text" ? `digit ${k.text}` : PAD_LABELS[k.kind]}
               onSelect={() => press(k, id)}
             >
               <PadGlyph k={k} />

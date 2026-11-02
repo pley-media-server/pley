@@ -47,8 +47,8 @@ import app.pley.android.designsystem.PleyType
 import kotlinx.coroutines.delay
 
 /**
- * Text entry on TV (D-pad rule 7; design spec §2.11), only for search and
- * server addresses. Focus lands on the field without opening the
+ * Text entry on TV (D-pad rule 7; design spec §2.11), for server
+ * addresses and playlist names. Focus lands on the field without opening the
  * keyboard, so D-pad users pass through it; Select opens the system
  * keyboard (Gboard, or Amazon's), and Back or the keyboard's action closes
  * it again, leaving focus on the field. With [typeNow] (a screen that only

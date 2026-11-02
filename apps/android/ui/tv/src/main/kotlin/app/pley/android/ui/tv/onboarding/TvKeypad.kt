@@ -26,9 +26,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -42,7 +40,6 @@ import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.reducedMotion
-import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.initialFocus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -134,15 +131,6 @@ internal fun TvKeypad(
 /** What screen readers hear for the keys that aren't digits. */
 @Immutable
 internal data class PadLabels(val digit: (Int) -> String, val delete: String, val ok: String)
-
-/** What screen readers hear for the pads' keys. */
-@Composable
-internal fun padLabels(): PadLabels {
-    val resources = LocalResources.current
-    val delete = stringResource(R.string.tv_onboarding_delete)
-    val ok = stringResource(R.string.tv_onboarding_ok)
-    return remember(resources, delete, ok) { PadLabels({ n -> resources.getString(R.string.tv_onboarding_digit, n) }, delete, ok) }
-}
 
 /** One round key of a pad: 64 dp. */
 @Composable

@@ -105,7 +105,7 @@ static class PleyType
     public static readonly TextStyle Badge = new TextStyle(11, 13, Bold, 0.4f);
     /// <summary>The link code, in a monospaced face.</summary>
     public static readonly TextStyle Code = new TextStyle(48, 56, Bold, 4, Monospace);
-    /// <summary>PIN and address pad keys.</summary>
+    /// <summary>PIN pad keys.</summary>
     public static readonly TextStyle PinDigit = new TextStyle(28, 28, Medium);
 }
 

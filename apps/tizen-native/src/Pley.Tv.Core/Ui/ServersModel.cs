@@ -168,7 +168,7 @@ public sealed class ServersModel : IDisposable
         }
         catch (Exception)
         {
-            // The network's list can't be read: "Search this network" has nowhere to look.
+            // The network's list can't be read: checking the network shows no range.
         }
         Update(s => s with { SweepRange = subnet == null ? null : subnet + "1-254" });
         SavedChanged();

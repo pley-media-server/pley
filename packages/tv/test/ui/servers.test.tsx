@@ -98,6 +98,8 @@ describe("entering a server's address", () => {
     expect(field.type).toBe("url");
     expect(field.value).toBe("");
     expect(ui.input.typing).toBe(field);
+    // The browser's focus on the input is what opens the TV's keyboard.
+    expect(document.activeElement).toBe(field);
     expect(page.querySelector(".pad-key")).toBeNull();
 
     act(() => {

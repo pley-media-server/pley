@@ -1,9 +1,12 @@
 package app.pley.android.ui.tv.onboarding
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsFocused
@@ -28,6 +31,7 @@ import app.pley.android.screens.onboarding.ServersUiState
 import app.pley.android.ui.tv.kit.press
 import app.pley.android.ui.tv.theme.TvTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -132,11 +136,26 @@ class TvOnboardingUiTest {
 
     // ---------------------------------------------------------------- the address
 
+    /** The TV's keyboard, as the field asks it to show. */
+    private class Keyboard : SoftwareKeyboardController {
+        var shown = 0
+
+        override fun show() {
+            shown++
+        }
+
+        override fun hide() = Unit
+    }
+
+    private val keyboard = Keyboard()
+
     private fun addressEntry(state: ServersUiState = ServersUiState()): List<String> {
         val connected = mutableListOf<String>()
         compose.setContent {
             TvTheme(reducedMotion = true) {
-                TvAddressEntry(state, onConnect = { connected += it }, onEdited = {})
+                CompositionLocalProvider(LocalSoftwareKeyboardController provides keyboard) {
+                    TvAddressEntry(state, onConnect = { connected += it }, onEdited = {})
+                }
             }
         }
         compose.waitForIdle()
@@ -146,8 +165,9 @@ class TvOnboardingUiTest {
     @Test
     fun theKeyboardOpensWithTheAddressAndGoConnects() {
         val connected = addressEntry()
-        // No number pad: the field is being typed in, and starts empty.
+        // No number pad: the TV's keyboard is up, typing into an empty field.
         compose.onNodeWithTag("pley.pad.5").assertDoesNotExist()
+        assertTrue(keyboard.shown > 0)
         val typing = compose.onNode(hasSetTextAction())
         typing.assertIsFocused()
         typing.assertTextEquals("")
@@ -172,6 +192,18 @@ class TvOnboardingUiTest {
         compose.onNodeWithTag(CONNECT_TAG).assertIsFocused()
         compose.press(Key.DirectionCenter)
         assertEquals(listOf("192.168.1.20"), connected)
+    }
+
+    @Test
+    fun aKeyboardTypesAServersNameOnceTheTvsKeyboardIsClosed() {
+        val connected = addressEntry()
+        compose.onNode(hasSetTextAction()).performImeAction()
+        compose.press(Key.N)
+        compose.press(Key.A)
+        compose.press(Key.S)
+        compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf("nas"), connected)
     }
 
     @Test

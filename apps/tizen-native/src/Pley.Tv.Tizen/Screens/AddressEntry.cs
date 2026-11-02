@@ -65,8 +65,8 @@ sealed class AddressEntry : Sheet
         Root.Add(field.Item);
         Root.Add(connect.Item);
 
-        // D-pad rule 10: with the keyboard closed, the remote's digit keys type into the field, with
-        // "." and ":" and letters a keyboard sends. While it is open, the field takes every key first.
+        // D-pad rule 10: with the keyboard closed, the remote's digit keys type into the field, with the
+        // letters and "." ":" "/" "-" "_" a keyboard sends. While it is open, the field takes every key first.
         keys = shell.Input.Push((key, down) =>
         {
             if (shell.Top != this) return false;
@@ -114,7 +114,7 @@ sealed class AddressEntry : Sheet
 
     void LayoutConnect() => connect.PositionX = Ui.Dp(PleyTv.CanvasWidth / 2 - connect.WidthDp / 2);
 
-    /// <summary>What a remote or keyboard key types: a digit, ".", ":", a letter, "\b" for delete; null for other keys.</summary>
+    /// <summary>What a remote or keyboard key types: a digit, a letter, ".", ":", "/", "-", "_", "\b" for delete; null for other keys.</summary>
     static string? Typed(string key)
     {
         if (key.Length == 1 && char.IsLetterOrDigit(key[0])) return key.ToLowerInvariant();
@@ -123,7 +123,9 @@ sealed class AddressEntry : Sheet
         {
             "period" or "KP_Decimal" => ".",
             "colon" => ":",
+            "slash" or "KP_Divide" => "/",
             "minus" or "KP_Subtract" => "-",
+            "underscore" => "_",
             "BackSpace" or "Delete" or "Clear" => "\b",
             _ => null,
         };

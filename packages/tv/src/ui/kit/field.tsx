@@ -5,9 +5,9 @@ import { Icon, type IconName } from "./icons";
 
 /**
  * A text field (TvTextField): the remote's focus lands on it without
- * opening the TV's keyboard; OK opens it (the TV's own, with its
- * microphone), and its Done key, Back, Up or Down close it again, leaving
- * focus on the field.
+ * opening the TV's keyboard, unless `typeNow`; OK opens it (the TV's own,
+ * with its microphone), and its Done key, Back, Up or Down close it again,
+ * leaving focus on the field.
  */
 export function TextField(p: {
   value: string;
@@ -22,7 +22,7 @@ export function TextField(p: {
   type?: "text" | "url" | "search" | "number";
   onFocus?: (el: HTMLElement) => void;
   onTyping?: (typing: boolean) => void;
-  /** The TV's keyboard opens as the field shows (a dialog that only asks for words). */
+  /** The TV's keyboard opens as the field shows (a screen or dialog that only asks for words). */
   typeNow?: boolean;
 }) {
   const ui = useUi();
