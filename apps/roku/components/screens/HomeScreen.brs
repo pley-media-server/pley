@@ -94,7 +94,7 @@ end sub
 
 sub onHousehold(event as object)
     answer = event.getData()
-    if answer.ok and GetInterface(answer.data, "ifArray") <> invalid then uiKeepHousehold(answer.data.Count())
+    if answer.ok and GetInterface(answer.data, "ifArray") <> invalid then profKeepHousehold(CreateObject("roRegistrySection", "household"), m.global.session.server, answer.data)
 end sub
 
 ' Live TV in the menu while the server has channels this profile may

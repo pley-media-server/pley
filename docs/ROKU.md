@@ -332,7 +332,9 @@ shows Pley's licence and the notices of what the package bundles.
 Always start as, for a household of several profiles, names the profile
 the app starts as, or Ask who's watching. As on the other TVs it only
 skips "Who's watching?" at a start: the app starts as the profile it was
-left on. It is kept on the Roku for each server.
+left on. A profile since gone from the household (deleted, or another
+account's, signed in since) counts as Ask who's watching, as Settings
+then shows it. It is kept on the Roku for each server.
 
 ## Building and testing
 

@@ -699,12 +699,12 @@ sub apiBoot(request as object)
         apiSelect(current, name)
     end if
     ' "Who's watching?" first when the household had more than one profile,
-    ' unless Settings' "Always start as" names one.
+    ' unless Settings' "Always start as" names one of them.
     askWho = false
     if m.tokens <> invalid
-        household = Val(CreateObject("roRegistrySection", "household").Read(m.server))
+        household = profKeptHousehold(CreateObject("roRegistrySection", "household"), m.server)
         startAs = profStartAs(CreateObject("roRegistrySection", "startAs"), m.server)
-        askWho = profAskWho(m.tokens.scope, Int(household), startAs)
+        askWho = profAskWho(m.tokens.scope, household, startAs)
     end if
     apiAnswer(request, apiOk({ screen: serversStartScreen(m.server, m.tokens <> invalid, askWho), servers: servers }))
 end sub

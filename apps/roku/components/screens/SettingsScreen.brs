@@ -66,7 +66,7 @@ sub onHousehold(event as object)
     answer = event.getData()
     if not answer.ok or GetInterface(answer.data, "ifArray") = invalid then return
     m.household = profHousehold(answer.data)
-    uiKeepHousehold(m.household.Count())
+    profKeepHousehold(CreateObject("roRegistrySection", "household"), m.global.session.server, answer.data)
     showRows()
 end sub
 

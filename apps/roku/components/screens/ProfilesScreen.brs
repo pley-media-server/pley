@@ -56,7 +56,7 @@ sub onProfiles(event as object)
         return
     end if
     m.list = profTiles(answer.data, m.global.session.server)
-    uiKeepHousehold(m.list.Count())
+    profKeepHousehold(CreateObject("roRegistrySection", "household"), m.global.session.server, answer.data)
     if m.list.Count() = 0
         showMessage("No profiles to choose from.", ["Try again", "Sign in again"])
         return

@@ -17,10 +17,14 @@ sub test_profiles_as_tiles()
 end sub
 
 sub test_profiles_asked_at_a_start()
-    tkTrue(profAskWho("library play playlists profiles", 2, 0))
-    tkFalse(profAskWho("library play playlists profiles", 1, 0), "a household of one")
-    tkFalse(profAskWho("library play", 3, 0), "a sign-in that can't switch")
-    tkFalse(profAskWho("library play playlists profiles", 2, 7), "Always start as names a profile")
+    scope = "library play playlists profiles"
+    household = { count: 2, ids: [7, 9] }
+    tkTrue(profAskWho(scope, household, 0))
+    tkFalse(profAskWho(scope, { count: 1, ids: [7] }, 0), "a household of one")
+    tkFalse(profAskWho("library play", { count: 3, ids: [7, 9, 11] }, 0), "a sign-in that can't switch")
+    tkFalse(profAskWho(scope, household, 9), "Always start as names a profile")
+    tkTrue(profAskWho(scope, household, 12), "a profile gone from the household: asked again")
+    tkTrue(profAskWho(scope, { count: 2, ids: [] }, 9), "the household's profiles not known yet: asked")
     tkTrue(authAllows("library play", "play"))
     tkFalse(authAllows("library playlists", "play"))
 end sub
@@ -33,6 +37,13 @@ sub test_profiles_always_start_as()
     tkEqual(profStartAs(section, "http://other:7539"), 0, "for each server")
     profSetStartAs(section, "http://nas:7539", 0)
     tkEqual(profStartAs(section, "http://nas:7539"), 0, "Ask who's watching forgets it")
+
+    kept = CreateObject("roRegistrySection", "householdTest")
+    profKeepHousehold(kept, "http://nas:7539", ParseJson("[{""id"":7,""current"":false},{""id"":9,""current"":true}]"))
+    tkEqual(profKeptHousehold(kept, "http://nas:7539"), { count: 2, ids: [7, 9] }, "how many, and which")
+    tkEqual(profKeptHousehold(kept, "http://other:7539"), { count: 0, ids: [] }, "for each server")
+    profKeepHousehold(kept, "http://nas:7539", [])
+    tkEqual(profKeptHousehold(kept, "http://nas:7539"), { count: 0, ids: [] })
 
     household = profHousehold(ParseJson("[{""id"":7,""name"":""Anna""},{""id"":9,""name"":""Kids""},{""id"":0,""name"":""?""}]"))
     tkEqual(household, [{ id: 7, name: "Anna" }, { id: 9, name: "Kids" }])

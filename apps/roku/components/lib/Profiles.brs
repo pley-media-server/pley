@@ -47,12 +47,44 @@ end function
 
 ' Whether the app asks "Who's watching?" as it starts: a sign-in allowed to
 ' switch profiles, on a server whose household had more than one when last
-' asked, unless Settings' "Always start as" names one (startAs, its id; 0
-' for none). As on the other TVs, that only skips the question: the app
-' starts as the profile it was left on.
-function profAskWho(scope as string, household as integer, startAs as integer) as boolean
-    return authAllows(scope, "profiles") and household > 1 and startAs = 0
+' asked (household, profKeptHousehold's), unless Settings' "Always start
+' as" names one of them (startAs, its id; 0 for none). As on the other TVs,
+' that only skips the question: the app starts as the profile it was left
+' on. A setting naming a profile gone from the household (deleted, or
+' another account's, signed in since) asks again, as Settings then says.
+function profAskWho(scope as string, household as object, startAs as integer) as boolean
+    if not authAllows(scope, "profiles") or household.count < 2 then return false
+    if startAs = 0 then return true
+    for each id in household.ids
+        if id = startAs then return false
+    end for
+    return true
 end function
+
+' The household as last asked for on server, kept on this Roku (registry
+' section household): { count, ids (its profiles') }.
+function profKeptHousehold(section as object, server as string) as object
+    ids = []
+    for each id in section.Read(server + "#ids").Tokenize(",")
+        if Val(id) > 0 then ids.Push(Int(Val(id)))
+    end for
+    return { count: Int(Val(section.Read(server))), ids: ids }
+end function
+
+' Keeps the household's profiles (GET /api/oauth/profiles) for the next
+' start: how many, and their ids.
+sub profKeepHousehold(section as object, server as string, profiles as dynamic)
+    list = httpArray(profiles)
+    ids = []
+    for each profile in list
+        id = 0
+        if GetInterface(profile, "ifAssociativeArray") <> invalid then id = Int(httpNumber(profile.id, 0))
+        if id > 0 then ids.Push(id.ToStr())
+    end for
+    section.Write(server, list.Count().ToStr())
+    section.Write(server + "#ids", ids.Join(","))
+    section.Flush()
+end sub
 
 ' "Always start as" for server, kept on this Roku (registry section
 ' startAs): the profile's id, 0 for none.
