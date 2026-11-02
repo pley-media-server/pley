@@ -16,6 +16,10 @@ describes how they are made.
   starts the music again where it was.
 - A remote's Stop key pauses music and keeps its queue, where it ended
   the music and took Now Playing out of the TV's rail.
+- A track that stops for a reason the player can't name (the server
+  answering an error, say) no longer ends at once as "This track can't be
+  played": the app asks the server, and plays it again as a conversion or
+  in a new session, or says the server stopped it.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was

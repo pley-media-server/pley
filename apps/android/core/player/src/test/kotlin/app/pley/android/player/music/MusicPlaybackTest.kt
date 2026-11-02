@@ -12,6 +12,7 @@ import app.pley.android.model.ProgressReport
 import app.pley.android.model.ProgressState
 import app.pley.android.model.ServerEvent
 import app.pley.android.model.caps.ClientCaps
+import app.pley.android.network.ApiException
 import app.pley.android.network.OfflineException
 import app.pley.android.player.EngineSource
 import app.pley.android.player.MusicError
@@ -254,6 +255,53 @@ class MusicPlaybackTest {
         settle()
         assertEquals(4, starts().size)
         assertEquals(MusicError.Unplayable, music.nowPlaying.value?.error)
+    }
+
+    @Test
+    fun aFailureThePlayerCantNameAsksTheServer() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 15_000
+        // The session goes on: the track is at fault, asked for once more as a transcode.
+        output.fail(OutputError.Other)
+        settle()
+        assertEquals(1, api.calls("playbackStatus").size)
+        assertEquals(PlaybackMode.Transcode, starts().last().mode)
+        assertEquals(15_000L, starts().last().startMs)
+
+        // The server out of reach: a new session where it was, three times in a row, then it says so.
+        api.answer("startPlayback", transcodeInfo())
+        api.fail("playbackStatus", OfflineException(IOException("refused")))
+        repeat(MusicPlayback.MAX_RECREATES) {
+            output.fail(OutputError.Other)
+            settle()
+        }
+        assertEquals(5, starts().size)
+        assertNull(music.nowPlaying.value?.error)
+        output.fail(OutputError.Other)
+        settle()
+        assertEquals(5, starts().size)
+        assertEquals(MusicError.Offline, music.nowPlaying.value?.error)
+    }
+
+    @Test
+    fun aFailureThePlayerCantNameIsTheServersStopWhenItSaysSo() = runTest {
+        api.fail("playbackStatus", ApiException(410, "session_stopped", "Stopped by Ann."))
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 8_000
+        output.fail(OutputError.Other)
+        settle()
+        assertEquals(MusicError.Stopped, music.nowPlaying.value?.error)
+        assertEquals(1, starts().size)
+        assertTrue(api.calls("stopPlayback").isEmpty())
+        // Where it was is kept, and nothing is deleted.
+        assertEquals(ProgressState.Stopped, reports().last().state)
+        assertEquals(8_000, reports().last().positionMs)
     }
 
     @Test

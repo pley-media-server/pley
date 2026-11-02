@@ -64,7 +64,8 @@ class MusicEnvironment(
  *   track by itself;
  * - a track the device can't decode is asked for again as a transcode, and
  *   a session that expired is started again where it was, up to three
- *   times in a row;
+ *   times in a row; a failure the player can't name asks the server
+ *   whether the session goes on first;
  * - Previous restarts a track that has played more than 3 s;
  * - a sleep timer pauses after the minutes chosen, or at the end of the
  *   track (the next one waits, paused);
@@ -125,7 +126,10 @@ class MusicPlayback(
      * Play starts the track again.
      */
     private fun stoppedByServer() {
+        val s = session
         session = null
+        // Where it was is kept (best effort); nothing is deleted.
+        s?.stoppedByServer(lastPosition())
         loadJob?.cancel()
         timer.cancel()
         out?.stop()
@@ -410,18 +414,61 @@ class MusicPlayback(
             val direct = s?.info?.method == PlaybackMethod.Direct
             when {
                 error == OutputError.Stopped -> stoppedByServer()
-                error == OutputError.Decode && direct && fallback == null -> {
-                    fallback = PlaybackMode.Transcode
-                    startTrack(lastPosition(), sameTrack = true)
-                }
-                (error == OutputError.Gone || error == OutputError.Network) && recreates < MAX_RECREATES -> {
-                    recreates++
-                    startTrack(lastPosition(), sameTrack = true)
-                }
+                error == OutputError.Decode && direct && fallback == null -> decode()
+                error == OutputError.Gone -> again(MusicError.Unplayable)
+                error == OutputError.Network -> again(MusicError.Offline)
+                error == OutputError.Other && s != null -> askServer(s, direct)
                 else -> {
                     endSession()
-                    fail(if (error == OutputError.Network) MusicError.Offline else MusicError.Unplayable)
+                    fail(MusicError.Unplayable)
                 }
+            }
+        }
+    }
+
+    /** Played as it is, the device couldn't decode it: once more as a transcode. */
+    private fun decode() {
+        fallback = PlaybackMode.Transcode
+        startTrack(lastPosition(), sameTrack = true)
+    }
+
+    /** A new session where it was, three times in a row at most; then the track fails as [otherwise]. */
+    private fun again(otherwise: MusicError) {
+        if (recreates < MAX_RECREATES) {
+            recreates++
+            startTrack(lastPosition(), sameTrack = true)
+        } else {
+            endSession()
+            fail(otherwise)
+        }
+    }
+
+    /**
+     * The player stopped for a reason it can't name (the server answered
+     * 500, say), which the server can: it is asked whether [s] goes on.
+     * It does: the track is at fault, asked for once more as a transcode,
+     * else in a new session. Stopped from elsewhere (410): the music says
+     * so. Gone, or the server out of reach: a new session where it was, as
+     * for a session that expired. A track started meanwhile drops the answer.
+     */
+    private fun askServer(s: ServerPlaybackSession, direct: Boolean) {
+        val server = api ?: return again(MusicError.Unplayable)
+        loadJob?.cancel()
+        loadJob = scope.launch {
+            val failure = try {
+                server.playbackStatus(s.id)
+                null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e
+            }
+            if (session !== s) return@launch
+            when {
+                failure == null -> if (direct && fallback == null) decode() else again(MusicError.Unplayable)
+                failure is ApiException && failure.status == 410 -> stoppedByServer()
+                failure is OfflineException -> again(MusicError.Offline)
+                else -> again(MusicError.Unplayable)
             }
         }
     }
