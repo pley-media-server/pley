@@ -90,7 +90,7 @@ Return opens the one with the focus and ⌘↩ plays it.
 | View | Playlists | ⌘2 |
 | View | The first seven libraries, in the profile's order | ⌘3 to ⌘9 |
 | View | Reload (the page showing) | ⌘R |
-| View | Larger Tiles, Smaller Tiles (Settings' grid size) | ⌘+, ⌘− |
+| View | Larger Tiles, Smaller Tiles (Settings' grid size) | ⌘= (⌘+ too), ⌘− |
 | View | Show or Hide Sidebar, and the toolbar's own | ⌃⌘S |
 | Playback | Play "Title": the tile with the focus, or the title page showing, in a player window | ⌘↩ |
 | Playback | Channel Up, Channel Down (the Live TV window that is key) | ⌘↑, ⌘↓ |

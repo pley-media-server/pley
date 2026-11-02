@@ -1,3 +1,4 @@
+import PleyData
 import PleyPlayer
 import PleyPlayerViews
 import PleyScreens
@@ -335,9 +336,30 @@ struct PlaybackCommands: Commands {
 }
 
 /// Quitting waits for the player's last reports (2 seconds at most), so
-/// the session ends on the server and the place is kept.
+/// the session ends on the server and the place is kept. Its key monitor
+/// takes ⌘+ (⇧⌘=) for Larger Tiles, whose menu item shows ⌘=.
 final class MacAppDelegate: NSObject, NSApplicationDelegate {
     weak var app: AppModel?
+    private var monitor: Any?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let (characters, flags) = (event.charactersIgnoringModifiers, event.modifierFlags)
+            let handled = MainActor.assumeIsolated { self?.largerTiles(characters, flags) ?? false }
+            return handled ? nil : event
+        }
+    }
+
+    /// ⌘+: one size larger, as the View menu's Larger Tiles (⌘=) does.
+    @MainActor
+    private func largerTiles(_ characters: String?, _ flags: NSEvent.ModifierFlags) -> Bool {
+        guard characters == "+", let app, app.root == .signedIn,
+              GridDensity.keyStep(characters, command: flags.contains(.command), option: flags.contains(.option),
+                                  control: flags.contains(.control)) == 1
+        else { return false }
+        if let next = app.settings.gridDensity.stepped(by: 1) { app.settings.gridDensity = next }
+        return true
+    }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let app, app.player != nil || app.music.active else { return .terminateNow }

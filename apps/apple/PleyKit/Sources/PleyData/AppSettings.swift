@@ -257,6 +257,20 @@ public enum GridDensity: String, CaseIterable, Sendable {
         return all[index + step]
     }
 
+    /// The step a key pressed asks for: ⌘= and ⌘+ (⇧⌘= on most
+    /// keyboards, whose `+` the menu's ⌘= doesn't take) one size larger,
+    /// ⌘− one smaller; `nil` for any other key, or with ⌃ or ⌥.
+    /// `characters` are the key's without modifiers but Shift.
+    public static func keyStep(_ characters: String?, command: Bool, option: Bool = false,
+                               control: Bool = false) -> Int? {
+        guard command, !option, !control else { return nil }
+        switch characters {
+        case "=", "+": return 1
+        case "-", "\u{2212}": return -1
+        default: return nil
+        }
+    }
+
     /// A tile's width against the medium one's.
     public var scale: Double {
         switch self {

@@ -420,3 +420,28 @@ private func waitFor(_ condition: () async -> Bool) async -> Bool {
         #expect(changes.count == 1 && changes[0].everything && changes[0].names(12345))
     }
 }
+
+/// The Mac's Larger and Smaller Tiles keys: the menu takes ⌘= and ⌘−, and
+/// the app's key monitor ⌘+ (⇧⌘=), which no menu item can show beside ⌘=.
+@Suite struct TileKeysTests {
+    @Test func commandEqualsAndPlusAreLargerAndMinusSmaller() {
+        #expect(GridDensity.keyStep("=", command: true) == 1)
+        #expect(GridDensity.keyStep("+", command: true) == 1)
+        #expect(GridDensity.keyStep("-", command: true) == -1)
+        #expect(GridDensity.keyStep("\u{2212}", command: true) == -1)
+    }
+
+    @Test func otherKeysAndModifiersAreLeftAlone() {
+        #expect(GridDensity.keyStep("=", command: false) == nil)
+        #expect(GridDensity.keyStep("+", command: true, option: true) == nil)
+        #expect(GridDensity.keyStep("=", command: true, control: true) == nil)
+        #expect(GridDensity.keyStep("0", command: true) == nil)
+        #expect(GridDensity.keyStep(nil, command: true) == nil)
+    }
+
+    @Test func aStepStopsAtTheEnds() {
+        #expect(GridDensity.medium.stepped(by: 1) == .large)
+        #expect(GridDensity.large.stepped(by: 1) == nil)
+        #expect(GridDensity.small.stepped(by: -1) == nil)
+    }
+}

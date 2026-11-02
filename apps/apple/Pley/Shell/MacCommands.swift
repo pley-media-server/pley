@@ -9,7 +9,8 @@ import SwiftUI
 ///
 /// - File: Add Server… (⇧⌘N), Servers, Switch Profile… (⇧⌘P) and Sign Out….
 /// - View: Home (⌘1), Search (⌘F), Playlists (⌘2), the first seven
-///   libraries (⌘3 to ⌘9), Reload (⌘R), Larger and Smaller Tiles (⌘+, ⌘−),
+///   libraries (⌘3 to ⌘9), Reload (⌘R), Larger and Smaller Tiles (⌘=, ⌘−;
+///   ⌘+ too, through `MacAppDelegate`'s key monitor),
 ///   then the sidebar's and the toolbar's own commands.
 struct MacCommands: Commands {
     @ObservedObject var app: AppModel
@@ -48,8 +49,9 @@ struct MacCommands: Commands {
             Button("Reload") { Task { await shell.reloadShowing() } }
                 .keyboardShortcut("r")
                 .disabled(!signedIn || !shell.canReload)
+            // ⌘=, the key ⌘+ is typed on: a menu item named "+" would need ⇧ too.
             Button("Larger Tiles") { step(1) }
-                .keyboardShortcut("+")
+                .keyboardShortcut("=")
                 .disabled(!signedIn || current.stepped(by: 1) == nil)
             Button("Smaller Tiles") { step(-1) }
                 .keyboardShortcut("-")
