@@ -183,6 +183,19 @@ class TvPlayerScreenTest {
     }
 
     @Test
+    fun `a seek's preview names its chapter, numbered when its title is only where it starts`() {
+        val controller = playing()
+        show(controller)
+        press(Key.DirectionUp)
+        press(Key.DirectionRight)
+        compose.onNodeWithText("Chapter 2 · The Records").assertExists()
+        controller.update { s -> s.copy(chapters = s.chapters.map { if (it.startMs == 300_000L) it.copy(title = "00:05:00.000") else it }) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Chapter 2").assertExists()
+        compose.onNodeWithText("00:05:00.000", substring = true).assertDoesNotExist()
+    }
+
+    @Test
     fun `Up shows the controls on the scrubber, Down on the subtitles`() {
         val controller = playing()
         show(controller)

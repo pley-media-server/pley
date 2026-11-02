@@ -78,7 +78,7 @@ object PlayerLook {
         return found
     }
 
-    /** A chapter's title, or "Chapter 3" when it has none. */
+    /** A chapter's name, or "Chapter 3" when it has none, or only a time ([ChapterMark.name]). */
     fun chapterTitle(chapter: ChapterMark, index: Int, fallback: (Int) -> String): String =
-        chapter.title?.trim()?.takeIf { it.isNotEmpty() } ?: fallback(index + 1)
+        chapter.name ?: fallback(index + 1)
 }

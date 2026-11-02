@@ -375,7 +375,7 @@ internal fun BoxScope.TvSeekPreview(state: State<PlayerUiState>, seeker: TvSeeke
         Spacer(Modifier.height(6.dp))
         BasicText(TvPlayerText.time(target), style = PleyType.Tv.Label.copy(color = PleyColors.Fg))
         if (chapterIndex != null) {
-            val name = chapter?.title?.takeIf { it.isNotBlank() }
+            val name = chapter?.name
             val text = when {
                 name == null -> stringResource(R.string.tv_player_chapter, chapterIndex + 1)
                 name.startsWith("Chapter", ignoreCase = true) -> name

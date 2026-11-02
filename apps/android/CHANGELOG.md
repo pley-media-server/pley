@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Chapters named only by where they start ("00:06:19.212", as mkvmerge
+  names them) show as "Chapter 3" on phones and TVs, as untitled ones do.
+
 ### Fixed
 
 - Settings' Always start as no longer starts the TV as a profile with a

@@ -273,7 +273,7 @@ private fun ChoicePanel(
             PlayerPanel.Chapters -> {
                 val playing = TvPlayerText.chapterAt(s.chapters, s.positionMs)
                 choices(
-                    s.chapters.mapIndexed { i, c -> Row(c.title?.takeIf { it.isNotBlank() } ?: resources.getString(R.string.tv_player_chapter, i + 1), i == playing, TvPlayerText.time(c.startMs)) },
+                    s.chapters.mapIndexed { i, c -> Row(c.name ?: resources.getString(R.string.tv_player_chapter, i + 1), i == playing, TvPlayerText.time(c.startMs)) },
                     focus,
                 ) { i ->
                     controller.seekTo(s.chapters[i].startMs)
