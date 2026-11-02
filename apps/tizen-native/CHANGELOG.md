@@ -183,6 +183,9 @@ It has no releases yet: it is built and installed by hand
 - Back in the native app's Live TV guide goes to the categories, then the
   rail, rather than straight to the rail.
 - The native app's "Exit Pley?" is a narrower dialog.
+- The native app's rail opens and closes as Android TV's does: it widens
+  with its labels fading in, the page behind it dims, and its entries grow
+  and shrink as focus moves; with Reduce motion, it opens in place.
 - Coming back from a film in the native app, posters already shown stay
   as they were rather than flashing to their titles and fading in again.
 - Holding Up or Down in the native app's libraries slides the posters

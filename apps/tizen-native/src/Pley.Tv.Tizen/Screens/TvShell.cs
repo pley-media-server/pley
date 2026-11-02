@@ -92,7 +92,8 @@ sealed class TvShell : Sheet
             Size = new Size(Ui.Dp(PleyTv.RailFadeClearFrom), Ui.Dp(PleyTv.CanvasHeight)),
             Background = Gradients.Horizontal(PleyColors.Bg, new Color(PleyColors.Bg.R, PleyColors.Bg.G, PleyColors.Bg.B, 0), PleyTv.RailFadeSolidUntil / PleyTv.RailFadeClearFrom),
         });
-        Rail = new RailView(Tree, onRail, onProfile);
+        Rail = new RailView(Tree, () => state.Settings.Value.ReduceMotion, onRail, onProfile);
+        View.Add(Rail.Scrim);
         View.Add(Rail);
         Root.Add(Rail.Group);
         Root.Add(slot);
