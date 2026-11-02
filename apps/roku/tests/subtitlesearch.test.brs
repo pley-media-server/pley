@@ -1,6 +1,20 @@
 sub test_ss_the_search_asks_for_the_file_playing()
-    tkEqual(ssSearchPath(12, 7012), "/api/items/12/subtitles/search?file_id=7012")
-    tkEqual(ssSearchPath(12, invalid), "/api/items/12/subtitles/search", "the item's first file")
+    tkEqual(ssSearchPath(12, 7012, ""), "/api/items/12/subtitles/search?file_id=7012")
+    tkEqual(ssSearchPath(12, invalid, ""), "/api/items/12/subtitles/search", "the item's first file")
+    tkEqual(ssSearchPath(12, 7012, "fre"), "/api/items/12/subtitles/search?file_id=7012&language=fre", "another language")
+    tkEqual(ssSearchPath(12, 0, "ger"), "/api/items/12/subtitles/search?language=ger")
+end sub
+
+sub test_ss_another_language_is_picked_from_the_list()
+    tkEqual(ssLanguageEntry(""), "Language: Your subtitle language")
+    tkEqual(ssLanguageEntry("fre"), "Language: French")
+    choice = ssLanguageChoices("fre")
+    tkEqual(choice.labels[0], "Your subtitle language")
+    tkEqual(choice.values[0], "")
+    tkEqual(choice.labels[choice.current], "French")
+    tkEqual(ssLanguageChoices("").current, 0)
+    tkEqual(ssNothingFound(""), "No subtitles were found for this file in your subtitle language. Language picks another.")
+    tkEqual(ssNothingFound("ger"), "No subtitles were found for this file in German. Language picks another.")
 end sub
 
 sub test_ss_results_are_named_for_the_list()

@@ -13,6 +13,9 @@ function navScreen(name as string) as string
         show: "ShowScreen",
         details: "DetailsScreen",
         grid: "GridScreen",
+        collection: "CollectionScreen",
+        person: "PersonScreen",
+        artist: "ArtistScreen",
         album: "AlbumScreen",
         nowPlaying: "NowPlayingScreen",
         playlist: "PlaylistScreen",
@@ -20,6 +23,8 @@ function navScreen(name as string) as string
         search: "SearchScreen",
         settings: "SettingsScreen",
         history: "HistoryScreen",
+        diagnostics: "TextScreen",
+        licences: "TextScreen",
         sortLibraries: "SortLibrariesScreen",
         unreachable: "UnreachableScreen",
         discover: "DiscoverScreen",
@@ -47,11 +52,12 @@ function navMenuFocus(keys as object, key as string, at as integer) as integer
 end function
 
 ' The screen a tile opens: { to, params }, or invalid for kinds this
-' version doesn't open. A season opens its show on that season; a person
-' and a collection, a grid of their titles, an artist of their albums; a
-' playlist, its entries; a track, its album; an extra plays at once. A
-' TMDB title opens its page (Request more seasons, with its season
-' picker); See all, its list, or TMDB's results for its words.
+' version doesn't open. A season opens its show on that season; a
+' collection, a person and an artist, their page; a playlist, its
+' entries; a track, its album; an extra plays at once. A TMDB title
+' opens its page (Request more seasons, with its season picker); See all,
+' its list, or TMDB's results for its words (a library row's See all is
+' its screen's to open: invalid here).
 function navForTile(tile as object) as dynamic
     kind = httpString(tile.kind)
     if kind = "discover" or kind = "askMore"
@@ -62,6 +68,7 @@ function navForTile(tile as object) as dynamic
         return { to: "requestTitle", params: { kind: tmdbKind, tmdbId: tmdbId, title: httpString(tile.title) } }
     end if
     if kind = "more"
+        if httpString(tile.sort) <> "" then return invalid
         query = httpString(tile.query)
         list = httpString(tile.list)
         if query <> "" then return { to: "discoverList", params: { query: query } }
@@ -76,7 +83,7 @@ function navForTile(tile as object) as dynamic
         if showId = 0 then return invalid
         return { to: "show", params: { showId: showId, seasonId: id } }
     end if
-    if kind = "person" or kind = "collection" or kind = "artist" then return { to: "grid", params: { kind: kind, id: id, title: httpString(tile.title) } }
+    if kind = "collection" or kind = "person" or kind = "artist" then return { to: kind, params: { id: id, title: httpString(tile.title) } }
     if kind = "album" then return { to: "album", params: { id: id, title: httpString(tile.title) } }
     if kind = "track"
         albumId = httpNumber(tile.parentId, 0)

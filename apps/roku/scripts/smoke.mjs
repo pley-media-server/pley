@@ -1,16 +1,19 @@
 // Runs the whole app, SceneGraph and Tasks included, in brs-node against
 // a fake pley server on 127.0.0.1 (scripts/fixture-server.mjs), and walks
 // it with the remote: sign in with the TV code and its QR code on a server
-// that requires two-step sign-in, Home, a
-// title's details, the player, the Options key, a library's grid and its
-// next page, a show's page, its episodes and a person's page, Live TV (its
-// guide, a channel watched, the next one, the channel list, a favourite,
-// every connection in use, the Channels tab), Search (and all of TMDB's
-// titles for its words), Discover (a movie
-// asked for, a show's seasons picked), the managers' Requests (Approve, a
-// ready-to-watch notice, then Yours), Settings, the server gone and Try
-// again, then signing out and in again on a server too old for QR codes,
-// requests and two-step sign-in. Then it starts the app again, signed in,
+// that requires two-step sign-in, Home, a title's details, the player, the
+// Options key, a library's grid, its A to Z and the pages a jump passes
+// over, filters saved as a smart playlist, collections played (movies and
+// a smart one of shows), a show's page, its episodes and a person's page,
+// music (an artist, an album, Now Playing), playlists, Live TV (its guide,
+// a channel watched, the next one, the channel list, a favourite, every
+// connection in use, the Channels tab), Search (and its Discover row's
+// See all), Discover (a movie asked for, a show's seasons picked), the
+// managers' Requests (Approve, a ready-to-watch notice whose movie's
+// audio and subtitles are picked on its page, then Yours), Settings, the
+// server gone and Try again, then signing out and in again on a server
+// too old for QR codes, requests and two-step sign-in. Then it starts
+// the app again, signed in,
 // and times how soon Home is asked for. Fails on a BrightScript error or
 // on anything the fake server found wrong; saves what the screen showed
 // at each step in out/smoke/. brs-node is a simulator: layouts and the
@@ -129,6 +132,19 @@ function syncDrawn() {
   return false;
 }
 
+// A title's media info: lines of text far down its page's panel (from 776,
+// 150), where More's few entries never reach.
+function infoDrawn() {
+  if (!frame) return false;
+  for (let y = 760; y < 1000; y += 2) {
+    for (let x = 780; x < 1400; x += 2) {
+      const at = (Math.round(y * (frame.height / 1080)) * frame.width + Math.round(x * (frame.width / 1920))) * 4;
+      if (frame.data[at] > 200 && frame.data[at + 1] > 200 && frame.data[at + 2] > 200) return true;
+    }
+  }
+  return false;
+}
+
 // The live player's notice: its dark panel over the whole screen, its
 // title in the app's text colour at the left (from 96, 120 when it lists what
 // holds each connection).
@@ -141,6 +157,48 @@ function noticeDrawn() {
     }
   }
   return false;
+}
+
+// A Settings text page's text (TextScreen.xml, from 96, 180), in the app's
+// text colour.
+function pageTextDrawn() {
+  if (!frame) return false;
+  for (let y = 186; y < 230; y += 2) {
+    for (let x = 100; x < 600; x += 2) {
+      const at = (Math.round(y * (frame.height / 1080)) * frame.width + Math.round(x * (frame.width / 1920))) * 4;
+      if (frame.data[at] > 200 && frame.data[at + 1] > 200 && frame.data[at + 2] > 200) return true;
+    }
+  }
+  return false;
+}
+
+// Whether Now Playing's sleep timer button, focused (in the accent), says
+// more than "Sleep timer": it is the last of the buttons, which start at
+// 96, 560 (NowPlayingScreen.brs: the five before it take 1100), and only
+// a longer label reaches past 1500.
+function sleepButtonLong() {
+  if (!frame) return false;
+  for (let y = 566; y < 610; y += 4) {
+    for (let x = 1500; x < 1580; x += 4) {
+      const at = (Math.round(y * (frame.height / 1080)) * frame.width + Math.round(x * (frame.width / 1920))) * 4;
+      if (frame.data[at] < 120 && frame.data[at + 1] > 150 && frame.data[at + 2] > 200) return true;
+    }
+  }
+  return false;
+}
+
+// The A to Z's mark on a letter (LibraryScreen.xml's column from 1812, 212,
+// 30 pixels a letter), left of the letter: the accent while the letters have
+// the focus, else the lighter ground behind the letter of the title the
+// grid's focus is on.
+function letterMarked(index, focused) {
+  if (!frame) return false;
+  const x = Math.round(1815 * (frame.width / 1920));
+  const y = Math.round((212 + index * 30 + 15) * (frame.height / 1080));
+  const at = (y * frame.width + x) * 4;
+  const [r, g, b] = [frame.data[at], frame.data[at + 1], frame.data[at + 2]];
+  if (focused) return r < 120 && g > 150 && b > 200;
+  return Math.abs(r - 0x2e) < 8 && Math.abs(g - 0x34) < 8 && Math.abs(b - 0x40) < 8;
 }
 
 async function drawnWithin(ms, test) {
@@ -275,12 +333,43 @@ const twoStep = { shown: false, hidden: false };
 // The player's notice when every connection is in use.
 const live = { busy: false };
 const sync = { label: false };
+const pages = { diagnostics: false, licences: false };
 // Home asks again only after playing, or when its rows are a minute old.
 const home = { kept: false };
 // From when the server knew nothing of requests (an older one).
 const older = { since: -1 };
 // The ready-to-watch notice's Open led to the title.
 const notice = { opened: false };
+// What Play played on a collection's page: its first movie, a show's next
+// episode.
+const collections = { movies: false, shows: false };
+// A title opened from a person's row of a role.
+const person = { opened: false };
+// An artist's Play: each album's tracks asked for, the first played.
+const artistPlayed = { gathered: false, first: false };
+// Now Playing: what OK on Up next played, Previous once shuffled and once
+// in order again, and the sleep timer's button: short while off, long
+// once set; then what OK on the album's second disc played.
+const music = { upNext: null, shuffled: null, unshuffled: null, sleepOff: false, sleepSet: false, sleepEnd: false, sleepCycled: false, disc: null };
+
+// The track OK plays: the next one the server is asked to play.
+async function playedBy(what) {
+  const since = mark();
+  const before = fixture.playbacks.length;
+  await press("select");
+  await waitFor(/^POST \/api\/playback$/, since, what);
+  return fixture.playbacks[before]?.item ?? null;
+}
+// The A to Z showed with W in focus, and the grid went to a W title.
+const library = { letters: false, jumped: false };
+// From when Home's See all was left.
+const seeAll = { after: -1 };
+// A recent search was searched again from the list.
+const searched = { again: false };
+// A title's media info filled its panel.
+const mediaInfo = { shown: false };
+// An episode's More went to its season.
+const season = { opened: false };
 
 async function walk() {
   // A cold start of brs-node can take a while.
@@ -295,6 +384,22 @@ async function walk() {
   await press("select"); // the first of Continue Watching: an episode
   await waitFor(/^GET \/api\/items\/103$/, since, "its details");
   shoot("details");
+  // More…, after Resume, Play from start, the watched mark and Audio and
+  // subtitles: Go to season, its episodes; Back to the episode's page, up
+  // to Resume.
+  await press("down", 4);
+  await press("select"); // Rate, Go to show, Go to season, Media info, Add to playlist
+  await sleep(500);
+  shoot("episode-more");
+  since = mark();
+  await press("down", 2);
+  await press("select");
+  await waitFor(/^GET \/api\/items\/100\/children$/, since, "the episode's season");
+  season.opened = true;
+  since = mark();
+  await press("back");
+  await waitFor(/^GET \/api\/items\/103$/, since, "the episode's page again");
+  await press("up", 4);
   // Back while the player starts: the session that comes after is closed.
   since = mark();
   fixture.playbackDelayMs = 2500;
@@ -327,8 +432,19 @@ async function walk() {
   await press("select");
   await press("up");
   await press("select");
-  since = mark();
+  // The sleep timer, after Chapters: 15 minutes, which the menu then
+  // counts down.
   await press("down");
+  await press("down"); // Sleep timer
+  await press("select");
+  await sleep(300);
+  shoot("player-sleep");
+  await press("down"); // 15 min
+  await press("select");
+  await press("down");
+  await sleep(300);
+  shoot("player-menu-sleep");
+  since = mark();
   await press("down", 2); // past Find subtitles…, Playback details
   await press("select");
   await waitFor(/^GET \/api\/playback\/s\d+$/, since, "the conversion's details");
@@ -343,6 +459,14 @@ async function walk() {
   await press("select");
   await waitFor(/^GET \/api\/items\/103\/subtitles\/search\?file_id=7103$/, since, "the subtitles found for the file");
   shoot("player-find-subtitles");
+  // Another language: Language, above the results, then Arabic.
+  since = mark();
+  await press("up");
+  await press("select");
+  await sleep(300);
+  await press("down"); // Arabic
+  await press("select");
+  await waitFor(/^GET \/api\/items\/103\/subtitles\/search\?file_id=7103&language=ara$/, since, "the subtitles found in another language");
   since = mark();
   await press("select");
   await waitFor(/^POST \/api\/items\/103\/subtitles$/, since, "the subtitles picked, added");
@@ -362,6 +486,18 @@ async function walk() {
   shoot("home-options");
   await press("select");
   await waitFor(/^POST \/api\/items\/103\/watched$/, since, "a title marked watched");
+  // See all at the end of Recently Added in Music: the library's Library
+  // tab, newest added first, for this visit only; Back to Home.
+  await settle();
+  since = mark();
+  await press("down", 4); // past Continue Watching, My List, Movies and TV Shows
+  await press("right"); // See all, after the album
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/3\/items\?.*sort=added/, since, "Recently Added's See all");
+  shoot("see-all");
+  await press("back");
+  await settle();
+  seeAll.after = mark();
   // Live TV: the categories and the guide of every channel (a page, its
   // programmes for those channels), OK on what's on now watches the
   // channel, Up the next one (the server ends the first by the
@@ -419,12 +555,28 @@ async function walk() {
   await press("down"); // the categories
   await press("back"); // Home
   await settle();
-  await openFromMenu(2, /^GET \/api\/libraries\/1\/items\?.*offset=0/, "Movies");
-  shoot("library");
-  // Down until the next page is asked for: two rows before the first one ends.
   since = mark();
-  for (let i = 0; i < 20 && !seen(/^GET \/api\/libraries\/1\/items\?.*offset=70/, since); i++) await press("down");
-  await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=70/, since, "the next page");
+  await openFromMenu(2, /^GET \/api\/libraries\/1\/items\?.*offset=0/, "Movies");
+  // Sorted by title: the A to Z, once every title's letter came, right of
+  // the grid's last column (a right press more than needed, which the
+  // letters take). Down from "#" to W, whose first title is on the third
+  // page: OK asks for that page and the grid goes there.
+  await waitFor(/^GET \/api\/libraries\/1\/items\?.*limit=1000/, since, "the library's letters");
+  shoot("library");
+  await press("right", 8);
+  await press("down", 23);
+  library.letters = await drawnWithin(2500, () => letterMarked(23, true));
+  shoot("library-letters");
+  since = mark();
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=140/, since, "the page of the letter jumped to");
+  // brs-node takes seconds to hand a task's ContentNodes over.
+  library.jumped = await drawnWithin(20000, () => letterMarked(23, false));
+  shoot("library-jumped");
+  // Up from there: the page before, skipped by the jump, comes.
+  since = mark();
+  for (let i = 0; i < 4 && !seen(/^GET \/api\/libraries\/1\/items\?.*offset=70/, since); i++) await press("up");
+  await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=70/, since, "the page before");
   shoot("library-scrolled");
   await press("back");
   await openFromMenu(3, /^GET \/api\/libraries\/2\/items/, "TV Shows");
@@ -435,20 +587,70 @@ async function walk() {
   await press("select");
   await waitFor(/^GET \/api\/libraries\/2\/hubs$/, since, "a library's recommendations");
   shoot("library-recommended");
-  await press("right", 2); // Collections
+  // See all after Recently Added's one show: the Library tab, newest added
+  // first.
+  since = mark();
+  await press("down"); // the rows
+  await press("right"); // See all
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/2\/items\?.*sort=added/, since, "a library row's See all");
+  shoot("library-see-all");
+  await press("up"); // the tabs, on Library
+  await press("right"); // Collections
   await press("select");
   await waitFor(/^GET \/api\/libraries\/2\/collections$/, since, "a library's collections");
   shoot("library-collections");
+  // Its smart collection of shows: Play asks for the show's next episode
+  // and plays it. Back to the collections, then the tabs.
+  await press("down"); // the collections
+  since = mark();
+  await press("select");
+  await waitFor(/^GET \/api\/collections\/2$/, since, "a smart collection's page");
+  shoot("collection-smart");
+  since = mark();
+  await press("select"); // Play
+  await waitFor(/^GET \/api\/items\/99\/on-deck$/, since, "the next episode of the collection's show");
+  await waitFor(/^POST \/api\/playback$/, since, "the collection's show played");
+  collections.shows = fixture.playbacks.at(-1)?.item === 103;
+  since = mark();
+  await press("back"); // stopped, then the session closed
+  await waitFor(/^DELETE \/api\/playback\//, since, "closing the session of the collection's show");
+  await press("back"); // the library's collections
+  await settle();
+  await press("up"); // the tabs, on Collections
   await press("left"); // Library
   await press("select");
   await press("right", 2); // past Collections to the sort
   await press("select");
   await sleep(500);
-  await press("down"); // Year
+  await press("up"); // Year, above Date added (See all's order)
   await press("select");
   await waitFor(/^GET \/api\/libraries\/2\/items\?.*sort=year/, since, "the library sorted by year");
   shoot("library-sorted");
-  await press("left"); // the tabs
+  // Filter: Unwatched, then Save as…: the filters and the order as a smart
+  // playlist, named on the keyboard, and its page; Back to the library.
+  await press("right"); // the filters
+  await press("select");
+  await sleep(500);
+  since = mark();
+  await press("select"); // Show
+  await press("down"); // Unwatched
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/2\/items\?.*watched=false/, since, "the library filtered");
+  await press("down", 4); // Save as…, after Clear filters
+  await press("select");
+  await sleep(800);
+  for (const c of "Unwatched") await press(`lit_${c}`);
+  shoot("save-as");
+  since = mark();
+  await press("down", 6); // past the keyboard, to Cancel
+  await press("up"); // Save
+  await press("select");
+  await waitFor(/^GET \/api\/playlists\/2$/, since, "the smart playlist's page");
+  shoot("smart-playlist");
+  await press("back"); // the library, on the filters
+  await settle();
+  await press("left", 2); // the sort, then the tabs
   await press("down"); // the grid
   since = mark();
   await press("select"); // Severance: its page, with its next episode first
@@ -461,31 +663,93 @@ async function walk() {
   shoot("show");
   await press("right"); // the episodes
   shoot("show-episodes");
-  await press("back"); // the show's page
-  // Down past its buttons to its rows, the seasons then cast and crew,
-  // whose first opens a person's page.
   since = mark();
-  await press("down", 3);
-  await press("down");
+  await press("back"); // the show's page, its buttons back with its next episode
+  await waitFor(/^GET \/api\/items\/99\/on-deck$/, since, "the show's next episode again");
+  // More…, its last button: 4 stars from the rating's choices, saved at
+  // once; Back from More to the buttons.
+  since = mark();
+  await press("down", 3); // from Episodes, past the watched mark and My List
+  await press("select");
+  await sleep(500);
+  shoot("show-more");
+  await press("select"); // Rate: its choices, No rating checked
+  await press("down", 4);
+  shoot("show-rating");
+  await press("select"); // 4 stars, then More again
+  await waitFor(/^PUT \/api\/items\/99\/rating$/, since, "the show rated");
+  await press("back");
+  // Down from More… to its rows, the seasons then cast and crew, whose
+  // first opens a person's page.
+  since = mark();
+  await press("down", 2);
   shoot("show-rows");
   await press("select");
   await waitFor(/^GET \/api\/people\/7$/, since, "a person's page");
   shoot("person");
-  // The show's page, its buttons, the library, Home: one at a time, each
-  // screen settled before the next key.
+  // Their Directing row, under Acting: its first title opened, then Back.
+  await press("down");
+  since = mark();
+  await press("select");
+  await waitFor(/^GET \/api\/items\/1000$/, since, "a title of a person's Directing row");
+  person.opened = true;
+  await press("back");
+  await settle();
+  // Back on the show's page, its last row: the collections it is part of,
+  // whose first, of five movies, plays them in its order. Down past its
+  // buttons slides its page up to its posters, Up back to the buttons.
+  await press("back");
+  await settle();
+  await press("down", 2); // past More like this to Collections
+  since = mark();
+  await press("select");
+  await waitFor(/^GET \/api\/collections\/1$/, since, "a collection of movies");
+  shoot("collection");
+  await press("down", 2); // past Shuffle
+  await sleep(500);
+  shoot("collection-titles");
+  await press("up", 2); // Shuffle, then Play
+  since = mark();
+  await press("select"); // Play
+  await waitFor(/^POST \/api\/playback$/, since, "the collection played");
+  collections.movies = fixture.playbacks.at(-1)?.item === 1000;
+  since = mark();
+  await press("back"); // stopped, then the session closed
+  await waitFor(/^DELETE \/api\/playback\//, since, "closing the collection's session");
+  // The collection, the show's page and its buttons, the library, Home:
+  // one at a time, each screen settled before the next key.
   for (let i = 0; i < 4; i++) {
     await press("back");
     await settle();
   }
-  // Music: the artist, their album, and its tracks played; Now Playing
-  // stopped, then Back to Home.
+  // Music: the artist's page, whose Play gathers every album's tracks for
+  // the music player; Now Playing stopped. Then their older album, its
+  // tracks played; the next in Now Playing's Up next played, then Shuffle,
+  // which puts the track playing first (Previous plays it again), and Stop
+  // shuffling, the album's order again (Previous plays the one before), and
+  // the sleep timer's button. Now Playing stopped; then the album's second
+  // disc played from its list and stopped, and Back to Home.
   await openFromMenu(4, /^GET \/api\/libraries\/3\/items\?.*offset=0/, "Music");
   shoot("music");
   since = mark();
   await press("select"); // the artist
   await waitFor(/^GET \/api\/items\/5000\/children$/, since, "an artist's albums");
+  shoot("artist");
   since = mark();
-  await press("select"); // the album
+  await press("select"); // Play
+  await waitFor(/^POST \/api\/playback$/, since, "the artist's tracks played");
+  artistPlayed.gathered = seen(/^GET \/api\/items\/5100\/children$/, since) && seen(/^GET \/api\/items\/5101\/children$/, since);
+  artistPlayed.first = fixture.playbacks.at(-1)?.item === 5201;
+  await sleep(1500);
+  shoot("now-playing");
+  since = mark();
+  await press("right", 2); // Stop: back to the artist
+  await press("select");
+  await waitFor(/^DELETE \/api\/playback\//, since, "the artist's track's session closed");
+  await press("right"); // the albums, the newest first
+  await press("right"); // the older one
+  since = mark();
+  await press("select");
   await waitFor(/^GET \/api\/items\/5100\/children$/, since, "an album's tracks");
   shoot("album");
   since = mark();
@@ -493,10 +757,51 @@ async function walk() {
   await waitFor(/^POST \/api\/playback$/, since, "a track played");
   await sleep(1500);
   shoot("now-playing");
+  await press("down"); // Up next, on the track playing
+  await press("down"); // the next
+  await sleep(300);
+  shoot("now-playing-up-next");
+  music.upNext = await playedBy("a track of Up next played");
+  await press("up", 2); // the first track, then the buttons, on Pause
+  await press("left", 2); // Shuffle
+  await press("select");
+  await sleep(300);
+  shoot("now-playing-shuffled");
+  await press("right"); // Previous
+  music.shuffled = await playedBy("Previous, shuffled");
+  await press("left"); // Stop shuffling
+  await press("select");
+  await press("right"); // Previous
+  music.unshuffled = await playedBy("Previous, in the album's order");
+  // The sleep timer's button: 15 minutes, saying what is left, then on
+  // through its choices to End of this track and Off again.
+  await press("right", 4); // Sleep timer
+  await sleep(300);
+  music.sleepOff = !sleepButtonLong();
+  await press("select");
+  music.sleepSet = await drawnWithin(2000, sleepButtonLong);
+  shoot("now-playing-sleep");
+  await press("select", 5); // 30, 45, 60 and 90 min, End of this track
+  music.sleepEnd = await drawnWithin(2000, sleepButtonLong);
+  await press("select"); // Off
+  music.sleepCycled = await drawnWithin(2000, () => !sleepButtonLong());
+  since = mark();
+  await press("left"); // Stop
+  await press("select");
+  await waitFor(/^DELETE \/api\/playback\//, since, "the track's session closed");
+  // The album again: its tracks under "Disc 1" and "Disc 2", headings the
+  // focus passes over; OK on the second disc's track plays that one, and
+  // stopped, the album shows again.
+  await settle();
+  await press("right"); // the tracks, on the first under "Disc 1"
+  await press("down", 2); // the second, then past "Disc 2" to its track
+  shoot("album-discs");
+  music.disc = await playedBy("a track of the album's second disc");
   since = mark();
   await press("right", 2); // Stop
   await press("select");
-  await waitFor(/^DELETE \/api\/playback\//, since, "the track's session closed");
+  await waitFor(/^DELETE \/api\/playback\//, since, "its session closed");
+  await settle();
   for (let i = 0; i < 3; i++) {
     await press("back"); // the artist, the library, Home
     await settle();
@@ -507,19 +812,28 @@ async function walk() {
     await press("lit_o");
   });
   shoot("search");
-  // See all, ending the Discover row (the last row, under the channels
-  // and the libraries' titles): all of TMDB's titles for the words, in a
-  // grid of their own; Back to Search, then to its keyboard.
+  // The results in rows by kind, People first: Right past the keyboard's
+  // last column reaches them, and OK on the first opens their page.
   since = mark();
-  await press("right", 7); // across the keyboard's six columns to the channels found
-  await press("down", 2); // Discover
+  await press("right", 7);
+  await press("select");
+  await waitFor(/^GET \/api\/people\/11$/, since, "the person found, first of the results");
+  shoot("search-person");
+  await press("back"); // Search, on the rows
+  await settle();
+  // See all, ending the Discover row (the last row, under the
+  // libraries'): all of TMDB's titles for the words, in a grid of their
+  // own; Back to Search's rows, then Back again to its keyboard (Left
+  // would only go along the row).
+  since = mark();
+  await press("down", 12); // Discover, the last row
   await press("right", 21); // See all, after a page of titles at most
   await press("select");
   await waitFor(/^GET \/api\/discover\/search\?q=mo&page=1$/, since, "TMDB's results for the words");
   shoot("search-tmdb");
-  await press("back");
+  await press("back"); // Search, on the rows
   await settle();
-  await press("back");
+  await press("back"); // the keyboard
   // Back from Search nothing played: Home stays as it is, unless its rows
   // are a minute old by now (a slow run), when it asks again. They are as
   // old as Home's last asking.
@@ -530,8 +844,23 @@ async function walk() {
   await settle();
   const asked = seen(/^GET \/api\/hubs\/home$/, since);
   home.kept = age < 55000 ? !asked : age > 65000 ? asked : true;
-  // Playlists: one opened, its first entry taken out with the Options key,
-  // then played from the top; Back to Home.
+  // Search again: before anything is typed, the recent searches, "mo"
+  // first since one of its results was opened; OK on it searches it again
+  // at once. Back to Home.
+  since = mark();
+  await openFromMenu(6, /^GET \/api\/search\?.*q=mo/, "a recent search searched again", async () => {
+    await sleep(800);
+    shoot("search-recent");
+    await press("right", 7); // past the keyboard's last column
+    await press("select");
+  });
+  searched.again = seen(/^GET \/api\/search\?.*q=mo/, since);
+  await press("back");
+  await settle();
+  // Playlists: one opened, its first entry moved down one with the Options
+  // key's Move, then taken out, and the playlist played from the top. Then
+  // New playlist, for Movies & TV, named on the keyboard: it opens, made.
+  // Back to Home.
   await openFromMenu(5, /^GET \/api\/playlists$/, "Playlists");
   shoot("playlists");
   since = mark();
@@ -542,6 +871,18 @@ async function walk() {
   await press("right"); // the entries
   await press("options");
   await sleep(500);
+  await press("select"); // Move
+  await sleep(300);
+  await press("down");
+  await sleep(300);
+  shoot("playlist-move");
+  await press("select"); // put there
+  await waitFor(/^PUT \/api\/playlists\/1\/order$/, since, "the playlist's new order");
+  await settle();
+  since = mark();
+  await press("options"); // the entry moved, now second
+  await sleep(500);
+  await press("down");
   await press("select"); // Remove from playlist
   await waitFor(/^DELETE \/api\/playlists\/1\/items\/\d+$/, since, "an entry removed");
   since = mark();
@@ -551,10 +892,29 @@ async function walk() {
   since = mark();
   await press("back"); // the playlist
   await waitFor(/^DELETE \/api\/playback\//, since, "the playlist's session closed");
-  for (let i = 0; i < 2; i++) {
-    await press("back"); // the playlists, Home
-    await settle();
-  }
+  await press("back"); // the playlists, on the one played
+  await settle();
+  await press("up"); // New playlist
+  await press("select");
+  await sleep(800);
+  shoot("new-playlist");
+  await press("select"); // Movies & TV
+  await sleep(800);
+  for (const letter of "Trip") await press(`lit_${letter}`);
+  shoot("new-playlist-name");
+  since = mark();
+  await press("down", 4); // past the keyboard's four rows to Create
+  await press("select");
+  await waitFor(/^POST \/api\/playlists$/, since, "a new playlist");
+  // Numbered after the smart playlist the library's Save as… made.
+  await waitFor(/^GET \/api\/playlists\/3$/, since, "the new playlist opened");
+  shoot("new-playlist-made");
+  since = mark();
+  await press("back"); // the playlists, the new one among them
+  await waitFor(/^GET \/api\/playlists$/, since, "the playlists again");
+  shoot("playlists-made");
+  await press("back"); // Home
+  await settle();
   // Discover: the first trending title over its backdrop, its Request
   // asked after a question (Anna's asks are approved as she asks), then a
   // show of the trending row, its seasons picked.
@@ -613,6 +973,63 @@ async function walk() {
   await press("select"); // Open
   await waitFor(/^GET \/api\/items\/1011$/, since, "the title the notice opens");
   notice.opened = true;
+  // Its page: Audio and subtitles, after Play and the watched mark. French
+  // picked, saved with the subtitles shown; then subtitles off, saved with
+  // the French picked here; then the Director's Cut, which Play plays.
+  await settle();
+  let pickedSince = mark();
+  await press("down", 2);
+  await press("select"); // Version, Audio: Automatic (English), Subtitles: English (SRT)
+  await sleep(500);
+  shoot("movie-tracks");
+  await press("down");
+  await press("select"); // Audio's choices, Automatic checked
+  await press("down", 2);
+  shoot("movie-audio");
+  await press("select"); // French (AC3 5.1), then the menu again
+  await waitFor(/^PUT \/api\/items\/1011\/streams$/, pickedSince, "the audio picked, saved");
+  pickedSince = mark();
+  await press("down");
+  await press("select"); // Subtitles' choices, English (SRT) checked
+  await press("up");
+  await press("select"); // Off
+  await waitFor(/^PUT \/api\/items\/1011\/streams$/, pickedSince, "the subtitles turned off, saved");
+  await press("up", 2);
+  await press("select"); // Version's choices, the first checked
+  await press("down");
+  shoot("movie-versions");
+  await press("select"); // the Director's Cut, then the menu: its subtitles
+  await sleep(500);
+  await press("back"); // the buttons, on Audio and subtitles
+  await press("up", 2);
+  pickedSince = mark();
+  await press("select"); // Play
+  await waitFor(/^POST \/api\/playback$/, pickedSince, "the version chosen played");
+  pickedSince = mark();
+  await press("back");
+  await waitFor(/^DELETE \/api\/playback\//, pickedSince, "the version's session closed");
+  // Back on its page, its Trailer, past My List, played from its start;
+  // then More…: Media info, its two files and their streams; Back to More,
+  // to the buttons, to the requests.
+  await settle();
+  shoot("movie-details");
+  pickedSince = mark();
+  await press("down", 4);
+  await press("select"); // Trailer
+  await waitFor(/^POST \/api\/playback$/, pickedSince, "the trailer played");
+  pickedSince = mark();
+  await press("back");
+  await waitFor(/^DELETE \/api\/playback\//, pickedSince, "the trailer's session closed");
+  await settle();
+  await press("down");
+  await press("select"); // Rate, Media info, Add to playlist
+  await sleep(500);
+  await press("down");
+  await press("select");
+  mediaInfo.shown = await drawnWithin(2500, infoDrawn);
+  shoot("movie-media-info");
+  await press("back");
+  await press("back");
   await press("back"); // the requests
   await settle();
   shoot("requests-approved");
@@ -629,6 +1046,20 @@ async function walk() {
   await settle();
   await openFromMenu(9, /^GET \/api\/auth\/me$/, "Settings");
   shoot("settings");
+  // Diagnostics and the licences, at the right; Left back to the settings.
+  await press("right");
+  await press("select"); // Diagnostics
+  pages.diagnostics = await drawnWithin(3000, pageTextDrawn);
+  shoot("diagnostics");
+  await press("back");
+  await settle();
+  await press("down");
+  await press("select"); // Open-source licences
+  pages.licences = await drawnWithin(3000, pageTextDrawn);
+  shoot("licences");
+  await press("back");
+  await settle();
+  await press("left");
   // Quality, after Audio language and Subtitles: Automatic checked, then
   // 8 Mbps 1080p chosen, kept on the Roku.
   await press("down", 2);
@@ -646,11 +1077,20 @@ async function walk() {
   shoot("history");
   await press("back");
   await settle();
-  // Sort libraries, after Switch profile: Movies lifted and put after TV
-  // Shows, saved at once; then the server's order again, which the rest of
-  // the walk expects.
-  since = mark();
+  // Always start as, after Switch profile (a household of two): Anna
+  // chosen, kept on the Roku.
   await press("down", 2);
+  await press("select");
+  await sleep(500);
+  await press("down"); // Anna
+  shoot("settings-start-as");
+  await press("select");
+  await settle();
+  // Sort libraries, next: Movies lifted and put after TV Shows, saved at
+  // once; then the server's order again, which the rest of the walk
+  // expects.
+  since = mark();
+  await press("down");
   await press("select"); // Sort libraries
   await waitFor(/^GET \/api\/libraries$/, since, "the libraries to sort");
   await press("select"); // lifts Movies
@@ -792,6 +1232,7 @@ const checks = [
   ["asked to play with its capabilities", asked(/^POST \/api\/playback$/)],
   ["asked for the picture subtitles to be drawn", fixture.playbacks.some((p) => p.item === 103 && p.subtitle_index === 4)],
   ["found subtitles from the player's menu and added the first", fixture.subtitlesAdded.some((a) => a.item === 103 && a.result === "opensubtitles:1" && a.file_id === 7103)],
+  ["looked for subtitles in a language picked above the results", asked(/^GET \/api\/items\/103\/subtitles\/search\?file_id=7103&language=ara$/)],
   ["saved the added subtitles as the pick", fixture.streams.some((s) => s.item === 103 && s.subtitle_index === 10001)],
   ["asked the server what it knows of the network before playing in Automatic", asked(/^GET \/api\/playback\/network\?client_id=/)],
   ["ran a speed test of 8 MiB where the server asked for one", fixture.speedTests.length > 0 && fixture.speedTests.every((n) => n === 8388608)],
@@ -799,7 +1240,9 @@ const checks = [
   ["kept the server's answer instead of asking before each play", fixture.requests.filter((r) => r.method === "GET" && r.path.startsWith("/api/playback/network")).length < fixture.playbacks.filter((p) => p.kind !== "track").length],
   ["played the original in Automatic, the default", fixture.playbacks.length > 0 && fixture.playbacks.filter((p) => p.kind !== "track").every((p) => p.mode === "auto" && p.max_bitrate === null)],
   ["kept 8 Mbps 1080p chosen in Settings", registry !== null && /playback.quality","8m"/.test(JSON.stringify([...registry]))],
+  ["kept Anna as the profile to always start as", registry !== null && /startAs\.http[^"]*","1"/.test(JSON.stringify([...registry]))],
   ["showed subtitle sync", sync.label],
+  ["showed Diagnostics and the open-source licences from Settings", pages.diagnostics && pages.licences],
   ["showed the playback's details", asked(/^GET \/api\/playback\/s\d+$/)],
   ["saved Movies after TV Shows, every library in the order", fixture.orders.some((ids) => JSON.stringify(ids) === "[2,1,3]")],
   ["went back to the server's order", fixture.orders.includes(null) && fixture.libraryOrder.join() === "1,2,3"],
@@ -812,20 +1255,57 @@ const checks = [
   ["closed the session it played", fixture.closed.length > 1],
   ["reported where it stopped", fixture.progress.some((p) => p.state === "stopped" && p.session_id)],
   ["loaded a library's next page", asked(/^GET \/api\/libraries\/1\/items\?.*offset=70/)],
+  ["showed the A to Z beside a library sorted by title, W in focus", library.letters],
+  [
+    "jumped to W's first title, its page loaded before the one between",
+    library.jumped && fixture.requests.findIndex((r) => /^\/api\/libraries\/1\/items\?.*offset=140/.test(r.path)) < fixture.requests.findIndex((r) => /^\/api\/libraries\/1\/items\?.*offset=70/.test(r.path)),
+  ],
   ["came back to Home asking again only for rows a minute old", home.kept],
   ["loaded a season's episodes", asked(/^GET \/api\/items\/100\/children$/)],
   ["showed a library's Recommended and Collections tabs", asked(/^GET \/api\/libraries\/2\/hubs$/) && asked(/^GET \/api\/libraries\/2\/collections$/)],
+  ["opened a library from Home's See all, newest added first", asked(/^GET \/api\/libraries\/3\/items\?.*order=desc.*sort=added/)],
+  [
+    "kept nothing of See all's order: the library opened from the menu by title",
+    seeAll.after >= 0 && /sort=title/.test(fixture.requests.slice(seeAll.after).find((r) => /^\/api\/libraries\/3\/items\?/.test(r.path))?.path ?? ""),
+  ],
+  ["showed a library's Library tab from its Recommended row's See all", asked(/^GET \/api\/libraries\/2\/items\?.*order=desc.*sort=added/)],
   ["sorted a library by year, newest first", asked(/^GET \/api\/libraries\/2\/items\?.*order=desc.*sort=year/)],
   ["kept the library's tab and sort on the Roku", registry !== null && /libraryViews.*\\"sort\\":\\"year\\"/.test(JSON.stringify([...registry]))],
+  [
+    "saved a library's filters and order as a smart playlist, named on the keyboard",
+    fixture.smartPlaylists.some((p) => p.library_id === 2 && p.title.length > 0 && p.smart_filter === "unwatched=1&sort=year%3Adesc"),
+  ],
   ["marked a title watched with the Options key", fixture.marks.some((m) => m.item === 103 && m.action === "watched")],
+  ["rated a show 4 stars from its page's More", fixture.ratings.some((r) => r.item === 99 && r.rating === 8)],
+  ["picked a movie's audio on its page, saved with the subtitles shown", fixture.streams.some((s) => s.item === 1011 && s.file_id === 8011 && s.audio_index === 2 && s.subtitle_index === 3)],
+  ["turned its subtitles off on its page, the audio picked there kept", fixture.streams.some((s) => s.item === 1011 && s.audio_index === 2 && s.subtitle_index === null)],
+  ["played the version chosen on its page", fixture.playbacks.some((p) => p.item === 1011 && p.file_id === 10011)],
+  ["showed a movie's media info from its More", mediaInfo.shown],
+  ["went to an episode's season from its More", season.opened],
+  ["played a movie's trailer from its page, from the start", fixture.playbacks.some((p) => p.item === 4000 && p.start_ms === 0)],
   ["asked for a show's More Like This and collections", asked(/^GET \/api\/items\/99\/related\?limit=20$/) && asked(/^GET \/api\/items\/99\/collections$/)],
   ["opened a person's page", asked(/^GET \/api\/people\/7$/)],
-  ["took an entry out of a playlist", fixture.playlistRemoved.length > 0],
+  ["opened a title from a person's row of what they directed", person.opened],
+  ["played a collection of movies from its first", collections.movies],
+  ["played the next episode of a smart collection's show", collections.shows],
+  ["moved a playlist's first entry down one", JSON.stringify(fixture.playlistOrders[0]) === JSON.stringify([2, 1, 3])],
+  ["made a playlist for Movies & TV, named on the keyboard", fixture.playlistsAsked.some((a) => a.title === "Trip" && a.kind === "video")],
+  ["took the entry moved out of the playlist", fixture.playlistRemoved[0] === 1],
   ["switched to another profile of the household", fixture.switched.includes(2)],
   ["showed the watch history", asked(/^GET \/api\/history\?/)],
+  ["played every track of an artist, each album's asked for", artistPlayed.gathered && artistPlayed.first],
   ["played an album's tracks with the music player", fixture.playbacks.some((p) => p.item === 5201) && fixture.progress.some((p) => p.item >= 5201 && p.item <= 5203)],
+  ["played the track after the one playing from Now Playing's Up next", music.upNext === 5202],
+  ["shuffled Now Playing's queue, the track playing first", music.shuffled === 5202],
+  ["put the album's order back with Stop shuffling", music.unshuffled === 5201],
+  ["set Now Playing's sleep timer, its button saying what is left", music.sleepOff && music.sleepSet],
+  ["stepped the sleep timer through End of this track back to Off", music.sleepEnd && music.sleepCycled],
+  ["played the track OK was on under an album's second disc", music.disc === 5203],
   ["played a playlist from its top, the next entry to come", fixture.playbacks.some((p) => p.item === 101)],
   ["searched", asked(/^GET \/api\/search\?/)],
+  ["showed search's results in rows by kind, People first, a person's page opened from it", asked(/^GET \/api\/people\/11$/)],
+  ["searched a recent search again from the list shown before typing", searched.again],
+  ["kept the recent searches on the Roku for the server and profile", registry !== null && /searches\.http[^"]*\|1","\[\\"mo\\"\]"/.test(JSON.stringify([...registry]))],
   ["showed Live TV's guide, its programmes for the channels in view", fixture.liveGuides.length > 0 && fixture.liveGuides.every((g) => g.ids.length > 0 && g.ids.length <= 50)],
   ["listed channels a page at a time", fixture.liveBrowses.length > 0 && fixture.liveBrowses.every((b) => b.limit <= 50)],
   ["opened Live TV back at the channel watched", fixture.liveBrowses.some((b) => b.around === 3)],

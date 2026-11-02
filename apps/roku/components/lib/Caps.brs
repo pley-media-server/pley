@@ -89,6 +89,62 @@ function capsBuild(device as object) as object
     return report
 end function
 
+' What Diagnostics says this Roku plays, from its report (capsBuild), a
+' line each, as the other TVs list it.
+function capsLines(report as object) as object
+    lines = []
+    display = httpObject(report.display)
+    if display <> invalid
+        rates = httpArray(display.refresh_rates)
+        line = "Display: " + urlValue(display.width) + "×" + urlValue(display.height)
+        if rates.Count() > 0 then line = line + " at " + urlValue(rates[0]) + " Hz"
+        lines.Push(line)
+    end if
+    hdr = []
+    for each kind in httpArray(report.hdr_types)
+        hdr.Push(capsHdrName(kind))
+    end for
+    if hdr.Count() = 0 then hdr.Push("none")
+    lines.Push("HDR: " + hdr.Join(", "))
+    profiles = []
+    for each entry in httpArray(report.dolby_vision_profiles)
+        profiles.Push(urlValue(entry.profile))
+    end for
+    if profiles.Count() > 0 then lines.Push("Dolby Vision: profiles " + profiles.Join(", "))
+    video = []
+    for each entry in httpArray(report.video)
+        text = capsCodecName(entry.codec) + " " + urlValue(entry.max_width) + "×" + urlValue(entry.max_height)
+        if httpNumber(entry.max_bit_depth, 8) >= 10 then text = text + " 10-bit"
+        video.Push(text)
+    end for
+    lines.Push("Video: " + video.Join(", "))
+    lines.Push("Audio decoded: " + httpArray(report.audio_decode).Join(", "))
+    passthrough = httpArray(report.audio_passthrough)
+    sent = "nothing"
+    if passthrough.Count() > 0 then sent = passthrough.Join(", ")
+    lines.Push("Sent to the receiver: " + sent)
+    sound = "Stereo"
+    if httpNumber(report.audio_channels, 2) > 2 then sound = "Surround (5.1)"
+    lines.Push("Sound: " + sound)
+    lines.Push("Containers: " + httpArray(report.containers).Join(", "))
+    lines.Push("Streams: HLS, in several sizes")
+    return lines
+end function
+
+function capsCodecName(codec as dynamic) as string
+    names = { h264: "H.264", hevc: "HEVC", vp9: "VP9", av1: "AV1" }
+    name = httpString(codec)
+    if names.DoesExist(name) then return names[name]
+    return name
+end function
+
+function capsHdrName(kind as dynamic) as string
+    names = { hdr10: "HDR10", hdr10plus: "HDR10+", hlg: "HLG", dolby_vision: "Dolby Vision" }
+    name = httpString(kind)
+    if names.DoesExist(name) then return names[name]
+    return name
+end function
+
 ' Whether CanDecodeVideo or CanDecodeAudio said yes.
 function capsYes(answer as dynamic) as boolean
     if GetInterface(answer, "ifAssociativeArray") = invalid then return false

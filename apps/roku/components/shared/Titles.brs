@@ -8,8 +8,8 @@
 
 ' The Options key (*) on a tile: what can be done with its title, in a
 ' dialog (Mark as watched or unwatched, Add to or Remove from My List,
-' Remove from Continue Watching, Go to show). My List is as Home last saw
-' it.
+' Remove from Continue Watching, Go to show, Go to season). My List is as
+' Home last saw it.
 sub uiTileOptions(tile as dynamic, continueWatching as boolean)
     if tile = invalid then return
     options = pageTileOptions(tile, continueWatching, pageInList(m.top.getScene().myList, tile.itemId))
@@ -37,15 +37,20 @@ sub uiTileOptionChosen(event as object)
 end sub
 
 ' Does what an action of the Options key or a title's page says, for tile
-' ({ itemId, kind, parentId, grandparentId }): goes to the show, or asks
-' the server.
+' ({ itemId, kind, parentId, grandparentId }): goes to an episode's show
+' (its page) or season (its episodes, the season's page on Roku), as on
+' the other apps, or asks the server.
 sub uiTitleAction(tile as object, action as string)
     if action = "playlist"
         uiAddToPlaylist(tile)
         return
     end if
+    showId = httpNumber(tile.grandparentId, 0)
     if action = "show"
-        showId = httpNumber(tile.grandparentId, 0)
+        if showId > 0 then uiNavigate({ to: "details", params: { itemId: showId } })
+        return
+    end if
+    if action = "season"
         if showId > 0 then uiNavigate({ to: "show", params: { showId: showId, seasonId: httpNumber(tile.parentId, 0) } })
         return
     end if

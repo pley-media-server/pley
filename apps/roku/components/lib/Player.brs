@@ -7,6 +7,12 @@ function playerReportEveryMs() as integer
     return 10000
 end function
 
+' And every 30 s while paused: a session not heard from for 90 s has lost
+' its player, and its keyed addresses end 15 minutes on.
+function playerPausedReportEveryMs() as integer
+    return 30000
+end function
+
 function playerShouldReport(state as string, sinceLastMs as integer) as boolean
     return state = "playing" and sinceLastMs >= playerReportEveryMs()
 end function

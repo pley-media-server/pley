@@ -9,6 +9,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- A playback with keyed addresses has its seek previews beside its media,
+  as a BIF file (`previews.bif`), which Roku's own player fetches and shows
+  as you fast forward and rewind.
+
 ### Changed
 
 - Discover in the web app has no search field: Search shows what can be
