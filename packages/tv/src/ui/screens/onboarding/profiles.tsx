@@ -57,6 +57,30 @@ export function switchRefusal(e: unknown): { message: string; locked?: boolean; 
   return { message: sentence(errorMessage(e)) };
 }
 
+/**
+ * Where a refused switch leaves "Who's watching?" (ProfilesViewModel's
+ * refused): `pad`, the PIN pad saying `message`, dimmed when `locked`, its
+ * dots shaken when `shake` (a refused PIN, not a server out of reach);
+ * `pick`, the profiles saying `message`; `approve`, approval on a phone;
+ * `done`, Home. `onPad`: the PIN was typed on the pad. From the picker, a
+ * refusal for the PIN means the list was older than the profile's PIN: the
+ * pad opens. `confirm`: the current profile's PIN, checked at a start,
+ * which a server that can't check it lets through.
+ */
+export function refusal(e: unknown, onPad: boolean, confirm: boolean): { step: "pad" | "pick" | "approve" | "done"; message: string | null; locked: boolean; shake: boolean } {
+  const r = switchRefusal(e);
+  if (r.letThrough && confirm) return { step: "done", message: null, locked: false, shake: false };
+  if (r.approve && !confirm) return { step: "approve", message: null, locked: false, shake: false };
+  if (r.offline) return { step: onPad ? "pad" : "pick", message: r.message, locked: false, shake: false };
+  const reason = e instanceof TokenError ? e.oauth?.reason : null;
+  if (reason === "wrong_pin" && !onPad) return { step: "pad", message: null, locked: false, shake: false };
+  let message = r.message;
+  if (r.letThrough) message = sentence((e as TokenError).oauth?.description || "you can't switch to this profile");
+  if (r.approve) message = "This profile needs its password: sign in again to use it.";
+  const forPin = reason === "pin_locked" || reason === "throttled";
+  return { step: onPad || forPin ? "pad" : "pick", message, locked: !!r.locked, shake: onPad || forPin };
+}
+
 /** Who the app is, as far as "Who's watching?" needs to know. */
 type Me = Pick<User, "id" | "has_pin">;
 
@@ -165,10 +189,11 @@ export function ProfilesScreen() {
         switchTo(p, null).then(
           () => alive.current && done(),
           (e) => {
-            if (!alive.current) return;
+            if (!alive.current || e instanceof SignedOutError) return;
             setBusy(null);
-            const r = switchRefusal(e);
-            if (r.approve) setStep({ kind: "approve", profile: p });
+            const r = refusal(e, false, false);
+            if (r.step === "approve") setStep({ kind: "approve", profile: p });
+            else if (r.step === "pad") setStep({ kind: "pin", profile: p, confirm: false, locked: r.locked, error: r.message });
             else setError(r.message);
           },
         );
@@ -212,16 +237,17 @@ export function ProfilesScreen() {
               if (alive.current) done();
               return null;
             } catch (e) {
-              const r = switchRefusal(e);
-              if (r.letThrough) {
+              if (e instanceof SignedOutError) return null;
+              const r = refusal(e, true, step.confirm);
+              if (r.step === "done") {
                 done();
                 return null;
               }
-              if (r.approve) {
+              if (r.step === "approve") {
                 setStep({ kind: "approve", profile: step.profile });
                 return null;
               }
-              return { message: r.message, locked: !!r.locked, offline: !!r.offline };
+              return { message: r.message ?? "", locked: r.locked, offline: !r.shake };
             }
           }}
         />

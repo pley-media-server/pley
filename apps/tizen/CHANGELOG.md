@@ -58,6 +58,10 @@ describes how they are made.
 
 ### Fixed
 
+- A profile that got a PIN after "Who's watching?" was loaded opens the
+  PIN pad, and one whose PIN is locked or asked too often says so on it,
+  as on Android TV; a refusal of another profile's switch no longer goes
+  on as the profile in use.
 - "Who's watching?" as the app starts asks the PIN of the profile it was
   left on when that profile has one, as on Android TV, and shows its lock.
 - A server answering that it can't do something right now (the

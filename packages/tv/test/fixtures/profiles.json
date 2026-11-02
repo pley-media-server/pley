@@ -461,5 +461,215 @@
       },
       "out": "locked"
     }
+  ],
+  "refusal": [
+    {
+      "in": {
+        "where": "pick",
+        "oauth": {
+          "error": "invalid_grant",
+          "reason": "wrong_pin",
+          "description": "this profile is protected by a PIN"
+        }
+      },
+      "out": {
+        "step": "pad",
+        "message": null,
+        "locked": false,
+        "shake": false
+      }
+    },
+    {
+      "in": {
+        "where": "pick",
+        "oauth": {
+          "error": "invalid_grant",
+          "reason": "throttled",
+          "description": "too many attempts, try again in 15 min"
+        }
+      },
+      "out": {
+        "step": "pad",
+        "message": "Too many attempts, try again in 15 min.",
+        "locked": false,
+        "shake": true
+      }
+    },
+    {
+      "in": {
+        "where": "pick",
+        "oauth": {
+          "error": "invalid_grant",
+          "reason": "pin_locked",
+          "description": "this profile's PIN is locked"
+        }
+      },
+      "out": {
+        "step": "pad",
+        "message": "This profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it.",
+        "locked": true,
+        "shake": true
+      }
+    },
+    {
+      "in": {
+        "where": "pick",
+        "oauth": {
+          "error": "invalid_grant",
+          "reason": "browser",
+          "description": "this profile can see more than yours"
+        }
+      },
+      "out": {
+        "step": "approve",
+        "message": null,
+        "locked": false,
+        "shake": false
+      }
+    },
+    {
+      "in": {
+        "where": "pick",
+        "oauth": {
+          "error": "invalid_grant",
+          "reason": "not_allowed",
+          "description": "you can't switch to this profile"
+        }
+      },
+      "out": {
+        "step": "pick",
+        "message": "You can't switch to this profile.",
+        "locked": false,
+        "shake": false
+      }
+    },
+    {
+      "in": {
+        "where": "pad",
+        "oauth": {
+          "error": "invalid_grant",
+          "reason": "wrong_pin",
+          "description": "wrong PIN"
+        }
+      },
+      "out": {
+        "step": "pad",
+        "message": "Wrong PIN.",
+        "locked": false,
+        "shake": true
+      }
+    },
+    {
+      "in": {
+        "where": "pad",
+        "oauth": {
+          "error": "invalid_grant",
+          "reason": "throttled",
+          "description": "too many attempts, try again in 15 min"
+        }
+      },
+      "out": {
+        "step": "pad",
+        "message": "Too many attempts, try again in 15 min.",
+        "locked": false,
+        "shake": true
+      }
+    },
+    {
+      "in": {
+        "where": "pad",
+        "oauth": {
+          "error": "invalid_grant",
+          "reason": "pin_locked",
+          "description": "this profile's PIN is locked"
+        }
+      },
+      "out": {
+        "step": "pad",
+        "message": "This profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it.",
+        "locked": true,
+        "shake": true
+      }
+    },
+    {
+      "in": {
+        "where": "pad",
+        "oauth": {
+          "error": "invalid_grant",
+          "reason": "browser",
+          "description": "this profile can see more than yours"
+        }
+      },
+      "out": {
+        "step": "approve",
+        "message": null,
+        "locked": false,
+        "shake": false
+      }
+    },
+    {
+      "in": {
+        "where": "confirm",
+        "oauth": {
+          "error": "invalid_grant",
+          "reason": "wrong_pin",
+          "description": "wrong PIN"
+        }
+      },
+      "out": {
+        "step": "pad",
+        "message": "Wrong PIN.",
+        "locked": false,
+        "shake": true
+      }
+    },
+    {
+      "in": {
+        "where": "confirm",
+        "oauth": {
+          "error": "invalid_grant",
+          "reason": "throttled",
+          "description": "too many attempts, try again in 15 min"
+        }
+      },
+      "out": {
+        "step": "pad",
+        "message": "Too many attempts, try again in 15 min.",
+        "locked": false,
+        "shake": true
+      }
+    },
+    {
+      "in": {
+        "where": "confirm",
+        "oauth": {
+          "error": "invalid_grant",
+          "reason": "pin_locked",
+          "description": "this profile's PIN is locked"
+        }
+      },
+      "out": {
+        "step": "pad",
+        "message": "This profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it.",
+        "locked": true,
+        "shake": true
+      }
+    },
+    {
+      "in": {
+        "where": "confirm",
+        "oauth": {
+          "error": "invalid_request",
+          "reason": null,
+          "description": "the app uses this profile already"
+        }
+      },
+      "out": {
+        "step": "done",
+        "message": null,
+        "locked": false,
+        "shake": false
+      }
+    }
   ]
 }

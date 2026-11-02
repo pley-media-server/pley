@@ -335,6 +335,50 @@ public class ProfilesModelTests
         Assert.Equal(Expected("choice", i), Fixtures.Json(choice));
     }
 
+    public static IEnumerable<object[]> RefusalCases => Indexes("refusal");
+
+    [Theory, MemberData(nameof(RefusalCases))]
+    public async Task A_refusal_leads_where_the_web_TV_apps_does(int i)
+    {
+        var input = Fixtures.Load("profiles").GetProperty("refusal")[i].GetProperty("in");
+        var where = input.GetProperty("where").GetString();
+        var o = input.GetProperty("oauth");
+        string? Text(string name) => o.GetProperty(name).ValueKind == JsonValueKind.Null ? null : o.GetProperty(name).GetString();
+        var refusal = new TokenException(400, new OAuthError(Text("error")!, Text("description"), Text("reason")));
+        // Anna (current, a PIN) and Sam (a PIN, or nothing when the list was made, for "pick").
+        var (model, source) = await Profiles(gate: where == "confirm", setUp: s =>
+        {
+            s.Me = new User { Id = 1, Name = "Anna", HasPin = true };
+            s.Household = new List<HouseholdProfile>
+            {
+                new HouseholdProfile { Id = 1, Name = "Anna", Needs = "none", Current = true },
+                new HouseholdProfile { Id = 2, Name = "Sam", Needs = where == "pick" ? "none" : "pin" },
+            };
+            s.OnSwitch = (_, _) => refusal;
+            // As AppProfilesSource.ConfirmPin reads the server's answer.
+            s.OnPinCheck = (_, _) => refusal.OAuth is { Error: "invalid_request", Reason: null }
+                ? Task.FromResult(PinCheck.Unsupported)
+                : Task.FromException<PinCheck>(refusal);
+        });
+        var done = false;
+        model.Done += () => done = true;
+        await model.Pick(where == "confirm" ? 1 : 2);
+        if (where != "pick")
+        {
+            await Type(model, "1234");
+            await model.Submit();
+        }
+        var state = model.State.Value;
+        var outcome = state.Step switch
+        {
+            _ when done => new { step = "done", message = (string?)null, locked = false, shake = false },
+            ProfilesStep.Pin pad => new { step = "pad", message = pad.Error, locked = pad.LockedOut, shake = pad.Shakes > 0 },
+            ProfilesStep.Approve => new { step = "approve", message = (string?)null, locked = false, shake = false },
+            _ => new { step = "pick", message = state.Error, locked = false, shake = false },
+        };
+        Assert.Equal(Expected("refusal", i), Fixtures.Json(outcome));
+    }
+
     [Fact]
     public async Task Without_the_profiles_scope_it_offers_signing_in_as_another()
     {
