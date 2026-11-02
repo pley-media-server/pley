@@ -304,7 +304,7 @@ public final class PlaylistModel: ObservableObject {
     /// `send` is false (Apple TV's Move sends once, when it ends).
     public func move(from: Int, to: Int, send: Bool = true) {
         guard let ids = shownOrder(), ids.indices.contains(from), ids.indices.contains(to), from != to else { return }
-        let next = Playlists.moved(ids, from: from, to: to)
+        let next = withHidden(Playlists.moved(ids, from: from, to: to))
         order = next
         if send { self.send(next) }
     }
@@ -318,8 +318,9 @@ public final class PlaylistModel: ObservableObject {
         let at = destination - offsets.filter { $0 < destination }.count
         next.insert(contentsOf: moving, at: min(max(at, 0), next.count))
         guard next != ids else { return }
-        order = next
-        send(next)
+        let full = withHidden(next)
+        order = full
+        send(full)
     }
 
     /// Moves `entryId` `by` places (-1 up, 1 down) from where it shows now.
@@ -418,6 +419,21 @@ public final class PlaylistModel: ObservableObject {
     private func shownOrder() -> [Int]? {
         guard editable, let detail else { return nil }
         return (order ?? detail.entries.map(\.entryId)).filter { !hidden.contains($0) }
+    }
+
+    /// `shown`, a new order of the entries shown, with the entries whose
+    /// removal waits for its Undo put back: each right after the entry it
+    /// followed before (first, when it was first). The server gets every
+    /// entry, so an Undo shows it where it was and the server never sees it moved.
+    private func withHidden(_ shown: [Int]) -> [Int] {
+        guard let detail, !hidden.isEmpty else { return shown }
+        let before = order ?? detail.entries.map(\.entryId)
+        var full = shown
+        for (n, id) in before.enumerated() where hidden.contains(id) && !full.contains(id) {
+            let at = n == 0 ? 0 : (full.firstIndex(of: before[n - 1]).map { $0 + 1 } ?? full.count)
+            full.insert(id, at: at)
+        }
+        return full
     }
 
     /// Sends `ids`, or keeps them for after the order on its way.

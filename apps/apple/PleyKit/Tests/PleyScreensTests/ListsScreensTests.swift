@@ -285,6 +285,33 @@ struct PlaylistScreensTests {
         #expect(server.playlistEntries(901)?.map(\.entry) == [9101, 9103])
     }
 
+    @Test func anEntryMovedWhileARemovalCanBeUndoneKeepsItsPlace() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        let model = PlaylistModel(app: app, playlistId: 901)
+        await model.load()
+        let gate = Gate()
+        model.waitForUndo = { await gate.wait() }
+
+        // The second goes, waiting for its Undo; the last moves to the top meanwhile.
+        model.remove(9102)
+        #expect(model.rows.map(\.entryId) == [9101, 9103])
+        model.move(from: 1, to: 0)
+        #expect(model.rows.map(\.entryId) == [9103, 9101])
+        // The server gets every entry: the one waiting stays after the one it followed.
+        #expect(await eventually { server.playlistOrders.count == 1 })
+        #expect(server.playlistOrders == [[9103, 9101, 9102]])
+        #expect(await eventually { model.order == nil })
+        // Undone: it shows where it was, after Arrival.
+        app.shell.undoToast()
+        #expect(model.rows.map(\.entryId) == [9103, 9101, 9102])
+        #expect(server.playlistEntries(901)?.map(\.entry) == [9103, 9101, 9102])
+        await gate.open()
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(server.playlistRemovals.isEmpty)
+    }
+
     @Test func aRefusedRemovalComesBack() async throws {
         let server = try await fixture()
         defer { server.stop() }
