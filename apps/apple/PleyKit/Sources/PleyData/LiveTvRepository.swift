@@ -27,6 +27,8 @@ public final class LiveTvRepository: ObservableObject {
     @Published public private(set) var version = 0
 
     private let api: @Sendable () async throws -> PleyAPI
+    /// Saves the lists' answers, and gives them back while the server is out of reach (the app's).
+    public weak var cache: (any SnapshotCache)?
     /// Favourites on their way to the server: the counts it gives don't have them yet.
     private var unsaved: Set<Int> = []
 
@@ -41,12 +43,12 @@ public final class LiveTvRepository: ObservableObject {
     }
 
     public func summary() async throws -> LiveSummary {
-        try await api().liveSummary()
+        try await load(SnapshotKeys.live) { try await $0.liveSummary() }
     }
 
     /// The groups and the counts, the favourites' as set here.
     public func groups() async throws -> LiveGroups {
-        var groups = try await api().liveGroups()
+        var groups = try await load(SnapshotKeys.liveGroups) { try await $0.liveGroups() }
         let pending = unsaved.reduce(0) { sum, id in sum + (favorites[id] == true ? 1 : -1) }
         groups.favorites = max(groups.favorites + pending, 0)
         return groups
@@ -56,18 +58,22 @@ public final class LiveTvRepository: ObservableObject {
     /// channels matching `query`, as the server has them (`marked` shows
     /// the favourites set here).
     public func page(_ category: LiveCategory, query: String = "", page: Int) async throws -> LiveChannelPage {
-        try await api().liveBrowse(category, query: query, offset: page * Self.page, limit: Self.page)
+        try await load(SnapshotKeys.livePage(category.key, query, page)) {
+            try await $0.liveBrowse(category, query: query, offset: page * Self.page, limit: Self.page)
+        }
     }
 
     /// The page of `category` that holds `channelId`: where a list opens
     /// again, and the channels either side of it.
     public func around(_ category: LiveCategory, channelId: Int) async throws -> LiveChannelPage {
-        try await api().liveBrowse(category, limit: Self.page, around: channelId)
+        try await load(SnapshotKeys.liveAround(category.key, channelId)) {
+            try await $0.liveBrowse(category, limit: Self.page, around: channelId)
+        }
     }
 
     /// One channel, with what's on now and next, as the server has it.
     public func channel(_ id: Int) async throws -> LiveChannel {
-        try await api().liveChannel(id)
+        try await load(SnapshotKeys.liveChannel(id)) { try await $0.liveChannel(id) }
     }
 
     /// The guide of the channels `ids` for `guideChunk` from `from` (a multiple of it, unix seconds).
@@ -78,6 +84,13 @@ public final class LiveTvRepository: ObservableObject {
     /// The channel numbered `number` exactly, of every channel; `nil` when none is.
     public func numbered(_ number: String) async throws -> LiveChannel? {
         try await api().liveBrowse(.all, query: number, limit: Self.page).channels.first { $0.number == number }
+    }
+
+    /// `fetch`'s answer, through the cache when there is one.
+    private func load<T: Codable & Sendable>(_ key: String,
+                                             _ fetch: @escaping @Sendable (PleyAPI) async throws -> T) async throws -> T {
+        if let cache { return try await cache.cached(key, fetch) }
+        return try await fetch(api())
     }
 
     /// `channel` with its favourite as set on this device.

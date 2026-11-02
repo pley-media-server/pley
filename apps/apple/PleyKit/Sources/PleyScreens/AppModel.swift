@@ -1,6 +1,7 @@
 import Combine
 import CoreGraphics
 import Foundation
+import Network
 import PleyAuth
 import PleyCaps
 import PleyCommon
@@ -16,7 +17,7 @@ import PleySubtitles
 /// by itself, or the signed-in app, whose navigation is `shell`'s. One
 /// playback at a time: starting another closes the one before, as on Android.
 @MainActor
-public final class AppModel: ObservableObject {
+public final class AppModel: ObservableObject, SnapshotCache {
     /// What fills the window.
     public enum Root: Hashable, Sendable {
         /// Opening the server used last, at start.
@@ -111,6 +112,9 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var change: ServerChange?
     /// The scans running, by library.
     @Published public private(set) var scans: [Int: ScanStatus] = [:]
+    /// The server can't be reached: the screens show what was saved of
+    /// them, the banner says so, and the app tries again (`reconnect`).
+    @Published public private(set) var offline = false
 
     public let session: SessionManager
     public let servers: ServerRepository
@@ -144,6 +148,21 @@ public final class AppModel: ObservableObject {
     #endif
     /// The item actions and the marks they made.
     public private(set) lazy var actions = ItemActionsModel(app: self)
+    /// The downloads (iPhone, iPad and Mac); none on Apple TV.
+    public let downloads: any DownloadsService
+    /// The screens as last read, per server and profile, for when the
+    /// server can't be reached; `nil`: nothing is saved (tests).
+    public let snapshots: SnapshotStore?
+    /// When the server is tried again after it couldn't be reached: then every minute.
+    public static let reconnectDelays: [Double] = [2, 5, 15, 30]
+    public static let reconnectEvery: Double = 60
+    /// How long a try waits for the server's answer.
+    public static let reconnectWait: Duration = .seconds(10)
+    private var reconnectTask: Task<Void, Never>?
+    /// Wakes the reconnect loop when the network changes.
+    private var paths: NWPathMonitor?
+    /// The network changed since the last try.
+    private var pathChanged = false
     /// The event stream of a server's API (the tests give their own).
     private let eventSignals: @Sendable (PleyAPI) -> AsyncStream<EventSignal>
     /// Whether this is the Apple TV app, which asks "Who's watching?" at start.
@@ -174,10 +193,13 @@ public final class AppModel: ObservableObject {
                 discover: @escaping @Sendable () -> AsyncStream<DiscoveryState>,
                 caps: DeviceCaps? = nil, playerSetup: PlayerSetup = PlayerSetup(),
                 settings: AppSettings = AppSettings(), tv: Bool = ShellModel.isTV,
+                downloads: (any DownloadsService)? = nil, snapshots: SnapshotStore? = nil,
                 eventSignals: @escaping @Sendable (PleyAPI) -> AsyncStream<EventSignal> = {
                     EventStream(api: $0).signals()
                 }) {
         self.session = session
+        self.downloads = downloads ?? NoDownloads()
+        self.snapshots = snapshots
         self.servers = servers
         self.transport = transport
         self.authenticator = authenticator
@@ -209,6 +231,7 @@ public final class AppModel: ObservableObject {
             }
         }
         serverEvents.onScans = { [weak self] scans in self?.scans = scans }
+        live.cache = self
         serverEvents.onSessionStopped = { [weak self] id, message, byAdmin in
             self?.sessionStopped(id, message: message, byAdmin: byAdmin)
         }
@@ -221,8 +244,10 @@ public final class AppModel: ObservableObject {
         #endif
     }
 
-    /// The app as it runs: the Keychain, the system's sign-in sheet and Bonjour.
-    public static func live() -> AppModel {
+    /// The app as it runs: the Keychain, the system's sign-in sheet and
+    /// Bonjour; `downloads` makes the downloads (iPhone, iPad and Mac) with
+    /// the settings and the connection's gate.
+    public static func live(downloads: ((AppSettings, ConnectionGate) -> any DownloadsService)? = nil) -> AppModel {
         let transport = HTTPTransport(userAgent: UserAgent.current)
         let servers = ServerRepository()
         let session = SessionManager(transport: transport, servers: servers)
@@ -235,7 +260,8 @@ public final class AppModel: ObservableObject {
         let authenticator: (any WebAuthenticator)? = nil
         #endif
         return AppModel(session: session, servers: servers, transport: transport, authenticator: authenticator,
-                        discover: { discovery.browse() }, settings: settings)
+                        discover: { discovery.browse() }, settings: settings,
+                        downloads: downloads?(settings, transport.gate), snapshots: SnapshotStore())
     }
 
     /// At start: opens the server used last when the app is signed in to
@@ -256,9 +282,31 @@ public final class AppModel: ObservableObject {
                 root = .servers
             }
         } catch {
+            // Out of reach: what was saved shows, while the app tries again.
+            if LateReports.unreachable(error), await startOffline(last) { return }
             root = .servers
             notice = "\(last.name): \(describe(error))"
         }
+    }
+
+    /// Starts on `last` without the server, as the profile used last, from
+    /// its saved screens: when a sign-in is kept and its profile was saved.
+    private func startOffline(_ last: SavedServer) async -> Bool {
+        guard let snapshots, let profileId = settings.lastProfile(origin: last.origin),
+              let data = await snapshots.read(origin: last.origin, profileId: profileId, key: SnapshotKeys.me),
+              let saved = try? PleyJSON.decoder.decode(User.self, from: data),
+              await session.openSaved(origin: last.origin, id: last.id)
+        else { return false }
+        await opened(last.origin, id: last.id, name: last.name)
+        user = saved
+        homeVersion += 1
+        signingIn = []
+        root = .signedIn
+        wentOffline()
+        loadLibraries()
+        loadLiveTv()
+        await scopeDownloads()
+        return true
     }
 
     /// Opens `entry`: Home when the app is signed in to it, its sign-in otherwise.
@@ -324,6 +372,9 @@ public final class AppModel: ObservableObject {
         music.stop()
         stopEvents()
         await session.signOut()
+        // The downloads stay on the device, for when this profile signs in again.
+        downloads.signedIn(nil)
+        stopReconnecting()
         user = nil
         shell.reset()
         actions.reset()
@@ -334,6 +385,9 @@ public final class AppModel: ObservableObject {
     /// Signs out of `entry` and removes it from the list.
     public func forget(_ entry: ServerEntry) async throws {
         try await session.forget(origin: entry.origin)
+        // A server forgotten takes its downloads and saved screens with it.
+        downloads.forgetServer(entry.origin)
+        await snapshots?.clear(origin: entry.origin)
         if server?.origin == entry.origin {
             server = nil
             user = nil
@@ -426,7 +480,7 @@ public final class AppModel: ObservableObject {
             late: lateReports(origin: origin, profileId: user.id), quality: playerSetup.quality,
             ceiling: playerSetup.ceilings(origin), clock: playerSetup.clock, engines: playerSetup.engines,
             subtitleOffsets: playerSetup.subtitleOffsets, profileId: user.id,
-            autoplayNext: settings.autoplayNext)
+            autoplayNext: settings.autoplayNext, local: downloads.local)
         let controller = PlaybackController(request: request, environment: environment)
         // Started first, so the screens get its AVPlayer with it.
         controller.start()
@@ -728,6 +782,7 @@ public final class AppModel: ObservableObject {
         self.active = active
         livePlayer?.sceneActive(active)
         if active {
+            if offline { Task { await reconnect() } }
             startEvents()
             if user != nil { note(ServerChange(home: true, libraries: true, watchlist: true, everything: true)) }
         } else {
@@ -741,7 +796,7 @@ public final class AppModel: ObservableObject {
     }
 
     private func startEvents() {
-        guard active, user != nil, !eventsRunning else { return }
+        guard active, user != nil, !offline, !eventsRunning else { return }
         eventsRunning = true
         let signals = eventSignals
         Task { [weak self] in
@@ -772,6 +827,131 @@ public final class AppModel: ObservableObject {
         let text = player.stoppedByServer(message: message, byAdmin: byAdmin)
         shell.show(text)
         Task { await closePlayer(player) }
+    }
+
+    // MARK: Offline
+
+    /// `load`'s answer from the server, saved as the snapshot of `key` for
+    /// this server and profile. While the server can't be reached, the
+    /// snapshot saved last instead (and the app goes offline); with none,
+    /// what went wrong.
+    public func cached<T: Codable & Sendable>(_ key: String,
+                                              _ load: @escaping (PleyAPI) async throws -> T) async throws -> T {
+        guard let user, let origin = server?.origin else { throw PleyError.signedOut }
+        let profileId = user.id
+        if !offline, let api = await session.api {
+            do {
+                let fresh = try await load(api)
+                if let snapshots {
+                    Task.detached(priority: .utility) {
+                        guard let data = try? PleyJSON.encoder.encode(fresh) else { return }
+                        await snapshots.write(origin: origin, profileId: profileId, key: key, data: data)
+                    }
+                }
+                return fresh
+            } catch where LateReports.unreachable(error) {
+                wentOffline()
+                guard let saved = await saved(T.self, key, origin: origin, profileId: profileId) else { throw error }
+                return saved
+            }
+        }
+        guard let saved = await saved(T.self, key, origin: origin, profileId: profileId) else {
+            if await session.api == nil { throw PleyError.signedOut }
+            throw PleyError.offline
+        }
+        return saved
+    }
+
+    private func saved<T: Decodable & Sendable>(_ type: T.Type, _ key: String, origin: String, profileId: Int) async -> T? {
+        guard let snapshots, let data = await snapshots.read(origin: origin, profileId: profileId, key: key) else {
+            return nil
+        }
+        return try? PleyJSON.decoder.decode(T.self, from: data)
+    }
+
+    /// The server couldn't be reached: the banner shows, and the app tries
+    /// again after 2, 5, 15 and 30 s, then every minute, and whenever the
+    /// network changes.
+    public func wentOffline() {
+        guard user != nil else { return }
+        if !offline { offline = true }
+        guard reconnectTask == nil else { return }
+        let monitor = NWPathMonitor()
+        // The handler runs on the monitor's queue: the change is noted on the main actor.
+        monitor.pathUpdateHandler = { @Sendable [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor in self?.pathChanged = true }
+        }
+        monitor.start(queue: DispatchQueue(label: "pley.reconnect"))
+        paths = monitor
+        pathChanged = false
+        reconnectTask = Task { [weak self] in
+            var tries = 0
+            while !Task.isCancelled {
+                let delay = tries < Self.reconnectDelays.count ? Self.reconnectDelays[tries] : Self.reconnectEvery
+                tries += 1
+                // Counted in seconds, so a change of network tries again within one.
+                for _ in 0..<Int(delay) {
+                    try? await Task.sleep(for: .seconds(1))
+                    guard !Task.isCancelled, let self else { return }
+                    if self.pathChanged { break }
+                }
+                guard !Task.isCancelled, let self else { return }
+                self.pathChanged = false
+                if await self.reconnect() { return }
+            }
+        }
+    }
+
+    /// Tries the server now (the banner's Try again, the app coming back to
+    /// the front); `true` when it answered and the app is online again.
+    @discardableResult
+    public func reconnect() async -> Bool {
+        guard offline, user != nil else { return !offline }
+        let session = session
+        let answered = await withTaskGroup(of: Bool.self) { group in
+            group.addTask { (try? await session.reconnected()) != nil }
+            group.addTask {
+                try? await Task.sleep(for: Self.reconnectWait)
+                return false
+            }
+            let first = await group.next() ?? false
+            group.cancelAll()
+            return first
+        }
+        guard answered, offline, let user else { return false }
+        stopReconnecting()
+        offline = false
+        if let api = await session.api, let fresh = try? await api.me() { self.user = fresh }
+        if let server, let name = await session.serverInfo?.name {
+            self.server = ServerEntry(origin: server.origin, name: BonjourTXT.cleanName(name).isEmpty ? server.name
+                                        : BonjourTXT.cleanName(name), id: server.id, saved: server.saved,
+                                      found: server.found)
+        }
+        signedInNow(self.user ?? user)
+        downloads.resume()
+        homeVersion += 1
+        note(ServerChange(home: true, libraries: true, watchlist: true, everything: true))
+        return true
+    }
+
+    private func stopReconnecting() {
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        paths?.cancel()
+        paths = nil
+    }
+
+    /// The downloads follow who is signed in.
+    private func scopeDownloads() async {
+        guard downloads.available else { return }
+        guard let user, let api = await session.api, let origin = await session.origin else {
+            return downloads.signedIn(nil)
+        }
+        let tokens = await session.tokens
+        let caps = caps
+        downloads.signedIn(DownloadScope(origin: origin, profileId: user.id, api: api, tokens: tokens,
+                                         caps: { await caps.warmUp().report }))
     }
 
     // MARK: Inside
@@ -827,6 +1007,18 @@ public final class AppModel: ObservableObject {
     /// reports that couldn't reach this server and profile before go now.
     private func signedInNow(_ user: User) {
         Task { await caps.warmUp() }
+        if let origin = server?.origin {
+            settings.setLastProfile(user.id, origin: origin)
+            if let snapshots {
+                Task {
+                    await snapshots.activate(origin: origin, profileId: user.id)
+                    if let data = try? PleyJSON.encoder.encode(user) {
+                        await snapshots.write(origin: origin, profileId: user.id, key: SnapshotKeys.me, data: data)
+                    }
+                }
+            }
+        }
+        Task { await scopeDownloads() }
         startEvents()
         loadLibraries()
         loadLiveTv()
@@ -843,8 +1035,8 @@ public final class AppModel: ObservableObject {
     private func loadLibraries() {
         guard tv, user != nil else { return }
         Task { [weak self] in
-            guard let self, let api = await self.session.api,
-                  let libraries = try? await api.libraries(), self.user != nil else { return }
+            guard let self, let libraries = try? await self.cached(SnapshotKeys.libraries, { try await $0.libraries() }),
+                  self.user != nil else { return }
             self.shell.setLibraries(libraries)
         }
     }
@@ -891,6 +1083,8 @@ public final class AppModel: ObservableObject {
         closeLivePlayer()
         music.stop()
         stopEvents()
+        stopReconnecting()
+        downloads.signedIn(nil)
         user = nil
         notice = message
         shell.reset()

@@ -84,6 +84,10 @@ public final class ItemModel: ObservableObject {
         app.actions.$listed.dropFirst().sink { [weak self] _ in
             Task { @MainActor in self?.rebuild() }
         }.store(in: &listeners)
+        // A download's progress shows on its button.
+        app.downloads.changed.sink { [weak self] in
+            Task { @MainActor in self?.objectWillChange.send() }
+        }.store(in: &listeners)
         app.$change.dropFirst().compactMap { $0 }.sink { [weak self] change in
             guard let self, self.writing == 0, self.follows(change) else { return }
             Task { await self.load() }
@@ -96,7 +100,7 @@ public final class ItemModel: ObservableObject {
         guard let api = await app.session.api else { return }
         if case .failed = state { state = .loading }
         do {
-            let found = try await api.item(itemId)
+            let found = try await app.cached(SnapshotKeys.item(itemId)) { [itemId] in try await $0.item(itemId) }
             if let screen = Self.elsewhere(found) {
                 item = found
                 elsewhere = screen
@@ -112,14 +116,19 @@ public final class ItemModel: ObservableObject {
             let listed = kind == .movie || kind == .show
             let show = kind == .show ? itemId : kind == .season ? found.summary.parentId : nil
             let id = itemId
-            async let deck: ItemSummary? = container ? (try? await api.onDeck(id)) ?? nil : nil
-            async let seasonList: [ItemSummary]? = show == nil ? nil : try? await api.children(show!)
-            async let more: [ItemSummary] = listed ? (try? await api.related(id)) ?? [] : []
-            async let collections: [CollectionRef] = listed ? (try? await api.itemCollections(id)) ?? [] : []
+            // Offline, what was saved: the item and its seasons and episodes; nothing else is asked.
+            let online = !app.offline
+            let app = app
+            async let deck: ItemSummary? = container && online ? (try? await api.onDeck(id)) ?? nil : nil
+            async let seasonList: [ItemSummary]? = show == nil ? nil
+                : try? await app.cached(SnapshotKeys.children(show!)) { try await $0.children(show!) }
+            async let more: [ItemSummary] = listed && online ? (try? await api.related(id)) ?? [] : []
+            async let collections: [CollectionRef] = listed && online ? (try? await api.itemCollections(id)) ?? [] : []
             let next = await deck
             var play: ItemDetail? = found
             if container {
-                play = next == nil ? nil : try await api.item(next!.id)
+                play = next == nil ? nil
+                    : try await app.cached(SnapshotKeys.item(next!.id)) { try await $0.item(next!.id) }
             } else if found.files.isEmpty {
                 play = nil
             }
@@ -130,7 +139,11 @@ public final class ItemModel: ObservableObject {
             case .episode: found.summary.parentId
             default: nil
             }
-            let shown: [ItemSummary]? = if let selected { try? await api.children(selected) } else { nil }
+            let shown: [ItemSummary]? = if let selected {
+                try? await app.cached(SnapshotKeys.children(selected)) { try await $0.children(selected) }
+            } else {
+                nil
+            }
             related = await more
             partOf = await collections
             item = found
@@ -155,6 +168,75 @@ public final class ItemModel: ObservableObject {
             state = .notFound
         } catch {
             if item == nil { state = .failed(describe(error)) }
+        }
+    }
+
+    // MARK: Downloads
+
+    /// The item page's Download button, as its download is.
+    public enum DownloadButton: Hashable, Sendable {
+        /// Not downloaded: Download.
+        case download
+        /// On its way: where it is in words, and how far (0 to 1) when known.
+        case progress(String, Double?)
+        case downloaded
+        /// Stopped: why; Try again.
+        case failed(String)
+    }
+
+    /// A movie's or an episode's Download button; `nil` where there is
+    /// none (Apple TV, other kinds, nothing to play, or offline and not downloaded).
+    public var downloadButton: DownloadButton? {
+        guard app.downloads.available, let item, item.kind == .movie || item.kind == .episode else { return nil }
+        guard let entry = app.downloads.entries.first(where: { $0.itemId == item.id }) else {
+            return app.offline || item.files.isEmpty ? nil : .download
+        }
+        switch entry.state {
+        case .done: return .downloaded
+        case .failed: return .failed(DownloadWords.status(entry))
+        default:
+            let row = DownloadRow(entry)
+            return .progress(row.status, row.progress)
+        }
+    }
+
+    /// Download season, on a show's or season's page: the season's episodes listed, while online.
+    public var canDownloadSeason: Bool {
+        guard app.downloads.available, !app.offline, let kind = item?.kind, kind == .show || kind == .season
+        else { return false }
+        return episodes?.contains { $0.kind == .episode } == true
+    }
+
+    /// Downloads this movie or episode; the toast says where it goes.
+    public func download() async {
+        guard let item else { return }
+        await download([item.id])
+    }
+
+    /// Downloads the episodes of the season shown, in order.
+    public func downloadSeason() async {
+        let ids = (episodes ?? []).filter { $0.kind == .episode }.map(\.id)
+        await download(ids)
+    }
+
+    public func removeDownload() {
+        guard let item else { return }
+        app.downloads.remove(item.id)
+    }
+
+    public func retryDownload() {
+        guard let item else { return }
+        app.downloads.retry(item.id)
+    }
+
+    private func download(_ ids: [Int]) async {
+        guard !ids.isEmpty else { return }
+        do {
+            try await app.downloads.download(ids)
+            app.shell.show(DownloadWords.started)
+        } catch is CancellationError {
+        } catch {
+            app.shell.show(asSentence(describe(error)))
         }
     }
 

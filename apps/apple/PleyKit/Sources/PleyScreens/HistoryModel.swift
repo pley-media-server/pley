@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import PleyData
 import PleyModel
 import PleyNetwork
 
@@ -148,8 +149,13 @@ public final class HistoryModel: ObservableObject {
     }
 
     private func fetch(offset: Int, limit: Int) async throws -> HistoryPage {
-        guard let api = await app.session.api else { throw PleyError.signedOut }
-        return try await api.history(offset: offset, limit: min(limit, 200))
+        // The first page is saved, to show while the server is out of reach.
+        let limit = min(limit, 200)
+        guard offset == 0 else {
+            guard let api = await app.session.api else { throw PleyError.signedOut }
+            return try await api.history(offset: offset, limit: limit)
+        }
+        return try await app.cached(SnapshotKeys.history) { try await $0.history(offset: 0, limit: limit) }
     }
 
     private func remake() {

@@ -119,6 +119,18 @@ public final class AppSettings: @unchecked Sendable {
         defaults.set(all, forKey: Self.prefix + "alwaysStartAs")
     }
 
+    /// The profile used last on the server at `origin`: the app starts as
+    /// it, from what it saved, when the server doesn't answer.
+    public func lastProfile(origin: String) -> Int? {
+        (defaults.dictionary(forKey: Self.prefix + "lastProfile") as? [String: Int])?[origin]
+    }
+
+    public func setLastProfile(_ profileId: Int?, origin: String) {
+        var all = defaults.dictionary(forKey: Self.prefix + "lastProfile") as? [String: Int] ?? [:]
+        all[origin] = profileId
+        defaults.set(all, forKey: Self.prefix + "lastProfile")
+    }
+
     /// The household of the server at `origin` as last seen: its profiles'
     /// ids and names, so the start needn't wait for the network.
     public func household(origin: String) -> [(id: Int, name: String)] {

@@ -550,7 +550,8 @@ final class DownloadRunner {
 }
 
 /// A download that can't go on by itself: `message` says why, for the list.
-struct Failure: Error, Sendable {
+struct Failure: LocalizedError, Sendable {
     let message: String
     init(_ message: String) { self.message = message }
+    var errorDescription: String? { message }
 }

@@ -265,7 +265,7 @@ public final class ItemActionsModel: ObservableObject {
 
     /// Reads My List's ids.
     public func loadWatchlist() async {
-        guard let api = await app.session.api, let items = try? await api.watchlist() else { return }
+        guard let items = try? await app.cached(SnapshotKeys.watchlist, { try await $0.watchlist() }) else { return }
         listed = Set(items.map(\.id))
     }
 

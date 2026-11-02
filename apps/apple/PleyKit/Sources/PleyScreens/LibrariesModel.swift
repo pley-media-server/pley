@@ -71,9 +71,9 @@ public final class LibrariesModel: ObservableObject {
     public var reorderable: Bool { entries.count >= 2 }
 
     public func reload() async {
-        guard let api = await app.session.api else { return }
+        guard await app.session.api != nil else { return }
         do {
-            show(try await api.libraries())
+            show(try await app.cached(SnapshotKeys.libraries) { try await $0.libraries() })
             state = .loaded
             notice = nil
         } catch is CancellationError {

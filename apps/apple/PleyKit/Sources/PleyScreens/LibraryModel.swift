@@ -87,7 +87,8 @@ public final class LibraryModel: ObservableObject {
     public func load() async {
         guard let api = await app.session.api else { return }
         do {
-            let library = try await api.library(libraryId)
+            let id = libraryId
+            let library = try await app.cached(SnapshotKeys.library(id)) { try await $0.library(id) }
             self.library = library
             var params = LibraryParams.parse(asked ?? remembered() ?? "")
             params = params.valid(for: library.kind)
@@ -96,7 +97,7 @@ public final class LibraryModel: ObservableObject {
             state = .loaded
             notice = nil
             // The genres and years to filter by; without them the menus offer watched only.
-            if library.kind != .music, let filters = try? await api.libraryFilters(libraryId) {
+            if library.kind != .music, !app.offline, let filters = try? await api.libraryFilters(libraryId) {
                 self.filters = filters
             }
             await showTab()
@@ -207,10 +208,12 @@ public final class LibraryModel: ObservableObject {
     }
 
     private func loadRows() async {
-        guard let api = await app.session.api else { return }
+        guard await app.session.api != nil else { return }
         do {
             let kinds = Dictionary(uniqueKeysWithValues: app.shell.libraries.map { ($0.id, $0.kind) })
-            rows = try await api.libraryHubs(libraryId).filter { !$0.items.isEmpty }
+            let id = libraryId
+            rows = try await app.cached(SnapshotKeys.libraryHubs(id)) { try await $0.libraryHubs(id) }
+                .filter { !$0.items.isEmpty }
                 .map { HomeRow($0, libraryKind: kinds[$0.libraryId ?? libraryId] ?? library?.kind) }
             notice = nil
         } catch is CancellationError {
@@ -226,11 +229,24 @@ public final class LibraryModel: ObservableObject {
         let query = params.query
         let bitrate = params.sort == .bitrate
         let shape = shape
+        let app = app
         guard !Task.isCancelled, self.grid == nil else { return }
         let grid = LibraryGrid(shape: shape, makeTile: { item in
             Tile(item, shape: shape, line: bitrate ? Words.fileLine(item.media) : nil)
         }, fetch: { offset, limit, tag in
-            try await api.libraryItems(id, query, offset: offset, limit: limit, tag: tag)
+            // The first page is saved, to show while the server is out of reach.
+            guard offset == 0, tag == nil else {
+                return try await api.libraryItems(id, query, offset: offset, limit: limit, tag: tag)
+            }
+            let key = SnapshotKeys.libraryHead(id, query.items(offset: 0, limit: limit)
+                .map { "\($0.name)=\($0.value ?? "")" }.joined(separator: "&"))
+            let head = try await app.cached(key) { api -> HeadPage in
+                guard let answer = try await api.libraryItems(id, query, offset: 0, limit: limit) else {
+                    throw PleyError.unreadable(status: 304)
+                }
+                return HeadPage(page: answer.page, tag: answer.tag)
+            }
+            return (head.page, head.tag)
         })
         self.grid = grid
         await grid.start()
@@ -284,4 +300,10 @@ public final class LibraryModel: ObservableObject {
         guard let origin = app.server?.origin, let user = app.user else { return }
         app.settings.setLibraryView(params.queryString, origin: origin, profileId: user.id, libraryId: libraryId)
     }
+}
+
+/// A library listing's first page and its tag, as saved.
+private struct HeadPage: Codable, Sendable {
+    var page: LibraryItems
+    var tag: String?
 }

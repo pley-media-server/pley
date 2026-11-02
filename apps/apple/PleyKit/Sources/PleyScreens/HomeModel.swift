@@ -166,8 +166,9 @@ public final class HomeModel: ObservableObject {
         }
         if case .failed = state { state = .loading }
         do {
-            async let hubs = HomeRepository(api: api).load()
-            async let libraries = api.libraries()
+            // While the server is out of reach, the rows and libraries saved last.
+            async let hubs = app.cached(SnapshotKeys.home) { try await HomeRepository(api: $0).load() }
+            async let libraries = app.cached(SnapshotKeys.libraries) { try await $0.libraries() }
             let (found, libs) = try await (hubs, libraries)
             app.shell.setLibraries(libs)
             let kinds = Dictionary(uniqueKeysWithValues: libs.map { ($0.id, $0.kind) })
@@ -225,7 +226,7 @@ public final class HomeModel: ObservableObject {
     /// The first three Continue Watching titles' details, once per load of
     /// a profile's Home: reading them starts the server reading ahead.
     private func warmUp(_ rows: [HomeRow], api: PleyAPI) {
-        guard !warmed, let row = rows.first(where: \.continueWatching) else { return }
+        guard !warmed, !app.offline, let row = rows.first(where: \.continueWatching) else { return }
         warmed = true
         for tile in row.tiles.prefix(3) {
             let id = tile.id

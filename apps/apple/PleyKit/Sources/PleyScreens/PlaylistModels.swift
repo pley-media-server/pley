@@ -119,9 +119,9 @@ public final class PlaylistsModel: ObservableObject {
     }
 
     public func load() async {
-        guard let api = await app.session.api else { return }
+        guard await app.session.api != nil else { return }
         do {
-            cards = try await api.playlists().map(PlaylistCard.init)
+            cards = try await app.cached(SnapshotKeys.playlists) { try await $0.playlists() }.map(PlaylistCard.init)
             state = .loaded
             notice = nil
         } catch is CancellationError {
@@ -264,9 +264,10 @@ public final class PlaylistModel: ObservableObject {
     // MARK: Reading
 
     public func load() async {
-        guard let api = await app.session.api else { return }
+        guard await app.session.api != nil else { return }
         do {
-            detail = try await api.playlist(playlistId)
+            let id = playlistId
+            detail = try await app.cached(SnapshotKeys.playlist(id)) { try await $0.playlist(id) }
             state = .loaded
             notice = nil
         } catch is CancellationError {

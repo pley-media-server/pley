@@ -41,7 +41,8 @@ func app(_ store: any TokenStore = MemoryTokenStore(), servers: [SavedServer] = 
          engines: @escaping @MainActor () -> any PlayerEngine = { StillEngine() },
          music: @escaping @MainActor () -> any MusicOutput = { QuietMusicOutput() },
          nowPlaying: @escaping @MainActor () -> any NowPlayingSystem = { QuietNowPlaying() },
-         settings: AppSettings = freshSettings(), tv: Bool = ShellModel.isTV)
+         settings: AppSettings = freshSettings(), tv: Bool = ShellModel.isTV,
+         downloads: (any DownloadsService)? = nil, snapshots: SnapshotStore? = nil)
     -> AppModel {
     let transport = HTTPTransport(userAgent: testAgent)
     let repository = ServerRepository(store: MemoryServerListStore(servers))
@@ -54,7 +55,7 @@ func app(_ store: any TokenStore = MemoryTokenStore(), servers: [SavedServer] = 
                     playerSetup: .init(clientId: "apple-test", lateReports: late, quality: MemoryQuality(),
                                        ceilings: { _ in MemoryCeiling() }, engines: engines, musicOutputs: music,
                                        nowPlaying: nowPlaying),
-                    settings: settings, tv: tv)
+                    settings: settings, tv: tv, downloads: downloads, snapshots: snapshots)
 }
 
 /// Settings of their own, gone with the test.

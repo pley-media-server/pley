@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import PleyCommon
+import PleyNetwork
 
 /// The names answers are kept under, per server and profile (Android's
 /// `SnapshotKeys`, for what the Apple app reads).
@@ -33,6 +34,8 @@ public enum SnapshotKeys {
     }
 
     public static func liveChannel(_ channelId: Int) -> String { "live:channel:\(channelId)" }
+    /// `GET /api/libraries/{id}`.
+    public static func library(_ libraryId: Int) -> String { "library:\(libraryId)" }
     public static func libraryHubs(_ libraryId: Int) -> String { "libhubs:\(libraryId)" }
     /// The first items of a library's listing as `query` (its sort, order and filters) asks.
     public static func libraryHead(_ libraryId: Int, _ query: String) -> String { "library:\(libraryId):\(query):head" }
@@ -42,6 +45,14 @@ public enum SnapshotKeys {
     public static func person(_ personId: Int) -> String { "person:\(personId)" }
     public static func playlist(_ playlistId: Int) -> String { "playlist:\(playlistId)" }
     public static func search(_ query: String) -> String { "search:\(query)" }
+}
+
+/// Answers saved per server and profile, given back while the server is
+/// out of reach (the app's model).
+@MainActor
+public protocol SnapshotCache: AnyObject {
+    /// `load`'s answer, saved as `key`; the one saved while the server can't be reached.
+    func cached<T: Codable & Sendable>(_ key: String, _ load: @escaping (PleyAPI) async throws -> T) async throws -> T
 }
 
 /// The last answer of each screen on disk (Android's `FileSnapshotStore`):

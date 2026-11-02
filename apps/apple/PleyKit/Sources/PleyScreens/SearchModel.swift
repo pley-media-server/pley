@@ -222,8 +222,8 @@ public final class SearchModel: ObservableObject {
         default: state = .loading(text)
         }
         do {
-            guard let api = await app.session.api else { throw PleyError.signedOut }
-            let results = try await api.search(text, limit: Self.limit)
+            let limit = Self.limit
+            let results = try await app.cached(SnapshotKeys.search(text)) { try await $0.search(text, limit: limit) }
             guard !Task.isCancelled, text == asked else { return }
             let groups = Self.groups(results)
             shown = text

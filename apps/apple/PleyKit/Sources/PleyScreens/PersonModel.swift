@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import PleyData
 import PleyModel
 import PleyNetwork
 
@@ -85,10 +86,11 @@ public final class PersonModel: ObservableObject {
     }
 
     public func load() async {
-        guard let api = await app.session.api else { return }
+        guard await app.session.api != nil else { return }
         if case .failed = state { state = .loading }
         do {
-            page = PersonPage(try await api.person(personId))
+            let id = personId
+            page = PersonPage(try await app.cached(SnapshotKeys.person(id)) { try await $0.person(id) })
             state = .loaded
         } catch is CancellationError {
         } catch PleyError.signedOut {
