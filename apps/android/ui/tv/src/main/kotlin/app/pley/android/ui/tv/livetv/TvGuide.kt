@@ -50,6 +50,7 @@ import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
@@ -91,8 +92,9 @@ import kotlin.math.roundToInt
 /**
  * The programme guide on TV (the web's GuideGrid, for a remote): what has
  * focus is described above the grid, channels down and time across, now
- * marked by a line. Focus is a programme, moved by the guide itself rather
- * than by geometry ([GuideCursor]; rows only compose what is in view):
+ * marked by a line with the time in a pill over it. Focus is a programme,
+ * moved by the guide itself rather than by geometry ([GuideCursor]; rows
+ * only compose what is in view):
  *
  * - Left and Right go to the programme before and after, the grid
  *   following by half hours, back through a long programme a screen at a
@@ -103,6 +105,7 @@ import kotlin.math.roundToInt
  *   loaded a page at a time as they come; Up from the first goes to the
  *   tabs above on a press, not held; Channel up and down page through the
  *   lineup;
+ * - rewind and fast forward (or Previous and Next) move the grid two hours;
  * - OK on a programme on now (or a channel without guide) watches the
  *   channel, on another opens its details, as does holding OK or Menu;
  * - Back away from now comes back to now first.
@@ -192,7 +195,9 @@ internal fun TvGuide(
                 var t = GuideCursor.slot(left - VIEW_S)
                 while (t < left + 2 * VIEW_S) {
                     val slotStart = t
-                    if (slotStart >= start) {
+                    // The time now, in its pill, takes the place of a time under it (the web's).
+                    val underNow = now > slotStart - NOW_PILL_S / 2 && now < slotStart + SLOT_LABEL_S + NOW_PILL_S / 2
+                    if (slotStart >= start && !underNow) {
                         val midnight = Calendar.getInstance().apply { timeInMillis = slotStart * 1000 }.let { it.get(Calendar.HOUR_OF_DAY) == 0 && it.get(Calendar.MINUTE) == 0 }
                         BasicText(
                             if (midnight) dayOf(slotStart, now) else clock(slotStart),
@@ -205,6 +210,20 @@ internal fun TvGuide(
                     }
                     t += LiveTv.SLOT_S
                 }
+                // The time now, in a pill over the now line.
+                BasicText(
+                    clock(now),
+                    style = PleyType.Tv.Badge.copy(color = PleyColors.OnAccent),
+                    maxLines = 1,
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .layout { measurable, constraints ->
+                            val pill = measurable.measure(constraints.copy(minWidth = 0))
+                            layout(pill.width, pill.height) { pill.place(((now - start) * pxPerSecond - x).roundToInt() - pill.width / 2, 0) }
+                        }
+                        .background(PleyColors.Accent, PleyShape.Badge)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                )
             }
         }
         Box(
@@ -258,6 +277,15 @@ internal fun TvGuide(
                         }
                         KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_PAGE_DOWN -> {
                             if (down) focus = at.pageDown(total)
+                            true
+                        }
+                        // Two hours back or on, a press at a time: held, they would run through the two days in a second.
+                        KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                            if (down && native.repeatCount == 0) focus = at.jump(-GuideCursor.JUMP_S)
+                            true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                            if (down && native.repeatCount == 0) focus = at.jump(GuideCursor.JUMP_S)
                             true
                         }
                         KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
@@ -539,6 +567,10 @@ private val CHANNEL_WIDTH = 160.dp
 private val CHANNEL_INSET = 10.dp
 private val INFO_HEIGHT = 92.dp
 private val TvSafeAreaBottom = 27.dp
+
+/** How much of the guide's time the time-now pill and a half hour's time take, about (the web's 16 and 18 minutes). */
+private const val NOW_PILL_S = 16 * 60L
+private const val SLOT_LABEL_S = 18 * 60L
 
 /** How long after Left last moved within the guide a Left at its start still stays: taps in a row. */
 internal const val EDGE_PAUSE_MS = 500L

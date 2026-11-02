@@ -27,6 +27,9 @@ describes how they are made.
   the guide, a screen at a time, before it leaves for the categories; on a
   channel without a guide, Left and Right move the guide a half hour at a
   time, as on Samsung TVs.
+- In the TV guide, rewind and fast forward (or Previous and Next) move it
+  two hours, as on the Samsung and LG apps, and the time now shows in a
+  pill over the now line.
 - On Live TV's page on TVs, a held Left stops at the start of the guide
   or the first column of tiles, and a held Up at the top, rather than
   running on to the categories, the rail or the tabs; a press of its own
