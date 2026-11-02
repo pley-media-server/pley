@@ -204,6 +204,7 @@ public final class FixtureServer: Sendable {
         var network = Network()
         var browse = Browse()
         var account = Account()
+        var live = Live()
     }
 
     /// What the fixture says of the client's network (`/api/playback/network`).
@@ -672,6 +673,7 @@ public final class FixtureServer: Sendable {
                 return image(width: width, height: max(height, 1), type: "public.png", contentType: "image/png")
             }
         }
+        if let answer = live(&s, request, parts) { return answer }
         if let answer = browse(&s, request, parts) { return answer }
         if let answer = lists(&s, request, parts) { return answer }
         if let answer = account(&s, request, parts) { return answer }
@@ -1203,7 +1205,7 @@ public final class FixtureServer: Sendable {
     }
 
     /// A picture of one colour, made here: no file to keep.
-    private static func image(width: Int, height: Int, type: String, contentType: String) -> Answer {
+    static func image(width: Int, height: Int, type: String, contentType: String) -> Answer {
         let data = FixtureImages.make(width: width, height: height, type: type)
         return Answer(status: 200, headers: ["Content-Type": contentType], body: data)
     }

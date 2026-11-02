@@ -180,6 +180,43 @@ public final class AppSettings: @unchecked Sendable {
         defaults.set(views, forKey: Self.prefix + "libraryViews")
     }
 
+    // MARK: Live TV
+
+    /// How Live TV was last left on this device by a profile, as Android's
+    /// LiveTvViews keeps it: the category (`all`, `favorites`, `recent`,
+    /// `group:UK| Sport`), the view (`guide` or `channels`) and the channel
+    /// last watched, under `pley.settings.live.<origin>.<profile>.*`.
+    public struct LiveView: Equatable, Sendable {
+        public var category: String?
+        public var view: String?
+        public var channel: Int?
+
+        public init(category: String? = nil, view: String? = nil, channel: Int? = nil) {
+            self.category = category
+            self.view = view
+            self.channel = channel
+        }
+    }
+
+    public func liveView(origin: String, profileId: Int) -> LiveView {
+        let base = Self.liveKey(origin, profileId)
+        return LiveView(category: defaults.string(forKey: base + "category"), view: defaults.string(forKey: base + "view"),
+                        channel: defaults.object(forKey: base + "channel") as? Int)
+    }
+
+    /// Keeps what isn't `nil` of `category`, `view` and `channel`, the rest as it was.
+    public func keepLiveView(origin: String, profileId: Int, category: String? = nil, view: String? = nil,
+                             channel: Int? = nil) {
+        let base = Self.liveKey(origin, profileId)
+        if let category { defaults.set(category, forKey: base + "category") }
+        if let view { defaults.set(view, forKey: base + "view") }
+        if let channel { defaults.set(channel, forKey: base + "channel") }
+    }
+
+    private static func liveKey(_ origin: String, _ profileId: Int) -> String {
+        prefix + "live.\(origin).\(profileId)."
+    }
+
     private static func viewKey(_ origin: String, _ profileId: Int, _ libraryId: Int) -> String {
         "\(origin) \(profileId) \(libraryId)"
     }

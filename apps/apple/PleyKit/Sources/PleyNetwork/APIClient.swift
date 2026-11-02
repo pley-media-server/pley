@@ -317,6 +317,9 @@ public actor APIClient {
         let message = body.message.map(plain)
         if status == 410 && body.code == "session_stopped" { throw PleyError.sessionStopped(message: message) }
         if status == 403 && body.code == "insufficient_scope" { throw PleyError.insufficientScope(scope: nil) }
+        if status == 409 && !body.connections.isEmpty {
+            throw PleyError.busy(message: message, connections: body.connections)
+        }
         throw PleyError.api(status: status, code: body.code, message: message)
     }
 

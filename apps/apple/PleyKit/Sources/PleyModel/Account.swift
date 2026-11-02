@@ -4,14 +4,14 @@ import Foundation
 
 /// `GET /api/search` (docs/API.md, "Search"): items by relevance, people
 /// whose name has words starting with each word asked for, and Live TV
-/// channels for those Live TV is open to. The apps show channels from Live
-/// TV's version on; until then only how many there were is kept.
+/// channels (up to 12, by name, number or what's on) for those Live TV is
+/// open to.
 public struct SearchResults: Codable, Hashable, Sendable {
     public var items: [ItemSummary]
     public var people: [PersonSummary]
-    public var channels: [SearchChannel]
+    public var channels: [LiveChannel]
 
-    public init(items: [ItemSummary] = [], people: [PersonSummary] = [], channels: [SearchChannel] = []) {
+    public init(items: [ItemSummary] = [], people: [PersonSummary] = [], channels: [LiveChannel] = []) {
         self.items = items
         self.people = people
         self.channels = channels
@@ -22,24 +22,7 @@ public struct SearchResults: Codable, Hashable, Sendable {
         items = try c.value(.items, or: [])
         people = try c.value(.people, or: [])
         // A channel this app can't read takes nothing else down with it.
-        channels = (try? c.value(.channels, or: [SearchChannel]())) ?? []
-    }
-}
-
-/// A Live TV channel search found: its id and name only.
-public struct SearchChannel: Codable, Hashable, Sendable, Identifiable {
-    public var id: Int
-    public var name: String
-
-    public init(id: Int, name: String) {
-        self.id = id
-        self.name = name
-    }
-
-    public init(from decoder: any Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(Int.self, forKey: .id)
-        name = try c.value(.name, or: "")
+        channels = (try? c.value(.channels, or: [LiveChannel]())) ?? []
     }
 }
 

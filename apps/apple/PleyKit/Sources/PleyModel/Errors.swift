@@ -7,16 +7,20 @@ import Foundation
 public struct APIErrorBody: Codable, Hashable, Sendable {
     public var code: String
     public var message: String?
+    /// Live TV's `409` (every connection of a source in use): what holds each one.
+    public var connections: [BusyConnection]
 
-    public init(code: String, message: String? = nil) {
+    public init(code: String, message: String? = nil, connections: [BusyConnection] = []) {
         self.code = code
         self.message = message
+        self.connections = connections
     }
 
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         code = try c.value(.code, or: "")
         message = try c.decodeIfPresent(String.self, forKey: .message)
+        connections = (try? c.value(.connections, or: [BusyConnection]())) ?? []
     }
 }
 

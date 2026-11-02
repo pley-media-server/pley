@@ -32,6 +32,9 @@ public enum PleyError: Error, Sendable, Equatable {
     case tooLarge
     /// The server's refusal: `{ code, message }`, the message made plain.
     case api(status: Int, code: String, message: String?)
+    /// Live TV's `409`: every connection of the channel's source is in use,
+    /// and `connections` says what holds each one.
+    case busy(message: String?, connections: [BusyConnection])
     /// The app wasn't allowed this; `scope` is the one that would allow it.
     case insufficientScope(scope: String?)
     /// The playback session was stopped from elsewhere, with what the
@@ -69,6 +72,8 @@ public enum PleyError: Error, Sendable, Equatable {
             "the server's answer is too large"
         case .api(let status, let code, let message):
             message.flatMap { $0.isEmpty ? nil : $0 } ?? "the server refused (\(code), HTTP \(status))"
+        case .busy(let message, _):
+            message.flatMap { $0.isEmpty ? nil : $0 } ?? "every connection of this channel's provider is in use"
         case .insufficientScope:
             "this app wasn't allowed to do that: sign in to it again to allow it"
         case .sessionStopped(let message):
