@@ -14,6 +14,9 @@ describes how they are made.
   holding OK shows the controls (the channel list and the favourite).
 - Previous and Next change channel in the TV live player, as Channel up
   and down do.
+- The TV live player's channel list moves as the app's other lists do
+  under a held key: at an even pace, without asking for every logo it
+  passes, its focused row a third of the way down.
 
 ### Fixed
 
