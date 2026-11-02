@@ -441,7 +441,7 @@ impl Extractor {
         }
         let mut latest = extraction.seek.lock();
         let (prober, seek_reads, path) = (self.prober.clone(), self.seek_reads.clone(), path.to_owned());
-        let (seeking, seeks) = (self.seeking.clone(), extraction.seeks.clone());
+        let (seeking, seeks, background) = (self.seeking.clone(), extraction.seeks.clone(), self.background.clone());
         let before = latest.as_ref().map(|seek| seek.read.clone());
         let this_one = seeks.fetch_add(1, Ordering::Relaxed) + 1;
         let (at_ms, asked, path_name) = (start.from_ms, Instant::now(), path.display().to_string());
@@ -464,6 +464,8 @@ impl Extractor {
                 return None;
             }
             let _seeking = Seeking::new(seeking);
+            // A player waits for these: background work makes way.
+            let _reading = background.as_ref().map(|background| background.pictures());
             let read = tokio::task::spawn_blocking(move || {
                 let _permit = permit;
                 window_through_cues(&path, &media, index, at_ms)
@@ -560,6 +562,8 @@ impl Extractor {
         }
         let cue_reads = self.cue_reads.clone();
         let permit = cue_reads.clone().acquire_owned().await.map_err(|e| ApiError::Internal(e.into()))?;
+        // A player waits for these: background work makes way.
+        let reading = self.background.as_ref().map(|background| background.pictures());
         let window = self.subs_dir.join(window_name(track));
         let (file, media, target, first) = (path.to_owned(), media.clone(), target.to_owned(), read.first.clone());
         let (so_far, around_read) = (read.so_far.clone(), read.first.clone());
@@ -597,6 +601,7 @@ impl Extractor {
         })
         .await
         .unwrap_or_else(|e| Err(format!("the read through the cues failed: {e}")));
+        drop(reading);
         match read {
             Ok(()) => Ok(true),
             Err(reason) => {
@@ -2809,6 +2814,33 @@ mod tests {
             extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(205_000), false).await.unwrap();
         assert!(!complete);
         assert_eq!(picture_seconds(&bytes), (195..245).collect::<Vec<u8>>());
+    }
+
+    #[tokio::test]
+    async fn reads_a_player_waits_for_hold_background_work() {
+        let dir = tempfile::tempdir().unwrap();
+        let background = Background::new();
+        let mut extractor = extractor_with(dir.path(), dir.path().join("no-ffmpeg"));
+        extractor.background = Some(background.clone());
+        let extractor = Arc::new(extractor);
+        let (name, key) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(250));
+        let at = |from_ms: i64| PictureStart { from_ms, media: None, asked: true };
+        let wait = Duration::from_secs(20);
+        assert!(!background.held());
+        // A track read through its Cues holds seek previews and the like
+        // until a moment after it...
+        extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(10_000), false).await.unwrap();
+        let cached = dir.path().join("subtitles").join(format!("{key}_3.mks"));
+        eventually(|| cached.exists()).await;
+        assert!(background.held());
+        eventually(|| !background.held()).await;
+        // ...and so does a read at a seek, beside a copy under way.
+        std::fs::remove_file(&cached).unwrap();
+        let (_so_far, _unfinished) = copy_under_way(&extractor, &key);
+        let (there, _) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(200_000), false).await.unwrap();
+        assert_eq!(picture_seconds(&there), (190..240).collect::<Vec<u8>>());
+        assert!(background.held());
+        eventually(|| !background.held()).await;
     }
 
     #[test]
