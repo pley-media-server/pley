@@ -273,7 +273,8 @@ impl Extractor {
     /// its own, past this request. A Matroska file whose Cues list the
     /// track's blocks is read through them: those around where the player is
     /// (`start`) first, at once, answered with as soon as they are written;
-    /// the rest once no playback is starting, within seconds. Otherwise
+    /// the rest once no playback is starting (a minute or so for a remux on
+    /// a network share). Otherwise
     /// FFmpeg copies it out once no playback is starting, reading the whole
     /// file (minutes for a big one on a network share). Meanwhile the answer
     /// is those blocks (until FFmpeg's copy comes past them, when a read
@@ -562,28 +563,33 @@ impl Extractor {
         let window = self.subs_dir.join(window_name(track));
         let (file, media, target, first) = (path.to_owned(), media.clone(), target.to_owned(), read.first.clone());
         let (so_far, around_read) = (read.so_far.clone(), read.first.clone());
-        let (background, runtime) = (self.background.clone(), tokio::runtime::Handle::current());
-        let (seeking, handle) = (self.seeking.clone(), runtime.clone());
-        let between = move || {
-            let started = Instant::now();
-            let mut seeking = seeking.subscribe();
-            handle.block_on(async {
-                let _ = seeking.wait_for(|reads| *reads == 0).await;
-            });
-            started.elapsed()
-        };
+        let (background, runtime, seeking) =
+            (self.background.clone(), tokio::runtime::Handle::current(), self.seeking.clone());
         let read = tokio::task::spawn_blocking(move || {
-            let mut permit = Some(permit);
+            // Its turn let go of whenever it waits, and taken again after:
+            // another track's first blocks, and text tracks, needn't wait for
+            // this one's rest (minutes for a remux on a busy NAS).
+            let permit = Mutex::new(Some(permit));
             let first_written = || {
                 first.store(true, Ordering::Release);
                 let Some(background) = &background else { return Duration::ZERO };
                 let started = Instant::now();
-                // Its turn let go of meanwhile: another track's first blocks
-                // needn't wait for this one's rest.
-                drop(permit.take());
+                drop(permit.lock().take());
                 runtime.block_on(async {
                     background.wait_for_starts().await;
-                    permit = cue_reads.acquire_owned().await.ok();
+                    let turn = cue_reads.clone().acquire_owned().await.ok();
+                    *permit.lock() = turn;
+                });
+                started.elapsed()
+            };
+            let between = || {
+                let started = Instant::now();
+                drop(permit.lock().take());
+                let mut seeking = seeking.subscribe();
+                runtime.block_on(async {
+                    let _ = seeking.wait_for(|reads| *reads == 0).await;
+                    let turn = cue_reads.clone().acquire_owned().await.ok();
+                    *permit.lock() = turn;
                 });
                 started.elapsed()
             };
@@ -1318,10 +1324,16 @@ fn picture_read_time(bytes: u64) -> Duration {
     CUE_READ_TIME.max(Duration::from_secs(bytes / 100_000_000))
 }
 
+/// How long reading a picture track through the Cues of the file at `path`
+/// may take: see [`picture_read_time`].
+fn picture_read_timeout(path: &Path) -> Duration {
+    picture_read_time(std::fs::metadata(path).map(|m| m.len()).unwrap_or(0))
+}
+
 /// The picture subtitles read through the Cues first: from this long before
 /// where the player is (what shows there may have started a while before)
-/// to this long after it (the rest comes within seconds; each block more is
-/// a read, which is what the first answer waits for).
+/// to this long after it (the rest comes after; each block more is a read,
+/// which is what the first answer waits for).
 const PICTURES_BEFORE_MS: i64 = 30_000;
 const PICTURES_AFTER_MS: i64 = 2 * 60_000;
 /// The blocks read around where a playback starts: see the two above.
@@ -1339,8 +1351,8 @@ const AROUND_SEEK: (i64, i64) = (10_000, 40_000);
 /// are all of it; then `first_written` hears so, holds the rest up until no
 /// playback is starting, and says how long it waited. Each stretch read is
 /// in `so_far` from then on; after each but the last, `between` holds the
-/// next up while reads at players elsewhere go on, and says how long it
-/// waited. Blocking.
+/// next up while reads at players elsewhere go on and other reads take the
+/// turn, and says how long it waited. Blocking.
 #[allow(clippy::too_many_arguments)]
 fn write_through_cues(
     path: &Path,
@@ -1354,8 +1366,7 @@ fn write_through_cues(
     mut between: impl FnMut() -> Duration,
 ) -> Result<(), String> {
     let started = Instant::now();
-    let file_bytes = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-    let budget = matroska::Budget::new(PICTURE_READ_BYTES, picture_read_time(file_bytes));
+    let budget = matroska::Budget::new(PICTURE_READ_BYTES, picture_read_timeout(path));
     let mut first_written = Some(first_written);
     let (mut reads, mut bytes_read, mut first_ms) = (0, 0, None);
     let around = (from_ms.saturating_sub(PICTURES_BEFORE_MS), from_ms.saturating_add(PICTURES_AFTER_MS));
@@ -2560,6 +2571,51 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn the_rest_of_a_track_lets_its_turn_go_between_stretches() {
+        let dir = tempfile::tempdir().unwrap();
+        // One turn for reads through the Cues.
+        let extractor = extractor_without_ffmpeg(dir.path());
+        let (name, key) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(1_000));
+        // A read at a seek under way holds the track's rest up after its
+        // first stretch.
+        let seeking = Seeking::new(extractor.seeking.clone());
+        let start = PictureStart { from_ms: 0, media: None, asked: true };
+        let wait = Duration::from_secs(20);
+        let (_, complete) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, start, false).await.unwrap();
+        assert!(!complete);
+        // A text track read through the Cues meanwhile has the turn.
+        let asked = Instant::now();
+        let (_, complete) = extractor.subtitle_so_far(&name, 2, Duration::from_secs(5)).await.unwrap();
+        assert!(complete && asked.elapsed() < Duration::from_secs(5), "{:?}", asked.elapsed());
+        // The rest goes on once the read at the seek is over.
+        drop(seeking);
+        let whole = dir.path().join("subtitles").join(format!("{key}_3.mks"));
+        eventually(|| whole.exists()).await;
+    }
+
+    #[tokio::test]
+    async fn no_seek_is_read_through_cues_that_fail_around_the_player() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut extractor = extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), true));
+        extractor.header_wait = Duration::from_millis(500);
+        let extractor = Arc::new(extractor);
+        let mut file = matroska::tests::pictures_every_second(600);
+        // A cue among those around the player points at the video's block.
+        file.extra_cues.push((5, 60, 0, 0));
+        let (name, key) = movie_in(&extractor, dir.path(), &file);
+        let at = |from_ms: i64| PictureStart { from_ms, media: None, asked: true };
+        let wait = Duration::from_millis(100);
+        extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(50_000), false).await.unwrap();
+        eventually(|| !ffmpeg_runs(dir.path()).is_empty()).await;
+        assert!(extractor.unreadable.lock().contains(&format!("{key}_3")));
+        // A seek has what FFmpeg has copied, nothing read through those Cues.
+        let (there, complete) =
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(200_000), false).await.unwrap();
+        assert!(!complete);
+        assert_eq!(picture_seconds(&there), Vec::<u8>::new());
+    }
+
+    #[tokio::test]
     async fn reads_at_seeks_go_on_while_ffmpeg_copies_a_track_whose_cues_fail_past_the_player() {
         let dir = tempfile::tempdir().unwrap();
         let extractor = Arc::new(extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), true)));
@@ -3066,6 +3122,8 @@ mod tests {
         assert_eq!(pass_timeout(77_098_924_052), Duration::from_secs(7_709), "a 77 GB 4K remux: over 2 hours");
         // A picture track's read through the Cues: a minute, or as long as
         // FFmpeg would take at 100 MB/s.
+        assert_eq!(picture_read_timeout(&small), Duration::from_secs(60));
+        assert_eq!(picture_read_timeout(&dir.path().join("missing.mkv")), Duration::from_secs(60));
         assert_eq!(picture_read_time(1_100_000_000), Duration::from_secs(60), "an episode");
         assert_eq!(picture_read_time(81_700_000_000), Duration::from_secs(817), "a remux: over 13 minutes");
     }

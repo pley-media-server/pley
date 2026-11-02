@@ -299,8 +299,10 @@ its palette, DVB) next to an HLS stream.
   The blocks around where the player is come first, at once: from half a
   minute before `from_ms` to two minutes after it, written whole to a file
   of their own. The rest waits for playbacks starting, as other background
-  work does, then comes a few hundred clusters at a time, and the whole
-  track is written, in order of time. The read keeps at most 192 MiB and
+  work does, then comes a few hundred clusters at a time, each taking a
+  turn among the reads through the Cues again (another track's first
+  blocks and text tracks don't wait for it), and the whole track is
+  written, in order of time. The read keeps at most 192 MiB and
   may take as long as FFmpeg would take to read the file at 100 MB/s, a
   minute at least: a Blu-ray's track is thousands of reads, a disk seek
   each, and FFmpeg reads all of a remux. A later request whose `from_ms` is

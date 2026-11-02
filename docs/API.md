@@ -1672,15 +1672,17 @@ removed or reordered (`400`).
     them. Those around where the player is come first, within a few
     seconds: from half a minute before `at` (ms of the file's time, taken
     to the second; the playback's start for the copy a playback start
-    begins) to two minutes after it. The whole track follows within
-    seconds. A request whose `at` is away from where the copy started (a
-    seek) has the pictures there read at once, from 10 s before it to 40 s
-    after it, and is answered with those: the answer waits up to 12 s for
-    that read (a first answer, up to 30 s for the track's header), so a
-    player's timeout allows for that. So each request says where the
-    player is then (`at=0` at the start too), a seek asks again at once,
-    dropping the request it had under way, and the player asks again
-    within half a minute as it plays on.
+    begins) to two minutes after it. The whole track follows: within a
+    minute or so from a network share for a Blu-ray remux's, whose
+    thousands of pictures are a read each. A request whose `at` is away
+    from where the copy started (a seek) has the pictures there read at
+    once, from 10 s before it to 40 s after it, and is answered with
+    those: the answer waits up to 12 s for that read (a first answer, up
+    to 30 s for the track's header), so a player's timeout allows for
+    that. So each request says where the player is then (`at=0` at the
+    start too), a seek asks again at once, dropping the request it had
+    under way, and the player asks again within half a minute as it plays
+    on.
   - Otherwise the transcoder reads the whole file (minutes for a big one on
     a network share), and the answer is what it has copied so far, up to
     its last whole cluster. A copy through the Cues that fails past the
