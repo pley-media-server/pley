@@ -48,9 +48,9 @@ internal data class PlayerToast(val text: String, val ms: Long, val serial: Int,
 
 /**
  * What the TV player shows beyond the playback's own state: the controls
- * hidden or shown, a side panel, the chapters' cards, where focus goes
- * next, the toast. Only this composition's; nothing here survives the
- * screen.
+ * hidden or shown, a side panel, the chapters' cards, the title banner,
+ * where focus goes next, the toast. Only this composition's; nothing here
+ * survives the screen.
  */
 @Stable
 internal class TvPlayerUi {
@@ -67,6 +67,13 @@ internal class TvPlayerUi {
 
     /** Where focus was as the chapters' cards opened, to go back to: the scrubber or the Chapters button. */
     private var chaptersFrom = PlayerFocus.Scrubber
+
+    /** The item the title banner shows for, while it shows ([TvTitleBanner]); `null` otherwise. */
+    var banner: Long? by mutableStateOf(null)
+        private set
+
+    /** The item the banner last came for: another one beginning brings it again. */
+    private var bannerFor: Long? = null
 
     /** The panel shown last, kept while it slides away. */
     var lastPanel: PlayerPanel? by mutableStateOf(null)
@@ -101,10 +108,27 @@ internal class TvPlayerUi {
         input++
     }
 
+    /** Shows the controls, focus on [focus]. They have the title: the banner makes way at once. */
     fun showControls(focus: PlayerFocus) {
         controls = true
+        banner = null
         touch()
         ask(focus)
+    }
+
+    /**
+     * [itemId] plays: the first time it does, the banner shows its title,
+     * unless the controls show already, which have it.
+     */
+    fun playing(itemId: Long) {
+        if (itemId == bannerFor) return
+        bannerFor = itemId
+        if (!controls) banner = itemId
+    }
+
+    /** The banner for [itemId] has shown long enough. */
+    fun hideBanner(itemId: Long) {
+        if (banner == itemId) banner = null
     }
 
     /** Hides the controls, and the chapters' cards with them; focus goes to [then] (Skip while it shows, else the video). */
@@ -169,6 +193,9 @@ internal class TvPlayerUi {
 
         /** The controls hide after this long without a key, unless paused or in a panel. */
         const val HIDE_AFTER_MS = 5_000L
+
+        /** The title banner shows this long as an item begins. */
+        const val BANNER_MS = 4_000L
 
         fun buttonOf(panel: PlayerPanel): PlayerFocus = when (panel) {
             PlayerPanel.Subtitles -> PlayerFocus.Subtitles

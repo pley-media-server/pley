@@ -51,12 +51,13 @@ import kotlinx.coroutines.launch
  * [PlaybackController]: the video on its SurfaceView, subtitles, and the
  * remote's keys.
  *
- * - **Controls hidden.** Only the video and subtitles show; Skip and Up
- *   Next are all that appear unasked. Centre shows the controls on the
- *   scrubber, as Up does (a showing Skip button or Keep watching takes it),
- *   Down on Play/Pause. Left and Right show them on the scrubber too, with
- *   the preview, and seek from there. Centre on the scrubber plays or
- *   pauses.
+ * - **Controls hidden.** Only the video and subtitles show; the title for
+ *   a few seconds as each item begins ([TvTitleBanner]), Skip, Up Next and
+ *   the sleep timer's notice are all that appear unasked. Centre shows the
+ *   controls on the scrubber, as Up does (a showing Skip button or Keep
+ *   watching takes it), Down on Play/Pause. Left and Right show them on the
+ *   scrubber too, with the preview, and seek from there. Centre on the
+ *   scrubber plays or pauses.
  * - **Seeking** ([TvSeeker]), as YouTube's TV app does: Left and Right
  *   move where it goes, 10 s a press (held: scrub), and it goes there on
  *   OK, or by itself 5 s after the last key; fast forward, rewind and the
@@ -417,6 +418,16 @@ internal fun TvPlayerScreen(
         delay(TvSeeker.CONFIRM_MS)
         seeker.settled(seek)
     }
+    // The title as each item first plays (the next episode by itself too), for a few seconds.
+    val itemId by remember(state) { derivedStateOf { state.value.itemId } }
+    LaunchedEffect(itemId, phase == PlayerPhase.Playing) {
+        if (phase == PlayerPhase.Playing) ui.playing(itemId)
+    }
+    LaunchedEffect(ui.banner) {
+        val shown = ui.banner ?: return@LaunchedEffect
+        delay(TvPlayerUi.BANNER_MS)
+        ui.hideBanner(shown)
+    }
     // The playback's messages, as toasts.
     val notice by remember(state) { derivedStateOf { state.value.notice } }
     LaunchedEffect(notice) {
@@ -464,6 +475,7 @@ internal fun TvPlayerScreen(
         VideoSurface(player, Modifier.fillMaxSize()) { handoff }
         // Under the subtitles, which the scrim mustn't dim.
         Box(Modifier.fillMaxSize().controlScrims(controlsAlpha))
+        TvTitleBanner(state, ui)
         PlayerSubtitles(controller, player, captionLook, lifted = ui.controls)
         // Holds focus while the controls are hidden: the keys arrive through it.
         Box(Modifier.fillMaxSize().videoFocus(ui, enabled = !ui.controls, label = videoLabel))

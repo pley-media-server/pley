@@ -263,6 +263,51 @@ class TvPlayerScreenTest {
     }
 
     @Test
+    fun `the title shows for 4 s as each item begins, the next episode too`() {
+        val controller = playing()
+        show(controller)
+        compose.onNodeWithTag(TAG_TITLE_BANNER).assertExists()
+        compose.onNodeWithText("S1 · E1 · Pilot").assertExists()
+        compose.mainClock.advanceTimeBy(TvPlayerUi.BANNER_MS + 500)
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_TITLE_BANNER).assertDoesNotExist()
+        // The next episode: its title shows once it plays.
+        controller.update { it.copy(phase = PlayerPhase.Preparing, itemId = 20_002, subtitle = "S1 E2 — Second") }
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_TITLE_BANNER).assertDoesNotExist()
+        controller.update { it.copy(phase = PlayerPhase.Playing) }
+        compose.waitForIdle()
+        compose.onNodeWithText("S1 · E2 · Second").assertExists()
+        compose.mainClock.advanceTimeBy(TvPlayerUi.BANNER_MS + 500)
+        compose.waitForIdle()
+        // Paused and playing again, the same item doesn't bring it back.
+        controller.update { it.copy(phase = PlayerPhase.Paused) }
+        compose.waitForIdle()
+        controller.update { it.copy(phase = PlayerPhase.Playing) }
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_TITLE_BANNER).assertDoesNotExist()
+    }
+
+    @Test
+    fun `the controls take the title's place, and it doesn't show under them`() {
+        val controller = playing()
+        show(controller)
+        compose.onNodeWithTag(TAG_TITLE_BANNER).assertExists()
+        press(Key.DirectionUp)
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_TITLE_BANNER).assertDoesNotExist()
+        // An item beginning with the controls up: they have its title already.
+        controller.update { it.copy(itemId = 20_002, subtitle = "S1 E2 — Second") }
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_TITLE_BANNER).assertDoesNotExist()
+        back()
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_TITLE_BANNER).assertDoesNotExist()
+    }
+
+    @Test
     fun `the scrubber's times stand where a seek coming goes`() {
         val controller = playing()
         show(controller)

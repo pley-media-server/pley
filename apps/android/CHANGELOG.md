@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- On TVs, the title shows at the top for a few seconds as each item
+  begins, the next episode too, while the player's controls are hidden.
+
 ### Changed
 
 - Chapters named only by where they start ("00:06:19.212", as mkvmerge
