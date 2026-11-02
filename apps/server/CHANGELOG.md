@@ -26,9 +26,10 @@ describes how they are made.
 
 ### Changed
 
-- Seek previews, fingerprints and other background work pause, for a minute
-  and a half at most, while the subtitles of a film being played are read,
-  so on a NAS those come sooner while seek previews are being made.
+- Seek previews, fingerprints and other background work pause while the
+  subtitles of a film being played are read out of its Matroska file, a
+  minute and a half at most each time, so on a NAS those come sooner while
+  seek previews are being made.
 - Picture subtitles (PGS, VobSub, DVB) that the apps draw show within a few
   seconds of a playback starting, where they could take up to a minute:
   the transcoder reads those around where the playback is out of a

@@ -389,6 +389,10 @@ pub struct Budget {
     time_ms: AtomicU64,
 }
 
+/// The error of a read through the Cues past its time: a busy disk most
+/// often, which another read may find less busy.
+pub const TOOK_TOO_LONG: &str = "reading through the cues took too long";
+
 impl Budget {
     pub fn new(bytes: u64, time: Duration) -> Self {
         Self { bytes: AtomicU64::new(bytes), started: Instant::now(), time_ms: AtomicU64::new(time.as_millis() as u64) }
@@ -397,7 +401,7 @@ impl Budget {
     /// Whether the read has time left.
     pub fn check(&self) -> Result<(), String> {
         if self.started.elapsed().as_millis() as u64 > self.time_ms.load(Ordering::Relaxed) {
-            Err("reading through the cues took too long".into())
+            Err(TOOK_TOO_LONG.into())
         } else {
             Ok(())
         }
@@ -2573,9 +2577,9 @@ pub(crate) mod tests {
         let path = file.write(dir.path());
         let found = text_tracks(&path, &media, &[1], &budget(least)).unwrap();
         assert!(found.reads >= 800, "every head read: {}", found.reads);
-        // Out of time.
+        // Out of time: an error of its own, which reads at seeks try again.
         let late = Budget::new(u64::MAX, Duration::ZERO);
-        assert!(text_tracks(&path, &media, &[1], &late).unwrap_err().contains("too long"));
+        assert_eq!(text_tracks(&path, &media, &[1], &late).unwrap_err(), TOOK_TOO_LONG);
     }
 
     #[test]

@@ -196,9 +196,10 @@ impl Background {
         }
     }
 
-    /// Run FFmpeg (or FFprobe) as background work: once nothing starts or
-    /// transcodes, and paused while something does. Its output and log; an
-    /// error when it fails or runs longer than `timeout`.
+    /// Run FFmpeg (or FFprobe) as background work: once nothing starts,
+    /// transcodes or reads a player's subtitles, and paused while something
+    /// does. Its output and log; an error when it fails or runs longer than
+    /// `timeout`.
     pub async fn run(&self, mut cmd: Command, timeout: Duration) -> ApiResult<(Vec<u8>, String)> {
         self.wait().await;
         cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
@@ -217,8 +218,8 @@ impl Background {
     }
 
     /// Wait for a background process to end, pausing it while a playback
-    /// starts or a transcode runs; it is stopped once it has run for
-    /// `timeout`, paused time not counted.
+    /// starts, a transcode runs or a player's subtitles are read; it is
+    /// stopped once it has run for `timeout`, paused time not counted.
     pub async fn supervise(&self, child: &mut Child, timeout: Duration) -> ApiResult<ExitStatus> {
         let mut changed = self.changed.subscribe();
         changed.mark_unchanged();

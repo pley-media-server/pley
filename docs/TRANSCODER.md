@@ -246,8 +246,8 @@ each sheet holds `columns × rows` of them, left to right, top to bottom.
   mapped with libplacebo when available.
 - Up to `trickplay_runs` sets are made at once (`--max-previews`); further
   requests wait their turn. Like other background work, sets wait for and
-  pause through playback starts and transcodes
-  ([Background work and playback](#background-work-and-playback)).
+  pause through playback starts, transcodes and reads of a player's
+  subtitles ([Background work and playback](#background-work-and-playback)).
 - A set may run for an hour, or 1 s per 10 MB of its file when that is
   longer; paused time doesn't count. Its folder is made only once it may
   start, and is marked as being written every 10 minutes while it runs or
@@ -318,8 +318,8 @@ its palette, DVB) next to an HLS stream.
   with each answer would lose the pictures where they are. Past that, or
   when the read gets nothing (over its budget, or left out for a later
   one), the answer is the blocks there if the copy has all of them, else
-  what the copy has, and the player asks again: a read that got nothing is
-  tried again then.
+  what the copy has, and the player asks again: a read that went over its
+  time (a busy disk) is tried again then.
 - `rest` (with `partial`) is for a player that reads the track once
   (Kodi's `.sup`): the answer waits up to 8 s for the whole track, then is
   everything read through the Cues so far, not only the blocks around
@@ -1085,7 +1085,7 @@ episodes' fingerprints to find shared intros and credits.
   audio downmixed to mono 11025 Hz. Each value covers 1365 samples (0.124 s,
   `item_seconds`).
 - Two requests run at a time, at below-normal priority, paused while a
-  playback starts or a transcode runs
+  playback starts, a transcode runs or a player's subtitles are read
   ([Background work and playback](#background-work-and-playback)).
 
 ### Key frames

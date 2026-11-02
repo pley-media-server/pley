@@ -79,8 +79,9 @@ pub struct Extractor {
     /// How long an answer for a player elsewhere waits for the read there
     /// ([`SEEK_WAIT`]).
     seek_wait: Duration,
-    /// Playbacks starting, which picture tracks wait for: they read the same
-    /// disk or share.
+    /// Playbacks starting, which picture tracks wait for (they read the same
+    /// disk or share), and the background work subtitles a player waits for
+    /// hold while they are read through the Cues.
     background: Option<Arc<Background>>,
 }
 
@@ -145,7 +146,8 @@ impl Extractor {
         }
     }
 
-    /// Picture tracks are extracted once no playback is starting.
+    /// Picture tracks are extracted once no playback is starting, and reads
+    /// through the Cues a player waits for hold background work.
     pub fn with_background(mut self, background: Arc<Background>) -> Self {
         self.background = Some(background);
         self
@@ -314,8 +316,8 @@ impl Extractor {
             && !near(extraction.from_ms, AROUND_START, start.from_ms)
         {
             // The same answer for the same place: a read there first (once
-            // it is over) unless it got nothing, else what the track's read
-            // has, else a read.
+            // it is over) unless it went over its time, else what the
+            // track's read has, else a read.
             let latest = extraction.seek.lock().clone().filter(|seek| seek.answers(start.from_ms));
             if latest.is_some() {
                 seek = latest;
@@ -446,6 +448,8 @@ impl Extractor {
         let before = latest.as_ref().map(|seek| seek.read.clone());
         let this_one = seeks.fetch_add(1, Ordering::Relaxed) + 1;
         let (at_ms, asked, path_name) = (start.from_ms, Instant::now(), path.display().to_string());
+        let ran_out = Arc::new(AtomicBool::new(false));
+        let over_time = ran_out.clone();
         let read = async move {
             if let Some(before) = before {
                 before.await;
@@ -481,6 +485,7 @@ impl Extractor {
                 }
                 Err(reason) => {
                     tracing::debug!("picture subtitles of {path_name} at {at_ms} ms not read: {reason}");
+                    over_time.store(reason == matroska::TOOK_TOO_LONG, Ordering::Relaxed);
                     None
                 }
             }
@@ -489,7 +494,7 @@ impl Extractor {
         .shared();
         // Read on its own: a player that goes away asks again.
         tokio::spawn(read.clone());
-        let seek = Seek { at_ms, read };
+        let seek = Seek { at_ms, read, ran_out };
         *latest = Some(seek.clone());
         Some(seek)
     }
@@ -1243,15 +1248,18 @@ struct Seek {
     at_ms: i64,
     /// The blocks as a Matroska file once read; `None` when they couldn't be.
     read: Shared<BoxFuture<'static, Option<Arc<Vec<u8>>>>>,
+    /// Set when the read went over its time ([`matroska::TOOK_TOO_LONG`]).
+    ran_out: Arc<AtomicBool>,
 }
 
 impl Seek {
-    /// Whether this read is the answer for a player at `at_ms`: near it, and
-    /// under way or with the blocks there. One that got nothing (they
-    /// couldn't be read, or it went over its budget) isn't: the player's next
-    /// ask reads there again.
+    /// Whether this read is the answer for a player at `at_ms`: near it,
+    /// unless it went over its time. The disk was busy then, and the
+    /// player's next ask reads there again. One that got nothing otherwise
+    /// would get nothing again (the blocks there can't be read through the
+    /// Cues, or are more than its budget), and stays the answer.
     fn answers(&self, at_ms: i64) -> bool {
-        near(self.at_ms, AROUND_SEEK, at_ms) && !matches!(self.read.peek(), Some(None))
+        near(self.at_ms, AROUND_SEEK, at_ms) && !self.ran_out.load(Ordering::Relaxed)
     }
 }
 
@@ -2554,24 +2562,51 @@ mod tests {
         assert!(near(60_000, AROUND_SEEK, 80_000) && !near(60_000, AROUND_SEEK, 80_001));
     }
 
+    /// A read at a seek at `at_ms` as [`Extractor::seek`] leaves one: run as
+    /// far as it goes on its own, and `ran_out` when it went over its time.
+    fn seek_read(at_ms: i64, read: BoxFuture<'static, Option<Arc<Vec<u8>>>>, ran_out: bool) -> Seek {
+        let read = read.shared();
+        let _ = read.clone().now_or_never();
+        Seek { at_ms, read, ran_out: Arc::new(AtomicBool::new(ran_out)) }
+    }
+
     #[test]
-    fn a_read_at_a_seek_answers_players_near_it_unless_it_got_nothing() {
-        let seek = |read: BoxFuture<'static, Option<Arc<Vec<u8>>>>| {
-            let read = read.shared();
-            // Run on its own, as reads at seeks are.
-            let _ = read.clone().now_or_never();
-            Seek { at_ms: 200_000, read }
-        };
-        let got_pictures = seek(futures::future::ready(Some(Arc::new(vec![0x16]))).boxed());
-        let under_way = seek(futures::future::pending().boxed());
-        let got_nothing = seek(futures::future::ready(None).boxed());
-        // Near where it read, one that has the pictures there, or is still
-        // reading them, answers; one that got nothing doesn't, so the next
-        // ask reads there again...
-        assert!(got_pictures.answers(205_000) && under_way.answers(205_000));
-        assert!(!got_nothing.answers(205_000));
+    fn a_read_at_a_seek_answers_players_near_it_unless_it_went_over_its_time() {
+        let got_pictures = seek_read(200_000, futures::future::ready(Some(Arc::new(vec![0x16]))).boxed(), false);
+        let under_way = seek_read(200_000, futures::future::pending().boxed(), false);
+        let got_nothing = seek_read(200_000, futures::future::ready(None).boxed(), false);
+        let over_time = seek_read(200_000, futures::future::ready(None).boxed(), true);
+        // Near where it read, one that has the pictures there, is still
+        // reading them, or can't have them answers; one that went over its
+        // time doesn't, so the next ask reads there again...
+        assert!(got_pictures.answers(205_000) && under_way.answers(205_000) && got_nothing.answers(205_000));
+        assert!(!over_time.answers(205_000));
         // ...and away from there, none does.
-        assert!(!got_pictures.answers(100_000) && !under_way.answers(100_000) && !got_nothing.answers(100_000));
+        assert!([got_pictures, under_way, got_nothing, over_time].iter().all(|seek| !seek.answers(100_000)));
+    }
+
+    #[tokio::test]
+    async fn a_player_near_a_read_at_a_seek_that_went_over_its_time_has_it_read_again() {
+        let dir = tempfile::tempdir().unwrap();
+        let extractor = extractor_without_ffmpeg(dir.path());
+        let (name, key) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(600));
+        let at = |from_ms: i64| PictureStart { from_ms, media: None, asked: true };
+        let wait = Duration::from_secs(20);
+        // The track's read holds up after the pictures around the player.
+        let _seeking = Seeking::new(extractor.seeking.clone());
+        extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(0), false).await.unwrap();
+        let extraction = extractor.pictures.lock().get(&format!("{key}_3")).cloned().unwrap();
+        let latest = || extraction.seek.lock().as_ref().map(|seek| seek.at_ms);
+        // A read at 3:20 that got nothing, the blocks there unreadable: a
+        // player near it has that answer, and nothing more is read...
+        *extraction.seek.lock() = Some(seek_read(200_000, futures::future::ready(None).boxed(), false));
+        extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(205_000), false).await.unwrap();
+        assert_eq!(latest(), Some(200_000));
+        // ...while one that went over its time, the disk busy, is read again.
+        *extraction.seek.lock() = Some(seek_read(200_000, futures::future::ready(None).boxed(), true));
+        let (there, _) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(205_000), false).await.unwrap();
+        assert_eq!(latest(), Some(205_000));
+        assert_eq!(picture_seconds(&there), (195..245).collect::<Vec<u8>>());
     }
 
     /// The seconds of the pictures in a Matroska file of the track of

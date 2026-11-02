@@ -412,7 +412,8 @@ async fn run(args: Args) -> anyhow::Result<()> {
     let metrics = Arc::new(metrics::Metrics::default());
     let prober = Arc::new(probe::Prober::new(ff.clone(), metrics.clone(), args.probe_concurrency));
     // Seek previews, fingerprints, keyframe scans and probes wait for starting
-    // playbacks; all but probes wait for transcodes too.
+    // playbacks; all but probes wait for transcodes, and for subtitles a
+    // player waits for, too.
     let background = background::Background::new();
     let keyframes =
         keyframes::KeyframeStore::new(ff.clone(), metrics.clone(), background.clone(), work_dir.join("keyframes"));
