@@ -189,11 +189,11 @@ impl Screen for PlayerScreen {
                 }
                 self.end();
             }
-            // Shown again: a new playback where it was, paused again if it was paused.
+            // Shown again: a new playback where it was, paused, as the Samsung and Android apps
+            // leave a video the TV's Home interrupted, with the controls showing as a pause does.
             AppEvent::Visible(true) => {
                 if let Some(saved) = self.saved.take()
                     && self.begin(saved.request, cx.now, cx)
-                    && !saved.playing
                     && let Some(p) = self.playback.as_mut()
                 {
                     p.pause();

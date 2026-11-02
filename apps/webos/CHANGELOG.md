@@ -45,6 +45,9 @@ describes how they are made.
 - Chapters show as a row of cards over the scrubber, each with its picture,
   name and start, in place of the Chapters panel: the Chapters button opens
   them, and so does Up while a seek waits for OK.
+- A video the TV's Home interrupted comes back paused where it was, with
+  the controls showing, as in the Samsung and Android apps, rather than
+  playing on by itself.
 
 ### Fixed
 

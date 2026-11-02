@@ -271,7 +271,8 @@ for titles.
   anonymous registration, every call bounded by a timeout. The main thread
   never waits on luna, the network or the disk.
 - **Coming and going.** When the TV hides the app, a video stops where it
-  was and starts there again when the app shows; music pauses and plays
+  was and, when the app shows, comes back there paused, with the controls
+  showing, as in the Samsung and Android apps; music pauses and plays
   on when the app shows, if it was playing; the server's event stream
   stops until the app is back. When the TV takes a
   paused video's decoder back (as when its screen saver comes on), play

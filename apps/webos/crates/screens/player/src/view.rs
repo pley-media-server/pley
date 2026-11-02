@@ -373,12 +373,21 @@ impl PlayerView {
         ui.focused_in(ids.error).map(|_| Target::Error)
     }
 
-    /// The playback was made again (the TV showed the app after hiding it): what was seen of the
-    /// last one goes, nothing is open, and the controls are hidden.
+    /// The playback was made again, paused (the TV showed the app after hiding it): what was seen
+    /// of the last one goes, nothing is open, and the controls show on the scrubber, as a pause
+    /// shows them. The title banner, shown for this item already, doesn't come again.
     pub fn reopened(&mut self) {
         let can_find = self.can_find;
         let previews = std::mem::take(&mut self.previews);
-        *self = PlayerView { can_find, previews, ask: Some(Target::Video), ..PlayerView::new() };
+        let banner_for = self.banner_for;
+        *self = PlayerView {
+            can_find,
+            previews,
+            banner_for,
+            controls: true,
+            ask: Some(Target::Scrubber),
+            ..PlayerView::new()
+        };
     }
 
     /// A panel is open: it keeps focus.

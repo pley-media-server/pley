@@ -445,15 +445,22 @@ fn the_top_bar_says_what_plays_and_when_it_ends_while_paused() {
 }
 
 #[test]
-fn coming_back_after_the_tv_hid_the_app_starts_clean() {
+fn coming_back_after_the_tv_hid_the_app_starts_clean_with_the_controls() {
     let mut pl = Player::new(Fake::episode());
+    pl.wait(4.5);
     pl.press(Key::Audio);
     assert!(pl.view.panel().is_some());
     pl.view.reopened();
     pl.wait(0.3);
     assert_eq!(pl.view.panel(), None);
-    assert!(!pl.view.controls());
-    assert_eq!(pl.focus(), Some(Target::Video));
+    // It comes back paused: the controls show on the scrubber, as a pause shows them.
+    assert!(pl.view.controls());
+    assert_eq!(pl.focus(), Some(Target::Scrubber));
+    // The title banner shown as the item began doesn't come again.
+    pl.p.state.phase = pley_player::Phase::Paused;
+    assert!(pl.back());
+    pl.wait(0.5);
+    assert!(!pl.texts().iter().any(|t| t == "Fixture Show"), "the banner came again");
 }
 
 #[test]
