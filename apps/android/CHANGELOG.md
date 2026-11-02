@@ -14,6 +14,8 @@ describes how they are made.
   plays on at once after a long pause, where it started over. A video or
   a live channel ends the music's session as well as pausing it, and Play
   starts the music again where it was.
+- A remote's Stop key pauses music and keeps its queue, where it ended
+  the music and took Now Playing out of the TV's rail.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
