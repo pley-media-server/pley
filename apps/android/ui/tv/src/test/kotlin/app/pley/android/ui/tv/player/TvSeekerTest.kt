@@ -5,13 +5,59 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.pow
 
 /** Left and Right: presses that add up and seek once, and a held key that scrubs and seeks on release. */
 class TvSeekerTest {
     private var position = 600_000L
-    private val duration = 3_600_000L
+    private var duration = 3_600_000L
     private val seeks = mutableListOf<Long>()
     private val seeker = TvSeeker({ position }, { duration }, { seeks += it })
+
+    /** How far a key held since 0 moves the target from [from] to [to] ms, repeating every 50 ms. */
+    private fun scrubbed(from: Long, to: Long): Long {
+        val before = seeker.target ?: 0
+        var t = from + 50
+        while (t <= to) {
+            seeker.repeat(1, t)
+            t += 50
+        }
+        return (seeker.target ?: 0) - before
+    }
+
+    @Test
+    fun `a held key scrubs twice as fast every 1,5 s`() {
+        duration = 36_000_000
+        seeker.repeat(1, 0)
+        assertTrue(seeker.holding)
+        seeker.repeat(1, 50)
+        assertEquals(600_000L + (TvSeeker.HOLD_START_RATE * 2.0.pow(50 / 1_500.0) * 50).toLong(), seeker.target)
+        // A second held goes about twice as far as the second 1.5 s before it.
+        scrubbed(50, 500)
+        val early = scrubbed(500, 1_500)
+        scrubbed(1_500, 2_000)
+        val later = scrubbed(2_000, 3_000)
+        assertEquals(2.0, later / early.toDouble(), 0.1)
+    }
+
+    @Test
+    fun `a held key tops out at a whole video in 10 s, or 300 ms a ms`() {
+        assertEquals(20.0, seeker.rateAt(0), 1e-9)
+        assertEquals(40.0, seeker.rateAt(1_500), 1e-6)
+        assertEquals(160.0, seeker.rateAt(4_500), 1e-6)
+        // An hour's video: an hour in 10 s, 360 ms of video a ms.
+        assertEquals(360.0, seeker.rateAt(20_000), 1e-9)
+        // A short one: 300 ms a ms at most.
+        duration = 600_000
+        assertEquals(300.0, seeker.rateAt(20_000), 1e-9)
+    }
+
+    @Test
+    fun `a gap between repeats counts as 200 ms at most`() {
+        seeker.repeat(1, 0)
+        seeker.repeat(1, 1_000)
+        assertEquals(600_000L + (TvSeeker.HOLD_START_RATE * 2.0.pow(1_000 / 1_500.0) * 200).toLong(), seeker.target)
+    }
 
     @Test
     fun `presses in a row add up and seek once when they stop`() {

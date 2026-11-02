@@ -12,6 +12,8 @@ describes how they are made.
 
 - Chapters named only by where they start ("00:06:19.212", as mkvmerge
   names them) show as "Chapter 3" on phones and TVs, as untitled ones do.
+- On TVs, a held Left or Right scrubs on a smooth curve, twice as fast
+  every 1.5 s, up to a whole video in 10 s, as on Samsung TVs.
 
 ### Fixed
 
