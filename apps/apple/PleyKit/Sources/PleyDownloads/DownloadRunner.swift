@@ -46,7 +46,11 @@ final class DownloadRunner {
     private var listener: Task<Void, Never>?
     private var lostInARow = 0
     /// The system's handler after a background wake, called once the events are handled.
-    var finishedEvents: (() -> Void)?
+    private var finishedEvents: (() -> Void)?
+    /// The session handed over all its events before the system's handler
+    /// arrived: the session is made at launch, so it can start before the
+    /// app delegate is told why the app woke.
+    private var delivered = false
     /// Progress shown at most every half second.
     private var shownAt: [String: Date] = [:]
 
@@ -363,9 +367,23 @@ final class DownloadRunner {
         case .finished(let finished):
             await pieceEnded(finished)
         case .allDelivered:
-            let handler = finishedEvents
+            guard let handler = finishedEvents else {
+                delivered = true
+                return
+            }
             finishedEvents = nil
-            handler?()
+            handler()
+        }
+    }
+
+    /// The system woke the app for the session's events: `completion` is
+    /// called once they are all handled, at once if they already were.
+    func backgroundEvents(_ completion: @escaping () -> Void) {
+        if delivered {
+            delivered = false
+            completion()
+        } else {
+            finishedEvents = completion
         }
     }
 

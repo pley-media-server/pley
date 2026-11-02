@@ -19,7 +19,7 @@ public final class Downloads: DownloadsService {
     public private(set) var storage = DownloadStorage()
     public var changed: AnyPublisher<Void, Never> { subject.eraseToAnyPublisher() }
 
-    private let store: DownloadStore
+    let store: DownloadStore
     private let runner: DownloadRunner
     private let settings: AppSettings
     private let clock: () -> Date
@@ -153,7 +153,7 @@ public final class Downloads: DownloadsService {
     /// iPhone and iPad: the system woke the app for the background
     /// session's events; `completion` is called once they are handled.
     public func handleBackgroundEvents(_ completion: @escaping () -> Void) {
-        runner.finishedEvents = completion
+        runner.backgroundEvents(completion)
     }
 
     // MARK: Inside

@@ -336,6 +336,28 @@ private func movie(_ server: FixtureServer, bytes: Int = 4_500, container: Strin
         #expect(h.entry(61)?.watched == true && h.entry(61)?.positionMs == 0)
     }
 
+    @Test func theSystemIsToldTheEventsAreHandledWhicheverCameFirst() async throws {
+        let server = try await started()
+        let h = Harness(server: server)
+        defer { h.close() }
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.invalidateAndCancel() }
+        // The session delivered all before the app delegate handed the handler over.
+        h.transfer.urlSessionDidFinishEvents(forBackgroundURLSession: session)
+        try await Task.sleep(for: .milliseconds(100))
+        var told = 0
+        h.downloads.handleBackgroundEvents { told += 1 }
+        #expect(told == 1)
+        // The usual order: the handler first, then the events.
+        h.downloads.handleBackgroundEvents { told += 1 }
+        #expect(told == 1)
+        h.transfer.urlSessionDidFinishEvents(forBackgroundURLSession: session)
+        for _ in 0..<500 where told < 2 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(told == 2)
+    }
+
     @Test func anotherProfilesDownloadsArentListedNorRun() async throws {
         let server = try await started()
         let h = Harness(server: server)
