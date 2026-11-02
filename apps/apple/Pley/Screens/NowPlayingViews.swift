@@ -9,7 +9,8 @@ import SwiftUI
 /// and iPad, a window on the Mac). VoiceOver reads it as one element
 /// ("Now playing, Song, Artist") with Play/Pause, Next and Open as
 /// actions; at the accessibility text sizes its words and buttons stack,
-/// except in the tab bar's accessory, which keeps one line.
+/// except in the tab bar's accessory, which keeps one line and, as the tab
+/// bar's own labels, stops growing at the largest size below those.
 struct MiniPlayer: View {
     let app: AppModel
     @ObservedObject var music: MusicPlayback
@@ -74,6 +75,8 @@ struct MiniPlayer: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, inAccessory ? 0 : 8)
+            // Larger, its words and symbols would spill out of the accessory.
+            .dynamicTypeSize(...(inAccessory ? DynamicTypeSize.xxxLarge : .accessibility5))
         }
     }
 
@@ -102,7 +105,7 @@ struct MiniPlayer: View {
             Button { music.toggle() } label: {
                 Image(systemName: page.playing ? "pause.fill" : "play.fill")
                     .font(.title2)
-                    .frame(width: 44, height: 44)
+                    .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
             .accessibilityLabel(page.playing ? "Pause" : "Play")
@@ -110,7 +113,7 @@ struct MiniPlayer: View {
             Button { music.next() } label: {
                 Image(systemName: "forward.fill")
                     .font(.title3)
-                    .frame(width: 44, height: 44)
+                    .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
             .disabled(!page.hasNext)
