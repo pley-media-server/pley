@@ -102,6 +102,35 @@ fn a_dialog_sits_in_the_middle_keeps_focus_and_back_dismisses_it() {
 }
 
 #[test]
+fn audio_guidance_reads_a_dialog_as_it_opens_then_its_buttons() {
+    let open = Cell::new(false);
+    let mut screen = |ui: &mut Ui| {
+        let a = ui.id("remove");
+        if Button::text("Remove").show(ui, a, Point::new(96.0, 400.0)).activated {
+            open.set(true);
+        }
+        let buttons = [DialogButton::new("Cancel"), DialogButton::danger("Delete")];
+        let dialog = Dialog::new("Delete Road trip?").body("This can't be undone.").buttons(&buttons);
+        if dialog.show(ui, Id::new("dialog"), open.get()).dismissed {
+            open.set(false);
+        }
+    };
+    let mut h = Harness::new();
+    h.state.set_speaking(true);
+    h.idle(&mut screen);
+    settle(&mut h, &mut screen);
+    assert_eq!(h.state.take_speech().as_deref(), Some("Remove"));
+    h.step(Step::Press(Key::Ok), &mut screen);
+    settle(&mut h, &mut screen);
+    assert_eq!(h.state.take_speech().as_deref(), Some("Delete Road trip?, This can't be undone. Cancel"));
+    // Drawn on, it isn't read again; focus moving is.
+    settle(&mut h, &mut screen);
+    assert_eq!(h.state.take_speech(), None);
+    press(&mut h, Key::Right, &mut screen);
+    assert_eq!(h.state.take_speech().as_deref(), Some("Delete"));
+}
+
+#[test]
 fn an_action_sheet_lists_its_actions_and_focuses_the_first() {
     let chosen = Cell::new(None);
     let mut screen = |ui: &mut Ui| {

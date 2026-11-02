@@ -260,6 +260,16 @@ impl Shell {
                 self.curtain = Some(entry_id);
             }
             self.shown = Some(entry_id);
+            // Audio Guidance reads the page's name, then what has focus: the page's own title,
+            // else its rail entry's.
+            let entry = &self.stack[top];
+            let title = entry.screen.title().or_else(|| {
+                let id = current_entry(Some(&entry.route), &self.entries)?;
+                self.entries.top.iter().chain([&self.entries.settings]).find(|e| e.id == id).map(|e| e.label.clone())
+            });
+            if let Some(title) = title {
+                ui.announce_page(title);
+            }
         }
 
         // Back, before the page draws: in the rail it leaves the app; else the page's own. A

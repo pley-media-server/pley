@@ -90,6 +90,7 @@ impl Toasts {
         }
         if target > 0.0 {
             ui.repaint_after(t.until - now);
+            ui.announce_once(id.with("read"), || t.text.clone());
         }
         let color = if t.error { theme::DANGER_TEXT } else { theme::FG };
         let opts = TextOpts::wrap(TOAST_MAX_WIDTH - 2.0 * PAD_X, 3);

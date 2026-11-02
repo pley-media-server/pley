@@ -16,6 +16,8 @@ describes how they are made.
   web app kept doesn't carry over, so choose the server and sign in again.
 - The server lists this TV's sign-in as Pley for LG TV, with its webOS and
   model, with a server from the same release.
+- With the TV's Audio Guidance on, the app reads each page's name, what
+  has focus, dialogs and messages aloud, in the TV's own voice.
 - Requests work in the native app as they did in the web app: Discover,
   a title's page with its season picker, Your requests (Requests for
   administrators), the "On TMDB" row in Search, a library title's request

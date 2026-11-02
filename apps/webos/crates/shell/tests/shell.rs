@@ -159,6 +159,31 @@ fn left_at_the_page_s_edge_opens_the_rail_and_right_comes_back() {
 }
 
 #[test]
+fn audio_guidance_reads_the_page_then_what_gains_focus() {
+    let server = fixtures();
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    // Off, nothing is read.
+    let mut app = TestApp::new(device.clone(), store.clone(), http.clone(), registry(&heard(), &[]));
+    app.press(Key::Left);
+    assert!(device.take_spoken().is_empty());
+    drop(app);
+
+    device.set_screen_reader(true);
+    let mut app = TestApp::new(device.clone(), store, http, registry(&heard(), &[]));
+    // The page's name, from its rail entry, as it opens.
+    assert!(device.take_spoken().iter().any(|w| w.starts_with("Home")), "the page wasn't named");
+    // Each entry focus moves to, once.
+    app.press(Key::Left);
+    assert_eq!(device.take_spoken(), ["Home"]);
+    app.press(Key::Up);
+    assert_eq!(device.take_spoken(), ["Search"]);
+    app.press(Key::Left);
+    assert!(device.take_spoken().is_empty(), "focus didn't move: nothing new to read");
+}
+
+#[test]
 fn a_page_chosen_in_the_rail_starts_the_stack_and_takes_focus_once_it_can() {
     let server = fixtures();
     let device = device();

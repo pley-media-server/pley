@@ -109,6 +109,13 @@ impl Keypad {
                         if i == 4 {
                             ui.initial_focus(kid);
                         }
+                        let k = *k;
+                        ui.name(kid, || match k {
+                            PadKey::Digit(d) => d.to_string(),
+                            PadKey::Symbol(c) => c.to_string(),
+                            PadKey::Delete => "Delete".to_string(),
+                            PadKey::Ok => "OK".to_string(),
+                        });
                         let r = register(ui, kid, rect, pley_ui::FocusOpts::default());
                         (r.focused, r.activated)
                     } else {

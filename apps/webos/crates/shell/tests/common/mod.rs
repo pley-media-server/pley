@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use pley_base::{DisplayList, Key, KeyEvent, Rect, Waker};
 use pley_core::auth::{StoredTokens, TokenAnswerParsed, Tokens};
 use pley_core::media::NullEngine;
-use pley_core::{FakeDevice, Http, PlayerEngine, Store, Tasks};
+use pley_core::{Device, FakeDevice, Http, PlayerEngine, Store, Tasks};
 use pley_fixtures::{FixtureServer, Options};
 use pley_shell::{AppCx, AppEvent, AppState, Chrome, NavCommand, Registry, Route, Screen, Shell};
 use pley_ui::testing::{StubImages, StubShaper};
@@ -160,12 +160,17 @@ impl TestApp {
         let mut input = events;
         self.shell.filter_input(&mut input, now);
         self.shell.update(&mut self.state, &mut self.ui, now);
+        // As the app's loop does: Audio Guidance as the TV has it, and what it reads.
+        self.ui.set_speaking(self.device.screen_reader());
         for _ in 0..4 {
             let frame = FrameInput { time: now, events: std::mem::take(&mut input) };
             let mut ui = Ui::new(&mut self.ui, &mut self.list, &StubShaper, &mut self.images, 2.0, &frame);
             self.shell.frame(&mut ui, &mut self.state);
             let out = ui.finish();
             let changed = self.shell.finish(&mut self.state, &mut self.ui, now);
+            if let Some(words) = self.ui.take_speech() {
+                self.device.speak(&words);
+            }
             if !(out.redraw || changed) {
                 break;
             }

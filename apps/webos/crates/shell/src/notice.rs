@@ -113,6 +113,7 @@ impl Notices {
         ui.text(at, &notice.text, &theme::BODY, &opts, theme::FG);
 
         let root = ui.id("request-notice");
+        ui.announce_once(root.with("read"), || notice.text.clone());
         let buttons_y = card.y + PAD + head_h + 14.0;
         let group = Group::row().edge(Dir::Up, Edge::Stop).edge(Dir::Down, Edge::Stop).trap();
         ui.group(root, group, |ui| {

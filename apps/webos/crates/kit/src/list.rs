@@ -156,6 +156,7 @@ impl<'a> ListRow<'a> {
             ui.opacity(theme::DISABLED_ALPHA, |ui| self.paint(ui, id, rect, 0.0, 0.0));
             return unregistered(id);
         }
+        ui.name(id, || crate::look::spoken(&[self.label, self.supporting]));
         let r = register(ui, id, rect, FocusOpts::default());
         let p = focus_progress(ui, id, r.focused);
         let q = press_progress(ui, id, r.pressed);
@@ -296,6 +297,7 @@ impl<'a> Stepper<'a> {
         let hint = (!self.hint.is_empty()).then(|| ui.layout(self.hint, &theme::CAPTION, &TextOpts::wrap(text_w, 2)));
         let block = title.size.h + hint.as_ref().map_or(0.0, |h| h.size.h);
         let rect = Rect::new(at.x, at.y, width, (block + 2.0 * PAD_Y).max(ROW_MIN_HEIGHT));
+        ui.name(id, || crate::look::spoken(&[self.title, self.value]));
         let r = register(ui, id, rect, FocusOpts::default().takes(Dirs::HORIZONTAL));
         let mut step = 0;
         if r.focused {

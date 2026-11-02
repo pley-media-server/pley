@@ -120,6 +120,10 @@ impl<'a> TextField<'a> {
     /// screen's cue to start typing.
     pub fn show(&self, ui: &mut Ui, id: Id, at: Point) -> Response {
         let rect = Rect::new(at.x, at.y, self.width, FIELD_HEIGHT);
+        ui.name(id, || {
+            let text = if self.text.is_empty() { self.placeholder } else { self.text };
+            crate::look::spoken(&[text, "text field"])
+        });
         let r = register(ui, id, rect, FocusOpts::default());
         let lit = r.focused || self.typing;
         ui.fill(rect, theme::SURFACE2, radius::FIELD);
@@ -403,6 +407,12 @@ enum KeyFace<'a> {
 
 /// One key: registered, coloured and scaled as the PIN pad's keys are.
 fn key(ui: &mut Ui, id: Id, rect: Rect, face: KeyFace) -> Response {
+    ui.name(id, || match face {
+        KeyFace::Text(" ", _) => "Space".to_string(),
+        KeyFace::Text(t, _) => t.to_string(),
+        KeyFace::Icon(Icon::Delete) => "Delete".to_string(),
+        KeyFace::Icon(_) => String::new(),
+    });
     let r = register(ui, id, rect, FocusOpts::default());
     let p = focus_progress(ui, id, r.focused);
     let q = press_progress(ui, id, r.pressed);

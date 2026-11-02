@@ -203,6 +203,7 @@ impl<'a> Button<'a> {
             return unregistered(id);
         }
         let opts = if self.long_press { FocusOpts::default().long_press() } else { FocusOpts::default() };
+        ui.name(id, || self.label.to_string());
         let r = register(ui, id, rect, opts);
         let s = shade(ui, &look, &r);
         self.paint(ui, rect, &s);
@@ -286,6 +287,7 @@ impl<'a> RoundButton<'a> {
             return unregistered(id);
         }
         let opts = if self.long_press { FocusOpts::default().long_press() } else { FocusOpts::default() };
+        ui.name(id, || self.label.to_string());
         let r = register(ui, id, rect, opts);
         let s = shade(ui, &look, &r);
         self.paint(ui, rect, &s);

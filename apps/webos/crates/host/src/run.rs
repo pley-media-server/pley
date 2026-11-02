@@ -107,6 +107,10 @@ fn build(
     shell.frame(&mut ui, state);
     let out = ui.finish();
     let changed = shell.finish(state, ui_state, input.time);
+    // Audio Guidance: what gained focus, after a page's name, then what was announced.
+    if let Some(words) = ui_state.take_speech() {
+        state.device().speak(&words);
+    }
     (out, changed)
 }
 
@@ -235,6 +239,7 @@ pub fn run(
             break;
         }
         ui_state.set_reduced_motion(state.settings().reduce_motion || args.reduced_motion);
+        ui_state.set_speaking(state.device().screen_reader());
         if probe_due.is_some_and(|t| now >= t) {
             probed = true;
             state.probe_caps(false);

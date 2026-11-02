@@ -125,6 +125,11 @@ pub fn is_inert() -> bool {
 /// Registers a kit control at `rect` (unless drawn [`inert`]). When it is selected, held or sent
 /// the menu key, it asks for one more frame: the screen changes what it shows in answer, after
 /// this frame was drawn.
+/// Words read together for a control ("Arrival, 2016"), the empty ones left out.
+pub fn spoken(parts: &[&str]) -> String {
+    parts.iter().map(|p| p.trim()).filter(|p| !p.is_empty()).collect::<Vec<_>>().join(", ")
+}
+
 pub(crate) fn register(ui: &mut Ui, id: Id, rect: Rect, opts: FocusOpts) -> Response {
     if is_inert() {
         return unregistered(id);

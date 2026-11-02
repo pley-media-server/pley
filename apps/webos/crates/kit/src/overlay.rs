@@ -234,6 +234,8 @@ impl<'a> Dialog<'a> {
         let rect = self.rect(ui);
         let live = open && !is_inert();
         if live {
+            // Audio Guidance reads the dialog as it opens, then its focused button.
+            ui.announce_once(id.with("kit.read"), || crate::look::spoken(&[self.title, self.body]));
             let full = Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H);
             out.dismissed |= ui.clickable(id.with("kit.outside"), full).activated;
         }

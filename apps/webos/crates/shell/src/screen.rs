@@ -80,6 +80,12 @@ pub trait Screen {
     fn modal(&self) -> bool {
         false
     }
+
+    /// The page's name, which Audio Guidance reads when the page opens ("Settings", a title's
+    /// name), before what has focus.
+    fn title(&self) -> Option<String> {
+        None
+    }
 }
 
 /// Makes the screen of a route, or says it doesn't draw that route.

@@ -11,7 +11,7 @@ use pley_ui::theme::{self, focus, radius};
 use pley_ui::{FocusOpts, Id, ImageOpts, Motion, Response, Shown, Ui};
 
 use crate::badge::{BADGE_HEIGHT, Badge, BadgeStyle};
-use crate::look::{focus_progress, free_line, register, text_mid};
+use crate::look::{focus_progress, free_line, register, spoken, text_mid};
 
 /// The kinds of tile (`TileKind.kt`, `TileStyle.Tv`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -243,6 +243,7 @@ impl<'a> Tile<'a> {
             self.prefetch(ui, slot.priority);
             return;
         }
+        ui.name(slot.id, || spoken(&[self.title, self.subtitle]));
         let look = tile_look(ui, slot.id, self.kind, &slot.response);
         let rect = slot.rect;
         ui.transform(Point::ZERO, look.scale, rect.center(), |ui| self.draw_well(ui, rect, slot.priority));
@@ -532,6 +533,7 @@ impl<'a> ProfileTile<'a> {
     /// Draws the profile with its circle's top-left corner at `at`, registered as `id`.
     pub fn show(&self, ui: &mut Ui, id: Id, at: Point) -> Response {
         let rect = Rect::new(at.x, at.y, self.size, self.size);
+        ui.name(id, || self.name.to_string());
         let response = register(ui, id, rect, FocusOpts::default());
         let p = focus_progress(ui, id, response.focused);
         let look = TileLook { progress: p, scale: 1.0 + (TileKind::Avatar.focus_scale() - 1.0) * p };

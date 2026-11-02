@@ -330,6 +330,22 @@ impl Device for WebosDevice {
         self.inner.screen_reader.load(Ordering::SeqCst)
     }
 
+    /// Audio Guidance reads with the TV's own voice (`com.webos.service.tts`), cutting off what
+    /// it was reading, as the TV's menus do.
+    fn speak(&self, text: &str) {
+        let Some(luna) = &self.inner.luna else { return };
+        luna.call_with(
+            "luna://com.webos.service.tts/speak",
+            &json!({ "text": text, "clear": true }),
+            SUBSCRIBE_TIMEOUT,
+            |answer| {
+                if let Err(e) = answer {
+                    crate::log::line(&format!("device: Audio Guidance couldn't read ({e})"));
+                }
+            },
+        );
+    }
+
     fn keep_awake(&self, on: bool) {
         self.inner.awake.store(on, Ordering::SeqCst);
         if on && let Some(luna) = &self.inner.luna {

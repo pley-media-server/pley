@@ -432,6 +432,10 @@ fn entry_ui(
     g: f32,
 ) -> Option<pley_ui::Response> {
     let id = ui.id(e.id.as_str());
+    ui.name(id, || match e.badge {
+        Some((n, _)) => format!("{}, {n}", e.label),
+        None => e.label.clone(),
+    });
     let hit = Rect::new(X, y, ENTRY_W_OPEN, ENTRY_H);
     let r = open.then(|| ui.focusable(id, hit));
     let focused = r.is_some_and(|r| r.focused);
@@ -482,6 +486,10 @@ fn badge(ui: &mut Ui, at: Point, count: i64, danger: bool, focused: bool) {
 /// over "Switch profile".
 fn profile_entry(ui: &mut Ui, view: &RailView, open: bool, t: f32, g: f32) -> Option<pley_ui::Response> {
     let id = ui.id("profile");
+    ui.name(id, || match view.me {
+        Some(m) => format!("{}, Switch profile", m.name),
+        None => "Switch profile".to_string(),
+    });
     let r = open.then(|| ui.focusable(id, Rect::new(X, TOP, ENTRY_W_OPEN, AVATAR_ENTRY)));
     let focused = r.is_some_and(|r| r.focused);
     let pressed = r.is_some_and(|r| r.pressed);

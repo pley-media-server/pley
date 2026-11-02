@@ -98,6 +98,16 @@ differs on LG:
 - **The screen dims** after 2 minutes without a key, outside playback:
   the TV never blanks a native app that is showing.
 
+### Audio Guidance
+
+With the TV's Audio Guidance on (Settings → Accessibility), the app reads
+in the TV's own voice (`com.webos.service.tts`): a page's name as it
+opens, then what has focus (a button's label, a title and its second
+line, a row with what supports it, a field with what it holds), a dialog
+or the ready-to-watch notice as it opens, and toasts. Each control names
+itself as it draws (`Ui::name`); a new reading cuts off the one before,
+as the TV's menus do.
+
 ### Audio and subtitles
 
 - The server picks the audio track that this TV plays best in the
@@ -259,13 +269,14 @@ for titles.
   server shows for its sign-in ([API.md](API.md#apps-oauth-21)).
 - **Signing in** uses a code (OAuth's device grant) with the client
   `https://pley-media-server.github.io/pley/oauth/webos.json`, built into
-  the server, asking for `library`, `play`, `playlists` and `profiles`
-  (those the server offers).
+  the server, asking for `library`, `play`, `playlists` and `profiles`,
+  and `requests` and `approvals` where the server lists them (those the
+  server offers).
 - **The package** is `app.pley.tv_<version>_arm.ipk`, with
   `"type": "native"` in `appinfo.json`. `requiredPermissions` and
-  `requiredACG` there list the system services the app reads:
+  `requiredACG` there list the system services the app uses:
   `systemconfig.query`, `settings.query`, `arc.query` and
-  `network.query`.
+  `network.query`, and `tts.operation` for Audio Guidance's voice.
 
 The code, by crate:
 

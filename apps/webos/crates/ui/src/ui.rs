@@ -6,6 +6,7 @@
 //! rectangles and groups and reading their [`Response`]s; [`Ui::finish`] settles focus against
 //! what this frame drew and says when the next frame is due.
 
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use pley_base::{
@@ -261,6 +262,55 @@ pub struct UiState {
     click_at: f64,
     typing: bool,
     ev: FrameEvents,
+    speech: Speech,
+}
+
+/// What Audio Guidance reads: the names controls gave this frame, what focus last read, and what
+/// waits to be read.
+#[derive(Debug, Default)]
+struct Speech {
+    on: bool,
+    /// The names of this frame's controls, by id (collected only while on).
+    names: HashMap<Id, String>,
+    /// The focus whose name was read last, and what it read.
+    read: Option<(Id, String)>,
+    /// A page opened: its name, read before what has focus.
+    title: Option<String>,
+    /// What opened this frame (a dialog, a notice), read before what has focus in it.
+    opened: Vec<String>,
+    /// Announced this frame or before, not read yet.
+    announced: Vec<String>,
+    /// Ready to read.
+    out: Vec<String>,
+    /// What [`Ui::announce_once`] was given last frame and this one, by id.
+    once_prev: HashSet<Id>,
+    once_cur: HashSet<Id>,
+}
+
+impl Speech {
+    /// After focus settles: the page's name, the newly focused control's name, then what was
+    /// announced. Focus settles on what this frame drew, so its name, if it has one, is here.
+    fn settle(&mut self, focused: Option<Id>) {
+        self.once_prev = std::mem::take(&mut self.once_cur);
+        if !self.on {
+            self.names.clear();
+            self.opened.clear();
+            self.announced.clear();
+            self.title = None;
+            return;
+        }
+        self.out.extend(self.title.take());
+        self.out.append(&mut self.opened);
+        if let Some(id) = focused
+            && let Some(name) = self.names.get(&id)
+            && self.read.as_ref().is_none_or(|(read, _)| *read != id)
+        {
+            self.out.push(name.clone());
+            self.read = Some((id, name.clone()));
+        }
+        self.out.append(&mut self.announced);
+        self.names.clear();
+    }
 }
 
 impl Default for UiState {
@@ -299,6 +349,7 @@ impl UiState {
             click_at: f64::NEG_INFINITY,
             typing: false,
             ev: FrameEvents::default(),
+            speech: Speech::default(),
         }
     }
 
@@ -326,6 +377,31 @@ impl UiState {
     /// The focused element.
     pub fn focused(&self) -> Option<Id> {
         self.focus.focused
+    }
+
+    /// Whether Audio Guidance is on: controls name themselves ([`Ui::name`]) and frames say what
+    /// to read ([`UiState::take_speech`]) only then.
+    pub fn set_speaking(&mut self, on: bool) {
+        if on && !self.speech.on {
+            // Turned on: what has focus is read at once.
+            self.speech.read = None;
+        }
+        self.speech.on = on;
+    }
+
+    /// What Audio Guidance should read after the last frame: the name of what just gained focus,
+    /// then what was announced ([`Ui::name`], [`Ui::announce`]); `None` when there is nothing new.
+    pub fn take_speech(&mut self) -> Option<String> {
+        let parts = std::mem::take(&mut self.speech.out);
+        let mut words = String::new();
+        for part in parts.iter().map(|p| p.trim()).filter(|p| !p.is_empty()) {
+            if !words.is_empty() {
+                // A pause between parts: a full stop, unless the part before ended a sentence.
+                words.push_str(if words.ends_with(['.', '!', '?']) { " " } else { ". " });
+            }
+            words.push_str(part);
+        }
+        (!words.is_empty()).then_some(words)
     }
 
     /// Whether the pointer gave the current focus.
@@ -732,6 +808,7 @@ impl<'a> Ui<'a> {
         if changed {
             st.gained_frame = st.frame + 1;
         }
+        st.speech.settle(st.focus.focused);
         std::mem::swap(&mut st.prev, &mut st.cur);
         st.tweens.sweep(st.frame);
         st.typing = text_input;
@@ -753,6 +830,49 @@ impl<'a> Ui<'a> {
             pointer_visible: st.pointer_visible,
             text_input,
             focused: st.focus.focused,
+        }
+    }
+
+    /// Whether Audio Guidance is on ([`UiState::set_speaking`]).
+    pub fn speaking(&self) -> bool {
+        self.st.speech.on
+    }
+
+    /// Names `id` for Audio Guidance: what it reads when `id` gains focus ("Play", "Arrival, 2016",
+    /// "Season 2, tab"). `text` is called only while Audio Guidance is on; the first name given an
+    /// id in a frame is kept, so a page can name a control before the kit draws it.
+    pub fn name(&mut self, id: Id, text: impl FnOnce() -> String) {
+        if self.st.speech.on {
+            self.st.speech.names.entry(id).or_insert_with(text);
+        }
+    }
+
+    /// Reads `text` (a toast, a status line that changed) after the name of what has focus.
+    pub fn announce(&mut self, text: impl Into<String>) {
+        if self.st.speech.on {
+            self.st.speech.announced.push(text.into());
+        }
+    }
+
+    /// Reads `text` once as `id` appears (a dialog opening, a toast), before what has focus, and
+    /// not again while it is drawn frame after frame.
+    pub fn announce_once(&mut self, id: Id, text: impl FnOnce() -> String) {
+        if !self.st.speech.on {
+            return;
+        }
+        if !self.st.speech.once_prev.contains(&id) && !self.st.speech.once_cur.contains(&id) {
+            let text = text();
+            self.st.speech.opened.push(text);
+        }
+        self.st.speech.once_cur.insert(id);
+    }
+
+    /// A page opened: Audio Guidance reads its name before what has focus.
+    pub fn announce_page(&mut self, title: impl Into<String>) {
+        if self.st.speech.on {
+            self.st.speech.title = Some(title.into());
+            // Focus on the new page is read even where an id repeats from the page before.
+            self.st.speech.read = None;
         }
     }
 

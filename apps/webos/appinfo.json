@@ -13,6 +13,6 @@
   "handlesRelaunch": false,
   "nativeLifeCycleInterfaceVersion": 2,
   "requiredMemory": 160,
-  "requiredPermissions": ["systemconfig.query", "settings.query", "arc.query", "network.query"],
-  "requiredACG": ["systemconfig.query", "settings.query", "arc.query", "network.query"]
+  "requiredPermissions": ["systemconfig.query", "settings.query", "arc.query", "network.query", "tts.operation"],
+  "requiredACG": ["systemconfig.query", "settings.query", "arc.query", "network.query", "tts.operation"]
 }

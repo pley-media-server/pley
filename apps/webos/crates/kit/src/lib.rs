@@ -45,7 +45,7 @@ pub use gallery::{GalleryState, gallery};
 pub use grid::{GRID_END, GridResponse, GridState, JUMP_LETTERS, JUMP_X, JumpControl, JumpResponse, PosterGrid};
 pub use keyboard::{Keyboard, KeyboardPage, KeyboardResponse, KeyboardState, TextEdit, TextField};
 pub use list::{Heading, List, ListResponse, ListRow, ListSlot, ListState, Stepper, StepperResponse, Trailing, switch};
-pub use look::{PAGE_SCROLL, ResponseExt, SCROLL, Shade, inert, is_inert};
+pub use look::{PAGE_SCROLL, ResponseExt, SCROLL, Shade, inert, is_inert, spoken};
 pub use overlay::{Action, ActionSheet, Dialog, DialogButton, DialogResponse, PanelResponse, SidePanel, scrim_fill};
 pub use pad::{Keypad, PadKey, PadLayout, PadState, PinDots};
 pub use qr::{Qr, QrError};

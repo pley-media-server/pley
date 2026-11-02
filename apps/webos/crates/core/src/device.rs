@@ -107,6 +107,9 @@ pub trait Device: Send + Sync {
     fn clock_24h(&self) -> bool;
     /// Whether LG's Audio Guidance is on.
     fn screen_reader(&self) -> bool;
+    /// Reads `text` aloud in the TV's voice, cutting off what it was reading. Called only while
+    /// [`Device::screen_reader`] is on; never blocks.
+    fn speak(&self, _text: &str) {}
     /// Keeps the screen saver away while playing.
     fn keep_awake(&self, on: bool);
     /// Leaves the app the way the TV expects.
@@ -157,6 +160,7 @@ pub struct FakeDevice {
     exited: AtomicBool,
     ipv4: Mutex<Option<Ipv4Addr>>,
     subscribers: Mutex<Vec<Sender<DeviceEvent>>>,
+    spoken: Mutex<Vec<String>>,
 }
 
 impl FakeDevice {
@@ -176,7 +180,13 @@ impl FakeDevice {
             exited: AtomicBool::new(false),
             ipv4: Mutex::new(Some(Ipv4Addr::new(192, 168, 1, 50))),
             subscribers: Mutex::new(Vec::new()),
+            spoken: Mutex::new(Vec::new()),
         }
+    }
+
+    /// What Audio Guidance read since the last call, oldest first.
+    pub fn take_spoken(&self) -> Vec<String> {
+        std::mem::take(&mut *self.spoken.lock().unwrap_or_else(|e| e.into_inner()))
     }
 
     /// Shared, as the app holds its device.
@@ -262,6 +272,10 @@ impl Device for FakeDevice {
 
     fn screen_reader(&self) -> bool {
         self.screen_reader.load(Ordering::SeqCst)
+    }
+
+    fn speak(&self, text: &str) {
+        self.spoken.lock().unwrap_or_else(|e| e.into_inner()).push(text.to_string());
     }
 
     fn keep_awake(&self, on: bool) {
