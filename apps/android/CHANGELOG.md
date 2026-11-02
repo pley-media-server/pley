@@ -34,6 +34,9 @@ describes how they are made.
   their pictures, as in YouTube's TV app, in place of the Chapters panel:
   Up while a seek waits, or the Chapters button, opens them on the chapter
   it was going to; OK goes to one, Down or Back closes them.
+- Seek previews keep the video's shape, letterboxed on black, on phones
+  and TVs, rather than cropped to fill their box: a wide film's no longer
+  loses its sides.
 
 ### Fixed
 

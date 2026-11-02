@@ -83,6 +83,7 @@ import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.icon.SkipIcon
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.ArtworkLoad
 import app.pley.android.model.MarkerKind
 import app.pley.android.player.PlaybackController
 import app.pley.android.player.PlayerPhase
@@ -337,7 +338,8 @@ private fun MarkerLabel(state: State<PlayerUiState>) {
  * 2 dp fg 20 % edge, its bottom at y = 347, centred on the thumb but kept
  * in the safe area; the target time under it and the chapter's name. The
  * server's seek previews when the file has them, else the chapter's
- * picture; without either, only the time and chapter show.
+ * picture, letterboxed on black as the video is: a 2.39:1 film's previews
+ * keep their shape. Without either, only the time and chapter show.
  */
 @Composable
 internal fun BoxScope.TvSeekPreview(state: State<PlayerUiState>, seeker: TvSeeker, controller: PlaybackController) {
@@ -351,7 +353,8 @@ internal fun BoxScope.TvSeekPreview(state: State<PlayerUiState>, seeker: TvSeeke
     val picture by produceState<ImageBitmap?>(null, bucket, hasThumbs) {
         if (hasThumbs) controller.thumbnail(bucket)?.let { value = it.asImageBitmap() }
     }
-    val chapterImage = chapter?.imageUrl?.takeIf { !hasThumbs }
+    val chapterImage = chapter?.imageUrl?.takeIf { !hasThumbs }?.let { ArtworkImage(listOf(it), maxWidth = PREVIEW_IMAGE_WIDTH) }
+    val chapterLoad = remember(chapterImage) { ArtworkLoad() }
     val showsPicture = hasThumbs || chapterImage != null
     Column(
         Modifier
@@ -375,13 +378,15 @@ internal fun BoxScope.TvSeekPreview(state: State<PlayerUiState>, seeker: TvSeeke
                 Modifier
                     .size(PREVIEW_WIDTH, PREVIEW_HEIGHT)
                     .clip(PleyShape.TileTv)
-                    .drawBehind { drawRect(PleyColors.Surface2) }
-                    .border(2.dp, PleyColors.Fg.copy(alpha = 0.2f), PleyShape.TileTv),
+                    // The well until a picture shows, then black where the picture doesn't reach.
+                    .drawBehind { drawRect(if (picture != null || chapterLoad.loaded) Color.Black else PleyColors.Surface2) }
+                    .border(2.dp, PleyColors.Fg.copy(alpha = 0.2f), PleyShape.TileTv)
+                    .testTag(TAG_PREVIEW_PICTURE),
             ) {
                 val bitmap = picture
                 when {
-                    bitmap != null -> Image(bitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                    chapterImage != null -> Artwork(ArtworkImage(listOf(chapterImage), maxWidth = PREVIEW_IMAGE_WIDTH), title = "", modifier = Modifier.fillMaxSize())
+                    bitmap != null -> Image(bitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                    chapterImage != null -> Artwork(chapterImage, title = "", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit, load = chapterLoad)
                 }
             }
         }
@@ -656,6 +661,7 @@ internal fun tagOf(target: PlayerFocus): String = when (target) {
 
 internal const val TAG_SCRUBBER = "pley.tv.player.scrubber"
 internal const val TAG_PREVIEW = "pley.tv.player.preview"
+internal const val TAG_PREVIEW_PICTURE = "pley.tv.player.previewPicture"
 internal const val TAG_PLAY_PAUSE = "pley.tv.player.playPause"
 internal const val TAG_SUBTITLES = "pley.tv.player.subtitles"
 internal const val TAG_INFO = "pley.tv.player.info"
