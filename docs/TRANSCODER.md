@@ -300,7 +300,10 @@ its palette, DVB) next to an HLS stream.
   minute before `from_ms` to two minutes after it, written whole to a file
   of their own. The rest waits for playbacks starting, as other background
   work does, then comes a few hundred clusters at a time, and the whole
-  track is written, in order of time. A later request whose `from_ms` is
+  track is written, in order of time. The read keeps at most 192 MiB and
+  may take as long as FFmpeg would take to read the file at 100 MB/s, a
+  minute at least: a Blu-ray's track is thousands of reads, a disk seek
+  each, and FFmpeg reads all of a remux. A later request whose `from_ms` is
   away from where the copy started (a seek) is answered with the blocks
   there, from 10 s before it to 40 s after it: those the copy has read,
   when it has all of them, else read through the Cues at once, beside the
@@ -329,7 +332,9 @@ its palette, DVB) next to an HLS stream.
   answer is a file players read (the track's header at least). A read
   through the Cues that fails past the blocks around the player answers
   with those while FFmpeg copies the track, until FFmpeg's copy comes past
-  them; then with that copy.
+  them; then with that copy. Requests at seeks are still answered with the
+  blocks there, read through the Cues: those gave the blocks around the
+  player.
 - Whole tracks are cached in `subtitles/`.
 
 ### Background work
@@ -1043,7 +1048,8 @@ and tracks can't be read safely as above: encrypted or bzip2/LZO-compressed
 tracks, laced blocks, a track's own timestamp scale, cues out of order or
 pointing at the wrong block, mkvmerge's `S_TEXT/WEBVTT`, and the other cases
 `src/matroska.rs` checks. A track the Cues couldn't give goes straight to
-FFmpeg next time.
+FFmpeg next time, unless it is a picture track whose read failed past the
+blocks around the player (a busy disk can run it out of time).
 
 - Every text track comes out in one pass over the file, with a time limit of
   20 minutes or the time to read the file at 10 MB/s, whichever is longer. A

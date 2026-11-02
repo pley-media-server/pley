@@ -1685,7 +1685,8 @@ removed or reordered (`400`).
     a network share), and the answer is what it has copied so far, up to
     its last whole cluster. A copy through the Cues that fails past the
     pictures around `at` keeps answering with those until the transcoder's
-    copy of the whole file comes past them, then with that copy.
+    copy of the whole file comes past them, then with that copy; a seek
+    meanwhile still has the pictures there read at once.
   - The copy starts as a playback starts whose player draws the track
     (`picture_subtitles_sideload`, the track picked or the profile's
     choice), rather than when it asks. What isn't around `at` waits for the
