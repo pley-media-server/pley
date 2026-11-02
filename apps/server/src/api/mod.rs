@@ -39,6 +39,7 @@ pub fn router(state: AppState) -> Router {
     let api = Router::new()
         .route("/health", get(|| async { axum::Json(serde_json::json!({ "status": "ok" })) }))
         .route("/server", get(auth::server_status))
+        .route("/server/proof-key", get(auth::server_proof_key))
         .route("/setup", post(auth::setup))
         .route("/auth/login", post(auth::login))
         .route("/auth/logout", post(auth::logout))
@@ -303,8 +304,9 @@ fn with_proxy_port(headers: &axum::http::HeaderMap, addresses: &[String]) -> Opt
 /// A website's page in a sandboxed frame sends `null` too: what it gets is
 /// only what a token it holds opens (no cookie is let through, see
 /// [`tv_app_cors`]), and starting a TV sign-in still takes someone signed
-/// in to type its code and allow it.
-fn tv_app_origin(origin: &[u8]) -> bool {
+/// in to type its code and allow it. Nor does it get a server's proof
+/// (`auth::server_status`).
+pub(crate) fn tv_app_origin(origin: &[u8]) -> bool {
     matches!(origin, b"null" | b"file://") || origin.starts_with(b"app://")
 }
 

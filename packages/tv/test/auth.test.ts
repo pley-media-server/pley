@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { parseDeviceCode } from "../src/auth/device";
 import { parseMetadata } from "../src/auth/metadata";
-import { parseOAuthError, parseTokenResponse } from "../src/auth/tokens";
+import { fromBase64url } from "../src/auth/hmac";
+import { parseOAuthError, parseTokenResponse, proofOf } from "../src/auth/tokens";
 // Shared with the native Samsung app's tests, which must answer the same.
 import fixture from "./fixtures/auth.json";
 
@@ -20,6 +21,12 @@ describe("sign-in answers, as the shared fixture has them", () => {
 
   it("reads token answers", () => {
     for (const c of fixture.tokenResponse) expect([c.in, outcome(() => parseTokenResponse(c.in.body, c.in.asked))]).toEqual([c.in, c.out]);
+  });
+
+  it("checks a server's proof as the server makes it", () => {
+    for (const c of fixture.serverProof) {
+      expect([c.in, proofOf(fromBase64url(c.in.key)!, c.in.serverId, c.in.address, c.in.challenge)]).toEqual([c.in, c.out]);
+    }
   });
 
   it("reads OAuth errors", () => {

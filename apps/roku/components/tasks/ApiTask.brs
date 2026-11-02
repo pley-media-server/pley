@@ -2,7 +2,10 @@
 ' code sign-in and the token refreshes. Transfers run side by side on one
 ' message port; refreshes run one at a time for each server, since a
 ' refresh token works once and two refreshes with the same one end the
-' sign-in. A new pair is written to the registry before it is used.
+' sign-in. A new pair is written to the registry before it is used. No
+' token goes to the server's address before the server there proves it
+' holds the sign-in's key (docs/API.md, "Telling servers apart"), and the
+' scene's players and pictures get the token only while that holds.
 
 sub init()
     m.top.functionName = "apiRun"
@@ -24,6 +27,22 @@ sub apiRun()
     m.refreshing = {}
     ' The access token the last refresh gave, and when: { token, at }.
     m.lastIssued = invalid
+    ' When the server in use last proved itself, and on which network
+    ' (m.network counts the changes seen): { at, network } of m.clock, or
+    ' invalid. doubted: a request got no answer, so the next token waits for
+    ' a new proof; proving: that proof is under way; proofRetryAt: when one
+    ' that failed is asked again; proofSeq: which proof under way counts (an
+    ' answer to an earlier one is for another server or network).
+    m.proved = invalid
+    m.network = 0
+    m.doubted = false
+    m.proving = false
+    m.proofRetryAt = 0
+    m.proofSeq = 0
+    ' Joining or leaving a network: the server proves itself again.
+    m.device = CreateObject("roDeviceInfo")
+    m.device.SetMessagePort(m.port)
+    m.device.EnableLinkStatusEvent(true)
     m.server = ""
     m.tokens = invalid
     m.signIn = invalid
@@ -49,6 +68,8 @@ sub apiRun()
             if msg.getField() = "request" then apiAccept(msg.getData())
         else if kind = "roUrlEvent"
             apiFinished(msg)
+        else if kind = "roDeviceInfoEvent"
+            apiNetworkChanged()
         end if
         apiTick()
     end while
@@ -82,6 +103,7 @@ end function
 ' under way.
 function apiWaitMs() as integer
     if m.transfers.Count() > 0 or m.signIn <> invalid or m.later.Count() > 0 then return 250
+    if m.tokens <> invalid and m.tokens.proof <> invalid then return 30000
     return 0
 end function
 
@@ -209,6 +231,11 @@ sub apiSend(job as object)
             if decision = "refresh" then apiRefresh()
             return
         end if
+        if not apiTokenMayGo()
+            m.waiting.Push(job)
+            apiProve(m.tokens)
+            return
+        end if
         job.sent = m.tokens.access
     end if
     transfer = transferNew(m.transfers)
@@ -264,6 +291,8 @@ sub apiAnswered(job as object, status as integer, body as string, headers as dyn
         apiPollAnswered(job, status, body)
     else if purpose = "switch"
         apiSwitchAnswered(job, status, body)
+    else if purpose = "proof"
+        apiProofAnswered(job, status, body)
     else if purpose = "revoke"
         ' The app signed out whatever the answer; a busy server is asked
         ' once more.
@@ -302,9 +331,16 @@ sub apiTick()
         end for
     end if
     apiPollWhenDue(now)
+    apiRenewProof(now)
 end sub
 
 sub apiCallAnswered(job as object, status as integer, body as string, headers as dynamic)
+    if status <= 0 and job.auth and job.server = m.server and m.tokens <> invalid and m.tokens.proof <> invalid
+        ' The Roku may be on another network now.
+        m.doubted = true
+        apiPublish()
+        apiProve(m.tokens)
+    end if
     ' A switch stops the tokens it replaces at once: what they were sent
     ' with goes again with the new pair, not taken for the sign-in's end.
     if status = 401 and job.auth and job.server = m.server and m.switching and not job.retried
@@ -569,7 +605,8 @@ sub apiRefresh()
     ' An answer given up on can be a refresh token the server has spent:
     ' a refresh is waited for much longer than other requests.
     job.timeoutMs = 120000
-    apiSend(job)
+    ' The refresh token goes only to a server that proves itself now.
+    apiSendProved(tokens, job)
 end sub
 
 sub apiRefreshAnswered(job as object, status as integer, body as string)
@@ -586,7 +623,7 @@ sub apiRefreshAnswered(job as object, status as integer, body as string)
     if outcome = "ok"
         answer = authParseTokens(body, old.scope, apiNow())
         ' Unreadable, the old refresh token spent: the sign-in is over.
-        if answer.ok then fresh = tokensFrom(answer, old.issuer, old.tokenEndpoint, old.revocationEndpoint)
+        if answer.ok then fresh = tokensFrom(answer, old.issuer, old.tokenEndpoint, old.revocationEndpoint, old)
         if fresh <> invalid and authExtraScopes(fresh.scope, old.scope).Count() > 0
             apiRevoke(fresh)
             fresh = invalid
@@ -612,7 +649,7 @@ sub apiRefreshAnswered(job as object, status as integer, body as string)
         if current
             m.tokens = fresh
             m.lastIssued = { token: fresh.access, at: apiNow() }
-            m.session.accessToken = fresh.access
+            apiPublish()
         end if
     end if
     ' What waits goes again, with the new token; when these tokens were
@@ -640,9 +677,11 @@ sub apiEnd(reason as string)
     if m.tokens <> invalid then tokensWipe(m.tokensSection, m.tokens.issuer)
     m.tokens = invalid
     m.lastIssued = invalid
+    m.proved = invalid
+    apiForgetProof()
     m.networkKept = {}
     apiFailWaiting(apiSignedOut())
-    m.session.accessToken = ""
+    apiPublish()
     m.session.signOutReason = reason
     m.session.signedIn = false
 end sub
@@ -660,10 +699,12 @@ sub apiFailWaiting(answer as object)
 end sub
 
 ' Ends the grant of tokens on its server (RFC 7009); nothing waits for it.
+' A server that can't prove it holds their key gets nothing: the person can
+' sign the Roku out in Account → Apps.
 sub apiRevoke(tokens as object)
     token = tokens.refresh
     if token = "" then token = tokens.access
-    apiSend(apiForm(apiJob("revoke", "POST", tokens.revocationEndpoint), { token: token, client_id: httpClientId() }))
+    apiSendProved(tokens, apiForm(apiJob("revoke", "POST", tokens.revocationEndpoint), { token: token, client_id: httpClientId() }))
 end sub
 
 sub apiSignOut(request as object)
@@ -674,9 +715,11 @@ sub apiSignOut(request as object)
     end if
     m.tokens = invalid
     m.lastIssued = invalid
+    m.proved = invalid
+    apiForgetProof()
     m.networkKept = {}
     apiFailWaiting(apiSignedOut())
-    m.session.accessToken = ""
+    apiPublish()
     m.session.signOutReason = "signed_out"
     m.session.signedIn = false
     apiAnswer(request, apiOk(invalid))
@@ -720,16 +763,18 @@ sub apiSelect(url as string, name as string)
     m.tokens = invalid
     if url <> "" then m.tokens = tokensLoad(m.tokensSection, url)
     m.lastIssued = invalid
+    m.proved = invalid
+    m.doubted = false
+    apiForgetProof()
     m.session.server = url
     m.session.serverName = name
     m.session.signOutReason = ""
     if m.tokens <> invalid
         m.session.scope = m.tokens.scope
-        m.session.accessToken = m.tokens.access
     else
         m.session.scope = ""
-        m.session.accessToken = ""
     end if
+    apiPublish()
     m.session.signedIn = m.tokens <> invalid
     apiAskProfile()
 end sub
@@ -1000,15 +1045,19 @@ sub apiSignedIn(signIn as object, body as string)
     end if
     previous = tokensLoad(m.tokensSection, fresh.issuer)
     tokensSave(m.tokensSection, fresh)
+    ' The sign-in before ends only where the server proves it holds its key
+    ' (apiRevoke).
     if previous <> invalid and previous.refresh <> fresh.refresh then apiRevoke(previous)
     ' Another profile, maybe: whether it has a PIN isn't known until it says.
     profKeepPin(CreateObject("roRegistrySection", "household"), fresh.issuer, invalid)
     if fresh.issuer = m.server
         m.tokens = fresh
         m.lastIssued = invalid
+        ' A new sign-in, a new key: the next token waits for its proof.
+        m.proved = invalid
         m.session.signOutReason = ""
         m.session.scope = fresh.scope
-        m.session.accessToken = fresh.access
+        apiPublish()
         m.session.signedIn = true
         apiAskProfile()
     end if
@@ -1045,7 +1094,8 @@ sub apiSwitchProfile(request as object, spec as object)
     job.request = request
     ' As a refresh: an answer given up on can be a spent refresh token.
     job.timeoutMs = 120000
-    apiSend(job)
+    ' The refresh token and the PIN go only to a server that proves itself now.
+    apiSendProved(tokens, job)
 end sub
 
 sub apiSwitchAnswered(job as object, status as integer, body as string)
@@ -1057,7 +1107,7 @@ sub apiSwitchAnswered(job as object, status as integer, body as string)
     if outcome.kind = "tokens"
         answer = authParseTokens(body, old.scope, apiNow())
         fresh = invalid
-        if answer.ok then fresh = tokensFrom(answer, old.issuer, old.tokenEndpoint, old.revocationEndpoint)
+        if answer.ok then fresh = tokensFrom(answer, old.issuer, old.tokenEndpoint, old.revocationEndpoint, old)
         if fresh <> invalid and authExtraScopes(fresh.scope, old.scope).Count() > 0
             apiRevoke(fresh)
             fresh = invalid
@@ -1078,7 +1128,7 @@ sub apiSwitchAnswered(job as object, status as integer, body as string)
             m.tokens = fresh
             m.lastIssued = { token: fresh.access, at: apiNow() }
             m.session.scope = fresh.scope
-            m.session.accessToken = fresh.access
+            apiPublish()
             apiAskProfile()
             apiAnswer(job.request, apiOk({ through: false }))
         end if
@@ -1098,6 +1148,126 @@ sub apiSwitchAnswered(job as object, status as integer, body as string)
         m.switchWaiting = invalid
         apiSwitchProfile(waiting.request, waiting.spec)
     end if
+end sub
+
+' --- Telling servers apart (docs/API.md) ---
+
+' Whether the access token may go to the server in use (authTokenMayGo): it
+' proved lately, on this network, that it holds the sign-in's key.
+function apiTokenMayGo() as boolean
+    if m.tokens = invalid then return true
+    return authTokenMayGo(m.tokens.proof, m.proved, m.network, m.doubted, m.clock.TotalMilliseconds())
+end function
+
+' The access token the scene's players, pictures and event stream use:
+' only while it may go to the server, "" meanwhile.
+sub apiPublish()
+    token = ""
+    if m.tokens <> invalid and apiTokenMayGo() then token = m.tokens.access
+    if m.session.accessToken <> token then m.session.accessToken = token
+end sub
+
+' The proof under way, if any, no longer counts: the server, the sign-in or
+' the network changed. Its answer is let go when it comes.
+sub apiForgetProof()
+    m.proofSeq = m.proofSeq + 1
+    m.proving = false
+    m.proofRetryAt = 0
+end sub
+
+' Asks the server at tokens' address to prove it holds their key; then
+' sends after (a refresh, a switch, a revocation), or what waits without
+' it. One proof of the tokens in use at a time.
+sub apiProve(tokens as object, after = invalid as dynamic)
+    if after = invalid
+        if m.proving then return
+        m.proving = true
+    end if
+    ' 16 of a random UUID's bytes: the challenge.
+    bytes = CreateObject("roByteArray")
+    bytes.FromHexString(CreateObject("roDeviceInfo").GetRandomUUID().Replace("-", ""))
+    challenge = authBase64Url(bytes)
+    job = apiJob("proof", "GET", tokens.issuer + urlWithQuery("/api/server", { challenge: challenge, proof_id: tokens.proof.proofId }))
+    job.tokens = tokens
+    job.challenge = challenge
+    job.after = after
+    job.network = m.network
+    job.seq = m.proofSeq
+    job.timeoutMs = 10000
+    apiSend(job)
+end sub
+
+' Sends job, which carries tokens' refresh token, once their server proves
+' itself now; at once for a sign-in from a server without proofs.
+sub apiSendProved(tokens as object, job as object)
+    if tokens.proof = invalid
+        apiSend(job)
+    else
+        apiProve(tokens, job)
+    end if
+end sub
+
+sub apiProofAnswered(job as object, status as integer, body as string)
+    tokens = job.tokens
+    ' For a server, sign-in or network since left: the proof asked since
+    ' answers for what waits.
+    if job.after = invalid and job.seq <> m.proofSeq then return
+    if job.after = invalid then m.proving = false
+    current = m.tokens <> invalid and m.tokens.issuer = tokens.issuer and m.tokens.refresh = tokens.refresh
+    verdict = authProofVerdict(status, body, tokens.proof, tokens.issuer, job.challenge)
+    if verdict = "proved"
+        if current and job.network = m.network
+            m.proved = { at: m.clock.TotalMilliseconds(), network: job.network }
+            m.doubted = false
+        end if
+        apiPublish()
+        if job.after <> invalid
+            apiSend(job.after)
+        else
+            apiSendWaiting()
+        end if
+        return
+    end if
+    ' Asked again in a while, or by the next request.
+    if job.after = invalid or current then m.proofRetryAt = m.clock.TotalMilliseconds() + 30000
+    if verdict = "another"
+        ' Another device answers at the address: it gets no token.
+        if current then m.proved = invalid
+        failure = apiFail("network", authAnotherDevice())
+    else
+        failure = httpAnswer(status, body)
+    end if
+    apiPublish()
+    if job.after = invalid
+        apiFailWaiting(failure)
+    else if job.after.purpose = "refresh" or job.after.purpose = "switch"
+        m.refreshing.Delete(tokens.issuer)
+        if job.after.purpose = "switch"
+            m.switching = false
+            apiAnswer(job.after.request, failure)
+        end if
+        apiFailWaiting(failure)
+    end if
+end sub
+
+' The Roku joined or left a network: the server proves itself again
+' before the token goes, and the players' token waits for it.
+sub apiNetworkChanged()
+    m.network = m.network + 1
+    m.proved = invalid
+    ' A proof under way was asked on the network before.
+    apiForgetProof()
+    apiPublish()
+    if m.tokens <> invalid and m.tokens.proof <> invalid then apiProve(m.tokens)
+end sub
+
+' Asks for the next proof before the one held lapses, so the players'
+' token never does while the server answers; one that failed is asked
+' again every 30 seconds. A lapsed proof takes the players' token.
+sub apiRenewProof(now as integer)
+    apiPublish()
+    if m.tokens = invalid or m.tokens.proof = invalid or m.proving then return
+    if authProofDue(m.proved, m.network, m.doubted, now, m.proofRetryAt) then apiProve(m.tokens)
 end sub
 
 ' --- Playback ---

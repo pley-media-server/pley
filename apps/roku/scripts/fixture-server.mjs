@@ -2,8 +2,12 @@
 // from docs/API.md, never a real server. It also checks what the app sends:
 // the User-Agent on every request, the token in the Authorization header
 // only (and not for a QR code), each refresh token used once and never two
-// refreshes at once. Requests and Discover are in fixture-requests.mjs.
+// refreshes at once, and no token before the server proved it holds the
+// sign-in's key (docs/API.md, "Telling servers apart"); a refresh token
+// only after a proof made then. Requests and Discover are in
+// fixture-requests.mjs.
 
+import { createHash, createHmac } from "node:crypto";
 import { createServer } from "node:http";
 import { deflateSync } from "node:zlib";
 import { fakeRequests } from "./fixture-requests.mjs";
@@ -17,6 +21,14 @@ const REQUEST_SCOPES = "requests approvals";
 const SWITCH_GRANT = "urn:pley:params:oauth:grant-type:switch-profile";
 // A new code for each sign-in.
 const USER_CODES = ["BCDF-GHJK", "LMNP-QRST"];
+// The server's id, and what its sign-ins' proof keys derive from (a real
+// server's secret.key).
+const SERVER_ID = "f1c7e5a0d2b94c6e8a3f7d1b5c9e2a4f6b8d0c13";
+const PROOF_ROOT = createHash("sha256").update("pley fixture server").digest();
+const b64url = (bytes) => bytes.toString("base64url");
+const proofKey = (grant) => createHmac("sha256", PROOF_ROOT).update(`grant ${grant}`).digest();
+// How soon after a proof a refresh token may come: "a proof made then".
+const PROOF_THEN_MS = 10_000;
 
 // A PNG of colorAt(x, y) ([r, g, b]) for every pixel.
 function png(width, height, colorAt) {
@@ -250,16 +262,29 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
   const access = new Map(); // access token -> its scope
   const refresh = new Map(); // refresh token -> "fresh" | "used"
   const refreshScope = new Map(); // refresh token -> its scope: a refresh keeps it
+  let grants = 0;
+  const grantOf = new Map(); // access or refresh token -> its sign-in: a refresh keeps its key
+  const provedAt = new Map(); // sign-in -> when the server last proved it holds its key
   const progress = [];
   const closed = [];
 
-  const issue = (seconds, scope) => {
+  const issue = (seconds, scope, grant = ++grants) => {
     tokens += 1;
-    const pair = { access_token: `pley_at_${tokens}`, token_type: "Bearer", expires_in: seconds, scope, refresh_token: `pley_rt_${tokens}` };
+    const pair = {
+      access_token: `pley_at_${tokens}`, token_type: "Bearer", expires_in: seconds, scope, refresh_token: `pley_rt_${tokens}`,
+      server_id: SERVER_ID, proof_id: String(grant), proof_key: b64url(proofKey(grant)),
+    };
     access.set(pair.access_token, scope);
     refresh.set(pair.refresh_token, "fresh");
     refreshScope.set(pair.refresh_token, scope);
+    grantOf.set(pair.access_token, grant);
+    grantOf.set(pair.refresh_token, grant);
     return pair;
+  };
+  // A refresh token goes only to a server that proved itself then.
+  const provedThen = (token, what) => {
+    const at = provedAt.get(grantOf.get(token));
+    if (at === undefined || Date.now() - at > PROOF_THEN_MS) problems.push(`${what} without a proof made then`);
   };
 
   const server = createServer(async (req, res) => {
@@ -344,8 +369,9 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
           problems.push(`refresh token ${token} used again`);
           return oauthError("invalid_grant", "refresh token used again: the app's access is ended");
         }
+        provedThen(token, "a refresh");
         refresh.set(token, "used");
-        return json(200, issue(accessSeconds, refreshScope.get(token)));
+        return json(200, issue(accessSeconds, refreshScope.get(token), grantOf.get(token)));
       }
       // Another profile of the household: its tokens, the old ones stopped
       // at once (docs/API.md). Never beside a refresh: both spend the
@@ -362,22 +388,37 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
         }
         const profile = fixture.household.find((p) => String(p.id) === form.get("profile"));
         if (!profile) return json(400, { error: "invalid_grant", reason: "not_allowed", error_description: "not a profile of the household" });
+        provedThen(token, "a profile switch");
         refresh.set(token, "used");
         access.clear();
         fixture.switched.push(profile.id);
         fixture.household = fixture.household.map((p) => ({ ...p, current: p.id === profile.id }));
-        return json(200, issue(accessSeconds, refreshScope.get(token)));
+        return json(200, issue(accessSeconds, refreshScope.get(token), grantOf.get(token)));
       }
       return oauthError("unsupported_grant_type", "");
     }
-    if (url.pathname === "/api/oauth/revoke" && req.method === "POST") return json(200);
+    if (url.pathname === "/api/oauth/revoke" && req.method === "POST") {
+      const token = form.get("token");
+      if (grantOf.has(token)) provedThen(token, "a revocation");
+      return json(200);
+    }
 
     // Everything else needs the access token, in the header, but a keyed
     // session's media, which its key opens.
     if (!url.pathname.startsWith("/api/") || url.pathname === "/api/server") {
-      return json(200, { name: "Fixture", version: "0.1.0", setup_required: false, setup_code_required: false, ...(fixture.twoStep ? { two_step_required: true } : {}) });
+      const server = { id: SERVER_ID, name: "Fixture", version: "0.1.0", setup_required: false, setup_code_required: false, ...(fixture.twoStep ? { two_step_required: true } : {}) };
+      const challenge = url.searchParams.get("challenge");
+      const grant = Number(url.searchParams.get("proof_id"));
+      if (url.pathname !== "/api/server" || challenge === null) return json(200, server);
+      if (auth) problems.push("a proof asked for with a token");
+      if (!/^[A-Za-z0-9_-]{22,86}$/.test(challenge) || !(grant >= 1 && grant <= grants)) return json(400, { code: "bad_request", message: "challenge and proof_id" });
+      fixture.proofs += 1;
+      provedAt.set(grant, Date.now());
+      const proof = b64url(createHmac("sha256", proofKey(grant)).update(["pley-server-proof", SERVER_ID, issuer, challenge].join("\n")).digest());
+      return json(200, { ...server, proof, address: issuer });
     }
     const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    if (bearer && access.has(bearer) && !provedAt.has(grantOf.get(bearer))) problems.push(`${url.pathname}: the token before the server proved itself`);
     if (toRefuse.delete(url.pathname)) access.delete(bearer);
     if (!access.has(bearer) && !url.pathname.startsWith("/api/media/pley_mk_")) {
       res.writeHead(401, { "Content-Type": "application/json", "WWW-Authenticate": 'Bearer error="invalid_token"' });
@@ -825,7 +866,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     return json(404, { code: "not_found", message: `nothing at ${path}` });
   });
 
-  const fixture = { issuer: "", down: false, qr: true, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], streams: [], picks: new Map(), ratings: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [], smartPlaylists: [], nextPlaylist: 2,
+  const fixture = { issuer: "", down: false, qr: true, proofs: 0, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], streams: [], picks: new Map(), ratings: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [], smartPlaylists: [], nextPlaylist: 2,
     household: [{ id: 1, name: "Anna", avatar_url: null, avatar_color: "#38bdf8", current: true, needs: "none" }, { id: 2, name: "Ben", avatar_url: null, avatar_color: "#f472b6", current: false, needs: "none" }],
     switched: [], subtitlesAdded: [], picturesMissing: false, picturesAsked: [], picturesFetched: [], probed: false, networkTold: [], speedTests: [], requestsAsked: [], requestsActed: [], discoverPictures: [], problems, requests, progress, closed, close: () => server.close(),
     liveRecent: [2], liveBrowses: [], liveFavorites: [], liveFavoriteChanges: [], liveGuides: [], liveWatches: [], liveSessions: new Map(), livePlaylists: [], liveLeft: [] };

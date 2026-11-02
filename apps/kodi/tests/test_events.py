@@ -80,6 +80,10 @@ class Tokens:
         self.at = server
         self.profile = None
         self.token = "at-1"
+        self.doubts = 0
+
+    def doubt(self):
+        self.doubts += 1
 
     def server(self):
         return self.at

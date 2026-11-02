@@ -146,6 +146,13 @@ public enum NetworkFailure
     ConnectionFailed,
     /// <summary>The request was stopped on purpose (<see cref="HttpRequest.Cancel"/>).</summary>
     Cancelled,
+    /// <summary>
+    /// What answers at the server's address can't prove it is the server signed in to
+    /// (<see cref="Auth.ServerProofs"/>): the TV treats it as the server being out of reach.
+    /// </summary>
+    AnotherDevice,
+    /// <summary>The server, or a proxy before it, answered a proof with a server error: out of reach for now.</summary>
+    ServerFailed,
 }
 
 /// <summary>No answer: the network, a timeout, or a request cancelled. Its message is the reason, in a few words.</summary>
@@ -193,6 +200,8 @@ public static class Transports
         NetworkFailure.UnknownAddress => "that address isn't known on this network",
         NetworkFailure.SecureConnection => "its secure connection failed",
         NetworkFailure.Cancelled => "cancelled",
+        NetworkFailure.AnotherDevice => "another device answers there",
+        NetworkFailure.ServerFailed => "the server couldn't answer",
         _ => ConnectionFailed,
     };
 

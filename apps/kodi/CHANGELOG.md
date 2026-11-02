@@ -22,6 +22,19 @@ describes how they are made.
   choice. Tracks changed in Kodi's player are saved once they have held 2
   seconds, at the end of a playback too.
 
+### Security
+
+- Before the token goes to the server's address, the server proves it is
+  the one Kodi signed in to, at that address: the access token waits for a
+  proof made on this network within the half hour, the refresh token, a
+  profile's PIN and signing out for one made then. Another device at the
+  address on another network gets nothing, nor does one passing the
+  challenge on to the server from elsewhere; Pley says another device
+  answers at the server's address. One that takes the address on Kodi's own
+  network may get an access token (an hour's) within the half hour, never
+  the refresh token. A sign-in from before starts checking within the hour,
+  as its token is renewed.
+
 ## [0.1.2] - 2026-11-02
 
 ### Fixed

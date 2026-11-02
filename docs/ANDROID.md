@@ -42,6 +42,15 @@ sign-in, the sign-in screen says so, and whoever hasn't set it up yet does
 it on that page as they sign in (for a code, on the device that approves
 it).
 
+Before its token goes to the server's address, the app has the server
+prove it is the one signed in to, at that address
+([API.md](API.md#telling-servers-apart)): for the access token, a proof
+made within the half hour on the same networks (joining or leaving the
+default network, or any Wi-Fi or Ethernet, asks for a new one, and so does
+a request there that got no answer); for the refresh token and a profile's
+PIN, one made then. What can't prove itself gets no token: the app shows
+what it saved and says "Another device answers there."
+
 ### Profiles
 
 A TV asks "Who's watching?" as it starts when the household has more than

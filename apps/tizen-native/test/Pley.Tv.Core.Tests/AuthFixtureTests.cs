@@ -38,6 +38,7 @@ public class AuthFixtureTests
     public static IEnumerable<object[]> TokenCases => Indexes("tokenResponse");
     public static IEnumerable<object[]> ErrorCases => Indexes("oauthError");
     public static IEnumerable<object[]> DeviceCases => Indexes("deviceCode");
+    public static IEnumerable<object[]> ProofCases => Indexes("serverProof");
 
     static JsonElement Case(string rule, int i) => Fixtures.Load("auth").GetProperty(rule)[i];
 
@@ -105,6 +106,16 @@ public class AuthFixtureTests
         var outcome = Outcome(() => TokenRequests.ParseTokenResponse(input.GetProperty("body"), input.GetProperty("asked").GetString()!));
         if (TokenErrors.TryGetValue(i, out var error)) Assert.Equal(error, outcome?["error"]?.GetValue<string>());
         else Same(c.GetProperty("out"), outcome);
+    }
+
+    [Theory, MemberData(nameof(ProofCases))]
+    public void Proof(int i)
+    {
+        var c = Case("serverProof", i);
+        var input = c.GetProperty("in");
+        string Field(string name) => input.GetProperty(name).GetString()!;
+        var key = ServerProofs.KeyOf(Field("key"))!;
+        Assert.Equal(c.GetProperty("out").GetString(), ServerProofs.Proof(key, Field("serverId"), Field("address"), Field("challenge")));
     }
 
     [Theory, MemberData(nameof(ErrorCases))]

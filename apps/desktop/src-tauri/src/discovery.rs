@@ -145,11 +145,11 @@ pub async fn search(targets: &[(Ipv4Addr, SocketAddr)], wait: Duration) -> Vec<F
 }
 
 #[tauri::command]
-pub async fn discover() -> Vec<FoundServer> {
+pub async fn discover(app: tauri::AppHandle) -> Vec<FoundServer> {
     let mut found = search(&targets(), WAIT).await;
     if !found.iter().any(|s| s.url.starts_with("http://localhost:")) {
         let local = format!("http://localhost:{PORT}");
-        if let Ok(info) = check_server(local.clone()).await {
+        if let Ok(info) = check_server(app, local.clone()).await {
             found.insert(0, FoundServer { url: local, name: info.name, id: None, version: info.version });
         }
     }

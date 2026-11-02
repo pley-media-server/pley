@@ -70,6 +70,32 @@ class OAuthTest {
     }
 
     @Test
+    fun theServerProvesItHoldsTheSignInsKey() = withServer { server ->
+        val app = Client(server)
+        val tokens = exchange(app, signIn(app, server).getValue("code"))
+        val serverId = tokens.field("server_id")!!
+        val proofId = tokens.field("proof_id")!!
+        val key = Base64.getUrlDecoder().decode(tokens.field("proof_key")!!)
+        assertEquals(32, key.size)
+        assertEquals(serverId, app.get("/api/server").field("id"))
+
+        val asked = "AAECAwQFBgcICQoLDA0ODw"
+        val answer = app.get("/api/server?challenge=$asked&proof_id=$proofId")
+        assertEquals("no-store", answer.header("Cache-Control"))
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256").apply { init(javax.crypto.spec.SecretKeySpec(key, "HmacSHA256")) }
+        // The proof covers the address it was asked at, the issuer.
+        val address = app.get("/.well-known/oauth-authorization-server").field("issuer")
+        val expected = Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal("pley-server-proof\n$serverId\n$address\n$asked".toByteArray()))
+        assertEquals(expected, answer.field("proof"))
+        // The same key at every refresh.
+        val refreshed = app.form("/api/oauth/token", "grant_type" to "refresh_token", "refresh_token" to tokens.field("refresh_token")!!, "client_id" to clientId)
+        assertEquals(tokens.field("proof_key"), refreshed.field("proof_key"))
+        // A challenge without its proof_id, or one not written as it should be, is refused.
+        assertEquals(400, app.get("/api/server?challenge=$asked").code)
+        assertEquals(400, app.get("/api/server?challenge=short&proof_id=$proofId").code)
+    }
+
+    @Test
     fun theAuthorizePageSendsMistakesBackOrRefusesThem() = withServer { server ->
         val app = Client(server)
         val base = "/oauth/authorize?response_type=code&client_id=${enc(clientId)}&redirect_uri=${enc(redirect)}&state=s"

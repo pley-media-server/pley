@@ -5,7 +5,7 @@ import type { ServerMetadata } from "../src/auth/metadata";
 import type { Tokens } from "../src/auth/tokens";
 import { NetworkError, type HttpRequest, type HttpResponse } from "../src/net/transport";
 
-const tokens = { accessToken: () => Promise.resolve("token") } as unknown as Tokens;
+const tokens = { accessToken: () => Promise.resolve("token"), doubtServer: () => {} } as unknown as Tokens;
 
 /** An API whose server answers `status` and `body` to everything, keeping what it was asked. */
 function server(status = 200, body: unknown = {}) {

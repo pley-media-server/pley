@@ -160,6 +160,11 @@ an app used, the app refuses the server. So a reverse proxy must:
 
 - pass the original `Host` header, and set `X-Forwarded-Proto` (replacing
   what the client sent);
+- pass on only Pley's own names: Pley would name itself after any other
+  `Host` too, and prove itself to apps under a name it no longer has.
+  Caddy, Traefik and Nginx Proxy Manager answer only the names they are
+  given; nginx sends other names to its first server unless another one is
+  the `default_server`;
 - add the client's address to `X-Forwarded-For`. Pley trusts it only from a
   proxy on the same computer, the local network or a Docker network;
 - not buffer responses (live updates are server-sent events, and video
@@ -177,6 +182,12 @@ pley.example.com {
 **nginx:**
 
 ```nginx
+# Other names never reach Pley.
+server {
+    listen 443 ssl default_server;
+    ssl_reject_handshake on;
+}
+
 server {
     listen 443 ssl;
     http2 on;

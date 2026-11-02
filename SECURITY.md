@@ -113,7 +113,9 @@ protect your server.
   back to Pley's account (after a change of PUID and PGID, say), restore
   it from a backup of the data folder, or delete it for Pley to make a new
   one (authenticator apps set up before then stop working; recovery codes
-  still sign in).
+  still sign in; apps say another device answers at the server's address
+  until they sign in again, as its proofs change, and the desktop app until
+  the server is forgotten and connected again).
 
 ### Sessions
 
@@ -168,6 +170,27 @@ Apps sign in on Pley's own page with OAuth 2.1.
   with the account's sign-ins.
 - App sign-in works over plain HTTP at home, as passwords do. Beyond the home
   network it needs HTTPS, like the rest of Pley.
+- Each sign-in gets a key of its own, derived from `secret.key`, with which
+  the server proves it is the server an app signed in to before the app
+  sends its token to an address (every app). Another device at that
+  address can't, nor can another app's key. The proof covers
+  the address it was asked at; the server makes none for a plain-http
+  address to a client on the internet, none for an https address but
+  through a proxy on the home network, and none for a page other than
+  Pley's TV apps, so neither a device elsewhere nor a website's page open
+  at home can pass a challenge on for it. One that reaches the server from
+  the home network itself, or through a proxy that hides where clients
+  come from, could, as could a page in an LG TV's own browser, and a
+  network that gives a plain-http name another device's address; an https
+  address is checked by its certificate too, and its proxy must pass on
+  only the server's own names, or the server proves itself under a name
+  someone else may hold now.
+  Refresh tokens and PINs wait for a proof made then; an access token may
+  use one made within the half hour on the same network. The desktop app,
+  which uses the web app's session, asks for a key of its own with that
+  session; the server's pages in its window send the session themselves,
+  and leave a plain-http server within a second of the computer's way to
+  it changing, or of its waking from sleep.
 
 ### TVs signing in
 

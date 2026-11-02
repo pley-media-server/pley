@@ -56,6 +56,8 @@ pub struct Inner {
     pub two_step: crate::two_step::TwoStep,
     /// What Automatic quality knows of each client's networks.
     pub bandwidth: crate::bandwidth::Bandwidth,
+    /// This server's id and its proofs to apps (see [`crate::identity`]).
+    pub identity: crate::identity::Identity,
     /// Sign-ins of apps in progress (see [`crate::oauth`]).
     pub oauth: crate::oauth::AuthorizationServer,
     /// Where the server listens, and wants to (see [`crate::network`]).
@@ -179,6 +181,7 @@ impl AppState {
         auth.require_two_step(require_two_step);
         // After two-step sign-in, which makes the key it derives its own from.
         let bandwidth = crate::bandwidth::Bandwidth::new(db.clone(), &config.data_dir);
+        let identity = crate::identity::Identity::new(&config.data_dir);
         let users: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users").fetch_one(&db.read).await?;
         if users == 0 {
             auth.setup.issue();
@@ -196,6 +199,7 @@ impl AppState {
                 live,
                 two_step,
                 bandwidth,
+                identity,
                 oauth,
                 started_at: Instant::now(),
                 stopping,

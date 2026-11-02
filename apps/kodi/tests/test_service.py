@@ -375,9 +375,13 @@ class Tokens:
     def __init__(self, server):
         self.url = server
         self.token = "t1"
+        self.doubts = 0
 
     def server(self):
         return self.url
+
+    def doubt(self):
+        self.doubts += 1
 
     def access(self):
         return self.token

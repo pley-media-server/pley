@@ -60,6 +60,8 @@ const FIRST_PARTY: &[(&str, &str)] = &[
     ("GET", "/api/me/apps"),
     ("DELETE", "/api/me/apps/{id}"),
     ("GET", "/api/activity"),
+    // Apps have their keys in their token answers.
+    ("GET", "/api/server/proof-key"),
 ];
 
 /// Administration.

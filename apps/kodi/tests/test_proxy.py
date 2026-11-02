@@ -295,6 +295,16 @@ class ProxyTest(unittest.TestCase):
         self.assertEqual((response.status, json.loads(data)["code"]), (502, "unreachable"))
         self.assertLess(time.monotonic() - started, 7)
 
+    def test_another_device_at_the_address_is_said_and_gets_no_token(self):
+        # A sign-in with a key, at an address where the server can't prove it
+        # holds it (this stand-in answers /api/server like any other path).
+        key = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"
+        self.store.save(dict(self.store.load(), proof={"server_id": "abc", "proof_id": "17", "proof_key": key}))
+        response, data = self.ask("GET", "/%s/api/hubs/home" % SECRET)
+        self.assertEqual((response.status, json.loads(data)["code"]), (502, "another_device"))
+        self.assertEqual([r.path.split("?")[0] for r in self.server.requests], ["/api/server"])
+        self.assertNotIn("authorization", self.server.requests[0].headers)
+
     def test_stopping_ends_every_connection_at_once(self):
         # Kodi kills the service when its threads outlive 5 seconds.
         idle = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)

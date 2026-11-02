@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Joining or leaving a network makes the servers prove themselves again (ServerProofs). -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- The browsers that offer Custom Tabs, for signing in (Android 11 and later). -->
     <queries>

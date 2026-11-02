@@ -6,6 +6,8 @@ import java.net.URLEncoder
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -55,6 +57,16 @@ internal class OAuth(private val state: State) {
     private val refreshTokens = HashMap<String, RefreshToken>()
     private val codes = HashMap<String, Code>()
     private val devices = HashMap<String, Device>()
+
+    /** The server's id, as `/api/server` and the token answers give it. */
+    val serverId = "f1c7e5a0d2b94c6e8a3f7d1b5c9e2a4f6b8d0c13"
+
+    /**
+     * What the grants' proof keys come from, as a server's secret.key: the
+     * same in every process, since a server keeps it when it restarts (and
+     * the demo server restarts with the app, which keeps its tokens).
+     */
+    private val proofRoot = MessageDigest.getInstance("SHA-256").digest("pley fixture server".toByteArray(Charsets.UTF_8))
 
     /** The profile the authorize page and the device grant sign in as. */
     var signInAs: Long = FixtureIds.ALEX
@@ -381,6 +393,9 @@ internal class OAuth(private val state: State) {
             put("expires_in", ACCESS_LIFETIME_S)
             put("scope", SCOPES.filter { it in grant.scopes }.joinToString(" "))
             put("refresh_token", refresh)
+            put("server_id", serverId)
+            put("proof_id", grant.id.toString())
+            put("proof_key", base64url(proofKey(grant.id)))
         }
         return Reply.json(body.toString(), headers = NO_STORE)
     }
@@ -439,6 +454,28 @@ internal class OAuth(private val state: State) {
         return names.ifEmpty { setOf("library") }
     }
 
+    // ---------------------------------------------------------------- proofs
+
+    /** The proof key of grant [grantId], the same at every refresh (docs/API.md, "Telling servers apart"). */
+    private fun proofKey(grantId: Long): ByteArray = hmac(proofRoot, "grant $grantId")
+
+    /**
+     * `/api/server`'s `proof` of [challenge] under grant [proofId]'s key, for
+     * the address [call] came to; `null` for one that isn't written as it
+     * should be (a 400).
+     */
+    fun proof(call: Call, challenge: String, proofId: String): String? {
+        if (!CHALLENGE.matches(challenge)) return null
+        val grantId = proofId.takeIf { PROOF_ID.matches(it) }?.toLongOrNull() ?: return null
+        val address = issuer(call) ?: return null
+        return base64url(hmac(proofKey(grantId), "pley-server-proof\n$serverId\n$address\n$challenge"))
+    }
+
+    private fun hmac(key: ByteArray, text: String): ByteArray =
+        Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(key, "HmacSHA256")) }.doFinal(text.toByteArray(Charsets.UTF_8))
+
+    private fun base64url(bytes: ByteArray): String = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+
     private fun token(prefix: String): String {
         val bytes = ByteArray(32)
         random.nextBytes(bytes)
@@ -452,6 +489,9 @@ internal class OAuth(private val state: State) {
         const val REDIRECT_URI = "app.pley.android:/oauth/callback"
         const val SWITCH_PROFILE = "urn:pley:params:oauth:grant-type:switch-profile"
         const val DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
+
+        private val CHALLENGE = Regex("^[A-Za-z0-9_-]{22,86}$")
+        private val PROOF_ID = Regex("^[1-9][0-9]{0,18}$")
 
         /** pley's scopes, in the order the server writes them. */
         val SCOPES = listOf("library", "play", "playlists", "profiles")

@@ -934,9 +934,21 @@ pub struct SourceIp(pub Option<IpAddr>);
 impl<S: Send + Sync> FromRequestParts<S> for SourceIp {
     type Rejection = std::convert::Infallible;
 
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let peer = parts.extensions.get::<axum::extract::ConnectInfo<SocketAddr>>().map(|info| info.0.ip());
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let PeerIp(peer) = PeerIp::from_request_parts(parts, state).await?;
         Ok(SourceIp(peer.map(|peer| forwarded_for(peer, &parts.headers))))
+    }
+}
+
+/// The other end of a request's connection: the client itself, or the
+/// proxy in front of it. Unknown only without a connection (tests).
+pub struct PeerIp(pub Option<IpAddr>);
+
+impl<S: Send + Sync> FromRequestParts<S> for PeerIp {
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        Ok(PeerIp(parts.extensions.get::<axum::extract::ConnectInfo<SocketAddr>>().map(|info| info.0.ip())))
     }
 }
 

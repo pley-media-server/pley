@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Pley.Tv.Core.Net;
@@ -41,6 +42,7 @@ public sealed class PlainVault : ITokenVault
 
 /// <summary>The tokens of one server, as kept.</summary>
 /// <param name="ExpiresAt">When the access token ends, in ms since the epoch.</param>
+/// <param name="Proof">The server's id and this sign-in's proof key; absent from servers before them.</param>
 public sealed record StoredTokens(
     string Issuer,
     string AccessToken,
@@ -48,7 +50,8 @@ public sealed record StoredTokens(
     long ExpiresAt,
     string Scope,
     string TokenEndpoint,
-    string RevocationEndpoint)
+    string RevocationEndpoint,
+    ServerProof? Proof = null)
 {
     // Never print the tokens.
     public override string ToString() => $"StoredTokens {{ Issuer = {Issuer}, Scope = {Scope} }}";
@@ -58,7 +61,13 @@ public sealed record StoredTokens(
 public sealed record OAuthError(string Error, string? Description, string? Reason);
 
 /// <summary>A token answer (RFC 6749 §5.1).</summary>
-public sealed record TokenResponse(string AccessToken, string? RefreshToken, long ExpiresIn, string Scope)
+/// <param name="Proof">What tells the server from another device later; absent from servers before it.</param>
+public sealed record TokenResponse(
+    string AccessToken,
+    string? RefreshToken,
+    long ExpiresIn,
+    string Scope,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ServerProof? Proof = null)
 {
     public override string ToString() => $"TokenResponse {{ ExpiresIn = {ExpiresIn}, Scope = {Scope} }}";
 }
@@ -129,7 +138,8 @@ public static class TokenRequests
             string.IsNullOrEmpty(refresh) ? null : refresh,
             expiresIn,
             // Without a scope, the server issued what was asked (RFC 6749 §5.1).
-            string.IsNullOrEmpty(scope) ? askedScope : scope!);
+            string.IsNullOrEmpty(scope) ? askedScope : scope!,
+            ServerProofs.Of(r));
     }
 
     public static OAuthError? ParseOAuthError(JsonElement? body)
@@ -171,8 +181,14 @@ public static class TokenRequests
         return res.Json();
     }
 
-    public static StoredTokens Stored(TokenResponse answer, string issuer, string tokenEndpoint, string revocationEndpoint, long now) =>
-        new StoredTokens(issuer, answer.AccessToken, answer.RefreshToken, now + answer.ExpiresIn * 1000, answer.Scope, tokenEndpoint, revocationEndpoint);
+    /// <summary>
+    /// The tokens of <paramref name="answer"/> as kept. A refresh or a profile switch is the same
+    /// sign-in, whose key never changes: <paramref name="before"/>'s proof stays, whatever the
+    /// answer says, and an answer brings one only to a sign-in without.
+    /// </summary>
+    public static StoredTokens Stored(TokenResponse answer, string issuer, string tokenEndpoint, string revocationEndpoint, long now, StoredTokens? before = null) =>
+        new StoredTokens(issuer, answer.AccessToken, answer.RefreshToken, now + answer.ExpiresIn * 1000, answer.Scope, tokenEndpoint, revocationEndpoint,
+            before?.Proof ?? answer.Proof);
 
     /// <summary>Ends the grant of <paramref name="tokens"/> on its server; trouble is ignored (the person can sign the TV out in Account → Apps).</summary>
     public static async Task Revoke(Transport http, string clientId, StoredTokens tokens)
@@ -199,7 +215,8 @@ public static class TokenRequests
 /// The tokens of one server: the access token while it works, a new pair from the refresh token
 /// when it doesn't. Refreshes happen one at a time (the server ends the sign-in when a refresh
 /// token is used twice), and the new refresh token is saved before the new access token is used.
-/// They are kept sealed by the vault (<see cref="ITokenVault"/>).
+/// They are kept sealed by the vault (<see cref="ITokenVault"/>). No token leaves before the
+/// server at the address has proved it is the one signed in to (<see cref="ServerProofs"/>).
 /// </summary>
 public sealed class Tokens
 {
@@ -211,18 +228,24 @@ public sealed class Tokens
 
     readonly SemaphoreSlim queue = new SemaphoreSlim(1, 1);
     readonly object kept = new object();
+    readonly object proofs = new object();
     readonly IKeyValue store;
     readonly ITokenVault vault;
     readonly Transport http;
     readonly Action<SignOutReason> onSignedOut;
     readonly Func<long> clock;
+    readonly Func<int, byte[]> random;
     /// <summary>The access token the last refresh or profile switch gave, and when.</summary>
     (string Token, long At)? lastIssued;
     /// <summary>What was read last, and as what, so requests don't each open the vault.</summary>
     (string Text, StoredTokens Tokens)? opened;
+    /// <summary>When, and on which network (<see cref="ServerProofs.Network"/>), the server last proved itself; the proof under way.</summary>
+    (long At, int Network)? provedAt;
+    Task? proving;
 
+    /// <param name="random">The challenges' random bytes.</param>
     public Tokens(string issuer, string clientId, IKeyValue store, Transport http, Action<SignOutReason>? onSignedOut = null, Func<long>? clock = null,
-        ITokenVault? vault = null)
+        ITokenVault? vault = null, Func<int, byte[]>? random = null)
     {
         Issuer = issuer;
         ClientId = clientId;
@@ -231,6 +254,7 @@ public sealed class Tokens
         this.vault = vault ?? new PlainVault();
         this.onSignedOut = onSignedOut ?? (_ => { });
         this.clock = clock ?? (() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        this.random = random ?? ServerProofs.RandomBytes;
     }
 
     public string Issuer { get; }
@@ -300,7 +324,9 @@ public sealed class Tokens
                 return null;
             }
             var refreshToken = refresh is { ValueKind: JsonValueKind.String } r ? r.GetString() : null;
-            return new StoredTokens(issuer!, access!, string.IsNullOrEmpty(refreshToken) ? null : refreshToken, (long)expiresAt.Value, scope, tokenEndpoint!, revocationEndpoint!);
+            var proof = ServerProofs.Of(Json.String(o, "serverId"), Json.String(o, "proofId"), Json.String(o, "proofKey"));
+            return new StoredTokens(issuer!, access!, string.IsNullOrEmpty(refreshToken) ? null : refreshToken, (long)expiresAt.Value, scope, tokenEndpoint!, revocationEndpoint!,
+                proof);
         }
         catch (Exception e) when (e is FormatException or JsonException or ArgumentException)
         {
@@ -311,7 +337,7 @@ public sealed class Tokens
     /// <summary>Keeps <paramref name="tokens"/>, sealed; when that fails, they aren't used.</summary>
     void Save(StoredTokens tokens)
     {
-        var json = JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, object?>
+        var fields = new Dictionary<string, object?>
         {
             ["issuer"] = tokens.Issuer,
             ["accessToken"] = tokens.AccessToken,
@@ -320,7 +346,14 @@ public sealed class Tokens
             ["scope"] = tokens.Scope,
             ["tokenEndpoint"] = tokens.TokenEndpoint,
             ["revocationEndpoint"] = tokens.RevocationEndpoint,
-        });
+        };
+        if (tokens.Proof is { } proof)
+        {
+            fields["serverId"] = proof.ServerId;
+            fields["proofId"] = proof.ProofId;
+            fields["proofKey"] = proof.ProofKey;
+        }
+        var json = JsonSerializer.SerializeToUtf8Bytes(fields);
         byte[] sealedValue;
         try
         {
@@ -346,6 +379,7 @@ public sealed class Tokens
             store.Remove(Key);
             opened = null;
         }
+        lock (proofs) provedAt = null;
     }
 
     public bool SignedIn => Load() != null;
@@ -372,13 +406,81 @@ public sealed class Tokens
         return true;
     });
 
+    /// <summary>
+    /// Completes once the server at this address has proved it is the one signed in to, within the
+    /// last half hour and on this network, or now when <paramref name="now"/>: no token leaves
+    /// before. A sign-in from a server without proofs has nothing to check.
+    /// </summary>
+    async Task Proved(StoredTokens tokens, bool now = false)
+    {
+        if (tokens.Proof is not { } proof) return;
+        lock (proofs)
+        {
+            // A refresh token, a PIN or a sign-out waits for a proof of its own.
+            if (now) provedAt = null;
+        }
+        // A proof under way counts once it ends, unless the TV changed networks meanwhile: looked
+        // at again then, as Android does.
+        while (true)
+        {
+            Task under;
+            lock (proofs)
+            {
+                if (RecentlyProved()) return;
+                under = proving ??= Prove(proof, ServerProofs.Network);
+            }
+            await under.ConfigureAwait(false);
+        }
+    }
+
+    // A clock set back makes an age below zero: proved again.
+    bool RecentlyProved() => provedAt is { } p && p.Network == ServerProofs.Network && clock() - p.At is >= 0 and < ServerProofs.TtlMs;
+
+    async Task Prove(ServerProof proof, int network)
+    {
+        // Out of the lock: the proof under way is known before its request goes.
+        await Task.Yield();
+        try
+        {
+            await ServerProofs.Prove(http, Issuer, proof, random).ConfigureAwait(false);
+            lock (proofs) provedAt = (clock(), network);
+        }
+        finally
+        {
+            lock (proofs) proving = null;
+        }
+    }
+
+    /// <summary>Whether the server proves it holds <paramref name="tokens"/>' key now (none: nothing to check).</summary>
+    async Task<bool> Proves(StoredTokens tokens)
+    {
+        if (tokens.Proof is not { } proof) return true;
+        try
+        {
+            await ServerProofs.Prove(http, Issuer, proof, random).ConfigureAwait(false);
+            return true;
+        }
+        catch (NetworkException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>A request to the server got no answer: the next token waits for a new proof (the TV may be on another network).</summary>
+    public void DoubtServer()
+    {
+        lock (proofs) provedAt = null;
+    }
+
     /// <summary>The access token to send, refreshed when it ends within a minute; null when signed out.</summary>
     public async Task<string?> AccessToken()
     {
         var tokens = Load();
         if (tokens == null) return null;
-        if (tokens.ExpiresAt - clock() > EarlyMs) return tokens.AccessToken;
-        return await Refresh(tokens.AccessToken).ConfigureAwait(false);
+        // A refresh waits for a proof of its own: one before it would be wasted.
+        if (tokens.ExpiresAt - clock() <= EarlyMs) return await Refresh(tokens.AccessToken).ConfigureAwait(false);
+        await Proved(tokens).ConfigureAwait(false);
+        return tokens.AccessToken;
     }
 
     /// <summary>
@@ -388,8 +490,15 @@ public sealed class Tokens
     public Task<string> Refresh(string? stale) => Serial(async () =>
     {
         var tokens = Load() ?? throw new SignedOutException();
-        if (tokens.AccessToken != stale && tokens.ExpiresAt - clock() > EarlyMs) return tokens.AccessToken;
+        if (tokens.AccessToken != stale && tokens.ExpiresAt - clock() > EarlyMs)
+        {
+            // Refreshed by another caller meanwhile, maybe on another network since.
+            await Proved(tokens).ConfigureAwait(false);
+            return tokens.AccessToken;
+        }
         if (tokens.RefreshToken == null) throw SignedOut();
+        // The refresh token goes only to a server that proves itself now.
+        await Proved(tokens, now: true).ConfigureAwait(false);
         JsonElement? answer;
         try
         {
@@ -403,7 +512,7 @@ public sealed class Tokens
             throw SignedOut();
         }
         var parsed = TokenRequests.ParseTokenResponse(answer, tokens.Scope);
-        var fresh = TokenRequests.Stored(parsed, Issuer, tokens.TokenEndpoint, tokens.RevocationEndpoint, clock());
+        var fresh = TokenRequests.Stored(parsed, Issuer, tokens.TokenEndpoint, tokens.RevocationEndpoint, clock(), tokens);
         if (TokenRequests.ExtraScopes(parsed.Scope, tokens.Scope).Count > 0) throw await Widened(fresh).ConfigureAwait(false);
         // A refresh token is good once: the new one is kept before anything else.
         Save(fresh);
@@ -439,6 +548,7 @@ public sealed class Tokens
             ("refresh_token", tokens.RefreshToken),
             ("profile", profile.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         if (pin != null) fields.Add(new KeyValuePair<string, string>("pin", pin));
+        await Proved(tokens, now: true).ConfigureAwait(false);
         JsonElement? answer;
         try
         {
@@ -450,19 +560,23 @@ public sealed class Tokens
             throw SignedOut();
         }
         var parsed = TokenRequests.ParseTokenResponse(answer, tokens.Scope);
-        var fresh = TokenRequests.Stored(parsed, Issuer, tokens.TokenEndpoint, tokens.RevocationEndpoint, clock());
+        var fresh = TokenRequests.Stored(parsed, Issuer, tokens.TokenEndpoint, tokens.RevocationEndpoint, clock(), tokens);
         if (TokenRequests.ExtraScopes(parsed.Scope, tokens.Scope).Count > 0) throw await Widened(fresh).ConfigureAwait(false);
         Save(fresh);
         lastIssued = (fresh.AccessToken, clock());
     });
 
-    /// <summary>Ends this app's sign-in on the server (RFC 7009), then forgets the tokens whatever it answered.</summary>
+    /// <summary>
+    /// Ends this app's sign-in on the server (RFC 7009), then forgets the tokens whatever it
+    /// answered. A server that can't prove itself gets no token: the person can sign the TV out in
+    /// Account → Apps.
+    /// </summary>
     public Task SignOut() => Serial(async () =>
     {
         var tokens = Load();
         try
         {
-            if (tokens != null) await TokenRequests.Revoke(http, ClientId, tokens).ConfigureAwait(false);
+            if (tokens != null && await Proves(tokens).ConfigureAwait(false)) await TokenRequests.Revoke(http, ClientId, tokens).ConfigureAwait(false);
         }
         finally
         {
@@ -481,7 +595,11 @@ public sealed class Tokens
         }
         var previous = Load();
         Save(fresh);
-        if (previous != null && previous.RefreshToken != fresh.RefreshToken) await TokenRequests.Revoke(http, ClientId, previous).ConfigureAwait(false);
+        // A new sign-in, a new key: the next token waits for its proof.
+        lock (proofs) provedAt = null;
+        if (previous == null || previous.RefreshToken == fresh.RefreshToken) return;
+        // The sign-in before goes only to the server that proves it holds its key.
+        if (await Proves(previous).ConfigureAwait(false)) await TokenRequests.Revoke(http, ClientId, previous).ConfigureAwait(false);
     });
 
     SignedOutException SignedOut()

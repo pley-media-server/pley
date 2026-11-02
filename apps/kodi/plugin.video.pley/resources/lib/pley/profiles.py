@@ -40,7 +40,7 @@ def switch(client: api.Client, profile_id: int, pin=None) -> None:
     """Acts as `profile_id` from now on (with the current profile and its
     PIN: checks the PIN). Raises api.ApiError, its code the server's reason
     ("wrong_pin", "throttled", "pin_locked", "browser", "not_allowed"), else
-    its OAuth error, "signed_out" or "unreachable"."""
+    its OAuth error, "signed_out", "unreachable" or "another_device"."""
     client.json("POST", "/switch-profile", json_body={"profile": profile_id, "pin": pin})
 
 
@@ -70,6 +70,8 @@ def refusal(error: api.ApiError, text, server: str) -> str:
         return text("cant_switch")
     if code in ("unreachable", "service_off"):
         return text("cant_reach") % server
+    if code == "another_device":
+        return text("another_device") % server
     return text("server_error") % error.message
 
 

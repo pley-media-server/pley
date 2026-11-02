@@ -93,6 +93,9 @@ class Events:
             except auth.SignedOut:
                 continue
             except Exception as e:  # noqa: BLE001 - whatever broke it, it is tried again
+                if isinstance(e, OSError) or (isinstance(e, api.ApiError) and e.status == 0):
+                    # Nothing answered: the server proves itself again before the next token.
+                    self.tokens.doubt()
                 if tries == 0 and not self.stopping.is_set():
                     kodi.log("event stream: %s" % e)
             if time.monotonic() - began >= HELD:

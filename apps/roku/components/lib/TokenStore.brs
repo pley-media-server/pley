@@ -9,7 +9,8 @@ function tokensKey(issuer as string) as string
 end function
 
 ' The tokens kept for issuer: { issuer, tokenEndpoint, revocationEndpoint,
-' access, refresh, expiresAt, scope }, or invalid.
+' access, refresh, expiresAt, scope, and proof (authParseProof) from a
+' server with them }, or invalid.
 function tokensLoad(section as object, issuer as string) as dynamic
     key = tokensKey(issuer)
     if not section.Exists(key) then return invalid
@@ -25,19 +26,27 @@ function tokensLoad(section as object, issuer as string) as dynamic
         scope: httpString(data.scope)
     }
     if tokens.access = "" or tokens.tokenEndpoint = "" or tokens.revocationEndpoint = "" then return invalid
+    proof = authParseProof(data)
+    if proof <> invalid then tokens.proof = proof
     return tokens
 end function
 
 ' Writes tokens and flushes the registry; false when either failed.
 function tokensSave(section as object, tokens as object) as boolean
-    text = FormatJson({
+    kept = {
         token_endpoint: tokens.tokenEndpoint,
         revocation_endpoint: tokens.revocationEndpoint,
         access: tokens.access,
         refresh: tokens.refresh,
         expires_at: tokens.expiresAt,
         scope: tokens.scope
-    })
+    }
+    if tokens.proof <> invalid
+        kept.server_id = tokens.proof.serverId
+        kept.proof_id = tokens.proof.proofId
+        kept.proof_key = tokens.proof.proofKey
+    end if
+    text = FormatJson(kept)
     if not section.Write(tokensKey(tokens.issuer), text) then return false
     return section.Flush()
 end function
@@ -48,9 +57,11 @@ function tokensWipe(section as object, issuer as string) as boolean
 end function
 
 ' Tokens as a sign-in or refresh gave them (authParseTokens), kept for the
-' endpoints they came from.
-function tokensFrom(answer as object, issuer as string, tokenEndpoint as string, revocationEndpoint as string) as object
-    return {
+' endpoints they came from. A refresh or a profile switch is the same
+' sign-in as before (tokens before it), whose key never changes: an answer
+' brings one only to a sign-in without.
+function tokensFrom(answer as object, issuer as string, tokenEndpoint as string, revocationEndpoint as string, before = invalid as dynamic) as object
+    tokens = {
         issuer: issuer,
         tokenEndpoint: tokenEndpoint,
         revocationEndpoint: revocationEndpoint,
@@ -59,4 +70,8 @@ function tokensFrom(answer as object, issuer as string, tokenEndpoint as string,
         expiresAt: answer.expiresAt,
         scope: answer.scope
     }
+    proof = answer.proof
+    if before <> invalid and before.proof <> invalid then proof = before.proof
+    if proof <> invalid then tokens.proof = proof
+    return tokens
 end function

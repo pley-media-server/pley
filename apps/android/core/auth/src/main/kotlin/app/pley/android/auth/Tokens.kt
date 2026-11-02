@@ -20,10 +20,23 @@ data class TokenResponse(
     val expiresIn: Long,
     val refreshToken: String?,
     val scope: String,
+    /** What tells the server from another device later; absent from servers before it. */
+    val proof: ServerProof? = null,
 ) {
     override fun toString(): String = "TokenResponse(expiresIn=$expiresIn, scope=$scope)"
 
-    fun stored(issuer: String, tokenEndpoint: String, revocationEndpoint: String, now: Long): StoredTokens =
+    /**
+     * The tokens as kept. A refresh or a profile switch is the same sign-in,
+     * whose key never changes: [before]'s proof stays, whatever the answer
+     * says, and an answer brings one only to a sign-in without.
+     */
+    fun stored(
+        issuer: String,
+        tokenEndpoint: String,
+        revocationEndpoint: String,
+        now: Long,
+        before: StoredTokens? = null,
+    ): StoredTokens =
         StoredTokens(
             issuer = issuer,
             tokenEndpoint = tokenEndpoint,
@@ -32,6 +45,7 @@ data class TokenResponse(
             accessExpiresAt = now + expiresIn * 1000,
             refreshToken = refreshToken,
             scope = scope,
+            proof = before?.proof ?: proof,
         )
 
     companion object {
@@ -53,7 +67,7 @@ data class TokenResponse(
             val refresh = if (o.isNull("refresh_token")) null else o.optString("refresh_token").ifEmpty { null }
             // Without a scope, the server issued what was asked (RFC 6749 §5.1).
             val scope = if (o.isNull("scope")) askedScope else o.optString("scope").ifEmpty { askedScope }
-            return TokenResponse(access, expiresIn, refresh, scope)
+            return TokenResponse(access, expiresIn, refresh, scope, ServerProof.of(o))
         }
     }
 }
@@ -116,9 +130,18 @@ class Tokens(
     private val http: OkHttpClient,
     /** Told when the server ends the sign-in, or the scope guard does. */
     private val events: AuthEvents? = null,
+    /** The challenges' random bytes. */
+    private val random: (Int) -> ByteArray = ServerProofs::randomBytes,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val mutex = Mutex()
+
+    /** One proof at a time; when the server last proved it is the one signed in to. */
+    private val proofMutex = Mutex()
+
+    /** When, and on which network ([ServerProofs.network]), the server last proved itself. */
+    @Volatile
+    private var provedAt: Pair<Long, Int>? = null
 
     /** The access token the last refresh or profile switch gave, and when (guarded by [mutex]). */
     private var lastIssued: Pair<String, Long>? = null
@@ -136,8 +159,10 @@ class Tokens(
     /** The access token to send, refreshed when it ends within a minute; `null` when signed out. */
     suspend fun accessToken(): String? {
         val tokens = load() ?: return null
-        if (tokens.accessUsable(clock())) return tokens.accessToken
-        return refresh(tokens.accessToken)
+        // A refresh waits for a proof of its own: one before it would be wasted.
+        if (!tokens.accessUsable(clock())) return refresh(tokens.accessToken)
+        proved(tokens)
+        return tokens.accessToken
     }
 
     /**
@@ -147,8 +172,14 @@ class Tokens(
      */
     suspend fun refresh(stale: String?): String = mutex.withLock {
         val tokens = load() ?: throw SignedOutException()
-        if (tokens.accessToken != stale && tokens.accessUsable(clock())) return@withLock tokens.accessToken
+        if (tokens.accessToken != stale && tokens.accessUsable(clock())) {
+            // Refreshed by another caller meanwhile, maybe on another network since.
+            proved(tokens)
+            return@withLock tokens.accessToken
+        }
         val refresh = tokens.refreshToken ?: run { signedOut() }
+        // The refresh token goes only to a server that proves itself now.
+        proved(tokens, now = true)
         val answer = try {
             TokenEndpoint.post(
                 http,
@@ -160,7 +191,7 @@ class Tokens(
             throw e
         }
         val parsed = TokenResponse.parse(answer, tokens.scope)
-        val fresh = parsed.stored(issuer, tokens.tokenEndpoint, tokens.revocationEndpoint, clock())
+        val fresh = parsed.stored(issuer, tokens.tokenEndpoint, tokens.revocationEndpoint, clock(), tokens)
         if (ScopeGuard.extra(parsed, tokens.scope).isNotEmpty()) widened(fresh)
         // A refresh token is good once: the new one is kept before anything else.
         store.save(fresh)
@@ -198,6 +229,7 @@ class Tokens(
             "profile" to profile.toString(),
         )
         if (pin != null) form += "pin" to pin
+        proved(tokens, now = true)
         val answer = try {
             TokenEndpoint.post(http, tokens.tokenEndpoint, form)
         } catch (e: TokenException) {
@@ -206,22 +238,67 @@ class Tokens(
             throw e
         }
         val parsed = TokenResponse.parse(answer, tokens.scope)
-        val fresh = parsed.stored(issuer, tokens.tokenEndpoint, tokens.revocationEndpoint, clock())
+        val fresh = parsed.stored(issuer, tokens.tokenEndpoint, tokens.revocationEndpoint, clock(), tokens)
         if (ScopeGuard.extra(parsed, tokens.scope).isNotEmpty()) widened(fresh)
         store.save(fresh)
         lastIssued = fresh.accessToken to clock()
     }
 
-    /** Ends this app's sign-in on the server (RFC 7009), then forgets the tokens whatever it answered. */
+    /**
+     * Ends this app's sign-in on the server (RFC 7009), then forgets the
+     * tokens whatever it answered. A server that can't prove itself gets no
+     * token: the person can sign the app out in Account → Apps.
+     */
     suspend fun signOut() {
         mutex.withLock {
             val tokens = store.load(issuer)
             try {
-                if (tokens != null) revoke(http, tokens)
+                if (tokens != null && proves(tokens)) revoke(http, tokens)
             } finally {
                 store.wipe(issuer)
+                provedAt = null
                 _signedIn.value = false
             }
+        }
+    }
+
+    /** A request to the server got no answer: the next token waits for a new proof (the device may be on another network). */
+    fun doubtServer() {
+        provedAt = null
+    }
+
+    /**
+     * Returns once the server at this address has proved it is the one
+     * signed in to, within the last half hour and on this network: no
+     * token leaves before. A
+     * sign-in from a server without proofs has nothing to check.
+     */
+    private suspend fun proved(tokens: StoredTokens, now: Boolean = false) {
+        val proof = tokens.proof ?: return
+        // A refresh token or a PIN waits for a proof of its own.
+        if (now) provedAt = null
+        if (recentlyProved()) return
+        proofMutex.withLock {
+            // Proved by another caller meanwhile.
+            if (recentlyProved()) return
+            val network = ServerProofs.network
+            ServerProofs.prove(http, issuer, proof, random)
+            provedAt = clock() to network
+        }
+    }
+
+    // A clock set back makes an age below zero: proved again.
+    private fun recentlyProved(): Boolean =
+        provedAt?.let { (at, network) -> network == ServerProofs.network && clock() - at in 0 until ServerProofs.TTL_MS } == true
+
+    /** Whether the server proves it holds [tokens]' key (none: nothing to check). */
+    internal suspend fun proves(tokens: StoredTokens): Boolean {
+        val proof = tokens.proof ?: return true
+        return try {
+            ServerProofs.prove(http, issuer, proof, random)
+            true
+        } catch (_: IOException) {
+            false
         }
     }
 
@@ -234,6 +311,8 @@ class Tokens(
         require(fresh.issuer == issuer)
         val previous = store.load(issuer)
         store.save(fresh)
+        // A new sign-in, a new key: the next token waits for its proof.
+        provedAt = null
         _signedIn.value = true
         previous
     }
@@ -254,6 +333,7 @@ class Tokens(
     private fun end(reason: SignOutReason) {
         store.wipe(issuer)
         lastIssued = null
+        provedAt = null
         _signedIn.value = false
         events?.signedOut(issuer, reason)
     }

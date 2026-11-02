@@ -23,6 +23,7 @@ details.
 - [Public endpoints](#public-endpoints), [Auth](#auth),
   [Two-step sign-in](#two-step-sign-in), [Your account](#your-account)
 - [Apps (OAuth 2.1)](#apps-oauth-21): [Discovery](#discovery),
+  [Telling servers apart](#telling-servers-apart),
   [Signing in](#signing-in), [Tokens](#tokens), [TVs](#tvs),
   [Lifetimes and limits](#lifetimes-and-limits), [Scopes](#scopes),
   [Signed-in apps](#signed-in-apps), [Profiles](#profiles),
@@ -141,7 +142,11 @@ their web engines apply CORS. Their requests come with `Origin: file://`,
 A wildcard origin never lets a page read an answer made with cookies, so
 these answers only carry what a token in `Authorization` opens. The consent
 page's endpoints (`/api/oauth/requests…`, `/api/oauth/device/verify`) never
-answer CORS.
+answer CORS. A server's proof (`/api/server` with a `challenge`,
+[Telling servers apart](#telling-servers-apart)) isn't made for any other
+`Origin`, nor for `Origin: null` unless the User-Agent says webOS, as LG's
+runtime does (`403`): a website's page in a sandboxed frame sends `null`
+too, and can't set that header.
 
 ### Errors
 
@@ -486,13 +491,16 @@ lists carry (Kodi).
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/health` | `public` | `{ "status": "ok" }` |
-| GET | `/api/server` | `public` | `{ name, version, commit, source, setup_required, setup_code_required, two_step_required }` |
+| GET | `/api/server` | `public` | `{ id, name, version, commit, source, setup_required, setup_code_required, two_step_required, proof? }` |
 | GET | `/api/oauth/device/qr?code=` | `public` | where to type a TV's code, as a QR code (PNG): see [TVs](#tvs) |
 | POST | `/api/setup` | `public` | `{ username, password, setup_code }` → `{ user: User, token? }`: creates the first (admin) account and signs in |
 | POST | `/api/auth/login` | `public` | `{ username, password, code?, setup_id? }` → `{ user: User, token?, recovery_codes? }` |
 
-- `/api/server`: `commit` is the build's short hash, `"unknown"` when built
-  without the repository. `source` is where the server's source code is
+- `/api/server`: `id` is the one [discovery](#discovery) answers with.
+  With `?challenge=…&proof_id=…` it also answers `proof`, for an app
+  making sure this is its server ([Telling servers
+  apart](#telling-servers-apart)). `commit` is the build's short hash,
+  `"unknown"` when built without the repository. `source` is where the server's source code is
   offered; the web app's Account page links to it. The setup code is in
   the server's log. `two_step_required`: the server requires two-step
   sign-in of every account with a password
@@ -730,6 +738,112 @@ Every other `/.well-known/` path answers `404`.
 - `client_id_metadata_document_supported` is the
   [apps by other publishers](#apps-by-other-publishers) setting.
 
+### Telling servers apart
+
+An address an app saved can later lead to another device: on another
+network, or after the router hands it out again. Before an app sends its
+token to the address, the server there proves it is the one signed in to.
+
+| Method | Path | Who | What |
+|---|---|---|---|
+| GET | `/api/server?challenge=&proof_id=` | `public` | `/api/server`'s answer with `proof` |
+| GET | `/api/server/proof-key` | `user` (session only) | `{ server_id, proof_id, proof_key }` |
+
+**Proofs.** Every token answer carries `server_id`, `proof_id` and
+`proof_key` ([Tokens](#tokens)): a key of this sign-in's own, the same at
+every refresh and profile switch, which the server derives from its
+`secret.key`, so another app's key can't pass for the server. The app
+keeps the first it gets and never takes another for the same sign-in.
+Before sending a token to an address, the app asks it to prove it holds
+that key:
+
+1. The app makes a challenge of 16 to 64 random bytes, written in base64url
+   without padding (22 to 86 characters), and sends it with its `proof_id`.
+2. The server answers `proof`, HMAC-SHA256 under the key of this text, in
+   base64url without padding, where the address is the one it was asked
+   at, written as its [issuer](#discovery) (`http://192.168.1.20:7539`,
+   `https://pley.example.com`):
+
+   ```text
+   pley-server-proof\n<server id>\n<address>\n<challenge as sent>
+   ```
+
+3. The app computes the same with its `proof_key` and compares. Any
+   answer without the right `id` and `proof`, a redirect or a `403`
+   included, means another device answers at the address: the app keeps
+   its token to itself. A `5xx` is the server, or a proxy before it, out of
+   reach for now. The app follows no redirect for this: a proof counts only
+   from the address itself. Roku's transfers follow redirects whatever the
+   app asks, but a proof made at another address doesn't verify there.
+   The answer's `address` says which address the server proved itself
+   for: the desktop app names a proxy that passes another `Host` or scheme
+   on when it differs.
+
+For an access token, a proof counts for half an hour, until the device
+changes networks or a request to the server gets no answer. A refresh
+token, a profile switch's PIN and a sign-out wait for a proof of their own,
+made then.
+
+The proof covers the address, so a device elsewhere that passes the
+challenge on to the server's public address gets a proof for that address,
+which an app at the home address refuses. Passed on to the server's
+plain-http port, it would name the home address itself: the server makes
+no proof for a plain-http address to a client on the internet (`403`),
+which is how such a request looks. Both the connection and the client a
+proxy on it forwards for must be on the home network, which is the
+server's own: private, loopback and link-local addresses, global IPv6 ones
+in the server's own /64, and Tailscale's only when the server is on
+Tailscale. An https address is a proxy's, as Pley has no TLS of its own,
+and the server believes `X-Forwarded-Proto` for a proof only from a proxy
+on the home network, as it does `X-Forwarded-For`: a client elsewhere
+could name any https address in it. The address is the `Host` the proxy
+passes on, so a proxy that passes on any name lets a client elsewhere
+have a proof made for a name the server no longer has; the proxy must
+pass on only the server's own names
+([deploy/README.md](../deploy/README.md#apps-and-reverse-proxies)). Nor
+does a website's page in a browser at home get a proof to pass on from
+inside ([CORS for TV apps](#cors-for-tv-apps)), except in LG TVs' own
+browser, which says webOS in its User-Agent as LG's TV app does. A
+device that reaches the
+server from the home network itself, or through a proxy that hides where
+clients come from (Docker's userland proxy without `X-Forwarded-For`),
+could still pass a challenge on; an https address is checked by its
+certificate as well. A plain-http address that is a name (`nas.lan`) is
+only as safe as the names the device's network gives: a network that
+answers the proof's lookup with the server, through a VPN home, and the
+token's with another device could pass it.
+
+Pley's own sign-in has no token answer: the desktop app asks
+`/api/server/proof-key` with its window's session for a key, and checks
+the server with it before it opens it and before its own requests (its
+notices and downloads). Each answer is a new key, whose `proof_id` is `s`
+and 22 random base64url characters; the server derives the key from it
+and stores nothing. Apps' tokens are refused there: they have their keys.
+
+`400` for a challenge or `proof_id` that isn't written so, or one sent
+without the other. `proof` is `null` while the server can't use its
+`secret.key`; a new `secret.key` changes every key, as a new
+`plex-machine-id` changes the server's id ([STORAGE.md](STORAGE.md)):
+apps then refuse the server until they sign in again (the desktop app
+until it forgets the server and connects again). The answer isn't cached.
+
+The desktop app checks the requests it makes itself, and opens no plain
+http address beyond the home network. The server's pages in its window
+send the session on their own: once the app has a key, they open only
+after a proof, and when the computer's addresses change and the way to the
+server with them, or the computer wakes from sleep, the window leaves a
+plain-http server within a second and opens it again through a proof. A
+network that gives the computer the same addresses, joined in less than a
+second, or another device taking the server's address on the same
+network, goes unseen until the next proof. Forgetting a server deletes the
+window's session there, which would otherwise go to whatever answers at
+the address next, with no key left to check it. The window's cookies go
+to every port of a host, so opening a server without a key on the host of
+one with a key deletes them first.
+
+Every app checks proofs: the Samsung (web and native), LG, Android,
+Kodi, Roku and desktop apps.
+
 ### Signing in
 
 1. The app opens `/oauth/authorize` (a web app page) in the browser with
@@ -803,13 +917,19 @@ A token answer:
   "token_type": "Bearer",
   "expires_in": 3600,
   "scope": "library play",
-  "refresh_token": "pley_rt_…"
+  "refresh_token": "pley_rt_…",
+  "server_id": "3f2a…",
+  "proof_id": "17",
+  "proof_key": "q2Ez…"
 }
 ```
 
 `scope` is everything the app was allowed. `refresh_token` comes only for
 apps whose description lists the `refresh_token` grant type (Pley's own
-apps do).
+apps do). `server_id`, `proof_id` and `proof_key` let the app make sure
+later that an address still leads to this server ([Telling servers
+apart](#telling-servers-apart)); the last two are left out while the
+server can't use its `secret.key`.
 
 **`grant_type=authorization_code`**: `code`, `client_id` and
 `code_verifier` (43 to 128 of `A-Z a-z 0-9 . _ ~ -`). `redirect_uri`, when

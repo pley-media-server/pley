@@ -397,6 +397,9 @@ trait Shell: Send + Sync {
     fn show(&self, title: &str, body: &str);
     /// The window's cookies for `server`: its session there.
     fn session(&self, server: &Url) -> Option<String>;
+    fn proofs(&self) -> &crate::proofs::Proofs;
+    /// Another device answers at `server`'s address now.
+    fn not_yours(&self, server: &Url);
 }
 
 struct App<R: Runtime>(AppHandle<R>);
@@ -417,6 +420,14 @@ impl<R: Runtime> Shell for App<R> {
 
     fn session(&self, server: &Url) -> Option<String> {
         crate::downloads::cookies(&self.0, server)
+    }
+
+    fn proofs(&self) -> &crate::proofs::Proofs {
+        self.0.state::<crate::proofs::Proofs>().inner()
+    }
+
+    fn not_yours(&self, server: &Url) {
+        crate::not_yours(&self.0, server);
     }
 }
 
@@ -463,7 +474,14 @@ async fn listed_news(client: &reqwest::Client, server: &Url, session: Option<&st
 /// Listens to `server`'s events once, telling of them, until the stream ends.
 async fn listen(client: &reqwest::Client, server: &Url, shell: &dyn Shell, name: &str, told: &mut Told) -> Ended {
     let Ok(url) = server.join("/api/events") else { return Ended::Refused };
-    let session = shell.session(server);
+    let session = match crate::proofs::session(server, shell.proofs(), shell.session(server)).await {
+        Ok(session) => session,
+        Err(crate::proofs::Refused::Unreachable(_)) => return Ended::Dropped,
+        Err(crate::proofs::Refused::NotYours | crate::proofs::Refused::Misnamed(_)) => {
+            shell.not_yours(server);
+            return Ended::Refused;
+        }
+    };
     let request = get(client, url, session.as_deref()).header(reqwest::header::ACCEPT, "text/event-stream");
     let mut response = match tokio::time::timeout(ANSWER_TIMEOUT, request.send()).await {
         Ok(Ok(response)) => response,
@@ -520,6 +538,10 @@ async fn follow(client: &reqwest::Client, server: &Url, shell: &dyn Shell, name:
     loop {
         let opened = std::time::Instant::now();
         let ended = listen(client, server, shell, name, &mut told).await;
+        if ended == Ended::Dropped {
+            // The computer may be on another network now.
+            shell.proofs().doubt(server);
+        }
         // A stream that stayed open a while starts the pace again.
         if ended == Ended::Dropped && opened.elapsed() > RETRY_MAX {
             retry = RETRY_FIRST;
@@ -830,10 +852,23 @@ mod tests {
     }
 
     /// The window, as the tests see it.
-    #[derive(Default)]
     struct Window {
         in_front: Mutex<bool>,
         shown: Mutex<Vec<(String, String)>>,
+        proofs: crate::proofs::Proofs,
+        not_yours: Mutex<Vec<Url>>,
+    }
+
+    impl Window {
+        /// On `server`, which proved itself a moment ago (or not).
+        fn at(server: &Url, proved: bool) -> Self {
+            Self {
+                in_front: Mutex::default(),
+                shown: Mutex::default(),
+                proofs: crate::proofs::Proofs::for_tests(server, proved),
+                not_yours: Mutex::default(),
+            }
+        }
     }
 
     impl Shell for Window {
@@ -847,6 +882,14 @@ mod tests {
 
         fn session(&self, _server: &Url) -> Option<String> {
             Some("pley_token=abc".to_owned())
+        }
+
+        fn proofs(&self) -> &crate::proofs::Proofs {
+            &self.proofs
+        }
+
+        fn not_yours(&self, server: &Url) {
+            self.not_yours.lock().unwrap().push(server.clone());
         }
     }
 
@@ -917,7 +960,7 @@ mod tests {
             list(&[alien, heat, ran].join(",")),
         ])
         .await;
-        let window = Window::default();
+        let window = Window::at(&server, true);
         let client = reqwest::Client::new();
         let mut told = Told::default();
         assert_eq!(listen(&client, &server, &window, "Den", &mut told).await, Ended::Dropped);
@@ -966,7 +1009,7 @@ mod tests {
             list(&dark("1,2,3", 300)),
         ])
         .await;
-        let window = Window::default();
+        let window = Window::at(&server, true);
         let client = reqwest::Client::new();
         let mut told = Told::default();
         for _ in 0..3 {
@@ -988,12 +1031,26 @@ mod tests {
             whole("401 Unauthorized", r#"{"code":"unauthorized","message":"sign in"}"#),
         ])
         .await;
-        let window = Window::default();
+        let window = Window::at(&server, true);
         *window.in_front.lock().unwrap() = true;
         let client = reqwest::Client::new();
         let mut told = Told::default();
         assert_eq!(listen(&client, &server, &window, "Den", &mut told).await, Ended::Dropped);
         assert!(window.shown.lock().unwrap().is_empty());
         assert_eq!(listen(&client, &server, &window, "Den", &mut told).await, Ended::Refused);
+    }
+
+    #[tokio::test]
+    async fn another_device_at_the_address_hears_nothing_and_the_window_leaves() {
+        let (server, mut asked) =
+            serve(vec![whole("200 OK", r#"{"id":"another","name":"Den","version":"0.1.2","setup_required":false}"#)])
+                .await;
+        let window = Window::at(&server, false);
+        let client = reqwest::Client::new();
+        assert_eq!(listen(&client, &server, &window, "Den", &mut Told::default()).await, Ended::Refused);
+        let request = asked.recv().await.unwrap();
+        assert!(request.starts_with("GET /api/server?challenge="), "{request}");
+        assert!(!request.contains("pley_token"), "{request}");
+        assert_eq!(*window.not_yours.lock().unwrap(), [server]);
     }
 }

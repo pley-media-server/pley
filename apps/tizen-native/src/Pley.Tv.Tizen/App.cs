@@ -51,6 +51,8 @@ class App : NUIApplication
         TizenMediaEngine.Covered = () => shell.Covered;
         images = new Images(Current.DirectoryInfo.Cache);
         var made = Profile.Start();
+        // Joining or leaving a network makes the server prove itself again before its next token.
+        Core.Auth.ServerProofs.FollowNetworks();
         state = new AppState(Platform.Of());
         Profile.Took("app state", made);
         // Pictures come through the API in use, with its token.
@@ -96,6 +98,8 @@ class App : NUIApplication
     protected override void OnResume()
     {
         base.OnResume();
+        // Back from the TV's other apps or standby, maybe on another network.
+        Core.Auth.ServerProofs.NetworkMayHaveChanged();
         shell.Visible(true);
         state.Listen(true);
     }

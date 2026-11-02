@@ -298,7 +298,7 @@ bun run --cwd apps/webos build       # only an app's dist/ (apps/tizen too); --d
 
 | Path | What |
 |---|---|
-| `api/`, `net/`, `auth/` | HTTP API, event stream, server discovery, sign-in with a code, profiles and PINs |
+| `api/`, `net/`, `auth/` | HTTP API, event stream, server discovery, sign-in with a code, profiles and PINs, the server's proof before a token goes ([Telling servers apart](API.md#telling-servers-apart)) |
 | `state.ts`, `platform.ts` | What the TV keeps (servers, sign-ins, settings, a per-install id, what requests are for the profile); what a shell provides |
 | `requests.ts` | Requests' words and rules: badges, a title's one main action, the season picker, stages, what may be done to a request, the server's answers |
 | `ui/focus.ts`, `ui/input.ts`, `ui/keys.ts` | Focus, remote keys, LG's Magic Remote pointer and wheel |
@@ -470,7 +470,9 @@ than a web engine. It runs on Tizen 9 TVs and is built beside the web app,
 which stays the Samsung app until the native one has its features. So far
 it has the Android TV app's "Choose your server" screen (servers found on
 the network, an address typed on the TV's keyboard, forgetting a server),
-its sign-in with a code and a QR code, Who's watching? with PINs, and
+its sign-in with a code and a QR code (the server proving itself before
+a token goes, [Telling servers apart](API.md#telling-servers-apart)),
+Who's watching? with PINs, and
 Home: the hero, the server's rows and the rail, and item pages: the hero
 and its buttons, seasons and episodes, Extras, Cast and More Like This,
 and the side panels; library pages (the chips and panels, the grid with

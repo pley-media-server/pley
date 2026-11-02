@@ -11,6 +11,14 @@ describes how they are made.
 
 ### Added
 
+- Apps can make sure an address still leads to the server they signed in
+  to before sending it their token: each sign-in gets a key of its own,
+  and the server proves it holds it, for the address it was asked at. The
+  desktop app gets a key for its window's session. A proof for a plain-http
+  address goes only to the home network (403 from the internet), one for an
+  https address only through a proxy on it, and none goes to a website's
+  page, so a device elsewhere can't get one passed on. A reverse proxy must
+  now pass on only the server's own names (deploy/README.md).
 - A playback with keyed addresses has its file's PGS subtitles beside its
   media as pictures, each placed and timed (`subtitles-{index}.json` and its
   PNGs), for a player that can't decode PGS: Roku draws them over the video
@@ -18,6 +26,9 @@ describes how they are made.
 
 ### Changed
 
+- Seek previews, fingerprints and other background work pause while the
+  picture subtitles of a film being played are read, so on a NAS those come
+  sooner while seek previews are being made.
 - Picture subtitles (PGS, VobSub, DVB) that the apps draw show within a few
   seconds of a playback starting, where they could take up to a minute:
   the transcoder reads those around where the playback is out of a

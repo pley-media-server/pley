@@ -21,6 +21,7 @@ pub mod error;
 pub mod events;
 pub mod history;
 pub mod http;
+pub mod identity;
 pub mod images;
 pub mod instance;
 pub mod labels;

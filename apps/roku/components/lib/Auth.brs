@@ -89,7 +89,147 @@ function authParseTokens(text as dynamic, askedScope as string, now as integer) 
     if expiresIn <= 0 then return bad
     scope = httpString(data.scope)
     if scope = "" then scope = askedScope
-    return { ok: true, access: access, refresh: httpString(data.refresh_token), expiresAt: now + Int(expiresIn), scope: scope }
+    return { ok: true, access: access, refresh: httpString(data.refresh_token), expiresAt: now + Int(expiresIn), scope: scope, proof: authParseProof(data) }
+end function
+
+' --- Telling servers apart (docs/API.md) ---
+
+' How long a server's proof counts for the access token, unless a request
+' gets no answer or the network changes meanwhile; and when the API task
+' asks for the next one, so the token the players hold never lapses.
+function authProofTtlMs() as integer
+    return 1800000
+end function
+
+function authProofRenewMs() as integer
+    return 1500000
+end function
+
+function authAnotherDevice() as string
+    return "Another device answers there."
+end function
+
+' The server's id and the sign-in's proof key in a token answer (or kept
+' tokens): { serverId, proofId, proofKey } when they are written as they
+' should be, else invalid (a server before them).
+function authParseProof(data as dynamic) as dynamic
+    data = httpObject(data)
+    if data = invalid then return invalid
+    serverId = httpString(data.server_id)
+    proofId = httpString(data.proof_id)
+    proofKey = httpString(data.proof_key)
+    if serverId = "" or not authProofIdOk(proofId) or authKeyBytes(proofKey) = invalid then return invalid
+    return { serverId: serverId, proofId: proofId, proofKey: proofKey }
+end function
+
+' A grant's id: 1 to 19 digits, the first not 0.
+function authProofIdOk(id as string) as boolean
+    if Len(id) < 1 or Len(id) > 19 then return false
+    for i = 1 to Len(id)
+        c = Mid(id, i, 1)
+        if c < "0" or c > "9" then return false
+        if i = 1 and c = "0" then return false
+    end for
+    return true
+end function
+
+' The 32 bytes of a proof key written in base64url without padding; invalid
+' for anything else.
+function authKeyBytes(key as string) as dynamic
+    if Len(key) Mod 4 = 1 then return invalid
+    standard = ""
+    for i = 1 to Len(key)
+        c = Mid(key, i, 1)
+        if c = "-"
+            c = "+"
+        else if c = "_"
+            c = "/"
+        else if not ((c >= "A" and c <= "Z") or (c >= "a" and c <= "z") or (c >= "0" and c <= "9"))
+            return invalid
+        end if
+        standard = standard + c
+    end for
+    while Len(standard) Mod 4 <> 0
+        standard = standard + "="
+    end while
+    bytes = CreateObject("roByteArray")
+    bytes.FromBase64String(standard)
+    if bytes.Count() <> 32 then return invalid
+    return bytes
+end function
+
+' bytes (a roByteArray) in base64url without padding.
+function authBase64Url(bytes as object) as string
+    text = bytes.ToBase64String()
+    out = ""
+    for i = 1 to Len(text)
+        c = Mid(text, i, 1)
+        if c = "+"
+            out = out + "-"
+        else if c = "/"
+            out = out + "_"
+        else if c <> "="
+            out = out + c
+        end if
+    end for
+    return out
+end function
+
+' The proof of serverId, asked at address, for challenge under key (a
+' roByteArray): HMAC-SHA256 of "pley-server-proof", the server's id, the
+' address and the challenge, each on a line of its own, in base64url.
+function authProof(key as object, serverId as string, address as string, challenge as string) as string
+    message = CreateObject("roByteArray")
+    message.FromAsciiString("pley-server-proof" + Chr(10) + serverId + Chr(10) + address + Chr(10) + challenge)
+    hmac = CreateObject("roHMAC")
+    if hmac.Setup("sha256", key) <> 0 then return ""
+    return authBase64Url(hmac.Process(message))
+end function
+
+' What the server at address answered a proof's challenge, for the keys
+' kept: "proved"; "unreachable" (nothing answered, or the server or a proxy
+' before it failed: try again later); "another" (another device answers at
+' the address: it gets no token). The proof covers the address asked, so
+' an answer from elsewhere (a redirect followed to the real server's other
+' address) proves nothing.
+function authProofVerdict(status as integer, text as dynamic, keys as object, address as string, challenge as string) as string
+    if status <= 0 or status >= 500 then return "unreachable"
+    if status <> 200 then return "another"
+    data = httpObject(httpJson(text))
+    if data = invalid then return "another"
+    given = data.proof
+    if httpString(data.id) <> keys.serverId or GetInterface(given, "ifString") = invalid then return "another"
+    key = authKeyBytes(keys.proofKey)
+    if key = invalid then return "another"
+    if given <> authProof(key, keys.serverId, address, challenge) then return "another"
+    return "proved"
+end function
+
+' Whether a proof made at provedAt (the task's clock, ms; invalid for none)
+' on the network counted then still lets the access token go now.
+function authRecentlyProved(proved as dynamic, network as integer, now as integer) as boolean
+    if proved = invalid then return false
+    if proved.network <> network then return false
+    age = now - proved.at
+    return age >= 0 and age < authProofTtlMs()
+end function
+
+' Whether the access token may go to the server, for the keys kept (invalid:
+' a server without proofs, nothing to check): it proved itself lately, and
+' no request to it went unanswered since (doubted: the Roku may be on
+' another network).
+function authTokenMayGo(keys as dynamic, proved as dynamic, network as integer, doubted as boolean, now as integer) as boolean
+    if keys = invalid then return true
+    return not doubted and authRecentlyProved(proved, network, now)
+end function
+
+' Whether the API task asks for the next proof now: none is held, a request
+' went unanswered since, the network changed, or the one held is about to
+' lapse. One that failed is asked again at retryAt, not before.
+function authProofDue(proved as dynamic, network as integer, doubted as boolean, now as integer, retryAt as integer) as boolean
+    if now < retryAt then return false
+    if proved = invalid or doubted then return true
+    return proved.network <> network or now - proved.at >= authProofRenewMs()
 end function
 
 ' The scope names in answer that asked doesn't hold. pley never widens a

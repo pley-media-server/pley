@@ -5,7 +5,7 @@
 //! and reverse proxies hide that, and a web page can reach servers on its
 //! visitor's network (DNS rebinding).
 
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 
 use parking_lot::Mutex;
 
@@ -49,14 +49,7 @@ impl SetupCode {
 /// Loopback, private, link-local or Tailscale (carrier-grade NAT) addresses.
 pub fn is_local_address(ip: IpAddr) -> bool {
     match ip {
-        IpAddr::V4(v4) => {
-            let [a, b, ..] = v4.octets();
-            v4.is_loopback()
-                || v4.is_private()
-                || v4.is_link_local()
-                // Carrier-grade NAT space, which Tailscale uses for its devices.
-                || (a == 100 && (64..128).contains(&b))
-        }
+        IpAddr::V4(v4) => v4.is_loopback() || v4.is_private() || v4.is_link_local() || is_shared_address(v4),
         IpAddr::V6(v6) => match v6.to_ipv4_mapped() {
             Some(v4) => is_local_address(IpAddr::V4(v4)),
             None => {
@@ -68,6 +61,13 @@ pub fn is_local_address(ip: IpAddr) -> bool {
             }
         },
     }
+}
+
+/// The carrier-grade NAT space (100.64.0.0/10), which Tailscale uses for its
+/// devices and internet providers for their subscribers.
+pub fn is_shared_address(v4: Ipv4Addr) -> bool {
+    let [a, b, ..] = v4.octets();
+    a == 100 && (64..128).contains(&b)
 }
 
 #[cfg(test)]

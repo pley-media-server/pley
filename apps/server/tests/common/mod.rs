@@ -120,6 +120,17 @@ impl TestApp {
         reply(self.api.clone().oneshot(req).await.unwrap()).await
     }
 
+    /// A GET without a token from `peer` (the other end of the connection),
+    /// with `extra` headers (a Host, a proxy's X-Forwarded-*).
+    pub async fn get_from(&self, peer: &str, uri: &str, extra: &[(&str, &str)]) -> Reply {
+        let mut req = Request::builder().method(Method::GET).uri(uri);
+        for (k, v) in extra {
+            req = req.header(*k, *v);
+        }
+        let req = req.extension(axum::extract::ConnectInfo(peer.parse::<std::net::SocketAddr>().unwrap()));
+        reply(self.api.clone().oneshot(req.body(Body::empty()).unwrap()).await.unwrap()).await
+    }
+
     pub async fn get(&self, uri: &str, token: &str) -> Reply {
         self.call(Method::GET, uri, Some(token), None, &[]).await
     }

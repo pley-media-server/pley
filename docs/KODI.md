@@ -56,6 +56,14 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
   the screen.
 - The same server found at another address must be signed in to again,
   since anything on the network can answer the broadcast.
+- Before its token goes to the server's address, the add-on has the server
+  prove it is the one signed in to, at that address
+  ([API.md](API.md#telling-servers-apart)): for the access token, a proof
+  made within the half hour on the same network (Kodi's address changing,
+  its waking from sleep, or a request there that got no answer asks for a
+  new one); for the refresh token, a profile's PIN and signing out, one
+  made then. What can't prove itself gets no token: Pley says another
+  device answers at the server's address.
 - Switch profile, Sign out and Choose a server are in the profile's menu
   (the rail's avatar) and in the add-on's settings.
 
