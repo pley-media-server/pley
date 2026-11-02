@@ -23,7 +23,7 @@ use tokio_util::io::ReaderStream;
 
 use crate::convert::Conversions;
 use crate::error::{ApiError, ApiResult};
-use crate::extract::Extractor;
+use crate::extract::{Extractor, PictureStart};
 use crate::fingerprint::Fingerprinter;
 use crate::job::{JobFile, JobManager};
 use crate::keyframes::KeyframeStore;
@@ -295,8 +295,11 @@ async fn subtitles(State(state): Shared, Json(req): Json<SubtitleRequest>) -> Ap
 
 async fn subtitles_matroska(State(state): Shared, Json(req): Json<SubtitleRequest>) -> ApiResult<Response> {
     if req.partial {
-        let (bytes, complete) =
-            state.extractor.subtitle_matroska_so_far(&req.path, req.stream_index, Duration::from_secs(2)).await?;
+        let start = PictureStart::new(req.from_ms, req.media);
+        let (bytes, complete) = state
+            .extractor
+            .subtitle_matroska_so_far(&req.path, req.stream_index, Duration::from_secs(2), start)
+            .await?;
         let complete = if complete { "1" } else { "0" };
         return Ok((
             [

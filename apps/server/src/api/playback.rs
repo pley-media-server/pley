@@ -191,7 +191,7 @@ pub async fn start(
             tokio::spawn(async move {
                 let _ = transcoder.hold_background(DIRECT_PLAY_HOLD).await;
                 if let Some((state, file, index)) = prepare {
-                    prepare_picture_track(&state, &file, index);
+                    prepare_picture_track(&state, &file, index, start_ms);
                 }
             });
         }
@@ -255,7 +255,7 @@ pub async fn start(
     let created = state.transcoder.create_job(&job_request).await.map_err(|err| for_viewer(&user, err))?;
     // Once the transcoder knows a playback starts: the copy waits for it.
     if let Some(index) = picture {
-        prepare_picture_track(&state, &file, index);
+        prepare_picture_track(&state, &file, index, start_ms);
     }
     let method = match (&created.video, &created.audio) {
         (Some(v), _) if v.mode == VideoMode::Copy => Method::Remux,
@@ -1090,6 +1090,9 @@ pub struct SubtitleQuery {
     /// A text track's cues moved this much (positive: later), for players
     /// that can't move them themselves (Roku's subtitle sync).
     offset_ms: Option<i64>,
+    /// Where the player is (ms of the file's time), for a picture track not
+    /// copied out of its file yet: the pictures around there come first.
+    at: Option<i64>,
 }
 
 /// `/api/files/{id}/subtitles/{index}.vtt`: a text track (or subtitle file)
@@ -1103,10 +1106,11 @@ pub async fn subtitles(
     Query(query): Query<SubtitleQuery>,
     request: Request,
 ) -> ApiResult<Response> {
+    let at = query.at.map(|at| at.max(0));
     if let Some(index) = name.strip_suffix(".mks") {
         let index: i64 = index.parse().map_err(|_| AppError::not_found("unknown subtitle file"))?;
         let file = visible_file(&state, &user, id).await?;
-        return picture_track(&state, &user, file, index, request).await;
+        return picture_track(&state, &user, file, index, at, request).await;
     }
     if let Some(index) = name.strip_suffix(".sup") {
         let index: i64 = index.parse().map_err(|_| AppError::not_found("unknown subtitle file"))?;
@@ -1196,17 +1200,19 @@ const MATROSKA: &str = "video/x-matroska";
 /// served from the cache with ranges. `404` for a text track or anything
 /// but subtitles.
 ///
-/// While the transcoder copies it (a file whose Cues don't list it: FFmpeg
-/// reads the whole file), the answer is the Matroska copied so far, up to
-/// its last whole cluster, with `X-Pley-Complete: 0`: players ask again
-/// (every few seconds) for the rest, as for text tracks. Every answer is a
-/// Matroska file players read, its track's header at least. A whole one
-/// says `X-Pley-Complete: 1`.
+/// While the transcoder copies it (seconds through a Matroska file's Cues,
+/// the pictures around where the player is, `at`, first; FFmpeg reads a file
+/// whose Cues don't list it whole), the answer is what is copied so far: those
+/// pictures, or FFmpeg's Matroska up to its last whole cluster, with
+/// `X-Pley-Complete: 0`. Players ask again (every few seconds) for the rest,
+/// as for text tracks. Every answer is a Matroska file players read, its
+/// track's header at least. A whole one says `X-Pley-Complete: 1`.
 async fn picture_track(
     state: &AppState,
     user: &AuthUser,
     file: catalog::FileRow,
     index: i64,
+    at: Option<i64>,
     request: Request,
 ) -> ApiResult<Response> {
     let picture = file
@@ -1224,7 +1230,7 @@ async fn picture_track(
         let made = if state.transcoder.copies_subtitles_partially() {
             let (bytes, complete) = state
                 .transcoder
-                .subtitle_matroska_so_far(&path, stream_index)
+                .subtitle_matroska_so_far(&path, stream_index, at, file_media(&file, stream_index))
                 .await
                 .map_err(|err| for_viewer(user, err))?;
             if !complete {
@@ -1302,7 +1308,7 @@ async fn pgs_track(
             loop {
                 let (bytes, complete) = state
                     .transcoder
-                    .subtitle_matroska_so_far(&path, stream_index)
+                    .subtitle_matroska_so_far(&path, stream_index, None, file_media(&file, stream_index))
                     .await
                     .map_err(|err| for_viewer(user, err))?;
                 if complete {
@@ -1338,6 +1344,13 @@ async fn picture_source(
     })
 }
 
+/// The media information of `file` for the transcoder copying a picture
+/// track out of it (`stream_index`; none for a file next to it): it spares
+/// a probe while a playback starts.
+fn file_media(file: &catalog::FileRow, stream_index: Option<i64>) -> Option<pley_transcoder_api::MediaInfo> {
+    stream_index.and_then(|_| file.media_info())
+}
+
 /// Picture tracks being prepared for a playback starting ([`prepare_picture_track`]), by cache file.
 static PREPARING: LazyLock<DashMap<PathBuf, ()>> = LazyLock::new(DashMap::new);
 
@@ -1345,9 +1358,11 @@ static PREPARING: LazyLock<DashMap<PathBuf, ()>> = LazyLock::new(DashMap::new);
 /// its file now (a playback starts whose player will ask for it, see
 /// [`crate::playback::picture_to_prepare`]), rather than when the player
 /// asks: on a network share, a file whose Cues don't list the track takes
-/// minutes to read. The transcoder starts once the playback's own start is
-/// over, and goes on alone; a copy it finishes now is cached here.
-pub(crate) fn prepare_picture_track(state: &AppState, file: &catalog::FileRow, index: i64) {
+/// minutes to read. Read through the Cues, the pictures around where the
+/// playback starts (`start_ms`) come at once, the rest once the playback's
+/// own start is over; FFmpeg's copy starts then. The transcoder goes on
+/// alone; a copy it finishes now is cached here.
+pub(crate) fn prepare_picture_track(state: &AppState, file: &catalog::FileRow, index: i64, start_ms: i64) {
     if !state.transcoder.copies_subtitles_partially() {
         return;
     }
@@ -1357,7 +1372,8 @@ pub(crate) fn prepare_picture_track(state: &AppState, file: &catalog::FileRow, i
         if is_matroska(&cache).await || PREPARING.insert(cache.clone(), ()).is_some() {
             return;
         }
-        match state.transcoder.subtitle_matroska_so_far(&path, stream_index).await {
+        let media = file_media(&file, stream_index);
+        match state.transcoder.subtitle_matroska_so_far(&path, stream_index, Some(start_ms), media).await {
             Ok((bytes, true)) => cache_subtitles(&cache, &bytes).await,
             Ok(_) => tracing::debug!("picture subtitles {index} of file {} are being copied", file.id),
             Err(err) => tracing::debug!("picture subtitles {index} of file {} not copied: {err}", file.id),

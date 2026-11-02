@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readPictureTrack } from "pley-picture-subtitles/mks";
 import { PictureSubtitles } from "pley-picture-subtitles/picture-track";
 import { pgsMks as mks } from "@/test/pictures";
-import { contain, fetchPictures, hlsLeadMs, hlsShiftMs, loadPictures, LOOKAHEAD_MS, PictureRenderer, PICTURES_AGAIN_MS, planeBox, trackMs } from "./pictures";
+import { contain, fetchPictures, hlsLeadMs, hlsShiftMs, loadPictures, LOOKAHEAD_MS, PictureRenderer, PICTURES_AGAIN_MS, pictureUrlAt, planeBox, trackMs } from "./pictures";
 
 const track = (cues: [number, number][]) => PictureSubtitles.of(readPictureTrack(mks(cues)))!;
 
@@ -168,6 +168,20 @@ describe("fetchPictures", () => {
     answer(new Response(null, { status: 416 }));
     expect(await fetchPictures("/t.mks", new AbortController().signal, have, true)).toEqual({ kind: "early", bytes: have });
   });
+
+  it("asks for all of a track once it is whole: what came before may not be its start", async () => {
+    const file = new Uint8Array(mks([[1000, 2000], [5000, 6000]]));
+    const have = file.slice(0, 50);
+    answer(new Response(file.slice(50), { status: 206, headers: { "Content-Range": `bytes 50-${file.length - 1}/${file.length}`, "X-Pley-Complete": "1" } }));
+    expect(await fetchPictures("/t.mks", new AbortController().signal, have, true)).toEqual({ kind: "whole" });
+    answer(new Response(null, { status: 416, headers: { "X-Pley-Complete": "1" } }));
+    expect(await fetchPictures("/t.mks", new AbortController().signal, have, true)).toEqual({ kind: "whole" });
+  });
+
+  it("keeps nothing of a partial answer without a picture: the next may be another file", async () => {
+    answer(new Response(mks([]), { status: 200, headers: { "X-Pley-Complete": "0" } }));
+    expect(await fetchPictures("/t.mks", new AbortController().signal)).toEqual({ kind: "early", bytes: null });
+  });
 });
 
 describe("loadPictures", () => {
@@ -215,6 +229,22 @@ describe("loadPictures", () => {
     await vi.advanceTimersByTimeAsync(PICTURES_AGAIN_MS * 3);
     expect(h.onUnavailable).toHaveBeenCalledTimes(1);
     expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks from where the player is, so the server copies the track out of its file from there first", async () => {
+    const fetchFn = server([partial([[1000, 2000]]), whole([[1000, 2000]])]);
+    const urls = () => fetchFn.mock.calls.map((c) => (c as unknown[])[0]);
+    loadPictures("/at.mks", hooks(), 600_000.4);
+    await vi.advanceTimersByTimeAsync(PICTURES_AGAIN_MS * 2);
+    expect(urls().length).toBeGreaterThan(1);
+    expect(new Set(urls())).toEqual(new Set(["/at.mks?at=600000"]));
+    // Had whole: asked for as it was, which the browser's cache keeps.
+    fetchFn.mockClear();
+    loadPictures("/at.mks", hooks(), 900_000);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(urls()).toEqual(["/at.mks"]);
+    expect(pictureUrlAt("/t.mks", 0)).toBe("/t.mks");
+    expect(pictureUrlAt("/t.mks?k=1", 5000)).toBe("/t.mks?k=1&at=5000");
   });
 
   it("stops when told, a request under way included", async () => {

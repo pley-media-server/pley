@@ -403,7 +403,11 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
    * burned into the video, as before, only when the server can't make such
    * files: from then on, for every picture track.
    */
-  const pictureHooks = useRef<PictureTrackHooks>({ unavailable: () => undefined, failed: () => undefined });
+  const pictureHooks = useRef<PictureTrackHooks>({
+    unavailable: () => undefined,
+    failed: () => undefined,
+    position: () => Math.round(positionRef.current * 1000),
+  });
   const pictureChosen = selectedSub && selectedSub.text_based === false ? selectedSub : null;
   const pictures = usePictureTrack(pictureChosen && file ? picturePath(file.id, pictureChosen.index) : null, pictureHooks);
   const burnIndex = pictureChosen && pictures.unavailable ? pictureChosen.index : null;
@@ -1451,8 +1455,9 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
     prepareNext.current = true;
   });
   const picturesFailed = useEffectEvent(() => toast.error("These subtitles couldn't be loaded."));
+  const picturesFrom = useEffectEvent(() => currentMs());
   useEffect(() => {
-    pictureHooks.current = { unavailable: picturesUnavailable, failed: picturesFailed };
+    pictureHooks.current = { unavailable: picturesUnavailable, failed: picturesFailed, position: picturesFrom };
   }, []);
 
 

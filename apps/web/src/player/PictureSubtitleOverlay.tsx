@@ -7,6 +7,8 @@ export interface PictureTrackHooks {
   unavailable(): void;
   /** The track couldn't be loaded. */
   failed(): void;
+  /** Where the player is (ms of the file's time) as a track starts loading: the server reads one it hasn't yet from there first. */
+  position(): number;
 }
 
 /**
@@ -14,21 +16,26 @@ export interface PictureTrackHooks {
  * `null`: none), as far as it has arrived, asked for again while the
  * server answers with part of it (`X-Pley-Complete: 0`); and whether the
  * server can't make such files, which holds for every track from then on
- * (none is asked for any more). `hooks` hears either problem first.
+ * (none is asked for any more). `hooks` hears either problem first, and
+ * says where the player is.
  */
 export function usePictureTrack(url: string | null, hooks: RefObject<PictureTrackHooks>): { subs: PictureSubtitles | null; unavailable: boolean } {
   const [track, setTrack] = useState<{ url: string; subs: PictureSubtitles } | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   useEffect(() => {
     if (!url || unavailable) return;
-    return loadPictures(url, {
-      onTrack: (subs) => setTrack({ url, subs }),
-      onUnavailable: () => {
-        hooks.current.unavailable();
-        setUnavailable(true);
+    return loadPictures(
+      url,
+      {
+        onTrack: (subs) => setTrack({ url, subs }),
+        onUnavailable: () => {
+          hooks.current.unavailable();
+          setUnavailable(true);
+        },
+        onFailed: () => hooks.current.failed(),
       },
-      onFailed: () => hooks.current.failed(),
-    });
+      hooks.current.position(),
+    );
   }, [url, unavailable, hooks]);
   return { subs: !unavailable && track && track.url === url ? track.subs : null, unavailable };
 }

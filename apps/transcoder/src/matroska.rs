@@ -4,16 +4,19 @@
 //!
 //! - the keyframe times of the video (written by mkvmerge and FFmpeg), for
 //!   segmenting remuxed video;
-//! - the text subtitle tracks. mkvmerge and FFmpeg list every subtitle block
-//!   in the Cues, with its place in its cluster: only those blocks are read,
-//!   a few hundred kilobytes, where extracting the tracks with FFmpeg reads
-//!   the whole file (minutes for a big film on a network share).
+//! - the subtitle tracks, text and pictures. mkvmerge and FFmpeg list every
+//!   subtitle block in the Cues, with its place in its cluster: only those
+//!   blocks are read, a few hundred kilobytes (tens of megabytes for a
+//!   Blu-ray's pictures), where extracting the tracks with FFmpeg reads the
+//!   whole file (minutes for a big film on a network share). Pictures come
+//!   from around where the player is first.
 //!
 //! Only the segment's metadata elements are read otherwise (seek head, info,
 //! tracks, cues, tags), so this takes milliseconds to a second.
 
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::ops::Range;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
@@ -381,17 +384,29 @@ fn font(entry: &[u8]) -> Option<Font> {
 /// then, a packet at a time, in a process of its own.
 pub struct Budget {
     bytes: AtomicU64,
-    deadline: Instant,
+    started: Instant,
+    /// The time it may take, in milliseconds from `started`.
+    time_ms: AtomicU64,
 }
 
 impl Budget {
     pub fn new(bytes: u64, time: Duration) -> Self {
-        Self { bytes: AtomicU64::new(bytes), deadline: Instant::now() + time }
+        Self { bytes: AtomicU64::new(bytes), started: Instant::now(), time_ms: AtomicU64::new(time.as_millis() as u64) }
     }
 
     /// Whether the read has time left.
     pub fn check(&self) -> Result<(), String> {
-        if Instant::now() > self.deadline { Err("reading through the cues took too long".into()) } else { Ok(()) }
+        if self.started.elapsed().as_millis() as u64 > self.time_ms.load(Ordering::Relaxed) {
+            Err("reading through the cues took too long".into())
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Gives the read `time` more, for time spent waiting rather than
+    /// reading.
+    pub fn extend(&self, time: Duration) {
+        self.time_ms.fetch_add(time.as_millis() as u64, Ordering::Relaxed);
     }
 
     /// Takes `bytes` of memory out of the budget; once it runs out, nothing
@@ -428,6 +443,9 @@ pub struct SubtitleTracks<C> {
     /// What reading the blocks took: reads, and bytes (the Cues aside).
     pub reads: usize,
     pub bytes_read: u64,
+    /// Whether more stretches of blocks come after these (see
+    /// [`picture_tracks`]).
+    pub more: bool,
 }
 
 #[derive(Debug)]
@@ -665,25 +683,44 @@ impl<'a> Track<'a> {
 /// Cues say, it uses something not supported here, or it needs more than the
 /// budget.
 pub fn text_tracks(path: &Path, media: &MediaInfo, wanted: &[i64], budget: &Budget) -> Result<TextTracks, String> {
-    subtitle_tracks(
-        path,
-        media,
-        wanted,
-        budget,
-        Kind { codec: text_codec, name: "text", webm: |c| c == TextCodec::Webvtt },
-    )
+    let kind = Kind { codec: text_codec, name: "text", webm: |c| c == TextCodec::Webvtt };
+    let mut whole = None;
+    subtitle_tracks(path, media, wanted, budget, kind, Order::WHOLE, |tracks| {
+        whole = Some(tracks);
+        Ok(())
+    })?;
+    whole.ok_or_else(|| "no track read".into())
 }
 
 /// The picture subtitle streams `wanted` of a Matroska file, read through
-/// its Cues within `budget`, as [`text_tracks`] reads text: their blocks
-/// as they are, compression undone.
+/// its Cues within `budget`, as [`text_tracks`] reads text (their blocks as
+/// they are, compression undone), and handed to `got` in stretches: first
+/// the blocks from `from_ms` to `until_ms` (the file's time, as FFmpeg takes
+/// it), then those after, then those before. Each stretch's blocks are in
+/// the order of the file; an error `got` returns ends the read.
 pub fn picture_tracks(
     path: &Path,
     media: &MediaInfo,
     wanted: &[i64],
     budget: &Budget,
-) -> Result<PictureTracks, String> {
-    subtitle_tracks(path, media, wanted, budget, Kind { codec: picture_codec, name: "pictures", webm: |_| false })
+    (from_ms, until_ms): (i64, i64),
+    got: impl FnMut(PictureTracks) -> Result<(), String>,
+) -> Result<(), String> {
+    let kind = Kind { codec: picture_codec, name: "pictures", webm: |_| false };
+    subtitle_tracks(path, media, wanted, budget, kind, Order { from_ms, until_ms }, got)
+}
+
+/// The blocks a read through the Cues hands over first: those from
+/// `from_ms` to `until_ms` of the file's time (as FFmpeg takes it).
+#[derive(Clone, Copy)]
+struct Order {
+    from_ms: i64,
+    until_ms: i64,
+}
+
+impl Order {
+    /// Every block at once.
+    const WHOLE: Order = Order { from_ms: 0, until_ms: i64::MAX };
 }
 
 /// The subtitle tracks a read through the Cues takes: their codec (`None`
@@ -701,7 +738,9 @@ fn subtitle_tracks<C: Copy>(
     wanted: &[i64],
     budget: &Budget,
     kind: Kind<C>,
-) -> Result<SubtitleTracks<C>, String> {
+    order: Order,
+    mut got: impl FnMut(SubtitleTracks<C>) -> Result<(), String>,
+) -> Result<(), String> {
     let mut file = BufReader::with_capacity(64 * 1024, File::open(path).map_err(|e| e.to_string())?);
     // mkvmerge and FFmpeg list the Cues in the seek head, or put them before
     // the clusters: another file's aren't looked for cluster by cluster,
@@ -786,53 +825,8 @@ fn subtitle_tracks<C: Copy>(
         }
     }
 
-    // In the order of the file, as FFmpeg reads them.
-    entries.sort_by_key(|e| (e.cluster, e.relative));
-    entries.dedup_by_key(|e| (e.cluster, e.relative));
-    entries.shrink_to_fit();
-    let read = read_blocks(path, layout.segment, &entries, budget)?;
-    let mut listed = vec![0; text.len()];
-    for entry in &entries {
-        listed[slot(entry.track)] += 1;
-    }
-    drop(entries);
-    let mut blocks: Vec<Vec<TextBlock>> = listed.into_iter().map(Vec::with_capacity).collect();
-    for ReadBlock { cue_track, cluster_time, block, .. } in in_file_order(read.by_reader) {
-        budget.check()?;
-        if block.track != cue_track {
-            return Err("a cue points at another track's block".into());
-        }
-        let slot = slot(cue_track);
-        let (_, codec, track) = &text[slot];
-        if block.flags & 0x06 != 0 {
-            return Err("laced subtitle blocks aren't supported".into());
-        }
-        let cluster_time = i64::try_from(cluster_time).map_err(|_| "a cluster's timestamp is out of range")?;
-        let time = cluster_time.checked_add(block.timecode as i64).ok_or("a block's timestamp is out of range")?;
-        // FFmpeg gives a block before the start of time no timestamp, and
-        // drops it.
-        if time < 0 {
-            continue;
-        }
-        let mut data = block.data;
-        if let Some(encoding) = track.encodings.first().filter(|e| e.scope & 1 != 0) {
-            data = encoding.decode(&data, budget)?;
-        }
-        if (kind.webm)(*codec) {
-            data = webm_cue_text(&data).ok_or("a WebVTT block isn't laid out as WebM's")?.to_vec();
-        }
-        if data.is_empty() {
-            continue;
-        }
-        let duration = match block.duration {
-            Some(d) if d > 0 => d,
-            _ => track.default_duration / tick_ns,
-        };
-        blocks[slot].push(TextBlock { time, duration, data });
-    }
-
-    let mut tracks = Vec::with_capacity(text.len());
-    for ((index, codec, track), blocks) in text.into_iter().zip(blocks) {
+    let mut headers = Vec::with_capacity(text.len());
+    for (_, _, track) in &text {
         budget.spend(track.codec_private.len() as u64)?;
         let mut header = track.codec_private.to_vec();
         if let Some(encoding) = track.encodings.first().filter(|e| e.scope & 2 != 0 && !header.is_empty()) {
@@ -843,10 +837,105 @@ fn subtitle_tracks<C: Copy>(
                 Err(refused) => return Err(refused.into()),
             };
         }
-        tracks.push(SubtitleTrack { stream_index: index, codec, header, blocks });
+        headers.push(header);
     }
     let whole_ms = tick_ns % 1_000_000 == 0 && !streams.iter().any(|t| t.scaled);
-    Ok(SubtitleTracks { tick_ns, whole_ms, tracks, reads: read.reads, bytes_read: read.bytes })
+
+    // In the order of the file, as FFmpeg reads them.
+    entries.sort_by_key(|e| (e.cluster, e.relative));
+    entries.dedup_by_key(|e| (e.cluster, e.relative));
+    entries.shrink_to_fit();
+    let clusters = clusters_of(layout.segment, &entries)?;
+    let window = (ticks_from(order.from_ms, media, tick_ns), ticks_from(order.until_ms, media, tick_ns));
+    let mut guess = true;
+    let stretches = stretches(&clusters, window);
+    let last = stretches.len() - 1;
+    for (n, stretch) in stretches.into_iter().enumerate() {
+        budget.check()?;
+        let read = read_blocks(path, &clusters, stretch, &mut guess, budget)?;
+        let mut blocks: Vec<Vec<TextBlock>> = text.iter().map(|_| Vec::new()).collect();
+        for ReadBlock { cue_track, cluster_time, block, .. } in in_file_order(read.by_reader) {
+            budget.check()?;
+            if block.track != cue_track {
+                return Err("a cue points at another track's block".into());
+            }
+            let slot = slot(cue_track);
+            let (_, codec, track) = &text[slot];
+            if block.flags & 0x06 != 0 {
+                return Err("laced subtitle blocks aren't supported".into());
+            }
+            let cluster_time = i64::try_from(cluster_time).map_err(|_| "a cluster's timestamp is out of range")?;
+            let time = cluster_time.checked_add(block.timecode as i64).ok_or("a block's timestamp is out of range")?;
+            // FFmpeg gives a block before the start of time no timestamp, and
+            // drops it.
+            if time < 0 {
+                continue;
+            }
+            let mut data = block.data;
+            if let Some(encoding) = track.encodings.first().filter(|e| e.scope & 1 != 0) {
+                data = encoding.decode(&data, budget)?;
+            }
+            if (kind.webm)(*codec) {
+                data = webm_cue_text(&data).ok_or("a WebVTT block isn't laid out as WebM's")?.to_vec();
+            }
+            if data.is_empty() {
+                continue;
+            }
+            let duration = match block.duration {
+                Some(d) if d > 0 => d,
+                _ => track.default_duration / tick_ns,
+            };
+            blocks[slot].push(TextBlock { time, duration, data });
+        }
+        let tracks = text
+            .iter()
+            .zip(&headers)
+            .zip(blocks)
+            .map(|((&(stream_index, codec, _), header), blocks)| SubtitleTrack {
+                stream_index,
+                codec,
+                header: header.clone(),
+                blocks,
+            })
+            .collect();
+        got(SubtitleTracks { tick_ns, whole_ms, tracks, reads: read.reads, bytes_read: read.bytes, more: n < last })?;
+    }
+    Ok(())
+}
+
+/// The clusters the entries (sorted by position) are in: where each starts
+/// in the file, and its entries.
+fn clusters_of(segment: u64, entries: &[CueEntry]) -> Result<Vec<Cluster<'_>>, String> {
+    let same_cluster = |a: &CueEntry, b: &CueEntry| a.cluster == b.cluster;
+    let mut clusters = Vec::with_capacity(entries.chunk_by(same_cluster).count());
+    for cluster in entries.chunk_by(same_cluster) {
+        let at = segment.checked_add(cluster[0].cluster).ok_or("a cue points past the end of the file")?;
+        clusters.push((at, cluster));
+    }
+    Ok(clusters)
+}
+
+/// `ms` of the file's time, as FFmpeg takes it (its start taken off), in
+/// the file's ticks of `tick_ns`: 0 for its start or before.
+fn ticks_from(ms: i64, media: &MediaInfo, tick_ns: u64) -> u64 {
+    if ms <= 0 {
+        return 0;
+    }
+    let ms = ms.saturating_add(media.start_ms.unwrap_or(0)).max(0) as u128;
+    u64::try_from(ms * 1_000_000 / u128::from(tick_ns.max(1))).unwrap_or(u64::MAX)
+}
+
+/// The stretches of `clusters` (in the order of the file) a read hands over
+/// one after the other: those with blocks from `from` to `until` (ticks),
+/// even when there are none, then those after, then those before.
+fn stretches(clusters: &[Cluster], (from, until): (u64, u64)) -> Vec<Range<usize>> {
+    let first_from = |time: u64| {
+        clusters.iter().position(|(_, entries)| entries.iter().any(|e| e.time >= time)).unwrap_or(clusters.len())
+    };
+    let start = first_from(from);
+    let end = first_from(until).max(start);
+    let after = [end..clusters.len(), 0..start].into_iter().filter(|stretch| !stretch.is_empty());
+    std::iter::once(start..end).chain(after).collect()
 }
 
 /// Blocks are read by this many threads at once, each with a handle of its
@@ -860,7 +949,7 @@ const CHECK_EVERY: usize = 16;
 
 /// A block read for a cue.
 struct ReadBlock {
-    /// Its cluster's place in the list of clusters read.
+    /// Its cluster's place in the stretch of clusters read.
     cluster: usize,
     /// The track the cue is for.
     cue_track: u64,
@@ -902,11 +991,22 @@ impl From<&str> for ReadError {
     }
 }
 
-/// The blocks `entries` (sorted by position) point at, their memory taken
-/// out of `budget`.
-fn read_blocks(path: &Path, segment: u64, entries: &[CueEntry], budget: &Budget) -> Result<ReadBlocks, String> {
-    match read_blocks_with(path, segment, entries, true, budget) {
-        Err(ReadError::Guessed) => read_blocks_with(path, segment, entries, false, budget),
+/// The blocks the entries of the clusters `stretch` of `clusters` (sorted
+/// by position) point at, their memory taken out of `budget`. `guess` says
+/// whether cluster heads may be skipped: once a stretch finds this file's
+/// are needed, it is unset for the next ones.
+fn read_blocks(
+    path: &Path,
+    clusters: &[Cluster],
+    stretch: Range<usize>,
+    guess: &mut bool,
+    budget: &Budget,
+) -> Result<ReadBlocks, String> {
+    match read_blocks_with(path, clusters, stretch.clone(), *guess, budget) {
+        Err(ReadError::Guessed) => {
+            *guess = false;
+            read_blocks_with(path, clusters, stretch, false, budget)
+        }
         other => other,
     }
     .map_err(|e| match e {
@@ -926,20 +1026,14 @@ type ReaderBlocks = (Vec<ReadBlock>, usize, u64);
 /// readers move through the file side by side.
 fn read_blocks_with(
     path: &Path,
-    segment: u64,
-    entries: &[CueEntry],
+    clusters: &[Cluster],
+    stretch: Range<usize>,
     guess: bool,
     budget: &Budget,
 ) -> Result<ReadBlocks, ReadError> {
-    let same_cluster = |a: &CueEntry, b: &CueEntry| a.cluster == b.cluster;
-    let mut clusters: Vec<Cluster> = Vec::with_capacity(entries.chunk_by(same_cluster).count());
-    for cluster in entries.chunk_by(same_cluster) {
-        let at = segment.checked_add(cluster[0].cluster).ok_or("a cue points past the end of the file")?;
-        clusters.push((at, cluster));
-    }
-    let readers = READERS.min(clusters.len());
+    let readers = READERS.min(stretch.len());
     let (failed, kept) = (AtomicBool::new(false), AtomicU64::new(0));
-    let shared = Readers { path, clusters: &clusters, guess, budget, failed: &failed, kept: &kept };
+    let shared = Readers { path, clusters, stretch, guess, budget, failed: &failed, kept: &kept };
     let results: Vec<Result<ReaderBlocks, ReadError>> = std::thread::scope(|scope| {
         let shared = &shared;
         let workers: Vec<_> = (0..readers)
@@ -1007,7 +1101,9 @@ fn in_file_order(by_reader: Vec<Vec<ReadBlock>>) -> impl Iterator<Item = ReadBlo
 /// What the readers of [`read_blocks_with`] share.
 struct Readers<'a> {
     path: &'a Path,
+    /// Every cluster of the read, and those of this stretch.
     clusters: &'a [Cluster<'a>],
+    stretch: Range<usize>,
     guess: bool,
     budget: &'a Budget,
     /// Set by a reader that fails: the others stop.
@@ -1017,15 +1113,18 @@ struct Readers<'a> {
 }
 
 impl Readers<'_> {
-    /// The blocks of every `step`th cluster from the `first` on, checked to
-    /// be where blocks can be: each inside its cluster (before the next one
-    /// starts) and after the one before it, as a file's blocks are.
+    /// The blocks of every `step`th cluster of the stretch from the `first`
+    /// on, checked to be where blocks can be: each inside its cluster
+    /// (before the next one starts) and after the one before it, as a
+    /// file's blocks are.
     fn read(&self, first: usize, step: usize) -> Result<ReaderBlocks, ReadError> {
         let file = File::open(self.path).map_err(|e| ReadError::Failed(e.to_string()))?;
         let mut reader = Window::new(file);
+        let mine = || self.stretch.clone().skip(first).step_by(step);
         // A block for each entry, or none at all: room for them all at once.
-        let mut out = Vec::with_capacity(self.clusters.iter().skip(first).step_by(step).map(|(_, c)| c.len()).sum());
-        for (k, (n, &(at, cluster))) in self.clusters.iter().enumerate().skip(first).step_by(step).enumerate() {
+        let mut out = Vec::with_capacity(mine().map(|n| self.clusters[n].1.len()).sum());
+        for (k, n) in mine().enumerate() {
+            let (at, cluster) = self.clusters[n];
             let next = self.clusters.get(n + 1).map(|&(next, _)| next);
             let checked = !self.guess || k % CHECK_EVERY == 0;
             let mut head = None;
@@ -1085,7 +1184,12 @@ impl Readers<'_> {
                 let size = block.data.len() as u64;
                 self.budget.spend(size).map_err(ReadError::Failed)?;
                 self.kept.fetch_add(size, Ordering::Relaxed);
-                out.push(ReadBlock { cluster: n, cue_track: entry.track, cluster_time: time, block });
+                out.push(ReadBlock {
+                    cluster: n - self.stretch.start,
+                    cue_track: entry.track,
+                    cluster_time: time,
+                    block,
+                });
             }
         }
         Ok((out, reader.reads, reader.bytes_read))
@@ -1805,7 +1909,7 @@ pub(crate) mod tests {
         /// More cues: `(track, cluster, block, offset)` point `offset` bytes
         /// into the element of block `block` of cluster `cluster` (places in
         /// the lists), claiming a block of `track` is there.
-        extra_cues: Vec<(u64, usize, usize, u64)>,
+        pub(crate) extra_cues: Vec<(u64, usize, usize, u64)>,
         /// The flags byte of every block (`0x80`: a keyframe).
         block_flags: u8,
         tags: Vec<u8>,
@@ -2016,15 +2120,80 @@ pub(crate) mod tests {
         let mut media = movie_media();
         media.streams.push(stream(5, StreamKind::Subtitle, "dvd_subtitle"));
 
-        let found = picture_tracks(&path, &media, &[3, 5], &plenty()).unwrap();
+        let [found] =
+            picture_stretches(&path, &media, &[3, 5], (0, i64::MAX)).unwrap().try_into().expect("one stretch");
         let [pgs, vobsub] = found.tracks.as_slice() else { panic!("two tracks") };
         assert_eq!((pgs.stream_index, pgs.codec), (3, "S_HDMV/PGS"));
         assert_eq!(pgs.blocks, [TextBlock { time: 1_000, duration: 0, data: vec![0x16, 0, 0] }]);
         assert_eq!((vobsub.codec, vobsub.header.as_slice()), ("S_VOBSUB", b"palette: 000000".as_slice()));
         assert_eq!(vobsub.blocks, [TextBlock { time: 5_300, duration: 2_000, data: b"vobsub picture".to_vec() }]);
         // Text isn't pictures, nor pictures text.
-        assert!(picture_tracks(&path, &media, &[2], &plenty()).unwrap_err().contains("isn't pictures"));
+        assert!(picture_stretches(&path, &media, &[2], (0, i64::MAX)).unwrap_err().contains("isn't pictures"));
         assert!(text_tracks(&path, &media, &[3], &plenty()).unwrap_err().contains("isn't text"));
+    }
+
+    /// Every stretch [`picture_tracks`] hands over, read from `window` on.
+    fn picture_stretches(
+        path: &Path,
+        media: &MediaInfo,
+        wanted: &[i64],
+        window: (i64, i64),
+    ) -> Result<Vec<PictureTracks>, String> {
+        let mut stretches = Vec::new();
+        picture_tracks(path, media, wanted, &plenty(), window, |found| {
+            stretches.push(found);
+            Ok(())
+        })?;
+        Ok(stretches)
+    }
+
+    /// The synthetic film with a PGS picture every second for `seconds`,
+    /// each a cluster of its own with some video.
+    pub(crate) fn pictures_every_second(seconds: u64) -> TestFile {
+        let mut file = movie();
+        file.clusters = (0..seconds)
+            .map(|n| (n * 1_000, vec![(1, 0, None, vec![0; 40]), (5, 0, None, vec![0x16, 0, n as u8])]))
+            .collect();
+        file
+    }
+
+    #[test]
+    fn picture_tracks_come_from_where_the_player_is_first() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = pictures_every_second(80).write(dir.path());
+        let seconds = |window: (i64, i64)| -> Vec<(Vec<i64>, bool)> {
+            let stretches = picture_stretches(&path, &movie_media(), &[3], window).unwrap();
+            let seconds = |s: &PictureTracks| s.tracks[0].blocks.iter().map(|b| b.time / 1_000).collect();
+            stretches.iter().map(|s| (seconds(s), s.more)).collect()
+        };
+        let span = |seconds: Range<i64>, more: bool| (seconds.collect::<Vec<_>>(), more);
+        // Those around where the player is, then those after, then those
+        // before.
+        assert_eq!(seconds((40_000, 50_000)), [span(40..50, true), span(50..80, true), span(0..40, false)]);
+        // A window from the start, or one that takes it all: in one go.
+        assert_eq!(seconds((0, 90_000)), [span(0..80, false)]);
+        // None there: an empty window first all the same.
+        assert_eq!(seconds((90_000, 95_000)), [span(0..0, true), span(0..80, false)]);
+        // What takes them can stop the read.
+        let stopped = picture_tracks(&path, &movie_media(), &[3], &plenty(), (0, 1), |_| Err("enough".into()));
+        assert_eq!(stopped.unwrap_err(), "enough");
+    }
+
+    #[test]
+    fn stretches_start_with_those_around_the_player() {
+        let entries: Vec<CueEntry> = (0..100)
+            .map(|n| CueEntry { time: n * 1_000, track: 5, cluster: n * 10, relative: Some(0), duration: None })
+            .collect();
+        let clusters = clusters_of(0, &entries).unwrap();
+        assert_eq!(stretches(&clusters, (40_000, 45_500)), [40..46, 46..100, 0..40]);
+        assert_eq!(stretches(&clusters, (90_000, 200_000)), [90..100, 0..90]);
+        // All at once, as text is read; and an empty track is handed over too.
+        let (all, none) = (stretches(&clusters, (0, u64::MAX)), stretches(&[], (0, 1)));
+        assert_eq!((all.len(), all[0].clone(), none.len(), none[0].clone()), (1, 0..100, 1, 0..0));
+        // The file's start time is the track's 0.
+        let media = MediaInfo { start_ms: Some(1_000), ..Default::default() };
+        assert_eq!((ticks_from(500, &media, 1_000_000), ticks_from(0, &media, 1_000_000)), (1_500, 0));
+        assert_eq!(ticks_from(500, &MediaInfo::default(), 100_000), 5_000);
     }
 
     #[test]

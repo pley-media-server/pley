@@ -17,6 +17,15 @@ export function picturePath(fileId: number, index: number): string {
   return `/api/files/${fileId}/subtitles/${index}.mks`;
 }
 
+/**
+ * `url` asked for from where the player is (`atMs` of the file's time): a
+ * track the server hasn't copied out of its file yet comes from there first.
+ */
+export function pictureUrlAt(url: string, atMs: number): string {
+  const at = Math.max(0, Math.round(atMs));
+  return at > 0 ? `${url}${url.includes("?") ? "&" : "?"}at=${at}` : url;
+}
+
 /** A partial answer (a track still being read out of its file) is asked for again this often, as on the TVs. */
 export const PICTURES_AGAIN_MS = 3_000;
 const COMPLETE_HEADER = "X-Pley-Complete";
@@ -113,13 +122,18 @@ export type PictureLoad =
   | { kind: "unavailable" }
   | { kind: "failed" }
   /** Too little of a file still being made to read yet, or nothing new. */
-  | { kind: "early"; bytes: Uint8Array | null };
+  | { kind: "early"; bytes: Uint8Array | null }
+  /** Whole now, but what came before may not be its start: to ask for all of it. */
+  | { kind: "whole" };
 
 /**
  * One request for the track at `url`. A partial answer (`X-Pley-Complete:
  * 0`) comes with what the server has read out of the file so far; with
  * `have`, the bytes of the last one, only the rest is asked for (`Range`),
- * and a server that answers with the whole file again is fine too.
+ * and a server that answers with the whole file again is fine too. Once
+ * the track is whole, what came before may not be its start: the pictures
+ * around where the player is come first, and a file being made has its
+ * sizes written as it is finished.
  */
 export async function fetchPictures(url: string, signal: AbortSignal, have: Uint8Array | null = null, again = false): Promise<PictureLoad> {
   const headers: Record<string, string> = { Accept: "video/x-matroska" };
@@ -138,10 +152,16 @@ export async function fetchPictures(url: string, signal: AbortSignal, have: Uint
     return { kind: "failed" };
   }
   if (res.status === 404 || res.status === 503) return { kind: "unavailable" };
+  const said = (res.headers.get(COMPLETE_HEADER) ?? "").trim();
+  const complete = said !== "0";
+  // Nothing past what came before, of a track that is whole now (in so many words).
+  if (have && (res.ok ? complete : res.status === 416 && said === "1")) {
+    void res.body?.cancel();
+    return { kind: "whole" };
+  }
   // Nothing past what came before.
   if (res.status === 416 && have) return { kind: "early", bytes: have };
   if (!res.ok) return { kind: "failed" };
-  const complete = (res.headers.get(COMPLETE_HEADER) ?? "").trim() !== "0";
   let bytes: Uint8Array;
   try {
     const body = new Uint8Array(await res.arrayBuffer());
@@ -160,15 +180,22 @@ export async function fetchPictures(url: string, signal: AbortSignal, have: Uint
     if (signal.aborted) throw err;
     return { kind: "failed" };
   }
-  let subs: PictureSubtitles | null;
+  let track: ReturnType<typeof readPictureTrack>;
   try {
-    subs = PictureSubtitles.of(readPictureTrack(bytes.buffer as ArrayBuffer));
+    track = readPictureTrack(bytes.buffer as ArrayBuffer);
   } catch {
     return complete ? { kind: "failed" } : { kind: "early", bytes };
   }
+  const subs = PictureSubtitles.of(track);
   if (!subs) return complete ? { kind: "unavailable" } : { kind: "early", bytes };
+  // No picture yet: maybe a file the server stands in with while the copy
+  // starts, not the start of the one that comes next. Asked for whole again.
+  if (!complete && track.samples.length === 0) return { kind: "early", bytes: null };
   return { kind: "track", subs, complete, bytes };
 }
+
+/** The tracks this page has had whole: asked for again without where the player is, the browser's cache of them serves. */
+const wholeTracks = new Set<string>();
 
 export interface PictureHooks {
   /** The track, or more of it: what shows from now on. */
@@ -183,22 +210,23 @@ export interface PictureHooks {
  * Loads the track at `url`, asking again every `PICTURES_AGAIN_MS` while
  * the answers are partial, as the TVs do (packages/tv/src/subs/presenter.ts),
  * but only for what it doesn't have yet. Once the server says it has it all,
- * the whole file is asked for once more, in case its start changed as it
- * was finished (a Matroska muxer writes the sizes it now knows). Returns
- * what stops it.
+ * all of it is asked for (`fetchPictures`). `atMs` says where the player is
+ * (`pictureUrlAt`). Returns what stops it.
  */
-export function loadPictures(url: string, hooks: PictureHooks): () => void {
+export function loadPictures(url: string, hooks: PictureHooks, atMs = 0): () => void {
   const abort = new AbortController();
+  const asked = wholeTracks.has(url) ? url : pictureUrlAt(url, atMs);
   let timer: number | undefined;
   const load = (have: Uint8Array | null, again: boolean) => {
-    fetchPictures(url, abort.signal, have, again).then(
+    fetchPictures(asked, abort.signal, have, again).then(
       (got) => {
         if (abort.signal.aborted) return;
         if (got.kind === "unavailable") hooks.onUnavailable();
         else if (got.kind === "failed") hooks.onFailed();
-        else if (got.kind === "track" && got.complete && have) load(null, true);
+        else if (got.kind === "whole") load(null, true);
         else {
           if (got.kind === "track") hooks.onTrack(got.subs);
+          if (got.kind === "track" && got.complete) wholeTracks.add(url);
           if (got.kind === "early" || !got.complete) timer = window.setTimeout(() => load(got.bytes, true), PICTURES_AGAIN_MS);
         }
       },

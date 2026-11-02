@@ -252,7 +252,7 @@ impl Transcoder {
     /// as the file's size calls for (two hours for 70 GB on a slow share):
     /// the wait for those only ends for a transcoder that stopped answering.
     pub async fn subtitles(&self, path: &str, stream_index: Option<i64>) -> TranscoderResult<String> {
-        let req = SubtitleRequest { path: path.to_owned(), stream_index, partial: false };
+        let req = SubtitleRequest { path: path.to_owned(), stream_index, ..Default::default() };
         // A file's conversion ends within the 30 minutes the API gives a request.
         let wait = if stream_index.is_some() { Duration::from_secs(12 * 3600) } else { Duration::from_secs(25 * 60) };
         let resp = self.post("/v1/subtitles", &req, wait).await?;
@@ -264,7 +264,7 @@ impl Transcoder {
     /// picture subtitles next to an HLS stream. Copying a track out reads
     /// the whole file: it may take as long as a text track's conversion.
     pub async fn subtitle_matroska(&self, path: &str, stream_index: Option<i64>) -> TranscoderResult<Vec<u8>> {
-        let req = SubtitleRequest { path: path.to_owned(), stream_index, partial: false };
+        let req = SubtitleRequest { path: path.to_owned(), stream_index, ..Default::default() };
         let resp = self.post("/v1/subtitles/mks", &req, Duration::from_secs(12 * 3600)).await?;
         Ok(resp.bytes().await?.to_vec())
     }
@@ -296,15 +296,19 @@ impl Transcoder {
 
     /// A picture track's Matroska ([`Transcoder::subtitle_matroska`]) as far
     /// as it has been copied, and whether that is all of it: the transcoder
-    /// goes on copying after answering. It answers within seconds (half a
-    /// minute while the copy waits for a playback starting, or for a
-    /// sleeping disk), always with a Matroska file players read.
+    /// goes on copying after answering, from around `from_ms` (where the
+    /// player is) first when this request starts the copy; `media` (the
+    /// file's, when the track is in it) spares it a probe. It answers within
+    /// seconds (half a minute while the copy waits for a playback starting,
+    /// or for a sleeping disk), always with a Matroska file players read.
     pub async fn subtitle_matroska_so_far(
         &self,
         path: &str,
         stream_index: Option<i64>,
+        from_ms: Option<i64>,
+        media: Option<MediaInfo>,
     ) -> TranscoderResult<(Bytes, bool)> {
-        let req = SubtitleRequest { path: path.to_owned(), stream_index, partial: true };
+        let req = SubtitleRequest { path: path.to_owned(), stream_index, partial: true, from_ms, media };
         let resp = self.post("/v1/subtitles/mks", &req, Duration::from_secs(90)).await?;
         let complete = resp.headers().get(SUBTITLES_COMPLETE_HEADER).is_none_or(|v| v.as_bytes() != b"0");
         Ok((resp.bytes().await?, complete))
@@ -317,7 +321,12 @@ impl Transcoder {
     /// for a Matroska file, read through its Cues), else with those found so
     /// far.
     pub async fn subtitles_so_far(&self, path: &str, stream_index: i64) -> TranscoderResult<(String, bool)> {
-        let req = SubtitleRequest { path: path.to_owned(), stream_index: Some(stream_index), partial: true };
+        let req = SubtitleRequest {
+            path: path.to_owned(),
+            stream_index: Some(stream_index),
+            partial: true,
+            ..Default::default()
+        };
         let resp = self.post("/v1/subtitles", &req, Duration::from_secs(60)).await?;
         // A transcoder from before partial answers only answers when done.
         let complete = resp.headers().get(SUBTITLES_COMPLETE_HEADER).is_none_or(|v| v.as_bytes() != b"0");

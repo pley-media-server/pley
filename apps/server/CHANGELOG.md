@@ -17,6 +17,12 @@ describes how they are made.
 
 ### Changed
 
+- Picture subtitles (PGS, VobSub, DVB) that the apps draw show within a few
+  seconds of a playback starting, where they could take up to a minute:
+  the transcoder reads those around where the playback is out of a
+  Matroska file first, at once, and the rest of the track after the
+  playback's start. A `.mks` asked for with `at` (where the player is)
+  starts there.
 - The web app's PIN pad stops once a profile's PIN is locked after too
   many wrong tries, as the other apps' pads do; a profile that got a PIN
   after the list was loaded asks it; and the profile in use shows its lock.
