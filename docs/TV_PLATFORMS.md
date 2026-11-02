@@ -618,6 +618,18 @@ node apps/tizen-native/scripts/metrics.mjs     # writes apps/tizen-native/out/me
 PLEY_TIZEN_METRICS=http://<computer>:7531 bun run tizen-native
 ```
 
+While the listener runs, the same script drives the app from the computer.
+The app asks it every second for something to do: a screenshot of its
+window, saved in `apps/tizen-native/out` (the video's plane comes out
+black), or the remote's keys, pressed 300 ms apart. `--tv` picks the TV
+whose model name holds the text given.
+
+```sh
+node apps/tizen-native/scripts/metrics.mjs shot                 # prints the screenshot's path
+node apps/tizen-native/scripts/metrics.mjs keys Left Down OK    # Up, Down, Left, Right, OK, Back, Menu
+node apps/tizen-native/scripts/metrics.mjs --tv S89C shot
+```
+
 A build without `PLEY_TIZEN_METRICS` has none of this: the calls of
 `Kit/Profile.cs` are left out when it is compiled.
 
