@@ -63,6 +63,29 @@ pub fn scrim(ui: &mut Ui, fade: f32) {
     ui.gradient(Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H), true, stops);
 }
 
+/// The title banner's height.
+pub const BANNER_H: f32 = 120.0;
+
+/// The title banner (`PlayerScreen.Banner`): what plays and its episode line where the top bar has
+/// them, over a shade from the scrim's 65 % black to clear, at `fade`.
+pub fn banner(ui: &mut Ui, title: &str, line: Option<&str>, fade: f32) {
+    if fade <= 0.0 {
+        return;
+    }
+    let stops =
+        vec![GradientStop::new(0.0, Color::BLACK.alpha(0.65 * fade)), GradientStop::new(1.0, Color::TRANSPARENT)];
+    ui.gradient(Rect::new(0.0, 0.0, theme::CANVAS_W, BANNER_H), true, stops);
+    let left = theme::SAFE_X;
+    let width = theme::CANVAS_W - theme::SAFE_X - 300.0;
+    ui.opacity(fade, |ui| {
+        let mut y = theme::SAFE_Y;
+        y += ui.text(Point::new(left, y), title, &theme::TITLE, &TextOpts::line(width), theme::FG).h;
+        if let Some(line) = line {
+            ui.text(Point::new(left, y + 4.0), line, &theme::LABEL, &TextOpts::line(width), theme::MUTED);
+        }
+    });
+}
+
 /// What the top bar shows.
 pub struct TopBar<'a> {
     pub title: &'a str,

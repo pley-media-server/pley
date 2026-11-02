@@ -798,3 +798,25 @@ fn info_names_the_subtitle_language_with_its_title_and_flags() {
     }
     assert!(!texts.iter().any(|t| t == "eng"), "{texts:?}");
 }
+
+#[test]
+fn the_title_shows_for_4_s_as_each_item_begins_unless_the_controls_show() {
+    let mut pl = Player::new(Fake::episode());
+    let texts = pl.texts();
+    assert!(texts.iter().any(|t| t == "Fixture Show"), "no banner: {texts:?}");
+    assert!(texts.iter().any(|t| t == "S1 · E2 · The Second"));
+    pl.wait(4.5);
+    assert!(!pl.texts().iter().any(|t| t == "Fixture Show"), "the banner stays past 4 s");
+    // The next item, playing by itself: the banner again; the controls coming take its place.
+    pl.p.state.item_id = 2;
+    pl.p.state.title = "Next Show".into();
+    pl.idle();
+    pl.wait(0.5);
+    assert!(pl.texts().iter().any(|t| t == "Next Show"), "no banner for the next item");
+    pl.press(Key::Up);
+    pl.wait(0.5);
+    assert!(pl.back());
+    pl.wait(0.5);
+    assert!(!pl.view.controls());
+    assert!(!pl.texts().iter().any(|t| t == "Next Show"), "the banner came back after the controls");
+}

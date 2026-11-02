@@ -28,6 +28,8 @@ use crate::{clock, subtitles, text};
 pub const HIDE_AFTER_MS: i64 = 5_000;
 /// OK this soon after a seek, or while one is coming, plays on from there (`TvSeeker.CONFIRM_MS`).
 pub const CONFIRM_MS: i64 = 2_000;
+/// The title banner shows this long as each item begins (`BannerMs`).
+pub const BANNER_MS: i64 = 4_000;
 /// The server stopped the playback: the player leaves this long after saying so (`TvPlayerExtras.kt`).
 pub const STOPPED_LEAVE_MS: i64 = 20_000;
 /// Skip, the notice and Up Next fade in and out over 150 ms.
@@ -209,6 +211,12 @@ enum Act {
 #[derive(Debug)]
 pub struct PlayerView {
     controls: bool,
+    /// The item the title banner was last shown or due for.
+    banner_for: Option<i64>,
+    /// The banner waits for the item to play.
+    banner_due: bool,
+    /// The banner shows until then (ms of the app's clock).
+    banner_until: i64,
     last_input: i64,
     panel: Option<Panel>,
     /// The narrow panel drawn last and its rows, so it slides out as it was.
@@ -276,6 +284,9 @@ impl PlayerView {
             seen: Seen::default(),
             waiting_since: None,
             stopped_at: None,
+            banner_for: None,
+            banner_due: false,
+            banner_until: 0,
             fired_at: None,
             details_open: false,
             can_find: true,
@@ -456,6 +467,19 @@ impl PlayerView {
         }
         if let Some(n) = s.sleep.seconds_left {
             self.last_seconds = n;
+        }
+        // The title banner, once as each item begins playing (the first, or the next episode
+        // by itself), unless the controls show, which have the title already.
+        if self.banner_for != Some(s.item_id) {
+            self.banner_for = Some(s.item_id);
+            self.banner_due = true;
+            self.banner_until = 0;
+        }
+        if self.banner_due && s.phase == Phase::Playing {
+            self.banner_due = false;
+            if !self.controls {
+                self.banner_until = now + BANNER_MS;
+            }
         }
         let waiting = matches!(s.phase, Phase::Preparing | Phase::Buffering) || s.switching;
         let fired = s.sleep.fired && s.phase == Phase::Paused;
@@ -645,6 +669,8 @@ impl PlayerView {
     fn show(&mut self, target: Target) {
         self.controls = true;
         self.ask = Some(target);
+        // The controls have the title: the banner makes way, for good.
+        self.banner_until = 0;
     }
 
     fn say(&mut self, ui: &mut Ui, text: String, secs: f64, error: bool) {
@@ -778,6 +804,12 @@ impl PlayerView {
         let fade = ui.animate(ids.fade, if self.controls { 1.0 } else { 0.0 }, Motion::OVERLAY);
 
         controls::scrim(ui, fade);
+        let banner = !self.controls && !error && !card && ms(ui.time()) < self.banner_until;
+        let banner_fade = ui.animate(ids.fade.with("banner"), if banner { 1.0 } else { 0.0 }, Motion::OVERLAY);
+        if banner_fade > 0.0 {
+            let line = text::episode_line(s.subtitle.as_deref());
+            controls::banner(ui, &s.title, line.as_deref(), banner_fade);
+        }
         subtitles::draw(ui, p.subtitles(), &subtitles::look_of(env.settings), fade);
 
         if !self.controls && !error && !card && self.panel.is_none() {
@@ -1199,6 +1231,7 @@ impl PlayerView {
             self.seeker.next_due(),
             self.stopped_at.map(|t| t + STOPPED_LEAVE_MS),
             self.fired_at.map(|t| t + pley_player::sleep::LEAVE_AFTER_MS),
+            (self.banner_until > now).then_some(self.banner_until),
         ];
         if let Some(t) = due.into_iter().flatten().min() {
             ui.repaint_after(secs(t - now));

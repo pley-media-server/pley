@@ -40,6 +40,8 @@ describes how they are made.
   and Left and Right show them with the seek's preview and wait for OK
   (5 s at most) before seeking, which Back cancels. A held key scrubs
   smoothly faster the longer it is held, and waits for OK when let go.
+- As each title or episode begins playing, its name shows at the top of
+  the picture for a few seconds.
 
 ### Fixed
 
