@@ -212,6 +212,9 @@ struct Pending {
     undo: Undo,
     /// The page asks again for what it shows once the server took it.
     reload: bool,
+    /// A title marked watched or not: kept over answers that come before the server takes it,
+    /// which were asked before the mark.
+    marks: Option<(i64, bool)>,
 }
 
 /// What a refused change puts back: only what it changed, so a fresher answer that came meanwhile
@@ -424,7 +427,24 @@ impl ItemScreen {
             self.revisions.episodes += 1;
             changed = true;
         }
+        if changed {
+            self.keep_marks();
+        }
         self.dirty |= changed;
+    }
+
+    /// Marks still on their way to the server stay on what just came: an answer asked before
+    /// them would otherwise take them back until the page asks again.
+    fn keep_marks(&mut self) {
+        let marks: Vec<(i64, bool)> = self.changes.iter().filter_map(|c| c.marks).collect();
+        for (id, watched) in marks {
+            if let Some(d) = self.shown_mut().filter(|d| d.id == id) {
+                Marks::marked(&d.summary, watched).put(&mut d.summary);
+            }
+            for e in self.episode_items_mut().filter(|e| e.id == id) {
+                Marks::marked(e, watched).put(e);
+            }
+        }
     }
 
     /// The season shown: chosen here, else a season's own, an episode's, or for a show its next
@@ -816,7 +836,7 @@ impl ItemScreen {
         let undo = before.map_or(Undo::Nothing, |marks| Undo::Marks { id, marks });
         self.revisions.episodes += 1;
         self.dirty = true;
-        self.changes.push(Pending { promise: change.start(cx), undo, reload: true });
+        self.changes.push(Pending { promise: change.start(cx), undo, reload: true, marks: Some((id, watched)) });
     }
 
     fn set_my_list(&mut self, on: bool, cx: &mut AppCx) {
@@ -826,7 +846,7 @@ impl ItemScreen {
         let id = d.id;
         self.dirty = true;
         let promise = Change::MyList { id, on }.start(cx);
-        self.changes.push(Pending { promise, undo, reload: true });
+        self.changes.push(Pending { promise, undo, reload: true, marks: None });
     }
 
     fn rate(&mut self, rating: Option<i64>, cx: &mut AppCx) {
@@ -836,7 +856,7 @@ impl ItemScreen {
         let id = d.id;
         self.dirty = true;
         let promise = cx.spawn(move |api| api.rate(id, rating.map(|r| r as f64)));
-        self.changes.push(Pending { promise, undo, reload: false });
+        self.changes.push(Pending { promise, undo, reload: false, marks: None });
     }
 
     /// Keeps a track pick for the title (and the rest of a show), and gives the player the detail
@@ -880,7 +900,7 @@ impl ItemScreen {
         cx.state.tracks_changed(kept);
         self.dirty = true;
         let promise = cx.spawn(move |api| api.set_streams(item, &choice));
-        self.changes.push(Pending { promise, undo: Undo::Nothing, reload: false });
+        self.changes.push(Pending { promise, undo: Undo::Nothing, reload: false, marks: None });
     }
 
     /// Gives way to another page, once, or says the title isn't found; whether the page did.
@@ -993,7 +1013,7 @@ impl ItemScreen {
                     Effect::Change(Change::Watched { id, watched }) => self.set_watched(id, watched, cx),
                     Effect::Change(c) => {
                         let promise = c.start(cx);
-                        self.changes.push(Pending { promise, undo: Undo::Nothing, reload: true });
+                        self.changes.push(Pending { promise, undo: Undo::Nothing, reload: true, marks: None });
                     }
                 }
             }
