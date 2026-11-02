@@ -94,6 +94,15 @@ sub test_content_see_all_by_row()
     tkEqual(rows[1].tiles.Count(), 1, "without its library: no See all")
 end sub
 
+sub test_content_continue_watching_on_home_and_in_a_library()
+    tkTrue(contentContinueWatching("continue_watching"))
+    tkTrue(contentContinueWatching("continue_watching:5"), "a library's")
+    tkFalse(contentContinueWatching("continue_watching_more"))
+    tkFalse(contentContinueWatching("recently_added:5"))
+    rows = contentHomeRows([{ key: "continue_watching:5", title: "Continue Watching", library_id: 5, items: [contentTestEpisode()] }], contentTestServer())
+    tkTrue(rows[0].wide, "a library's Continue Watching is wide, as Home's")
+end sub
+
 sub test_content_seasons_and_episodes()
     seasons = contentSeasons([
         { id: 98, kind: "season", title: "", index: 0, leaf_count: 2 },

@@ -766,7 +766,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if key = "options" and m.rows.isInFocusChain()
         position = m.rows.rowItemFocused
         row = m.rows.content.getChild(position[0])
-        if row <> invalid then uiTileOptions(row.getChild(position[1]), m.recommendedKeys[position[0]] = "continue_watching")
+        if row <> invalid then uiTileOptions(row.getChild(position[1]), contentContinueWatching(m.recommendedKeys[position[0]]))
         return true
     end if
     return false

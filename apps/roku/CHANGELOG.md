@@ -88,6 +88,8 @@ describes how they are made.
 - A paused video or track goes on telling the server where it is, every
   30 s, as the other apps do, so a long pause no longer drops the server's
   session: it stays on the dashboard's Now playing and plays on at once.
+- A library's Continue Watching row has wide pictures, as Home's, and the
+  Options key on it offers Remove from Continue Watching.
 
 ## [0.1.1] - 2026-11-01
 

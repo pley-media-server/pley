@@ -156,7 +156,7 @@ function contentHomeRows(hubs as dynamic, server as string) as object
     rows = []
     for each hub in httpArray(hubs)
         key = httpString(hub.key)
-        wide = key = "continue_watching"
+        wide = contentContinueWatching(key)
         square = contentRowSquare(hub)
         items = []
         for each item in httpArray(hub.items)
@@ -186,10 +186,16 @@ function contentSeeAllTile(libraryId as dynamic, sort as string, wide as boolean
     return { title: "See all", subtitle: "", image: "", wide: wide, square: square, progress: 0.0, watched: false, itemId: 0, kind: "more", list: "", query: "", libraryId: libraryId, sort: sort }
 end function
 
+' Whether a row is Continue Watching: Home's ("continue_watching"), or a
+' library's, whose key names it ("continue_watching:5").
+function contentContinueWatching(key as string) as boolean
+    return key = "continue_watching" or Left(key, 18) = "continue_watching:"
+end function
+
 ' Whether a hub's row is of square tiles: a music library's, by its first
 ' title.
 function contentRowSquare(hub as object) as boolean
-    if httpString(hub.key) = "continue_watching" then return false
+    if contentContinueWatching(httpString(hub.key)) then return false
     items = httpArray(hub.items)
     if items.Count() = 0 or GetInterface(items[0], "ifAssociativeArray") = invalid then return false
     return contentMusic(httpString(items[0].kind))
@@ -233,7 +239,7 @@ function contentRowChanges(hubs as dynamic, server as string, known as dynamic) 
             key = httpString(hub.key)
             sig = contentSignature(hub)
             if shown <> invalid and shown.DoesExist(key) and shown[key] = sig
-                summary.Push({ key: key, wide: key = "continue_watching", square: contentRowSquare(hub), sig: sig, built: false })
+                summary.Push({ key: key, wide: contentContinueWatching(key), square: contentRowSquare(hub), sig: sig, built: false })
             else
                 for each row in contentHomeRows([hub], server)
                     summary.Push({ key: row.key, wide: row.wide, square: row.square, sig: sig, built: true })
