@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -57,6 +60,7 @@ import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvRow
 import app.pley.android.ui.tv.kit.TvRowColumn
 import app.pley.android.ui.tv.kit.TvSidePanel
+import app.pley.android.ui.tv.kit.focusRow
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 import app.pley.android.ui.tv.shell.failedBody
@@ -247,9 +251,12 @@ internal fun TvLibraryPanel(
     val params = state.params
     val close = { onPanel(null) }
     TvSidePanel(visible = panel != null, onDismiss = close) {
+        // The row of the choice in force, which takes focus however far down the list it is.
+        val chosen = remember(last) { FocusRequester() }
+        fun Modifier.chosenIf(on: Boolean): Modifier = if (on) focusRequester(chosen) else this
         when (last) {
-            TvPanel.Sort -> PanelList(stringResource(R.string.tv_library_sort_by)) {
-                items(state.sorts, key = { it.name }) { sort ->
+            TvPanel.Sort -> PanelList(stringResource(R.string.tv_library_sort_by), chosen) {
+                items(state.sorts, key = { it.name }, contentType = { PANEL_ROW }) { sort ->
                     val on = sort == params.sort
                     PanelRow(
                         stringResource(tvSortLabel(sort)),
@@ -258,11 +265,11 @@ internal fun TvLibraryPanel(
                             vm.sortBy(sort)
                             close()
                         },
-                        modifier = if (on) Modifier.initialFocus() else Modifier,
+                        modifier = Modifier.chosenIf(on),
                     )
                 }
-                item(key = "order") { PanelHeading(stringResource(R.string.tv_library_order)) }
-                items(SortOrder.entries, key = { it.name }) { order ->
+                item(key = "order", contentType = PANEL_HEADING) { PanelHeading(stringResource(R.string.tv_library_order)) }
+                items(SortOrder.entries, key = { it.name }, contentType = { PANEL_ROW }) { order ->
                     PanelRow(
                         stringResource(if (order == SortOrder.Ascending) R.string.tv_library_ascending else R.string.tv_library_descending),
                         checked = order == params.effectiveOrder,
@@ -273,15 +280,15 @@ internal fun TvLibraryPanel(
                     )
                 }
             }
-            TvPanel.Filter -> PanelList(stringResource(R.string.tv_library_filter)) {
-                item(key = "show") { PanelHeading(stringResource(R.string.tv_library_show)) }
+            TvPanel.Filter -> PanelList(stringResource(R.string.tv_library_filter), chosen) {
+                item(key = "show", contentType = PANEL_HEADING) { PanelHeading(stringResource(R.string.tv_library_show)) }
                 val shows = listOf(null to R.string.tv_library_show_all, false to R.string.tv_library_unwatched, true to R.string.tv_library_watched)
-                items(shows, key = { "show/${it.first}" }) { (watched, label) ->
+                items(shows, key = { "show/${it.first}" }, contentType = { PANEL_ROW }) { (watched, label) ->
                     val on = params.watched == watched
-                    PanelRow(stringResource(label), checked = on, onClick = { vm.watched(watched) }, modifier = if (on) Modifier.initialFocus() else Modifier)
+                    PanelRow(stringResource(label), checked = on, onClick = { vm.watched(watched) }, modifier = Modifier.chosenIf(on))
                 }
                 if (state.kind != LibraryKind.Music) {
-                    item(key = "genre") {
+                    item(key = "genre", contentType = PANEL_ROW) {
                         PanelRow(
                             stringResource(R.string.tv_library_genre),
                             value = params.genre ?: stringResource(R.string.tv_library_all_genres),
@@ -289,7 +296,7 @@ internal fun TvLibraryPanel(
                             onClick = { onPanel(TvPanel.Genre) },
                         )
                     }
-                    item(key = "year") {
+                    item(key = "year", contentType = PANEL_ROW) {
                         PanelRow(
                             stringResource(R.string.tv_library_year),
                             value = params.year?.toString() ?: stringResource(R.string.tv_library_all_years),
@@ -299,13 +306,13 @@ internal fun TvLibraryPanel(
                     }
                 }
                 if (params.filtered) {
-                    item(key = "clear") {
+                    item(key = "clear", contentType = PANEL_ROW) {
                         PanelRow(stringResource(R.string.tv_library_clear_filters), onClick = {
                             vm.clearFilters()
                             close()
                         })
                     }
-                    item(key = "save") {
+                    item(key = "save", contentType = PANEL_ROW) {
                         PanelRow(stringResource(R.string.tv_library_save_as), onClick = {
                             close()
                             navigator.open(vm.saveAs())
@@ -313,8 +320,10 @@ internal fun TvLibraryPanel(
                     }
                 }
             }
-            TvPanel.Genre -> PanelList(stringResource(R.string.tv_library_genre)) {
-                item(key = "all") {
+            TvPanel.Genre -> PanelList(stringResource(R.string.tv_library_genre), chosen) {
+                // A genre chosen that the list no longer has: focus starts on All genres.
+                val listed = params.genre != null && params.genre in state.filters.genres
+                item(key = "all", contentType = PANEL_ROW) {
                     PanelRow(
                         stringResource(R.string.tv_library_all_genres),
                         checked = params.genre == null,
@@ -322,19 +331,20 @@ internal fun TvLibraryPanel(
                             vm.genre(null)
                             close()
                         },
-                        modifier = if (params.genre == null) Modifier.initialFocus() else Modifier,
+                        modifier = Modifier.chosenIf(!listed),
                     )
                 }
-                items(state.filters.genres, key = { "g/$it" }) { genre ->
+                items(state.filters.genres, key = { "g/$it" }, contentType = { PANEL_ROW }) { genre ->
                     val on = genre == params.genre
                     PanelRow(genre, checked = on, onClick = {
                         vm.genre(genre)
                         close()
-                    }, modifier = if (on) Modifier.initialFocus() else Modifier)
+                    }, modifier = Modifier.chosenIf(on))
                 }
             }
-            TvPanel.Year -> PanelList(stringResource(R.string.tv_library_year)) {
-                item(key = "all") {
+            TvPanel.Year -> PanelList(stringResource(R.string.tv_library_year), chosen) {
+                val listed = params.year != null && params.year in state.filters.years
+                item(key = "all", contentType = PANEL_ROW) {
                     PanelRow(
                         stringResource(R.string.tv_library_all_years),
                         checked = params.year == null,
@@ -342,15 +352,15 @@ internal fun TvLibraryPanel(
                             vm.year(null)
                             close()
                         },
-                        modifier = if (params.year == null) Modifier.initialFocus() else Modifier,
+                        modifier = Modifier.chosenIf(!listed),
                     )
                 }
-                items(state.filters.years, key = { "y/$it" }) { year ->
+                items(state.filters.years, key = { "y/$it" }, contentType = { PANEL_ROW }) { year ->
                     val on = year == params.year
                     PanelRow(year.toString(), checked = on, onClick = {
                         vm.year(year)
                         close()
-                    }, modifier = if (on) Modifier.initialFocus() else Modifier)
+                    }, modifier = Modifier.chosenIf(on))
                 }
             }
             null -> Unit
@@ -358,17 +368,29 @@ internal fun TvLibraryPanel(
     }
 }
 
+/**
+ * A panel's title and its rows; [chosen] (the choice in force) takes
+ * focus once it is laid out, the list scrolling down to it when it is
+ * past the first screen ([focusRow]): a lazy list composes only what
+ * shows, so a requester further down isn't there to ask yet.
+ */
 @Composable
-private fun PanelList(title: String, content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit) {
+internal fun PanelList(title: String, chosen: FocusRequester, content: LazyListScope.() -> Unit) {
+    val list = rememberLazyListState()
+    LaunchedEffect(list, chosen) { list.focusRow(chosen) }
     Column(Modifier.fillMaxSize()) {
         BasicText(
             title,
             style = PleyType.Tv.Title.copy(color = PleyColors.Fg),
             modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 12.dp).semantics { heading() },
         )
-        LazyColumn(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp), content = content)
+        LazyColumn(Modifier.fillMaxWidth().weight(1f), state = list, verticalArrangement = Arrangement.spacedBy(2.dp), content = content)
     }
 }
+
+/** The content types of a panel's list: its rows and its headings. */
+private const val PANEL_ROW = "row"
+private const val PANEL_HEADING = "heading"
 
 /** Where the Recommended tab's rows begin, and their focused row's header line. */
 private val RowsTop = 80.dp

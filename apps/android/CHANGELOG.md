@@ -14,6 +14,9 @@ describes how they are made.
   for them, as on coming back from a title, so moving through them right
   then stays smooth; on Android TV and Fire TV a focus move no longer
   redraws the page around the row.
+- On Android TV and Fire TV, a library's Genre and Year panels open with
+  focus on the genre or year chosen, however far down the list it is,
+  where focus was left behind the panel.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
