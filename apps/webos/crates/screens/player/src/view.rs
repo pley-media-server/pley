@@ -17,6 +17,7 @@ use pley_player::seeker::{MEDIA_STEP_MS, SETTLE_MS, STEP_MS, Seeker, WAIT_MS};
 use pley_player::{Phase, PlayerState};
 use pley_ui::{Dirs, Easing, Edge, FocusOpts, Group, Id, Motion, Ui, theme};
 
+use crate::chapters::{self, Strip};
 use crate::controls::{self, Btn, RowOptions, Scrub, TopBar};
 use crate::overlays::{self, Card, KEY_TOAST_SECS, LONG_TOAST_SECS, TOAST_SECS, Toast};
 use crate::panels::{self, Panel, PanelInput, Pick, Row};
@@ -90,6 +91,8 @@ pub enum Target {
     /// The sleep notice's Keep watching.
     Keep,
     Scrubber,
+    /// The chapters as cards over the scrubber.
+    Chapters,
     Button(Btn),
     PlayNow,
     /// Up Next's Cancel.
@@ -110,6 +113,7 @@ pub struct Ids {
     pub keep: Id,
     pub scrub_group: Id,
     pub scrubber: Id,
+    pub chapters: Id,
     pub row: Id,
     pub card: Id,
     pub play_now: Id,
@@ -132,6 +136,7 @@ impl Ids {
             keep: id("keep"),
             scrub_group: id("scrub-group"),
             scrubber: id("scrubber"),
+            chapters: id("chapters"),
             row: id("row"),
             card: id("card"),
             play_now: id("play-now"),
@@ -155,6 +160,7 @@ impl Ids {
             Target::Skip => self.skip,
             Target::Keep => self.keep,
             Target::Scrubber => self.scrubber,
+            Target::Chapters => self.chapters,
             Target::Button(b) => self.button(b),
             Target::PlayNow => self.play_now,
             Target::Cancel => self.cancel,
@@ -194,6 +200,8 @@ enum Act {
     Button(Btn),
     ScrubOk,
     ScrubClick(f32),
+    /// OK on a chapter's card: its index.
+    Chapter(usize),
     Skip,
     Keep,
     PlayNow,
@@ -211,6 +219,8 @@ enum Act {
 #[derive(Debug)]
 pub struct PlayerView {
     controls: bool,
+    /// The chapters as cards, while they are open.
+    strip: Option<Strip>,
     /// The item the title banner was last shown or due for.
     banner_for: Option<i64>,
     /// The banner waits for the item to play.
@@ -284,6 +294,7 @@ impl PlayerView {
             seen: Seen::default(),
             waiting_since: None,
             stopped_at: None,
+            strip: None,
             banner_for: None,
             banner_due: false,
             banner_until: 0,
@@ -327,7 +338,15 @@ impl PlayerView {
     pub fn focus(&self, ui: &Ui) -> Option<Target> {
         let ids = Ids::new(ui);
         let f = ui.focused()?;
-        let simple = [Target::Video, Target::Skip, Target::Keep, Target::Scrubber, Target::PlayNow, Target::Cancel];
+        let simple = [
+            Target::Video,
+            Target::Skip,
+            Target::Keep,
+            Target::Scrubber,
+            Target::Chapters,
+            Target::PlayNow,
+            Target::Cancel,
+        ];
         if let Some(t) = simple.into_iter().find(|t| ids.of(*t) == f) {
             return Some(t);
         }
@@ -389,6 +408,10 @@ impl PlayerView {
         }
         if s.up_next.is_some() {
             p.cancel_up_next();
+            return true;
+        }
+        if self.strip.is_some() {
+            self.close_chapters();
             return true;
         }
         // A seek waiting for OK: Back lets it go, and it plays on from where it was.
@@ -510,6 +533,7 @@ impl PlayerView {
         if card.is_some() && card != self.seen.up_next {
             // Up Next takes the screen: the seek goes, the panel and controls make way.
             self.seeker.cancel();
+            self.strip = None;
             self.panel = None;
             self.controls = false;
             self.ask = Some(Target::PlayNow);
@@ -519,6 +543,7 @@ impl PlayerView {
         self.seen.up_next = card;
         if error && !self.seen.error {
             self.seeker.cancel();
+            self.strip = None;
             self.panel = None;
             self.controls = false;
         } else if !error && self.seen.error {
@@ -583,6 +608,7 @@ impl PlayerView {
         let card = s.up_next.is_some();
         let busy = s.phase == Phase::Preparing || s.switching;
         let skip = self.skip_shown(s);
+        let chapters = s.chapters.len();
         let clock = p.clock();
 
         let pointer = ui.pointer();
@@ -631,9 +657,26 @@ impl PlayerView {
         let focused = ui.focused();
         let holder = !self.controls && [ids.video, ids.skip, ids.keep].iter().any(|i| focused == Some(*i));
         let on_bar = self.controls && focused == Some(ids.scrubber);
+        let on_cards = self.strip.is_some() && focused == Some(ids.chapters);
         for e in &keys {
             let first = e.pressed && !e.repeat;
+            if on_cards {
+                match e.key {
+                    Key::Left | Key::Right if e.pressed => {
+                        let by = if e.key == Key::Left { -1 } else { 1 };
+                        if let Some(strip) = self.strip.as_mut() {
+                            strip.step(by, chapters);
+                        }
+                    }
+                    Key::Down if first => self.close_chapters(),
+                    _ => {}
+                }
+                continue;
+            }
             match e.key {
+                Key::Up if on_bar && first && self.seeker.pending() && chapters > 1 => {
+                    self.open_chapters(p.clock().position_ms, &p.state().chapters, false);
+                }
                 Key::Left | Key::Right => {
                     let dir = if e.key == Key::Left { -1 } else { 1 };
                     if !e.pressed {
@@ -664,6 +707,26 @@ impl PlayerView {
 
     fn touch(&mut self, now: i64) {
         self.last_input = now;
+    }
+
+    /// The chapters as cards, on the chapter a waiting seek was going to (or the one playing): the
+    /// seek gives way to them, and the video plays on while they show.
+    fn open_chapters(&mut self, position_ms: i64, marks: &[pley_player::controller::ChapterMark], from_button: bool) {
+        if marks.len() < 2 {
+            return;
+        }
+        let from = self.seeker.target.unwrap_or(position_ms);
+        self.seeker.cancel();
+        self.strip = Some(Strip::open(marks, from, from_button));
+        self.controls = true;
+        self.ask = Some(Target::Chapters);
+    }
+
+    /// The cards go, their pictures with them; focus goes back where they were opened from.
+    fn close_chapters(&mut self) {
+        if let Some(strip) = self.strip.take() {
+            self.ask = Some(if strip.from_button { Target::Button(Btn::Chapters) } else { Target::Scrubber });
+        }
     }
 
     fn show(&mut self, target: Target) {
@@ -979,7 +1042,13 @@ impl PlayerView {
                 ends: ends.as_deref(),
             },
         );
-        if let Some(t) = self.seeker.target {
+        let chapter_at = self.strip.as_ref().and_then(|st| s.chapters.get(st.index)).map(|c| c.start_ms);
+        if let Some(strip) = &self.strip {
+            let r = chapters::show(ui, ids.chapters, strip, &s.chapters);
+            if r.activated {
+                acts.push(Act::Chapter(strip.index));
+            }
+        } else if let Some(t) = self.seeker.target {
             let (picture, tile) = preview.map_or((None, None), |(p, t)| (Some(p), t.as_ref()));
             controls::preview(ui, t, clock.duration_ms, picture, tile, &s.chapters);
         }
@@ -988,10 +1057,11 @@ impl PlayerView {
             position_ms: clock.position_ms,
             duration_ms: clock.duration_ms,
             buffered_ms: clock.buffered_ms,
-            target_ms: self.seeker.target,
+            target_ms: chapter_at.or(self.seeker.target),
             chapters: &s.chapters,
             markers: &s.markers,
             up,
+            up_opens_chapters: self.seeker.pending() && s.chapters.len() > 1,
             down: ids.button(Btn::PlayPause),
         };
         let r = controls::scrubber(ui, ids.scrub_group, ids.scrubber, &scrub);
@@ -1020,7 +1090,11 @@ impl PlayerView {
     fn seek_preview(&mut self, ui: &Ui, p: &dyn Playback) -> Option<(SeekPreview, Option<Tile>)> {
         let now = ui.time();
         let Some(t) = self.seeker.target else {
-            self.previews.idle(now);
+            if self.strip.is_some() {
+                self.chapter_tiles(ui, p);
+            } else {
+                self.previews.idle(now);
+            }
             return None;
         };
         let preview = p.seek_preview(t)?;
@@ -1045,6 +1119,35 @@ impl PlayerView {
         Some((preview, tile))
     }
 
+    /// The previews of the chapters' cards near focus without a picture of their own, cut out of the
+    /// focused card's sheet: cards on another sheet wait for focus, so the sheets kept stay few.
+    fn chapter_tiles(&mut self, ui: &Ui, p: &dyn Playback) {
+        let s = p.state();
+        let (Some(strip), Some(tp)) = (self.strip.as_mut(), &s.trickplay) else { return };
+        let now = ui.time();
+        let step = tp.info.interval_ms.clamp(1, 3_600_000);
+        let mut sheet: Option<String> = None;
+        for i in strip.asking(s.chapters.len()) {
+            let c = &s.chapters[i];
+            if c.image_url.is_some() || strip.has_tile(i) {
+                continue;
+            }
+            // Just after its start, as the server's preview at the start can be the chapter before.
+            let Some(SeekPreview::Sheet { url, x, y, width, height }) = p.seek_preview(c.start_ms + step) else {
+                continue;
+            };
+            match &sheet {
+                None => sheet = Some(url.clone()),
+                Some(first) if *first != url => continue,
+                Some(_) => {}
+            }
+            let want = Want { sheet: &url, x, y, width, height, columns: tp.info.columns };
+            if let Some(t) = self.previews.tile(&want, None, ui.tier(), now) {
+                strip.keep_tile(i, t);
+            }
+        }
+    }
+
     /// The narrow panels (one at a time, sliding out as they were) and Info's wide one.
     fn draw_panels(&mut self, ui: &mut Ui, p: &dyn Playback, env: &FrameEnv, ids: &Ids, acts: &mut Vec<Act>) {
         let s = p.state();
@@ -1057,7 +1160,6 @@ impl PlayerView {
         if let Some(k) = narrow {
             let input = PanelInput {
                 state: s,
-                position_ms: p.clock().position_ms,
                 settings: env.settings,
                 fonts: self.fonts.as_deref().unwrap_or_default(),
                 can_find: self.can_find,
@@ -1136,6 +1238,16 @@ impl PlayerView {
             // scrubber as Up does; it never pauses there.
             Act::VideoOk if self.seeker.pending() => self.play_pause(p, now),
             Act::VideoOk => self.show(Target::Scrubber),
+            Act::Chapter(i) => {
+                // A chapter chosen: it goes to its start, and the cards go.
+                if let Some(c) = p.state().chapters.get(i) {
+                    let start = c.start_ms;
+                    self.seeker.cancel();
+                    p.seek_to(start);
+                    self.confirm_until = now + CONFIRM_MS;
+                }
+                self.close_chapters();
+            }
             Act::ScrubOk if !busy => self.play_pause(p, now),
             Act::ScrubOk => {}
             Act::VideoMenu => {
@@ -1169,6 +1281,7 @@ impl PlayerView {
             Btn::Forward10 => self.seeker.press(now, 1, STEP_MS, SETTLE_MS, c.position_ms, c.duration_ms),
             Btn::Previous => self.previous(p),
             Btn::Next => self.next(p),
+            Btn::Chapters => self.open_chapters(c.position_ms, &p.state().chapters, true),
             other => {
                 if let Some(panel) = Panel::of(other) {
                     self.open(panel);
@@ -1200,7 +1313,6 @@ impl PlayerView {
             Pick::Audio(i) => p.select_audio(*i),
             Pick::PlayOriginal => p.play_original(),
             Pick::Quality(id) => p.select_quality(id),
-            Pick::Chapter(t) => p.seek_to(*t),
             Pick::Sleep(c) => p.set_sleep(*c),
             Pick::Speed(r) => p.set_speed(*r),
         }
@@ -1215,7 +1327,8 @@ impl PlayerView {
     /// frame is asked for when anything is next due.
     fn timers(&mut self, ui: &mut Ui, p: &dyn Playback, now: i64, env: &FrameEnv) {
         let s = p.state();
-        if self.controls && self.panel.is_none() && p.wants_to_play() && !self.seeker.pending() {
+        if self.controls && self.panel.is_none() && self.strip.is_none() && p.wants_to_play() && !self.seeker.pending()
+        {
             let at = self.last_input + HIDE_AFTER_MS;
             if now >= at {
                 let skip = self.skip_shown(s);

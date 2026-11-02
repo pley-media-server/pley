@@ -1,6 +1,6 @@
 //! The player's side panels (`TvPlayerPanels.kt`, `TvPlayerExtras.kt`; the TV app's
 //! `ui/player/panels.tsx`): Subtitles (with Sync, Find subtitles… and the style choices), Find
-//! subtitles, Audio, Quality, Chapters, Sleep timer, Speed, and Info (Playback details). Each is
+//! subtitles, Audio, Quality, Sleep timer, Speed, and Info (Playback details). Each is
 //! a list of rows built from the player's state, drawn in a kit `SidePanel` and scrolled by a kit
 //! `List`.
 
@@ -30,7 +30,6 @@ pub enum Panel {
     Find,
     Audio,
     Quality,
-    Chapters,
     Sleep,
     Speed,
     Info,
@@ -43,7 +42,6 @@ impl Panel {
             Panel::Subtitles | Panel::Find => Btn::Subtitles,
             Panel::Audio => Btn::Audio,
             Panel::Quality => Btn::Quality,
-            Panel::Chapters => Btn::Chapters,
             Panel::Sleep => Btn::Sleep,
             Panel::Speed => Btn::Speed,
             Panel::Info => Btn::Info,
@@ -56,7 +54,6 @@ impl Panel {
             Btn::Subtitles => Panel::Subtitles,
             Btn::Audio => Panel::Audio,
             Btn::Quality => Panel::Quality,
-            Btn::Chapters => Panel::Chapters,
             Btn::Sleep => Panel::Sleep,
             Btn::Speed => Panel::Speed,
             Btn::Info => Panel::Info,
@@ -78,7 +75,6 @@ pub enum Pick {
     Audio(i64),
     PlayOriginal,
     Quality(&'static str),
-    Chapter(i64),
     Sleep(SleepChoice),
     Speed(f32),
 }
@@ -148,7 +144,6 @@ impl Row {
 /// What the panels need besides the player's state.
 pub struct PanelInput<'a> {
     pub state: &'a PlayerState,
-    pub position_ms: i64,
     pub settings: &'a Settings,
     /// The fonts the TV can draw subtitles in.
     pub fonts: &'a [SubtitleFont],
@@ -257,16 +252,6 @@ pub fn rows(panel: Panel, i: &PanelInput) -> Vec<Row> {
             for q in &s.qualities {
                 out.push(
                     Row::choice(Pick::Quality(q.id), &q.label, q.selected).hint(q.hint.clone().unwrap_or_default()),
-                );
-            }
-        }
-        Panel::Chapters => {
-            out.push(Row::Title("Chapters".into()));
-            let at = text::chapter_at(&s.chapters, i.position_ms);
-            for (n, c) in s.chapters.iter().enumerate() {
-                out.push(
-                    Row::choice(Pick::Chapter(c.start_ms), text::chapter_row(c, n), at == Some(n))
-                        .hint(text::time(c.start_ms)),
                 );
             }
         }
@@ -597,7 +582,7 @@ mod tests {
     use super::*;
 
     fn input<'a>(state: &'a PlayerState, settings: &'a Settings, fonts: &'a [SubtitleFont]) -> PanelInput<'a> {
-        PanelInput { state, position_ms: 0, settings, fonts, can_find: true, found: &[], add_failed: None }
+        PanelInput { state, settings, fonts, can_find: true, found: &[], add_failed: None }
     }
 
     fn track(index: Option<i64>, label: &str, selected: bool) -> TrackChoice {

@@ -820,3 +820,51 @@ fn the_title_shows_for_4_s_as_each_item_begins_unless_the_controls_show() {
     assert!(!pl.view.controls());
     assert!(!pl.texts().iter().any(|t| t == "Next Show"), "the banner came back after the controls");
 }
+
+#[test]
+fn up_while_a_seek_waits_opens_the_chapters_as_cards_and_ok_goes_to_one() {
+    let mut pl = Player::new(Fake::episode());
+    pl.press(Key::Right);
+    assert_eq!(pl.focus(), Some(Target::Scrubber));
+    pl.press(Key::Up);
+    assert_eq!(pl.focus(), Some(Target::Chapters));
+    let texts = pl.texts();
+    for want in ["Intro", "Part 1", "Credits", "4:00"] {
+        assert!(texts.iter().any(|t| t == want), "{want} in {texts:?}");
+    }
+    // The seek gave way to the cards; Right goes to the next chapter, the scrubber showing its start.
+    pl.wait(6.0);
+    assert!(pl.p.calls.is_empty(), "the seek went on: {:?}", pl.p.calls);
+    assert!(pl.view.controls(), "the controls hid under the cards");
+    pl.press(Key::Right);
+    assert!(pl.texts().contains(&"16:00".to_string()), "the scrubber isn't at Credits' start");
+    pl.press(Key::Right);
+    pl.press(Key::Ok);
+    assert_eq!(pl.p.calls, [Call::Seek(960_000)]);
+    assert_eq!(pl.focus(), Some(Target::Scrubber));
+    assert!(!pl.texts().contains(&"Part 1".to_string()), "the cards stayed");
+}
+
+#[test]
+fn the_chapters_button_opens_the_cards_and_down_or_back_closes_them() {
+    let mut pl = Player::new(Fake::episode());
+    pl.press(Key::Down);
+    for _ in 0..8 {
+        if pl.focus() == Some(Target::Button(Btn::Chapters)) {
+            break;
+        }
+        pl.press(Key::Left);
+    }
+    assert_eq!(pl.focus(), Some(Target::Button(Btn::Chapters)));
+    pl.press(Key::Ok);
+    assert_eq!(pl.focus(), Some(Target::Chapters));
+    assert!(pl.view.panel().is_none(), "a side panel opened");
+    pl.press(Key::Down);
+    assert_eq!(pl.focus(), Some(Target::Button(Btn::Chapters)), "Down didn't go back to the button");
+    pl.press(Key::Ok);
+    assert_eq!(pl.focus(), Some(Target::Chapters));
+    assert!(pl.back(), "Back left the player");
+    assert!(pl.view.controls(), "Back hid the controls with the cards");
+    assert_eq!(pl.focus(), Some(Target::Button(Btn::Chapters)));
+    assert!(pl.p.calls.is_empty(), "{:?}", pl.p.calls);
+}

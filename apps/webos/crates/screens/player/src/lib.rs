@@ -7,6 +7,7 @@
 //! answers keys lives in [`PlayerView`], which drives the playback through the [`Playback`]
 //! trait so it can be tested against a stand-in.
 
+mod chapters;
 mod clock;
 mod controls;
 mod overlays;

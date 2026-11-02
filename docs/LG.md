@@ -97,7 +97,10 @@ differs on LG:
   the longer it is held (from 20×, doubling every 1.5 s, up to a whole
   video in 10 s). The seek waits for OK, going by itself 5 s after the
   last key, and Back lets it go. ◀◀ and ▶▶ (30 s) and the Back 10 and
-  Forward 10 buttons seek 400 ms after the last press. As each item
+  Forward 10 buttons seek 400 ms after the last press. Up on the scrubber
+  while a seek waits, or the Chapters button, opens the chapters as a row
+  of cards over it: Left and Right go through them, OK goes to one, Down
+  or Back closes them. As each item
   begins playing, its title shows at the top for 4 s.
 - **Typing** uses the app's own keyboard and pads (a search, a server's
   address, a PIN); the TV's keyboard doesn't open.

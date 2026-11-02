@@ -29,8 +29,8 @@ const CHAPTER_GAP: f32 = 2.0;
 const THUMB: f32 = 10.0;
 const THUMB_FOCUSED: f32 = 12.0;
 /// The focused thumb's ring: its stroke and how far out it is (`PleyFocus.ThumbRing*`).
-const RING_STROKE: f32 = 2.0;
-const RING_OFFSET: f32 = 2.0;
+pub(crate) const RING_STROKE: f32 = 2.0;
+pub(crate) const RING_OFFSET: f32 = 2.0;
 /// The control row's top (`ROW_TOP`).
 pub const ROW_TOP: f32 = 441.0;
 /// The seek preview's box and its top (`PREVIEW_*`).
@@ -166,6 +166,8 @@ pub struct Scrub<'a> {
     pub markers: &'a [pley_core::model::Marker],
     /// What Up does from the bar: Skip, when it shows.
     pub up: Edge,
+    /// Up opens the chapters as cards (a seek waits, and the film has chapters): the bar takes it.
+    pub up_opens_chapters: bool,
     /// Play/Pause, where Down goes.
     pub down: Id,
 }
@@ -191,7 +193,8 @@ pub fn scrubber(ui: &mut Ui, group: Id, id: Id, s: &Scrub) -> Response {
         .edge(Dir::Down, Edge::To(s.down))
         .edge(Dir::Left, Edge::Stop)
         .edge(Dir::Right, Edge::Stop);
-    let r = ui.group(group, g, |ui| register(ui, id, bar, FocusOpts::default().takes(Dirs::HORIZONTAL).click_at()));
+    let takes = if s.up_opens_chapters { Dirs::HORIZONTAL.union(Dirs::UP) } else { Dirs::HORIZONTAL };
+    let r = ui.group(group, g, |ui| register(ui, id, bar, FocusOpts::default().takes(takes).click_at()));
     let focus = ui.animate(id.with("thumb"), if r.focused { 1.0 } else { 0.0 }, Motion::FOCUS);
     track(ui, s, focus);
 
@@ -301,15 +304,20 @@ fn draw_preview(ui: &mut Ui, rect: Rect, p: &SeekPreview, tile: Option<&Tile>) {
         }
         SeekPreview::Sheet { .. } => {
             if let Some(t) = tile {
-                ui.fill(rect, Color::BLACK, radius::TILE);
-                let (image, key) = (t.image.clone(), t.key);
-                let at = letterbox(rect, image.width as f32, image.height as f32);
-                // Rounded only where the picture reaches the box's corners.
-                let round = if at.w >= rect.w - 0.5 && at.h >= rect.h - 0.5 { radius::TILE } else { 0.0 };
-                ui.cmd(Cmd::Raw { rect: at, image, key, radius: round, opacity: 1.0 });
+                letterboxed(ui, rect, t);
             }
         }
     }
+}
+
+/// A preview cut out of its sheet, letterboxed in `rect` on black.
+pub(crate) fn letterboxed(ui: &mut Ui, rect: Rect, t: &Tile) {
+    ui.fill(rect, Color::BLACK, radius::TILE);
+    let (image, key) = (t.image.clone(), t.key);
+    let at = letterbox(rect, image.width as f32, image.height as f32);
+    // Rounded only where the picture reaches the box's corners.
+    let round = if at.w >= rect.w - 0.5 && at.h >= rect.h - 0.5 { radius::TILE } else { 0.0 };
+    ui.cmd(Cmd::Raw { rect: at, image, key, radius: round, opacity: 1.0 });
 }
 
 /// A `w` × `h` picture as large as fits in `rect`, centred.
@@ -597,6 +605,7 @@ mod tests {
                 chapters: &chapters,
                 markers: &markers,
                 up: Edge::Stop,
+                up_opens_chapters: false,
                 down,
             };
             ui.initial_focus(id);

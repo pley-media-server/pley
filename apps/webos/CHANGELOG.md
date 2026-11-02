@@ -42,6 +42,9 @@ describes how they are made.
   smoothly faster the longer it is held, and waits for OK when let go.
 - As each title or episode begins playing, its name shows at the top of
   the picture for a few seconds.
+- Chapters show as a row of cards over the scrubber, each with its picture,
+  name and start, in place of the Chapters panel: the Chapters button opens
+  them, and so does Up while a seek waits for OK.
 
 ### Fixed
 
