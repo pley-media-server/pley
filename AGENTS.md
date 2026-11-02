@@ -122,7 +122,8 @@ They go in `docs/QUESTIONS.md` or `docs/*.local.md`, which git ignores.
 - The subject starts with the area and says, briefly, what changed as a
   user sees it: `server: Live TV starts at the last keyframe`, `web: …`,
   `kodi, roku: …`, `docs: …`. The body is short and to the point: why, and
-  anything a reviewer should know, not a retelling of the diff.
+  anything a reviewer should know, not a retelling of the diff. No
+  `Co-Authored-By` trailer and no "Generated with …" line.
 - Never commit build output (`target/`, `dist/`), keys, `.env` files, local
   data, or files git ignores.
 
@@ -140,8 +141,8 @@ They go in `docs/QUESTIONS.md` or `docs/*.local.md`, which git ignores.
   or two, then what a reviewer should know, by app or area, then what was
   checked and what wasn't.
 - Write it as a person would: no bold labels, no tables or headings for a
-  few lines, no review history. Don't repeat the diff or the docs; point to
-  the doc.
+  few lines, no review history, no "Generated with …" line. Don't repeat
+  the diff or the docs; point to the doc.
 
 ## Platform notes
 
