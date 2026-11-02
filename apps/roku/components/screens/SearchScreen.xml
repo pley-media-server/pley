@@ -2,9 +2,7 @@
 <!-- Search with the on-screen keyboard; the Live TV channels found as a row
      of cards (OK watches one), the titles and people as posters. Where the
      person may ask for titles, the libraries' and TMDB's are two rows, In
-     your libraries and On TMDB, the second ending with See all on
-     Discover. Discover's search has TMDB's titles only, with their
-     badges. -->
+     your libraries and Discover, the second ending with See all. -->
 <component name="SearchScreen" extends="Group">
     <interface>
         <field id="route" type="string" />

@@ -5,7 +5,8 @@
 // title's details, the player, the Options key, a library's grid and its
 // next page, a show's page, its episodes and a person's page, Live TV (its
 // guide, a channel watched, the next one, the channel list, a favourite,
-// every connection in use, the Channels tab), Search, Discover (a movie
+// every connection in use, the Channels tab), Search (and all of TMDB's
+// titles for its words), Discover (a movie
 // asked for, a show's seasons picked), the managers' Requests (Approve, a
 // ready-to-watch notice, then Yours), Settings, the server gone and Try
 // again, then signing out and in again on a server too old for QR codes,
@@ -506,6 +507,19 @@ async function walk() {
     await press("lit_o");
   });
   shoot("search");
+  // See all, ending the Discover row (the last row, under the channels
+  // and the libraries' titles): all of TMDB's titles for the words, in a
+  // grid of their own; Back to Search, then to its keyboard.
+  since = mark();
+  await press("right", 7); // across the keyboard's six columns to the channels found
+  await press("down", 2); // Discover
+  await press("right", 21); // See all, after a page of titles at most
+  await press("select");
+  await waitFor(/^GET \/api\/discover\/search\?q=mo&page=1$/, since, "TMDB's results for the words");
+  shoot("search-tmdb");
+  await press("back");
+  await settle();
+  await press("back");
   // Back from Search nothing played: Home stays as it is, unless its rows
   // are a minute old by now (a slow run), when it asks again. They are as
   // old as Home's last asking.
@@ -824,6 +838,7 @@ const checks = [
   ["asked what requests let the profile do", asked(/^GET \/api\/requests\/summary$/)],
   ["asked at the start which requests had news", asked(/^GET \/api\/requests\?.*unseen=1/)],
   ["searched TMDB beside the libraries for what they lack", asked(/^GET \/api\/discover\/search\?.*missing=1/)],
+  ["showed all of TMDB's results for the words searched", asked(/^GET \/api\/discover\/search\?q=mo&page=1$/)],
   ["showed Discover's rows", asked(/^GET \/api\/discover\/trending\?page=1$/) && asked(/^GET \/api\/discover\/movies\?page=1$/)],
   ["asked for TMDB's pictures through the server, at the size drawn", fixture.discoverPictures.length > 0 && fixture.discoverPictures.every((p) => /^\d+$/.test(p.w ?? ""))],
   ["asked for a movie once its question was answered", fixture.requestsAsked.some((a) => a.kind === "movie" && a.tmdb_id === 7001 && !("seasons" in a))],

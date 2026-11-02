@@ -1,14 +1,12 @@
 ' Search with the on-screen keyboard, once typing rests for half a second.
 ' The Live TV channels found show as a row of cards on top (OK watches
 ' one), the libraries' titles (GET /api/search) as posters below. Where the
-' person may ask for titles (the scene's summary), they are a row, and On
-' TMDB (GET /api/discover/search?missing=1), asked at the same time and
-' never waited for, another, ending with See all on Discover. Discover's
-' search (params.discover) has TMDB's titles only, with their badges, a
-' page at a time. params: { discover, query (searched at once) }.
+' person may ask for titles (the scene's summary), they are a row, and
+' Discover (GET /api/discover/search?missing=1), asked at the same time
+' and never waited for, another, ending with See all: all of TMDB's
+' results for the words, with their badges (DiscoverListScreen).
 
 sub init()
-    m.title = m.top.findNode("title")
     m.keyboard = m.top.findNode("keyboard")
     m.grid = m.top.findNode("grid")
     m.rows = m.top.findNode("rows")
@@ -18,7 +16,6 @@ sub init()
     m.message = m.top.findNode("message")
     m.debounce = m.top.findNode("debounce")
     m.started = false
-    m.discover = false
     ' The search asked last: answers for earlier ones are dropped.
     m.query = ""
     m.path = ""
@@ -30,19 +27,10 @@ sub init()
     m.tmdbTiles = invalid
     m.libraryMessage = ""
     m.rowKeys = []
-    ' Discover's search: the pages asked for (since the focus last moved,
-    ' asked), and the titles shown.
-    m.page = 0
-    m.totalPages = -1
-    m.seen = {}
-    m.loading = false
-    m.asked = 0
-    m.content = invalid
     m.lastFocus = m.keyboard
     m.keyboard.observeField("text", "onText")
     m.debounce.observeField("fire", "search")
     m.grid.observeField("itemSelected", "onSelected")
-    m.grid.observeField("itemFocused", "onFocused")
     m.rows.observeField("rowItemSelected", "onRowTile")
     m.live.observeField("rowItemSelected", "onChannelSelected")
     m.top.observeField("active", "onActive")
@@ -65,25 +53,15 @@ sub onActive()
     end for
 end sub
 
-' Discover's search, or the libraries' (with TMDB's where the person may
-' ask); words given are searched at once.
+' The libraries' search, with TMDB's where the person may ask.
 sub firstShow()
     m.started = true
-    m.discover = httpTrue(m.top.params.discover)
     m.mayAsk = reqMayAsk(reqSummaryOf(m.top.requestSummary))
-    if m.discover then m.title.text = "Discover"
     showMessage(placeholder())
-    query = httpString(m.top.params.query)
-    if query <> ""
-        m.keyboard.text = query
-        search()
-    end if
 end sub
 
 ' What the screen says before anything is typed.
 function placeholder() as string
-    if m.discover then return "Type to search TMDB's movies and shows."
-    if m.mayAsk then return "Type to search your libraries and TMDB."
     return "Type to search your libraries."
 end function
 
@@ -94,14 +72,12 @@ end sub
 
 ' A title's request changed: its badge.
 sub onRequestNote()
-    note = m.top.requestNote
-    uiPatchRequestTiles(m.content, note)
-    if m.rows.visible then uiPatchRequestTiles(m.rows.content, note)
+    if m.rows.visible then uiPatchRequestTiles(m.rows.content, m.top.requestNote)
 end sub
 
 ' The person may now ask, or no longer: the results again, laid out for it.
 sub onSummary()
-    if not m.started or m.discover then return
+    if not m.started then return
     mayAsk = reqMayAsk(reqSummaryOf(m.top.requestSummary))
     if mayAsk = m.mayAsk then return
     m.mayAsk = mayAsk
@@ -129,10 +105,6 @@ sub search()
     if query = ""
         hideResults()
         showMessage(placeholder())
-        return
-    end if
-    if m.discover
-        startPages()
         return
     end if
     m.path = urlWithQuery("/api/search", { q: query, limit: 40 })
@@ -231,16 +203,18 @@ sub onChannelSelected(event as object)
     uiNavigate({ to: "livePlayer", params: { channel: m.channels[at], category: "search:" + m.query, categoryName: "Results for “" + m.query + "”" } })
 end sub
 
-' --- On TMDB, with the libraries' titles ---
+' --- Discover, with the libraries' titles ---
 
-' TMDB's first titles the libraries lack, for the words searched.
+' TMDB's first titles the libraries lack, for the words searched (as many
+' as TMDB's search takes).
 sub askTmdb()
-    m.tmdbPath = urlWithQuery("/api/discover/search", { q: m.query, missing: 1 })
+    m.tmdbPath = urlWithQuery("/api/discover/search", { q: reqSearchWords(m.query), missing: 1 })
     uiRequest({ method: "GET", path: m.tmdbPath, build: "discoverTiles", known: {} }, "onTmdb")
 end sub
 
-' TMDB's titles and See all on Discover. TMDB not answering (or failing
-' otherwise) is a tile that asks again; the server not answering is the
+' TMDB's titles and See all. What stops TMDB's search
+' (TMDB not answering, its key refused, no access) is a tile that says
+' so, asking again where that may help; the server not answering is the
 ' libraries' search's to say.
 sub onTmdb(event as object)
     request = event.getRoSGNode()
@@ -249,16 +223,9 @@ sub onTmdb(event as object)
     tiles = []
     if answer.ok
         if request.content <> invalid then tiles = request.content.getChildren(-1, 0)
-        if tiles.Count() > 0 then tiles.Push(nodesContent([reqMoreTile("See all on Discover", "", m.query)]).getChild(0))
+        if tiles.Count() > 0 then tiles.Push(nodesContent([reqMoreTile("See all", "", m.query)]).getChild(0))
     else if answer.error <> "network" and answer.error <> "signed_out"
-        problem = reqProblem(answer, reqSummaryOf(m.top.requestSummary).manage)
-        text = ""
-        if problem = invalid
-            text = "Couldn't load these. Select to try again."
-        else if problem.retry
-            text = problem.title + ". Select to try again."
-        end if
-        if text <> "" then tiles.Push(nodesContent([reqNoticeTile(text, "retry")]).getChild(0))
+        tiles.Push(nodesContent([reqSearchProblemTile(answer, reqSummaryOf(m.top.requestSummary).manage)]).getChild(0))
     end if
     m.tmdbTiles = tiles
     showRows()
@@ -271,7 +238,7 @@ sub showRows()
     noneHere = m.libraryTiles <> invalid and m.libraryTiles.Count() = 0 and m.channels.Count() = 0
     shown = []
     if m.libraryTiles <> invalid and m.libraryTiles.Count() > 0 then shown.Push({ key: "library", title: "In your libraries", tiles: m.libraryTiles })
-    if m.tmdbTiles <> invalid and m.tmdbTiles.Count() > 0 then shown.Push({ key: "tmdb", title: "On TMDB", tiles: m.tmdbTiles })
+    if m.tmdbTiles <> invalid and m.tmdbTiles.Count() > 0 then shown.Push({ key: "tmdb", title: "Discover", tiles: m.tmdbTiles })
     line = "Nothing in your libraries matches."
     if m.libraryMessage <> "" then line = m.libraryMessage
     if shown.Count() = 0
@@ -324,8 +291,8 @@ sub showRows()
     end for
 end sub
 
-' A tile opens its title, or Discover's search; TMDB's Try again asks
-' again.
+' A tile opens its title, or all of TMDB's results; TMDB's Try again
+' asks again.
 sub onRowTile(event as object)
     position = event.getData()
     row = m.rows.content.getChild(position[0])
@@ -338,103 +305,6 @@ sub onRowTile(event as object)
         return
     end if
     uiOpenTile(tile)
-end sub
-
-' --- Discover's search ---
-
-' TMDB's titles for the words searched, the first page in frames until it
-' comes.
-sub startPages()
-    m.tmdbPath = urlWithQuery("/api/discover/search", { q: m.query })
-    m.page = 0
-    m.totalPages = -1
-    m.seen = {}
-    m.loading = false
-    m.asked = 0
-    m.content = invalid
-    m.message.visible = false
-    m.grid.content = nodesContent(reqSkeletonTiles())
-    m.grid.visible = true
-    loadPage()
-end sub
-
-sub loadPage()
-    if m.loading or (m.totalPages >= 0 and m.page >= m.totalPages) then return
-    m.loading = true
-    m.asked = m.asked + 1
-    uiRequest({ method: "GET", path: m.tmdbPath, query: { page: m.page + 1 }, build: "discoverTiles", known: m.seen }, "onPage")
-end sub
-
-' A page of titles, after those shown. A page short of a screenful isn't
-' the end: the next one comes, five at most until the focus moves, then
-' Look further asks for more.
-sub onPage(event as object)
-    request = event.getRoSGNode()
-    if request.spec.path <> m.tmdbPath then return
-    m.loading = false
-    answer = event.getData()
-    if not answer.ok
-        if m.content <> invalid or uiFailed(answer) then return
-        hideResults()
-        problem = reqProblem(answer, reqSummaryOf(m.top.requestSummary).manage)
-        if problem = invalid
-            showMessage(answer.message)
-        else
-            showMessage((problem.title + ". " + problem.text).Trim())
-        end if
-        return
-    end if
-    page = answer.data
-    ' A server that answers the same page again has no more.
-    if page.page <= m.page
-        m.totalPages = m.page
-    else
-        m.page = page.page
-        m.totalPages = page.totalPages
-    end if
-    tiles = []
-    if request.content <> invalid
-        for each node in request.content.getChildren(-1, 0)
-            if not m.seen.DoesExist(node.key)
-                m.seen[node.key] = true
-                tiles.Push(node)
-            end if
-        end for
-    end if
-    if m.content <> invalid then dropFurther()
-    if m.content = invalid and (tiles.Count() > 0 or m.page >= m.totalPages or m.asked >= 5)
-        ' The first titles (or Look further) take the frames' place.
-        m.content = CreateObject("roSGNode", "ContentNode")
-        m.content.appendChildren(tiles)
-        m.grid.content = m.content
-    else if m.content <> invalid and tiles.Count() > 0
-        m.content.appendChildren(tiles)
-    end if
-    if m.content <> invalid and m.content.getChildCount() = 0 and m.page >= m.totalPages
-        hideResults()
-        showMessage("Nothing found for “" + m.query + "”.")
-        return
-    end if
-    count = 0
-    if m.content <> invalid then count = m.content.getChildCount()
-    if reqWantsPage(m.page, m.totalPages, m.grid.itemFocused, count, 10, m.asked)
-        loadPage()
-    else if m.content <> invalid and m.page < m.totalPages and m.asked >= 5
-        nodesAppend(m.content, [reqFurtherTile()])
-    end if
-end sub
-
-' Look further goes as the next page comes.
-sub dropFurther()
-    last = m.content.getChildCount() - 1
-    if last >= 0 and m.content.getChild(last).kind = "further" then m.content.removeChildIndex(last)
-end sub
-
-' Two rows before the end, the next page comes.
-sub onFocused(event as object)
-    if not m.discover or m.content = invalid then return
-    m.asked = 0
-    if event.getData() >= m.content.getChildCount() - 10 then loadPage()
 end sub
 
 ' --- Results ---
@@ -455,13 +325,7 @@ sub showMessage(text as string)
 end sub
 
 sub onSelected(event as object)
-    tile = m.grid.content.getChild(event.getData())
-    if tile <> invalid and tile.kind = "further"
-        m.asked = 0
-        loadPage()
-        return
-    end if
-    uiOpenTile(tile)
+    uiOpenTile(m.grid.content.getChild(event.getData()))
 end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean

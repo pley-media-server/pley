@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Discover has no Search of its own: Search shows what can be asked for
+  in a Discover row after the libraries' titles, which says when TMDB
+  can't be searched.
+
 ## [0.1.1] - 2026-11-01
 
 ### Added
