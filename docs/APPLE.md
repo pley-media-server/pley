@@ -800,6 +800,15 @@ playback on that server and profile.
   (video AVPlayer opened but can't show) gets a conversion, once.
 - A file played as it is that drops frames (more than 1 % of them over
   10 seconds, or 10 at once) gets the server's conversion, once.
+- The server out of reach while it plays (no answer, or a gateway in
+  front of it answering `502` or `504`): AVPlayer plays what it has
+  loaded, and the new session is asked for again, 0.5 to 2 seconds apart,
+  for 90 seconds from when the server was lost, as long as the server
+  keeps a session it doesn't hear from. "Reconnecting…" shows once
+  (iPhone, iPad and Mac); once the server answers, it plays on where it
+  stood, and after 90 seconds it says the server can't be reached, with
+  Try again. A server that answers, even with an error, isn't waited for,
+  and neither is one out of reach before anything played.
 
 AVPlayer decodes video with or without a view on screen: a video output
 is attached to every item, and the frames it gives are counted for that

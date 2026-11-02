@@ -227,6 +227,7 @@ enum PlayerTexts {
     static let burnedIn = "Burned into the video"
     static let subtitleAdded = "Subtitles added"
     static let downloaded = "Downloaded"
+    static let reconnecting = "Reconnecting…"
 
     /// The menu's Automatic while it plays `playing`: "Automatic · 8 Mbps 1080p".
     static func automatic(_ playing: String) -> String { "Automatic · \(playing)" }

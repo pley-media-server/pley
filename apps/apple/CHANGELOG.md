@@ -82,6 +82,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- A video that loses the server plays what it has loaded and keeps trying
+  to reach the server for 90 seconds, then plays on where it stood,
+  instead of stopping at once.
 - Apple TV's tabs stay on screen: seven at most, with a Libraries tab for
   the libraries that don't fit.
 - The iPhone's Quality menu keeps each choice's second line when it is

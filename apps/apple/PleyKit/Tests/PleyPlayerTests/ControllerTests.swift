@@ -121,6 +121,92 @@ struct ControllerTests {
         #expect(rig.server.openSessions.isEmpty)
     }
 
+    @Test func aServerLostMidPlaybackIsAskedAgainUntilItIsBack() async throws {
+        let rig = try await rig()
+        defer { rig.cleanUp() }
+        _ = try await playing(rig)
+        rig.engine.playing(at: 20_000)
+        rig.controller.tick()
+        // A gateway says the server is away: the player's network fails, and so does the next session.
+        rig.server.failPlayback(status: 502)
+        rig.engine.emit(.failed(.network(detail: "NSURLErrorDomain -1005")))
+        try await until("the first try") { rig.controller.reconnectPending }
+        #expect(await rig.requests().count == 2)
+        #expect(rig.controller.state.notice == "Reconnecting…")
+        // Tries 0.5 s, 1 s, then 2 s apart; it doesn't fail meanwhile.
+        for (wait, tries) in [(499, 2), (1, 3), (1_000, 4), (2_000, 5), (2_000, 6)] {
+            rig.clock.advance(ms: Int64(wait))
+            rig.controller.tick()
+            try await until("try \(tries)") { rig.controller.reconnectPending }
+            #expect(await rig.requests().count == tries)
+            #expect(!rig.controller.state.isFailed)
+        }
+        // The server is back: the next try plays on where it stood.
+        rig.server.failPlayback(status: nil)
+        rig.clock.advance(ms: 2_000)
+        try await until("the new session") {
+            rig.controller.tick()
+            return rig.engine.loads.count == 2
+        }
+        #expect(rig.engine.loads[1].startMs == 20_000)
+        #expect(Set(await rig.requests().compactMap(\.startMs)) == [0, 20_000])
+        #expect(!rig.controller.state.isFailed)
+        await rig.controller.close()
+        #expect(rig.server.openSessions.isEmpty)
+    }
+
+    @Test func aServerOutOfReachForNinetySecondsEndsThePlayback() async throws {
+        let rig = try await rig()
+        defer { rig.cleanUp() }
+        _ = try await playing(rig)
+        rig.engine.playing(at: 20_000)
+        rig.controller.tick()
+        rig.server.failPlayback(status: 504)
+        let lost = rig.clock.now()
+        rig.engine.emit(.failed(.network(detail: "NSURLErrorDomain -1001")))
+        try await until("the first try") { rig.controller.reconnectPending }
+        while !rig.controller.state.isFailed, rig.clock.now() - lost < 120_000 {
+            rig.clock.advance(ms: 2_000)
+            rig.controller.tick()
+            try await until("the next try") { rig.controller.reconnectPending || rig.controller.state.isFailed }
+            if !rig.controller.state.isFailed {
+                #expect(rig.clock.now() - lost < PlaybackController.outOfReachMs)
+            }
+        }
+        let tries = await rig.requests().count
+        let failedAfter = rig.clock.now() - lost
+        #expect(failedAfter >= PlaybackController.outOfReachMs && failedAfter <= PlaybackController.outOfReachMs + 2_000)
+        #expect(tries > 40)
+        guard case .failed(_, let canRetry) = rig.controller.state.phase else { return }
+        #expect(canRetry)
+        await rig.controller.close()
+    }
+
+    @Test func aServerThatAnswersIsNotWaitedFor() async throws {
+        let rig = try await rig()
+        defer { rig.cleanUp() }
+        _ = try await playing(rig)
+        rig.engine.playing(at: 20_000)
+        rig.controller.tick()
+        // The server's own refusal is an answer: no 90 s of tries.
+        rig.server.failPlayback(status: 503)
+        rig.engine.emit(.failed(.network(detail: "NSURLErrorDomain -1005")))
+        try await until("the failure") { rig.controller.state.isFailed }
+        #expect(await rig.requests().count == 2)
+        await rig.controller.close()
+    }
+
+    @Test func aServerOutOfReachAtTheStartIsSaidAtOnce() async throws {
+        let rig = try await rig()
+        defer { rig.cleanUp() }
+        // Nothing played yet: there is nothing to ride out.
+        rig.server.failPlayback(status: 502)
+        rig.controller.start()
+        try await until("the failure") { rig.controller.state.isFailed }
+        #expect(await rig.requests().count == 1)
+        await rig.controller.close()
+    }
+
     @Test func directPlayThatFailsFallsBackToARemuxThenATranscode() async throws {
         let rig = try await rig()
         defer { rig.cleanUp() }

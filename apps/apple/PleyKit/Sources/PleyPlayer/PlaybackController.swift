@@ -97,6 +97,10 @@ public struct PlaybackEnvironment {
 ///   next play or seek starts a new session where it was.
 /// - **Recovery.** `Recovery`'s ladder for engine errors, 12 s stalls, a
 ///   remux without picture, and dropped frames (`StruggleMeter`).
+/// - **The server out of reach.** AVPlayer plays what it has; a new
+///   session the server doesn't answer (no answer, or a gateway's `502` or
+///   `504`) is asked for again, 0.5 s to 2 s apart, for 90 s from when the
+///   server was lost, as Android's player does, before the player says so.
 /// - **Quality.** The quality picked plays as it is; Automatic
 ///   (docs/QUALITY.md) plays the original and lets `AutoQuality` step down
 ///   and back up, starting from what the server knows of the network
@@ -178,6 +182,14 @@ public final class PlaybackController: ObservableObject {
     static let subtitleRefreshMs: Int64 = 10_000
     /// How long a download waits for the server's details before playing with those saved with it.
     static let savedDetailMs: Int64 = 3_000
+    /// How long a playback that lost its server keeps asking for a new
+    /// session (Android's `OUT_OF_REACH_MS`): as long as the server waits
+    /// for a player it doesn't hear from.
+    public static let outOfReachMs: Int64 = 90_000
+    /// The waits between those tries: 0.5 s, twice as long each time, 2 s
+    /// at most, so it plays on soon after the server is back.
+    static let reconnectFirstMs: Int64 = 500
+    static let reconnectMaxMs: Int64 = 2_000
 
     @Published public private(set) var state = PlayerState()
     /// Whether the next episode plays by itself after the Up Next countdown (Settings).
@@ -234,6 +246,17 @@ public final class PlaybackController: ObservableObject {
     private var backgroundedAt: Int64?
     /// Counts restarts, so only the latest clears `sessionTask`.
     private var restarts = 0
+    /// A session loaded: the server was there, so losing it is ridden out.
+    private var everLoaded = false
+    /// Since when the server hasn't answered a new session; `nil` while it answers.
+    private var outOfReachSince: Int64?
+    private var reconnectTries = 0
+    /// The next new session asked for while the server is out of reach, on
+    /// the clock (`tick` asks for it), and where it starts.
+    private var reconnectAt: Int64?
+    private var reconnectFromMs = 0
+    /// A new session waits for its time while the server is out of reach.
+    var reconnectPending: Bool { reconnectAt != nil }
     /// The speed, 1 normal, for this title.
     private var speed: Double = 1
     /// The sleep timer, made with the controller (it calls back into it).
@@ -581,6 +604,9 @@ public final class PlaybackController: ObservableObject {
     public func retry() {
         guard !closed, !stopped else { return }
         recovery.retry()
+        outOfReachSince = nil
+        reconnectTries = 0
+        reconnectAt = nil
         state.phase = .preparing
         if item == nil {
             startTask?.cancel()
@@ -763,7 +789,7 @@ public final class PlaybackController: ObservableObject {
                 try await self.begin(at: atMs, alongside: alongside)
             } catch is CancellationError {
             } catch {
-                self.failWith(error)
+                if !self.reconnectLater(after: error, at: atMs) { self.failWith(error) }
             }
             if self.restarts == run { self.sessionTask = nil }
         }
@@ -888,6 +914,11 @@ public final class PlaybackController: ObservableObject {
     private func load(_ started: ServerPlaybackSession, url: URL, at atMs: Int) {
         session = started
         expired = false
+        // The server answered: it is in reach again.
+        everLoaded = true
+        outOfReachSince = nil
+        reconnectTries = 0
+        reconnectAt = nil
         started.onAnswer = { [weak self, weak started] answer in
             guard let self, let started, self.session === started else { return }
             switch answer {
@@ -1122,6 +1153,11 @@ public final class PlaybackController: ObservableObject {
         guard !closed, !stopped else { return }
         let now = env.clock.now()
         countDown(now)
+        if let at = reconnectAt, now >= at, sessionTask == nil {
+            reconnectAt = nil
+            restart(at: reconnectFromMs)
+            return
+        }
         guard let engine, let session else { return }
         let sample = engine.sample()
         if mediaShown && !ended {
@@ -1796,6 +1832,38 @@ public final class PlaybackController: ObservableObject {
 
     private func fail(_ message: String, canRetry: Bool) {
         state.phase = .failed(message: message, canRetry: canRetry)
+    }
+
+    /// A new session the server didn't answer, after one played: asked for
+    /// again later (`tick`) while the server has been out of reach for less
+    /// than 90 s. False when the playback should fail now.
+    private func reconnectLater(after error: any Error, at atMs: Int) -> Bool {
+        guard everLoaded, !closed, !stopped, Self.outOfReach(error) else { return false }
+        let now = env.clock.now()
+        let since = outOfReachSince ?? now
+        guard now - since < Self.outOfReachMs else {
+            outOfReachSince = nil
+            reconnectTries = 0
+            return false
+        }
+        if outOfReachSince == nil { state.notice = PlayerTexts.reconnecting }
+        outOfReachSince = since
+        reconnectTries += 1
+        let wait = min(Self.reconnectFirstMs << Int64(min(reconnectTries - 1, 10)), Self.reconnectMaxMs)
+        reconnectAt = now + wait
+        reconnectFromMs = atMs
+        return true
+    }
+
+    /// The server is out of reach: no answer came, or a gateway in front of
+    /// it says it can't reach it (`502`, `504`). The server's own `503`
+    /// (no conversion free) is an answer.
+    static func outOfReach(_ error: any Error) -> Bool {
+        if LateReports.unreachable(error) { return true }
+        switch error as? PleyError {
+        case .api(let status, _, _), .unreadable(let status): return status == 502 || status == 504
+        default: return false
+        }
     }
 
     private func failWith(_ error: any Error) {
