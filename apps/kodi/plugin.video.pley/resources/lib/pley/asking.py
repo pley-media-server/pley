@@ -1,9 +1,10 @@
 """Asking for movies and shows, in Kodi's lists (docs/API.md, Requests):
-Discover's search and lists of TMDB titles, each doing its main action on
-OK and the rest from its menu; a show's seasons with their state, and the
-season picker in Kodi's multiselect; Your requests (Requests, for those
-who decide on them) with what can be done to each; and global search's
-titles from TMDB. Plugin (plugin.py) takes these routes from Asking."""
+Discover's lists of TMDB titles and its results for search's words, each
+doing its main action on OK and the rest from its menu; a show's seasons
+with their state, and the season picker in Kodi's multiselect; Your
+requests (Requests, for those who decide on them) with what can be done to
+each; and global search's titles from TMDB. Plugin (plugin.py) takes these
+routes from Asking."""
 
 from __future__ import annotations
 
@@ -28,13 +29,13 @@ POSTER = 500
 BACKDROP = 1280
 SEASON_POSTER = 342
 # Global search's titles from TMDB, kept for the listing that shows them
-# once they came (Searching): {q, titles, at}.
+# once they came (Searching): {q, titles or refused, at}.
 FOUND = "pley.tmdb"
 FOUND_KEEP = 300
 FOUND_SHOWN = 8
 # Seconds they may take: the plugin's Python stays busy until they come,
 # and a call meanwhile starts a Python of its own (slow on a small box).
-# Slower, they are left to On TMDB, which opens them on Discover.
+# Slower, they are left to the Discover entry, which opens them on Discover.
 FOUND_WAIT = 3
 ICONS = {
     "trending": "DefaultMusicTop100.png",
@@ -139,15 +140,20 @@ class Asking:
         Try again where it may help."""
         if error.code in AWAY:
             raise error
+        self.problem_entries(error)
+        self.end()
+
+    def problem_entries(self, error: api.ApiError, last: bool = False) -> None:
+        """What is wrong, then Try again where it may help; `last`: after
+        the listing's own entries (search's, in the Discover entry's place)."""
         T = kodi.text
         title, body, retry = requests.problem(error, T, requests.manages(self.requests_summary()), now=time.time())
         if error.code == "insufficient_scope":
-            self.entry(title, {"route": "sign_in"}, "DefaultUser.png", folder=False, plot=body, label2=T("sign_in_again"))
+            self.entry(title, {"route": "sign_in"}, "DefaultUser.png", folder=False, plot=body, label2=T("sign_in_again"), last=last)
         else:
-            self.entry(title, {"route": "retry"}, "DefaultIconInfo.png", folder=False, plot=body)
+            self.entry(title, {"route": "retry"}, "DefaultIconInfo.png", folder=False, plot=body, last=last)
         if retry:
-            self.entry(T("try_again"), {"route": "retry"}, "DefaultAddonsUpdates.png", folder=False)
-        self.end()
+            self.entry(T("try_again"), {"route": "retry"}, "DefaultAddonsUpdates.png", folder=False, last=last)
 
     def refused(self, error: api.ApiError, kind=None, scope: str = "requests") -> None:
         """An action the server refused: said in a notice, or for a sign-in
@@ -170,13 +176,13 @@ class Asking:
     def asking_entries(self, s) -> None:
         """The root's entries: Discover, and the requests."""
         if requests.discovers(s):
-            self.entry(kodi.text("discover"), {"route": "discover"}, "DefaultFavourites.png", plot=kodi.text("search_tmdb"))
+            self.entry(kodi.text("discover"), {"route": "discover"}, "DefaultFavourites.png", plot=kodi.text("find_to_ask"))
         if requests.lists(s):
             self.requests_entry(s)
 
     def notify_service(self, forget: bool = False) -> None:
         """The service reads the summary again (news.py). Until it has, the
-        listing shown again reads the one kept: with none, On TMDB and
+        listing shown again reads the one kept: with none, Discover and
         Request more seasons would go. `forget`: that one is another
         sign-in's or profile's, and goes now."""
         if forget:
@@ -186,7 +192,8 @@ class Asking:
     # ------------------------------------------------------------ Discover
 
     def route_discover(self) -> None:
-        """Discover: TMDB's search and lists, then the requests."""
+        """Discover: TMDB's lists, then the requests. Words are looked for
+        on TMDB from Search (its Discover entry)."""
         T = kodi.text
         s = self.requests_summary(fresh=True)
         if s is None:
@@ -202,7 +209,6 @@ class Asking:
             return self.cant(api.ApiError(503, "unavailable", "", {"setup": False}))
         if requests.may_ask(s):
             credit = T("tmdb_credit")
-            self.entry(T("search"), {"route": "discover_search"}, "DefaultAddonsSearch.png", plot=T("search_tmdb"))
             for key, name in requests.LISTS:
                 self.entry(T(name), {"route": "discover_list", "list": key}, ICONS[key], plot=credit)
         else:
@@ -226,23 +232,24 @@ class Asking:
         self.end()
 
     def route_discover_search(self) -> None:
-        query = self.params.get("q")
+        """All TMDB has for search's words (the See all of its Discover entry), each
+        title with its badge, titled for the words."""
+        query = requests.search_text(self.params.get("q") or "")
         if not query:
-            query = (xbmcgui.Dialog().input(kodi.text("search_tmdb")) or "").strip()
-            self.end(False)
-            if query:
-                # The results' own address, as library search's.
-                xbmc.executebuiltin("Container.Update(%s)" % self.url(route="discover_search", q=query))
-            return
+            # No words (a favourite of Discover's search from before):
+            # Search asks for them.
+            self.params.pop("q", None)
+            return self.route_search()
         page = int(self.params.get("page") or 1)
         client = self.client()
+        xbmcplugin.setPluginCategory(self.handle, kodi.text("results_for") % query)
         try:
             found, last, total, mine = self.titles(lambda at: client.get("/api/discover/search", q=query, page=at), page)
         except api.ApiError as e:
             return self.cant(e)
         if not found and page == 1:
             # OK searches again.
-            self.entry(kodi.text("nothing_on_tmdb") % query, {"route": "discover_search"}, "DefaultIconInfo.png", plot=kodi.text("search_tmdb"))
+            self.entry(kodi.text("nothing_on_tmdb") % query, {"route": "search"}, "DefaultIconInfo.png")
         self.list_titles(found, mine)
         if last < total:
             self.folder(kodi.text("next_page"), {"route": "discover_search", "q": query, "page": last + 1}, last=True)
@@ -612,7 +619,7 @@ class Asking:
             return self.entry(T("nothing_needs_attention"), {"route": "retry"}, "DefaultIconInfo.png", folder=False)
         if requests.may_ask(s):
             # OK goes to Discover.
-            return self.entry(T("nothing_asked"), {"route": "discover"}, "DefaultIconInfo.png", plot=T("search_tmdb"))
+            return self.entry(T("nothing_asked"), {"route": "discover"}, "DefaultIconInfo.png", plot=T("find_to_ask"))
         self.entry(T("nothing_asked"), {"route": "retry"}, "DefaultIconInfo.png", folder=False)
 
     def request_entry(self, request: dict, manage: bool) -> tuple:
@@ -801,15 +808,19 @@ class Asking:
         url = self.url(route="more_seasons", id=item["id"], title=item.get("title") or "")
         return [(kodi.text("request_more_seasons"), "RunPlugin(%s)" % url)]
 
-    def on_tmdb(self, query: str, found) -> None:
+    def on_tmdb(self, query: str, found, refused=None, alone: bool = False) -> None:
         """Global search's titles from TMDB that the libraries don't have,
-        after the libraries' own: its first ones, then See all on Discover.
+        after the libraries' own, under Discover: its first ones, then See all.
         `found`: those titles, None while they're on their way (Searching
-        shows the listing again once they come)."""
+        shows the listing again once they come); `refused`: why TMDB
+        couldn't be searched, said in their place; `alone`: the libraries
+        found nothing, so that TMDB having nothing either is said."""
+        if refused is not None:
+            return self.problem_entries(refused, last=True)
         T = kodi.text
         url = {"route": "discover_search", "q": query}
         if found:
-            self.entry(T("on_tmdb"), url, "DefaultAddonsSearch.png", plot=T("tmdb_credit"), last=True)
+            self.entry(T("discover"), url, "DefaultAddonsSearch.png", plot=T("tmdb_credit"), last=True)
             entries = []
             for title in found[:FOUND_SHOWN]:
                 address, li, folder = self.title_entry(title)
@@ -817,8 +828,11 @@ class Asking:
                 entries.append((address, li, folder))
             xbmcplugin.addDirectoryItems(self.handle, entries, len(entries))
         elif found is None:
-            self.entry(T("on_tmdb"), url, "DefaultAddonsSearch.png", plot=T("tmdb_credit"), label2=T("searching") + "…", last=True)
-        self.entry(T("see_all_on_discover"), url, "DefaultAddonsSearch.png", plot=T("search_tmdb"), last=True)
+            self.entry(T("discover"), url, "DefaultAddonsSearch.png", plot=T("tmdb_credit"), label2=T("searching") + "…", last=True)
+        elif alone:
+            # OK searches again.
+            return self.entry(T("nothing_found_for") % query, {"route": "search"}, "DefaultIconInfo.png", last=True)
+        self.entry(T("see_all"), url, "DefaultAddonsSearch.png", plot=T("tmdb_credit"), last=True)
 
 
 def more_action(main: str, detail: dict, s) -> str:
@@ -898,11 +912,15 @@ class Searching:
         self.client = client
         self.query = query
         self.path = path
-        self.found = kept_titles(query)
-        # Whether the server answered (a refusal or a timeout keeps nothing).
+        self.found = None
+        # Whether the server answered with titles, and why it refused to
+        # (TMDB away, its key, no access); a timeout is neither.
         self.answered = False
+        self.refused = None
         self.done = threading.Event()
-        if self.found is not None:
+        kept = kept_search(query)
+        if kept is not None:
+            self.found, self.refused = kept
             self.done.set()
         else:
             threading.Thread(target=self.ask, daemon=True).start()
@@ -915,6 +933,8 @@ class Searching:
             self.answered = True
         except api.ApiError as e:
             kodi.log("TMDB in global search: %s %s" % (e.code, e.message), xbmc.LOGWARNING)
+            if e.code not in AWAY:
+                self.refused = e
         self.found = found
         self.done.set()
 
@@ -922,24 +942,40 @@ class Searching:
         """The titles, once they came; None while on their way."""
         return self.found if self.done.is_set() else None
 
-    def later(self) -> None:
+    def later(self, alone: bool = False) -> None:
         """Once the titles came (after the listing showed without them):
         kept for the listing's next showing, which is asked for while it is
-        still on screen. FOUND_WAIT, the request's timeout, bounds the wait."""
-        if not self.done.wait(FOUND_WAIT + api.CONNECT_TIMEOUT) or not self.answered:
+        still on screen; a refusal only then, said once there. `alone`: the
+        libraries found nothing, so that none found shows too. FOUND_WAIT,
+        the request's timeout, bounds the wait."""
+        if not self.done.wait(FOUND_WAIT + api.CONNECT_TIMEOUT):
             return
-        kodi.set_property(FOUND, json.dumps({"q": self.query, "titles": self.found, "at": time.time()}))
-        if self.found and xbmc.getInfoLabel("Container.FolderPath") == self.path:
+        on_screen = xbmc.getInfoLabel("Container.FolderPath") == self.path
+        refused = self.refused
+        if refused is not None and on_screen:
+            kept = {"refused": {"status": refused.status, "code": refused.code, "message": refused.message, "body": refused.body}}
+        elif self.answered:
+            kept = {"titles": self.found}
+        else:
+            return
+        kodi.set_property(FOUND, json.dumps(dict(kept, q=self.query, at=time.time())))
+        if on_screen and (self.found or refused is not None or alone):
             xbmc.executebuiltin("Container.Refresh")
 
 
-def kept_titles(query: str):
-    """Global search's TMDB titles for `query`, kept a while (FOUND)."""
+def kept_search(query: str):
+    """What global search found on TMDB for `query`, kept a while (FOUND):
+    (titles, None), or ([], why it was refused). A refusal is forgotten
+    once read, so that Try again asks again."""
     try:
         kept = json.loads(kodi.get_property(FOUND) or "null")
     except ValueError:
         return None
     if not isinstance(kept, dict) or kept.get("q") != query or not 0 <= time.time() - (kept.get("at") or 0) <= FOUND_KEEP:
         return None
+    refused = kept.get("refused")
+    if isinstance(refused, dict):
+        kodi.clear_property(FOUND)
+        return [], api.ApiError(refused.get("status") or 0, refused.get("code") or "", refused.get("message") or "", refused.get("body"))
     titles = kept.get("titles")
-    return [t for t in titles if isinstance(t, dict)] if isinstance(titles, list) else None
+    return ([t for t in titles if isinstance(t, dict)], None) if isinstance(titles, list) else None

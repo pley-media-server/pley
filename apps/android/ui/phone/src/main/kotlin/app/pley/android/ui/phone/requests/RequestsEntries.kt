@@ -9,12 +9,14 @@ import app.pley.android.screens.PleyKey
 import app.pley.android.ui.phone.shell.Placeholder
 
 /**
- * The phone's request screens (Discover, a title found on TMDB, Your
- * requests and the managers' Requests), added to the app's back stacks.
- * They open above Search's and Me's screens, and from a request's notice.
+ * The phone's request screens (Discover, TMDB's results for words, a
+ * title found on TMDB, Your requests and the managers' Requests), added to
+ * the app's back stacks. They open above Search's and Me's screens, and
+ * from a request's notice.
  */
 fun EntryProviderScope<NavKey>.requestsEntries() {
-    entry<PleyKey.Discover> { key -> WithGraph(key) { PhoneDiscoverScreen(key) } }
+    entry<PleyKey.Discover> { key -> WithGraph(key) { PhoneDiscoverScreen() } }
+    entry<PleyKey.DiscoverResults> { key -> WithGraph(key) { PhoneDiscoverResultsScreen(key) } }
     entry<PleyKey.DiscoverTitle> { key -> WithGraph(key) { PhoneDiscoverTitleScreen(key) } }
     entry<PleyKey.Requests> { key -> WithGraph(key) { PhoneRequestsScreen() } }
 }

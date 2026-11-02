@@ -150,7 +150,9 @@ public class LibraryTextTests
         Assert.Equal("", LibraryText.MediaLine(null));
         Assert.Equal("Bitrate unknown", LibraryText.MediaLine(new MediaSummary()));
         Assert.Equal("8.2 Mbps", LibraryText.MediaLine(new MediaSummary { Bitrate = 8_200_000 }));
-        Assert.Equal(new[] { "1080p", "HDR10" }, LibraryText.MediaBadges(new MediaSummary { Width = 1920, Height = 1080, DynamicRange = "hdr10" }));
+        Assert.Equal(new[] { "HDR10" }, LibraryText.MediaBadges(new MediaSummary { Width = 1920, Height = 1080, DynamicRange = "hdr10" }));
+        Assert.Empty(LibraryText.MediaBadges(new MediaSummary { Width = 1920, Height = 1080, VideoCodec = "h264", DynamicRange = "sdr" }));
+        Assert.Equal(new[] { "4K" }, LibraryText.MediaBadges(new MediaSummary { Width = 3840, Height = 2160, VideoCodec = "h264", DynamicRange = "sdr" }));
         Assert.Empty(LibraryText.MediaBadges(null));
     }
 

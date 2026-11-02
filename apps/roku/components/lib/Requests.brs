@@ -83,7 +83,7 @@ function reqShowsDiscover(summary as object) as boolean
 end function
 
 ' Whether the person may ask from this sign-in: Discover's rows and
-' titles, Search's "On TMDB".
+' titles, Search's Discover row.
 function reqMayAsk(summary as object) as boolean
     return reqShowsDiscover(summary) and summary.signInAgain <> "requests"
 end function
@@ -378,6 +378,25 @@ function reqLists() as object
     ]
 end function
 
+' The words searched as TMDB's search takes them (GET
+' /api/discover/search): trimmed, and at most 200 characters.
+function reqSearchWords(text as string) as string
+    return Left(text.Trim(), 200).Trim()
+end function
+
+' What a See all grid of TMDB's titles shows: one of Discover's lists (a
+' key of reqLists), or TMDB's results for query, the words searched.
+' { title, path (asked a page at a time), empty (said when it has none) }.
+function reqSeeAll(list as string, query as string) as object
+    words = reqSearchWords(query)
+    if words <> "" then return { title: "Results for " + reqQuoted(words), path: urlWithQuery("/api/discover/search", { q: words }), empty: "Nothing found for " + reqQuoted(words) + "." }
+    title = "Discover"
+    for each known in reqLists()
+        if known.key = list then title = known.title
+    end for
+    return { title: title, path: "/api/discover/" + list, empty: "Nothing here right now." }
+end function
+
 ' A title's badge on its poster: "In library", "Partly in library" (where
 ' the account can open it, else what was asked for: "Requested"),
 ' "Requested", "Declined"; "" for none.
@@ -454,7 +473,7 @@ function reqTitleTiles(results as dynamic, server as string, seen as object) as 
 end function
 
 ' The tile at the end of a row that opens all of it: a list's grid, or
-' Discover's search for query.
+' TMDB's results for query.
 function reqMoreTile(title as string, list as string, query as string) as object
     return { title: title, subtitle: "", image: "", wide: false, progress: 0.0, watched: false, itemId: 0, kind: "more", list: list, query: query, badge: "", badgeColor: "0x38BDF8FF", key: "more" }
 end function
@@ -481,8 +500,19 @@ function reqNoticeTile(text as string, kind as string) as object
     return { title: text, subtitle: "", image: "", wide: false, progress: 0.0, watched: false, itemId: 0, kind: kind, badge: "", badgeColor: "0x38BDF8FF", key: kind }
 end function
 
-' Whether a grid of TMDB's titles (See all, Discover's search) asks for
-' its next page: one is left and fewer than ahead titles lie past the
+' Search's Discover row when TMDB's search failed (answer): a tile saying what
+' stops it, which asks again where that may help ("TMDB isn't answering.
+' Select to try again.") and else only says so ("TMDB refused this
+' server's key.").
+function reqSearchProblemTile(answer as object, manage as boolean) as object
+    problem = reqProblem(answer, manage)
+    if problem = invalid then return reqNoticeTile("Couldn't load these. Select to try again.", "retry")
+    if problem.retry then return reqNoticeTile(problem.title + ". Select to try again.", "retry")
+    return reqNoticeTile(problem.title + ".", "note")
+end function
+
+' Whether a grid of TMDB's titles (a list's or a search's See all) asks
+' for its next page: one is left and fewer than ahead titles lie past the
 ' focus, five pages at most (asked) until the focus moves. An age limit
 ' can leave hundreds of pages near empty.
 function reqWantsPage(page as integer, totalPages as integer, focused as integer, count as integer, ahead as integer, asked as integer) as boolean

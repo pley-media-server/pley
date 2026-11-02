@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One of Discover's lists whole (See all): a grid of posters with their
-     badges, a page at a time as the focus nears its end. -->
+<!-- One of Discover's lists whole (See all), or TMDB's results for the
+     words searched (the See all of Search's Discover row): a grid of posters with
+     their badges, a page at a time as the focus nears its end. -->
 <component name="DiscoverListScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -27,7 +28,7 @@
         <Label id="credit" translation="[96, 128]" width="1600" text="Details and pictures from TMDB." color="0x8B95A5FF" font="font:SmallestSystemFont" />
         <MarkupGrid id="grid" translation="[96, 200]" itemComponentName="Tile" numColumns="7" numRows="2" itemSize="[220, 410]" itemSpacing="[28, 24]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <Label id="message" translation="[96, 480]" width="1728" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" visible="false" />
-        <!-- Why the list can't be shown, and what to do about it. -->
+        <!-- Why the titles can't be shown, and what to do about it. -->
         <LayoutGroup id="problem" translation="[96, 360]" layoutDirection="vert" itemSpacings="[20, 48]" visible="false">
             <Label id="problemTitle" width="1400" wrap="true" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
             <Label id="problemText" width="1400" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />

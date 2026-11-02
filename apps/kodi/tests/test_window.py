@@ -922,14 +922,14 @@ class WindowTest(unittest.TestCase):
         work, then, _ = later.pop()
         then(work())
         self.assertEqual(asked_of[-1], ("/api/discover/search", {"q": "heat", "missing": 1}))
-        self.assertEqual([row["title"] for row in page.rows.rows], [window.T("movies"), window.T("on_tmdb")])
+        self.assertEqual([row["title"] for row in page.rows.rows], [window.T("movies"), window.T("discover")])
         row = L.slot_list(L.SEARCH_ROWS, 1, "poster")
         shown = win.made[row].items
         self.assertEqual([(li.label, li.label2) for li in shown], [
             ("Heat 2", "2027 · " + window.T("movie")),
             ("Heatwave", "[COLOR %s]%s[/COLOR]" % (window.requests.BLUE, window.T("requested"))),
             ("Heat Island", "[COLOR %s]%s[/COLOR]" % (window.requests.GREEN, window.T("partly_in_library"))),
-            # "See all on Discover", as a tile has room for it.
+            # See all, opening Discover's results for the words.
             (window.T("see_all"), ""),
         ])
         # Posters through the server, as library artwork.
@@ -947,7 +947,7 @@ class WindowTest(unittest.TestCase):
             page.menu(row)
         self.assertEqual(asked.shown[0][0], [window.T("request_more_seasons")])
         self.assertEqual(window.xbmc.builtins[-1], "RunPlugin(plugin://plugin.video.pley/?route=title&kind=show&tmdb=2&more=1)")
-        # See all on Discover: Discover's search, in Kodi's lists.
+        # See all: Discover's results for the words, in Kodi's lists.
         left = []
         win.leave_for = left.append
         win.made[row].selectItem(3)
@@ -1003,7 +1003,7 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(win.made[L.SEARCH_EMPTY_TITLE].label, window.T("nothing_in_libraries"))
         work, then, _ = later.pop()
         then(work())
-        # On TMDB under the sentence, focused too.
+        # Discover under the sentence, focused too.
         self.assertEqual([row["key"] for row in page.rows.rows], ["tmdb"])
         self.assertEqual(win.made[L.slot(L.SEARCH_ROWS, 0)].position, (0, 320))
         page.focused(L.slot_list(L.SEARCH_ROWS, 0, "poster"))
@@ -1027,6 +1027,59 @@ class WindowTest(unittest.TestCase):
         keep_summary(self, dict(ASKS, access="off"))
         page.search("mask")
         self.assertEqual(later, [])
+        self.assertEqual(win.made[L.SEARCH_EMPTY_TITLE].label, window.T("nothing_found_for") % "mask")
+
+    def test_on_tmdb_says_why_tmdb_refused(self):
+        win = FakeWindow()
+        later = []
+        win.later = lambda work, then, failed=None: later.append((work, then, failed))
+        refusal = [window.api.ApiError(503, "tmdb_down", "TMDB timed out", {"setup": True})]
+        asked_of = []
+
+        def get(path, **query):
+            asked_of.append((path, query))
+            if path == "/api/search":
+                return {"items": [], "people": []}
+            if refusal:
+                raise refusal[0]
+            return {"results": [{"kind": "movie", "tmdb_id": 9, "title": "Zorro", "status": "none"}]}
+
+        win.session.get = get
+        keep_summary(self, ASKS)
+        page = window.Search(win)
+        win.show(page)
+        page.search("  zorro " + "x" * 300)
+        work, then, _ = later.pop()
+        then(work())
+        self.assertEqual(asked_of[-1], ("/api/discover/search", {"q": ("zorro " + "x" * 300)[:200], "missing": 1}), "as the server takes them")
+        # The row says why, under "Nothing in your libraries matches", with Try again.
+        down = "%s · [COLOR %s]%s[/COLOR]" % (window.T("discover"), L.DANGER_TEXT, window.T("tmdb_down"))
+        self.assertEqual([row["title"] for row in page.rows.rows], [down])
+        self.assertEqual(win.made[L.SEARCH_EMPTY_TITLE].label, window.T("nothing_in_libraries"))
+        row = L.slot_list(L.SEARCH_ROWS, 0, "poster")
+        self.assertEqual([li.label for li in win.made[row].items], [window.T("try_again")])
+        # Try again asks TMDB again; its titles take the row's place.
+        refusal.clear()
+        page.click(row)
+        work, then, _ = later.pop()
+        then(work())
+        self.assertEqual([row_["title"] for row_ in page.rows.rows], [window.T("discover")])
+        self.assertEqual([li.label for li in win.made[row].items], ["Zorro", window.T("see_all")])
+        # A key TMDB refuses: trying again won't help, See all's page says what to do.
+        refusal.append(window.api.ApiError(503, "tmdb_key", "401", {"setup": True, "retry": False}))
+        page.search("zorro")
+        work, then, _ = later.pop()
+        then(work())
+        self.assertEqual(page.rows.rows[0]["title"], "%s · [COLOR %s]%s[/COLOR]" % (window.T("discover"), L.DANGER_TEXT, window.T("tmdb_key")))
+        self.assertEqual([li.label for li in win.made[row].items], [window.T("see_all")])
+        left = []
+        win.leave_for = left.append
+        page.click(row)
+        self.assertEqual((left, win.listing), (["listing"], "plugin://plugin.video.pley/?route=discover_search&q=zorro"))
+        # No answer at all (the service away): the libraries' rows alone.
+        page.search("mask")
+        later.pop()[2]()
+        self.assertEqual(page.rows.rows, [])
         self.assertEqual(win.made[L.SEARCH_EMPTY_TITLE].label, window.T("nothing_found_for") % "mask")
 
 

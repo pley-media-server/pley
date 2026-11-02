@@ -14,11 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.input.TextFieldState
-import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,15 +28,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -70,7 +62,6 @@ import app.pley.android.screens.R
 import app.pley.android.screens.requests.Ask
 import app.pley.android.screens.requests.DiscoverHero
 import app.pley.android.screens.requests.DiscoverRow
-import app.pley.android.screens.requests.DiscoverSearch
 import app.pley.android.screens.requests.DiscoverUiState
 import app.pley.android.screens.requests.DiscoverViewModel
 import app.pley.android.screens.requests.MainAction
@@ -79,17 +70,13 @@ import app.pley.android.screens.requests.RequestsDeps
 import app.pley.android.screens.requests.badgeOf
 import app.pley.android.screens.requests.opens
 import app.pley.android.screens.screensGraph
-import app.pley.android.ui.phone.kit.EmptyState
 import app.pley.android.ui.phone.kit.HubRow
 import app.pley.android.ui.phone.kit.HubRowModel
-import app.pley.android.ui.phone.kit.ItemGrid
 import app.pley.android.ui.phone.kit.LocalPhoneDeviceTier
 import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.kit.TonalButton
 import app.pley.android.ui.phone.kit.rememberHubRowState
-import app.pley.android.ui.phone.kit.rememberItemGridState
-import app.pley.android.ui.phone.search.SearchField
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
 import kotlin.math.roundToInt
@@ -97,50 +84,33 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
 /**
- * Discover on the phone: TMDB's search at the top;
- * then a hero for the first trending title, with its main action; rows of
- * posters with their status badges (Trending this week, Popular movies,
- * Popular shows, Coming to cinemas, Popular anime), each read as it comes
- * into view and page by page as it scrolls; the person's requests; and
- * TMDB's credit. While typing, TMDB's titles in a grid. When requests
- * can't be used, the page says why, and only that.
+ * Discover on the phone: a hero for the first trending
+ * title, with its main action; rows of posters with their status badges
+ * (Trending this week, Popular movies, Popular shows, Coming to cinemas,
+ * Popular anime), each read as it comes into view and page by page as it
+ * scrolls; the person's requests; and TMDB's credit. TMDB is searched
+ * from Search. When requests can't be used, the page says why, and only
+ * that.
  */
 @Composable
-internal fun PhoneDiscoverScreen(key: PleyKey.Discover) {
-    val vm: DiscoverViewModel = viewModel { DiscoverViewModel(key.query, RequestsDeps.of(screensGraph())) }
+internal fun PhoneDiscoverScreen() {
+    val vm: DiscoverViewModel = viewModel { DiscoverViewModel(RequestsDeps.of(screensGraph())) }
     val state by vm.state.collectAsStateWithLifecycle()
-    val search by vm.search.collectAsStateWithLifecycle()
     val texts = rememberRequestTexts()
-    val field = rememberTextFieldState(key.query)
-    LaunchedEffect(field, vm) {
-        snapshotFlow { field.text.toString() }.collect(vm::onQueryChange)
-    }
     RequestEvents(vm.events, texts) { state.gate.summary }
-    DiscoverContent(state, search, field, texts, vm)
+    DiscoverContent(state, texts, vm)
 }
 
 @Composable
-private fun DiscoverContent(state: DiscoverUiState, search: DiscoverSearch, field: TextFieldState, texts: RequestTexts, vm: DiscoverViewModel) {
+private fun DiscoverContent(state: DiscoverUiState, texts: RequestTexts, vm: DiscoverViewModel) {
     val navigator = LocalPhoneNavigator.current
-    val keyboard = LocalSoftwareKeyboardController.current
     val list = rememberLazyListState()
-    val grid = rememberItemGridState()
-    val searching = field.text.isNotBlank()
-    // Scrolling puts the keyboard away.
-    val hideOnScroll = remember(keyboard) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source == NestedScrollSource.UserInput && available.y != 0f) keyboard?.hide()
-                return Offset.Zero
-            }
-        }
-    }
     val open: (DiscoverTitle) -> Unit = { navigator.open(PleyKey.DiscoverTitle(it.kind, it.tmdbId)) }
     Column(Modifier.fillMaxSize().testTag(DISCOVER_PAGE)) {
         PleyTopAppBar(
             title = stringResource(R.string.requests_discover),
             onBack = navigator::back,
-            scrolled = { if (searching) grid.canScrollBackward else list.canScrollBackward },
+            scrolled = { list.canScrollBackward },
         )
         val problem = state.problem
         if (problem != null) {
@@ -149,20 +119,7 @@ private fun DiscoverContent(state: DiscoverUiState, search: DiscoverSearch, fiel
             }
             return@Column
         }
-        SearchField(
-            field = field,
-            label = stringResource(R.string.requests_search_field),
-            onSubmit = { keyboard?.hide() },
-            autoFocus = false,
-            tag = DISCOVER_FIELD,
-        )
-        Box(Modifier.weight(1f).fillMaxWidth().nestedScroll(hideOnScroll)) {
-            if (searching) {
-                SearchResults(search, state.origin, texts, grid, open, onMore = vm::moreResults, onRetry = vm::retry)
-            } else {
-                DiscoverHome(state, texts, list, vm, open)
-            }
-        }
+        DiscoverHome(state, texts, list, vm, open)
     }
 }
 
@@ -357,54 +314,6 @@ private fun HeroSkeleton(skeleton: SkeletonState) {
     }
 }
 
-/** TMDB's titles for what is typed: a grid of posters, read on as it scrolls near its end. */
-@Composable
-private fun SearchResults(
-    search: DiscoverSearch,
-    origin: String,
-    texts: RequestTexts,
-    grid: LazyGridState,
-    open: (DiscoverTitle) -> Unit,
-    onMore: () -> Unit,
-    onRetry: () -> Unit,
-) {
-    val skeleton = rememberSkeleton(animated = true)
-    when (search) {
-        is DiscoverSearch.Empty -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            EmptyState(
-                title = stringResource(R.string.requests_search_none, search.query),
-                body = stringResource(R.string.requests_search_none_body),
-                icon = PleyIcons.Search,
-            )
-        }
-        is DiscoverSearch.Failed -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            RequestProblemState(search.problem, null, texts, stringResource(R.string.requests_discover_failed), onRetry = onRetry)
-        }
-        else -> {
-            val ready = search as? DiscoverSearch.Ready
-            val titles = ready?.pages?.titles
-            val tiles = remember(titles, origin, texts) { titles?.map { titleTile(it, origin, texts) } }
-            LaunchedEffect(grid) {
-                snapshotFlow {
-                    val info = grid.layoutInfo
-                    info.totalItemsCount > 0 && (info.visibleItemsInfo.lastOrNull()?.index ?: 0) >= info.totalItemsCount - GRID_AHEAD
-                }
-                    .distinctUntilChanged()
-                    .filter { it }
-                    .collect { onMore() }
-            }
-            ItemGrid(
-                items = tiles,
-                kind = TileKind.Poster,
-                onOpen = { tile -> titles?.firstOrNull { it.tileId == tile.id }?.let(open) },
-                skeleton = skeleton,
-                state = grid,
-                modifier = Modifier.fillMaxSize().testTag(DISCOVER_RESULTS),
-            )
-        }
-    }
-}
-
 /** The hero's tallest: half the window, so its buttons show on a tablet held sideways. */
 @Composable
 private fun heroMaxHeight(): Dp {
@@ -431,11 +340,6 @@ private const val HERO_OVERVIEW_LINES = 2
 /** Cards from a row's end at which its next page is asked for. */
 private const val ROW_AHEAD = 4
 
-/** Cards from the grid's end at which search's next page is asked for. */
-private const val GRID_AHEAD = 9
-
 internal const val DISCOVER_PAGE = "pley.discover"
-internal const val DISCOVER_FIELD = "pley.discover.field"
 internal const val DISCOVER_ROWS = "pley.discover.rows"
 internal const val DISCOVER_HERO = "pley.discover.hero"
-internal const val DISCOVER_RESULTS = "pley.discover.results"

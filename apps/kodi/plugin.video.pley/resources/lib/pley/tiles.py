@@ -106,7 +106,7 @@ def person(base: str, credit: dict) -> xbmcgui.ListItem:
 
 
 def discover(base: str, title: dict, subtitle: str) -> xbmcgui.ListItem:
-    """A title found on TMDB (search's On TMDB): its poster, through the
+    """A title found on TMDB (search's Discover row): its poster, through the
     server as library artwork is, its title and `subtitle` (its badge, or
     its year and kind)."""
     name = title.get("title") or ""
@@ -121,7 +121,8 @@ def discover(base: str, title: dict, subtitle: str) -> xbmcgui.ListItem:
 
 def see_all(text: str) -> xbmcgui.ListItem:
     """The tile at the end of a library's row that opens the library (or of
-    search's On TMDB, that opens Discover's search)."""
+    search's Discover row, that opens Discover's results for the words, or asks
+    TMDB again)."""
     li = xbmcgui.ListItem(text, offscreen=True)
     li.setProperty("seeall", "1")
     li.setProperty("kind", "seeall")

@@ -94,6 +94,13 @@ class SummaryTest(unittest.TestCase):
                      "plugin://plugin.video.other/"]:
             self.assertFalse(requests.showing(path, counted + listed), path)
 
+    def test_words_for_tmdb_are_what_the_server_takes(self):
+        self.assertEqual(requests.search_text("  dune  "), "dune")
+        self.assertEqual(requests.search_text("   "), "")
+        # 200 characters at most, counted as the server counts them.
+        self.assertEqual(requests.search_text("é" * 250), "é" * 200)
+        self.assertEqual(requests.search_text("x" * 199 + " dune"), "x" * 199)
+
 
 class TitleTest(unittest.TestCase):
     def test_badges(self):

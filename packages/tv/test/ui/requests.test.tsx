@@ -13,7 +13,7 @@ import { Input } from "../../src/ui/input";
 import { F, G } from "../../src/ui/kit/focusable";
 import type { Key } from "../../src/ui/keys";
 import { AppContext } from "../../src/ui/screens/common";
-import { DiscoverListScreen, DiscoverScreen } from "../../src/ui/screens/discover";
+import { DiscoverListScreen, DiscoverScreen, DiscoverSearchScreen } from "../../src/ui/screens/discover";
 import { ItemRequestLine, useItemRequest } from "../../src/ui/screens/request-kit";
 import { RequestsScreen } from "../../src/ui/screens/requests-page";
 import { SearchScreen } from "../../src/ui/screens/search";
@@ -22,10 +22,11 @@ import { RequestNotices } from "../../src/ui/shell/notice";
 import type { Entry, PageKey } from "../../src/ui/shell/navigator";
 
 /**
- * Requests on the TV, as the remote uses them: Discover and its search, a
+ * Requests on the TV, as the remote uses them: Discover and its grids, a
  * title's page and its season picker, the lists of requests and what may
- * be done with one, On TMDB in search, a library title's request, and
- * ready-to-watch news. Focus is never lost on the way.
+ * be done with one, search's Discover row and its See all, a
+ * library title's request, and ready-to-watch news. Focus is never lost
+ * on the way.
  */
 
 /** Friday 30 October 2026, noon on the TV's clock. */
@@ -443,36 +444,25 @@ describe("Discover", () => {
     expect(lists).toEqual(["trending", "movies"]);
   });
 
-  it("searches TMDB as typing pauses, in place of the rows; Back empties the words and the rows come back", async () => {
-    const searched: unknown[][] = [];
+  it("has no search field of its own: at its top, the way to the requests with their number, Down from it the hero", async () => {
     const t = mount(
       (entry) => <DiscoverScreen entry={entry} />,
       {
         discover: (l: string, n: number) => Promise.resolve(page(l === "trending" ? TITLES : [], n)),
         discoverTitle: () => Promise.resolve(detail({ tmdb_id: 1 })),
-        discoverSearch: (q: string, n: number, missing: boolean) => {
-          searched.push([q, n, missing]);
-          return Promise.resolve(page(q === "arr" ? [TITLES[0]!] : [], n));
-        },
+        requests: () => Promise.resolve(list([request()])),
       },
-      summary(),
+      summary({ own: 1, unseen: 2 }),
     );
     await t.settle();
-    act(() => void t.focus.focus(t.el("search")));
-    t.type('[data-fid="search"] input', "arr");
-    t.advance(399);
-    expect(searched).toEqual([]);
-    t.advance(1);
-    await t.settle();
-    expect(searched).toEqual([["arr", 1, false]]);
-    expect(t.text(".discover-results .tile-caption .title")).toEqual(["Arrival"]);
-    t.type('[data-fid="search"] input', "zzz");
-    t.advance(400);
-    await t.settle();
-    expect(t.text(".discover-note .t-title")).toEqual(["Nothing on TMDB for “zzz”"]);
-    t.press("back");
-    expect(t.el("hero/main")).not.toBeNull();
-    expect(t.fid()).toBe("search");
+    expect(document.querySelector(".discover-page input")).toBeNull();
+    expect(t.el("search")).toBeNull();
+    expect(t.el("requests")!.getAttribute("aria-label")).toBe("Your requests, 2");
+    expect(t.fid()).toBe("hero/main");
+    t.select("requests");
+    expect(t.opened).toEqual([{ name: "requests" }]);
+    t.press("down");
+    expect(t.fid()).toBe("hero/main");
   });
 
   it("reads at most 5 pages for a row, then shows what they had; a row they had nothing for goes", async () => {
@@ -576,24 +566,43 @@ describe("Discover", () => {
     expect(again.el("movies/more")).toBeNull();
   });
 
-  it("says why a search has nothing yet beside its Show more, which keeps focus while it reads on", async () => {
+  it("lists everything TMDB has for search's words under a title for them, each with its badge", async () => {
+    const asked: unknown[][] = [];
+    const t = mount(
+      (entry) => <DiscoverSearchScreen entry={entry} query="dune" />,
+      {
+        discoverSearch: (q: string, n: number, missing: boolean) => {
+          asked.push([q, n, missing]);
+          return Promise.resolve(page(TITLES, n));
+        },
+      },
+      summary(),
+      { name: "discoverSearch", query: "dune" },
+    );
+    await t.settle();
+    expect(asked).toEqual([["dune", 1, false]]);
+    expect(t.text(".discover-page .t-page")).toEqual(["Results for “dune”"]);
+    expect(document.querySelector(".discover-page input")).toBeNull();
+    expect(t.text(".grid-cells .tile-caption .title")).toEqual(["Arrival", "Dune", "Heat"]);
+    expect(t.text(".title-badge")).toEqual(["In library", "Requested"]);
+    expect(t.fid()).toBe("result/movie:1");
+    t.press("ok");
+    expect(t.opened).toEqual([{ name: "title", kind: "movie", tmdbId: 1 }]);
+  });
+
+  it("says why search's results have nothing yet beside their Show more, which keeps focus while it reads on", async () => {
     const asked: number[] = [];
     const t = mount(
-      (entry) => <DiscoverScreen entry={entry} />,
+      (entry) => <DiscoverSearchScreen entry={entry} query="saw" />,
       {
-        discover: (_l: string, n: number) => Promise.resolve(page(TITLES, n)),
-        discoverTitle: () => Promise.resolve(detail({ tmdb_id: 1 })),
         discoverSearch: (_q: string, n: number) => {
           asked.push(n);
           return Promise.resolve(page([], n, 500));
         },
       },
       summary(),
+      { name: "discoverSearch", query: "saw" },
     );
-    await t.settle();
-    act(() => void t.focus.focus(t.el("search")));
-    t.type('[data-fid="search"] input', "saw");
-    t.advance(400);
     for (let i = 0; i < 4; i++) await t.settle();
     expect(asked).toEqual([1, 2, 3, 4, 5]);
     expect(t.text(".discover-aside .t-title")).toEqual(["Nothing yet for “saw”"]);
@@ -604,6 +613,24 @@ describe("Discover", () => {
     expect(asked.length).toBe(10);
     expect(t.fid()).toBe("result/more");
     expect(t.focus.current!.getAttribute("aria-label")).toBe("Show more");
+  });
+
+  it("says when TMDB isn't answering for search's results, with Retry", async () => {
+    const down = new ApiError(503, "tmdb_down", "TMDB isn't answering", { code: "tmdb_down", message: "TMDB isn't answering" });
+    let fail = true;
+    const t = mount(
+      (entry) => <DiscoverSearchScreen entry={entry} query="dune" />,
+      { discoverSearch: (_q: string, n: number) => (fail ? Promise.reject(down) : Promise.resolve(page(TITLES, n))) },
+      summary(),
+      { name: "discoverSearch", query: "dune" },
+    );
+    await t.settle();
+    expect(t.text(".discover-note .t-title")).toEqual(["TMDB isn't answering"]);
+    fail = false;
+    t.select("retry");
+    for (let i = 0; i < 3; i++) await t.settle();
+    expect(t.text(".grid-cells .tile-caption .title")).toEqual(["Arrival", "Dune", "Heat"]);
+    expect(t.fid()).toBe("result/movie:1");
   });
 
   it("says when requests are off, and leaves focus with the rail", () => {
@@ -752,7 +779,7 @@ describe("the requests", () => {
 });
 
 describe("search", () => {
-  it("shows On TMDB after the libraries' results for whoever may ask, with See all on Discover", async () => {
+  it("shows Discover after the libraries' results for whoever may ask, with See all", async () => {
     const asked: unknown[][] = [];
     const t = mount(
       (entry) => <SearchScreen entry={entry} />,
@@ -771,13 +798,87 @@ describe("search", () => {
     await t.settle();
     expect(asked).toEqual([["arr", 1, true]]);
     expect(t.text(".search-none")).toEqual(["Nothing in your libraries matches"]);
-    expect(t.text(".search-rows .row-header")).toEqual(["On TMDB"]);
+    expect(t.text(".search-rows .row-header")).toEqual(["Discover"]);
     t.select("tmdb/movie:1");
     t.select("tmdb/all");
     expect(t.opened).toEqual([
       { name: "title", kind: "movie", tmdbId: 1 },
-      { name: "discover", query: "arr" },
+      { name: "discoverSearch", query: "arr" },
     ]);
+  });
+
+  it("reads the Discover row from up to 3 of TMDB's pages until it has 20 titles, the words cut to the server's 200 characters", async () => {
+    const asked: unknown[][] = [];
+    const t = mount(
+      (entry) => <SearchScreen entry={entry} />,
+      {
+        search: () => Promise.resolve({ items: [], people: [] }),
+        discoverSearch: (q: string, n: number, missing: boolean) => {
+          asked.push([q, n, missing]);
+          // An age limit leaves most of each page out.
+          return Promise.resolve(page(n === 2 ? [title({ tmdb_id: 1, title: "Arrival" })] : [], n, 500));
+        },
+      },
+      summary(),
+      { name: "search" },
+    );
+    t.type(".search-field input", `${"a".repeat(199)}é and more`);
+    t.advance(250);
+    for (let i = 0; i < 3; i++) await t.settle();
+    const words = `${"a".repeat(199)}é`;
+    expect(asked).toEqual([
+      [words, 1, true],
+      [words, 2, true],
+      [words, 3, true],
+    ]);
+    expect(t.text(".search-rows .tile-caption .title")).toEqual(["Arrival"]);
+    t.select("tmdb/all");
+    expect(t.opened).toEqual([{ name: "discoverSearch", query: words }]);
+  });
+
+  it("says why TMDB didn't answer in the Discover row, with Retry, which keeps focus until the titles take it", async () => {
+    const down = new ApiError(503, "tmdb_down", "TMDB isn't answering", { code: "tmdb_down", message: "TMDB isn't answering" });
+    let fail = true;
+    const t = mount(
+      (entry) => <SearchScreen entry={entry} />,
+      {
+        search: () => Promise.resolve({ items: [], people: [] }),
+        discoverSearch: (_q: string, n: number) => (fail ? Promise.reject(down) : Promise.resolve(page([title({ tmdb_id: 1, title: "Arrival" })], n))),
+      },
+      summary(),
+      { name: "search" },
+    );
+    t.type(".search-field input", "arr");
+    t.advance(250);
+    await t.settle();
+    expect(t.text(".search-none")).toEqual(["Nothing in your libraries matches"]);
+    expect(t.text(".search-rows .row-header")).toEqual(["Discover"]);
+    expect(t.text(".search-tmdb-problem .t-title")).toEqual(["TMDB isn't answering"]);
+    fail = false;
+    t.select("tmdb/retry");
+    expect(t.fid()).toBe("tmdb/retry");
+    t.advance(250);
+    await t.settle();
+    expect(t.text(".search-rows .tile-caption .title")).toEqual(["Arrival"]);
+    expect(t.fid()).toBe("tmdb/movie:1");
+  });
+
+  it("says TMDB refused the server's key in the Discover row, without Retry, which wouldn't help", async () => {
+    const refused = new ApiError(503, "tmdb_key", "TMDB refused the key", { code: "tmdb_key", message: "TMDB refused the key" });
+    const t = mount(
+      (entry) => <SearchScreen entry={entry} />,
+      {
+        search: () => Promise.resolve({ items: [], people: [] }),
+        discoverSearch: () => Promise.reject(refused),
+      },
+      summary(),
+      { name: "search" },
+    );
+    t.type(".search-field input", "arr");
+    t.advance(250);
+    await t.settle();
+    expect(t.text(".search-tmdb-problem .t-title")).toEqual(["TMDB refused this server's key"]);
+    expect(t.el("tmdb/retry")).toBeNull();
   });
 
   it("leaves TMDB out for a profile that may not ask", async () => {

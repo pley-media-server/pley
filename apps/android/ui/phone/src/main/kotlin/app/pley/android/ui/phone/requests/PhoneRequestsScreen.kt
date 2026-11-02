@@ -389,7 +389,7 @@ private fun NoRequests(state: RequestsUiState, filtered: Boolean) {
             body = stringResource(if (state.mayAsk) R.string.requests_none_body else R.string.requests_none_body_off),
             icon = PleyIcons.ListVideo,
             action = if (state.mayAsk) {
-                { PrimaryButton(stringResource(R.string.requests_discover), onClick = { navigator.open(PleyKey.Discover()) }, icon = PleyIcons.Compass) }
+                { PrimaryButton(stringResource(R.string.requests_discover), onClick = { navigator.open(PleyKey.Discover) }, icon = PleyIcons.Compass) }
             } else {
                 null
             },

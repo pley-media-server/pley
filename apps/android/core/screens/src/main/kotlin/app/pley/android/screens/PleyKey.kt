@@ -83,9 +83,13 @@ sealed interface PleyKey : NavKey {
 
     // Requests.
 
-    /** Discover: what TMDB has to ask for; [query] opens its search with those words. */
+    /** Discover: what TMDB has to ask for. */
     @Serializable
-    data class Discover(val query: String = "") : PleyKey
+    data object Discover : PleyKey
+
+    /** Every title TMDB finds for [query] (the See all of search's Discover row). */
+    @Serializable
+    data class DiscoverResults(val query: String) : PleyKey
 
     /** A movie or show found on TMDB; [pick] opens its season picker once the page shows (Request more seasons). */
     @Serializable

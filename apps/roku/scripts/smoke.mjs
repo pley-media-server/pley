@@ -7,12 +7,13 @@
 // a smart one of shows), a show's page, its episodes and a person's page,
 // music (an artist, an album, Now Playing), playlists, Live TV (its guide,
 // a channel watched, the next one, the channel list, a favourite, every
-// connection in use, the Channels tab), Search, Discover (a movie asked
-// for, a show's seasons picked), the managers' Requests (Approve, a
-// ready-to-watch notice whose movie's audio and subtitles are picked on
-// its page, then Yours), Settings, the server gone and Try again, then
-// signing out and in again on a server too old for QR codes, requests and
-// two-step sign-in. Then it starts the app again, signed in,
+// connection in use, the Channels tab), Search (and its Discover row's
+// See all), Discover (a movie asked for, a show's seasons picked), the
+// managers' Requests (Approve, a ready-to-watch notice whose movie's
+// audio and subtitles are picked on its page, then Yours), Settings, the
+// server gone and Try again, then signing out and in again on a server
+// too old for QR codes, requests and two-step sign-in. Then it starts
+// the app again, signed in,
 // and times how soon Home is asked for. Fails on a BrightScript error or
 // on anything the fake server found wrong; saves what the screen showed
 // at each step in out/smoke/. brs-node is a simulator: layouts and the
@@ -820,7 +821,19 @@ async function walk() {
   shoot("search-person");
   await press("back"); // Search, on the rows
   await settle();
-  await press("left"); // the keyboard
+  // See all, ending the Discover row (the last row, under the
+  // libraries'): all of TMDB's titles for the words, in a grid of their
+  // own; Back to Search's rows, then Back again to its keyboard (Left
+  // would only go along the row).
+  since = mark();
+  await press("down", 12); // Discover, the last row
+  await press("right", 21); // See all, after a page of titles at most
+  await press("select");
+  await waitFor(/^GET \/api\/discover\/search\?q=mo&page=1$/, since, "TMDB's results for the words");
+  shoot("search-tmdb");
+  await press("back"); // Search, on the rows
+  await settle();
+  await press("back"); // the keyboard
   // Back from Search nothing played: Home stays as it is, unless its rows
   // are a minute old by now (a slow run), when it asks again. They are as
   // old as Home's last asking.
@@ -1305,6 +1318,7 @@ const checks = [
   ["asked what requests let the profile do", asked(/^GET \/api\/requests\/summary$/)],
   ["asked at the start which requests had news", asked(/^GET \/api\/requests\?.*unseen=1/)],
   ["searched TMDB beside the libraries for what they lack", asked(/^GET \/api\/discover\/search\?.*missing=1/)],
+  ["showed all of TMDB's results for the words searched", asked(/^GET \/api\/discover\/search\?q=mo&page=1$/)],
   ["showed Discover's rows", asked(/^GET \/api\/discover\/trending\?page=1$/) && asked(/^GET \/api\/discover\/movies\?page=1$/)],
   ["asked for TMDB's pictures through the server, at the size drawn", fixture.discoverPictures.length > 0 && fixture.discoverPictures.every((p) => /^\d+$/.test(p.w ?? ""))],
   ["asked for a movie once its question was answered", fixture.requestsAsked.some((a) => a.kind === "movie" && a.tmdb_id === 7001 && !("seasons" in a))],

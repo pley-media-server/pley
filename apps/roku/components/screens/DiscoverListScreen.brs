@@ -1,9 +1,11 @@
-' One of Discover's lists (GET /api/discover/{list}?page=), a page at a
-' time. TMDB's pages can come short, even empty, while titles were left
-' out, and repeat titles: a short page isn't the end, only the last page
-' is, and a title shows once. Five pages at most come each time the focus
-' moves, then Look further asks for more. params: { list (a key of
-' reqLists) }.
+' One of Discover's lists (GET /api/discover/{list}?page=), or TMDB's
+' results for the words searched (GET /api/discover/search?q=&page=, See
+' all on Discover in Search), a page at a time. TMDB's pages can come
+' short, even empty, while titles were left out, and repeat titles: a
+' short page isn't the end, only the last page is, and a title shows once.
+' Five pages at most come each time the focus moves, then Look further
+' asks for more. params: { list (a key of reqLists) } or { query (the
+' words searched) }.
 
 sub init()
     m.title = m.top.findNode("title")
@@ -14,6 +16,8 @@ sub init()
     m.problemText = m.top.findNode("problemText")
     m.problemButtons = m.top.findNode("problemButtons")
     m.started = false
+    ' What the grid shows: { title, path, empty } (reqSeeAll).
+    m.shown = invalid
     m.problemShown = invalid
     m.grid.observeField("itemSelected", "onSelected")
     m.grid.observeField("itemFocused", "onFocused")
@@ -33,11 +37,8 @@ sub onActive()
         return
     end if
     m.started = true
-    list = httpString(m.top.params.list)
-    m.title.text = "Discover"
-    for each known in reqLists()
-        if known.key = list then m.title.text = known.title
-    end for
+    m.shown = reqSeeAll(httpString(m.top.params.list), httpString(m.top.params.query))
+    m.title.text = m.shown.title
     load()
 end sub
 
@@ -63,7 +64,7 @@ sub loadMore()
     if m.loading or (m.totalPages >= 0 and m.page >= m.totalPages) then return
     m.loading = true
     m.asked = m.asked + 1
-    uiRequest({ method: "GET", path: "/api/discover/" + httpString(m.top.params.list), query: { page: m.page + 1 }, build: "discoverTiles", known: m.seen }, "onPage")
+    uiRequest({ method: "GET", path: m.shown.path, query: { page: m.page + 1 }, build: "discoverTiles", known: m.seen }, "onPage")
 end sub
 
 sub onPage(event as object)
@@ -105,7 +106,7 @@ sub onPage(event as object)
     end if
     if m.content <> invalid and m.content.getChildCount() = 0 and m.page >= m.totalPages
         m.grid.visible = false
-        m.message.text = "Nothing here right now."
+        m.message.text = m.shown.empty
         m.message.visible = true
         return
     end if

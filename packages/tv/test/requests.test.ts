@@ -22,6 +22,7 @@ import {
   requestNote,
   requestsCount,
   requestsProblem,
+  searchText,
   seasonLine,
   seasonsLabel,
   seasonStage,
@@ -196,6 +197,16 @@ describe("a title's badge", () => {
   it("keeps each title once as pages come", () => {
     const t = (tmdb_id: number, kind: "movie" | "show" = "movie") => ({ kind, tmdb_id }) as DiscoverTitle;
     expect(addTitles([t(1), t(2)], [t(2), t(3), t(2, "show")]).map((x) => `${x.kind}:${x.tmdb_id}`)).toEqual(["movie:1", "movie:2", "movie:3", "show:2"]);
+  });
+
+  it("gives TMDB's search the words trimmed and cut to the server's 200 characters, never halfway through one", () => {
+    expect(searchText("  dune  ")).toBe("dune");
+    expect(searchText("a".repeat(250))).toBe("a".repeat(200));
+    // 𝄞 is two of JavaScript's characters but one of the server's.
+    expect(searchText(`${"𝄞".repeat(150)}x`)).toBe("𝄞".repeat(150) + "x");
+    expect(searchText("𝄞".repeat(250))).toBe("𝄞".repeat(200));
+    // What the cut leaves at its end goes too.
+    expect(searchText(`${"a".repeat(199)} b`)).toBe("a".repeat(199));
   });
 });
 

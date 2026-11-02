@@ -36,7 +36,6 @@ sub init()
     ' whether the page shows only Sign in again.
     m.problemShown = invalid
     m.signInOnly = false
-    m.chipActions = []
     ' How far the page slides up to the rows, and where the focus was when
     ' covered.
     m.slide = 560
@@ -93,7 +92,6 @@ sub showPage()
         return
     end if
     showChips(summary)
-    m.chips.visible = true
     m.credit.visible = true
     ' Answers to the page as it was before are left aside.
     m.generation = m.generation + 1
@@ -115,16 +113,17 @@ sub showPage()
     ensureRows(1)
 end sub
 
-' Search, and the requests where the summary has them.
+' The requests, where the summary has them. Without them the focus leaves
+' the empty row.
 sub showChips(summary as object)
-    chips = [{ label: "Search", width: 200 }]
-    m.chipActions = ["search"]
+    chips = []
     if reqShowsRequests(summary)
         name = reqPageName(summary)
         chips.Push({ label: name, width: 120 + Len(name) * 15 })
-        m.chipActions.Push("requests")
     end if
     m.chips.chips = chips
+    m.chips.visible = chips.Count() > 0
+    if not m.chips.visible and m.chips.isInFocusChain() then focusRows(false)
 end sub
 
 ' The rows under the hero, or at the top of the page without one.
@@ -350,13 +349,8 @@ sub onHeroButton(event as object)
     end if
 end sub
 
-sub onChip(event as object)
-    action = m.chipActions[event.getData()]
-    if action = "search"
-        uiNavigate({ to: "search", params: { discover: true } })
-    else
-        uiNavigate({ to: "requests" })
-    end if
+sub onChip()
+    uiNavigate({ to: "requests" })
 end sub
 
 ' --- What stops Discover ---
@@ -443,8 +437,10 @@ sub focusRows(onRows as boolean)
         m.shade.width = 1260
         if m.hero.visible
             m.heroButtons.setFocus(true)
-        else
+        else if m.chips.visible
             m.chips.setFocus(true)
+        else
+            m.top.setFocus(true)
         end if
     end if
 end sub
@@ -458,7 +454,7 @@ sub restoreFocus()
         end if
     else if m.lastFocus = "rows" and m.rows.visible
         m.rows.setFocus(true)
-    else if m.lastFocus = "chips"
+    else if m.lastFocus = "chips" and m.chips.visible
         m.chips.setFocus(true)
     else if m.hero.visible
         m.heroButtons.setFocus(true)
@@ -489,7 +485,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
             focusRows(false)
             return true
         end if
-        if m.heroButtons.isInFocusChain() or m.top.hasFocus()
+        if (m.heroButtons.isInFocusChain() or m.top.hasFocus()) and m.chips.visible
             m.chips.setFocus(true)
             return true
         end if

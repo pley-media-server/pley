@@ -205,10 +205,11 @@ export function qualityBadges(file: MediaFile | null | undefined): string[] {
   ].filter((b): b is string => !!b);
 }
 
-/** Badges a listing can give: resolution and dynamic range. */
+/** Badges a listing can give: 4K (no other resolution, as on the web) and the dynamic range. */
 export function summaryBadges(media: MediaSummary | null | undefined): string[] {
   if (!media) return [];
-  return [resolutionBadge(media.width, media.height), dynamicRangeShort(media.dynamic_range)].filter((b): b is string => !!b);
+  const resolution = resolutionBadge(media.width, media.height) === "4K" ? "4K" : null;
+  return [resolution, dynamicRangeShort(media.dynamic_range)].filter((b): b is string => !!b);
 }
 
 /** Whether the profile picked the file's audio track; older servers don't say, and their choice reads as picked. */

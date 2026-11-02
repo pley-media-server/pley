@@ -10,6 +10,12 @@ describes how they are made.
 
 ### Changed
 
+- A library's posters show 4K and the dynamic range (DV, HDR10) whatever
+  the sort, where they showed only when sorted by bitrate, and no longer
+  the codec (H.264, HEVC) or a lower resolution (1080p, 720p).
+- Discover has no search field: Search shows what can be asked for in a
+  Discover row after the libraries' results, which says why when TMDB
+  can't be searched, with Retry.
 - On Android TV and Fire TV, "Enter an address" opens the TV's keyboard at
   once, on an empty field, in place of the number pad, so a server's name
   or a whole https address is as easy to type as an IP. The remote's digit
