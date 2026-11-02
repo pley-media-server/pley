@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyPress
 import androidx.lifecycle.SavedStateHandle
@@ -14,8 +15,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.CreationExtras
+import app.pley.android.model.LiveChannel
 import app.pley.android.player.live.LivePhase
 import app.pley.android.player.live.LivePlayback
+import app.pley.android.screens.livetv.ChannelHandoff
 import app.pley.android.screens.livetv.LivePlayerDeps
 import app.pley.android.screens.livetv.LivePlayerViewModel
 import app.pley.android.testing.data.FakeLiveTv
@@ -45,7 +48,11 @@ class TvLivePlayerScreenTest {
     private val engines = mutableListOf<FakePlayerEngine>()
 
     @After
-    fun clear() = store.clear()
+    fun clear() {
+        store.clear()
+        // What a test gave and no player took.
+        ChannelHandoff.take(0)
+    }
 
     /** The player on [channelId] of every channel, its view model held by [store]. */
     private fun player(channelId: Long = 1): LivePlayerViewModel {
@@ -118,6 +125,15 @@ class TvLivePlayerScreenTest {
         // A press of its own presses Channels.
         ok()
         compose.onNodeWithTag(TV_LIVE_PLAYER_CHANNELS).assertExists()
+    }
+
+    @Test
+    fun `the tuning card shows the channel as the page had it, at once`() {
+        // A channel the server doesn't answer for yet.
+        ChannelHandoff.give(LiveChannel(77, name = "Seventy-seven", number = "77"))
+        show(player(77))
+        compose.onNodeWithText("77  Seventy-seven").assertExists()
+        compose.onNodeWithText(compose.activity.getString(R.string.tv_live_player_tuning)).assertExists()
     }
 
     @Test

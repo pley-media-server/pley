@@ -237,7 +237,8 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
         val shown = channel
         if (state.audioOnly && playing && shown != null) SoundOnly(shown, origin, now)
         when (val phase = state.phase) {
-            LivePhase.Tuning, LivePhase.Idle -> if (shown != null) Tuning(vm, shown, origin, now)
+            // The channel not known yet (opened elsewhere than a page that had it): the spinner alone.
+            LivePhase.Tuning, LivePhase.Idle -> if (shown != null) Tuning(vm, shown, origin, now) else Spinner(Modifier.align(Alignment.Center))
             is LivePhase.Failed -> Trouble(
                 trouble = phase.trouble,
                 channel = shown,

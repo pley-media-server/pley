@@ -12,6 +12,7 @@ import app.pley.android.model.LiveProgram
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -176,6 +177,23 @@ object LiveTv {
  */
 object LastWatched {
     val channel = MutableStateFlow<Long?>(null)
+}
+
+/**
+ * The channel a page opens the live player on, as the page has it: the
+ * player shows it at once (its tuning card's logo, number, name and
+ * what's on) rather than black until the server says what the channel
+ * is. Handed over in memory, as [LastWatched] is; the player of that
+ * channel takes it once.
+ */
+object ChannelHandoff {
+    private val given = AtomicReference<LiveChannel?>(null)
+
+    /** [channel] is about to be watched. */
+    fun give(channel: LiveChannel) = given.set(channel)
+
+    /** The channel given for [id], once; `null` when none was, or another. */
+    fun take(id: Long): LiveChannel? = given.getAndSet(null)?.takeIf { it.id == id }
 }
 
 /**

@@ -55,6 +55,8 @@ class LiveTvViewModelTest {
     fun clear() {
         store.clear()
         LastWatched.channel.value = null
+        // What a test watched and no player took.
+        ChannelHandoff.take(0)
     }
 
     /**
@@ -372,6 +374,22 @@ class LiveTvViewModelTest {
         // Opened again, unsearched.
         vm.openList()
         assertEquals("", vm.listQuery.value)
+    }
+
+    @Test
+    fun `the player shows the channel as the page had it, before the server says`() = liveTest {
+        val vm = page()
+        // A channel the server doesn't answer for yet.
+        val seen = LiveChannel(77, name = "Seventy-seven", number = "77")
+        vm.watch(seen)
+        assertEquals(listOf(77L to "all"), watched)
+        assertEquals(seen, player(77).channel.value)
+        // Taken once: a player opened on it again waits for the server.
+        assertNull(player(77).channel.value)
+        // A player of another channel doesn't take it for its own, and it goes.
+        vm.watch(seen)
+        assertEquals(1L, player(1).channel.value?.id)
+        assertNull(ChannelHandoff.take(77))
     }
 
     @Test

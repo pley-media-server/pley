@@ -23,6 +23,7 @@ import app.pley.android.screens.PleyKey
 import app.pley.android.screens.library.FakeTile
 import app.pley.android.screens.library.FakeTiles
 import app.pley.android.screens.library.TileLook
+import app.pley.android.screens.livetv.ChannelHandoff
 import app.pley.android.screens.requests.RequestProblem
 import app.pley.android.testing.Fixtures
 import app.pley.android.testing.data.FakeRequests
@@ -285,6 +286,8 @@ class SearchViewModelTest {
         vm.watch(channel)
         advanceUntilIdle()
         assertEquals(listOf(7L to "all"), watched)
+        // The player shows it at once, as search had it.
+        assertEquals(channel, ChannelHandoff.take(7))
         assertEquals("sport", vm.state.value.recent.first())
     }
 

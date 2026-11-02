@@ -252,6 +252,7 @@ class LiveTvViewModel(private val deps: LiveTvDeps, private val saved: SavedStat
     /** Opens the live player on [channel], which changes channel within the category it was chosen in (every channel, from a search). */
     fun watch(channel: LiveChannel) {
         val from = if (query.value.isBlank()) chosen.value ?: LiveCategory.All else LiveCategory.All
+        ChannelHandoff.give(channel)
         deps.launcher.watchLive(channel.id, from.key)
     }
 

@@ -76,6 +76,8 @@ class LivePlayerViewModel(
     private val saved: SavedStateHandle,
     channelId: Long,
     categoryKey: String,
+    /** What the page that opened the player knew of [channelId] ([ChannelHandoff]): shown at once. */
+    seen: LiveChannel? = ChannelHandoff.take(channelId),
 ) : ViewModel() {
     private val playback = deps.playback(viewModelScope)
     private val mutableDigits = MutableStateFlow(ChannelDigits())
@@ -84,7 +86,7 @@ class LivePlayerViewModel(
     private val current = MutableStateFlow(saved[CHANNEL] ?: channelId)
 
     /** What the lists knew of channels tuned from them: shown at once, before the server's own answer. */
-    private val known = HashMap<Long, LiveChannel>()
+    private val known = HashMap<Long, LiveChannel>().apply { if (seen != null) put(seen.id, seen) }
 
     /** Recently watched's order as the player opened: watching changes it, zapping through it shouldn't. */
     private var recentOrder: List<LiveChannel>? = null

@@ -22,6 +22,7 @@ import app.pley.android.screens.ScreensGraph
 import app.pley.android.screens.library.LibraryViewModel
 import app.pley.android.screens.library.TileFactory
 import app.pley.android.screens.library.TileLook
+import app.pley.android.screens.livetv.ChannelHandoff
 import app.pley.android.screens.requests.Pages
 import app.pley.android.screens.requests.RequestProblem
 import app.pley.android.screens.requests.gathered
@@ -322,6 +323,7 @@ class SearchViewModel<T : Any>(
     fun watch(channel: LiveChannel) {
         val q = shown.query
         if (q.isNotEmpty()) viewModelScope.launch { deps.search.remember(q) }
+        ChannelHandoff.give(channel)
         deps.launcher?.watchLive(channel.id, "all")
     }
 
