@@ -70,7 +70,7 @@ public final class ConnectionGate: Sendable {
     }
 
     /// `verify(remoteAddress:)` for each plain http connection a task made.
-    func verify(metrics: URLSessionTaskMetrics?) throws {
+    public func verify(metrics: URLSessionTaskMetrics?) throws {
         let hops = (metrics?.transactionMetrics ?? []).filter {
             $0.resourceFetchType == .networkLoad && $0.request.url?.scheme?.lowercased() == "http"
         }

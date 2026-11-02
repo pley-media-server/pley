@@ -19,6 +19,7 @@ let package = Package(
         .library(name: "PleyPlayer", targets: ["PleyPlayer"]),
         .library(name: "PleyScreens", targets: ["PleyScreens"]),
         .library(name: "PleyPlayerViews", targets: ["PleyPlayerViews"]),
+        .library(name: "PleyDownloads", targets: ["PleyDownloads"]),
         .library(name: "PleyTesting", targets: ["PleyTesting"]),
         .executable(name: "pley-apple-check", targets: ["pley-apple-check"]),
         .executable(name: "pley-apple-play", targets: ["pley-apple-play"]),
@@ -42,12 +43,16 @@ let package = Package(
         // The player's surface on each platform (AVKit's own controls) and what the apps lay over it.
         .target(name: "PleyPlayerViews", dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyData",
                                                         "PleyModel", "PleyCommon"]),
+        // Downloads to watch without the server: background transfers in pieces, offline files (iPhone, iPad, Mac).
+        .target(name: "PleyDownloads", dependencies: ["PleyData", "PleyCaps", "PleyAuth", "PleyNetwork", "PleyModel",
+                                                      "PleyCommon"]),
         .target(name: "PleyTesting", dependencies: ["PleyModel", "PleyCommon"]),
         // Signs in to a real, disposable server (scripts/check-server.sh). macOS only.
         .executableTarget(name: "pley-apple-check", dependencies: ["PleyCaps", "PleyData", "PleyAuth", "PleyNetwork",
                                                                    "PleyModel", "PleyCommon", "PleyTesting"]),
         // Plays a disposable server's test media through the real player (scripts/check-playback.sh). macOS only.
-        .executableTarget(name: "pley-apple-play", dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyAuth",
+        .executableTarget(name: "pley-apple-play", dependencies: ["PleyPlayer", "PleyDownloads", "PleySubtitles",
+                                                                  "PleyCaps", "PleyAuth",
                                                                   "PleyData", "PleyNetwork", "PleyModel", "PleyCommon",
                                                                   "PleyTesting"]),
         .testTarget(name: "PleyModelTests", dependencies: ["PleyModel", "PleyTesting"]),
@@ -66,6 +71,9 @@ let package = Package(
                                    "PleyTesting"]),
         // The player menus: UIKit's on the iOS and tvOS simulators, the action menu's delegate on the Mac.
         .testTarget(name: "PleyPlayerViewsTests", dependencies: ["PleyPlayerViews", "PleyPlayer", "PleyData"]),
+        .testTarget(name: "PleyDownloadsTests",
+                    dependencies: ["PleyDownloads", "PleyData", "PleyCaps", "PleyAuth", "PleyNetwork", "PleyModel",
+                                   "PleyCommon", "PleyTesting"]),
         .testTarget(name: "PleyScreensTests",
                     dependencies: ["PleyScreens", "PleyPlayer", "PleyCaps", "PleyData", "PleyAuth", "PleyNetwork",
                                    "PleyModel", "PleyCommon", "PleyTesting"]),

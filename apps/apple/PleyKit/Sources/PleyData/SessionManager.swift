@@ -70,7 +70,7 @@ public actor SessionManager {
         guard let home = Addresses.origin(origin) else { throw AuthError.notAnAddress }
         close()
         let plainAPI = PleyAPI(client: APIClient(origin: home, tokens: nil, transport: transport))
-        let info = try await plainAPI.server()
+        let info = try await Self.check(plainAPI, origin: home)
         let metadata = try await ServerMetadata.fetch(home, endpoints: endpoints)
         self.origin = home
         serverID = id
@@ -83,6 +83,50 @@ public actor SessionManager {
         } catch PleyError.signedOut {
             detach()
             return .signedOut(metadata)
+        }
+    }
+
+    /// How long a home address's server gets to answer the first check:
+    /// away from home it never does, and starting offline shouldn't wait.
+    public static let homeCheck: Duration = .seconds(3)
+
+    /// Opens the server at `origin` without the network, with the sign-in
+    /// kept for it (a server's issuer is its origin): the server didn't
+    /// answer, and the app starts from what it saved. `false` when no
+    /// sign-in is kept. `reconnected()` reads the rest once it answers.
+    public func openSaved(origin: String, id: String? = nil) async -> Bool {
+        guard let home = Addresses.origin(origin) else { return false }
+        let kept = (try? await tokenStore.load(issuer: home)) ?? nil
+        guard kept != nil else { return false }
+        close()
+        self.origin = home
+        serverID = id
+        attach(issuer: home, origin: home)
+        return true
+    }
+
+    /// The server answered again after `openSaved`: what it is and where it
+    /// signs in are read now. Throws when it still can't be reached.
+    public func reconnected() async throws {
+        guard let origin, let api else { throw PleyError.signedOut }
+        let info = try await api.server()
+        serverInfo = info
+        if metadata == nil { metadata = try? await ServerMetadata.fetch(origin, endpoints: endpoints) }
+    }
+
+    /// `GET /api/server`, 3 s at most for a home address.
+    private static func check(_ api: PleyAPI, origin: String) async throws -> ServerInfo {
+        let host = URL(string: origin)?.host(percentEncoded: false) ?? ""
+        guard Servers.isLocalHost(host) else { return try await api.server() }
+        return try await withThrowingTaskGroup(of: ServerInfo?.self) { group in
+            group.addTask { try await api.server() }
+            group.addTask {
+                try await Task.sleep(for: homeCheck)
+                return nil
+            }
+            defer { group.cancelAll() }
+            guard let first = try await group.next(), let info = first else { throw PleyError.timedOut }
+            return info
         }
     }
 

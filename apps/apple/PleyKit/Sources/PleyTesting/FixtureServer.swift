@@ -89,6 +89,8 @@ public final class FixtureServer: Sendable {
         public var music = false
         /// The video's dynamic range: "sdr", "hdr10", "hlg", "dolby_vision".
         public var dynamicRange = "sdr"
+        /// An episode's show's id, when the test needs one (the next downloaded episode).
+        public var showId: Int?
 
         public init(itemId: Int, fileId: Int, title: String = "Test Movie", container: String = "mp4",
                     durationMs: Int = 4_000, positionMs: Int = 0, watched: Bool = false, media: Data = Data(),
@@ -210,6 +212,7 @@ public final class FixtureServer: Sendable {
         var account = Account()
         var live = Live()
         var subtitleSearch = SubtitleSearch()
+        var conversions = Conversions()
     }
 
     /// What the fixture says of the client's network (`/api/playback/network`).
@@ -698,6 +701,7 @@ public final class FixtureServer: Sendable {
         }
         if let answer = live(&s, request, parts) { return answer }
         if let answer = subtitles(&s, request, parts) { return answer }
+        if let answer = downloads(&s, request, parts) { return answer }
         if let answer = browse(&s, request, parts) { return answer }
         if let answer = lists(&s, request, parts) { return answer }
         if let answer = account(&s, request, parts) { return answer }
@@ -897,6 +901,7 @@ public final class FixtureServer: Sendable {
             out["parent_index"] = episode.season
             out["parent_title"] = "Season \(episode.season)"
             out["grandparent_title"] = episode.show
+            if let show = p.showId { out["grandparent_id"] = show }
             out["thumb_url"] = "/api/items/\(p.itemId)/images/thumb"
         } else {
             out["year"] = 2020
@@ -948,7 +953,7 @@ public final class FixtureServer: Sendable {
     }
 
     /// `data`, or the part `range` asks for (`bytes=a-b`, `bytes=a-`).
-    private static func ranged(_ data: Data, range: String?, type: String) -> Answer {
+    static func ranged(_ data: Data, range: String?, type: String) -> Answer {
         var headers = ["Content-Type": type, "Accept-Ranges": "bytes", "Cache-Control": "private, no-store"]
         guard let range, range.hasPrefix("bytes="), !data.isEmpty else {
             return Answer(status: 200, headers: headers, body: data)
@@ -1140,7 +1145,7 @@ public final class FixtureServer: Sendable {
             .replacingOccurrences(of: "=", with: "")
     }
 
-    private static func randomToken() -> String {
+    static func randomToken() -> String {
         (0..<4).map { _ in String(UInt64.random(in: 0...UInt64.max), radix: 16) }.joined()
     }
 

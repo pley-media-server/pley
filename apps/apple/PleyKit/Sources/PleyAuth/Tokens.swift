@@ -87,6 +87,19 @@ public actor Tokens: TokenProvider {
         return fresh.accessToken
     }
 
+    /// An access token that works for `lasting` seconds more, refreshed
+    /// first when it ends sooner, and when it ends: a download's piece
+    /// carries one for its whole transfer.
+    public func accessToken(lasting: TimeInterval) async throws -> (token: String, expires: Date) {
+        guard let tokens = try await store.load(issuer: issuer) else { throw PleyError.signedOut }
+        if tokens.accessExpiresAt.timeIntervalSince(clock()) > max(lasting, Self.refreshAhead) {
+            return (tokens.accessToken, tokens.accessExpiresAt)
+        }
+        try await refresh(after: tokens.accessToken)
+        guard let fresh = try await store.load(issuer: issuer) else { throw PleyError.signedOut }
+        return (fresh.accessToken, fresh.accessExpiresAt)
+    }
+
     public func refresh(after refused: String) async throws {
         if let running {
             // Someone is refreshing (or switching profile): its token is the new one.

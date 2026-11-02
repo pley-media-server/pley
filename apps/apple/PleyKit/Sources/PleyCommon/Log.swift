@@ -17,6 +17,7 @@ public enum Log {
     public static let data = Logger(subsystem: subsystem, category: "data")
     public static let caps = Logger(subsystem: subsystem, category: "caps")
     public static let player = Logger(subsystem: subsystem, category: "player")
+    public static let downloads = Logger(subsystem: subsystem, category: "downloads")
 
     static let subsystem = "app.pley.apple"
 

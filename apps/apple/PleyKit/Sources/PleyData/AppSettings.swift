@@ -180,6 +180,20 @@ public final class AppSettings: @unchecked Sendable {
         defaults.set(views, forKey: Self.prefix + "libraryViews")
     }
 
+    // MARK: Downloads
+
+    /// Settings → Downloads → Quality: the original, or a smaller file the server makes.
+    public var downloadQuality: DownloadQuality {
+        get { DownloadQuality(rawValue: defaults.string(forKey: Self.prefix + "downloads.quality") ?? "") ?? .original }
+        set { set(newValue == .original ? nil : newValue.rawValue, for: "downloads.quality") }
+    }
+
+    /// Settings → Downloads → "Download on mobile data"; off, downloads wait for Wi-Fi.
+    public var downloadOnMobileData: Bool {
+        get { bool("downloads.mobileData", or: false) }
+        set { defaults.set(newValue, forKey: Self.prefix + "downloads.mobileData") }
+    }
+
     // MARK: Live TV
 
     /// How Live TV was last left on this device by a profile, as Android's
