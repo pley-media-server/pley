@@ -11,6 +11,8 @@ below are relative to it). They are in development and not released yet.
 - [Profiles](#profiles)
 - [What each device plays](#what-each-device-plays)
 - [Playing](#playing)
+- [Downloads and offline](#downloads-and-offline)
+- [Top Shelf](#top-shelf)
 - [Building and testing](#building-and-testing)
 - [Code layout](#code-layout)
 - [A server to test against](#a-server-to-test-against)
@@ -36,7 +38,9 @@ The device part is the kind of device (iPhone, iPad, Mac, Apple TV), never
 the name someone gave it.
 
 The apps ask for local network access (to find and reach servers at home)
-and browse for Bonjour's `_pley._tcp`.
+and browse for Bonjour's `_pley._tcp`. On iPhone, iPad and Apple TV they
+play sound in the background (the `audio` background mode), for music and
+Picture in Picture; it needs no entitlement.
 
 ## Screens
 
@@ -439,6 +443,13 @@ behind it.
   are let go, and back in front it tunes again from the live edge. One
   playback at a time: a video closes the live player, and Live TV closes
   a video.
+- **The mini player and Now Playing** (while music has a queue): the mini
+  player at the foot of every page on iPhone, iPad and Mac, which opens
+  Now Playing (a sheet on iPhone and iPad, a window on the Mac, ⌥⌘P), and
+  the Now Playing tab on Apple TV ([Music](#music)).
+- **Downloads** (iPhone, iPad and Mac, Me → Downloads): the profile's
+  downloads on this device, with what they take and what is free
+  ([Downloads and offline](#downloads-and-offline)).
 
 ### Accessibility
 
@@ -447,17 +458,30 @@ behind it.
   sizes, the iPhone's grids show two columns; a row's title goes above its
   See all, a show's Seasons above its season's link, and Play above
   Shuffle; a title page's header, buttons and facts stack; captions take
-  three lines; episode rows wrap; and the iPad's sidebar is wider. Nothing
-  has a fixed height that clips its text.
+  three lines; episode rows wrap; and the iPad's sidebar is wider. Live
+  TV's guide gets wider with the text, so a programme's title still fits;
+  the mini player puts its words and buttons on lines of their own, Now
+  Playing's buttons and Up next's rows wrap, and a download's row grows
+  with its text. Nothing has a fixed height that clips its text.
 - **VoiceOver**: each tile is one element ("The Office, season 2, episode
   5, Glasshouse", "26 minutes left", "Opens its page") with its menu as
   actions; rows' titles are headings; the A to Z strip ("Jump to letter")
   and the star rating are adjustable; toasts are read out; pictures are
-  hidden; and while the player is open, only the player is read. Apple TV
-  uses the same labels.
+  hidden; and while the player is open, only the player is read. A guide
+  programme reads its channel, number, title, time and whether it is on
+  now ("BBC One, 101, News at Six, 6:00 to 6:30 PM, on now"); a channel's
+  row is one element with its star beside it; the live player's buttons
+  and Apple TV's number pad keys ("One", "Delete", "Tune") are named, and
+  what went wrong with a channel is read out as it shows. The mini player
+  is one element ("Now playing, Sunson, Nils Frahm") with Play or Pause,
+  Next and Open as actions, and Now Playing's scrubber is adjustable. A
+  download's row reads its title, state and percentage, and the offline
+  banner is read out when it shows. Apple TV uses the same labels.
 - **Reduce Motion**: no tile growing under the pointer (an outline
   instead), no pictures fading in, no fade between Home's facts on Apple
-  TV, and no animated changes; loading rows don't pulse.
+  TV, and no animated changes; loading rows don't pulse. The guide's line
+  at the time now jumps instead of sliding, and the live player's
+  controls and banner show and hide without moving.
 
 ### Updates from the server
 
@@ -1578,7 +1602,8 @@ UI tests skip.
 | `Pley/` | The iPhone, iPad and Mac app: `Shell/` (the tab bar, the sidebar, Me, and the Mac's menus and About window in `MacCommands`), `Kit/` (the views the screens share: `ArtworkTile`, `TileRow`, `TileGrid`, `ItemActionsMenu`, `ServerImage`, `StateView`, `ToastView`, `FlowLayout`, `StarRating`, the collections' and playlists' cards in `ListCards`, and `Metrics` and `Motion` for sizes and Reduce Motion) and `Screens/` |
 | `tvOS/` | The Apple TV app, laid out the same way: `Shell/` (the tabs and Settings), `Kit/` (the same views, built for the focus engine) and `Screens/` |
 | `TopShelf/` | The Top Shelf extension: `ContentProvider`, which reads the row the app saved ([Top Shelf](#top-shelf)) |
-| `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `Admin.swift` (the administrator's side), `Walk.swift`, `BrowseWalk.swift`, `ItemWalk.swift`, `ListsWalk.swift`, `AccountWalk.swift` and `LiveWalk.swift`, and on Apple TV `ShelfWalk.swift` (the steps, by accessibility identifier), `LargeTextWalk.swift` (iPhone and iPad at the largest text size), `RemoteWalk.swift` (Apple TV's Play/Pause and a row's focus) and `ScreensTests.swift` |
+| `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `ScreensTests.swift` (the tests), `Admin.swift` (the administrator's side), and the steps by accessibility identifier: `Walk.swift`, `AccountWalk.swift`, `BrowseWalk.swift`, `ItemWalk.swift`, `ListsWalk.swift`, `LiveWalk.swift`, `MusicWalk.swift` and `PlayerWalk.swift` on both; `DownloadsWalk.swift` and `LargeTextWalk.swift` (the largest text size) on iPhone and iPad; `RemoteWalk.swift` (Play/Pause and a row's focus) and `ShelfWalk.swift` (the Top Shelf's links) on Apple TV |
+| `scripts/` | The checks against a real server ([A server to test against](#a-server-to-test-against)): `check-server.sh`, `check-playback.sh` and `check-screens.sh`; the test media (`make-test-media.sh`, `make-pgs.py`) and the made-up Live TV provider (`live-source.sh`) |
 | `PleyKit/` | One Swift package with everything else, a module per target |
 
 PleyKit's modules, each depending only on those before it:
@@ -1588,16 +1613,16 @@ PleyKit's modules, each depending only on those before it:
 | `PleyShelf` | Apple TV's Top Shelf, for the app and its extension, on Foundation and CryptoKit only: the row (`ShelfSnapshot`), its files in the app group's container (`ShelfStore`) and the signed links (`ShelfLink`) |
 | `PleyModel` | The server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read; the caps report the apps send; the words shown for codecs, tracks, versions and times (`Words`, the Android app's) |
 | `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, Bonjour (browsing, TXT records, resolving), logging |
-| `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), downloads to a file resumed with `Range`, the typed API calls (browsing in `PleyAPI+Browse`, with ETags; collections and playlists in `PleyAPI+Lists`; search, history and track defaults in `PleyAPI+Account`), and the server's events (`EventStream`, `EventParser`) |
+| `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), downloads to a file resumed with `Range`, the typed API calls (browsing in `PleyAPI+Browse`, with ETags; collections and playlists in `PleyAPI+Lists`; search, history and track defaults in `PleyAPI+Account`; Live TV in `PleyAPI+Live`; downloads in `PleyAPI+Downloads`; subtitle search in `PleyAPI+Subtitles`), and the server's events (`EventStream`, `EventParser`) |
 | `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the scope guard and profile switching |
-| `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, the server's events gathered into changes and scans (`ServerEvents`), the app's settings (`AppSettings`, under `pley.settings.` in UserDefaults: quality, Up Next, subtitle style, grid size, private sign-in, Always start as, the household last seen, the profile used last, recent searches, the downloads' quality and mobile data), the screens saved for offline (`SnapshotStore`), what the screens and the player take from downloads (`DownloadsService`, `LocalMedia`), and pictures (`ImageLoader`) |
+| `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, Live TV's lists, guide and favourites (`LiveTvRepository`), the server's events gathered into changes and scans (`ServerEvents`), the app's settings (`AppSettings`, under `pley.settings.` in UserDefaults: quality, Up Next, subtitle style, grid size, private sign-in, Always start as, the household last seen, the profile used last, recent searches, the downloads' quality and mobile data), the screens saved for offline (`SnapshotStore`), what the screens and the player take from downloads (`DownloadsService`, `LocalMedia`), and pictures (`ImageLoader`) |
 | `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
 | `PleySubtitles` | Subtitles the app draws: the WebVTT reader, text cues by time, the subtitle sync and its offsets, the server's tracks read with `X-Pley-Complete`, and a port of `packages/picture-subtitles` (the Matroska reader, the PGS, VobSub and DVB decoders, and the pictures by time) |
-| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, the Mac player's keys, music (`MusicPlayback`, `MusicQueue`, the `AVMusicOutput` behind a protocol), the sleep timer (`SleepTimer`), the system's Now Playing and remote commands (`NowPlayingCenter`, `SystemNowPlaying`) and the audio session (`AudioSessionController`) |
+| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, the Mac player's keys, Live TV (`LivePlayback`, with the `AVLiveEngine` behind a protocol), music (`MusicPlayback`, `MusicQueue`, the `AVMusicOutput` behind a protocol), the sleep timer (`SleepTimer`), the system's Now Playing and remote commands (`NowPlayingCenter`, `SystemNowPlaying`) and the audio session (`AudioSessionController`) |
 | `PleyDownloads` | Downloads (iPhone, iPad and Mac): `Downloads` (the screens' `DownloadsService` and the player's `LocalMedia`), `DownloadStore` (the folders and `index.json`), `DownloadPlanner` (the rules), `DownloadRunner` (one download at a time, conversions, pieces), `PieceTransfer` (the background `URLSession`) and `NetworkGate` (Wi-Fi or mobile data, from `NWPathMonitor`) |
-| `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Chapters, Details), the subtitles drawn over the video in the system's caption style with the app's overrides (`SubtitleLayer`, `CaptionStyle`), Apple TV's contextual actions and chapter markers, and the AirPlay button (`RoutePicker`) |
-| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), Now Playing's words (`NowPlayingModel`), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`) smart filters in words (`SmartFilter`, the Android app's), search (`SearchModel`), Me's track defaults (`MeModel`), Downloads (`DownloadsModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`), Apple TV's start (`StartGate`) and its Top Shelf row (`TopShelfWriter`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, music, the system's Now Playing, the device's caps, the session reports and the reports kept for later, one set per server and profile |
-| `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens, playback sessions with keyed media, libraries with watch marks, My List and orders that change, collections and playlists, an event stream the tests push to, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
+| `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Find Subtitles…, Speed, Sleep Timer, Chapters, Details), Picture in Picture's keeper (`PictureInPictureKeeper`), Live TV's video (`LiveVideoSurface`, an `AVPlayerLayer`), the subtitles drawn over the video in the system's caption style with the app's overrides (`SubtitleLayer`, `CaptionStyle`), Apple TV's contextual actions and chapter markers, and the AirPlay button (`RoutePicker`) |
+| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), Now Playing's words (`NowPlayingModel`), Live TV (`LiveTvModel`, `LivePlayerModel`, `ChannelPaging`, and `LiveTvRules` and `GuideLayout`, the Android app's rules), Find Subtitles… (`SubtitleSearchModel`), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`), smart filters in words (`SmartFilter`, the Android app's), search (`SearchModel`), Me's track defaults (`MeModel`), Downloads (`DownloadsModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`), Apple TV's start (`StartGate`) and its Top Shelf row (`TopShelfWriter`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, music, the system's Now Playing, the device's caps, the session reports and the reports kept for later, one set per server and profile |
+| `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens, playback sessions with keyed media, libraries with watch marks, My List and orders that change, collections and playlists, Live TV's lineup and guide, music to play, downloads and conversions, subtitle search, an event stream the tests push to, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
 | `pley-apple-play` | A command-line tool, on the Mac only, that plays a real server's test media through the player ([A server to test against](#a-server-to-test-against)) |
 
@@ -1725,13 +1750,18 @@ address, to have it found by Bonjour. Delete the folder afterwards.
 - No seek-bar previews.
 - Subtitles aren't shown over AirPlay, nor in Picture in Picture: the app
   draws them over its own view of the video, which neither shows.
-- Downloads are on iPhone, iPad and Mac only, not Apple TV. They keep
-  text subtitles only: picture subtitles (PGS, VobSub, DVB) don't come
-  with a download. A conversion the server makes for a download is
-  followed only while Pley is open: one started then waits until Pley is
-  opened again.
-- Live TV has no picture in picture and doesn't switch the display's
-  frame rate or range, as on Android.
+- Downloads are on iPhone, iPad and Mac only, as Android's are on phones
+  and tablets only: an Apple TV app keeps nothing large for long (the
+  system may clear what it stores to make room). Downloads keep text
+  subtitles only, as on Android: picture subtitles (PGS, VobSub, DVB)
+  don't come with a download. A conversion the server makes for a
+  download is followed only while Pley is open, since following it needs
+  the app running: one started then waits until Pley is opened again. The
+  file itself downloads in the background.
+- Live TV has no Picture in Picture and doesn't switch the display's
+  frame rate or range, as on Android: its player is Pley's own view of the
+  video, with no pause or seeking, not the system's player, which brings
+  both.
 - Events aren't read while the app is in the background; back in front,
   what shows is read again.
 - The Mac app has no UI tests: driving it needs Accessibility and Screen
@@ -1753,3 +1783,11 @@ address, to have it found by Bonjour. Delete the folder afterwards.
 - The Top Shelf shows Continue Watching as the app read it last: what
   changes while Pley isn't open shows once it is. A build signed by a
   team without App Groups has no row, only the app's own picture.
+- No audio delay, which the Android app has: AVPlayer has no way to play
+  a track's sound earlier or later than its picture, and the apps don't
+  decode the sound themselves.
+- Requests (Discover, asking for a title, approving, and their news) aren't
+  in the Apple apps yet; they are in Pley on the web and the Android app
+  on phones and tablets.
+- No Handoff: a video started on one Apple device isn't offered on
+  another. Continue Watching, on every device, resumes it there.

@@ -8,13 +8,6 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- Download movies, episodes and whole seasons on iPhone, iPad and Mac to
-  watch without your server: as they are, or smaller (Settings →
-  Downloads), in the background, on Wi-Fi unless you allow mobile data.
-  They're in Me → Downloads, and play with their subtitles, Resume and Up
-  Next while the server is away.
-- When the server doesn't answer, the app opens on what it saved of your
-  screens and says so, and reconnects by itself (Apple TV too).
 - Finds Pley servers on your network, keeps the ones you opened, and adds
   one by its address.
 - Sign in with your browser on iPhone, iPad and Mac, or with a code and its
@@ -22,24 +15,10 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   on this device only.
 - Choose who's watching from the household's profiles, with the profile's
   PIN when it has one.
-- Home shows your rows with their posters, moved through with the remote
-  on Apple TV.
-- Sign out of a server, or forget it.
-- Play movies and episodes from Home: Play or Resume on an item's page,
-  the system player on each device (its own window on the Mac, with
-  keyboard shortcuts), and each file sent as this device plays it best,
-  in HDR and Dolby Vision where the screen shows them.
-- A Quality menu with Original, Automatic and each quality; Automatic
-  lowers the quality when the video doesn't play smoothly and goes back up
-  when it can.
-- Resume where you left off, Skip Intro and Skip Credits, Up Next for the
-  next episode, chapters, and an audio track choice the server remembers
-  for the whole show.
-- Subtitles, text and picture (PGS, VobSub, DVB) alike, drawn over the
-  video in your caption style, with a sync control; picture subtitles no
-  longer force a conversion.
 - A tab bar on iPhone, a sidebar on iPad and Mac, and tabs across the top on
   Apple TV; your profile, servers and sign-out are under Me.
+- Home shows your rows with their posters, moved through with the remote
+  on Apple TV.
 - Browse your libraries: sort, filter, jump by letter, and put libraries
   in your own order. Home has See all, and long press or right-click for a
   title's actions. Screens update when something changes on the server.
@@ -56,26 +35,46 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - On the Mac: File and View menus with shortcuts, Settings (⌘,), About
   Pley, hover and right-click. On Apple TV, a row puts the focus back on
   the tile you left it on.
-
+- Sign out of a server, or forget it.
+- Play movies and episodes: Play or Resume on an item's page, the system
+  player on each device (its own window on the Mac, with keyboard
+  shortcuts), and each file sent as this device plays it best, in HDR and
+  Dolby Vision where the screen shows them.
+- A Quality menu with Original, Automatic and each quality; Automatic
+  lowers the quality when the video doesn't play smoothly and goes back up
+  when it can.
+- Resume where you left off, Skip Intro and Skip Credits, Up Next for the
+  next episode, chapters, and an audio track choice the server remembers
+  for the whole show.
+- Subtitles, text and picture (PGS, VobSub, DVB) alike, drawn over the
+  video in your caption style, with a sync control; picture subtitles
+  never force a conversion. Find Subtitles… in the player searches online
+  through your server and adds the subtitles you choose, which show at
+  once.
+- Playback speed from 0.5× to 2×, and a sleep timer for videos with Keep
+  watching in its last 30 seconds.
+- Picture in Picture on iPhone, iPad, Apple TV and Mac: from the player's
+  button, and by itself when you leave the app on iPhone and iPad; its ✕
+  ends the playback.
 - Live TV on iPhone, iPad, Mac and Apple TV: the categories, the guide and
-  the channel cards, favourites, a programme's details, and the live
-  player with channel up and down, a channel number typed or on Apple TV's
-  number pad, AirPlay, and Watch here instead when every connection is in
-  use. Search shows the channels it finds.
+  the channel cards, favourites and recently watched, a programme's
+  details, and the live player with channel up and down, a channel number
+  typed or on Apple TV's number pad, AirPlay, and Watch here instead when
+  every connection is in use. Search shows the channels it finds.
 - Music: Play and Shuffle on albums, artists and music playlists, a track
   plays its album from there, and it plays on in the background and with
   the screen locked. A mini player and Now Playing (a window on the Mac,
   a tab on Apple TV) with Up next, Shuffle, a sleep timer and AirPlay; the
   lock screen, Control Center, headphones and the Mac's media keys play,
   pause and skip music and videos.
-
-- Picture in Picture on iPhone, iPad, Apple TV and Mac: from the player's
-  button, and by itself when you leave the app on iPhone and iPad; its ✕
-  ends the playback.
-- Find Subtitles… in the player searches online through your server and
-  adds the subtitles you choose, which show at once.
-- Playback speed from 0.5× to 2×, and a sleep timer for videos with Keep
-  watching in its last 30 seconds.
+- Download movies, episodes and whole seasons on iPhone, iPad and Mac to
+  watch without your server: as they are, or smaller (Settings →
+  Downloads), in the background, on Wi-Fi unless you allow mobile data.
+  They're in Me → Downloads, and play with their subtitles, Resume and Up
+  Next while the server is away; what you watched reaches the server once
+  it is back.
+- When the server doesn't answer, the app opens on what it saved of your
+  screens and says so, and reconnects by itself (Apple TV too).
 - Continue Watching on Apple TV's Top Shelf: with Pley in the top row,
   your titles in progress show with their pictures and progress, and one
   opens its page or plays.
