@@ -1,5 +1,6 @@
 package app.pley.android.ui.tv.player
 
+import android.graphics.Bitmap
 import android.os.SystemClock
 import android.view.KeyEvent as AndroidKeyEvent
 import android.view.View
@@ -272,6 +273,98 @@ class TvPlayerScreenTest {
         compose.onNodeWithText("−49:30").assertExists()
         compose.onNodeWithText("10:00").assertDoesNotExist()
         assertTrue(controller.calls("seekTo").isEmpty())
+    }
+
+    @Test
+    fun `Up while a seek waits opens the chapters as cards, on the one it was going to, and OK goes there`() {
+        val controller = playing()
+        show(controller)
+        press(Key.DirectionRight)
+        press(Key.DirectionUp)
+        focusedOn(TAG_CHAPTER_STRIP)
+        compose.onNodeWithTag(TAG_PREVIEW).assertDoesNotExist()
+        compose.onNodeWithText("Opening").assertExists()
+        compose.onNodeWithText("The Records").assertExists()
+        // The seek went to 10:10, in The Records: the scrubber stands at its start.
+        compose.onNodeWithText("−55:00").assertExists()
+        // Right goes a card on, and no further than the last.
+        press(Key.DirectionRight, times = 2)
+        compose.onNodeWithText("−30:00").assertExists()
+        press(Key.DirectionLeft)
+        press(Key.DirectionRight)
+        press(Key.DirectionCenter)
+        assertEquals(listOf(1_800_000L), controller.calls("seekTo").map { it.args.single() })
+        compose.onNodeWithTag(TAG_CHAPTER_STRIP).assertDoesNotExist()
+        focusedOn(TAG_SCRUBBER)
+        // The seek that waited gave way to the cards.
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
+        compose.waitForIdle()
+        assertEquals(1, controller.calls("seekTo").size)
+    }
+
+    @Test
+    fun `the Chapters button opens the cards on the chapter playing, and Down or Back closes them onto it`() {
+        val controller = playing()
+        show(controller)
+        // Play/Pause, Back 10, Previous, then Speed, Sleep timer and Chapters at the left.
+        press(Key.DirectionDown)
+        press(Key.DirectionLeft, times = 5)
+        val button = tagOf(PlayerFocus.Chapters)
+        focusedOn(button)
+        press(Key.DirectionCenter)
+        focusedOn(TAG_CHAPTER_STRIP)
+        compose.onNodeWithText("−55:00").assertExists()
+        // The controls stay while the cards show; the video plays on.
+        compose.mainClock.advanceTimeBy(TvPlayerUi.HIDE_AFTER_MS + 1_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_CHAPTER_STRIP).assertExists()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag(TAG_CHAPTER_STRIP).assertDoesNotExist()
+        focusedOn(button)
+        press(Key.DirectionCenter)
+        focusedOn(TAG_CHAPTER_STRIP)
+        back()
+        compose.onNodeWithTag(TAG_CHAPTER_STRIP).assertDoesNotExist()
+        focusedOn(button)
+        compose.onNodeWithTag(TAG_PANEL).assertDoesNotExist()
+        assertTrue(controller.calls("seekTo").isEmpty())
+        assertEquals(0, exits)
+    }
+
+    @Test
+    fun `the cards slide to keep the focused one at the gutter, and the last at the right safe edge`() {
+        val parts = (0 until 10).map { ChapterMark("Part ${it + 1}", it * 360_000L, (it + 1) * 360_000L, null) }
+        val controller = playing { it.copy(chapters = parts, positionMs = 0) }
+        show(controller)
+        press(Key.DirectionRight)
+        press(Key.DirectionUp)
+        fun left(name: String) = compose.onNodeWithText(name).getBoundsInRoot().left.value
+        val gutter = app.pley.android.designsystem.PleyTv.Gutter.value
+        assertEquals(gutter, left("Part 1"), 0.5f)
+        assertEquals("14 dp apart", gutter + 240 + 14, left("Part 2"), 0.5f)
+        press(Key.DirectionRight, times = 3)
+        assertEquals(gutter, left("Part 4"), 0.5f)
+        // The last card ends at the safe edge, 912, rather than the row running on past it.
+        press(Key.DirectionRight, times = 6)
+        assertEquals(960f - 48f - 240f, left("Part 10"), 0.5f)
+    }
+
+    @Test
+    fun `a card shows the server's preview a moment into its chapter, asked for once the previews come`() {
+        val asked = mutableListOf<Long>()
+        val controller = playing()
+        controller.thumbnails = { at ->
+            asked += at
+            Bitmap.createBitmap(32, 18, Bitmap.Config.ARGB_8888)
+        }
+        show(controller)
+        press(Key.DirectionRight)
+        press(Key.DirectionUp)
+        focusedOn(TAG_CHAPTER_STRIP)
+        assertTrue("no previews yet", asked.isEmpty())
+        controller.update { it.copy(hasThumbnails = true) }
+        compose.waitForIdle()
+        assertEquals(setOf(2_000L, 302_000L, 1_802_000L), asked.toSet())
     }
 
     @Test

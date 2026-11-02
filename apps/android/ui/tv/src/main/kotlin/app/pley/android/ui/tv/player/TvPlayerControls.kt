@@ -194,8 +194,9 @@ private fun rememberClock(now: () -> Long): String {
  * focused (18 dp across, where the tiles' ring made it 32); the
  * times above, a running marker's name below. Left and Right on it seek
  * ([TvSeeker], keys handled by the screen): while a seek is coming, the
- * thumb, the played part and both times stand where it goes, the playhead
- * otherwise. It says its place to screen readers as a slider.
+ * thumb, the played part and both times stand where it goes, and while the
+ * chapters' cards show, at the start of the one focused; at the playhead
+ * otherwise ([scrubberAt]). It says its place to screen readers as a slider.
  */
 @Composable
 internal fun BoxScope.TvScrubber(
@@ -209,9 +210,9 @@ internal fun BoxScope.TvScrubber(
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
     val thumbScale by animateFloatAsState(if (focused) 1f else 0f, PleyMotion.focus(), label = "thumb")
-    val elapsed by remember(state, seeker) { derivedStateOf { (seeker.target ?: state.value.positionMs) / 1000 } }
+    val elapsed by remember(state, seeker, ui) { derivedStateOf { scrubberAt(state.value, seeker, ui) / 1000 } }
     val duration by remember(state) { derivedStateOf { state.value.durationMs } }
-    val remaining by remember(state, seeker) { derivedStateOf { (state.value.durationMs - (seeker.target ?: state.value.positionMs)).coerceAtLeast(0) / 1000 } }
+    val remaining by remember(state, seeker, ui) { derivedStateOf { (state.value.durationMs - scrubberAt(state.value, seeker, ui)).coerceAtLeast(0) / 1000 } }
     val skip = ui.requester(PlayerFocus.Skip)
     val down = ui.requester(PlayerFocus.PlayPause)
     Box(
@@ -250,14 +251,24 @@ internal fun BoxScope.TvScrubber(
                     }
                 }
                 .focusable(interactionSource = interactions)
-                .drawBehind { drawTrack(state.value, seeker.target, thumbScale) },
+                .drawBehind {
+                    val s = state.value
+                    drawTrack(s, scrubberAt(s, seeker, ui), thumbScale)
+                },
         )
         MarkerLabel(state)
     }
 }
 
-/** The track, the played part up to [target] or the playhead, the buffered part, chapter gaps and the thumb. */
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTrack(s: PlayerUiState, target: Long?, focus: Float) {
+/**
+ * Where the scrubber stands: the start of the chapter focused in the cards,
+ * where a seek coming goes, or the playhead. Read where it is shown.
+ */
+private fun scrubberAt(s: PlayerUiState, seeker: TvSeeker, ui: TvPlayerUi): Long =
+    ui.chapter?.let { s.chapters.getOrNull(it)?.startMs } ?: seeker.target ?: s.positionMs
+
+/** The track, the played part and the thumb at [at], the buffered part and chapter gaps. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTrack(s: PlayerUiState, at: Long, focus: Float) {
     val h = TRACK_HEIGHT.toPx()
     val y = size.height / 2f - h / 2f
     val w = size.width
@@ -272,8 +283,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTrack(s: Player
         starts.forEach { add(it) }
         add(w)
     }
-    // Accent up to the thumb: where it plays, or where the seek coming takes it.
-    val at = target ?: s.positionMs
+    // Accent up to the thumb: where it plays, or where a seek or a chapter focused would take it.
     val played = x(at)
     val buffered = x(s.bufferedMs.coerceAtLeast(s.positionMs))
     for (i in 0 until edges.size - 1) {
@@ -401,9 +411,10 @@ internal data class RowOptions(
 /**
  * The control row, top y = 441 (design spec §2.7): Previous · −10 s ·
  * Play/Pause · +10 s · Next centred; Subtitles · Audio · Quality · Info at
- * the right safe edge; Chapters, when the file has them, the sleep
- * timer and Speed at the left one. Up goes back to the scrubber. As in streaming
- * apps' players, the icons stand on the scrim alone until focused.
+ * the right safe edge; Chapters (their cards over the scrubber, [onChapters]),
+ * when the file has them, the sleep timer and Speed at the left one. Up
+ * goes back to the scrubber. As in streaming apps' players, the icons
+ * stand on the scrim alone until focused.
  */
 @Composable
 internal fun BoxScope.TvControlRow(
@@ -416,6 +427,7 @@ internal fun BoxScope.TvControlRow(
     onForward10: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onChapters: () -> Unit,
 ) {
     val up = Modifier.focusProperties {
         this.up = ui.requester(PlayerFocus.Scrubber)
@@ -437,7 +449,7 @@ internal fun BoxScope.TvControlRow(
             horizontalArrangement = Arrangement.spacedBy(PleyTv.ButtonGap),
         ) {
             if (options.chapters) {
-                PlayerRoundButton(stringResource(R.string.tv_player_chapters), PleyIcons.ListVideo, { ui.openPanel(PlayerPanel.Chapters) }, beside, ui, PlayerFocus.Chapters)
+                PlayerRoundButton(stringResource(R.string.tv_player_chapters), PleyIcons.ListVideo, onChapters, beside, ui, PlayerFocus.Chapters)
             }
             PlayerRoundButton(stringResource(R.string.tv_player_sleep), MoonIcon, { ui.openPanel(PlayerPanel.Sleep) }, beside, ui, PlayerFocus.Sleep)
             PlayerRoundButton(stringResource(R.string.tv_player_speed), PleyIcons.FastForward, { ui.openPanel(PlayerPanel.Speed) }, beside, ui, PlayerFocus.Speed)
@@ -598,8 +610,12 @@ private val ControlScrim by lazy {
 internal fun PlayerPhase.wantsToPlay(): Boolean = this == PlayerPhase.Playing || this == PlayerPhase.Buffering || this == PlayerPhase.Preparing || this == PlayerPhase.Switching
 
 private const val MINUTE_MS = 60_000L
-private const val PREVIEW_STEP_MS = 2_000L
-private const val PREVIEW_IMAGE_WIDTH = 480
+
+/** Seek previews are asked for every 2 s of the target at most. */
+internal const val PREVIEW_STEP_MS = 2_000L
+
+/** A chapter's picture is asked for this wide, in pixels: the preview's 240 dp on a 1080p TV. */
+internal const val PREVIEW_IMAGE_WIDTH = 480
 
 private val TRACK = PleyColors.Fg.copy(alpha = 0.25f)
 private val BUFFERED = PleyColors.Fg.copy(alpha = 0.45f)

@@ -19,6 +19,9 @@ internal sealed interface PlayerKey {
     /** Left or Right with the controls hidden or the scrubber focused: [direction] −1 or +1, held or not. */
     data class Step(val direction: Int) : PlayerKey
 
+    /** The chapters, as cards over the scrubber. */
+    data object Chapters : PlayerKey
+
     /** Show the controls, focus on [focus]. */
     data class Show(val focus: ControlFocus) : PlayerKey
 
@@ -86,11 +89,17 @@ internal object TvPlayerKeys {
         else -> null
     }
 
-    /** A key while the scrubber has focus: Left and Right seek, Centre plays or pauses. */
-    fun scrubber(keyCode: Int): PlayerKey? = when (keyCode) {
+    /**
+     * A key while the scrubber has focus: Left and Right seek, Centre plays
+     * or pauses. Up opens the chapters' cards while a seek waits for OK
+     * ([chaptersOnUp]), as YouTube's TV app does; otherwise Up and Down are
+     * left to focus (Skip above while it shows, the control row below).
+     */
+    fun scrubber(keyCode: Int, chaptersOnUp: Boolean = false): PlayerKey? = when (keyCode) {
         in SELECT -> PlayerKey.PlayPause
         KeyEvent.KEYCODE_DPAD_LEFT -> PlayerKey.Step(-1)
         KeyEvent.KEYCODE_DPAD_RIGHT -> PlayerKey.Step(1)
+        KeyEvent.KEYCODE_DPAD_UP -> if (chaptersOnUp) PlayerKey.Chapters else null
         else -> null
     }
 

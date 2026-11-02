@@ -64,10 +64,12 @@ import kotlinx.coroutines.launch
  *   after a seek confirms it and plays on ([TvSeeker.confirm]). Another
  *   seek (Previous, Next, Skip) takes the place of one waiting.
  * - **Controls shown.** Focus moves as usual; they hide after 5 s without
- *   a key unless paused, a seek waits or in a panel.
- * - **Back** walks out: panel, then Up Next, then a seek waiting (the
- *   controls stay, and it plays on from where it was), then the controls,
- *   then the player ([onExit]).
+ *   a key unless paused, a seek waits, or in a panel or the chapters'
+ *   cards. Up on the scrubber while a seek waits, or the Chapters button,
+ *   opens the chapters as cards over it ([TvChapterStrip]).
+ * - **Back** walks out: panel, then Up Next, then the chapters' cards, then
+ *   a seek waiting (the controls stay, and it plays on from where it was),
+ *   then the controls, then the player ([onExit]).
  * - **Sleep timer.** Its notice takes focus 30 s before it pauses (Keep
  *   watching); paused by it for 10 minutes, the player leaves. A playback
  *   the server stopped says why and leaves after 20 s.
@@ -117,8 +119,9 @@ internal fun TvPlayerScreen(
         }
     }
     val previewing by remember(seeker) { derivedStateOf { seeker.target != null } }
-    // Skip shows while its marker runs, unless a seek preview, Up Next or an error is on screen.
-    val skipShown = skipLabel != null && card == null && error == null && !switching && !(ui.controls && previewing)
+    val chaptersOpen by remember(ui) { derivedStateOf { ui.chapter != null } }
+    // Skip shows while its marker runs, unless a seek preview, the chapters' cards, Up Next or an error is on screen.
+    val skipShown = skipLabel != null && card == null && error == null && !switching && !(ui.controls && (previewing || chaptersOpen))
     val sleepNotice by remember(state) { derivedStateOf { state.value.sleep.secondsLeft != null } }
     val sleepFired by remember(state) { derivedStateOf { state.value.sleep.fired } }
     val stopped by remember(state) { derivedStateOf { state.value.stoppedByServer } }
@@ -159,6 +162,27 @@ internal fun TvPlayerScreen(
     fun seekTo(ms: Long) {
         seeker.cancel()
         controller.seekTo(ms)
+    }
+
+    /**
+     * The chapters as cards over the scrubber ([TvChapterStrip]), from
+     * [from] (the scrubber, or the Chapters button): on the chapter holding
+     * where a seek waiting was going, else the playhead. The seek gives way
+     * to them: a chapter chosen goes to its start, and closed, it plays on
+     * from where it is.
+     */
+    fun openChapters(from: PlayerFocus) {
+        val s = state.value
+        if (s.chapters.isEmpty()) return
+        val at = seeker.target ?: s.positionMs
+        seeker.cancel()
+        ui.openChapters(TvPlayerText.chapterNear(s.chapters, at), from)
+    }
+
+    /** A chapter chosen in the cards: it goes to its start, and the cards close. */
+    fun goToChapter(index: Int) {
+        state.value.chapters.getOrNull(index)?.let { seekTo(it.startMs) }
+        ui.closeChapters()
     }
 
     fun next() {
@@ -234,6 +258,7 @@ internal fun TvPlayerScreen(
             PlayerKey.Stop -> exit()
             is PlayerKey.Show -> ui.showControls(focusFor(key.focus))
             is PlayerKey.Step -> seeker.press(key.direction)
+            PlayerKey.Chapters -> openChapters(PlayerFocus.Scrubber)
         }
     }
 
@@ -281,9 +306,11 @@ internal fun TvPlayerScreen(
         }
         ui.touch()
         if (ui.focused == PlayerFocus.Scrubber) {
-            val key = TvPlayerKeys.scrubber(code) ?: return false
+            val chaptersOnUp = seeker.target != null && state.value.chapters.isNotEmpty()
+            val key = TvPlayerKeys.scrubber(code, chaptersOnUp) ?: return false
             return handle(key, native, busy)
         }
+        // The chapters' cards, a side panel's rows and the row's buttons have their own keys.
         return false
     }
 
@@ -295,6 +322,7 @@ internal fun TvPlayerScreen(
             }
             ui.panel != null -> ui.closePanel()
             state.value.upNextCard != null -> controller.cancelUpNext()
+            ui.chapter != null -> ui.closeChapters()
             // A seek waiting for OK: Back lets it go, and it plays on from where it was.
             ui.controls && seeker.target != null -> {
                 seeker.cancel()
@@ -365,9 +393,9 @@ internal fun TvPlayerScreen(
             ui.ask(PlayerFocus.Video)
         }
     }
-    // The controls hide after 5 s without a key, unless paused, a seek waits or in a panel.
-    LaunchedEffect(ui.controls, ui.panel, ui.input, playing, previewing) {
-        if (ui.controls && ui.panel == null && playing && !previewing) {
+    // The controls hide after 5 s without a key, unless paused, a seek waits, or in a panel or the chapters' cards.
+    LaunchedEffect(ui.controls, ui.panel, ui.input, playing, previewing, chaptersOpen) {
+        if (ui.controls && ui.panel == null && playing && !previewing && !chaptersOpen) {
             delay(TvPlayerUi.HIDE_AFTER_MS)
             ui.hideControls(if (skipShown) PlayerFocus.Skip else PlayerFocus.Video)
         }
@@ -441,7 +469,9 @@ internal fun TvPlayerScreen(
         Box(Modifier.fillMaxSize().videoFocus(ui, enabled = !ui.controls, label = videoLabel))
         if (controlsPresent) {
             TvPlayerTopBar(state, controlsAlpha, now)
-            if (ui.controls) TvSeekPreview(state, seeker, controller)
+            // The chapters' cards take the preview's place.
+            if (ui.controls && !chaptersOpen) TvSeekPreview(state, seeker, controller)
+            TvChapterStrip(state, ui, controller, onGo = ::goToChapter)
             TvScrubber(state, seeker, ui, controller, controlsAlpha, skipShown)
             TvControlRow(
                 playing = playing,
@@ -454,6 +484,7 @@ internal fun TvPlayerScreen(
                 onForward10 = { seeker.press(1, wait = TvSeeker.SETTLE_MS) },
                 onPrevious = ::previous,
                 onNext = ::next,
+                onChapters = { openChapters(PlayerFocus.Chapters) },
             )
         }
         if (detailsShown) TvPlaybackDetails(state, engineState)

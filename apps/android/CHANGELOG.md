@@ -25,6 +25,10 @@ describes how they are made.
   instead of pausing; OK there plays and pauses.
 - On TVs, Down with the player's controls hidden shows them on Play/Pause,
   in the middle of the row, rather than on Subtitles.
+- On TVs, the chapters show as a row of cards over the scrubber, with
+  their pictures, as in YouTube's TV app, in place of the Chapters panel:
+  Up while a seek waits, or the Chapters button, opens them on the chapter
+  it was going to; OK goes to one, Down or Back closes them.
 
 ### Fixed
 

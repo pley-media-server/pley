@@ -8,8 +8,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusRequester
 
-/** The side panels (design spec §2.7), and the sleep timer's. */
-internal enum class PlayerPanel { Subtitles, Audio, Quality, Chapters, Info, Sleep, Speed, FindSubtitles }
+/** The side panels (design spec §2.7), and the sleep timer's. The chapters are cards over the scrubber instead ([TvChapterStrip]). */
+internal enum class PlayerPanel { Subtitles, Audio, Quality, Info, Sleep, Speed, FindSubtitles }
 
 /** What can be given focus in the player. */
 internal enum class PlayerFocus {
@@ -30,6 +30,9 @@ internal enum class PlayerFocus {
     /** The sleep timer's notice (Keep watching). */
     SleepNotice,
 
+    /** The chapters' cards over the scrubber, which take Left, Right and OK themselves. */
+    ChapterStrip,
+
     /** The panel showing (its current choice). */
     Panel,
     Error,
@@ -45,8 +48,9 @@ internal data class PlayerToast(val text: String, val ms: Long, val serial: Int,
 
 /**
  * What the TV player shows beyond the playback's own state: the controls
- * hidden or shown, a side panel, where focus goes next, the toast. Only
- * this composition's; nothing here survives the screen.
+ * hidden or shown, a side panel, the chapters' cards, where focus goes
+ * next, the toast. Only this composition's; nothing here survives the
+ * screen.
  */
 @Stable
 internal class TvPlayerUi {
@@ -56,6 +60,13 @@ internal class TvPlayerUi {
 
     var panel: PlayerPanel? by mutableStateOf(null)
         private set
+
+    /** The chapters' cards are open over the scrubber, on the chapter of this index; `null` while they're closed. */
+    var chapter: Int? by mutableStateOf(null)
+        private set
+
+    /** Where focus was as the chapters' cards opened, to go back to: the scrubber or the Chapters button. */
+    private var chaptersFrom = PlayerFocus.Scrubber
 
     /** The panel shown last, kept while it slides away. */
     var lastPanel: PlayerPanel? by mutableStateOf(null)
@@ -96,17 +107,40 @@ internal class TvPlayerUi {
         ask(focus)
     }
 
-    /** Hides the controls; focus goes to [then] (Skip while it shows, else the video). */
+    /** Hides the controls, and the chapters' cards with them; focus goes to [then] (Skip while it shows, else the video). */
     fun hideControls(then: PlayerFocus = PlayerFocus.Video) {
+        closeChapters(refocus = false)
         if (!controls) return
         controls = false
         if (focused != PlayerFocus.UpNext && focused != PlayerFocus.Error) ask(then)
     }
 
     fun openPanel(panel: PlayerPanel) {
+        closeChapters(refocus = false)
         this.panel = panel
         lastPanel = panel
         ask(PlayerFocus.Panel)
+    }
+
+    /** Opens the chapters' cards on the chapter of [index], from [from] (the scrubber or the Chapters button), which focus goes back to. */
+    fun openChapters(index: Int, from: PlayerFocus) {
+        chapter = index
+        chaptersFrom = from
+        touch()
+        ask(PlayerFocus.ChapterStrip)
+    }
+
+    /** The cards' focus moves to the chapter of [index]. */
+    fun focusChapter(index: Int) {
+        chapter = index
+    }
+
+    /** Closes the chapters' cards; focus goes back where they were opened from, unless [refocus] is false. */
+    fun closeChapters(refocus: Boolean = true) {
+        if (chapter == null) return
+        chapter = null
+        touch()
+        if (refocus && controls) ask(chaptersFrom)
     }
 
     /** Closes the panel; focus goes back to the button that opened it, unless [refocus] is false. */
@@ -140,7 +174,6 @@ internal class TvPlayerUi {
             PlayerPanel.Subtitles -> PlayerFocus.Subtitles
             PlayerPanel.Audio -> PlayerFocus.Audio
             PlayerPanel.Quality -> PlayerFocus.Quality
-            PlayerPanel.Chapters -> PlayerFocus.Chapters
             PlayerPanel.Info -> PlayerFocus.Info
             PlayerPanel.Sleep -> PlayerFocus.Sleep
             PlayerPanel.Speed -> PlayerFocus.Speed

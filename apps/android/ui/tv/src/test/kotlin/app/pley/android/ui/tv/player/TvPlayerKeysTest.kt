@@ -40,6 +40,12 @@ class TvPlayerKeysTest {
     }
 
     @Test
+    fun `while a seek waits, Up on the scrubber opens the chapters`() {
+        assertEquals(PlayerKey.Chapters, TvPlayerKeys.scrubber(KeyEvent.KEYCODE_DPAD_UP, chaptersOnUp = true))
+        assertNull(TvPlayerKeys.scrubber(KeyEvent.KEYCODE_DPAD_DOWN, chaptersOnUp = true))
+    }
+
+    @Test
     fun `media keys play, pause, jump 30 s, change episode or chapter, toggle captions and open the audio`() {
         assertEquals(PlayerKey.PlayPause, TvPlayerKeys.media(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE))
         assertEquals(PlayerKey.Play, TvPlayerKeys.media(KeyEvent.KEYCODE_MEDIA_PLAY))
