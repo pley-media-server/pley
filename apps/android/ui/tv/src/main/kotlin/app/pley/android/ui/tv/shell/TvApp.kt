@@ -76,6 +76,7 @@ import app.pley.android.ui.tv.music.musicEntries
 import app.pley.android.ui.tv.onboarding.onboardingEntries
 import app.pley.android.ui.tv.livetv.liveTvEntries
 import app.pley.android.ui.tv.playlists.playlistsEntries
+import app.pley.android.ui.tv.requests.requestsEntries
 import app.pley.android.ui.tv.search.searchEntries
 import app.pley.android.ui.tv.theme.TvTheme
 import kotlinx.coroutines.flow.Flow
@@ -244,6 +245,7 @@ private fun TvShell(
                         liveTvEntries()
                         accountEntries()
                         musicEntries()
+                        requestsEntries()
                     },
                 )
             }
