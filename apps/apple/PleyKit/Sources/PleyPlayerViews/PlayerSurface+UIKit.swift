@@ -242,7 +242,7 @@ public struct PlayerSurface: UIViewControllerRepresentable {
             self.subtitles = subtitles
             #if os(iOS)
             boundsWatch = controller.observe(\.videoBounds, options: [.initial, .new]) {
-                [weak subtitles, weak controller] _, _ in
+                @Sendable [weak subtitles, weak controller] _, _ in
                 Task { @MainActor in
                     guard let subtitles, let controller, let view = controller.viewIfLoaded else { return }
                     subtitles.video = subtitles.convert(controller.videoBounds, from: view)
@@ -266,7 +266,7 @@ public struct PlayerSurface: UIViewControllerRepresentable {
             itemWatch = nil
             self.player = player
             guard let player else { return }
-            itemWatch = player.observe(\.currentItem, options: [.new]) { [weak self] _, _ in
+            itemWatch = player.observe(\.currentItem, options: [.new]) { @Sendable [weak self] _, _ in
                 Task { @MainActor in
                     self?.describeItem()
                     #if os(tvOS)

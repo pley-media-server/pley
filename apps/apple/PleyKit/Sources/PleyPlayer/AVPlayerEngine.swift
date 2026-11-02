@@ -90,7 +90,7 @@ public final class AVPlayerEngine: PlayerEngine {
         item.add(output)
         self.item = item
         self.output = output
-        status = item.observe(\.status, options: [.new]) { [weak self] _, _ in
+        status = item.observe(\.status, options: [.new]) { @Sendable [weak self] _, _ in
             Task { @MainActor in self?.statusChanged() }
         }
         let center = NotificationCenter.default

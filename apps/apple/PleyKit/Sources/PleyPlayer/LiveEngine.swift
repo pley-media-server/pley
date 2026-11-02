@@ -58,7 +58,7 @@ public final class AVLiveEngine: LiveEngine {
         player.allowsExternalPlayback = true
         #endif
         (events, continuation) = AsyncStream.makeStream(of: LiveEngineEvent.self, bufferingPolicy: .bufferingNewest(32))
-        playerWatch = player.observe(\.timeControlStatus, options: [.new]) { [weak self] _, _ in
+        playerWatch = player.observe(\.timeControlStatus, options: [.new]) { @Sendable [weak self] _, _ in
             Task { @MainActor in self?.statusChanged() }
         }
     }
@@ -72,10 +72,10 @@ public final class AVLiveEngine: LiveEngine {
         item.automaticallyPreservesTimeOffsetFromLive = true
         self.item = item
         itemWatches = [
-            item.observe(\.status, options: [.new]) { [weak self] _, _ in
+            item.observe(\.status, options: [.new]) { @Sendable [weak self] _, _ in
                 Task { @MainActor in self?.itemStatusChanged() }
             },
-            item.observe(\.presentationSize, options: [.new]) { [weak self] _, _ in
+            item.observe(\.presentationSize, options: [.new]) { @Sendable [weak self] _, _ in
                 Task { @MainActor in self?.sizeChanged() }
             },
         ]

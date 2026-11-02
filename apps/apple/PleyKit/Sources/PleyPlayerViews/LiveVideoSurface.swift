@@ -55,7 +55,7 @@ public final class LiveLayerView: NSView {
         guard playerLayer.player !== player else { return }
         readyWatch?.invalidate()
         playerLayer.player = player
-        readyWatch = playerLayer.observe(\.isReadyForDisplay, options: [.initial, .new]) { layer, _ in
+        readyWatch = playerLayer.observe(\.isReadyForDisplay, options: [.initial, .new]) { @Sendable layer, _ in
             let shown = layer.isReadyForDisplay
             Task { @MainActor in ready(shown) }
         }
@@ -114,7 +114,7 @@ public final class LiveLayerView: UIView {
         guard playerLayer.player !== player else { return }
         readyWatch?.invalidate()
         playerLayer.player = player
-        readyWatch = playerLayer.observe(\.isReadyForDisplay, options: [.initial, .new]) { layer, _ in
+        readyWatch = playerLayer.observe(\.isReadyForDisplay, options: [.initial, .new]) { @Sendable layer, _ in
             let shown = layer.isReadyForDisplay
             Task { @MainActor in ready(shown) }
         }
