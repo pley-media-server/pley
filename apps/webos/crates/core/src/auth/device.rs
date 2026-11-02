@@ -14,7 +14,9 @@ use std::time::Duration;
 use pley_base::Waker;
 
 use super::tokens::{StoredTokens, parse_token_answer};
-use super::{AuthError, CLIENT_ID, DEVICE_CODE_GRANT, NO_CODES, SCOPES, ServerMetadata, fetch_metadata, post_form};
+use super::{
+    AuthError, CLIENT_ID, DEVICE_CODE_GRANT, LISTED_ONLY, NO_CODES, SCOPES, ServerMetadata, fetch_metadata, post_form,
+};
 use crate::addresses::{UNENCRYPTED, Url, origin, unencrypted};
 use crate::http::{Http, NetError};
 use crate::model::DeviceAuthorization;
@@ -107,9 +109,13 @@ pub fn verification_address(uri: &str) -> String {
     }
 }
 
-/// The scope to ask for: what the server offers of Pley's own.
+/// The scope to ask for: what the server offers of Pley's own; a server that lists none gets the
+/// ones every server knows.
 pub fn scope_for(metadata: &ServerMetadata) -> String {
-    let wanted = SCOPES.iter().filter(|s| metadata.scopes_supported.as_ref().is_none_or(|o| o.iter().any(|x| x == *s)));
+    let wanted = SCOPES.iter().filter(|s| match &metadata.scopes_supported {
+        Some(offered) => offered.iter().any(|x| x == *s),
+        None => !LISTED_ONLY.contains(s),
+    });
     wanted.copied().collect::<Vec<_>>().join(" ")
 }
 

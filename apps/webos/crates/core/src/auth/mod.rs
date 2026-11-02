@@ -26,7 +26,10 @@ use crate::model::OAuthError;
 /// (`apps/server/src/oauth/builtin/webos.json`).
 pub const CLIENT_ID: &str = "https://pley-media-server.github.io/pley/oauth/webos.json";
 /// Everything Pley's own TV apps may ask for.
-pub const SCOPES: [&str; 4] = ["library", "play", "playlists", "profiles"];
+pub const SCOPES: [&str; 6] = ["library", "play", "playlists", "profiles", "requests", "approvals"];
+/// Asked for only where the server lists them: one that doesn't know a scope refuses the whole
+/// sign-in.
+pub const LISTED_ONLY: [&str; 2] = ["requests", "approvals"];
 /// RFC 8628's grant: a TV collects its tokens with the code it was given.
 pub const DEVICE_CODE_GRANT: &str = "urn:ietf:params:oauth:grant-type:device_code";
 /// Pley's own apps move between the household's profiles with this grant.

@@ -158,6 +158,13 @@ fn the_scope_is_what_the_server_offers_of_pleys_own() {
     let m = ServerMetadata { scopes_supported: Some(vec!["library".into(), "play".into()]), ..Default::default() };
     assert_eq!(scope_for(&m), "library play");
     assert_eq!(scope_for(&ServerMetadata::default()), "library play playlists profiles");
+    // Requests' scopes only where the server lists them: one that doesn't know a scope refuses
+    // the whole sign-in.
+    let all = ServerMetadata {
+        scopes_supported: Some(SCOPES.iter().map(|s| s.to_string()).chain(["admin".to_string()]).collect()),
+        ..ServerMetadata::default()
+    };
+    assert_eq!(scope_for(&all), "library play playlists profiles requests approvals");
 }
 
 #[test]
