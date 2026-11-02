@@ -207,6 +207,7 @@ public final class FixtureServer: Sendable {
         var browse = Browse()
         var account = Account()
         var live = Live()
+        var subtitleSearch = SubtitleSearch()
     }
 
     /// What the fixture says of the client's network (`/api/playback/network`).
@@ -694,6 +695,7 @@ public final class FixtureServer: Sendable {
             }
         }
         if let answer = live(&s, request, parts) { return answer }
+        if let answer = subtitles(&s, request, parts) { return answer }
         if let answer = browse(&s, request, parts) { return answer }
         if let answer = lists(&s, request, parts) { return answer }
         if let answer = account(&s, request, parts) { return answer }
@@ -866,7 +868,7 @@ public final class FixtureServer: Sendable {
             let text = stream.textBased != false
             return ["index": stream.index, "codec": stream.codec, "language": stream.language as Any? ?? NSNull(),
                     "default": stream.default, "forced": stream.forced, "external": stream.external,
-                    "text_based": text,
+                    "text_based": text, "added": stream.added,
                     "url": text ? "/api/files/\(playable.fileId)/subtitles/\(stream.index).vtt" : NSNull()]
         }
         return json(200, [

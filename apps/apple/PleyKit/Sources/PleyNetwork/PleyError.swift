@@ -40,6 +40,9 @@ public enum PleyError: Error, Sendable, Equatable {
     /// The playback session was stopped from elsewhere, with what the
     /// person who stopped it wrote.
     case sessionStopped(message: String?)
+    /// Subtitle search's `503`: `setup` false when the server has none set
+    /// up, true when it has one that failed (with what failed in `message`).
+    case notAvailable(message: String?, setup: Bool)
     /// The server no longer accepts this sign-in.
     case signedOut
     /// An OAuth endpoint's refusal.
@@ -78,6 +81,9 @@ public enum PleyError: Error, Sendable, Equatable {
             "this app wasn't allowed to do that: sign in to it again to allow it"
         case .sessionStopped(let message):
             message.flatMap { $0.isEmpty ? nil : "playback was stopped: \($0)" } ?? "playback was stopped"
+        case .notAvailable(let message, let setup):
+            setup ? message.flatMap { $0.isEmpty ? nil : $0 } ?? "subtitle search isn't working on this server"
+                : "subtitle search isn't set up on this server"
         case .signedOut:
             "you were signed out: sign in again"
         case .oauth(_, let body):

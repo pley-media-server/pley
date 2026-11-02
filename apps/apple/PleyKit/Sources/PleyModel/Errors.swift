@@ -9,11 +9,15 @@ public struct APIErrorBody: Codable, Hashable, Sendable {
     public var message: String?
     /// Live TV's `409` (every connection of a source in use): what holds each one.
     public var connections: [BusyConnection]
+    /// Subtitle search's `503`: `false` when the server has no search set
+    /// up, `true` when what it has failed; `nil` for any other refusal.
+    public var setup: Bool?
 
-    public init(code: String, message: String? = nil, connections: [BusyConnection] = []) {
+    public init(code: String, message: String? = nil, connections: [BusyConnection] = [], setup: Bool? = nil) {
         self.code = code
         self.message = message
         self.connections = connections
+        self.setup = setup
     }
 
     public init(from decoder: any Decoder) throws {
@@ -21,6 +25,7 @@ public struct APIErrorBody: Codable, Hashable, Sendable {
         code = try c.value(.code, or: "")
         message = try c.decodeIfPresent(String.self, forKey: .message)
         connections = (try? c.value(.connections, or: [BusyConnection]())) ?? []
+        setup = try? c.decodeIfPresent(Bool.self, forKey: .setup)
     }
 }
 

@@ -171,3 +171,28 @@ struct PlaybackBodyTests {
         #expect(answer == NetworkAnswer(local: true))
     }
 }
+
+@Suite struct SubtitleResultDecodingTests {
+    @Test func aSearchResultAsTheServerWritesIt() throws {
+        let json = """
+        {"results":[{"id":"opensubtitles:1923552:en:hi","provider":"opensubtitles","language":"en",
+        "name":"Arrival.2016.1080p.BluRay","format":"srt","hearing_impaired":true,"forced":false,
+        "downloads":48211,"matched":"hash"},{"id":"opensubtitles:7:pt-BR","language":"pt-BR"}]}
+        """
+        let results = try PleyJSON.decoder.decode(SubtitleResults.self, from: Data(json.utf8)).results
+        #expect(results.count == 2)
+        #expect(results[0].hearingImpaired && results[0].madeForFile && results[0].downloads == 48211)
+        #expect(results[0].name == "Arrival.2016.1080p.BluRay" && results[0].format == "srt")
+        // What a result leaves out has its default.
+        #expect(results[1].language == "pt-BR" && results[1].name.isEmpty && !results[1].madeForFile)
+    }
+
+    @Test func anAddedTrackIsMarked() throws {
+        let json = """
+        {"index":9000,"codec":"subrip","language":"eng","title":"Release","default":false,"forced":false,
+        "external":true,"text_based":true,"url":"/api/files/7/subtitles/9000.vtt","added":true,"deletable":true}
+        """
+        let track = try PleyJSON.decoder.decode(SubtitleTrack.self, from: Data(json.utf8))
+        #expect(track.added && track.external && track.textBased && track.index == 9000)
+    }
+}

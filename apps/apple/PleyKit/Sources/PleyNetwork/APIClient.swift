@@ -320,6 +320,7 @@ public actor APIClient {
         if status == 409 && !body.connections.isEmpty {
             throw PleyError.busy(message: message, connections: body.connections)
         }
+        if status == 503, let setup = body.setup { throw PleyError.notAvailable(message: message, setup: setup) }
         throw PleyError.api(status: status, code: body.code, message: message)
     }
 
