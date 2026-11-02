@@ -687,7 +687,7 @@ impl<'a> Track<'a> {
 /// Cues say, it uses something not supported here, or it needs more than the
 /// budget.
 pub fn text_tracks(path: &Path, media: &MediaInfo, wanted: &[i64], budget: &Budget) -> Result<TextTracks, String> {
-    let kind = Kind { codec: text_codec, name: "text", webm: |c| c == TextCodec::Webvtt };
+    let kind = Kind { codec: text_codec, name: "text", webm: |c| c == TextCodec::Webvtt, block_read: TEXT_BLOCK_READ };
     let mut whole = None;
     subtitle_tracks(path, media, wanted, budget, kind, Order::WHOLE, |tracks| {
         whole = Some(tracks);
@@ -710,7 +710,7 @@ pub fn picture_tracks(
     (from_ms, until_ms): (i64, i64),
     got: impl FnMut(PictureTracks) -> Result<(), String>,
 ) -> Result<(), String> {
-    let kind = Kind { codec: picture_codec, name: "pictures", webm: |_| false };
+    let kind = Kind { codec: picture_codec, name: "pictures", webm: |_| false, block_read: PICTURE_BLOCK_READ };
     subtitle_tracks(path, media, wanted, budget, kind, Order { from_ms, until_ms }, got)
 }
 
@@ -728,12 +728,13 @@ impl Order {
 }
 
 /// The subtitle tracks a read through the Cues takes: their codec (`None`
-/// for a track of another kind), the kind's name, and whether a codec's
-/// blocks are laid out as WebM's WebVTT.
+/// for a track of another kind), the kind's name, whether a codec's blocks
+/// are laid out as WebM's WebVTT, and how much to read around a block.
 struct Kind<C> {
     codec: fn(&[u8]) -> Option<C>,
     name: &'static str,
     webm: fn(C) -> bool,
+    block_read: usize,
 }
 
 fn subtitle_tracks<C: Copy>(
@@ -859,7 +860,7 @@ fn subtitle_tracks<C: Copy>(
     let last = stretches.len() - 1;
     for (n, stretch) in stretches.into_iter().enumerate() {
         budget.check()?;
-        let read = read_blocks(path, &clusters, stretch.clone(), &mut guess, budget)?;
+        let read = read_blocks(path, &clusters, stretch.clone(), kind.block_read, &mut guess, budget)?;
         let mut blocks: Vec<Vec<TextBlock>> = text.iter().map(|_| Vec::new()).collect();
         let cues = clusters[stretch.clone()].iter().flat_map(|(_, entries)| entries.iter());
         for (ReadBlock { cue_track, cluster_time, block, .. }, cue) in in_file_order(read.by_reader).zip(cues) {
@@ -1022,20 +1023,22 @@ impl From<&str> for ReadError {
 }
 
 /// The blocks the entries of the clusters `stretch` of `clusters` (sorted
-/// by position) point at, their memory taken out of `budget`. `guess` says
-/// whether cluster heads may be skipped: once a stretch finds this file's
-/// are needed, it is unset for the next ones.
+/// by position) point at, `block_read` bytes read around each, their memory
+/// taken out of `budget`. `guess` says whether cluster heads may be skipped:
+/// once a stretch finds this file's are needed, it is unset for the next
+/// ones.
 fn read_blocks(
     path: &Path,
     clusters: &[Cluster],
     stretch: Range<usize>,
+    block_read: usize,
     guess: &mut bool,
     budget: &Budget,
 ) -> Result<ReadBlocks, String> {
-    match read_blocks_with(path, clusters, stretch.clone(), *guess, budget) {
+    match read_blocks_with(path, clusters, stretch.clone(), block_read, *guess, budget) {
         Err(ReadError::Guessed) => {
             *guess = false;
-            read_blocks_with(path, clusters, stretch, false, budget)
+            read_blocks_with(path, clusters, stretch, block_read, false, budget)
         }
         other => other,
     }
@@ -1058,12 +1061,13 @@ fn read_blocks_with(
     path: &Path,
     clusters: &[Cluster],
     stretch: Range<usize>,
+    block_read: usize,
     guess: bool,
     budget: &Budget,
 ) -> Result<ReadBlocks, ReadError> {
     let readers = READERS.min(stretch.len());
     let (failed, kept) = (AtomicBool::new(false), AtomicU64::new(0));
-    let shared = Readers { path, clusters, stretch, guess, budget, failed: &failed, kept: &kept };
+    let shared = Readers { path, clusters, stretch, block_read, guess, budget, failed: &failed, kept: &kept };
     let results: Vec<Result<ReaderBlocks, ReadError>> = std::thread::scope(|scope| {
         let shared = &shared;
         let workers: Vec<_> = (0..readers)
@@ -1134,6 +1138,7 @@ struct Readers<'a> {
     /// Every cluster of the read, and those of this stretch.
     clusters: &'a [Cluster<'a>],
     stretch: Range<usize>,
+    block_read: usize,
     guess: bool,
     budget: &'a Budget,
     /// Set by a reader that fails: the others stop.
@@ -1149,7 +1154,7 @@ impl Readers<'_> {
     /// file's blocks are.
     fn read(&self, first: usize, step: usize) -> Result<ReaderBlocks, ReadError> {
         let file = File::open(self.path).map_err(|e| ReadError::Failed(e.to_string()))?;
-        let mut reader = Window::new(file);
+        let mut reader = Window::new(file, self.block_read);
         let mine = || self.stretch.clone().skip(first).step_by(step);
         // A block for each entry, or none at all: room for them all at once.
         let mut out = Vec::with_capacity(mine().map(|n| self.clusters[n].1.len()).sum());
@@ -1371,44 +1376,56 @@ struct RawBlock {
     len: u64,
 }
 
-/// Reads small parts of a file, keeping the last read for the parts near it:
-/// the subtitle blocks of every track for a given moment sit next to each
-/// other.
+/// Reads small parts of a file, keeping the last read for the parts near it
+/// (the subtitle blocks of every track for a given moment sit next to each
+/// other): the last of a cluster's head, and apart from it the last around a
+/// block, which a head read after a guess that failed leaves be.
 struct Window<R> {
     inner: R,
-    start: u64,
-    data: Vec<u8>,
+    /// How much to read around a block.
+    block_read: usize,
+    /// Where each read kept starts, and its bytes: a head's, then a block's.
+    kept: [(u64, Vec<u8>); 2],
     reads: usize,
     bytes_read: u64,
 }
 
-/// How much to read for a cluster's head, and around a block: a Blu-ray's
-/// PGS pictures take up to tens of kilobytes, and on a disk a read costs a
-/// seek more than its bytes, so one read takes all of one.
+/// How much to read for a cluster's head, and around a block: a line of text
+/// takes under a kilobyte, a Blu-ray's PGS picture up to tens of kilobytes.
+/// On a disk a read costs a seek more than its bytes, so a picture takes one
+/// read; over a slow link to a share the bytes count, so text reads less.
 const HEAD_READ: usize = 64;
-const BLOCK_READ: usize = 64 * 1024;
+const TEXT_BLOCK_READ: usize = 16 * 1024;
+const PICTURE_BLOCK_READ: usize = 64 * 1024;
 
 impl<R: Read + Seek> Window<R> {
-    fn new(inner: R) -> Self {
-        Self { inner, start: 0, data: Vec::new(), reads: 0, bytes_read: 0 }
+    fn new(inner: R, block_read: usize) -> Self {
+        Self { inner, block_read, kept: Default::default(), reads: 0, bytes_read: 0 }
     }
 
     /// `len` bytes at `pos` (fewer at the end of the file), reading at least
     /// `ahead` when they aren't in memory.
     fn get(&mut self, pos: u64, len: usize, ahead: usize) -> Option<&[u8]> {
         let end = pos.checked_add(len as u64)?;
-        if pos < self.start || end > self.start + self.data.len() as u64 {
-            self.inner.seek(SeekFrom::Start(pos)).ok()?;
-            // Room for this read alone: a big block's isn't kept for the
-            // small ones after it.
-            let size = len.max(ahead);
-            (self.start, self.data) = (pos, Vec::with_capacity(size));
-            (&mut self.inner).take(size as u64).read_to_end(&mut self.data).ok()?;
-            self.reads += 1;
-            self.bytes_read += self.data.len() as u64;
-        }
-        let from = usize::try_from(pos - self.start).ok()?;
-        Some(&self.data[from..(from + len).min(self.data.len())])
+        let holds = |(start, data): &(u64, Vec<u8>)| pos >= *start && end <= start + data.len() as u64;
+        let slot = match self.kept.iter().position(holds) {
+            Some(slot) => slot,
+            None => {
+                self.inner.seek(SeekFrom::Start(pos)).ok()?;
+                // Room for this read alone: a big block's isn't kept for the
+                // small ones after it.
+                let size = len.max(ahead);
+                let slot = usize::from(ahead > HEAD_READ);
+                self.kept[slot] = (pos, Vec::with_capacity(size));
+                (&mut self.inner).take(size as u64).read_to_end(&mut self.kept[slot].1).ok()?;
+                self.reads += 1;
+                self.bytes_read += self.kept[slot].1.len() as u64;
+                slot
+            }
+        };
+        let (start, data) = &self.kept[slot];
+        let from = usize::try_from(pos - start).ok()?;
+        Some(&data[from..(from + len).min(data.len())])
     }
 
     /// Where the data of the cluster at `pos` starts, its timestamp, and
@@ -1452,7 +1469,7 @@ impl<R: Read + Seek> Window<R> {
     /// block longer than a read).
     fn guess_block(&mut self, cluster: u64, entry: &CueEntry) -> Option<(u64, RawBlock)> {
         let earliest = cluster.checked_add(5)?.checked_add(entry.relative?)?;
-        let bytes = self.get(earliest, 7 + BLOCK_READ, BLOCK_READ)?.to_vec();
+        let bytes = self.get(earliest, 7 + self.block_read, self.block_read)?.to_vec();
         let block_at = |bytes: &[u8]| match entry.duration {
             Some(duration) => block_group_at(bytes, entry.track, duration),
             None => simple_block_at(bytes, entry.track),
@@ -1473,7 +1490,7 @@ impl<R: Read + Seek> Window<R> {
     /// The block element at `pos`, if it's no bigger than a subtitle can be.
     fn block(&mut self, pos: u64) -> Result<RawBlock, ReadError> {
         const NO_BLOCK: &str = "a cue points at no block";
-        let head = self.get(pos, 12, BLOCK_READ).ok_or(NO_BLOCK)?.to_vec();
+        let head = self.get(pos, 12, self.block_read).ok_or(NO_BLOCK)?.to_vec();
         let mut cursor = std::io::Cursor::new(head.as_slice());
         let (id, size) = element_header(&mut cursor).ok_or(NO_BLOCK)?;
         if size == UNKNOWN_SIZE {
@@ -1483,7 +1500,7 @@ impl<R: Read + Seek> Window<R> {
             return Err("a block is too big for a subtitle".into());
         }
         let len = cursor.position() + size;
-        let payload = self.get(pos + cursor.position(), size as usize, BLOCK_READ).ok_or(NO_BLOCK)?;
+        let payload = self.get(pos + cursor.position(), size as usize, self.block_read).ok_or(NO_BLOCK)?;
         if payload.len() as u64 != size {
             return Err(NO_BLOCK.into());
         }
@@ -1531,7 +1548,8 @@ fn block_group_at(bytes: &[u8], track: u64, duration: u64) -> Option<RawBlock> {
     (block.track == track && block.flags & 0x06 == 0).then_some(block)
 }
 
-/// A whole SimpleBlock of `track`, not laced, at the start of `bytes`.
+/// A whole SimpleBlock of `track`, not laced, at the start of `bytes`, with
+/// what can come after a block after it, unless `bytes` end first.
 fn simple_block_at(bytes: &[u8], track: u64) -> Option<RawBlock> {
     let mut cursor = std::io::Cursor::new(bytes);
     let (id, size) = element_header(&mut cursor)?;
@@ -1539,7 +1557,22 @@ fn simple_block_at(bytes: &[u8], track: u64) -> Option<RawBlock> {
         return None;
     }
     let start = cursor.position() as usize;
-    let payload = bytes.get(start..start.checked_add(usize::try_from(size).ok()?)?)?;
+    let end = start.checked_add(usize::try_from(size).ok()?)?;
+    let payload = bytes.get(start..end)?;
+    // Another block, void, a checksum, the next cluster, or what comes after
+    // the clusters: a few bytes of something else that look like a block
+    // rarely have one of those after them.
+    const AFTER_A_BLOCK: [u32; 10] =
+        [SIMPLE_BLOCK, BLOCK_GROUP, 0xEC, 0xBF, CLUSTER, CUES, TAGS, ATTACHMENTS, 0x1043_A770, SEEK_HEAD];
+    let after = &bytes[end..];
+    if let Some(&first) = after.first()
+        && after.len() > first.leading_zeros() as usize
+    {
+        let (next, _) = vint(&mut &after[..], true)?;
+        if !u32::try_from(next).is_ok_and(|next| AFTER_A_BLOCK.contains(&next)) {
+            return None;
+        }
+    }
     let block = parse_block(payload, None, (start + payload.len()) as u64)?;
     (block.track == track && block.flags & 0x06 == 0).then_some(block)
 }
@@ -1945,6 +1978,8 @@ pub(crate) mod tests {
         pub(crate) clusters: Vec<(u64, Vec<TestBlock>)>,
         /// Leave out the blocks' places in their clusters.
         pub(crate) no_relative: bool,
+        /// Leave out the blocks' durations (as some muxers do).
+        no_durations: bool,
         /// Where the file says its Cues are.
         cues_listed: Listed,
         /// Clusters with sizes as short as fit (else 8 bytes, as mkvmerge's
@@ -1972,6 +2007,7 @@ pub(crate) mod tests {
                 tracks,
                 clusters,
                 no_relative: false,
+                no_durations: false,
                 cues_listed: Listed::InSeekHead,
                 short_clusters: false,
                 cue_time_offset: 0,
@@ -2025,7 +2061,7 @@ pub(crate) mod tests {
                 if !self.no_relative {
                     positions.push(uint_el(&[0xF0], relative));
                 }
-                if let Some(duration) = duration {
+                if let Some(duration) = duration.filter(|_| !self.no_durations) {
                     positions.push(uint_el(&[0xB2], duration));
                 }
                 el(&[0xBB], &[uint_el(&[0xB3], time), el(&[0xB7], &positions.concat())].concat())
@@ -2667,6 +2703,14 @@ pub(crate) mod tests {
         let found = text_tracks(&path, &long_film_media(), &[1], &plenty()).unwrap();
         assert_eq!(lines(&found), expected, "the blocks' own times");
         assert!(found.reads >= 800, "{}", found.reads);
+
+        // Cued without durations, BlockGroups can't be guessed: a head and the
+        // block each, read at the guess and kept past the head's read.
+        let mut file = long_film();
+        file.no_durations = true;
+        let found = text_tracks(&file.write(dir.path()), &long_film_media(), &[1], &plenty()).unwrap();
+        assert_eq!(lines(&found), expected);
+        assert!(found.reads <= 800, "{}", found.reads);
     }
 
     #[test]
@@ -2727,6 +2771,11 @@ pub(crate) mod tests {
         let mut cut = simple(2, 0x80);
         cut.pop();
         assert!(simple_block_at(&cut, 2).is_none(), "cut short");
+        // What comes after it, as far as the bytes go.
+        let then = |after: &[u8]| simple_block_at(&[simple(2, 0x80), after.to_vec()].concat(), 2).is_some();
+        assert!(then(&simple(3, 0x80)) && then(&[0x1F, 0x43, 0xB6, 0x75, 0x01, 0xFF]), "a block, the next cluster");
+        assert!(then(&[0x1F, 0x43]), "the bytes end first");
+        assert!(!then(&[0x86, 0x81, 0x00]) && !then(&[0x00, 0, 0, 0, 0, 0, 0, 0, 0]), "something else");
     }
 
     #[test]
