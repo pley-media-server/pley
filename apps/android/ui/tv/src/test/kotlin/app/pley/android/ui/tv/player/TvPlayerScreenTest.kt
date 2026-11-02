@@ -122,19 +122,22 @@ class TvPlayerScreenTest {
     }
 
     @Test
-    fun `Left seeks back 10 s per press, with a badge, and seeks once`() {
+    fun `Left shows the controls on the scrubber with the preview, and seeks 5 s after the last press`() {
         val controller = playing()
         show(controller)
         press(Key.DirectionLeft, times = 3)
-        compose.onNodeWithTag(TAG_BADGE).assertExists()
-        compose.onNodeWithText("−30 s").assertExists()
-        assertTrue("no seek while presses come", controller.calls("seekTo").isEmpty())
+        focusedOn(TAG_SCRUBBER)
+        compose.onNodeWithTag(TAG_PREVIEW).assertExists()
+        // The preview says where it goes: the badge is for the controls hidden.
+        compose.onNodeWithTag(TAG_BADGE).assertDoesNotExist()
         compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + 100)
         compose.waitForIdle()
-        assertEquals(listOf(570_000L), controller.calls("seekTo").map { it.args.single() })
-        compose.mainClock.advanceTimeBy(TvSeeker.BADGE_MS)
+        assertTrue("it waits for OK", controller.calls("seekTo").isEmpty())
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS)
         compose.waitForIdle()
-        compose.onNodeWithTag(TAG_BADGE).assertDoesNotExist()
+        assertEquals(listOf(570_000L), controller.calls("seekTo").map { it.args.single() })
+        compose.onNodeWithTag(TAG_PREVIEW).assertDoesNotExist()
+        compose.onNodeWithTag(TAG_SCRUBBER).assertExists()
     }
 
     @Test
@@ -148,38 +151,91 @@ class TvPlayerScreenTest {
         assertEquals(610_000L, controller.calls("seekTo").single().args.single())
         // A seek made a moment ago is confirmed, not paused.
         press(Key.DirectionRight)
-        compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + 100)
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
         compose.waitForIdle()
         press(Key.DirectionCenter)
         assertEquals(listOf("seekTo", "seekTo"), controller.calls.map { it.name })
         // Long after the seek, Centre pauses again.
         press(Key.DirectionRight)
-        compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + TvSeeker.CONFIRM_MS + 100)
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + TvSeeker.CONFIRM_MS + 100)
         compose.waitForIdle()
         press(Key.DirectionCenter)
         assertEquals("pause", controller.calls.last().name)
     }
 
     @Test
-    fun `holding Right scrubs through the previews and seeks once on release`() {
+    fun `holding Right scrubs through the previews and, let go, waits for OK there`() {
         val controller = playing()
         show(controller)
         val start = SystemClock.uptimeMillis()
         send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, 0, start)
         for (i in 1..40) send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, i, start + 400 + i * 50L)
-        // The scrubber shows with the preview, and nothing has seeked yet, not even after the presses' wait.
+        // The scrubber shows with the preview, and nothing seeks while the key is held, not even after the presses' wait.
         compose.onNodeWithTag(TAG_PREVIEW).assertExists()
         focusedOn(TAG_SCRUBBER)
-        compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + 100)
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
         compose.waitForIdle()
         assertTrue(controller.calls("seekTo").isEmpty())
+        // Let go: it waits for OK where it got to, the wait starting again.
         send(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, 0, start + 2_500)
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS - 500)
+        compose.waitForIdle()
+        assertTrue(controller.calls("seekTo").isEmpty())
+        compose.onNodeWithTag(TAG_PREVIEW).assertExists()
+        press(Key.DirectionCenter)
         val seeks = controller.calls("seekTo").map { it.args.single() as Long }
         assertEquals(1, seeks.size)
         assertTrue("held 2 s goes past one step: ${seeks.single()}", seeks.single() > 610_000L + 30_000L)
-        compose.mainClock.advanceTimeBy(1_000)
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS)
         compose.waitForIdle()
         assertEquals(1, controller.calls("seekTo").size)
+    }
+
+    @Test
+    fun `Back lets a seek waiting go, and the controls stay`() {
+        val controller = playing()
+        show(controller)
+        press(Key.DirectionRight, times = 2)
+        compose.onNodeWithTag(TAG_PREVIEW).assertExists()
+        back()
+        compose.onNodeWithTag(TAG_PREVIEW).assertDoesNotExist()
+        focusedOn(TAG_SCRUBBER)
+        compose.onNodeWithText("10:00").assertExists()
+        assertEquals(0, exits)
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
+        compose.waitForIdle()
+        assertTrue(controller.calls("seekTo").isEmpty())
+    }
+
+    @Test
+    fun `Next and Previous take the place of a seek waiting`() {
+        // A film with chapters: Next and Previous go by them.
+        val controller = playing { it.copy(subtitle = null) }
+        show(controller)
+        press(Key.DirectionRight)
+        press(Key.MediaNext)
+        assertEquals(listOf(1_800_000L), controller.calls("seekTo").map { it.args.single() })
+        press(Key.DirectionLeft, times = 3)
+        press(Key.MediaPrevious)
+        assertEquals(listOf(1_800_000L, 300_000L), controller.calls("seekTo").map { it.args.single() })
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
+        compose.waitForIdle()
+        assertEquals("the seeks waiting went", 2, controller.calls("seekTo").size)
+    }
+
+    @Test
+    fun `the row's Forward 10 seeks 400 ms after the last press, without OK`() {
+        val controller = playing()
+        show(controller)
+        press(Key.DirectionUp)
+        press(Key.DirectionDown)
+        focusedOn(TAG_PLAY_PAUSE)
+        press(Key.DirectionRight)
+        press(Key.DirectionCenter, times = 2)
+        assertTrue(controller.calls("seekTo").isEmpty())
+        compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + 100)
+        compose.waitForIdle()
+        assertEquals(listOf(620_000L), controller.calls("seekTo").map { it.args.single() })
     }
 
     @Test

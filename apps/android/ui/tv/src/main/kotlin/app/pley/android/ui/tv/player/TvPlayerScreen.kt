@@ -44,6 +44,7 @@ import app.pley.android.player.subtitles.ScreenCaptions
 import app.pley.android.ui.tv.R
 import app.pley.android.player.R as PlayerR
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * The TV player (design spec §2.7, TV addendum §5.2) over a
@@ -52,14 +53,20 @@ import kotlinx.coroutines.delay
  *
  * - **Controls hidden.** Only the video and subtitles show; Skip and Up
  *   Next are all that appear unasked. Centre plays or pauses (a showing
- *   Skip button takes it), Left and Right seek 10 s (held: scrub, seeking
- *   once on release), Up shows the controls on the scrubber, Down on the
- *   track buttons. Centre during or just after a seek confirms it and
- *   plays on ([TvSeeker.confirm]).
+ *   Skip button takes it), Up shows the controls on the scrubber, Down on
+ *   the track buttons. Left and Right show them on the scrubber too, with
+ *   the preview, and seek from there.
+ * - **Seeking** ([TvSeeker]), as YouTube's TV app does: Left and Right
+ *   move where it goes, 10 s a press (held: scrub), and it goes there on
+ *   OK, or by itself 5 s after the last key; fast forward, rewind and the
+ *   row's skips go 400 ms after the last press. Centre during or just
+ *   after a seek confirms it and plays on ([TvSeeker.confirm]). Another
+ *   seek (Previous, Next, Skip) takes the place of one waiting.
  * - **Controls shown.** Focus moves as usual; they hide after 5 s without
- *   a key unless paused or in a panel.
- * - **Back** walks out: panel, then Up Next, then the controls, then the
- *   player ([onExit]).
+ *   a key unless paused, a seek waits or in a panel.
+ * - **Back** walks out: panel, then Up Next, then a seek waiting (the
+ *   controls stay, and it plays on from where it was), then the controls,
+ *   then the player ([onExit]).
  * - **Sleep timer.** Its notice takes focus 30 s before it pauses (Keep
  *   watching); paused by it for 10 minutes, the player leaves. A playback
  *   the server stopped says why and leaves after 20 s.
@@ -138,13 +145,22 @@ internal fun TvPlayerScreen(
         ControlFocus.Default -> if (skipShown) PlayerFocus.Skip else PlayerFocus.Scrubber
     }
 
+    /** A seek of its own (Previous, Next, a chapter): one waiting for OK gives way to it. */
+    fun seekTo(ms: Long) {
+        seeker.cancel()
+        controller.seekTo(ms)
+    }
+
     fun next() {
         val s = state.value
         val pos = seeker.target ?: s.positionMs
         val chapter = s.chapters.firstOrNull { it.startMs > pos + CHAPTER_SLACK_MS }
         when {
-            s.subtitle != null -> controller.playNext()
-            chapter != null -> controller.seekTo(chapter.startMs)
+            s.subtitle != null -> {
+                seeker.cancel()
+                controller.playNext()
+            }
+            chapter != null -> seekTo(chapter.startMs)
         }
     }
 
@@ -157,7 +173,7 @@ internal fun TvPlayerScreen(
             pos - s.chapters[current].startMs > RESTART_CHAPTER_MS || current == 0 -> s.chapters[current].startMs
             else -> s.chapters[current - 1].startMs
         }
-        controller.seekTo(to)
+        seekTo(to)
     }
 
     fun toggleCaptions() {
@@ -199,7 +215,7 @@ internal fun TvPlayerScreen(
                 controller.pause()
                 if (!ui.controls && card == null && error == null) ui.showControls(PlayerFocus.Scrubber)
             }
-            is PlayerKey.Jump -> seeker.press(if (key.deltaMs < 0) -1 else 1, kotlin.math.abs(key.deltaMs))
+            is PlayerKey.Jump -> seeker.press(if (key.deltaMs < 0) -1 else 1, kotlin.math.abs(key.deltaMs), TvSeeker.SETTLE_MS)
             PlayerKey.Next -> next()
             PlayerKey.Previous -> previous()
             PlayerKey.Captions -> toggleCaptions()
@@ -217,11 +233,12 @@ internal fun TvPlayerScreen(
         when (key) {
             is PlayerKey.Step -> when {
                 busy -> Unit
-                first -> seeker.press(key.direction)
                 down -> {
-                    seeker.repeat(key.direction, native.eventTime)
+                    // The first press shows the controls on the scrubber, the preview with them.
                     if (!ui.controls) ui.showControls(PlayerFocus.Scrubber)
+                    if (first) seeker.press(key.direction) else seeker.repeat(key.direction, native.eventTime)
                 }
+                // Let go, a scrub waits for OK where it got to.
                 else -> seeker.release()
             }
             PlayerKey.PlayPause -> if (first && !busy) playPause()
@@ -267,6 +284,11 @@ internal fun TvPlayerScreen(
             }
             ui.panel != null -> ui.closePanel()
             state.value.upNextCard != null -> controller.cancelUpNext()
+            // A seek waiting for OK: Back lets it go, and it plays on from where it was.
+            ui.controls && seeker.target != null -> {
+                seeker.cancel()
+                ui.touch()
+            }
             ui.controls -> ui.hideControls(if (skipShown) PlayerFocus.Skip else PlayerFocus.Video)
             else -> exit()
         }
@@ -332,20 +354,23 @@ internal fun TvPlayerScreen(
             ui.ask(PlayerFocus.Video)
         }
     }
-    // The controls hide after 5 s without a key, unless paused, scrubbing or in a panel.
+    // The controls hide after 5 s without a key, unless paused, a seek waits or in a panel.
     LaunchedEffect(ui.controls, ui.panel, ui.input, playing, previewing) {
         if (ui.controls && ui.panel == null && playing && !previewing) {
             delay(TvPlayerUi.HIDE_AFTER_MS)
             ui.hideControls(if (skipShown) PlayerFocus.Skip else PlayerFocus.Video)
         }
     }
-    // Presses in a row seek once they stop; the badge goes a little later.
+    // Presses in a row seek once they stop, OK sooner: Left and Right after 5 s, the jumps after 400 ms.
+    // The badge goes after its own time.
     LaunchedEffect(seeker.presses) {
         val press = seeker.presses
-        delay(TvSeeker.SETTLE_MS)
+        launch {
+            delay(TvSeeker.BADGE_MS)
+            seeker.hideBadge(press)
+        }
+        delay(seeker.waitMs)
         seeker.settle(press)
-        delay(TvSeeker.BADGE_MS - TvSeeker.SETTLE_MS)
-        seeker.hideBadge(press)
     }
     // A while after a seek, OK plays and pauses again.
     LaunchedEffect(seeker.seeks) {
@@ -413,14 +438,18 @@ internal fun TvPlayerScreen(
                 ui = ui,
                 alpha = controlsAlpha,
                 onPlayPause = ::playPause,
-                onBack10 = { seeker.press(-1) },
-                onForward10 = { seeker.press(1) },
+                // As fast forward and rewind: they seek without waiting for OK.
+                onBack10 = { seeker.press(-1, wait = TvSeeker.SETTLE_MS) },
+                onForward10 = { seeker.press(1, wait = TvSeeker.SETTLE_MS) },
                 onPrevious = ::previous,
                 onNext = ::next,
             )
         }
         if (detailsShown) TvPlaybackDetails(state, engineState)
-        TvSkipButton(state, skipShown, ui.controls, ui) { controller.skip() }
+        TvSkipButton(state, skipShown, ui.controls, ui) {
+            seeker.cancel()
+            controller.skip()
+        }
         TvSleepNotice(state, noticeShown, ui.controls, ui, onKeep = controller::keepWatching)
         TvUpNextCard(card, ui, onPlay = controller::playNext, onCancel = controller::cancelUpNext)
         if (!ui.controls) TvSeekBadge(seeker.badgeMs)

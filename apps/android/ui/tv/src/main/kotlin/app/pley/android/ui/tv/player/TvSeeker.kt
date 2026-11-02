@@ -8,15 +8,18 @@ import androidx.compose.runtime.setValue
 import kotlin.math.pow
 
 /**
- * Left and Right in the player (TV addendum §5.2, design spec §2.7):
+ * Left and Right in the player (TV addendum §5.2, design spec §2.7), timed
+ * as YouTube's TV app has them:
  * - **A press** moves the target 10 s. Presses in a row add up ("+30 s")
- *   and seek once, [SETTLE_MS] after the last one ([settle]), so a few
- *   quick presses don't start the server's conversion again for each.
+ *   and seek once, when they settle ([settle]): Left and Right wait for OK
+ *   there, [WAIT_MS] at most after the last key, and fast forward, rewind
+ *   and the control row's skips [SETTLE_MS] ([waitMs]). So a few quick
+ *   presses don't start the server's conversion again for each.
  * - **A held key** scrubs: the target runs faster the longer the key is
  *   held, from [HOLD_START_RATE], doubling every [HOLD_DOUBLES_MS], the
- *   preview follows it, and nothing seeks until the key is let go; then it
- *   seeks once ([release]). That keeps within the TV memory guide's 5 s of
- *   pre-buffer while seeking.
+ *   preview follows it, and nothing seeks while it's held, which keeps
+ *   within the TV memory guide's 5 s of pre-buffer. Let go, it waits where
+ *   it got to, as presses do ([release]).
  *
  * [position] and [duration] are the playback's now; [seek] makes the seek.
  * Main thread only; times are the key events' (uptime ms).
@@ -47,18 +50,31 @@ internal class TvSeeker(
     var seeks: Int by mutableIntStateOf(0)
         private set
 
+    /**
+     * How long the last press waits before it seeks, read with [presses]:
+     * [WAIT_MS] for Left and Right (and a scrub let go), [SETTLE_MS] for the
+     * jumps that don't wait for OK.
+     */
+    var waitMs: Long = WAIT_MS
+        private set
+
     private var confirmable = false
     private var asked = 0L
     private var holdStart = 0L
     private var lastEvent = 0L
 
-    /** A press of Left ([direction] −1) or Right (+1), or a jump of [stepMs] (fast forward and rewind). */
-    fun press(direction: Int, stepMs: Long = STEP_MS) {
+    /**
+     * A press of Left ([direction] −1) or Right (+1), or a jump of [stepMs]
+     * (fast forward and rewind, the control row's skips), seeking [wait]
+     * after it unless another comes.
+     */
+    fun press(direction: Int, stepMs: Long = STEP_MS, wait: Long = WAIT_MS) {
         val base = target ?: position().also { asked = 0 }
         // The badge says what was asked for ("−20 s"), even where the start or end cuts it short.
         asked += direction * stepMs
         target = clamp(base + direction * stepMs)
         badgeMs = asked
+        waitMs = wait
         presses++
     }
 
@@ -78,15 +94,19 @@ internal class TvSeeker(
         target = clamp((target ?: position()) + direction * (rate * dt).toLong())
     }
 
-    /** The key is let go: a scrub seeks now. Returns whether one did. */
+    /**
+     * The key is let go: a scrub waits where it got to, as presses do, its
+     * [WAIT_MS] from now (it counts as a press). Returns whether a key was held.
+     */
     fun release(): Boolean {
         if (!holding) return false
         holding = false
-        commit()
+        waitMs = WAIT_MS
+        presses++
         return true
     }
 
-    /** [SETTLE_MS] after press number [press]: seeks, unless more presses came or a key is held. */
+    /** [waitMs] after press number [press]: seeks, unless more presses came or a key is held. */
     fun settle(press: Int) {
         if (press != presses || holding) return
         commit()
@@ -121,7 +141,7 @@ internal class TvSeeker(
         if (seek == seeks) confirmable = false
     }
 
-    /** Forgets a seek on its way (the playback changed under it). */
+    /** Forgets a seek on its way: Back let it go, another seek takes its place, or the playback changed under it. */
     fun cancel() {
         target = null
         holding = false
@@ -153,8 +173,11 @@ internal class TvSeeker(
         /** A press of Left or Right. */
         const val STEP_MS = 10_000L
 
-        /** Presses in a row seek once, this long after the last. */
+        /** Fast forward, rewind and the control row's skips in a row seek once, this long after the last. */
         const val SETTLE_MS = 400L
+
+        /** A seek with Left and Right waits for OK, and goes by itself this long after the last key. */
+        const val WAIT_MS = 5_000L
 
         /** The seek badge shows this long after the last press. */
         const val BADGE_MS = 600L

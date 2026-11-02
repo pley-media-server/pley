@@ -10,7 +10,7 @@ internal sealed interface PlayerKey {
 
     data object Pause : PlayerKey
 
-    /** Seek by [deltaMs] at once (fast forward and rewind: ±30 s). */
+    /** Seek by [deltaMs] without waiting for OK (fast forward and rewind: ±30 s). */
     data class Jump(val deltaMs: Long) : PlayerKey
 
     /** Left or Right with the controls hidden or the scrubber focused: [direction] −1 or +1, held or not. */

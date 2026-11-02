@@ -16,6 +16,11 @@ describes how they are made.
   every 1.5 s, up to a whole video in 10 s, as on Samsung TVs.
 - While a seek is coming on TVs, the scrubber's played part and both its
   times stand where it goes, with the thumb, rather than at the playhead.
+- On TVs, Left and Right show the controls with the preview and wait for
+  OK before they seek, as YouTube's TV app does: OK goes there, it goes by
+  itself 5 s after the last key, and Back lets it go. A held key let go
+  waits there too, and Previous, Next or Skip take the place of a seek
+  waiting. Fast forward, rewind and the row's 10 s skips seek as before.
 
 ### Fixed
 
