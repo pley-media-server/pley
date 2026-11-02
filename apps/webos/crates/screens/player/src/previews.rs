@@ -2,7 +2,7 @@
 //! previews: 3200 × 1800 pixels at the server's usual 320, about 23 MB once decoded. Uploaded whole
 //! it would take a third of a Low-tier TV's picture memory and stall the frame it goes up in. So a
 //! sheet is fetched and decoded on the task pool and kept in memory only while a scrub uses it;
-//! each preview shown is cut out of it (its pixels copied, cropped to the preview box's shape) and
+//! each preview shown is cut out of it (its pixels copied, whole, in the film's shape) and
 //! drawn as a small picture of its own. As on Android, the last 40 previews are kept (16 on
 //! Low-tier TVs), and the bytes of two sheets: the one scrubbed and the next one the scrub heads
 //! for, fetched ahead.
@@ -16,8 +16,6 @@ use std::sync::Arc;
 use pley_base::{Fetch, FetchError, RgbaImage, Tier};
 use pley_core::{Promise, Tasks};
 use pley_gfx::images::decode::{MAX_SIDE, decode};
-
-use crate::controls::{PREVIEW_H, PREVIEW_W};
 
 /// Previews kept (`TrickplayThumbnails`: 40, and 16 on the weakest TVs).
 const TILES: usize = 40;
@@ -46,7 +44,7 @@ pub struct Want<'a> {
     pub columns: i64,
 }
 
-/// A preview ready to draw, cropped to the box's shape, and the name the renderer keeps its
+/// A preview ready to draw, in the film's shape, and the name the renderer keeps its
 /// texture by.
 #[derive(Clone, Debug)]
 pub struct Tile {
@@ -219,7 +217,7 @@ impl Previews {
 
     fn cut(&mut self, want: &Want, cap: usize) -> Option<Tile> {
         let sheet = self.sheet.as_ref().filter(|s| *s.url == *want.sheet)?;
-        let image = cut_tile(sheet, want, f64::from(PREVIEW_W / PREVIEW_H))?;
+        let image = cut_tile(sheet, want)?;
         let tile = Tile { image: Arc::new(image), key: tile_key(want) };
         self.tiles.push_front(Cut { sheet: sheet.url.clone(), x: want.x, y: want.y, tile: tile.clone() });
         self.tiles.truncate(cap);
@@ -302,9 +300,9 @@ fn tile_key(want: &Want) -> u64 {
 }
 
 /// The preview at `want` cut out of `sheet` (scaled to it when the sheet came smaller than its
-/// columns of previews make), its middle in the shape `aspect` (width over height) as the box
-/// covers it; none when the numbers fall outside the sheet.
-fn cut_tile(sheet: &Sheet, want: &Want, aspect: f64) -> Option<RgbaImage> {
+/// columns of previews make), whole: the box letterboxes it, as the server's previews keep the
+/// film's shape; none when the numbers fall outside the sheet.
+fn cut_tile(sheet: &Sheet, want: &Want) -> Option<RgbaImage> {
     let side = i64::from(MAX_SIDE);
     let sized = (1..=side).contains(&want.width) && (1..=side).contains(&want.height) && want.columns <= side;
     if !sized || want.x < 0 || want.y < 0 || sheet.width == 0 || sheet.height == 0 {
@@ -313,17 +311,8 @@ fn cut_tile(sheet: &Sheet, want: &Want, aspect: f64) -> Option<RgbaImage> {
     // In floating point from here: the server's numbers can't overflow it.
     let full = want.columns.max(1) as f64 * want.width as f64;
     let k = (f64::from(sheet.width) / full).min(1.0);
-    let (mut x, mut y) = (want.x as f64 * k, want.y as f64 * k);
-    let (mut w, mut h) = (want.width as f64 * k, want.height as f64 * k);
-    if w / h > aspect {
-        let cw = h * aspect;
-        x += (w - cw) / 2.0;
-        w = cw;
-    } else {
-        let ch = w / aspect;
-        y += (h - ch) / 2.0;
-        h = ch;
-    }
+    let (x, y) = (want.x as f64 * k, want.y as f64 * k);
+    let (w, h) = (want.width as f64 * k, want.height as f64 * k);
     let (x, y, w, h) = (x.round(), y.round(), w.round().max(1.0), h.round().max(1.0));
     if x + w > f64::from(sheet.width) || y + h > f64::from(sheet.height) {
         return None;
@@ -363,9 +352,9 @@ mod tests {
     }
 
     #[test]
-    fn a_tile_is_cut_whole_when_it_has_the_box_shape() {
+    fn a_tile_is_cut_whole() {
         let s = sheet(64, 36);
-        let t = cut_tile(&s, &want(16, 9, 16, 9, 4), 16.0 / 9.0).unwrap();
+        let t = cut_tile(&s, &want(16, 9, 16, 9, 4)).unwrap();
         assert_eq!((t.width, t.height), (16, 9));
         assert_eq!(&t.pixels[..4], &[16, 9, 0, 255]);
         let last = t.pixels.len() - 4;
@@ -373,30 +362,30 @@ mod tests {
     }
 
     #[test]
-    fn a_tile_of_another_shape_keeps_its_middle() {
-        // 4:3 previews (40 × 30) in a 16:9 box: 40 × 22.5 of the middle rows.
+    fn a_tile_of_another_shape_keeps_all_of_it() {
+        // 4:3 previews (40 × 30) for a 16:9 box: the whole tile, which the box letterboxes.
         let s = sheet(80, 60);
-        let t = cut_tile(&s, &want(40, 30, 40, 30, 2), 16.0 / 9.0).unwrap();
-        assert_eq!((t.width, t.height), (40, 23));
-        assert_eq!(&t.pixels[..4], &[40, 34, 0, 255]);
-        // A wide film's previews lose their sides instead.
+        let t = cut_tile(&s, &want(40, 30, 40, 30, 2)).unwrap();
+        assert_eq!((t.width, t.height), (40, 30));
+        assert_eq!(&t.pixels[..4], &[40, 30, 0, 255]);
+        // A wide film's previews keep their sides.
         let s = sheet(100, 20);
-        let t = cut_tile(&s, &want(0, 0, 100, 20, 1), 16.0 / 9.0).unwrap();
-        assert_eq!((t.width, t.height), (36, 20));
-        assert_eq!(&t.pixels[..4], &[32, 0, 0, 255]);
+        let t = cut_tile(&s, &want(0, 0, 100, 20, 1)).unwrap();
+        assert_eq!((t.width, t.height), (100, 20));
+        assert_eq!(&t.pixels[..4], &[0, 0, 0, 255]);
     }
 
     #[test]
     fn a_smaller_sheet_scales_the_place_and_bad_numbers_cut_nothing() {
         // Four columns of 32 make 128, but the sheet came 64 wide: everything at half.
         let s = sheet(64, 36);
-        let t = cut_tile(&s, &want(32, 18, 32, 18, 4), 16.0 / 9.0).unwrap();
+        let t = cut_tile(&s, &want(32, 18, 32, 18, 4)).unwrap();
         assert_eq!((t.width, t.height), (16, 9));
         assert_eq!(&t.pixels[..4], &[16, 9, 0, 255]);
-        assert!(cut_tile(&s, &want(60, 0, 16, 9, 4), 16.0 / 9.0).is_none());
-        assert!(cut_tile(&s, &want(-1, 0, 16, 9, 4), 16.0 / 9.0).is_none());
-        assert!(cut_tile(&s, &want(0, 0, 0, 9, 4), 16.0 / 9.0).is_none());
-        assert!(cut_tile(&s, &want(i64::MAX, i64::MAX, i64::MAX, i64::MAX, i64::MAX), 16.0 / 9.0).is_none());
+        assert!(cut_tile(&s, &want(60, 0, 16, 9, 4)).is_none());
+        assert!(cut_tile(&s, &want(-1, 0, 16, 9, 4)).is_none());
+        assert!(cut_tile(&s, &want(0, 0, 0, 9, 4)).is_none());
+        assert!(cut_tile(&s, &want(i64::MAX, i64::MAX, i64::MAX, i64::MAX, i64::MAX)).is_none());
     }
 
     /// Sheets of 4 × 4 previews of 32 × 18, as PNG, counting what is fetched.

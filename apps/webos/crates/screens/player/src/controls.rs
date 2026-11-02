@@ -153,8 +153,10 @@ pub struct Scrub<'a> {
 pub fn scrubber(ui: &mut Ui, group: Id, id: Id, s: &Scrub) -> Response {
     let left = BAR_X;
     let right = BAR_X + BAR_W;
-    let elapsed = text::time(s.position_ms);
-    let rest = text::remaining(s.position_ms, s.duration_ms);
+    // While a seek is on its way, the times say where it goes, as the thumb and the blue do.
+    let shown_ms = s.target_ms.unwrap_or(s.position_ms);
+    let elapsed = text::time(shown_ms);
+    let rest = text::remaining(shown_ms, s.duration_ms);
     ui.text(Point::new(left, TIMES_TOP), &elapsed, &theme::CAPTION, &TextOpts::default(), theme::FG);
     let rest = ui.layout(&rest, &theme::CAPTION, &TextOpts::default());
     let w = rest.size.w;
@@ -181,8 +183,8 @@ pub fn scrubber(ui: &mut Ui, group: Id, id: Id, s: &Scrub) -> Response {
     r
 }
 
-/// The track: Fg 25 % behind, buffered at 45 %, played in the Accent, cut at chapter starts; the
-/// thumb at the seek target or the playhead, with its ring as focus comes.
+/// The track: Fg 25 % behind, buffered at 45 %, played in the Accent up to the thumb, cut at
+/// chapter starts; the thumb at the seek target or the playhead, with its ring as focus comes.
 fn track(ui: &mut Ui, s: &Scrub, focus: f32) {
     let w = BAR_W;
     let y = TRACK_CENTRE - TRACK_HEIGHT / 2.0;
@@ -191,7 +193,7 @@ fn track(ui: &mut Ui, s: &Scrub, focus: f32) {
     let mut edges = vec![0.0];
     edges.extend(s.chapters.iter().map(|c| x(c.start_ms)).filter(|&e| e > CHAPTER_GAP && e < w - CHAPTER_GAP));
     edges.push(w);
-    let played = x(s.position_ms);
+    let played = x(s.target_ms.unwrap_or(s.position_ms));
     let buffered = x(s.buffered_ms.max(s.position_ms));
     let r = TRACK_HEIGHT / 2.0;
     let last = edges.len() - 2;
@@ -264,20 +266,37 @@ pub fn preview(
 }
 
 /// The preview's picture: the tile cut out of its seek-preview sheet (none while the sheet comes),
-/// or a chapter's picture, cropped to fill the box.
+/// or a chapter's picture, letterboxed (`PlayerOverlays.Letterbox`): as large as fits, centred,
+/// black where it doesn't reach, never stretched or cropped, as the server's previews keep the
+/// film's shape.
 fn draw_preview(ui: &mut Ui, rect: Rect, p: &SeekPreview, tile: Option<&Tile>) {
     match p {
         SeekPreview::Chapter { url } => {
+            ui.fill(rect, Color::BLACK, radius::TILE);
             let req = ImageRequest::new(url.as_str(), ui.image_px(PREVIEW_W));
-            ui.image(rect, &req, &ImageOpts::cover().rounded(radius::TILE));
+            ui.image(rect, &req, &ImageOpts::contain().rounded(radius::TILE));
         }
         SeekPreview::Sheet { .. } => {
             if let Some(t) = tile {
+                ui.fill(rect, Color::BLACK, radius::TILE);
                 let (image, key) = (t.image.clone(), t.key);
-                ui.cmd(Cmd::Raw { rect, image, key, radius: radius::TILE, opacity: 1.0 });
+                let at = letterbox(rect, image.width as f32, image.height as f32);
+                // Rounded only where the picture reaches the box's corners.
+                let round = if at.w >= rect.w - 0.5 && at.h >= rect.h - 0.5 { radius::TILE } else { 0.0 };
+                ui.cmd(Cmd::Raw { rect: at, image, key, radius: round, opacity: 1.0 });
             }
         }
     }
+}
+
+/// A `w` × `h` picture as large as fits in `rect`, centred.
+pub fn letterbox(rect: Rect, w: f32, h: f32) -> Rect {
+    if w <= 0.0 || h <= 0.0 {
+        return rect;
+    }
+    let k = (rect.w / w).min(rect.h / h);
+    let (fw, fh) = (w * k, h * k);
+    Rect::new(rect.x + (rect.w - fw) / 2.0, rect.y + (rect.h - fh) / 2.0, fw, fh)
 }
 
 /// A button of the control row.
@@ -500,6 +519,20 @@ mod tests {
 
     fn all() -> RowOptions {
         RowOptions { previous_next: true, subtitles: true, audio: true, quality: true, chapters: true }
+    }
+
+    #[test]
+    fn a_preview_is_letterboxed_in_its_box() {
+        let boxed = Rect::new(0.0, 0.0, 240.0, 135.0);
+        // A 2.39:1 film's preview: the full width, black above and below.
+        let wide = letterbox(boxed, 320.0, 134.0);
+        assert_eq!((wide.x, wide.w), (0.0, 240.0));
+        assert!((wide.h - 100.5).abs() < 0.01 && (wide.y - 17.25).abs() < 0.01, "{wide:?}");
+        // A 4:3 one: the full height, black at the sides.
+        let square = letterbox(boxed, 160.0, 120.0);
+        assert_eq!((square.y, square.h), (0.0, 135.0));
+        assert!((square.w - 180.0).abs() < 0.01 && (square.x - 30.0).abs() < 0.01, "{square:?}");
+        assert_eq!(letterbox(boxed, 0.0, 10.0), boxed);
     }
 
     #[test]

@@ -46,6 +46,11 @@ describes how they are made.
 - A programme's details in Live TV keep its description above Watch and
   the favourite, and the guide no longer lays out the whole of a long
   description each time focus moves onto a programme.
+- While a seek is on its way, the scrubber's blue and its times follow
+  the thumb, and seek previews and chapter pictures are letterboxed
+  rather than cropped, so a wide film's preview keeps its sides.
+- A chapter named only by where it starts ("00:06:19.212", as mkvmerge
+  names them) is called "Chapter 3" in the player.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
