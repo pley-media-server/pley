@@ -101,15 +101,15 @@ function OnTmdb({ q, manage, alone }: { q: string; manage: boolean; alone: boole
   useFillPages(search, TMDB_TITLES, 3);
   const titles = uniqueTitles(search.data?.pages).slice(0, TMDB_TITLES);
 
-  if (search.isPending) return <ScrollRowSkeleton title="On TMDB" inset />;
-  if (titles.length) return <TitleCards titles={titles} title="On TMDB" link={discoverUrl(q)} linkLabel="See all on Discover" inset />;
+  if (search.isPending) return <ScrollRowSkeleton title="Discover" inset />;
+  if (titles.length) return <TitleCards titles={titles} title="Discover" link={discoverUrl(q)} inset />;
   // All TMDB has is in a library already: nothing to add under the libraries' results.
   if (!search.isError && !alone) return null;
   const problem = search.isError ? requestProblem(search.error) : null;
   const words = problem ? problemWords(problem, { manage }) : null;
   return (
     <section>
-      <SectionTitle>On TMDB</SectionTitle>
+      <SectionTitle>Discover</SectionTitle>
       {search.isError ? (
         <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
           <span className="text-danger">{words ? words.title : `Couldn't search TMDB: ${errorMessage(search.error)}`}</span>

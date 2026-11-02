@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { Ban, ChevronLeft, Inbox, Search, SearchX, ShieldCheck, X } from "lucide-react";
+import { Ban, ChevronLeft, Inbox, SearchX, ShieldCheck } from "lucide-react";
 import { isApiError } from "@/api/client";
 import {
   hasRequests,
   requestFilter,
   requestProblem,
-  SEARCH_MAX,
   searchText,
   uniqueTitles,
   useDiscoverList,
@@ -26,9 +25,9 @@ import { ASPECT_CLASS } from "@/components/cards";
 import { HubRowSkeleton } from "@/components/HubRow";
 import { buttonClass, EmptyState, Skeleton, Spinner } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { useDebouncedValue, useDocumentTitle, useOnChange } from "@/lib/hooks";
+import { useDocumentTitle } from "@/lib/hooks";
 import { kindLabel, problemWords, requestsBadge, seasonsLabel, stageWords } from "@/lib/requests";
-import { discoverUrl, requestsUrl, titleUrl } from "@/lib/urls";
+import { discoverUrl, requestsUrl, searchUrl, titleUrl } from "@/lib/urls";
 import { MainActions } from "./TitlePage";
 import { ProblemState, RequestsUnavailable, ScrollRow, StagePill, TitleGrid, TitleGridSkeleton, TitleRow, TmdbCredit } from "./shared";
 
@@ -47,94 +46,48 @@ function listOf(value: string | null): (typeof LISTS)[number] | null {
   return LISTS.find((l) => l.list === value) ?? null;
 }
 
-/** TMDB's search, kept in the address (`?q=`) as one types. */
-function SearchBox({ q }: { q: string }) {
-  const [params, setParams] = useSearchParams();
-  const [value, setValue] = useState(q);
-  const debounced = useDebouncedValue(value, 300);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Another query arriving (a link from the libraries' search, Discover in
-  // the menu) goes in the box; the one just typed is there already.
-  useOnChange(q, (next) => {
-    if (next.trim() !== debounced.trim()) setValue(next);
-  });
-
-  useEffect(() => {
-    const next = debounced.trim();
-    if (next === q.trim()) return;
-    const p = new URLSearchParams(params);
-    if (next) p.set("q", next);
-    else p.delete("q");
-    p.delete("list");
-    setParams(p, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debounced]);
-
+/** A grid's heading, after the way back to where it was opened from. */
+function GridHeading({ back, backLabel, children }: { back: string; backLabel: string; children: ReactNode }) {
   return (
-    <div className="relative max-w-xl" role="search">
-      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle" />
-      <input
-        ref={inputRef}
-        type="search"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") setValue("");
-        }}
-        maxLength={SEARCH_MAX}
-        placeholder="Search TMDB for movies and shows"
-        aria-label="Search for movies and shows to ask for"
-        className="h-11 w-full rounded-full border border-border bg-surface-2 pl-9 pr-9 text-sm text-fg placeholder:text-subtle transition-colors focus:border-accent/70 focus:bg-surface-3 focus:outline-none [&::-webkit-search-cancel-button]:hidden"
-      />
-      {value ? (
-        <button
-          type="button"
-          aria-label="Clear search"
-          onClick={() => {
-            setValue("");
-            inputRef.current?.focus();
-          }}
-          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-subtle hover:text-fg"
-        >
-          <X className="size-3.5" />
-        </button>
-      ) : null}
+    <div className="mb-3 flex items-center gap-2">
+      <Link to={back} aria-label={backLabel} className="-ml-1.5 rounded-full p-1 text-muted transition-colors hover:bg-white/10 hover:text-fg">
+        <ChevronLeft className="size-5" />
+      </Link>
+      {children}
     </div>
   );
 }
 
+/** All TMDB finds for Search's words (the See all of its Discover row), a page at a time. */
 function SearchResults({ q, manage }: { q: string; manage: boolean }) {
   const search = useDiscoverSearch(q);
   useFillPages(search, GRID_TITLES);
   const titles = uniqueTitles(search.data?.pages);
-
-  if (search.isPending) return <TitleGridSkeleton />;
-  if (search.isError && !search.data) {
-    return (
-      <ProblemState
-        className="py-16"
-        error={search.error}
-        manage={manage}
-        title="Couldn't search TMDB"
-        retrying={search.isFetching}
-        onRetry={() => void search.refetch()}
-      />
-    );
-  }
-  if (!titles.length && !search.hasNextPage) {
-    return <EmptyState icon={<SearchX />} title={`Nothing on TMDB for “${q}”`} description="Try another spelling, or the title in its own language." />;
-  }
   return (
     <section>
-      <div className="mb-3 flex items-center gap-3">
+      <GridHeading back={searchUrl(q)} backLabel="Back to search">
         <h2 className="text-lg font-semibold tracking-tight">Results for “{q}”</h2>
-        {search.isFetching ? <Spinner className="size-4" /> : null}
-      </div>
-      <TitleGrid
-        titles={titles}
-        more={{ next: search.hasNextPage, loading: search.isFetchingNextPage, load: () => void search.fetchNextPage() }}
-      />
+        {search.isFetching && !search.isPending ? <Spinner className="ml-1 size-4" /> : null}
+      </GridHeading>
+      {search.isPending ? (
+        <TitleGridSkeleton />
+      ) : search.isError && !search.data ? (
+        <ProblemState
+          className="py-16"
+          error={search.error}
+          manage={manage}
+          title="Couldn't search TMDB"
+          retrying={search.isFetching}
+          onRetry={() => void search.refetch()}
+        />
+      ) : !titles.length && !search.hasNextPage ? (
+        <EmptyState icon={<SearchX />} title={`Nothing on TMDB for “${q}”`} description="Try another spelling, or the title in its own language." />
+      ) : (
+        <TitleGrid
+          titles={titles}
+          more={{ next: search.hasNextPage, loading: search.isFetchingNextPage, load: () => void search.fetchNextPage() }}
+        />
+      )}
     </section>
   );
 }
@@ -146,12 +99,9 @@ function ListGrid({ list, title, manage, ageLimit }: { list: DiscoverList; title
   const titles = uniqueTitles(query.data?.pages);
   return (
     <section>
-      <div className="mb-3 flex items-center gap-2">
-        <Link to={discoverUrl()} aria-label="Back to Discover" className="-ml-1.5 rounded-full p-1 text-muted transition-colors hover:bg-white/10 hover:text-fg">
-          <ChevronLeft className="size-5" />
-        </Link>
+      <GridHeading back={discoverUrl()} backLabel="Back to Discover">
         <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-      </div>
+      </GridHeading>
       {query.isPending ? (
         <TitleGridSkeleton />
       ) : query.isError && !query.data ? (
@@ -348,9 +298,8 @@ function DiscoverHome({ summary }: { summary: RequestSummary }) {
 function DiscoverSkeleton() {
   return (
     <div className="space-y-8 pb-16 pt-6 sm:pt-8" aria-busy>
-      <div className="space-y-4 px-4 sm:px-8">
+      <div className="px-4 sm:px-8">
         <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-11 w-full max-w-xl rounded-full" />
       </div>
       <HeroSkeleton />
       <HubRowSkeleton />
@@ -361,7 +310,8 @@ function DiscoverSkeleton() {
 /**
  * Discover (`/discover`): the first trending title large, then TMDB's
  * lists as rows that load as they come into view, and this account's
- * requests; one list whole (`?list=`), or what TMDB finds (`?q=`).
+ * requests; one list whole (`?list=`), or all TMDB finds for Search's
+ * words (`?q=`, the See all of its Discover row).
  */
 export function DiscoverPage() {
   const me = useAuth();
@@ -412,12 +362,9 @@ export function DiscoverPage() {
 
   return (
     <div className="space-y-8 pb-16 pt-6 sm:pt-8">
-      <header className="space-y-4 px-4 sm:px-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">Discover</h1>
-          {hasRequests(data) || data.manage ? <RequestsLink summary={data} /> : null}
-        </div>
-        <SearchBox q={q} />
+      <header className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-8">
+        <h1 className="text-2xl font-bold tracking-tight">Discover</h1>
+        {hasRequests(data) || data.manage ? <RequestsLink summary={data} /> : null}
       </header>
 
       {searched ? (

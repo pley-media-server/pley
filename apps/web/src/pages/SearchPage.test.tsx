@@ -34,7 +34,7 @@ describe("SearchPage", () => {
     // The query is trimmed.
     expect(requests.find((r) => r.path.startsWith("/api/search"))?.path).toBe("/api/search?q=heat&limit=60");
     // Without requests (here, a server without them), nothing from TMDB.
-    expect(screen.queryByRole("heading", { name: "On TMDB" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Discover" })).not.toBeInTheDocument();
     expect(requests.some((r) => r.path.startsWith("/api/discover"))).toBe(false);
   });
 
@@ -50,13 +50,13 @@ describe("SearchPage", () => {
     });
     search("dune ");
 
-    expect(await screen.findByRole("link", { name: "See all on Discover" })).toHaveAttribute("href", "/discover?q=dune");
-    const heading = screen.getByRole("heading", { name: "On TMDB" });
+    expect(await screen.findByRole("link", { name: "See all" })).toHaveAttribute("href", "/discover?q=dune");
+    const heading = screen.getByRole("heading", { name: "Discover" });
     expect(within(heading).getByRole("link")).toHaveAttribute("href", "/discover?q=dune");
     expect(screen.getByRole("link", { name: "Dune: Part Two, 2024, Movie" })).toHaveAttribute("href", "/discover/movie/693134");
     // After the libraries' results.
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(headings).toEqual(["Movies 1", "On TMDB"]);
+    expect(headings).toEqual(["Movies 1", "Discover"]);
     expect(requests.find((r) => r.path.startsWith("/api/discover/search"))?.path).toBe("/api/discover/search?q=dune&missing=1");
   });
 
@@ -68,7 +68,7 @@ describe("SearchPage", () => {
     });
     search("dune ".repeat(60));
 
-    expect(await screen.findByRole("heading", { name: "On TMDB" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Discover" })).toBeInTheDocument();
     const asked = new URL(requests.find((r) => r.path.startsWith("/api/discover/search"))?.path ?? "", "http://pley.test");
     expect(asked.searchParams.get("q")).toBe("dune ".repeat(40).trim());
   });
@@ -93,8 +93,8 @@ describe("SearchPage", () => {
     });
     search("heat");
     expect(await screen.findByRole("heading", { name: "Movies 1" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "On TMDB" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "On TMDB" }).closest("section")).toHaveAttribute("aria-busy", "true");
+    expect(await screen.findByRole("heading", { name: "Discover" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Discover" }).closest("section")).toHaveAttribute("aria-busy", "true");
   });
 
   it("says what went wrong with TMDB without hiding the libraries' results", async () => {

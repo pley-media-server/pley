@@ -9,6 +9,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Discover in the web app has no search field: Search shows what can be
+  asked for in a Discover row after the libraries' results.
+
 ## [0.1.2] - 2026-11-01
 
 ### Changed
