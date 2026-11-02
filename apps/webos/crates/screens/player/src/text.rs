@@ -58,7 +58,7 @@ pub fn chapter_at(chapters: &[ChapterMark], position_ms: i64) -> Option<usize> {
 /// The chapter line under a seek preview: "Chapter 3" without a title, the title as it is when it
 /// already says "Chapter…", else "Chapter 3 · Title".
 pub fn chapter_line(chapter: &ChapterMark, index: usize) -> String {
-    match chapter.title.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
+    match name_of(chapter) {
         None => format!("Chapter {}", index + 1),
         Some(t) if t.to_lowercase().starts_with("chapter") => t.to_string(),
         Some(t) => format!("Chapter {} · {t}", index + 1),
@@ -67,10 +67,35 @@ pub fn chapter_line(chapter: &ChapterMark, index: usize) -> String {
 
 /// A chapter's row in the Chapters panel: its title, else "Chapter N".
 pub fn chapter_row(chapter: &ChapterMark, index: usize) -> String {
-    match chapter.title.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
+    match name_of(chapter) {
         Some(t) => t.to_string(),
         None => format!("Chapter {}", index + 1),
     }
+}
+
+/// A chapter's own name: its title, unless it has none or the title is only where it starts
+/// ("00:06:19.212", as mkvmerge names chapters), which says nothing a viewer can use
+/// (`PlayerText.NameOf`).
+fn name_of(chapter: &ChapterMark) -> Option<&str> {
+    chapter.title.as_deref().map(str::trim).filter(|t| !t.is_empty() && !time_name(t))
+}
+
+/// Whether `t` is only a time: one or two digits, then one or two ":" and two digits each, then
+/// perhaps a fraction after "." or ",".
+fn time_name(t: &str) -> bool {
+    let (clock, fraction) = match t.find(['.', ',']) {
+        Some(at) => (&t[..at], Some(&t[at + 1..])),
+        None => (t, None),
+    };
+    let digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
+    if fraction.is_some_and(|f| !digits(f)) {
+        return false;
+    }
+    let parts: Vec<&str> = clock.split(':').collect();
+    (2..=3).contains(&parts.len())
+        && digits(parts[0])
+        && parts[0].len() <= 2
+        && parts[1..].iter().all(|p| p.len() == 2 && digits(p))
 }
 
 /// A speed as the Speed panel names it: "0.5×", "1×", "1.25×" (`PlaybackSpeeds`).
@@ -197,6 +222,19 @@ mod tests {
         assert_eq!(episode_line(Some("S1 · E2 · Pilot")).as_deref(), Some("S1 · E2 · Pilot"));
         assert_eq!(episode_line(Some("  ")), None);
         assert_eq!(episode_line(None), None);
+    }
+
+    #[test]
+    fn a_chapter_named_only_for_where_it_starts_is_numbered() {
+        for title in ["00:06:19.212", "00:06:19", "6:19", " 01:02:03,500 "] {
+            let c = chapter(379_212, 500_000, Some(title));
+            assert_eq!(chapter_row(&c, 1), "Chapter 2", "{title}");
+            assert_eq!(chapter_line(&c, 1), "Chapter 2", "{title}");
+        }
+        // A time in a real name, or something only like a time, stays.
+        for title in ["Act 2: 12:00 at Noon", "123:45", "1:2", "12:34.", "12:34:56:78"] {
+            assert_eq!(chapter_row(&chapter(0, 1, Some(title)), 0), title);
+        }
     }
 
     #[test]
