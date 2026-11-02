@@ -14,6 +14,8 @@ describes how they are made.
   names them) show as "Chapter 3" on phones and TVs, as untitled ones do.
 - On TVs, a held Left or Right scrubs on a smooth curve, twice as fast
   every 1.5 s, up to a whole video in 10 s, as on Samsung TVs.
+- While a seek is coming on TVs, the scrubber's played part and both its
+  times stand where it goes, with the thumb, rather than at the playhead.
 
 ### Fixed
 

@@ -193,8 +193,9 @@ private fun rememberClock(now: () -> Long): String {
  * chapter starts; the thumb, 10 dp, grows to 12 with a slim ring while
  * focused (18 dp across, where the tiles' ring made it 32); the
  * times above, a running marker's name below. Left and Right on it seek
- * ([TvSeeker], keys handled by the screen); it says its place to screen
- * readers as a slider.
+ * ([TvSeeker], keys handled by the screen): while a seek is coming, the
+ * thumb, the played part and both times stand where it goes, the playhead
+ * otherwise. It says its place to screen readers as a slider.
  */
 @Composable
 internal fun BoxScope.TvScrubber(
@@ -208,9 +209,9 @@ internal fun BoxScope.TvScrubber(
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
     val thumbScale by animateFloatAsState(if (focused) 1f else 0f, PleyMotion.focus(), label = "thumb")
-    val elapsed by remember(state) { derivedStateOf { state.value.positionMs / 1000 } }
+    val elapsed by remember(state, seeker) { derivedStateOf { (seeker.target ?: state.value.positionMs) / 1000 } }
     val duration by remember(state) { derivedStateOf { state.value.durationMs } }
-    val remaining by remember(state) { derivedStateOf { (state.value.durationMs - state.value.positionMs).coerceAtLeast(0) / 1000 } }
+    val remaining by remember(state, seeker) { derivedStateOf { (state.value.durationMs - (seeker.target ?: state.value.positionMs)).coerceAtLeast(0) / 1000 } }
     val skip = ui.requester(PlayerFocus.Skip)
     val down = ui.requester(PlayerFocus.PlayPause)
     Box(
@@ -242,7 +243,7 @@ internal fun BoxScope.TvScrubber(
                     contentDescription = spoken
                     stateDescription = spoken
                     val d = state.value.durationMs.coerceAtLeast(1)
-                    progressBarRangeInfo = ProgressBarRangeInfo(state.value.positionMs.toFloat() / d, 0f..1f)
+                    progressBarRangeInfo = ProgressBarRangeInfo((elapsed * 1000f / d).coerceIn(0f, 1f), 0f..1f)
                     setProgress { fraction ->
                         controller.seekTo((fraction * d).toLong())
                         true
@@ -255,7 +256,7 @@ internal fun BoxScope.TvScrubber(
     }
 }
 
-/** The track, the played and buffered parts, chapter gaps and the thumb. */
+/** The track, the played part up to [target] or the playhead, the buffered part, chapter gaps and the thumb. */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTrack(s: PlayerUiState, target: Long?, focus: Float) {
     val h = TRACK_HEIGHT.toPx()
     val y = size.height / 2f - h / 2f
@@ -271,7 +272,9 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTrack(s: Player
         starts.forEach { add(it) }
         add(w)
     }
-    val played = x(s.positionMs)
+    // Accent up to the thumb: where it plays, or where the seek coming takes it.
+    val at = target ?: s.positionMs
+    val played = x(at)
     val buffered = x(s.bufferedMs.coerceAtLeast(s.positionMs))
     for (i in 0 until edges.size - 1) {
         val a = edges[i] + if (i == 0) 0f else gap / 2f
@@ -281,7 +284,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTrack(s: Player
         if (buffered > a) drawRoundRect(BUFFERED, Offset(a, y), Size(minOf(buffered, b) - a, h), r)
         if (played > a) drawRoundRect(PleyColors.Accent, Offset(a, y), Size(minOf(played, b) - a, h), r)
     }
-    val thumbX = x(target ?: s.positionMs)
+    val thumbX = x(at)
     val thumb = PleyTv.ScrubThumb.toPx()
     val radius = (thumb + (PleyTv.ScrubThumbFocused.toPx() - thumb) * focus) / 2f
     val centre = Offset(thumbX.coerceIn(radius, w - radius), size.height / 2f)

@@ -183,6 +183,19 @@ class TvPlayerScreenTest {
     }
 
     @Test
+    fun `the scrubber's times stand where a seek coming goes`() {
+        val controller = playing()
+        show(controller)
+        press(Key.DirectionUp)
+        compose.onNodeWithText("10:00").assertExists()
+        compose.onNodeWithText("−50:00").assertExists()
+        press(Key.DirectionRight, times = 3)
+        compose.onNodeWithText("−49:30").assertExists()
+        compose.onNodeWithText("10:00").assertDoesNotExist()
+        assertTrue(controller.calls("seekTo").isEmpty())
+    }
+
+    @Test
     fun `a seek's preview names its chapter, numbered when its title is only where it starts`() {
         val controller = playing()
         show(controller)
