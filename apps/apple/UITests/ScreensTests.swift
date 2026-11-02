@@ -213,6 +213,25 @@ final class ScreensTests: XCTestCase {
         walk.signOut()
     }
 
+    /// Downloads: the original of Direct H264 played from the device, the
+    /// show's season converted and downloaded, and Delete all downloads.
+    func testDownloads() async throws {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            XCUIDevice.shared.orientation = .landscapeLeft
+        }
+        let app = XCUIApplication()
+        app.launch()
+        let walk = Walk(app: app, test: self)
+        walk.startSignedOut()
+        await walk.signInWithCode()
+        walk.chooseSignedIn()
+        walk.seeHome(Admin.adminName)
+        let libraries = await Admin.libraryIds()
+        await walk.downloads(movies: libraries["Movies"] ?? 0, shows: libraries["Shows"] ?? 0)
+        walk.openMe()
+        walk.signOut()
+    }
+
     func testPersonPage() async throws {
         let libraries = await Admin.libraryIds()
         var found: (library: String, title: String)?

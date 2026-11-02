@@ -8,6 +8,13 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Download movies, episodes and whole seasons on iPhone, iPad and Mac to
+  watch without your server: as they are, or smaller (Settings →
+  Downloads), in the background, on Wi-Fi unless you allow mobile data.
+  They're in Me → Downloads, and play with their subtitles, Resume and Up
+  Next while the server is away.
+- When the server doesn't answer, the app opens on what it saved of your
+  screens and says so, and reconnects by itself (Apple TV too).
 - Finds Pley servers on your network, keeps the ones you opened, and adds
   one by its address.
 - Sign in with your browser on iPhone, iPad and Mac, or with a code and its

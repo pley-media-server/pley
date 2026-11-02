@@ -209,9 +209,10 @@ behind it.
 - **Me** (Settings on Apple TV): the profile's picture and name ("Managed
   profile" for one without a password of its own), Switch profile (when
   the household has another profile), the profile's **audio and subtitle
-  defaults**, History, Settings (on iPhone and iPad; the Mac's are in its
-  Settings window, ⌘,), the server's name and address, the servers, and
-  Sign out after asking. The defaults are the server's for the profile
+  defaults**, Downloads (iPhone, iPad and Mac: "Watch without your
+  server", [Downloads and offline](#downloads-and-offline)), History,
+  Settings (on iPhone and iPad; the Mac's are in its Settings window, ⌘,),
+  the server's name and address, the servers, and Sign out after asking. The defaults are the server's for the profile
   (`PUT /api/me/track-defaults`), so every device follows them: the audio
   language ("The file's default", or one of 34 languages), Subtitles (Off,
   "Only for foreign dialogue", "When the audio is in another language",
@@ -245,8 +246,8 @@ behind it.
   toast when the server refuses.
 - **Settings**: this device's settings, kept on it (`UserDefaults`), the
   same for every server and profile. On iPhone and iPad a page from Me;
-  on the Mac the Settings window with Playback, Subtitles and Browsing
-  tabs; on Apple TV under the profile's in the Settings tab, each row
+  on the Mac the Settings window with Playback, Subtitles, Browsing and
+  Downloads tabs; on Apple TV under the profile's in the Settings tab, each row
   opening its choices.
   - **Playback**: Quality ("Quality on Wi-Fi" and "Quality on mobile
     data" on a device with mobile data): Automatic, Original or a quality,
@@ -263,6 +264,13 @@ behind it.
     library order, and on iPhone, iPad and Mac Sign in privately (on by
     default: the browser sign-in keeps no cookies, so it asks for the
     password each time; off, it can use the browser's sign-in to Pley).
+  - **Downloads** (iPhone, iPad and Mac): Quality (Original, "1080p · 8
+    Mbps", "720p · 4 Mbps", "480p · 1.5 Mbps"; Original downloads the
+    file unchanged when this device plays it, and the lower ones, smaller,
+    are made by the server first), Download on mobile data (iPhone and
+    iPad; off by default, so downloads wait for Wi-Fi), what the downloads
+    take and what is free, and Delete all downloads, after asking (every
+    server's and profile's on this device).
   - **Always start as** (Apple TV, when the household has more than one
     profile): "Ask who's watching" (the default) or a profile, kept for
     each server.
@@ -1170,6 +1178,80 @@ The player logs under the subsystem `app.pley.apple`, category `player`:
 the session's method and the first 8 characters of its id, never a keyed
 address or a token.
 
+## Downloads and offline
+
+iPhone, iPad and Mac download movies and episodes to watch without the
+server, as the Android app does; Apple TV has no downloads. A title's
+page has **Download** (a movie or an episode) and, beside a season's
+episodes, **Download season**; a toast says "Downloading. It's in
+Downloads, under Me." The button then says where the download is
+("Preparing on the server · 40%", "Downloading · 62% of 1.4 GB"), and
+Downloaded or Try again once it ends. **Me → Downloads** lists the
+profile's downloads on this device, newest first, with their pictures,
+what they are and where they are ("Waiting for Wi-Fi", "Waiting for your
+server", "Didn't download: Not enough space on this device"), and what
+they take and what is free; a finished one plays when chosen, and a row
+swiped (a right-click on the Mac) is deleted, cancelled or tried again.
+
+**What downloads** (`docs/API.md`, "Downloads"): the app asks the server
+(`POST /api/conversions`, with this device's caps report and, below
+Original, the quality's height and bitrate) and the server says whether
+the file downloads as it is or is made for the device, which the app
+follows every 5 seconds while Pley is open, giving up after 15 minutes
+without progress. The file comes through a background `URLSession`, so
+the system goes on while the app is in the background or closed, and
+wakes it when pieces finish:
+
+- in pieces of 256 MiB, each a `Range` request with an access token that
+  lasts at least 10 more minutes, read just before the piece starts; a
+  piece is appended to the file in 1 MiB chunks;
+- a piece the network broke goes on from where it stopped while its token
+  has 10 minutes left, and is otherwise asked for again from the file's
+  length; a missing file (`404`) of a conversion is asked of the server
+  again;
+- one download at a time; before each piece, the space it needs and 500
+  MB more must be free, or it stops with "Not enough space on this
+  device";
+- on an expensive network (mobile data, a phone's hotspot) downloads wait,
+  unless Download on mobile data is on;
+- plain http follows [Plain HTTP and HTTPS](#plain-http-and-https): a
+  piece that came from an address that isn't private is thrown away and
+  the download stops; redirects aren't followed; the task carries only
+  the download's key, and nothing logged holds an address or a token.
+
+Each download is a folder in Application Support (`Pley/Downloads`, left
+out of backups), per server and profile: the file, the title's details,
+its picture, and its text subtitles as WebVTT (a track the server is still
+reading is asked for again until it is whole). `index.json` holds the
+downloads, written whole each time. Signing out keeps them, for when the
+profile signs in again; forgetting the server deletes them.
+
+**Playing a download**: the player opens the file on the device instead
+of a stream, with no session on the server. Details says Downloaded, the
+Quality menu has only that, the subtitles are the text tracks saved with
+it, and Find Subtitles… isn't offered. Its reports go without a session
+(`POST /api/items/{id}/progress`); one that can't reach the server is
+kept, and sent with its age (`age_ms`) once the server answers, so a
+newer play elsewhere wins. Where it got to is also kept with the
+download, so Resume works offline, and 90 % or more counts as watched.
+Up Next is the next episode downloaded.
+
+**Offline**: each screen's last answer is saved, per server and profile
+(`Application Support/Pley/Snapshots`, 25 MB at most, the answers read
+longest ago going first, the last 3 profiles of each server): Home, the
+libraries, a library's first page and Recommended rows, a title with its
+seasons and episodes, playlists and a playlist, My List, the first page
+of History, the profile, a person, a search and Live TV's lists. When the
+server used last doesn't answer at start (3 seconds at most for a home
+address) and the app is signed in to it, the app opens as the profile
+used last on what it saved, with a banner: "Showing what Pley had saved.
+Reconnecting…", with Try again. A server that stops answering while the
+app is open does the same. The app tries the server again after 2, 5, 15
+and 30 seconds, then every minute, and at once when the network changes
+or the app comes back to the front; once it answers, the banner goes and
+every screen reads the server again. Apple TV saves screens and starts
+offline the same way.
+
 ## Building and testing
 
 Requirements: a Mac with Xcode 16 or later (the commands below were checked
@@ -1342,6 +1424,13 @@ its second entry, and Pause (the remote's Play/Pause on Apple TV) pauses
 it. The playlist is deleted afterwards, and signing out ends the
 session.
 
+Downloads are a test of their own on iPhone and iPad (`testDownloads`):
+the H.264 MP4's Download turns into Downloaded within 90 seconds; Me →
+Downloads lists it, and it plays from there with Details saying
+Downloaded and no session on the server; the show's Download season has
+the server make its episodes for the device, and they all download; and
+Settings → Downloads → Delete all downloads leaves Downloads empty.
+
 Live TV is a test of its own (`testLiveTv`), against `live-source.sh`'s
 four channels with one connection: All channels shows the guide with Test
 One's programmes; a channel plays ("playing" in the player); channel up
@@ -1429,12 +1518,13 @@ PleyKit's modules, each depending only on those before it:
 | `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, Bonjour (browsing, TXT records, resolving), logging |
 | `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), downloads to a file resumed with `Range`, the typed API calls (browsing in `PleyAPI+Browse`, with ETags; collections and playlists in `PleyAPI+Lists`; search, history and track defaults in `PleyAPI+Account`), and the server's events (`EventStream`, `EventParser`) |
 | `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the scope guard and profile switching |
-| `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, the server's events gathered into changes and scans (`ServerEvents`), the app's settings (`AppSettings`, under `pley.settings.` in UserDefaults: quality, Up Next, subtitle style, grid size, private sign-in, Always start as, the household last seen, recent searches), and pictures (`ImageLoader`) |
+| `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, the server's events gathered into changes and scans (`ServerEvents`), the app's settings (`AppSettings`, under `pley.settings.` in UserDefaults: quality, Up Next, subtitle style, grid size, private sign-in, Always start as, the household last seen, the profile used last, recent searches, the downloads' quality and mobile data), the screens saved for offline (`SnapshotStore`), what the screens and the player take from downloads (`DownloadsService`, `LocalMedia`), and pictures (`ImageLoader`) |
 | `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
 | `PleySubtitles` | Subtitles the app draws: the WebVTT reader, text cues by time, the subtitle sync and its offsets, the server's tracks read with `X-Pley-Complete`, and a port of `packages/picture-subtitles` (the Matroska reader, the PGS, VobSub and DVB decoders, and the pictures by time) |
 | `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, the Mac player's keys, music (`MusicPlayback`, `MusicQueue`, the `AVMusicOutput` behind a protocol), the sleep timer (`SleepTimer`), the system's Now Playing and remote commands (`NowPlayingCenter`, `SystemNowPlaying`) and the audio session (`AudioSessionController`) |
+| `PleyDownloads` | Downloads (iPhone, iPad and Mac): `Downloads` (the screens' `DownloadsService` and the player's `LocalMedia`), `DownloadStore` (the folders and `index.json`), `DownloadPlanner` (the rules), `DownloadRunner` (one download at a time, conversions, pieces), `PieceTransfer` (the background `URLSession`) and `NetworkGate` (Wi-Fi or mobile data, from `NWPathMonitor`) |
 | `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Chapters, Details), the subtitles drawn over the video in the system's caption style with the app's overrides (`SubtitleLayer`, `CaptionStyle`), Apple TV's contextual actions and chapter markers, and the AirPlay button (`RoutePicker`) |
-| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), Now Playing's words (`NowPlayingModel`), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`) smart filters in words (`SmartFilter`, the Android app's), search (`SearchModel`), Me's track defaults (`MeModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`) and Apple TV's start (`StartGate`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, music, the system's Now Playing, the device's caps, the session reports and the reports kept for later, one set per server and profile |
+| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), Now Playing's words (`NowPlayingModel`), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`) smart filters in words (`SmartFilter`, the Android app's), search (`SearchModel`), Me's track defaults (`MeModel`), Downloads (`DownloadsModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`) and Apple TV's start (`StartGate`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, music, the system's Now Playing, the device's caps, the session reports and the reports kept for later, one set per server and profile |
 | `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens, playback sessions with keyed media, libraries with watch marks, My List and orders that change, collections and playlists, an event stream the tests push to, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
 | `pley-apple-play` | A command-line tool, on the Mac only, that plays a real server's test media through the player ([A server to test against](#a-server-to-test-against)) |
@@ -1518,6 +1608,13 @@ activity, the session's status and the item:
   plays; Test Two takes its place in a new session, Test One's playlist
   then answering 410 or 404 and one viewer left; and leaving ends the
   session within 2 seconds;
+- downloads, through `Downloads` with a foreground session in 1 MiB
+  pieces: the H.264 MP4's original comes byte for byte, and the MKV with
+  AC-3 comes as an MP4 the server made, which AVFoundation plays; then
+  the MP4 plays from the Mac with the server out of reach (Details says
+  Downloaded, and the server has no session for it), its stop is kept,
+  and once the server is reached it gets there with its age, the place
+  saved within 1.5 seconds;
 - for every recorded Apple device class's caps report
   (`apps/server/tests/fixtures/caps`), the server's decision for eight of
   the files (method, converted audio and reasons) is the one
@@ -1556,7 +1653,11 @@ address, to have it found by Bonjour. Delete the folder afterwards.
 - No seek-bar previews.
 - Subtitles aren't shown over AirPlay, nor in Picture in Picture: the app
   draws them over its own view of the video, which neither shows.
-- No downloads.
+- Downloads are on iPhone, iPad and Mac only, not Apple TV. They keep
+  text subtitles only: picture subtitles (PGS, VobSub, DVB) don't come
+  with a download. A conversion the server makes for a download is
+  followed only while Pley is open: one started then waits until Pley is
+  opened again.
 - Live TV has no picture in picture and doesn't switch the display's
   frame rate or range, as on Android.
 - Events aren't read while the app is in the background; back in front,

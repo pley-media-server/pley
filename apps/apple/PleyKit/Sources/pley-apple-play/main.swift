@@ -13,7 +13,7 @@
 // live-source.sh serves its channels, added as a Live TV source. The administrator's
 // password comes from PLEY_CHECK_PASSWORD. It prints one line per check and
 // stops at the first failure. Nothing it prints holds a token, a code, a
-// password or a keyed media address.
+// password or a keyed media address, nor a download's address.
 
 #if os(macOS)
 import AVFoundation
@@ -70,7 +70,7 @@ nonisolated(unsafe) var workDir: URL?
 // MARK: Setting up
 
 /// Signs the app in with a device code, allowed by the administrator.
-func signIn(_ origin: String, page: AdminPage, transport: HTTPTransport) async throws -> PleyAPI {
+func signIn(_ origin: String, page: AdminPage, transport: HTTPTransport) async throws -> (PleyAPI, Tokens) {
     let endpoints = EndpointClient(transport: transport)
     let metadata = try await ServerMetadata.fetch(origin, endpoints: endpoints)
     let store = MemoryTokenStore()
@@ -85,7 +85,7 @@ func signIn(_ origin: String, page: AdminPage, transport: HTTPTransport) async t
     try check(allowStatus == 200, "allowing the app failed (HTTP \(allowStatus))")
     _ = try await signIn.waitForApproval(code)
     let tokens = Tokens(issuer: metadata.issuer, store: store, endpoints: endpoints)
-    return PleyAPI(client: APIClient(origin: origin, tokens: tokens, transport: transport))
+    return (PleyAPI(client: APIClient(origin: origin, tokens: tokens, transport: transport)), tokens)
 }
 
 /// Makes a library of `kind` at `path` and waits for `count` items in it; their ids by title.
@@ -712,7 +712,7 @@ func run() async throws {
         return id
     }
 
-    let api = try await signIn(origin, page: page, transport: transport)
+    let (api, tokens) = try await signIn(origin, page: page, transport: transport)
     say("signed in as the app")
     let caps = DeviceCaps()
     let snapshot = await caps.warmUp()
@@ -784,6 +784,10 @@ func run() async throws {
 
     try await checkSubtitles(api: api, caps: caps, reporter: reporter, direct: try item("Direct H264"),
                              remux: try item("Remux H264 AC3"))
+
+    try await checkDownloads(api: api, tokens: tokens, transport: transport, page: page, caps: caps,
+                             reporter: reporter, media: media, direct: try item("Direct H264"),
+                             converted: try item("Remux H264 AC3"))
 
     try await checkMusic(api: api, page: page, caps: caps, reporter: reporter,
                          artistId: try required(artists["Test Artist"], "no artist Test Artist in Music"))

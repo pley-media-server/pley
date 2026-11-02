@@ -6,7 +6,9 @@
 # managed transcoder working in the same temporary folder), makes an
 # administrator, starts live-source.sh's made-up channels, and runs
 # pley-apple-play, which plays the media and the channels through the
-# apps' players. The server, the transcoder, the live source and the
+# apps' players, and downloads two of the files and plays one of them
+# with the server out of reach. What it prints is checked to hold no
+# keyed media address, download address or token. The server, the transcoder, the live source and the
 # temporary folder are removed afterwards, whatever happens. macOS only.
 #
 # The administrator's password is PLEY_CHECK_PASSWORD, or a random one.
@@ -102,13 +104,17 @@ if [[ -e "$caches" ]]; then cached_before=yes; fi
 
 if ! swift run --skip-build --package-path apps/apple/PleyKit pley-apple-play \
   --server "$origin" --admin checkadmin --media "$media" --caps-fixtures apps/server/tests/fixtures/caps \
-  --work-dir "$temp/player" --live-source "http://127.0.0.1:$live_port"; then
+  --work-dir "$temp/player" --live-source "http://127.0.0.1:$live_port" 2>&1 | tee "$temp/play.log"; then
   echo "check-playback: the server's last lines:" >&2
   tail -n 30 "$temp/server.log" | redacted >&2
   exit 1
 fi
 if grep -q "pley_mk_" "$temp/server.log"; then
   echo "check-playback: the server's log names a keyed media address" >&2
+  exit 1
+fi
+if grep -Eq 'pley_mk_|/api/conversions/|/api/files/[0-9]+/stream|Bearer|access_token|refresh_token' "$temp/play.log"; then
+  echo "check-playback: the check printed an address or a token" >&2
   exit 1
 fi
 if [[ $cached_before == no && -e "$caches" ]]; then
