@@ -78,7 +78,7 @@ struct RootView: View {
         #endif
         // The server's events are read while Pley is in front; back in
         // front, what shows is read again.
-        .onChange(of: scenePhase) { phase in
+        .onValueChange(of: scenePhase) { phase in
             app.sceneActive(phase != .background)
         }
     }

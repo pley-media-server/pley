@@ -265,7 +265,7 @@ private struct AlphaStrip: View {
         .padding(.vertical, 6)
         .background(GeometryReader { geometry in
             Color.clear.onAppear { height = geometry.size.height }
-                .onChange(of: geometry.size.height) { height = $0 }
+                .onValueChange(of: geometry.size.height) { height = $0 }
         })
         .contentShape(Rectangle())
         .gesture(DragGesture(minimumDistance: 0).onChanged { value in

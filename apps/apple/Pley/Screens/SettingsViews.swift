@@ -69,7 +69,7 @@ struct MacSettingsView: View {
 /// The parts of Settings, shared by the iPhone and iPad page and the Mac's window.
 enum SettingsSections {
     /// iPhone always has mobile data; an iPad only with cellular; the Mac never.
-    static var offersCellular: Bool {
+    @MainActor static var offersCellular: Bool {
         #if os(iOS)
         UIDevice.current.userInterfaceIdiom == .phone || NetworkKind.shared.cellularAvailable
         #else
