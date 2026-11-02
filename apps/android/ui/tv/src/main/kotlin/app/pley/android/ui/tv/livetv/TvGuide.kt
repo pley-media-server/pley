@@ -82,6 +82,7 @@ import app.pley.android.screens.livetv.Landing
 import app.pley.android.screens.livetv.LiveTv
 import app.pley.android.screens.livetv.LiveTvViewModel
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.initialFocus
 import java.util.Calendar
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -96,10 +97,12 @@ import kotlin.math.roundToInt
  * - Left and Right go to the programme before and after, the grid
  *   following by half hours, back through a long programme a screen at a
  *   time, and by half hours on a channel without a guide; Left from the
- *   guide's first half hour goes to the categories ([onLeave]);
+ *   guide's first half hour goes to the categories ([onLeave]) on a press
+ *   of its own, not held nor within [EDGE_PAUSE_MS] of Left moving;
  * - Up and Down keep the time and change channel, the category's channels
  *   loaded a page at a time as they come; Up from the first goes to the
- *   tabs above, Channel up and down page through the lineup;
+ *   tabs above on a press, not held; Channel up and down page through the
+ *   lineup;
  * - OK on a programme on now (or a channel without guide) watches the
  *   channel, on another opens its details, as does holding OK or Menu;
  * - Back away from now comes back to now first.
@@ -123,6 +126,7 @@ internal fun TvGuide(
 ) {
     val guide by vm.guide.collectAsStateWithLifecycle()
     val start = vm.guideStart
+    val gate = LocalKeyRepeatGate.current
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
     val reduced = reducedMotion()
@@ -131,6 +135,8 @@ internal fun TvGuide(
     var focus by rememberSaveable(stateSaver = saver) { mutableStateOf(GuideCursor(start, now)) }
     var focused by remember { mutableStateOf(false) }
     var held by remember { mutableStateOf(false) }
+    // When Left last moved within the guide (the key's uptime): taps in a row stop at its start.
+    val leftMovedAt = remember { longArrayOf(Long.MIN_VALUE / 2) }
     val total = pages.total ?: 0
     // Kept within the rows as the list's length changes: put back after the frame, not while it is drawn.
     val cursor = focus.fit(total)
@@ -221,7 +227,14 @@ internal fun TvGuide(
                         KeyEvent.KEYCODE_DPAD_LEFT -> {
                             if (!down) return@onPreviewKeyEvent true
                             val moved = at.moveLeft(list)
-                            if (moved != null) focus = moved else onLeave()
+                            if (moved != null) {
+                                focus = moved
+                                leftMovedAt[0] = native.eventTime
+                            } else if (!gate.holding && native.eventTime - leftMovedAt[0] >= EDGE_PAUSE_MS) {
+                                // Out to the categories on a press of its own: not under a held key, nor
+                                // straight after Left went back through the programmes (Samsung's).
+                                onLeave()
+                            }
                             true
                         }
                         KeyEvent.KEYCODE_DPAD_RIGHT -> {
@@ -231,7 +244,8 @@ internal fun TvGuide(
                         KeyEvent.KEYCODE_DPAD_UP -> {
                             if (!down) return@onPreviewKeyEvent true
                             val moved = at.moveUp()
-                            if (moved != null) focus = moved else focusManager.moveFocus(FocusDirection.Up)
+                            // To the tabs on a press: a held Up stops at the first row.
+                            if (moved != null) focus = moved else if (!gate.holding) focusManager.moveFocus(FocusDirection.Up)
                             true
                         }
                         KeyEvent.KEYCODE_DPAD_DOWN -> {
@@ -525,6 +539,9 @@ private val CHANNEL_WIDTH = 160.dp
 private val CHANNEL_INSET = 10.dp
 private val INFO_HEIGHT = 92.dp
 private val TvSafeAreaBottom = 27.dp
+
+/** How long after Left last moved within the guide a Left at its start still stays: taps in a row. */
+internal const val EDGE_PAUSE_MS = 500L
 
 /** Narrower than this, a programme shows no text. */
 private const val MIN_TEXT_PX = 70f

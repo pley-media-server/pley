@@ -105,6 +105,8 @@ import app.pley.android.screens.livetv.LiveTvEvent
 import app.pley.android.screens.livetv.LiveTvViewModel
 import app.pley.android.screens.livetv.LiveView
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.kit.KeyRepeatGate
+import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvSidePanel
@@ -347,6 +349,7 @@ private fun Categories(
     onShownIndex: (Int) -> Unit,
 ) {
     val rail = LocalTvRailFocus.current
+    val gate = LocalKeyRepeatGate.current
     CategoryColumn(
         state = state,
         onShownIndex = onShownIndex,
@@ -354,7 +357,7 @@ private fun Categories(
         selected = page.category,
         selectedRequester = selectedRequester,
         onSelect = onSelect,
-        modifier = modifier.railOnLeftStopOnRight(rail, stopRight = false).testTag(TV_LIVE_CATEGORIES),
+        modifier = modifier.railOnLeftStopOnRight(rail, stopRight = false).heldUpStays(gate).testTag(TV_LIVE_CATEGORIES),
         found = page.found,
         search = {
             TvSearchField(
@@ -487,6 +490,18 @@ private fun shownIndexOf(selected: LiveCategory, sections: GroupSections, open: 
     return if (at >= 0) i + 1 + at else 0
 }
 
+/**
+ * Up from the top of the categories goes to the tabs on a press; a held Up
+ * stops there, as a held Left stops at a row's start (Samsung's page).
+ */
+private fun Modifier.heldUpStays(gate: KeyRepeatGate): Modifier = focusProperties {
+    val inner = onExit
+    onExit = {
+        inner()
+        if (requestedFocusDirection == FocusDirection.Up && gate.holding) cancelFocusChange()
+    }
+}
+
 /** A section's heading in the categories: "REGIONS", "MORE GROUPS". */
 @Composable
 private fun SectionHeading(text: String) {
@@ -553,6 +568,7 @@ private fun ChannelTiles(
 ) {
     val grid = rememberLazyGridState()
     val memory = rememberFocusMemory()
+    val gate = LocalKeyRepeatGate.current
     val landing by vm.landing.collectAsStateWithLifecycle()
     val skeleton = rememberSkeleton(animated = false)
     val placed = remember { mutableStateOf<Landing?>(null) }
@@ -576,9 +592,15 @@ private fun ChannelTiles(
             .fillMaxSize()
             .focusProperties {
                 onExit = {
-                    if (requestedFocusDirection == FocusDirection.Left) {
-                        cancelFocusChange()
-                        onLeave()
+                    when (requestedFocusDirection) {
+                        // To the category shown on a press of its own: a held Left stops at the first column.
+                        FocusDirection.Left -> {
+                            cancelFocusChange()
+                            if (!gate.holding) onLeave()
+                        }
+                        // A held Up stops at the top row rather than run on to the tabs.
+                        FocusDirection.Up -> if (gate.holding) cancelFocusChange()
+                        else -> Unit
                     }
                 }
             }

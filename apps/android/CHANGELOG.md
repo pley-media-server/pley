@@ -27,6 +27,10 @@ describes how they are made.
   the guide, a screen at a time, before it leaves for the categories; on a
   channel without a guide, Left and Right move the guide a half hour at a
   time, as on Samsung TVs.
+- On Live TV's page on TVs, a held Left stops at the start of the guide
+  or the first column of tiles, and a held Up at the top, rather than
+  running on to the categories, the rail or the tabs; a press of its own
+  goes on, and in the guide not within half a second of Left moving.
 - The TV live player's channel list moves as the app's other lists do
   under a held key: at an even pace, without asking for every logo it
   passes, its focused row a third of the way down.
