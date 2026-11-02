@@ -51,6 +51,9 @@ describes how they are made.
   rather than cropped, so a wide film's preview keeps its sides.
 - A chapter named only by where it starts ("00:06:19.212", as mkvmerge
   names them) is called "Chapter 3" in the player.
+- An audio track whose language the file and the TV write differently
+  ("vie" and "vi", "ind" and "id") switches in place instead of starting
+  the stream again, and on the track asked for.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was

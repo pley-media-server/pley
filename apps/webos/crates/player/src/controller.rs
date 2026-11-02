@@ -3152,45 +3152,18 @@ fn progress(position_ms: i64, info: &PlaybackInfo, state: ProgressState) -> Prog
     }
 }
 
-/// Two- and three-letter codes of the same language compare equal.
-const LANG3: [(&str, &str); 32] = [
-    ("en", "eng"),
-    ("fr", "fre"),
-    ("fra", "fre"),
-    ("de", "ger"),
-    ("deu", "ger"),
-    ("es", "spa"),
-    ("it", "ita"),
-    ("ja", "jpn"),
-    ("ko", "kor"),
-    ("zh", "chi"),
-    ("zho", "chi"),
-    ("pt", "por"),
-    ("ru", "rus"),
-    ("nl", "dut"),
-    ("nld", "dut"),
-    ("sv", "swe"),
-    ("no", "nor"),
-    ("da", "dan"),
-    ("fi", "fin"),
-    ("pl", "pol"),
-    ("tr", "tur"),
-    ("ar", "ara"),
-    ("he", "heb"),
-    ("hi", "hin"),
-    ("cs", "cze"),
-    ("ces", "cze"),
-    ("el", "gre"),
-    ("ell", "gre"),
-    ("hu", "hun"),
-    ("ro", "rum"),
-    ("ron", "rum"),
-    ("th", "tha"),
-];
-
+/// A language code as tracks are compared: its two-letter form where it has one, without a region
+/// ("eng", "en-GB" and "en" are "en"; "vie" is "vi").
 fn norm(language: Option<&str>) -> String {
-    let lower = language.unwrap_or("").to_ascii_lowercase();
-    LANG3.iter().find(|(a, _)| *a == lower).map_or(lower, |(_, b)| b.to_string())
+    let code = language.unwrap_or("").trim().split(['-', '_']).next().unwrap_or("");
+    two_letter_code(code)
+}
+
+/// Whether two codes (as [`norm`] writes them) name the same language: the same, or one beginning
+/// the other where a code isn't in the table (`TizenMediaEngine.Same`). Compared exactly, a file's
+/// "vie" never met the TV's "vi", so the track was asked for through a new stream at every try.
+fn same_language(a: &str, b: &str) -> bool {
+    a == b || (a.len() >= 2 && b.len() >= 2 && (a.starts_with(b) || b.starts_with(a)))
 }
 
 /// The engine's track for the file's `ordinal`-th audio track: the one in
@@ -3201,14 +3174,14 @@ pub fn match_track(tracks: &[AudioTrack], ordinal: usize, language: Option<&str>
     let want = norm(language);
     if let Some(t) = tracks.get(ordinal) {
         let theirs = norm(t.language.as_deref());
-        if want.is_empty() || theirs.is_empty() || theirs == want {
+        if want.is_empty() || theirs.is_empty() || same_language(&theirs, &want) {
             return Some(t.ordinal);
         }
     }
     if want.is_empty() {
         return None;
     }
-    tracks.iter().find(|t| norm(t.language.as_deref()) == want).map(|t| t.ordinal)
+    tracks.iter().find(|t| same_language(&norm(t.language.as_deref()), &want)).map(|t| t.ordinal)
 }
 
 /// The chapter start the next-chapter key goes to: the next one starting more than a second ahead.
@@ -3243,6 +3216,25 @@ mod tests {
         assert_eq!(match_track(&[], 0, Some("eng")), None);
         assert_eq!(match_track(&tracks, 0, None), Some(0));
         assert_eq!(match_track(&tracks, 5, None), None);
+    }
+
+    #[test]
+    fn languages_written_two_ways_are_the_same() {
+        let named = |codes: &[&str]| -> Vec<AudioTrack> {
+            codes
+                .iter()
+                .enumerate()
+                .map(|(i, c)| AudioTrack { ordinal: i, language: Some(c.to_string()), ..AudioTrack::default() })
+                .collect()
+        };
+        for (file, tv) in [("vie", "vi"), ("ind", "id"), ("ukr", "uk"), ("hrv", "hr"), ("fre", "fr"), ("por", "pt-BR")]
+        {
+            let tracks = named(&["en", tv]);
+            assert_eq!(match_track(&tracks, 1, Some(file)), Some(1), "{file} and {tv}");
+            assert_eq!(match_track(&tracks, 0, Some(file)), Some(1), "{file} found by language");
+        }
+        // Different languages stay apart, whatever their letters.
+        assert_eq!(match_track(&named(&["en", "ar"]), 1, Some("arm")), None);
     }
 
     #[test]
