@@ -1,6 +1,7 @@
 //! Pieces Live TV's pages share (`TvLiveKit.kt`): a channel's logo in its well, how far a
 //! programme is, its Live or New badge, and text placed in a box.
 
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use pley_base::{Align, Color, ImageState, Point, Rect, TextLayout, TextOpts, TextStyle};
@@ -130,9 +131,33 @@ pub fn fit(area: Rect, aspect: f32) -> Rect {
     Rect::new(area.x + (area.w - w) / 2.0, area.y + (area.h - h) / 2.0, w, h)
 }
 
+/// `text` cut at a word to about `chars` characters, with "…" (`GuideView.Shortened`): a little
+/// more than the lines that show it hold. Laying text out shapes all of it before the lines stop,
+/// and a provider's description can run to pages, which held each move along the guide's row on
+/// Samsung's TVs for 20 to 40 ms.
+pub fn shortened(text: &str, chars: usize) -> Cow<'_, str> {
+    let Some((end, _)) = text.char_indices().nth(chars) else { return Cow::Borrowed(text) };
+    let head = &text[..end];
+    let cut = head.rfind(' ').filter(|&at| head[..at].chars().count() > chars / 2).unwrap_or(end);
+    Cow::Owned(format!("{}…", head[..cut].trim_end()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_long_description_is_cut_at_a_word() {
+        assert_eq!(shortened("Short and sweet.", 240), "Short and sweet.");
+        let long = "word ".repeat(100);
+        let cut = shortened(&long, 240);
+        assert!(cut.ends_with("word…"), "{cut}");
+        assert!(cut.chars().count() <= 241);
+        assert!(cut.chars().count() > 200);
+        // Without a space in its second half, it is cut where the characters end.
+        let one = "é".repeat(300);
+        assert_eq!(shortened(&one, 240).chars().count(), 241);
+    }
 
     #[test]
     fn a_wide_picture_fits_across_a_tall_area() {

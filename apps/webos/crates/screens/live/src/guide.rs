@@ -26,7 +26,7 @@ use pley_ui::theme::{self, radius};
 use pley_ui::{Dirs, FocusOpts, Id, Motion, Response, Ui};
 
 use crate::clock::Clock;
-use crate::draw::{BADGE_H, Well, channel_tile, line_mid, programme_badge};
+use crate::draw::{BADGE_H, Well, channel_tile, line_mid, programme_badge, shortened};
 use crate::lineup::Lineup;
 
 /// The guide's scale: 3.6 dp a minute.
@@ -56,6 +56,8 @@ pub const KEEP_TITLE: f32 = 90.0;
 pub const MARGIN: usize = 20;
 /// The page's right edge for the guide's content.
 const END: f32 = theme::CANVAS_W - theme::SAFE_X;
+/// What has focus says this much of its description, cut at a word: three lines' worth of its two.
+const DESCRIPTION_CHARS: usize = 240;
 /// A Left at the guide's start this soon after Left last moved within it stays (`EdgePauseMs`):
 /// taps in a row stop at the start rather than run out into the categories.
 pub const EDGE_PAUSE: f64 = 0.5;
@@ -480,6 +482,7 @@ impl Guide {
         });
         if let Some(text) = text.filter(|t| !t.is_empty()) {
             let y = meta_y + theme::LABEL.line_height + 6.0;
+            let text = shortened(&text, DESCRIPTION_CHARS);
             ui.text(Point::new(x, y), &text, &theme::BODY, &TextOpts::wrap(width.min(560.0), 2), theme::MUTED);
         }
     }

@@ -11,7 +11,12 @@ use pley_ui::theme::{self, radius};
 use pley_ui::{Id, ImageOpts, Ui};
 
 use crate::clock::Clock;
-use crate::draw::{Well, channel_tile, progress};
+use crate::draw::{Well, channel_tile, progress, shortened};
+
+/// The description stops this far above the buttons.
+const BUTTONS_GAP: f32 = 12.0;
+/// The description is cut at a word near this many characters, a little more than 6 lines hold.
+const DESCRIPTION_CHARS: usize = 400;
 
 /// What the details asked for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,6 +41,20 @@ pub fn show(
     clock: &Clock,
 ) -> Option<DetailsAction> {
     let now = clock.now;
+    // Watch and the favourite at the foot: side by side when they fit, else one over the other.
+    // Placed first, so the description stops above them.
+    let airing = program.is_none_or(|p| p.airing_at(now));
+    let watch = Button::pill(if airing { "Watch now" } else { "Watch channel" }).icon(Icon::Play);
+    let favourite = if channel.favorite {
+        Button::pill("Remove from favourites").icon(Icon::Star)
+    } else {
+        Button::pill("Add to favourites").icon(Icon::StarOutline)
+    };
+    let (ws, fs) = (watch.size(ui), favourite.size(ui));
+    let gap = theme::BUTTON_GAP;
+    let side_by_side = ws.w + gap + fs.w <= area.w;
+    let buttons_top = if side_by_side { area.bottom() - ws.h } else { area.bottom() - ws.h - gap - fs.h };
+
     let mut y = area.y;
     let tile = Rect::new(area.x, y, 64.0, 38.0);
     channel_tile(ui, cx, tile, channel, Well::PAGE);
@@ -88,31 +107,27 @@ pub fn show(
             Some(d) => (d, theme::FG),
             None => ("The guide says nothing more of it.", theme::SUBTLE),
         };
-        let d = ui.layout(text, &theme::BODY, &TextOpts::wrap(area.w, 6));
+        // As many lines as the room above the buttons holds, 6 at most, at least 1
+        // (`LiveKit.cs`), less the line saying it has ended.
+        let ended = p.stop <= now;
+        let room = buttons_top - BUTTONS_GAP - y - if ended { theme::CAPTION.line_height + 8.0 } else { 0.0 };
+        let lines = ((room / theme::BODY.line_height).floor() as u16).clamp(1, 6);
+        let text = shortened(text, DESCRIPTION_CHARS);
+        let d = ui.layout(&text, &theme::BODY, &TextOpts::wrap(area.w, lines));
         let dh = d.size.h;
         ui.draw_text(Point::new(area.x, y), d, color);
         y += dh;
-        if p.stop <= now {
+        if ended {
             y += 8.0;
             ui.text(Point::new(area.x, y), "It has ended.", &theme::CAPTION, &TextOpts::line(area.w), theme::SUBTLE);
         }
     }
 
-    // Watch and the favourite at the foot: side by side when they fit, else one over the other.
-    let airing = program.is_none_or(|p| p.airing_at(now));
-    let watch = Button::pill(if airing { "Watch now" } else { "Watch channel" }).icon(Icon::Play);
-    let favourite = if channel.favorite {
-        Button::pill("Remove from favourites").icon(Icon::Star)
-    } else {
-        Button::pill("Add to favourites").icon(Icon::StarOutline)
-    };
-    let (ws, fs) = (watch.size(ui), favourite.size(ui));
-    let gap = theme::BUTTON_GAP;
     let mut action = None;
     let (wid, fid) = (watch_id(id), id.with("favourite"));
     ui.initial_focus(wid);
-    if ws.w + gap + fs.w <= area.w {
-        let top = area.bottom() - ws.h;
+    let top = buttons_top;
+    if side_by_side {
         ui.group(id.with("buttons"), bar_group(), |ui| {
             if watch.show(ui, wid, Point::new(area.x, top)).activated {
                 action = Some(DetailsAction::Watch);
@@ -122,7 +137,6 @@ pub fn show(
             }
         });
     } else {
-        let top = area.bottom() - ws.h - gap - fs.h;
         if watch.show(ui, wid, Point::new(area.x, top)).activated {
             action = Some(DetailsAction::Watch);
         }

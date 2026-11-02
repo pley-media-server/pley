@@ -35,7 +35,9 @@ describes how they are made.
 
 ### Fixed
 
-- Settings' Always start as no longer starts the TV as a profile with a
+- A programme's details in Live TV keep its description above Watch and
+  the favourite, and the guide no longer lays out the whole of a long
+  description each time focus moves onto a programme.- Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
   left on has a PIN, the start asks "Who's watching?".
