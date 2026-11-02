@@ -171,6 +171,29 @@ final class ScreensTests: XCTestCase {
         walk.signOut()
     }
 
+    /// Music: an album played from its page (the mini player, the track
+    /// marked, the session on the dashboard), Next (the first session gone),
+    /// Now Playing with Shuffle and a 15-minute sleep timer, and a music
+    /// playlist made of the artist's tracks played from its second entry,
+    /// then paused; the playlist is deleted afterwards.
+    func testMusic() async throws {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            XCUIDevice.shared.orientation = .landscapeLeft
+        }
+        let app = XCUIApplication()
+        app.launch()
+        let walk = Walk(app: app, test: self)
+        walk.startSignedOut()
+        await walk.signInWithCode()
+        walk.chooseSignedIn()
+        walk.seeHome(Admin.adminName)
+        await walk.musicWalk(music: await Admin.libraryIds()["Music"] ?? 0)
+        walk.openMe()
+        walk.signOut()
+        let ended = await walk.holds { await Admin.sessions().isEmpty }
+        XCTAssertTrue(ended, "signing out ends music's session")
+    }
+
     func testPersonPage() async throws {
         let libraries = await Admin.libraryIds()
         var found: (library: String, title: String)?

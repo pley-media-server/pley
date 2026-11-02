@@ -66,9 +66,11 @@ extension Walk {
         wait(element("addToPlaylist.what"), "Add to playlist's panel")
     }
 
-    func openPlaylists() {
+    /// `first`: the way to the Playlists tab from the tab showing, up into
+    /// the tabs and then along them (left from Now Playing, which follows it).
+    func openPlaylists(first: [XCUIRemote.Button] = [.up, .right]) {
         let tab = app.tabBars.buttons["Playlists"]
-        focus(tab, "the Playlists tab", first: [.up, .right])
+        focus(tab, "the Playlists tab", first: first)
         remote.press(.select)
         wait(button("playlists.new"), "Playlists")
     }

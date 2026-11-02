@@ -14,7 +14,8 @@
 # a library, a collection, a playlist made, changed and deleted, Me
 # (Settings on Apple TV), a switch back by PIN, a search, the profile's
 # track defaults, History, Settings, Diagnostics and About, on Apple TV
-# Always start as across a relaunch, and Sign out. The server
+# Always start as across a relaunch, and Sign out; and music, Live TV and
+# the largest text size, each a test of its own. The server
 # and the temporary folder are removed afterwards, whatever happens. macOS
 # only.
 #

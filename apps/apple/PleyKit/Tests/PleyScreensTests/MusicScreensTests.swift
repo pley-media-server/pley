@@ -185,8 +185,13 @@ private func musicApp(_ server: FixtureServer, output: QuietMusicOutput, system:
         let controller = try #require(await app.play(PlayRequest(itemId: 7)))
         #expect(!app.music.state.playing)
         #expect(app.music.active)
+        #if os(tvOS)
+        // Apple TV's player shows its own Now Playing: music only lets go.
+        #expect(app.nowPlaying.owner == nil)
+        #else
         #expect(app.nowPlaying.owner == .video)
         #expect(system.commands.contains(.skipForward))
+        #endif
         await app.closePlayer(controller)
         #expect(app.nowPlaying.owner == .music)
         #expect(system.info?.title == "Sunson")

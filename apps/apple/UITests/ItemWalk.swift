@@ -116,7 +116,8 @@ extension Walk {
         shot("18-episode")
     }
 
-    /// The music library's artist, their album, and its tracks; no Play.
+    /// The music library's artist with Play, their album, and its tracks
+    /// with Play and Shuffle (testMusic plays them).
     func musicPages(music: Int) {
         openLibrary(music, "Music")
         wait(titled("Test Artist"), "the artist in Music").tap()
@@ -128,7 +129,8 @@ extension Walk {
         wait(tracks.firstMatch, "the album's tracks")
         XCTAssertEqual(tracks.count, 2, "the album lists its two tracks")
         XCTAssertTrue(element("album.artist").exists, "the album links its artist")
-        XCTAssertFalse(button("item.play").exists, "music has no Play yet")
+        XCTAssertTrue(button("album.play").exists, "the album has Play")
+        XCTAssertTrue(button("album.shuffle").exists, "the album has Shuffle")
         shot("20-album")
     }
 

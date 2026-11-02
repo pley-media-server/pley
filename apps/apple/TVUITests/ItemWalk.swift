@@ -110,7 +110,8 @@ extension Walk {
 
     }
 
-    /// The music library's artist, their album, and its tracks; no Play.
+    /// The music library's artist, their album, and its tracks with Play
+    /// and Shuffle (testMusic plays them).
     func musicPages() {
         openGrid("Music")
         select(titled("Test Artist", in: "library.grid"), "the artist in Music", first: [.down, .right])
@@ -122,7 +123,8 @@ extension Walk {
         wait(tracks.firstMatch, "the album's tracks")
         XCTAssertEqual(tracks.count, 2, "the album lists its two tracks")
         XCTAssertTrue(element("album.artist").exists, "the album has its artist")
-        XCTAssertFalse(button("item.play").exists, "music has no Play yet")
+        XCTAssertTrue(button("album.play").exists, "the album has Play")
+        XCTAssertTrue(button("album.shuffle").exists, "the album has Shuffle")
         shot("20-album")
         back(2)
     }

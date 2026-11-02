@@ -19,13 +19,16 @@
 #  11. Opus MP4 (2023).mp4        H.264 + Opus stereo in MP4, 30 s
 #   8. Pley Test Show - S01E01.mkv and S01E02.mkv, 75 s each, with chapters
 #      Prologue, Intro (10-30 s), Story and Credits (55-75 s)
+#  13. <dir>/Music/Test Artist/Test Album/01 First.m4a and 02 Second.m4a
+#      (AAC, 20 s each), and 03 Third.mka (MP2, 8 s), which Apple devices
+#      can't decode, so the server converts it
 #
 # With --screens, the media for the screens' UI tests (check-screens.sh)
 # instead: 1, 2 and 8, a third episode, and
 #
 #  12. <dir>/Clips/Clip 01.mp4 to Clip 40.mp4, 2 s each: rows and grids
 #      longer than a screen
-#  13. <dir>/Music/Test Artist/Test Album/01 First.m4a and 02 Second.m4a
+#  13. the album without its third track
 #
 # FFmpeg needs libx264, libx265, libsvtav1, libopus and its own AAC, AC-3,
 # E-AC-3, DTS (dca), MP2 and FLAC encoders. Files already there are kept.
@@ -223,19 +226,27 @@ if [[ $screens == yes ]]; then
     fi
   done
   made "12 Clips"
-
-  # 13. An album of two tracks, tagged.
-  album="$out/Music/Test Artist/Test Album"
-  mkdir -p "$album"
-  number=1
-  for title in First Second; do
-    f="$album/0$number $title.m4a"
-    if [[ ! -e "$f" ]]; then
-      ff -f lavfi -i "sine=frequency=$((330 + 110 * number)):sample_rate=44100:duration=20" -c:a aac -b:a 128k \
-        -metadata title="$title" -metadata artist="Test Artist" -metadata album_artist="Test Artist" \
-        -metadata album="Test Album" -metadata track="$number/2" -metadata date=2024 "$f"
-    fi
-    number=$((number + 1))
-  done
-  made "13 Test Album"
 fi
+
+# 13. An album of two AAC tracks, tagged, and a third in MP2 to convert.
+album="$out/Music/Test Artist/Test Album"
+mkdir -p "$album"
+number=1
+for title in First Second; do
+  f="$album/0$number $title.m4a"
+  if [[ ! -e "$f" ]]; then
+    ff -f lavfi -i "sine=frequency=$((330 + 110 * number)):sample_rate=44100:duration=20" -c:a aac -b:a 128k \
+      -metadata title="$title" -metadata artist="Test Artist" -metadata album_artist="Test Artist" \
+      -metadata album="Test Album" -metadata track="$number" -metadata date=2024 "$f"
+  fi
+  number=$((number + 1))
+done
+if [[ $screens == no ]]; then
+  f="$album/03 Third.mka"
+  if [[ ! -e "$f" ]]; then
+    ff -f lavfi -i "sine=frequency=660:sample_rate=48000:duration=8" -c:a mp2 -b:a 192k -ac 2 \
+      -metadata title="Third" -metadata artist="Test Artist" -metadata album_artist="Test Artist" \
+      -metadata album="Test Album" -metadata track=3 -metadata date=2024 "$f"
+  fi
+fi
+made "13 Test Album"

@@ -1262,11 +1262,23 @@ Between steps 6 and 7, the title pages:
   Play and Shuffle.
 
 On iPhone and iPad, a test of its own looks at the screens at the largest
-accessibility text size (Accessibility XXXL): Home, a movie's page and
-below it, Movies, a show with its episodes, "Test collection", Playlists,
-Search, Me, Settings and About, each with its main control checked to be
-on screen and reachable. Its screenshots are named `large-*`. It changes
-nothing on the server.
+accessibility text size (Accessibility XXXL), with music playing so the
+mini player shows under them: the album playing, Now Playing, Home, a
+movie's page and below it, Movies, a show with its episodes, "Test
+collection", Playlists, Search, Me, Settings and About, each with its main
+control checked to be on screen and reachable. Its screenshots are named `large-*`. It changes
+nothing on the server but music's session, which signing out ends.
+
+Music is a test of its own (`testMusic`): the album's Play starts the
+first track (the mini player on iPhone and iPad, the Now Playing tab on
+Apple TV), the track playing is marked, and the dashboard shows its
+session; Next plays the second, whose session takes the first's place;
+Now Playing turns Shuffle on and the sleep timer to 15 minutes ("15 min
+left"); a music playlist of the artist's tracks (made from Add to
+playlist on iPhone and iPad, through the server on Apple TV) plays from
+its second entry, and Pause (the remote's Play/Pause on Apple TV) pauses
+it. The playlist is deleted afterwards, and signing out ends the
+session.
 
 Live TV is a test of its own (`testLiveTv`), against `live-source.sh`'s
 four channels with one connection: All channels shows the guide with Test
@@ -1311,7 +1323,7 @@ TV 4K (4th generation), and stops the server and deletes its folder
 afterwards. `PLEY_IOS_SIMS` (names separated by `;`) and `PLEY_TV_SIM` name
 other simulators, `PLEY_SHOTS` a folder for the walk's screenshots, and
 `PLEY_SCREENS_LOGS` a folder for the logs of a simulator that failed, and
-`PLEY_UI_TESTS` (names separated by spaces, such as `testLiveTv`) the
+`PLEY_UI_TESTS` (names separated by `;`, such as `testMusic;testLiveTv`) the
 tests to run, all of them when unset. A
 test that fails runs once more, in a new test runner
 (`-retry-tests-on-failure`); one that fails
@@ -1395,8 +1407,8 @@ It builds the server and its transcoder, makes the test media with FFmpeg
 (`scripts/make-test-media.sh`; set `PLEY_CHECK_MEDIA` to a folder to make
 it once and keep it), and starts a disposable server as above, its
 transcoder working in the same temporary folder. `pley-apple-play` makes
-the Movies and Shows libraries, signs in with a code as the app does, and
-plays each file through `PlaybackController` and AVPlayer with this Mac's
+the Movies, Shows and Music libraries, signs in with a code as the app
+does, and plays each file through `PlaybackController` and AVPlayer with this Mac's
 caps report, decoding without a window. It checks, through the server's
 activity, the session's status and the item:
 
@@ -1424,6 +1436,10 @@ activity, the session's status and the item:
   plays as it is; the MKV's PGS shows its 480×96 picture at 12.5 seconds,
   from the server's `.mks`, while the session stays repackaged with
   nothing burned in;
+- music, through `MusicPlayback` and AVPlayer: the album's two AAC
+  tracks play as they are, each in a session of its own, the first's
+  session gone once it runs out and the second starts; its MP2 track is
+  converted; and stopping ends the session;
 - Live TV, with `live-source.sh`'s channels added as a source with one
   connection: through `LivePlayback` and AVPlayer, Test One tunes and
   plays; Test Two takes its place in a new session, Test One's playlist
@@ -1443,9 +1459,9 @@ tones: an H.264 MP4 with an SRT beside it, an MP4 with two audio tracks, an
 MKV with H.264, AC-3, an SRT and a PGS track (written by
 `scripts/make-pgs.py`, since FFmpeg can't encode PGS), HEVC HDR10 with
 E-AC-3, MPEG-2 with MP2, H.264 with DTS, AV1 10-bit, MKVs with Opus and
-with FLAC, an MP4 with Opus, and a show's two episodes with an intro and
-credits chapters. It needs FFmpeg with libx264, libx265, libsvtav1 and
-libopus. With `--screens` it makes the UI tests' media instead: the H.264
+with FLAC, an MP4 with Opus, a show's two episodes with an intro and
+credits chapters, and an album of two AAC tracks and an MP2 one. It needs
+FFmpeg with libx264, libx265, libsvtav1 and libopus. With `--screens` it makes the UI tests' media instead: the H.264
 MP4, the show with a third episode, forty 2-second clips (rows and grids
 longer than a screen) and an album of two tracks.
 

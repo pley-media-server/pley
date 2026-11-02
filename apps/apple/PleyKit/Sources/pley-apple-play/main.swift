@@ -618,6 +618,55 @@ func checkLive(api: PleyAPI, page: AdminPage, source: String) async throws {
     say("(l) Live TV: leaving ends the session within 2 s")
 }
 
+/// (m) Music: the album's tracks through `MusicPlayback` and the AVPlayer
+/// output, one session each, the one before gone at a track's end, and the
+/// MP2 track converted.
+@MainActor
+func checkMusic(api: PleyAPI, page: AdminPage, caps: DeviceCaps, reporter: SessionReporter, artistId: Int) async throws {
+    let album = try required(try await api.children(artistId).first { $0.kind == .album }, "the artist has no album")
+    let tracks = try await api.children(album.id)
+    try check(tracks.map(\.title) == ["First", "Second", "Third"],
+              "the album's tracks are \(tracks.map(\.title)), not First, Second and Third")
+    let music = MusicPlayback(environment: MusicEnvironment(
+        api: { api }, caps: { await caps.warmUp().report }, clientId: "apple-play-check-music", reporter: reporter))
+    defer { music.stop() }
+    func playing(_ title: String, past ms: Int) async throws {
+        try await wait("\(title) to play past \(ms / 1000) s", seconds: 60) {
+            if let error = music.state.error { throw CheckFailure("\(title): \(error.text)") }
+            return music.state.track?.title == title && music.state.playing && music.positionMs > ms
+        }
+    }
+    func session() throws -> ServerPlaybackSession { try required(music.session, "music has no session") }
+
+    music.play(tracks: tracks)
+    try await playing("First", past: 1_000)
+    let first = try session()
+    try check(first.info.method == .direct, "First plays by \(first.info.method.rawValue), not direct")
+    try check(try await activity(page, first.id) != nil, "the dashboard doesn't show First's session")
+    say("(m) music: First plays as it is, session \(short(first.id)) on the dashboard")
+
+    // Near its end, First runs out by itself and Second follows in a session of its own.
+    music.seek(toMs: max(music.state.durationMs - 2_000, 0))
+    try await playing("Second", past: 500)
+    let second = try session()
+    try check(second.id != first.id, "Second plays in First's session")
+    try check(second.info.method == .direct, "Second plays by \(second.info.method.rawValue), not direct")
+    try await wait("First's session to end", seconds: 5) { try await activity(page, first.id) == nil }
+    say("(m) music: at First's end, its session ended and Second's \(short(second.id)) started")
+
+    music.next()
+    try await playing("Third", past: 1_000)
+    let third = try session()
+    try check(third.info.method != .direct, "Third (MP2) plays as it is, not converted")
+    try await wait("Second's session to end", seconds: 5) { try await activity(page, second.id) == nil }
+    say("(m) music: Third (MP2) plays by \(third.info.method.rawValue)")
+
+    music.stop()
+    await reporter.flush()
+    try await wait("music's session to end", seconds: 5) { try await activity(page, third.id) == nil }
+    say("(m) music: stopping ends the session")
+}
+
 // MARK: The run
 
 @MainActor
@@ -652,7 +701,8 @@ func run() async throws {
     try await page.login(username: admin, password: password)
     let movies = try await library(page, name: "Movies", kind: "movies", path: media + "/Movies", count: 10)
     let shows = try await library(page, name: "Shows", kind: "shows", path: media + "/Shows", count: 1)
-    say("libraries: \(movies.count) movies, \(shows.count) show(s)")
+    let artists = try await library(page, name: "Music", kind: "music", path: media + "/Music", count: 1)
+    say("libraries: \(movies.count) movies, \(shows.count) show(s), \(artists.count) artist(s)")
     let items = Dictionary(uniqueKeysWithValues: movies.map { title, id in
         // Titles from the folders' names, without the year.
         (title.replacingOccurrences(of: #" \(\d{4}\)$"#, with: "", options: .regularExpression), id)
@@ -734,6 +784,9 @@ func run() async throws {
 
     try await checkSubtitles(api: api, caps: caps, reporter: reporter, direct: try item("Direct H264"),
                              remux: try item("Remux H264 AC3"))
+
+    try await checkMusic(api: api, page: page, caps: caps, reporter: reporter,
+                         artistId: try required(artists["Test Artist"], "no artist Test Artist in Music"))
 
     if let source = options["live-source"] {
         try await checkLive(api: api, page: page, source: source)

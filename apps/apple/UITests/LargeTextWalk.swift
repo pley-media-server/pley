@@ -1,16 +1,30 @@
 import XCTest
 
-/// The screens at the largest accessibility text size: Home, a movie's
-/// page, a library, a show and its episodes, a collection, Playlists,
-/// Search, Me, Settings and About, each looked at (`large-*` screenshots)
-/// and its main control checked to be on screen and reachable. It changes
-/// nothing on the server.
+/// The screens at the largest accessibility text size, with music playing
+/// so the mini player shows under each: an album playing, Now Playing,
+/// Home, a movie's page, a library, a show and its episodes, a collection,
+/// Playlists, Search, Me, Settings and About, each looked at (`large-*`
+/// screenshots) and its main control checked to be on screen and
+/// reachable. It changes nothing on the server but music's session.
 extension Walk {
     /// The launch arguments that set the text size to the largest accessibility size.
     static let largestText = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
 
     func largeTextPass(libraries: [String: Int]) {
         let movies = libraries["Movies"] ?? 0, shows = libraries["Shows"] ?? 0
+        seeHome(Admin.adminName)
+        openLibrary(libraries["Music"] ?? 0, "Music")
+        wait(titled("Test Artist"), "the artist in Music").tap()
+        wait(titled("Test Album"), "the artist's album").tap()
+        reveal(button("album.play"), "the album's Play").tap()
+        let mini = wait(element("music.mini"), "the mini player", timeout: 30)
+        XCTAssertTrue(mini.isHittable, "the mini player can be reached")
+        shot("large-00-album-playing")
+        mini.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).tap()
+        reveal(button("music.toggle"), "Now Playing's Play/Pause")
+        shot("large-00-now-playing")
+        tap("music.nowPlaying.done", "Done")
+        openHome()
         seeHome(Admin.adminName)
         XCTAssertTrue(tile.isHittable, "a tile can be reached on Home")
         shot("large-01-home")

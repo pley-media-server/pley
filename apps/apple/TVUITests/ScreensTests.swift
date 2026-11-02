@@ -160,6 +160,25 @@ final class ScreensTests: XCTestCase {
         walk.signOut()
     }
 
+    /// Music: an album played from its page opens the Now Playing tab (the
+    /// session on the dashboard), Next (the first session gone), Shuffle and
+    /// a 15-minute sleep timer, and a music playlist played from its second
+    /// entry, then paused with the remote's Play/Pause; the playlist is
+    /// deleted afterwards.
+    func testMusic() async throws {
+        let app = XCUIApplication()
+        app.launch()
+        let walk = Walk(app: app, test: self)
+        walk.startSignedOut()
+        await walk.signInWithCode()
+        walk.chooseSignedIn()
+        walk.seeHome(Admin.adminName)
+        await walk.musicWalk(music: await Admin.libraryIds()["Music"] ?? 0)
+        walk.openSettings()
+        walk.signOut()
+        await walk.eventually("signing out ends music's session") { await Admin.sessions().isEmpty }
+    }
+
     func testPersonPage() async throws {
         let libraries = await Admin.libraryIds()
         var found: (library: String, title: String)?
