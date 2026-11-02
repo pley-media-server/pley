@@ -170,9 +170,12 @@ sub showTab(wanted as string)
     showLetters()
     if wanted = "library"
         m.grid.content = m.content
-        if m.content.getChildCount() > 0
+        if m.content.getChildCount() > 0 or m.total = 0
             showContent()
         else
+            ' Its first page asked for, or on its way: the other tab's
+            ' message goes.
+            showMessage("Loading…")
             loadPage(0)
         end if
     else if wanted = "collections"
