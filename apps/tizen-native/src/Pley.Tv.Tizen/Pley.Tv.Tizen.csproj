@@ -13,12 +13,24 @@
        compiled in, and send their marks to PleyMetrics. Without it, they're left out. -->
   <PropertyGroup Condition="'$(PleyMetrics)' != ''">
     <DefineConstants>$(DefineConstants);PROFILE</DefineConstants>
+    <!-- An app of its own (app.pley.tizen.debug, "Pley (debug)"), installed beside a release
+         rather than in its place: its manifest is the app's with the id and name changed. -->
+    <PleyDebugManifest>$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)debug-manifest\tizen-manifest.xml</PleyDebugManifest>
+    <TizenManifestFile>$(PleyDebugManifest)</TizenManifestFile>
   </PropertyGroup>
+  <Target Name="PleyDebugManifest" BeforeTargets="BeforeBuild" Condition="'$(PleyMetrics)' != ''">
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName($(PleyDebugManifest)))" />
+    <WriteLinesToFile File="$(PleyDebugManifest)" Overwrite="true"
+                      Lines="$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\tizen-manifest.xml').Replace('app.pley.tizen', 'app.pley.tizen.debug').Replace('Pley (native)', 'Pley (debug)'))" />
+  </Target>
   <ItemGroup Condition="'$(PleyMetrics)' != ''">
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>PleyMetrics</_Parameter1>
       <_Parameter2>$(PleyMetrics)</_Parameter2>
     </AssemblyAttribute>
+    <!-- Its icon says NATIVE, told apart on the TV from a release and from the web app. -->
+    <TizenTpkUserExcludeFiles Include="shared\res\icon.png" />
+    <TizenTpkUserIncludeFiles Include="icon-debug.png" TizenTpkSubDir="shared\res" TizenTpkFileName="icon.png" />
   </ItemGroup>
 
   <ItemGroup>

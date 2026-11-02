@@ -31,6 +31,17 @@ static class Profile
     [Conditional("PROFILE")]
     public static void Mark(string what) => Run.Mark(what);
 
+
+    /// <summary>
+    /// The UI thread goes into <paramref name="what"/>, a call into the TV (its player, its window):
+    /// a hang there is named by the watchdog. <see cref="Leave"/> as it comes back.
+    /// </summary>
+    [Conditional("PROFILE")]
+    public static void Enter(string what) => Run.Enter(what);
+
+    [Conditional("PROFILE")]
+    public static void Leave() => Run.Leave();
+
     /// <summary>Marks when <paramref name="task"/> ends, from now.</summary>
     [Conditional("PROFILE")]
     public static void Ends(string what, Task task)
@@ -67,6 +78,10 @@ static class Profile
         static string? trail;
         static Timer? beat, memory;
         static long beatAt;
+        /// <summary>The call the UI thread is in, and since when (ms); null between calls.</summary>
+        static volatile string? busy;
+        static long busyAt;
+        static Thread? watchdog;
         static int pictures;
         static double picturesMs;
         static Counter? counter;
@@ -87,27 +102,46 @@ static class Profile
 
         static double Now => Before + Since.Elapsed.TotalMilliseconds;
 
+        /// <summary>
+        /// Lines on their way, to the trail on the TV (Mark's) and the listener: written by a thread
+        /// of their own, so a mark costs its caller a queue's add. Marked from the TV player's own
+        /// threads (its buffering), a file written and a post started there held the player's
+        /// callbacks, twenty at once after a seek, and the app died moments later.
+        /// </summary>
+        static readonly System.Collections.Concurrent.BlockingCollection<(string Line, bool Keep)> Outgoing =
+            new System.Collections.Concurrent.BlockingCollection<(string, bool)>(new System.Collections.Concurrent.ConcurrentQueue<(string, bool)>(), 4096);
+        static Thread? writer;
+        static int memoryTicks;
+
         public static void Mark(string what)
         {
             last = what;
-            var line = $"profile {Now,8:0} ms  {what}";
-            Send(line);
-            // On the TV too, at once: a native crash takes the posts on their way with the process.
-            if (trail == null) return;
-            try
-            {
-                lock (Http) File.AppendAllText(trail, $"{DateTime.Now:HH:mm:ss.fff} {line}\n");
-            }
-            catch (Exception)
-            {
-                // Nowhere to write.
-            }
+            Outgoing.TryAdd(($"profile {Now,8:0} ms  {what}", true));
         }
 
-        public static void Send(string line)
+        public static void Send(string line) => Outgoing.TryAdd((line, false));
+
+        /// <summary>The thread that writes the trail and posts the lines, in order.</summary>
+        static void Write()
         {
-            if (Address == null) return;
-            _ = Post(line);
+            writer = new Thread(() =>
+            {
+                foreach (var (line, keep) in Outgoing.GetConsumingEnumerable())
+                {
+                    if (Address != null) _ = Post(line);
+                    // On the TV too, at once: a native crash takes the posts on their way with the process.
+                    if (!keep || trail == null) continue;
+                    try
+                    {
+                        File.AppendAllText(trail, $"{DateTime.Now:HH:mm:ss.fff} {line}\n");
+                    }
+                    catch (Exception)
+                    {
+                        // Nowhere to write.
+                    }
+                }
+            }) { IsBackground = true, Name = "pley-marks" };
+            writer.Start();
         }
 
         static async Task Post(string line)
@@ -133,10 +167,13 @@ static class Profile
         {
             Trail(dataDir);
             CatchCrashes(dataDir);
+            Sampler(dataDir);
+            Write();
             // Core's marks too (the relay's, Live TV's), from whatever thread they come on.
             Core.Marks.Listener = Mark;
             WatchStalls();
             WatchMemory();
+            Watchdog();
             // Held here: NUI calls it from native code, which doesn't keep it from being collected.
             counter = new Counter(window);
             window.AddFrameUpdateCallback(counter);
@@ -153,7 +190,94 @@ static class Profile
                 // Gone already.
             }
             trail = null;
+            Forget(samples);
         }
+
+        static string? samples;
+
+        /// <summary>
+        /// The app's threads looked at from outside it every 250 ms, by a shell of its own: each one's
+        /// state (R running, S sleeping, D waiting on the kernel, T stopped) and the kernel call it
+        /// waits in, written to a ring of files. The app freezes whole now and then, its watchdog and
+        /// writer with it, so nothing in it can tell why; the shell is no .NET thread, so a pause of
+        /// .NET's doesn't stop it, and if the TV stops the app's processes, the samples stop with
+        /// them. A run that ended without <see cref="End"/> has its last samples sent at the next start.
+        /// </summary>
+        static void Sampler(string dataDir)
+        {
+            var dir = Path.Combine(dataDir, "samples");
+            try
+            {
+                if (Directory.Exists(dir))
+                {
+                    var found = new System.Collections.Generic.List<(double At, string Text)>();
+                    foreach (var f in Directory.GetFiles(dir, "s.*"))
+                    {
+                        if (f.EndsWith(".tmp", StringComparison.Ordinal)) continue;
+                        var text = File.ReadAllText(f);
+                        var first = text.Split('\n')[0];
+                        if (first.StartsWith("at ", StringComparison.Ordinal)
+                            && double.TryParse(first.Substring(3).Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var at))
+                            found.Add((at, text));
+                    }
+                    found.Sort((a, b) => a.At.CompareTo(b.At));
+                    for (var i = Math.Max(0, found.Count - 8); i < found.Count; i++)
+                    {
+                        var line = "SAMPLE LAST RUN " + found[i].Text.Trim().Replace("\n", " | ");
+                        Send(line.Length > 3900 ? line.Substring(0, 3900) : line);
+                    }
+                    Forget(dir);
+                }
+                Directory.CreateDirectory(dir);
+                // The TV's clock since it started, which the samples count in: it lines them up with the marks.
+                Mark($"uptime {File.ReadAllText("/proc/uptime").Trim()}");
+                var script = Path.Combine(dataDir, "sampler.sh");
+                File.WriteAllText(script, SamplerScript.Replace("\r", ""));
+                var shell = Process.Start(new ProcessStartInfo("/bin/sh", $"{script} {Process.GetCurrentProcess().Id} {dir}") { UseShellExecute = false });
+                Mark(shell != null ? $"sampler: started, process {shell.Id}" : "sampler: didn't start");
+                samples = dir;
+            }
+            catch (Exception e)
+            {
+                Mark($"sampler: didn't start: {e.GetType().Name}: {e.Message}");
+            }
+        }
+
+        static void Forget(string? dir)
+        {
+            try
+            {
+                if (dir != null && Directory.Exists(dir))
+                    foreach (var f in Directory.GetFiles(dir)) File.Delete(f);
+            }
+            catch (Exception)
+            {
+                // Gone already.
+            }
+        }
+
+        /// <summary>
+        /// The sampler: shell built-ins in its loop (read, echo), so it forks little; a ring of 20
+        /// files, each written whole then moved into place, so the last ones are always readable.
+        /// </summary>
+        const string SamplerScript = @"p=$1; d=$2; i=0
+while [ -d /proc/$p ]; do
+  f=$d/s.$i
+  {
+    read up idle < /proc/uptime; echo ""at $up""
+    while read k v; do case $k in State:|VmRSS:|Threads:) printf '%s %s  ' ""$k"" ""$v"";; esac; done < /proc/$p/status; echo
+    while read c; do printf '%s ' ""$c""; done < /proc/$p/cgroup; echo
+    for t in /proc/$p/task/*; do
+      s=; n=; w=
+      read -r s < $t/stat; read -r n < $t/comm; read -r w < $t/wchan
+      s=${s##*) }; echo ""${t##*/} $n ${s%% *} $w""
+    done
+  } > $f.tmp 2>/dev/null
+  mv $f.tmp $f
+  i=$(( (i + 1) % 20 ))
+  sleep 0.25 2>/dev/null || usleep 250000
+done
+";
 
         /// <summary>The last 40 marks of a run that ended without <see cref="End"/> are sent; this run's go to the same file.</summary>
         static void Trail(string dataDir)
@@ -205,6 +329,50 @@ static class Profile
             TaskScheduler.UnobservedTaskException += (s, e) => Send("UNOBSERVED TASK: " + e.Exception?.ToString().Replace("\n", " | "));
         }
 
+        public static void Enter(string what)
+        {
+            Interlocked.Exchange(ref busyAt, Since.ElapsedMilliseconds);
+            busy = what;
+        }
+
+        public static void Leave() => busy = null;
+
+        /// <summary>
+        /// A thread of its own watching the UI thread's beat: one missing for 1.5 s is a hang, told
+        /// from this thread (the UI's own marks stop with it) with the call it's in and the mark
+        /// before, again every 2 s while it lasts, and when it ends. A crash ends the marks with no
+        /// hang told; a hang the TV ends by closing the app ends them after one.
+        /// </summary>
+        static void Watchdog()
+        {
+            watchdog = new Thread(() =>
+            {
+                long toldAt = 0;
+                var hung = false;
+                while (true)
+                {
+                    Thread.Sleep(250);
+                    var now = Since.ElapsedMilliseconds;
+                    var gap = now - Interlocked.Read(ref beatAt);
+                    if (gap >= 1500 && (!hung || now - toldAt >= 2000))
+                    {
+                        hung = true;
+                        toldAt = now;
+                        var b = busy;
+                        var line = $"profile {Now,8:0} ms  UI HUNG {gap} ms, in: {b ?? "(no call of the TV's)"}{(b != null ? $" for {now - Interlocked.Read(ref busyAt)} ms" : "")}, after: {last}, gc0={GC.CollectionCount(0)} gc2={GC.CollectionCount(2)}";
+                        // To the trail too: a hang the TV ends by closing the app leaves it there.
+                        Outgoing.TryAdd((line, true));
+                    }
+                    else if (hung && gap < 1500)
+                    {
+                        hung = false;
+                        Send($"profile {Now,8:0} ms  UI back");
+                    }
+                }
+            }) { IsBackground = true, Name = "pley-watchdog" };
+            watchdog.Start();
+        }
+
         /// <summary>A beat on the UI thread every 16 ms: one late by more than 50 ms is a stall, named by the mark before it.</summary>
         static void WatchStalls()
         {
@@ -213,8 +381,8 @@ static class Profile
             beat.Tick += (s, e) =>
             {
                 var now = Since.ElapsedMilliseconds;
-                var gap = now - beatAt;
-                beatAt = now;
+                var gap = now - Interlocked.Read(ref beatAt);
+                Interlocked.Exchange(ref beatAt, now);
                 if (gap > 66) Send($"profile {Now,8:0} ms  STALL {gap} ms on the UI thread, after: {last}");
                 return true;
             };
@@ -240,22 +408,40 @@ static class Profile
                 {
                     // Not readable here.
                 }
-                Send($"profile {Now,8:0} ms  MEMORY rss={rss} peak={peak} heap={GC.GetTotalMemory(false) / 1048576.0:0.0} MB gc0={GC.CollectionCount(0)} gc2={GC.CollectionCount(2)}, after: {last}");
+                // The TV's memory as a whole, and how readily it would close this app for it: a TV short
+                // of memory freezes an app (every thread at once) and then closes it.
+                string available = "?", free = "?", swap = "?", adj = "?";
+                try
+                {
+                    foreach (var line in File.ReadAllLines("/proc/meminfo"))
+                    {
+                        if (line.StartsWith("MemAvailable:")) available = line.Substring(13).Trim();
+                        else if (line.StartsWith("MemFree:")) free = line.Substring(8).Trim();
+                        else if (line.StartsWith("SwapFree:")) swap = line.Substring(9).Trim();
+                    }
+                    adj = File.ReadAllText("/proc/self/oom_score_adj").Trim();
+                }
+                catch (Exception)
+                {
+                    // Not readable here.
+                }
+                Send($"profile {Now,8:0} ms  MEMORY rss={rss} peak={peak} heap={GC.GetTotalMemory(false) / 1048576.0:0.0} MB gc0={GC.CollectionCount(0)} gc2={GC.CollectionCount(2)} tv-available={available} tv-free={free} swap-free={swap} oom-adj={adj}, after: {last}");
+                // To the trail too, every 30 s: the last before a close says what the TV had left.
+                if (++memoryTicks % 6 == 0) Outgoing.TryAdd(($"profile {Now,8:0} ms  MEMORY rss={rss} tv-available={available} oom-adj={adj}", true));
                 return true;
             };
             memory.Start();
         }
 
         /// <summary>
-        /// The frames drawn a second and the longest frame, top right over everything, every half
-        /// second, and sent while something moves. NUI draws only while something moves, so it
-        /// reads 0 at rest.
+        /// The frames drawn a second and the longest frame, every half second, sent while something
+        /// moves. Not shown: over the player it was in the way, and the rail says the build is a
+        /// debug one. NUI draws only while something moves, so it reads 0 at rest.
         /// </summary>
         sealed class Counter : FrameUpdateCallbackInterface
         {
             const uint EveryMs = 500;
 
-            readonly TextLabel label;
             readonly Timer timer = new Timer(EveryMs);
             int frames;
             /// <summary>The longest frame since the last reading, in microseconds (the update thread writes it).</summary>
@@ -264,25 +450,10 @@ static class Profile
 
             public Counter(Window window)
             {
-                label = new TextLabel("")
-                {
-                    PixelSize = Ui.Dp(12),
-                    TextColor = Color.Yellow,
-                    BackgroundColor = new Color(0, 0, 0, 0.7f),
-                    MultiLine = true,
-                    Size = new Size(Ui.Dp(150), Ui.Dp(36)),
-                    Position = new Position(Ui.Dp(PleyTv.CanvasWidth - 158), Ui.Dp(4)),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                };
-                var layer = new Layer();
-                window.AddLayer(layer);
-                layer.Add(label);
                 timer.Tick += (s, e) =>
                 {
                     var count = Interlocked.Exchange(ref frames, 0);
                     var worst = Interlocked.Exchange(ref longest, 0);
-                    label.Text = $"{count * 1000 / EveryMs} fps\nlongest frame {worst / 1000f:0.0} ms";
                     if (count > 2) Send($"fps={count * 1000 / EveryMs} longest={worst / 1000f:0.0}");
                     return true;
                 };

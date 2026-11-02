@@ -503,7 +503,7 @@ sealed class HistoryScreen : ShellPage
                 picture.ResourceUrl = file;
                 var fade = new Animation(PleyMotion.ImageFadeMs);
                 fade.AnimateTo(picture, "Opacity", 1f);
-                fade.Play();
+                fade.PlayHeld();
             });
         }
 

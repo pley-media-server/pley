@@ -11,12 +11,23 @@ namespace Pley.Tv.Tizen.Screens;
 /// Picture subtitles (PGS, VobSub, DVB) over the video, as the web app's PictureSubtitles draws
 /// them: each bitmap of the frame where its plane puts it, the plane (a Blu-ray's 1920×1080, a
 /// DVD's 720×576) stretched over the whole screen. Each bitmap's RGBA bytes become a texture shown
-/// by an image; those of the frame before are let go as the next one comes. Unlike text, pictures
-/// stay where they are while the controls show, under them.
+/// by an image; those of the frame before leave the screen as the next one comes, and their
+/// textures go a second later, once the renderer is done with them: freed at once, as a track
+/// being read out came again every few seconds (its frames new objects, the same pictures), the
+/// app closed natively. The same picture again is kept as it is. Unlike text, pictures stay
+/// where they are while the controls show, under them.
 /// </summary>
 sealed class PictureSubtitleView : View
 {
     readonly List<(ImageView Image, ImageUrl Url, PixelData Pixels)> shown = new List<(ImageView, ImageUrl, PixelData)>();
+    /// <summary>
+    /// Pictures off the screen, every view's, kept until the renderer is surely done with their
+    /// textures: past the view itself, which may go with the player before then.
+    /// </summary>
+    static readonly List<(ImageView Image, ImageUrl Url, PixelData Pixels, long At)> Leaving = new List<(ImageView, ImageUrl, PixelData, long)>();
+    /// <summary>Lets go of what left over a second ago; held here, as a timer nothing holds is collected while it runs.</summary>
+    static Timer? sweep;
+    const uint LetGoMs = 1000;
     PictureFrame? frame;
 
     public PictureSubtitleView()
@@ -28,6 +39,12 @@ sealed class PictureSubtitleView : View
     public void Show(PictureFrame? next)
     {
         if (Disposed || next == frame) return;
+        // The same pictures again (a track read again): as they are.
+        if (Same(frame, next))
+        {
+            frame = next;
+            return;
+        }
         frame = next;
         Clear();
         if (next == null || next.PlaneWidth <= 0 || next.PlaneHeight <= 0) return;
@@ -50,21 +67,60 @@ sealed class PictureSubtitleView : View
         }
     }
 
+    /// <summary>The pictures leave the screen now; their textures in a second (<see cref="sweep"/>).</summary>
     void Clear()
     {
+        var now = Environment.TickCount64;
         foreach (var (image, url, pixels) in shown)
         {
             Remove(image);
+            Leaving.Add((image, url, pixels, now));
+        }
+        shown.Clear();
+        if (Leaving.Count == 0) return;
+        if (sweep == null)
+        {
+            sweep = new Timer(LetGoMs);
+            sweep.Tick += (s, e) =>
+            {
+                Sweep();
+                return Leaving.Count > 0;
+            };
+        }
+        if (!sweep.IsRunning()) sweep.Start();
+    }
+
+    static void Sweep()
+    {
+        var now = Environment.TickCount64;
+        for (var i = Leaving.Count - 1; i >= 0; i--)
+        {
+            var (image, url, pixels, at) = Leaving[i];
+            if (now - at < LetGoMs) continue;
             image.Dispose();
             url.Dispose();
             pixels.Dispose();
+            Leaving.RemoveAt(i);
         }
-        shown.Clear();
+    }
+
+    /// <summary>Whether two frames show the same pictures at the same places.</summary>
+    static bool Same(PictureFrame? a, PictureFrame? b)
+    {
+        if (a == null || b == null || a.PlaneWidth != b.PlaneWidth || a.PlaneHeight != b.PlaneHeight || a.Bitmaps.Count != b.Bitmaps.Count) return false;
+        for (var i = 0; i < a.Bitmaps.Count; i++)
+        {
+            var x = a.Bitmaps[i];
+            var y = b.Bitmaps[i];
+            if (x.X != y.X || x.Y != y.Y || x.Width != y.Width || x.Height != y.Height || !x.Rgba.AsSpan().SequenceEqual(y.Rgba)) return false;
+        }
+        return true;
     }
 
     protected override void Dispose(DisposeTypes type)
     {
         if (Disposed) return;
+        // Off the screen with the view; their textures a second later, as any.
         Clear();
         base.Dispose(type);
     }

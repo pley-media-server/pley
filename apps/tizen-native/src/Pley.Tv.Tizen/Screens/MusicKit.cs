@@ -105,7 +105,7 @@ sealed class ArtWell : View
         Add(picture);
         var fade = new Animation(PleyMotion.ImageFadeMs);
         fade.AnimateTo(picture, "Opacity", 1f);
-        fade.Play();
+        fade.PlayHeld();
     }
 }
 
@@ -169,7 +169,7 @@ sealed class FaintArtView : View
             before.Unparent();
             before.Dispose();
         };
-        fade.Play();
+        fade.PlayHeld();
     }
 }
 

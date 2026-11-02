@@ -231,7 +231,7 @@ sealed class TileView : View
             {
                 if (!Disposed && mine == shown) well.BackgroundColor = PleyColors.Surface2;
             };
-            fade.Play();
+            fade.PlayHeld();
         });
     }
 
@@ -434,7 +434,7 @@ sealed class SeeAllTile : View
         var a = new Animation(on ? PleyMotion.FocusMs : PleyMotion.UnfocusMs);
         a.AnimateTo(frame, "Scale", new Vector3(scale, scale, 1));
         a.AnimateTo(ring, "Opacity", on ? 1f : 0f);
-        a.Play();
+        a.PlayHeld();
     }
 
     protected override void Dispose(DisposeTypes type)

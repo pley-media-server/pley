@@ -48,6 +48,8 @@ describes how they are made.
 
 ### Changed
 
+- The app's icon says WEB on a blue band, so it is told apart from the
+  native app on a TV that has both.
 - Pley for Samsung TV is free software under the GNU Affero General Public
   License, version 3 (`AGPL-3.0-only`, `LICENSE`).
 - The sign-in page names this app by its address on

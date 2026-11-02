@@ -55,7 +55,11 @@ sealed class TizenMediaEngine : IVideoEngine
             {
                 try
                 {
+                    var asked = Profile.Start();
+                    Profile.Enter("player: its position");
                     if (p.State is Media.PlayerState.Playing or Media.PlayerState.Paused) lastPosition = p.GetPlayPosition();
+                    Profile.Leave();
+                    Slow("its position", asked);
                 }
                 catch (Exception)
                 {
@@ -64,6 +68,14 @@ sealed class TizenMediaEngine : IVideoEngine
             }
             return pendingSeek ?? lastPosition;
         }
+    }
+
+    /// <summary>A call into the TV's player that held the UI thread: marked, in a profiling build.</summary>
+    [System.Diagnostics.Conditional("PROFILE")]
+    static void Slow(string what, long asked)
+    {
+        var ms = (System.Diagnostics.Stopwatch.GetTimestamp() - asked) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+        if (ms >= 30) Profile.Mark($"engine: the player took {ms:0} ms for {what}");
     }
 
     public long DurationMs => durationMs > 0 ? durationMs : source?.DurationHintMs ?? 0;
@@ -133,21 +145,34 @@ sealed class TizenMediaEngine : IVideoEngine
                 await Task.Delay(OpaqueMs);
                 if (mine != generation) return;
             }
+            Profile.Enter("window: its alpha on");
             Window.Instance.SetTransparency(true);
+            Profile.Leave();
             opaque = false;
         }
         try
         {
+            Profile.Enter("player: set up (display, source)");
             if (video) p.Display = new Media.Display(Window.Instance);
             p.ErrorOccurred += (_, e) => Post(mine, () => Fail(ErrorOf(e.Error)));
             p.PlaybackCompleted += (_, _) => Post(mine, Completed);
             p.PlaybackInterrupted += (_, _) => Post(mine, () => Fail(new EngineError.Other("the TV took its player for something else")));
-            p.VideoStreamChanged += (_, e) => Post(mine, () => Picture(e.Size.Width, e.Size.Height));
+            p.VideoStreamChanged += (_, e) => Post(mine, () =>
+            {
+                stats = null;
+                Picture(e.Size.Width, e.Size.Height);
+            });
             p.SetSource(new Media.MediaUriSource(s.Url));
             Buffer(p, s);
 #if PROFILE
-            p.BufferingProgressChanged += (_, e) => Profile.Mark($"engine: buffered {e.Percent} %");
+            // Off the player's thread, its first and last only: a callback of the TV's player returns at once.
+            p.BufferingProgressChanged += (_, e) =>
+            {
+                var percent = e.Percent;
+                if (percent is 0 or 100) Post(mine, () => Profile.Mark($"engine: buffered {percent} %"));
+            };
 #endif
+            Profile.Leave();
         }
         catch (Exception e)
         {
@@ -156,11 +181,14 @@ sealed class TizenMediaEngine : IVideoEngine
         }
         try
         {
+            Profile.Enter("player: prepare (the call)");
             preparing = p.PrepareAsync();
+            Profile.Leave();
             await preparing;
             if (mine != generation) return;
             prepared = true;
             Profile.Mark("engine: prepared");
+            Profile.Enter("player: after prepare (display mode, streams, duration)");
             if (video)
             {
                 p.DisplaySettings.Mode = Media.PlayerDisplayMode.LetterBox;
@@ -195,12 +223,16 @@ sealed class TizenMediaEngine : IVideoEngine
             {
                 // A live stream has none.
             }
+            Profile.Leave();
             // A file's timeline is the file's: a conversion that starts there still seeks there. Live starts at its edge.
             var start = pendingSeek ?? (s.Live ? 0 : s.StartMs);
             if (start >= 1000)
             {
                 Profile.Mark($"engine: going to {start / 1000} s");
-                await p.SetPlayPositionAsync((int)start, false);
+                Profile.Enter("player: seek (the call)");
+                var going = p.SetPlayPositionAsync((int)start, false);
+                Profile.Leave();
+                await going;
                 Profile.Mark("engine: there");
                 if (mine != generation) return;
                 lastPosition = start;
@@ -249,12 +281,15 @@ sealed class TizenMediaEngine : IVideoEngine
 
     public void Pause()
     {
+        Profile.Mark("engine: pause asked");
         wanted = false;
         var p = player;
         if (p == null || !prepared) return;
         try
         {
+            Profile.Enter("player: pause");
             if (p.State == Media.PlayerState.Playing) p.Pause();
+            Profile.Leave();
         }
         catch (Exception)
         {
@@ -268,6 +303,7 @@ sealed class TizenMediaEngine : IVideoEngine
         var to = Math.Max(0, ms);
         var p = player;
         if (p == null) return;
+        Profile.Mark($"engine: seek to {to} ms asked");
         pendingSeek = to;
         if (!prepared) return;
         var mine = generation;
@@ -278,7 +314,10 @@ sealed class TizenMediaEngine : IVideoEngine
     {
         try
         {
-            await p.SetPlayPositionAsync((int)ms, false);
+            Profile.Enter("player: seek (the call)");
+            var going = p.SetPlayPositionAsync((int)ms, false);
+            Profile.Leave();
+            await going;
         }
         catch (Exception)
         {
@@ -345,6 +384,7 @@ sealed class TizenMediaEngine : IVideoEngine
         if (p == null || !prepared) return false;
         try
         {
+            Profile.Enter("player: audio track");
             var info = p.AudioTrackInfo;
             if (ordinal < 0 || ordinal >= info.GetCount()) return false;
             if (language != null)
@@ -352,26 +392,77 @@ sealed class TizenMediaEngine : IVideoEngine
                 var code = info.GetLanguageCode(ordinal);
                 if (!string.IsNullOrEmpty(code) && !Same(code, language)) return false;
             }
-            info.Selected = ordinal;
+            Profile.Mark($"engine: audio track {ordinal} of {info.GetCount()} chosen (was {info.Selected})");
+            if (info.Selected != ordinal) info.Selected = ordinal;
             return true;
         }
         catch (Exception)
         {
             return false;
         }
+        finally
+        {
+            Profile.Leave();
+        }
     }
 
-    /// <summary>Languages as two or three letters ("en", "eng"): the same when one begins the other.</summary>
-    static bool Same(string a, string b) =>
-        a.StartsWith(b, StringComparison.OrdinalIgnoreCase) || b.StartsWith(a, StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// Languages as two or three letters ("en", "eng"; "ja", "jpn"; "fr", "fre", "fra"): the same
+    /// when one begins the other, or when both name one language. Japanese's "ja" doesn't begin
+    /// "jpn", and every switch to a Japanese track failed and started the player again.
+    /// </summary>
+    static bool Same(string a, string b)
+    {
+        if (a.StartsWith(b, StringComparison.OrdinalIgnoreCase) || b.StartsWith(a, StringComparison.OrdinalIgnoreCase)) return true;
+        return TwoLetters(a) is { } x && x == TwoLetters(b);
+    }
+
+    /// <summary>The ISO 639-1 code of a language's two- or three-letter code; null when not known.</summary>
+    static string? TwoLetters(string code)
+    {
+        var c = code.Trim().ToLowerInvariant();
+        var dash = c.IndexOfAny(new[] { '-', '_' });
+        if (dash > 0) c = c.Substring(0, dash);
+        if (c.Length == 2) return c;
+        if (ThreeLetters.TryGetValue(c, out var two)) return two;
+        try
+        {
+            foreach (var culture in System.Globalization.CultureInfo.GetCultures(System.Globalization.CultureTypes.NeutralCultures))
+                if (culture.ThreeLetterISOLanguageName == c) return culture.TwoLetterISOLanguageName;
+        }
+        catch (Exception)
+        {
+            // No culture data on this TV: the table's.
+        }
+        return null;
+    }
+
+    /// <summary>The bibliographic codes Matroska and ffprobe use where .NET knows the terminological ones.</summary>
+    static readonly Dictionary<string, string> ThreeLetters = new Dictionary<string, string>
+    {
+        ["eng"] = "en", ["jpn"] = "ja", ["fre"] = "fr", ["fra"] = "fr", ["ger"] = "de", ["deu"] = "de", ["spa"] = "es",
+        ["ita"] = "it", ["por"] = "pt", ["rus"] = "ru", ["chi"] = "zh", ["zho"] = "zh", ["kor"] = "ko", ["ara"] = "ar",
+        ["hin"] = "hi", ["dut"] = "nl", ["nld"] = "nl", ["swe"] = "sv", ["tur"] = "tr", ["pol"] = "pl", ["gre"] = "el",
+        ["ell"] = "el", ["cze"] = "cs", ["ces"] = "cs", ["heb"] = "he", ["tha"] = "th", ["vie"] = "vi", ["ind"] = "id",
+    };
+
+    /// <summary>
+    /// What the player says of its streams, read once for each source and again when its picture
+    /// changes: Info asks every second, and a TV asked that often while it played closed the app.
+    /// </summary>
+    EngineStats? stats;
+    int statsFor = -1;
 
     public EngineStats? Stats()
     {
         var p = player;
         if (p == null || !prepared) return null;
+        if (stats != null && statsFor == generation) return stats;
+        Profile.Enter("player: its streams (Info)");
         int? width = null, height = null, bitrate = null, audioBitrate = null, channels = null;
         double? fps = null;
         string? codec = null, audioCodec = null;
+        var asked = Profile.Start();
         try
         {
             var v = p.StreamInfo.GetVideoProperties();
@@ -399,8 +490,10 @@ sealed class TizenMediaEngine : IVideoEngine
         {
             // No sound, or not known.
         }
+        Profile.Leave();
+        Slow("its stats", asked);
         var total = (bitrate ?? 0) + (audioBitrate ?? 0);
-        return new EngineStats
+        var read = new EngineStats
         {
             Width = width,
             Height = height,
@@ -410,6 +503,13 @@ sealed class TizenMediaEngine : IVideoEngine
             AudioCodec = string.IsNullOrEmpty(audioCodec) ? null : audioCodec,
             AudioChannels = channels,
         };
+        // Kept once the picture is known; a source still starting is asked again.
+        if (width != null || audioCodec != null)
+        {
+            stats = read;
+            statsFor = generation;
+        }
+        return read;
     }
 
     void StartPlayer(int mine)
@@ -418,7 +518,9 @@ sealed class TizenMediaEngine : IVideoEngine
         if (p == null || mine != generation) return;
         try
         {
+            Profile.Enter("player: start");
             if (p.State != Media.PlayerState.Playing) p.Start();
+            Profile.Leave();
             Profile.Mark("engine: started");
         }
         catch (Exception e)
@@ -467,8 +569,12 @@ sealed class TizenMediaEngine : IVideoEngine
         long position;
         try
         {
+            var asked = Profile.Start();
+            Profile.Enter("player: its position (watch)");
             playing = p.State == Media.PlayerState.Playing;
             position = playing ? lastPosition = p.GetPlayPosition() : lastPosition;
+            Profile.Leave();
+            Slow("its position (watch)", asked);
         }
         catch (Exception)
         {
@@ -477,6 +583,9 @@ sealed class TizenMediaEngine : IVideoEngine
         if (!moved)
         {
             // Started: the position has moved on from where it began, so pictures come.
+#if PROFILE
+            if (++startWatches % 25 == 0) Profile.Mark($"engine: waiting for the picture to move: {p.State}, at {position} ms");
+#endif
             if (!playing) return;
             if (firstAt < 0) firstAt = position;
             if (position < firstAt + FirstMoveMs) return;
@@ -507,6 +616,9 @@ sealed class TizenMediaEngine : IVideoEngine
     /// <summary>How far the position moves from where it began before the source counts as started.</summary>
     const long FirstMoveMs = 80;
     bool moved;
+#if PROFILE
+    int startWatches;
+#endif
     long firstAt = -1;
     long watchedAt = -1;
     int stillFor;
@@ -517,7 +629,35 @@ sealed class TizenMediaEngine : IVideoEngine
         Profile.Mark($"engine: picture {width}x{height}");
         if (width <= 0 || height <= 0) return;
         hasVideo = true;
+        Place(width, height);
         VideoSize?.Invoke(width, height);
+    }
+
+    /// <summary>The picture where <see cref="PictureArea"/> puts it, as the bars do; the TV's own letterboxing where it can't be told.</summary>
+    void Place(int width, int height)
+    {
+        var p = player;
+        if (p == null || !video) return;
+        try
+        {
+            var (sw, sh) = PictureArea.Screen;
+            var (x, y, w, h) = PictureArea.Of(width, height, sw, sh);
+            Profile.Enter("player: its region");
+            p.DisplaySettings.Mode = Media.PlayerDisplayMode.Roi;
+            p.DisplaySettings.SetRoi(new Media.Rectangle(x, y, w, h));
+            Profile.Leave();
+        }
+        catch (Exception)
+        {
+            try
+            {
+                p.DisplaySettings.Mode = Media.PlayerDisplayMode.LetterBox;
+            }
+            catch (Exception)
+            {
+                // Between states: its own.
+            }
+        }
     }
 
     void Completed()
@@ -614,7 +754,9 @@ sealed class TizenMediaEngine : IVideoEngine
             // The picture goes once the window is drawn without its alpha: stopped at once, the
             // video plane emptied before the screen's black was drawn, and the TV's menu showed
             // through for a moment as a channel changed.
+            Profile.Enter("window: its alpha off (close)");
             Window.Instance.SetTransparency(false);
+            Profile.Leave();
             opaque = cover = true;
         }
         Releasing = Release(p, prepare, Releasing, cover);
@@ -645,8 +787,10 @@ sealed class TizenMediaEngine : IVideoEngine
         // to the window, held the UI 8 s as a film was left, and the app died moments later.
         try
         {
+            Profile.Enter("player: stop and unprepare (release)");
             if (p.State is Media.PlayerState.Playing or Media.PlayerState.Paused) p.Stop();
             if (p.State != Media.PlayerState.Idle) p.Unprepare();
+            Profile.Leave();
         }
         catch (Exception)
         {
@@ -654,7 +798,9 @@ sealed class TizenMediaEngine : IVideoEngine
         }
         try
         {
+            Profile.Enter("player: dispose (release)");
             p.Dispose();
+            Profile.Leave();
         }
         catch (Exception)
         {
@@ -665,7 +811,9 @@ sealed class TizenMediaEngine : IVideoEngine
         if (cover && opening == 0 && opaque)
         {
             opaque = false;
+            Profile.Enter("window: its alpha on (release)");
             if (Covered?.Invoke() != false) Window.Instance.SetTransparency(true);
+            Profile.Leave();
         }
     }
 

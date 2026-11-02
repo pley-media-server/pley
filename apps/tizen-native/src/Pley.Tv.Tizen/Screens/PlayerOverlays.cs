@@ -91,7 +91,7 @@ static class Fade
     {
         var a = new Animation(ms) { DefaultAlphaFunction = new AlphaFunction(on ? AlphaFunction.BuiltinFunctions.EaseOut : AlphaFunction.BuiltinFunctions.EaseIn) };
         a.AnimateTo(view, "Opacity", on ? 1f : 0f);
-        a.Play();
+        a.PlayHeld();
         return a;
     }
 

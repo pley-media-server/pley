@@ -10,6 +10,9 @@ It has no releases yet: it is built and installed by hand
 
 ### Added
 
+- A profiling build of the native app is an app of its own, "Pley (debug)",
+  with a DEBUG icon on a yellow band, so it installs beside the app rather
+  than in its place; the app's own icon is the plain logo.
 - A native app for Samsung TVs with Tizen 9, beside the web app: so far the
   Android TV app's "Choose your server" screen, with servers found on the
   network, an address pad, the TV's keyboard and forgetting a server; its
@@ -180,6 +183,9 @@ It has no releases yet: it is built and installed by hand
 - Back in the native app's Live TV guide goes to the categories, then the
   rail, rather than straight to the rail.
 - The native app's "Exit Pley?" is a narrower dialog.
+- The native app's rail opens and closes as Android TV's does: it widens
+  with its labels fading in, the page behind it dims, and its entries grow
+  and shrink as focus moves; with Reduce motion, it opens in place.
 - Coming back from a film in the native app, posters already shown stay
   as they were rather than flashing to their titles and fading in again.
 - Holding Up or Down in the native app's libraries slides the posters
@@ -209,3 +215,19 @@ It has no releases yet: it is built and installed by hand
   switch: the app goes on as that profile, and the pages offer Retry.
 - Exiting the native app while music plays ends the music's session on
   the server, with where it stopped.
+- The native app's Info no longer closes the app during a film: it reads
+  the TV player's stream details once, and again when the picture changes,
+  rather than every second; it opens with them, where it said "Asking the
+  server…" for a moment first.
+- Switching to a Japanese (or other) audio track in the native app works
+  where the file names its language in three letters and the TV in two
+  ("jpn", "ja"); the player no longer starts again at each try.
+- The native app's animations (a tile's focus, a film's title as it
+  begins, pictures fading in) are held while they run, where one could be
+  collected mid-way and close the app.
+- The native app's black bars meet a letterboxed film's picture exactly,
+  whatever its shape, where a sliver of the TV's menu could show between
+  them.
+- Picture subtitles (PGS, VobSub, DVB) in the native app no longer close
+  the app as a track still being made comes again: the same picture is
+  kept, and an old one's texture goes a second after it leaves the screen.

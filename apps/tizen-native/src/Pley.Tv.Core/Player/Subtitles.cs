@@ -499,8 +499,10 @@ public sealed class SubtitlePresenter
 
     void Fetch(string url, int at)
     {
+        if (Marks.On) Marks.Note("subtitles: asking for the text");
         Ui.Plays.When(scheduler, () => fetch(url), answer =>
         {
+            if (Marks.On) Marks.Note($"subtitles: {answer.Text.Length / 1024} KB of text{(answer.Complete ? "" : ", more to come")}{(at != generation ? ", for a track no longer shown" : "")}");
             if (at != generation) return;
             var parsed = new SubtitleIndex(WebVtt.Parse(answer.Text));
             var merged = index?.Merge(parsed) ?? parsed;
@@ -510,8 +512,9 @@ public sealed class SubtitlePresenter
                 Refresh();
             }
             if (!answer.Complete) retry = scheduler.After(PartialRetryMs, () => Fetch(url, at));
-        }, _ =>
+        }, e =>
         {
+            if (Marks.On) Marks.Note($"subtitles: the text failed: {e.GetType().Name} {e.Message}");
             if (at != generation) return;
             // Choosing the track again tries again.
             Showing = null;
