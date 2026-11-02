@@ -14,6 +14,9 @@ describes how they are made.
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
   left on has a PIN, the start asks "Who's watching?".
+- On phones and tablets, dragging the seek bar, the volume or the
+  brightness moves only what is drawn: the controls no longer redraw with
+  each move of the finger.
 
 ## [0.1.3] - 2026-11-02
 

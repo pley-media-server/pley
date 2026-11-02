@@ -161,7 +161,7 @@ private fun BackButton(onClick: () -> Unit) {
 internal fun CentreControls(state: PlayerScreenState, spinning: Boolean, modifier: Modifier = Modifier) {
     PlayerProbe.composed?.invoke("centre")
     // The seek preview takes the middle while the seek bar is dragged.
-    val scrubbing = state.scrubMs != null
+    val scrubbing = state.scrubbing
     val seconds = (PlayerScreenState.SEEK_STEP_MS / 1000).toInt()
     Row(
         modifier.graphicsLayer { alpha = if (scrubbing) 0f else 1f },

@@ -354,4 +354,57 @@ class PhonePlayerScreenTest {
         val after = synchronized(composed) { composed.toList() }
         assertEquals("compositions while playing hidden: ${after.drop(before.size)}", before.size, after.size)
     }
+
+    @Test
+    fun draggingTheSeekBarMovesTheKnobWithoutRecomposingTheControls() {
+        val composed = mutableListOf<String>()
+        PlayerProbe.composed = { synchronized(composed) { composed += it } }
+        // Skip shows: it steps aside for the drag, once.
+        val fake = FakePlaybackController(playing { it.copy(skipLabel = "Skip Intro") })
+        show(fake)
+        val bar = compose.onNodeWithContentDescription("Position")
+        bar.performTouchInput { down(androidx.compose.ui.geometry.Offset(width * 0.2f, height / 2f)) }
+        compose.waitForIdle()
+        val before = synchronized(composed) { composed.size }
+
+        // Twenty moves of the finger along the bar: only the knob, the preview and the times follow it.
+        repeat(20) {
+            bar.performTouchInput { moveBy(androidx.compose.ui.geometry.Offset(width * 0.02f, 0f)) }
+            compose.waitForIdle()
+        }
+        val during = synchronized(composed) { composed.drop(before) }
+        bar.performTouchInput { up() }
+        compose.waitForIdle()
+
+        val controls = setOf("seekBar", "centre", "skip", "top", "bottom", "screen")
+        assertEquals("compositions while dragging: $during", emptyList<String>(), during.filter { it in controls })
+        assertEquals(1, fake.calls("seekTo").size)
+    }
+
+    @Test
+    fun aVolumeDragMovesItsBarWithoutRecomposingIt() {
+        val composed = mutableListOf<String>()
+        PlayerProbe.composed = { synchronized(composed) { composed += it } }
+        val fake = FakePlaybackController(playing())
+        show(fake)
+        val player = compose.onNodeWithTag(TAG_PLAYER)
+        // Up on the right half, past the touch slop: the volume shows.
+        player.performTouchInput {
+            down(androidx.compose.ui.geometry.Offset(width * 0.85f, height * 0.6f))
+            moveBy(androidx.compose.ui.geometry.Offset(0f, -40f))
+        }
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Volume").assertIsDisplayed()
+        val before = synchronized(composed) { composed.size }
+
+        repeat(10) {
+            player.performTouchInput { moveBy(androidx.compose.ui.geometry.Offset(0f, -8f)) }
+            compose.waitForIdle()
+        }
+        val during = synchronized(composed) { composed.drop(before) }
+        player.performTouchInput { up() }
+
+        assertEquals("compositions while dragging: $during", emptyList<String>(), during.filter { it == "level" })
+        assertTrue(host.level > 0.5f)
+    }
 }

@@ -1,7 +1,10 @@
 package app.pley.android.ui.phone.player
 
 import android.graphics.Bitmap
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -49,11 +52,14 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
+import app.pley.android.designsystem.reducedMotion
 import app.pley.android.model.format.spokenDuration
 import app.pley.android.ui.phone.R
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -96,11 +102,21 @@ internal fun TimesAndSeekBar(state: PlayerScreenState) {
  * The seek bar (design spec §3.5): a 4 dp track (accent played, fg 45 %
  * buffered, fg 25 % the rest) with 2 dp gaps between chapters, and a 16 dp
  * accent knob that grows to 24 while dragged. Dragging shows the preview
- * at the knob and seeks on release. Everything moving is drawn, not composed.
+ * at the knob and seeks on release. Everything moving is drawn, not composed,
+ * the knob's growth too: the times beside the bar recompose as it is
+ * dragged, and a bar that read the drag would recompose with them.
  */
 @Composable
 internal fun SeekBar(state: PlayerScreenState, modifier: Modifier = Modifier) {
-    val knob by animateDpAsState(if (state.scrubMs != null) 24.dp else 16.dp, label = "knob")
+    PlayerProbe.composed?.invoke("seekBar")
+    val knob = remember { Animatable(KNOB, Dp.VectorConverter) }
+    val reduced = reducedMotion()
+    LaunchedEffect(state, reduced) {
+        snapshotFlow { state.scrubbing }.collectLatest { dragged ->
+            val size = if (dragged) KNOB_DRAGGED else KNOB
+            if (reduced) knob.snapTo(size) else knob.animateTo(size, spring(visibilityThreshold = Dp.VisibilityThreshold))
+        }
+    }
     val name = stringResource(R.string.player_seek_bar)
     val second by remember(state) { derivedStateOf { state.playhead.longValue / 1000 } }
     val duration = state.durationMs
@@ -156,23 +172,27 @@ internal fun SeekBar(state: PlayerScreenState, modifier: Modifier = Modifier) {
                         val pos = (state.scrubMs ?: state.playhead.longValue).toFloat()
                         val played = if (d > 0) (pos / d).coerceIn(0f, 1f) * w else 0f
                         val buffered = if (d > 0) (state.bufferedMs / d).coerceIn(0f, 1f) * w else 0f
-                        val cuts = if (d > 0) state.chapters.drop(1).map { it.startMs / d * w } else emptyList()
+                        val chapters = state.chapters
                         val radius = CornerRadius(track / 2f)
 
+                        // Every chapter after the first cuts the track, read where it is: a frame allocates nothing.
                         fun segment(from: Float, to: Float, color: Color) {
                             if (to <= from) return
                             var start = from
-                            for (cut in cuts) {
-                                if (cut <= start || cut >= to) continue
-                                drawRoundRect(color, Offset(start, y - track / 2f), Size(cut - gap / 2f - start, track), radius)
-                                start = cut + gap / 2f
+                            if (d > 0) {
+                                for (i in 1 until chapters.size) {
+                                    val cut = chapters[i].startMs / d * w
+                                    if (cut <= start || cut >= to) continue
+                                    drawRoundRect(color, Offset(start, y - track / 2f), Size(cut - gap / 2f - start, track), radius)
+                                    start = cut + gap / 2f
+                                }
                             }
                             drawRoundRect(color, Offset(start, y - track / 2f), Size(to - start, track), radius)
                         }
                         segment(0f, w, PleyColors.Fg.copy(alpha = 0.25f))
                         segment(0f, buffered, PleyColors.Fg.copy(alpha = 0.45f))
                         segment(0f, played, PleyColors.Accent)
-                        drawCircle(PleyColors.Accent, knob.toPx() / 2f, Offset(played, y))
+                        drawCircle(PleyColors.Accent, knob.value.toPx() / 2f, Offset(played, y))
                     },
             )
             ScrubPreview(state)
@@ -201,7 +221,7 @@ internal fun SeekBar(state: PlayerScreenState, modifier: Modifier = Modifier) {
  */
 @Composable
 private fun ScrubPreview(state: PlayerScreenState) {
-    if (state.scrubMs == null) return
+    if (!state.scrubbing) return
     var picture by remember { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(state) {
         snapshotFlow { state.scrubMs }
@@ -251,3 +271,7 @@ private fun ScrubPreview(state: PlayerScreenState) {
 
 /** Previews are asked for at most once per this much of the video. */
 private const val PREVIEW_STEP_MS = 1_000L
+
+/** The knob, and the knob while dragged. */
+private val KNOB = 16.dp
+private val KNOB_DRAGGED = 24.dp

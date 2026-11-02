@@ -111,6 +111,13 @@ class PlayerScreenState(
     /** Where the knob is while the seek bar is dragged; `null` otherwise. */
     var scrubMs by mutableStateOf<Long?>(null)
 
+    /**
+     * The seek bar is being dragged. What only looks different during a
+     * drag reads this: [scrubMs] changes with every move of the finger, and
+     * is read only where the knob and the preview are drawn and placed.
+     */
+    val scrubbing: Boolean by derivedStateOf { scrubMs != null }
+
     /** Touches only show the unlock button. */
     var locked by mutableStateOf(false)
         private set
