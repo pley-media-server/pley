@@ -66,6 +66,17 @@ extension Walk {
         wait(element("live.guide"), "the guide", timeout: 30)
     }
 
+    /// The tab bar's ends are on the screen: Search, first, and Settings,
+    /// last, neither cut off nor scrolled away.
+    func tabsFit(file: StaticString = #filePath, line: UInt = #line) {
+        let screen = app.windows.firstMatch.frame
+        for name in ["Search", "Settings"] {
+            let tab = app.tabBars.buttons[name]
+            XCTAssertTrue(tab.exists && screen.contains(tab.frame),
+                          "the \(name) tab is off the screen: \(tab.frame) of \(screen)", file: file, line: line)
+        }
+    }
+
     /// A category of the column down the left.
     /// Left from the tab bar would change tabs, and up from the column's top
     /// would leave it, so the focus goes down into the page, left into the

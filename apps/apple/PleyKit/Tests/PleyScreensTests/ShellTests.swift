@@ -163,6 +163,26 @@ import Testing
         let four = (1...4).map { Library(id: $0, name: "L\($0)", kind: .movies) }
         #expect(ShellModel.sections(tv: true, libraries: four, liveTv: true)
             == [.search, .home, .liveTv, .library(1), .libraries, .playlists, .settings])
+        // Named as people name them, the tabs must fit across the screen too.
+        let named = ["Movies", "Shows", "Clips", "Music"].enumerated().map {
+            Library(id: $0.offset + 1, name: $0.element, kind: .movies)
+        }
+        #expect(ShellModel.sections(tv: true, libraries: Array(named.prefix(2)))
+            == [.search, .home, .library(1), .library(2), .playlists, .settings])
+        #expect(ShellModel.sections(tv: true, libraries: named)
+            == [.search, .home, .library(1), .library(2), .libraries, .playlists, .settings])
+        #expect(ShellModel.sections(tv: true, libraries: named, liveTv: true)
+            == [.search, .home, .liveTv, .library(1), .libraries, .playlists, .settings])
+        // A long name gives its tab to Libraries.
+        let long = [Library(id: 1, name: "Documentaries and Concerts", kind: .movies),
+                    Library(id: 2, name: "Shows", kind: .shows)]
+        #expect(ShellModel.sections(tv: true, libraries: long, liveTv: true)
+            == [.search, .home, .liveTv, .libraries, .playlists, .settings])
+        for tabs in [ShellModel.sections(tv: true, libraries: named, liveTv: true),
+                     ShellModel.sections(tv: true, libraries: long, liveTv: true, nowPlaying: true)] {
+            let width = tabs.reduce(0) { $0 + ShellModel.tabWidth($1, libraries: named + long) }
+            #expect(width <= ShellModel.tabRoom)
+        }
         // The phone's five tabs don't change: Live TV is a row of Libraries.
         #expect(ShellModel.sections(tv: false, libraries: four, liveTv: true) == [.home, .libraries, .search, .playlists, .me])
     }

@@ -55,22 +55,25 @@ in to another server starts every section again at Home.
   View): a tab bar with Home, Libraries, Search, Playlists and Me. A library
   opened from the sidebar before the window narrowed shows under
   Libraries. While music has a queue, the mini player sits above the tab
-  bar (on iOS 26.1 and later, in the tab bar's own accessory).
+  bar (on iOS 26.1 and later, in the tab bar's own accessory, whose words
+  stop growing at the largest size below the accessibility sizes, as the
+  tab bar's own do).
 - **iPad** at regular width, and the **Mac**: a sidebar with Home, Live
   TV when it shows, Search and Playlists, then the libraries in the profile's order, each with its kind's symbol and a
   spinner while it is scanned, and at its foot the profile signed in, its
   picture, name and server, which opens Me. The Mac's window is at least
   800 by 560 points, and opens at 1100 by 720. While music has a queue,
   the mini player sits at the foot of the page beside the sidebar.
-- **Apple TV**: seven tabs at most across the top, so none is cut off:
-  Search (a magnifying glass alone, first, as in Apple's apps), Home, Live
-  TV when it shows, a tab per library with its name while they all fit
-  (the first that fit otherwise, and a Libraries tab for the rest),
-  Playlists, Now Playing while music has a queue (a music note alone, so
-  seven tabs with names fit), and Settings (which holds what Me holds
-  elsewhere). VoiceOver reads the two symbols' names. The focus engine
-  and the Siri Remote move through it; Menu goes back, then to the tabs,
-  then out of the app.
+- **Apple TV**: seven tabs at most across the top, and no more than fit
+  the screen's width, so none is cut off: Search (a magnifying glass
+  alone, first, as in Apple's apps), Home, Live TV when it shows, a tab
+  per library with its name while they all fit (the first that fit
+  otherwise, and a Libraries tab for the rest; a long name fits fewer),
+  Playlists, Now Playing while music has a queue (a music note alone),
+  and Settings (a gear alone; it holds what Me holds elsewhere).
+  VoiceOver reads the symbols' names. The focus engine and the Siri
+  Remote move through it; Menu goes back, then to the tabs, then out of
+  the app.
 
 **On the Mac**, the menu bar has the app's commands, and Settings (⌘,)
 and About Pley are windows of their own. The pointer on a tile grows it a

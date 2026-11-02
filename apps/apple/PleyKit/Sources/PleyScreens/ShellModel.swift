@@ -138,6 +138,18 @@ public final class ShellModel: ObservableObject {
     /// Apple TV shows at most this many tabs: past it, tvOS cuts them off.
     public static let maxTabs = 7
 
+    /// How much of Apple TV's tab bar the tabs may take, counted in
+    /// characters: a tab with words takes its title's and `tabPadding`
+    /// more, one with its symbol alone `tabPadding`. Past it, tvOS scrolls
+    /// the bar and its ends go off the screen.
+    public static let tabRoom = 64
+    static let tabPadding = 4
+
+    /// Apple TV's tabs that show their symbol alone (VoiceOver still reads
+    /// their names): Search, as the system's search tab, Now Playing and
+    /// Settings.
+    public static let symbolTabs: Set<ShellSection> = [.search, .nowPlaying, .settings]
+
     private let settings: AppSettings
     private let tv: Bool
     private var toastTask: Task<Void, Never>?
@@ -177,10 +189,11 @@ public final class ShellModel: ObservableObject {
 
     /// The tabs of a shell, with `libraries`, Live TV when it shows and
     /// Now Playing while music has a queue. On Apple TV, at most
-    /// `maxTabs` (Android's rail rule): Search, Home, Live TV, the
-    /// libraries, Playlists, Now Playing and Settings. While they all fit
-    /// each library has a tab; otherwise the first that fit keep theirs and
-    /// a Libraries tab takes the rest's place.
+    /// `maxTabs` (Android's rail rule), within `tabRoom` across the
+    /// screen: Search, Home, Live TV, the libraries, Playlists, Now Playing
+    /// and Settings. While they all fit each library has a tab; otherwise
+    /// the first that fit keep theirs and a Libraries tab takes the rest's
+    /// place.
     public static func sections(tv: Bool, libraries: [Library], liveTv: Bool = false,
                                 nowPlaying: Bool = false) -> [ShellSection] {
         guard tv else { return [.home, .libraries, .search, .playlists, .me] }
@@ -188,9 +201,29 @@ public final class ShellModel: ObservableObject {
         let start: [ShellSection] = [.search, .home] + (liveTv ? [.liveTv] : [])
         let end: [ShellSection] = [.playlists] + (nowPlaying ? [.nowPlaying] : []) + [.settings]
         let room = maxTabs - start.count - end.count
+        let taken = (start + end).reduce(0) { $0 + tabWidth($1, libraries: libraries) }
+        func fits(_ middle: [ShellSection]) -> Bool {
+            middle.count <= room && taken + middle.reduce(0) { $0 + tabWidth($1, libraries: libraries) } <= tabRoom
+        }
         let tabs = libraries.map { ShellSection.library($0.id) }
-        let middle = tabs.count <= room ? tabs : Array(tabs.prefix(room - 1)) + [.libraries]
-        return start + middle + end
+        if fits(tabs) { return start + tabs + end }
+        var kept = Array(tabs.prefix(max(room - 1, 0)))
+        while !kept.isEmpty && !fits(kept + [.libraries]) { kept.removeLast() }
+        return start + kept + [.libraries] + end
+    }
+
+    /// How much of the bar `section`'s tab takes (`tabRoom`).
+    static func tabWidth(_ section: ShellSection, libraries: [Library]) -> Int {
+        if symbolTabs.contains(section) { return tabPadding }
+        let title = switch section {
+        case .home: "Home"
+        case .libraries: "Libraries"
+        case .playlists: "Playlists"
+        case .liveTv: "Live TV"
+        case .library(let id): libraries.first { $0.id == id }?.name ?? "Library"
+        default: "Settings"
+        }
+        return title.count + tabPadding
     }
 
     /// The sidebar's rows on iPad and Mac: Home, Live TV when it shows,

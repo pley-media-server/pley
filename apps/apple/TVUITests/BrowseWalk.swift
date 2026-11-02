@@ -80,6 +80,8 @@ extension Walk {
         if tab.waitForExistence(timeout: 5) {
             focus(tab, "the \(name) tab", first: [.up, .right, .left])
             remote.press(.select)
+            // A library's tab chosen, the bar still fits: Search hasn't gone off the left.
+            tabsFit()
         } else {
             let libraries = app.tabBars.buttons["Libraries"]
             focus(libraries, "the Libraries tab", first: [.up, .right, .left])

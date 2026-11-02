@@ -89,6 +89,7 @@ final class ScreensTests: XCTestCase {
 
         walk.openLiveTv()
         walk.shot("70-live-tabs")
+        walk.tabsFit()
         walk.chooseCategory("all")
         let programme = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Test One at'")).firstMatch
         walk.wait(programme, "Test One's programme in the guide", timeout: 30)
