@@ -16,8 +16,9 @@ public enum EngineStatus
 }
 
 /// <summary>The video as it will arrive, so a TV can match its display mode before the first frame; null fields aren't known.</summary>
+/// <param name="Aspect">The picture's shape on screen when its pixels aren't square (a DVD's 16:9 in 720×480); null: as its size.</param>
 /// <param name="Range">"sdr", "hdr10", "hdr10plus", "hlg" or "dolby_vision": a conversion's is the server's to choose, so "sdr".</param>
-public sealed record EngineVideo(string Codec, int? Width, int? Height, double? FrameRate, string Range, int? DvProfile, int BitDepth);
+public sealed record EngineVideo(string Codec, int? Width, int? Height, double? FrameRate, string Range, int? DvProfile, int BitDepth, double? Aspect = null);
 
 /// <summary>What the TV's player is given: an absolute address (keyed: it carries its own key), and whether it is a stream.</summary>
 /// <param name="Live">A live channel's HLS: it starts at the live edge, whatever <paramref name="StartMs"/> says.</param>

@@ -241,6 +241,20 @@ It has no releases yet: it is built and installed by hand
   while one is plugged in, lists its folders and videos; a video plays in
   Pley's player from where it stopped, with its audio tracks, chapters,
   HDR, its own subtitles and the subtitle files beside it.
+- A DVD's disc image (.iso) on a USB drive opens in the native app on its
+  titles, the main feature first, with their lengths, chapters and audio
+  languages; a title plays in Pley's player and seeks, from where it
+  stopped.
+- A DVD's disc image opens in the native app at its own menus, as a DVD
+  player plays it: animated and still menus with their buttons in the
+  disc's highlight colours, moved between with the remote; a title starts
+  in Pley's player where the disc says (a scene from its scene selection),
+  with the audio and subtitles chosen in its setup menu, and the disc goes
+  on as it says when the title ends. A disc without menus opens on its
+  titles.
+- A DVD's subtitles show in the native app: chosen, they come within a
+  second or two, where the film is and after each seek, in the disc's own
+  colours.
 
 ### Changed
 

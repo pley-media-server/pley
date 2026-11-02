@@ -680,6 +680,8 @@ sealed class TizenMediaEngine : IVideoEngine
     {
         Profile.Mark($"engine: picture {width}x{height}");
         if (width <= 0 || height <= 0) return;
+        // Stored narrower than it shows (a DVD's): placed, and said, at its shape.
+        if (source?.Video?.Aspect is double aspect && aspect > 0) width = (int)Math.Round(height * aspect);
         hasVideo = true;
         Place(width, height);
         VideoSize?.Invoke(width, height);

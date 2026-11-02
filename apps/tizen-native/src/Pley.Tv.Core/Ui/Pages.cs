@@ -28,6 +28,8 @@ public abstract record PageKey
     public sealed record NowPlaying : PageKey;
     /// <summary>A folder of the drive plugged into the TV; null: the drive's top.</summary>
     public sealed record Storage(string? Path = null) : PageKey;
+    /// <summary>A DVD's disc image on the drive: its titles.</summary>
+    public sealed record Disc(string Path) : PageKey;
 }
 
 /// <summary>The kinds of place the rail goes to.</summary>
@@ -173,7 +175,7 @@ public static class Rail
         PageKey.Collections c => items.FirstOrDefault(i => i.Slot == RailSlot.Collections)?.Id
             ?? Current(new PageKey.Library(c.LibraryId), items),
         PageKey.Search => "search",
-        PageKey.Storage => StorageItem.Id,
+        PageKey.Storage or PageKey.Disc => StorageItem.Id,
         PageKey.Settings => SettingsItem.Id,
         PageKey.Profiles => ProfileItem,
         _ => items.FirstOrDefault(i => i.Key == root)?.Id,

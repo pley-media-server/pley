@@ -654,6 +654,49 @@ converting, seek previews, the next episode.
 - **The TV's player** opens the file at its path. Its buffering is left as
   the TV has it: read or set for a file, the player said Playing and stood
   at 0. A file whose picture never starts says so after 12 s.
+- **A DVD's disc image** (`.iso`) opens at its menus, as a DVD player
+  plays it (`DvdMenuScreen`). The image's ISO 9660 directory gives
+  VIDEO_TS (`DiscImage`), its IFOs the disc's navigation (`DvdDisc`): the
+  first-play chain, the menus of the disc and of each title set (the first
+  menu language), the titles and their chapters. `DvdVm` runs its commands
+  from the DVD-Video specification: the general and system registers,
+  links, jumps, calls and resumes, and the stream and button settings. Each
+  cell it plays (a menu's video, a logo) is served to the TV's player as an
+  MPEG program stream on the loopback address, with ranges
+  (`Net/SpanServer.cs`); an animated menu loops as the disc says, and one
+  menu fades out before the next opens, as the TV has one player.
+- **A menu's buttons** come from its navigation packs (`DvdButtons`) and
+  are drawn over its picture from its subpicture (`DvdMenu`), the selected
+  one in the disc's highlight colours, placed where the TV puts the picture
+  at the disc's 4:3 or 16:9. Up, Down, Left and Right move as the disc
+  links the buttons, OK presses one, Menu opens the title set's menu and
+  Back leaves the disc. The menu's first picture, an MPEG-2 I-picture, is
+  decoded on the TV (`MpegStill`) and shown under the buttons at once: the
+  TV's player shows no picture of a still menu's single one, and of an
+  animated menu's only once it starts.
+- **A title** of 30 s or more plays in Pley's player, from the cell the
+  disc starts it at (a scene from its scene selection), with the audio and
+  subtitles its registers chose (a setup menu's); shorter ones (logos,
+  warnings) play in the menu screen. Played through, the disc goes on as
+  its chain says; left before its end, it goes to the title set's menu.
+  The disc's choices last while it's open: opened again, its own first-play
+  commands set them back. A disc without menus, or whose navigation can't
+  be read, opens on its titles, the longest first ("Main feature"), each
+  with its length, chapters and audio languages; titles under 30 s and
+  those playing the same cells as one listed aren't shown. An encrypted DVD
+  or a Blu-ray image says it can't be played.
+- **A DVD's subtitles** are read out of the title's packs as they're
+  chosen (`DvdSubtitles`): one subpicture stream's units, in private
+  stream 1, each timed from its cell's first picture, drawn by the VobSub
+  decoder with the disc's palette. A DVD has no index of them, so reading
+  starts where the film is: the time's place in the bytes is found as the
+  player seeks, bracketing it by the pictures' times, and reading goes on
+  from 2 s before it; a seek away from what's read starts it there again.
+  A partial track is asked for again after 1 s, then 2, then every 4 s,
+  and at once after a seek. The pictures read are handed to the decoder as
+  they are: built into an .mks each time, a DVD's grew to megabytes copied
+  every few seconds, and the TV's collector stopped the app long enough
+  for the TV to close it.
 - **Thumbnails can't be made on the TV**: frames taken out of a file decode
   in software (15 to 20 s each, 4K not at all), and the player's frame
   capture isn't on Samsung TVs (`multimedia.raw_video`).

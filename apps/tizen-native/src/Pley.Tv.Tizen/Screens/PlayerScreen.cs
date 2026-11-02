@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using Pley.Tv.Core;
 using Pley.Tv.Core.Local;
+using Pley.Tv.Core.Net;
 using Pley.Tv.Core.Player;
 using Pley.Tv.Core.Ui;
 using Pley.Tv.Tizen.Kit;
@@ -123,6 +124,8 @@ sealed class PlayerScreen : Sheet
     IReadOnlyList<ChapterMark>? segmentsOf;
     long segmentsFor = -1;
     long? previewAt;
+    /// <summary>The source when a drive's file plays: let go as the player goes.</summary>
+    LocalPlayerSource? local;
     /// <summary>The seek previews <see cref="previewAt"/> was shown with: ones that come mid-seek show at once.</summary>
     TrickplaySet? previewsOf;
     string? clockText;
@@ -151,7 +154,9 @@ sealed class PlayerScreen : Sheet
     /// <param name="reporter">The app's reports queue: the last "stopped" goes out after the screen closed.</param>
     /// <param name="closed">The screen went (Home asks again for the resume points).</param>
     /// <param name="localFile">A video on a drive to play, as it is (<see cref="LocalPlayerSource"/>); null: the request's item, from the server.</param>
-    public PlayerScreen(Shell shell, AppState state, PlayRequest request, IReporter reporter, Images images, KeyRepeatGate gate, Action closed, string? localFile = null) : base("player")
+    /// <param name="disc">A DVD title in a disc image on a drive, and the server that hands its cells to the player.</param>
+    public PlayerScreen(Shell shell, AppState state, PlayRequest request, IReporter reporter, Images images, KeyRepeatGate gate, Action closed, string? localFile = null,
+        (string Image, DvdTitle Title, SpanServer Server)? disc = null) : base("player")
     {
         Covers = true;
         this.shell = shell;
@@ -160,8 +165,10 @@ sealed class PlayerScreen : Sheet
         this.gate = gate;
         this.closed = closed;
         IPlayerSource source = new AppPlayerSource(state, () => Caps(state));
-        if (localFile != null) source = new LocalPlayerSource(source, localFile);
+        if (localFile != null) source = local = new LocalPlayerSource(source, localFile);
+        else if (disc is { } d) source = local = new LocalPlayerSource(source, d.Image, d.Title, d.Server);
         model = new PlayerModel(request, source, Engine, new ContextScheduler(), reporter);
+        if (local != null) local.Position = model.LivePositionMs;
         seeker = new Seeker(model.LivePositionMs, () => model.Clock.Value.DurationMs, SeekTo);
         // Asked for before the screen is made, which holds the UI half a second: the server answers
         // meanwhile. Its answer comes after (the UI thread's), and the watches below take the state as it is.
@@ -410,6 +417,9 @@ sealed class PlayerScreen : Sheet
     /// <summary>Shows the player, started as it was made: the item's details, a session, its stream.</summary>
     public void Show() => shell.Push(this);
 
+    /// <summary>It played to the end, with nothing next: a DVD's menus go on as the disc says after a title.</summary>
+    public bool Finished { get; private set; }
+
     // ---- what the playback says
 
     void Render(PlayerState s)
@@ -473,7 +483,11 @@ sealed class PlayerScreen : Sheet
             sleepToken++;
         }
         // The end, with nothing next: back to where playing started.
-        if (s.Phase.Kind == PhaseKind.Ended) OnUi(Close);
+        if (s.Phase.Kind == PhaseKind.Ended)
+        {
+            Finished = true;
+            OnUi(Close);
+        }
         if (shown) Layout();
     }
 
@@ -1221,6 +1235,8 @@ sealed class PlayerScreen : Sheet
         foreach (var w in watches) w.Dispose();
         watches.Clear();
         model.Close();
+        // What a drive's file was having read out of it (its subtitles) stops with it.
+        local?.Close();
         // The pictures' textures go now, not when the view is collected.
         pictures.Show(null);
         chapterStrip.Forget();

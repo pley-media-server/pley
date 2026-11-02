@@ -28,6 +28,8 @@ class App : NUIApplication
     MediaKeys? musicKeys;
     /// <summary>The USB drive plugged into the TV, followed as it comes and goes.</summary>
     Drives drives = null!;
+    /// <summary>Hands a DVD title's cells, out of its disc image, to the TV's player.</summary>
+    readonly Pley.Tv.Core.Net.SpanServer discs = new Pley.Tv.Core.Net.SpanServer();
     /// <summary>The music was playing as the app went to the background: it plays again when the app is back.</summary>
     bool musicWasPlaying;
 
@@ -107,6 +109,7 @@ class App : NUIApplication
         Profile.End();
         musicKeys?.Dispose();
         drives.Dispose();
+        discs.Dispose();
         base.OnTerminate();
     }
 
@@ -245,6 +248,13 @@ class App : NUIApplication
                 music.YieldToVideo();
                 state.HoldRefresh(true);
                 new PlayerScreen(shell, state, new PlayRequest(LocalPlayerSource.ItemId, startMs, FromStart: false), reporter, images, gate, () => state.HoldRefresh(false), localFile: path).Show();
+            }, path => OpenDisc(tv, path)),
+            PageKey.Disc disc => new DiscScreen(tv, disc.Path, state.Storage, gate, (image, title, startMs) =>
+            {
+                music.YieldToVideo();
+                state.HoldRefresh(true);
+                new PlayerScreen(shell, state, new PlayRequest(LocalPlayerSource.ItemId, startMs, FromStart: false), reporter, images, gate, () => state.HoldRefresh(false),
+                    disc: (image, title, discs)).Show();
             }),
             _ => null,
         };
@@ -298,6 +308,39 @@ class App : NUIApplication
     void Go(TvShell tv, PageKey key)
     {
         if (!tv.Open(key)) tv.Toast("That page comes next in the native app.");
+    }
+
+    /// <summary>A disc image being read before it opens: OK again meanwhile opens nothing more.</summary>
+    bool openingDisc;
+
+    /// <summary>
+    /// A DVD's disc image, as a DVD player opens it: at its menus, its titles playing from them in
+    /// Pley's player; a disc without menus (or whose navigation can't be read) at its list of titles.
+    /// </summary>
+    async void OpenDisc(TvShell tv, string image)
+    {
+        if (openingDisc) return;
+        openingDisc = true;
+        var (titles, disc) = await DiscScreen.Read(image);
+        openingDisc = false;
+        if (!DiscScreen.HasMenus(disc, titles))
+        {
+            Go(tv, new PageKey.Disc(image));
+            return;
+        }
+        music.YieldToVideo();
+        new DvdMenuScreen(shell, image, disc!, titles, discs, (title, startMs, tracks, done) =>
+        {
+            state.HoldRefresh(true);
+            PlayerScreen? player = null;
+            var request = new PlayRequest(LocalPlayerSource.ItemId, startMs, FromStart: false, AudioIndex: tracks.Audio, SubtitleIndex: tracks.Subtitle);
+            player = new PlayerScreen(shell, state, request, reporter, images, gate, () =>
+            {
+                state.HoldRefresh(false);
+                done(player?.Finished == true);
+            }, disc: (image, title, discs));
+            player.Show();
+        }).Show();
     }
 
     /// <summary>A code for a phone to approve: a profile that needs its password, or (id 0) any profile.</summary>

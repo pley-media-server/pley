@@ -207,6 +207,24 @@ public sealed class VobSubDecoder : IPictureDecoder
         }
     }
 
+    /// <summary>
+    /// The SPU's pixels as their codes (0-3), a byte each, row by row over its rectangle; null when
+    /// it has none. A DVD menu colours them itself: its selected button takes other colours.
+    /// </summary>
+    public static byte[]? Codes(byte[] data, Spu spu)
+    {
+        var width = spu.X2 - spu.X1 + 1;
+        var height = spu.Y2 - spu.Y1 + 1;
+        if (width <= 0 || height <= 0 || data.Length < 4) return null;
+        var size = (data[0] << 8) | data[1];
+        var ctrl = (data[2] << 8) | data[3];
+        var end = Math.Min(ctrl != 0 ? ctrl : size != 0 ? size : data.Length, data.Length);
+        var pixels = new byte[width * height];
+        DecodeField(data, spu.Top, end, width, height, 0, pixels);
+        DecodeField(data, spu.Bottom, end, width, height, 1, pixels);
+        return pixels;
+    }
+
     Spu? SpuOf(int index)
     {
         if (!parsed[index])
@@ -229,16 +247,10 @@ public sealed class VobSubDecoder : IPictureDecoder
     {
         var spu = SpuOf(index);
         if (spu == null) return null;
+        var pixels = Codes(samples[index], spu);
+        if (pixels == null) return new PictureFrame(header.Width, header.Height, new SubtitleBitmap[0]);
         var width = spu.X2 - spu.X1 + 1;
         var height = spu.Y2 - spu.Y1 + 1;
-        if (width <= 0 || height <= 0) return new PictureFrame(header.Width, header.Height, new SubtitleBitmap[0]);
-        var data = samples[index];
-        var size = (data[0] << 8) | data[1];
-        var ctrl = (data[2] << 8) | data[3];
-        var end = Math.Min(ctrl != 0 ? ctrl : size != 0 ? size : data.Length, data.Length);
-        var pixels = new byte[width * height];
-        DecodeField(data, spu.Top, end, width, height, 0, pixels);
-        DecodeField(data, spu.Bottom, end, width, height, 1, pixels);
         var lut = new byte[16];
         for (var v = 0; v < 4; v++)
         {

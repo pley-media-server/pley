@@ -7,8 +7,8 @@ using System.Text.RegularExpressions;
 
 namespace Pley.Tv.Core.Local;
 
-/// <summary>A folder or a video in a folder of a drive.</summary>
-public sealed record LocalEntry(string Path, string Name, bool Folder, long Size = 0);
+/// <summary>A folder, a video or a disc image (<paramref name="Disc"/>: a DVD's .iso) in a folder of a drive.</summary>
+public sealed record LocalEntry(string Path, string Name, bool Folder, long Size = 0, bool Disc = false);
 
 /// <summary>A subtitle file beside a video: "Film.en.forced.srt" for "Film.mkv".</summary>
 public sealed record Sidecar(string Path, string Codec, string? Language, string? Title, bool Forced);
@@ -30,6 +30,9 @@ public static class LocalFolder
 
     public static bool IsVideo(string name) => Videos.Contains(Path.GetExtension(name));
 
+    /// <summary>A disc image: a DVD's titles play from it (<see cref="DvdVideo"/>).</summary>
+    public static bool IsDisc(string name) => string.Equals(Path.GetExtension(name), ".iso", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Hidden ones (a dot, a dollar) and the systems' own aren't shown.</summary>
     public static bool Shown(string name) => name.Length > 0 && name[0] != '.' && name[0] != '$' && !System.Contains(name);
 
@@ -50,7 +53,7 @@ public static class LocalFolder
         foreach (var path in Directory.GetFiles(dir))
         {
             var name = Path.GetFileName(path);
-            if (!Shown(name) || !IsVideo(name)) continue;
+            if (!Shown(name) || !IsVideo(name) && !IsDisc(name)) continue;
             long size = 0;
             try
             {
@@ -60,7 +63,7 @@ public static class LocalFolder
             {
                 // Its size is only shown.
             }
-            videos.Add(new LocalEntry(path, name, false, size));
+            videos.Add(new LocalEntry(path, name, false, size, IsDisc(name)));
         }
         folders.Sort((a, b) => Natural(a.Name, b.Name));
         videos.Sort((a, b) => Natural(a.Name, b.Name));
