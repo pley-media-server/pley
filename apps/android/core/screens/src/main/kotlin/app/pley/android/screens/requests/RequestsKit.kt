@@ -204,8 +204,17 @@ data class Pages(
     val totalPages: Int = 1,
     val loading: Boolean = false,
     val problem: RequestProblem? = null,
+    /**
+     * The last pages read on their own brought fewer titles than wanted,
+     * and more are read only when asked for (a TV grid's Show more): for
+     * an account with an age limit, page after page can come empty.
+     */
+    val stopped: Boolean = false,
 ) {
     val more: Boolean get() = page < totalPages
+
+    /** Nothing more is read unless asked for: every page read, or the reading stopped short or failed. */
+    val settled: Boolean get() = !loading && (problem != null || (page > 0 && (!more || stopped)))
 
     /** [answer] added: the first page replaces what was there; later ones add what's new. */
     fun with(answer: DiscoverPage): Pages {
@@ -214,7 +223,7 @@ data class Pages(
     }
 
     /** Another page is wanted without scrolling: fewer than a [screenful], and more to read. */
-    fun short(screenful: Int): Boolean = more && !loading && problem == null && titles.size < screenful
+    fun short(screenful: Int): Boolean = more && !loading && problem == null && !stopped && titles.size < screenful
 
     fun map(transform: (DiscoverTitle) -> DiscoverTitle): Pages = copy(titles = titles.map(transform))
 }

@@ -10,6 +10,9 @@ describes how they are made.
 
 ### Fixed
 
+- Discover's hero is the first title of the next row when the trending
+  row has nothing the profile may ask for, where it stayed a grey
+  placeholder.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was

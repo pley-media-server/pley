@@ -192,7 +192,9 @@ Sonarr fetch what is approved. On phones and tablets:
   badge, in a grid under "Results for “dune”", read page by page; Back
   goes back to Search. Words past the server's 200 characters are cut to
   them.
-- **Discover**: a hero for the first trending title with its main action;
+- **Discover**: a hero for the first trending title with its main action
+  (when trending has nothing the profile may ask for, every row is read
+  at once and the hero is the first title of the next one with any);
   rows (Trending this week, Popular movies, Popular shows, Coming to
   cinemas, Popular anime), each read as it comes into view and page by
   page; the person's requests. It has no search of its own.

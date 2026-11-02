@@ -94,6 +94,58 @@ class DiscoverViewModelTest {
     }
 
     @Test
+    fun withNothingTrendingTheHeroIsTheNextRowsFirstTitleAndEveryRowIsRead() = runTest(dispatcher) {
+        val requests = FakeRequests()
+        val lists = mutableListOf<DiscoverList>()
+        requests.pages = { list, page ->
+            lists += list
+            // Nothing trending this account may ask for; the movies come later than the shows.
+            when (list) {
+                DiscoverList.Trending -> DiscoverPage(page, 1, emptyList())
+                DiscoverList.Shows -> DiscoverPage(page, 1, trending.results.filter { it.kind == TitleKind.Show })
+                else -> DiscoverPage(page, 1, emptyList())
+            }
+        }
+        val vm = viewModel(requests)
+        settle()
+        assertEquals(DiscoverList.entries.toSet(), lists.toSet())
+        val hero = vm.state.value.hero!!
+        assertEquals(trending.results.first { it.kind == TitleKind.Show }.tmdbId, hero.title.tmdbId)
+        assertFalse(vm.state.value.nothing)
+    }
+
+    @Test
+    fun withNothingInAnyRowThePageSaysSo() = runTest(dispatcher) {
+        val requests = FakeRequests()
+        requests.pages = { _, page -> DiscoverPage(page, 1, emptyList()) }
+        val vm = viewModel(requests)
+        settle()
+        assertEquals(null, vm.state.value.hero)
+        assertTrue(vm.state.value.nothing)
+        assertEquals(null, vm.state.value.problem)
+    }
+
+    @Test
+    fun aRowStillShortAfterItsPagesWaitsForAScroll() = runTest(dispatcher) {
+        val requests = FakeRequests()
+        val asked = mutableListOf<Int>()
+        requests.pages = { _, page ->
+            asked += page
+            DiscoverPage(page, 30, if (page == 2) trending.results.take(1) else emptyList())
+        }
+        val vm = viewModel(requests)
+        settle()
+        val row = vm.row(DiscoverList.Trending)
+        assertEquals((1..5).toList(), asked)
+        assertTrue(row.stopped && row.settled)
+        assertEquals(1, row.titles.size)
+        vm.more(DiscoverList.Trending)
+        settle()
+        assertEquals(6, asked.last())
+        assertFalse(vm.row(DiscoverList.Trending).stopped)
+    }
+
+    @Test
     fun rowsAreReadAsTheyComeIntoView() = runTest(dispatcher) {
         val requests = FakeRequests()
         val lists = mutableListOf<DiscoverList>()
