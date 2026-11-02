@@ -11,13 +11,14 @@ import app.pley.android.ui.tv.shell.Placeholder
 
 /**
  * The TV's requests (Discover, a list's or search's grid of TMDB's
- * titles, a title's page), added to the app's back stack.
+ * titles, a title's page, the requests), added to the app's back stack.
  */
 fun EntryProviderScope<NavKey>.requestsEntries() {
     entry<PleyKey.Discover> { key -> WithGraph(key) { TvDiscoverScreen() } }
     entry<PleyKey.DiscoverList> { key -> WithGraph(key) { TvDiscoverGridScreen(DiscoverSource.Row(key.list)) } }
     entry<PleyKey.DiscoverResults> { key -> WithGraph(key) { TvDiscoverGridScreen(DiscoverSource.Words(key.query)) } }
     entry<PleyKey.DiscoverTitle> { key -> WithGraph(key) { TvDiscoverTitleScreen(key) } }
+    entry<PleyKey.Requests> { key -> WithGraph(key) { TvRequestsScreen() } }
 }
 
 /**
