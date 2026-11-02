@@ -16,6 +16,9 @@
 		0A0000000000000000020E0B /* PleyPlayerViews in Frameworks */ = {isa = PBXBuildFile; productRef = 0A0000000000000000020E0A /* PleyPlayerViews */; };
 		0A0000000000000000030E0B /* PleyPlayerViews in Frameworks */ = {isa = PBXBuildFile; productRef = 0A0000000000000000030E0A /* PleyPlayerViews */; };
 		0A0000000000000000020F0B /* PleyDownloads in Frameworks */ = {isa = PBXBuildFile; productRef = 0A0000000000000000020F0A /* PleyDownloads */; };
+		0A0000000000000000030F0B /* PleyShelf in Frameworks */ = {isa = PBXBuildFile; productRef = 0A0000000000000000030F0A /* PleyShelf */; };
+		0A000000000000000006010B /* PleyShelf in Frameworks */ = {isa = PBXBuildFile; productRef = 0A000000000000000006010A /* PleyShelf */; };
+		0A000000000000000006000B /* PleyTopShelf.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0A0000000000000000000602 /* PleyTopShelf.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,6 +29,11 @@
 		0A0000000000000000000105 /* Pley-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Pley-Info.plist"; sourceTree = "<group>"; };
 		0A0000000000000000000106 /* PleyTV-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "PleyTV-Info.plist"; sourceTree = "<group>"; };
 		0A0000000000000000000107 /* Pley-macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Pley-macOS.entitlements"; sourceTree = "<group>"; };
+		0A0000000000000000000108 /* PleyTV.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PleyTV.entitlements; sourceTree = "<group>"; };
+		0A0000000000000000000109 /* TopShelf.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TopShelf.entitlements; sourceTree = "<group>"; };
+		0A000000000000000000010A /* TopShelf-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "TopShelf-Info.plist"; sourceTree = "<group>"; };
+		0A000000000000000000060C /* TopShelf.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = TopShelf.xcconfig; sourceTree = "<group>"; };
+		0A0000000000000000000602 /* PleyTopShelf.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PleyTopShelf.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A0000000000000000000202 /* Pley.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pley.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A0000000000000000000302 /* Pley.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pley.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A000000000000000000040C /* UITests.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = UITests.xcconfig; sourceTree = "<group>"; };
@@ -49,13 +57,35 @@
 			remoteGlobalIDString = 0A0000000000000000000301;
 			remoteInfo = PleyTV;
 		};
+		0A000000000000000000060A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0A0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0A0000000000000000000601;
+			remoteInfo = PleyTopShelf;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		0A00000000000000000003EE /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				0A000000000000000006000B /* PleyTopShelf.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		0A0000000000000000000203 /* Pley */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Pley; sourceTree = "<group>"; };
 		0A0000000000000000000303 /* tvOS */ = {isa = PBXFileSystemSynchronizedRootGroup; path = tvOS; sourceTree = "<group>"; };
 		0A0000000000000000000403 /* UITests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = UITests; sourceTree = "<group>"; };
 		0A0000000000000000000503 /* TVUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = TVUITests; sourceTree = "<group>"; };
+		0A0000000000000000000603 /* TopShelf */ = {isa = PBXFileSystemSynchronizedRootGroup; path = TopShelf; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,6 +109,7 @@
 				0A0000000000000000030C0B /* PleyCaps in Frameworks */,
 				0A0000000000000000030D0B /* PleyPlayer in Frameworks */,
 				0A0000000000000000030E0B /* PleyPlayerViews in Frameworks */,
+				0A0000000000000000030F0B /* PleyShelf in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -96,6 +127,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0A0000000000000000000605 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0A000000000000000006010B /* PleyShelf in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -106,6 +145,7 @@
 				0A0000000000000000000303 /* tvOS */,
 				0A0000000000000000000403 /* UITests */,
 				0A0000000000000000000503 /* TVUITests */,
+				0A0000000000000000000603 /* TopShelf */,
 				0A0000000000000000000004 /* Config */,
 				0A0000000000000000000003 /* Products */,
 			);
@@ -118,6 +158,7 @@
 				0A0000000000000000000302 /* Pley.app */,
 				0A0000000000000000000402 /* PleyUITests.xctest */,
 				0A0000000000000000000502 /* PleyTVUITests.xctest */,
+				0A0000000000000000000602 /* PleyTopShelf.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -132,6 +173,10 @@
 				0A0000000000000000000105 /* Pley-Info.plist */,
 				0A0000000000000000000106 /* PleyTV-Info.plist */,
 				0A0000000000000000000107 /* Pley-macOS.entitlements */,
+				0A0000000000000000000108 /* PleyTV.entitlements */,
+				0A000000000000000000060C /* TopShelf.xcconfig */,
+				0A000000000000000000010A /* TopShelf-Info.plist */,
+				0A0000000000000000000109 /* TopShelf.entitlements */,
 				0A000000000000000000040C /* UITests.xcconfig */,
 				0A000000000000000000050C /* TVUITests.xcconfig */,
 			);
@@ -175,10 +220,12 @@
 				0A0000000000000000000304 /* Sources */,
 				0A0000000000000000000305 /* Frameworks */,
 				0A0000000000000000000306 /* Resources */,
+				0A00000000000000000003EE /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				0A000000000000000000060B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0A0000000000000000000303 /* tvOS */,
@@ -189,6 +236,7 @@
 				0A0000000000000000030C0A /* PleyCaps */,
 				0A0000000000000000030D0A /* PleyPlayer */,
 				0A0000000000000000030E0A /* PleyPlayerViews */,
+				0A0000000000000000030F0A /* PleyShelf */,
 			);
 			productName = PleyTV;
 			productReference = 0A0000000000000000000302 /* Pley.app */;
@@ -234,6 +282,29 @@
 			productReference = 0A0000000000000000000502 /* PleyTVUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		0A0000000000000000000601 /* PleyTopShelf */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0A0000000000000000000607 /* Build configuration list for PBXNativeTarget "PleyTopShelf" */;
+			buildPhases = (
+				0A0000000000000000000604 /* Sources */,
+				0A0000000000000000000605 /* Frameworks */,
+				0A0000000000000000000606 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				0A0000000000000000000603 /* TopShelf */,
+			);
+			name = PleyTopShelf;
+			packageProductDependencies = (
+				0A000000000000000006010A /* PleyShelf */,
+			);
+			productName = PleyTopShelf;
+			productReference = 0A0000000000000000000602 /* PleyTopShelf.appex */;
+			productType = "com.apple.product-type.tv-app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -258,6 +329,9 @@
 						CreatedOnToolsVersion = 16.0;
 						TestTargetID = 0A0000000000000000000301;
 					};
+					0A0000000000000000000601 = {
+						CreatedOnToolsVersion = 16.0;
+					};
 				};
 			};
 			buildConfigurationList = 0A0000000000000000000005 /* Build configuration list for PBXProject "Pley" */;
@@ -281,6 +355,7 @@
 				0A0000000000000000000301 /* PleyTV */,
 				0A0000000000000000000401 /* PleyUITests */,
 				0A0000000000000000000501 /* PleyTVUITests */,
+				0A0000000000000000000601 /* PleyTopShelf */,
 			);
 		};
 /* End PBXProject section */
@@ -294,6 +369,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		0A0000000000000000000306 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0A0000000000000000000606 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -331,6 +413,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0A0000000000000000000604 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -343,6 +432,11 @@
 			isa = PBXTargetDependency;
 			target = 0A0000000000000000000301 /* PleyTV */;
 			targetProxy = 0A000000000000000000050A /* PBXContainerItemProxy */;
+		};
+		0A000000000000000000060B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0A0000000000000000000601 /* PleyTopShelf */;
+			targetProxy = 0A000000000000000000060A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -417,6 +511,20 @@
 			};
 			name = Release;
 		};
+		0A0000000000000000000608 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0A000000000000000000060C /* TopShelf.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		0A0000000000000000000609 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0A000000000000000000060C /* TopShelf.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -461,6 +569,15 @@
 			buildConfigurations = (
 				0A0000000000000000000508 /* Debug */,
 				0A0000000000000000000509 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0A0000000000000000000607 /* Build configuration list for PBXNativeTarget "PleyTopShelf" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0A0000000000000000000608 /* Debug */,
+				0A0000000000000000000609 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -510,6 +627,14 @@
 		0A0000000000000000020F0A /* PleyDownloads */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = PleyDownloads;
+		};
+		0A0000000000000000030F0A /* PleyShelf */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PleyShelf;
+		};
+		0A000000000000000006010A /* PleyShelf */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PleyShelf;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

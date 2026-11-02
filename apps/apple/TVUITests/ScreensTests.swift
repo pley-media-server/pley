@@ -196,6 +196,32 @@ final class ScreensTests: XCTestCase {
         walk.signOut()
     }
 
+    /// Apple TV's Top Shelf: Home's Continue Watching is saved for the
+    /// shelf, an unsigned link does nothing, the signed links open Two Audio's
+    /// page and play it, and signing out empties the shelf.
+    func testTopShelfLink() async throws {
+        guard let id = await Admin.titles(library: await Admin.libraryIds()["Movies"] ?? 0)["Two Audio"] else {
+            return XCTFail("no Two Audio in Movies")
+        }
+        let started = await Admin.startWatching(id)
+        XCTAssertTrue(started, "Two Audio is part way through")
+        addTeardownBlock { await Admin.stopWatching(id) }
+        let app = XCUIApplication()
+        app.launchArguments += ["-PleyShelfLinks", "YES"]
+        app.launch()
+        let walk = Walk(app: app, test: self)
+        walk.startSignedOut()
+        await walk.signInWithCode()
+        walk.chooseSignedIn()
+        walk.seeHome(Admin.adminName)
+        await walk.shelfLinks(id)
+        walk.openSettings()
+        walk.signOut()
+        let empty = NSPredicate(format: "label == '0'")
+        await fulfillment(of: [XCTNSPredicateExpectation(predicate: empty, object: walk.element("test.shelf.count"))],
+                          timeout: 10)
+    }
+
     func testPersonPage() async throws {
         let libraries = await Admin.libraryIds()
         var found: (library: String, title: String)?

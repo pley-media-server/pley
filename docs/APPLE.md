@@ -1252,6 +1252,40 @@ or the app comes back to the front; once it answers, the banner goes and
 every screen reads the server again. Apple TV saves screens and starts
 offline the same way.
 
+## Top Shelf
+
+With Pley in the top row of Apple TV's Home Screen, the Top Shelf shows
+**Continue Watching**: the titles of Home's Continue Watching row, ten at
+most, each with its still or backdrop (a poster when it has neither), its
+episode ("S2 · E5") and how far through it is. Selecting a title opens
+its page in Pley, over Home; Play on the remote plays it. It is Android
+TV's Watch Next row, made the same way.
+
+The app writes the row each time Home is read: at sign-in, after a
+change on the server (something watched, taken out of Continue
+Watching), and back in front. It keeps it in the app group's container
+(`group.<bundle ID>`, under `TopShelf/`): the titles, their pictures at
+800 pixels as the server sent them, and the key the links are signed
+with. Another profile or server replaces the row at once; signing out,
+or forgetting the server, empties it, and the shelf goes back to the
+app's own picture.
+
+The Top Shelf extension (`PleyTopShelf`) only reads that: it holds no
+sign-in and asks the server nothing. Refresh tokens change at every use,
+so a second process refreshing them would race the app and could sign it
+out, and a token kept in a second process is one more place to take it
+from. The shelf therefore shows what the app saw last, until Pley is
+opened again.
+
+Each title's links (`app.pley.apple:/shelf/open/<id>` and `…/play/<id>`)
+name the server and profile (a hash of the server's address and the
+profile's id) and are signed with HMAC-SHA256 under a random key only the
+app and its extension can read. The app acts on a link only when the
+signature and the server and profile open match it, so another app can't
+make one that plays something in Pley. Opened while "Who's watching?"
+shows, a link waits, and acts once the same profile is chosen; choosing
+another drops it.
+
 ## Building and testing
 
 Requirements: a Mac with Xcode 16 or later (the commands below were checked
@@ -1284,6 +1318,22 @@ one "Always Allow" lasts.
 With a free Apple account, apps installed on an iPhone, iPad or Apple TV
 stop opening after 7 days and a device takes at most 3 of them; Mac builds
 don't expire.
+
+The Apple TV app embeds its Top Shelf extension (the target
+`PleyTopShelf`, built by the `PleyTV` scheme), and the two share an app
+group, `group.<bundle ID>` (`Config/PleyTV.entitlements`,
+`Config/TopShelf.entitlements`). Simulator builds signed to run locally
+have it. On a device, App Groups need a team that has them, which a free
+account doesn't; such a team leaves the group out by adding two lines to
+`Local.xcconfig`:
+
+```
+PLEY_TV_ENTITLEMENTS =
+PLEY_TOPSHELF_ENTITLEMENTS =
+```
+
+Everything else works the same; the app writes no row, and the Top Shelf
+shows the app's own picture.
 
 From the repository root:
 
@@ -1442,6 +1492,17 @@ holding the connection, the player says "All connections are in use" and
 Watch here instead takes it, the other device's playlist answering 410;
 and Search finds the channels.
 
+The Top Shelf is a test of its own on Apple TV (`testTopShelfLink`):
+with Two Audio part way through, the app (launched with `-PleyShelfLinks
+YES`, which in a debug build shows the first title's signed links for the
+test to read) saves it first in the row. Each link is opened as the shelf
+opens it, which starts the app again at "Who's watching?", where the
+link waits until the administrator is chosen: the same link unsigned, or
+with another signature, leaves Home as it was; the signed `open` link
+shows Two Audio's page, and the `play` link plays it, its session on the
+server. Signing out empties the row. The shelf itself, on the Home Screen, is
+only seen by hand: put Pley in the top row of the simulator's Home Screen.
+
 The player's extras are a test of their own (`testPlayerExtras`), on
 Direct H264: Find Subtitles… (in Options on iPhone and iPad, the
 transport bar's Subtitles on Apple TV) says "Subtitle search isn't set up
@@ -1503,17 +1564,19 @@ UI tests skip.
 
 | Path | What |
 |---|---|
-| `Pley.xcodeproj` | The project: the apps `Pley` and `PleyTV` and their UI tests `PleyUITests` and `PleyTVUITests`, with shared schemes of the same names. Its folders are synchronized, so adding a file doesn't change `project.pbxproj` |
-| `Config/` | Build settings (`.xcconfig`), the apps' Info.plist keys and the Mac's entitlements; `project.pbxproj` holds no settings |
+| `Pley.xcodeproj` | The project: the apps `Pley` and `PleyTV`, Apple TV's Top Shelf extension `PleyTopShelf` (embedded in `PleyTV`), and the UI tests `PleyUITests` and `PleyTVUITests`, with shared schemes for the apps and tests. Its folders are synchronized, so adding a file doesn't change `project.pbxproj` |
+| `Config/` | Build settings (`.xcconfig`), the Info.plist keys, the Mac's entitlements and Apple TV's app group; `project.pbxproj` holds no settings |
 | `Pley/` | The iPhone, iPad and Mac app: `Shell/` (the tab bar, the sidebar, Me, and the Mac's menus and About window in `MacCommands`), `Kit/` (the views the screens share: `ArtworkTile`, `TileRow`, `TileGrid`, `ItemActionsMenu`, `ServerImage`, `StateView`, `ToastView`, `FlowLayout`, `StarRating`, the collections' and playlists' cards in `ListCards`, and `Metrics` and `Motion` for sizes and Reduce Motion) and `Screens/` |
 | `tvOS/` | The Apple TV app, laid out the same way: `Shell/` (the tabs and Settings), `Kit/` (the same views, built for the focus engine) and `Screens/` |
-| `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `Admin.swift` (the administrator's side), `Walk.swift`, `BrowseWalk.swift`, `ItemWalk.swift`, `ListsWalk.swift`, `AccountWalk.swift` and `LiveWalk.swift` (the steps, by accessibility identifier), `LargeTextWalk.swift` (iPhone and iPad at the largest text size), `RemoteWalk.swift` (Apple TV's Play/Pause and a row's focus) and `ScreensTests.swift` |
+| `TopShelf/` | The Top Shelf extension: `ContentProvider`, which reads the row the app saved ([Top Shelf](#top-shelf)) |
+| `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `Admin.swift` (the administrator's side), `Walk.swift`, `BrowseWalk.swift`, `ItemWalk.swift`, `ListsWalk.swift`, `AccountWalk.swift` and `LiveWalk.swift`, and on Apple TV `ShelfWalk.swift` (the steps, by accessibility identifier), `LargeTextWalk.swift` (iPhone and iPad at the largest text size), `RemoteWalk.swift` (Apple TV's Play/Pause and a row's focus) and `ScreensTests.swift` |
 | `PleyKit/` | One Swift package with everything else, a module per target |
 
 PleyKit's modules, each depending only on those before it:
 
 | Module | What |
 |---|---|
+| `PleyShelf` | Apple TV's Top Shelf, for the app and its extension, on Foundation and CryptoKit only: the row (`ShelfSnapshot`), its files in the app group's container (`ShelfStore`) and the signed links (`ShelfLink`) |
 | `PleyModel` | The server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read; the caps report the apps send; the words shown for codecs, tracks, versions and times (`Words`, the Android app's) |
 | `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, Bonjour (browsing, TXT records, resolving), logging |
 | `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), downloads to a file resumed with `Range`, the typed API calls (browsing in `PleyAPI+Browse`, with ETags; collections and playlists in `PleyAPI+Lists`; search, history and track defaults in `PleyAPI+Account`), and the server's events (`EventStream`, `EventParser`) |
@@ -1524,7 +1587,7 @@ PleyKit's modules, each depending only on those before it:
 | `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, the Mac player's keys, music (`MusicPlayback`, `MusicQueue`, the `AVMusicOutput` behind a protocol), the sleep timer (`SleepTimer`), the system's Now Playing and remote commands (`NowPlayingCenter`, `SystemNowPlaying`) and the audio session (`AudioSessionController`) |
 | `PleyDownloads` | Downloads (iPhone, iPad and Mac): `Downloads` (the screens' `DownloadsService` and the player's `LocalMedia`), `DownloadStore` (the folders and `index.json`), `DownloadPlanner` (the rules), `DownloadRunner` (one download at a time, conversions, pieces), `PieceTransfer` (the background `URLSession`) and `NetworkGate` (Wi-Fi or mobile data, from `NWPathMonitor`) |
 | `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Chapters, Details), the subtitles drawn over the video in the system's caption style with the app's overrides (`SubtitleLayer`, `CaptionStyle`), Apple TV's contextual actions and chapter markers, and the AirPlay button (`RoutePicker`) |
-| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), Now Playing's words (`NowPlayingModel`), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`) smart filters in words (`SmartFilter`, the Android app's), search (`SearchModel`), Me's track defaults (`MeModel`), Downloads (`DownloadsModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`) and Apple TV's start (`StartGate`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, music, the system's Now Playing, the device's caps, the session reports and the reports kept for later, one set per server and profile |
+| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), Now Playing's words (`NowPlayingModel`), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`) smart filters in words (`SmartFilter`, the Android app's), search (`SearchModel`), Me's track defaults (`MeModel`), Downloads (`DownloadsModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`), Apple TV's start (`StartGate`) and its Top Shelf row (`TopShelfWriter`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, music, the system's Now Playing, the device's caps, the session reports and the reports kept for later, one set per server and profile |
 | `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens, playback sessions with keyed media, libraries with watch marks, My List and orders that change, collections and playlists, an event stream the tests push to, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
 | `pley-apple-play` | A command-line tool, on the Mac only, that plays a real server's test media through the player ([A server to test against](#a-server-to-test-against)) |
@@ -1678,4 +1741,6 @@ address, to have it found by Bonjour. Delete the folder afterwards.
   only; an http name with dots (`nas.home.arpa`) is refused by the system,
   even when it points to the home network. Such a server is reached by its
   IP address or over https.
-- No Top Shelf on Apple TV.
+- The Top Shelf shows Continue Watching as the app read it last: what
+  changes while Pley isn't open shows once it is. A build signed by a
+  team without App Groups has no row, only the app's own picture.

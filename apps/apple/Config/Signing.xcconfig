@@ -9,12 +9,22 @@
 // Without it, the Mac app and simulator builds are signed to run on this
 // Mac only ("Sign to Run Locally"). Don't turn signing off for an app that
 // is run: without a signature it can't use the Keychain, so it can't sign in.
+//
+// Apple TV's app and its Top Shelf extension share an app group,
+// group.<bundle ID>. A team without App Groups (a free account) leaves it
+// out by adding these two lines to Local.xcconfig; everything else works,
+// and the Top Shelf shows the app's own picture:
+//
+//   PLEY_TV_ENTITLEMENTS =
+//   PLEY_TOPSHELF_ENTITLEMENTS =
 
 // One bundle ID for iPhone, iPad, Mac and Apple TV: one universal purchase.
 PLEY_BUNDLE_ID = com.formandelement.pley
 DEVELOPMENT_TEAM =
 CODE_SIGN_STYLE = Automatic
 CODE_SIGN_IDENTITY[sdk=macosx*] = -
+PLEY_TV_ENTITLEMENTS = Config/PleyTV.entitlements
+PLEY_TOPSHELF_ENTITLEMENTS = Config/TopShelf.entitlements
 
 #include? "Local.xcconfig"
 

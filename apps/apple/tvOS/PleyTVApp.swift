@@ -2,6 +2,7 @@ import PleyCommon
 import PleyPlayer
 import PleyPlayerViews
 import PleyScreens
+import PleyShelf
 import SwiftUI
 import UIKit
 
@@ -14,6 +15,8 @@ struct PleyTVApp: App {
         WindowGroup {
             RootView(app: app)
                 .task { await app.start() }
+                // A Top Shelf title: its page, or it plays (a link the app signed).
+                .onOpenURL { app.openShelfLink($0) }
         }
     }
 }
@@ -30,6 +33,9 @@ struct RootView: View {
         root
             // Another root starts again.
             .id(app.root)
+        #if DEBUG
+            .overlay(alignment: .bottomTrailing) { ShelfLinksForTests(app: app) }
+        #endif
         // Picture in Picture puts the player away and keeps the playback.
         .fullScreenCover(item: Binding(get: { app.playerShown },
                                        set: { if $0 == nil, !app.pictureInPicture { Task { await app.closePlayer() } } })) { controller in
@@ -97,3 +103,39 @@ struct RootView: View {
         }
     }
 }
+
+#if DEBUG
+/// For the UI tests only (launched with `-PleyShelfLinks YES`): the signed
+/// links of the first Top Shelf title as the app saved it, so a test can
+/// open one as the shelf would. Nothing shows otherwise.
+private struct ShelfLinksForTests: View {
+    @ObservedObject var app: AppModel
+
+    var body: some View {
+        if UserDefaults.standard.bool(forKey: "PleyShelfLinks"), let shelf = app.shelf {
+            Links(shelf: shelf)
+        }
+    }
+
+    private struct Links: View {
+        @ObservedObject var shelf: TopShelfWriter
+
+        var body: some View {
+            let first = shelf.shown?.entries.first
+            let link = { (action: ShelfLink.Action) in
+                first.flatMap { entry in
+                    shelf.shown.flatMap { shelf.url(ShelfLink(action: action, itemId: entry.itemId, owner: $0.owner)) }
+                }?.absoluteString ?? ""
+            }
+            VStack(alignment: .trailing) {
+                Text("\(shelf.shown?.entries.count ?? 0)").accessibilityIdentifier("test.shelf.count")
+                Text(link(.open)).accessibilityIdentifier("test.shelf.open")
+                Text(link(.play)).accessibilityIdentifier("test.shelf.play")
+            }
+            .font(.system(size: 6))
+            .foregroundStyle(.secondary)
+            .allowsHitTesting(false)
+        }
+    }
+}
+#endif

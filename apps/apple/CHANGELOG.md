@@ -76,6 +76,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   adds the subtitles you choose, which show at once.
 - Playback speed from 0.5× to 2×, and a sleep timer for videos with Keep
   watching in its last 30 seconds.
+- Continue Watching on Apple TV's Top Shelf: with Pley in the top row,
+  your titles in progress show with their pictures and progress, and one
+  opens its page or plays.
 
 ### Fixed
 

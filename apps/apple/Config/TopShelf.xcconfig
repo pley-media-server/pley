@@ -1,0 +1,20 @@
+// Apple TV's Top Shelf extension (TopShelf/): it shows the Continue
+// Watching row the app saved in their app group's container, and holds
+// no sign-in. Embedded in the Apple TV app (PleyTV).
+
+PRODUCT_NAME = PleyTopShelf
+PRODUCT_BUNDLE_IDENTIFIER = $(PLEY_BUNDLE_ID).topshelf
+SDKROOT = appletvos
+SUPPORTED_PLATFORMS = appletvos appletvsimulator
+TARGETED_DEVICE_FAMILY = 3
+
+INFOPLIST_FILE = Config/TopShelf-Info.plist
+INFOPLIST_KEY_CFBundleDisplayName = Pley
+APPLICATION_EXTENSION_API_ONLY = YES
+SKIP_INSTALL = YES
+
+// The app group; Signing.xcconfig has the default, and Local.xcconfig can
+// empty it for a team without App Groups.
+CODE_SIGN_ENTITLEMENTS = $(PLEY_TOPSHELF_ENTITLEMENTS)
+
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/Frameworks @executable_path/../../Frameworks
