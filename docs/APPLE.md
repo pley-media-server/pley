@@ -59,13 +59,14 @@ in to another server starts every section again at Home.
   800 by 560 points, and opens at 1100 by 720. While music has a queue,
   the mini player sits at the foot of the page beside the sidebar.
 - **Apple TV**: seven tabs at most across the top, so none is cut off:
-  Search (a magnifying glass, first, as in Apple's apps), Home, Live TV
-  when it shows, a tab per library with its name while they all fit (the
-  first that fit otherwise, and a Libraries tab for the rest), Playlists,
-  Now Playing while music has a queue, and Settings (which holds what Me
-  holds elsewhere). The focus engine and the Siri
-  Remote move through it; Menu goes back, then to the tabs, then out of
-  the app.
+  Search (a magnifying glass alone, first, as in Apple's apps), Home, Live
+  TV when it shows, a tab per library with its name while they all fit
+  (the first that fit otherwise, and a Libraries tab for the rest),
+  Playlists, Now Playing while music has a queue (a music note alone, so
+  seven tabs with names fit), and Settings (which holds what Me holds
+  elsewhere). VoiceOver reads the two symbols' names. The focus engine
+  and the Siri Remote move through it; Menu goes back, then to the tabs,
+  then out of the app.
 
 **On the Mac**, the menu bar has the app's commands, and Settings (⌘,)
 and About Pley are windows of their own. The pointer on a tile grows it a
@@ -1015,7 +1016,7 @@ seconds at a time), Previous, Play/Pause and Next, Shuffle, the sleep
 timer, AirPlay, and Up next, where choosing a track plays it. On **Apple
 TV**, the Now Playing tab holds the same, with Up next as a row of
 cards; the tab comes when music starts (and opens) and goes when the
-queue is cleared.
+queue is cleared. An album's page there opens with the focus on Play.
 
 **Now Playing on the system and the remote commands.** One owner at a
 time (`NowPlayingCenter`): whichever of music, a video and Live TV played

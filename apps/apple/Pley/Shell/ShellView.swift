@@ -49,13 +49,6 @@ struct ShellView: View {
         .accessibilityHidden(app.player != nil || app.livePlayer != nil)
     }
 
-    /// The mini player at the foot of a page, while music has a queue.
-    @ViewBuilder private var miniPlayer: some View {
-        if shell.nowPlaying {
-            MiniPlayer(app: app)
-        }
-    }
-
     /// Whether the tab bar holds the mini player itself (iOS 26.1's bottom
     /// accessory); before, each section's page has it at its foot.
     private var accessoryHoldsMiniPlayer: Bool {
@@ -73,7 +66,7 @@ struct ShellView: View {
             ForEach(shell.sections, id: \.self) { section in
                 stack(section == Self.tab(shell.section) ? shell.section : section)
                     .safeAreaInset(edge: .bottom, spacing: 0) {
-                        if !accessoryHoldsMiniPlayer { miniPlayer }
+                        if !accessoryHoldsMiniPlayer { FootMiniPlayer(app: app) }
                     }
                     .tabItem { Label(Self.title(section), systemImage: Self.symbol(section)) }
                     .tag(section)
@@ -113,10 +106,11 @@ struct ShellView: View {
                 .navigationSplitViewColumnWidth(typeSize.isAccessibilitySize ? 400 : 320)
                 #endif
         } detail: {
-            stack(shell.section)
+            // The split view shows the detail's navigation stack itself,
+            // without what is around it: each page has the mini player.
+            stack(shell.section, footMiniPlayer: true)
                 // Another section, another navigation.
                 .id(shell.section)
-                .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayer }
         }
     }
 
@@ -160,12 +154,15 @@ struct ShellView: View {
     // MARK: Sections
 
     /// `section`'s navigation: its start, with the pages opened from it on top.
-    private func stack(_ section: ShellSection) -> some View {
+    /// `footMiniPlayer`: each page has the mini player at its foot.
+    private func stack(_ section: ShellSection, footMiniPlayer: Bool = false) -> some View {
         NavigationStack(path: Binding(get: { shell.path(for: section) },
                                       set: { shell.setPath($0, for: section) })) {
             start(section)
+                .safeAreaInset(edge: .bottom, spacing: 0) { if footMiniPlayer { FootMiniPlayer(app: app) } }
                 .navigationDestination(for: Screen.self) { screen in
                     ScreenView(app: app, screen: screen)
+                        .safeAreaInset(edge: .bottom, spacing: 0) { if footMiniPlayer { FootMiniPlayer(app: app) } }
                 }
         }
     }
@@ -230,6 +227,23 @@ private struct KeyboardShortcuts: View {
     }
 }
 #endif
+
+/// The mini player at the foot of a page, while music has a queue.
+private struct FootMiniPlayer: View {
+    let app: AppModel
+    @ObservedObject private var shell: ShellModel
+
+    init(app: AppModel) {
+        self.app = app
+        _shell = ObservedObject(wrappedValue: app.shell)
+    }
+
+    var body: some View {
+        if shell.nowPlaying {
+            MiniPlayer(app: app)
+        }
+    }
+}
 
 /// The sidebar: Home, Live TV when it shows, Search and Playlists, then the libraries in the profile's order, each
 /// with its kind's symbol; a drag (or Edit on iPad, or VoiceOver's Move up

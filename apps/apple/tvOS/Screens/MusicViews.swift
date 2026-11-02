@@ -95,6 +95,8 @@ struct AlbumView: View {
     @ObservedObject private var music: MusicPlayback
     @StateObject private var model: AlbumModel
     @FocusState private var focusedTrack: Int?
+    /// Play has the focus when the album opens, unless it opened from a track.
+    @FocusState private var playFocused: Bool
 
     init(app: AppModel, itemId: Int, track: Int?) {
         self.app = app
@@ -139,9 +141,19 @@ struct AlbumView: View {
                     Text(line.joined(separator: " · ")).font(.callout).foregroundStyle(.secondary)
                 }
                 if model.canPlay {
-                    PlayShuffleButtons(prefix: "album", canPlay: true, canShuffle: model.canShuffle,
-                                       play: { Task { await model.play() } },
-                                       shuffle: { Task { await model.play(shuffle: true) } })
+                    HStack(spacing: 24) {
+                        Button { Task { await model.play() } } label: {
+                            Label("Play", systemImage: "play.fill")
+                        }
+                        .focused($playFocused)
+                        .accessibilityIdentifier("album.play")
+                        Button { Task { await model.play(shuffle: true) } } label: {
+                            Label("Shuffle", systemImage: "shuffle")
+                        }
+                        .disabled(!model.canShuffle)
+                        .accessibilityIdentifier("album.shuffle")
+                    }
+                    .focusSection()
                 }
                 HStack(spacing: 24) {
                     if let artist = page.artist, let id = page.artistId {
@@ -161,7 +173,10 @@ struct AlbumView: View {
                 }
                 .scrollClipDisabled()
                 .task(id: page.rows.count) {
-                    guard let highlight = page.highlight, !page.rows.isEmpty else { return }
+                    guard let highlight = page.highlight, !page.rows.isEmpty else {
+                        if model.canPlay { playFocused = true }
+                        return
+                    }
                     reader.scrollTo("track-\(highlight)", anchor: .center)
                     focusedTrack = highlight
                 }

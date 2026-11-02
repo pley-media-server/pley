@@ -23,10 +23,8 @@ struct ShellView: View {
     var body: some View {
         TabView(selection: Binding(get: { shell.section }, set: { shell.select($0) })) {
             ForEach(shell.sections, id: \.self) { section in
-                Tab(title(section), systemImage: symbol(section), value: section) {
-                    stack(section)
-                }
-                .accessibilityIdentifier("shell.tab.\(section.key)")
+                tab(section)
+                    .accessibilityIdentifier("shell.tab.\(section.key)")
             }
         }
         .onPlayPauseCommand {
@@ -37,6 +35,29 @@ struct ShellView: View {
             ShellSheet(app: app, sheet: sheet)
         }
         .accessibilityHidden(app.player != nil || app.livePlayer != nil)
+    }
+
+    /// `section`'s tab. Search and Now Playing show their symbols alone (Search
+    /// as the system's search tab), so seven tabs fit across the screen with
+    /// Live TV, Libraries and Now Playing among them; VoiceOver still reads
+    /// their names.
+    @TabContentBuilder<ShellSection> private func tab(_ section: ShellSection) -> some TabContent<ShellSection> {
+        switch section {
+        case .search:
+            Tab(value: section, role: .search) {
+                stack(section)
+            } label: {
+                Label(title(section), systemImage: symbol(section)).labelStyle(.iconOnly)
+            }
+        case .nowPlaying:
+            Tab(value: section) {
+                stack(section)
+            } label: {
+                Label(title(section), systemImage: symbol(section)).labelStyle(.iconOnly)
+            }
+        default:
+            Tab(title(section), systemImage: symbol(section), value: section) { stack(section) }
+        }
     }
 
     /// `section`'s navigation: its start, with the pages opened from it on top.

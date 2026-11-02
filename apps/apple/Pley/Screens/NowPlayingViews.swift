@@ -8,7 +8,8 @@ import SwiftUI
 /// of how far the track is. A tap opens Now Playing (a sheet on iPhone
 /// and iPad, a window on the Mac). VoiceOver reads it as one element
 /// ("Now playing, Song, Artist") with Play/Pause, Next and Open as
-/// actions; at the accessibility text sizes its words and buttons stack.
+/// actions; at the accessibility text sizes its words and buttons stack,
+/// except in the tab bar's accessory, which keeps one line.
 struct MiniPlayer: View {
     let app: AppModel
     @ObservedObject var music: MusicPlayback
@@ -45,7 +46,8 @@ struct MiniPlayer: View {
     }
 
     @ViewBuilder private func content(_ page: NowPlayingModel) -> some View {
-        if typeSize.isAccessibilitySize {
+        // The tab bar's accessory has a height of its own: one line there.
+        if typeSize.isAccessibilitySize && !inAccessory {
             VStack(alignment: .leading, spacing: 8) {
                 Button(action: open) { words(page, lines: 3) }
                     .buttonStyle(.plain)
