@@ -69,7 +69,7 @@ pub struct Download {
     /// The server's origin (`http://192.168.1.20:7539`).
     pub server: String,
     pub file_id: i64,
-    /// What it is called (`Alien (1979).mkv`).
+    /// What it is called (`Vertigo (1958).mkv`).
     pub name: String,
     /// Where it is, once whole (it comes into `<path>.part`).
     pub path: PathBuf,
@@ -1046,7 +1046,7 @@ mod tests {
 
     #[test]
     fn only_audio_and_video_files_are_kept_under_safe_names() {
-        assert_eq!(safe_name("Alien (1979).mkv").as_deref(), Some("Alien (1979).mkv"));
+        assert_eq!(safe_name("Vertigo (1958).mkv").as_deref(), Some("Vertigo (1958).mkv"));
         assert_eq!(
             safe_name("The Expanse - S01E01 - Dulcinea.MP4").as_deref(),
             Some("The Expanse - S01E01 - Dulcinea.mp4")
@@ -1081,19 +1081,19 @@ mod tests {
     #[test]
     fn a_name_taken_gets_a_number() {
         let dir = tempdir("names");
-        std::fs::write(dir.join("Alien (1979).mkv"), b"x").unwrap();
-        std::fs::write(dir.join("Alien (1979) (2).mkv.part"), b"x").unwrap();
-        let reserved = dir.join("Alien (1979) (3).mkv");
-        assert_eq!(free_path(&dir, "Alien (1979).mkv", &[&reserved]), dir.join("Alien (1979) (4).mkv"));
-        assert_eq!(free_path(&dir, "Heat (1995).mkv", &[]), dir.join("Heat (1995).mkv"));
+        std::fs::write(dir.join("Vertigo (1958).mkv"), b"x").unwrap();
+        std::fs::write(dir.join("Vertigo (1958) (2).mkv.part"), b"x").unwrap();
+        let reserved = dir.join("Vertigo (1958) (3).mkv");
+        assert_eq!(free_path(&dir, "Vertigo (1958).mkv", &[&reserved]), dir.join("Vertigo (1958) (4).mkv"));
+        assert_eq!(free_path(&dir, "Jaws (1975).mkv", &[]), dir.join("Jaws (1975).mkv"));
     }
 
     #[test]
     fn the_list_comes_back_with_unfinished_downloads_measured_again() {
         let dir = tempdir("index");
         let downloads = Downloads::load(dir.join("downloads.json"), dir.clone());
-        let a = downloads.request("http://nas:7539", 7, Some(42), "Alien (1979).mkv", 1);
-        let b = downloads.request("http://nas:7539", 8, None, "Heat (1995).mkv", 2);
+        let a = downloads.request("http://nas:7539", 7, Some(42), "Vertigo (1958).mkv", 1);
+        let b = downloads.request("http://nas:7539", 8, None, "Jaws (1975).mkv", 2);
         std::fs::write(part_of(&a.path), vec![0; 1234]).unwrap();
         downloads.update(a.id, |d| d.state = State::Downloading);
         downloads.update(b.id, |d| d.state = State::Done);
@@ -1103,9 +1103,9 @@ mod tests {
         assert_eq!(list.len(), 1, "a file deleted meanwhile is forgotten");
         assert_eq!((list[0].state, list[0].received), (State::Queued, 1234));
         // Asked again, it is the same download, under the same name.
-        let c = again.request("http://nas:7539", 7, None, "Alien (1979).mkv", 3);
+        let c = again.request("http://nas:7539", 7, None, "Vertigo (1958).mkv", 3);
         assert_eq!((c.id, c.path, c.item_id), (a.id, a.path, Some(42)));
-        assert_eq!(again.request("http://nas:7539", 9, None, "Alien (1979).mkv", 4).name, "Alien (1979) (2).mkv");
+        assert_eq!(again.request("http://nas:7539", 9, None, "Vertigo (1958).mkv", 4).name, "Vertigo (1958) (2).mkv");
     }
 
     #[test]
@@ -1113,13 +1113,13 @@ mod tests {
         let dir = tempdir("switch");
         let downloads = Downloads::load(dir.join("downloads.json"), dir.clone());
         // Waiting its turn, nothing on the disk yet: its name is taken all the same.
-        let mp4 = downloads.request("http://nas:7539", 8, Some(41), "Alien (1979).mp4", 1);
-        let mkv = downloads.request("http://nas:7539", 7, Some(42), "Alien (1979).mkv", 2);
+        let mp4 = downloads.request("http://nas:7539", 8, Some(41), "Vertigo (1958).mp4", 1);
+        let mkv = downloads.request("http://nas:7539", 7, Some(42), "Vertigo (1958).mkv", 2);
         std::fs::write(part_of(&mkv.path), b"what came of the original").unwrap();
 
         let switched = downloads.switch_to(mkv.id, MADE_ID).unwrap();
 
-        assert_eq!(switched.path, dir.join("Alien (1979) (2).mp4"));
+        assert_eq!(switched.path, dir.join("Vertigo (1958) (2).mp4"));
         assert_ne!(switched.path, mp4.path);
         assert_eq!((switched.received, switched.conversion.as_deref()), (0, Some(MADE_ID)));
         assert!(!part_of(&mkv.path).exists(), "what came of the original goes");
@@ -1131,7 +1131,7 @@ mod tests {
     fn a_file_the_server_failed_to_make_is_asked_for_anew() {
         let dir = tempdir("retry");
         let downloads = Downloads::load(dir.join("downloads.json"), dir.clone());
-        let d = downloads.request("http://nas:7539", 7, Some(42), "Alien (1979).mkv", 1);
+        let d = downloads.request("http://nas:7539", 7, Some(42), "Vertigo (1958).mkv", 1);
         downloads.switch_to(d.id, MADE_ID);
         downloads.update(d.id, |d| d.state = State::Failed);
 
@@ -1140,7 +1140,7 @@ mod tests {
 
         downloads.switch_to(d.id, MADE_ID);
         downloads.update(d.id, |d| d.state = State::Failed);
-        let asked = downloads.request("http://nas:7539", 7, Some(42), "Alien (1979).mkv", 2);
+        let asked = downloads.request("http://nas:7539", 7, Some(42), "Vertigo (1958).mkv", 2);
         assert_eq!((asked.state, asked.conversion), (State::Queued, None));
     }
 
@@ -1204,7 +1204,7 @@ mod tests {
     async fn a_file_comes_whole_with_the_session() {
         let body = body();
         let (url, mut asked) = serve(vec![answer("200 OK", &[], &body)]).await;
-        let part = tempdir("whole").join("Alien (1979).mkv.part");
+        let part = tempdir("whole").join("Vertigo (1958).mkv.part");
         let mut seen = 0;
         let fetched = fetch(&reqwest::Client::new(), &url, Some("pley_token=abc"), &part, None, |received, size| {
             assert_eq!(size, Some(300_000));
@@ -1230,7 +1230,7 @@ mod tests {
             &body[100_000..],
         )])
         .await;
-        let part = tempdir("resume").join("Alien (1979).mkv.part");
+        let part = tempdir("resume").join("Vertigo (1958).mkv.part");
         std::fs::write(&part, &body[..100_000]).unwrap();
         let fetched = fetch(&reqwest::Client::new(), &url, None, &part, None, |_, _| true).await.unwrap();
         assert_eq!(fetched, Fetched::Whole);
@@ -1247,7 +1247,7 @@ mod tests {
             answer("200 OK", &[], &body),
         ])
         .await;
-        let part = tempdir("changed").join("Alien (1979).mkv.part");
+        let part = tempdir("changed").join("Vertigo (1958).mkv.part");
         std::fs::write(&part, vec![1; 100_000]).unwrap();
         let fetched = fetch(&reqwest::Client::new(), &url, None, &part, Some(300_000), |_, _| true).await.unwrap();
         assert_eq!(fetched, Fetched::Whole);
@@ -1260,7 +1260,7 @@ mod tests {
     async fn a_server_that_ignores_the_range_sends_it_all_again() {
         let body = body();
         let (url, _) = serve(vec![answer("200 OK", &[], &body)]).await;
-        let part = tempdir("ignored").join("Alien (1979).mkv.part");
+        let part = tempdir("ignored").join("Vertigo (1958).mkv.part");
         std::fs::write(&part, vec![9; 50_000]).unwrap();
         fetch(&reqwest::Client::new(), &url, None, &part, None, |_, _| true).await.unwrap();
         assert_eq!(std::fs::read(&part).unwrap(), body);
@@ -1297,8 +1297,8 @@ mod tests {
             id: 1,
             server: "http://nas:7539".into(),
             file_id: 7,
-            name: "Alien (1979).mkv".into(),
-            path: PathBuf::from("Alien (1979).mkv"),
+            name: "Vertigo (1958).mkv".into(),
+            path: PathBuf::from("Vertigo (1958).mkv"),
             size: None,
             received: 0,
             state: State::Queued,

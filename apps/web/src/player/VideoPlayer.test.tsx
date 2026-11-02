@@ -67,7 +67,7 @@ vi.mock("@/lib/hls", () => ({ loadHls: () => Promise.resolve(FakeHls) }));
 
 function detail(overrides: Partial<ItemDetail> = {}): ItemDetail {
   return {
-    ...makeItem({ id: 7, kind: "movie", title: "Heat", duration_ms: 6_000_000 }),
+    ...makeItem({ id: 7, kind: "movie", title: "Jaws", duration_ms: 6_000_000 }),
     original_title: null,
     tagline: null,
     genres: [],
@@ -78,7 +78,7 @@ function detail(overrides: Partial<ItemDetail> = {}): ItemDetail {
     files: [
       {
         id: 3,
-        path: "/movies/Heat.mkv",
+        path: "/movies/Jaws.mkv",
         size: 1,
         container: "mkv",
         duration_ms: 6_000_000,
@@ -873,7 +873,7 @@ describe("VideoPlayer finding subtitles", () => {
     };
     const requests = serve([session("s1")], {
       "GET /api/items/7/subtitles/search": () => ({
-        results: [{ id: "opensubtitles:9", provider: "opensubtitles", language: "en", name: "Heat.1995", format: "srt", hearing_impaired: false, forced: false, downloads: 5, matched: "hash" }],
+        results: [{ id: "opensubtitles:9", provider: "opensubtitles", language: "en", name: "Jaws.1975", format: "srt", hearing_impaired: false, forced: false, downloads: 5, matched: "hash" }],
       }),
       "POST /api/items/7/subtitles": () => track,
       "GET /api/files/3/subtitles/2000.vtt": () => new Response("WEBVTT\n\n00:00:01.000 --> 00:00:09.000\nFound it", { status: 200 }),
@@ -888,7 +888,7 @@ describe("VideoPlayer finding subtitles", () => {
     await user.click(screen.getByRole("button", { name: "Playback settings" }));
     await user.click(screen.getByRole("button", { name: /Subtitles\s*None/ }));
     await user.click(screen.getByRole("menuitem", { name: "Find subtitles…" }));
-    await user.click(await screen.findByRole("menuitem", { name: /Heat\.1995/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /Jaws\.1975/ }));
 
     await waitFor(() => {
       fireEvent.timeUpdate(video);

@@ -25,11 +25,11 @@ const hubs: Hub[] = [
     title: "Continue Watching",
     library_id: null,
     items: [
-      makeItem({ id: 6, title: "Alien", duration_ms: 2_640_000, user_state: { position_ms: 600_000, watched: false, play_count: 0 } }),
+      makeItem({ id: 6, title: "Vertigo", duration_ms: 2_640_000, user_state: { position_ms: 600_000, watched: false, play_count: 0 } }),
       makeItem({ id: 7, kind: "episode", title: "Pilot", grandparent_title: "Lost", parent_index: 1, index: 1 }),
     ],
   },
-  { key: "recently_added_1", title: "Recently Added in Movies", library_id: 1, items: [makeItem({ id: 8, title: "Heat", year: 1995 })] },
+  { key: "recently_added_1", title: "Recently Added in Movies", library_id: 1, items: [makeItem({ id: 8, title: "Jaws", year: 1975 })] },
   { key: "top_rated_1", title: "Top Rated", library_id: 1, items: [] },
 ];
 
@@ -79,10 +79,10 @@ describe("HomePage", () => {
   });
 
   it("has My List when the server sends it", async () => {
-    serve({ home: [...hubs, { key: "my_list", title: "My List", library_id: null, items: [makeItem({ id: 9, title: "Ran" })] }] });
+    serve({ home: [...hubs, { key: "my_list", title: "My List", library_id: null, items: [makeItem({ id: 9, title: "Rashomon" })] }] });
     renderWithProviders(<HomePage />);
     const row = (await screen.findByRole("heading", { name: "My List" })).closest("section") as HTMLElement;
-    expect(within(row).getAllByRole("link", { name: "Ran" })).not.toHaveLength(0);
+    expect(within(row).getAllByRole("link", { name: "Rashomon" })).not.toHaveLength(0);
   });
 
   it("takes a card off Continue Watching at once", async () => {
@@ -100,11 +100,11 @@ describe("HomePage", () => {
       </ListMenuProvider>,
     );
     const row = (await screen.findByRole("heading", { name: "Continue Watching" })).closest("section") as HTMLElement;
-    fireEvent.contextMenu(within(row).getAllByRole("link", { name: "Alien" })[0] as HTMLElement);
+    fireEvent.contextMenu(within(row).getAllByRole("link", { name: "Vertigo" })[0] as HTMLElement);
     await user.click(screen.getByRole("menuitem", { name: "Remove from Continue Watching" }));
 
     // Gone before the server answers.
-    expect(within(row).queryAllByRole("link", { name: "Alien" })).toHaveLength(0);
+    expect(within(row).queryAllByRole("link", { name: "Vertigo" })).toHaveLength(0);
     expect(within(row).getByText("S1 · E1 · Pilot")).toBeInTheDocument();
     expect(requests.some((r) => r.method === "DELETE" && r.path === "/api/continue-watching/6")).toBe(true);
     answer(undefined);
@@ -124,11 +124,11 @@ describe("HomePage", () => {
       </ListMenuProvider>,
     );
     const row = (await screen.findByRole("heading", { name: "Continue Watching" })).closest("section") as HTMLElement;
-    fireEvent.contextMenu(within(row).getAllByRole("link", { name: "Alien" })[0] as HTMLElement);
+    fireEvent.contextMenu(within(row).getAllByRole("link", { name: "Vertigo" })[0] as HTMLElement);
     await user.click(screen.getByRole("menuitem", { name: "Remove from Continue Watching" }));
 
     expect(await screen.findByText("Database is locked")).toBeInTheDocument();
-    expect(await within(row).findAllByRole("link", { name: "Alien" })).not.toHaveLength(0);
+    expect(await within(row).findAllByRole("link", { name: "Vertigo" })).not.toHaveLength(0);
   });
 
   it("only offers that in Continue Watching", async () => {
@@ -142,7 +142,7 @@ describe("HomePage", () => {
         <HomePage />
       </ListMenuProvider>,
     );
-    fireEvent.contextMenu((await screen.findAllByRole("link", { name: "Heat" }))[0] as HTMLElement);
+    fireEvent.contextMenu((await screen.findAllByRole("link", { name: "Jaws" }))[0] as HTMLElement);
     expect(await screen.findByRole("menuitem", { name: "Add to My List" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Remove from Continue Watching" })).not.toBeInTheDocument();
   });
@@ -152,7 +152,7 @@ describe("HomePage", () => {
     const requests = mockApi({
       "GET /api/libraries": () => [movies],
       "GET /api/hubs/home": () => ({ hubs }),
-      "GET /api/watchlist": () => ({ items: [makeItem({ id: 8, title: "Heat" })] }),
+      "GET /api/watchlist": () => ({ items: [makeItem({ id: 8, title: "Jaws" })] }),
       "DELETE /api/watchlist/8": () => undefined,
       "PUT /api/watchlist/6": () => undefined,
     });
@@ -161,11 +161,11 @@ describe("HomePage", () => {
         <HomePage />
       </ListMenuProvider>,
     );
-    fireEvent.contextMenu((await screen.findAllByRole("link", { name: "Heat" }))[0] as HTMLElement);
+    fireEvent.contextMenu((await screen.findAllByRole("link", { name: "Jaws" }))[0] as HTMLElement);
     await user.click(await screen.findByRole("menuitem", { name: "Remove from My List" }));
     await waitFor(() => expect(requests.some((r) => r.method === "DELETE" && r.path === "/api/watchlist/8")).toBe(true));
 
-    fireEvent.contextMenu(screen.getAllByRole("link", { name: "Alien" })[0] as HTMLElement);
+    fireEvent.contextMenu(screen.getAllByRole("link", { name: "Vertigo" })[0] as HTMLElement);
     await user.click(await screen.findByRole("menuitem", { name: "Add to My List" }));
     await waitFor(() => expect(requests.some((r) => r.method === "PUT" && r.path === "/api/watchlist/6")).toBe(true));
   });

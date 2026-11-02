@@ -431,7 +431,7 @@ function TitleView({ title, picking, setPicking }: { title: DiscoverDetail; pick
 }
 
 /**
- * A movie or show on TMDB (`/discover/movie/603`): what it is, how it
+ * A movie or show on TMDB (`/discover/movie/278`): what it is, how it
  * stands for this account, and the one thing to do about it. `?pick=1`
  * opens a show's season picker (Request more seasons, from a library).
  */

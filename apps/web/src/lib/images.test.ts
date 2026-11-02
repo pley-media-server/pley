@@ -81,8 +81,8 @@ describe("artwork fallbacks", () => {
 
 describe("placeholderGradient", () => {
   it("is stable for a title and differs between titles", () => {
-    expect(placeholderGradient("Heat")).toBe(placeholderGradient("Heat"));
-    expect(placeholderGradient("Heat")).not.toBe(placeholderGradient("Alien"));
+    expect(placeholderGradient("Jaws")).toBe(placeholderGradient("Jaws"));
+    expect(placeholderGradient("Jaws")).not.toBe(placeholderGradient("Vertigo"));
     expect(placeholderGradient("")).toMatch(/^linear-gradient\(135deg, hsl\(0 30% 22%\), hsl\(40 35% 12%\)\)$/);
   });
 });

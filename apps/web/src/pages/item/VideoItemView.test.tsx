@@ -12,7 +12,7 @@ vi.mock("@/lib/progress", async (importOriginal) => ({ ...(await importOriginal<
 function file(overrides: Partial<MediaFile> = {}): MediaFile {
   return {
     id: 7,
-    path: "Alien.1979.mkv",
+    path: "Vertigo.1958.mkv",
     size: 8_804_682_752,
     container: "mkv",
     duration_ms: null,
@@ -37,13 +37,13 @@ function file(overrides: Partial<MediaFile> = {}): MediaFile {
 
 function movie(f: MediaFile): ItemDetail {
   return {
-    ...makeItem({ id: 5, kind: "movie", title: "Alien", year: 1979 }),
+    ...makeItem({ id: 5, kind: "movie", title: "Vertigo", year: 1958 }),
     original_title: null,
     tagline: null,
     genres: [],
     studio: null,
     content_rating: null,
-    tmdb_id: 348,
+    tmdb_id: 426,
     imdb_id: null,
     files: [f],
     in_watchlist: false,
@@ -105,7 +105,7 @@ describe("the title page's quality badges", () => {
     const video = (range: Partial<MediaFile["streams"][number]>) =>
       makeStream({ index: 0, kind: "video", codec: "hevc", width: 3840, height: 2160, ...range });
     const hdr10 = file({ id: 7, streams: [video({ dynamic_range: "hdr10" })] });
-    const dv = file({ id: 8, path: "Alien.1979.DV.mkv", streams: [video({ dynamic_range: "dolby_vision", dv_profile: 8, dv_bl_compat: 1 })] });
+    const dv = file({ id: 8, path: "Vertigo.1958.DV.mkv", streams: [video({ dynamic_range: "dolby_vision", dv_profile: 8, dv_bl_compat: 1 })] });
     renderWithProviders(<VideoItemView item={{ ...movie(hdr10), files: [hdr10, dv] }} />);
     expect(screen.getByText("HDR10")).toBeInTheDocument();
     await user.selectOptions(screen.getByRole("combobox", { name: "Version" }), "8");

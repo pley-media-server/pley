@@ -11,7 +11,7 @@ const viewer = { ...testUser, is_admin: false };
 function file(id: number, overrides: Partial<MediaFile> = {}): MediaFile {
   return {
     id,
-    path: `/media/Movies/Alien (1979)/Alien.1979.${id}.mkv`,
+    path: `/media/Movies/Vertigo (1958)/Vertigo.1958.${id}.mkv`,
     size: 8_804_682_752,
     container: "matroska,webm",
     duration_ms: null,
@@ -31,7 +31,7 @@ function file(id: number, overrides: Partial<MediaFile> = {}): MediaFile {
 
 function movie(files: MediaFile[]): ItemDetail {
   return {
-    ...makeItem({ id: 5, kind: "movie", title: "Alien", year: 1979 }),
+    ...makeItem({ id: 5, kind: "movie", title: "Vertigo", year: 1958 }),
     original_title: null,
     tagline: null,
     genres: [],
@@ -60,7 +60,7 @@ describe("MoreActions", () => {
     await user.click(screen.getByRole("menuitem", { name: /Download\s*2\.0 GB/ }));
 
     expect(clicked.map((a) => [a.getAttribute("href"), a.download])).toEqual([
-      [`/api/files/8/stream?item=${item.id}`, "Alien (1979) - Director's Cut.mkv"],
+      [`/api/files/8/stream?item=${item.id}`, "Vertigo (1958) - Director's Cut.mkv"],
     ]);
     expect(screen.queryByRole("menu")).toBeNull();
   });

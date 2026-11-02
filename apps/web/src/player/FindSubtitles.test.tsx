@@ -12,7 +12,7 @@ const result = (over: Partial<SubtitleResult>): SubtitleResult => ({
   id: "opensubtitles:1",
   provider: "opensubtitles",
   language: "en",
-  name: "Heat.1995.1080p.BluRay.x264-GRP",
+  name: "Jaws.1975.1080p.BluRay.x264-GRP",
   format: "srt",
   hearing_impaired: false,
   forced: false,
@@ -74,7 +74,7 @@ describe("finding subtitles", () => {
   it("lists what the server finds in the profile's language, made for this file first, and adds the one picked", async () => {
     const requests = mockApi({
       "GET /api/items/7/subtitles/search": () => ({
-        results: [result({}), result({ id: "opensubtitles:2", name: "Heat.1995.DVDRip", matched: "title", hearing_impaired: true, downloads: 1 })],
+        results: [result({}), result({ id: "opensubtitles:2", name: "Jaws.1975.DVDRip", matched: "title", hearing_impaired: true, downloads: 1 })],
       }),
       "POST /api/items/7/subtitles": () => added,
     });
@@ -83,8 +83,8 @@ describe("finding subtitles", () => {
     await userEvent.click(screen.getByRole("menuitem", { name: "Find subtitles…" }));
     const rows = await screen.findAllByRole("menuitem");
     expect(rows.map((r) => r.textContent)).toEqual([
-      "Heat.1995.1080p.BluRay.x264-GRPEnglish · SRT · 1,234 downloadsMade for this file",
-      "Heat.1995.DVDRipEnglish · SRT · SDH · 1 download",
+      "Jaws.1975.1080p.BluRay.x264-GRPEnglish · SRT · 1,234 downloadsMade for this file",
+      "Jaws.1975.DVDRipEnglish · SRT · SDH · 1 download",
     ]);
     expect(requests[0]!.path).toBe("/api/items/7/subtitles/search?file_id=3&language=en");
 
@@ -167,15 +167,15 @@ describe("adding a subtitle file", () => {
     const props = renderMenu();
     await userEvent.click(screen.getByRole("button", { name: /Subtitles/ }));
     expect(screen.getByTestId("subtitle-file")).toHaveAttribute("accept", ".srt,.vtt,.ass,.ssa");
-    const file = new File(["1\n00:00:01,000 --> 00:00:02,000\nHallo\n"], "Heat.de.srt", { type: "application/x-subrip" });
+    const file = new File(["1\n00:00:01,000 --> 00:00:02,000\nHallo\n"], "Jaws.de.srt", { type: "application/x-subrip" });
     fireEvent.change(screen.getByTestId("subtitle-file"), { target: { files: [file] } });
-    expect(await screen.findByText("Heat.de.srt")).toBeInTheDocument();
+    expect(await screen.findByText("Jaws.de.srt")).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Language of the subtitles" }), "ger");
     await userEvent.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() => expect(props.subtitleSources!.onAdded).toHaveBeenCalled());
     const form = requests[0]!.init.body as FormData;
     expect(form).toBeInstanceOf(FormData);
-    expect([(form.get("file") as File).name, form.get("language"), form.get("file_id")]).toEqual(["Heat.de.srt", "ger", "3"]);
+    expect([(form.get("file") as File).name, form.get("language"), form.get("file_id")]).toEqual(["Jaws.de.srt", "ger", "3"]);
     // The browser sets the form's type, with its boundary.
     expect((requests[0]!.init.headers as Record<string, string>)["Content-Type"]).toBeUndefined();
   });

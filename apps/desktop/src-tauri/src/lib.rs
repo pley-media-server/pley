@@ -335,11 +335,11 @@ mod tests {
         assert_eq!(at("http://tauri.localhost/index.html?pick"), Navigation::Allow);
         assert_eq!(at("http://192.168.1.20:7539/item/kx7bq2m"), Navigation::Allow);
         assert_eq!(at("http://192.168.1.20:7539/__app/servers"), Navigation::Picker);
-        assert_eq!(at("https://www.themoviedb.org/movie/603"), Navigation::Browser);
-        assert_eq!(at("https://www.themoviedb.org/tv/1399"), Navigation::Browser);
-        assert_eq!(at("https://www.imdb.com/title/tt0113277/"), Navigation::Browser);
+        assert_eq!(at("https://www.themoviedb.org/movie/278"), Navigation::Browser);
+        assert_eq!(at("https://www.themoviedb.org/tv/70523"), Navigation::Browser);
+        assert_eq!(at("https://www.imdb.com/title/tt0073195/"), Navigation::Browser);
         // Discover and requests are the server's pages.
-        for page in ["/discover?q=heat", "/discover/movie/603", "/discover/show/1399", "/requests?status=pending"] {
+        for page in ["/discover?q=jaws", "/discover/movie/278", "/discover/show/70523", "/requests?status=pending"] {
             assert_eq!(at(&format!("http://192.168.1.20:7539{page}")), Navigation::Allow, "{page}");
         }
         assert_eq!(at("http://192.168.1.20:8080/"), Navigation::Browser, "another port is another site");

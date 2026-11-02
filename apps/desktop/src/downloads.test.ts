@@ -5,7 +5,7 @@ import type { SavedServer } from "./servers";
 const download = (over: Partial<Download>): Download => ({
   id: 1,
   server: "http://192.168.1.20:7539",
-  name: "Alien (1979).mkv",
+  name: "Vertigo (1958).mkv",
   size: 8_804_682_752,
   received: 0,
   state: "done",

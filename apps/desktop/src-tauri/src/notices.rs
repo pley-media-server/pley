@@ -117,7 +117,7 @@ fn quoted(reason: Option<&str>) -> Option<&str> {
     reason.map(str::trim).filter(|r| !r.is_empty())
 }
 
-/// "“Heat” is ready to watch.", or for a show's first seasons, "Season 2 of
+/// "“Jaws” is ready to watch.", or for a show's first seasons, "Season 2 of
 /// “The Expanse” is ready to watch.".
 fn ready_words(title: &str, seasons: Option<&[i64]>) -> String {
     match seasons_label(seasons) {
@@ -616,13 +616,13 @@ mod tests {
     fn the_events_notices_come_from_are_read_as_the_server_sends_them() {
         assert_eq!(
             heard(
-                r#"{"type":"request_available","request_id":2,"title":"Heat","kind":"movie","tmdb_id":949,"item_id":9,"poster_url":null,"seasons":null,"complete":true}"#
+                r#"{"type":"request_available","request_id":2,"title":"Jaws","kind":"movie","tmdb_id":578,"item_id":9,"poster_url":null,"seasons":null,"complete":true}"#
             ),
-            Heard::RequestAvailable { request_id: 2, title: "Heat".into(), seasons: None, complete: true }
+            Heard::RequestAvailable { request_id: 2, title: "Jaws".into(), seasons: None, complete: true }
         );
         assert_eq!(
-            heard(r#"{"type":"request_available","request_id":2,"title":"Heat","item_id":9}"#),
-            Heard::RequestAvailable { request_id: 2, title: "Heat".into(), seasons: None, complete: true },
+            heard(r#"{"type":"request_available","request_id":2,"title":"Jaws","item_id":9}"#),
+            Heard::RequestAvailable { request_id: 2, title: "Jaws".into(), seasons: None, complete: true },
             "a server that sends less"
         );
         assert_eq!(
@@ -646,8 +646,8 @@ mod tests {
     fn notices_use_the_words_every_client_uses() {
         let say = |json: &str| notice(&heard(json));
         assert_eq!(
-            say(r#"{"type":"request_available","request_id":2,"title":"Heat","item_id":null}"#).as_deref(),
-            Some("“Heat” is ready to watch.")
+            say(r#"{"type":"request_available","request_id":2,"title":"Jaws","item_id":null}"#).as_deref(),
+            Some("“Jaws” is ready to watch.")
         );
         assert_eq!(
             say(r#"{"type":"request_available","request_id":2,"title":"The Expanse","seasons":[2],"complete":false}"#)
@@ -670,28 +670,28 @@ mod tests {
             "complete: the whole request"
         );
         assert_eq!(
-            say(r#"{"type":"request_decided","request_id":2,"title":"Heat","status":"approved","reason":null}"#)
+            say(r#"{"type":"request_decided","request_id":2,"title":"Jaws","status":"approved","reason":null}"#)
                 .as_deref(),
-            Some("“Heat” was approved.")
+            Some("“Jaws” was approved.")
         );
         assert_eq!(
-            say(r#"{"type":"request_decided","request_id":2,"title":"Heat","status":"declined","reason":" Not in English "}"#)
+            say(r#"{"type":"request_decided","request_id":2,"title":"Jaws","status":"declined","reason":" Not in English "}"#)
                 .as_deref(),
-            Some("“Heat” was declined: “Not in English”.")
+            Some("“Jaws” was declined: “Not in English”.")
         );
         assert_eq!(
-            say(r#"{"type":"request_decided","request_id":2,"title":"Heat","status":"declined","reason":""}"#)
+            say(r#"{"type":"request_decided","request_id":2,"title":"Jaws","status":"declined","reason":""}"#)
                 .as_deref(),
-            Some("“Heat” was declined.")
+            Some("“Jaws” was declined.")
         );
-        assert_eq!(say(r#"{"type":"request_decided","request_id":2,"title":"Heat","status":"weird"}"#), None);
+        assert_eq!(say(r#"{"type":"request_decided","request_id":2,"title":"Jaws","status":"weird"}"#), None);
         let sam = r#""requested_by":{"id":4,"name":"Sam","avatar_url":null,"avatar_color":null}"#;
         assert_eq!(
             say(&format!(
-                r#"{{"type":"request_created","request_id":3,"title":"Heat","seasons":null,{sam},"status":"pending"}}"#
+                r#"{{"type":"request_created","request_id":3,"title":"Jaws","seasons":null,{sam},"status":"pending"}}"#
             ))
             .as_deref(),
-            Some("Sam asked for “Heat”.")
+            Some("Sam asked for “Jaws”.")
         );
         assert_eq!(
             say(&format!(
@@ -702,36 +702,37 @@ mod tests {
         );
         assert_eq!(
             say(&format!(
-                r#"{{"type":"request_created","request_id":3,"title":"Heat","seasons":null,{sam},"status":"approved"}}"#
+                r#"{{"type":"request_created","request_id":3,"title":"Jaws","seasons":null,{sam},"status":"approved"}}"#
             )),
             None,
             "approved as made: nothing to decide"
         );
         assert_eq!(
-            say(r#"{"type":"request_failed","request_id":3,"title":"Heat","kind":"movie","reason":"HTTP 500","retry_at":null}"#)
+            say(r#"{"type":"request_failed","request_id":3,"title":"Jaws","kind":"movie","reason":"HTTP 500","retry_at":null}"#)
                 .as_deref(),
-            Some("“Heat” couldn't be sent to Radarr: HTTP 500")
+            Some("“Jaws” couldn't be sent to Radarr: HTTP 500")
         );
         assert_eq!(
-            say(r#"{"type":"request_failed","request_id":3,"title":"Ran","kind":"show","reason":null}"#).as_deref(),
-            Some("“Ran” couldn't be sent to Sonarr.")
+            say(r#"{"type":"request_failed","request_id":3,"title":"Rashomon","kind":"show","reason":null}"#)
+                .as_deref(),
+            Some("“Rashomon” couldn't be sent to Sonarr.")
         );
         assert_eq!(
             say(
-                r#"{"type":"request_failed","request_id":3,"title":"Heat","kind":"movie","reason":"HTTP 503","retry_at":1798000000}"#
+                r#"{"type":"request_failed","request_id":3,"title":"Jaws","kind":"movie","reason":"HTTP 503","retry_at":1798000000}"#
             ),
             None,
             "the server tries again by itself"
         );
-        assert_eq!(say(r#"{"type":"requests_changed","request_id":3,"kind":"movie","tmdb_id":949}"#), None);
+        assert_eq!(say(r#"{"type":"requests_changed","request_id":3,"kind":"movie","tmdb_id":578}"#), None);
     }
 
     #[test]
     fn words_show_as_written_where_notification_servers_read_markup() {
         assert_eq!(escape_markup("“R&D” <b>now</b> > later"), "“R&amp;D” &lt;b&gt;now&lt;/b&gt; &gt; later");
-        let body = "“Heat” was declined: “<a href=\"x\">Ask Sam & Jo</a>”.";
+        let body = "“Jaws” was declined: “<a href=\"x\">Ask Sam & Jo</a>”.";
         if cfg!(all(unix, not(target_os = "macos"))) {
-            assert_eq!(body_text(body), "“Heat” was declined: “&lt;a href=\"x\"&gt;Ask Sam &amp; Jo&lt;/a&gt;”.");
+            assert_eq!(body_text(body), "“Jaws” was declined: “&lt;a href=\"x\"&gt;Ask Sam &amp; Jo&lt;/a&gt;”.");
         } else {
             assert_eq!(body_text(body), body, "Windows' toasts escape it themselves, macOS takes plain text");
         }
@@ -780,8 +781,8 @@ mod tests {
     fn catching_up_tells_only_of_what_came_since() {
         let mut told = Told::default();
         // The first time, nothing old is told of: the page does, as it opens.
-        assert!(told.catch_up(&[news(1, "Heat", "available", 100), news(2, "Ran", "declined", 50)]).is_empty());
-        assert!(told.catch_up(&[news(1, "Heat", "available", 100)]).is_empty());
+        assert!(told.catch_up(&[news(1, "Jaws", "available", 100), news(2, "Rashomon", "declined", 50)]).is_empty());
+        assert!(told.catch_up(&[news(1, "Jaws", "available", 100)]).is_empty());
         // One heard of as it changed isn't told of again; one seen isn't news.
         told.heard(4, "available", &[]);
         // One heard of before it was ready (approved) is told of once it is.
@@ -790,11 +791,11 @@ mod tests {
         let listed = [
             news(5, "Up", "available", 170),
             news(4, "Ronin", "available", 160),
-            news(3, "Alien", "declined", 150),
+            news(3, "Vertigo", "declined", 150),
             seen,
-            news(1, "Heat", "available", 100),
+            news(1, "Jaws", "available", 100),
         ];
-        assert_eq!(titles(&told.catch_up(&listed)), ["Up", "Alien"]);
+        assert_eq!(titles(&told.catch_up(&listed)), ["Up", "Vertigo"]);
         assert!(told.catch_up(&listed).is_empty());
         let mut empty = Told::default();
         assert!(empty.catch_up(&[]).is_empty());
@@ -821,15 +822,15 @@ mod tests {
 
     #[test]
     fn what_came_meanwhile_is_one_notice() {
-        let heat = news(1, "Heat", "available", 100);
-        assert_eq!(caught_up(&[&heat]).as_deref(), Some("“Heat” is ready to watch."));
+        let jaws = news(1, "Jaws", "available", 100);
+        assert_eq!(caught_up(&[&jaws]).as_deref(), Some("“Jaws” is ready to watch."));
         let expanse = partly(2, "The Expanse", &[1, 2], 100);
         assert_eq!(caught_up(&[&expanse]).as_deref(), Some("Seasons 1–2 of “The Expanse” are ready to watch."));
         let downloading = Listed { stage: "downloading".into(), ..partly(2, "The Expanse", &[1], 100) };
         assert_eq!(caught_up(&[&downloading]).as_deref(), Some("Season 1 of “The Expanse” is ready to watch."));
-        let ran = Listed { reason: Some("Not in English".into()), ..news(3, "Ran", "declined", 100) };
-        assert_eq!(caught_up(&[&ran]).as_deref(), Some("“Ran” was declined: “Not in English”."));
-        assert_eq!(caught_up(&[&heat, &expanse, &ran]).as_deref(), Some("3 of your requests have news."));
+        let rashomon = Listed { reason: Some("Not in English".into()), ..news(3, "Rashomon", "declined", 100) };
+        assert_eq!(caught_up(&[&rashomon]).as_deref(), Some("“Rashomon” was declined: “Not in English”."));
+        assert_eq!(caught_up(&[&jaws, &expanse, &rashomon]).as_deref(), Some("3 of your requests have news."));
         assert_eq!(caught_up(&[]), None);
         let searching = Listed { stage: "searching".into(), ..news(4, "Up", "approved", 100) };
         assert_eq!(caught_up(&[&searching]), None);
@@ -947,17 +948,17 @@ mod tests {
                 r#"{{"id":{id},"title":"{title}","status":"available","stage":"available","available_seasons":[],"updated_at":{updated_at},"unseen":true}}"#
             )
         };
-        let (ran, heat, alien) = (ready(1, "Ran", 100), ready(2, "Heat", 140), ready(3, "Alien", 150));
+        let (rashomon, jaws, vertigo) = (ready(1, "Rashomon", 100), ready(2, "Jaws", 140), ready(3, "Vertigo", 150));
         let (server, mut asked) = serve(vec![
             events(&[
                 ": hello\n\n",
-                "data: {\"type\":\"request_available\",\"request_id\":2,\"title\":\"Heat\",\"item_id\":9}\n\n",
+                "data: {\"type\":\"request_available\",\"request_id\":2,\"title\":\"Jaws\",\"item_id\":9}\n\n",
             ]),
-            list(&ran),
+            list(&rashomon),
             // Dropped: the second stream catches up.
             events(&["data: {\"type\":\"request_created\",\"request_id\":5,\"title\":\"Up\",\"seasons\":null,\
                  \"requested_by\":{\"id\":4,\"name\":\"Sam\"},\"status\":\"pending\"}\n\n"]),
-            list(&[alien, heat, ran].join(",")),
+            list(&[vertigo, jaws, rashomon].join(",")),
         ])
         .await;
         let window = Window::at(&server, true);
@@ -977,10 +978,10 @@ mod tests {
         assert_eq!(
             shown,
             [
-                "Den: “Heat” is ready to watch.",
-                // The second stream first catches up: Heat was heard of as it
-                // came, so only Alien is news.
-                "Den: “Alien” is ready to watch.",
+                "Den: “Jaws” is ready to watch.",
+                // The second stream first catches up: Jaws was heard of as it
+                // came, so only Vertigo is news.
+                "Den: “Vertigo” is ready to watch.",
                 "Den: Sam asked for “Up”.",
             ]
         );
@@ -1026,7 +1027,7 @@ mod tests {
     #[tokio::test]
     async fn nothing_is_shown_while_the_window_is_in_front_and_a_refusal_waits() {
         let (server, _asked) = serve(vec![
-            events(&["data: {\"type\":\"request_available\",\"request_id\":2,\"title\":\"Heat\",\"item_id\":9}\n\n"]),
+            events(&["data: {\"type\":\"request_available\",\"request_id\":2,\"title\":\"Jaws\",\"item_id\":9}\n\n"]),
             whole("503 Service Unavailable", r#"{"code":"unavailable","message":"requests are off"}"#),
             whole("401 Unauthorized", r#"{"code":"unauthorized","message":"sign in"}"#),
         ])

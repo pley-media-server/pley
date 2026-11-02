@@ -96,7 +96,7 @@ describe("RequireAuth", () => {
       },
     );
     let me = { ...testUser, name: "Sam" };
-    const news = makeRequest({ id: 4, title: "Heat", status: "available", unseen: true, updated_at: 1_700_000_500 });
+    const news = makeRequest({ id: 4, title: "Jaws", status: "available", unseen: true, updated_at: 1_700_000_500 });
     const requests = mockApi({
       "GET /api/server": () => server,
       "GET /api/auth/me": () => me,
@@ -104,7 +104,7 @@ describe("RequireAuth", () => {
       "GET /api/requests": () => makeRequestList([news]),
     });
     const { client } = renderApp("/");
-    expect(await screen.findByText("“Heat” is ready to watch.")).toBeInTheDocument();
+    expect(await screen.findByText("“Jaws” is ready to watch.")).toBeInTheDocument();
     const catchUps = () => requests.filter((r) => r.path === "/api/requests?unseen=1&limit=20");
     expect(catchUps()).toHaveLength(1);
 

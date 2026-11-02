@@ -16,12 +16,12 @@ const people = [
   { id: 3, name: "Bo", avatar_url: null, avatar_color: null },
 ];
 
-const matrix = makeRequest({ id: 1, title: "The Matrix", actions: ["approve", "decline", "handled", "delete"] });
-const heat = makeRequest({ id: 2, tmdb_id: 949, title: "Heat", year: 1995, actions: ["approve", "decline", "handled", "delete"] });
+const shawshank = makeRequest({ id: 1, title: "The Shawshank Redemption", actions: ["approve", "decline", "handled", "delete"] });
+const jaws = makeRequest({ id: 2, tmdb_id: 578, title: "Jaws", year: 1975, actions: ["approve", "decline", "handled", "delete"] });
 const failed = makeRequest({
   id: 3,
   kind: "show",
-  tmdb_id: 1399,
+  tmdb_id: 70523,
   title: "Dark",
   seasons: [1, 2, 3],
   status: "failed",
@@ -47,7 +47,7 @@ describe("RequestsPage for managers", () => {
     const user = userEvent.setup();
     const requests = mockApi({
       "GET /api/requests/summary": () => manager,
-      "GET /api/requests": () => makeRequestList([matrix, heat, failed], 3, people),
+      "GET /api/requests": () => makeRequestList([shawshank, jaws, failed], 3, people),
     });
     show(<RequestsPage />);
 
@@ -62,7 +62,7 @@ describe("RequestsPage for managers", () => {
     expect(within(third as HTMLElement).getByRole("button", { name: "Try again" })).toBeInTheDocument();
     expect(paths(requests)).toContain("/api/requests?attention=1&order=oldest&limit=50");
     // Choices of its own, from its menu.
-    await user.click(within(first as HTMLElement).getByRole("button", { name: "More for The Matrix" }));
+    await user.click(within(first as HTMLElement).getByRole("button", { name: "More for The Shawshank Redemption" }));
     expect(screen.getByRole("menuitem", { name: "Approve…" })).toBeInTheDocument();
   });
 
@@ -72,8 +72,8 @@ describe("RequestsPage for managers", () => {
       "GET /api/requests/summary": () => manager,
       "GET /api/requests": (req) =>
         req.path.includes("status=pending")
-          ? { ...makeRequestList([matrix], 1, people), counts: makeRequestList([matrix, heat, failed]).counts }
-          : makeRequestList([matrix, heat, failed], 3, people),
+          ? { ...makeRequestList([shawshank], 1, people), counts: makeRequestList([shawshank, jaws, failed]).counts }
+          : makeRequestList([shawshank, jaws, failed], 3, people),
     });
     show(<RequestsPage />);
 
@@ -92,24 +92,24 @@ describe("RequestsPage for managers", () => {
     const user = userEvent.setup();
     const requests = mockApi({
       "GET /api/requests/summary": () => manager,
-      "GET /api/requests": () => makeRequestList([matrix, heat], 2, people),
+      "GET /api/requests": () => makeRequestList([shawshank, jaws], 2, people),
     });
     show(<RequestsPage />, "/requests?view=all");
 
     await user.click(within(await screen.findByRole("group", { name: "Kind" })).getByRole("button", { name: "Movies" }));
     await user.selectOptions(await screen.findByRole("combobox", { name: "Who asked" }), "Bo");
-    await user.type(screen.getByRole("searchbox", { name: "Requests for titles containing" }), "heat");
-    await waitFor(() => expect(paths(requests)).toContain("/api/requests?kind=movie&user_id=3&q=heat&limit=50"));
-    expect(screen.getByTestId("location")).toHaveTextContent("/requests?view=all&kind=movie&user=3&q=heat");
+    await user.type(screen.getByRole("searchbox", { name: "Requests for titles containing" }), "jaws");
+    await waitFor(() => expect(paths(requests)).toContain("/api/requests?kind=movie&user_id=3&q=jaws&limit=50"));
+    expect(screen.getByTestId("location")).toHaveTextContent("/requests?view=all&kind=movie&user=3&q=jaws");
   });
 
   it("finds titles by as much of a long query as the server takes", async () => {
     const requests = mockApi({
       "GET /api/requests/summary": () => manager,
-      "GET /api/requests": () => makeRequestList([matrix], 1, people),
+      "GET /api/requests": () => makeRequestList([shawshank], 1, people),
     });
     show(<RequestsPage />, `/requests?view=all&q=${"x".repeat(250)}`);
-    expect(await screen.findByText("The Matrix")).toBeInTheDocument();
+    expect(await screen.findByText("The Shawshank Redemption")).toBeInTheDocument();
     expect(paths(requests)).toContain(`/api/requests?q=${"x".repeat(200)}&limit=50`);
     expect(screen.getByRole("searchbox", { name: "Requests for titles containing" })).toHaveAttribute("maxlength", "200");
   });
@@ -118,18 +118,18 @@ describe("RequestsPage for managers", () => {
     const user = userEvent.setup();
     const requests = mockApi({
       "GET /api/requests/summary": () => manager,
-      "GET /api/requests": () => makeRequestList([matrix, heat, failed], 3, people),
-      "POST /api/requests/1/approve": () => ({ ...matrix, status: "approved", stage: "searching", actions: [] }),
+      "GET /api/requests": () => makeRequestList([shawshank, jaws, failed], 3, people),
+      "POST /api/requests/1/approve": () => ({ ...shawshank, status: "approved", stage: "searching", actions: [] }),
       "POST /api/requests/2/approve": () => apiError(409, "conflict", "it was declined meanwhile"),
     });
     show(<RequestsPage />);
 
-    await user.click(await screen.findByRole("checkbox", { name: "Select The Matrix" }));
-    await user.click(screen.getByRole("checkbox", { name: "Select Heat" }));
+    await user.click(await screen.findByRole("checkbox", { name: "Select The Shawshank Redemption" }));
+    await user.click(screen.getByRole("checkbox", { name: "Select Jaws" }));
     const bar = screen.getByRole("region", { name: "Requests picked" });
     expect(bar).toHaveTextContent("2 requests picked");
     await user.click(within(bar).getByRole("button", { name: "Approve" }));
-    expect(await screen.findByText("Approved 1 of 2. “Heat”: It was declined meanwhile")).toBeInTheDocument();
+    expect(await screen.findByText("Approved 1 of 2. “Jaws”: It was declined meanwhile")).toBeInTheDocument();
     expect(paths(requests.filter((r) => r.method === "POST"))).toEqual(["/api/requests/1/approve", "/api/requests/2/approve"]);
     expect(screen.queryByRole("region", { name: "Requests picked" })).not.toBeInTheDocument();
   });
@@ -138,14 +138,14 @@ describe("RequestsPage for managers", () => {
     const user = userEvent.setup();
     const requests = mockApi({
       "GET /api/requests/summary": () => manager,
-      "GET /api/requests": () => makeRequestList([matrix, heat], 2, people),
-      "POST /api/requests/1/decline": () => ({ ...matrix, status: "declined", stage: "declined", actions: [] }),
-      "POST /api/requests/2/decline": () => ({ ...heat, status: "declined", stage: "declined", actions: [] }),
+      "GET /api/requests": () => makeRequestList([shawshank, jaws], 2, people),
+      "POST /api/requests/1/decline": () => ({ ...shawshank, status: "declined", stage: "declined", actions: [] }),
+      "POST /api/requests/2/decline": () => ({ ...jaws, status: "declined", stage: "declined", actions: [] }),
     });
     show(<RequestsPage />);
 
-    await user.click(await screen.findByRole("checkbox", { name: "Select The Matrix" }));
-    await user.click(screen.getByRole("checkbox", { name: "Select Heat" }));
+    await user.click(await screen.findByRole("checkbox", { name: "Select The Shawshank Redemption" }));
+    await user.click(screen.getByRole("checkbox", { name: "Select Jaws" }));
     await user.click(within(screen.getByRole("region", { name: "Requests picked" })).getByRole("button", { name: "Decline" }));
     const dialog = screen.getByRole("dialog", { name: "Decline 2 requests?" });
     await user.type(within(dialog).getByLabelText("Reason"), "Not this month");
@@ -158,14 +158,14 @@ describe("RequestsPage for managers", () => {
     const user = userEvent.setup();
     const requests = mockApi({
       "GET /api/requests/summary": () => manager,
-      "GET /api/requests": () => makeRequestList([matrix], 1, people),
-      "POST /api/requests/1/handled": () => ({ ...matrix, status: "approved", stage: "searching", actions: [] }),
+      "GET /api/requests": () => makeRequestList([shawshank], 1, people),
+      "POST /api/requests/1/handled": () => ({ ...shawshank, status: "approved", stage: "searching", actions: [] }),
     });
     show(<RequestsPage />);
 
-    await user.click(await screen.findByRole("button", { name: "More for The Matrix" }));
+    await user.click(await screen.findByRole("button", { name: "More for The Shawshank Redemption" }));
     await user.click(screen.getByRole("menuitem", { name: "Mark as added by hand" }));
-    expect(await screen.findByText("“The Matrix” is marked as added by hand.")).toBeInTheDocument();
+    expect(await screen.findByText("“The Shawshank Redemption” is marked as added by hand.")).toBeInTheDocument();
     expect(requests.some((r) => r.method === "POST" && r.path === "/api/requests/1/handled")).toBe(true);
   });
 
@@ -184,10 +184,10 @@ describe("RequestsPage for managers", () => {
 
     const [row] = await rows();
     expect(within(row as HTMLElement).getByRole("link", { name: "Watch" })).toHaveAttribute("href", itemUrl(70));
-    await user.click(within(row as HTMLElement).getByRole("button", { name: "More for The Matrix" }));
+    await user.click(within(row as HTMLElement).getByRole("button", { name: "More for The Shawshank Redemption" }));
     await user.click(screen.getByRole("menuitem", { name: "Delete" }));
     const dialog = screen.getByRole("dialog", { name: "Delete this request?" });
-    expect(dialog).toHaveTextContent("It goes for everyone who asked for The Matrix or follows it. Radarr and Sonarr keep what they have.");
+    expect(dialog).toHaveTextContent("It goes for everyone who asked for The Shawshank Redemption or follows it. Radarr and Sonarr keep what they have.");
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
     expect(await screen.findByText("No one has asked for anything yet.")).toBeInTheDocument();
     expect(requests.find((r) => r.method === "DELETE")?.path).toBe("/api/requests/7");
@@ -206,13 +206,13 @@ describe("RequestsPage for managers", () => {
     const user = userEvent.setup();
     mockApi({
       "GET /api/requests/summary": () => manager,
-      "GET /api/requests": (req) => (req.path.includes("q=zzz") ? makeRequestList([]) : makeRequestList([matrix], 1, people)),
+      "GET /api/requests": (req) => (req.path.includes("q=zzz") ? makeRequestList([]) : makeRequestList([shawshank], 1, people)),
     });
     show(<RequestsPage />, "/requests?view=all&kind=movie&q=zzz");
     expect(await screen.findByText("No requests match.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/requests\?view=all$/);
-    expect(await screen.findByText("The Matrix")).toBeInTheDocument();
+    expect(await screen.findByText("The Shawshank Redemption")).toBeInTheDocument();
   });
 
   it("asks an app that may not approve to sign in again", async () => {
@@ -230,7 +230,7 @@ describe("RequestsPage for everyone else", () => {
     const user = userEvent.setup();
     const mine = makeRequest({ id: 1, mine: true, actions: ["withdraw"] });
     const declined = makeRequest({ id: 2, title: "Old Film", mine: true, status: "declined", reason: "We have it on disc", unseen: true, actions: ["withdraw"] });
-    const followed = makeRequest({ id: 3, title: "Heat", watching: true, status: "approved", stage: "searching", actions: ["unwatch"] });
+    const followed = makeRequest({ id: 3, title: "Jaws", watching: true, status: "approved", stage: "searching", actions: ["unwatch"] });
     const requests = mockApi({
       "GET /api/requests/summary": () => makeSummary({ unseen: 1, own: 2, movies_left: 2, movies_limit: 3 }),
       "GET /api/requests": () => makeRequestList([mine, declined, followed]),
@@ -253,7 +253,7 @@ describe("RequestsPage for everyone else", () => {
     await waitFor(() => expect(requests.some((r) => r.method === "POST" && r.path === "/api/requests/seen")).toBe(true));
 
     await user.click(within(third as HTMLElement).getByRole("button", { name: "Stop following" }));
-    expect(await screen.findByText("You won't hear about “Heat” any more.")).toBeInTheDocument();
+    expect(await screen.findByText("You won't hear about “Jaws” any more.")).toBeInTheDocument();
   });
 
   it("marks news seen only once it shows, and again as more comes while the page is open", async () => {
@@ -268,7 +268,7 @@ describe("RequestsPage for everyone else", () => {
     const seen = () => requests.filter((r) => r.method === "POST" && r.path === "/api/requests/seen");
 
     // The declined one, with news, isn't among the pending ones.
-    expect(await screen.findByText("The Matrix")).toBeInTheDocument();
+    expect(await screen.findByText("The Shawshank Redemption")).toBeInTheDocument();
     expect(seen()).toHaveLength(0);
 
     await user.click(within(screen.getByRole("group", { name: "Status" })).getByRole("button", { name: "All" }));
@@ -294,7 +294,7 @@ describe("RequestsPage for everyone else", () => {
     });
     show(<RequestsPage />, "/requests", ann);
     await user.click(await screen.findByRole("button", { name: "Withdraw" }));
-    const dialog = screen.getByRole("dialog", { name: "Withdraw your request for “The Matrix”?" });
+    const dialog = screen.getByRole("dialog", { name: "Withdraw your request for “The Shawshank Redemption”?" });
     expect(dialog).toHaveTextContent("It won't be asked for any more.");
     await user.click(within(dialog).getByRole("button", { name: "Withdraw" }));
     expect(await screen.findByText("You haven't asked for anything yet.")).toBeInTheDocument();
@@ -318,7 +318,7 @@ describe("RequestsPage for everyone else", () => {
     });
     show(<RequestsPage />, "/requests", ann);
     await user.click(await screen.findByRole("button", { name: "Remove" }));
-    await user.click(within(screen.getByRole("dialog", { name: "Remove “The Matrix” from your requests?" })).getByRole("button", { name: "Remove" }));
+    await user.click(within(screen.getByRole("dialog", { name: "Remove “The Shawshank Redemption” from your requests?" })).getByRole("button", { name: "Remove" }));
     expect(await screen.findByText("You can remove it in 3 days.")).toBeInTheDocument();
     expect(screen.queryByText(/2026-11-30/)).not.toBeInTheDocument();
   });
@@ -334,8 +334,8 @@ describe("RequestsPage for everyone else", () => {
     });
     show(<RequestsPage />, "/requests", ann);
     await user.click(await screen.findByRole("button", { name: "Request again" }));
-    expect(await screen.findByText("Asked for “The Matrix”: an administrator decides.")).toBeInTheDocument();
-    expect(requests.find((r) => r.method === "POST")?.body).toEqual({ kind: "movie", tmdb_id: 603 });
+    expect(await screen.findByText("Asked for “The Shawshank Redemption”: an administrator decides.")).toBeInTheDocument();
+    expect(requests.find((r) => r.method === "POST")?.body).toEqual({ kind: "movie", tmdb_id: 278 });
   });
 
   it("shows 50 at a time", async () => {

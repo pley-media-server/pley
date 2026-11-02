@@ -24,9 +24,9 @@ const ann: User = { ...testUser, id: 2, username: "ann", name: "Ann", is_admin: 
 const ready: ServerEvent = {
   type: "request_available",
   request_id: 4,
-  title: "Heat",
+  title: "Jaws",
   kind: "movie",
-  tmdb_id: 949,
+  tmdb_id: 578,
   item_id: 70,
   poster_url: null,
   seasons: null,
@@ -38,13 +38,13 @@ const created: ServerEvent = {
   request_id: 6,
   title: "Dark",
   kind: "show",
-  tmdb_id: 1399,
+  tmdb_id: 70523,
   seasons: [1, 2, 3],
   requested_by: { id: 2, name: "Ann", avatar_url: null, avatar_color: null },
   status: "pending",
 };
 
-const failed: ServerEvent = { type: "request_failed", request_id: 7, title: "Heat", kind: "movie", reason: "Radarr isn't answering", retry_at: null };
+const failed: ServerEvent = { type: "request_failed", request_id: 7, title: "Jaws", kind: "movie", reason: "Radarr isn't answering", retry_at: null };
 
 function Leave() {
   const navigate = useNavigate();
@@ -80,7 +80,7 @@ describe("RequestNotices", () => {
     mockApi({ "GET /api/requests/summary": () => makeSummary() });
     render(makeSummary());
     emit(ready);
-    expect(await screen.findByText("“Heat” is ready to watch.")).toBeInTheDocument();
+    expect(await screen.findByText("“Jaws” is ready to watch.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Open" }));
     expect(screen.getByTestId("location")).toHaveTextContent(itemUrl(70));
   });
@@ -101,10 +101,10 @@ describe("RequestNotices", () => {
     emit(created);
     expect(await screen.findByText("Ann asked for “Dark” (Seasons 1–3).")).toBeInTheDocument();
     emit(failed);
-    expect(await screen.findByText("“Heat” couldn't be sent to Radarr: Radarr isn't answering.")).toBeInTheDocument();
+    expect(await screen.findByText("“Jaws” couldn't be sent to Radarr: Radarr isn't answering.")).toBeInTheDocument();
     // Approved as they were made: nothing waits.
-    emit({ ...created, request_id: 8, title: "Heat", status: "approved" });
-    expect(screen.queryByText(/asked for “Heat”/)).not.toBeInTheDocument();
+    emit({ ...created, request_id: 8, title: "Jaws", status: "approved" });
+    expect(screen.queryByText(/asked for “Jaws”/)).not.toBeInTheDocument();
   });
 
   it("tells others nothing of anyone's new or failed requests", () => {
@@ -134,26 +134,26 @@ describe("RequestNotices", () => {
     mockApi({ "GET /api/requests/summary": () => makeSummary() });
     const channel = render(makeSummary(), { route: "/live/a1b2/7" });
     emit(ready);
-    expect(screen.queryByText("“Heat” is ready to watch.")).not.toBeInTheDocument();
+    expect(screen.queryByText("“Jaws” is ready to watch.")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Leave" }));
-    expect(await screen.findByText("“Heat” is ready to watch.")).toBeInTheDocument();
+    expect(await screen.findByText("“Jaws” is ready to watch.")).toBeInTheDocument();
     channel.unmount();
 
     // An older link to a channel.
     const older = render(makeSummary(), { route: "/live/7" });
-    emit({ ...ready, request_id: 5, title: "Ran" });
-    expect(screen.queryByText("“Ran” is ready to watch.")).not.toBeInTheDocument();
+    emit({ ...ready, request_id: 5, title: "Rashomon" });
+    expect(screen.queryByText("“Rashomon” is ready to watch.")).not.toBeInTheDocument();
     older.unmount();
 
     render(makeSummary(), { route: "/live" });
-    emit({ ...ready, request_id: 6, title: "Alien" });
-    expect(await screen.findByText("“Alien” is ready to watch.")).toBeInTheDocument();
+    emit({ ...ready, request_id: 6, title: "Vertigo" });
+    expect(await screen.findByText("“Vertigo” is ready to watch.")).toBeInTheDocument();
   });
 
   it("tells what came while away in one notice, once", async () => {
     const summary = makeSummary({ unseen: 2, own: 2 });
     const news = [
-      makeRequest({ id: 1, title: "Heat", status: "available", item_id: 70, unseen: true, updated_at: 1_700_000_500 }),
+      makeRequest({ id: 1, title: "Jaws", status: "available", item_id: 70, unseen: true, updated_at: 1_700_000_500 }),
       makeRequest({ id: 2, title: "Old Film", status: "declined", unseen: true, updated_at: 1_700_000_400 }),
     ];
     const requests = mockApi({
@@ -177,7 +177,7 @@ describe("RequestNotices", () => {
       makeRequest({
         id: 7,
         kind: "show",
-        tmdb_id: 1399,
+        tmdb_id: 70523,
         title: "Dark",
         seasons: [1, 2, 3, 4],
         status: "approved",
@@ -193,7 +193,7 @@ describe("RequestNotices", () => {
     });
     const listed = () => requests.filter((r) => r.path.startsWith("/api/requests?"));
     const quiet = render(makeSummary());
-    emit({ ...ready, request_id: 7, kind: "show", tmdb_id: 1399, title: "Dark", seasons: [2], complete: false });
+    emit({ ...ready, request_id: 7, kind: "show", tmdb_id: 70523, title: "Dark", seasons: [2], complete: false });
     expect(await screen.findByText("Season 2 of “Dark” is ready to watch.")).toBeInTheDocument();
     // Season 1, ready before it, comes with the request.
     await waitFor(() => expect(requests.some((r) => r.path === "/api/requests/7")).toBe(true));
@@ -217,9 +217,9 @@ describe("RequestNotices", () => {
     const summary = makeSummary({ unseen: 1, own: 1 });
     mockApi({
       "GET /api/requests/summary": () => summary,
-      "GET /api/requests": () => makeRequestList([makeRequest({ id: 1, title: "Heat", status: "available", item_id: 70, unseen: true })]),
+      "GET /api/requests": () => makeRequestList([makeRequest({ id: 1, title: "Jaws", status: "available", item_id: 70, unseen: true })]),
     });
     render(summary);
-    expect(await screen.findByText("“Heat” is ready to watch.")).toBeInTheDocument();
+    expect(await screen.findByText("“Jaws” is ready to watch.")).toBeInTheDocument();
   });
 });

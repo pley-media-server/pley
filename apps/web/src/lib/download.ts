@@ -15,7 +15,7 @@ export function extensionOf(file: Pick<MediaFile, "path" | "container">): string
 
 /**
  * What a download is called: what it is rather than what the file on the
- * server is called (often a release's name): "Alien (1979).mkv",
+ * server is called (often a release's name): "Vertigo (1958).mkv",
  * "The Expanse - S01E01 - Dulcinea.mkv", "Radiohead - Airbag.flac".
  */
 export function downloadName(item: ItemDetail, file: MediaFile): string {

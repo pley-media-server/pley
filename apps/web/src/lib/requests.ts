@@ -25,7 +25,7 @@ export function kindLabel(kind: TitleKind): string {
   return kind === "movie" ? "Movie" : "Show";
 }
 
-/** A title as running text quotes it: “Heat”. */
+/** A title as running text quotes it: “Jaws”. */
 export const quoted = (title: string) => `“${title}”`;
 
 /** "Season 2", "Seasons 1–3, 5", "Seasons 1–2 and specials", "Specials"; "" for none (movies). */
@@ -97,7 +97,7 @@ export function titleBadge(title: Pick<DiscoverTitle, "status" | "item_id">): st
   }
 }
 
-/** A title's name for screen readers, with where it stands: "Heat, 1995, Movie, In library". */
+/** A title's name for screen readers, with where it stands: "Jaws, 1975, Movie, In library". */
 export function titleName(title: Pick<DiscoverTitle, "title" | "year" | "kind" | "status" | "item_id">): string {
   return [title.title, title.year, kindLabel(title.kind), titleBadge(title)].filter(Boolean).join(", ");
 }
@@ -421,14 +421,14 @@ export function actionQuestion(action: RequestAction, request: Pick<MediaRequest
   }
 }
 
-/** "“Heat” is ready to watch.", "Season 2 of “Dark” is ready to watch.", "Seasons 1–2 of “Dark” are ready to watch." */
+/** "“Jaws” is ready to watch.", "Season 2 of “Dark” is ready to watch.", "Seasons 1–2 of “Dark” are ready to watch." */
 export function readyText(title: string, seasons: number[] | null, complete: boolean): string {
   if (complete || !seasons?.length) return `${quoted(title)} is ready to watch.`;
   const many = seasons.length > 1 || seasons[0] === 0;
   return `${seasonsLabel(seasons)} of ${quoted(title)} ${many ? "are" : "is"} ready to watch.`;
 }
 
-/** "“Heat” was approved.", "“Heat” was declined: “Not here”." */
+/** "“Jaws” was approved.", "“Jaws” was declined: “Not here”." */
 export function decidedText(title: string, status: "approved" | "declined", reason: string | null): string {
   if (status === "approved") return `${quoted(title)} was approved.`;
   return reason ? `${quoted(title)} was declined: ${quoted(reason)}.` : `${quoted(title)} was declined.`;
@@ -439,7 +439,7 @@ export function createdText(name: string, title: string, seasons: number[] | nul
   return `${name} asked for ${quoted(title)}${seasons?.length ? ` (${seasonsLabel(seasons)})` : ""}.`;
 }
 
-/** Managers: "“Heat” couldn't be sent to Radarr: {reason}." */
+/** Managers: "“Jaws” couldn't be sent to Radarr: {reason}." */
 export function failedText(title: string, kind: TitleKind, reason: string | null): string {
   const to = `${quoted(title)} couldn't be sent to ${kind === "movie" ? "Radarr" : "Sonarr"}`;
   return reason ? `${to}: ${sentence(reason)}` : `${to}.`;

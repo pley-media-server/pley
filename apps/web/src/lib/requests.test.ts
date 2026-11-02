@@ -73,8 +73,8 @@ describe("badges", () => {
   });
 
   it("puts it in the title's accessible name", () => {
-    expect(titleName(makeTitle({ status: "library", item_id: 5 }))).toBe("The Matrix, 1999, Movie, In library");
-    expect(titleName(makeTitle({ year: null, kind: "show" }))).toBe("The Matrix, Show");
+    expect(titleName(makeTitle({ status: "library", item_id: 5 }))).toBe("The Shawshank Redemption, 1994, Movie, In library");
+    expect(titleName(makeTitle({ year: null, kind: "show" }))).toBe("The Shawshank Redemption, Show");
   });
 
   it("follows a request's change in rows already shown", () => {
@@ -93,8 +93,8 @@ describe("badges", () => {
       request_id: null,
     });
     // A show's may leave aired seasons it didn't ask for missing: partly there, until its details say more.
-    const show = makeTitle({ kind: "show", tmdb_id: 1399, status: "requested", request_id: 7 });
-    expect(titleAfter(show, 7, makeRequest({ id: 7, kind: "show", tmdb_id: 1399, status: "available", item_id: 9 }))).toMatchObject({
+    const show = makeTitle({ kind: "show", tmdb_id: 70523, status: "requested", request_id: 7 });
+    expect(titleAfter(show, 7, makeRequest({ id: 7, kind: "show", tmdb_id: 70523, status: "available", item_id: 9 }))).toMatchObject({
       status: "partial",
       item_id: 9,
       request_id: null,
@@ -270,12 +270,12 @@ describe("stage pills", () => {
 
 describe("asking and actions", () => {
   it("says what asking did", () => {
-    expect(askedText({ request: makeRequest(), following: false })).toBe("Asked for “The Matrix”: an administrator decides.");
-    expect(askedText({ request: makeRequest({ status: "approved" }), following: false })).toBe("“The Matrix” is approved and on its way.");
+    expect(askedText({ request: makeRequest(), following: false })).toBe("Asked for “The Shawshank Redemption”: an administrator decides.");
+    expect(askedText({ request: makeRequest({ status: "approved" }), following: false })).toBe("“The Shawshank Redemption” is approved and on its way.");
     expect(askedText({ request: makeRequest({ status: "failed" }), following: false })).toBe(
-      "Asked for “The Matrix”, but it couldn't be sent to download yet.",
+      "Asked for “The Shawshank Redemption”, but it couldn't be sent to download yet.",
     );
-    expect(askedText({ request: makeRequest({ watching: true }), following: true })).toBe("You'll hear when “The Matrix” is ready.");
+    expect(askedText({ request: makeRequest({ watching: true }), following: true })).toBe("You'll hear when “The Shawshank Redemption” is ready.");
   });
 
   it("names each action, and asks before those that can't be taken back", () => {
@@ -287,8 +287,8 @@ describe("asking and actions", () => {
     expect(actionLabel("retry", pending)).toBe("Try again");
     expect(actionLabel("handled", pending)).toBe("Mark as added by hand");
     expect(actionLabel("ask_again", pending)).toBe("Request again");
-    expect(actionQuestion("withdraw", pending)).toBe("Withdraw your request for “The Matrix”?");
-    expect(actionQuestion("withdraw", declined)).toBe("Remove “The Matrix” from your requests?");
+    expect(actionQuestion("withdraw", pending)).toBe("Withdraw your request for “The Shawshank Redemption”?");
+    expect(actionQuestion("withdraw", declined)).toBe("Remove “The Shawshank Redemption” from your requests?");
     expect(actionQuestion("delete", pending)).toBe("Delete this request?");
     expect(actionQuestion("approve", pending)).toBeNull();
   });
@@ -296,15 +296,15 @@ describe("asking and actions", () => {
 
 describe("notices", () => {
   it("says what happened, in the notices' words", () => {
-    expect(readyText("Heat", null, true)).toBe("“Heat” is ready to watch.");
+    expect(readyText("Jaws", null, true)).toBe("“Jaws” is ready to watch.");
     expect(readyText("Dark", [2], false)).toBe("Season 2 of “Dark” is ready to watch.");
     expect(readyText("Dark", [1, 2], false)).toBe("Seasons 1–2 of “Dark” are ready to watch.");
-    expect(decidedText("Heat", "approved", null)).toBe("“Heat” was approved.");
-    expect(decidedText("Heat", "declined", "Not here")).toBe("“Heat” was declined: “Not here”.");
-    expect(decidedText("Heat", "declined", null)).toBe("“Heat” was declined.");
+    expect(decidedText("Jaws", "approved", null)).toBe("“Jaws” was approved.");
+    expect(decidedText("Jaws", "declined", "Not here")).toBe("“Jaws” was declined: “Not here”.");
+    expect(decidedText("Jaws", "declined", null)).toBe("“Jaws” was declined.");
     expect(createdText("Ann", "Dark", [1, 2, 3])).toBe("Ann asked for “Dark” (Seasons 1–3).");
-    expect(createdText("Ann", "Heat", null)).toBe("Ann asked for “Heat”.");
-    expect(failedText("Heat", "movie", "Radarr refused the key")).toBe("“Heat” couldn't be sent to Radarr: Radarr refused the key.");
+    expect(createdText("Ann", "Jaws", null)).toBe("Ann asked for “Jaws”.");
+    expect(failedText("Jaws", "movie", "Radarr refused the key")).toBe("“Jaws” couldn't be sent to Radarr: Radarr refused the key.");
     expect(failedText("Dark", "show", null)).toBe("“Dark” couldn't be sent to Sonarr.");
     expect(newsCountText(3)).toBe("3 of your requests have news");
   });
@@ -313,7 +313,7 @@ describe("notices", () => {
     const ready = makeRequest({ id: 1, status: "available", stage: "available", updated_at: 100 });
     const declined = makeRequest({ id: 2, status: "declined", updated_at: 200 });
     const pending = makeRequest({ id: 3, updated_at: 300 });
-    expect(newsText(ready)).toBe("“The Matrix” is ready to watch.");
+    expect(newsText(ready)).toBe("“The Shawshank Redemption” is ready to watch.");
     expect(newsText(pending)).toBeNull();
     expect(freshNews([ready, declined, pending], NO_NEWS)).toEqual([ready, declined]);
     const announced = markAnnounced(NO_NEWS, [ready, declined]);

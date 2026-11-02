@@ -16,7 +16,7 @@ const dark: ItemDetail = {
   genres: [],
   studio: null,
   content_rating: null,
-  tmdb_id: 1399,
+  tmdb_id: 70523,
   imdb_id: null,
   files: [],
   in_watchlist: false,
@@ -26,22 +26,22 @@ const dark: ItemDetail = {
 };
 
 function standing(overrides: Partial<ItemRequest> = {}): ItemRequest {
-  return { kind: "show", tmdb_id: 1399, status: "partial", request: null, askable: [3, 4], ...overrides };
+  return { kind: "show", tmdb_id: 70523, status: "partial", request: null, askable: [3, 4], ...overrides };
 }
 
 describe("ItemRequestLine", () => {
   it("offers the seasons a library's show lacks, on Discover's page with its picker", async () => {
     mockApi({ "GET /api/requests/summary": () => makeSummary(), "GET /api/items/40/request": () => standing() });
     renderWithProviders(<ItemRequestLine item={dark} />, { user: ann });
-    expect(await screen.findByRole("link", { name: "Request more seasons" })).toHaveAttribute("href", "/discover/show/1399?pick=1");
+    expect(await screen.findByRole("link", { name: "Request more seasons" })).toHaveAttribute("href", "/discover/show/70523?pick=1");
   });
 
   it("shows where a request for it is", async () => {
-    const request = makeRequest({ id: 5, kind: "show", tmdb_id: 1399, title: "Dark", seasons: [3], status: "approved", stage: "searching", mine: true });
+    const request = makeRequest({ id: 5, kind: "show", tmdb_id: 70523, title: "Dark", seasons: [3], status: "approved", stage: "searching", mine: true });
     mockApi({ "GET /api/requests/summary": () => makeSummary(), "GET /api/items/40/request": () => standing({ request, askable: [4] }) });
     renderWithProviders(<ItemRequestLine item={dark} />, { user: ann });
     expect(await screen.findByText("Searching")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "See the request" })).toHaveAttribute("href", "/discover/show/1399");
+    expect(screen.getByRole("link", { name: "See the request" })).toHaveAttribute("href", "/discover/show/70523");
   });
 
   it("shows nothing when there's nothing to ask for, or no TMDB match", async () => {
@@ -65,7 +65,7 @@ describe("ItemRequestLine", () => {
     unmount();
 
     // It asked before: its request shows, but nothing more may be asked for.
-    const request = makeRequest({ id: 5, kind: "show", tmdb_id: 1399, title: "Dark", mine: true });
+    const request = makeRequest({ id: 5, kind: "show", tmdb_id: 70523, title: "Dark", mine: true });
     mockApi({ "GET /api/requests/summary": () => makeSummary({ access: "off", own: 1 }), "GET /api/items/40/request": () => standing({ request }) });
     renderWithProviders(<ItemRequestLine item={dark} />, { user: ann });
     expect(await screen.findByText("Waiting for approval")).toBeInTheDocument();

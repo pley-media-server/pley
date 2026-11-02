@@ -9,7 +9,7 @@ import { PersonPage, roleText } from "./PersonPage";
 
 describe("roleText", () => {
   it("describes parts and jobs", () => {
-    expect(roleText([{ role: "actor", character: "Neo" }])).toBe("as Neo");
+    expect(roleText([{ role: "actor", character: "Sean Maguire" }])).toBe("as Sean Maguire");
     expect(roleText([{ role: "actor" }])).toBe("Actor");
     expect(roleText([{ role: "actor", episodes: 3 }])).toBe("Guest star (3 episodes)");
     expect(roleText([{ role: "actor", character: "Bob", episodes: 1 }])).toBe("as Bob (1 episode)");
@@ -31,21 +31,21 @@ describe("PersonPage", () => {
   it("lists the movies and shows a person is in", async () => {
     const person: PersonDetail = {
       id: 5,
-      name: "Keanu Reeves",
+      name: "Robin Williams",
       credits: [
-        { item: makeItem({ id: 10, title: "The Matrix", year: 1999 }), roles: [{ role: "actor", character: "Neo" }] },
-        { item: makeItem({ id: 11, title: "John Wick", year: 2014 }), roles: [{ role: "actor", character: "John Wick" }] },
-        { item: makeItem({ id: 12, kind: "show", title: "Swedish Dicks", year: 2016 }), roles: [{ role: "actor", episodes: 2 }] },
+        { item: makeItem({ id: 10, title: "Good Will Hunting", year: 1997 }), roles: [{ role: "actor", character: "Sean Maguire" }] },
+        { item: makeItem({ id: 11, title: "Dead Poets Society", year: 1989 }), roles: [{ role: "actor", character: "John Keating" }] },
+        { item: makeItem({ id: 12, kind: "show", title: "Happy Days", year: 1974 }), roles: [{ role: "actor", episodes: 2 }] },
       ],
     };
     mockApi({ "GET /api/people/5": () => person });
     renderPerson(5);
 
-    expect(await screen.findByRole("heading", { name: "Keanu Reeves" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Robin Williams" })).toBeInTheDocument();
     expect(screen.getByText("2 movies · 1 show in your libraries")).toBeInTheDocument();
-    expect(screen.getByText("1999 · as Neo")).toBeInTheDocument();
-    expect(screen.getByText("2016 · Guest star (2 episodes)")).toBeInTheDocument();
-    expect(document.title).toBe("Keanu Reeves · Pley");
+    expect(screen.getByText("1997 · as Sean Maguire")).toBeInTheDocument();
+    expect(screen.getByText("1974 · Guest star (2 episodes)")).toBeInTheDocument();
+    expect(document.title).toBe("Robin Williams · Pley");
   });
 
   it("explains a missing person", async () => {
@@ -59,13 +59,13 @@ describe("PersonPage", () => {
     let fail = true;
     mockApi({
       "GET /api/people/5": () =>
-        fail ? apiError(500, "internal", "the server is busy") : { id: 5, name: "Keanu Reeves", credits: [] },
+        fail ? apiError(500, "internal", "the server is busy") : { id: 5, name: "Robin Williams", credits: [] },
     });
     renderPerson(5);
     expect(await screen.findByRole("heading", { name: "Couldn't load this person" })).toBeInTheDocument();
     expect(screen.queryByText("Person not found")).not.toBeInTheDocument();
     fail = false;
     await userEvent.setup().click(screen.getByRole("button", { name: "Retry" }));
-    expect(await screen.findByRole("heading", { name: "Keanu Reeves" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Robin Williams" })).toBeInTheDocument();
   });
 });

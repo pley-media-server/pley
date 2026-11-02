@@ -12,7 +12,7 @@ const pilot = makeHistoryEntry(
   makeItem({ kind: "episode", title: "Pilot", grandparent_title: "Lost", parent_index: 1, index: 1 }),
   { device: "Chrome on Windows" },
 );
-const heat = makeHistoryEntry(2, makeItem({ title: "Heat", year: 1995 }), {
+const jaws = makeHistoryEntry(2, makeItem({ title: "Jaws", year: 1975 }), {
   user: { id: 2, name: "Kid", avatar_color: "#4ade80" },
 });
 const song = makeHistoryEntry(3, makeItem({ kind: "track", title: "Aerodynamic", grandparent_title: "Daft Punk", parent_title: "Discovery" }));
@@ -38,7 +38,7 @@ function serve(entries: HistoryEntry[]) {
 
 describe("HistoryList", () => {
   it("describes each play", async () => {
-    serve([pilot, heat, song]);
+    serve([pilot, jaws, song]);
     renderWithProviders(<HistoryList scope={{}} empty="Nothing yet" />);
 
     const rows = await screen.findAllByRole("listitem");
@@ -46,14 +46,14 @@ describe("HistoryList", () => {
     expect(rows[0]).toHaveTextContent("Lost");
     expect(rows[0]).toHaveTextContent("S1 · E1 · Pilot");
     expect(rows[0]).toHaveTextContent("Chrome on Windows");
-    expect(rows[1]).toHaveTextContent("Heat");
-    expect(rows[1]).toHaveTextContent("1995");
+    expect(rows[1]).toHaveTextContent("Jaws");
+    expect(rows[1]).toHaveTextContent("1975");
     expect(rows[2]).toHaveTextContent("Daft Punk · Discovery");
-    expect(within(rows[1] as HTMLElement).getByRole("link", { name: "Heat" })).toHaveAttribute("href", itemUrl(heat.item.id));
+    expect(within(rows[1] as HTMLElement).getByRole("link", { name: "Jaws" })).toHaveAttribute("href", itemUrl(jaws.item.id));
   });
 
   it("shows who played what in everyone's history", async () => {
-    const requests = serve([heat]);
+    const requests = serve([jaws]);
     renderWithProviders(<HistoryList scope={{ all: true }} showUser empty="Nothing yet" />);
 
     expect(await screen.findByText("Kid")).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe("HistoryList", () => {
 
   it("loads more on request", async () => {
     const user = userEvent.setup();
-    const requests = serve([pilot, heat, song]);
+    const requests = serve([pilot, jaws, song]);
     renderWithProviders(<HistoryList scope={{ userId: 4 }} pageSize={2} empty="Nothing yet" />);
 
     expect(await screen.findAllByRole("listitem")).toHaveLength(2);
@@ -78,7 +78,7 @@ describe("HistoryList", () => {
 
   it("removes entries", async () => {
     const user = userEvent.setup();
-    serve([pilot, heat]);
+    serve([pilot, jaws]);
     renderWithProviders(<HistoryList scope={{}} empty="Nothing yet" />);
 
     const [first] = await screen.findAllByRole("listitem");
@@ -90,7 +90,7 @@ describe("HistoryList", () => {
 
   it("explains a failed removal", async () => {
     const user = userEvent.setup();
-    serve([heat]);
+    serve([jaws]);
     renderWithProviders(<HistoryList scope={{}} empty="Nothing yet" />);
 
     await user.click(await screen.findByRole("button", { name: "Remove from history" }));

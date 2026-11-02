@@ -442,8 +442,8 @@ describe("fullTitle", () => {
   });
 
   it("adds the year to movies", () => {
-    expect(fullTitle(makeItem({ title: "Heat", year: 1995 }))).toBe("Heat (1995)");
-    expect(fullTitle(makeItem({ title: "Heat" }))).toBe("Heat");
+    expect(fullTitle(makeItem({ title: "Jaws", year: 1975 }))).toBe("Jaws (1975)");
+    expect(fullTitle(makeItem({ title: "Jaws" }))).toBe("Jaws");
   });
 });
 

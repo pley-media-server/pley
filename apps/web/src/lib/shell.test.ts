@@ -28,7 +28,7 @@ describe("androidPlayer", () => {
     delete (window as unknown as { PleyAndroid?: unknown }).PleyAndroid;
   });
 
-  const request = { item_id: 7, start_ms: 90_000, file_id: null, audio: 2, sub: null, title: "Heat" };
+  const request = { item_id: 7, start_ms: 90_000, file_id: null, audio: 2, sub: null, title: "Jaws" };
 
   it("hands the request to the Android app as JSON", () => {
     vi.stubGlobal("navigator", { userAgent: `${CHROME} pleyAndroid/0.1.0` });

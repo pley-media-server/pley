@@ -18,7 +18,7 @@ const ROLE_NAMES: Record<CreditRole, string> = {
   producer: "Producer",
 };
 
-/** "as Neo", "Director", "Guest star (3 episodes)", … */
+/** "as Sean Maguire", "Director", "Guest star (3 episodes)", … */
 export function roleText(roles: PersonRole[]): string {
   return roles
     .map((r) => {

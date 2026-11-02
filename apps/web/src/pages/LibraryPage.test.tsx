@@ -28,9 +28,9 @@ function open(query = "") {
     "GET /api/libraries": () => [MOVIES],
     "GET /api/libraries/3/items": (req) =>
       req.path.includes("watched=false")
-        ? { total: 23, items: [makeItem({ id: 7, title: "Heat" })] }
-        : { total: 342, items: [makeItem({ id: 7, title: "Heat" }), makeItem({ id: 8, title: "Alien" })] },
-    "GET /api/libraries/3/filters": () => ({ genres: ["Drama"], years: [1995] }),
+        ? { total: 23, items: [makeItem({ id: 7, title: "Jaws" })] }
+        : { total: 342, items: [makeItem({ id: 7, title: "Jaws" }), makeItem({ id: 8, title: "Vertigo" })] },
+    "GET /api/libraries/3/filters": () => ({ genres: ["Drama"], years: [1975] }),
     "GET /api/libraries/3/hubs": () => ({ hubs: [] }),
   });
   renderWithProviders(

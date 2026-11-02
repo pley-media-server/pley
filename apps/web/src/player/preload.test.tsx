@@ -35,11 +35,11 @@ describe("preloading the player", () => {
   // First in the file: the player's module stays loaded once it is.
   it("fetches the player and hls.js when the pointer reaches a card's Play", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<MediaCard item={makeItem({ id: 7, title: "Heat" })} width={200} />);
+    renderWithProviders(<MediaCard item={makeItem({ id: 7, title: "Jaws" })} width={200} />);
     expect(page.loaded).toBe(false);
     expect(loadHls).not.toHaveBeenCalled();
 
-    await user.hover(screen.getByRole("button", { name: "Play Heat" }));
+    await user.hover(screen.getByRole("button", { name: "Play Jaws" }));
 
     expect(loadHls).toHaveBeenCalled();
     await vi.waitFor(() => expect(page.loaded).toBe(true));
@@ -47,11 +47,11 @@ describe("preloading the player", () => {
 
   it("fetches them when a Play button gets the focus", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<MediaCard item={makeItem({ id: 7, title: "Heat" })} width={200} />);
+    renderWithProviders(<MediaCard item={makeItem({ id: 7, title: "Jaws" })} width={200} />);
     await user.tab(); // the card's link
     expect(loadHls).not.toHaveBeenCalled();
     await user.tab();
-    expect(screen.getByRole("button", { name: "Play Heat" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Play Jaws" })).toHaveFocus();
     expect(loadHls).toHaveBeenCalled();
   });
 
@@ -127,17 +127,17 @@ describe("the player's route data", () => {
   afterEach(() => window.localStorage.removeItem("pley.quality"));
 
   it("is the item, fetched with the player's code", async () => {
-    const requests = mockApi({ "GET /api/items/7": () => makeItem({ id: 7, title: "Heat" }) });
+    const requests = mockApi({ "GET /api/items/7": () => makeItem({ id: 7, title: "Jaws" }) });
     const client = testQueryClient();
     await Promise.all(playerData(client.prefetchQuery.bind(client), { id: encodeId(7) }));
     expect(requests.map((r) => r.path)).toEqual(["/api/items/7"]);
-    expect(client.getQueryData<{ title: string }>(["item", 7])?.title).toBe("Heat");
+    expect(client.getQueryData<{ title: string }>(["item", 7])?.title).toBe("Jaws");
   });
 
   it("doesn't hold the player back for an item already there", async () => {
     const requests = mockApi({ "GET /api/items/7": () => makeItem({ id: 7 }) });
     const client = testQueryClient();
-    client.setQueryData(["item", 7], makeItem({ id: 7, title: "Heat" }), { updatedAt: Date.now() - 3_600_000 });
+    client.setQueryData(["item", 7], makeItem({ id: 7, title: "Jaws" }), { updatedAt: Date.now() - 3_600_000 });
     await Promise.all(playerData(client.prefetchQuery.bind(client), { id: encodeId(7) }));
     expect(requests).toEqual([]);
   });
@@ -156,7 +156,7 @@ describe("the player's route data", () => {
     window.localStorage.removeItem("pley.quality");
     let answer: (v: unknown) => void = () => undefined;
     const requests = mockApi({
-      "GET /api/items/7": () => makeItem({ id: 7, title: "Heat" }),
+      "GET /api/items/7": () => makeItem({ id: 7, title: "Jaws" }),
       "GET /api/playback/network": () => new Promise((resolve) => (answer = resolve)),
     });
     const client = testQueryClient();

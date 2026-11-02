@@ -10,21 +10,21 @@ const now = () => Math.floor(Date.now() / 1000);
 describe("TitleCard", () => {
   it("links to the title's page, saying where it stands in its name and on its poster", () => {
     renderWithProviders(<TitleCard title={makeTitle({ status: "requested" })} width={150} />);
-    expect(screen.getByRole("link", { name: "The Matrix, 1999, Movie, Requested" })).toHaveAttribute("href", "/discover/movie/603");
+    expect(screen.getByRole("link", { name: "The Shawshank Redemption, 1994, Movie, Requested" })).toHaveAttribute("href", "/discover/movie/278");
     expect(screen.getByText("Requested")).toBeInTheDocument();
-    expect(screen.getByText("1999 · Movie")).toBeInTheDocument();
+    expect(screen.getByText("1994 · Movie")).toBeInTheDocument();
   });
 
   it("asks the server for the poster at the size it's drawn, lazily", () => {
     renderWithProviders(<TitleCard title={makeTitle()} width={150} />);
     const img = document.querySelector("img");
-    expect(img).toHaveAttribute("src", "/api/discover/images/poster/matrix.jpg?w=160");
+    expect(img).toHaveAttribute("src", "/api/discover/images/poster/shawshank.jpg?w=160");
     expect(img).toHaveAttribute("loading", "lazy");
   });
 
   it("has no badge for titles that may be asked for", () => {
     renderWithProviders(<TitleCard title={makeTitle()} width={150} />);
-    expect(screen.getByRole("link", { name: "The Matrix, 1999, Movie" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "The Shawshank Redemption, 1994, Movie" })).toBeInTheDocument();
     expect(screen.queryByText("Requested")).not.toBeInTheDocument();
   });
 });
@@ -43,7 +43,7 @@ describe("StagePill", () => {
     });
     renderWithProviders(<StagePill request={request} manage={false} />);
     expect(screen.getByText("Downloading 42% · in 20 min").parentElement).toHaveClass("bg-info/15");
-    const bar = screen.getByRole("progressbar", { name: "The Matrix: Downloading 42% · in 20 min" });
+    const bar = screen.getByRole("progressbar", { name: "The Shawshank Redemption: Downloading 42% · in 20 min" });
     expect(bar).toHaveAttribute("aria-valuenow", "42");
   });
 
