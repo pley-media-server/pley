@@ -1133,13 +1133,14 @@ async fn libraries_sort_by_bitrate_and_say_what_the_files_are_like() {
     for (title, bitrate, width, height, codec, range) in probed {
         let info = json!({"streams": [{"index": 0, "kind": "video", "codec": codec, "dynamic_range": range}]});
         sqlx::query(
-            "UPDATE media_files SET bitrate = ?, width = ?, height = ?, video_codec = ?, media_info = ?
+            "UPDATE media_files SET bitrate = ?, width = ?, height = ?, video_codec = ?, dynamic_range = ?, media_info = ?
              WHERE path LIKE '%' || ? || '%'",
         )
         .bind(bitrate)
         .bind(width)
         .bind(height)
         .bind(codec)
+        .bind(range)
         .bind(info.to_string())
         .bind(title)
         .execute(&app.state.db.write)
@@ -1160,9 +1161,9 @@ async fn libraries_sort_by_bitrate_and_say_what_the_files_are_like() {
     assert_eq!(items[2]["media"]["bitrate"], Value::Null);
     let lowest = app.get(&format!("/api/libraries/{lib}/items?sort=bitrate&order=asc"), &admin).await;
     assert_eq!(lowest.body["items"][0]["title"], "Alien", "unknown stays last going up too");
-    // Other sorts keep listings lean.
+    // Every sort says it: the posters' badges show whatever the order.
     let by_title = app.get(&format!("/api/libraries/{lib}/items?sort=title"), &admin).await;
-    assert!(by_title.body["items"][0].get("media").is_none());
+    assert_eq!(by_title.body["items"][1]["media"]["dynamic_range"], "dolby_vision");
     // The Plex-compatible API (and smart collections) sort the same way.
     let plex = app.plex_json(&format!("/library/sections/{lib}/all?sort=mediaBitrate:desc"), &admin).await;
     let titles: Vec<&str> = plex["Metadata"].as_array().unwrap().iter().map(|m| m["title"].as_str().unwrap()).collect();

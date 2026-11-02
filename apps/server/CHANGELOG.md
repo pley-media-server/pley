@@ -17,6 +17,11 @@ describes how they are made.
 
 ### Changed
 
+- A library's posters in the web app show 4K and the dynamic range (DV,
+  HDR10) whatever the sort, where they showed only when sorted by bitrate,
+  and no longer the codec (H.264, HEVC) or a lower resolution (1080p,
+  720p). The next start reads each file's dynamic range once, for the
+  libraries to list it quickly.
 - Discover in the web app has no search field: Search shows what can be
   asked for in a Discover row after the libraries' results.
 

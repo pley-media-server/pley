@@ -168,13 +168,13 @@ pub struct ItemSummary {
     pub release_date: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extra_type: Option<String>,
-    /// What the title's files are like, in listings sorted by bitrate.
+    /// What the title's files are like, in library listings.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub media: Option<MediaSummary>,
 }
 
-/// A title's best file (a show's files on average), for listings sorted by
-/// bitrate: what the posters say then.
+/// A title's best file (a show's files on average), for library listings:
+/// what the posters' badges say, and the line under them sorted by bitrate.
 #[derive(Debug, Clone, PartialEq, Serialize, FromRow)]
 pub struct MediaSummary {
     /// Bits per second.
@@ -202,9 +202,7 @@ pub async fn media_summaries(db: &Db, items: &[ItemSummary]) -> sqlx::Result<Has
     }
     // The file with the highest bitrate of each title comes first.
     let files: Vec<Row> = sqlx::query_as(
-        "SELECT f.item_id, f.bitrate, f.size, f.width, f.height, f.video_codec,
-                (SELECT json_extract(s.value, '$.dynamic_range') FROM json_each(f.media_info, '$.streams') s
-                 WHERE json_extract(s.value, '$.kind') = 'video' LIMIT 1) AS dynamic_range
+        "SELECT f.item_id, f.bitrate, f.size, f.width, f.height, f.video_codec, f.dynamic_range
          FROM media_files f WHERE f.item_id IN (SELECT value FROM json_each(?))
          ORDER BY f.item_id, f.bitrate IS NULL, f.bitrate DESC",
     )

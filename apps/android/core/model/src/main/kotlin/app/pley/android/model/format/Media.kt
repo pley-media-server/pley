@@ -194,7 +194,7 @@ fun streamLabel(s: MediaStream): String {
 fun isForced(s: MediaStream): Boolean =
     s.forced || s.title.orEmpty().lowercase().split(Regex("[^\\p{L}\\p{N}]+")).any { it == "forced" || it == "signs" }
 
-/** The web's poster badges for a listing's [MediaSummary]: ["4K", "DV", "HEVC"]. */
+/** The web's poster badges for a listing's [MediaSummary]: ["4K", "DV"], only 4K of the resolutions and no codec. */
 fun mediaBadges(media: MediaSummary?): List<String> {
     if (media == null) return emptyList()
     val range = when (media.dynamicRange) {
@@ -204,11 +204,7 @@ fun mediaBadges(media: MediaSummary?): List<String> {
         DynamicRange.Hlg -> "HLG"
         else -> null
     }
-    return listOfNotNull(
-        resolutionLabel(media.width, media.height),
-        range,
-        codecLabel(media.videoCodec).takeIf { it.isNotEmpty() },
-    )
+    return listOfNotNull(resolutionLabel(media.width, media.height).takeIf { it == "4K" }, range)
 }
 
 /** "42 Mbps · 23.4 GB", "Bitrate unknown" when neither is known, "" without a summary. */
