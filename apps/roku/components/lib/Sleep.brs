@@ -3,8 +3,9 @@
 ' counts down with Keep watching (Keep listening, for music), which adds
 ' the same time again (or waits for the end of the next title). Minutes
 ' keep running while paused, and it isn't remembered between playbacks.
-' Paused by it for 10 minutes, the player leaves (the music stops). Plain
-' state: the player asks it once a second with the clock's milliseconds.
+' Paused by it for 10 minutes, the video player leaves; music stays
+' paused, as on the other apps. Plain state: the player asks it once a
+' second with the clock's milliseconds.
 
 ' What the timer is set to, in order: [{ label, minutes }], minutes 0 for
 ' Off and -1 for the end of what plays (kind: "episode", "movie", "track"

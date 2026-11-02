@@ -31,12 +31,10 @@ sub init()
     m.mode = "auto"
     m.played = false
     m.lastReportAt = 0
-    ' The sleep timer, off until set, for as long as music plays; when it
-    ' paused the music (clock ms), -1 otherwise; whether the track shown
-    ' waits for Play, with no session yet (the timer ended with the one
-    ' before); and what Now Playing was told of it last.
+    ' The sleep timer, off until set, for as long as music plays; whether
+    ' the track shown waits for Play, with no session yet (the timer ended
+    ' with the one before); and what Now Playing was told of it last.
     m.sleep = sleepNew(0, 0#)
-    m.sleepPausedAt = -1#
     m.waiting = false
     m.sleepShown = ""
     m.sleepTimer = m.top.findNode("sleepTimer")
@@ -56,7 +54,6 @@ sub onPlay()
     if request = invalid or GetInterface(request.queue, "ifArray") = invalid or request.queue.Count() = 0 then return
     ' The track playing ends before the new queue replaces it.
     finishTrack()
-    sleepWoken()
     m.queue = musicQueue(request.queue, Int(httpNumber(request.at, 0)), httpTrue(request.shuffled))
     showQueue()
     m.top.message = ""
@@ -75,7 +72,6 @@ end sub
 sub onJump()
     at = m.top.jump
     if at < 0 or at >= m.queue.order.Count() then return
-    sleepWoken()
     playTrack(at, "auto")
 end sub
 
@@ -170,7 +166,6 @@ sub onState(event as object)
         wasPaused = m.top.state = "paused"
         m.played = true
         m.top.state = "playing"
-        sleepWoken()
         if wasPaused then report("playing")
     else if state = "paused"
         m.top.state = "paused"
@@ -214,7 +209,6 @@ sub onControl()
             action = "pause"
         end if
     end if
-    if action = "resume" or action = "next" or action = "previous" then sleepWoken()
     if action = "pause"
         m.audio.control = "pause"
     else if action = "resume" and m.waiting
@@ -258,13 +252,13 @@ sub passOver(message as string)
     nextTrack()
 end sub
 
-' Nothing plays any more: the queue goes, and the sleep timer with it.
 ' Paused, the progress goes on being told, so the session stays the
 ' player's.
 sub onPausedTick()
     if m.audio.state = "paused" then report("paused")
 end sub
 
+' Nothing plays any more: the queue goes, and the sleep timer with it.
 sub stopAll()
     m.pausedTimer.control = "stop"
     finishTrack()
@@ -272,7 +266,6 @@ sub stopAll()
     m.audio.control = "stop"
     m.queue = musicQueue([], 0, false)
     m.waiting = false
-    m.sleepPausedAt = -1#
     setSleep(0)
     showSleep(sleepNow())
     showQueue()
@@ -322,20 +315,16 @@ end function
 ' Set from Now Playing (minutes; 0 for Off, -1 for the end of the track).
 sub setSleep(minutes as integer)
     m.sleep = sleepNew(minutes, clockMs())
-    if minutes = 0 and m.sleepPausedAt < 0
+    if minutes = 0
         m.sleepTimer.control = "stop"
     else
         m.sleepTimer.control = "start"
     end if
 end sub
 
-' Once a second: the countdown of the last 30 s, the pause at the end,
-' and the music stopped 10 minutes into that pause.
+' Once a second: the countdown of the last 30 s, then the pause at the
+' end, which lasts until Play, as on the other apps.
 sub onSleepTick()
-    if m.sleepPausedAt >= 0
-        if clockMs() - m.sleepPausedAt >= sleepLeaveAfterMs() then stopAll()
-        return
-    end if
     state = sleepNow()
     if not state.fire
         showSleep(state)
@@ -350,19 +339,11 @@ sub onSleepTick()
     end if
 end sub
 
-' The timer's end: it goes off, and the pause it makes is timed.
+' The timer's end: it goes off.
 sub sleepFired()
     m.sleep = sleepNew(0, 0#)
-    m.sleepPausedAt = clockMs()
-    m.sleepTimer.control = "start"
+    m.sleepTimer.control = "stop"
     showSleep(sleepNow())
-end sub
-
-' Played again after the timer's pause: the music stays.
-sub sleepWoken()
-    if m.sleepPausedAt < 0 then return
-    m.sleepPausedAt = -1#
-    if m.sleep.minutes = 0 then m.sleepTimer.control = "stop"
 end sub
 
 ' What Now Playing shows of the timer, told when it changes.

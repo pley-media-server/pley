@@ -173,9 +173,9 @@ other screens show. Each OK on its button steps Off, 15, 30, 45, 60 and 90
 min, End of this track, and the button says what is left ("Sleep timer:
 23 min left"). In its last 30 s Now Playing says "Pausing in 12 s" and the
 button is Keep listening, which adds the same time again (or lets this
-track play to its end). Then the music pauses; at the end of a track, the
-next one waits, paused. Paused by the timer for 10 minutes, the music
-stops. Stop, or the queue's end, turns the timer off.
+track play to its end). Then the music pauses until Play, as on the other
+apps; at the end of a track, the next one waits, paused. Stop, or the
+queue's end, turns the timer off.
 
 ### The player
 

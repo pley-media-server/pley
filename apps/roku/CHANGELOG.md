@@ -65,8 +65,8 @@ describes how they are made.
   plays whole, so Previous goes back past where it started.
 - Music has a sleep timer, on Now Playing: each OK steps through 15 to 90
   minutes and the end of the track, the button saying what is left; in
-  its last 30 s, Keep listening adds the same time again. Paused by it for
-  10 minutes, the music stops.
+  its last 30 s, Keep listening adds the same time again; then the music
+  pauses until Play.
 - An album of several discs lists its tracks under Disc 1, Disc 2 and so
   on, as the other apps do.
 - A library sorted by title has an A to Z beside its grid: Up and Down pick
