@@ -6,6 +6,9 @@ import android.view.KeyEvent
 internal sealed interface PlayerKey {
     data object PlayPause : PlayerKey
 
+    /** OK with the controls hidden: a seek on its way goes there now; else the controls show, on the scrubber. */
+    data object Ok : PlayerKey
+
     data object Play : PlayerKey
 
     data object Pause : PlayerKey
@@ -69,10 +72,12 @@ internal object TvPlayerKeys {
 
     /**
      * A key with the controls hidden; `null` leaves it to focus (a showing
-     * Skip button takes Centre) or to the system (Back, volume).
+     * Skip button takes Centre) or to the system (Back, volume). Centre
+     * shows the controls rather than pausing, as Up does: OK on the
+     * scrubber plays and pauses.
      */
     fun hidden(keyCode: Int, skipShowing: Boolean): PlayerKey? = when (keyCode) {
-        in SELECT -> if (skipShowing) null else PlayerKey.PlayPause
+        in SELECT -> if (skipShowing) null else PlayerKey.Ok
         KeyEvent.KEYCODE_DPAD_LEFT -> PlayerKey.Step(-1)
         KeyEvent.KEYCODE_DPAD_RIGHT -> PlayerKey.Step(1)
         KeyEvent.KEYCODE_DPAD_UP -> PlayerKey.Show(ControlFocus.Scrubber)

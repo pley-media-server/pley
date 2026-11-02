@@ -21,6 +21,8 @@ describes how they are made.
   itself 5 s after the last key, and Back lets it go. A held key let go
   waits there too, and Previous, Next or Skip take the place of a seek
   waiting. Fast forward, rewind and the row's 10 s skips seek as before.
+- On TVs, OK with the player's controls hidden shows them on the scrubber
+  instead of pausing; OK there plays and pauses.
 
 ### Fixed
 

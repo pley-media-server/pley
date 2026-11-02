@@ -8,9 +8,9 @@ import org.junit.Test
 /** The player's key map (TV addendum §5.2, design spec §2.7). */
 class TvPlayerKeysTest {
     @Test
-    fun `with the controls hidden, Centre plays or pauses unless Skip holds focus`() {
-        assertEquals(PlayerKey.PlayPause, TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_CENTER, skipShowing = false))
-        assertEquals(PlayerKey.PlayPause, TvPlayerKeys.hidden(KeyEvent.KEYCODE_ENTER, skipShowing = false))
+    fun `with the controls hidden, Centre is OK, which shows them rather than pausing, unless Skip holds focus`() {
+        assertEquals(PlayerKey.Ok, TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_CENTER, skipShowing = false))
+        assertEquals(PlayerKey.Ok, TvPlayerKeys.hidden(KeyEvent.KEYCODE_ENTER, skipShowing = false))
         assertNull(TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_CENTER, skipShowing = true))
     }
 

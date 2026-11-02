@@ -109,16 +109,31 @@ class TvPlayerScreenTest {
     private fun focusedOn(tag: String) = compose.onNodeWithTag(tag, useUnmergedTree = true).assertIsFocused()
 
     @Test
-    fun `Centre pauses with the controls hidden and shows them on the scrubber, then plays`() {
+    fun `Centre with the controls hidden shows them on the scrubber, where it pauses and plays`() {
         val controller = playing()
         show(controller)
         press(Key.DirectionCenter)
-        assertEquals(listOf("pause"), controller.calls.map { it.name })
+        assertTrue("no pause out of sight of the controls", controller.calls.isEmpty())
         focusedOn(TAG_SCRUBBER)
+        press(Key.DirectionCenter)
+        assertEquals(listOf("pause"), controller.calls.map { it.name })
         controller.update { it.copy(phase = PlayerPhase.Paused) }
         compose.waitForIdle()
         press(Key.DirectionCenter)
         assertEquals("play", controller.calls.last().name)
+    }
+
+    @Test
+    fun `Centre with the controls hidden goes to a fast forward on its way, and they stay hidden`() {
+        val controller = playing()
+        show(controller)
+        press(Key.MediaFastForward)
+        press(Key.DirectionCenter)
+        assertEquals(listOf(630_000L), controller.calls("seekTo").map { it.args.single() })
+        compose.onNodeWithTag(TAG_SCRUBBER).assertDoesNotExist()
+        compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + 100)
+        compose.waitForIdle()
+        assertEquals(1, controller.calls("seekTo").size)
     }
 
     @Test
@@ -439,8 +454,10 @@ class TvPlayerScreenTest {
         compose.mainClock.advanceTimeBy(500)
         compose.waitForIdle()
         compose.onNodeWithTag(TAG_SKIP).assertDoesNotExist()
+        // Skip gone, Centre is the video's again: it shows the controls.
         press(Key.DirectionCenter)
-        assertEquals("pause", controller.calls.last().name)
+        assertEquals(listOf("skip"), controller.calls.map { it.name })
+        focusedOn(TAG_SCRUBBER)
     }
 
     @Test

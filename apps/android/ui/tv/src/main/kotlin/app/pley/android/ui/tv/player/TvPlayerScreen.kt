@@ -52,10 +52,11 @@ import kotlinx.coroutines.launch
  * remote's keys.
  *
  * - **Controls hidden.** Only the video and subtitles show; Skip and Up
- *   Next are all that appear unasked. Centre plays or pauses (a showing
- *   Skip button takes it), Up shows the controls on the scrubber, Down on
- *   the track buttons. Left and Right show them on the scrubber too, with
- *   the preview, and seek from there.
+ *   Next are all that appear unasked. Centre shows the controls on the
+ *   scrubber, as Up does (a showing Skip button or Keep watching takes it),
+ *   Down on the track buttons. Left and Right show them on the scrubber
+ *   too, with the preview, and seek from there. Centre on the scrubber
+ *   plays or pauses.
  * - **Seeking** ([TvSeeker]), as YouTube's TV app does: Left and Right
  *   move where it goes, 10 s a press (held: scrub), and it goes there on
  *   OK, or by itself 5 s after the last key; fast forward, rewind and the
@@ -139,6 +140,15 @@ internal fun TvPlayerScreen(
         }
     }
 
+    /**
+     * OK with the controls hidden: a seek on its way (fast forward, rewind)
+     * goes there now, playing; else the controls show on the scrubber, where
+     * OK plays and pauses. Never a pause out of sight of the controls.
+     */
+    fun ok() {
+        if (seeker.target != null) playPause() else ui.showControls(PlayerFocus.Scrubber)
+    }
+
     fun focusFor(focus: ControlFocus): PlayerFocus = when (focus) {
         ControlFocus.Scrubber -> PlayerFocus.Scrubber
         ControlFocus.Tracks -> if (state.value.subtitles.isNotEmpty()) PlayerFocus.Subtitles else PlayerFocus.Info
@@ -210,6 +220,7 @@ internal fun TvPlayerScreen(
     fun act(key: PlayerKey) {
         when (key) {
             PlayerKey.PlayPause -> playPause()
+            PlayerKey.Ok -> ok()
             PlayerKey.Play -> controller.play()
             PlayerKey.Pause -> {
                 controller.pause()
