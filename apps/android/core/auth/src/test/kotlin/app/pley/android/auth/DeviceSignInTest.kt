@@ -120,14 +120,11 @@ class DeviceSignInTest {
     }
 
     @Test
-    fun aTvAsksForNoScopesOfRequests() = runTest {
+    fun aCodeAsksForTheScopesOfRequestsWhereTheServerListsThem() = runTest {
+        // Phones' and TVs' alike: both ask for movies and shows, and approve them on an administrator's account.
         scopes = listOf("library", "play", "playlists", "profiles", "requests", "approvals", "admin")
         grant().start(server.url("/").toString())
-        grant().start(server.url("/").toString(), requests = false)
-        assertEquals(
-            listOf("library play playlists profiles requests approvals", "library play playlists profiles"),
-            codeRequests.map { it["scope"] },
-        )
+        assertEquals("library play playlists profiles requests approvals", codeRequests.single()["scope"])
     }
 
     @Test

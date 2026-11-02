@@ -260,16 +260,14 @@ class SignIn(
 
         /**
          * The scopes to ask [metadata]'s server for: all of [SCOPES] it
-         * offers, and with [requests] those of [LISTED_SCOPES] it lists.
-         * Servers without profile switching don't know "profiles", nor
-         * older ones "requests", and would refuse the whole sign-in for
-         * them. Android TV has no requests: it asks for neither.
+         * offers, and those of [LISTED_SCOPES] it lists. Servers without
+         * profile switching don't know "profiles", nor older ones
+         * "requests", and would refuse the whole sign-in for them.
          */
-        fun scopeFor(metadata: ServerMetadata, requests: Boolean = true): String {
+        fun scopeFor(metadata: ServerMetadata): String {
             val offered = metadata.scopesSupported
             val base = SCOPES.filter { offered == null || it in offered }.ifEmpty { listOf("library") }
-            val listed = if (requests) LISTED_SCOPES.filter { offered != null && it in offered } else emptyList()
-            return (base + listed).joinToString(" ")
+            return (base + LISTED_SCOPES.filter { offered != null && it in offered }).joinToString(" ")
         }
 
         /** The sign-in page's address for [flow] (OAuth 2.1 §4.1.1). */

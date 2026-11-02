@@ -397,8 +397,7 @@ base64 -w0 pley-release.keystore   # the ANDROID_KEYSTORE_BASE64 secret
 
 - Downloads are on phones and tablets only; TVs stream everything.
 - Requests are on phones and tablets only: Android TV and Fire TV have no
-  Discover, no requests and none of their news, and their code sign-in
-  doesn't ask for the `requests` and `approvals` scopes.
+  Discover, no requests and none of their news.
 - No Watch Next row on phones or Fire TV.
 - Live TV has no picture in picture, and the TV's display mode isn't
   matched for live channels.
