@@ -178,7 +178,7 @@ export function ProfileAvatar(p: { name: string; color: string | null; picture: 
   );
 }
 
-/** A key of a number pad: a digit or symbol, or Delete / OK. */
+/** A key of a number pad: a digit, or Delete / OK. */
 export type PadKey = { kind: "text"; text: string } | { kind: "delete" } | { kind: "ok" };
 
 const PAD_LABELS: Record<string, string> = { delete: "Delete", ok: "OK" };
@@ -224,7 +224,7 @@ export function NumberPad(p: {
               fid={p.fid ? `${p.fid}/${id}` : undefined}
               initial={enabled && id === (p.initialKey ?? "5")}
               disabled={!enabled}
-              label={k.kind === "text" ? (/^\d$/.test(k.text) ? `digit ${k.text}` : k.text) : PAD_LABELS[k.kind]}
+              label={k.kind === "text" ? `digit ${k.text}` : PAD_LABELS[k.kind]}
               onSelect={() => press(k, id)}
             >
               <PadGlyph k={k} />
@@ -241,7 +241,7 @@ export function keyId(k: PadKey): string {
   return k.kind === "text" ? k.text : k.kind;
 }
 
-export function PadGlyph(p: { k: PadKey }) {
+function PadGlyph(p: { k: PadKey }) {
   if (p.k.kind === "delete") return <Icon name="delete" size={28} />;
   if (p.k.kind === "ok") return <Icon name="check" size={28} />;
   return <span class="pad-glyph">{p.k.text}</span>;
@@ -251,6 +251,3 @@ const digits = (from: number) => [0, 1, 2].map((i) => ({ kind: "text" as const, 
 
 /** The PIN pad's keys: 1-9, then Delete, 0, OK. */
 export const PIN_KEYS: PadKey[][] = [digits(1), digits(4), digits(7), [{ kind: "delete" }, { kind: "text", text: "0" }, { kind: "ok" }]];
-
-/** The address pad's keys: 1-9, then ".", 0, ":". */
-export const ADDRESS_KEYS: PadKey[][] = [digits(1), digits(4), digits(7), [{ kind: "text", text: "." }, { kind: "text", text: "0" }, { kind: "text", text: ":" }]];

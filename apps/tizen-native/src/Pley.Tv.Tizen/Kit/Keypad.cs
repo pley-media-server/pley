@@ -6,11 +6,10 @@ using Tizen.NUI.BaseComponents;
 
 namespace Pley.Tv.Tizen.Kit;
 
-/// <summary>A key of a TV pad: a digit, "." or ":" (the address pad), Delete or OK.</summary>
+/// <summary>A key of a TV pad: a digit, Delete or OK.</summary>
 abstract record PadKey
 {
     public sealed record Digit(int Value) : PadKey;
-    public sealed record Symbol(string Text) : PadKey;
     public sealed record Delete : PadKey;
     public sealed record Ok : PadKey;
 
@@ -21,15 +20,6 @@ abstract record PadKey
         new PadKey[] { new Digit(4), new Digit(5), new Digit(6) },
         new PadKey[] { new Digit(7), new Digit(8), new Digit(9) },
         new PadKey[] { new Delete(), new Digit(0), new Ok() },
-    };
-
-    /// <summary>The address pad's keys (design spec §2.11): 1-9, then ".", 0, ":". Delete and Connect sit under it.</summary>
-    public static readonly PadKey[][] AddressKeys =
-    {
-        new PadKey[] { new Digit(1), new Digit(2), new Digit(3) },
-        new PadKey[] { new Digit(4), new Digit(5), new Digit(6) },
-        new PadKey[] { new Digit(7), new Digit(8), new Digit(9) },
-        new PadKey[] { new Symbol("."), new Digit(0), new Symbol(":") },
     };
 }
 
@@ -65,9 +55,6 @@ sealed class PadKeyView : View
         {
             case PadKey.Digit d:
                 glyph = Glyph(d.Value.ToString());
-                break;
-            case PadKey.Symbol s:
-                glyph = Glyph(s.Text);
                 break;
             default:
                 icon = Icons.Icon(key is PadKey.Delete ? "delete" : "check", 28, PleyColors.Fg);

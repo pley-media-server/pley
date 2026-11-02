@@ -78,7 +78,7 @@ function reasonOf(e: unknown): string {
 }
 
 /**
- * The server someone typed (the address pad's Connect): each candidate in
+ * The server someone typed (Connect under the address): each candidate in
  * turn, https first for names on the internet; the first pley answer
  * wins. Throws [ConnectError] with why none did.
  */

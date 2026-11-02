@@ -34,7 +34,7 @@ export type Key =
   | "yellow"
   | "blue"
   | "backspace"
-  /** "." on a keyboard or a numpad: the address pad types it. */
+  /** "." on a keyboard or a numpad: the address field types it. */
   | "period"
   | `digit${number}`;
 

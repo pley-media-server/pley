@@ -49,9 +49,6 @@ import kotlinx.coroutines.launch
 internal sealed interface PadKey {
     data class Digit(val value: Int) : PadKey
 
-    /** "." or ":" (the address pad). */
-    data class Symbol(val text: String) : PadKey
-
     data object Delete : PadKey
 
     data object Ok : PadKey
@@ -63,14 +60,6 @@ internal val PinKeys: List<List<PadKey>> = listOf(
     listOf(PadKey.Digit(4), PadKey.Digit(5), PadKey.Digit(6)),
     listOf(PadKey.Digit(7), PadKey.Digit(8), PadKey.Digit(9)),
     listOf(PadKey.Delete, PadKey.Digit(0), PadKey.Ok),
-)
-
-/** The address pad's keys (design spec §2.11): 1-9, then ".", 0, ":". Delete and Connect sit under it. */
-internal val AddressKeys: List<List<PadKey>> = listOf(
-    listOf(PadKey.Digit(1), PadKey.Digit(2), PadKey.Digit(3)),
-    listOf(PadKey.Digit(4), PadKey.Digit(5), PadKey.Digit(6)),
-    listOf(PadKey.Digit(7), PadKey.Digit(8), PadKey.Digit(9)),
-    listOf(PadKey.Symbol("."), PadKey.Digit(0), PadKey.Symbol(":")),
 )
 
 /** Where a pad's key flashes from: the remote's digit keys press keys too. */
@@ -161,7 +150,6 @@ internal fun TvPadKey(
     val interactions = remember { MutableInteractionSource() }
     val description = when (key) {
         is PadKey.Digit -> labels.digit(key.value)
-        is PadKey.Symbol -> key.text
         PadKey.Delete -> labels.delete
         PadKey.Ok -> labels.ok
     }
@@ -198,7 +186,6 @@ internal fun TvPadKey(
         Box(Modifier.clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
             when (key) {
                 is PadKey.Digit -> BasicText(key.value.toString(), style = PleyType.Tv.PinDigit.copy(color = ink))
-                is PadKey.Symbol -> BasicText(key.text, style = PleyType.Tv.PinDigit.copy(color = ink))
                 PadKey.Delete -> Icon(PleyIcons.Delete, contentDescription = null, size = 28.dp, tint = ink)
                 PadKey.Ok -> Icon(PleyIcons.Check, contentDescription = null, size = 28.dp, tint = ink)
             }
@@ -206,10 +193,9 @@ internal fun TvPadKey(
     }
 }
 
-/** The test tag of a pad key: "pley.pad.5", "pley.pad.delete", "pley.pad.ok", "pley.pad.:". */
+/** The test tag of a pad key: "pley.pad.5", "pley.pad.delete", "pley.pad.ok". */
 internal fun padKeyTag(key: PadKey): String = "pley.pad." + when (key) {
     is PadKey.Digit -> key.value.toString()
-    is PadKey.Symbol -> key.text
     PadKey.Delete -> "delete"
     PadKey.Ok -> "ok"
 }

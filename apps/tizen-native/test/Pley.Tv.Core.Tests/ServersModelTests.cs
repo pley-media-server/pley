@@ -103,7 +103,6 @@ public class ServersModelTests
         Assert.True(state.Searched);
         Assert.False(state.Searching);
         Assert.Equal("192.168.1.1-254", state.SweepRange);
-        Assert.Equal("192.168.1.", state.Subnet);
     }
 
     [Fact]

@@ -16,6 +16,10 @@ describes how they are made.
 - Discover has no search field: Search shows what can be asked for in a
   Discover row after the libraries' results, which says why when TMDB
   doesn't answer, with Retry.
+- "Enter an address" opens the TV's keyboard at once, on an empty field,
+  in place of the number pad, so a server's name or a whole https address
+  is as easy to type as an IP. The remote's digit keys still type once the
+  keyboard is closed.
 
 ### Fixed
 

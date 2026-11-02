@@ -1,7 +1,7 @@
 // Development only: serves dist/ in a desktop browser and passes every
 // other request to a pley server (PLEY_SERVER, default
 // http://127.0.0.1:7640), so the app and the server share an origin.
-// Sign in by typing this page's own address (localhost:7650) on the pad;
+// Sign in by typing this page's own address (localhost:7650) in the field;
 // approve the code at http://localhost:7650/link in another tab.
 
 import { createReadStream, existsSync, statSync } from "node:fs";

@@ -138,7 +138,7 @@ end sub
 sub askAddress()
     dialog = CreateObject("roSGNode", "StandardKeyboardDialog")
     dialog.title = "Enter your server's address"
-    dialog.message = ["Such as 192.168.1.20, nas or pley.example.com. Port 7539 is added when none is typed."]
+    dialog.message = ["Such as 192.168.1.20, nas or pley.example.com. Port 7539 is used by default."]
     dialog.buttons = ["Connect", "Cancel"]
     dialog.text = m.address
     dialog.observeField("buttonSelected", "onAddressButton")

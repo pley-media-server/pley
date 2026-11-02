@@ -34,10 +34,10 @@
     <string name="tv_onboarding_problem_unencrypted">%1$s isn\'t encrypted: what you watch could be read on the way. Use its https address if it has one, or press Connect again to go ahead anyway.</string>
     <string name="tv_onboarding_problem_address">Enter an address such as nas, 192.168.1.20 or pley.example.com.</string>
 
-    <!-- The address pad (design spec §2.11). -->
+    <!-- Typing a server's address (design spec §2.11). -->
     <string name="tv_onboarding_address_title">Enter your server\'s address</string>
     <string name="tv_onboarding_address_placeholder">192.168.1.20 or pley.example.com</string>
-    <string name="tv_onboarding_address_hint">Port 7539 is added when none is typed. Press OK on the field to type a name.</string>
+    <string name="tv_onboarding_address_hint">Port 7539 is used by default.</string>
     <string name="tv_onboarding_connect">Connect</string>
     <string name="tv_onboarding_checking">Checking…</string>
 

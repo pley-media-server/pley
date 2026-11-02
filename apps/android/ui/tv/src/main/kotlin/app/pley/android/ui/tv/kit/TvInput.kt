@@ -47,11 +47,12 @@ import app.pley.android.designsystem.PleyType
 import kotlinx.coroutines.delay
 
 /**
- * Text entry on TV (D-pad rule 7; design spec §2.11), only for search and
- * server addresses. Focus lands on the field without opening the
+ * Text entry on TV (D-pad rule 7; design spec §2.11), for server
+ * addresses and playlist names. Focus lands on the field without opening the
  * keyboard, so D-pad users pass through it; Select opens the system
  * keyboard (Gboard, or Amazon's), and Back or the keyboard's action closes
- * it again, leaving focus on the field.
+ * it again, leaving focus on the field. With [typeNow] (a screen that only
+ * asks for words), the keyboard opens as the field shows.
  *
  * 44 dp, [surface2][PleyColors.Surface2], radius 4, tvBody. At rest a 1 dp
  * [control][PleyColors.Control] edge; focused a 2 dp [accentBright][PleyColors.AccentBright]
@@ -66,8 +67,9 @@ fun TvTextField(
     imeAction: ImeAction = ImeAction.Search,
     onAction: () -> Unit = {},
     focusModifier: Modifier = Modifier,
+    typeNow: Boolean = false,
 ) {
-    var editing by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(typeNow) }
     val outer = remember { MutableInteractionSource() }
     val outerFocused by outer.collectIsFocusedAsState()
     var innerFocused by remember { mutableStateOf(false) }
@@ -133,9 +135,11 @@ fun TvTextField(
                 .focusRequester(field)
                 .focusProperties { canFocus = editing }
                 .onFocusChanged {
+                    // Not when it is first laid out, unfocused: typeNow is about to focus it.
+                    val lost = innerFocused && !it.isFocused
                     innerFocused = it.isFocused
                     // The keyboard closed (Back, or its own close key): back to the field.
-                    if (!it.isFocused && editing) editing = false
+                    if (lost && editing) editing = false
                 },
             textStyle = PleyType.Tv.Body.copy(color = PleyColors.Fg),
             cursorBrush = SolidColor(PleyColors.AccentBright),
@@ -150,12 +154,12 @@ fun TvTextField(
 }
 
 /**
- * D-pad rule 10: the remote's digit keys type into pads (PIN, address).
- * [onDigit] gets 0 to 9 from the number row and the number pad; [onDelete]
- * gets Delete and Clear; [onDot], when given (the address pad), gets the
- * period and the number pad's dot; [onText], when given, the other printable
- * characters a keyboard types (a colon, a server's name), which a remote
- * app's or a Bluetooth keyboard sends. Other keys pass on.
+ * D-pad rule 10: the remote's digit keys type into the PIN pad and the
+ * address field. [onDigit] gets 0 to 9 from the number row and the number
+ * pad; [onDelete] gets Delete and Clear; [onDot], when given (the address),
+ * gets the period and the number pad's dot; [onText], when given, the
+ * other printable characters a keyboard types (a colon, a server's name),
+ * which a remote app's or a Bluetooth keyboard sends. Other keys pass on.
  */
 fun Modifier.digitKeys(
     onDigit: (Int) -> Unit,

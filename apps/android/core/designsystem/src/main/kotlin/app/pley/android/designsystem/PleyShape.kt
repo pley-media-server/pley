@@ -20,7 +20,7 @@ object PleyShape {
     /** TV tiles. */
     val TileTvRadius = 4.dp
 
-    /** Inputs, the address pad's display. */
+    /** Inputs. */
     val FieldRadius = 4.dp
 
     /** Buttons (with a label or an icon alone), chips, tabs, Skip Intro. */

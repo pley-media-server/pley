@@ -79,7 +79,7 @@ import app.pley.android.ui.tv.shell.LocalTvNavigator
 
 /**
  * "Choose your server" on TV (design spec §4.7): saved servers first, then
- * those that answer as they come; "Enter an address" (the address pad),
+ * those that answer as they come; "Enter an address" (on the TV's keyboard),
  * "Search this network", and the demo server in debug builds. Holding OK
  * on a saved server forgets it.
  */
@@ -111,10 +111,10 @@ internal fun TvServersScreen() {
         vm.resumed()
         onPauseOrDispose { }
     }
-    var pad by rememberSaveable { mutableStateOf(false) }
-    if (pad) {
-        BackHandler { pad = false }
-        TvAddressPad(
+    var typing by rememberSaveable { mutableStateOf(false) }
+    if (typing) {
+        BackHandler { typing = false }
+        TvAddressEntry(
             state = state,
             onConnect = { vm.connect(it, open = true) },
             onEdited = vm::addressEdited,
@@ -125,7 +125,7 @@ internal fun TvServersScreen() {
             state = state,
             onChoose = vm::choose,
             onForget = vm::forget,
-            onEnterAddress = { pad = true },
+            onEnterAddress = { typing = true },
             onSearchNetwork = vm::searchNetwork,
             onDemo = vm::useDemo,
             onOpenSettings = { openAppSettings(context) },

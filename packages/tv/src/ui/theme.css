@@ -567,8 +567,7 @@ body {
 .field input::-webkit-search-cancel-button,
 .field input::-webkit-search-decoration { -webkit-appearance: none; display: none; }
 
-/* Number keys: three columns of 64 px keys, 10 apart (no CSS grid before Chromium 57). */
-.keypad { display: flex; flex-wrap: wrap; width: 212px; }
+/* A number pad's keys, 64 px. */
 .pad-key {
   position: relative;
   width: 64px;

@@ -207,7 +207,7 @@ internal object DemoServer {
     }
 }
 
-/** The device's home network, for the address pad's first digits and "Search this network". */
+/** The device's home network, for "Search this network". */
 internal object HomeNetwork {
     /** "192.168.1." for a device at 192.168.1.20 on Wi-Fi or Ethernet; `null` without one. */
     // The app's manifest asks for ACCESS_NETWORK_STATE; this library's lint can't see it.

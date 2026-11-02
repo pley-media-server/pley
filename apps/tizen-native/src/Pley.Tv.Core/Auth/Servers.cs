@@ -154,7 +154,7 @@ public static class Servers
     }
 
     /// <summary>
-    /// The server someone typed (the address pad's Connect). Pley over plain http beyond the
+    /// The server someone typed (Connect under the address). Pley over plain http beyond the
     /// home network is warned about once (<see cref="ConnectProblem.Unencrypted"/>); connecting
     /// again with its address as <paramref name="goAheadAt"/> goes ahead. Throws
     /// <see cref="ConnectException"/> with why none did.
