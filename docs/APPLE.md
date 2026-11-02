@@ -976,6 +976,14 @@ PLEY_BUNDLE_ID = com.example.pley
 CODE_SIGN_IDENTITY[sdk=macosx*] = Apple Development
 ```
 
+A Mac build signed to run locally can't use the data protection keychain,
+so it keeps its sign-ins in the login keychain, which knows the app by its
+signature. That signature changes with every build, so macOS asks for the
+login keychain's password after each one ("Always Allow" lasts until the
+next build). A build signed with a team, even a free one, is known by its
+team and bundle ID instead, which stay the same from build to build, so
+one "Always Allow" lasts.
+
 With a free Apple account, apps installed on an iPhone, iPad or Apple TV
 stop opening after 7 days and a device takes at most 3 of them; Mac builds
 don't expire.
