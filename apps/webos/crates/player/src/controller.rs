@@ -3057,14 +3057,8 @@ impl PlaybackController {
         }
         self.outages += 1;
         let (since, attempts) = away.unwrap_or((self.now, 0));
-        self.outage = Some(Outage {
-            id: self.outages,
-            since,
-            attempts,
-            due: None,
-            engine_failed,
-            at_ms: self.last_position_ms,
-        });
+        self.outage =
+            Some(Outage { id: self.outages, since, attempts, due: None, engine_failed, at_ms: self.last_position_ms });
         self.state.reconnecting = true;
         self.state.skip_label = None;
         self.changed();

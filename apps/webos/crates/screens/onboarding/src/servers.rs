@@ -1,30 +1,28 @@
 //! "Choose your server" (`TvServersScreen.kt`, `ServersViewModel.kt`; the TV app's
-//! `onboarding/servers.tsx`) and its address pad (`TvAddressPad.kt`).
+//! `onboarding/servers.tsx`) and its address entry (`TvAddressEntry.kt`).
 //!
 //! The list holds the servers this TV used, most recent first, then those that answer the UDP
 //! broadcast sent as the screen opens; saved servers that didn't answer are asked directly and
 //! marked "Can't reach it". "Search this network" asks every address of the TV's /24.
 //! Choosing a server checks it, keeps it and opens its sign-in code, "Who's watching?" or Home.
-//! Holding OK (or the menu key) on a saved server offers to forget it. The address pad replaces
+//! Holding OK (or the menu key) on a saved server offers to forget it. Enter an address replaces
 //! the list in place, as on Android, and Back brings the list back.
 
 use std::collections::HashSet;
 use std::net::Ipv4Addr;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
 
-use pley_base::{Icon, Point, Rect, TextOpts, Waker};
+use pley_base::{Icon, Key, Point, Rect, TextOpts, Waker};
 use pley_core::addresses::{candidates, host_port, origin, unencrypted};
 use pley_core::discovery::{self, ConnectProblem, FoundServer, SWEEP_TOTAL, SearchNews};
 use pley_core::store::SavedServer;
 use pley_core::{Cancel, Http, Promise};
-use pley_kit::{
-    Button, Dialog, DialogButton, Keyboard, KeyboardState, Keypad, PadKey, PadState, ResponseExt, TextEdit, TextField,
-};
+use pley_kit::{Button, Dialog, DialogButton, Keyboard, KeyboardState, ResponseExt, TextEdit, TextField};
 use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen};
 use pley_ui::theme::{self, radius};
 use pley_ui::{Dir, Edge, FocusOpts, Group, Id, Ui, nudge};
 
-use crate::kit::{Logo, brand_glow, pad_key, status_line, sweep_bar};
+use crate::kit::{Logo, brand_glow, status_line, sweep_bar};
 
 /// A server row's height and the gap between rows.
 const ROW_H: f32 = 64.0;
@@ -37,6 +35,8 @@ const LIST_MAX: f32 = 300.0;
 const LIST_Y: f32 = 90.0;
 /// A focused row's top sits this far below the list's top once the list scrolls.
 const ROW_LEAD: f32 = 90.0;
+/// The address field's width.
+const FIELD_W: f32 = 480.0;
 /// The longest server name kept: names come from anything on the network that answers, and the
 /// Forget dialog's title wraps without a limit.
 const NAME_MAX: usize = 64;
@@ -57,7 +57,7 @@ pub const FORGET_HINT: &str = "Hold OK on a saved server to forget it.";
 pub const FORGET_BODY: &str = "Pley signs this TV out of it and deletes what it saved from it.";
 pub const ADDRESS_TITLE: &str = "Enter your server's address";
 pub const ADDRESS_PLACEHOLDER: &str = "192.168.1.20 or pley.example.com";
-pub const ADDRESS_HINT: &str = "Port 7539 is added when none is typed. Press OK on the field to type a name.";
+pub const ADDRESS_HINT: &str = "Port 7539 is used by default.";
 pub const CONNECT: &str = "Connect";
 pub const CHECKING: &str = "Checking…";
 
@@ -80,12 +80,12 @@ pub fn server_name(name: &str, url: &str) -> String {
     }
 }
 
-/// What went wrong with a server, as the list and the pad say it.
+/// What went wrong with a server, as the list and the address entry say it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Problem {
     /// Not an address, not Pley, or not answering.
     Connect(ConnectProblem),
-    /// Plain http beyond the home network answered the pad: said once, and Connect again goes
+    /// Plain http beyond the home network answered the address entry: said once, and Connect again goes
     /// ahead.
     Unencrypted { address: String },
 }
@@ -256,41 +256,28 @@ fn sweep_on_thread(http: Http, subnet: String, tx: Sender<SearchNews>, waker: Wa
     cancel
 }
 
-/// The address pad's state while it shows.
+/// "Enter your server's address" while it shows: the field, empty at first, and the TV's
+/// keyboard, open from the start so a name or a whole https address types as easily as an IP.
 struct Pad {
     edit: TextEdit,
-    /// The on-screen keyboard is open over the pad.
+    /// The on-screen keyboard is open under the field.
     typing: bool,
     keyboard: KeyboardState,
-    keys: PadState,
-    /// Counts presses of Delete, so each flashes.
-    delete_flashes: u32,
-    edited: bool,
     checking: Option<Check>,
     problem: Option<Problem>,
 }
 
 impl Pad {
-    fn new(subnet: Option<&str>) -> Pad {
-        Pad {
-            edit: TextEdit::new(subnet.unwrap_or_default()),
-            typing: false,
-            keyboard: KeyboardState::default(),
-            keys: PadState::default(),
-            delete_flashes: 0,
-            edited: false,
-            checking: None,
-            problem: None,
-        }
+    fn new() -> Pad {
+        Pad { edit: TextEdit::new(""), typing: true, keyboard: KeyboardState::default(), checking: None, problem: None }
     }
 
     fn edited(&mut self) {
-        self.edited = true;
         self.problem = None;
     }
 }
 
-/// "Choose your server", with its address pad.
+/// "Choose your server", with its address entry.
 pub struct ServersScreen {
     saved: Vec<SavedServer>,
     found: Vec<FoundServer>,
@@ -307,7 +294,7 @@ pub struct ServersScreen {
     /// The server being checked before it opens, and its discovery id.
     choosing: Option<(String, Option<String>, Check)>,
     problem: Option<Problem>,
-    /// The unencrypted address the pad already warned about: Connect again goes ahead.
+    /// The unencrypted address the address entry already warned about: Connect again goes ahead.
     warned: Option<String>,
     /// The rows as they show, made again only when the servers saved, found or out of reach
     /// change.
@@ -328,11 +315,11 @@ pub struct ServersScreen {
 }
 
 impl ServersScreen {
-    /// The screen; `pad` opens it on the address pad.
+    /// The screen; `pad` opens it on the address entry.
     pub fn new(cx: &mut AppCx, pad: bool) -> ServersScreen {
         let local = cx.device().local_ipv4();
         let subnet = local.and_then(|ip| discovery::subnet_of(&ip.to_string()));
-        let pad = pad.then(|| Pad::new(subnet.as_deref()));
+        let pad = pad.then(Pad::new);
         ServersScreen {
             saved: cx.state.saved_servers(),
             found: Vec::new(),
@@ -378,7 +365,7 @@ impl ServersScreen {
         self.rows_stale |= self.unreachable.insert(url);
     }
 
-    /// Whether the address pad shows.
+    /// Whether the address entry shows.
     pub fn pad_open(&self) -> bool {
         self.pad.is_some()
     }
@@ -510,7 +497,7 @@ impl ServersScreen {
         self.sweep_since = None;
     }
 
-    /// Connect on the pad: what was typed becomes the addresses to try (https first for a name on
+    /// Connect on the address entry: what was typed becomes the addresses to try (https first for a name on
     /// the internet); plain http beyond home is warned about once it answers.
     fn connect(&mut self, cx: &mut AppCx) {
         let Some(pad) = self.pad.as_mut() else { return };
@@ -659,7 +646,7 @@ impl ServersScreen {
         if enter.activated {
             self.touched = true;
             self.problem = None;
-            self.pad = Some(Pad::new(self.subnet.as_deref()));
+            self.pad = Some(Pad::new());
             ui.request_repaint();
         }
         if search.activated {
@@ -692,24 +679,19 @@ impl ServersScreen {
         }
     }
 
+    /// "Enter your server's address" (`TvAddressEntry.kt`; the TV app's `AddressEntry`): the
+    /// title, the field and Connect under it, how addresses work and what went wrong, and the
+    /// TV's keyboard below. With the keyboard closed, the remote's digits type, and OK on the
+    /// field opens it again.
     fn pad_ui(&mut self, ui: &mut Ui, cx: &mut AppCx) {
         brand_glow(ui);
         let Some(pad) = self.pad.as_mut() else { return };
-        // Beside the pad: how addresses work, and what went wrong.
-        let info = Point::new(theme::GUTTER, 121.0);
-        let h = ui.text(info, ADDRESS_HINT, &theme::CAPTION, &TextOpts::wrap(240.0, 0), theme::MUTED).h;
-        if let Some(p) = &pad.problem {
-            let at = Point::new(info.x, info.y + h + 12.0);
-            ui.text(at, &p.text(), &theme::BODY, &TextOpts::wrap(240.0, 0), theme::DANGER_TEXT);
-        }
-
         let centre = theme::CANVAS_W / 2.0;
         let opts = TextOpts::line(theme::CANVAS_W).aligned(pley_base::Align::Center);
         ui.text(Point::new(0.0, 27.0), ADDRESS_TITLE, &theme::TITLE, &opts, theme::FG);
         let field_y = 27.0 + theme::TITLE.line_height + 8.0;
-        let pad_y = field_y + pley_kit::keyboard::FIELD_HEIGHT + 14.0;
-        let pad_size = Keypad::size();
-        let bottom_y = pad_y + pad_size.h + Keypad::GAP;
+        let connect_y = field_y + pley_kit::keyboard::FIELD_HEIGHT + 14.0;
+        let info_y = connect_y + theme::BUTTON_HEIGHT + 16.0;
 
         let mut connect = false;
         let mut start_typing = false;
@@ -717,63 +699,41 @@ impl ServersScreen {
         let column = ui.id("pad");
         let mut draw = |ui: &mut Ui, pad: &mut Pad| {
             ui.group(column, Group::column(), |ui| {
-                let field = TextField::new(&pad.edit.text, 360.0).placeholder(ADDRESS_PLACEHOLDER).typing(typing);
-                let f = field.show(ui, ui.id("field"), Point::new(centre - 180.0, field_y));
+                let field = TextField::new(&pad.edit.text, FIELD_W).placeholder(ADDRESS_PLACEHOLDER).typing(typing);
+                let f = field.show(ui, ui.id("field"), Point::new(centre - FIELD_W / 2.0, field_y));
                 start_typing |= f.activated;
-
-                // The remote's digits type through the pad; text from a keyboard goes in as typed.
+                // With the keyboard closed: what a keyboard types, and the remote's digits.
                 if !typing {
-                    let typed: String = ui.typed().chars().filter(|c| !c.is_ascii_digit() && !c.is_control()).collect();
+                    let mut typed: String = ui.typed().chars().filter(|c| !c.is_control()).collect();
+                    for k in ui.keys() {
+                        if let Key::Digit(d) = k.key
+                            && k.pressed
+                        {
+                            typed.push(char::from(b'0' + d));
+                        }
+                    }
                     if !typed.is_empty() && pad.edit.insert(&typed) {
                         pad.edited();
                     }
                 }
-                let keys = Keypad::address().show(
-                    ui,
-                    ui.id("keys"),
-                    Point::new(centre - pad_size.w / 2.0, pad_y),
-                    &mut pad.keys,
-                );
-                match keys {
-                    Some(PadKey::Digit(d)) => {
-                        pad.edit.insert(&d.to_string());
-                        pad.edited();
-                    }
-                    Some(PadKey::Symbol(c)) => {
-                        pad.edit.insert(&c.to_string());
-                        pad.edited();
-                    }
-                    Some(PadKey::Delete) => {
-                        pad.edit.backspace();
-                        pad.edited();
-                    }
-                    Some(PadKey::Ok) => connect = true,
-                    None => {}
-                }
-
                 let label = if pad.checking.is_some() { CHECKING } else { CONNECT };
                 let pill = Button::pill(label);
-                let pill_w = pill.size(ui).w;
-                let row_w = Keypad::KEY + Keypad::GAP + pill_w;
-                let row_x = centre - row_w / 2.0;
-                ui.group(ui.id("bottom"), Group::row(), |ui| {
-                    let delete =
-                        pad_key(ui, ui.id("delete"), Point::new(row_x, bottom_y), Icon::Delete, pad.delete_flashes);
-                    if delete.activated {
-                        pad.delete_flashes += 1;
-                        pad.edit.backspace();
-                        pad.edited();
-                    }
-                    let at = Point::new(
-                        row_x + Keypad::KEY + Keypad::GAP,
-                        bottom_y + (Keypad::KEY - theme::BUTTON_HEIGHT) / 2.0,
-                    );
-                    connect |= pill.show(ui, ui.id("connect"), at).activated;
-                });
+                let at = Point::new(centre - pill.size(ui).w / 2.0, connect_y);
+                connect |= pill.show(ui, ui.id("connect"), at).activated;
             });
         };
         if typing {
             pley_kit::inert(ui, |ui| draw(ui, pad));
+        } else {
+            draw(ui, pad);
+        }
+        let wrap = TextOpts::wrap(FIELD_W, 0).aligned(pley_base::Align::Center);
+        let info = Point::new(centre - FIELD_W / 2.0, info_y);
+        let h = ui.text(info, ADDRESS_HINT, &theme::CAPTION, &wrap, theme::MUTED).h;
+        if let Some(p) = &pad.problem {
+            ui.text(Point::new(info.x, info.y + h + 8.0), &p.text(), &theme::BODY, &wrap, theme::DANGER_TEXT);
+        }
+        if typing {
             let kb =
                 Keyboard::new().action_label(CONNECT).show(ui, ui.id("keyboard"), &mut pad.keyboard, &mut pad.edit);
             if kb.changed {
@@ -785,8 +745,6 @@ impl ServersScreen {
             } else if kb.closed {
                 pad.typing = false;
             }
-        } else {
-            draw(ui, pad);
         }
         if start_typing {
             pad.typing = true;
@@ -896,13 +854,6 @@ impl Screen for ServersScreen {
         if let AppEvent::Device(pley_core::DeviceEvent::Network { ipv4: Some(ip), .. }) = event {
             self.local = Some(*ip);
             self.subnet = discovery::subnet_of(&ip.to_string());
-            if let Some(pad) = self.pad.as_mut()
-                && !pad.edited
-                && pad.edit.text.is_empty()
-                && let Some(s) = &self.subnet
-            {
-                pad.edit.text = s.clone();
-            }
         }
         let _ = cx;
     }
@@ -1109,19 +1060,29 @@ mod tests {
     }
 
     #[test]
-    fn the_address_pad_types_and_back_closes_it() {
+    fn entering_an_address_opens_the_keyboard_and_back_closes_it() {
         let mut rig = Rig::new();
         let mut s = screen(&mut rig, &[]);
         rig.frame(&mut s, Vec::new());
         rig.press(&mut s, Key::Ok);
         assert!(s.pad_open() && rig.says(ADDRESS_TITLE) && rig.says(ADDRESS_HINT));
-        // Filled in with the TV's network; focus on 5.
-        assert_eq!(s.pad.as_ref().unwrap().edit.text, "192.168.1.");
-        assert_eq!(rig.focused(), Some(Id::ROOT.with("pad").with("keys").with(4usize)));
-        // The remote's digits type wherever focus is.
-        rig.press(&mut s, Key::Digit(2));
+        // Empty, with the TV's keyboard open at once.
+        assert_eq!(s.pad.as_ref().unwrap().edit.text, "");
+        assert!(s.pad.as_ref().unwrap().typing && s.modal());
+        // The keyboard takes the remote's digits; Back closes it, and the digits still type.
+        rig.press(&mut s, Key::Digit(1));
+        assert_eq!(s.pad.as_ref().unwrap().edit.text, "1");
+        assert!(rig.cx(|cx| s.back(cx)));
+        rig.frame(&mut s, Vec::new());
+        assert!(!s.pad.as_ref().unwrap().typing);
+        rig.press(&mut s, Key::Digit(0));
+        assert_eq!(s.pad.as_ref().unwrap().edit.text, "10");
+        // OK on the field opens the keyboard again.
+        assert_eq!(rig.focused(), Some(Id::ROOT.with("pad").with("field")));
         rig.press(&mut s, Key::Ok);
-        assert_eq!(s.pad.as_ref().unwrap().edit.text, "192.168.1.25");
+        assert!(s.pad.as_ref().unwrap().typing);
+        // Back closes the keyboard, then the screen.
+        assert!(rig.cx(|cx| s.back(cx)));
         assert!(rig.cx(|cx| s.back(cx)));
         rig.frame(&mut s, Vec::new());
         assert!(!s.pad_open() && rig.says(TITLE));
@@ -1191,7 +1152,7 @@ mod tests {
         rig.press(&mut s, Key::Ok);
         assert!(s.choosing.is_some() && !rig.says("isn't encrypted"));
 
-        // On the pad, the address that answered is warned about once; Connect again goes ahead.
+        // On the address entry, the address that answered is warned about once; Connect again goes ahead.
         let mut s = rig.cx(|cx| ServersScreen::new(cx, true));
         s.opened = true;
         let away = found("http://203.0.113.5:7539", "Away", None);

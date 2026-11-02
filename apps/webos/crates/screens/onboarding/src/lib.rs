@@ -1,8 +1,8 @@
 //! Pley for LG TV's first screens: choosing a server, signing in with a code and choosing who is
 //! watching, as the Android TV app has them (`apps/android/ui/tv/.../onboarding`).
 //!
-//! - [`ServersScreen`]: "Choose your server" (`Route::Servers`) and its address pad
-//!   (`Route::AddressPad` opens it on the pad).
+//! - [`ServersScreen`]: "Choose your server" (`Route::Servers`) and its address entry
+//!   (`Route::AddressPad` opens it there).
 //! - [`LinkScreen`]: signing in with a code and a QR code (`Route::Link`).
 //! - [`ProfilesScreen`]: "Who's watching?" (`Route::Profiles`), the PIN pad (`Route::Pin` opens it
 //!   on a profile's pad, or does what picking a profile without a PIN does) and a profile

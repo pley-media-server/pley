@@ -126,7 +126,8 @@ fn errors_read_pleys_body_or_fall_back_to_the_status() {
     assert!(!e.unreachable());
     assert!(e.out_of_reach());
     assert_eq!(e.problem(), "The transcoder isn't running.");
-    let e = ApiError::from_response(&Response::json(503, &serde_json::json!({"code": "requests_off", "message": "no"})));
+    let e =
+        ApiError::from_response(&Response::json(503, &serde_json::json!({"code": "requests_off", "message": "no"})));
     assert!(!e.out_of_reach());
     let stopped = Response::json(
         410,

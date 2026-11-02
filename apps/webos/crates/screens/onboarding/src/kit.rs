@@ -4,10 +4,9 @@
 
 use std::sync::{Arc, Mutex};
 
-use pley_base::{Cmd, Color, Icon, Point, Rect, RgbaImage, Size, TextOpts, TextStyle};
-use pley_kit::look::{focus_progress, mix};
-use pley_ui::theme::{self, radius};
-use pley_ui::{Easing, FocusOpts, Id, Motion, Response, Ui};
+use pley_base::{Cmd, Color, Point, Rect, RgbaImage, TextOpts, TextStyle};
+use pley_ui::Ui;
+use pley_ui::theme;
 
 /// The sign-in screens' background (`OnboardingKit.kt` `brandGlow`): BrandDeep at 18 % glowing from
 /// the bottom-right corner, gone by 60 % of the width. The page under it is Bg.
@@ -203,30 +202,6 @@ pub fn sweep_bar(ui: &mut Ui, at: Point, progress: f32) {
     if p > 0.0 {
         ui.fill(Rect::new(at.x, at.y, 160.0 * p, 4.0), theme::ACCENT, 2.0);
     }
-}
-
-/// A press flashing a pad key: Surface4 for 100 ms (`TvKeypad.kt`).
-const FLASH: Motion = Motion::new(0.100, Easing::LINEAR);
-
-/// A key of the pads drawn on its own (`TvPadKey`: the address pad's Delete beside Connect), as
-/// pley-kit's [`pley_kit::Keypad`] draws its keys: 64 dp, Surface3 with 6 dp corners, the glyph
-/// 28 dp; focused Accent with OnAccent and 1.08; a press, or `flashes` changing (the remote typed
-/// it), flashes Surface4 for 100 ms.
-pub fn pad_key(ui: &mut Ui, id: Id, at: Point, icon: Icon, flashes: u32) -> Response {
-    let rect = Rect::new(at.x, at.y, pley_kit::Keypad::KEY, pley_kit::Keypad::KEY);
-    let r = ui.focusable_with(id, rect, FocusOpts::default());
-    if r.activated {
-        ui.request_repaint();
-    }
-    let p = focus_progress(ui, id, r.focused);
-    let flash = if flashes > 0 { ui.animate_from(id.with(("flash", flashes)), 1.0, 0.0, FLASH) } else { 0.0 };
-    let fill = mix(mix(theme::SURFACE3, theme::ACCENT, p), theme::SURFACE4, flash);
-    let content = mix(mix(theme::FG, theme::ON_ACCENT, p), theme::FG, flash);
-    ui.transform(Point::ZERO, 1.0 + 0.08 * p, rect.center(), |ui| {
-        ui.fill(rect, fill, radius::CONTROL);
-        ui.icon(rect.place(Size::new(28.0, 28.0), 0.5, 0.5), icon, content);
-    });
-    r
 }
 
 /// A profile's own colour when the server gave one as `#rgb` or `#rrggbb`.

@@ -101,7 +101,7 @@ pub trait Device: Send + Sync {
     fn tier(&self) -> Tier;
     /// The capability report and Diagnostics lines for these settings.
     fn caps(&self, overrides: &CapsOverrides) -> CapsReport;
-    /// The TV's IPv4 address, for "Search this network" and the address pad.
+    /// The TV's IPv4 address, for "Search this network" and the address entry.
     fn local_ipv4(&self) -> Option<Ipv4Addr>;
     /// Times of day as `21:05` rather than `9:05 PM`.
     fn clock_24h(&self) -> bool;

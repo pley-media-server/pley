@@ -154,7 +154,7 @@ impl ConnectProblem {
     }
 }
 
-/// The server someone typed (the address pad's Connect): each candidate in
+/// The server someone typed (Enter an address's Connect): each candidate in
 /// turn, https first for names on the internet; the first Pley answer wins.
 pub fn connect(http: &Http, input: &str) -> Result<FoundServer, ConnectProblem> {
     let list = candidates(input);
