@@ -17,6 +17,8 @@ export interface User {
   is_admin?: boolean;
   /** A profile without a password, reached by switching. */
   managed?: boolean;
+  /** It has a PIN, which "Who's watching?" asks at a start. */
+  has_pin?: boolean;
   avatar_url: string | null;
   avatar_color: string | null;
   audio_language: string | null;

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { errorMessage, isApiError, unreachable, unreachableReason } from "../../../api/client";
-import type { HouseholdProfile } from "../../../api/types";
+import type { HouseholdProfile, User } from "../../../api/types";
 import { SignedOutError, TokenError } from "../../../auth/tokens";
 import { useUi } from "../../context";
 import { Pill, TextButton } from "../../kit/buttons";
@@ -57,6 +57,41 @@ export function switchRefusal(e: unknown): { message: string; locked?: boolean; 
   return { message: sentence(errorMessage(e)) };
 }
 
+/** Who the app is, as far as "Who's watching?" needs to know. */
+type Me = Pick<User, "id" | "has_pin">;
+
+/**
+ * The household as "Who's watching?" shows it (ProfilesViewModel's
+ * tiles). A saved list may be from before a switch, so `me` says which
+ * profile is current. The server says switching to that one needs nothing;
+ * it shows its lock when it has a PIN, which a start asks.
+ */
+export function profileTiles(household: HouseholdProfile[], me: Me | null): HouseholdProfile[] {
+  if (!me || !household.some((p) => p.id === me.id)) return household;
+  return household.map((p) => (p.id === me.id ? { ...p, current: true, needs: me.has_pin ? "pin" : "none" } : { ...p, current: false }));
+}
+
+/**
+ * What choosing `p` leads to: `confirm`, the current profile's PIN, checked
+ * with the switch-profile grant; `done`, Home as the current profile;
+ * `switch`, a switch without a PIN; `pin`, the pad for another profile's;
+ * `approve`, approval on a phone; `locked`, why it can't be used. `gate`:
+ * a start, where going on as a profile with a PIN asks it.
+ */
+export function profileChoice(p: HouseholdProfile, me: Me | null, gate: boolean): "confirm" | "done" | "switch" | "pin" | "approve" | "locked" {
+  if (p.current) return gate && me?.id === p.id && me.has_pin ? "confirm" : "done";
+  switch (p.needs) {
+    case "none":
+      return "switch";
+    case "pin":
+      return "pin";
+    case "password":
+      return "approve";
+    default:
+      return "locked";
+  }
+}
+
 /**
  * "Who's watching?" (TvProfilesScreen): the household's profiles, a PIN
  * pad for those with one, and approval on a phone for those that need a
@@ -65,7 +100,8 @@ export function switchRefusal(e: unknown): { message: string; locked?: boolean; 
 export function ProfilesScreen() {
   const app = useApp();
   const ui = useUi();
-  const [profiles, setProfiles] = useState<HouseholdProfile[]>(() => app.savedHousehold());
+  const [household, setHousehold] = useState<HouseholdProfile[]>(() => app.savedHousehold());
+  const profiles = profileTiles(household, app.me.value);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<Step>({ kind: "pick" });
@@ -79,18 +115,20 @@ export function ProfilesScreen() {
     const api = app.api.value;
     if (!api) return;
     setLoading(true);
-    api.profiles().then(
-      (list) => {
+    // Who the app is, for the current profile's PIN; alongside the list.
+    const me = app.me.value ? Promise.resolve() : app.loadAccount();
+    Promise.all([api.profiles(), me]).then(
+      ([list]) => {
         if (!alive.current) return;
         app.keepHousehold(list);
-        setProfiles(list);
+        setHousehold(list);
         setLoading(false);
       },
       (e) => {
         if (!alive.current || e instanceof SignedOutError) return;
         setLoading(false);
         // With a list on screen, trouble stays quiet.
-        setProfiles((shown) => {
+        setHousehold((shown) => {
           if (!shown.length) setError(isApiError(e, 403) ? "This sign-in can't switch profiles." : sentence(errorMessage(e)));
           return shown;
         });
@@ -115,13 +153,14 @@ export function ProfilesScreen() {
     if (busy !== null) return;
     setError(null);
     lastFocused.current = p.id;
-    if (p.current) {
-      if (!app.profileGatePassed && p.needs === "pin") setStep({ kind: "pin", profile: p, confirm: true, locked: false, error: null });
-      else done();
-      return;
-    }
-    switch (p.needs) {
-      case "none":
+    switch (profileChoice(p, app.me.value, !app.profileGatePassed)) {
+      case "confirm":
+        setStep({ kind: "pin", profile: p, confirm: true, locked: false, error: null });
+        return;
+      case "done":
+        done();
+        return;
+      case "switch":
         setBusy(p.id);
         switchTo(p, null).then(
           () => alive.current && done(),
@@ -137,10 +176,10 @@ export function ProfilesScreen() {
       case "pin":
         setStep({ kind: "pin", profile: p, confirm: false, locked: false, error: null });
         return;
-      case "password":
+      case "approve":
         setStep({ kind: "approve", profile: p });
         return;
-      default:
+      case "locked":
         setStep({ kind: "pin", profile: p, confirm: false, locked: true, error: "This profile can't be used from the app." });
     }
   };

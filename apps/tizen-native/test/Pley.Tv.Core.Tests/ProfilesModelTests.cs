@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Auth;
@@ -10,7 +11,10 @@ using Xunit;
 
 namespace Pley.Tv.Core.Tests;
 
-/// <summary>"Who's watching?" and the PIN pad: the Android app's ProfilesViewModelTest, as a TV.</summary>
+/// <summary>
+/// "Who's watching?" and the PIN pad: the Android app's ProfilesViewModelTest, as a TV. Its tiles
+/// and what choosing one leads to are the web TV app's too (fixtures/profiles.json).
+/// </summary>
 public class ProfilesModelTests
 {
     const string Server = "http://192.168.1.20:7539";
@@ -273,6 +277,62 @@ public class ProfilesModelTests
         await model.Pick(1);
         Assert.True(done);
         Assert.Empty(source.PinChecks);
+    }
+
+    public static IEnumerable<object[]> TileCases => Indexes("tiles");
+    public static IEnumerable<object[]> ChoiceCases => Indexes("choice");
+
+    static IEnumerable<object[]> Indexes(string rule) =>
+        Enumerable.Range(0, Fixtures.Load("profiles").GetProperty(rule).GetArrayLength()).Select(i => new object[] { i });
+
+    /// <summary>A case of fixtures/profiles.json: its household and who the app is.</summary>
+    static (JsonElement In, Action<FakeSource> SetUp) FixtureCase(string rule, int i)
+    {
+        var input = Fixtures.Load("profiles").GetProperty(rule)[i].GetProperty("in");
+        return (input, s =>
+        {
+            s.Household = input.GetProperty("household").EnumerateArray().Select(p => new HouseholdProfile
+            {
+                Id = p.GetProperty("id").GetInt64(),
+                Name = p.GetProperty("name").GetString()!,
+                Current = p.GetProperty("current").GetBoolean(),
+                Needs = p.GetProperty("needs").GetString()!,
+            }).ToList();
+            var me = input.GetProperty("me");
+            s.Me = me.ValueKind == JsonValueKind.Null ? null : new User { Id = me.GetProperty("id").GetInt64(), HasPin = me.GetProperty("has_pin").GetBoolean() };
+        });
+    }
+
+    static string Expected(string rule, int i) => Fixtures.Normalize(Fixtures.Load("profiles").GetProperty(rule)[i].GetProperty("out").GetRawText());
+
+    [Theory, MemberData(nameof(TileCases))]
+    public async Task Tiles_are_the_web_TV_apps(int i)
+    {
+        var (_, setUp) = FixtureCase("tiles", i);
+        var (model, _) = await Profiles(setUp: setUp);
+        var tiles = model.State.Value.Profiles.Select(t => new Dictionary<string, object> { ["id"] = t.Id, ["current"] = t.Current, ["needs"] = t.Needs });
+        Assert.Equal(Expected("tiles", i), Fixtures.Json(tiles));
+    }
+
+    [Theory, MemberData(nameof(ChoiceCases))]
+    public async Task Choosing_a_profile_is_the_web_TV_apps(int i)
+    {
+        var (input, setUp) = FixtureCase("choice", i);
+        var (model, source) = await Profiles(gate: input.GetProperty("gate").GetBoolean(), setUp: setUp);
+        var done = false;
+        model.Done += () => done = true;
+        await model.Pick(input.GetProperty("picked").GetInt64());
+        var choice = model.State.Value.Step switch
+        {
+            ProfilesStep.Pin { Confirm: true } => "confirm",
+            ProfilesStep.Pin { LockedOut: true } => "locked",
+            ProfilesStep.Pin => "pin",
+            ProfilesStep.Approve => "approve",
+            _ when source.Switches.Count > 0 => "switch",
+            _ when done => "done",
+            _ => "nothing",
+        };
+        Assert.Equal(Expected("choice", i), Fixtures.Json(choice));
     }
 
     [Fact]

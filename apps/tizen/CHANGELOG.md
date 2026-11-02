@@ -58,6 +58,8 @@ describes how they are made.
 
 ### Fixed
 
+- "Who's watching?" as the app starts asks the PIN of the profile it was
+  left on when that profile has one, as on Android TV, and shows its lock.
 - A server answering that it can't do something right now (the
   transcoder isn't running, a file can't be read) has its own message
   shown, instead of "Can't reach your server", and the TV doesn't go

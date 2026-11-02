@@ -1,0 +1,465 @@
+{
+  "tiles": [
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 2,
+            "name": "Sam",
+            "current": false,
+            "needs": "pin"
+          }
+        ],
+        "me": {
+          "id": 1,
+          "has_pin": true
+        }
+      },
+      "out": [
+        {
+          "id": 1,
+          "current": true,
+          "needs": "pin"
+        },
+        {
+          "id": 2,
+          "current": false,
+          "needs": "pin"
+        }
+      ]
+    },
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 2,
+            "name": "Sam",
+            "current": false,
+            "needs": "pin"
+          }
+        ],
+        "me": {
+          "id": 1,
+          "has_pin": false
+        }
+      },
+      "out": [
+        {
+          "id": 1,
+          "current": true,
+          "needs": "none"
+        },
+        {
+          "id": 2,
+          "current": false,
+          "needs": "pin"
+        }
+      ]
+    },
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 2,
+            "name": "Sam",
+            "current": false,
+            "needs": "pin"
+          },
+          {
+            "id": 3,
+            "name": "Robin",
+            "current": false,
+            "needs": "password"
+          }
+        ],
+        "me": {
+          "id": 2,
+          "has_pin": true
+        }
+      },
+      "out": [
+        {
+          "id": 1,
+          "current": false,
+          "needs": "none"
+        },
+        {
+          "id": 2,
+          "current": true,
+          "needs": "pin"
+        },
+        {
+          "id": 3,
+          "current": false,
+          "needs": "password"
+        }
+      ]
+    },
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 2,
+            "name": "Sam",
+            "current": false,
+            "needs": "pin"
+          }
+        ],
+        "me": {
+          "id": 2,
+          "has_pin": false
+        }
+      },
+      "out": [
+        {
+          "id": 1,
+          "current": false,
+          "needs": "none"
+        },
+        {
+          "id": 2,
+          "current": true,
+          "needs": "none"
+        }
+      ]
+    },
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 2,
+            "name": "Sam",
+            "current": false,
+            "needs": "pin"
+          }
+        ],
+        "me": null
+      },
+      "out": [
+        {
+          "id": 1,
+          "current": true,
+          "needs": "none"
+        },
+        {
+          "id": 2,
+          "current": false,
+          "needs": "pin"
+        }
+      ]
+    },
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 2,
+            "name": "Sam",
+            "current": false,
+            "needs": "pin"
+          }
+        ],
+        "me": {
+          "id": 9,
+          "has_pin": true
+        }
+      },
+      "out": [
+        {
+          "id": 1,
+          "current": true,
+          "needs": "none"
+        },
+        {
+          "id": 2,
+          "current": false,
+          "needs": "pin"
+        }
+      ]
+    }
+  ],
+  "choice": [
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 2,
+            "name": "Sam",
+            "current": false,
+            "needs": "pin"
+          }
+        ],
+        "me": {
+          "id": 1,
+          "has_pin": true
+        },
+        "gate": true,
+        "picked": 1
+      },
+      "out": "confirm"
+    },
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 2,
+            "name": "Sam",
+            "current": false,
+            "needs": "pin"
+          }
+        ],
+        "me": {
+          "id": 1,
+          "has_pin": true
+        },
+        "gate": false,
+        "picked": 1
+      },
+      "out": "done"
+    },
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 2,
+            "name": "Sam",
+            "current": false,
+            "needs": "pin"
+          }
+        ],
+        "me": {
+          "id": 1,
+          "has_pin": false
+        },
+        "gate": true,
+        "picked": 1
+      },
+      "out": "done"
+    },
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 2,
+            "name": "Sam",
+            "current": false,
+            "needs": "pin"
+          }
+        ],
+        "me": null,
+        "gate": true,
+        "picked": 1
+      },
+      "out": "done"
+    },
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 2,
+            "name": "Sam",
+            "current": false,
+            "needs": "pin"
+          }
+        ],
+        "me": {
+          "id": 2,
+          "has_pin": true
+        },
+        "gate": true,
+        "picked": 2
+      },
+      "out": "confirm"
+    },
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 2,
+            "name": "Sam",
+            "current": false,
+            "needs": "pin"
+          }
+        ],
+        "me": {
+          "id": 2,
+          "has_pin": true
+        },
+        "gate": true,
+        "picked": 1
+      },
+      "out": "switch"
+    },
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 2,
+            "name": "Sam",
+            "current": false,
+            "needs": "pin"
+          }
+        ],
+        "me": {
+          "id": 1,
+          "has_pin": false
+        },
+        "gate": true,
+        "picked": 2
+      },
+      "out": "pin"
+    },
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 3,
+            "name": "Robin",
+            "current": false,
+            "needs": "password"
+          }
+        ],
+        "me": {
+          "id": 1,
+          "has_pin": false
+        },
+        "gate": false,
+        "picked": 3
+      },
+      "out": "approve"
+    },
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 4,
+            "name": "Kids",
+            "current": false,
+            "needs": "locked"
+          }
+        ],
+        "me": {
+          "id": 1,
+          "has_pin": false
+        },
+        "gate": false,
+        "picked": 4
+      },
+      "out": "locked"
+    },
+    {
+      "in": {
+        "household": [
+          {
+            "id": 1,
+            "name": "Anna",
+            "current": true,
+            "needs": "none"
+          },
+          {
+            "id": 5,
+            "name": "Alex",
+            "current": false,
+            "needs": "passkey"
+          }
+        ],
+        "me": {
+          "id": 1,
+          "has_pin": false
+        },
+        "gate": false,
+        "picked": 5
+      },
+      "out": "locked"
+    }
+  ]
+}
