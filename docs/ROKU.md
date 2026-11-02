@@ -148,7 +148,7 @@ Search is typed on the Roku's keyboard and asked once typing rests half a
 second. What the libraries have comes in rows by kind, in the other apps'
 order: People, Live TV (cards: OK watches the channel, and Up and Down in
 the player go through what was found), Movies, Shows, Seasons, Episodes,
-Artists, Albums and Tracks; then On TMDB for those who may ask (below).
+Artists, Albums and Tracks; then Discover for those who may ask (below).
 Right from the keyboard's last column reaches them.
 
 Before anything is typed it lists the recent searches: the last 10 whose
@@ -287,8 +287,8 @@ its number counts what waits: a manager's pending and failed requests
   cinemas, Popular anime, each loaded as it comes into view and ending with
   See all (a grid, a page at a time; after five pages in a row that leave
   it short of a screenful, as an age limit can, Look further asks for
-  more); then Your requests, from the first one asked for. Search at the
-  top looks on TMDB, a page at a time likewise.
+  more); then Your requests, from the first one asked for. TMDB is
+  searched from Search.
 - **A TMDB title's page:** backdrop and poster, year, runtime or seasons,
   certification, genres, rating, tagline and overview; one main action
   (Open, Request, Request more seasons, Tell me too) or the line that says
@@ -310,10 +310,16 @@ its number counts what waits: a manager's pending and failed requests
   a reason… (the keyboard), Mark as added by hand and Delete; Withdraw,
   Remove and Delete ask first. Opening the account's own requests marks
   their news seen.
-- **Search** shows titles **On TMDB** after the libraries' own, for those
-  who may ask. A library title that was asked for shows its request's
-  stage under the poster, and a show with seasons left to ask for ends its
-  seasons with Request more seasons.
+- **Search** shows the titles the libraries lack in a **Discover** row
+  after the libraries' own, for those who may ask; OK opens a title's
+  page. When TMDB isn't answering, refuses the server's key or isn't open
+  to the account, a tile says so, with Select to try again where that
+  helps. TMDB is searched for the first 200 characters of the words. See
+  all ends the row: a grid titled for the words ("Results for “dune”")
+  of every title TMDB has for them, with its badge, a page at a time as
+  See all's are; Back goes back to Search. A library title that
+  was asked for shows its request's stage under the poster, and a show
+  with seasons left to ask for ends its seasons with Request more seasons.
 - **Ready to watch:** a requested title that arrives is told of ("“The
   Last Lighthouse” is ready to watch." with Open and OK; "3 of your
   requests have news" for several), never over playing video, a sign-in or
@@ -444,9 +450,10 @@ bun run images    # the nine-patch focus and watched-mark images
   tracks, makes a playlist, plays a track from Now Playing's Up next,
   shuffles the queue and puts its order back, steps the music's sleep
   timer through its choices, plays a track from under an album's "Disc 2",
-  asks for a movie and three seasons from Discover, approves a request,
-  opens a title from its ready-to-watch notice, and checks that a server
-  without requests is asked nothing but the summary.
+  opens the See all of Search's Discover row, asks for a movie and three
+  seasons from Discover, approves a request, opens a title from its
+  ready-to-watch notice, and checks that a server without requests is
+  asked nothing but the summary.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
   Next and the sleep timers' ends have only unit tests), one fetch at a
   time, the odd dropped key, and no measure of a Roku's speed.

@@ -27,6 +27,8 @@ describes how they are made.
   and no longer the codec (H.264, HEVC) or a lower resolution (1080p,
   720p). The next start reads each file's dynamic range once, for the
   libraries to list it quickly.
+- Discover in the web app has no search field: Search shows what can be
+  asked for in a Discover row after the libraries' results.
 
 ## [0.1.2] - 2026-11-01
 

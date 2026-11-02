@@ -65,8 +65,9 @@ What Pley does, in full. The [README](../README.md) has the short version.
 
 ## Requests
 
-- Discover finds movies and shows on TMDB (trending, popular, upcoming,
-  anime, or a search) and marks what the libraries have.
+- Discover shows TMDB's movies and shows (trending, popular, upcoming,
+  anime) and marks what the libraries have. Search lists them too, after
+  the libraries' results, for those who may ask.
 - People ask for a movie, or for the seasons of a show the libraries lack;
   administrators approve or decline, with a reason. Accounts may be allowed
   to have theirs approved as asked, and limited to so many movies and

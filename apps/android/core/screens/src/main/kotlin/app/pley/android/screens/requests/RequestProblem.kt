@@ -1,5 +1,7 @@
 package app.pley.android.screens.requests
 
+import app.pley.android.data.RequestsState
+import app.pley.android.data.mayAsk
 import app.pley.android.model.MediaRequest
 import app.pley.android.model.RequestScope
 import app.pley.android.network.ApiException
@@ -54,6 +56,15 @@ sealed interface RequestProblem {
     val retry: Boolean get() = this is TmdbDown || this is Offline || this is Other
 
     companion object {
+        /** Why Discover's pages can't show, from [gate]: signed in before requests, requests off, no access; `null` otherwise. */
+        fun of(gate: RequestsState): RequestProblem? = when {
+            gate is RequestsState.SignInAgain -> SignInAgain(RequestScope.Requests)
+            gate == RequestsState.Hidden -> Off
+            gate == RequestsState.NoAccess -> NoAccess
+            gate is RequestsState.Open && !gate.mayAsk -> NoAccess
+            else -> null
+        }
+
         fun of(error: Throwable): RequestProblem {
             val api = error as? ApiException ?: return if (error is OfflineException) Offline(error) else Other(error)
             val details = api.details

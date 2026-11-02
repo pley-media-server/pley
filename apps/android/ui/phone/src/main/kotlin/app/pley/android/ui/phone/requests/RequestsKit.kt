@@ -204,18 +204,9 @@ internal fun RequestProblemState(
     modifier: Modifier = Modifier,
 ) {
     val shell = LocalPhoneShell.current
-    val title = when (problem) {
-        is RequestProblem.Offline -> stringResource(app.pley.android.ui.phone.R.string.kit_offline_title)
-        is RequestProblem.Other -> failed
-        else -> texts.problem(problem, summary)
-    }
-    val body = when (problem) {
-        is RequestProblem.Offline, is RequestProblem.Other -> texts.problem(problem, summary)
-        else -> texts.problemBody(problem, summary)
-    }
     EmptyState(
-        title = title,
-        body = body,
+        title = problemTitle(problem, summary, texts, failed),
+        body = problemBody(problem, summary, texts),
         icon = problemIcon(problem),
         modifier = modifier.semantics { liveRegion = LiveRegionMode.Polite },
         action = when {
@@ -224,6 +215,20 @@ internal fun RequestProblemState(
             else -> null
         },
     )
+}
+
+/** [problem]'s heading: "Can't reach your server", [failed] over any other failure, else its own words. */
+@Composable
+internal fun problemTitle(problem: RequestProblem, summary: RequestSummary?, texts: RequestTexts, failed: String): String = when (problem) {
+    is RequestProblem.Offline -> stringResource(app.pley.android.ui.phone.R.string.kit_offline_title)
+    is RequestProblem.Other -> failed
+    else -> texts.problem(problem, summary)
+}
+
+/** The line under [problemTitle], where there is one: a failure's own sentence, or what can be done. */
+internal fun problemBody(problem: RequestProblem, summary: RequestSummary?, texts: RequestTexts): String? = when (problem) {
+    is RequestProblem.Offline, is RequestProblem.Other -> texts.problem(problem, summary)
+    else -> texts.problemBody(problem, summary)
 }
 
 private fun problemIcon(problem: RequestProblem): PleyIcon = when (problem) {

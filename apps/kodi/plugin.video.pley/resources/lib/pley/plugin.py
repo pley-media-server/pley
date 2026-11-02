@@ -371,13 +371,16 @@ class Plugin(asking.Asking):
         client = self.client()
         # TMDB's titles the libraries lack, asked at the same time, never
         # waited for (asking.Searching): where this sign-in may ask, as the
-        # service last read the summary (search asks nothing more first).
-        may_ask = requests.may_ask(self.requests_summary(ask=False))
-        tmdb = asking.Searching(self.client(asking.FOUND_WAIT), query, self.path) if may_ask else None
+        # service last read the summary (search asks nothing more first),
+        # for the words as the server takes them.
+        tmdb_query = requests.search_text(query)
+        may_ask = bool(tmdb_query) and requests.may_ask(self.requests_summary(ask=False))
+        tmdb = asking.Searching(self.client(asking.FOUND_WAIT), tmdb_query, self.path) if may_ask else None
         found = client.get("/api/search", q=query, limit=100, summaries=1)
         items = found.get("items", [])
         channels = found.get("channels") or []
-        if not items and not channels and tmdb is None:
+        alone = not items and not channels
+        if alone and tmdb is None:
             kodi.notify(kodi.text("nothing_found"))
         self.items(items, content="videos")
         # Live TV's channels found by name, number or what's on: each plays.
@@ -390,14 +393,15 @@ class Plugin(asking.Asking):
         xbmcplugin.addDirectoryItems(self.handle, entries, len(entries))
         shown = tmdb.ready() if tmdb is not None else []
         if tmdb is not None:
-            if not items and not channels:
+            if alone:
                 # OK searches again.
                 self.entry(kodi.text("nothing_in_libraries"), {"route": "search"}, "DefaultIconInfo.png")
-            self.on_tmdb(query, shown)
+            # Why TMDB refused, once it answered.
+            self.on_tmdb(tmdb_query, shown, tmdb.refused if shown is not None else None, alone)
         self.end()
         if shown is None:
             # Shown again if they come in time.
-            tmdb.later()
+            tmdb.later(alone)
 
     def route_play(self) -> None:
         client = self.client()

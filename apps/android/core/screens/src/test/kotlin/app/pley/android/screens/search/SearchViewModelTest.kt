@@ -23,6 +23,7 @@ import app.pley.android.screens.PleyKey
 import app.pley.android.screens.library.FakeTile
 import app.pley.android.screens.library.FakeTiles
 import app.pley.android.screens.library.TileLook
+import app.pley.android.screens.requests.RequestProblem
 import app.pley.android.testing.Fixtures
 import app.pley.android.testing.data.FakeRequests
 import java.io.IOException
@@ -287,7 +288,7 @@ class SearchViewModelTest {
         assertEquals("sport", vm.state.value.recent.first())
     }
 
-    // ------------------------------------------------------------ On TMDB
+    // ------------------------------------------------------------ Discover row
 
     private val summary: RequestSummary = Fixtures.decode("requests/summary.json")
     private val trending: DiscoverPage = Fixtures.decode("discover/trending.json")
@@ -360,16 +361,46 @@ class SearchViewModelTest {
         assertEquals(TmdbSection.Hidden, vm.tmdb.value)
         assertTrue(off.api.calls("discoverSearch").isEmpty())
 
-        // TMDB away, or nothing there: the libraries' results alone.
-        val down = FakeRequests(summary)
-        down.searches = { _, _, _ -> throw ApiException(503, "tmdb_down", "TMDB isn't answering") }
-        val away = viewModel("robot", down)
-        advanceUntilIdle()
-        assertEquals(TmdbSection.Hidden, away.tmdb.value)
+        // Nothing there: the libraries' results alone.
         val empty = FakeRequests(summary)
         empty.searches = { _, page, _ -> DiscoverPage(page, 1, emptyList()) }
         val nothing = viewModel("robot", empty)
         advanceUntilIdle()
         assertEquals(TmdbSection.Hidden, nothing.tmdb.value)
+    }
+
+    @Test
+    fun onTmdbSaysWhyTmdbCantBeSearchedAndRetryAsksAgain() = runTest(dispatcher) {
+        val requests = FakeRequests(summary)
+        var down = true
+        requests.searches = { _, page, _ -> if (down) throw ApiException(503, "tmdb_down", "TMDB isn't answering") else trending.copy(page = page) }
+        val vm = viewModel("robot", requests)
+        advanceUntilIdle()
+        assertEquals(TmdbSection.Failed("robot", RequestProblem.TmdbDown, summary), vm.tmdb.value)
+        down = false
+        vm.retryTmdb()
+        advanceUntilIdle()
+        assertEquals(trending.results.map { it.tmdbId }, (vm.tmdb.value as TmdbSection.Ready).titles.map { it.tmdbId })
+
+        // A key TMDB refused: said too, an administrator's to fix.
+        val refused = FakeRequests(summary)
+        refused.searches = { _, _, _ -> throw ApiException(503, "tmdb_key", "TMDB refused the key") }
+        val other = viewModel("robot", refused)
+        advanceUntilIdle()
+        assertEquals(RequestProblem.TmdbKey, (other.tmdb.value as TmdbSection.Failed).problem)
+    }
+
+    @Test
+    fun onTmdbAsksForAtMostTheServers200Characters() = runTest(dispatcher) {
+        val requests = FakeRequests(summary)
+        val asked = mutableListOf<String>()
+        requests.searches = { q, page, _ ->
+            asked += q
+            trending.copy(page = page)
+        }
+        val vm = viewModel("x".repeat(250), requests)
+        advanceUntilIdle()
+        assertEquals(listOf("x".repeat(200)), asked.distinct())
+        assertEquals("x".repeat(200), (vm.tmdb.value as TmdbSection.Ready).query)
     }
 }

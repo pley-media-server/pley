@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { DiscoverTitle, ItemSummary, LiveChannel, PersonSummary } from "../../api/types";
 import { cardSubtitle, episodeLabel } from "../../format/format";
 import { nowAndNext, programProgress } from "../../live/data";
 import { Cancel } from "../../net/transport";
-import { addTitles, mayAsk, titleBadge, titleKey, titleSubtitle, titleTone } from "../../requests";
+import { addTitles, mayAsk, problemWords, requestsProblem, searchText, titleBadge, titleKey, titleSubtitle, titleTone } from "../../requests";
 import { useUi } from "../context";
-import { Chip, TextButton } from "../kit/buttons";
+import { Chip, Pill, TextButton } from "../kit/buttons";
 import { TextField } from "../kit/field";
 import { F, G } from "../kit/focusable";
-import { Row, ROW_GAP, rowHeight, SectionPage, type Section } from "../kit/row";
+import { HEADER, HEADER_TO_TILES, Row, ROW_GAP, rowHeight, SectionPage, type Section } from "../kit/row";
 import { ArtTile, SeeAllTile, Tile, TILES, TileCaption, type TileKind } from "../kit/tile";
 import type { Entry } from "../shell/navigator";
 import { failedTitle, problem, useApp } from "./common";
@@ -20,8 +20,13 @@ import { TitleTile, useMarks } from "./request-kit";
 
 const RECENTS = 10;
 const ROWS_TOP = 96;
-/** The line over On TMDB when the libraries have nothing. */
+/** The line over the Discover row when the libraries have nothing. */
 const NONE_H = 20;
+/** The Discover row shows up to 20 titles, from at most 3 of its pages (an age limit can leave a page empty), as the web's does. */
+const TMDB_TITLES = 20;
+const TMDB_PAGES = 3;
+/** The Discover row saying why TMDB didn't answer: its header, the problem in a line and why in up to two, and Retry. */
+const TMDB_PROBLEM_H = HEADER + HEADER_TO_TILES + 22 + 4 + 40 + 16 + 40;
 
 /** The groups results come in, in order, with their headers and tiles. */
 const GROUPS: { kind: ItemSummary["kind"] | "person" | "channel"; title: string; tile: TileKind }[] = [
@@ -37,8 +42,8 @@ const GROUPS: { kind: ItemSummary["kind"] | "person" | "channel"; title: string;
 ];
 
 type Results = { items: ItemSummary[]; people: PersonSummary[]; channels: LiveChannel[] };
-/** What TMDB has for the words that the libraries lack (`at`: when it came, for the badges marked since); `failed`: no answer. */
-type OnTmdb = { query: string; titles: DiscoverTitle[]; at: number; failed: boolean };
+/** What TMDB has for the words that the libraries lack (`at`: when it came, for the badges marked since); `error`: why it didn't answer. */
+type OnTmdb = { query: string; titles: DiscoverTitle[]; at: number; error: unknown };
 
 /** The recent searches kept on this TV, per server and profile. */
 function recentKey(server: string | null, user: number | null): string {
@@ -56,9 +61,11 @@ function subtitleOf(item: ItemSummary): string {
 /**
  * Search (TvSearchScreen): the field, typed with the TV's keyboard (and
  * its microphone); results 250 ms after typing pauses, grouped in rows
- * (Live TV channels among them, where it is open to the profile), then On
- * TMDB for whoever may ask: what the libraries lack, asked in parallel so
- * it never holds them up; recent searches while the field is empty.
+ * (Live TV channels among them, where it is open to the profile), then
+ * Discover for whoever may ask: what TMDB has that the libraries lack,
+ * asked in parallel so it never holds them up, with See all for everything
+ * TMDB has for the words, or why TMDB didn't answer; recent searches while
+ * the field is empty.
  */
 export function SearchScreen(p: { entry: Entry; query?: string }) {
   const app = useApp();
@@ -135,28 +142,37 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
     return () => clearTimeout(t);
   }, [query]);
 
-  // On TMDB: asked beside the libraries' search, with the same pause, for whoever may ask.
+  // The Discover row: asked beside the libraries' search, with the same pause, for whoever may ask; the words as TMDB's search takes them.
   const s = app.requests.value;
   const asks = mayAsk(s) && s?.sign_in_again !== "requests";
+  const words = searchText(text);
   const marked = useMarks();
   const [tmdb, setTmdb] = useState<OnTmdb | null>((p.entry.state.tmdb as OnTmdb | undefined) ?? null);
+  const [tries, setTries] = useState(0);
   useEffect(() => {
-    if (!asks || !query || (tmdb && tmdb.query === query && !tmdb.failed)) return;
+    if (!asks || !words || (tmdb && tmdb.query === words && !tmdb.error)) return;
     const c = new Cancel();
     const t = setTimeout(() => {
-      ui.api.discoverSearch(query, 1, true, c).then(
-        (page) => {
+      let found: OnTmdb = { query: words, titles: [], at: 0, error: null };
+      const read = (n: number): Promise<void> =>
+        ui.api.discoverSearch(words, n, true, c).then((page) => {
+          found = { ...found, titles: addTitles(found.titles, page.results), at: found.at || Date.now() };
+          if (found.titles.length >= TMDB_TITLES || n >= Math.min(page.total_pages, TMDB_PAGES)) return;
+          // A later page failing leaves what the first ones brought.
+          return read(n + 1).catch(() => undefined);
+        });
+      read(1).then(
+        () => {
           if (c.cancelled) return;
-          const found: OnTmdb = { query, titles: addTitles([], page.results), at: Date.now(), failed: false };
+          found = { ...found, titles: found.titles.slice(0, TMDB_TITLES) };
           // New titles: the row starts at its first again.
           const rows = p.entry.state.rowIndex as Record<string, number> | undefined;
           if (rows) delete rows.tmdb;
           setTmdb(found);
           p.entry.state.tmdb = found;
         },
-        () => {
-          // Nothing to say in search: the section stays out.
-          if (!c.cancelled) setTmdb({ query, titles: [], at: Date.now(), failed: true });
+        (e: unknown) => {
+          if (!c.cancelled) setTmdb({ query: words, titles: [], at: Date.now(), error: e });
         },
       );
     }, 250);
@@ -164,12 +180,19 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
       clearTimeout(t);
       c.cancel();
     };
-  }, [query, asks]);
+  }, [words, asks, tries]);
 
   const focusField = () => {
     const el = fieldRef.current?.querySelector<HTMLElement>("[data-f]");
     return !!el && ui.focus.focus(el);
   };
+  // Retry went with TMDB's answer: the titles in its place take focus, else the field.
+  useLayoutEffect(() => {
+    const was = ui.focus.current;
+    if (!was || was.isConnected || was.getAttribute("data-fid") !== "tmdb/retry") return;
+    const first = document.querySelector<HTMLElement>('.search-rows [data-fid^="tmdb/"]');
+    if (!(first && ui.focus.focus(first))) focusField();
+  });
   const open = (item: ItemSummary) => {
     remember(query);
     ui.nav.open(pageOf(item));
@@ -291,23 +314,26 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
     }
   }
 
-  // On TMDB after the libraries' rows: grey wells while it comes; with nothing in the libraries, the line saying so above it.
+  // The Discover row after the libraries' rows: grey wells while it comes, or why it didn't; with nothing in the libraries, the line saying so above it.
   const fromLibraries = sections.length;
-  const onTmdb = tmdb && tmdb.query === query ? tmdb : null;
-  if (asks && results && query && (!onTmdb || (!onTmdb.failed && onTmdb.titles.length > 0))) {
+  const onTmdb = tmdb && tmdb.query === words ? tmdb : null;
+  if (asks && results && words && (!onTmdb || !!onTmdb.error || onTmdb.titles.length > 0)) {
     if (!fromLibraries) {
       sections.push({ key: "none", height: NONE_H, anchor: null, render: () => <div class="t-body c-muted search-none">Nothing in your libraries matches</div> });
     }
     const titles = onTmdb ? onTmdb.titles.map((t) => marked(t, onTmdb.at)) : [];
+    const error = onTmdb ? onTmdb.error : null;
     sections.push({
       key: "tmdb",
-      height: rowHeight("poster"),
+      height: error ? TMDB_PROBLEM_H : rowHeight("poster"),
       // Under the line, where it is, so that the line stays in sight.
       anchor: fromLibraries ? ROWS_TOP : ROWS_TOP + NONE_H + ROW_GAP,
       render: (onFocus) =>
-        titles.length ? (
+        error ? (
+          <TmdbProblem error={error} manage={!!s?.manage} onFocus={onFocus} onRetry={() => setTries((n) => n + 1)} />
+        ) : titles.length ? (
           <Row
-            title="On TMDB"
+            title="Discover"
             kind="poster"
             items={titles}
             keyOf={(t) => titleKey(t)}
@@ -336,18 +362,17 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
             seeAll={(place) => (
               <SeeAllTile
                 kind="poster"
-                label="See all on Discover"
                 fid="tmdb/all"
                 onFocus={place.onFocus}
                 onSelect={() => {
                   remember(query);
-                  ui.nav.open({ name: "discover", query });
+                  ui.nav.open({ name: "discoverSearch", query: words });
                 }}
               />
             )}
           />
         ) : (
-          <RowSkeleton title="On TMDB" />
+          <RowSkeleton title="Discover" />
         ),
     });
   }
@@ -445,6 +470,27 @@ export function SearchScreen(p: { entry: Entry; query?: string }) {
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** The Discover row when TMDB's search didn't answer: why, and Retry where it may help. */
+function TmdbProblem(p: { error: unknown; manage: boolean; onFocus: () => void; onRetry: () => void }) {
+  const why = problemWords(requestsProblem(p.error), p.manage) ?? { title: failedTitle(p.error, "Couldn't search TMDB"), body: problem(p.error), retry: true };
+  return (
+    <div class="row">
+      <div class="row-header t-section one-line">Discover</div>
+      <div class="search-tmdb-problem" role="status">
+        <div class="t-title c-fg one-line">{why.title}</div>
+        <div class="t-body c-muted lines-2" style="margin-top:4px">
+          {why.body}
+        </div>
+        {why.retry && (
+          <G kind="row" style="margin-top:16px">
+            <Pill label="Retry" icon="refresh-cw" fid="tmdb/retry" onFocus={p.onFocus} onSelect={p.onRetry} />
+          </G>
+        )}
+      </div>
     </div>
   );
 }

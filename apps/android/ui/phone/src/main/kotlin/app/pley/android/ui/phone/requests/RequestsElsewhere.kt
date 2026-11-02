@@ -50,7 +50,7 @@ internal fun RequestsRows(entry: RequestsEntry) {
             stringResource(R.string.requests_discover),
             value = stringResource(R.string.requests_discover_hint),
             icon = PleyIcons.Compass,
-            onClick = { navigator.open(PleyKey.Discover()) },
+            onClick = { navigator.open(PleyKey.Discover) },
             modifier = Modifier.testTag(ME_DISCOVER),
         )
     }

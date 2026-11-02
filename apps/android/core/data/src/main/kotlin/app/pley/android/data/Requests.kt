@@ -95,7 +95,7 @@ val RequestsState.summary: RequestSummary?
         RequestsState.Hidden, RequestsState.NoAccess, RequestsState.Unknown -> null
     }
 
-/** Asking works from here now: Discover's rows, search's "On TMDB", title pages' Request. */
+/** Asking works from here now: Discover's rows, search's Discover row, title pages' Request. */
 val RequestsState.mayAsk: Boolean get() = this is RequestsState.Open && summary.mayAsk
 
 /**
@@ -181,7 +181,7 @@ interface RequestsRepository {
     /** Page [page] of [list], from the server. */
     suspend fun page(list: DiscoverList, page: Int): DiscoverPage
 
-    /** TMDB's titles matching [query]; [missing] leaves out those a library has. */
+    /** TMDB's titles matching [query] (as [searchText] makes it); [missing] leaves out those a library has. */
     suspend fun search(query: String, page: Int = 1, missing: Boolean = false): DiscoverPage
 
     /** A title page, held in memory while it is used. */
@@ -232,6 +232,16 @@ interface RequestsRepository {
     companion object {
         /** Notices kept while they can't show. */
         const val KEPT = 3
+
+        /** The longest search the server takes, in characters: it refuses longer ones. */
+        const val SEARCH_MAX = 200
+
+        /** [query] as the server takes it: trimmed, and cut to [SEARCH_MAX] characters, never halfway through one. */
+        fun searchText(query: String): String {
+            val trimmed = query.trim()
+            if (trimmed.codePointCount(0, trimmed.length) <= SEARCH_MAX) return trimmed
+            return trimmed.substring(0, trimmed.offsetByCodePoints(0, SEARCH_MAX)).trim()
+        }
 
         /** Requests that never show: graphs made without them (tests of other screens, previews). */
         val None: RequestsRepository = object : RequestsRepository {
@@ -535,7 +545,7 @@ internal class ServerRequests(
     override suspend fun page(list: DiscoverList, page: Int): DiscoverPage = api().discover(list, page)
 
     override suspend fun search(query: String, page: Int, missing: Boolean): DiscoverPage =
-        api().discoverSearch(query.trim(), page, missing)
+        api().discoverSearch(RequestsRepository.searchText(query), page, missing)
 
     override fun title(kind: TitleKind, tmdbId: Long): Flow<Loadable<DiscoverDetail>> = cache.observe(titleResource(kind, tmdbId))
 

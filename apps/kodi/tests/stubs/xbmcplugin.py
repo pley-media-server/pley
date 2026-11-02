@@ -27,5 +27,9 @@ def setContent(handle, content):
     calls.append(("content", content))
 
 
+def setPluginCategory(handle, category):
+    calls.append(("category", category))
+
+
 def addSortMethod(handle, sortMethod, labelMask="", label2Mask=""):
     sorts.append((sortMethod, labelMask, label2Mask))

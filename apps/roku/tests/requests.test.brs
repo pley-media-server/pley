@@ -376,6 +376,39 @@ sub test_requests_problems_say_what_to_do()
     tkInvalid(reqProblem({ status: 0, error: "network" }, false))
 end sub
 
+' Search's Discover row says every problem, and offers Try again only where
+' asking again may help.
+sub test_requests_search_says_what_stops_tmdb()
+    down = reqSearchProblemTile({ status: 503, error: "tmdb_down" }, false)
+    tkEqual(down.title, "TMDB isn't answering. Select to try again.")
+    tkEqual(down.kind, "retry")
+    key = reqSearchProblemTile({ status: 503, error: "tmdb_key" }, true)
+    tkEqual(key.title, "TMDB refused this server's key.")
+    tkEqual(key.kind, "note")
+    tkInvalid(navForTile(key), "it opens nothing")
+    tkEqual(reqSearchProblemTile({ status: 403, error: "no_access" }, false).title, "Requests aren't open to this account.")
+    tkEqual(reqSearchProblemTile({ status: 503, error: "unavailable" }, false).kind, "note")
+    other = reqSearchProblemTile({ status: 500, error: "internal", message: "database is locked" }, false)
+    tkEqual(other.title, "Couldn't load these. Select to try again.")
+    tkEqual(other.kind, "retry")
+end sub
+
+' The See all of Search's Discover row: TMDB's results for the words as its search takes
+' them, at most 200 characters.
+sub test_requests_see_all_of_a_list_or_a_search()
+    list = reqSeeAll("upcoming", "")
+    tkEqual(list, { title: "Coming to cinemas", path: "/api/discover/upcoming", empty: "Nothing here right now." })
+    search = reqSeeAll("", "  dune ")
+    tkEqual(search.title, "Results for “dune”")
+    tkEqual(search.path, "/api/discover/search?q=dune")
+    tkEqual(search.empty, "Nothing found for “dune”.")
+    tkEqual(reqSeeAll("", "the matrix").path, "/api/discover/search?q=the%20matrix")
+    long = String(250, "a")
+    tkEqual(reqSearchWords(long), String(200, "a"))
+    tkEqual(reqSearchWords(String(199, "a") + " b"), String(199, "a"), "no space left at the end")
+    tkEqual(reqSearchWords("  dune  "), "dune")
+end sub
+
 sub test_requests_title_page_of_a_movie()
     summary = reqTestSummary({ moviesLimit: 3 })
     page = reqTitlePage(reqTestDetail({}), summary, "http://nas:7539", reqTestNow(), 0)

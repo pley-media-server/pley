@@ -14,6 +14,7 @@ import app.pley.android.model.DiscoverPage
 import app.pley.android.model.TitleKind
 import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.requests.RequestProblem
 import app.pley.android.screens.search.SearchGroup
 import app.pley.android.screens.search.SearchGroupKind
 import app.pley.android.screens.search.SearchResultsState
@@ -32,7 +33,8 @@ import org.robolectric.annotation.Config
 /**
  * The phone's search: the field up first, recent searches, the groups
  * with their counts, the empty page's words, and Discover in it: its way
- * in before typing, and what TMDB has after the libraries' results.
+ * in before typing, and what TMDB has after the libraries' results, or why
+ * TMDB can't be searched.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w412dp-h915dp-xxhdpi")
@@ -54,6 +56,7 @@ class PhoneSearchUiTest {
     private val chosen = mutableListOf<String>()
     private val watched = mutableListOf<LiveChannel>()
     private var cleared = 0
+    private var tmdbRetries = 0
     private val trending: DiscoverPage = Fixtures.decode("discover/trending.json")
 
     private fun show(
@@ -74,6 +77,7 @@ class PhoneSearchUiTest {
                         open = { group, id -> if (group == SearchGroupKind.People) PleyKey.Person(id) else PleyKey.Item(id) },
                         onWatch = { watched += it },
                         tmdb = tmdb,
+                        onRetryTmdb = { tmdbRetries++ },
                         discover = discover,
                     )
                 }
@@ -140,7 +144,7 @@ class PhoneSearchUiTest {
         show(SearchUiState("", listOf("north"), SearchResultsState.Idle), discover = true)
         compose.onNodeWithText("Find movies and shows to ask for").assertExists()
         compose.onNodeWithTag(SEARCH_DISCOVER).performClick()
-        assertEquals(listOf<PleyKey>(PleyKey.Discover()), opened)
+        assertEquals(listOf<PleyKey>(PleyKey.Discover), opened)
         // The recent searches follow it.
         compose.onNodeWithText("north").assertExists()
     }
@@ -152,16 +156,40 @@ class PhoneSearchUiTest {
     }
 
     @Test
-    fun whatTmdbHasFollowsTheResultsAndSeeAllOpensDiscover() {
+    fun whatTmdbHasFollowsTheResultsAndSeeAllOpensEveryTitleItFinds() {
         val groups = listOf(SearchGroup(SearchGroupKind.Movies, listOf(tile(1, "Northern Lights")), listOf(1)))
         show(
             SearchUiState("robot", emptyList(), SearchResultsState.Ready("robot", groups, loading = false)),
             tmdb = TmdbSection.Ready("robot", trending.results.take(2)),
         )
-        compose.onNodeWithText("On TMDB").assertExists()
+        compose.onNodeWithText("Discover").assertExists()
         compose.onNodeWithText("The Wild Robot", useUnmergedTree = true).performClick()
-        compose.onNodeWithText("See all on Discover").performClick()
-        assertEquals(listOf(PleyKey.DiscoverTitle(TitleKind.Movie, 1184918), PleyKey.Discover("robot")), opened)
+        compose.onNodeWithText("See all").performClick()
+        assertEquals(listOf(PleyKey.DiscoverTitle(TitleKind.Movie, 1184918), PleyKey.DiscoverResults("robot")), opened)
+    }
+
+    @Test
+    fun whenTmdbCantBeSearchedOnTmdbSaysWhyWithRetry() {
+        show(
+            SearchUiState("robot", emptyList(), SearchResultsState.Empty("robot")),
+            tmdb = TmdbSection.Failed("robot", RequestProblem.TmdbDown),
+        )
+        compose.onNodeWithText("Nothing in your libraries matches").assertExists()
+        compose.onNodeWithText("TMDB isn't answering").assertExists()
+        compose.onNodeWithText("See all").assertDoesNotExist()
+        compose.onNodeWithText("Retry").performClick()
+        assertEquals(1, tmdbRetries)
+    }
+
+    @Test
+    fun aKeyTmdbRefusedHasNoRetry() {
+        // An administrator fixes it.
+        show(
+            SearchUiState("robot", emptyList(), SearchResultsState.Ready("robot", emptyList(), loading = false)),
+            tmdb = TmdbSection.Failed("robot", RequestProblem.TmdbKey),
+        )
+        compose.onNodeWithText("TMDB refused this server's key").assertExists()
+        compose.onNodeWithText("Retry").assertDoesNotExist()
     }
 
     @Test
@@ -171,7 +199,7 @@ class PhoneSearchUiTest {
             tmdb = TmdbSection.Ready("robot", trending.results.take(1)),
         )
         compose.onNodeWithText("Nothing in your libraries matches").assertExists()
-        compose.onNodeWithText("On TMDB").assertExists()
+        compose.onNodeWithText("Discover").assertExists()
         compose.onNodeWithText("No results for “robot”").assertDoesNotExist()
     }
 }

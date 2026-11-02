@@ -607,6 +607,7 @@
 .search-channel .search-channel-live { position: absolute; left: 6px; top: 6px; height: 17px; padding: 0 6px; font-size: 10px; }
 .search-channel .search-channel-progress { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 0; }
 .search-none { padding: 0 48px 0 96px; }
+.search-tmdb-problem { padding: 0 48px 0 96px; margin-top: 14px; }
 
 .person-header { position: absolute; left: 96px; right: 48px; top: 58px; display: flex; align-items: center; }
 .person-photo {
@@ -851,11 +852,9 @@
 /* ---------------------------------------------------------------- Discover */
 
 .discover-page { position: absolute; left: 0; top: 0; width: 960px; height: 540px; overflow: hidden; }
-.discover-rows,
-.discover-results { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
-/* TMDB's search and the way to the requests, where the search page has its field; it fades while focus is in the rows. */
+.discover-rows { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+/* The way to the requests, at the top where other pages have their title; it fades while focus is in the rows. */
 .discover-bar { position: absolute; left: 96px; top: 27px; display: flex; align-items: center; z-index: 3; transition: opacity 150ms linear; }
-.discover-bar > * + * { margin-left: 12px; }
 .discover-bar.hidden { opacity: 0; pointer-events: none; }
 .reduced .discover-bar { transition: none; }
 .chip-count {
@@ -872,7 +871,7 @@
 }
 .chip-count.danger { background: var(--danger); color: var(--bg); }
 .chip[data-focused] .chip-count:not(.danger) { background: var(--on-accent); color: var(--accent-bright); }
-/* Home's hero, under the search: its title's two lines end at 172 whatever their number, clear of the field. */
+/* Discover's hero, under the way to the requests: its title's two lines end at 172 whatever their number, clear of it. */
 .discover-hero {
   position: absolute;
   left: 96px;

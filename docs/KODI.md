@@ -167,11 +167,11 @@ Radarr and Sonarr fetch them once approved. The add-on's root lists
 profile's menu opens them, in Kodi's lists (the window closes, Back from
 their top goes back to Kodi, and the add-on opens Pley's look again).
 
-- **Discover**: Search (Kodi's keyboard), then Trending this week, Popular
-  movies, Popular shows, Coming to cinemas and Popular anime as folders,
-  then Your requests. Each list shows at least 20 titles at once (TMDB's
-  pages come short where titles are left out), with Next page, and sorts
-  by the server's order, by name or by year.
+- **Discover**: Trending this week, Popular movies, Popular shows, Coming
+  to cinemas and Popular anime as folders, then Your requests. Each list
+  shows at least 20 titles at once (TMDB's pages come short where titles
+  are left out), with Next page, and sorts by the server's order, by name
+  or by year. Words are looked for on TMDB from Search.
 - **A title** shows its poster, backdrop, year, rating and overview, and
   its badge (In library, Partly in library, Requested, Declined) on the
   right and atop its plot. OK does its one main action: Request; Open for
@@ -205,12 +205,19 @@ their top goes back to Kodi, and the add-on opens Pley's look again).
   again, Decline, Decline with a reason… (typed on Kodi's keyboard), Mark
   as added by hand and Delete (asked first). The entry carries what
   waits, new requests and news, red while one couldn't be sent.
-- **Search** lists On TMDB after the libraries' results: TMDB's first
-  titles the libraries don't have, then See all on Discover. It is looked
-  for beside the libraries' search and shows once it comes, without
-  holding them up. Kodi's lists wait 3 seconds for it at most, as Kodi
-  keeps the add-on's Python busy meanwhile; slower, On TMDB opens it on
-  Discover.
+- **Search** lists Discover after the libraries' results: TMDB's first
+  titles the libraries don't have, then See all, which lists all TMDB
+  has for the words ("Results for “dune”"), each title with its badge,
+  with Next page. TMDB gets the words' first 200 characters, the most
+  the server takes. It is looked for beside the libraries' search and
+  shows once it comes, without holding them up. Kodi's lists wait 3
+  seconds for it at most, as Kodi keeps the add-on's Python busy
+  meanwhile; slower, the Discover entry opens it on Discover.
+- **Search's Discover, otherwise**: with nothing in the libraries either,
+  "Nothing found for “dune”"; when TMDB isn't answering, refuses the
+  server's key or the account may not ask, what is wrong, with Try again
+  where it may help. In Pley's look the row's title says what is wrong,
+  and its one tile is Try again, or See all, whose page says what to do.
 - **Library shows** have Request more seasons in their context menu while
   the profile may ask: the show's picker, or what stops it.
 - **Notices**: "“Heat” is ready to watch." (with "Season 2 of “X” is ready
@@ -306,10 +313,10 @@ needs the server and transcoder built
 PLEY_BIN=target/debug/pley PLEY_FFMPEG_DIR=/usr/bin python -m unittest test_e2e
 ```
 
-`test_asking.py` covers Discover, the picker and the requests' lists and
-actions, `test_news.py` the service's summary, refreshes and notices, and
-`test_requests.py` the rules and words; none reaches TMDB. CI runs all of
-them.
+`test_asking.py` covers Discover, search's Discover entry, the picker
+and the requests' lists and actions, `test_news.py` the service's
+summary, refreshes and notices, and `test_requests.py` the rules and
+words; none reaches TMDB. CI runs all of them.
 
 By hand, use a portable Kodi (`kodi.exe -p` on Windows) with the add-on
 copied into `portable_data/addons`. With JSON-RPC on (Settings → Services →

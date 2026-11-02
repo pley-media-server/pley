@@ -25,7 +25,7 @@ import xbmcgui
 
 from . import api, kodi, livetv, playback, profiles, requests, tiles, tracks, words
 from . import layout as L
-from .asking import FOUND_SHOWN
+from .asking import AWAY, FOUND_SHOWN
 from .listing import image, list_item
 
 T = kodi.text
@@ -1071,7 +1071,8 @@ def luminance(hex_rgb: str) -> float:
 class Rows:
     """A screen's rows of tiles: slots the skin holds, filled and placed
     here. A row: {"key", "title", "shape", "items", "see_all"}, and "tile"
-    (an item's tile) where its tiles aren't the library's."""
+    (an item's tile) where its tiles aren't the library's, "see_all_label"
+    where its last tile says something else (search's Discover row's Try again)."""
 
     def __init__(self, win: Window, base: int, slots: int, shapes: tuple):
         self.win = win
@@ -1086,7 +1087,7 @@ class Rows:
             self.fill_slot(i)
 
     def append(self, row: dict) -> bool:
-        """A row that came after the others (search's On TMDB) in the next
+        """A row that came after the others (search's Discover row) in the next
         slot, theirs left as they are: False when none is free."""
         if len(self.rows) >= self.slots:
             return False
@@ -1117,7 +1118,7 @@ class Rows:
                 else:
                     items = [tiles.tile(base, item, shape) for item in row["items"]]
                 if row.get("see_all") is not None:
-                    items.append(tiles.see_all(T("see_all")))
+                    items.append(tiles.see_all(row.get("see_all_label") or T("see_all")))
                 found.addItems(items)
                 found.setVisible(True)
             else:
@@ -2380,9 +2381,9 @@ def collection_tile(base: str, collection: dict) -> xbmcgui.ListItem:
 
 class Search(Screen):
     """Search (TvSearchScreen): the field, then what was found, by kind;
-    where this profile may ask, On TMDB after them: titles
+    where this profile may ask, Discover after them: titles
     the libraries don't have, looked for beside their search and never
-    waited for, their row coming once they do."""
+    waited for, their row coming once they do, or saying why TMDB refused."""
 
     name = "search"
     rail = "search"
@@ -2391,10 +2392,11 @@ class Search(Screen):
         super().__init__(win)
         self.query = ""
         self.found = []
-        # On TMDB's titles (None: not looked for, or on their way), whether
-        # they are on their way, and the searches made (an older one's
-        # titles come too late).
+        # The Discover row's titles (None: not looked for, or on their way), why TMDB
+        # refused (requests.problem), whether they are on their way, and the
+        # searches made (an older one's titles come too late).
         self.tmdb = None
+        self.refused = None
         self.looking = False
         self.asked = 0
         self.rows = Rows(win, L.SEARCH_ROWS, L.SEARCH_SLOTS, ("poster", "episode", "person", "square", "channel"))
@@ -2407,21 +2409,29 @@ class Search(Screen):
         win.setFocusId(self.last_focus if filled and self.last_focus else L.SEARCH_FIELD)
 
     def model(self) -> list:
-        """The libraries' rows, then On TMDB (in a slot of its own)."""
-        return self.found + ([self.tmdb_row()] if self.tmdb else [])
+        """The libraries' rows, then Discover (in a slot of its own)."""
+        return self.found + ([self.tmdb_row()] if self.tmdb or self.refused else [])
 
     def tmdb_row(self) -> dict:
-        """On TMDB, its See all (on Discover: the tile has room for no more)
-        opening Discover's search."""
+        """The Discover row, its See all opening Discover's results for the
+        words. TMDB refused: why, in its
+        title, and Try again where it may help; else See all, where the
+        results' page says more."""
         base = self.session.base
-        return {
+        row = {
             "key": "tmdb",
-            "title": T("on_tmdb"),
+            "title": T("discover"),
             "shape": "poster",
-            "items": self.tmdb,
+            "items": self.tmdb or [],
             "tile": lambda title: tiles.discover(base, title, tmdb_caption(title)),
             "see_all": self.query,
         }
+        if self.refused:
+            title, _, retry = self.refused
+            row["title"] += " · " + color(title, L.DANGER_TEXT)
+            if retry:
+                row["see_all_label"] = T("try_again")
+        return row
 
     def draw(self) -> None:
         self.rows.fill(self.model())
@@ -2434,12 +2444,12 @@ class Search(Screen):
 
     def say(self) -> None:
         """What the page says over its rows: what to look for; that nothing
-        was found; that the libraries have nothing, over On TMDB."""
+        was found; that the libraries have nothing, over Discover."""
         if not self.query:
             title, body = T("search_empty"), T("search_empty_body")
         elif self.found:
             title, body = "", ""
-        elif self.tmdb or self.looking:
+        elif self.tmdb or self.refused or self.looking:
             title, body = T("nothing_in_libraries"), ""
         else:
             title, body = T("nothing_found_for") % self.query, ""
@@ -2464,7 +2474,7 @@ class Search(Screen):
             y += L.row_height(L.SHAPES[row["shape"]]) + L.ROW_GAP
 
     def search(self, query: str, again: bool = False) -> None:
-        """What `query` finds; `again`: the same search, On TMDB's row kept
+        """What `query` finds; `again`: the same search, the Discover row kept
         until its titles come again."""
         self.query = query.strip()
         self.found = []
@@ -2473,13 +2483,14 @@ class Search(Screen):
         asks = bool(self.query) and requests.may_ask(self.win.requests_summary(ask=False))
         if not again or not asks:
             self.tmdb = None
+            self.refused = None
         if self.query:
             if asks:
                 self.look_on_tmdb()
             try:
                 answer = self.session.get("/api/search", q=self.query, limit=100, summaries=1)
             except api.ApiError:
-                # The page stays as it was: On TMDB's titles aren't put under it.
+                # The page stays as it was: the Discover row's titles aren't put under it.
                 self.asked += 1
                 raise
             items = answer.get("items", [])
@@ -2505,27 +2516,42 @@ class Search(Screen):
         self.draw()
 
     def look_on_tmdb(self) -> None:
-        """GET /api/discover/search?missing=1, beside the libraries' search."""
-        asked, query = self.asked, self.query
+        """GET /api/discover/search?missing=1, beside the libraries' search,
+        for the words as the server takes them."""
+        asked, query = self.asked, requests.search_text(self.query)
         self.looking = True
+
+        def look():
+            try:
+                return self.session.get("/api/discover/search", q=query, missing=1)
+            except api.ApiError as e:
+                if e.code in AWAY:
+                    raise
+                # Refused (TMDB away, its key, no access): said in the Discover row.
+                return e
 
         def took(answer, found=None):
             if asked != self.asked:
                 return
+            refused = answer if isinstance(answer, api.ApiError) else None
             if found is None:
-                found = [t for t in (answer or {}).get("results") or [] if isinstance(t, dict)]
+                found = [] if refused else [t for t in (answer or {}).get("results") or [] if isinstance(t, dict)]
             self.looking = False
             self.tmdb = found[:FOUND_SHOWN]
+            self.refused = None
+            if refused is not None:
+                manage = requests.manages(self.win.requests_summary(ask=False))
+                self.refused = requests.problem(refused, T, manage, now=time.time())
             if self.win.owner.get(self.name) is self:
                 # Drawn even under another page: Back finds it there.
                 self.came()
 
-        # Refused (TMDB away): the libraries' rows alone.
-        self.win.later(lambda: self.session.get("/api/discover/search", q=query, missing=1), took, lambda: took(None, []))
+        # No answer (the server or the service away): the libraries' rows alone.
+        self.win.later(look, took, lambda: took(None, []))
 
     def came(self) -> None:
-        """On TMDB's titles came: their row after the libraries', theirs
-        and focus left as they are."""
+        """The Discover row's titles (or its refusal) came: their row after the
+        libraries', theirs and focus left as they are."""
         rows = self.rows.rows
         at = next((i for i, row in enumerate(rows) if row["key"] == "tmdb"), None)
         if at is not None and self.tmdb:
@@ -2538,7 +2564,7 @@ class Search(Screen):
                 listed.selectItem(min(position, len(self.tmdb)))
         elif at is not None:
             return self.draw()
-        elif not self.tmdb:
+        elif not self.tmdb and not self.refused:
             # Nothing found there.
             return self.say()
         else:
@@ -2575,9 +2601,12 @@ class Search(Screen):
 
     def open_title(self, title: dict) -> None:
         """A title found on TMDB: the library's page where one has it, else
-        its main action (the plugin's); See all on Discover: Discover's
-        search for the same words, in Kodi's lists."""
+        its main action (the plugin's); See all: Discover's
+        results for the same words, in Kodi's lists; Try again: TMDB is
+        asked again, the row as it is until it answers."""
         if title.get("kind") == "seeall":
+            if self.refused and self.refused[2]:
+                return self.look_on_tmdb()
             return self.win.leave_for_listing(route="discover_search", q=self.query)
         if title.get("item_id") and title.get("status") in ("library", "partial"):
             return self.win.open(Item(self.win, title["item_id"]))

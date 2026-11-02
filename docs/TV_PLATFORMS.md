@@ -203,14 +203,15 @@ also what waits for them, in red while some failed.
   Other news shows only as the number and in the lists.
 - **Discover:** a hero for the first trending title, then Trending this
   week, Popular movies, Popular shows, Coming to cinemas and Popular
-  anime, each loaded as it comes near the screen, then Your requests.
-  Search at the top asks TMDB 400 ms after typing stops. Posters say In
-  library, Partly in library, Requested or Declined. A list reads TMDB's
-  pages until it has more than a screenful, 5 at most at a time, since an
-  age limit can leave page after page empty: a row shows what they had,
-  and a grid (See all, search) ends in Show more, which reads 5 more, or
-  in Retry after a page failed. Back on the page, what failed is asked
-  again.
+  anime, each loaded as it comes near the screen, then Your requests;
+  at the top, the way to the requests with their number. It has no
+  search field: Search finds TMDB's titles. Posters say In library,
+  Partly in library, Requested or Declined. A list reads TMDB's pages
+  until it has more than a screenful, 5 at most at a time, since an age
+  limit can leave page after page empty: a row shows what they had, and
+  a grid (See all, and Search's Discover row's) ends in Show more,
+  which reads 5 more, or in Retry after a page failed. Back on the page,
+  what failed is asked again.
 - **A title's page:** backdrop, poster, facts, cast and seasons with their
   state, and one main action: Request, Request more seasons, Tell me too,
   Open (in a library), or why not (declined, with when it may be asked
@@ -227,9 +228,16 @@ also what waits for them, in red while some failed.
   TV's keyboard), Mark as added by hand, Delete, Try again, Request
   again. Approve is plain: the settings' profile and folder, the seasons
   asked.
-- **Search:** under the libraries' results, On TMDB for a profile that
-  may ask, asked beside them so they never wait for it, with See all on
-  Discover. A movie's or show's page in a library shows its request's
+- **Search:** under the libraries' results, Discover for a profile that
+  may ask: up to 20 movies and shows the libraries lack, read from at
+  most 3 of TMDB's pages, asked beside the libraries so they never wait
+  for it. A title opens its page, where it is requested. See all opens
+  a grid titled Results for “…” with every title TMDB has for the words,
+  each with its badge, and Back goes back to Search. When TMDB doesn't
+  answer, the row says why ("TMDB isn't answering", "TMDB refused this
+  server's key", "Requests aren't open to this account"), with Retry
+  where it can help. TMDB gets the words cut to the server's 200
+  characters. A movie's or show's page in a library shows its request's
   stage, and Request more seasons for a show missing some.
 - **Answers:** a requests route's `503` with Pley's `{ code }` is an
   answer, never the server being away: "TMDB isn't answering" with
