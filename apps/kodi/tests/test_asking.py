@@ -146,10 +146,10 @@ class Case(unittest.TestCase):
 class DiscoverTest(Case):
     def test_the_lists_then_the_requests(self):
         entries = self.run_plugin("route=discover")
-        self.assertEqual(self.labels(entries), ["Search", "Trending this week", "Popular movies", "Popular shows",
+        self.assertEqual(self.labels(entries), ["Trending this week", "Popular movies", "Popular shows",
                                                 "Coming to cinemas", "Popular anime", "Your requests"])
-        self.assertEqual(entries[1][0], BASE + "?route=discover_list&list=trending")
-        self.assertEqual(entries[1][1].video.values["setPlot"], "Details and pictures from TMDB.")
+        self.assertEqual(entries[0][0], BASE + "?route=discover_list&list=trending")
+        self.assertEqual(entries[0][1].video.values["setPlot"], "Details and pictures from TMDB.")
         self.assertEqual(json.loads(kodi.get_property(requests.SUMMARY)), ON, "kept for the listings that follow")
 
     def test_the_number_on_the_requests(self):
@@ -242,16 +242,46 @@ class ListTest(Case):
         self.assertEqual(self.labels(entries), ["TMDB refused this server's key"])
         self.assertEqual(entries[0][1].video.values["setPlot"], "An administrator needs to check it.")
 
-    def test_searching_tmdb(self):
+    def test_results_for_searchs_words(self):
+        # The See all of Search's Discover entry: all TMDB has for the words, with
+        # their badges, a screenful at a time.
+        def page(query):
+            first = 20 * int(query["page"]) - 19
+            found = [title(n, status="library", item_id=7) if n == 1 else title(n) for n in range(first, first + 20)]
+            return 200, {"page": int(query["page"]), "total_pages": 3, "results": found}
+
+        self.answers["GET /api/discover/search"] = page
+        entries = self.run_plugin("route=discover_search&q=heat")
+        self.assertIn(("category", "Results for “heat”"), xbmcplugin.calls)
+        self.assertEqual(len(entries), 20 + 1)
+        self.assertEqual(entries[0][1].label2, "[COLOR %s]In library[/COLOR]" % requests.GREEN)
+        self.assertEqual(entries[-1][0], BASE + "?route=discover_search&q=heat&page=2")
+        self.assertEqual(self.sent("GET", "/api/discover/search")[0][1], "/api/discover/search?q=heat&page=1")
+        del xbmcplugin.calls[:]
+        self.assertEqual(self.labels(self.run_plugin("route=discover_search&q=heat&page=2"))[0], "Title 21")
+        self.assertIn(("category", "Results for “heat”"), xbmcplugin.calls)
+
+    def test_nothing_for_the_words(self):
         self.answers["GET /api/discover/search"] = (200, {"page": 1, "total_pages": 0, "results": []})
         entries = self.run_plugin("route=discover_search&q=zzz")
         self.assertEqual(self.labels(entries), ["Nothing on TMDB for “zzz”"])
-        self.assertEqual(entries[0][0], BASE + "?route=discover_search", "OK searches again")
-        self.assertEqual(self.sent("GET", "/api/discover/search")[0][1], "/api/discover/search?q=zzz&page=1")
-        del xbmcplugin.calls[:]
-        with Dialogs("heat"):
+        self.assertEqual(entries[0][0], BASE + "?route=search", "OK searches again, in Search")
+
+    def test_words_as_the_server_takes_them(self):
+        self.answers["GET /api/discover/search"] = (200, {"page": 1, "total_pages": 0, "results": []})
+        self.run_plugin("route=discover_search&q=" + urllib.parse.quote("  " + "é" * 250))
+        self.assertEqual(self.sent("GET", "/api/discover/search")[0][1], "/api/discover/search?" + urllib.parse.urlencode({"q": "é" * 200, "page": 1}))
+        # No words (a favourite of Discover's search from before): Search asks
+        # for them, on Kodi's keyboard.
+        with Dialogs("heat") as dialogs:
             self.run_plugin("route=discover_search")
-        self.assertEqual(xbmc.builtins[-1], "Container.Update(%s?route=discover_search&q=heat)" % BASE)
+        self.assertEqual(dialogs.shown, [("input", "Search", "")])
+        self.assertEqual(xbmc.builtins[-1], "Container.Update(%s?route=search&q=heat)" % BASE)
+
+    def test_results_tmdb_cant_give_say_why(self):
+        self.answers["GET /api/discover/search"] = (503, {"code": "tmdb_down", "message": "TMDB timed out", "setup": True})
+        self.assertEqual(self.labels(self.run_plugin("route=discover_search&q=heat")), ["TMDB isn't answering", "Try again"])
+        self.assertIn(("category", "Results for “heat”"), xbmcplugin.calls)
 
 
 class TitleTest(Case):
@@ -529,7 +559,7 @@ class SearchTest(Case):
     def test_titles_from_tmdb_after_the_libraries(self):
         self.waits["GET /api/search"] = 0.3
         entries = self.run_plugin("route=search&q=heat")
-        self.assertEqual(self.labels(entries), ["Heat", "On TMDB", "Title 1", "Title 2", "See all on Discover"])
+        self.assertEqual(self.labels(entries), ["Heat", "Discover", "Title 1", "Title 2", "See all"])
         self.assertEqual(entries[-1][0], BASE + "?route=discover_search&q=heat")
         self.assertEqual(self.sent("GET", "/api/discover/search")[0][1], "/api/discover/search?q=heat&missing=1")
 
@@ -538,11 +568,11 @@ class SearchTest(Case):
         self.answers["GET /api/search"] = (200, {"items": []})
         xbmc.info_labels["Container.FolderPath"] = BASE + "?route=search&q=heat"
         entries = self.run_plugin("route=search&q=heat")
-        self.assertEqual(self.labels(entries), ["Nothing in your libraries matches", "On TMDB", "See all on Discover"])
+        self.assertEqual(self.labels(entries), ["Nothing in your libraries matches", "Discover", "See all"])
         self.assertEqual(entries[1][1].label2, "Searching…")
         self.assertEqual(xbmc.builtins, ["Container.Refresh"], "shown again once they came")
         del xbmcplugin.calls[:]
-        self.assertEqual(self.labels(self.run_plugin("route=search&q=heat"))[1:4], ["On TMDB", "Title 1", "Title 2"])
+        self.assertEqual(self.labels(self.run_plugin("route=search&q=heat"))[1:4], ["Discover", "Title 1", "Title 2"])
         self.assertEqual(len(self.sent("GET", "/api/discover/search")), 1, "kept")
 
     def test_tmdb_slower_than_the_wait_is_left_to_on_tmdb(self):
@@ -558,6 +588,64 @@ class SearchTest(Case):
         self.assertEqual(xbmc.builtins, [])
         self.assertEqual(kodi.get_property(asking.FOUND), "", "nothing kept: the next search asks again")
 
+    def test_nothing_in_the_libraries_nor_on_tmdb(self):
+        self.answers["GET /api/search"] = (200, {"items": []})
+        self.answers["GET /api/discover/search"] = (200, {"page": 1, "total_pages": 0, "results": []})
+        self.waits["GET /api/discover/search"] = 0.3
+        xbmc.info_labels["Container.FolderPath"] = BASE + "?route=search&q=zzz"
+        self.assertEqual(self.labels(self.run_plugin("route=search&q=zzz")), ["Nothing in your libraries matches", "Discover", "See all"])
+        self.assertEqual(xbmc.builtins, ["Container.Refresh"], "shown again once TMDB answered")
+        del xbmcplugin.calls[:]
+        entries = self.run_plugin("route=search&q=zzz")
+        self.assertEqual(self.labels(entries), ["Nothing in your libraries matches", "Nothing found for “zzz”"])
+        self.assertEqual(entries[1][0], BASE + "?route=search", "OK searches again")
+
+    def test_tmdb_refusing_says_why_in_its_place(self):
+        self.waits["GET /api/search"] = 0.3
+        self.answers["GET /api/discover/search"] = (503, {"code": "tmdb_down", "message": "TMDB timed out", "setup": True})
+        entries = self.run_plugin("route=search&q=heat")
+        self.assertEqual(self.labels(entries), ["Heat", "TMDB isn't answering", "Try again"])
+        self.assertEqual(entries[-1][0], BASE + "?route=retry")
+        self.assertEqual(entries[-1][1].properties["SpecialSort"], "bottom")
+        del xbmcplugin.calls[:]
+        self.answers["GET /api/discover/search"] = (503, {"code": "tmdb_key", "message": "401", "setup": True, "retry": False})
+        entries = self.run_plugin("route=search&q=heat")
+        self.assertEqual(self.labels(entries), ["Heat", "TMDB refused this server's key"], "trying again won't help")
+        self.assertEqual(entries[1][1].video.values["setPlot"], "An administrator needs to check it.")
+        del xbmcplugin.calls[:]
+        self.answers["GET /api/discover/search"] = (403, {"code": "no_access", "message": "no"})
+        self.assertEqual(self.labels(self.run_plugin("route=search&q=heat")), ["Heat", "Requests aren't open to this account"])
+
+    def test_a_refusal_after_the_listing_shows_once_it_came(self):
+        self.waits["GET /api/discover/search"] = 0.5
+        self.answers["GET /api/search"] = (200, {"items": []})
+        self.answers["GET /api/discover/search"] = (503, {"code": "tmdb_down", "message": "TMDB timed out", "setup": True})
+        xbmc.info_labels["Container.FolderPath"] = BASE + "?route=search&q=heat"
+        self.assertEqual(self.labels(self.run_plugin("route=search&q=heat")), ["Nothing in your libraries matches", "Discover", "See all"])
+        self.assertEqual(xbmc.builtins, ["Container.Refresh"], "shown again once it came")
+        del xbmcplugin.calls[:]
+        self.assertEqual(self.labels(self.run_plugin("route=search&q=heat")), ["Nothing in your libraries matches", "TMDB isn't answering", "Try again"])
+        self.assertEqual(len(self.sent("GET", "/api/discover/search")), 1, "kept for the listing shown again")
+        # Try again: TMDB is asked again.
+        del xbmcplugin.calls[:]
+        self.answers["GET /api/discover/search"] = (200, {"page": 1, "total_pages": 1, "results": [title(1)]})
+        self.waits["GET /api/discover/search"] = 0
+        self.waits["GET /api/search"] = 0.3
+        self.assertEqual(self.labels(self.run_plugin("route=search&q=heat")), ["Nothing in your libraries matches", "Discover", "Title 1", "See all"])
+        self.assertEqual(len(self.sent("GET", "/api/discover/search")), 2)
+
+    def test_words_cut_to_what_the_server_takes(self):
+        self.waits["GET /api/search"] = 0.3
+        typed = "  " + "x" * 250
+        entries = self.run_plugin("route=search&q=" + urllib.parse.quote(typed))
+        self.assertEqual(self.sent("GET", "/api/search")[0][1], "/api/search?" + urllib.parse.urlencode({"q": typed, "limit": 100, "summaries": 1}))
+        self.assertEqual(self.sent("GET", "/api/discover/search")[0][1], "/api/discover/search?q=%s&missing=1" % ("x" * 200))
+        self.assertEqual(entries[-1][0], BASE + "?route=discover_search&q=" + "x" * 200)
+        # Nothing but spaces: TMDB isn't asked.
+        del self.server.requests[:]
+        self.run_plugin("route=search&q=%20%20")
+        self.assertEqual(self.sent("GET", "/api/discover/search"), [])
+
     def test_a_title_asked_for_from_search_leaves_tmdb_there(self):
         # The listing is shown again at once, before the service has read
         # the summary anew.
@@ -567,7 +655,7 @@ class SearchTest(Case):
             self.run_plugin("route=title&kind=movie&tmdb=1", handle="-1")
         self.assertEqual(xbmc.builtins[-1], "Container.Refresh")
         del xbmcplugin.calls[:]
-        self.assertIn("On TMDB", self.labels(self.run_plugin("route=search&q=heat")))
+        self.assertIn("Discover", self.labels(self.run_plugin("route=search&q=heat")))
 
     def test_no_tmdb_where_this_sign_in_cant_ask(self):
         self.summary(dict(ON, access="off"))

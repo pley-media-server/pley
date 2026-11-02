@@ -951,7 +951,7 @@ msgid "Popular anime"
 msgstr ""
 
 msgctxt "#30455"
-msgid "Search TMDB for movies and shows"
+msgid "Find movies and shows to ask for"
 msgstr ""
 
 msgctxt "#30456"
@@ -1250,14 +1250,6 @@ msgctxt "#30529"
 msgid "Sign in again to approve and decline here."
 msgstr ""
 
-msgctxt "#30530"
-msgid "On TMDB"
-msgstr ""
-
-msgctxt "#30531"
-msgid "See all on Discover"
-msgstr ""
-
 msgctxt "#30532"
 msgid "Nothing in your libraries matches"
 msgstr ""
@@ -1324,6 +1316,10 @@ msgstr ""
 
 msgctxt "#30548"
 msgid "Yours"
+msgstr ""
+
+msgctxt "#30549"
+msgid "Results for “%s”"
 msgstr ""
 
 msgctxt "#30279"

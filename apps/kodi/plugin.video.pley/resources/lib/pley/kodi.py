@@ -239,7 +239,7 @@ TEXT = {
     "popular_shows": 30452,
     "coming_soon": 30453,
     "popular_anime": 30454,
-    "search_tmdb": 30455,
+    "find_to_ask": 30455,
     "nothing_on_tmdb": 30456,
     "tmdb_credit": 30457,
     "in_library": 30458,
@@ -314,8 +314,6 @@ TEXT = {
     "sign_in_to_ask_body": 30527,
     "sign_in_again": 30528,
     "sign_in_to_approve": 30529,
-    "on_tmdb": 30530,
-    "see_all_on_discover": 30531,
     "nothing_in_libraries": 30532,
     "needs_attention": 30533,
     "pending": 30534,
@@ -333,6 +331,7 @@ TEXT = {
     "movie": 30546,
     "show": 30547,
     "yours": 30548,
+    "results_for": 30549,
 }
 
 
