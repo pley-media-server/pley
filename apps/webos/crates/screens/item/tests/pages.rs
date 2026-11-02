@@ -364,6 +364,14 @@ fn closing_media_info_while_reading_keeps_it_on_screen() {
 fn moving_along_a_row_ends_reading() {
     let mut app = TestApp::start();
     open_show(&mut app);
+    // The rows come from other threads, and the moves below go by the app's clock alone: they
+    // start once More Like This is in (the page keeps it once it has drawn it).
+    let related = pley_core::store::snapshot_keys::related(ids::SHOW);
+    let in_place = |a: &TestApp| {
+        let (Some(server), Some(profile)) = (a.state.server(), a.state.profile()) else { return false };
+        a.state.snapshots().read(server, profile, &related).is_some()
+    };
+    assert!(app.until(|a| in_place(a)), "More Like This never came");
     // More Like This is the last row that takes focus; its header comes to the rows' line.
     let header = |a: &TestApp| a.text_y("More Like This");
     for _ in 0..6 {
