@@ -470,7 +470,7 @@ private fun GuideRow(
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .padding(vertical = 4.dp, horizontal = 2.dp)
+                        .padding(vertical = 4.dp, horizontal = CELL_INSET_X)
                         .clip(PleyShape.Control)
                         .background(if (focusedStart == -1L) PleyColors.Accent else PleyColors.Surface.copy(alpha = 0.6f))
                         .padding(start = 12.dp),
@@ -491,7 +491,7 @@ private fun GuideRow(
                         .offset { IntOffset((leftPx - x()).roundToInt(), 0) }
                         .width(with(density) { widthPx.toDp() })
                         .fillMaxHeight()
-                        .padding(vertical = 4.dp, horizontal = 2.dp)
+                        .padding(vertical = 4.dp, horizontal = CELL_INSET_X)
                         .alpha(if (program.stop <= now && !isFocused) 0.55f else 1f)
                         .clip(PleyShape.Control)
                         .background(
@@ -533,10 +533,14 @@ private fun GuideRow(
                         }
                     }
                     if (airing) {
+                        // From the cell's left edge to the now line (Samsung's BarWidth): as the share played of
+                        // the whole programme, one begun before the guide (its cell from the guide's edge) ran past now.
+                        val inset = with(density) { CELL_INSET_X.toPx() }
+                        val bar = ((now - start) * pxPerSecond - leftPx - inset).coerceIn(0f, (widthPx - 2 * inset).coerceAtLeast(0f))
                         Box(
                             Modifier
                                 .align(Alignment.BottomStart)
-                                .fillMaxWidth(program.progressAt(now))
+                                .width(with(density) { bar.toDp() })
                                 .height(2.dp)
                                 .background(if (isFocused) PleyColors.OnAccent else PleyColors.Accent),
                         )
@@ -574,6 +578,9 @@ private const val SLOT_LABEL_S = 18 * 60L
 
 /** How long after Left last moved within the guide a Left at its start still stays: taps in a row. */
 internal const val EDGE_PAUSE_MS = 500L
+
+/** A programme's cell is inset this far at either side, 4 dp above and below. */
+private val CELL_INSET_X = 2.dp
 
 /** Narrower than this, a programme shows no text. */
 private const val MIN_TEXT_PX = 70f

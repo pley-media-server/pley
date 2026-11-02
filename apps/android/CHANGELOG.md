@@ -45,6 +45,8 @@ describes how they are made.
 
 - Back leaves the TV guide on a channel without guide data, or a row
   still loading, where it went on bringing the guide back to now.
+- The progress bar of a programme on now in the TV guide ends at the now
+  line; for one begun before the guide, it ran past it.
 - A page of Live TV channels that didn't load is asked for again once
   10 s have passed, as the list moves, where its rows stayed blank until
   another category was chosen.
