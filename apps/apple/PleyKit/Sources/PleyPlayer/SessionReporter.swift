@@ -62,6 +62,11 @@ public enum ReportAnswer: Sendable, Equatable {
 /// and its end, a port of the Android app's `ServerPlaybackSession`.
 /// Ending it reports `stopped` at the last position, then deletes it (and
 /// any transcode); it ends once.
+///
+/// A download played here (`local`) has no session on the server: its
+/// reports go without `session_id`, each one that can't reach the server
+/// is kept to send later with its age, and nothing is deleted. Where it
+/// got to is also kept with the download (`played`), for Resume offline.
 @MainActor
 public final class ServerPlaybackSession {
     public let itemId: Int
@@ -74,6 +79,10 @@ public final class ServerPlaybackSession {
     private let reporter: SessionReporter
     private let late: LateReports?
 
+    /// A download playing from this device, with no session on the server.
+    public let local: Bool
+    private let played: (@MainActor (Int) -> Void)?
+
     public var id: String { info.sessionId }
 
     public init(api: PleyAPI, itemId: Int, info: PlaybackInfo, reporter: SessionReporter, late: LateReports?) {
@@ -82,19 +91,47 @@ public final class ServerPlaybackSession {
         self.info = info
         self.reporter = reporter
         self.late = late
+        local = false
+        played = nil
+    }
+
+    private init(api: PleyAPI, itemId: Int, info: PlaybackInfo, reporter: SessionReporter, late: LateReports?,
+                 played: @escaping @MainActor (Int) -> Void) {
+        self.api = api
+        self.itemId = itemId
+        self.info = info
+        self.reporter = reporter
+        self.late = late
+        local = true
+        self.played = played
+    }
+
+    /// The playback of the download of `fileId` at `url` (a `file://`
+    /// address): played as it is, reported without a session; `played`
+    /// hears each position reported.
+    public static func local(api: PleyAPI, itemId: Int, fileId: Int, url: URL, durationMs: Int,
+                             reporter: SessionReporter, late: LateReports?,
+                             played: @escaping @MainActor (Int) -> Void) -> ServerPlaybackSession {
+        let info = PlaybackInfo(sessionId: "", method: .direct, url: url.absoluteString, hls: false, fileId: fileId,
+                                durationMs: durationMs)
+        return ServerPlaybackSession(api: api, itemId: itemId, info: info, reporter: reporter, late: late,
+                                     played: played)
     }
 
     /// `POST /api/items/{id}/progress` with the session, so it and its transcode stay alive.
     public func progress(positionMs: Int, state: ProgressState) {
         guard !ended else { return }
-        send(report(positionMs, state), heard: true)
+        played?(max(positionMs, 0))
+        send(report(positionMs, state), heard: !local)
     }
 
     /// Reports `stopped` at `positionMs`, then `DELETE /api/playback/{session}`.
     public func end(positionMs: Int) {
         guard !ended else { return }
         ended = true
+        played?(max(positionMs, 0))
         send(report(positionMs, .stopped), heard: false)
+        guard !local else { return }
         let (api, id) = (api, id)
         reporter.send { try? await api.stopPlayback(id) }
     }
@@ -104,6 +141,7 @@ public final class ServerPlaybackSession {
     public func stoppedByServer(positionMs: Int) {
         guard !ended else { return }
         ended = true
+        played?(max(positionMs, 0))
         send(report(positionMs, .stopped), heard: false)
     }
 
@@ -112,20 +150,23 @@ public final class ServerPlaybackSession {
     public func discard() {
         guard !ended else { return }
         ended = true
+        guard !local else { return }
         let (api, id) = (api, id)
         reporter.send { try? await api.stopPlayback(id) }
     }
 
     private func report(_ positionMs: Int, _ state: ProgressState) -> ProgressReport {
         ProgressReport(positionMs: max(positionMs, 0), durationMs: info.durationMs > 0 ? info.durationMs : nil,
-                       state: state, sessionId: id)
+                       state: state, sessionId: local ? nil : id)
     }
 
     /// Queues `report`. A `paused` or `stopped` one that can't reach the
     /// server is kept to send later (`LateReports`); `heard`: its answer
     /// about the session goes to `onAnswer`.
+    /// A download's `playing` report is kept too, as `paused`: offline,
+    /// it may be all that says where it got to.
     private func send(_ report: ProgressReport, heard: Bool) {
-        let (api, itemId, late) = (api, itemId, late)
+        let (api, itemId, late, local) = (api, itemId, late, local)
         reporter.send { [weak self] in
             do {
                 try await api.reportProgress(itemId: itemId, report)
@@ -136,6 +177,10 @@ public final class ServerPlaybackSession {
             } catch {
                 if report.state != .playing, LateReports.unreachable(error) {
                     await late?.keep(itemId: itemId, report)
+                } else if local, LateReports.unreachable(error) {
+                    var kept = report
+                    kept.state = .paused
+                    await late?.keep(itemId: itemId, kept)
                 }
             }
         }

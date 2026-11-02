@@ -27,6 +27,8 @@ public struct PlayerState: Equatable, Sendable {
     public var subtitle: String?
     /// How the session plays; `nil` before the server answered.
     public var method: PlaybackMethod?
+    /// A download plays from this device, with no session on the server.
+    public var downloaded = false
     /// The audio is converted while the video plays as it is or repackaged.
     public var audioConverted = false
     /// Why it isn't played as it is (the server's reasons).
@@ -104,8 +106,9 @@ public struct PlayerState: Equatable, Sendable {
     public var subtitleOffsetLabel: String { SubtitleSync.label(subtitleOffsetMs) }
 
     /// "Direct play", "Direct stream", "Transcoding", "Direct stream · Audio
-    /// transcoding", as the other apps say it; `nil` before the server answered.
+    /// transcoding", as the other apps say it, or "Downloaded"; `nil` before the server answered.
     public var methodLabel: String? {
+        if downloaded { return PlayerTexts.downloaded }
         guard let method else { return nil }
         let base = switch method {
         case .direct: "Direct play"
@@ -223,6 +226,7 @@ enum PlayerTexts {
     static let subtitlesFailed = "The subtitles couldn't be loaded."
     static let burnedIn = "Burned into the video"
     static let subtitleAdded = "Subtitles added"
+    static let downloaded = "Downloaded"
 
     /// The menu's Automatic while it plays `playing`: "Automatic · 8 Mbps 1080p".
     static func automatic(_ playing: String) -> String { "Automatic · \(playing)" }

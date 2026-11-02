@@ -3,6 +3,7 @@ import Combine
 import Foundation
 import PleyCaps
 import PleyCommon
+import PleyData
 import PleyModel
 import PleyNetwork
 import PleySubtitles
@@ -39,6 +40,9 @@ public struct PlaybackEnvironment {
     /// Whether a change of what the screen shows (`caps`' HDR, as the Mac's
     /// window moves to another screen) restarts an HDR video's session for it.
     public var followsScreen: Bool
+    /// The downloads of this server and profile (iPhone, iPad and Mac): a
+    /// title downloaded plays from this device; `nil` on Apple TV.
+    public var local: (any LocalMedia)?
 
     public init(api: PleyAPI, caps: DeviceCaps, clientId: String, reporter: SessionReporter, late: LateReports?,
                 quality: any QualityMemory = MemoryQuality(), ceiling: any CeilingMemory = MemoryCeiling(),
@@ -46,8 +50,10 @@ public struct PlaybackEnvironment {
                 engines: @escaping @MainActor () -> any PlayerEngine = { AVPlayerEngine() },
                 warmer: (any StreamWarmer)? = nil, networkTiming: NetworkStart.Timing = NetworkStart.Timing(),
                 subtitleOffsets: any SubtitleOffsets = MemorySubtitleOffsets(), profileId: Int? = nil,
-                pictureFolder: URL? = nil, autoplayNext: Bool = true, followsScreen: Bool = Self.screensChange) {
+                pictureFolder: URL? = nil, autoplayNext: Bool = true, followsScreen: Bool = Self.screensChange,
+                local: (any LocalMedia)? = nil) {
         self.api = api
+        self.local = local
         self.autoplayNext = autoplayNext
         self.followsScreen = followsScreen
         self.caps = caps
@@ -129,6 +135,12 @@ public struct PlaybackEnvironment {
 ///   Up Next then waits, with Keep watching in its last 30 s.
 /// - **Subtitles found online** (Find Subtitles…, `addedSubtitle`) join
 ///   the file's tracks and show as one picked.
+/// - **Downloads.** A title downloaded plays from this device (`local`),
+///   with no session: the details are the server's when it answers within
+///   3 s, else those saved with the download; it says Downloaded; its
+///   reports go without a session, kept to send later while the server is
+///   out of reach; its subtitles are the text tracks saved beside it; and
+///   Up Next is the next episode downloaded.
 /// - **The screen.** On the Mac, an HDR video whose window moves to a
 ///   screen that shows HDR differently (the caps' `hdr_types`) starts a new
 ///   session for it where it is, beside the one playing.
@@ -164,6 +176,8 @@ public final class PlaybackController: ObservableObject {
     static let cueIdleMs = 500
     /// How often a track the server is still reading is asked for again.
     static let subtitleRefreshMs: Int64 = 10_000
+    /// How long a download waits for the server's details before playing with those saved with it.
+    static let savedDetailMs: Int64 = 3_000
 
     @Published public private(set) var state = PlayerState()
     /// Whether the next episode plays by itself after the Up Next countdown (Settings).
@@ -176,6 +190,8 @@ public final class PlaybackController: ObservableObject {
     /// The item and the file playing, once known.
     public private(set) var item: ItemDetail?
     public private(set) var file: MediaFile?
+    /// The download playing instead of the server's stream; `nil` when it streams.
+    public private(set) var localFile: LocalFile?
 
     private var request: PlayRequest
     private let env: PlaybackEnvironment
@@ -396,6 +412,8 @@ public final class PlaybackController: ObservableObject {
         saveStreams(item: item, file: file)
         publishAudio()
         guard let session, mediaShown, !ended else { return }
+        // A download has only its own tracks: AVPlayer switches them, or nothing does.
+        if session.local { return }
         if session.info.method == .direct, PlaybackPlan.audioPlaysHere(stream, caps: caps), switchInEngine(index) {
             return
         }
@@ -470,7 +488,7 @@ public final class PlaybackController: ObservableObject {
     /// Automatic picked again starts afresh: what was known of the network
     /// is forgotten.
     public func selectQuality(_ id: String) {
-        guard !closed, !stopped else { return }
+        guard !closed, !stopped, localFile == nil else { return }
         let wanted = Qualities.byIdOrLabel(id)
         guard let choice = Qualities.forFile(file).first(where: { $0.id == wanted.id }), choice.id != picked.id else {
             return
@@ -587,7 +605,7 @@ public final class PlaybackController: ObservableObject {
     public func appDidBecomeActive() async {
         guard let since = backgroundedAt, !closed, !stopped else { return }
         backgroundedAt = nil
-        guard env.clock.now() - since > Self.backgroundCheckMs, let session else { return }
+        guard env.clock.now() - since > Self.backgroundCheckMs, let session, !session.local else { return }
         do {
             _ = try await env.api.playbackStatus(session.id)
         } catch PleyError.sessionStopped(let message) {
@@ -632,34 +650,70 @@ public final class PlaybackController: ObservableObject {
             ? Task { await network.lookUp() } : nil
         defer { lookup?.cancel() }
         do {
-            async let detail = env.api.item(request.itemId)
+            let saved = await env.local?.detail(request.itemId)
+            async let detail = details(saved)
             let snapshot = await env.caps.warmUp()
-            let found = try await detail
+            let (found, reached) = try await detail
             guard !closed else { return }
             caps = snapshot.report
             // A call to this server and profile answered: what couldn't be reported before goes now.
-            if let late = env.late {
+            if reached, let late = env.late {
                 let api = env.api
                 Task { await late.send(using: api) }
             }
             item = found
-            guard let chosen = PlaybackPlan.file(found, requested: request.fileId, caps: caps) else {
+            let downloaded = env.local.flatMap { local in
+                found.files.lazy.filter { self.request.fileId == nil || $0.id == self.request.fileId }
+                    .compactMap { file in local.file(file.id).map { (file, $0) } }.first
+            }
+            localFile = downloaded?.1
+            guard let chosen = downloaded?.0 ?? PlaybackPlan.file(found, requested: request.fileId, caps: caps) else {
                 fail(PlayerTexts.nothingToPlay, canRetry: false)
                 return
             }
+            // Saved details, and nothing downloaded whole to play: the server is needed.
+            if !reached && downloaded == nil { throw PleyError.offline }
             file = chosen
             describe(found, chosen)
-            picked = Qualities.choose(chosen, remembered: remembered)
-            var start = StartCeiling.device
-            if picked.automatic, let lookup { start = await network.resolve(await lookup.value) }
-            guard !closed else { return }
-            quality = playedFor(picked, start: start)
+            if localFile != nil {
+                // A download plays as it is: no quality to choose, nothing to ask the network.
+                picked = Qualities.original
+                quality = Qualities.original
+                state.canFindSubtitles = false
+            } else {
+                picked = Qualities.choose(chosen, remembered: remembered)
+                var start = StartCeiling.device
+                if picked.automatic, let lookup { start = await network.resolve(await lookup.value) }
+                guard !closed else { return }
+                quality = playedFor(picked, start: start)
+            }
             publishChoices()
             try await begin(at: PlaybackPlan.startMs(found, request))
         } catch is CancellationError {
         } catch {
             failWith(error)
         }
+    }
+
+    /// The item's details from the server; for a download (`saved`, its
+    /// details as downloaded), those saved when the server doesn't answer
+    /// within 3 s. `reached`: the server answered.
+    private func details(_ saved: ItemDetail?) async throws -> (ItemDetail, reached: Bool) {
+        let (api, id) = (env.api, request.itemId)
+        guard let saved else { return (try await api.item(id), true) }
+        let clock = env.clock
+        let fresh = await withTaskGroup(of: ItemDetail?.self) { group in
+            group.addTask { try? await api.item(id) }
+            group.addTask {
+                try? await clock.sleep(ms: Self.savedDetailMs)
+                return nil
+            }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first
+        }
+        guard let fresh else { return (saved, false) }
+        return (fresh, true)
     }
 
     private func describe(_ item: ItemDetail, _ file: MediaFile) {
@@ -680,6 +734,8 @@ public final class PlaybackController: ObservableObject {
         state.positionMs = lastPositionMs
         markers = Markers.forFile(item, fileId: file.id)
         subtitle = file.streams(.subtitle).first { $0.index == file.selectedSubtitle }
+        // A download shows only the text tracks saved with it.
+        if let localFile, let chosen = subtitle, localFile.subtitles[chosen.index] == nil { subtitle = nil }
         subtitleOffset = SubtitleSync.clamp(env.subtitleOffsets.offset(offsetKey(file.id)))
         state.subtitleOffsetMs = subtitleOffset
         publishSubtitles()
@@ -788,6 +844,15 @@ public final class PlaybackController: ObservableObject {
     /// keyed address the player opens.
     private func startSession(at atMs: Int, keepPrevious: Bool) async throws -> (ServerPlaybackSession, URL) {
         guard let item, let file else { throw CancellationError() }
+        if let localFile {
+            let (local, itemId) = (env.local, item.id)
+            let duration = file.durationMs ?? item.durationMs
+            let started = ServerPlaybackSession.local(
+                api: env.api, itemId: itemId, fileId: file.id, url: localFile.url, durationMs: duration ?? 0,
+                reporter: env.reporter, late: env.late,
+                played: { local?.played(itemId, positionMs: $0, durationMs: duration) })
+            return (started, localFile.url)
+        }
         // A lower quality is always a transcode; the original keeps a fallback's mode.
         let mode: PlaybackMode = quality.original ? recovery.fallbackMode ?? .auto : .transcode
         let decision = caps.map { CapsPolicy.decide(file, $0) }
@@ -832,6 +897,7 @@ public final class PlaybackController: ObservableObject {
         }
         let info = started.info
         state.method = info.method
+        state.downloaded = started.local
         state.audioConverted = info.audioConverted
         state.reasons = info.reasons
         state.videoRange = info.videoRange
@@ -1000,6 +1066,8 @@ public final class PlaybackController: ObservableObject {
             restart(at: livePosition(), alongside: alongside)
         case .checkServer:
             guard let session else { return }
+            // A download: no server to ask.
+            if session.local { return act(recovery.afterServerCheck(speed: nil, starving: starving), starving: starving) }
             Task { [weak self] in
                 guard let self else { return }
                 var speed: Double?
@@ -1158,8 +1226,11 @@ public final class PlaybackController: ObservableObject {
         if let next { return then(next) }
         nextLookup?.cancel()
         let (api, id, kind, queue) = (env.api, item.id, item.kind, request.queue)
+        // After a download, the next episode downloaded first: it plays without the server.
+        let local = localFile != nil && queue == nil ? env.local : nil
         nextLookup = Task { [weak self] in
-            let found = try? await NextUp.after(id, kind: kind, queue: queue, api: api)
+            var found = await local?.nextAfter(id)
+            if found == nil { found = try? await NextUp.after(id, kind: kind, queue: queue, api: api) }
             guard let self, !Task.isCancelled, self.item?.id == id, !self.closed else { return }
             if let found { self.next = found }
             then(found)
@@ -1230,6 +1301,7 @@ public final class PlaybackController: ObservableObject {
         request = PlayRequest(itemId: target.id, startMs: NextUp.startOf(target), queue: queue)
         item = nil
         file = nil
+        localFile = nil
         next = nil
         nextAsked = false
         markers = []
@@ -1246,6 +1318,7 @@ public final class PlaybackController: ObservableObject {
         expired = false
         reset(at: request.startMs ?? 0)
         state.method = nil
+        state.downloaded = false
         state.audioConverted = false
         state.reasons = []
         state.videoRange = nil
@@ -1280,7 +1353,8 @@ public final class PlaybackController: ObservableObject {
 
     /// The Audio menu as it plays now.
     private func publishAudio() {
-        let menu = TrackChoices.audioMenu(file, playing: playingAudio)
+        // A converted download has the one track the server made: no menu.
+        let menu = localFile?.converted == true ? [] : TrackChoices.audioMenu(file, playing: playingAudio)
         if state.audio != menu { state.audio = menu }
     }
 
@@ -1331,7 +1405,8 @@ public final class PlaybackController: ObservableObject {
 
     /// The Subtitles menu, the sync and whether it is burned in, as chosen now.
     private func publishSubtitles() {
-        let streams = file?.streams(.subtitle) ?? []
+        // A download has the text tracks saved beside it.
+        let streams = (file?.streams(.subtitle) ?? []).filter { localFile == nil || localFile?.subtitles[$0.index] != nil }
         let info = session?.info
         let streaming = info?.hls ?? false
         let menu = streams.isEmpty ? [] : [MenuChoice(id: MenuChoice.off, label: PlayerTexts.subtitlesOff,
@@ -1351,6 +1426,10 @@ public final class PlaybackController: ObservableObject {
     /// server's WebVTT, pictures from its `.mks` unless burned in; else none.
     private func applySubtitles() {
         guard let info = session?.info, let sub = subtitle else { return hideSubtitles() }
+        if let localFile {
+            guard let saved = localFile.subtitles[sub.index] else { return hideSubtitles() }
+            return showSaved(saved)
+        }
         if !PlaybackPlan.isPicture(sub) {
             let given = info.subtitles.first { $0.index == sub.index }?.url
             let path = given.flatMap { SubtitleFetch.isTrackPath($0) ? $0 : nil }
@@ -1387,6 +1466,24 @@ public final class PlaybackController: ObservableObject {
                 }
                 do { try await clock.sleep(ms: Self.subtitleRefreshMs) } catch { return }
             }
+        }
+    }
+
+    /// Reads the WebVTT saved with a download.
+    private func showSaved(_ url: URL) {
+        let key = "saved \(url.path)"
+        guard feedKey != key else { return }
+        hideSubtitles()
+        feedKey = key
+        feed = Task { [weak self] in
+            let text = await Task.detached { () -> String? in
+                let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+                guard size <= SubtitleFetch.textMaxBytes, let data = try? Data(contentsOf: url) else { return nil }
+                return String(decoding: data, as: UTF8.self)
+            }.value
+            guard let self, !Task.isCancelled else { return }
+            guard let text else { return self.subtitlesFailed(nil) }
+            self.draw(TextCueTrack(WebVTT.parse(text)))
         }
     }
 
@@ -1590,6 +1687,12 @@ public final class PlaybackController: ObservableObject {
 
     /// The Quality menu as chosen now, and what plays.
     private func publishChoices() {
+        if localFile != nil {
+            state.qualities = [MenuChoice(id: QualityPreset.originalId, label: PlayerTexts.downloaded, selected: true)]
+            state.quality = PlayerTexts.downloaded
+            state.qualityNote = nil
+            return
+        }
         let converted = serverQuality(session?.info)
         let playing = label(converted ?? quality)
         let note = noteNow()
