@@ -11,8 +11,8 @@ sessions as Pley's own API, so changes made through either show up in both.
 The base URL is Pley's own address, `http://pley.local:7539` or
 `https://media.example.com` (no `/api`), unless the API has a port of its
 own ([Enabling and port](#enabling-and-port)). Every endpoint but
-`/identity` needs a Pley session token, sent as `X-Plex-Token`
-([Authentication](#authentication)).
+`/identity` needs a token for other apps, a compatibility token, sent as
+`X-Plex-Token` ([Authentication](#authentication)).
 
 ## Contents
 
@@ -63,31 +63,35 @@ it isn't listening.
 
 ## Authentication
 
-Use a Pley session token as the API's token. Get one by signing in:
+This API takes compatibility tokens (`pley_ct_…`): tokens for other apps
+and tools that work on this API only, never on Pley's own, and only for
+what they were allowed. Make one for each app or tool, so that one can be
+revoked without the others. There are two ways to get one:
+
+- **In Pley:** Account → Tokens for other apps → New token. Name it after
+  the app, choose what it may do, and copy the token into the app: Pley
+  shows it once.
+- **By signing in**, for tools and scripts: `POST /api/auth/login` with
+  `client`, the token's name, and `scope`, what it may do (`play` without
+  one). The answer has the token, whatever asked; no session is made and no
+  cookie is set.
 
 ```sh
 curl -s -X POST http://localhost:7539/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"alice","password":"…"}'
-# {"user":{…},"token":"<token>"}
+  -d '{"username":"alice","password":"…","client":"Tautulli","scope":"activity"}'
+# {"user":{…},"token":"pley_ct_…"}
 ```
 
-An account with two-step sign-in adds `"code"`, a code from its
-authenticator app. When the server requires two-step sign-in, a tool's
-account uses it too: requiring it signs the account out, so sign in as it
-on the web once to set it up, then ask for a new token with a code.
+Signing in for a token goes through every check of a sign-in: attempt
+limits, disabled accounts and two-step sign-in. An account with two-step
+sign-in adds `"code"`, a code from its authenticator app. When the server
+requires two-step sign-in and the account doesn't use it yet, the same
+request sets it up, as on the web
+([API.md](API.md#two-step-sign-in)), and the answer has its recovery codes
+too; setting it up on the web first and making the token there is simpler.
 
-Accepted:
-
-- this API's way: the `X-Plex-Token` header or query parameter;
-- Pley's way: `Authorization: Bearer`, `X-Pley-Token` or `?token=`.
-
-Refused (`401`):
-
-- the web app's `pley_token` cookie: browsers send it to this port too, and
-  some of this API's endpoints change things on a GET;
-- tokens starting `pley_`: those of apps signed in on Pley's own page
-  (`pley_at_…`, `pley_rt_…`) and the keyed addresses of their playback.
+The token is then the API's token, as tools expect:
 
 ```python
 from plexapi.server import PlexServer
@@ -96,11 +100,74 @@ for movie in server.library.section('Movies').search(unwatched=True):
     print(movie.title, movie.media[0].videoResolution)
 ```
 
-Each user sees their own watch state, Continue Watching and sessions, and
-only what Pley's [access rules](API.md#access-rules) let them see.
-Administrators also see every user's sessions and history, and alone may
-refresh libraries and items, stop sessions, edit metadata and make or change
-collections (others get `403`).
+### Scopes
+
+| Scope | In Pley | What it allows |
+|---|---|---|
+| `play` | Watch | Every token has it. Browsing what the account may open, playing, its own watch state, ratings, sessions, history, playlists and play queues, and notifications about its own sessions and the libraries it may open. |
+| `activity` | See everyone's activity | Every account's sessions, history and accounts, notifications about everyone's sessions, and where files are, as Tautulli needs. It changes nothing. |
+| `manage` | Manage libraries | Refreshing libraries and items, editing metadata, artwork and collections, stopping anyone's session and deleting anyone's history, as Kometa needs. It shows no one else's sessions or history. |
+
+A token sees only what Pley's [access rules](API.md#access-rules) let its
+account see, with the account's own watch state and Continue Watching.
+Only administrators make tokens with `activity` or `manage` (others get
+`403`). Those scopes are checked against the account at every request: an
+account that is no longer an administrator loses what they allow at once,
+and its tokens do what `play` allows. A token without `manage` gets `403`
+for a change only administrators make, and one without `activity` sees what
+a viewer would: its account's own sessions and history, and files' names
+rather than where they are.
+
+### Where they work
+
+Accepted:
+
+- this API's way: the `X-Plex-Token` header or query parameter;
+- Pley's way: `Authorization: Bearer`, `X-Pley-Token` or `?token=`.
+
+Refused (`401`):
+
+- Pley's session tokens, which `POST /api/auth/login` answers without
+  `client`: the answer says to use a token for other apps;
+- the web app's `pley_token` cookie: browsers send it to this port too, and
+  some of this API's endpoints change things on a GET;
+- tokens of apps signed in on Pley's own page (`pley_at_…`, `pley_rt_…`)
+  and the keyed addresses of their playback.
+
+A compatibility token opens nothing of Pley's own API (`/api/…`): `401`
+wherever it is sent there.
+
+### When they end
+
+A token ends when:
+
+- it is revoked in Account, or a tool signs out with it
+  (`POST /api/auth/logout` with the token);
+- it goes 90 days unused;
+- the account's password changes (its owner's change, an administrator's
+  or `pley reset-password`), it is signed out everywhere, or it is deleted.
+
+It doesn't work while the account is disabled, nor while the server
+requires two-step sign-in of an account that doesn't use it, and works again
+when that ends, as the account's sessions do.
+
+### Moving from session tokens
+
+Before compatibility tokens, this API took Pley's session tokens. It
+refuses them now (`401`): a session token opens everything the account may
+do on Pley's own API too, administration included. To move a tool over:
+
+1. In Pley, open Account → Tokens for other apps → New token, name the
+   token after the tool, and allow what it needs: Tautulli, See everyone's
+   activity; Kometa, Manage libraries; a player such as Plezy or Infuse,
+   Watch alone.
+2. Put the new token where the tool kept the old one (for Kometa, `token`
+   under `plex` in its `config.yml`).
+3. A script that signs in adds `"client"`, and `"scope"` if it needs more
+   than `play`, to its `POST /api/auth/login`.
+
+The session the old token belonged to stays signed in until it is signed
+out in Account → Devices, or goes 90 days unused.
 
 ## Formats
 
@@ -150,9 +217,9 @@ them.
   - `activity`: library scans;
   - `status` (`LIBRARY_UPDATE`): a scan ended.
 
-  Each user hears about their own sessions (administrators about all) and
-  the libraries they may open. The token is checked every 10 s and the
-  socket closes once it is revoked.
+  Each token hears about its own account's sessions (everyone's with
+  `activity`) and the libraries its account may open. The token is checked
+  every 10 s, and the socket closes once it is revoked or ends.
 - **Streaming.**
   - `/library/parts/{id}/{version}/file.ext` serves the file with range
     requests (direct play; `?download=1` adds an attachment header).
@@ -188,20 +255,21 @@ them.
 | Area | Endpoints |
 |---|---|
 | Server | `/`, `/identity`, `/servers`, `/accounts`, `/myplex/account`, `/system`, `/prefs`, `/:/prefs` (`PUT` is accepted and changes nothing), `/media/providers`, `/:/websockets/notifications`; `/clients`, `/devices`, `/activities`, `/butler` and `/updater/status` answer empty containers |
-| Sections | `/library`, `/library/sections`, `/library/sections/{id}`, `…/all`, `…/albums`, `…/recentlyAdded`, `…/onDeck`, `…/search`, `…/firstCharacter`, `…/collections`, `…/{genre,year,decade,contentRating,studio,actor,director,writer,producer,label}` (filter choices), `…/refresh` and `/library/sections/all/refresh` (administrators); `…/emptyTrash` and `…/analyze` are accepted and change nothing |
-| Items | `/library/metadata/{id}` (comma-separated ids allowed), `…/extras` (trailers and other bonus material as `clip`s with the API's `extraType` and `subtype`), `…/children`, `…/allLeaves`, `…/grandchildren`, `…/related` ("More Like This" hub), `…/similar` (the same items), `…/thumb[/{version}]`, `…/art[/{version}]`, `…/refresh` (administrators) |
+| Sections | `/library`, `/library/sections`, `/library/sections/{id}`, `…/all`, `…/albums`, `…/recentlyAdded`, `…/onDeck`, `…/search`, `…/firstCharacter`, `…/collections`, `…/{genre,year,decade,contentRating,studio,actor,director,writer,producer,label}` (filter choices), `…/refresh` and `/library/sections/all/refresh` (`manage`); `…/emptyTrash` and `…/analyze` are accepted and change nothing |
+| Items | `/library/metadata/{id}` (comma-separated ids allowed), `…/extras` (trailers and other bonus material as `clip`s with the API's `extraType` and `subtype`), `…/children`, `…/allLeaves`, `…/grandchildren`, `…/related` ("More Like This" hub), `…/similar` (the same items), `…/thumb[/{version}]`, `…/art[/{version}]`, `…/refresh` (`manage`) |
 | Lists | `/library/all`, `/library/onDeck`, `/library/recentlyAdded`, `/hubs`, `/hubs/sections/{id}`, `/hubs/continueWatching/items`, `/hubs/sections/{id}/continueWatching/items`, `/hubs/home/recentlyAdded`, `/hubs/search`, `/search`, `PUT /actions/removeFromContinueWatching?ratingKey=` (the movie, or the episode's show, leaves the user's Continue Watching until it is played again, as `DELETE /api/continue-watching/{id}`) |
 | Collections | `/library/sections/{id}/collections` (also `…/all?type=18`), `/library/collections/{id}`, `…/children`, `…/{thumb,art,composite}[/{version}]`; changes under [Editing](#editing) |
 | Playlists | `GET`/`POST /playlists` (`?type=&title=&uri=…/library/metadata/1,2`, or `smart=1&uri=…/library/sections/{id}/all?…` for a smart playlist of that listing; `?smart=0\|1` filters the list), `GET`/`PUT` (`?title=`)/`DELETE /playlists/{id}`, `GET`/`PUT /playlists/{id}/items` (`?uri=`), `DELETE /playlists/{id}/items/{playlistItemID}`, `PUT …/{playlistItemID}/move?after=`, `/playlists/{id}/composite/{version}` |
 | Previews | `/library/parts/{id}/indexes/sd` (BIF), `/library/parts/{id}/indexes/sd/{offset}` (the frame at `offset` ms), `/library/media/{id}/chapterImages/{n}` |
-| Playback | `/library/parts/…`, `/library/streams/{id}` (subtitles), `/:/timeline`, `/:/progress`, `/:/scrobble`, `/:/unscrobble`, `/:/rate?key=&rating=` (the user's rating, 0-10; negative clears it), `/status/sessions`, `/status/sessions/terminate?sessionId=&reason=` (administrators: stops the session whose `Session` `id` it is, `reason` as the message its player shows, as `DELETE /api/sessions/{id}`; that client's reports don't start it again), `/transcode/sessions`, `/{video,audio}/:/transcode/universal/{start.m3u8,start,decision,stop,ping,session/…}` |
+| Playback | `/library/parts/…`, `/library/streams/{id}` (subtitles), `/:/timeline`, `/:/progress`, `/:/scrobble`, `/:/unscrobble`, `/:/rate?key=&rating=` (the user's rating, 0-10; negative clears it), `/status/sessions`, `/status/sessions/terminate?sessionId=&reason=` (`manage`: stops the session whose `Session` `id` it is, `reason` as the message its player shows, as `DELETE /api/sessions/{id}`; that client's reports don't start it again), `/transcode/sessions`, `/{video,audio}/:/transcode/universal/{start.m3u8,start,decision,stop,ping,session/…}` |
 | Play queues | `POST /playQueues` (`uri=` items, a container, a section listing or a playlist, or `playlistID=`; `key=` the item to start with; `shuffle=1`; `continuous=1` plays the rest of an episode's show after it), `GET`/`PUT /playQueues/{id}` (`uri=`/`playlistID=` adds, `next=1` right after the playing item), `DELETE /playQueues/{id}/items[/{playQueueItemID}]`, `PUT …/items/{playQueueItemID}/move?after=`, `PUT /playQueues/{id}/shuffle`, `…/unshuffle`; kept in memory for a day, for the user who made them |
-| History | `/status/sessions/history/all` (`accountID`, `librarySectionID`, `metadataItemID`, `viewedAt>=`; administrators see every account, others their own), `DELETE /status/sessions/history/{id}` |
+| History | `/status/sessions/history/all` (`accountID`, `librarySectionID`, `metadataItemID`, `viewedAt>=`; `activity` sees every account, others their own), `DELETE /status/sessions/history/{id}` (anyone's with `manage`, others their own) |
 | Images | `/photo/:/transcode` |
 
 ## Editing
 
-Administrators edit metadata the way `python-plexapi` (and so Kometa) does:
+Tokens with `manage` edit metadata the way `python-plexapi` (and so Kometa)
+does:
 
 - `PUT /library/sections/{id}/all?type=1&id=1,2&title.value=…&title.locked=1`,
   or `PUT /library/metadata/{id}?…`, for `title`, `titleSort`,

@@ -49,6 +49,10 @@ pub enum AppError {
     /// An app's token anywhere but `Authorization: Bearer`.
     #[error("app tokens go in the Authorization header")]
     TokenPlacement,
+    /// A compatibility token on Pley's own API, wherever it was sent: it
+    /// opens the compatibility API only (see `crate::auth::compatibility`).
+    #[error("tokens for other apps work on the compatibility API only")]
+    CompatibilityToken,
     /// An app's token on a route its scopes don't open: the scope that
     /// would, or `None` when no scope opens it (see `crate::auth::scopes`).
     #[error("{}", scope_message(*.0))]
@@ -100,6 +104,7 @@ impl AppError {
             Self::TwoStepSetup(m, s) => Self::TwoStepSetup(m.clone(), s.clone()),
             Self::InvalidToken => Self::InvalidToken,
             Self::TokenPlacement => Self::TokenPlacement,
+            Self::CompatibilityToken => Self::CompatibilityToken,
             Self::InsufficientScope(scope) => Self::InsufficientScope(*scope),
             Self::SessionStopped(m) => Self::SessionStopped(m.clone()),
             Self::Internal(err) => Self::Internal(anyhow::anyhow!("{err:#}")),
@@ -119,7 +124,7 @@ impl AppError {
             Self::TooManyRequests(_) => (StatusCode::TOO_MANY_REQUESTS, "too_many_requests"),
             Self::TwoStep(_) => (StatusCode::UNAUTHORIZED, "two_step"),
             Self::TwoStepSetup(..) => (StatusCode::UNAUTHORIZED, "two_step_setup"),
-            Self::InvalidToken => (StatusCode::UNAUTHORIZED, "unauthorized"),
+            Self::InvalidToken | Self::CompatibilityToken => (StatusCode::UNAUTHORIZED, "unauthorized"),
             Self::TokenPlacement => (StatusCode::BAD_REQUEST, "bad_request"),
             Self::InsufficientScope(_) => (StatusCode::FORBIDDEN, "insufficient_scope"),
             Self::SessionStopped(_) => (StatusCode::GONE, "session_stopped"),
@@ -130,7 +135,7 @@ impl AppError {
     /// `WWW-Authenticate` of the answers to apps' tokens (RFC 6750 §3).
     fn challenge(&self) -> Option<String> {
         match self {
-            Self::InvalidToken => Some(r#"Bearer error="invalid_token""#.to_owned()),
+            Self::InvalidToken | Self::CompatibilityToken => Some(r#"Bearer error="invalid_token""#.to_owned()),
             Self::TokenPlacement => Some(r#"Bearer error="invalid_request""#.to_owned()),
             Self::InsufficientScope(None) => Some(r#"Bearer error="insufficient_scope""#.to_owned()),
             Self::InsufficientScope(Some(scope)) => {
@@ -224,6 +229,7 @@ mod tests {
             (AppError::TwoStepSetup("no".into(), json!({})), 401, "two_step_setup"),
             (AppError::InvalidToken, 401, "unauthorized"),
             (AppError::TokenPlacement, 400, "bad_request"),
+            (AppError::CompatibilityToken, 401, "unauthorized"),
             (AppError::InsufficientScope(None), 403, "insufficient_scope"),
             (AppError::InsufficientScope(Some("play")), 403, "insufficient_scope"),
             (AppError::SessionStopped(None), 410, "session_stopped"),
@@ -252,6 +258,11 @@ mod tests {
                 AppError::TokenPlacement,
                 Some(r#"Bearer error="invalid_request""#),
                 Some("app tokens go in the Authorization header"),
+            ),
+            (
+                AppError::CompatibilityToken,
+                Some(r#"Bearer error="invalid_token""#),
+                Some("tokens for other apps work on the compatibility API only"),
             ),
             (
                 AppError::InsufficientScope(None),

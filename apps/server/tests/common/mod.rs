@@ -35,6 +35,7 @@ pub struct TestApp {
     pub state: AppState,
     pub media: tempfile::TempDir,
     _data: tempfile::TempDir,
+    plex_tokens: PlexTokens,
 }
 
 pub struct Reply {
@@ -77,7 +78,7 @@ impl TestApp {
         let state = AppState::init(config).await.unwrap();
         let api = pley::api::router(state.clone());
         let plex = pley::plex::service(state.clone());
-        Self { api, plex, state, media: tempfile::tempdir().unwrap(), _data: data }
+        Self { api, plex, state, media: tempfile::tempdir().unwrap(), _data: data, plex_tokens: Default::default() }
     }
 
     /// A new pley on the same data folder, as after a restart: what was
@@ -140,9 +141,22 @@ impl TestApp {
         self.call(Method::DELETE, uri, Some(token), None, &[]).await
     }
 
+    /// A compatibility token of the account signed in with `session`, made
+    /// on its account page, that may do `scope`.
+    pub async fn compatibility_token(&self, session: &str, scope: &str) -> String {
+        compatibility_token(&self.api, session, scope).await
+    }
+
+    /// The token the compatibility API is sent for `token` (see
+    /// [`PlexTokens`]).
+    pub async fn plex_token(&self, token: &str) -> String {
+        self.plex_tokens.get(&self.state, &self.api, token).await
+    }
+
     /// The Plex-compatible API, asking for JSON with the token as Plex
-    /// clients send it.
+    /// clients send it ([`TestApp::plex_token`]'s for a session).
     pub async fn plex(&self, method: Method, uri: &str, token: &str, extra: &[(&str, &str)]) -> Reply {
+        let token = self.plex_token(token).await;
         let mut req = Request::builder()
             .method(method)
             .uri(uri)
@@ -169,6 +183,7 @@ impl TestApp {
 
     /// A Plex-compatible API request with `body` (an upload).
     pub async fn plex_upload(&self, method: Method, uri: &str, token: &str, body: Vec<u8>) -> Reply {
+        let token = self.plex_token(token).await;
         let req = Request::builder()
             .method(method)
             .uri(uri)
@@ -401,6 +416,56 @@ impl TestApp {
             .fetch_one(&self.state.db.read)
             .await
             .unwrap()
+    }
+}
+
+/// A compatibility token of the account signed in with `session`, made
+/// through `api` as its account page makes one, that may do `scope`.
+pub async fn compatibility_token(api: &Router, session: &str, scope: &str) -> String {
+    let req = Request::builder()
+        .method(Method::POST)
+        .uri("/api/me/compatibility-tokens")
+        .header(header::AUTHORIZATION, format!("Bearer {session}"))
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(json!({"name": "Tests", "scope": scope}).to_string()))
+        .unwrap();
+    let made = reply(api.clone().oneshot(req).await.unwrap()).await;
+    assert_eq!(made.status, StatusCode::CREATED, "{:?}", made.body);
+    made.body["token"].as_str().unwrap().to_owned()
+}
+
+/// The compatibility tokens that tests send the compatibility API for the
+/// sessions they signed in with. A session's stands for a compatibility
+/// token of its account with every right the account has (`play`, and
+/// `activity manage` for an administrator), made once and kept as a tool
+/// keeps its token: when the session ends, requests go on with the kept
+/// token, which ended with it. A new one is made only while the session
+/// works and the kept one doesn't (a new password ends the account's tokens
+/// but not the session that set it), or the account's role changed. Any
+/// other token goes as it is.
+#[derive(Default)]
+pub struct PlexTokens(std::sync::Mutex<HashMap<String, (bool, String)>>);
+
+impl PlexTokens {
+    /// The token to send for `token`, of the pley of `state` and `api`.
+    pub async fn get(&self, state: &AppState, api: &Router, token: &str) -> String {
+        if token.starts_with("pley_") {
+            return token.to_owned();
+        }
+        let kept = self.0.lock().unwrap().get(token).cloned();
+        let Some(user) = state.auth.validate(token).await else {
+            return kept.map_or_else(|| token.to_owned(), |(_, kept)| kept);
+        };
+        if let Some((admin, kept)) = kept
+            && admin == user.is_admin
+            && state.auth.validate_compatibility(&kept, None).await.is_some()
+        {
+            return kept;
+        }
+        let scope = if user.is_admin { "play activity manage" } else { "play" };
+        let made = compatibility_token(api, token, scope).await;
+        self.0.lock().unwrap().insert(token.to_owned(), (user.is_admin, made.clone()));
+        made
     }
 }
 

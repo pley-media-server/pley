@@ -3,7 +3,8 @@
 The API the web app and Pley's own apps (Android, desktop, Kodi, Roku,
 Samsung and LG) use, for anyone writing a client or a script. Tools written
 for the widely used media-server API that Pley also speaks go through the
-compatibility API instead: [COMPATIBILITY.md](COMPATIBILITY.md).
+compatibility API instead, with tokens of their own that this API refuses:
+[COMPATIBILITY.md](COMPATIBILITY.md).
 
 The base URL is the server's address with `/api`:
 `http://pley.local:7539/api`, or `https://media.example.com/api` behind a
@@ -21,7 +22,8 @@ details.
   [CORS for TV apps](#cors-for-tv-apps), [Errors](#errors)
 - [Types](#types)
 - [Public endpoints](#public-endpoints), [Auth](#auth),
-  [Two-step sign-in](#two-step-sign-in), [Your account](#your-account)
+  [Two-step sign-in](#two-step-sign-in), [Your account](#your-account),
+  [Compatibility tokens](#compatibility-tokens)
 - [Apps (OAuth 2.1)](#apps-oauth-21): [Discovery](#discovery),
   [Signing in](#signing-in), [Tokens](#tokens), [TVs](#tvs),
   [Lifetimes and limits](#lifetimes-and-limits), [Scopes](#scopes),
@@ -102,6 +104,12 @@ refuses them. Refusals of an app's token carry `WWW-Authenticate`
 | `400` | `bad_request` | `Bearer error="invalid_request"` | the token was sent anywhere but `Authorization` |
 | `401` | `unauthorized` | `Bearer error="invalid_token"` | expired, signed out or unknown token; a refresh token sent as a bearer token; a disabled account |
 | `403` | `insufficient_scope` | `Bearer error="insufficient_scope", scope="play"` | the token's scopes don't open the route. `scope` names the one that would; it is left out when none does ("apps can't do that: use Pley's web app") |
+
+Compatibility tokens (`pley_ct_…`), which apps and tools that use the
+compatibility API hold, open nothing here: wherever one is sent, the answer
+is `401` with `code` `unauthorized`, `WWW-Authenticate: Bearer
+error="invalid_token"` and the message "tokens for other apps work on the
+compatibility API only" ([Compatibility tokens](#compatibility-tokens)).
 
 ### Who
 
@@ -489,7 +497,7 @@ lists carry (Kodi).
 | GET | `/api/server` | `public` | `{ name, version, commit, source, setup_required, setup_code_required, two_step_required }` |
 | GET | `/api/oauth/device/qr?code=` | `public` | where to type a TV's code, as a QR code (PNG): see [TVs](#tvs) |
 | POST | `/api/setup` | `public` | `{ username, password, setup_code }` → `{ user: User, token? }`: creates the first (admin) account and signs in |
-| POST | `/api/auth/login` | `public` | `{ username, password, code?, setup_id? }` → `{ user: User, token?, recovery_codes? }` |
+| POST | `/api/auth/login` | `public` | `{ username, password, code?, setup_id?, client?, scope? }` → `{ user: User, token?, recovery_codes? }` |
 
 - `/api/server`: `commit` is the build's short hash, `"unknown"` when built
   without the repository. `source` is where the server's source code is
@@ -514,12 +522,21 @@ lists carry (Kodi).
   one. Attempts are limited as in
   [Errors](#errors). A disabled account gets `403`, and its sessions stop
   working.
+- `/api/auth/login` with `client` signs a tool in for a
+  [compatibility token](#compatibility-tokens) instead of a session:
+  `client` is the token's name, and `scope` what it may do (space-separated,
+  `play` without it). The answer's `token` is that token, also for a
+  browser, and no session is made and no cookie is set. Every check above
+  applies, and the second step, or its setup, comes in the same way. A name
+  or scope that [`POST /api/me/compatibility-tokens`](#compatibility-tokens)
+  refuses is refused here too: `400`, or `403` for `activity` or `manage` on
+  an account that isn't an administrator's.
 
 ## Auth
 
 | Method | Path | Who | What |
 |---|---|---|---|
-| POST | `/api/auth/logout` | `public` | `204`, cookie cleared; ends the session of the token sent, if any. With an app's token, wherever it was sent, signs that app out (its whole grant ends) |
+| POST | `/api/auth/logout` | `public` | `204`, cookie cleared; ends the session of the token sent, if any. With an app's token, wherever it was sent, signs that app out (its whole grant ends); with a compatibility token, revokes it |
 | GET | `/api/auth/me` | `any app` | `User` |
 | PUT | `/api/auth/password` | `user` | `{ current_password, new_password }` → `204` |
 | GET | `/api/auth/profiles` | `user` | `User[]`: home profiles this user can switch to (empty for non-home users) |
@@ -530,7 +547,8 @@ lists carry (Kodi).
   `all_libraries` and `max_age` are the app's rights (`is_admin` is always
   false).
 - `PUT /api/auth/password` signs the user out everywhere but this device,
-  and signs out every app using the account or allowed by it.
+  signs out every app using the account or allowed by it, and ends the
+  account's compatibility tokens.
 - `POST /api/auth/switch` ends this device's old session. What the switch
   needs:
   - a profile with a PIN: the PIN. After 100 wrong PINs in a row it stops
@@ -644,6 +662,49 @@ A choice made for a show or movie wins over these defaults. Subtitles count
 as forced when flagged so, or when their title says so ("forced", or
 "signs" as in "Signs & Songs"). Languages match in any ISO 639 form (`en`,
 `eng`; `fr`, `fre`, `fra`); an untagged or `und` track has no language.
+
+## Compatibility tokens
+
+Tokens for other apps and tools that use the
+[compatibility API](COMPATIBILITY.md#authentication): Tautulli, Kometa,
+players such as Plezy and Infuse, scripts. They work there only, never on
+this API, and only for what their scopes allow. The web app's Account page
+lists and makes them ("Tokens for other apps"); a tool can also sign in for
+one ([`/api/auth/login` with `client`](#public-endpoints)).
+
+| Method | Path | Who | What |
+|---|---|---|---|
+| GET | `/api/me/compatibility-tokens` | `user` | `CompatibilityToken[]`: your tokens, most recently used first |
+| POST | `/api/me/compatibility-tokens` | `user` | `{ name, scope? }` → `201` `CompatibilityToken & { token }`: a new token, shown this once |
+| DELETE | `/api/me/compatibility-tokens/{id}` | `user` | `204`, revokes it at once; `404` unless it is yours |
+
+```ts
+interface CompatibilityToken {
+  id: Id;
+  name: string;                     // what it was called: 1 to 80 characters, no control characters
+  scopes: string[];                 // "play", and "activity" or "manage"
+  created_at: Timestamp;
+  last_used_at: Timestamp | null;   // null until it is first used
+  expires_at: Timestamp;            // 90 days after it was made or last used
+  device: string | null;            // of its last use, from the User-Agent: "Tautulli/2.15"
+  ip: string | null;
+}
+```
+
+- `scope` is space-separated; `play` is always there, named or not.
+  `activity` (every account's sessions and history) and `manage` (refreshes,
+  edits, collections, stopping anyone's playback) are for administrators
+  only: `403` for anyone else. Both are checked against the account at every
+  use, so an account that stops being an administrator loses them at once.
+  [COMPATIBILITY.md](COMPATIBILITY.md#scopes) says what each allows. An
+  unknown scope or a name out of bounds is `400`.
+- The token starts `pley_ct_` and is stored only as its SHA-256: no answer
+  but the one that makes it has it.
+- An account keeps 100 tokens at most; making another ends the least
+  recently used.
+- A token ends when it is revoked, after 90 days unused, and with the
+  account's other sign-ins: a new password, signing out everywhere, the
+  account's deletion. It doesn't work while the account is disabled.
 
 ## Apps (OAuth 2.1)
 
@@ -2986,8 +3047,8 @@ transcode and HLS end at once. Then:
   administrator", with the message if any.
 
 The compatibility API's `GET /status/sessions/terminate?sessionId=&reason=`
-(Tautulli's) does the same for administrators, with `reason` as the
-message. A player's progress reports through the compatibility API don't
+(Tautulli's) does the same with an administrator's compatibility token that
+may `manage`, with `reason` as the message. A player's progress reports through the compatibility API don't
 restart its stopped session.
 
 ### Watch state on other devices
@@ -3325,7 +3386,7 @@ interface LiveTuner {                  // a connection in use
 | PATCH | `/api/users/{id}` | `admin` | `{ password?, display_name?, is_admin?, home?, disabled?, all_libraries?, library_ids?, max_age?, pin?, request_access? }` (`null` clears nullable fields) → `User` |
 | DELETE | `/api/users/{id}` | `admin` | `204` (not yourself); their apps end with them, and each of their [requests](#requests) someone follows goes to its earliest follower (the others go with them) |
 | GET | `/api/users/{id}/devices` | `admin` | `Device[]` |
-| DELETE | `/api/users/{id}/devices` | `admin` | `204`: signs the user out everywhere, apps included |
+| DELETE | `/api/users/{id}/devices` | `admin` | `204`: signs the user out everywhere, apps and compatibility tokens included |
 | GET | `/api/users/{id}/apps` | `admin` | `AppGrant[]` ([Signed-in apps](#signed-in-apps)) |
 | DELETE | `/api/users/{id}/apps/{grant}` | `admin` | `204`: signs that app out; `404` unless it acts as that user or they allowed it |
 | DELETE | `/api/users/{id}/two-step` | `admin` | `204`: turns two-step sign-in off (for someone who lost their phone and recovery codes). While the server requires it, they are signed out everywhere and set it up again at their next sign-in |
@@ -3334,7 +3395,8 @@ interface LiveTuner {                  // a connection in use
 
 - Pley always keeps one enabled administrator.
 - A new `password` signs the user out on every device (an administrator's
-  own device stays) and in every app using the account or allowed by it.
+  own device stays) and in every app using the account or allowed by it,
+  and ends their compatibility tokens.
 - A change to `is_admin`, `all_libraries`, `library_ids` or `max_age` sends
   `libraries_changed` to the user's streams, so their devices fetch what
   they may see again; a change to those or to `request_access`,

@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use crate::accounts::{self, UserDto};
 use crate::auth::grants::APP_TOKEN_PREFIX;
 use crate::auth::{
-    AuthUser, ClientIp, CurrentToken, SourceIp, clear_cookie, dummy_password_hash, forwarded_https, hash_password,
-    hash_token, session_cookie, token_from_parts, validate_password, validate_username, verify_password,
+    AuthUser, ClientIp, CurrentToken, SourceIp, clear_cookie, compatibility, dummy_password_hash, forwarded_https,
+    hash_password, hash_token, session_cookie, token_from_parts, validate_password, validate_username, verify_password,
 };
 use crate::error::{ApiResult, AppError};
 use crate::state::AppState;
@@ -38,6 +38,13 @@ pub struct Credentials {
     /// the secret the code comes from (see [`second_step`]).
     #[serde(default)]
     setup_id: Option<String>,
+    /// A tool signing in for a compatibility token instead of a session
+    /// (see [`compatibility`]): the token's name.
+    #[serde(default)]
+    client: Option<String>,
+    /// What that token may do, space-separated (`play` without it).
+    #[serde(default)]
+    scope: Option<String>,
 }
 
 pub async fn server_status(State(state): State<AppState>) -> ApiResult<Json<serde_json::Value>> {
@@ -178,6 +185,8 @@ pub async fn setup(
     login_response(&state, id, &headers, ip.as_deref(), None).await
 }
 
+/// Signs in with a password (and its second step): a session, or with
+/// `client` a compatibility token for a tool, after the same checks.
 pub async fn login(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -185,6 +194,12 @@ pub async fn login(
     SourceIp(source): SourceIp,
     Json(body): Json<Credentials>,
 ) -> ApiResult<Response> {
+    // What a tool asks for is checked first: a request that can't get it
+    // isn't counted as an attempt.
+    let token = match &body.client {
+        Some(name) => Some(compatibility::asked(name, body.scope.as_deref())?),
+        None => None,
+    };
     let username = body.username.trim().to_owned();
     // No account has a longer name (`validate_username`): nothing to check,
     // and nothing to count and keep.
@@ -192,8 +207,8 @@ pub async fn login(
         return Err(AppError::Unauthorized);
     }
     let attempt = state.auth.throttle.begin_password(&username, source)?;
-    let row: Option<(i64, String, bool)> =
-        sqlx::query_as("SELECT id, password_hash, disabled FROM users WHERE username = ?")
+    let row: Option<(i64, String, bool, bool)> =
+        sqlx::query_as("SELECT id, password_hash, disabled, is_admin FROM users WHERE username = ?")
             .bind(&username)
             .fetch_optional(&state.db.read)
             .await?;
@@ -201,7 +216,7 @@ pub async fn login(
     // hash) never signs in with one, like a username that doesn't exist. A
     // real check against a stand-in hash takes as long as one against a
     // user's, so neither can be told apart by timing.
-    let Some((id, hash, disabled)) = row.filter(|(_, hash, _)| !hash.starts_with('!')) else {
+    let Some((id, hash, disabled, is_admin)) = row.filter(|(_, hash, ..)| !hash.starts_with('!')) else {
         verify_password(body.password, dummy_password_hash().await).await?;
         attempt.failed();
         return Err(AppError::Unauthorized);
@@ -214,8 +229,30 @@ pub async fn login(
     if disabled {
         return Err(AppError::forbidden("this account is disabled"));
     }
+    // Before the second step, which may set two-step sign-in up: its
+    // recovery codes come back only with a token.
+    if let Some(token) = &token {
+        compatibility::may_have(token.scopes, is_admin)?;
+    }
     let recovery_codes = second_step(&state, id, &username, body.code.as_deref(), body.setup_id.as_deref()).await?;
-    login_response(&state, id, &headers, ip.as_deref(), recovery_codes).await
+    match token {
+        Some(token) => compatibility_response(&state, id, &token, recovery_codes).await,
+        None => login_response(&state, id, &headers, ip.as_deref(), recovery_codes).await,
+    }
+}
+
+/// A sign-in's answer with a compatibility token for a tool: the token in
+/// the body, whatever asked, and no session or cookie.
+async fn compatibility_response(
+    state: &AppState,
+    user_id: i64,
+    asked: &compatibility::Asked,
+    recovery_codes: Option<Vec<String>>,
+) -> ApiResult<Response> {
+    let user = accounts::user(&state.db, user_id).await?.ok_or(AppError::Unauthorized)?;
+    let (token, _) = state.auth.create_compatibility_token(user_id, asked).await?;
+    tracing::info!("'{}' signed in for a token for other apps named '{}'", user.username, asked.name);
+    Ok(Json(LoginResponse { user, token: Some(token), recovery_codes }).into_response())
 }
 
 /// Checks that the signed-in user may change how their account signs in:
@@ -245,6 +282,10 @@ pub(crate) async fn confirm_password(state: &AppState, user: &AuthUser, password
 pub async fn logout(State(state): State<AppState>, request: axum::extract::Request) -> Response {
     let (parts, _) = request.into_parts();
     match token_from_parts(&parts) {
+        // A tool signing out ends its compatibility token.
+        Some(token) if token.starts_with(compatibility::PREFIX) => {
+            let _ = state.auth.end_compatibility_token_of(&token).await;
+        }
         // An app signing out ends its grant, wherever it put its token.
         Some(token) if token.starts_with(APP_TOKEN_PREFIX) => {
             state.auth.revoke_app_token(&token).await;

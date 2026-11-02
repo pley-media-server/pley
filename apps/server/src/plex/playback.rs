@@ -16,8 +16,8 @@ use tower::ServiceExt;
 use tower_http::services::ServeFile;
 
 use super::meta::{self, Detail, Sections};
-use super::{ClientInfo, Node, Params, PlexError, PlexResult, PlexUser};
-use crate::auth::AuthUser;
+use super::{ClientInfo, Node, Params, PlexAdmin, PlexError, PlexResult, PlexUser};
+use crate::auth::{AuthUser, compatibility};
 use crate::catalog::{self, ItemRow};
 use crate::events::ServerEvent;
 use crate::library::list_libraries;
@@ -450,7 +450,8 @@ fn transcode_node(session: &Session, job: &JobStatus) -> Node {
         .attr("maxOffsetAvailable", (done_ms as f64 / 1000.0 * 10.0).round() / 10.0)
 }
 
-/// `/status/sessions`: what is playing now (admins see every user).
+/// `/status/sessions`: what is playing now (an administrator's token with
+/// `activity` sees every user's).
 pub async fn sessions(State(state): State<AppState>, PlexUser(user): PlexUser) -> PlexResult<Node> {
     let all = state.sessions.list();
     forget_ended(&state, &all);
@@ -534,12 +535,10 @@ pub async fn sessions(State(state): State<AppState>, PlexUser(user): PlexUser) -
 }
 
 /// `/status/sessions/terminate?sessionId=…&reason=…` (Tautulli's "kill
-/// stream"): an administrator stops a session (its `Session` `id`), as
-/// `DELETE /api/sessions/{id}` does, with the reason as its message.
-pub async fn terminate(State(state): State<AppState>, PlexUser(user): PlexUser, params: Params) -> PlexResult<Node> {
-    if !user.is_admin {
-        return Err(PlexError::Forbidden);
-    }
+/// stream"): an administrator's token with `manage` stops a session (its
+/// `Session` `id`), as `DELETE /api/sessions/{id}` does, with the reason as
+/// its message.
+pub async fn terminate(State(state): State<AppState>, PlexAdmin(user): PlexAdmin, params: Params) -> PlexResult<Node> {
     let id = params
         .get("sessionId")
         .filter(|id| !id.is_empty())
@@ -720,7 +719,8 @@ pub async fn universal_decision(
         .child(node))
 }
 
-/// `stop?session=<client>`: ends the client's sessions.
+/// `stop?session=<client>`: ends the client's sessions. Someone else's only
+/// with `manage`, which stops sessions.
 pub async fn universal_stop(
     State(state): State<AppState>,
     PlexUser(user): PlexUser,
@@ -729,7 +729,8 @@ pub async fn universal_stop(
 ) -> PlexResult<Node> {
     let mut ended = Vec::new();
     if let Some(id) = params.get_ci("session") {
-        if let Some(session) = state.sessions.get(id).filter(|s| s.user_id == user.id || user.is_admin) {
+        let anyones = user.compatibility_allows(compatibility::Scope::Manage);
+        if let Some(session) = state.sessions.get(id).filter(|s| s.user_id == user.id || anyones) {
             ended.extend(state.sessions.remove(&session.id));
         }
         ended.extend(state.sessions.take_client_sessions(user.id, id));

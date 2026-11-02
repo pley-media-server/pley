@@ -59,6 +59,9 @@ const FIRST_PARTY: &[(&str, &str)] = &[
     ("DELETE", "/api/me/devices/{id}"),
     ("GET", "/api/me/apps"),
     ("DELETE", "/api/me/apps/{id}"),
+    ("GET", "/api/me/compatibility-tokens"),
+    ("POST", "/api/me/compatibility-tokens"),
+    ("DELETE", "/api/me/compatibility-tokens/{id}"),
     ("GET", "/api/activity"),
 ];
 
@@ -476,8 +479,9 @@ async fn app_tokens_go_only_in_the_authorization_header() {
 async fn the_plex_api_refuses_app_tokens() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
+    let tool = app.compatibility_token(&admin, "play").await;
     let (token, _) = app.app_token(1, "library play playlists profiles").await;
-    assert_eq!(app.plex(Method::GET, "/library/sections", &admin, &[]).await.status, StatusCode::OK);
+    assert_eq!(app.plex(Method::GET, "/library/sections", &tool, &[]).await.status, StatusCode::OK);
     assert_eq!(app.plex(Method::GET, "/library/sections", &token, &[]).await.status, StatusCode::UNAUTHORIZED);
     let plex = |uri: String, headers: Vec<(&'static str, String)>| {
         let mut req = Request::builder().uri(uri).header(header::ACCEPT, "application/json");
@@ -491,8 +495,8 @@ async fn the_plex_api_refuses_app_tokens() {
         ("/library/sections".to_owned(), vec![("authorization", format!("Bearer {token}"))]),
         ("/library/sections".to_owned(), vec![("x-pley-token", token.clone())]),
         (format!("/library/sections?token={token}"), vec![]),
-        // Not even next to a session token.
-        ("/library/sections".to_owned(), vec![("x-plex-token", token.clone()), ("x-pley-token", admin.clone())]),
+        // Not even next to a compatibility token.
+        ("/library/sections".to_owned(), vec![("x-plex-token", token.clone()), ("x-pley-token", tool.clone())]),
     ] {
         let resp = plex(uri.clone(), headers).await.unwrap();
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED, "{uri}");
@@ -500,8 +504,8 @@ async fn the_plex_api_refuses_app_tokens() {
     // The notification socket, before upgrading.
     let socket = app.plex(Method::GET, "/:/websockets/notifications", &token, &[]).await;
     assert_eq!(socket.status, StatusCode::UNAUTHORIZED);
-    let socket = app.plex(Method::GET, "/:/websockets/notifications", &admin, &[]).await;
-    assert_ne!(socket.status, StatusCode::UNAUTHORIZED, "a session gets as far as the upgrade");
+    let socket = app.plex(Method::GET, "/:/websockets/notifications", &tool, &[]).await;
+    assert_ne!(socket.status, StatusCode::UNAUTHORIZED, "a compatibility token gets as far as the upgrade");
 }
 
 // ------------------------------------------------------------------ rights

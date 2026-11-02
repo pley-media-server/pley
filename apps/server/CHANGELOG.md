@@ -15,9 +15,24 @@ describes how they are made.
   media as pictures, each placed and timed (`subtitles-{index}.json` and its
   PNGs), for a player that can't decode PGS: Roku draws them over the video
   rather than have them burned in.
+- Tokens for other apps: tools and players that use the compatibility API
+  (Tautulli, Kometa, Plezy, Infuse, `python-plexapi` scripts) get tokens of
+  their own, which work on that API only, never on Pley's own, and do only
+  what they were allowed: watching and, with an administrator's token,
+  seeing everyone's activity or managing libraries. A tool signs in for one
+  with `client` in `POST /api/auth/login`, which makes no session. A token
+  ends when it is revoked, after 90 days unused, and with a new password or
+  signing out everywhere.
 
 ### Changed
 
+- The compatibility API no longer takes Pley's session tokens, which opened
+  all of Pley's own API too, administration included: Tautulli, Kometa,
+  players and scripts that use one get `401` until they have a token for
+  other apps. Make one for each in Account → Tokens for other apps (Tautulli
+  needs "See everyone's activity", Kometa "Manage libraries") and put it
+  where the tool had the old one, or have a script add `client` to its
+  sign-in ([COMPATIBILITY.md](../../docs/COMPATIBILITY.md#moving-from-session-tokens)).
 - Picture subtitles (PGS, VobSub, DVB) that the apps draw show within a few
   seconds of a playback starting, where they could take up to a minute:
   the transcoder reads those around where the playback is out of a

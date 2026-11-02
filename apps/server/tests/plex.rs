@@ -1,6 +1,8 @@
 //! End-to-end tests of the Plex-compatible API (`pley::plex`), in-process
 //! against a temporary data directory, like tests/api.rs.
 
+mod common;
+
 use std::time::Duration;
 
 use axum::Router;
@@ -90,7 +92,9 @@ impl TestApp {
         std::fs::write(path, vec![7u8; 4096]).unwrap();
     }
 
-    async fn setup(&self) -> String {
+    /// Sets pley up: the administrator's session, for pley's own API, and a
+    /// compatibility token of theirs that may do everything, for this one.
+    async fn setup(&self) -> (String, String) {
         let r = self
             .api(
                 Method::POST,
@@ -101,7 +105,9 @@ impl TestApp {
                 ),
             )
             .await;
-        r["token"].as_str().unwrap().to_owned()
+        let session = r["token"].as_str().unwrap().to_owned();
+        let token = common::compatibility_token(&self.api, &session, "play activity manage").await;
+        (session, token)
     }
 
     async fn library(&self, token: &str, name: &str, kind: &str, rel: &str) -> i64 {
@@ -136,7 +142,7 @@ fn titles(container: &Value) -> Vec<String> {
 #[tokio::test]
 async fn identity_auth_and_formats() {
     let app = TestApp::new().await;
-    let token = app.setup().await;
+    let (session, token) = app.setup().await;
 
     let identity = app.plex("/identity", &[]).await;
     assert_eq!(identity.status, StatusCode::OK);
@@ -145,6 +151,10 @@ async fn identity_auth_and_formats() {
 
     assert_eq!(app.plex("/library/sections", &[]).await.status, StatusCode::UNAUTHORIZED);
     assert_eq!(app.plex("/library/sections", &[("x-plex-token", "nope")]).await.status, StatusCode::UNAUTHORIZED);
+    // A session's token is for pley's own apps.
+    let refused = app.plex("/library/sections", &[("x-plex-token", &session)]).await;
+    assert_eq!(refused.status, StatusCode::UNAUTHORIZED);
+    assert!(refused.text.contains("tokens for other apps"), "{}", refused.text);
     assert_eq!(app.plex("/library/sections", &[("x-plex-token", &token)]).await.status, StatusCode::OK);
     let query = app.plex(&format!("/library/sections?X-Plex-Token={token}"), &[]).await;
     assert_eq!(query.status, StatusCode::OK);
@@ -163,11 +173,11 @@ async fn identity_auth_and_formats() {
 #[tokio::test]
 async fn sections_listings_filters_and_paging() {
     let app = TestApp::new().await;
-    let token = app.setup().await;
+    let (session, token) = app.setup().await;
     app.media_file("movies/Alpha (2001).mkv");
     app.media_file("movies/Bravo (2002).mp4");
     app.media_file("movies/The Charlie Movie (2003).mkv");
-    let lib = app.library(&token, "Films", "movies", "movies").await;
+    let lib = app.library(&session, "Films", "movies", "movies").await;
 
     let sections = app.plex_json("/library/sections", &token).await;
     let dirs = sections["Directory"].as_array().unwrap();
@@ -233,9 +243,9 @@ async fn sections_listings_filters_and_paging() {
 #[tokio::test]
 async fn watch_state_and_sessions_are_shared_with_pley() {
     let app = TestApp::new().await;
-    let token = app.setup().await;
+    let (session, token) = app.setup().await;
     app.media_file("movies/Alpha (2001).mp4");
-    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    let lib = app.library(&session, "Movies", "movies", "movies").await;
     let all = app.plex_json(&format!("/library/sections/{lib}/all"), &token).await;
     let id = metadata(&all)[0]["ratingKey"].as_str().unwrap().to_owned();
 
@@ -243,12 +253,12 @@ async fn watch_state_and_sessions_are_shared_with_pley() {
         .plex(&format!("/:/scrobble?key={id}&identifier=com.plexapp.plugins.library"), &[("x-plex-token", &token)])
         .await;
     assert_eq!(scrobble.status, StatusCode::OK);
-    let item = app.api(Method::GET, &format!("/api/items/{id}"), Some(&token), None).await;
+    let item = app.api(Method::GET, &format!("/api/items/{id}"), Some(&session), None).await;
     assert_eq!(item["user_state"]["watched"], true);
     let details = app.plex_json(&format!("/library/metadata/{id}"), &token).await;
     assert_eq!(metadata(&details)[0]["viewCount"], 1);
     app.plex(&format!("/:/unscrobble?key={id}"), &[("x-plex-token", &token)]).await;
-    let item = app.api(Method::GET, &format!("/api/items/{id}"), Some(&token), None).await;
+    let item = app.api(Method::GET, &format!("/api/items/{id}"), Some(&session), None).await;
     assert_eq!(item["user_state"]["watched"], false);
     // Clients read `viewCount > 0` as played.
     let details = app.plex_json(&format!("/library/metadata/{id}"), &token).await;
@@ -270,9 +280,9 @@ async fn watch_state_and_sessions_are_shared_with_pley() {
     assert_eq!(playing["User"]["title"], "admin");
     assert_eq!(playing["Player"]["product"], "Test Player");
     assert_eq!(playing["Player"]["machineIdentifier"], "test-client");
-    let activity = app.api(Method::GET, "/api/activity", Some(&token), None).await;
+    let activity = app.api(Method::GET, "/api/activity", Some(&session), None).await;
     assert_eq!(activity["sessions"].as_array().unwrap().len(), 1);
-    let item = app.api(Method::GET, &format!("/api/items/{id}"), Some(&token), None).await;
+    let item = app.api(Method::GET, &format!("/api/items/{id}"), Some(&session), None).await;
     assert_eq!(item["user_state"]["position_ms"], 20000);
 
     app.plex(&format!("/:/timeline?ratingKey={id}&state=stopped&time=21000"), &client).await;
@@ -283,11 +293,11 @@ async fn watch_state_and_sessions_are_shared_with_pley() {
 #[tokio::test]
 async fn shows_hierarchy_search_and_hubs() {
     let app = TestApp::new().await;
-    let token = app.setup().await;
+    let (session, token) = app.setup().await;
     app.media_file("tv/Some Show/Season 1/Some Show - S01E01 - Pilot.mkv");
     app.media_file("tv/Some Show/Season 1/Some Show - S01E02.mkv");
     app.media_file("tv/Some Show/Season 2/Some Show - S02E01.mkv");
-    let lib = app.library(&token, "TV", "shows", "tv").await;
+    let lib = app.library(&session, "TV", "shows", "tv").await;
 
     let shows = app.plex_json(&format!("/library/sections/{lib}/all"), &token).await;
     let show = &metadata(&shows)[0];
@@ -326,10 +336,10 @@ async fn cast_and_crew_tags_and_filters() {
     use pley::people::{self, NewCredit, PersonId, Role};
 
     let app = TestApp::new().await;
-    let token = app.setup().await;
+    let (session, token) = app.setup().await;
     app.media_file("movies/Alpha (2001).mp4");
     app.media_file("movies/Beta (2002).mp4");
-    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    let lib = app.library(&session, "Movies", "movies", "movies").await;
     let all = app.plex_json(&format!("/library/sections/{lib}/all"), &token).await;
     let id_of = |title: &str| {
         metadata(&all).iter().find(|m| m["title"] == title).unwrap()["ratingKey"]
@@ -376,9 +386,9 @@ async fn cast_and_crew_tags_and_filters() {
 #[tokio::test]
 async fn play_history() {
     let app = TestApp::new().await;
-    let token = app.setup().await;
+    let (session, token) = app.setup().await;
     app.media_file("movies/Alpha (2001).mp4");
-    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    let lib = app.library(&session, "Movies", "movies", "movies").await;
     let all = app.plex_json(&format!("/library/sections/{lib}/all"), &token).await;
     let id = metadata(&all)[0]["ratingKey"].as_str().unwrap().to_owned();
     let client = [
@@ -409,10 +419,10 @@ async fn play_history() {
 #[tokio::test]
 async fn user_ratings_through_rate() {
     let app = TestApp::new().await;
-    let token = app.setup().await;
+    let (session, token) = app.setup().await;
     app.media_file("movies/Alpha (2001).mp4");
     app.media_file("movies/Beta (2002).mp4");
-    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    let lib = app.library(&session, "Movies", "movies", "movies").await;
     let all = app.plex_json(&format!("/library/sections/{lib}/all"), &token).await;
     let beta = metadata(&all).iter().find(|m| m["title"] == "Beta").unwrap()["ratingKey"].as_str().unwrap().to_owned();
     let rated = app
@@ -443,9 +453,9 @@ async fn preview_indexes_and_chapter_thumbs() {
     use pley_transcoder_api::{Chapter, MediaInfo, TrickplayInfo};
 
     let app = TestApp::new().await;
-    let token = app.setup().await;
+    let (session, token) = app.setup().await;
     app.media_file("movies/Alpha (2001).mkv");
-    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    let lib = app.library(&session, "Movies", "movies", "movies").await;
     let all = app.plex_json(&format!("/library/sections/{lib}/all"), &token).await;
     let item: i64 = metadata(&all)[0]["ratingKey"].as_str().unwrap().parse().unwrap();
     let db = &app.state.db;
@@ -496,11 +506,11 @@ async fn preview_indexes_and_chapter_thumbs() {
     std::fs::write(dir.join("index.json"), serde_json::to_vec(&trickplay).unwrap()).unwrap();
 
     // pley's API: chapters get pictures.
-    let detail = app.api(Method::GET, &format!("/api/items/{item}"), Some(&token), None).await;
+    let detail = app.api(Method::GET, &format!("/api/items/{item}"), Some(&session), None).await;
     let chapters = detail["files"][0]["chapters"].as_array().unwrap().clone();
     assert_eq!(chapters.len(), 3);
     let url = chapters[1]["thumb_url"].as_str().unwrap().to_owned();
-    let picture = app.api_raw(&url, &token).await;
+    let picture = app.api_raw(&url, &session).await;
     assert_eq!(picture.0, StatusCode::OK);
     assert_eq!(&picture.1[..2], &[0xff, 0xd8], "a JPEG");
 
@@ -541,11 +551,11 @@ async fn preview_indexes_and_chapter_thumbs() {
 #[tokio::test]
 async fn extras_as_clips() {
     let app = TestApp::new().await;
-    let token = app.setup().await;
+    let (session, token) = app.setup().await;
     app.media_file("movies/Alpha (2001)/Alpha (2001).mp4");
     app.media_file("movies/Alpha (2001)/Alpha (2001)-trailer.mp4");
     app.media_file("movies/Alpha (2001)/Deleted Scenes/Cut.mp4");
-    let lib = app.library(&token, "Movies", "movies", "movies").await;
+    let lib = app.library(&session, "Movies", "movies", "movies").await;
     let all = app.plex_json(&format!("/library/sections/{lib}/all"), &token).await;
     assert_eq!(titles(&all), vec!["Alpha"]);
     let id = metadata(&all)[0]["ratingKey"].as_str().unwrap().to_owned();

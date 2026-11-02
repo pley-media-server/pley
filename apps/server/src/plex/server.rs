@@ -113,7 +113,8 @@ struct UserRow {
     username: String,
 }
 
-/// `/accounts`: pley users (administrators see everyone).
+/// `/accounts`: pley users (an administrator's token with `activity` sees
+/// everyone).
 pub async fn accounts(State(state): State<AppState>, PlexUser(user): PlexUser) -> PlexResult<Node> {
     let users: Vec<UserRow> = if user.is_admin {
         sqlx::query_as("SELECT id, username FROM users ORDER BY id").fetch_all(&state.db.read).await?
@@ -274,8 +275,9 @@ pub async fn media_providers(State(state): State<AppState>, PlexUser(user): Plex
     Ok(Node::container().attr("size", 1).child(provider))
 }
 
-/// `/status/sessions/history/all`: plays, newest first. Administrators see
-/// everyone's (or one account's with `accountID`), others their own.
+/// `/status/sessions/history/all`: plays, newest first. An administrator's
+/// token with `activity` sees everyone's (or one account's with
+/// `accountID`), others their own.
 pub async fn history(
     State(state): State<AppState>,
     PlexUser(user): PlexUser,
@@ -311,14 +313,14 @@ pub async fn history(
     Ok(list_container(None, &info, nodes, total as usize, &page))
 }
 
+/// `DELETE /status/sessions/history/{id}`: one's own plays, and with
+/// `manage` anyone's (deleting changes their history, which seeing it
+/// with `activity` doesn't).
 pub async fn delete_history(
     State(state): State<AppState>,
     PlexUser(user): PlexUser,
     Path(id): Path<i64>,
 ) -> PlexResult<StatusCode> {
-    if history::delete(&state.db, user.id, user.is_admin, id).await? {
-        Ok(StatusCode::OK)
-    } else {
-        Err(PlexError::NotFound)
-    }
+    let anyones = user.compatibility_allows(crate::auth::compatibility::Scope::Manage);
+    if history::delete(&state.db, user.id, anyones, id).await? { Ok(StatusCode::OK) } else { Err(PlexError::NotFound) }
 }

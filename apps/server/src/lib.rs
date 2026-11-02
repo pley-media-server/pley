@@ -381,15 +381,21 @@ pub async fn reset_password(config: Config, username: &str, password: &str, admi
                 .await?
                 .rows_affected();
             sqlx::query("DELETE FROM recovery_codes WHERE user_id = ?").bind(id).execute(&db.write).await?;
-            // Apps using the account or allowed by it end too. A server running
-            // meanwhile reads tokens from its cache for up to a minute, as it
-            // does sessions: its apps stop within that minute.
+            // Apps using the account or allowed by it end too, and its tokens
+            // for other apps. A server running meanwhile reads tokens from its
+            // cache for up to a minute, as it does sessions: its apps stop
+            // within that minute.
             let apps = sqlx::query("DELETE FROM app_grants WHERE user_id = ? OR approved_by = ?")
                 .bind(id)
                 .bind(id)
                 .execute(&db.write)
                 .await?
-                .rows_affected();
+                .rows_affected()
+                + sqlx::query("DELETE FROM compatibility_tokens WHERE user_id = ?")
+                    .bind(id)
+                    .execute(&db.write)
+                    .await?
+                    .rows_affected();
             let required = settings::SettingsStore::load(&db).await?.get().require_two_step;
             let off = match (two_step > 0, required) {
                 (true, true) => {

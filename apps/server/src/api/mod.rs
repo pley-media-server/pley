@@ -6,6 +6,7 @@ mod admin;
 mod auth;
 mod browse;
 pub(crate) mod collections;
+mod compatibility_tokens;
 pub(crate) mod editing;
 mod history;
 pub(crate) mod items;
@@ -61,6 +62,8 @@ pub fn router(state: AppState) -> Router {
         .route("/me/devices/{id}", delete(accounts::sign_out_device))
         .route("/me/apps", get(oauth::my_apps))
         .route("/me/apps/{id}", delete(oauth::sign_out_my_app))
+        .route("/me/compatibility-tokens", get(compatibility_tokens::list).post(compatibility_tokens::create))
+        .route("/me/compatibility-tokens/{id}", delete(compatibility_tokens::revoke))
         .route("/oauth/requests", post(oauth::create_request).layer(DefaultBodyLimit::max(FORM_MAX)))
         .route("/oauth/requests/{id}", post(oauth::decide))
         .route("/oauth/requests/{id}/continue", get(oauth::continue_to_app))

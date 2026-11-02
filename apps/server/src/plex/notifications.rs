@@ -11,9 +11,10 @@
 //! - `activity`: library scans starting, progressing and ending;
 //! - `status`: a library scan finished (`LIBRARY_UPDATE`).
 //!
-//! A user hears about their own sessions (administrators about everyone's)
-//! and the libraries they may open. The token is checked again every 10 s:
-//! the socket closes once it is revoked, and changed rights apply.
+//! A user hears about their own sessions (an administrator's token with
+//! `activity` about everyone's) and the libraries they may open. The token
+//! is checked again every 10 s: the socket closes once it is revoked, and
+//! changed rights apply.
 
 use std::collections::HashMap;
 use std::time::Duration;
@@ -138,7 +139,7 @@ impl Listener {
                     Err(RecvError::Closed) => break,
                 },
                 _ = tick.tick() => {
-                    let Some(user) = self.state.auth.validate(&self.token).await else { break };
+                    let Some(user) = self.state.auth.validate_compatibility(&self.token, None).await else { break };
                     let rights = (user.is_admin, user.all_libraries, user.max_age);
                     if rights != (self.user.is_admin, self.user.all_libraries, self.user.max_age) {
                         self.user = user;

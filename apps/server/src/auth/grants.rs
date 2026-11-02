@@ -480,6 +480,7 @@ pub async fn holder(db: &Db, token: &str, client_id: &str, two_step_required: bo
             scopes,
             approved_by,
         })),
+        compatibility: None,
     };
     Ok(Holder { grant_id, client_id: owner, scopes, approved_by, user })
 }

@@ -25,7 +25,9 @@ async fn serve(app: &TestApp) -> SocketAddr {
     addr
 }
 
-async fn connect(addr: SocketAddr, token: &str) -> Socket {
+/// A socket with `token` ([`TestApp::plex_token`]'s for a session).
+async fn connect(app: &TestApp, addr: SocketAddr, token: &str) -> Socket {
+    let token = app.plex_token(token).await;
     let url = format!("ws://{addr}/:/websockets/notifications?X-Plex-Token={token}");
     tokio_tungstenite::connect_async(url).await.unwrap().0
 }
@@ -88,8 +90,8 @@ async fn playback_states_with_the_keys_of_status_sessions() {
     let alien = app.ids(movies, &admin).await["Alien"];
     let (kid, _) = app.user(&admin, "kid", json!({})).await;
     let addr = serve(&app).await;
-    let mut watching = connect(addr, &admin).await;
-    let mut other = connect(addr, &kid).await;
+    let mut watching = connect(&app, addr, &admin).await;
+    let mut other = connect(&app, addr, &kid).await;
 
     report(&app, &admin, alien, "playing", 5_000).await;
     let notes = notes_until(&mut watching, |n| !playing(n).is_empty()).await;
@@ -121,13 +123,36 @@ async fn playback_states_with_the_keys_of_status_sessions() {
 }
 
 #[tokio::test]
+async fn only_a_token_with_activity_hears_about_everyones_playback() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Alien (1979).mkv", 1024);
+    let movies = app.library(&admin, "Movies", "movies", "movies").await;
+    let alien = app.ids(movies, &admin).await["Alien"];
+    let (bob, _) = app.user(&admin, "bob", json!({})).await;
+    let addr = serve(&app).await;
+    let mut tautulli = connect(&app, addr, &app.compatibility_token(&admin, "activity").await).await;
+    let mut player = connect(&app, addr, &app.compatibility_token(&admin, "play").await).await;
+
+    report(&app, &bob, alien, "playing", 5_000).await;
+    let notes = notes_until(&mut tautulli, |n| !playing(n).is_empty()).await;
+    assert_eq!(playing(&notes)[0]["ratingKey"], json!(alien.to_string()));
+
+    // The administrator's player hears about a new film first.
+    app.media_file("movies/Brazil (1985).mkv", 1024);
+    app.post(&format!("/api/libraries/{movies}/scan"), &admin, json!({"force": false})).await;
+    let heard = notes_until(&mut player, |n| has(n, "Brazil", 5)).await;
+    assert!(playing(&heard).is_empty(), "{heard:?}");
+}
+
+#[tokio::test]
 async fn another_server_does_not_change_the_keys() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
     app.media_file("movies/Alien (1979).mkv", 1024);
     let movies = app.library(&admin, "Movies", "movies", "movies").await;
     let alien = app.ids(movies, &admin).await["Alien"];
-    let mut watching = connect(serve(&app).await, &admin).await;
+    let mut watching = connect(&app, serve(&app).await, &admin).await;
     report(&app, &admin, alien, "playing", 5_000).await;
     let notes = notes_until(&mut watching, |n| !playing(n).is_empty()).await;
 
@@ -149,8 +174,8 @@ async fn new_items_and_scans_where_the_user_may_look() {
     let private = app.library(&admin, "Private", "movies", "private").await;
     let (kid, _) = app.user(&admin, "kid", json!({"all_libraries": false, "library_ids": [movies]})).await;
     let addr = serve(&app).await;
-    let mut everything = connect(addr, &admin).await;
-    let mut some = connect(addr, &kid).await;
+    let mut everything = connect(&app, addr, &admin).await;
+    let mut some = connect(&app, addr, &kid).await;
 
     // Only what is added from now on is news.
     app.media_file("private/Hidden (2002).mkv", 1024);

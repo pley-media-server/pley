@@ -234,12 +234,14 @@ async fn deleting_an_account_ends_its_apps_at_once() {
 async fn reset_password_ends_the_accounts_apps() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
-    let (_bob, bob) = app.user(&admin, "bob", json!({})).await;
+    let (bob_session, bob) = app.user(&admin, "bob", json!({})).await;
     // Never used, so nothing is cached: as with the server closed.
     let tokens = app.app_token(bob, "library play").await;
+    let tool = app.compatibility_token(&bob_session, "play").await;
 
     pley::reset_password(app.state.config.clone(), "bob", "another-pass-2", false).await.unwrap();
     assert_ended(&app, &tokens).await;
+    assert_eq!(app.plex(Method::GET, "/library/sections", &tool, &[]).await.status, StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]

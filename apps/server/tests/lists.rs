@@ -1,6 +1,8 @@
 //! Collections and playlists through pley's API and the Plex-compatible one,
 //! in-process against a temporary data directory like tests/api.rs.
 
+mod common;
+
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -19,6 +21,7 @@ struct TestApp {
     state: AppState,
     media: tempfile::TempDir,
     _data: tempfile::TempDir,
+    plex_tokens: common::PlexTokens,
 }
 
 struct Reply {
@@ -36,7 +39,7 @@ impl TestApp {
         let state = AppState::init(config).await.unwrap();
         let api = pley::api::router(state.clone());
         let plex = pley::plex::service(state.clone());
-        Self { api, plex, state, media: tempfile::tempdir().unwrap(), _data: data }
+        Self { api, plex, state, media: tempfile::tempdir().unwrap(), _data: data, plex_tokens: Default::default() }
     }
 
     fn media_file(&self, rel: &str) {
@@ -86,8 +89,10 @@ impl TestApp {
         self.call(Method::DELETE, uri, Some(token), None).await
     }
 
-    /// The Plex API, asking for JSON.
+    /// The Plex API, asking for JSON, with a compatibility token for a
+    /// session's (see `common::PlexTokens`).
     async fn plex(&self, method: Method, uri: &str, token: &str) -> Reply {
+        let token = self.plex_tokens.get(&self.state, &self.api, token).await;
         let req = Request::builder()
             .method(method)
             .uri(uri)

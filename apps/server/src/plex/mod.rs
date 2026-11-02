@@ -38,7 +38,8 @@ use tower::{Layer, ServiceExt};
 use tower_http::compression::predicate::{NotForContentType, Predicate, SizeAbove};
 use tower_http::compression::{CompressionLayer, CompressionLevel};
 
-use crate::auth::{AuthUser, token_without_cookie};
+use crate::auth::grants::APP_TOKEN_PREFIX;
+use crate::auth::{AuthUser, ClientIp, UsedFrom, compatibility, token_without_cookie};
 use crate::error::AppError;
 use crate::state::AppState;
 pub use xml::Node;
@@ -426,6 +427,9 @@ fn wants_json(headers: &HeaderMap) -> bool {
 #[derive(Debug)]
 pub enum PlexError {
     Unauthorized,
+    /// A token that isn't a compatibility token, such as a Pley session's,
+    /// which this API took before: `401`, saying what to use instead.
+    NotACompatibilityToken,
     Forbidden,
     NotFound,
     BadRequest(String),
@@ -442,7 +446,8 @@ impl From<AppError> for PlexError {
             | AppError::TwoStep(_)
             | AppError::TwoStepSetup(..)
             | AppError::InvalidToken
-            | AppError::TokenPlacement => PlexError::Unauthorized,
+            | AppError::TokenPlacement
+            | AppError::CompatibilityToken => PlexError::Unauthorized,
             AppError::Forbidden(_) | AppError::ForbiddenAs(..) | AppError::InsufficientScope(_) => PlexError::Forbidden,
             AppError::NotFound(_) | AppError::SessionStopped(_) => PlexError::NotFound,
             AppError::BadRequest(m) | AppError::Conflict(m) | AppError::ConflictWith(m, _) => PlexError::BadRequest(m),
@@ -464,6 +469,10 @@ impl IntoResponse for PlexError {
     fn into_response(self) -> Response {
         let (status, detail) = match self {
             PlexError::Unauthorized => (StatusCode::UNAUTHORIZED, String::new()),
+            PlexError::NotACompatibilityToken => (
+                StatusCode::UNAUTHORIZED,
+                "this API takes tokens for other apps only: make one in Pley, under Account".to_owned(),
+            ),
             PlexError::Forbidden => (StatusCode::FORBIDDEN, String::new()),
             PlexError::NotFound => (StatusCode::NOT_FOUND, String::new()),
             PlexError::BadRequest(m) => (StatusCode::BAD_REQUEST, m),
@@ -486,12 +495,18 @@ fn html_escape(value: &str) -> String {
 
 // ------------------------------------------------------------------ auth
 
-/// The caller, authenticated by `X-Plex-Token` (header or query) or by
-/// pley's own token in `Authorization: Bearer`, `X-Pley-Token` or `?token=`.
+/// The caller, authenticated by a compatibility token (see
+/// [`crate::auth::compatibility`]) in `X-Plex-Token` (header or query), or
+/// in `Authorization: Bearer`, `X-Pley-Token` or `?token=` as pley's own
+/// tokens go. Its rights are what the token's scopes allow: an
+/// administrator's view (everyone's sessions and history, file paths) only
+/// with `activity`, and changes only through [`PlexAdmin`].
 ///
-/// Never by the web UI's cookie: browsers send it to this port too (cookies
-/// aren't per port), and several Plex endpoints change things on a GET, so a
-/// page elsewhere could otherwise act for whoever is signed in to pley.
+/// Never by a session's token: those are for pley's own apps, with every
+/// right the account has. Never by the web UI's cookie either: browsers send
+/// it to this port too (cookies aren't per port), and several Plex endpoints
+/// change things on a GET, so a page elsewhere could otherwise act for
+/// whoever is signed in to pley.
 #[derive(Debug, Clone)]
 pub struct PlexUser(pub AuthUser);
 
@@ -503,7 +518,14 @@ impl FromRequestParts<AppState> for PlexUser {
             Some(user) => user.clone(),
             None => {
                 let token = request_token(parts).ok_or(PlexError::Unauthorized)?;
-                let user = state.auth.validate(&token).await.ok_or(PlexError::Unauthorized)?;
+                if !token.starts_with(compatibility::PREFIX) {
+                    return Err(PlexError::NotACompatibilityToken);
+                }
+                let Ok(ClientIp(ip)) = ClientIp::from_request_parts(parts, state).await;
+                let user_agent = parts.headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).map(str::to_owned);
+                let used = UsedFrom { ip, user_agent };
+                let user =
+                    state.auth.validate_compatibility(&token, Some(&used)).await.ok_or(PlexError::Unauthorized)?;
                 parts.extensions.insert(user.clone());
                 user
             }
@@ -515,7 +537,10 @@ impl FromRequestParts<AppState> for PlexUser {
     }
 }
 
-/// Administrator rights are required (library refreshes, server-wide views).
+/// Changes only administrators make (library and item refreshes, edits,
+/// collections, stopping others' sessions): a compatibility token with
+/// `manage`, on an account that is an administrator. The handler acts with
+/// an administrator's rights for that change.
 pub struct PlexAdmin(pub AuthUser);
 
 impl FromRequestParts<AppState> for PlexAdmin {
@@ -523,19 +548,21 @@ impl FromRequestParts<AppState> for PlexAdmin {
 
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
         let PlexUser(user) = PlexUser::from_request_parts(parts, state).await?;
-        if !user.is_admin {
+        if !user.compatibility_allows(compatibility::Scope::Manage) {
             return Err(PlexError::Forbidden);
         }
-        Ok(PlexAdmin(user))
+        Ok(PlexAdmin(AuthUser { is_admin: true, ..user }))
     }
 }
 
 /// The token of a Plex request: `X-Plex-Token` (header or query), or a
 /// bearer token. Never the web UI's cookie: pages on other sites could make
-/// a browser send that. Never an app's token (`pley_…`): apps use pley's
-/// own API only, within what they were allowed.
+/// a browser send that. Never an app's token (`pley_…` but `pley_ct_…`):
+/// apps use pley's own API only, within what they were allowed.
 pub(super) fn request_token(parts: &Parts) -> Option<String> {
-    plex_token(parts).or_else(|| token_without_cookie(parts)).filter(|token| !token.starts_with("pley_"))
+    plex_token(parts)
+        .or_else(|| token_without_cookie(parts))
+        .filter(|token| token.starts_with(compatibility::PREFIX) || !token.starts_with(APP_TOKEN_PREFIX))
 }
 
 fn plex_token(parts: &Parts) -> Option<String> {

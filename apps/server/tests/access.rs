@@ -456,10 +456,13 @@ async fn the_plex_api_does_not_accept_the_web_cookie() {
         async { tower::ServiceExt::oneshot(app.plex.clone(), request).await.unwrap().status() }
     };
     // Browsers send pley's cookie to the Plex port too, where several GET
-    // requests change things: it must not sign anyone in there.
+    // requests change things: it must not sign anyone in there, whatever
+    // token it holds.
+    let token = app.compatibility_token(&admin, "play").await;
     assert_eq!(status(("cookie", format!("pley_token={admin}"))).await, StatusCode::UNAUTHORIZED);
-    assert_eq!(status(("x-plex-token", admin.clone())).await, StatusCode::OK);
-    assert_eq!(status(("authorization", format!("Bearer {admin}"))).await, StatusCode::OK);
+    assert_eq!(status(("cookie", format!("pley_token={token}"))).await, StatusCode::UNAUTHORIZED);
+    assert_eq!(status(("x-plex-token", token.clone())).await, StatusCode::OK);
+    assert_eq!(status(("authorization", format!("Bearer {token}"))).await, StatusCode::OK);
 }
 
 #[tokio::test]

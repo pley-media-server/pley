@@ -28,9 +28,9 @@ protect your server.
   another computer, and the compatibility API's own port (such as 32400) if
   you gave it one.
 - **Limit the compatibility API.** By default it answers on Pley's port, to
-  its clients only, with a token. Give the tools that use it an account of
-  their own rather than an administrator's, and turn it off
-  (`plex_bind = "off"`) if no tool needs it.
+  its clients only, with a token for other apps. Give each tool a token of
+  its own (**Account → Tokens for other apps**), allowed only what it needs,
+  and turn the API off (`plex_bind = "off"`) if no tool needs it.
 - **Mount media read-only**, run Pley as an unprivileged user, and don't let
   untrusted people write to library folders. The Docker setup does the first
   two and more: a read-only image, no capabilities, the port on 127.0.0.1
@@ -89,9 +89,10 @@ protect your server.
   the same page, so they take the code as well.
 - **Required of everyone** (`require_two_step`): only an administrator who
   uses it can turn it on, so nobody locks themselves out. Everyone with a
-  password and without it is signed out everywhere, browsers and apps; no
-  session or app token of an account without it works while it is
-  required, checked on every request and refresh. Each sets it up at their
+  password and without it is signed out everywhere, browsers, apps and
+  tools; no session, app token or token for other apps of an account
+  without it works while it is required, checked on every request and
+  refresh. Each sets it up at their
   next sign-in, after the password, before any session exists; a PIN never
   sets it up. It can't be turned off then, only moved to another app.
 - Until someone sets it up, their password alone lets whoever has it set it
@@ -168,6 +169,35 @@ Apps sign in on Pley's own page with OAuth 2.1.
   with the account's sign-ins.
 - App sign-in works over plain HTTP at home, as passwords do. Beyond the home
   network it needs HTTPS, like the rest of Pley.
+
+### Tools using the compatibility API
+
+Tautulli, Kometa, players such as Plezy and Infuse, and scripts use the
+compatibility API with tokens for other apps (compatibility tokens), never
+with a session's.
+
+- Tokens are random 256-bit values that start `pley_ct_`, stored hashed. Pley
+  shows one once, when it is made: on the account page, or to a tool that
+  signs in for one with its password (and code), which goes through every
+  check of a sign-in and makes no session or cookie.
+- They work on the compatibility API only, from its token header or query
+  parameter, `Authorization: Bearer`, `X-Pley-Token` or `?token=`, never
+  from the cookie. Pley's own API refuses them wherever they are sent, and
+  the compatibility API refuses sessions' and apps' tokens.
+- A token does what its scopes allow: `play` (browsing, playing, its own
+  account's watch state, sessions and playlists) always; `activity` (every
+  account's sessions and history, and where files are) and `manage`
+  (refreshes, edits, collections, stopping anyone's playback) only for an
+  administrator, checked at every request, so a role taken away takes them
+  at once.
+- A token ends when it is revoked, after 90 days unused, and with the
+  account's other sign-ins: a new password, **Sign out everywhere**,
+  `pley reset-password` and deleting the account. It doesn't work while the
+  account is disabled, nor while two-step sign-in is required of an account
+  that doesn't use it. A revoked token stops working at once, even one being
+  checked at that moment.
+- An account keeps 100 tokens at most; making another ends the least
+  recently used.
 
 ### TVs signing in
 
