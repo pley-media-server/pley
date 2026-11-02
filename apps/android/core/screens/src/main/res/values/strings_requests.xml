@@ -33,7 +33,6 @@
     <string name="requests_row_shows">Popular shows</string>
     <string name="requests_row_upcoming">Coming to cinemas</string>
     <string name="requests_row_anime">Popular anime</string>
-    <string name="requests_search_field">Search TMDB for movies and shows</string>
     <string name="requests_search_none">Nothing on TMDB matches “%1$s”</string>
     <string name="requests_search_none_body">Try a different spelling, or the title in its own language.</string>
     <string name="requests_kind_movie">Movie</string>
@@ -276,6 +275,7 @@
     <string name="requests_no_access_line">Requests aren\'t open to this account.</string>
     <!-- Any other failure, over the error's own sentence. -->
     <string name="requests_discover_failed">Couldn\'t load Discover</string>
+    <string name="requests_search_failed">Couldn\'t search TMDB</string>
     <string name="requests_title_failed">Couldn\'t load this title</string>
     <string name="requests_list_failed">Couldn\'t load the requests</string>
 
@@ -285,8 +285,8 @@
     <string name="requests_more_actions">More actions</string>
 
     <!-- Global search. -->
-    <string name="requests_on_tmdb">On TMDB</string>
-    <string name="requests_see_all">See all on Discover</string>
+    <string name="requests_search_row">Discover</string>
+    <string name="requests_see_all">See all</string>
     <string name="requests_nothing_in_libraries">Nothing in your libraries matches</string>
 
     <!-- Credits. -->
