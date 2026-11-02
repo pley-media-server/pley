@@ -400,15 +400,25 @@ sub apiBuild(job as object, answer as object)
     else if job.build = "tiles"
         items = httpArray(data.items)
         tiles = contentTiles(items, server)
-        ' Search: the people found, after the titles.
-        for each person in httpArray(data.people)
-            if GetInterface(person, "ifAssociativeArray") <> invalid and httpNumber(person.id, 0) > 0 then tiles.Push(pagePersonTile(person, server, ""))
-        end for
         job.request.content = nodesContent(tiles)
         ' listed: the page's items (the next page's offset), shown or not.
-        ' Search: the Live TV channels found too (12 at most), for a row of
-        ' their own.
-        answer.data = { total: httpNumber(data.total, -1), listed: items.Count(), shown: tiles.Count(), channels: liveChannels(data.channels, server) }
+        answer.data = { total: httpNumber(data.total, -1), listed: items.Count(), shown: tiles.Count() }
+    else if job.build = "searchRows"
+        ' Search's results in rows by kind (Search.brs), the Live TV
+        ' channels among them as cards; the channels themselves too, for
+        ' the player.
+        rows = searchRows(data, server, apiNow(), apiTwelveHour())
+        job.request.content = nodesRows(rows)
+        keys = []
+        for each row in rows
+            keys.Push(row.key)
+        end for
+        answer.data = { rows: keys, channels: liveChannels(data.channels, server) }
+    else if job.build = "letters"
+        ' A page of a library sorted by title, for its A to Z: where each
+        ' letter's titles start, and no ContentNodes.
+        items = httpArray(data.items)
+        answer.data = { total: httpNumber(data.total, -1), listed: items.Count(), runs: libLetterRuns(items) }
     else if job.build = "detail"
         ' The rows that come with a title's details; the details stay.
         rows = pageDetailRows(data, server)
@@ -427,13 +437,14 @@ sub apiBuild(job as object, answer as object)
         job.request.content = nodesContent(tiles)
         answer.data = { shown: tiles.Count() }
     else if job.build = "person"
-        tiles = pagePersonCredits(data, server)
-        job.request.content = nodesContent(tiles)
-        answer.data = { title: httpSentence(data.name), image: urlImage(server, data.photo_url, contentDetailPosterWidth()), line: fmtTitles(tiles.Count()), summary: "", shown: tiles.Count() }
+        ' A person's page: a row of titles per role.
+        page = pagePerson(data, server)
+        job.request.content = nodesRows(page.rows)
+        answer.data = { name: page.name, photo: page.photo, initials: page.initials, line: page.line, shown: page.rows.Count() }
     else if job.build = "playlists"
         tiles = pagePlaylistTiles(data.playlists, server)
         job.request.content = nodesContent(tiles)
-        answer.data = { title: "Playlists", image: "", line: "", summary: "", shown: tiles.Count() }
+        answer.data = { shown: tiles.Count() }
     else if job.build = "playlist"
         rows = pagePlaylistEntries(data.entries, server)
         job.request.content = nodesContent(rows)
@@ -449,22 +460,25 @@ sub apiBuild(job as object, answer as object)
         answer.data = { total: httpNumber(data.total, -1), listed: entries.Count(), shown: rows.Count() }
     else if job.build = "tracks"
         tracks = musicTracks(data.items, server)
-        job.request.content = nodesContent(musicTrackRows(tracks, true))
+        job.request.content = nodesContent(musicDiscRows(tracks))
         answer.data = { queue: tracks, shown: tracks.Count() }
+    else if job.build = "trackQueue"
+        ' An album's tracks for the music player alone: an artist's Play
+        ' gathers each album's.
+        answer.data = { queue: musicTracks(data.items, server) }
     else if job.build = "albums"
-        tiles = contentTiles(data.items, server)
-        job.request.content = nodesContent(tiles)
-        line = ""
-        if tiles.Count() = 1
-            line = "1 album"
-        else if tiles.Count() > 1
-            line = urlValue(tiles.Count()) + " albums"
-        end if
-        answer.data = { title: "", image: "", line: line, summary: "", shown: tiles.Count() }
+        ' An artist's albums, newest first; Play plays them in the
+        ' server's order.
+        albums = musicArtistAlbums(data.items, server)
+        job.request.content = nodesContent(albums.tiles)
+        answer.data = { order: albums.order, shown: albums.tiles.Count() }
     else if job.build = "collection"
-        tiles = contentTiles(data.items, server)
-        job.request.content = nodesContent(tiles)
-        answer.data = { title: httpSentence(data.title), image: "", line: fmtTitles(data.item_count), summary: httpClean(data.summary, 600, false), shown: tiles.Count() }
+        ' A collection's page: its titles as tiles, what it says of itself
+        ' and what Play plays.
+        page = pageCollection(data, server)
+        job.request.content = nodesContent(page.tiles)
+        page.Delete("tiles")
+        answer.data = page
     else if job.build = "seasons"
         seasons = contentSeasons(data.items)
         job.request.content = nodesContent(seasons)
@@ -680,11 +694,13 @@ sub apiBoot(request as object)
         end for
         apiSelect(current, name)
     end if
-    ' "Who's watching?" first when the household had more than one profile.
+    ' "Who's watching?" first when the household had more than one profile,
+    ' unless Settings' "Always start as" names one of them.
     askWho = false
     if m.tokens <> invalid
-        household = Val(CreateObject("roRegistrySection", "household").Read(m.server))
-        askWho = profAskWho(m.tokens.scope, Int(household))
+        household = profKeptHousehold(CreateObject("roRegistrySection", "household"), m.server)
+        startAs = profStartAs(CreateObject("roRegistrySection", "startAs"), m.server)
+        askWho = profAskWho(m.tokens.scope, household, startAs)
     end if
     apiAnswer(request, apiOk({ screen: serversStartScreen(m.server, m.tokens <> invalid, askWho), servers: servers }))
 end sub
@@ -1091,6 +1107,7 @@ sub apiPlay(request as object, spec as object)
     if httpNumber(spec.subtitleIndex, -1) >= 0 then body.subtitle_index = Int(spec.subtitleIndex)
     if httpNumber(spec.maxBitrate, 0) > 0 then body.max_bitrate = Int(spec.maxBitrate)
     if httpNumber(spec.maxHeight, 0) > 0 then body.max_height = Int(spec.maxHeight)
+    if httpTrue(spec.keyed) then body.keyed_urls = true
     ' Starting a transcode takes the server a few seconds.
     apiCall(request, { method: "POST", path: "/api/playback", json: body, timeoutMs: 60000, play: true })
 end sub

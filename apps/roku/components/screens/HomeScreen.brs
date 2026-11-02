@@ -94,7 +94,7 @@ end sub
 
 sub onHousehold(event as object)
     answer = event.getData()
-    if answer.ok and GetInterface(answer.data, "ifArray") <> invalid then uiKeepHousehold(answer.data.Count())
+    if answer.ok and GetInterface(answer.data, "ifArray") <> invalid then profKeepHousehold(CreateObject("roRegistrySection", "household"), m.global.session.server, answer.data)
 end sub
 
 ' Live TV in the menu while the server has channels this profile may
@@ -326,10 +326,20 @@ sub refocus(focus as dynamic, rows as object)
     end for
 end sub
 
+' A title opens; See all, its library on the Library tab in the row's
+' order.
 sub onTile(event as object)
     position = event.getData()
     row = m.rows.content.getChild(position[0])
-    if row <> invalid then uiOpenTile(row.getChild(position[1]))
+    if row = invalid then return
+    tile = row.getChild(position[1])
+    if tile <> invalid and tile.kind = "more" and tile.hasField("sort")
+        for each library in m.libraries
+            if library.id = tile.libraryId then uiNavigate({ to: "library", params: { library: library, sort: tile.sort } })
+        end for
+        return
+    end if
+    uiOpenTile(tile)
 end sub
 
 sub onMenu(event as object)
@@ -373,7 +383,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if key = "options" and m.rows.isInFocusChain()
         position = m.rows.rowItemFocused
         row = m.rows.content.getChild(position[0])
-        if row <> invalid then uiTileOptions(row.getChild(position[1]), m.rowKeys[position[0]] = "continue_watching")
+        if row <> invalid then uiTileOptions(row.getChild(position[1]), contentContinueWatching(m.rowKeys[position[0]]))
         return true
     end if
     return false

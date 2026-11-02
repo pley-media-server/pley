@@ -27,6 +27,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Profiles.brs" />
     <children>
         <Rectangle id="rail" width="380" height="1080" color="0x1E222AFF" />
         <Label id="wordmark" translation="[64, 56]" text="Pley" color="0x38BDF8FF" font="font:ExtraLargeBoldSystemFont" />

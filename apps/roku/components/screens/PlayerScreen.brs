@@ -1,13 +1,14 @@
 ' The player (docs/API.md, "Playback"). Progress goes to the server about
-' every 10 s while playing, on pause, and as "stopped" on the way out, then
-' the session is closed. A stream that breaks is checked with the server:
+' every 10 s while playing, on pause and every 30 s while paused, and as
+' "stopped" on the way out, then the session is closed. A stream that breaks is checked with the server:
 ' stopped by an administrator (410), the player leaves and says so;
 ' otherwise it starts again where it was, with a new session and the
 ' current token (a token that ran out answers 401 to the Video node).
 ' Skip Intro and Skip Credits follow the web player: an episode's credits
 ' bring up Up Next instead. Down brings up pley's menu: Quality, subtitle
 ' sync for a file with text subtitles (SubtitleSync.brs), the file's
-' chapters, and the playback's details (Details.brs). Subtitles (or audio) the person picks
+' chapters, the sleep timer (Sleep.brs) and the playback's details
+' (Details.brs). Subtitles (or audio) the person picks
 ' in Roku's options are remembered on the server for the show or the movie
 ' (Tracks.brs), so the next episode starts with matching ones. The quality
 ' is the one chosen in Settings or the menu; when it doesn't play well,
@@ -43,7 +44,10 @@ sub init()
     m.menuKind = ""
     m.menuActions = []
     m.menuValues = []
-    ' Find subtitles…: the results listed ([{ id, label, hint }]).
+    ' Find subtitles…: the language looked in ("": the person's subtitle
+    ' language), and the results listed ([{ id, label, hint }]) after the
+    ' Language entry.
+    m.findLanguage = ""
     m.found = []
     m.menuList.observeField("itemSelected", "onMenuEntry")
     m.menuList.observeField("itemFocused", "onMenuEntryFocused")
@@ -108,6 +112,20 @@ sub init()
     m.toastTimer.observeField("fire", "onToastTimer")
     m.autoTimer = m.top.findNode("autoTimer")
     m.autoTimer.observeField("fire", "onAutoTick")
+    ' The sleep timer, off until set in the menu, for the whole time the
+    ' player shows; when it paused the video (clock ms), -1 otherwise.
+    m.sleep = sleepNew(0, 0#)
+    m.sleepPausedAt = -1#
+    m.sleepNotice = m.top.findNode("sleepNotice")
+    m.sleepText = m.top.findNode("sleepText")
+    m.sleepButtons = m.top.findNode("sleepButtons")
+    m.sleepButtons.buttons = ["Keep watching"]
+    m.sleepButtons.observeField("buttonSelected", "onKeepWatching")
+    m.sleepTimer = m.top.findNode("sleepTimer")
+    m.sleepTimer.observeField("fire", "onSleepTick")
+    m.pausedTimer = m.top.findNode("pausedTimer")
+    m.pausedTimer.duration = playerPausedReportEveryMs() / 1000
+    m.pausedTimer.observeField("fire", "onPausedTick")
     m.video.observeField("downloadedSegment", "onSegment")
     m.syncButtons.buttons = ["Done", "Reset"]
     m.syncButtons.observeField("buttonSelected", "onSyncButton")
@@ -125,6 +143,12 @@ sub init()
     m.countdownTimer.observeField("fire", "onCountdown")
     m.top.observeField("active", "onActive")
     m.top.observeField("serverStopped", "onServerStopped")
+end sub
+
+' Paused, the progress goes on being told, so the session stays the
+' player's.
+sub onPausedTick()
+    if m.video.state = "paused" then report("paused")
 end sub
 
 ' This playback's session stopped from elsewhere: it ends now, not at its
@@ -208,7 +232,7 @@ sub open(itemId as dynamic, startMs as integer, item as dynamic, mode as string)
     askPlayback()
 end sub
 
-' POST /api/playback for the first file (the server's default too), with
+' POST /api/playback for the version chosen, else the first file, with
 ' its picture subtitles to draw when the person's choices pick some, at the
 ' quality chosen in Settings (or Automatic's). A title's first opening in
 ' Automatic asks the server what it knows of the network first.
@@ -273,8 +297,12 @@ end sub
 ' The session at the choice's quality; ceilingKbps is where Automatic
 ' starts under (0 for none).
 sub requestPlayback(choice as string, ceilingKbps as float)
-    spec = { op: "play", itemId: m.itemId, startMs: m.startMs, mode: m.mode, attempt: m.attempt }
-    file = contentFile(m.item, invalid)
+    ' Keyed addresses: Roku fetches the seek previews itself, without the
+    ' Authorization header.
+    spec = { op: "play", itemId: m.itemId, startMs: m.startMs, mode: m.mode, attempt: m.attempt, keyed: true }
+    ' The version chosen on the title's page; a title played next has none
+    ' of its files, so it plays its first (the server's default too).
+    file = contentFile(m.item, m.top.params.fileId)
     if file <> invalid
         spec.fileId = httpNumber(file.id, 0)
         burn = playerBurnIndex(file)
@@ -543,6 +571,11 @@ sub showStream(stream as object, subtitle as string)
     content.title = stream.title
     content.playStart = stream.playStart
     content.subtitleTracks = syncTracks(stream.subtitleTracks, m.syncMs)
+    if stream.previews <> ""
+        content.SDBifUrl = stream.previews
+        content.HDBifUrl = stream.previews
+        content.FHDBifUrl = stream.previews
+    end if
     if LCase(Left(stream.url, 8)) = "https://" then nodesFill(content, { HttpCertificatesFile: "common:/certs/ca-bundle.crt" })
     m.video.setHttpAgent(uiHttpAgent())
     m.video.content = content
@@ -688,9 +721,15 @@ end sub
 sub onState(event as object)
     state = event.getData()
     watchState(state)
+    if state <> "paused" then m.pausedTimer.control = "stop"
     if state = "playing"
         m.played = true
         m.loading.visible = false
+        ' Played again after the sleep timer's pause: the player stays.
+        if m.sleepPausedAt >= 0
+            m.sleepPausedAt = -1#
+            if m.sleep.minutes = 0 then m.sleepTimer.control = "stop"
+        end if
         if m.tracksFrom < 0 then m.tracksFrom = m.clock.TotalMilliseconds() + tracksSettleMs()
         if m.paused
             m.paused = false
@@ -704,6 +743,7 @@ sub onState(event as object)
     if state = "paused"
         m.paused = true
         report("paused")
+        m.pausedTimer.control = "start"
     else if state = "finished"
         ended()
     else if state = "error"
@@ -717,7 +757,7 @@ sub onPosition(event as object)
     m.positionMs = Int(seconds * 1000)
     if m.watch <> invalid then aqPosition(m.watch, m.clock.TotalMilliseconds(), m.positionMs)
     if playerShouldReport(m.video.state, m.clock.TotalMilliseconds() - m.lastReportAt) then report("playing")
-    if m.next <> invalid and not m.upNextShown and m.upNextAt > 0 and m.positionMs >= m.upNextAt then showUpNext()
+    if m.next <> invalid and not m.upNextShown and m.upNextAt > 0 and m.positionMs >= m.upNextAt and not sleepEndsWith(m.sleep, urlValue(m.itemId)) then showUpNext()
     updateSkip()
 end sub
 
@@ -826,6 +866,11 @@ sub ended()
     if m.durationMs > 0 then m.positionMs = m.durationMs
     report("stopped")
     endSession()
+    ' The sleep timer's end: nothing plays after this one.
+    if sleepEndsWith(m.sleep, urlValue(m.itemId))
+        uiNavigate({ back: true })
+        return
+    end if
     if m.next <> invalid and not m.upNextCancelled and playerAutoplay(playbackSection())
         playNext()
     else
@@ -840,6 +885,9 @@ sub finish()
     m.attempt = m.attempt + 1
     m.tracksFrom = -1
     m.countdownTimer.control = "stop"
+    m.sleepTimer.control = "stop"
+    m.pausedTimer.control = "stop"
+    m.sleepNotice.visible = false
     newTitle()
     m.toastTimer.control = "stop"
     m.toast.visible = false
@@ -1022,6 +1070,19 @@ end sub
 ' scene), which closes the session.
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
+    ' The sleep timer's Keep watching: Back leaves it to count down, the
+    ' video's own keys go on as ever.
+    if m.sleepButtons.isInFocusChain()
+        if key = "back"
+            m.video.setFocus(true)
+            return true
+        end if
+        if key = "play" or key = "fastforward" or key = "rewind"
+            playerKey(key)
+            return true
+        end if
+        return false
+    end if
     if m.menu.visible
         if key = "back" or key = "left"
             if m.menuKind = "menu"
@@ -1075,7 +1136,8 @@ end function
 ' --- pley's menu ---
 
 ' Its entries: Quality, Subtitle sync for a file with text subtitles,
-' Chapters for a file that has them, Find subtitles…, Playback details.
+' Chapters for a file that has them, Sleep timer, Find subtitles…,
+' Playback details.
 sub openMenu()
     hideSkip()
     m.menuKind = "menu"
@@ -1090,6 +1152,8 @@ sub openMenu()
         items.Push({ title: "Chapters" })
         m.menuActions.Push("chapters")
     end if
+    items.Push({ title: "Sleep timer: " + sleepLabel(m.sleep, sleepNow(), playingKind()) })
+    m.menuActions.Push("sleep")
     items.Push({ title: "Find subtitles…" })
     m.menuActions.Push("find")
     items.Push({ title: "Playback details" })
@@ -1144,7 +1208,11 @@ end function
 
 sub onMenuEntry(event as object)
     if m.menuKind = "found"
-        addSubtitles(event.getData())
+        if event.getData() = 0
+            openFindLanguages()
+        else
+            addSubtitles(event.getData() - 1)
+        end if
         return
     end if
     action = m.menuActions[event.getData()]
@@ -1157,6 +1225,8 @@ sub onMenuEntry(event as object)
         openSync()
     else if action = "chapters"
         openChapters()
+    else if action = "sleep"
+        openSleep()
     else
         openDetails()
     end if
@@ -1191,6 +1261,21 @@ sub openChapters()
     showMenuChoices(items, detChapterAt(chapters, m.positionMs))
 end sub
 
+' Off, minutes, or the end of what plays; the one set checked.
+sub openSleep()
+    m.menuKind = "sleep"
+    m.menuTitle.text = "Sleep timer"
+    items = []
+    m.menuValues = []
+    current = 0
+    for each choice in sleepChoices(playingKind())
+        if choice.minutes = m.sleep.minutes then current = items.Count()
+        items.Push({ title: choice.label })
+        m.menuValues.Push(choice.minutes)
+    end for
+    showMenuChoices(items, current)
+end sub
+
 sub showMenuChoices(items as object, current as integer)
     m.menuChoices.content = nodesContent(items)
     m.menuChoices.checkedItem = current
@@ -1216,9 +1301,19 @@ sub onMenuChoice(event as object)
     if at < 0 or at >= m.menuValues.Count() then return
     value = m.menuValues[at]
     kind = m.menuKind
+    ' A language to look in: the menu stays, and looks there.
+    if kind = "findLanguage"
+        m.findLanguage = value
+        findSubtitles()
+        return
+    end if
     closeMenu()
     if kind = "chapters"
         seekTo(value)
+        return
+    end if
+    if kind = "sleep"
+        setSleep(value)
         return
     end if
     if value = aqChoice(playbackSection()) then return
@@ -1230,6 +1325,75 @@ sub onMenuChoice(event as object)
     if seconds <> invalid and seconds > 0 then position = Int(seconds * 1000)
     newTitle()
     open(m.itemId, position, m.item, m.mode)
+end sub
+
+' --- The sleep timer ---
+
+' What plays, as the sleep timer names its end.
+function playingKind() as string
+    if m.item = invalid then return ""
+    return httpString(m.item.kind)
+end function
+
+function clockMs() as double
+    return m.clock.TotalMilliseconds() * 1#
+end function
+
+' What the timer says now.
+function sleepNow() as object
+    left = -1#
+    if m.played and m.durationMs > 0 then left = (m.durationMs - m.positionMs) * 1#
+    return sleepState(m.sleep, clockMs(), left, urlValue(m.itemId))
+end function
+
+' Set from the menu (minutes; 0 for Off, -1 for the end of what plays).
+sub setSleep(minutes as integer)
+    m.sleep = sleepNew(minutes, clockMs())
+    hideSleepNotice()
+    if minutes = 0 and m.sleepPausedAt < 0
+        m.sleepTimer.control = "stop"
+    else
+        m.sleepTimer.control = "start"
+    end if
+end sub
+
+' Once a second: the notice in the last 30 s, the pause at the end, and
+' the player left 10 minutes into that pause.
+sub onSleepTick()
+    if m.sleepPausedAt >= 0
+        if clockMs() - m.sleepPausedAt >= sleepLeaveAfterMs() then uiNavigate({ back: true })
+        return
+    end if
+    state = sleepNow()
+    if state.fire
+        m.sleep = sleepNew(0, 0#)
+        hideSleepNotice()
+        m.sleepPausedAt = clockMs()
+        m.video.control = "pause"
+        return
+    end if
+    if state.secondsLeft < 0
+        hideSleepNotice()
+        return
+    end if
+    m.sleepText.text = "Pausing in " + urlValue(state.secondsLeft) + " s"
+    if not m.sleepNotice.visible
+        m.sleepNotice.visible = true
+        ' The button takes the focus while nothing else is up.
+        if m.video.hasFocus() or m.skip.hasFocus() then m.sleepButtons.setFocus(true)
+    end if
+end sub
+
+sub hideSleepNotice()
+    if m.sleepButtons.isInFocusChain() then m.video.setFocus(true)
+    m.sleepNotice.visible = false
+end sub
+
+' Keep watching: the same time again, or this title plays to its end and
+' the next one's end stops.
+sub onKeepWatching()
+    sleepExtend(m.sleep, urlValue(m.itemId))
+    hideSleepNotice()
 end sub
 
 ' How the stream plays, and for a conversion what the server makes of it
@@ -1277,7 +1441,20 @@ sub findSubtitles()
     m.top.setFocus(true)
     fileId = 0
     if m.info <> invalid then fileId = m.info.file_id
-    uiRequest({ method: "GET", path: ssSearchPath(m.itemId, fileId), timeoutMs: 30000, session: m.sessionId }, "onSubtitlesFound")
+    uiRequest({ method: "GET", path: ssSearchPath(m.itemId, fileId, m.findLanguage), timeoutMs: 30000, session: m.sessionId }, "onSubtitlesFound")
+end sub
+
+' The languages to look in, the one looked in checked.
+sub openFindLanguages()
+    m.menuKind = "findLanguage"
+    m.menuTitle.text = "Subtitle language"
+    choice = ssLanguageChoices(m.findLanguage)
+    items = []
+    for each label in choice.labels
+        items.Push({ title: label })
+    end for
+    m.menuValues = choice.values
+    showMenuChoices(items, choice.current)
 end sub
 
 sub showMenuText(text as string)
@@ -1296,17 +1473,18 @@ sub onSubtitlesFound(event as object)
         return
     end if
     m.found = ssResults(answer.data)
-    if m.found.Count() = 0
-        showMenuText("No subtitles were found for this file in your subtitle language.")
-        return
-    end if
     m.menuKind = "found"
-    items = []
+    items = [{ title: ssLanguageEntry(m.findLanguage) }]
     for each result in m.found
         items.Push({ title: result.label })
     end for
     m.menuList.content = nodesContent(items)
-    m.menuList.jumpToItem = 0
+    ' The first result in focus, the Language entry above it.
+    if m.found.Count() > 0
+        m.menuList.jumpToItem = 1
+    else
+        m.menuList.jumpToItem = 0
+    end if
     m.menuText.visible = false
     m.menuChoices.visible = false
     m.menuList.visible = true
@@ -1316,8 +1494,14 @@ end sub
 
 sub onMenuEntryFocused()
     if m.menuKind <> "found" then return
-    at = m.menuList.itemFocused
-    if at >= 0 and at < m.found.Count() then m.menuHint.text = m.found[at].hint
+    at = m.menuList.itemFocused - 1
+    if at >= 0 and at < m.found.Count()
+        m.menuHint.text = m.found[at].hint
+    else if m.found.Count() = 0
+        m.menuHint.text = ssNothingFound(m.findLanguage)
+    else
+        m.menuHint.text = "The language the search looks in."
+    end if
 end sub
 
 ' The result picked is added on the server, then shown.

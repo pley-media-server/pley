@@ -1,17 +1,43 @@
 ' Find subtitles… in the player's menu (docs/API.md, "Added subtitles"):
-' what the server found for the file in the person's subtitle language
-' (GET /api/items/{id}/subtitles/search), each named for the list, and
-' what to say when it can't look. The one picked is added on the server
+' what the server found for the file in the person's subtitle language, or
+' another picked there (GET /api/items/{id}/subtitles/search), each named
+' for the list, and what to say when it can't look. The one picked is added on the server
 ' (POST /api/items/{id}/subtitles) and comes back as an ordinary text
 ' track, which the player shows as it shows the file's own.
 
-' The search's address for a file (0 for the item's first); the server
-' looks in the person's subtitle language, English without one.
-function ssSearchPath(itemId as dynamic, fileId as dynamic) as string
+' The search's address for a file (0 for the item's first) in language
+' (a code of fmtLanguages); for "", the server looks in the person's
+' subtitle language, English without one.
+function ssSearchPath(itemId as dynamic, fileId as dynamic, language as string) as string
     path = "/api/items/" + urlValue(itemId) + "/subtitles/search"
+    query = []
     file = httpNumber(fileId, 0)
-    if file > 0 then path = path + "?file_id=" + urlValue(file)
+    if file > 0 then query.Push("file_id=" + urlValue(file))
+    if language <> "" then query.Push("language=" + urlEncode(language))
+    if query.Count() > 0 then path = path + "?" + query.Join("&")
     return path
+end function
+
+' The list's first entry, which picks the language looked in.
+function ssLanguageEntry(language as string) as string
+    return "Language: " + fmtLanguageName(language, "Your subtitle language")
+end function
+
+' The languages to look in: Your subtitle language (the server's choice),
+' then fmtLanguages; current, the one looked in now.
+function ssLanguageChoices(language as string) as object
+    choice = { labels: ["Your subtitle language"], values: [""], current: 0 }
+    for each known in fmtLanguages()
+        if known[0] = language then choice.current = choice.values.Count()
+        choice.labels.Push(known[1])
+        choice.values.Push(known[0])
+    end for
+    return choice
+end function
+
+' What the list says when nothing was found.
+function ssNothingFound(language as string) as string
+    return "No subtitles were found for this file in " + fmtLanguageName(language, "your subtitle language") + ". Language picks another."
 end function
 
 ' The results the list shows, in the server's order (this very file's

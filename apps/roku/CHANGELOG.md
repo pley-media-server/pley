@@ -8,9 +8,92 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Seek previews: fast forward and rewind show pictures of where they go, in
+  Roku's own bar, once the server has made the file's previews. Needs a
+  server from the same release.
+- A title's page rates it: No rating, or 1 to 5 stars, as on the other
+  apps; once given, More says it (Your rating: 4 stars).
+- A title's page has More…, as on the other TVs: the rating, Go to show
+  and Add to playlist, in a panel at the right, which keeps the column of
+  buttons short.
+- A movie's or an episode's page has Audio and subtitles: the audio
+  (Automatic, named by its language, or a track) and the subtitles (Off or
+  a track) to play, saved for the movie or show before it plays.
+- A title with several files plays the version chosen in Audio and
+  subtitles, one line each (4K · HEVC · DV P8.1 · TrueHD Atmos 7.1 · 62.0
+  GB).
+- More… → Media info: each file of a movie or an episode and every one of
+  its streams in full, as on the other apps.
+- A title with a trailer among its extras has Trailer on its page, which
+  plays it from the start.
+- An episode's More… and the Options key on its tile have Go to season,
+  its season's episodes; Go to show opens the show's page, as on the
+  other apps.
+- A playlist's entries move: the Options key's Move lifts one, Up and Down
+  carry it, OK puts it there and Back puts it back.
+- Settings has Always start as, for a household of several profiles: the
+  app starts without asking who's watching.
+- The player's menu has a sleep timer: 15 to 90 minutes or the end of
+  what plays, then the video pauses; in its last 30 s, Keep watching adds
+  the same time again.
+- Settings says where to manage your account on the web: name, picture,
+  password, PIN, two-step sign-in, devices and apps.
+- Find subtitles… looks in another language too: Language, above the
+  results, picks it.
+- Settings has Diagnostics, what this Roku tells the server it plays, and
+  the open-source licences, as the other TV apps do.
+- A collection has a page of its own, as on the other TVs: its backdrop,
+  TMDB or Smart, what it holds and its summary, Play and Shuffle, then its
+  posters. Play plays a collection of movies in its order, Up Next
+  bringing on each next; a collection of shows plays a show's next
+  episode.
+- A person's page has their round photo and how many of their movies and
+  shows are in the libraries, then a row for each thing they did (Acting,
+  Directing, Creating, Writing, Producing), each title with its year and
+  the part.
+- An artist's page has Play and Shuffle, which play every track of theirs
+  with the music player, and Now playing while music plays; their albums
+  are newest first, each with its year.
+- Playlists has New playlist: Movies & TV or Music, then a name typed on
+  the Roku's keyboard; the new playlist opens.
+- Now Playing lists Up next, the queue with the track playing in bold, as
+  the other apps do; OK on one plays it.
+- Now Playing has Shuffle, and Stop shuffling puts the album's or
+  playlist's order back. An album or a music playlist played from a track
+  plays whole, so Previous goes back past where it started.
+- Music has a sleep timer, on Now Playing: each OK steps through 15 to 90
+  minutes and the end of the track, the button saying what is left; in
+  its last 30 s, Keep listening adds the same time again; then the music
+  pauses until Play.
+- An album of several discs lists its tracks under Disc 1, Disc 2 and so
+  on, as the other apps do.
+- A library sorted by title has an A to Z beside its grid: Up and Down pick
+  a letter (those no title starts with are dimmed) and OK goes to its first
+  title, however far down.
+- Save as… in a library's Filter panel saves the filters and the order as
+  a smart playlist, named on the keyboard, which keeps up with the library.
+- See all ends Home's Recently Added rows, and a library's Recently Added,
+  Recently Released and Top Rated rows: the library's titles in the row's
+  order.
+- Search shows its results in rows by kind, as the other apps do: People,
+  Live TV, Movies, Shows, Seasons, Episodes, Artists, Albums and Tracks,
+  then On TMDB.
+- Search lists your recent searches before anything is typed: OK searches
+  one again, Clear forgets them.
+
 ### Changed
 
 - Entering a server's address says that port 7539 is used by default.
+
+### Fixed
+
+- A paused video or track goes on telling the server where it is, every
+  30 s, as the other apps do, so a long pause no longer drops the server's
+  session: it stays on the dashboard's Now playing and plays on at once.
+- A library's Continue Watching row has wide pictures, as Home's, and the
+  Options key on it offers Remove from Continue Watching.
 
 ## [0.1.1] - 2026-11-01
 
