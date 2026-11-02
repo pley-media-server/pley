@@ -168,8 +168,6 @@ impl NowPlayingScreen {
 
 impl Screen for NowPlayingScreen {
     fn ui(&mut self, ui: &mut Ui, cx: &mut AppCx) {
-        // The remote's keys first, so the frame draws the track they lead to.
-        player::media_keys(ui, cx);
         let Some(id) = player::music(cx).and_then(|m| m.now_playing()).map(|n| n.track.id) else {
             if message(ui, "Nothing is playing", "Play an album or an artist and it shows here.", "Back").activated {
                 cx.back();

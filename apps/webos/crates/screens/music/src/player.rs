@@ -449,6 +449,52 @@ impl BackgroundSession for MusicPlayer {
         self.held_at = (!ended).then_some(at);
     }
 
+    fn playing(&self) -> bool {
+        self.marks_playing() && !self.hold
+    }
+
+    fn play_on(&mut self) {
+        self.press_play();
+    }
+
+    /// The remote's media keys while music has a queue, whatever page shows but a player's: play,
+    /// pause (as Stop does), play/pause, next, previous, ◀◀ and ▶▶ (10 s).
+    fn media_keys(&mut self, ui: &mut Ui) -> bool {
+        if self.now_playing().is_none() {
+            return false;
+        }
+        let mut acted = false;
+        if ui.take_key(Key::PlayPause) {
+            self.toggle();
+            acted = true;
+        }
+        if ui.take_key(Key::Play) {
+            self.press_play();
+            acted = true;
+        }
+        for key in [Key::Pause, Key::Stop] {
+            if ui.take_key(key) {
+                self.press_pause();
+                acted = true;
+            }
+        }
+        if ui.take_key(Key::Next) {
+            self.next();
+            acted = true;
+        }
+        if ui.take_key(Key::Previous) {
+            self.previous();
+            acted = true;
+        }
+        for (key, step) in [(Key::FastForward, SEEK_STEP_MS), (Key::Rewind, -SEEK_STEP_MS)] {
+            if ui.take_key(key) {
+                self.seek_to(pages::seek_target(self.position_ms(), step, self.duration_ms()));
+                acted = true;
+            }
+        }
+        acted
+    }
+
     fn end(&mut self) {
         self.gathering = None;
         self.forget_place();
@@ -520,42 +566,6 @@ pub fn gathered(cx: &mut AppCx, ticket: u64) -> Option<Gathered> {
         return m.gathered.take().map(|(_, g)| g);
     }
     if m.gathering.as_ref().is_some_and(|g| g.ticket == ticket) { None } else { Some(Gathered::Dropped) }
-}
-
-/// The remote's media keys while music has a queue: play, pause, play/pause, next, previous, ◀◀
-/// and ▶▶ (10 s). The music pages take them; Android's media session takes them on every page.
-pub fn media_keys(ui: &mut Ui, cx: &mut AppCx) {
-    let Some(m) = music(cx).filter(|m| m.now_playing().is_some()) else { return };
-    let mut acted = false;
-    if ui.take_key(Key::PlayPause) {
-        m.toggle();
-        acted = true;
-    }
-    if ui.take_key(Key::Play) {
-        m.press_play();
-        acted = true;
-    }
-    if ui.take_key(Key::Pause) {
-        m.press_pause();
-        acted = true;
-    }
-    if ui.take_key(Key::Next) {
-        m.next();
-        acted = true;
-    }
-    if ui.take_key(Key::Previous) {
-        m.previous();
-        acted = true;
-    }
-    for (key, step) in [(Key::FastForward, SEEK_STEP_MS), (Key::Rewind, -SEEK_STEP_MS)] {
-        if ui.take_key(key) {
-            m.seek_to(pages::seek_target(m.position_ms(), step, m.duration_ms()));
-            acted = true;
-        }
-    }
-    if acted {
-        ui.request_repaint();
-    }
 }
 
 /// A number below `n` for Shuffle's first track (xorshift on the clock: nothing here needs more).

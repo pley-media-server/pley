@@ -290,6 +290,15 @@ impl Shell {
             self.rail.close();
         }
 
+        // The remote's media keys go to the music on every page but a player's (`App.cs`'s
+        // MediaKeys), before the page draws, so it shows the track they lead to.
+        if self.chrome() != Chrome::Video
+            && let Some(m) = state.music.as_mut()
+            && m.media_keys(ui)
+        {
+            ui.request_repaint();
+        }
+
         let entry = &mut self.stack[top];
         let group = Group::free().edge(Dir::Left, Edge::Out);
         let modal = {

@@ -8,7 +8,7 @@ use std::time::Duration;
 use common::TestApp;
 use pley_base::Key;
 use pley_fixtures::ids;
-use pley_shell::{AppCx, Requests, Route};
+use pley_shell::{AppCx, PlayRequest, Requests, Route};
 
 /// The first album's tracks: ten of 20 s.
 const FIRST_TRACK: i64 = ids::TRACK;
@@ -178,7 +178,7 @@ fn a_track_that_ends_gives_way_to_the_next_while_people_browse() {
 }
 
 #[test]
-fn leaving_the_app_lets_go_of_the_music_and_play_comes_back_there() {
+fn music_playing_as_the_app_leaves_plays_on_where_it_was_when_it_is_back() {
     let mut app = TestApp::start();
     album(&mut app, None);
     app.press(Key::Ok);
@@ -187,8 +187,27 @@ fn leaving_the_app_lets_go_of_the_music_and_play_comes_back_there() {
     let now = app.time;
     app.shell.visible(false, &mut app.state, &mut app.ui, now);
     app.frame(Vec::new());
-    assert_eq!(app.now_playing(), Some((FIRST_TRACK, false)));
+    assert_eq!(app.now_playing(), Some((FIRST_TRACK, false)), "the music played on behind the TV's Home");
     app.shell.visible(true, &mut app.state, &mut app.ui, now);
+    assert!(playing(&mut app), "the music didn't play on as the app came back");
+    assert!(app.music().unwrap().position_ms() >= 7_000, "it started over instead of where it was");
+}
+
+#[test]
+fn leaving_the_app_paused_keeps_the_music_paused_and_play_comes_back_there() {
+    let mut app = TestApp::start();
+    album(&mut app, None);
+    app.press(Key::Ok);
+    assert!(playing(&mut app));
+    app.music().unwrap().seek_to(8_000);
+    app.press(Key::Pause);
+    assert!(app.until(|a| a.now_playing() == Some((FIRST_TRACK, false))), "Pause didn't pause");
+    let now = app.time;
+    app.shell.visible(false, &mut app.state, &mut app.ui, now);
+    app.frame(Vec::new());
+    app.shell.visible(true, &mut app.state, &mut app.ui, now);
+    app.advance(0.3);
+    assert_eq!(app.now_playing(), Some((FIRST_TRACK, false)), "paused music played as the app came back");
     // Its place still shows, and the scrubber moves it without playing (the TV's engine let go
     // of the track and knows no place by then).
     let held = app.player().unwrap().position_ms();
@@ -223,6 +242,29 @@ fn pause_pressed_while_the_track_starts_opens_it_paused() {
     // Play/Pause then plays it.
     app.press(Key::PlayPause);
     assert!(playing(&mut app));
+}
+
+#[test]
+fn the_remotes_media_keys_work_on_every_page_but_a_players() {
+    let mut app = TestApp::start();
+    album(&mut app, None);
+    app.press(Key::Ok);
+    assert!(playing(&mut app));
+    // Home, a page of another crate (the shell's placeholder here).
+    app.open(Route::Home);
+    app.press(Key::PlayPause);
+    assert!(app.until(|a| a.now_playing() == Some((FIRST_TRACK, false))), "Play/Pause didn't pause on Home");
+    app.press(Key::Play);
+    assert!(playing(&mut app), "Play didn't play on Home");
+    app.press(Key::Stop);
+    assert!(app.until(|a| a.now_playing() == Some((FIRST_TRACK, false))), "Stop didn't pause the music");
+    assert_eq!(app.music().unwrap().list().len(), 10, "Stop let go of the queue");
+    // A video's player keeps them for itself.
+    app.press(Key::Play);
+    assert!(playing(&mut app));
+    app.open(Route::Player(PlayRequest::item(ids::SAMPLE_1080P)));
+    app.press(Key::Next);
+    assert_eq!(app.now_playing().map(|n| n.0), Some(FIRST_TRACK), "Next skipped the music under a player");
 }
 
 #[test]

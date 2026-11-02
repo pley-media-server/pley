@@ -32,6 +32,9 @@ describes how they are made.
   what's on.
 - OK on a live channel opens the channel list at once, while it tunes too;
   holding OK shows the controls.
+- The remote's media keys work the music from every page, not only the
+  music pages, and Stop pauses it. Music that was playing when the TV
+  hid the app plays on from there when the app is back.
 
 ### Fixed
 

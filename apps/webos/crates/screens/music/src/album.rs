@@ -413,7 +413,6 @@ enum Go {
 
 impl Screen for AlbumScreen {
     fn ui(&mut self, ui: &mut Ui, cx: &mut AppCx) {
-        player::media_keys(ui, cx);
         let now = cx.now;
         self.since.get_or_insert(now);
         self.update(cx);

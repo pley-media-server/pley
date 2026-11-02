@@ -197,7 +197,9 @@ with Now Playing in the rail. A song plays as it is or, where the TV
 can't, as an audio-only stream. While music is paused the app still
 reports every 30 s: the server forgets a player it hasn't heard from in
 90 s, and its keyed addresses with it. Music pauses when the TV hides the
-app.
+app and, if it was playing, plays on from there when the app is back. The
+remote's media keys work it from every page but a player's: play, pause
+and Stop (which pauses), play/pause, next, previous, and ◀◀ and ▶▶ 10 s.
 
 ### Requests
 
@@ -258,8 +260,9 @@ for titles.
   anonymous registration, every call bounded by a timeout. The main thread
   never waits on luna, the network or the disk.
 - **Coming and going.** When the TV hides the app, a video stops where it
-  was and starts there again when the app shows; music pauses, and the
-  server's event stream stops until the app is back. When the TV takes a
+  was and starts there again when the app shows; music pauses and plays
+  on when the app shows, if it was playing; the server's event stream
+  stops until the app is back. When the TV takes a
   paused video's decoder back (as when its screen saver comes on), play
   or a seek reloads it where it was.
 - **The network.** The app's own HTTP/1.1 client, with TLS through rustls

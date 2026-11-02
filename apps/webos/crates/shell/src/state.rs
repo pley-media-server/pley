@@ -167,6 +167,8 @@ pub struct AppState {
 
     /// The music playing while people browse; the music screens fill it.
     pub music: Option<Box<dyn BackgroundSession>>,
+    /// The music played as the app was hidden: it plays on when the app shows again.
+    music_hidden_playing: bool,
 
     account_me: Option<Pending<Result<Me, ApiError>>>,
     account_libraries: Option<Pending<Result<Vec<Library>, ApiError>>>,
@@ -238,6 +240,7 @@ impl AppState {
             live_known: VecDeque::new(),
             live_last_watched: None,
             music: None,
+            music_hidden_playing: false,
             account_me: None,
             account_libraries: None,
             home_task: None,
@@ -651,6 +654,7 @@ impl AppState {
     /// Ends what plays in the background (the music's session) before the profile, the sign-in,
     /// the server or the app goes.
     pub fn end_playback(&mut self) {
+        self.music_hidden_playing = false;
         if let Some(mut m) = self.music.take() {
             m.end();
         }
@@ -1134,8 +1138,14 @@ impl AppState {
             return;
         }
         self.visible = visible;
-        if !visible && let Some(m) = self.music.as_mut() {
-            m.pause();
+        // Music the TV's Home paused plays on when the app is back (`App.cs`'s MusicShown).
+        if let Some(m) = self.music.as_mut() {
+            if !visible {
+                self.music_hidden_playing = m.playing();
+                m.pause();
+            } else if std::mem::take(&mut self.music_hidden_playing) {
+                m.play_on();
+            }
         }
         self.listen(visible);
         if visible && self.offline {

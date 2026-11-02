@@ -10,6 +10,7 @@ use pley_core::store::Snapshots;
 use pley_core::{Api, ApiError, Device, Promise, Settings, Store, Tasks};
 
 use pley_player::PlayerEnv;
+use pley_ui::Ui;
 
 use crate::route::{PlayRequest, Route};
 use crate::state::AppState;
@@ -58,6 +59,17 @@ pub trait BackgroundSession: Any {
     fn tick(&mut self, now: f64) -> Option<f64>;
     /// The app went to the background: pause what plays.
     fn pause(&mut self);
+    /// Whether it plays or is about to: the app going to the background notes it, to play on
+    /// when shown again.
+    fn playing(&self) -> bool {
+        false
+    }
+    /// The app is shown again after it paused for the background: plays on from where it was.
+    fn play_on(&mut self) {}
+    /// The remote's media keys, on every page but a player's; whether it took any.
+    fn media_keys(&mut self, _ui: &mut Ui) -> bool {
+        false
+    }
     /// Ends the session on the server and stops playing.
     fn end(&mut self);
     /// A server event (a session stopped from elsewhere ends it).
