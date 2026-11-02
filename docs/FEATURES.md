@@ -83,6 +83,14 @@ What Pley does, in full. The [README](../README.md) has the short version.
   own libraries and age limit.
 - A profile switcher with optional PINs, invitation links, and a list of
   signed-in devices that can be signed out remotely.
+- PINs work the same way on every app. A profile with one shows a lock, and
+  switching to it asks the PIN: a wrong one asks again, too many in 15
+  minutes say how long to wait, and after 100 wrong ones in a row the PIN
+  stops working until its owner or an administrator sets it again. A TV
+  that asks "Who's watching?" as it starts also asks the PIN of the profile
+  it was left on. A profile that can see more than yours and has no PIN
+  takes its password, in the browser; a TV signs in to it again with a
+  code.
 - Two-step sign-in with an authenticator app, with recovery codes:
   optional, or required of everyone by an administrator, in which case each
   person sets it up at their next sign-in (for a TV, on their phone).
