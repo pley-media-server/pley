@@ -333,6 +333,17 @@ const twoStep = { shown: false, hidden: false };
 // The player's notice when every connection is in use.
 const live = { busy: false };
 const sync = { label: false };
+// The picture subtitles the app draws: one of their PNGs loaded.
+const pictures = { loaded: false };
+// Within ms, whether a picture subtitle's PNG was fetched.
+async function loadedWithin(ms) {
+  const until = Date.now() + ms;
+  while (Date.now() < until) {
+    if (fixture.picturesFetched.length > 0) return true;
+    await sleep(100);
+  }
+  return false;
+}
 const pages = { diagnostics: false, licences: false };
 // Home asks again only after playing, or when its rows are a minute old.
 const home = { kept: false };
@@ -408,10 +419,32 @@ async function walk() {
   await press("back");
   fixture.playbackDelayMs = 0;
   await waitFor(/^DELETE \/api\/playback\/s1$/, since, "closing the session answered after Back");
-  // Played this time, then left.
+  // Played this time: the picture subtitles picked are the app's to draw,
+  // so nothing is burned in. Their list is asked for from where the
+  // playback starts, with the session's key, then again until it is
+  // whole; the first picture to come loads. Then left.
   since = mark();
   await press("select"); // Resume
   await waitFor(/^POST \/api\/playback$/, since, "a playback session");
+  await waitFor(/^GET \/api\/media\/pley_mk_s2\/subtitles-4\.json\?at=\d+$/, since, "the picture subtitles where the playback starts");
+  const firstList = mark();
+  await waitFor(/^GET \/api\/media\/pley_mk_s2\/subtitles-4\.json\?at=\d+$/, firstList, "the rest of the picture subtitles", { ms: 10000 });
+  pictures.loaded = await loadedWithin(5000);
+  shoot("player-pictures");
+  since = mark();
+  await press("back");
+  await waitFor(/^DELETE \/api\/playback\/s2$/, since, "closing the session that drew pictures");
+  // A server without them (404): burned in after all, in a new session
+  // from where the video was, and for the rest of this playback.
+  fixture.picturesMissing = true;
+  since = mark();
+  const sessionsBefore = fixture.playbacks.length;
+  await press("select"); // Resume
+  await waitFor(/^GET \/api\/media\/pley_mk_s3\/subtitles-4\.json\?at=\d+$/, since, "the picture subtitles of a server without them", { settles: false });
+  const burnedUntil = Date.now() + 10000;
+  while (fixture.playbacks.length < sessionsBefore + 2 && Date.now() < burnedUntil) await sleep(100);
+  if (fixture.playbacks.length < sessionsBefore + 2) throw new Error("no request for a session with the picture subtitles burned in");
+  await settle();
   shoot("player");
   // pley's menu (Down), and its subtitle sync: right moves the subtitles
   // later, and Back closes it, the stream opening again with its text
@@ -1230,7 +1263,10 @@ const checks = [
   ["refreshed its token", fixture.refreshes > 0],
   ["loaded Home", asked(/^GET \/api\/hubs\/home$/)],
   ["asked to play with its capabilities", asked(/^POST \/api\/playback$/)],
-  ["asked for the picture subtitles to be drawn", fixture.playbacks.some((p) => p.item === 103 && p.subtitle_index === 4)],
+  ["drew the PGS subtitles picked itself: nothing burned in, their list asked for where the playback starts", fixture.playbacks.some((p) => p.item === 103 && p.subtitle_index === null && p.keyed) && fixture.picturesAsked.some((p) => p.session === "s2" && p.index === 4)],
+  ["asked again for picture subtitles not whole yet", fixture.picturesAsked.filter((p) => p.session === "s2").length >= 2],
+  ["loaded the picture subtitles drawn", pictures.loaded && fixture.picturesFetched.every((name) => /^subtitles-4-\d+\.png$/.test(name))],
+  ["burned the PGS subtitles in where the server has no pictures of them, from then on", fixture.playbacks[3]?.subtitle_index === 4 && !fixture.requests.some((r) => /^\/api\/media\/pley_mk_s4\/subtitles/.test(r.path))],
   ["found subtitles from the player's menu and added the first", fixture.subtitlesAdded.some((a) => a.item === 103 && a.result === "opensubtitles:1" && a.file_id === 7103)],
   ["looked for subtitles in a language picked above the results", asked(/^GET \/api\/items\/103\/subtitles\/search\?file_id=7103&language=ara$/)],
   ["saved the added subtitles as the pick", fixture.streams.some((s) => s.item === 103 && s.subtitle_index === 10001)],

@@ -372,13 +372,14 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     }
     if (url.pathname === "/api/oauth/revoke" && req.method === "POST") return json(200);
 
-    // Everything else needs the access token, in the header.
+    // Everything else needs the access token, in the header, but a keyed
+    // session's media, which its key opens.
     if (!url.pathname.startsWith("/api/") || url.pathname === "/api/server") {
       return json(200, { name: "Fixture", version: "0.1.0", setup_required: false, setup_code_required: false, ...(fixture.twoStep ? { two_step_required: true } : {}) });
     }
     const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : "";
     if (toRefuse.delete(url.pathname)) access.delete(bearer);
-    if (!access.has(bearer)) {
+    if (!access.has(bearer) && !url.pathname.startsWith("/api/media/pley_mk_")) {
       res.writeHead(401, { "Content-Type": "application/json", "WWW-Authenticate": 'Bearer error="invalid_token"' });
       return res.end(JSON.stringify({ code: "unauthorized", message: "sign in again" }));
     }
@@ -629,14 +630,18 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       const fileId = ask.file_id ?? files[0];
       const burn = ask.subtitle_index ?? null;
       if (burn !== null && burn !== PICTURE_SUBTITLES) problems.push(`subtitles ${burn} to draw, which aren't pictures`);
-      fixture.playbacks.push({ item: ask.item_id, kind: item?.kind, file_id: fileId, start_ms: ask.start_ms ?? 0, subtitle_index: burn, mode: ask.mode, max_bitrate: ask.max_bitrate ?? null });
+      fixture.playbacks.push({ item: ask.item_id, kind: item?.kind, file_id: fileId, start_ms: ask.start_ms ?? 0, subtitle_index: burn, mode: ask.mode, max_bitrate: ask.max_bitrate ?? null, keyed: ask.keyed_urls === true });
       sessions += 1;
       const session = `s${sessions}`;
+      // Keyed addresses carry the session's key, beside which are its seek
+      // previews and its picture subtitles (docs/API.md, "Keyed URLs").
+      const media = ask.keyed_urls === true ? `/api/media/pley_mk_${session}` : null;
       if (fixture.playbackDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, fixture.playbackDelayMs));
       // Drawn subtitles make a conversion.
       return json(200, {
         session_id: session, method: burn === null ? "direct" : "transcode",
-        url: burn === null ? `/api/files/${fileId}/stream` : `/api/playback/${session}/master.m3u8`, hls: burn !== null, file_id: fileId,
+        url: media ? `${media}/${burn === null ? "file.mkv" : "master.m3u8"}` : burn === null ? `/api/files/${fileId}/stream` : `/api/playback/${session}/master.m3u8`,
+        hls: burn !== null, file_id: fileId,
         duration_ms: item?.duration_ms ?? 0, audio_index: 1, subtitle_index: burn, burn_subtitles: burn !== null, audio_converted: false,
         subtitles: [{ index: 3, codec: "subrip", language: "eng", title: "English", default: false, forced: false, external: false, text_based: true, url: `/api/files/${fileId}/subtitles/3.vtt` }],
         reasons: [], reason: null, auto_quality: null,
@@ -777,7 +782,36 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       const people = [{ id: 11, name: "Monty Fixture", photo_url: "/api/people/11/photo?v=1" }].filter((p) => p.name.toLowerCase().includes(q));
       return json(200, { items: [...movies, show].filter((item) => item.title.toLowerCase().includes(q)).slice(0, 40), people, channels });
     }
-    if (path.startsWith("/api/files/")) {
+    // A keyed session's picture subtitles, which the app draws: their list
+    // around where the player is (the first time a session asks, those
+    // alone, as a server still reading the track has them), then all of
+    // them; and each one's PNG. Without the token: the key opens them.
+    // `picturesMissing` answers as a server from before them.
+    if ((match = path.match(/^\/api\/media\/pley_mk_(\w+)\/subtitles-(\d+)\.json$/)) && req.method === "GET") {
+      const [, session, index] = match;
+      const playback = fixture.playbacks[Number(session.slice(1)) - 1];
+      const at = url.searchParams.get("at");
+      if (!/^\d+$/.test(at ?? "")) problems.push(`picture subtitles asked for at ${JSON.stringify(at)}`);
+      if (auth) problems.push("picture subtitles asked for with the token: the key opens them");
+      if (!playback?.keyed || closed.includes(session)) return json(404, { code: "not_found", message: "playback session expired" });
+      if (fixture.picturesMissing) return json(404, { code: "not_found", message: `nothing at ${path}` });
+      const asked = fixture.picturesAsked.filter((p) => p.session === session && p.index === Number(index)).length;
+      fixture.picturesAsked.push({ session, index: Number(index), at: Number(at) });
+      const duration = items.get(playback.item)?.duration_ms ?? 1800000;
+      const cues = [];
+      for (let start = 5000; start + 2500 <= duration; start += 10000) {
+        cues.push({ start_ms: start, end_ms: start + 2500, x: 560, y: 900, width: 800, height: 100, image: `subtitles-${index}-${start}.png` });
+      }
+      const around = cues.filter((c) => c.end_ms >= Number(at) - 60000 && c.start_ms <= Number(at) + 120000);
+      return json(200, { complete: asked > 0, width: 1920, height: 1080, cues: asked > 0 ? cues : around });
+    }
+    if ((match = path.match(/^\/api\/media\/pley_mk_(\w+)\/(subtitles-\d+-\d+\.png)$/)) && req.method === "GET") {
+      if (auth) problems.push("a picture subtitle fetched with the token: the key opens it");
+      fixture.picturesFetched.push(match[2]);
+      res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "private, max-age=3600" });
+      return res.end(png(800, 100, (x, y) => (y > 30 && y < 70 && x > 40 && x < 760 ? [235, 235, 235] : [0, 0, 0])));
+    }
+    if (path.startsWith("/api/files/") || path.startsWith("/api/media/")) {
       res.writeHead(200, { "Content-Type": "application/octet-stream" });
       return res.end(Buffer.alloc(16));
     }
@@ -786,7 +820,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
 
   const fixture = { issuer: "", down: false, qr: true, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], streams: [], picks: new Map(), ratings: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [], smartPlaylists: [], nextPlaylist: 2,
     household: [{ id: 1, name: "Anna", avatar_url: null, avatar_color: "#38bdf8", current: true, needs: "none" }, { id: 2, name: "Ben", avatar_url: null, avatar_color: "#f472b6", current: false, needs: "none" }],
-    switched: [], subtitlesAdded: [], probed: false, networkTold: [], speedTests: [], requestsAsked: [], requestsActed: [], discoverPictures: [], problems, requests, progress, closed, close: () => server.close(),
+    switched: [], subtitlesAdded: [], picturesMissing: false, picturesAsked: [], picturesFetched: [], probed: false, networkTold: [], speedTests: [], requestsAsked: [], requestsActed: [], discoverPictures: [], problems, requests, progress, closed, close: () => server.close(),
     liveRecent: [2], liveBrowses: [], liveFavorites: [], liveFavoriteChanges: [], liveGuides: [], liveWatches: [], liveSessions: new Map(), livePlaylists: [], liveLeft: [] };
   // The channels, each with what's on now and next, by the half hour.
   function liveProgram(channelId, start) {

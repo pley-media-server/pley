@@ -17,6 +17,8 @@ sub test_caps_of_a_4k_hdr_roku_with_a_receiver()
     tkEqual(caps.audio_codecs, ["aac", "mp3", "ac3", "eac3", "flac", "alac", "opus", "vorbis", "pcm_s16le", "pcm_s24le", "pcm_s16be", "pcm_s24be", "dts"])
     tkEqual(caps.audio_channels, 6)
     tkEqual(caps.hls, { master_playlist: true, segments: ["ts"], variants: true })
+    tkEqual(caps.subtitle_codecs, ["hdmv_pgs_subtitle"], "PGS drawn by the app; VobSub and DVB burned in")
+    tkTrue(caps.picture_subtitles_sideload, "next to a stream too")
     tkEqual(caps.display, { width: 3840, height: 2160, refresh_rates: [60] })
     tkEqual(caps.device, { form: "tv", model: "Roku Ultra" })
 end sub
@@ -30,6 +32,8 @@ sub test_caps_lines_say_what_diagnostics_shows()
         audio_decode: ["aac", "mp3", "ac3"],
         audio_passthrough: ["eac3", "dts"],
         audio_channels: 6,
+        subtitle_codecs: ["hdmv_pgs_subtitle"],
+        picture_subtitles_sideload: true,
         containers: ["mp4", "mkv"]
     }
     tkEqual(capsLines(report), [
@@ -40,6 +44,7 @@ sub test_caps_lines_say_what_diagnostics_shows()
         "Audio decoded: aac, mp3, ac3",
         "Sent to the receiver: eac3, dts",
         "Sound: Surround (5.1)",
+        "Picture subtitles: PGS drawn here, VobSub and DVB burned in",
         "Containers: mp4, mkv",
         "Streams: HLS, in several sizes"
     ])
@@ -47,6 +52,7 @@ sub test_caps_lines_say_what_diagnostics_shows()
     tkEqual(plain[0], "HDR: none", "no display mode known: no line for it")
     tkEqual(plain[3], "Sent to the receiver: nothing")
     tkEqual(plain[4], "Sound: Stereo")
+    tkEqual(plain[5], "Containers: mp4", "no picture subtitles drawn: no line for them")
 end sub
 
 sub test_caps_of_a_1080p_stick_on_tv_speakers()

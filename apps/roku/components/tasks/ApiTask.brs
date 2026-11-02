@@ -414,6 +414,10 @@ sub apiBuild(job as object, answer as object)
             keys.Push(row.key)
         end for
         answer.data = { rows: keys, channels: liveChannels(data.channels, server) }
+    else if job.build = "pictures"
+        ' A picture subtitle track's list, read here: a film's runs to a
+        ' few hundred KB (Pictures.brs).
+        answer.data = picRead(data)
     else if job.build = "letters"
         ' A page of a library sorted by title, for its A to Z: where each
         ' letter's titles start, and no ContentNodes.

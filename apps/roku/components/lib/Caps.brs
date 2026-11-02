@@ -79,6 +79,10 @@ function capsBuild(device as object) as object
         audio_channels: channels,
         ' The Video node moves between a transcode's sizes by itself (adaptive bitrate).
         hls: { master_playlist: true, segments: ["ts"], variants: true },
+        ' PGS is drawn by the app over whatever plays (Pictures.brs), so
+        ' the server doesn't burn it in; VobSub and DVB, not listed, are.
+        subtitle_codecs: ["hdmv_pgs_subtitle"],
+        picture_subtitles_sideload: true,
         device: { form: "tv", model: capsModel(device) }
     }
     ' Roku's Dolby Vision decoders take profiles 5 and 8; their levels go
@@ -126,6 +130,9 @@ function capsLines(report as object) as object
     sound = "Stereo"
     if httpNumber(report.audio_channels, 2) > 2 then sound = "Surround (5.1)"
     lines.Push("Sound: " + sound)
+    if httpTrue(report.picture_subtitles_sideload) and capsListed(httpArray(report.subtitle_codecs), "hdmv_pgs_subtitle")
+        lines.Push("Picture subtitles: PGS drawn here, VobSub and DVB burned in")
+    end if
     lines.Push("Containers: " + httpArray(report.containers).Join(", "))
     lines.Push("Streams: HLS, in several sizes")
     return lines

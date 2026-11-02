@@ -46,17 +46,23 @@ end function
 
 ' The subtitles to ask the server to draw onto the video (subtitle_index):
 ' those the person's choices pick for file (its selected_subtitle) when
-' they are pictures (PGS, VobSub, DVB), as the web player asks; -1 for none
-' or for text ones, which the Video node shows itself.
-function playerBurnIndex(file as dynamic) as integer
+' they are pictures (PGS, VobSub, DVB) the app doesn't draw itself, as the
+' TV apps ask; -1 for none, for text ones, which the Video node shows,
+' and for pictures in a codec of drawn (picCodecs(), or [] once the server
+' turned out not to make them).
+function playerBurnIndex(file as dynamic, drawn as object) as integer
     data = httpObject(file)
     if data = invalid then return -1
     selected = Int(httpNumber(data.selected_subtitle, -1))
     if selected < 0 then return -1
     for each stream in httpArray(data.streams)
         if GetInterface(stream, "ifAssociativeArray") <> invalid and httpString(stream.kind) = "subtitle" and httpNumber(stream.index, -2) = selected
-            if GetInterface(stream.text_based, "ifBoolean") <> invalid and not stream.text_based then return selected
-            return -1
+            if GetInterface(stream.text_based, "ifBoolean") = invalid or stream.text_based then return -1
+            codec = LCase(httpString(stream.codec))
+            for each name in drawn
+                if name = codec then return -1
+            end for
+            return selected
         end if
     end for
     return -1

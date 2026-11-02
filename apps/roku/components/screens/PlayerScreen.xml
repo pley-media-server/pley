@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The player: the Video node with its own controls, Skip Intro and Skip
-     Credits, Up Next before the end of an episode, pley's menu (Down:
+<!-- The player: the Video node with its own controls, the picture
+     subtitles the app draws, Skip Intro and Skip Credits, Up Next before
+     the end of an episode, pley's menu (Down:
      Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…,
      Playback details), the sleep timer's notice, Automatic's notice of a
      lower quality, and what went wrong when it did. -->
@@ -29,9 +30,17 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Details.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/SubtitleSearch.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Sleep.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Pictures.brs" />
     <children>
         <Rectangle width="1920" height="1080" color="0x000000FF" />
         <Video id="video" width="1920" height="1080">
+            <!-- Picture subtitles (Pictures.brs): the one showing, and the
+                 next loading in the other frame. Under the skip button and
+                 the player's panels, as captions are. -->
+            <Group id="pictures">
+                <Poster id="pictureA" opacity="0" loadDisplayMode="scaleToFit" />
+                <Poster id="pictureB" opacity="0" loadDisplayMode="scaleToFit" />
+            </Group>
             <SkipButton id="skip" translation="[1544, 924]" visible="false" />
         </Video>
         <Label id="loading" translation="[0, 500]" width="1920" horizAlign="center" text="Loading…" color="0xA1A9B6FF" font="font:MediumSystemFont" />
@@ -86,6 +95,8 @@
         <Timer id="pausedTimer" repeat="true" />
         <!-- The sleep timer's look, once a second while it is set. -->
         <Timer id="sleepTimer" duration="1" repeat="true" />
+        <!-- A picture subtitle track not whole yet, asked for again. -->
+        <Timer id="picturesTimer" duration="3" />
         <!-- Automatic's look at the playback, once a second while it plays. -->
         <Timer id="autoTimer" duration="1" repeat="true" />
     </children>

@@ -89,6 +89,11 @@ describes how they are made.
   in a Discover row after the libraries' titles, which says when TMDB
   can't be searched.
 - Entering a server's address says that port 7539 is used by default.
+- PGS subtitles are drawn by the app over the video instead of being burned
+  in by the server, so a file with them plays as it is and keeps its HDR,
+  and subtitle sync moves them without the video stopping. A server too old
+  to make their pictures still burns them in, and so does every server for
+  VobSub and DVB.
 
 ### Fixed
 

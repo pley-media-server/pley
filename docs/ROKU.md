@@ -209,11 +209,33 @@ next.
 - Subtitles look as the Roku's caption settings say (Settings →
   Accessibility → Captions style). The app never sets `captionStyle`,
   which would change them for the whole Roku.
-- Text subtitles go to the Video node as WebVTT. Picture subtitles (PGS,
-  VobSub, DVB) are burned in by the server.
+- Text subtitles go to the Video node as WebVTT.
+- **PGS subtitles** are drawn by the app over the video
+  (`components/lib/Pictures.brs`), so the file plays as it is and HDR stays
+  HDR. The app reports `hdmv_pgs_subtitle` in `subtitle_codecs` with
+  `picture_subtitles_sideload`, and asks for no `subtitle_index` for them.
+  The session's key opens the track's pictures:
+  `/api/media/{key}/subtitles-{index}.json?at={ms}` lists each one's time,
+  its place on the subtitle plane and its PNG beside it. The server reads
+  the pictures around `at` first: while the list isn't whole, the app asks
+  again every 3 s from where the video is, and keeps what it has. The
+  plane is fitted to the screen as the video is. A picture shows while
+  the video plays, under the skip button and the player's panels; paused
+  or seeking, Roku's bar has the bottom of the screen. The next picture
+  loads in a second frame while one shows. The Video node tells its
+  position every 0.2 s while pictures are drawn, else every second.
+- Roku's options list only text tracks: PGS is picked on a title's page.
+  A text track picked in the options takes the place of the pictures;
+  captions turned on or off alone leave them be.
+- A server too old to make the pictures (`404` for the list, or `503` from
+  a transcoder too old) has them burned in: the stream reopens where it
+  was with `subtitle_index`, as for VobSub and DVB, which are always burned
+  in. The app keeps burning them in until the player closes.
 - **Subtitle sync:** Left and Right move subtitles 0.1 s, up to 10 s either
-  way. The server shifts the cues (`offset_ms`) and the stream reopens
-  where it was. The offset is kept per file per server (the latest 50).
+  way. The server shifts text cues (`offset_ms`) and the stream reopens
+  where it was; pictures drawn by the app move as the offset changes, and
+  the stream plays on. The offset is kept per file per server (the latest
+  50).
 - **Find subtitles…** searches OpenSubtitles in the profile's subtitle
   language, or another that Language, above the results, picks
   (`components/lib/SubtitleSearch.brs`). OK on a result adds it on the
@@ -375,7 +397,8 @@ Rules the code keeps:
   address, including the Video node's and the pictures' HTTP agents.
 - Videos play from [keyed addresses](API.md#keyed-urls): Roku fetches a
   BIF file of seek previews without its HTTP agent's headers, so the
-  previews come from the session's key, beside its media.
+  previews come from the session's key, beside its media. So do the
+  pictures of PGS subtitles and their list, fetched without the token.
 - Refreshes run one at a time per server, and the new token pair is saved
   before use (a refresh token works once).
 - The User-Agent is `pleyRoku/<version> (Roku OS <version>; <model>)`; the
@@ -444,8 +467,11 @@ bun run images    # the nine-patch focus and watched-mark images
   requests and TMDB titles, all made up, in `scripts/fixture-requests.mjs`)
   and walks every screen, saving each in `out/smoke/`. It fails on a
   BrightScript error, a request without the User-Agent, a token in an
-  address, or a refresh token used twice. On the way it jumps down a
-  library with its A to Z, saves a library's filters as a smart playlist,
+  address, or a refresh token used twice. On the way it plays an episode
+  whose PGS subtitles the app draws (their list asked for where it
+  starts, then again until whole, and a picture loaded), then the same
+  episode on a server without their pictures, which burns them in; it
+  jumps down a library with its A to Z, saves a library's filters as a smart playlist,
   plays a collection of movies and a smart one of shows, and an artist's
   tracks, makes a playlist, plays a track from Now Playing's Up next,
   shuffles the queue and puts its order back, steps the music's sleep
@@ -455,7 +481,8 @@ bun run images    # the nine-patch focus and watched-mark images
   ready-to-watch notice, and checks that a server without requests is
   asked nothing but the summary.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
-  Next and the sleep timers' ends have only unit tests), one fetch at a
+  Next, the sleep timers' ends and picture subtitles shown in time have
+  only unit tests), one fetch at a
   time, the odd dropped key, and no measure of a Roku's speed.
 - **Images:** `bun run images` runs `scripts/make_images.py` (Python
   standard library). The home screen icons and splash screens come from
