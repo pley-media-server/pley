@@ -36,25 +36,166 @@ signs in with a code shown on the TV, approved on the server's `/link` page
 or by its QR code. When the server requires two-step sign-in, the sign-in
 screen says so: the phone that approves the code sets it up for whoever
 hasn't yet. It asks "Who's watching?" at start when the household has more
-than one profile, and the PIN of the profile it was left on when that
-profile has one, as the other TVs do.
+than one profile, unless Settings' Always start as names one. Going on
+there as the profile it was left on asks that profile's PIN when it has
+one, as on the other TVs.
 
 ### Remote keys
 
 | Key | Where | What it does |
 |---|---|---|
-| Options (\*) | A title | Mark watched, My List, Add to playlist, Remove from Continue Watching, Go to show |
-| Options (\*) | Watch history, a playlist entry | Removes it |
+| Options (\*) | A title | Mark watched, My List, Add to playlist, Remove from Continue Watching, Go to show, Go to season |
+| Options (\*) | Watch history | Removes it |
+| Options (\*) | A playlist entry | Move (Up and Down carry it, OK puts it there, Back puts it back), Remove from playlist |
 | Options (\*) | A request | What can be done with it (Approve, Decline, Withdraw…) |
-| Down | The player | Pley's menu: Quality, Subtitle sync, Chapters, Find subtitles…, Playback details |
+| Down | The player | Pley's menu: Quality, Subtitle sync, Chapters, Sleep timer, Find subtitles…, Playback details |
 | Options (\*) | The player | Roku's own options: subtitles and audio tracks |
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
 | Replay | Live TV | Search (Roku remotes have no search key for apps) |
 
-Settings has the audio and subtitle defaults, Quality, Play the next
-episode by itself (Up Next counts down only while it is on), Watch
-history, Switch profile, Sort libraries, Switch server and Sign out, and
-carries TMDB's notice.
+### A title's page
+
+A movie's, an episode's or a show's page has its buttons in a column at
+the left, Play (or Resume and Play from start) first, then Mark as
+watched, Audio and subtitles, My List, Trailer (where its extras have
+one: it plays from its start) and More…. Audio and subtitles and More
+open a panel at the right; Back closes it, and Down from the buttons goes
+to the rows under them.
+
+- **Audio and subtitles** (a movie or an episode with several files, or
+  whose file has two audio tracks or more, or subtitles):
+  - Version, for several files: one line each ("Director's Cut · 4K ·
+    HEVC · DV P8.1 · TrueHD Atmos 7.1 · 62.0 GB"). Play plays the one
+    chosen (`file_id` in `POST /api/playback`), with the tracks the server
+    picks; it isn't saved, as on the other apps.
+  - Audio, Automatic first, named by the language the profile's defaults
+    pick ("Automatic (English)"), then the file's tracks ("French (AC3
+    5.1)"); Subtitles, Off first, then the file's ("English – SDH (SRT)").
+    A choice is saved at once for the show or movie (`PUT
+    /api/items/{id}/streams`) and Play starts with it. The audio goes with
+    it only when picked here, Automatic as none, as on the other TVs.
+- **More**, what is used less, as on the other TVs: Rate (Your rating,
+  once given: No rating, or 1 to 5 stars, kept for the profile on the
+  server), an episode's Go to show (the show's page) and Go to season
+  (its episodes), Media info and Add to playlist. The Options key on an
+  episode's tile goes to them alike.
+- **Media info** (a movie or an episode with a file): each file, under its
+  edition or "VERSION 2" when there are several, and every stream in
+  full, in the other apps' words (codec, profile and level, size, frame
+  rate, bit depth, HDR and Dolby Vision, colour, channels, sample rate,
+  language, title, flags), as text that Up and Down scroll.
+
+### Collections, people, artists and playlists
+
+A collection's page has its backdrop, "Collection" with a TMDB or Smart
+badge, its title, what it holds ("5 movies · Movies · By release date";
+a smart collection's filter in words), its summary, Play and Shuffle (two
+titles or more), then its posters, which Down slides the page up to. Play
+plays a collection of movies in its order, Up Next bringing on each next,
+and Shuffle in any order; a collection of shows plays the first show's
+next episode, and Shuffle a random show's.
+
+A person's page has their photo, their name and what of theirs is in the
+libraries ("3 movies · 2 shows in your libraries"), then a row for each
+thing they did (Acting, Directing, Creating, Writing, Producing) of their
+titles, newest first, each with its year and the part ("2019 · as Neo").
+
+An artist's page has their picture, their name, albums, tracks and
+genres, their summary, and Play and Shuffle, which hand every track of
+theirs to the music player, album by album, and open Now Playing (Now
+playing goes back to it while music plays); their albums are on the
+right, newest first.
+
+Playlists has New playlist at the right of its heading: what it is for
+(Movies & TV or Music), then its name on the Roku's keyboard. The new
+playlist opens, empty; Add to playlist, the Options key on a title, fills
+it. A playlist's entries move with the Options key's Move.
+
+### Libraries
+
+A library has the tabs Recommended, Library and Collections (a music
+library has no Collections), and opens on the tab, sort and filters it was
+left on, kept on the Roku for each server, profile and library.
+
+- **Library** is a grid of posters, 70 at a time as the focus comes near
+  the next ones; places a jump passes over show empty frames until their
+  titles come.
+- **See all** ends the rows of a library's newest, newly released and top
+  rated titles, on Home and on a library's Recommended tab. It shows the
+  library's Library tab in the row's order (date added, release date or
+  rating, newest or best first), nothing filtered, for that visit: the
+  sort and filters kept stay as they were until changed there.
+- **A to Z:** sorted by title with more than 30 titles, "#" and A to Z
+  stand in a column right of the grid, the letter of the title in focus
+  marked and the letters no title starts with dimmed. Right from the
+  grid's last column reaches it, Up and Down pick a letter, OK goes to its
+  first title (or the next letter's) and Left goes back. The server has no
+  index of letters: the app reads the listing's titles a thousand at a
+  time and keeps only where each letter starts
+  (`components/lib/Library.brs`).
+- **Save as…:** once filters are set, the Filter panel ends with Clear
+  filters and Save as…, which saves them and the order as a smart playlist
+  (`POST /api/playlists` with `library_id` and `smart_filter`, written as
+  the other apps write it), named on the Roku's keyboard, and opens it.
+
+### Search
+
+Search is typed on the Roku's keyboard and asked once typing rests half a
+second. What the libraries have comes in rows by kind, in the other apps'
+order: People, Live TV (cards: OK watches the channel, and Up and Down in
+the player go through what was found), Movies, Shows, Seasons, Episodes,
+Artists, Albums and Tracks; then On TMDB for those who may ask (below).
+Right from the keyboard's last column reaches them.
+
+Before anything is typed it lists the recent searches: the last 10 whose
+results were opened, newest first, kept on the Roku for each server and
+profile. OK searches one again at once and moves it to the top; Clear
+forgets them.
+
+### Music
+
+Music plays on while other screens show, and Home's menu has Now Playing
+while it does. An album's page lists its tracks under "Disc 1", "Disc 2"
+when they are on several discs (the tracks' `parent_index`), each
+numbered on its disc; the focus passes over the headings. An album or a
+music playlist plays whole, from the track chosen, so Previous goes back
+past it; its Shuffle starts on any track and plays the others after it in
+a random order.
+
+Now Playing shows the track, its cover and how far along it is, Shuffle,
+Previous, Pause, Next, Stop and the sleep timer, and Up next: the queue,
+numbered, the track playing in bold, which stays in view unless the
+focus is on the list. OK on one plays it, and the queue goes on from
+there. A long queue is listed 250 tracks at a time, from 50 before the
+one playing, the next part as playing nears the end of this one: each
+row is a node the Roku draws, and a playlist holds up to 5,000. Shuffle
+plays the other tracks after the one playing in a random order; Stop
+shuffling puts them back in the album's or playlist's order, at the same
+track. Play pauses or goes on; fast forward and rewind go to the next
+track or back.
+
+The sleep timer belongs to the music, not to Now Playing: it runs while
+other screens show. Each OK on its button steps Off, 15, 30, 45, 60 and 90
+min, End of this track, and the button says what is left ("Sleep timer:
+23 min left"). In its last 30 s Now Playing says "Pausing in 12 s" and the
+button is Keep listening, which adds the same time again (or lets this
+track play to its end). Then the music pauses until Play, as on the other
+apps; at the end of a track, the next one waits, paused. Stop, or the
+queue's end, turns the timer off.
+
+### The player
+
+Fast forward and rewind show seek previews in Roku's own bar: the server's
+previews of the file as a BIF file, which the Video node fetches beside the
+media (`previews.bif`). While the server is still making them, the bar
+shows the time alone.
+
+The sleep timer (Down, then Sleep timer) pauses after 15 to 90 minutes
+or at the end of what plays, as on the other apps. In its last
+30 s it says "Pausing in 12 s" with Keep watching, which adds the same time
+again (or lets this title play to its end). Paused by it for 10 minutes,
+the player leaves; it isn't kept from one time the player opens to the
+next.
 
 ### Audio and subtitles
 
@@ -70,8 +211,9 @@ carries TMDB's notice.
   way. The server shifts the cues (`offset_ms`) and the stream reopens
   where it was. The offset is kept per file per server (the latest 50).
 - **Find subtitles…** searches OpenSubtitles in the profile's subtitle
-  language (`components/lib/SubtitleSearch.brs`). OK adds the one in focus
-  on the server and shows it.
+  language, or another that Language, above the results, picks
+  (`components/lib/SubtitleSearch.brs`). OK on a result adds it on the
+  server and shows it.
 - The server picks the audio this Roku plays best in the profile's
   language. Any audio but the file's default makes the file a stream with
   its video copied.
@@ -178,6 +320,24 @@ Not offered: Approve's choices of profile, folder and seasons (on the web
 and phones; Approve here approves what was asked), bulk approve and
 decline, and the requests' settings (the web).
 
+### Settings
+
+Settings has the audio and subtitle defaults, Quality, Play the next
+episode by itself (Up Next counts down only while it is on), Watch
+history, Switch profile, Always start as, Sort libraries, Switch server
+and Sign out. It says where the account is managed on the web (the
+server's address and `/account`), and carries TMDB's notice. Right of the
+settings, Diagnostics shows this Roku and what it tells the server it
+plays (`capsLines` in `components/lib/Caps.brs`), and Open-source licences
+shows Pley's licence and the notices of what the package bundles.
+
+Always start as, for a household of several profiles, names the profile
+the app starts as, or Ask who's watching. As on the other TVs it only
+skips "Who's watching?" at a start: the app starts as the profile it was
+left on. A profile since gone from the household (deleted, or another
+account's, signed in since) counts as Ask who's watching, as Settings
+then shows it. It is kept on the Roku for each server.
+
 ## Building and testing
 
 ### How it works
@@ -203,6 +363,9 @@ Rules the code keeps:
 - All HTTP goes through `ApiTask`; the render thread never makes a request.
 - The access token goes only in `Authorization: Bearer`, never in an
   address, including the Video node's and the pictures' HTTP agents.
+- Videos play from [keyed addresses](API.md#keyed-urls): Roku fetches a
+  BIF file of seek previews without its HTTP agent's headers, so the
+  previews come from the session's key, beside its media.
 - Refreshes run one at a time per server, and the new token pair is saved
   before use (a refresh token works once).
 - The User-Agent is `pleyRoku/<version> (Roku OS <version>; <model>)`; the
@@ -210,7 +373,8 @@ Rules the code keeps:
 - The event stream (`GET /api/events`) works with `http://` servers only:
   Roku's sockets have no TLS.
 - Settings and views are kept in registry sections: `playback`,
-  `subtitleSync`, `libraryViews`, `liveViews`, `household`, `requests`.
+  `subtitleSync`, `libraryViews`, `liveViews`, `household`, `startAs`,
+  `requests`, `searches`.
 - Sign-in asks for `library play playlists profiles`, and `requests
   approvals` when the server's metadata lists them in `scopes_supported`
   (an older server refuses scopes it doesn't know). A sign-in from before
@@ -270,13 +434,18 @@ bun run images    # the nine-patch focus and watched-mark images
   requests and TMDB titles, all made up, in `scripts/fixture-requests.mjs`)
   and walks every screen, saving each in `out/smoke/`. It fails on a
   BrightScript error, a request without the User-Agent, a token in an
-  address, or a refresh token used twice. On the way it asks for a movie
-  and three seasons from Discover, approves a request, opens a title from
-  its ready-to-watch notice, and checks that a server without requests is
-  asked nothing but the summary.
-- **brs-node limits:** its own fonts, no video (Skip intro and Up Next have
-  only unit tests), one fetch at a time, the odd dropped key, and no
-  measure of a Roku's speed.
+  address, or a refresh token used twice. On the way it jumps down a
+  library with its A to Z, saves a library's filters as a smart playlist,
+  plays a collection of movies and a smart one of shows, and an artist's
+  tracks, makes a playlist, plays a track from Now Playing's Up next,
+  shuffles the queue and puts its order back, steps the music's sleep
+  timer through its choices, plays a track from under an album's "Disc 2",
+  asks for a movie and three seasons from Discover, approves a request,
+  opens a title from its ready-to-watch notice, and checks that a server
+  without requests is asked nothing but the summary.
+- **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
+  Next and the sleep timers' ends have only unit tests), one fetch at a
+  time, the odd dropped key, and no measure of a Roku's speed.
 - **Images:** `bun run images` runs `scripts/make_images.py` (Python
   standard library). The home screen icons and splash screens come from
   `bun scripts/render-icons.mjs` at the repository root.
@@ -291,11 +460,11 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
 ## Known limits
 
 - No playback speed or audio delay: the Video node has neither.
-- Find subtitles… searches only the profile's subtitle language.
 - Live updates need an `http://` server; with `https://`, Home and the
   requests' summary refresh once a minute, a title page with a request
   each 30 s.
 - Audio other than the file's default isn't played as it is.
-- Not yet: seek previews, rating titles, reordering a
-  playlist, "Always start as", an editable music queue.
+- Live TV has no channel numbers to type: Roku remotes have no number keys.
+- Home has no hero over its rows, which the other TVs have.
+- Not yet: an editable music queue.
 

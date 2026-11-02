@@ -77,7 +77,7 @@ sub showProfiles()
     end if
     m.me = profMe(m.answers.me.data)
     m.list = profTiles(answer.data, m.global.session.server, m.me)
-    uiKeepHousehold(m.list.Count())
+    profKeepHousehold(CreateObject("roRegistrySection", "household"), m.global.session.server, answer.data)
     if m.list.Count() = 0
         showMessage("No profiles to choose from.", ["Try again", "Sign in again"])
         return

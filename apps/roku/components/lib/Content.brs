@@ -148,27 +148,54 @@ function contentLibraries(libraries as dynamic) as object
     return out
 end function
 
-' Home's rows from GET /api/hubs/home: [{ key, title, wide, square,
-' tiles }]. Titles of kinds this version doesn't show are left out, and
-' rows left empty with them.
+' Home's rows from GET /api/hubs/home (a library's Recommended rows too):
+' [{ key, title, wide, square, tiles }]. Titles of kinds this version
+' doesn't show are left out, and rows left empty with them. A library's
+' newest, newly released and top rated end with See all.
 function contentHomeRows(hubs as dynamic, server as string) as object
     rows = []
     for each hub in httpArray(hubs)
         key = httpString(hub.key)
-        wide = key = "continue_watching"
+        wide = contentContinueWatching(key)
+        square = contentRowSquare(hub)
         items = []
         for each item in httpArray(hub.items)
             if GetInterface(item, "ifAssociativeArray") <> invalid and contentShown(httpString(item.kind)) then items.Push(contentTile(item, server, wide))
         end for
-        if items.Count() > 0 then rows.Push({ key: key, title: httpSentence(hub.title), wide: wide, square: contentRowSquare(hub), tiles: items })
+        sort = contentSeeAllSort(key)
+        libraryId = httpNumber(hub.library_id, 0)
+        if items.Count() > 0 and sort <> "" and libraryId > 0 then items.Push(contentSeeAllTile(libraryId, sort, wide, square))
+        if items.Count() > 0 then rows.Push({ key: key, title: httpSentence(hub.title), wide: wide, square: square, tiles: items })
     end for
     return rows
+end function
+
+' The Library tab's sort a row's See all shows its library in, as the row
+' lists it (newest or best first, the web's and Android's): "" for rows
+' without one.
+function contentSeeAllSort(key as string) as string
+    if Left(key, 14) = "recently_added" then return "added"
+    if Left(key, 17) = "recently_released" then return "release"
+    if Left(key, 9) = "top_rated" then return "rating"
+    return ""
+end function
+
+' See all at a row's end, in the row's shape: its library's Library tab in
+' sort's order.
+function contentSeeAllTile(libraryId as dynamic, sort as string, wide as boolean, square as boolean) as object
+    return { title: "See all", subtitle: "", image: "", wide: wide, square: square, progress: 0.0, watched: false, itemId: 0, kind: "more", list: "", query: "", libraryId: libraryId, sort: sort }
+end function
+
+' Whether a row is Continue Watching: Home's ("continue_watching"), or a
+' library's, whose key names it ("continue_watching:5").
+function contentContinueWatching(key as string) as boolean
+    return key = "continue_watching" or Left(key, 18) = "continue_watching:"
 end function
 
 ' Whether a hub's row is of square tiles: a music library's, by its first
 ' title.
 function contentRowSquare(hub as object) as boolean
-    if httpString(hub.key) = "continue_watching" then return false
+    if contentContinueWatching(httpString(hub.key)) then return false
     items = httpArray(hub.items)
     if items.Count() = 0 or GetInterface(items[0], "ifAssociativeArray") = invalid then return false
     return contentMusic(httpString(items[0].kind))
@@ -212,7 +239,7 @@ function contentRowChanges(hubs as dynamic, server as string, known as dynamic) 
             key = httpString(hub.key)
             sig = contentSignature(hub)
             if shown <> invalid and shown.DoesExist(key) and shown[key] = sig
-                summary.Push({ key: key, wide: key = "continue_watching", square: contentRowSquare(hub), sig: sig, built: false })
+                summary.Push({ key: key, wide: contentContinueWatching(key), square: contentRowSquare(hub), sig: sig, built: false })
             else
                 for each row in contentHomeRows([hub], server)
                     summary.Push({ key: row.key, wide: row.wide, square: row.square, sig: sig, built: true })
@@ -284,11 +311,14 @@ function contentEpisodes(children as dynamic, server as string) as object
 end function
 
 ' A title's details screen (a movie, an episode, a show or an extra): what
-' it shows and which buttons it has, four at most. actions match buttons:
-' "resume", "start", "playNext" (a show's next episode, onDeck),
-' "episodes", "watched", "unwatched", "listAdd", "listRemove" and "show"
-' (an episode's). onDeck is a show's episode to play next (ItemSummary),
-' invalid until the server said or when there is none.
+' it shows and which buttons it has. actions match buttons: "resume",
+' "start", "playNext" (a show's next episode, onDeck), "episodes",
+' "watched", "unwatched", "tracks" (Audio and subtitles), "listAdd",
+' "listRemove", "trailer" (trailerId's) and "more". More holds what is
+' used less, as on the other TVs ([{ label, action }]): "rate", "show" and
+' "season" (an episode's), "info" (Media info) and "playlist". onDeck is
+' a show's episode to play next (ItemSummary), invalid until the server
+' said or when there is none.
 function contentDetail(detail as object, server as string, onDeck = invalid as dynamic) as object
     kind = httpString(detail.kind)
     title = httpSentence(detail.title)
@@ -363,6 +393,10 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
             actions.Push("watched")
         end if
     end if
+    if (kind = "movie" or kind = "episode") and contentHasTracks(detail)
+        buttons.Push("Audio and subtitles")
+        actions.Push("tracks")
+    end if
     if kind = "movie" or kind = "show"
         if inList
             buttons.Push("Remove from My List")
@@ -372,9 +406,26 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
             actions.Push("listAdd")
         end if
     end if
+    trailerId = 0
+    if kind = "movie" or kind = "show" or kind = "episode" then trailerId = contentTrailer(detail)
+    if trailerId > 0
+        buttons.Push("Trailer")
+        actions.Push("trailer")
+    end if
+    stars = 0
+    if state <> invalid then stars = contentStars(state.rating)
+    more = []
+    rateable = kind = "movie" or kind = "episode" or kind = "show"
+    if rateable then more.Push({ label: contentRatingLabel(stars), action: "rate" })
     if kind = "episode" and httpNumber(detail.grandparent_id, 0) > 0
-        buttons.Push("Go to show")
-        actions.Push("show")
+        more.Push({ label: "Go to show", action: "show" })
+        if httpNumber(detail.parent_id, 0) > 0 then more.Push({ label: "Go to season", action: "season" })
+    end if
+    if (kind = "movie" or kind = "episode") and files.Count() > 0 then more.Push({ label: "Media info", action: "info" })
+    if rateable then more.Push({ label: "Add to playlist", action: "playlist" })
+    if more.Count() > 0
+        buttons.Push("More…")
+        actions.Push("more")
     end if
     backdrop = urlImage(server, detail.backdrop_url, contentBackdropWidth())
     if backdrop = "" then backdrop = urlImage(server, detail.thumb_url, contentBackdropWidth())
@@ -397,12 +448,65 @@ function contentDetail(detail as object, server as string, onDeck = invalid as d
         durationMs: duration,
         watched: watched,
         inList: inList,
+        stars: stars,
         showId: httpNumber(detail.grandparent_id, 0),
         seasonId: httpNumber(detail.parent_id, 0),
+        trailerId: trailerId,
         buttons: buttons,
         actions: actions,
+        more: more,
         note: note
     }
+end function
+
+' The title's first trailer among its extras (extra_type "trailer"), which
+' the server lists first: its id, 0 for none.
+function contentTrailer(detail as object) as dynamic
+    for each extra in httpArray(detail.extras)
+        if GetInterface(extra, "ifAssociativeArray") <> invalid and LCase(httpString(extra.extra_type)) = "trailer" then return httpNumber(extra.id, 0)
+    end for
+    return 0
+end function
+
+' Whether a title's page offers Audio and subtitles before playing: it has
+' versions to choose from, or its file has two audio tracks or more, or
+' subtitles.
+function contentHasTracks(detail as object) as boolean
+    if httpArray(detail.files).Count() > 1 then return true
+    file = httpObject(contentFile(detail, invalid))
+    if file = invalid then return false
+    audio = 0
+    for each stream in httpArray(file.streams)
+        if GetInterface(stream, "ifAssociativeArray") <> invalid
+            kind = httpString(stream.kind)
+            if kind = "subtitle" then return true
+            if kind = "audio" then audio = audio + 1
+        end if
+    end for
+    return audio > 1
+end function
+
+' The stars of the profile's own rating (user_state.rating, 0 to 10 in
+' half stars), rounded up as the other apps show it: 0 for none.
+function contentStars(rating as dynamic) as integer
+    value = httpNumber(rating, 0)
+    if value <= 0 then return 0
+    stars = -Int(-value / 2)
+    if stars > 5 then stars = 5
+    return stars
+end function
+
+' "1 star", "4 stars"; "No rating" for none.
+function contentStarsLabel(stars as integer) as string
+    if stars = 0 then return "No rating"
+    if stars = 1 then return "1 star"
+    return urlValue(stars) + " stars"
+end function
+
+' A title page's rating button: Rate, or the stars given.
+function contentRatingLabel(stars as integer) as string
+    if stars = 0 then return "Rate"
+    return "Your rating: " + contentStarsLabel(stars)
 end function
 
 ' The file a playback plays: the one with fileId, else the first.
@@ -429,12 +533,18 @@ function contentStreamFormat(info as object, detail as object) as string
 end function
 
 ' What the Video node opens for a PlaybackInfo: { url, streamFormat,
-' title, playStart, subtitleTracks, subtitle }. subtitle is the TrackName
-' of the subtitles the person's choices pick ("" for none); the server
-' sends text tracks as WebVTT.
+' title, playStart, subtitleTracks, subtitle, previews }. subtitle is the
+' TrackName of the subtitles the person's choices pick ("" for none); the
+' server sends text tracks as WebVTT. previews: the seek previews as a BIF
+' file beside a keyed session's media, which Roku's trick play shows ("" for
+' an address without a key).
 function contentStream(info as object, detail as object, server as string, startMs as dynamic) as object
     url = httpString(info.url)
     if Left(url, 1) = "/" then url = server + url
+    previews = ""
+    keyed = CreateObject("roRegex", "^(.*/api/media/pley_mk_[A-Za-z0-9_-]+/)[^/]+$", "")
+    match = keyed.Match(url)
+    if match.Count() = 2 then previews = match[1] + "previews.bif"
     file = contentFile(detail, info.file_id)
     selected = -1
     if file <> invalid then selected = httpNumber(file.selected_subtitle, -1)
@@ -456,7 +566,8 @@ function contentStream(info as object, detail as object, server as string, start
         title: contentPlayerTitle(detail),
         playStart: Int(httpNumber(startMs, 0) / 1000),
         subtitleTracks: tracks,
-        subtitle: subtitle
+        subtitle: subtitle,
+        previews: previews
     }
 end function
 

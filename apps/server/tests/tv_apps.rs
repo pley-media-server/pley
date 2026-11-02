@@ -78,6 +78,59 @@ async fn a_keyed_address_opens_the_sessions_file_and_nothing_else() {
 }
 
 #[tokio::test]
+async fn a_keyed_session_has_its_files_seek_previews_as_a_bif_file() {
+    use pley_transcoder_api::TrickplayInfo;
+
+    let w = world().await;
+    let (token, _) = w.app.app_token(w.viewer_id, "library play").await;
+    let started = play(&w, &token, true).await;
+    let url = started["url"].as_str().unwrap().to_owned();
+    let previews = url.replace("/file.mkv", "/previews.bif");
+
+    // None made yet (tests have no transcoder): not found, and asked for.
+    assert_eq!(bare(&w.app, &previews, &[]).await.status, StatusCode::NOT_FOUND);
+
+    // Fake previews: one sheet of four 8x4 tiles.
+    let (file_id, path): (i64, String) = sqlx::query_as("SELECT id, path FROM media_files WHERE item_id = ?")
+        .bind(w.film)
+        .fetch_one(&w.app.state.db.read)
+        .await
+        .unwrap();
+    let fingerprint = w.app.state.store.fingerprint_of(file_id, &path, None).await.unwrap();
+    let dir = w.app.state.store.media_dir(&fingerprint).unwrap().join("trickplay");
+    std::fs::create_dir_all(&dir).unwrap();
+    image::RgbImage::new(16, 8).save(dir.join("0.jpg")).unwrap();
+    let info = TrickplayInfo {
+        id: "t".into(),
+        interval_ms: 10_000,
+        width: 8,
+        height: 4,
+        columns: 2,
+        rows: 2,
+        count: 4,
+        sheets: 1,
+        version: 0,
+    };
+    std::fs::write(dir.join("index.json"), serde_json::to_vec(&info).unwrap()).unwrap();
+
+    // The player asks with no token: Roku's BIF, never cached anywhere.
+    let bif = bare(&w.app, &previews, &[]).await;
+    assert_eq!(bif.status, StatusCode::OK, "{}", bif.text());
+    assert_eq!(&bif.bytes[..8], b"\x89BIF\r\n\x1a\n");
+    assert_eq!(u32::from_le_bytes(bif.bytes[12..16].try_into().unwrap()), 4, "four frames");
+    assert_eq!(bif.headers[header::CACHE_CONTROL], "private, no-store");
+
+    // Only by its own name, and only while its session lasts.
+    assert_eq!(bare(&w.app, &url.replace("/file.mkv", "/previews.jpg"), &[]).await.status, StatusCode::NOT_FOUND);
+    let ended = w
+        .app
+        .app_call(Method::DELETE, &format!("/api/playback/{}", started["session_id"].as_str().unwrap()), &token, None)
+        .await;
+    assert_eq!(ended.status, StatusCode::NO_CONTENT);
+    assert_eq!(bare(&w.app, &previews, &[]).await.status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn a_key_ends_when_the_server_requires_two_step_sign_in_its_account_doesnt_use() {
     let w = world().await;
     let started = play(&w, &w.viewer, true).await;

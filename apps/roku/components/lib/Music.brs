@@ -1,9 +1,10 @@
-' Music: an album's or a playlist's tracks as the music player and its
-' lists know them, and how Roku's Audio node plays one (docs/API.md,
+' Music: an album's or a playlist's tracks as the music player, its queue
+' and its lists know them, and how Roku's Audio node plays one (docs/API.md,
 ' "Playback"): a session for each track, the file as it is when the Roku
 ' decodes it, else a conversion.
 
-' A track: { itemId, title, artist, album, image, durationMs, index }.
+' A track: { itemId, title, artist, album, image, durationMs, index, disc
+' (the server's parent_index; 1 without one) }.
 function musicTrack(item as object, server as string) as object
     image = urlImage(server, item.poster_url, 600)
     if image = "" then image = urlImage(server, "/api/items/" + urlValue(item.id) + "/images/poster", 600)
@@ -14,7 +15,8 @@ function musicTrack(item as object, server as string) as object
         album: httpSentence(item.parent_title),
         image: image,
         durationMs: Int(httpNumber(item.duration_ms, 0)),
-        index: Int(httpNumber(item.index, -1))
+        index: Int(httpNumber(item.index, -1)),
+        disc: Int(httpNumber(item.parent_index, 1))
     }
 end function
 
@@ -44,6 +46,27 @@ function musicTrackRows(tracks as object, byAlbum as boolean) as object
     return rows
 end function
 
+' An album's list: its tracks' rows (musicTrackRows), each with at, its
+' place among the tracks, and when they are on several discs a heading
+' row above each disc's ({ title: "Disc 2", kind: "disc", at: -1 }), which
+' takes no focus.
+function musicDiscRows(tracks as object) as object
+    rows = musicTrackRows(tracks, true)
+    several = false
+    for each track in tracks
+        if track.disc <> tracks[0].disc then several = true
+    end for
+    out = []
+    for i = 0 to tracks.Count() - 1
+        if several and (i = 0 or tracks[i].disc <> tracks[i - 1].disc)
+            out.Push({ title: "Disc " + urlValue(tracks[i].disc), subtitle: "", duration: "", kind: "disc", at: -1 })
+        end if
+        rows[i].at = i
+        out.Push(rows[i])
+    end for
+    return out
+end function
+
 ' "Artist · 2019 · 12 tracks · 48 min": an album's line.
 function musicAlbumLine(album as object, tracks as object) as string
     parts = []
@@ -65,6 +88,84 @@ function musicAlbumLine(album as object, tracks as object) as string
     return parts.Join(" · ")
 end function
 
+' An artist's albums (GET /api/items/{id}/children): { tiles, order }.
+' tiles are the albums newest first (then by title), each captioned with
+' its year; order has their ids as the server sent them, the order Play
+' plays them in.
+function musicArtistAlbums(items as dynamic, server as string) as object
+    sorted = []
+    order = []
+    for each item in httpArray(items)
+        if GetInterface(item, "ifAssociativeArray") <> invalid and httpString(item.kind) = "album"
+            order.Push(httpNumber(item.id, 0))
+            ' Placed after those it doesn't come before: albums are few,
+            ' and the same year and title keep the server's order.
+            at = sorted.Count()
+            while at > 0 and musicNewer(item, sorted[at - 1])
+                at = at - 1
+            end while
+            placed = []
+            for i = 0 to sorted.Count() - 1
+                if i = at then placed.Push(item)
+                placed.Push(sorted[i])
+            end for
+            if at = sorted.Count() then placed.Push(item)
+            sorted = placed
+        end if
+    end for
+    tiles = []
+    for each album in sorted
+        tile = contentTile(album, server, false)
+        tile.subtitle = ""
+        year = httpNumber(album.year, 0)
+        if year > 0 then tile.subtitle = urlValue(year)
+        tiles.Push(tile)
+    end for
+    return { tiles: tiles, order: order }
+end function
+
+' Whether album a comes before album b on their artist's page: a later
+' year first, then by title.
+function musicNewer(a as object, b as object) as boolean
+    yearA = httpNumber(a.year, 0)
+    yearB = httpNumber(b.year, 0)
+    if yearA <> yearB then return yearA > yearB
+    return LCase(musicSortTitle(a)) < LCase(musicSortTitle(b))
+end function
+
+function musicSortTitle(item as object) as string
+    title = httpString(item.sort_title)
+    if title = "" then title = httpString(item.title)
+    return title
+end function
+
+' "2 albums · 24 tracks · Rock · Pop": an artist's line, their genres three
+' at most. albums: how many came, for a server that doesn't count them.
+function musicArtistLine(artist as object, albums as integer) as string
+    parts = []
+    count = Int(httpNumber(artist.child_count, albums))
+    if count = 1
+        parts.Push("1 album")
+    else if count > 1
+        parts.Push(urlValue(count) + " albums")
+    end if
+    tracks = Int(httpNumber(artist.leaf_count, 0))
+    if tracks = 1
+        parts.Push("1 track")
+    else if tracks > 1
+        parts.Push(urlValue(tracks) + " tracks")
+    end if
+    genres = 0
+    for each genre in httpArray(artist.genres)
+        name = httpSentence(genre)
+        if name <> "" and genres < 3
+            parts.Push(name)
+            genres = genres + 1
+        end if
+    end for
+    return parts.Join(" · ")
+end function
+
 ' The Audio node's streamFormat for a track's PlaybackInfo: HLS for a
 ' conversion, else the file's container (the item's details say it).
 function musicStreamFormat(info as object, detail as dynamic) as string
@@ -79,9 +180,111 @@ function musicStreamFormat(info as object, detail as dynamic) as string
     return "mp3"
 end function
 
+' The music player's queue: the tracks as given, the order they play in
+' (their places among the tracks), and where it is in that order (at).
+' The same track may be in it twice: places, not ids, say which plays.
+' shuffled: in a random order, the track at first.
+function musicQueue(tracks as object, at as integer, shuffled as boolean) as object
+    order = []
+    for i = 0 to tracks.Count() - 1
+        order.Push(i)
+    end for
+    if at < 0 or at >= tracks.Count() then at = 0
+    queue = { tracks: tracks, order: order, at: at, shuffled: false }
+    if shuffled then musicShuffle(queue, true)
+    return queue
+end function
+
+' Shuffle: the track playing first, the others after it in a random
+' order. Stop shuffling: the order given again, at the same track.
+sub musicShuffle(queue as object, shuffled as boolean)
+    count = queue.order.Count()
+    if count = 0 or shuffled = queue.shuffled then return
+    playing = queue.order[queue.at]
+    order = []
+    for i = 0 to count - 1
+        order.Push(i)
+    end for
+    if shuffled
+        order[playing] = 0
+        order[0] = playing
+        ' Fisher-Yates over all but the first.
+        for i = count - 1 to 2 step -1
+            j = Rnd(i)
+            other = order[i]
+            order[i] = order[j]
+            order[j] = other
+        end for
+        queue.at = 0
+    else
+        queue.at = playing
+    end if
+    queue.order = order
+    queue.shuffled = shuffled
+end sub
+
+' The track at a place of the queue's order.
+function musicTrackAt(queue as object, at as integer) as object
+    return queue.tracks[queue.order[at]]
+end function
+
+' The queue's tracks in the order they play.
+function musicOrder(queue as object) as object
+    tracks = []
+    for each place in queue.order
+        tracks.Push(queue.tracks[place])
+    end for
+    return tracks
+end function
+
 ' Where "previous" goes: the track's start once it has played 3 s, else
 ' the track before (the first's start for the first).
 function musicPreviousAt(at as integer, positionMs as integer) as integer
     if positionMs > 3000 or at = 0 then return at
     return at - 1
+end function
+
+' Now Playing's Up next lists the whole queue, as the other apps do, the
+' track playing marked. A row is a ContentNode made on the render thread,
+' so a long queue (a playlist holds up to 5,000) is listed a part at a
+' time: at most this many rows, from a few before the track playing.
+function musicUpNextMax() as integer
+    return 250
+end function
+
+function musicUpNextBefore() as integer
+    return 50
+end function
+
+' The part of a queue of count tracks Up next lists while the track at at
+' plays: { first, last } (last left out). shown, the part listed now
+' (invalid for none), stays while the track playing is in it and isn't
+' near its end, so moving on only moves the mark.
+function musicUpNextPart(at as integer, count as integer, shown as dynamic) as object
+    if shown <> invalid and shown.last <= count and at >= shown.first and at < shown.last
+        if shown.last = count or at < shown.last - musicUpNextBefore() then return shown
+    end if
+    first = at - musicUpNextBefore()
+    if first < 0 then first = 0
+    last = first + musicUpNextMax()
+    if last > count then last = count
+    ' Near the queue's end: more of what played before instead.
+    if last - first < musicUpNextMax() then first = last - musicUpNextMax()
+    if first < 0 then first = 0
+    return { first: first, last: last }
+end function
+
+' Up next's rows (QueueRow) for queue's tracks from first to last (left
+' out), numbered by their place in it ("4. Song"), with their artist and
+' album and how long each is; current marks the one at at.
+function musicUpNextRows(queue as object, first as integer, last as integer, at as integer) as object
+    rows = []
+    for i = first to last - 1
+        track = queue[i]
+        parts = []
+        if track.artist <> "" then parts.Push(track.artist)
+        if track.album <> "" then parts.Push(track.album)
+        rows.Push({ title: urlValue(i + 1) + ". " + track.title, subtitle: parts.Join(" · "), duration: fmtClock(track.durationMs), current: i = at })
+    end for
+    return rows
 end function

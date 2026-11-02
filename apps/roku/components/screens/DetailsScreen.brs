@@ -17,7 +17,26 @@ sub init()
     m.stage = m.top.findNode("stage")
     m.stageLine = m.top.findNode("stageLine")
     m.requestPoll = m.top.findNode("requestPoll")
+    m.panel = m.top.findNode("panel")
+    m.panelTitle = m.top.findNode("panelTitle")
+    m.menu = m.top.findNode("menu")
+    m.choices = m.top.findNode("choices")
+    m.info = m.top.findNode("info")
     m.column.visible = false
+    ' What the panel shows: "" (closed), a menu ("more", "tracks"), the
+    ' choices of one of its entries ("rating", "version", "audio",
+    ' "subtitles") or the media info ("info"); the menu Back goes back to
+    ' ("" for none), and the values of the choices.
+    m.panelKind = ""
+    m.panelBack = ""
+    m.panelValues = []
+    ' Audio and subtitles' entries, in order; the version chosen (its file's
+    ' id, invalid for the first), which isn't saved, as on the other apps;
+    ' the audio picked on this page (-1 Automatic, -2 none), which subtitles
+    ' picked after are saved with.
+    m.trackKinds = []
+    m.fileId = invalid
+    m.audioPick = -2
     m.started = false
     ' What the server says of requests for the title (GET
     ' /api/items/{id}/request), invalid for nothing to show; the asks (an
@@ -37,6 +56,8 @@ sub init()
     m.rowNodes = {}
     m.rowKeys = []
     m.buttons.observeField("buttonSelected", "onButton")
+    m.menu.observeField("itemSelected", "onMenu")
+    m.choices.observeField("itemSelected", "onChoice")
     m.rows.observeField("rowItemSelected", "onTile")
     m.requestPoll.observeField("fire", "askItemRequest")
     m.top.observeField("active", "onActive")
@@ -55,7 +76,9 @@ sub onActive()
         return
     end if
     uiChangesSince()
-    if m.rows.visible and m.page.translation[1] < 0
+    if m.panel.visible
+        closePanel()
+    else if m.rows.visible and m.page.translation[1] < 0
         m.rows.setFocus(true)
     else if m.buttons.visible
         m.buttons.setFocus(true)
@@ -111,6 +134,10 @@ sub showDetail()
     m.line.text = m.detail.line
     m.genres.text = m.detail.genres
     m.tagline.text = m.detail.tagline
+    ' Seven buttons take a line from the summary (three, as on Android TV):
+    ' under a heading of two lines they would reach the rows' title.
+    m.summary.maxLines = 4
+    if m.detail.buttons.Count() > 6 then m.summary.maxLines = 3
     m.summary.text = m.detail.summary
     m.note.text = m.detail.note
     layoutText()
@@ -132,8 +159,15 @@ sub showDetail()
     end if
     m.buttons.visible = hasButtons
     m.column.visible = true
-    ' Only while this screen has the focus: a dialog over it keeps it.
-    if m.top.isInFocusChain() and not m.rows.isInFocusChain()
+    ' A menu of the panel says its entries as they are now.
+    if m.panelKind = "more"
+        openMore()
+    else if m.panelKind = "tracks"
+        openTracks()
+    end if
+    ' Only while this screen has the focus: a dialog or the panel over it
+    ' keeps it.
+    if m.top.isInFocusChain() and not m.rows.isInFocusChain() and not m.panel.visible
         if hasButtons
             m.buttons.setFocus(true)
         else
@@ -343,22 +377,299 @@ sub onButton(event as object)
         startMs = 0
         if action = "resume" then startMs = m.detail.positionMs
         ' The player has the item already: one request less before it plays.
-        uiNavigate({ to: "player", params: { itemId: m.detail.itemId, startMs: startMs, item: m.item } })
+        params = { itemId: m.detail.itemId, startMs: startMs, item: m.item }
+        if m.fileId <> invalid then params.fileId = m.fileId
+        uiNavigate({ to: "player", params: params })
     else if action = "playNext"
         if m.onDeck = invalid then return
         tile = contentTile(m.onDeck, m.global.session.server, true)
         uiNavigate({ to: "player", params: { itemId: tile.itemId, startMs: playerStartOf(tile.positionMs, tile.durationMs) } })
     else if action = "episodes"
         uiNavigate({ to: "show", params: { showId: m.detail.itemId, seasonId: 0 } })
+    else if action = "trailer"
+        ' From its start, as on the other TVs.
+        uiNavigate({ to: "player", params: { itemId: m.detail.trailerId, startMs: 0 } })
+    else if action = "tracks"
+        openTracks()
+    else if action = "more"
+        openMore()
     else
-        uiTitleAction({ itemId: m.detail.itemId, kind: m.detail.kind, parentId: m.detail.seasonId, grandparentId: m.detail.showId }, action)
+        titleAction(action)
     end if
 end sub
 
+' What the title's tile would do with the Options key: mark it, My List,
+' Add to playlist, Go to show or season.
+sub titleAction(action as string)
+    uiTitleAction({ itemId: m.detail.itemId, kind: m.detail.kind, parentId: m.detail.seasonId, grandparentId: m.detail.showId }, action)
+end sub
+
+' --- The panel ---
+
+' More: what is used less, in a menu over the right of the page, as on the
+' other TVs: the profile's rating, Go to show and Go to season, Media info,
+' Add to playlist.
+sub openMore()
+    labels = []
+    for each entry in m.detail.more
+        labels.Push(entry.label)
+    end for
+    showMenu("more", "More", labels)
+end sub
+
+' A menu; the entry in focus stays in focus as it shows again.
+sub showMenu(kind as string, title as string, labels as object)
+    at = 0
+    if m.panelKind = kind or m.panelBack = kind then at = m.menu.itemFocused
+    items = []
+    for each label in labels
+        items.Push({ title: label })
+    end for
+    m.panelKind = kind
+    m.panelBack = ""
+    m.panelTitle.text = title
+    m.menu.content = nodesContent(items)
+    if at > 0 and at < items.Count() then m.menu.jumpToItem = at
+    m.choices.visible = false
+    m.info.visible = false
+    m.menu.visible = true
+    m.panel.visible = true
+    m.menu.setFocus(true)
+end sub
+
+' The choices of a menu's entry, the current one checked and focused; Back
+' goes to the menu named back ("" closes the panel).
+sub showChoices(kind as string, title as string, labels as object, values as object, current as integer, back as string)
+    items = []
+    for each label in labels
+        items.Push({ title: label })
+    end for
+    m.panelKind = kind
+    m.panelBack = back
+    m.panelValues = values
+    m.panelTitle.text = title
+    ' A version's line is long: smaller letters keep it whole.
+    size = "Medium"
+    if kind = "version" then size = "Small"
+    m.choices.font = "font:" + size + "SystemFont"
+    m.choices.focusedFont = "font:" + size + "BoldSystemFont"
+    m.choices.content = nodesContent(items)
+    m.choices.checkedItem = current
+    if current > 0 then m.choices.jumpToItem = current
+    m.menu.visible = false
+    m.info.visible = false
+    m.choices.visible = true
+    m.panel.visible = true
+    m.choices.setFocus(true)
+end sub
+
+' Media info: each file and every stream in full (Media.brs), as on the
+' other TVs, in text that Up and Down scroll; Back goes back to More.
+sub showInfo()
+    m.panelKind = "info"
+    m.panelBack = "more"
+    m.panelTitle.text = "Media info"
+    m.info.text = mediaInfoText(m.item)
+    m.menu.visible = false
+    m.choices.visible = false
+    m.info.visible = true
+    m.panel.visible = true
+    m.info.setFocus(true)
+end sub
+
+sub closePanel()
+    m.panel.visible = false
+    m.panelKind = ""
+    m.panelBack = ""
+    if m.buttons.visible
+        m.buttons.setFocus(true)
+    else
+        m.top.setFocus(true)
+    end if
+end sub
+
+sub onMenu(event as object)
+    at = event.getData()
+    if m.panelKind = "tracks"
+        if at >= 0 and at < m.trackKinds.Count() then openTrackChoices(m.trackKinds[at], "tracks")
+        return
+    end if
+    if m.panelKind <> "more" or at < 0 or at >= m.detail.more.Count() then return
+    action = m.detail.more[at].action
+    if action = "rate"
+        labels = []
+        values = []
+        for stars = 0 to 5
+            labels.Push(contentStarsLabel(stars))
+            values.Push(stars)
+        end for
+        showChoices("rating", "Your rating", labels, values, m.detail.stars, "more")
+        return
+    end if
+    if action = "info"
+        showInfo()
+        return
+    end if
+    closePanel()
+    titleAction(action)
+end sub
+
+sub onChoice(event as object)
+    at = event.getData()
+    if at < 0 or at >= m.panelValues.Count() then return
+    kind = m.panelKind
+    if kind = "rating"
+        rate(m.panelValues[at])
+        openMore()
+    else if kind = "version" or kind = "audio" or kind = "subtitles"
+        if kind = "version"
+            chooseVersion(m.panelValues[at])
+        else
+            pickTrack(kind, m.panelValues[at])
+        end if
+        if m.panelBack = "tracks"
+            openTracks()
+        else
+            closePanel()
+        end if
+    end if
+end sub
+
+' Back from an entry's choices to its menu, else the panel closes.
+sub goBackInPanel()
+    if m.panelBack = "more"
+        openMore()
+    else if m.panelBack = "tracks"
+        openTracks()
+    else
+        closePanel()
+    end if
+end sub
+
+' --- Audio and subtitles ---
+
+' The file Play plays: the version chosen, else the first.
+function playingFile() as dynamic
+    return contentFile(m.item, m.fileId)
+end function
+
+' The title's versions (several files), and the file's audio (two tracks
+' or more) and subtitles (any), as on the other TVs: each an entry saying
+' what plays; the tracks chosen are saved at once. With only one of them
+' its choices open at once.
+sub openTracks()
+    versions = mediaVersions(m.item, m.fileId)
+    tracks = mediaTracks(playingFile())
+    labels = []
+    m.trackKinds = []
+    if versions.values.Count() > 1
+        labels.Push("Version: " + versions.labels[versions.current])
+        m.trackKinds.Push("version")
+    end if
+    if tracks.audio.labels.Count() > 0
+        labels.Push("Audio: " + tracks.audio.labels[tracks.audio.current])
+        m.trackKinds.Push("audio")
+    end if
+    if tracks.subtitles.labels.Count() > 0
+        labels.Push("Subtitles: " + tracks.subtitles.labels[tracks.subtitles.current])
+        m.trackKinds.Push("subtitles")
+    end if
+    if m.trackKinds.Count() > 1
+        showMenu("tracks", "Audio and subtitles", labels)
+    else if m.trackKinds.Count() = 1
+        openTrackChoices(m.trackKinds[0], "")
+    end if
+end sub
+
+sub openTrackChoices(kind as string, back as string)
+    if kind = "version"
+        versions = mediaVersions(m.item, m.fileId)
+        showChoices("version", "Version", versions.labels, versions.values, versions.current, back)
+        return
+    end if
+    tracks = mediaTracks(playingFile())
+    if kind = "audio"
+        showChoices("audio", "Audio", tracks.audio.labels, tracks.audio.values, tracks.audio.current, back)
+    else
+        showChoices("subtitles", "Subtitles", tracks.subtitles.labels, tracks.subtitles.values, tracks.subtitles.current, back)
+    end if
+end sub
+
+' PUT /api/items/{id}/streams, as on the other TVs: audio picked here
+' (Automatic as none) goes with the subtitles shown; subtitles picked go
+' with the audio picked here, else leave the audio as it was picked. The
+' page, and Play pressed at once, start with them; the page is asked for
+' again for the server's word on them.
+sub pickTrack(kind as string, index as integer)
+    file = playingFile()
+    if file = invalid then return
+    subtitle = Int(httpNumber(file.selected_subtitle, -1))
+    if kind = "audio"
+        m.audioPick = index
+    else
+        subtitle = index
+    end if
+    mediaPick(m.item, file.id, m.audioPick, subtitle)
+    body = tracksStreamsBody(file.id, m.audioPick, subtitle)
+    uiRequest({ method: "PUT", path: "/api/items/" + urlValue(m.item.id) + "/streams", jsonText: FormatJson(body) }, "onTracksSaved")
+end sub
+
+' Play plays the version chosen (file_id in POST /api/playback), its
+' tracks as the server picks them; it isn't saved, as on the other apps.
+sub chooseVersion(fileId as dynamic)
+    m.fileId = fileId
+    m.audioPick = -2
+end sub
+
+sub onTracksSaved(event as object)
+    answer = event.getData()
+    if not answer.ok and not uiFailed(answer) then uiMessage("That didn't work", [answer.message])
+    if m.item <> invalid then uiGet("/api/items/" + urlValue(m.item.id), "onDetail")
+end sub
+
+' --- Your rating ---
+
+' PUT /api/items/{id}/rating: 2 to 10 (half stars), null for none. More
+' says it at once, and again as it was if the server refuses.
+sub rate(stars as integer)
+    if stars < 0 or stars > 5 or m.item = invalid then return
+    before = m.detail.stars
+    rating = invalid
+    if stars > 0 then rating = stars * 2
+    showRating(rating)
+    uiRequest({ method: "PUT", path: "/api/items/" + urlValue(m.item.id) + "/rating", json: { rating: rating }, before: before }, "onRated")
+end sub
+
+sub onRated(event as object)
+    answer = event.getData()
+    if answer.ok then return
+    before = event.getRoSGNode().spec.before
+    rating = invalid
+    if before > 0 then rating = before * 2
+    showRating(rating)
+    if not uiFailed(answer) then uiMessage("That didn't work", [answer.message])
+end sub
+
+sub showRating(rating as dynamic)
+    state = httpObject(m.item.user_state)
+    if state = invalid
+        state = {}
+        m.item.user_state = state
+    end if
+    state.rating = rating
+    showDetail()
+end sub
+
 ' Down from the buttons goes to the rows, up from the first row back; the
-' Options key on a title of the rows offers what can be done with it.
+' Options key on a title of the rows offers what can be done with it. Back
+' or Left closes the panel (an entry's choices go back to its menu), and
+' keys its lists leave go nowhere else.
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
+    if m.panel.visible
+        if key = "back" or key = "left" then goBackInPanel()
+        return true
+    end if
     if key = "down" and not m.rows.isInFocusChain() and m.rows.visible
         focusRows(true)
         return true

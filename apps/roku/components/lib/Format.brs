@@ -94,14 +94,6 @@ function fmtCount(count as dynamic, kind as string) as string
     return n.ToStr() + " " + noun + "s"
 end function
 
-' "1 title", "12 titles"; "" without a count.
-function fmtTitles(count as dynamic) as string
-    n = httpNumber(count, -1)
-    if n < 0 then return ""
-    if n = 1 then return "1 title"
-    return urlValue(n) + " titles"
-end function
-
 ' 7.5, 8 (no ".0").
 function fmtOneDecimal(value as dynamic) as string
     tenths = Int(value * 10 + 0.5)

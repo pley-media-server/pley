@@ -156,6 +156,32 @@ function urlHexByte(b as integer) as string
     return Mid(digits, Int(b / 16) + 1, 1) + Mid(digits, (b mod 16) + 1, 1)
 end function
 
+' A query string's key or value as it reads: "+" a space, percent-encoded
+' UTF-8 bytes their characters; a "%" without two hex digits stays.
+function urlDecode(text as string) as string
+    if Instr(1, text, "%") = 0 then return text.Replace("+", " ")
+    escaped = CreateObject("roRegex", "^%[0-9A-Fa-f]{2}", "")
+    plain = CreateObject("roByteArray")
+    hex = ""
+    i = 1
+    n = Len(text)
+    while i <= n
+        c = Mid(text, i, 1)
+        if c = "%" and escaped.IsMatch(Mid(text, i, 3))
+            hex = hex + Mid(text, i + 1, 2)
+            i = i + 3
+        else
+            if c = "+" then c = " "
+            plain.FromAsciiString(c)
+            hex = hex + plain.ToHexString()
+            i = i + 1
+        end if
+    end while
+    bytes = CreateObject("roByteArray")
+    bytes.FromHexString(hex)
+    return bytes.ToAsciiString()
+end function
+
 ' A value as it goes in a query string or form.
 function urlValue(value as dynamic) as string
     if GetInterface(value, "ifString") <> invalid then return value

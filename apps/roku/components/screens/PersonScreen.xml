@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A person: their photo, round (their initials until it comes, or
+     without one), their name and what of theirs is in the libraries, then
+     a row of their titles per role (Acting, Directing, Creating, Writing,
+     Producing), each captioned with its year and the part. -->
+<component name="PersonScreen" extends="Group">
+    <interface>
+        <field id="route" type="string" />
+        <field id="params" type="assocarray" />
+        <field id="navigate" type="assocarray" alwaysNotify="true" />
+        <field id="active" type="boolean" alwaysNotify="true" />
+    </interface>
+    <script type="text/brightscript" uri="pkg:/components/screens/PersonScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
+    <script type="text/brightscript" uri="pkg:/components/shared/Titles.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
+    <children>
+        <MaskGroup translation="[96, 56]" maskUri="pkg:/images/round.png" maskSize="[160, 160]">
+            <Rectangle width="160" height="160" color="0x262B35FF" />
+            <Label id="initials" width="160" height="160" horizAlign="center" vertAlign="center" color="0xEBEBEBCC" font="font:LargeBoldSystemFont" />
+            <Poster id="photo" width="160" height="160" loadWidth="160" loadHeight="160" loadDisplayMode="scaleToZoom" />
+        </MaskGroup>
+        <Label id="name" translation="[288, 78]" width="1536" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="line" translation="[288, 158]" width="1536" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+        <RowList id="rows" translation="[96, 264]" itemComponentName="Tile" itemSize="[1728, 470]" rowItemSize="[[220, 410]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
+        <Label id="message" translation="[96, 480]" width="1728" wrap="true" horizAlign="center" color="0xA1A9B6FF" text="Loading…" font="font:MediumSystemFont" />
+    </children>
+</component>

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A track in an album's or a playlist's list: its number and title (and
-     artist), and how long it is. -->
+     artist), and how long it is; or, in an album of several discs, a
+     disc's heading. -->
 <component name="TrackRow" extends="Group">
     <interface>
         <field id="itemContent" type="node" onChange="onContent" />
@@ -14,5 +15,7 @@
         <Label id="title" translation="[32, 0]" width="760" height="80" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />
         <Label id="subtitle" translation="[800, 0]" width="180" height="80" vertAlign="center" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         <Label id="duration" translation="[984, 0]" width="108" height="80" horizAlign="right" vertAlign="center" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+        <!-- "Disc 2", at the foot of its row, over the disc's tracks. -->
+        <Label id="heading" translation="[32, 0]" width="760" height="72" vertAlign="bottom" color="0xA1A9B6FF" font="font:SmallBoldSystemFont" visible="false" />
     </children>
 </component>

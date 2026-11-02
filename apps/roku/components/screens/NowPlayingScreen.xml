@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Now Playing: the track the music player plays, its cover, how far
-     along it is, and Previous, Pause, Next and Stop. Back leaves it; the
-     music goes on, and Home's menu brings it back. -->
+     along it is, Shuffle, Previous, Pause, Next, Stop and the sleep
+     timer, and under them Up next, the queue. Back leaves it;
+     the music goes on, and Home's menu brings it back. -->
 <component name="NowPlayingScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -14,21 +15,33 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Format.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Music.brs" />
     <children>
         <Poster id="backdrop" width="1920" height="1080" loadWidth="320" loadHeight="320" loadDisplayMode="scaleToZoom" opacity="0.12" />
-        <Rectangle id="coverFrame" translation="[160, 240]" width="600" height="600" color="0x262B35FF" />
-        <Poster id="cover" translation="[160, 240]" width="600" height="600" loadWidth="600" loadHeight="600" loadDisplayMode="scaleToZoom" />
-        <Label translation="[860, 250]" text="Now playing" color="0x38BDF8FF" font="font:SmallerBoldSystemFont" />
-        <Label id="title" translation="[860, 296]" width="900" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
-        <Label id="artist" translation="[860, 460]" width="900" color="0xEBEBEBFF" font="font:MediumSystemFont" />
-        <Label id="album" translation="[860, 510]" width="900" color="0xA1A9B6FF" font="font:SmallSystemFont" />
-        <Rectangle id="track" translation="[860, 600]" width="900" height="8" color="0x2E3440FF" />
-        <Rectangle id="fill" translation="[860, 600]" width="0" height="8" color="0x38BDF8FF" />
-        <Label id="elapsed" translation="[860, 624]" width="300" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-        <Label id="left" translation="[1460, 624]" width="300" horizAlign="right" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
-        <ChipRow id="buttons" translation="[860, 700]" />
-        <Label id="queue" translation="[860, 792]" width="900" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <Label id="message" translation="[860, 836]" width="900" wrap="true" maxLines="2" color="0xEB6B70FF" font="font:SmallestSystemFont" />
+        <Rectangle id="coverFrame" translation="[96, 96]" width="400" height="400" color="0x262B35FF" />
+        <Poster id="cover" translation="[96, 96]" width="400" height="400" loadWidth="400" loadHeight="400" loadDisplayMode="scaleToZoom" />
+        <!-- The track's lines, each under the one before, so a title of
+             one line or two leaves no gap. -->
+        <LayoutGroup translation="[560, 104]" layoutDirection="vert" itemSpacings="[8, 20, 8, 20]">
+            <Label text="Now playing" color="0x38BDF8FF" font="font:SmallerBoldSystemFont" />
+            <Label id="title" width="1264" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+            <Label id="artist" width="1264" color="0xEBEBEBFF" font="font:MediumSystemFont" />
+            <Label id="album" width="1264" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+            <!-- The sleep timer's countdown, or what went wrong with a track. -->
+            <Label id="message" width="1264" color="0xEB6B70FF" font="font:SmallestSystemFont" />
+        </LayoutGroup>
+        <Rectangle id="track" translation="[560, 456]" width="1264" height="8" color="0x2E3440FF" />
+        <Rectangle id="fill" translation="[560, 456]" width="0" height="8" color="0x38BDF8FF" />
+        <Label id="elapsed" translation="[560, 476]" width="300" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+        <Label id="queue" translation="[860, 476]" width="664" horizAlign="center" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <Label id="left" translation="[1524, 476]" width="300" horizAlign="right" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+        <ChipRow id="buttons" translation="[96, 560]" />
+        <!-- Up next: the queue, the track playing marked, OK playing one. -->
+        <Label id="upNextTitle" translation="[96, 652]" text="Up next" color="0xA1A9B6FF" font="font:SmallerBoldSystemFont" visible="false" />
+        <MarkupList id="upNext" translation="[96, 700]" itemComponentName="QueueRow" itemSize="[1728, 56]" itemSpacing="[0, 8]" numRows="5" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
     </children>
 </component>
