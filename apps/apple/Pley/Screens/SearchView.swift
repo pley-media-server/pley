@@ -103,6 +103,8 @@ struct SearchView: View {
                 ForEach(groups) { group in
                     if group.kind == .people {
                         PeopleRow(app: app, group: group) { person in app.shell.open(model.open(person)) }
+                    } else if group.kind == .channels {
+                        ChannelsRow(app: app, group: group)
                     } else {
                         TileRow(app: app, key: group.kind.rawValue, title: "\(group.kind.title) (\(group.count))",
                                 shape: group.kind.shape, tiles: group.tiles, prefix: "search.group") { tile in
@@ -115,6 +117,60 @@ struct SearchView: View {
         }
         // Scrolling the results puts the keyboard away.
         .scrollDismissesKeyboard(.immediately)
+    }
+}
+
+/// Live TV's channels found, in a row: each opens the live player in All channels.
+private struct ChannelsRow: View {
+    let app: AppModel
+    let group: SearchModel.Group
+    private let layout = WideLayout()
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
+
+    var body: some View {
+        let gutter = Metrics.gutter(regular: layout.wide)
+        VStack(alignment: .leading, spacing: 10) {
+            Text("\(group.kind.title) (\(group.count))")
+                .font(.title3.bold())
+                .accessibilityAddTraits(.isHeader)
+                .padding(.horizontal, gutter)
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: Metrics.tileSpacing) {
+                    ForEach(group.channels) { channel in
+                        Button {
+                            watch(channel)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 6) {
+                                ChannelLogo(app: app, channel: channel, size: 72)
+                                Text(channel.numberedName).font(.subheadline).lineLimit(2)
+                                if let on = channel.now {
+                                    Text(on.title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                }
+                            }
+                            .frame(width: 140, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityHint("Watch")
+                        .accessibilityIdentifier("search.channel.\(channel.id)")
+                    }
+                }
+                .padding(.horizontal, gutter)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("search.group.channels")
+    }
+
+    private func watch(_ channel: LiveChannel) {
+        let request = LiveRequest(channelId: channel.id, category: .all)
+        #if os(macOS)
+        openWindow(id: LiveWindow.id, value: request)
+        #else
+        Task { await app.watchLive(request, seen: channel) }
+        #endif
     }
 }
 

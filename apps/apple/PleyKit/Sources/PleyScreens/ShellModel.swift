@@ -11,6 +11,9 @@ public enum ShellSection: Hashable, Codable, Sendable {
     case library(Int)
     /// Apple TV's Settings tab, which holds what Me holds elsewhere.
     case settings
+    /// Live TV: a row of the sidebar after Home, a tab after Home on Apple
+    /// TV; on iPhone a row of Libraries opens it (`Screen.liveTv`).
+    case liveTv
 
     /// How the section is kept between launches: `home`, `library:3`.
     public var key: String {
@@ -21,6 +24,7 @@ public enum ShellSection: Hashable, Codable, Sendable {
         case .playlists: "playlists"
         case .me: "me"
         case .settings: "settings"
+        case .liveTv: "liveTv"
         case .library(let id): "library:\(id)"
         }
     }
@@ -34,6 +38,7 @@ public enum ShellSection: Hashable, Codable, Sendable {
         case "playlists": self = .playlists
         case "me": self = .me
         case "settings": self = .settings
+        case "liveTv": self = .liveTv
         default:
             guard key.hasPrefix("library:"), let id = Int(key.dropFirst("library:".count)) else { return nil }
             self = .library(id)
@@ -55,6 +60,8 @@ public enum Screen: Hashable, Codable, Sendable {
     case album(Int, track: Int? = nil)
     case playlist(Int)
     case history, settings, trackDefaults, diagnostics, about
+    /// Live TV, opened from Libraries on iPhone.
+    case liveTv
 
     /// The page `item` opens: music has its own pages; a track opens its
     /// album, an extra its movie's or show's page.
@@ -113,11 +120,12 @@ public final class ShellModel: ObservableObject {
     /// The libraries, in the profile's order: the sidebar's rows, and
     /// Apple TV's library tabs.
     @Published public private(set) var libraries: [Library] = []
-    /// Whether the server's Live TV shows (from Phase 4).
-    public let liveTv = false
+    /// Live TV on the open server for this profile (`GET /api/live`);
+    /// `nil` while not known. It shows when it is `available`.
+    @Published public private(set) var liveTv: LiveSummary?
 
-    /// Apple TV shows a tab per library up to this many; more go under one Libraries tab.
-    public static let maxLibraryTabs = 4
+    /// Apple TV shows at most this many tabs: past it, tvOS cuts them off.
+    public static let maxTabs = 7
 
     private let settings: AppSettings
     private let tv: Bool
@@ -135,8 +143,11 @@ public final class ShellModel: ObservableObject {
         self.tv = tv
         sections = Self.sections(tv: tv, libraries: [])
         let last = settings.lastSection.flatMap(ShellSection.init(key:))
-        // A library's section waits for the libraries to be known, on Home.
+        // A library's section, and Live TV's, wait for the libraries and Live TV to be known, on Home.
         if case .library = last {
+            restoring = last
+            section = .home
+        } else if last == .liveTv {
             restoring = last
             section = .home
         } else {
@@ -153,23 +164,46 @@ public final class ShellModel: ObservableObject {
         #endif
     }
 
-    /// The tabs of a shell, with `libraries`.
-    public static func sections(tv: Bool, libraries: [Library]) -> [ShellSection] {
+    /// The tabs of a shell, with `libraries`, and Live TV when it shows.
+    /// On Apple TV, at most `maxTabs`: Search, Home, Live TV, the
+    /// libraries, Playlists and Settings. While they all fit each library
+    /// has a tab; otherwise the first that fit keep theirs and a Libraries
+    /// tab takes the rest's place.
+    public static func sections(tv: Bool, libraries: [Library], liveTv: Bool = false) -> [ShellSection] {
         guard tv else { return [.home, .libraries, .search, .playlists, .me] }
-        let middle: [ShellSection] = libraries.count > maxLibraryTabs ? [.libraries] : libraries.map { .library($0.id) }
         // Search first, where tvOS puts it.
-        return [.search, .home] + middle + [.playlists, .settings]
+        let start: [ShellSection] = [.search, .home] + (liveTv ? [.liveTv] : [])
+        let end: [ShellSection] = [.playlists, .settings]
+        let room = maxTabs - start.count - end.count
+        let tabs = libraries.map { ShellSection.library($0.id) }
+        let middle = tabs.count <= room ? tabs : Array(tabs.prefix(room - 1)) + [.libraries]
+        return start + middle + end
     }
 
-    /// The sidebar's rows on iPad and Mac: Home, Search and Playlists, then
-    /// each library (Me is at its foot).
-    public var sidebar: [ShellSection] { [.home, .search, .playlists] + libraries.map { .library($0.id) } }
+    /// The sidebar's rows on iPad and Mac: Home, Live TV when it shows,
+    /// Search and Playlists, then each library (Me is at its foot).
+    public var sidebar: [ShellSection] {
+        [.home] + (showsLiveTv ? [.liveTv] : []) + [.search, .playlists] + libraries.map { .library($0.id) }
+    }
+
+    /// Whether Live TV shows: open to this profile, with channels.
+    public var showsLiveTv: Bool { liveTv?.available == true }
 
     /// Whether `section` is one this device can show now.
     public func shows(_ section: ShellSection) -> Bool {
         if sections.contains(section) { return true }
         if case .library(let id) = section { return libraries.contains { $0.id == id } }
+        // The sidebar's Live TV row: in a tab bar it shows under Libraries, as a library does.
+        if section == .liveTv { return showsLiveTv }
         return false
+    }
+
+    /// Live TV as last read (`nil`: not known, or another server). When
+    /// it goes, its section goes back to Home.
+    public func setLiveTv(_ liveTv: LiveSummary?) {
+        guard liveTv != self.liveTv else { return }
+        self.liveTv = liveTv
+        refreshSections()
     }
 
     /// The libraries, as last read: the sections follow them. A library
@@ -177,7 +211,13 @@ public final class ShellModel: ObservableObject {
     public func setLibraries(_ libraries: [Library]) {
         guard libraries != self.libraries else { return }
         self.libraries = libraries
-        sections = Self.sections(tv: tv, libraries: libraries)
+        refreshSections()
+    }
+
+    private func refreshSections() {
+        sections = Self.sections(tv: tv, libraries: libraries, liveTv: showsLiveTv)
+        // Waiting for what it needs: the libraries, or Live TV.
+        if let restoring, restoring == .liveTv ? liveTv == nil : libraries.isEmpty { return }
         if let restoring {
             self.restoring = nil
             if shows(restoring) {
@@ -265,6 +305,7 @@ public final class ShellModel: ObservableObject {
         restoring = nil
         paths = [:]
         libraries = []
+        liveTv = nil
         sections = Self.sections(tv: tv, libraries: [])
         sheet = nil
         dismissToast()
@@ -282,12 +323,13 @@ public final class ShellModel: ObservableObject {
         public let key: Character?
     }
 
-    /// The View menu's sections, as the sidebar lists them: Home ⌘1,
-    /// Playlists ⌘2, then the libraries in the profile's order, the first
-    /// seven ⌘3 to ⌘9. Search has ⌘F of its own.
+    /// The View menu's sections, as the sidebar lists them: Home ⌘1, Live
+    /// TV ⌘L when it shows, Playlists ⌘2, then the libraries in the
+    /// profile's order, the first seven ⌘3 to ⌘9. Search has ⌘F of its own.
     public var viewMenu: [MenuEntry] {
-        let fixed = [MenuEntry(title: "Home", section: .home, key: "1"),
-                     MenuEntry(title: "Playlists", section: .playlists, key: "2")]
+        let fixed = [MenuEntry(title: "Home", section: .home, key: "1")]
+            + (showsLiveTv ? [MenuEntry(title: "Live TV", section: .liveTv, key: "l")] : [])
+            + [MenuEntry(title: "Playlists", section: .playlists, key: "2")]
         let libraries = libraries.enumerated().map { index, library in
             MenuEntry(title: library.name, section: .library(library.id),
                       key: index < 7 ? Character(String(index + 3)) : nil)

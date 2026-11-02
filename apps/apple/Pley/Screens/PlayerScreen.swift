@@ -229,6 +229,7 @@ private struct PlayerWindowContent: View {
 /// player window that is key.
 struct PlaybackCommands: Commands {
     @FocusedObject private var player: PlaybackController?
+    @FocusedObject private var live: LivePlayerModel?
     @FocusedValue(\.playTarget) private var target
     @Environment(\.openWindow) private var openWindow
 
@@ -248,6 +249,13 @@ struct PlaybackCommands: Commands {
                 if isPlaying { player.pause() } else { player.play() }
             }
             .disabled(player == nil)
+            // Live TV's window: channel up and down.
+            Button("Channel Up") { live?.zap(by: 1) }
+                .keyboardShortcut(.upArrow, modifiers: .command)
+                .disabled(live == nil)
+            Button("Channel Down") { live?.zap(by: -1) }
+                .keyboardShortcut(.downArrow, modifiers: .command)
+                .disabled(live == nil)
             Button("Back 10 Seconds") { player?.seek(byMs: -PlayerKeys.seekMs) }
                 .disabled(player == nil)
             Button("Forward 10 Seconds") { player?.seek(byMs: PlayerKeys.seekMs) }

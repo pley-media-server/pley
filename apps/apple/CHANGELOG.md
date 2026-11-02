@@ -50,8 +50,16 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Pley, hover and right-click. On Apple TV, a row puts the focus back on
   the tile you left it on.
 
+- Live TV on iPhone, iPad, Mac and Apple TV: the categories, the guide and
+  the channel cards, favourites, a programme's details, and the live
+  player with channel up and down, a channel number typed or on Apple TV's
+  number pad, AirPlay, and Watch here instead when every connection is in
+  use. Search shows the channels it finds.
+
 ### Fixed
 
+- Apple TV's tabs stay on screen: seven at most, with a Libraries tab for
+  the libraries that don't fit.
 - The iPhone's Quality menu keeps each choice's second line when it is
   checked.
 - VoiceOver no longer reads the page behind the player.

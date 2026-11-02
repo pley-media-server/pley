@@ -48,6 +48,12 @@ struct PleyApp: App {
         }
         .defaultSize(width: 960, height: 540)
         .restorationBehavior(.disabled)
+        // Live TV's player, a window of its own too.
+        WindowGroup("Live TV", id: LiveWindow.id, for: LiveRequest.self) { $request in
+            LiveWindow(app: app, request: request)
+        }
+        .defaultSize(width: 960, height: 540)
+        .restorationBehavior(.disabled)
         #endif
     }
 }
@@ -67,6 +73,10 @@ struct RootView: View {
         .fullScreenCover(item: Binding(get: { app.player },
                                        set: { if $0 == nil { Task { await app.closePlayer() } } })) { controller in
             PlayerScreen(app: app, controller: controller)
+        }
+        .fullScreenCover(item: Binding(get: { app.livePlayer },
+                                       set: { if $0 == nil { app.closeLivePlayer() } })) { model in
+            LivePlayerScreen(app: app, model: model) { app.closeLivePlayer() }
         }
         .onChange(of: scenePhase) { phase in
             switch phase {

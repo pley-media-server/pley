@@ -32,6 +32,10 @@ struct RootView: View {
                                        set: { if $0 == nil { Task { await app.closePlayer() } } })) { controller in
             PlayerScreen(app: app, controller: controller)
         }
+        .fullScreenCover(item: Binding(get: { app.livePlayer },
+                                       set: { if $0 == nil { app.closeLivePlayer() } })) { model in
+            LivePlayerScreen(app: app, model: model)
+        }
         .onChange(of: scenePhase) { _, phase in
             // The server's events are read while Pley is in front; back in
             // front, what shows is read again.

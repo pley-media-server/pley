@@ -54,7 +54,7 @@ private func searches(_ server: FixtureServer) -> [String] {
         let app = try await signedIn(server)
         let model = SearchModel(app: app, debounce: .milliseconds(10))
         model.query = "dune"
-        #expect(await eventually { model.state.groups.count == 2 })
+        #expect(await eventually { model.state.groups.count == 3 })
         // A slow answer for "villeneuve", then "dune: part" typed before it comes.
         server.delaySearch("villeneuve", ms: 600)
         model.query = "villeneuve"
@@ -80,7 +80,7 @@ private func searches(_ server: FixtureServer) -> [String] {
         #expect(groups.first?.tiles.map(\.item.title) == ["Dune: Part Two"])
     }
 
-    @Test func resultsComeInGroupsWithCountsAndChannelsWaitForLiveTV() throws {
+    @Test func resultsComeInGroupsWithCountsAndChannelsLast() throws {
         let results = try PleyJSON.decoder.decode(SearchResults.self, from: Fixtures.data("search/results.json"))
         #expect(!results.channels.isEmpty)
         let groups = SearchModel.groups(results)
@@ -95,6 +95,13 @@ private func searches(_ server: FixtureServer) -> [String] {
         if let episodes = groups.first(where: { $0.kind == .episodes }) {
             #expect(episodes.tiles.allSatisfy { $0.shape == .landscape })
         }
+        // Live TV's channels last, a dozen at most.
+        let channels = try #require(groups.last)
+        #expect(channels.kind == .channels && channels.kind.title == "Live TV")
+        #expect(channels.channels == Array(results.channels.prefix(SearchModel.channels)))
+        var many = results
+        many.channels = (1...20).map { LiveChannel(id: $0, name: "Channel \($0)") }
+        #expect(SearchModel.groups(many).last?.count == 12)
     }
 
     @Test func noResultsAndAFailureSaySoAndRetryAsksAgain() async throws {
@@ -110,7 +117,7 @@ private func searches(_ server: FixtureServer) -> [String] {
         #expect(await eventually { if case .failed("dune", _) = model.state { true } else { false } })
         server.clearAnswer(path: "/api/search")
         model.retry()
-        #expect(await eventually { model.state.groups.count == 2 })
+        #expect(await eventually { model.state.groups.count == 3 })
         // Nothing typed: back to the recent searches.
         model.query = "  "
         #expect(model.state == .idle)
@@ -137,7 +144,7 @@ private func searches(_ server: FixtureServer) -> [String] {
 
         // Opening a result keeps its query.
         model.query = "dune"
-        #expect(await eventually { model.state.groups.count == 2 })
+        #expect(await eventually { model.state.groups.count == 3 })
         let tile = try #require(model.state.groups.first { $0.kind == .movies }?.tiles.first)
         #expect(model.open(tile) == .item(tile.item.id))
         #expect(model.recent.first == "dune")

@@ -51,15 +51,16 @@ in to another server starts every section again at Home.
   View): a tab bar with Home, Libraries, Search, Playlists and Me. A library
   opened from the sidebar before the window narrowed shows under
   Libraries.
-- **iPad** at regular width, and the **Mac**: a sidebar with Home, Search
-  and Playlists, then the libraries in the profile's order, each with its kind's symbol and a
+- **iPad** at regular width, and the **Mac**: a sidebar with Home, Live
+  TV when it shows, Search and Playlists, then the libraries in the profile's order, each with its kind's symbol and a
   spinner while it is scanned, and at its foot the profile signed in, its
   picture, name and server, which opens Me. The Mac's window is at least
   800 by 560 points, and opens at 1100 by 720.
-- **Apple TV**: tabs across the top, Search (a magnifying glass, first,
-  as in Apple's apps), Home, a tab per library with its name (or one
-  Libraries tab when there are more than four), Playlists and Settings
-  (which holds what Me holds elsewhere). The focus engine and the Siri
+- **Apple TV**: seven tabs at most across the top, so none is cut off:
+  Search (a magnifying glass, first, as in Apple's apps), Home, Live TV
+  when it shows, a tab per library with its name while they all fit (the
+  first that fit otherwise, and a Libraries tab for the rest), Playlists
+  and Settings (which holds what Me holds elsewhere). The focus engine and the Siri
   Remote move through it; Menu goes back, then to the tabs, then out of
   the app.
 
@@ -80,6 +81,7 @@ Return opens the one with the focus and ⌘↩ plays it.
 | File | Switch Profile… (with the `profiles` scope and more than one profile) | ⇧⌘P |
 | File | Sign Out… (asks first) | |
 | View | Home | ⌘1 |
+| View | Live TV, when it shows | ⌘L |
 | View | Search (its field takes the keys) | ⌘F |
 | View | Playlists | ⌘2 |
 | View | The first seven libraries, in the profile's order | ⌘3 to ⌘9 |
@@ -87,6 +89,7 @@ Return opens the one with the focus and ⌘↩ plays it.
 | View | Larger Tiles, Smaller Tiles (Settings' grid size) | ⌘+, ⌘− |
 | View | Show or Hide Sidebar, and the toolbar's own | ⌃⌘S |
 | Playback | Play "Title": the tile with the focus, or the title page showing, in a player window | ⌘↩ |
+| Playback | Channel Up, Channel Down (the Live TV window that is key) | ⌘↑, ⌘↓ |
 | Playback | Play or Pause, Back and Forward 10 Seconds, Skip Intro, Play Next, Quality, Audio, Subtitles, Subtitle Sync, Chapters (the player window that is key) | |
 
 An iPad with a keyboard has Search (⌘F) and Reload (⌘R) too.
@@ -163,8 +166,8 @@ behind it.
   music. Play/Pause on the Siri Remote plays a tile. A mark or My List
   shows at once and goes back, with a toast saying why, when the server
   refuses. Nothing for administrators is offered.
-- **Libraries** (the iPhone's tab; the sidebar on iPad and Mac; a tab on
-  Apple TV past four libraries): each library with what it holds ("412
+- **Libraries** (the iPhone's tab, Live TV first; the sidebar on iPad
+  and Mac; a tab on Apple TV when the libraries don't all fit): each library with what it holds ("412
   movies", "37 shows", "128 artists") and whether the server is scanning
   it. With two or more, they can be put in the profile's own order: Edit
   and a drag on iPhone and iPad (the sidebar's Edit, or a drag, on iPad
@@ -217,7 +220,9 @@ behind it.
   the latest search's answer shows. The results come in rows by kind, each
   with its count: People, Movies, Shows, Seasons, Episodes, Artists,
   Albums and Tracks, in the shape of Home's tiles (people round, with
-  their initials when they have no photo). Live TV channels aren't shown.
+  their initials when they have no photo), then Live TV's channels (up
+  to 12, by name, number or what's on), which open the live player in All
+  channels.
   Choosing a result opens its page. With nothing typed, the profile's
   **recent searches** show, newest first: the last 10 searched or opened,
   kept on the device for each server and profile, each searched again
@@ -360,6 +365,60 @@ behind it.
   **New Playlist** asks for a title (up to 200 characters) and, empty,
   whether it plays Movies & TV or Music; the playlist made opens.
 - **The player**: the system's player on each device, below.
+- **Live TV** (when an administrator added an IPTV provider and opened
+  it to the profile, `GET /api/live`; read at sign-in, at a profile change,
+  when the lineup changes and when the event stream connects again): the
+  first row of the iPhone's Libraries (with its channel count), the
+  sidebar's row after Home on iPad and Mac (View → Live TV, ⌘L), and a tab
+  after Home on Apple TV. The categories (Favourites, Recently watched, All
+  channels, each region's groups under it when two regions or more have
+  groups, then More groups) are a sheet on iPhone and a column on iPad, Mac
+  and Apple TV; a search lists the groups it names first, then the
+  channels whose name, number or programme on now has it. Channels come a
+  page of 100 at a time as the list scrolls, ten pages kept at most, so a
+  lineup of tens of thousands costs what is on screen. Two views, kept per
+  server and profile with the category: the **guide** (channels by time,
+  48 hours from the half hour before now, fetched six hours at a time for
+  the channels loaded; on iPhone, iPad and Mac it scrolls across with the
+  channel column pinned and a red line at the time now, moved every 15
+  seconds, at once under Reduce Motion; on Apple TV it shows two hours,
+  and moving the focus past an edge moves it half an hour), and
+  **channels** (cards with the logo, number and name, what's on with its
+  progress and what's next, and the star). Logos are asked for at the size
+  they show. The list opens again on the channel watched last. A
+  programme opens its picture, time, Live and New, what it is about, and
+  Watch now while it is on. A star shows at once and goes back, with a
+  toast saying why, when the server refuses it. A profile without Live
+  TV, or a server without channels, says so, as the web app does.
+- **The live player**: full screen on iPhone and iPad, a window of its own
+  on the Mac. It asks the server for the channel with this install's
+  client id (which ends what it watched before, so changing channel never
+  holds two of the provider's connections) and plays the keyed HLS
+  address the answer gives. Live plays as it airs: nothing pauses or seeks.
+  A tap shows, for 3 seconds, Close, the channel's logo, number and name,
+  what's on with its progress and what's next, the star, channel up and
+  down (through the category it was opened in, round its ends; Recently
+  watched in the order it had when the player opened), Channels (the
+  category's list, and Other channels for another), AirPlay and "Live". A
+  keyboard's digits tune a number (up to five, 1.4 seconds after the last,
+  or Return), and ↑ and ↓ change channel; on the Mac, F fills the screen,
+  ⌘W leaves, and the Playback menu has Channel Up (⌘↑) and Channel Down
+  (⌘↓). On Apple TV a banner with the channel and what's on shows for 5
+  seconds after each change; up and down change channel, Select opens
+  Channels, Channel number, Favourite and Back to the guide, Play/Pause
+  shows the banner, and Menu hides the overlay, then leaves. The number
+  pad (1 to 9, Delete, 0 and OK, each named for VoiceOver) tunes on OK or
+  1.4 seconds after the last digit; "No channel 123" shows for 2 seconds
+  when none has it. When every connection of the channel's source is in
+  use, the player says so, lists what they watch, and offers **Watch here
+  instead** on one it may take. A stall shows a spinner after 0.7
+  seconds; a channel with no picture shows its logo and "Sound only".
+  When AVPlayer fails, the session's plan is asked once: a stop at the
+  server says why, anything else tunes again. Leaving ends the session at
+  the server at once. In the background the channel and its connection
+  are let go, and back in front it tunes again from the live edge. One
+  playback at a time: a video closes the live player, and Live TV closes
+  a video.
 
 ### Accessibility
 
@@ -1290,15 +1349,15 @@ address, to have it found by Bonjour. Delete the folder afterwards.
 - No seek-bar previews.
 - Subtitles aren't shown over AirPlay: the app draws them over its own
   view of the video, which AirPlay doesn't send.
-- No Live TV, music or downloads.
+- No music or downloads.
+- Live TV has no picture in picture and doesn't switch the display's
+  frame rate or range, as on Android.
 - Events aren't read while the app is in the background; back in front,
   what shows is read again.
 - The Mac app has no UI tests: driving it needs Accessibility and Screen
   Recording permissions that only a person can grant. Its views are
   checked by building it, and its models and menus' state by the
   packages' tests.
-- Search finds Live TV channels, but the apps have no Live TV, so they
-  aren't shown.
 - Music isn't played: artists' and albums' pages have no Play, and music
   playlists don't play.
 - Collections are made and changed in Pley on the web; the apps play

@@ -111,7 +111,7 @@ import Testing
     }
 
     @Test func sectionsKeepTheirNames() {
-        for section in [ShellSection.home, .libraries, .search, .playlists, .me, .settings, .library(12)] {
+        for section in [ShellSection.home, .libraries, .search, .playlists, .me, .settings, .liveTv, .library(12)] {
             #expect(ShellSection(key: section.key) == section)
         }
         #expect(ShellSection(key: "library:x") == nil)
@@ -128,6 +128,67 @@ import Testing
         let shell = ShellModel(settings: freshSettings(), tv: false)
         shell.setLibraries(libraries)
         #expect(shell.sidebar == [.home, .search, .playlists, .library(1), .library(2)])
+    }
+
+    @Test func appleTVShowsSevenTabsAtMostWhateverTheLibrariesAndLiveTV() {
+        for live in [false, true] {
+            for count in 0...9 {
+                let libraries = (1...max(count, 1)).prefix(count).map { Library(id: $0, name: "L\($0)", kind: .movies) }
+                let tabs = ShellModel.sections(tv: true, libraries: libraries, liveTv: live)
+                #expect(tabs.count <= ShellModel.maxTabs)
+                #expect(Array(tabs.prefix(2)) == [.search, .home])
+                #expect(Array(tabs.suffix(2)) == [.playlists, .settings])
+                #expect(tabs.contains(.liveTv) == live)
+                if live { #expect(tabs[2] == .liveTv) }
+                let room = live ? 2 : 3
+                let shown = tabs.compactMap { if case .library(let id) = $0 { id } else { nil } }
+                if count <= room {
+                    // Each library has its tab while they all fit.
+                    #expect(shown == Array(1...max(count, 1)).prefix(count).map { $0 })
+                    #expect(!tabs.contains(.libraries))
+                } else {
+                    // The first that fit keep theirs; Libraries takes the rest's place, last of them.
+                    #expect(shown == Array(1...(room - 1)))
+                    #expect(tabs[tabs.count - 3] == .libraries)
+                    #expect(tabs.count == ShellModel.maxTabs)
+                }
+            }
+        }
+        // Four libraries and Live TV: one library keeps its tab.
+        let four = (1...4).map { Library(id: $0, name: "L\($0)", kind: .movies) }
+        #expect(ShellModel.sections(tv: true, libraries: four, liveTv: true)
+            == [.search, .home, .liveTv, .library(1), .libraries, .playlists, .settings])
+        // The phone's five tabs don't change: Live TV is a row of Libraries.
+        #expect(ShellModel.sections(tv: false, libraries: four, liveTv: true) == [.home, .libraries, .search, .playlists, .me])
+    }
+
+    @Test func liveTVShowsOnceTheServerSaysItIsAvailable() {
+        let settings = freshSettings()
+        let shell = ShellModel(settings: settings, tv: false)
+        #expect(!shell.showsLiveTv && !shell.shows(.liveTv))
+        shell.setLiveTv(LiveSummary(available: false, allowed: true))
+        #expect(!shell.sidebar.contains(.liveTv) && !shell.viewMenu.contains { $0.section == .liveTv })
+        shell.setLiveTv(LiveSummary(available: true, allowed: true, channels: 3))
+        #expect(shell.sidebar.prefix(2) == [.home, .liveTv])
+        let menu = shell.viewMenu
+        #expect(menu.map(\.title).prefix(3) == ["Home", "Live TV", "Playlists"])
+        #expect(menu[1].key == "l" && menu[0].key == "1" && menu[2].key == "2")
+        shell.select(.liveTv)
+        #expect(shell.section == .liveTv && settings.lastSection == "liveTv")
+        // Shown last: it comes back once Live TV is known to show.
+        let again = ShellModel(settings: settings, tv: true)
+        #expect(again.section == .home)
+        again.setLibraries([Library(id: 1, name: "Movies", kind: .movies)])
+        #expect(again.section == .home)
+        again.setLiveTv(LiveSummary(available: true, allowed: true, channels: 3))
+        #expect(again.section == .liveTv)
+        #expect(again.sections == [.search, .home, .liveTv, .library(1), .playlists, .settings])
+        // It went: back to Home.
+        again.setLiveTv(LiveSummary(available: false, allowed: false))
+        #expect(again.section == .home && !again.sections.contains(.liveTv))
+        again.setLiveTv(LiveSummary(available: true, allowed: true, channels: 3))
+        again.reset()
+        #expect(again.liveTv == nil && !again.sections.contains(.liveTv))
     }
 
     @Test func aToastsUndoRunsOnce() {

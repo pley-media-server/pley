@@ -8,14 +8,15 @@ import PleyNetwork
 /// typed is asked for once typing has paused 250 ms, and only the latest
 /// query's answer counts. The results already shown stay while the next
 /// ones load. Results come in groups, in order: People, Movies, Shows,
-/// Seasons, Episodes, Artists, Albums, Tracks, each with its count. Live
-/// TV's channels come with Live TV. A query is kept among the profile's
+/// Seasons, Episodes, Artists, Albums, Tracks, each with its count, then
+/// Live TV's channels (a dozen at most), which open the live player in
+/// All channels. A query is kept among the profile's
 /// last 10 searches when it is submitted or one of its results is opened.
 @MainActor
 public final class SearchModel: ObservableObject {
     /// The groups results come in, in the order they show.
     public enum GroupKind: String, CaseIterable, Sendable {
-        case people, movies, shows, seasons, episodes, artists, albums, tracks
+        case people, movies, shows, seasons, episodes, artists, albums, tracks, channels
 
         public var title: String {
             switch self {
@@ -27,13 +28,14 @@ public final class SearchModel: ObservableObject {
             case .artists: "Artists"
             case .albums: "Albums"
             case .tracks: "Tracks"
+            case .channels: "Live TV"
             }
         }
 
-        /// The kind of item the group holds; `nil` for people.
+        /// The kind of item the group holds; `nil` for people and channels.
         var itemKind: ItemKind? {
             switch self {
-            case .people: nil
+            case .people, .channels: nil
             case .movies: .movie
             case .shows: .show
             case .seasons: .season
@@ -47,21 +49,28 @@ public final class SearchModel: ObservableObject {
         /// How its tiles are shaped (people are circles).
         public var shape: RowShape {
             switch self {
-            case .episodes: .landscape
+            case .episodes, .channels: .landscape
             case .artists, .albums, .tracks: .square
             default: .poster
             }
         }
     }
 
-    /// One group of results: tiles for items, people for People.
+    /// One group of results: tiles for items, people for People, channels for Live TV.
     public struct Group: Identifiable, Hashable, Sendable {
         public var id: GroupKind { kind }
         public let kind: GroupKind
         public let tiles: [Tile]
         public let people: [PersonSummary]
+        public var channels: [LiveChannel] = []
 
-        public var count: Int { kind == .people ? people.count : tiles.count }
+        public var count: Int {
+            switch kind {
+            case .people: people.count
+            case .channels: channels.count
+            default: tiles.count
+            }
+        }
         /// "Movies, 3 results", for VoiceOver.
         public var spoken: String { "\(kind.title), \(Words.pluralize(count, "result"))" }
     }
@@ -83,6 +92,8 @@ public final class SearchModel: ObservableObject {
     public static let debounce: Duration = .milliseconds(250)
     /// How many items a search asks for.
     public static let limit = 40
+    /// How many channels show.
+    public nonisolated static let channels = 12
 
     /// What is typed now, as the field shows it.
     @Published public var query = "" {
@@ -164,6 +175,10 @@ public final class SearchModel: ObservableObject {
         GroupKind.allCases.compactMap { kind in
             if kind == .people {
                 return results.people.isEmpty ? nil : Group(kind: kind, tiles: [], people: results.people)
+            }
+            if kind == .channels {
+                let channels = Array(results.channels.prefix(channels))
+                return channels.isEmpty ? nil : Group(kind: kind, tiles: [], people: [], channels: channels)
             }
             let tiles = results.items.filter { $0.kind == kind.itemKind }.map { Tile($0, shape: kind.shape) }
             return tiles.isEmpty ? nil : Group(kind: kind, tiles: tiles, people: [])

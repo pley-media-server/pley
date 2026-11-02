@@ -16,9 +16,9 @@ import PleyNetwork
 @MainActor
 public final class LiveTvRepository: ObservableObject {
     /// Channels asked for at once, as the web asks.
-    public static let page = 100
+    public nonisolated static let page = 100
     /// The guide is fetched in chunks of six hours, a page of channels at a time.
-    public static let guideChunk: Int64 = 6 * 3600
+    public nonisolated static let guideChunk: Int64 = 6 * 3600
 
     /// Favourites set on this device, by channel: shown at once, before
     /// the server's own lists say so.
@@ -52,24 +52,22 @@ public final class LiveTvRepository: ObservableObject {
         return groups
     }
 
-    /// Page `page` (`LiveTvRepository.page` channels) of `category`'s channels matching `query`.
+    /// Page `page` (`LiveTvRepository.page` channels) of `category`'s
+    /// channels matching `query`, as the server has them (`marked` shows
+    /// the favourites set here).
     public func page(_ category: LiveCategory, query: String = "", page: Int) async throws -> LiveChannelPage {
-        var answer = try await api().liveBrowse(category, query: query, offset: page * Self.page, limit: Self.page)
-        answer.channels = answer.channels.map(marked)
-        return answer
+        try await api().liveBrowse(category, query: query, offset: page * Self.page, limit: Self.page)
     }
 
     /// The page of `category` that holds `channelId`: where a list opens
     /// again, and the channels either side of it.
     public func around(_ category: LiveCategory, channelId: Int) async throws -> LiveChannelPage {
-        var answer = try await api().liveBrowse(category, limit: Self.page, around: channelId)
-        answer.channels = answer.channels.map(marked)
-        return answer
+        try await api().liveBrowse(category, limit: Self.page, around: channelId)
     }
 
-    /// One channel, with what's on now and next.
+    /// One channel, with what's on now and next, as the server has it.
     public func channel(_ id: Int) async throws -> LiveChannel {
-        marked(try await api().liveChannel(id))
+        try await api().liveChannel(id)
     }
 
     /// The guide of the channels `ids` for `guideChunk` from `from` (a multiple of it, unix seconds).
@@ -80,7 +78,6 @@ public final class LiveTvRepository: ObservableObject {
     /// The channel numbered `number` exactly, of every channel; `nil` when none is.
     public func numbered(_ number: String) async throws -> LiveChannel? {
         try await api().liveBrowse(.all, query: number, limit: Self.page).channels.first { $0.number == number }
-            .map(marked)
     }
 
     /// `channel` with its favourite as set on this device.

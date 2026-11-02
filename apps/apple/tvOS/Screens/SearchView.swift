@@ -39,6 +39,8 @@ struct SearchView: View {
             ForEach(groups) { group in
                 if group.kind == .people {
                     peopleRow(group)
+                } else if group.kind == .channels {
+                    TVSearchChannels(app: app, group: group)
                 } else {
                     TileRow(app: app, key: group.kind.rawValue, title: "\(group.kind.title) (\(group.count))",
                             shape: group.kind.shape, tiles: group.tiles, prefix: "search.group") { tile in
@@ -140,5 +142,45 @@ struct SearchView: View {
         .focusSection()
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("search.group.people")
+    }
+}
+
+/// Live TV's channels found, in a row: each plays in All channels.
+private struct TVSearchChannels: View {
+    let app: AppModel
+    let group: SearchModel.Group
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("\(group.kind.title) (\(group.count))")
+                .font(.title3.bold())
+                .accessibilityAddTraits(.isHeader)
+                .padding(.horizontal, Metrics.gutter)
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 40) {
+                    ForEach(group.channels) { channel in
+                        Button {
+                            Task { await app.watchLive(LiveRequest(channelId: channel.id, category: .all), seen: channel) }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 10) {
+                                TVChannelLogo(app: app, channel: channel, size: 160)
+                                Text(channel.numberedName).font(.callout).lineLimit(1)
+                                if let on = channel.now {
+                                    Text(on.title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                }
+                            }
+                            .frame(width: 260, alignment: .leading)
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityIdentifier("search.channel.\(channel.id)")
+                    }
+                }
+                .padding(.horizontal, Metrics.gutter)
+                .padding(.vertical, 30)
+            }
+            .scrollClipDisabled()
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("search.group.channels")
     }
 }

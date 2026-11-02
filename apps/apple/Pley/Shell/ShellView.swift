@@ -36,7 +36,7 @@ struct ShellView: View {
         .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { sheet in
             ShellSheet(app: app, sheet: sheet)
         }
-        .accessibilityHidden(app.player != nil)
+        .accessibilityHidden(app.player != nil || app.livePlayer != nil)
     }
 
     // MARK: Tabs
@@ -53,7 +53,9 @@ struct ShellView: View {
     }
 
     private static func tab(_ section: ShellSection) -> ShellSection {
+        // A library, and Live TV, opened from the sidebar show under Libraries.
         if case .library = section { return .libraries }
+        if section == .liveTv { return .libraries }
         return section
     }
 
@@ -135,6 +137,7 @@ struct ShellView: View {
         case .search: SearchView(app: app)
         case .playlists: PlaylistsView(app: app)
         case .me, .settings: MeView(app: app)
+        case .liveTv: LiveTvView(app: app)
         }
     }
 
@@ -146,6 +149,7 @@ struct ShellView: View {
         case .playlists: "Playlists"
         case .me: "Me"
         case .settings: "Settings"
+        case .liveTv: "Live TV"
         case .library: "Library"
         }
     }
@@ -158,6 +162,7 @@ struct ShellView: View {
         case .playlists: "music.note.list"
         case .me: "person.crop.circle"
         case .settings: "gearshape"
+        case .liveTv: "tv"
         case .library: "folder"
         }
     }
@@ -183,7 +188,7 @@ private struct KeyboardShortcuts: View {
 }
 #endif
 
-/// The sidebar: Home, Search and Playlists, then the libraries in the profile's order, each
+/// The sidebar: Home, Live TV when it shows, Search and Playlists, then the libraries in the profile's order, each
 /// with its kind's symbol; a drag (or Edit on iPad, or VoiceOver's Move up
 /// and Move down) puts them in another order.
 private struct Sidebar: View {
@@ -203,6 +208,11 @@ private struct Sidebar: View {
             Label(ShellView.title(.home), systemImage: ShellView.symbol(.home))
                 .tag(ShellSection.home)
                 .accessibilityIdentifier("shell.sidebar.home")
+            if shell.showsLiveTv {
+                Label(ShellView.title(.liveTv), systemImage: ShellView.symbol(.liveTv))
+                    .tag(ShellSection.liveTv)
+                    .accessibilityIdentifier("shell.sidebar.liveTv")
+            }
             Label(ShellView.title(.search), systemImage: ShellView.symbol(.search))
                 .tag(ShellSection.search)
                 .accessibilityIdentifier("shell.sidebar.search")
@@ -291,6 +301,8 @@ struct ScreenView: View {
             AboutView()
         case .trackDefaults:
             MeView(app: app)
+        case .liveTv:
+            LiveTvView(app: app)
         }
     }
 }

@@ -41,6 +41,8 @@ public final class AppModel: ObservableObject {
         public var ceilings: (String) -> any CeilingMemory
         public var clock: any PlayerClock
         public var engines: @MainActor () -> any PlayerEngine
+        /// The live player's engine.
+        public var liveEngines: @MainActor () -> any LiveEngine
         /// The subtitle sync's offsets, per file and profile.
         public var subtitleOffsets: any SubtitleOffsets
 
@@ -49,6 +51,7 @@ public final class AppModel: ObservableObject {
                     ceilings: @escaping (String) -> any CeilingMemory = { DefaultsCeiling(origin: $0) },
                     clock: any PlayerClock = SystemPlayerClock(),
                     engines: @escaping @MainActor () -> any PlayerEngine = { AVPlayerEngine() },
+                    liveEngines: @escaping @MainActor () -> any LiveEngine = { AVLiveEngine() },
                     subtitleOffsets: any SubtitleOffsets = DefaultsSubtitleOffsets()) {
             self.clientId = clientId
             self.lateReports = lateReports
@@ -56,6 +59,7 @@ public final class AppModel: ObservableObject {
             self.ceilings = ceilings
             self.clock = clock
             self.engines = engines
+            self.liveEngines = liveEngines
             self.subtitleOffsets = subtitleOffsets
         }
     }
@@ -81,6 +85,8 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var homeVersion = 0
     /// The playback open, if any; the player screens show it.
     @Published public private(set) var player: PlaybackController?
+    /// The live player open, if any: one playback at a time, so it and `player` are never both open.
+    @Published public private(set) var livePlayer: LivePlayerModel?
     /// What changed on the server last (its events, gathered for 0.3 s,
     /// and this app's own writes): the screens showing it read it again.
     @Published public private(set) var change: ServerChange?
@@ -107,6 +113,8 @@ public final class AppModel: ObservableObject {
     public let shell: ShellModel
     /// The server's events, made into changes.
     public let serverEvents = ServerEvents()
+    /// Live TV on the open server, shared by its pages, Search and the live player.
+    public let live: LiveTvRepository
     /// The item actions and the marks they made.
     public private(set) lazy var actions = ItemActionsModel(app: self)
     /// The event stream of a server's API (the tests give their own).
@@ -145,6 +153,10 @@ public final class AppModel: ObservableObject {
         self.tv = tv
         shell = ShellModel(settings: settings, tv: tv)
         self.eventSignals = eventSignals
+        live = LiveTvRepository { [session] in
+            guard let api = await session.api else { throw PleyError.signedOut }
+            return api
+        }
         // One loader for the app, always with the open server's API.
         images = ImageLoader { [session] path, width in
             guard let api = await session.api else { throw PleyError.signedOut }
@@ -155,6 +167,10 @@ public final class AppModel: ObservableObject {
             self.actions.followed(change)
             self.change = change
             if change.libraries || change.everything { self.loadLibraries() }
+            if change.live || change.everything {
+                self.loadLiveTv()
+                self.live.refresh()
+            }
         }
         serverEvents.onScans = { [weak self] scans in self?.scans = scans }
         serverEvents.onSessionStopped = { [weak self] id, message, byAdmin in
@@ -240,6 +256,7 @@ public final class AppModel: ObservableObject {
     /// The sign-in moved to another profile: Home, as that profile.
     public func profileChanged() async {
         await closePlayer()
+        closeLivePlayer()
         if let api = await session.api, let user = try? await api.me() {
             self.user = user
             signedInNow(user)
@@ -257,6 +274,7 @@ public final class AppModel: ObservableObject {
     /// Ends the sign-in on the open server; the servers show.
     public func signOut() async {
         await closePlayer()
+        closeLivePlayer()
         stopEvents()
         await session.signOut()
         user = nil
@@ -350,6 +368,7 @@ public final class AppModel: ObservableObject {
     public func play(_ request: PlayRequest) async -> PlaybackController? {
         plays += 1
         let asked = plays
+        closeLivePlayer()
         await closePlayer()
         guard asked == plays, let user, let api = await session.api, let origin = await session.origin,
               asked == plays
@@ -376,6 +395,37 @@ public final class AppModel: ObservableObject {
         await current.close()
     }
 
+    /// Opens the live player on `request`'s channel, closing what played
+    /// before (a video, or another channel). `seen`: the channel as the
+    /// list showed it, so its name shows at once.
+    @discardableResult
+    public func watchLive(_ request: LiveRequest, seen: LiveChannel? = nil) async -> LivePlayerModel? {
+        plays += 1
+        let asked = plays
+        closeLivePlayer()
+        await closePlayer()
+        guard asked == plays, user != nil else { return nil }
+        let playback = LivePlayback(live: live, clientId: playerSetup.clientId, clock: playerSetup.clock,
+                                    engines: playerSetup.liveEngines)
+        let model = LivePlayerModel(request: request, live: live, playback: playback, seen: seen,
+                                    toast: { [weak self] text in self?.shell.show(text) })
+        livePlayer = model
+        return model
+    }
+
+    /// Closes the live player: its session ends at the server.
+    public func closeLivePlayer() {
+        guard let current = livePlayer else { return }
+        livePlayer = nil
+        current.close()
+    }
+
+    /// Live TV's page for the server and profile open.
+    public func liveTvModel() -> LiveTvModel {
+        LiveTvModel(live: live, settings: settings, origin: server?.origin ?? "", profileId: user?.id ?? 0,
+                    toast: { [weak self] text in self?.shell.show(text) })
+    }
+
     /// The reports of this server and profile that couldn't go out before:
     /// one queue per file, whoever asks for it.
     func lateReports(origin: String, profileId: Int) -> LateReports {
@@ -395,6 +445,7 @@ public final class AppModel: ObservableObject {
     public func sceneActive(_ active: Bool) {
         guard active != self.active else { return }
         self.active = active
+        livePlayer?.sceneActive(active)
         if active {
             startEvents()
             if user != nil { note(ServerChange(home: true, libraries: true, watchlist: true, everything: true)) }
@@ -431,6 +482,7 @@ public final class AppModel: ObservableObject {
     /// One of this profile's playbacks was stopped from elsewhere: the
     /// player showing it closes, and says why.
     private func sessionStopped(_ id: String, message: String?, byAdmin: Bool) {
+        // A live session's stop shows in its player, which asks why.
         guard let player, player.session?.id == id else { return }
         let text = player.stoppedByServer(message: message, byAdmin: byAdmin)
         shell.show(text)
@@ -492,6 +544,7 @@ public final class AppModel: ObservableObject {
         Task { await caps.warmUp() }
         startEvents()
         loadLibraries()
+        loadLiveTv()
         Task { await actions.loadWatchlist() }
         Task { [weak self] in
             guard let self, let api = await self.session.api, let origin = await self.session.origin else { return }
@@ -508,6 +561,19 @@ public final class AppModel: ObservableObject {
             guard let self, let api = await self.session.api,
                   let libraries = try? await api.libraries(), self.user != nil else { return }
             self.shell.setLibraries(libraries)
+        }
+    }
+
+    /// Whether Live TV shows, read at sign-in, at a profile change, when
+    /// the lineup changes and when the stream connects again.
+    private func loadLiveTv() {
+        guard user != nil else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            let summary = try? await self.live.summary()
+            guard self.user != nil else { return }
+            // Unknown when it couldn't be read: the entry waits rather than going.
+            if let summary { self.shell.setLiveTv(summary) }
         }
     }
 

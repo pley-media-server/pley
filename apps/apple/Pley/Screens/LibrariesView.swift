@@ -9,10 +9,12 @@ import SwiftUI
 /// and the iPad's in a narrow window; the sidebar lists them otherwise.
 struct LibrariesView: View {
     @ObservedObject private var app: AppModel
+    @ObservedObject private var shell: ShellModel
     @StateObject private var model: LibrariesModel
 
     init(app: AppModel) {
         self.app = app
+        shell = app.shell
         _model = StateObject(wrappedValue: LibrariesModel(app: app))
     }
 
@@ -52,6 +54,22 @@ struct LibrariesView: View {
             List {
                 if let notice = model.notice {
                     Text(asSentence(notice)).font(.footnote).foregroundStyle(.red)
+                }
+                if shell.showsLiveTv {
+                    // Live TV first, where the iPhone has no tab for it.
+                    NavigationLink(value: Screen.liveTv) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "tv").frame(width: 28).accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Live TV")
+                                Text("\(shell.liveTv?.channels ?? 0) channels")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("libraries.liveTv")
                 }
                 ForEach(model.entries) { entry in
                     NavigationLink(value: Screen.library(entry.id)) {

@@ -63,7 +63,7 @@ struct MacCommands: Commands {
     /// The View menu's sections: Search goes after Home, as in the sidebar.
     private var entries: [ShellModel.MenuEntry?] {
         var entries: [ShellModel.MenuEntry?] = shell.viewMenu
-        entries.insert(nil, at: min(1, entries.count))
+        entries.insert(nil, at: min(shell.showsLiveTv ? 2 : 1, entries.count))
         return entries
     }
 

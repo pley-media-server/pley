@@ -21,12 +21,14 @@ public struct ServerChange: Hashable, Sendable {
     public var watchlist = false
     /// The profile's playlists (this app's own changes: the server sends no event for them).
     public var playlists = false
+    /// Live TV's channels (a source added, refreshed or removed, or its access changed).
+    public var live = false
     /// Everything: the stream connected again, and what came meanwhile is unknown.
     public var everything = false
 
     public init(serial: Int = 0, home: Bool = false, libraries: Bool = false, libraryIds: Set<Int> = [],
                 itemIds: Set<Int> = [], parentIds: Set<Int> = [], watchlist: Bool = false, playlists: Bool = false,
-                everything: Bool = false) {
+                live: Bool = false, everything: Bool = false) {
         self.serial = serial
         self.home = home
         self.libraries = libraries
@@ -35,11 +37,12 @@ public struct ServerChange: Hashable, Sendable {
         self.parentIds = parentIds
         self.watchlist = watchlist
         self.playlists = playlists
+        self.live = live
         self.everything = everything
     }
 
     public var isEmpty: Bool {
-        !home && !libraries && libraryIds.isEmpty && itemIds.isEmpty && !watchlist && !playlists && !everything
+        !home && !libraries && libraryIds.isEmpty && itemIds.isEmpty && !watchlist && !playlists && !live && !everything
     }
 
     /// Whether a screen showing `itemId` (whose parent is `parentId`, if any) fetches it again.
@@ -59,6 +62,7 @@ public struct ServerChange: Hashable, Sendable {
         parentIds.formUnion(other.parentIds)
         watchlist = watchlist || other.watchlist
         playlists = playlists || other.playlists
+        live = live || other.live
         everything = everything || other.everything
     }
 }
@@ -155,7 +159,9 @@ public final class ServerEvents {
             gather(ServerChange(home: true, libraries: true, libraryIds: [id]))
         case .sessionStopped(let id, let message, let byAdmin):
             onSessionStopped(id, message, byAdmin)
-        case .sessionsChanged, .liveChannelsChanged, .liveTunersChanged, .unknown:
+        case .liveChannelsChanged:
+            gather(ServerChange(live: true))
+        case .sessionsChanged, .liveTunersChanged, .unknown:
             break
         }
     }

@@ -1,8 +1,9 @@
 import PleyScreens
 import SwiftUI
 
-/// The signed-in app on Apple TV: tabs across the top, Search, Home, a tab
-/// per library (or one Libraries tab when there are more than four),
+/// The signed-in app on Apple TV: seven tabs at most across the top,
+/// Search, Home, Live TV when it shows, a tab per library while they fit
+/// (the first that fit, and a Libraries tab for the rest, otherwise),
 /// Playlists and Settings (which holds the profile, the server, Switch
 /// profile, History, Servers and Sign out, and the device's settings). Each tab keeps its own navigation; Menu goes back
 /// through it, then to the tabs, then out of the app. Add to playlist and
@@ -30,7 +31,7 @@ struct ShellView: View {
         .fullScreenCover(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { sheet in
             ShellSheet(app: app, sheet: sheet)
         }
-        .accessibilityHidden(app.player != nil)
+        .accessibilityHidden(app.player != nil || app.livePlayer != nil)
     }
 
     /// `section`'s navigation: its start, with the pages opened from it on top.
@@ -52,6 +53,7 @@ struct ShellView: View {
         case .search: SearchView(app: app)
         case .playlists: PlaylistsView(app: app)
         case .settings, .me: SettingsView(app: app)
+        case .liveTv: LiveTvView(app: app)
         }
     }
 
@@ -77,6 +79,7 @@ struct ShellView: View {
         case .playlists: "Playlists"
         case .me: "Me"
         case .settings: "Settings"
+        case .liveTv: "Live TV"
         case .library: "Library"
         }
     }
@@ -89,6 +92,7 @@ struct ShellView: View {
         case .playlists: "music.note.list"
         case .me: "person.crop.circle"
         case .settings: "gearshape"
+        case .liveTv: "tv"
         case .library: "folder"
         }
     }
@@ -127,6 +131,8 @@ struct ScreenView: View {
             AboutView()
         case .settings, .trackDefaults:
             SettingsView(app: app)
+        case .liveTv:
+            LiveTvView(app: app)
         }
     }
 }
