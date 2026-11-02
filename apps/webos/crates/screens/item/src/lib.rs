@@ -7,6 +7,7 @@ mod common;
 mod item;
 mod page;
 mod person;
+mod request;
 mod words;
 
 use pley_shell::{AppCx, Route, Screen};

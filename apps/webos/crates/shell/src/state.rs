@@ -789,6 +789,12 @@ impl AppState {
         self.requests_task = Some(Pending { generation, promise: self.spawn(|api| api.request_summary()) });
     }
 
+    /// Something done here changed requests for one title (`kind:tmdb_id`), or for many: the
+    /// pages that show them hear [`AppEvent::RequestsChanged`] once, as after the server's events.
+    pub fn requests_changed(&mut self, title: Option<String>) {
+        self.requests.changed(title, self.now);
+    }
+
     /// The ready-to-watch notice to show next.
     pub fn request_notice(&self) -> Option<&RequestNotice> {
         self.requests.notice()
@@ -825,7 +831,6 @@ impl AppState {
                         if news.catch_up {
                             self.catch_up();
                         }
-                        self.out.push(AppEvent::Changed);
                     }
                     Err(e) if e.is(404) || e.is(403) => {
                         self.requests.missing = true;

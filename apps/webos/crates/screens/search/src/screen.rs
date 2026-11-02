@@ -13,13 +13,16 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use pley_base::{Icon, ImageState, Key, Point, Rect, Size, TextOpts};
-use pley_core::model::{LiveCategory, LiveChannel};
+use pley_core::model::{LiveCategory, LiveChannel, SignInAgain};
+use pley_core::requests::{may_ask, problem_words, requests_problem, search_text};
 use pley_core::store::keys;
 use pley_core::{ApiError, Promise, Store};
 use pley_kit::{
     Badge, BadgeStyle, Button, ColumnState, Keyboard, KeyboardState, ProgressBar, Row, RowColumn, RowState, SCROLL,
-    Section, SlotMode, TextEdit, TextField, Tile, TileKind, TileSlot, bar_group, inert, placeholder, skeleton_row,
+    Section, SlotMode, TextEdit, TextField, Tile, TileKind, TileSlot, bar_group, first_art, inert, placeholder,
+    skeleton_row,
 };
+use pley_requests::title_badge;
 use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen};
 use pley_ui::theme::{self, radius};
 use pley_ui::{Dir, Edge, Group, Id, ImageOpts, Motion, Ui};
@@ -27,8 +30,10 @@ use pley_ui::{Dir, Edge, Group, Id, ImageOpts, Motion, Ui};
 use crate::query::{LIMIT, Query, Shown};
 use crate::recent::Recents;
 use crate::results::{
-    ChannelResult, Found, Group as ResultGroup, ResultTile, Widths, channel_caption, channel_progress,
+    ChannelResult, Found, Group as ResultGroup, ResultTile, TmdbTile, Widths, channel_caption, channel_progress,
+    read_tmdb, tmdb_tile,
 };
+use crate::tmdb::{OnTmdb, TmdbState};
 
 /// The field's top-left corner: the gutter, the safe area's top.
 pub const FIELD_AT: Point = Point::new(theme::GUTTER, theme::SAFE_Y);
@@ -91,6 +96,33 @@ pub const RETRY: &str = "Retry";
 /// The keyboard's action key (`ImeAction.Search`).
 pub const KEYBOARD_ACTION: &str = "Search";
 
+/// The header of the row of what TMDB has that the libraries lack.
+pub const DISCOVER: &str = "Discover";
+/// The tile after Discover's titles, which opens everything TMDB has for the words.
+pub const SEE_ALL: &str = "See all";
+/// The line over the Discover row when the libraries have nothing.
+pub const NONE_IN_LIBRARIES: &str = "Nothing in your libraries matches";
+/// Why the Discover row is empty when TMDB's search failed for a reason that isn't requests'.
+pub const TMDB_FAILED: &str = "Couldn't search TMDB";
+/// The sections after the libraries' rows: the line, the Discover row.
+const NONE_KEY: u64 = 100;
+const TMDB_KEY: u64 = 101;
+/// The line's height.
+const NONE_HEIGHT: f32 = 20.0;
+/// The Discover row saying why TMDB didn't answer: its header, the problem in a line and why in
+/// up to two, and Retry.
+fn tmdb_problem_height() -> f32 {
+    theme::ROW_HEADER_HEIGHT
+        + theme::HEADER_TO_TILES
+        + theme::TITLE.line_height
+        + 4.0
+        + 2.0 * theme::BODY.line_height
+        + 16.0
+        + theme::BUTTON_HEIGHT
+}
+/// The skeleton posters while TMDB answers.
+const TMDB_SKELETONS: usize = 7;
+
 /// `No results for “north”`.
 pub fn none_title(query: &str) -> String {
     format!("No results for \u{201c}{query}\u{201d}")
@@ -109,6 +141,8 @@ enum Act {
     Recent(String),
     Clear,
     Retry,
+    /// TMDB's search again, after it failed.
+    RetryTmdb,
 }
 
 /// The ids of the page's parts.
@@ -121,6 +155,9 @@ struct Ids {
     retry_row: Id,
     retry: Id,
     keyboard: Id,
+    tmdb_row: Id,
+    tmdb_retry_row: Id,
+    tmdb_retry: Id,
 }
 
 impl Ids {
@@ -137,6 +174,9 @@ impl Ids {
             retry_row: base.with("retry-row"),
             retry: base.with("retry"),
             keyboard: base.with("keyboard"),
+            tmdb_row: base.with(("results", turn)).with("tmdb"),
+            tmdb_retry_row: base.with("tmdb-retry-row"),
+            tmdb_retry: base.with("tmdb-retry"),
         }
     }
 
@@ -158,7 +198,13 @@ struct View {
     rows: [RowState; 9],
     /// How far the chips are moved left.
     chips: f32,
+    /// The Discover row, and the turn of its words it was laid out for.
+    tmdb: RowState,
+    tmdb_turn: Option<u64>,
 }
+
+/// TMDB's titles for the Discover row, made into tiles on the task pool.
+type TmdbAnswer = Promise<Result<Vec<TmdbTile>, ApiError>>;
 
 /// The Search page.
 pub struct SearchScreen {
@@ -178,6 +224,14 @@ pub struct SearchScreen {
     unreachable: bool,
     /// Focus goes to the field at the next frame (a chip chosen, the history cleared, Retry).
     focus_field: bool,
+    /// What TMDB has for the words, for the Discover row.
+    tmdb: OnTmdb,
+    /// TMDB's answer on its way, made into tiles on the task pool, with the words it answers.
+    tmdb_request: Option<(String, TmdbAnswer)>,
+    /// Requests or the libraries changed: the titles shown are asked again for their badges.
+    tmdb_stale: bool,
+    /// The pictures' widths on this screen, measured as it draws.
+    widths: Option<Widths>,
 }
 
 impl SearchScreen {
@@ -199,6 +253,10 @@ impl SearchScreen {
             view: View::default(),
             unreachable: false,
             focus_field: false,
+            tmdb: OnTmdb::new(),
+            tmdb_request: None,
+            tmdb_stale: false,
+            widths: None,
         }
     }
 
@@ -222,6 +280,8 @@ impl SearchScreen {
         if self.generation.is_some() {
             self.request = None;
             self.query.restart(cx.now);
+            self.tmdb.clear();
+            self.tmdb_request = None;
         }
         self.generation = Some(generation);
         let key = match (cx.state.server(), cx.state.profile()) {
@@ -267,6 +327,41 @@ impl SearchScreen {
         self.request = Some((query, promise));
     }
 
+    /// Asks TMDB for `words`, pages in turn until the row has its titles, without the libraries'
+    /// whole titles; they become tiles on the task pool.
+    fn ask_tmdb(&mut self, cx: &AppCx, words: String) {
+        let Some(widths) = self.widths else { return };
+        let asked = words.clone();
+        let promise = cx.spawn(move |api| {
+            let titles = read_tmdb(|n| api.discover_search(&asked, n, true))?;
+            Ok(titles.iter().map(|t| tmdb_tile(t, &|path, kind| Some(api.image(path, widths.of(kind))))).collect())
+        });
+        self.tmdb_request = Some((words, promise));
+    }
+
+    /// TMDB's answer, when it has come. Focus on Retry, which goes with the problem, moves to the
+    /// titles in its place, else to the field.
+    fn collect_tmdb(&mut self, ui: &mut Ui, ids: &Ids) {
+        let Some((_, promise)) = self.tmdb_request.as_mut() else { return };
+        let answer = match promise.take() {
+            Some(answer) => answer,
+            None if promise.failed() => Err(ApiError::Unreadable("the request stopped".into())),
+            None => return,
+        };
+        let Some((words, _)) = self.tmdb_request.take() else { return };
+        self.tmdb.answered(&words, answer);
+        ui.request_repaint();
+        if ui.focused() == Some(ids.tmdb_retry) {
+            match self.tmdb.shown(&words) {
+                Some(TmdbState::Failed(_)) => {}
+                Some(TmdbState::Ready(tiles)) if !tiles.is_empty() => {
+                    ui.request_focus(ids.tmdb_row.with(tiles[0].key()));
+                }
+                _ => self.focus_field = true,
+            }
+        }
+    }
+
     /// Keeps `query` first among the profile's recent searches.
     fn remember(&mut self, cx: &AppCx, query: &str) {
         self.recents.remember(cx.tasks(), query);
@@ -281,7 +376,7 @@ impl SearchScreen {
     fn act(&mut self, act: Act, cx: &mut AppCx, now: f64) {
         match act {
             Act::Open(route) => {
-                if let Some(q) = self.query.shown_query().map(str::to_owned) {
+                if let Some(q) = self.query.answered_query().map(str::to_owned) {
                     self.remember(cx, &q);
                 }
                 cx.push(route);
@@ -308,6 +403,11 @@ impl SearchScreen {
             Act::Retry => {
                 self.query.retry(now);
                 self.focus_field = true;
+            }
+            Act::RetryTmdb => {
+                if let Some(words) = self.tmdb.retry() {
+                    self.ask_tmdb(cx, words);
+                }
             }
         }
     }
@@ -399,8 +499,28 @@ impl Screen for SearchScreen {
         claim_typed_digits(ui);
         self.follow(cx);
         self.collect(cx, now);
+        self.widths = Some(Widths::new(|w| ui.image_px(w)));
+        let asks = asks_tmdb(cx);
         if let Some(q) = self.query.ask(now) {
+            // Discover's row is asked beside the libraries, with the same pause, so it never
+            // holds them up.
+            if asks && let Some(words) = self.tmdb.want(&search_text(&q)) {
+                self.ask_tmdb(cx, words);
+            }
             self.ask(ui, cx, q);
+        }
+        if asks {
+            // Requests opened to the profile after the libraries were asked; requests or the
+            // libraries changed under the titles shown.
+            let latest = self.query.asking().or(self.query.answered_query()).map(search_text);
+            if let Some(words) = latest.and_then(|w| self.tmdb.want(&w)) {
+                self.ask_tmdb(cx, words);
+            }
+            if std::mem::take(&mut self.tmdb_stale)
+                && let Some(words) = self.tmdb.refresh()
+            {
+                self.ask_tmdb(cx, words);
+            }
         }
         if let Some(due) = self.query.due() {
             ui.repaint_after((due - now).max(0.0));
@@ -411,7 +531,14 @@ impl Screen for SearchScreen {
             self.view = View { turn: Some(turn), ..View::default() };
         }
 
+        if self.view.tmdb_turn != Some(self.tmdb.turn()) {
+            // Other words: the Discover row opens at its first title.
+            self.view.tmdb = RowState::default();
+            self.view.tmdb_turn = Some(self.tmdb.turn());
+        }
+
         let ids = Ids::new(ui.scope_id(), turn);
+        self.collect_tmdb(ui, &ids);
         ui.initial_focus(ids.field);
         if std::mem::take(&mut self.focus_field) {
             ui.request_focus(ids.field);
@@ -429,11 +556,18 @@ impl Screen for SearchScreen {
                 skeletons(ui);
                 None
             }
-            Shown::Ready { found, .. } => results(ui, &ids, found, &mut self.view, &mut act),
-            Shown::Empty { query } => {
-                notice(ui, &none_title(query), NONE_BODY, 0);
-                None
+            Shown::Ready { found, query } => {
+                let discover = Discover::of(asks, &self.tmdb, query, cx);
+                results(ui, &ids, Some(found), discover.as_ref(), &mut self.view, &mut act)
             }
+            Shown::Empty { query } => match Discover::of(asks, &self.tmdb, query, cx) {
+                // Nothing in the libraries: the line saying so, over what TMDB has.
+                Some(discover) => results(ui, &ids, None, Some(&discover), &mut self.view, &mut act),
+                None => {
+                    notice(ui, &none_title(query), NONE_BODY, 0);
+                    None
+                }
+            },
             Shown::Failed { error, .. } => failed(ui, &ids, error, &mut act),
         };
         self.field(ui, &ids, below, now);
@@ -445,6 +579,9 @@ impl Screen for SearchScreen {
         // A request whose answer no longer counts (the field emptied) stops, saying nothing.
         if self.request.as_ref().is_some_and(|(q, _)| self.query.asking() != Some(q.as_str())) {
             self.request = None;
+        }
+        if self.tmdb_request.as_ref().is_some_and(|(w, _)| self.tmdb.asking() != Some(w.as_str())) {
+            self.tmdb_request = None;
         }
     }
 
@@ -460,7 +597,16 @@ impl Screen for SearchScreen {
 
     fn event(&mut self, event: &AppEvent, cx: &mut AppCx) {
         match event {
-            AppEvent::Changed => self.query.refresh(cx.now),
+            AppEvent::Changed => {
+                self.query.refresh(cx.now);
+                self.tmdb_stale = true;
+            }
+            // A title's badge may have changed: asked again when it is among those shown.
+            AppEvent::RequestsChanged { title } => {
+                if title.as_deref().is_none_or(|t| self.tmdb.holds(t)) {
+                    self.tmdb_stale = true;
+                }
+            }
             AppEvent::LiveChanged => {
                 if let Shown::Ready { found, .. } = self.query.shown()
                     && !found.channels.is_empty()
@@ -591,32 +737,62 @@ fn recents(ui: &mut Ui, ids: &Ids, recents: &[String], offset: &mut f32, act: &m
     Some(ui.remembered(ids.chips).filter(there).unwrap_or(first))
 }
 
-/// The results as rows from y 96, each header moving up to that line while its row has focus.
-/// Returns what Down from the field goes to: the first row, at the tile it had last while that is
-/// still found, else at its first.
-fn results(ui: &mut Ui, ids: &Ids, found: &Found, view: &mut View, act: &mut Option<Act>) -> Option<Id> {
-    let groups = found.groups();
-    let sections: Vec<Section> =
+/// The results as rows from y 96, each header moving up to that line while its row has focus,
+/// then the Discover row (with nothing in the libraries, under the line saying so). Returns what
+/// Down from the field goes to: the first row, at the tile it had last while that is still found,
+/// else at its first.
+fn results(
+    ui: &mut Ui,
+    ids: &Ids,
+    found: Option<&Found>,
+    discover: Option<&Discover>,
+    view: &mut View,
+    act: &mut Option<Act>,
+) -> Option<Id> {
+    let groups = found.map_or_else(Vec::new, Found::groups);
+    let mut sections: Vec<Section> =
         groups.iter().map(|g| Section::new(g.index() as u64, g.tile().row_height(true), Some(ROWS_TOP))).collect();
+    if let Some(d) = discover {
+        // Under the line, where it is, so that the line stays in sight.
+        let anchor = if groups.is_empty() {
+            sections.push(Section::new(NONE_KEY, NONE_HEIGHT, Some(ROWS_TOP)));
+            ROWS_TOP + NONE_HEIGHT + theme::ROW_GAP
+        } else {
+            ROWS_TOP
+        };
+        sections.push(Section::new(TMDB_KEY, d.height(), Some(anchor)));
+    }
     let now = unix_now();
-    if !found.channels.is_empty() {
+    if found.is_some_and(|f| !f.channels.is_empty()) {
         ui.repaint_after(NOW_TICK);
     }
-    let rows = &mut view.rows;
+    let (rows, tmdb_row) = (&mut view.rows, &mut view.tmdb);
     RowColumn::new(ROWS_TOP).clip_above(Some(ROWS_CLIP)).show(
         ui,
         ids.column,
         &mut view.column,
         &sections,
-        |ui, i, top| {
-            let group = groups[i];
-            let (id, state) = (ids.row(group), &mut rows[group.index()]);
-            match group {
-                ResultGroup::Live => channel_row(ui, id, state, top, &found.channels, now, act),
-                _ => tile_row(ui, id, state, top, group, found.tiles(group), act),
+        |ui, i, top| match (sections[i].key, found, discover) {
+            (NONE_KEY, ..) => {
+                let width = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
+                let at = Point::new(theme::GUTTER, top);
+                ui.text(at, NONE_IN_LIBRARIES, &theme::BODY, &TextOpts::line(width), theme::MUTED);
             }
+            (TMDB_KEY, _, Some(d)) => discover_row(ui, ids, tmdb_row, top, d, act),
+            (_, Some(found), _) => {
+                let group = groups[i];
+                let (id, state) = (ids.row(group), &mut rows[group.index()]);
+                match group {
+                    ResultGroup::Live => channel_row(ui, id, state, top, &found.channels, now, act),
+                    _ => tile_row(ui, id, state, top, group, found.tiles(group), act),
+                }
+            }
+            _ => {}
         },
     );
+    let Some(found) = found.filter(|_| !groups.is_empty()) else {
+        return discover.and_then(|d| d.down_to(ui, ids));
+    };
     let first = *groups.first()?;
     let row = ids.row(first);
     let tile = |key: i64| row.with(key as u64);
@@ -632,6 +808,145 @@ fn results(ui: &mut Ui, ids: &Ids, found: &Found, view: &mut View, act: &mut Opt
         }
     };
     Some(last.filter(|_| there).unwrap_or(tile(key)))
+}
+
+/// Whether the Discover row shows: requests are open to the profile, and this sign-in may ask.
+fn asks_tmdb(cx: &AppCx) -> bool {
+    let s = cx.state.request_summary();
+    may_ask(s) && s.is_none_or(|s| s.sign_in_again != Some(SignInAgain::Requests))
+}
+
+/// The Discover row after the libraries' rows, for the words of the results shown.
+struct Discover<'a> {
+    words: String,
+    /// `None` before TMDB was asked for the words: grey wells, as while it answers.
+    state: Option<&'a TmdbState>,
+    /// The sign-in manages requests: why requests can't be used says what to do about it.
+    manage: bool,
+}
+
+impl<'a> Discover<'a> {
+    /// The row for the results of `query`, unless the profile may not ask or TMDB has nothing.
+    fn of(asks: bool, tmdb: &'a OnTmdb, query: &str, cx: &AppCx) -> Option<Discover<'a>> {
+        let words = search_text(query);
+        let state = tmdb.shown(&words);
+        (asks && !words.is_empty() && crate::tmdb::shows(state)).then(|| Discover {
+            words,
+            state,
+            manage: cx.state.request_summary().is_some_and(|s| s.manage),
+        })
+    }
+
+    fn height(&self) -> f32 {
+        match self.state {
+            Some(TmdbState::Failed(_)) => tmdb_problem_height(),
+            _ => TileKind::Poster.row_height(true),
+        }
+    }
+
+    /// What Down from the field goes to when the row comes first: its tile focused last while
+    /// that is still there, else its first; Retry; nothing while it comes.
+    fn down_to(&self, ui: &Ui, ids: &Ids) -> Option<Id> {
+        match self.state {
+            Some(TmdbState::Ready(tiles)) => {
+                let last = ui.remembered(ids.tmdb_row);
+                let see_all = ids.tmdb_row.with(u64::MAX);
+                let there = |id: &Id| *id == see_all || tiles.iter().any(|t| ids.tmdb_row.with(t.key()) == *id);
+                let first = tiles.first().map_or(see_all, |t| ids.tmdb_row.with(t.key()));
+                Some(last.filter(there).unwrap_or(first))
+            }
+            Some(TmdbState::Failed(e)) => tmdb_problem(e, self.manage).2.then_some(ids.tmdb_retry),
+            _ => None,
+        }
+    }
+}
+
+/// Why TMDB's search didn't answer, in a line and a sentence, and whether Retry may help: what
+/// requests say of it, else the server's words.
+fn tmdb_problem(e: &ApiError, manage: bool) -> (String, String, bool) {
+    match problem_words(&requests_problem(e), manage) {
+        Some(w) => (w.title.into(), w.body.into(), w.retry),
+        None => {
+            let title = if e.unreachable() { CANT_REACH } else { TMDB_FAILED };
+            (title.into(), e.problem().chars().take(PROBLEM_CHARS).collect(), true)
+        }
+    }
+}
+
+/// The Discover row: TMDB's titles badged, and See all for everything TMDB has for the words;
+/// grey wells while they come; why TMDB didn't answer, with Retry where it may help.
+fn discover_row(ui: &mut Ui, ids: &Ids, state: &mut RowState, top: f32, d: &Discover, act: &mut Option<Act>) {
+    let width = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
+    match d.state {
+        Some(TmdbState::Ready(tiles)) => {
+            let kind = TileKind::Poster;
+            let r = Row::new(kind, top).header(DISCOVER).long_press(false).show(
+                ui,
+                ids.tmdb_row,
+                state,
+                tiles.len() + 1,
+                |i| tiles.get(i).map_or(u64::MAX, TmdbTile::key),
+                |ui, slot| match tiles.get(slot.index) {
+                    Some(t) => paint_tmdb_tile(ui, slot, t),
+                    None => Tile::see_all(kind, SEE_ALL).paint(ui, slot),
+                },
+            );
+            if let Some(i) = r.activated {
+                let route = match tiles.get(i) {
+                    Some(t) => t.opens(),
+                    None => Route::DiscoverSearch { query: d.words.clone() },
+                };
+                *act = Some(Act::Open(route));
+            }
+        }
+        Some(TmdbState::Failed(e)) => {
+            ui.text(Point::new(theme::GUTTER, top), DISCOVER, &theme::SECTION, &TextOpts::line(width), theme::FG);
+            let (title, body, retry) = tmdb_problem(e, d.manage);
+            let mut y = top + theme::ROW_HEADER_HEIGHT + theme::HEADER_TO_TILES;
+            ui.text(Point::new(theme::GUTTER, y), &title, &theme::TITLE, &TextOpts::line(width), theme::FG);
+            y += theme::TITLE.line_height + 4.0;
+            ui.text(Point::new(theme::GUTTER, y), &body, &theme::BODY, &TextOpts::wrap(width, 2), theme::MUTED);
+            y += 2.0 * theme::BODY.line_height + 16.0;
+            if retry {
+                let pill = Button::pill(RETRY).icon(Icon::RefreshCw);
+                let at = Point::new(theme::GUTTER, y);
+                let r = ui.group(ids.tmdb_retry_row, bar_group(), |ui| pill.show(ui, ids.tmdb_retry, at));
+                if r.activated {
+                    *act = Some(Act::RetryTmdb);
+                }
+            }
+        }
+        _ => {
+            ui.text(Point::new(theme::GUTTER, top), DISCOVER, &theme::SECTION, &TextOpts::line(width), theme::FG);
+            let y = top + theme::ROW_HEADER_HEIGHT;
+            skeleton_row(ui, y, Size::new(0.0, 0.0), theme::HEADER_TO_TILES, TileKind::Poster, TMDB_SKELETONS);
+        }
+    }
+}
+
+/// A TMDB title's poster, with its badge at the upper left in the badge's colour.
+fn paint_tmdb_tile(ui: &mut Ui, slot: &TileSlot, t: &TmdbTile) {
+    let tile = Tile::new(TileKind::Poster, &t.title).subtitle(&t.subtitle).art(&t.art);
+    let Some(badge) = t.badge.filter(|_| slot.mode == SlotMode::Draw) else {
+        tile.paint(ui, slot);
+        return;
+    };
+    let priority = slot.priority;
+    let well = |ui: &mut Ui, rect: Rect| {
+        let r = TileKind::Poster.radius();
+        let shown = first_art(ui, &t.art, priority);
+        if shown.is_some_and(|s| s.opaque()) {
+            ui.fill(rect, theme::SURFACE2, r);
+        } else {
+            placeholder(ui, rect, &t.title, &t.title, r);
+        }
+        if let Some(s) = shown {
+            ui.draw_image(rect, &s, &ImageOpts::cover().rounded(r));
+        }
+        ui.stroke(rect.expand(-0.5), theme::TILE_HAIRLINE, radius::TILE - 0.5, 1.0);
+        title_badge(ui, rect, badge, t.tone);
+    };
+    tile.custom(&well).paint(ui, slot);
 }
 
 /// A row of people or titles: Select opens one; on titles, OK held or the menu key opens its

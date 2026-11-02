@@ -57,7 +57,10 @@ fn the_server_and_its_metadata() {
     let grants: Vec<&str> =
         metadata["grant_types_supported"].as_array().unwrap().iter().map(|g| g.as_str().unwrap()).collect();
     assert!(grants.contains(&DEVICE_GRANT) && grants.contains(&SWITCH_PROFILE));
-    assert_eq!(metadata["scopes_supported"], serde_json::json!(["library", "play", "playlists", "profiles"]));
+    assert_eq!(
+        metadata["scopes_supported"],
+        serde_json::json!(["library", "play", "playlists", "profiles", "requests", "approvals"])
+    );
     assert_eq!(send(server.url(), "GET", "/.well-known/other", &[], b"").status, 404);
 }
 

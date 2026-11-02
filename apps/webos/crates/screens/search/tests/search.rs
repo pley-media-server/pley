@@ -7,10 +7,13 @@ use std::time::{Duration, Instant};
 use pley_base::{DisplayList, Key, KeyEvent, Waker};
 use pley_core::auth::{StoredTokens, TokenAnswerParsed, Tokens};
 use pley_core::media::NullEngine;
-use pley_core::model::LiveCategory;
+use pley_core::model::{LiveCategory, TitleKind};
 use pley_core::{Device, FakeDevice, Http, PlayerEngine, Store, Tasks};
-use pley_fixtures::{FixtureServer, Mode, Options, ids};
-use pley_search::screen::{CANT_REACH, EMPTY_TITLE, KEYBOARD_ACTION, NONE_BODY, RECENT, RETRY, SEARCHING, none_title};
+use pley_fixtures::{FixtureServer, Mode, Options, ids, request_titles};
+use pley_search::screen::{
+    CANT_REACH, DISCOVER, EMPTY_TITLE, KEYBOARD_ACTION, NONE_BODY, NONE_IN_LIBRARIES, RECENT, RETRY, SEARCHING,
+    none_title,
+};
 use pley_shell::{AppState, NavCommand, Registry, Route, Shell};
 use pley_ui::testing::{StubImages, StubShaper};
 use pley_ui::{FrameInput, Id, InputEvent, Ui, UiState};
@@ -377,6 +380,40 @@ fn a_digit_that_brings_its_text_too_types_once() {
     assert!(app.typing());
     app.digit_with_text(2);
     assert!(app.says("4172") && !app.says("41722"));
+}
+
+#[test]
+fn what_tmdb_has_that_the_libraries_lack_shows_under_them_and_opens_its_page() {
+    let mut app = App::new();
+    assert!(app.until(|a| a.state.request_summary().is_some()), "the requests' summary never came");
+    // A movie Sam asked for: no library has it.
+    app.type_text("moons");
+    app.shows("Paper Moons");
+    assert!(app.says(NONE_IN_LIBRARIES) && app.says(DISCOVER));
+    assert!(app.says("Requested"), "badged");
+    assert!(!app.says(&none_title("moons")), "TMDB's row takes the place of the notice");
+    app.press(Key::Down);
+    app.press(Key::Ok);
+    let paper = Route::Title { kind: TitleKind::Movie, tmdb_id: request_titles::PENDING, pick: false };
+    assert_eq!(app.top(), &paper);
+    assert!(app.kept(&["moons"]));
+    // Back to the row; See all after its titles opens everything TMDB has for the words.
+    app.press(Key::Back);
+    assert!(app.until(|a| a.says("Paper Moons")));
+    app.press(Key::Right);
+    app.press(Key::Ok);
+    assert_eq!(app.top(), &Route::DiscoverSearch { query: "moons".into() });
+}
+
+#[test]
+fn without_requests_nothing_found_says_so_alone() {
+    let mut app = App::new();
+    app.server.set_requests(false);
+    app.state.load_requests(false);
+    assert!(app.until(|a| a.state.request_summary().is_some_and(|s| !s.enabled)), "requests never went off");
+    app.type_text("zzqx");
+    app.shows(&none_title("zzqx"));
+    assert!(!app.says(DISCOVER) && !app.says(NONE_IN_LIBRARIES));
 }
 
 #[test]

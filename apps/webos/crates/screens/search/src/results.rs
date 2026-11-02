@@ -1,12 +1,18 @@
 //! What a search found, sorted into the page's rows (`SearchViewModel.searchGroups` and the TV
 //! app's `GROUPS` in `search.tsx`), what each tile says and shows (`ArtworkTileModel.of`,
-//! `ArtworkCandidates`), and where a result opens (`SearchViewModel.opens`).
+//! `ArtworkCandidates`), and where a result opens (`SearchViewModel.opens`); then what TMDB has for
+//! the words that the libraries lack, as the Discover row after them shows it (`search.tsx`).
 
 use pley_base::ImageRequest;
+use pley_core::ApiError;
 use pley_core::format::{
     card_subtitle, episode_label, format_time_left, is_in_progress, progress_fraction, unwatched_count,
 };
-use pley_core::model::{ItemKind, ItemSummary, LiveChannel, LiveProgram, PersonSummary, SearchResults};
+use pley_core::model::{
+    DiscoverPage, DiscoverTitle, ItemKind, ItemSummary, LiveChannel, LiveProgram, PersonSummary, SearchResults,
+    TitleKind,
+};
+use pley_core::requests::{Tone, add_titles, title_badge, title_subtitle, title_tone};
 use pley_kit::TileKind;
 use pley_shell::Route;
 
@@ -340,6 +346,73 @@ pub const NOTHING_NOW: &str = "Nothing in the guide now";
 /// A channel without a guide.
 pub const NO_GUIDE: &str = "No guide for this channel";
 
+/// The Discover row shows up to 20 titles, from at most 3 of TMDB's pages (an age limit can leave
+/// a page empty), as the web's does.
+pub const TMDB_TITLES: usize = 20;
+pub const TMDB_PAGES: i64 = 3;
+
+/// A title TMDB has for the words that the libraries lack, as Discover's row shows it: a poster
+/// with its badge ("In library", "Requested"…) in the badge's colour, its name over its year and
+/// kind.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TmdbTile {
+    pub kind: TitleKind,
+    pub tmdb_id: i64,
+    pub title: String,
+    pub subtitle: String,
+    pub art: Vec<ImageRequest>,
+    pub badge: Option<&'static str>,
+    pub tone: Tone,
+}
+
+impl TmdbTile {
+    /// What names it in its row: TMDB numbers movies and shows apart.
+    pub fn key(&self) -> u64 {
+        ((self.tmdb_id as u64) << 1) | u64::from(self.kind == TitleKind::Show)
+    }
+
+    /// Its page, Request and all.
+    pub fn opens(&self) -> Route {
+        Route::Title { kind: self.kind, tmdb_id: self.tmdb_id, pick: false }
+    }
+}
+
+/// A TMDB title as a tile, its poster at a poster tile's size.
+pub fn tmdb_tile(t: &DiscoverTitle, resolve: Resolve) -> TmdbTile {
+    let poster = t.poster_url.as_deref().filter(|p| !p.is_empty()).and_then(|p| resolve(p, TileKind::Poster));
+    TmdbTile {
+        kind: t.kind,
+        tmdb_id: t.tmdb_id,
+        title: t.title.clone(),
+        subtitle: title_subtitle(t.kind, t.year, true),
+        art: poster.into_iter().collect(),
+        badge: title_badge(t.status, t.item_id),
+        tone: title_tone(t.status, t.item_id),
+    }
+}
+
+/// What TMDB has for the words, the libraries' whole titles left out (`missing`), read with
+/// `page`: pages in turn until 20 titles came or the third was read, each title once. The first
+/// page failing is the answer; a later one leaves what the first ones brought.
+pub fn read_tmdb(mut page: impl FnMut(i64) -> Result<DiscoverPage, ApiError>) -> Result<Vec<DiscoverTitle>, ApiError> {
+    let mut titles = Vec::new();
+    let mut n = 1;
+    loop {
+        let p = match page(n) {
+            Ok(p) => p,
+            Err(e) if n == 1 => return Err(e),
+            Err(_) => break,
+        };
+        add_titles(&mut titles, p.results);
+        if titles.len() >= TMDB_TITLES || n >= p.total_pages.min(TMDB_PAGES) {
+            break;
+        }
+        n += 1;
+    }
+    titles.truncate(TMDB_TITLES);
+    Ok(titles)
+}
+
 #[cfg(test)]
 mod tests {
     use pley_core::model::UserState;
@@ -483,6 +556,78 @@ mod tests {
         let mut show = item(10, ItemKind::Show, "S");
         show.backdrop_url = Some("/b".into());
         assert_eq!(thumb_art(&show), ["/b"]);
+    }
+
+    fn title(kind: TitleKind, tmdb_id: i64, name: &str) -> DiscoverTitle {
+        DiscoverTitle { kind, tmdb_id, title: name.into(), ..DiscoverTitle::default() }
+    }
+
+    fn page(total: i64, titles: Vec<DiscoverTitle>) -> DiscoverPage {
+        DiscoverPage { page: 1, total_pages: total, results: titles }
+    }
+
+    #[test]
+    fn tmdb_titles_are_badged_and_open_their_page() {
+        use pley_core::model::TitleStatus;
+        let mut dune = title(TitleKind::Movie, 438631, "Dune");
+        dune.year = Some(2021);
+        dune.poster_url = Some("/api/discover/images/w342/d.jpg".into());
+        dune.status = TitleStatus::Requested;
+        let t = tmdb_tile(&dune, &resolve);
+        assert_eq!((t.title.as_str(), t.subtitle.as_str()), ("Dune", "2021 · Movie"));
+        assert_eq!((t.badge, t.tone), (Some("Requested"), Tone::Blue));
+        assert_eq!(urls_of(&t.art), ["https://tv.example/api/discover/images/w342/d.jpg"]);
+        assert_eq!(t.opens(), Route::Title { kind: TitleKind::Movie, tmdb_id: 438631, pick: false });
+
+        let mut show = title(TitleKind::Show, 438631, "Dune: Prophecy");
+        show.status = TitleStatus::Partial;
+        show.item_id = Some(9);
+        let s = tmdb_tile(&show, &resolve);
+        assert_eq!((s.badge, s.tone, s.subtitle.as_str()), (Some("Partly in library"), Tone::Green, "Show"));
+        assert_ne!(s.key(), t.key(), "a movie and a show of the same number are two tiles");
+        assert!(s.art.is_empty());
+        let none = tmdb_tile(&title(TitleKind::Movie, 1, "Nothing yet"), &resolve);
+        assert_eq!(none.badge, None);
+    }
+
+    #[test]
+    fn tmdb_is_read_until_twenty_titles_or_three_pages() {
+        // Pages of eight titles: three are read, and the row keeps twenty.
+        let mut asked = Vec::new();
+        let titles = read_tmdb(|n| {
+            asked.push(n);
+            Ok(page(10, (0..8).map(|i| title(TitleKind::Movie, n * 100 + i, "T")).collect()))
+        })
+        .unwrap();
+        assert_eq!(asked, [1, 2, 3]);
+        assert_eq!(titles.len(), TMDB_TITLES);
+
+        // The last page TMDB has ends it, and a title on two pages comes once.
+        let mut asked = Vec::new();
+        let titles = read_tmdb(|n| {
+            asked.push(n);
+            Ok(page(2, vec![title(TitleKind::Movie, 1, "A"), title(TitleKind::Show, n, "B")]))
+        })
+        .unwrap();
+        assert_eq!(asked, [1, 2]);
+        let keys: Vec<(TitleKind, i64)> = titles.iter().map(|t| (t.kind, t.tmdb_id)).collect();
+        assert_eq!(keys, [(TitleKind::Movie, 1), (TitleKind::Show, 1), (TitleKind::Show, 2)]);
+    }
+
+    #[test]
+    fn a_later_page_failing_keeps_what_came() {
+        let titles = read_tmdb(|n| match n {
+            1 => Ok(page(3, vec![title(TitleKind::Movie, 1, "A")])),
+            _ => Err(ApiError::Net(pley_core::NetError::TimedOut)),
+        })
+        .unwrap();
+        assert_eq!(titles.len(), 1);
+        let first = read_tmdb(|_| Err(ApiError::Net(pley_core::NetError::Refused)));
+        assert!(first.is_err_and(|e| e.unreachable()));
+    }
+
+    fn urls_of(art: &[ImageRequest]) -> Vec<&str> {
+        art.iter().map(|r| &*r.url).collect()
     }
 
     #[test]

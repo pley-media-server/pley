@@ -15,8 +15,9 @@ use std::collections::HashSet;
 use pley_base::{Color, Icon, Key, Point, Rect, TextOpts};
 use pley_core::format::season_title;
 use pley_core::model::{
-    AudioChoice, CollectionRef, ItemCollections, ItemDetail, ItemKind, ItemList, ItemSummary, StreamChoice,
+    AudioChoice, CollectionRef, ItemCollections, ItemDetail, ItemKind, ItemList, ItemSummary, StreamChoice, TitleKind,
 };
+use pley_core::requests::{StageWords, stage_words};
 use pley_core::store::snapshot_keys;
 use pley_core::{ApiError, Promise};
 use pley_kit::badge::META_HEIGHT;
@@ -34,6 +35,7 @@ use crate::common::{self, ArtKind, Change, Elsewhere, NOTHING_TO_PLAY, TileData}
 use crate::page::{
     self, Choice, Credits, FileInfo, Meta, Picks, Primary, PrimaryKind, TrackChoices, default_season, playing,
 };
+use crate::request::{self, TitleRequest};
 use crate::words;
 
 /// The hero's top (`HeroTop`).
@@ -131,6 +133,10 @@ struct Model {
     season_id: Option<i64>,
     collections: Vec<CollectionRef>,
     backdrop: BackdropArt,
+    /// Where the title's request is (any stage), with the download's bar.
+    request: Option<StageWords>,
+    /// Request more seasons opens the title's page with its season picker.
+    ask_more: Option<(TitleKind, i64)>,
     /// The answers its episode and related tiles were made from.
     revisions: Revisions,
 }
@@ -315,6 +321,8 @@ pub struct ItemScreen {
     /// A show's or season's next episode Play is waiting for (the page's own or a tile's).
     play_next: Option<PlayNext>,
     revisions: Revisions,
+    /// The title's request, for a movie or show where requests are on.
+    request: TitleRequest,
 }
 
 impl ItemScreen {
@@ -335,6 +343,7 @@ impl ItemScreen {
             redirected: false,
             play_next: None,
             revisions: Revisions::default(),
+            request: TitleRequest::new(id),
         }
     }
 
@@ -366,6 +375,10 @@ impl ItemScreen {
             }
             self.play_next = None;
         }
+        // The request is asked once the page has drawn, so it never holds the title up.
+        let summary = cx.state.request_summary();
+        let wanted = self.model.is_some() && self.shown().is_some_and(|d| page::wants_request(d.kind, summary));
+        self.dirty |= self.request.update(cx, wanted);
         let was_fresh = self.detail.fresh();
         let mut changed = self.detail.update(cx);
         if changed && self.detail.fresh() && !was_fresh {
@@ -567,6 +580,11 @@ impl ItemScreen {
             None => Vec::new(),
         };
         let hero_title = page::hero_title(d);
+        let summary = cx.state.request_summary();
+        let answer = self.request.answer().filter(|_| page::wants_request(kind, summary));
+        let manage = summary.is_some_and(|s| s.manage);
+        let stage = answer.and_then(|a| a.request.as_ref()).map(|r| stage_words(r, manage, request::tv_time(cx)));
+        let ask_more = answer.filter(|a| page::asks_more(a, summary)).map(|a| (a.kind, a.tmdb_id));
         let backdrop = BackdropArt::new(
             d.id as u64,
             common::requests(cx, &common::art_paths(&d.summary, ArtKind::Backdrop), backdrop_px(ui)),
@@ -618,6 +636,8 @@ impl ItemScreen {
             collections,
             hero_title,
             backdrop,
+            request: stage,
+            ask_more,
             revisions,
         });
         self.dirty = false;
@@ -746,6 +766,7 @@ impl ItemScreen {
     /// Asks again for what the page shows (not the collections, which don't change with it).
     fn reload(&mut self) {
         self.detail.invalidate();
+        self.request.again();
         if let Some(data) = self.data.as_mut() {
             if let Some(r) = data.on_deck.as_mut() {
                 r.invalidate();
@@ -1120,6 +1141,7 @@ struct HeroLayout {
     title_y: f32,
     context_y: f32,
     meta_y: f32,
+    request_y: f32,
     left_y: f32,
     genres_y: f32,
     summary_y: f32,
@@ -1144,6 +1166,10 @@ fn hero_layout(ui: &Ui, m: &Model) -> HeroLayout {
     }
     let meta_y = y + 12.0;
     y += 12.0 + META_HEIGHT;
+    let request_y = y + request::LINE_GAP;
+    if m.request.is_some() {
+        y += request::LINE_GAP + request::LINE_HEIGHT;
+    }
     let left_y = y + 8.0;
     if m.primary.kind == PrimaryKind::Resume && !m.primary.time_left.is_empty() {
         y += 8.0 + theme::CAPTION.line_height;
@@ -1162,7 +1188,7 @@ fn hero_layout(ui: &Ui, m: &Model) -> HeroLayout {
     }
     let buttons_y = y + 22.0;
     y += 22.0 + theme::BUTTON_HEIGHT + theme::BUTTON_LABEL_ROOM + 8.0;
-    HeroLayout { title_y, context_y, meta_y, left_y, genres_y, summary_y, credits_y, buttons_y, height: y }
+    HeroLayout { title_y, context_y, meta_y, request_y, left_y, genres_y, summary_y, credits_y, buttons_y, height: y }
 }
 
 /// The metadata line of `m`.
@@ -1208,6 +1234,9 @@ fn draw_hero(
         ui.text(Point::new(x, top + l.context_y), c, &theme::TITLE, &TextOpts::line(TEXT_W), theme::FG);
     }
     meta_line(&m.meta).show(ui, Point::new(x, top + l.meta_y), TEXT_W);
+    if let Some(words) = &m.request {
+        request::stage_line(ui, Point::new(x, top + l.request_y), TEXT_W, words);
+    }
     if m.primary.kind == PrimaryKind::Resume && !m.primary.time_left.is_empty() {
         let at = Point::new(x, top + l.left_y);
         ui.text(at, &m.primary.time_left, &theme::CAPTION, &TextOpts::line(TEXT_W), theme::FG);
@@ -1269,6 +1298,11 @@ fn draw_hero(
         };
         if m.primary.kind == PrimaryKind::Resume && round(ui, "from-start", Icon::RotateCcw, "From start") {
             out.push(Intent::Play { from_start: true });
+        }
+        if let Some((kind, tmdb_id)) = m.ask_more
+            && round(ui, "request-more", Icon::Plus, "Request more seasons")
+        {
+            out.push(Intent::Push(Route::Title { kind, tmdb_id, pick: true }));
         }
         let (icon, label) =
             if m.watched { (Icon::EyeOff, "Mark as unwatched") } else { (Icon::CircleCheck, "Mark as watched") };
@@ -1735,6 +1769,9 @@ fn info_block(ui: &mut Ui, id: Id, m: &Model, episode: Option<(&TileData, &str)>
 impl Screen for ItemScreen {
     fn ui(&mut self, ui: &mut Ui, cx: &mut AppCx) {
         self.update(cx);
+        if let Some(due) = self.request.due() {
+            ui.repaint_after((due - cx.now).max(0.0));
+        }
         self.collect_changes(cx);
         let root = ui.scope_id();
         if self.elsewhere(ui, root, cx) {
@@ -1966,7 +2003,9 @@ impl Screen for ItemScreen {
                 // doesn't play on coming back.
                 self.play_next = None;
                 self.revalidate(cx.now);
+                self.request.again();
             }
+            AppEvent::RequestsChanged { title } => self.request.changed(title.as_deref()),
             _ => {}
         }
     }

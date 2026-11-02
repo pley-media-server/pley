@@ -18,6 +18,7 @@ use crate::media::Media;
 use crate::oauth::OAuth;
 use crate::pictures::Pictures;
 use crate::play::{AddedSubtitle, Playback};
+use crate::requests::Requests;
 use crate::{JournalEntry, Options};
 
 /// The scopes an app may be allowed, as bits, in the order the server writes
@@ -26,9 +27,17 @@ pub(crate) const LIBRARY: u8 = 1;
 pub(crate) const PLAY: u8 = 2;
 pub(crate) const PLAYLISTS: u8 = 4;
 pub(crate) const PROFILES: u8 = 8;
-pub(crate) const ALL_SCOPES: u8 = LIBRARY | PLAY | PLAYLISTS | PROFILES;
-pub(crate) const SCOPES: [(&str, u8); 4] =
-    [("library", LIBRARY), ("play", PLAY), ("playlists", PLAYLISTS), ("profiles", PROFILES)];
+pub(crate) const REQUESTS: u8 = 16;
+pub(crate) const APPROVALS: u8 = 32;
+pub(crate) const ALL_SCOPES: u8 = LIBRARY | PLAY | PLAYLISTS | PROFILES | REQUESTS | APPROVALS;
+pub(crate) const SCOPES: [(&str, u8); 6] = [
+    ("library", LIBRARY),
+    ("play", PLAY),
+    ("playlists", PLAYLISTS),
+    ("profiles", PROFILES),
+    ("requests", REQUESTS),
+    ("approvals", APPROVALS),
+];
 
 /// The scope names of `bits`, space separated.
 pub(crate) fn scope_names(bits: u8) -> String {
@@ -124,6 +133,8 @@ pub(crate) struct State {
     pub playback: Playback,
     pub live: Live,
     pub network: NetworkMemory,
+    /// Requests and Discover.
+    pub requests: Requests,
     /// Subtitle search is set up.
     pub subtitle_search: bool,
     /// The server requires two-step sign-in of every account with a password.

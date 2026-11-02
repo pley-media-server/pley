@@ -13,6 +13,8 @@ pley-core = { path = "../../core" }
 pley-ui = { path = "../../ui" }
 pley-kit = { path = "../../kit" }
 pley-shell = { path = "../../shell" }
+# The request widgets (the stage pill, a download's bar) and the TV's clock for their words.
+pley-requests = { path = "../requests" }
 log = "0.4.29"
 
 [dev-dependencies]

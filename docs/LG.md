@@ -188,6 +188,23 @@ reports every 30 s: the server forgets a player it hasn't heard from in
 90 s, and its keyed addresses with it. Music pauses when the TV hides the
 app.
 
+### Requests
+
+Where the server takes requests, they work as in the Samsung app
+([TV_PLATFORMS.md](TV_PLATFORMS.md#requests)): Discover after Home in the
+rail for a profile that may ask, else Your requests (Requests for
+administrators), with its number; a title's page with its one main
+action and the season picker; Your requests with each request's stage
+and what may be done to it; an "On TMDB" row in Search; and a library
+title's request on its page, with Request more seasons. What is ready to
+watch pops up once, over the pages, never over a video. The words and
+rules are `crates/core/src/requests`, the pages `crates/screens/requests`.
+
+Sign-in asks for `requests` and `approvals` only where the server lists
+them (`scopes_supported`): a server that doesn't know a scope refuses the
+whole sign-in. A TV signed in before is asked to sign in again to ask
+for titles.
+
 ## How it works
 
 - **One binary for every webOS from 4.0.** It is 32-bit ARMv7 code tuned

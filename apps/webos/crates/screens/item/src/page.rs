@@ -10,8 +10,10 @@ use pley_core::format::{
     version_label,
 };
 use pley_core::model::{
-    CollectionRef, CreditRole, ExtraType, ItemDetail, ItemKind, ItemSummary, MediaFile, MediaStream, StreamKind,
+    CollectionRef, CreditRole, ExtraType, ItemDetail, ItemKind, ItemRequest, ItemSummary, MediaFile, MediaStream,
+    RequestSummary, SignInAgain, StreamKind,
 };
+use pley_core::requests::may_ask;
 
 use crate::words::{self, join, medium_date, year_range};
 
@@ -527,6 +529,22 @@ pub fn in_progress(item: &ItemSummary) -> bool {
     is_in_progress(item)
 }
 
+/// Whether a title's page asks where its request is (`useItemRequest` in the TV app's
+/// `request-kit.tsx`): a movie or show, with requests on for this sign-in, for a profile that may
+/// ask or asked before.
+pub fn wants_request(kind: ItemKind, s: Option<&RequestSummary>) -> bool {
+    matches!(kind, ItemKind::Movie | ItemKind::Show)
+        && s.is_some_and(|s| {
+            s.enabled && s.sign_in_again != Some(SignInAgain::Requests) && (may_ask(Some(s)) || s.own > 0)
+        })
+}
+
+/// Whether the page offers Request more seasons: a show the server names seasons left to ask for,
+/// for a profile that may ask.
+pub fn asks_more(r: &ItemRequest, s: Option<&RequestSummary>) -> bool {
+    r.askable.as_ref().is_some_and(|a| !a.is_empty()) && may_ask(s)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -717,6 +735,38 @@ mod tests {
         assert_eq!(default_season(&seasons, None), Some(2));
         assert_eq!(default_season(&seasons[..1], None), Some(1));
         assert_eq!(default_season(&[], None), None);
+    }
+
+    #[test]
+    fn movies_and_shows_ask_for_their_request_where_requests_are_on() {
+        use pley_core::model::RequestAccess;
+        let asks = RequestSummary { enabled: true, access: RequestAccess::Ask, ..RequestSummary::default() };
+        assert!(wants_request(ItemKind::Movie, Some(&asks)));
+        assert!(wants_request(ItemKind::Show, Some(&asks)));
+        for kind in [ItemKind::Season, ItemKind::Episode, ItemKind::Album] {
+            assert!(!wants_request(kind, Some(&asks)), "{kind:?}");
+        }
+        assert!(!wants_request(ItemKind::Movie, None), "a server without requests");
+        let off = RequestSummary { enabled: false, ..asks.clone() };
+        assert!(!wants_request(ItemKind::Movie, Some(&off)));
+        let old_sign_in = RequestSummary { sign_in_again: Some(SignInAgain::Requests), ..asks.clone() };
+        assert!(!wants_request(ItemKind::Movie, Some(&old_sign_in)));
+        // A profile that may no longer ask still sees what it asked for.
+        let closed = RequestSummary { access: RequestAccess::Off, ..asks.clone() };
+        assert!(!wants_request(ItemKind::Movie, Some(&closed)));
+        assert!(wants_request(ItemKind::Movie, Some(&RequestSummary { own: 2, ..closed })));
+    }
+
+    #[test]
+    fn request_more_seasons_needs_seasons_left_and_leave_to_ask() {
+        use pley_core::model::RequestAccess;
+        let asks = RequestSummary { enabled: true, access: RequestAccess::Auto, ..RequestSummary::default() };
+        let show = ItemRequest { askable: Some(vec![3, 4]), ..ItemRequest::default() };
+        assert!(asks_more(&show, Some(&asks)));
+        assert!(!asks_more(&ItemRequest { askable: Some(Vec::new()), ..show.clone() }, Some(&asks)));
+        assert!(!asks_more(&ItemRequest { askable: None, ..show.clone() }, Some(&asks)), "no TMDB details yet");
+        let closed = RequestSummary { access: RequestAccess::Off, own: 1, ..asks };
+        assert!(!asks_more(&show, Some(&closed)));
     }
 
     #[test]

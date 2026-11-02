@@ -13,6 +13,8 @@
 //!   the player can't send a token, serving the Android fixtures' sample clips
 //!   with Range; WebVTT subtitles, PGS as `.mks`, seek previews and chapter
 //!   pictures, subtitle search, bitrate changes, stopping;
+//! - requests and Discover: a small pretend TMDB, the summary, asking,
+//!   following, managers' decisions and the listing's filters;
 //! - Live TV with a guide, keyed live HLS, sessions, plans and a connection
 //!   limit that answers `409`;
 //! - server events (SSE) and pictures it draws itself (JPEG, PNG with
@@ -44,6 +46,7 @@ mod play;
 mod playlists;
 mod png;
 mod random;
+mod requests;
 mod routes;
 mod server;
 mod views;
@@ -57,6 +60,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 pub use events::ServerEvent;
+pub use requests::titles as request_titles;
 
 use crate::catalog::Catalog;
 use crate::events::{EventHub, Scans};
@@ -263,6 +267,7 @@ impl FixtureServer {
             playback: play::Playback::default(),
             live: live::Live::new(now_ms),
             network: extra::NetworkMemory::default(),
+            requests: requests::Requests::new(now_ms.div_euclid(1_000)),
             subtitle_search: true,
             two_step_required: false,
             subtitle_asks: Default::default(),
@@ -412,6 +417,23 @@ impl FixtureServer {
     /// do (404, 405).
     pub fn set_network_routes(&self, on: bool) {
         lock(&self.shared.state).network.available = on;
+    }
+
+    /// Off, requests are off on the server: the summary says so and every other request route
+    /// answers `503 unavailable`.
+    pub fn set_requests(&self, on: bool) {
+        lock(&self.shared.state).requests.enabled = on;
+    }
+
+    /// What asking does for `profile`: `auto`, `ask` or `off`.
+    pub fn set_request_access(&self, profile: i64, access: &'static str) {
+        lock(&self.shared.state).requests.set_access(profile, access);
+    }
+
+    /// The download of request `id`: how far it is (0 to 1), or none (searching).
+    pub fn set_request_download(&self, id: i64, progress: Option<f64>) {
+        let now = self.shared.now();
+        lock(&self.shared.state).requests.set_download(id, progress, now);
     }
 
     /// Sends `event` to every open event stream.

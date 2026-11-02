@@ -4,6 +4,7 @@
 
 use pley_base::Icon;
 use pley_core::model::{QUALITY_PRESETS, SubtitleMode, TrackDefaults, quality_preset};
+use pley_core::requests::TMDB_NOTICE;
 use pley_core::store::{
     PassthroughChoice, PassthroughFormat, Settings, SubtitleBackground, SubtitleFont, SubtitlePosition, SubtitleSize,
 };
@@ -384,6 +385,9 @@ pub fn items(c: SettingsSection, f: &Facts) -> Vec<Item> {
                     }
                 }
             }
+            // Discover's titles and pictures come from TMDB, whose terms ask for this line.
+            out.push(Item::Heading("Credits"));
+            out.push(Item::Row(Row::new(None, "TMDB", TMDB_NOTICE, RowAction::None)));
         }
         SettingsSection::SignOut => {
             let server = f.server.as_deref().unwrap_or("the server");
@@ -739,7 +743,7 @@ mod tests {
     fn about_lists_the_parts_once_read() {
         let mut f = Facts { version: "0.2.0".into(), ..alex() };
         let reading = items(SettingsSection::About, &f);
-        assert_eq!(labels(&reading), ["Version"]);
+        assert_eq!(labels(&reading), ["Version", "TMDB"]);
         assert_eq!(reading[1], Item::Heading("Open-source licences"));
         f.licences = Some(Vec::new());
         assert!(matches!(items(SettingsSection::About, &f)[2], Item::Intro(_)));
@@ -750,6 +754,19 @@ mod tests {
         assert_eq!((r[0].label.as_str(), r[0].value.as_str()), ("Version", "0.2.0"));
         let serde = (r[2].label.as_str(), r[2].value.as_str(), &r[2].action);
         assert_eq!(serde, ("serde 1.0.219", "MIT", &RowAction::Licence(1)));
+    }
+
+    #[test]
+    fn about_credits_tmdb_after_the_licences() {
+        let f = Facts { licences: Some(vec![("serde 1.0.219".into(), "MIT".into())]), ..alex() };
+        let about = items(SettingsSection::About, &f);
+        let n = about.len();
+        assert_eq!(about[n - 2], Item::Heading("Credits"));
+        let Item::Row(tmdb) = &about[n - 1] else { panic!("the credit is a row") };
+        assert_eq!((tmdb.label.as_str(), tmdb.value.as_str()), ("TMDB", TMDB_NOTICE));
+        assert_eq!(tmdb.action, RowAction::None);
+        // With nothing to choose it still takes focus, so it is read out like the other rows.
+        assert!(about[n - 1].focusable());
     }
 
     #[test]

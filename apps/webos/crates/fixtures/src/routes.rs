@@ -13,5 +13,6 @@ pub(crate) fn all() -> Vec<Route> {
     routes.extend(crate::lists::routes());
     routes.extend(crate::playlists::routes());
     routes.extend(crate::live::routes());
+    routes.extend(crate::requests::routes());
     routes
 }

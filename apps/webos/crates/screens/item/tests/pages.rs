@@ -5,7 +5,8 @@ mod common;
 
 use common::TestApp;
 use pley_base::Key;
-use pley_fixtures::ids;
+use pley_core::model::TitleKind;
+use pley_fixtures::{ids, request_titles};
 use pley_shell::{AppCx, PlayRequest, Requests, Route};
 
 /// The fixture movie in progress for Alex.
@@ -155,6 +156,41 @@ fn a_shows_play_plays_its_next_episode() {
     app.press(Key::Ok);
     let r = played(&app).expect("Play opened no player");
     assert_eq!((r.item_id, r.from_start, r.file_id), (ids::SHOW_S1E2, false, None));
+}
+
+#[test]
+fn a_show_missing_seasons_offers_to_request_more_of_them() {
+    let mut app = TestApp::start();
+    open_show(&mut app);
+    // The button comes once the server named the seasons left (season 3 of the fixture show).
+    let more = app.id(&["buttons", "request-more"]);
+    let reached = app.until(|a| {
+        a.ui.request_focus(more);
+        a.frame(Vec::new());
+        a.focused() == Some(more)
+    });
+    assert!(reached, "Request more seasons never showed");
+    assert!(app.until(|a| a.shows("Request more seasons")), "its label shows with focus");
+    app.press(Key::Ok);
+    let picker = Route::Title { kind: TitleKind::Show, tmdb_id: request_titles::SHOW_PARTIAL, pick: true };
+    assert_eq!(app.route(), Some(&picker));
+}
+
+#[test]
+fn without_requests_a_show_offers_no_more_seasons() {
+    let mut app = TestApp::start();
+    app.server.set_requests(false);
+    app.state.load_requests(false);
+    assert!(app.until(|a| a.state.request_summary().is_some_and(|s| !s.enabled)), "requests never went off");
+    open_show(&mut app);
+    let more = app.id(&["buttons", "request-more"]);
+    let start = std::time::Instant::now();
+    let reached = app.until(|a| {
+        a.ui.request_focus(more);
+        a.frame(Vec::new());
+        a.focused() == Some(more) || start.elapsed() > std::time::Duration::from_secs(1)
+    });
+    assert!(reached && app.focused() != Some(more), "no button to request more seasons");
 }
 
 #[test]

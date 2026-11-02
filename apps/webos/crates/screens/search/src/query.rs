@@ -186,6 +186,15 @@ impl Query {
         }
     }
 
+    /// The query the libraries answered, with results or none: a result opened from the page
+    /// keeps it among the recent searches.
+    pub fn answered_query(&self) -> Option<&str> {
+        match &self.shown {
+            Shown::Ready { query, .. } | Shown::Empty { query } => Some(query),
+            _ => None,
+        }
+    }
+
     /// When the next query is asked.
     pub fn due(&self) -> Option<f64> {
         self.due
@@ -319,6 +328,8 @@ mod tests {
         q.ask(0.25);
         q.answered("zzz", Ok(found(&[])), 0.3);
         assert!(matches!(q.shown(), Shown::Empty { query } if query == "zzz"));
+        // Nothing in the libraries, and still the query of what shows (Discover's row).
+        assert_eq!((q.answered_query(), q.shown_query()), (Some("zzz"), None));
 
         q.typed("north", 1.0);
         q.ask(1.25);
