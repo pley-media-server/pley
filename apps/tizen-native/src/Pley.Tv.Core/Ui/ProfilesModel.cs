@@ -272,11 +272,14 @@ public sealed class ProfilesModel
     /// <summary>The server signed the app out: sign in again.</summary>
     public event Action? SignedOut;
 
-    /// <summary>A refused switch in a few words, by the server's reason (the Android app's Profiles.message).</summary>
+    /// <summary>
+    /// A refused switch in a few words, by the server's reason (the Android app's Profiles.message).
+    /// Throttled, the server's own sentence says how long to wait.
+    /// </summary>
     public static string Message(OAuthError? error) => error?.Reason switch
     {
         "wrong_pin" => "wrong PIN",
-        "throttled" => "too many wrong PINs: try again in a few minutes",
+        "throttled" => error.Description ?? "too many wrong PINs: try again in a few minutes",
         "pin_locked" => "this profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it",
         "browser" => "this profile needs its password: sign in again to use it",
         "not_allowed" => "you can't switch to this profile",
@@ -488,9 +491,8 @@ public sealed class ProfilesModel
             case "pin_locked":
                 Wrong(tile, Message(oauth), lockedOut: true);
                 break;
-            // The server's own sentence says how long to wait.
             case "throttled":
-                Wrong(tile, oauth.Description ?? Message(oauth), lockedOut: false);
+                Wrong(tile, Message(oauth), lockedOut: false);
                 break;
             case "wrong_pin":
                 if (tile.Needs == "pin" || State.Value.Step is ProfilesStep.Pin) Wrong(tile, Message(oauth), lockedOut: false);

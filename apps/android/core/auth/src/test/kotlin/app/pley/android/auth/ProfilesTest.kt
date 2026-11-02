@@ -53,8 +53,8 @@ class ProfilesTest {
         return Profiles(AuthHttp.api(endpointsClient(), tokens), tokens) to tokens
     }
 
-    private fun refusal(reason: String?, error: String = "invalid_grant") = MockResponse().setResponseCode(400).setBody(
-        org.json.JSONObject().put("error", error).put("error_description", "no").apply { if (reason != null) put("reason", reason) }.toString(),
+    private fun refusal(reason: String?, error: String = "invalid_grant", description: String = "no") = MockResponse().setResponseCode(400).setBody(
+        org.json.JSONObject().put("error", error).put("error_description", description).apply { if (reason != null) put("reason", reason) }.toString(),
     )
 
     @Test
@@ -111,11 +111,12 @@ class ProfilesTest {
         val kid = Profile(2, "Kid", null, null, false, Needs.PIN)
         for ((reason, message) in listOf(
             "wrong_pin" to "wrong PIN",
-            "throttled" to "too many wrong PINs: try again in a few minutes",
+            // The server's own sentence says how long to wait.
+            "throttled" to "too many attempts, try again in 12 min",
             "pin_locked" to "this profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it",
             "not_allowed" to "you can't switch to this profile",
         )) {
-            switchAnswer = refusal(reason)
+            switchAnswer = refusal(reason, description = if (reason == "throttled") message else "no")
             assertEquals(SwitchResult.Failed(message), profiles.switchTo(kid, "0000"))
             assertEquals("pley_rt_one", store.load(issuer)!!.refreshToken)
             assertTrue(tokens.signedIn.value)

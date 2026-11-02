@@ -316,8 +316,7 @@ class ProfilesViewModel(
         when (oauth?.reason) {
             "browser" -> _state.update { it.copy(step = if (tv) ProfilesStep.Approve(tile) else ProfilesStep.Browser(tile)) }
             "pin_locked" -> wrong(tile, Profiles.message(oauth), lockedOut = true)
-            // The server's own sentence says how long to wait.
-            "throttled" -> wrong(tile, oauth.description ?: Profiles.message(oauth), lockedOut = false)
+            "throttled" -> wrong(tile, Profiles.message(oauth), lockedOut = false)
             "wrong_pin" -> if (tile.needs == Needs.PIN || _state.value.step is ProfilesStep.Pin) {
                 wrong(tile, Profiles.message(oauth), lockedOut = false)
             } else {

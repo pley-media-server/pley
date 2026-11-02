@@ -231,3 +231,8 @@ It has no releases yet: it is built and installed by hand
 - Picture subtitles (PGS, VobSub, DVB) in the native app no longer close
   the app as a track still being made comes again: the same picture is
   kept, and an old one's texture goes a second after it leaves the screen.
+
+### Fixed
+
+- Too many wrong PINs for the profile the TV starts as say how long to
+  wait, as a switch does, rather than "a few minutes".
