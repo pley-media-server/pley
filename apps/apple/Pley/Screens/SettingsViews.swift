@@ -24,6 +24,10 @@ struct SettingsView: View {
             SettingsSections.Browsing(model: model)
             SettingsSections.SigningIn(model: model)
             Section {
+                NavigationLink(value: Screen.downloadSettings) { Text("Downloads") }
+                    .accessibilityIdentifier("settings.downloads")
+            }
+            Section {
                 NavigationLink(value: Screen.diagnostics) { Text("Diagnostics") }
                     .accessibilityIdentifier("settings.diagnostics")
                 NavigationLink(value: Screen.about) { Text("About Pley") }
@@ -38,12 +42,14 @@ struct SettingsView: View {
 }
 
 #if os(macOS)
-/// The Mac's Settings window (⌘,): Playback, Subtitles and Browsing tabs.
+/// The Mac's Settings window (⌘,): Playback, Subtitles, Browsing and Downloads tabs.
 struct MacSettingsView: View {
     @StateObject private var model: SettingsModel
+    @StateObject private var downloads: DownloadsModel
 
     init(app: AppModel) {
         _model = StateObject(wrappedValue: SettingsModel(app: app, offersCellular: false))
+        _downloads = StateObject(wrappedValue: DownloadsModel(app: app))
     }
 
     var body: some View {
@@ -60,6 +66,9 @@ struct MacSettingsView: View {
             }
             .formStyle(.grouped)
             .tabItem { Label("Browsing", systemImage: "square.grid.2x2") }
+            Form { DownloadSettingsSections(model: downloads) }
+                .formStyle(.grouped)
+                .tabItem { Label("Downloads", systemImage: "arrow.down.circle") }
         }
         .frame(width: 520, height: 460)
     }

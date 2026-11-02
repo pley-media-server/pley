@@ -1,4 +1,5 @@
 import PleyCommon
+import PleyDownloads
 import PleyPlayer
 #if os(iOS)
 import PleyPlayerViews
@@ -9,9 +10,15 @@ import SwiftUI
 /// Pley for iPhone, iPad and Mac.
 @main
 struct PleyApp: App {
-    @StateObject private var app = AppModel.live()
+    /// The app's model, made once: the system may wake the app in the
+    /// background for the downloads before any window shows.
+    @MainActor static let model = AppModel.live { settings, gate in Downloads.live(settings: settings, gate: gate) }
+
+    @StateObject private var app = PleyApp.model
     #if os(macOS)
     @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var delegate
+    #else
+    @UIApplicationDelegateAdaptor(PhoneAppDelegate.self) private var phoneDelegate
     #endif
 
     var body: some Scene {
@@ -62,6 +69,21 @@ struct PleyApp: App {
         #endif
     }
 }
+
+#if os(iOS)
+/// iPhone and iPad: the system wakes the app when the downloads' background
+/// session has finished pieces while it was away. The session, made again
+/// with the model, hands them over; the system is told once they are handled.
+final class PhoneAppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,
+                     completionHandler: @escaping () -> Void) {
+        guard let downloads = PleyApp.model.downloads as? Downloads,
+              identifier == PieceTransfer.backgroundIdentifier(bundle: Bundle.main.bundleIdentifier ?? "")
+        else { return completionHandler() }
+        downloads.handleBackgroundEvents(completionHandler)
+    }
+}
+#endif
 
 /// What `app.root` names: the servers with a server's sign-in on top,
 /// "Who's watching?", or the signed-in shell. On iPhone and iPad the

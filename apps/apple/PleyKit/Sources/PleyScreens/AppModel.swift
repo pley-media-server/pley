@@ -783,6 +783,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
         livePlayer?.sceneActive(active)
         if active {
             if offline { Task { await reconnect() } }
+            // Conversions on the server are followed only while Pley is open.
+            downloads.resume()
             startEvents()
             if user != nil { note(ServerChange(home: true, libraries: true, watchlist: true, everything: true)) }
         } else {

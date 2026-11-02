@@ -31,6 +31,8 @@ struct ShellView: View {
         // nothing, keeps Play/Pause from a video's tile.
         .onPlayPauseCommand(perform: shell.nowPlaying ? { app.music.toggle() } : nil)
         .overlay(alignment: .topTrailing) { ToastView(shell: shell) }
+        // While the server can't be reached, the screens show what was saved, and say so.
+        .overlay(alignment: .bottom) { OfflineBanner(app: app) }
         .fullScreenCover(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { sheet in
             ShellSheet(app: app, sheet: sheet)
         }
@@ -158,10 +160,30 @@ struct ScreenView: View {
             DiagnosticsView(app: app)
         case .about:
             AboutView()
-        case .settings, .trackDefaults:
+        // Apple TV has no downloads: their screens are never opened here.
+        case .settings, .trackDefaults, .downloads, .downloadSettings:
             SettingsView(app: app)
         case .liveTv:
             LiveTvView(app: app)
+        }
+    }
+}
+
+/// "Showing what Pley had saved. Reconnecting…", at the foot of the screen
+/// while the server can't be reached. It takes no focus: the app tries the
+/// server again by itself.
+private struct OfflineBanner: View {
+    @ObservedObject var app: AppModel
+
+    var body: some View {
+        if app.offline {
+            Label(DownloadWords.offline, systemImage: "wifi.slash")
+                .font(.callout)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 16)
+                .background(.regularMaterial, in: Capsule())
+                .padding(.bottom, 40)
+                .accessibilityIdentifier("offline.banner")
         }
     }
 }

@@ -42,6 +42,21 @@ struct MeView: View {
                 Text(MeModel.webNote)
             }
             TrackDefaultsSection(model: model)
+            if app.downloads.available {
+                Section {
+                    NavigationLink(value: Screen.downloads) {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(DownloadWords.meEntry)
+                                Text(DownloadWords.meHint).font(.footnote).foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "arrow.down.circle")
+                        }
+                    }
+                    .accessibilityIdentifier("me.downloads")
+                }
+            }
             Section {
                 NavigationLink(value: Screen.history) {
                     Label("History", systemImage: "clock")

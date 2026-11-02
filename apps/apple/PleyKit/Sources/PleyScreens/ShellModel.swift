@@ -65,6 +65,8 @@ public enum Screen: Hashable, Codable, Sendable {
     case album(Int, track: Int? = nil)
     case playlist(Int)
     case history, settings, trackDefaults, diagnostics, about
+    /// Me → Downloads, and Settings → Downloads (iPhone, iPad and Mac).
+    case downloads, downloadSettings
     /// Live TV, opened from Libraries on iPhone.
     case liveTv
 

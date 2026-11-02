@@ -32,6 +32,8 @@ struct ShellView: View {
                 tabs
             }
         }
+        // While the server can't be reached, the screens show what was saved, and say so.
+        .safeAreaInset(edge: .top, spacing: 0) { OfflineBanner(app: app) }
         .overlay(alignment: .bottom) { ToastView(shell: shell) }
         #if os(iOS)
         .background { KeyboardShortcuts(shell: shell) }
@@ -360,6 +362,10 @@ struct ScreenView: View {
             MeView(app: app)
         case .liveTv:
             LiveTvView(app: app)
+        case .downloads:
+            DownloadsView(app: app)
+        case .downloadSettings:
+            DownloadSettingsView(app: app)
         }
     }
 }

@@ -351,6 +351,7 @@ struct ItemView: View {
                 .accessibilityLabel(listed ? "Remove from My List" : "Add to My List")
                 .accessibilityIdentifier("item.myList")
             }
+            DownloadButton(model: model)
             if let trailer = page.trailer {
                 Button {
                     play(model.request(for: trailer))
@@ -514,6 +515,14 @@ struct ItemView: View {
                     .accessibilityIdentifier("item.seasonPage")
                 } else if let tab = section.selectedTab, section.seasons.count <= 1 {
                     Text(tab.title).foregroundStyle(.secondary)
+                }
+                if model.canDownloadSeason {
+                    Button {
+                        Task { await model.downloadSeason() }
+                    } label: {
+                        Label(DownloadWords.downloadSeason, systemImage: "arrow.down.circle")
+                    }
+                    .accessibilityIdentifier("item.downloadSeason")
                 }
             }
             if let episodes = section.episodes {

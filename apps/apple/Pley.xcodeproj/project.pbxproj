@@ -15,6 +15,7 @@
 		0A0000000000000000030D0B /* PleyPlayer in Frameworks */ = {isa = PBXBuildFile; productRef = 0A0000000000000000030D0A /* PleyPlayer */; };
 		0A0000000000000000020E0B /* PleyPlayerViews in Frameworks */ = {isa = PBXBuildFile; productRef = 0A0000000000000000020E0A /* PleyPlayerViews */; };
 		0A0000000000000000030E0B /* PleyPlayerViews in Frameworks */ = {isa = PBXBuildFile; productRef = 0A0000000000000000030E0A /* PleyPlayerViews */; };
+		0A0000000000000000020F0B /* PleyDownloads in Frameworks */ = {isa = PBXBuildFile; productRef = 0A0000000000000000020F0A /* PleyDownloads */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -66,6 +67,7 @@
 				0A0000000000000000020C0B /* PleyCaps in Frameworks */,
 				0A0000000000000000020D0B /* PleyPlayer in Frameworks */,
 				0A0000000000000000020E0B /* PleyPlayerViews in Frameworks */,
+				0A0000000000000000020F0B /* PleyDownloads in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -160,6 +162,7 @@
 				0A0000000000000000020C0A /* PleyCaps */,
 				0A0000000000000000020D0A /* PleyPlayer */,
 				0A0000000000000000020E0A /* PleyPlayerViews */,
+				0A0000000000000000020F0A /* PleyDownloads */,
 			);
 			productName = Pley;
 			productReference = 0A0000000000000000000202 /* Pley.app */;
@@ -503,6 +506,10 @@
 		0A0000000000000000030E0A /* PleyPlayerViews */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = PleyPlayerViews;
+		};
+		0A0000000000000000020F0A /* PleyDownloads */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PleyDownloads;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
