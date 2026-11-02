@@ -52,6 +52,7 @@ public struct PlayerSurface: NSViewRepresentable {
 
     public static func dismantleNSView(_ view: PleyPlayerView, coordinator: ()) {
         view.stop()
+        view.stopFollowingVideo()
         view.player = nil
     }
 }
@@ -118,6 +119,15 @@ public final class PleyPlayerView: AVPlayerView {
         let menu = NSMenu(title: "Player")
         menu.delegate = actionMenuSource
         actionPopUpButtonMenu = menu
+    }
+
+    /// Ends the watch on `videoBounds` while the view still has its player
+    /// layer: AVKit watches the layer for it, and the layer goes before the
+    /// view's own properties as the view is freed, which AppKit stops the
+    /// app for.
+    func stopFollowingVideo() {
+        boundsWatch?.invalidate()
+        boundsWatch = nil
     }
 
     private func placeSubtitles() {

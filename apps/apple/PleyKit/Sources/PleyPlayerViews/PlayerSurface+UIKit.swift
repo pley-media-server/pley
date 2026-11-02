@@ -115,6 +115,7 @@ public struct PlayerSurface: UIViewControllerRepresentable {
 
     public static func dismantleUIViewController(_ controller: AVPlayerViewController, coordinator: Coordinator) {
         coordinator.watch(nil)
+        coordinator.stopFollowing()
         controller.player = nil
     }
 
@@ -197,6 +198,14 @@ public struct PlayerSurface: UIViewControllerRepresentable {
                 }
             }
             #endif
+        }
+
+        /// Ends the watch on `videoBounds` while the controller still has its
+        /// player layer, which AVKit watches for it.
+        @MainActor
+        func stopFollowing() {
+            boundsWatch?.invalidate()
+            boundsWatch = nil
         }
 
         /// Follows the player's item, so each new one (a new session) is described too.
