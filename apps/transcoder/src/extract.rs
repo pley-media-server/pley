@@ -314,8 +314,9 @@ impl Extractor {
             && !near(extraction.from_ms, AROUND_START, start.from_ms)
         {
             // The same answer for the same place: a read there first (once
-            // it is over), else what the track's read has, else a read.
-            let latest = extraction.seek.lock().clone().filter(|seek| near(seek.at_ms, AROUND_SEEK, start.from_ms));
+            // it is over) unless it got nothing, else what the track's read
+            // has, else a read.
+            let latest = extraction.seek.lock().clone().filter(|seek| seek.answers(start.from_ms));
             if latest.is_some() {
                 seek = latest;
             } else if let Some(bytes) = extraction.so_far.lock().around(start.from_ms) {
@@ -1242,6 +1243,16 @@ struct Seek {
     at_ms: i64,
     /// The blocks as a Matroska file once read; `None` when they couldn't be.
     read: Shared<BoxFuture<'static, Option<Arc<Vec<u8>>>>>,
+}
+
+impl Seek {
+    /// Whether this read is the answer for a player at `at_ms`: near it, and
+    /// under way or with the blocks there. One that got nothing (they
+    /// couldn't be read, or it went over its budget) isn't: the player's next
+    /// ask reads there again.
+    fn answers(&self, at_ms: i64) -> bool {
+        near(self.at_ms, AROUND_SEEK, at_ms) && !matches!(self.read.peek(), Some(None))
+    }
 }
 
 /// Whether a player at `at_ms` has what it needs in the blocks read around
@@ -2541,6 +2552,26 @@ mod tests {
         assert!(!near_start(60_000, 120_001), "too little ahead of the player");
         assert!(near_start(0, -5) && !near_start(i64::MAX, 0));
         assert!(near(60_000, AROUND_SEEK, 80_000) && !near(60_000, AROUND_SEEK, 80_001));
+    }
+
+    #[test]
+    fn a_read_at_a_seek_answers_players_near_it_unless_it_got_nothing() {
+        let seek = |read: BoxFuture<'static, Option<Arc<Vec<u8>>>>| {
+            let read = read.shared();
+            // Run on its own, as reads at seeks are.
+            let _ = read.clone().now_or_never();
+            Seek { at_ms: 200_000, read }
+        };
+        let got_pictures = seek(futures::future::ready(Some(Arc::new(vec![0x16]))).boxed());
+        let under_way = seek(futures::future::pending().boxed());
+        let got_nothing = seek(futures::future::ready(None).boxed());
+        // Near where it read, one that has the pictures there, or is still
+        // reading them, answers; one that got nothing doesn't, so the next
+        // ask reads there again...
+        assert!(got_pictures.answers(205_000) && under_way.answers(205_000));
+        assert!(!got_nothing.answers(205_000));
+        // ...and away from there, none does.
+        assert!(!got_pictures.answers(100_000) && !under_way.answers(100_000) && !got_nothing.answers(100_000));
     }
 
     /// The seconds of the pictures in a Matroska file of the track of

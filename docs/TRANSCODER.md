@@ -318,7 +318,8 @@ its palette, DVB) next to an HLS stream.
   with each answer would lose the pictures where they are. Past that, or
   when the read gets nothing (over its budget, or left out for a later
   one), the answer is the blocks there if the copy has all of them, else
-  what the copy has, and the player asks again.
+  what the copy has, and the player asks again: a read that got nothing is
+  tried again then.
 - `rest` (with `partial`) is for a player that reads the track once
   (Kodi's `.sup`): the answer waits up to 8 s for the whole track, then is
   everything read through the Cues so far, not only the blocks around
