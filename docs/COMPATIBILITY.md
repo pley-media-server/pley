@@ -106,7 +106,7 @@ for movie in server.library.section('Movies').search(unwatched=True):
 |---|---|---|
 | `play` | Watch | Every token has it. Browsing what the account may open, playing, its own watch state, ratings, sessions, history, playlists and play queues, and notifications about its own sessions and the libraries it may open. |
 | `activity` | See everyone's activity | Every account's sessions, history and accounts, notifications about everyone's sessions, and where files are, as Tautulli needs. It changes nothing. |
-| `manage` | Manage libraries | Refreshing libraries and items, editing metadata, artwork and collections, stopping anyone's session and deleting anyone's history, as Kometa needs. It shows no one else's sessions or history. |
+| `manage` | Manage libraries | Refreshing libraries and items, editing metadata, artwork and collections, stopping anyone's session and deleting anyone's history, as Kometa needs. It shows no one else's sessions or history, nor where files are or empty collections: Kometa needs `activity` too. |
 
 A token sees only what Pley's [access rules](API.md#access-rules) let its
 account see, with the account's own watch state and Continue Watching.
@@ -159,8 +159,9 @@ do on Pley's own API too, administration included. To move a tool over:
 
 1. In Pley, open Account → Tokens for other apps → New token, name the
    token after the tool, and allow what it needs: Tautulli, See everyone's
-   activity; Kometa, Manage libraries; a player such as Plezy or Infuse,
-   Watch alone.
+   activity; Kometa, both See everyone's activity and Manage libraries (it
+   reads where files are, and finds collections still empty); a player
+   such as Plezy or Infuse, Watch alone.
 2. Put the new token where the tool kept the old one (for Kometa, `token`
    under `plex` in its `config.yml`).
 3. A script that signs in adds `"client"`, and `"scope"` if it needs more

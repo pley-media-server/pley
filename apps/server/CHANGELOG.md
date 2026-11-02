@@ -33,7 +33,7 @@ describes how they are made.
   all of Pley's own API too, administration included: Tautulli, Kometa,
   players and scripts that use one get `401` until they have a token for
   other apps. Make one for each in Account → Tokens for other apps (Tautulli
-  needs "See everyone's activity", Kometa "Manage libraries") and put it
+  needs "See everyone's activity", Kometa that and "Manage libraries") and put it
   where the tool had the old one, or have a script add `client` to its
   sign-in ([COMPATIBILITY.md](../../docs/COMPATIBILITY.md#moving-from-session-tokens)).
 - Picture subtitles (PGS, VobSub, DVB) that the apps draw show within a few
