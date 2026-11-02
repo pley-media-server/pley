@@ -1269,6 +1269,7 @@ dependencies = [
  "pley-music",
  "pley-onboarding",
  "pley-player-ui",
+ "pley-requests",
  "pley-search",
  "pley-settings",
  "pley-shell",
@@ -1360,6 +1361,20 @@ dependencies = [
  "pley-text",
  "pley-ui",
  "serde_json",
+]
+
+[[package]]
+name = "pley-requests"
+version = "0.0.0"
+dependencies = [
+ "log",
+ "pley-base",
+ "pley-core",
+ "pley-fixtures",
+ "pley-host",
+ "pley-kit",
+ "pley-shell",
+ "pley-ui",
 ]
 
 [[package]]

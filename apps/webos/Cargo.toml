@@ -30,6 +30,7 @@ members = [
     "crates/screens/music",
     "crates/screens/settings",
     "crates/screens/live",
+    "crates/screens/requests",
     "crates/screens/player",
     "crates/app",
     "xtask",

@@ -30,6 +30,7 @@ pley-search = { path = "../screens/search" }
 pley-music = { path = "../screens/music" }
 pley-settings = { path = "../screens/settings" }
 pley-live = { path = "../screens/live" }
+pley-requests = { path = "../screens/requests" }
 pley-player-ui = { path = "../screens/player" }
 # getauxval on the TV (src/auxv.rs).
 libc = { version = "0.2.191", optional = true }
