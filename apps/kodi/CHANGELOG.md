@@ -19,8 +19,8 @@ describes how they are made.
 
 - Stopping a show or movie no longer turns its subtitles off for the next
   time: Kodi turns them off as it stops, and that could be saved as the
-  choice. Tracks changed in Kodi's player are saved once they have held 2
-  seconds, at the end of a playback too.
+  choice. A track changed in Kodi's player is saved once it has held 2
+  seconds, so one changed just before stopping isn't.
 
 ### Security
 

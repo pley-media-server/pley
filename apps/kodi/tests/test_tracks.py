@@ -370,9 +370,9 @@ class FollowerTest(unittest.TestCase):
             clock.now += tracks.SETTLE
         f.finish()
         self.assertEqual(saved, [])
-        # Subtitles off as the last turn saw them: not saved as it ends,
-        # held or not. Off for SETTLE seconds of turns while it plays, they
-        # are.
+        # Subtitles turned off as the last turn saw them: not saved as it
+        # ends, held or not. Off for SETTLE seconds of turns while it plays,
+        # they are.
         player.audios, player.subtitles = kodi_lists(audio=1, subtitles=4)
         player.enabled = False
         f.turn()
@@ -383,6 +383,29 @@ class FollowerTest(unittest.TestCase):
         clock.now += tracks.SETTLE
         f.turn()
         self.assertEqual(saved, [{"file_id": 7, "subtitle_index": None}])
+
+    def test_audio_changed_with_subtitles_off_all_along_is_saved_as_it_ends(self):
+        # Subtitles off from the start, the account's choice.
+        clock = Clock()
+        player = Kodi(subtitles=4)
+        f, saved = follower(tracks.layout(direct(), a_file()), player, clock)
+        f.turn()
+        clock.now += tracks.QUIET
+        f.turn()
+        self.assertEqual(f.baseline, (0, None))
+        # French audio, chosen in Kodi's player. Kodi stops before a turn
+        # saved it, listing nothing as it stops: nothing to go by.
+        player.audio = 1
+        f.turn()
+        clock.now += 1
+        f.turn()
+        player.audios, player.subtitles = [], []
+        clock.now += tracks.SETTLE - 1
+        f.turn()
+        # It held, and the subtitles, off all along, are no part of it:
+        # saved as the playback ends.
+        f.finish()
+        self.assertEqual(saved, [{"file_id": 7, "audio_index": 2, "subtitle_index": None}])
 
     def test_a_converted_streams_audio_is_the_servers(self):
         clock = Clock()
@@ -396,6 +419,23 @@ class FollowerTest(unittest.TestCase):
         clock.now += tracks.SETTLE
         f.finish()
         self.assertEqual(saved, [{"file_id": 7, "subtitle_index": 5}])
+
+    def test_a_file_without_audio_is_followed(self):
+        # Kodi plays no audio from the start: a turn without audio is no
+        # player stopping here, and a change is saved all the same.
+        clock = Clock()
+        silent = dict(a_file(audio=None), streams=[s for s in STREAMS if s["kind"] != "audio"])
+        player = Kodi(audio=0, subtitles=4)
+        f, saved = follower(tracks.layout(direct(audio=None), silent), player, clock)
+        f.turn()
+        clock.now += tracks.QUIET
+        f.turn()
+        # The file's English subtitles, turned on in Kodi's player.
+        player.subtitle, player.enabled = 1, True
+        f.turn()
+        clock.now += tracks.SETTLE
+        f.turn()
+        self.assertEqual(saved, [{"file_id": 7, "subtitle_index": 3}])
 
 
 class Server:

@@ -323,14 +323,17 @@ class Follower:
 
     def finish(self) -> None:
         """The playback ended: a change that held SETTLE seconds, which no
-        turn came to save, is saved. One still settling isn't, nor one with
-        subtitles off: Kodi turns them off as it stops, and the last turn
-        may have seen that."""
+        turn came to save, is saved. One still settling isn't, nor one that
+        turned subtitles off: Kodi turns them off as it stops, and the last
+        turn may have seen that."""
         if self.lock.acquire(timeout=1):
             try:
                 if self.pending is not None:
-                    _, subtitle = self.pending[0]
-                    if subtitle is not None and self.clock() - self.pending_since >= SETTLE:
+                    state, _ = self.pending
+                    # Subtitles off all along are no part of the change: audio
+                    # changed with them off is saved.
+                    turned_off = state[1] is None and self.baseline is not None and self.baseline[1] is not None
+                    if not turned_off and self.clock() - self.pending_since >= SETTLE:
                         self._flush()
                     self.pending = None
             finally:
