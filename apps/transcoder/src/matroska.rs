@@ -689,17 +689,18 @@ impl<'a> Track<'a> {
 pub fn text_tracks(path: &Path, media: &MediaInfo, wanted: &[i64], budget: &Budget) -> Result<TextTracks, String> {
     let kind = Kind { codec: text_codec, name: "text", webm: |c| c == TextCodec::Webvtt, block_read: TEXT_BLOCK_READ };
     let mut whole = None;
-    subtitle_tracks(path, media, wanted, budget, kind, Order::WHOLE, &|| Duration::ZERO, |tracks| {
+    subtitle_tracks(path, media, wanted, budget, kind, Order::WHOLE, &|_| {}, |tracks| {
         whole = Some(tracks);
         Ok(())
     })?;
     whole.ok_or_else(|| "no track read".into())
 }
 
-/// Holds a reader of a read through the Cues up before a block, while what
-/// a player waits for reads the same disks, and says how long the read was
-/// held up then (its budget doesn't count that).
-pub type StepAside<'a> = &'a (dyn Fn() -> Duration + Sync);
+/// Holds a reader of a read through the Cues up before a block while what a
+/// player waits for goes on, and gives the read's budget the time it held
+/// the read up: once for readers held up together, before any of them goes
+/// on.
+pub type StepAside<'a> = &'a (dyn Fn(&Budget) + Sync);
 
 /// The picture subtitle streams `wanted` of a Matroska file, read through
 /// its Cues within `budget`, as [`text_tracks`] reads text (their blocks as
@@ -868,7 +869,7 @@ fn subtitle_tracks<C: Copy>(
     let stretches = stretches(&clusters, window);
     let last = stretches.len() - 1;
     // The first is what a player waits for.
-    let at_once = || Duration::ZERO;
+    let at_once = |_: &Budget| {};
     for (n, stretch) in stretches.into_iter().enumerate() {
         budget.check()?;
         let aside: StepAside = if n == 0 { &at_once } else { step_aside };
@@ -1181,8 +1182,13 @@ impl Readers<'_> {
             let mut head = None;
             let mut end = at;
             for entry in cluster {
-                self.budget.extend((self.step_aside)());
-                if self.failed.load(Ordering::Relaxed) {
+                // A stretch another reader failed doesn't wait to stop.
+                let stopped = || self.failed.load(Ordering::Relaxed);
+                if stopped() {
+                    return Err(ReadError::Stopped);
+                }
+                (self.step_aside)(self.budget);
+                if stopped() {
                     return Err(ReadError::Stopped);
                 }
                 self.budget.check().map_err(ReadError::Failed)?;
@@ -2244,7 +2250,7 @@ pub(crate) mod tests {
         window: (i64, i64),
     ) -> Result<Vec<PictureTracks>, String> {
         let mut stretches = Vec::new();
-        picture_tracks(path, media, wanted, &plenty(), window, &|| Duration::ZERO, |found| {
+        picture_tracks(path, media, wanted, &plenty(), window, &|_| {}, |found| {
             stretches.push(found);
             Ok(())
         })?;
@@ -2286,10 +2292,10 @@ pub(crate) mod tests {
         // 0:50), and the time it holds the readers up isn't the read's: here
         // more than the read may take.
         let asked = AtomicUsize::new(0);
-        let slow = || {
+        let slow = |budget: &Budget| {
             asked.fetch_add(1, Ordering::Relaxed);
             std::thread::sleep(Duration::from_millis(10));
-            Duration::from_millis(10)
+            budget.extend(Duration::from_millis(10));
         };
         let budget = Budget::new(64 << 20, Duration::from_millis(200));
         let mut blocks = 0;
@@ -2302,14 +2308,13 @@ pub(crate) mod tests {
 
         // Held aside, the readers read nothing more till they are let go.
         let held = AtomicBool::new(true);
-        let aside = || {
+        let aside = |_: &Budget| {
             while held.load(Ordering::Relaxed) {
                 std::thread::sleep(Duration::from_millis(1));
             }
-            Duration::ZERO
         };
         let stretches = Mutex::new(Vec::new());
-        std::thread::scope(|scope| {
+        let while_held = std::thread::scope(|scope| {
             let read = scope.spawn(|| {
                 picture_tracks(&path, &movie_media(), &[3], &plenty(), (40_000, 50_000), &aside, |found| {
                     stretches.lock().push(found.tracks[0].blocks.len());
@@ -2320,10 +2325,12 @@ pub(crate) mod tests {
                 std::thread::sleep(Duration::from_millis(1));
             }
             std::thread::sleep(Duration::from_millis(200));
-            assert_eq!(*stretches.lock(), [10], "those around the player alone");
+            let while_held = stretches.lock().clone();
             held.store(false, Ordering::Relaxed);
             read.join().unwrap().unwrap();
+            while_held
         });
+        assert_eq!(while_held, [10], "those around the player alone");
         assert_eq!(stretches.lock().iter().sum::<usize>(), 600);
     }
 
@@ -2345,16 +2352,7 @@ pub(crate) mod tests {
         // None there: an empty window first all the same.
         assert_eq!(seconds((90_000, 95_000)), [span(0..0, true), span(0..80, false)]);
         // What takes them can stop the read.
-        let stopped =
-            picture_tracks(
-                &path,
-                &movie_media(),
-                &[3],
-                &plenty(),
-                (0, 1),
-                &|| Duration::ZERO,
-                |_| Err("enough".into()),
-            );
+        let stopped = picture_tracks(&path, &movie_media(), &[3], &plenty(), (0, 1), &|_| {}, |_| Err("enough".into()));
         assert_eq!(stopped.unwrap_err(), "enough");
     }
 
@@ -2816,7 +2814,7 @@ pub(crate) mod tests {
         let read = |file: &TestFile| {
             let path = file.write(dir.path());
             let mut found = Vec::new();
-            picture_tracks(&path, &media, &[1], &plenty(), (0, i64::MAX), &|| Duration::ZERO, |stretch| {
+            picture_tracks(&path, &media, &[1], &plenty(), (0, i64::MAX), &|_| {}, |stretch| {
                 found.push(stretch);
                 Ok(())
             })

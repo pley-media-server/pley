@@ -53,9 +53,9 @@ describes how they are made.
   them take over a minute, and a seek while the whole file is read for
   them still has the pictures where the player went, rather than none.
 - The rest of a film's picture subtitles, read after those around where it
-  plays, steps aside read by read while a playback starts or the pictures
-  at a seek are read, so on a NAS a seek in the first minute of a film has
-  its subtitles sooner.
+  plays, pauses while a playback starts or the pictures where a player
+  seeks are read, so on a NAS a seek soon after a film starts has its
+  subtitles in about a second, where it could take four.
 
 ## [0.1.3] - 2026-11-02
 
