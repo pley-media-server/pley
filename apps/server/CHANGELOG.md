@@ -15,6 +15,14 @@ describes how they are made.
   as a BIF file (`previews.bif`), which Roku's own player fetches and shows
   as you fast forward and rewind.
 
+### Changed
+
+- The web app's PIN pad stops once a profile's PIN is locked after too
+  many wrong tries, as the other apps' pads do; a profile that got a PIN
+  after the list was loaded asks it; and the profile in use shows its lock.
+  `POST /api/auth/switch` answers a refused PIN with `code` `wrong_pin` or
+  `pin_locked`.
+
 ## [0.1.2] - 2026-11-01
 
 ### Changed

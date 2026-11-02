@@ -11,10 +11,14 @@ const kid: User = { ...testUser, id: 2, name: "Kid", is_admin: false };
 const locked: User = { ...testUser, id: 3, name: "Alex", is_admin: false, has_pin: true };
 const admin: User = { ...testUser, id: 4, name: "Owner", is_admin: true };
 const guarded: User = { ...testUser, id: 5, name: "Boss", is_admin: true, two_step: true };
+/** Its PIN is locked after too many wrong ones. */
+const stuck: User = { ...testUser, id: 6, name: "Robin", is_admin: false, has_pin: true };
+/** Listed without a PIN, which it has since. */
+const lately: User = { ...testUser, id: 7, name: "Jo", is_admin: false };
 
 function serve() {
   return mockApi({
-    "GET /api/auth/profiles": () => [me, kid, locked, admin, guarded],
+    "GET /api/auth/profiles": () => [me, kid, locked, admin, guarded, stuck, lately],
     "POST /api/auth/switch": (req) => {
       const body = req.body as { user_id: number; pin?: string; password?: string; code?: string };
       if (body.user_id === guarded.id) {
@@ -22,9 +26,11 @@ function serve() {
           ? { user: guarded, token: "t" }
           : apiError(401, "two_step", "that code didn't work");
       }
-      if (body.user_id === locked.id && body.pin !== "2468") return apiError(403, "forbidden", "wrong PIN");
+      if (body.user_id === locked.id && body.pin !== "2468") return apiError(403, "wrong_pin", "wrong PIN");
+      if (body.user_id === stuck.id) return apiError(403, "pin_locked", "this profile's PIN is locked after too many wrong tries");
+      if (body.user_id === lately.id && body.pin !== "1357") return apiError(403, "wrong_pin", body.pin ? "wrong PIN" : "this profile is protected by a PIN");
       if (body.user_id === admin.id && body.password !== "secret") return apiError(403, "forbidden", "wrong password");
-      return { user: [kid, locked, admin].find((u) => u.id === body.user_id), token: "t" };
+      return { user: [kid, locked, admin, lately].find((u) => u.id === body.user_id), token: "t" };
     },
   });
 }
@@ -91,6 +97,39 @@ describe("ProfilesPage", () => {
     expect(requests.filter((r) => r.method === "POST").map((r) => r.body)).toEqual([
       { user_id: locked.id, pin: "1234" },
       { user_id: locked.id, pin: "2468" },
+    ]);
+  });
+
+  it("stops the pad once the PIN is locked", async () => {
+    const user = userEvent.setup();
+    const requests = serve();
+    renderProfiles();
+
+    await user.click(await screen.findByRole("button", { name: "Robin" }));
+    await user.keyboard("1234{Enter}");
+    expect(await screen.findByText(/PIN is locked/)).toHaveAttribute("role", "alert");
+    expect(screen.getByRole("button", { name: "5" })).toBeDisabled();
+    await user.keyboard("5678{Enter}");
+    expect(requests.filter((r) => r.method === "POST")).toHaveLength(1);
+    // Another profile's pad starts as usual.
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Alex" }));
+    expect(screen.getByRole("button", { name: "5" })).toBeEnabled();
+  });
+
+  it("asks for the PIN of a profile that has one since the list was loaded", async () => {
+    const user = userEvent.setup();
+    const requests = serve();
+    renderProfiles();
+
+    await user.click(await screen.findByRole("button", { name: "Jo" }));
+    expect(await screen.findByText("Enter the profile PIN")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeEmptyDOMElement();
+    await user.keyboard("1357{Enter}");
+    expect(await screen.findByTestId("location")).toHaveTextContent("/library/2");
+    expect(requests.filter((r) => r.method === "POST" && r.path === "/api/auth/switch").map((r) => r.body)).toEqual([
+      { user_id: lately.id },
+      { user_id: lately.id, pin: "1357" },
     ]);
   });
 

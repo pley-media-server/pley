@@ -13,6 +13,11 @@ pub enum AppError {
     Unauthorized,
     #[error("{0}")]
     Forbidden(String),
+    /// A refusal the client tells apart by its code: `403` with
+    /// `{ code, message }` (the web app's profile switch: `wrong_pin`,
+    /// `pin_locked`, as the switch-profile grant's reasons).
+    #[error("{1}")]
+    ForbiddenAs(&'static str, String),
     #[error("{0}")]
     NotFound(String),
     #[error("{0}")]
@@ -84,6 +89,7 @@ impl AppError {
             Self::BadRequest(m) => Self::BadRequest(m.clone()),
             Self::Unauthorized => Self::Unauthorized,
             Self::Forbidden(m) => Self::Forbidden(m.clone()),
+            Self::ForbiddenAs(code, m) => Self::ForbiddenAs(code, m.clone()),
             Self::NotFound(m) => Self::NotFound(m.clone()),
             Self::Conflict(m) => Self::Conflict(m.clone()),
             Self::ConflictWith(m, d) => Self::ConflictWith(m.clone(), d.clone()),
@@ -105,6 +111,7 @@ impl AppError {
             Self::BadRequest(_) => (StatusCode::BAD_REQUEST, "bad_request"),
             Self::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized"),
             Self::Forbidden(_) => (StatusCode::FORBIDDEN, "forbidden"),
+            Self::ForbiddenAs(code, _) => (StatusCode::FORBIDDEN, *code),
             Self::NotFound(_) => (StatusCode::NOT_FOUND, "not_found"),
             Self::Conflict(_) | Self::ConflictWith(..) => (StatusCode::CONFLICT, "conflict"),
             Self::Unavailable(_) => (StatusCode::SERVICE_UNAVAILABLE, "unavailable"),

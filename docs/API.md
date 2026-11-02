@@ -545,7 +545,9 @@ lists carry (Kodi).
     as a sign-in does (`two_step_setup` until `code` is the secret's first
     code, with `setup_id`), and the answer has its `recovery_codes`.
 
-  `429` after 5 wrong tries in 15 minutes.
+  `429` after 5 wrong tries in 15 minutes. A PIN refused is `403` with
+  `code` `wrong_pin` (missing or wrong) or `pin_locked`, as the apps'
+  [switch-profile grant](#tokens) says by its `reason`.
 
 ### Two-step sign-in
 

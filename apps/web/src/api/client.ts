@@ -9,6 +9,10 @@ export type ApiErrorCode =
   | "two_step"
   /** A sign-in that sets up two-step sign-in first, which the server requires: the answer has the secret (`setup`). */
   | "two_step_setup"
+  /** A profile switch: the PIN is missing or wrong. */
+  | "wrong_pin"
+  /** A profile switch: the PIN is locked after too many wrong ones in a row. */
+  | "pin_locked"
   | "unavailable"
   | "internal"
   | "network";

@@ -278,7 +278,7 @@ async fn a_pin_stops_working_after_100_wrong_tries_in_a_row() {
     let admin = app.login("admin", "secret-one").await;
     assert_eq!(switch(&app, &admin, json!({"user_id": kid_id, "pin": "9999"})).await.status, StatusCode::FORBIDDEN);
     let locked = switch(&app, &admin, json!({"user_id": kid_id, "pin": "1234"})).await;
-    assert_eq!(locked.status, StatusCode::FORBIDDEN);
+    assert_eq!((locked.status, &locked.body["code"]), (StatusCode::FORBIDDEN, &json!("pin_locked")));
     assert!(locked.text().contains("locked"), "{}", locked.text());
 
     // Setting it again opens it.
