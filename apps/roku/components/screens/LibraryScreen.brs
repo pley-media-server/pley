@@ -292,19 +292,14 @@ end sub
 
 ' --- The Library tab ---
 
-' A page of posters, by its number; the task makes their ContentNodes, and
-' empty frames before them for the places between the last title here and
-' the page (a jump far down).
+' A page of posters, by its number; the task makes their ContentNodes.
 sub loadPage(page as integer)
     at = page * pageSize()
     if page < 0 or m.pages.DoesExist(page.ToStr()) or (m.total >= 0 and at >= m.total) then return
     m.pages[page.ToStr()] = true
-    count = m.content.getChildCount()
-    if count = 0 then showMessage("Loading…")
-    pad = at - count
-    if pad < 0 then pad = 0
+    if m.content.getChildCount() = 0 then showMessage("Loading…")
     query = libQuery(m.view, at, pageSize())
-    uiRequest({ method: "GET", path: urlWithQuery("/api/libraries/" + urlValue(m.library.id) + "/items", query), build: "tiles", pad: pad, listing: m.listing, page: page }, "onPage")
+    uiRequest({ method: "GET", path: urlWithQuery("/api/libraries/" + urlValue(m.library.id) + "/items", query), build: "tiles", listing: m.listing, page: page }, "onPage")
 end sub
 
 sub onPage(event as object)
@@ -323,7 +318,7 @@ sub onPage(event as object)
     m.total = page.total
     nodes = []
     if request.content <> invalid then nodes = request.content.getChildren(-1, 0)
-    place(at, nodes, spec.pad)
+    place(at, nodes)
     ' An empty page ends the listing, whatever the total said.
     if page.listed = 0 then m.total = at
     count = m.content.getChildCount()
@@ -336,26 +331,21 @@ sub onPage(event as object)
     showContent()
 end sub
 
-' A page's tiles at at, after their empty frames (the first pad of nodes):
-' the frames fill the places between the last title here and the page,
-' less those another page made meanwhile; the tiles take the frames'
-' places, or come after the rest.
-sub place(at as integer, nodes as object, pad as integer)
+' A page's tiles at at. The places between the last title here and the
+' page (a jump far down) are empty frames until their titles come: plain
+' ContentNodes, which Tile draws as frames, made in one native call however
+' many (a library of thousands). The tiles take the frames' places, or
+' come after the rest.
+sub place(at as integer, nodes as object)
     count = m.content.getChildCount()
-    gap = at - count
-    if gap > 0
-        if gap > pad then nodesAppend(m.content, contentPlaceholders(gap - pad))
-        frames = []
-        for i = pad - gap to pad - 1
-            if i >= 0 then frames.Push(nodes[i])
-        end for
-        if frames.Count() > 0 then m.content.appendChildren(frames)
+    if at > count
+        m.content.createChildren(at - count, "ContentNode")
         count = at
     end if
     over = []
     after = []
-    for i = pad to nodes.Count() - 1
-        if at + i - pad < count
+    for i = 0 to nodes.Count() - 1
+        if at + i < count
             over.Push(nodes[i])
         else
             after.Push(nodes[i])

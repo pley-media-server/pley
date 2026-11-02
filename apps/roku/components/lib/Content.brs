@@ -245,15 +245,6 @@ function contentRowChanges(hubs as dynamic, server as string, known as dynamic) 
     return { summary: summary, changed: changed }
 end function
 
-' Places in a grid for titles that haven't come yet: empty frames.
-function contentPlaceholders(count as integer) as object
-    out = []
-    for i = 1 to count
-        out.Push({ title: "", subtitle: "", image: "", kind: "skeleton" })
-    end for
-    return out
-end function
-
 ' Tiles of the titles in a listing (a library page, search) this version
 ' shows.
 function contentTiles(items as dynamic, server as string) as object
