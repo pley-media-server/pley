@@ -1,18 +1,18 @@
 // Runs the whole app, SceneGraph and Tasks included, in brs-node against
 // a fake pley server on 127.0.0.1 (scripts/fixture-server.mjs), and walks
 // it with the remote: sign in with the TV code and its QR code on a server
-// that requires two-step sign-in, Home, a
-// title's details, the player, the Options key, a library's grid, its A to
-// Z and the pages a jump passes over, filters saved as a smart playlist,
-// collections played (movies and a smart one of shows), a show's page, its
-// episodes and a person's page, Live TV (its
-// guide, a channel watched, the next one, the channel list, a favourite,
-// every connection in use, the Channels tab), Search, Discover (a movie
-// asked for, a show's seasons picked), the managers' Requests (Approve, a
+// that requires two-step sign-in, Home, a title's details, the player, the
+// Options key, a library's grid, its A to Z and the pages a jump passes
+// over, filters saved as a smart playlist, collections played (movies and
+// a smart one of shows), a show's page, its episodes and a person's page,
+// music (an artist, an album, Now Playing), playlists, Live TV (its guide,
+// a channel watched, the next one, the channel list, a favourite, every
+// connection in use, the Channels tab), Search, Discover (a movie asked
+// for, a show's seasons picked), the managers' Requests (Approve, a
 // ready-to-watch notice whose movie's audio and subtitles are picked on
-// its page, then Yours), Settings, the server gone and Try
-// again, then signing out and in again on a server too old for QR codes,
-// requests and two-step sign-in. Then it starts the app again, signed in,
+// its page, then Yours), Settings, the server gone and Try again, then
+// signing out and in again on a server too old for QR codes, requests and
+// two-step sign-in. Then it starts the app again, signed in,
 // and times how soon Home is asked for. Fails on a BrightScript error or
 // on anything the fake server found wrong; saves what the screen showed
 // at each step in out/smoke/. brs-node is a simulator: layouts and the

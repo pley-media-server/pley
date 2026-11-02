@@ -54,10 +54,10 @@ end function
 ' The screen a tile opens: { to, params }, or invalid for kinds this
 ' version doesn't open. A season opens its show on that season; a
 ' collection, a person and an artist, their page; a playlist, its
-' entries; a track, its album; an extra plays at once. A
-' TMDB title opens its page (Request more seasons, with its season
-' picker); See all, its list, or Discover's search for its words (a
-' library row's See all is its screen's to open: invalid here).
+' entries; a track, its album; an extra plays at once. A TMDB title
+' opens its page (Request more seasons, with its season picker); See all,
+' its list, or Discover's search for its words (a library row's See all
+' is its screen's to open: invalid here).
 function navForTile(tile as object) as dynamic
     kind = httpString(tile.kind)
     if kind = "discover" or kind = "askMore"

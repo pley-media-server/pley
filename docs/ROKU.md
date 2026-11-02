@@ -36,7 +36,7 @@ signs in with a code shown on the TV, approved on the server's `/link` page
 or by its QR code. When the server requires two-step sign-in, the sign-in
 screen says so: the phone that approves the code sets it up for whoever
 hasn't yet. It asks "Who's watching?" at start when the household has more
-than one profile.
+than one profile, unless Settings' Always start as names one.
 
 ### Remote keys
 
@@ -51,12 +51,39 @@ than one profile.
 | OK | Skip intro, Skip credits | Skips; fast forward and rewind move 10 s |
 | Replay | Live TV | Search (Roku remotes have no search key for apps) |
 
-The player's sleep timer (Down, then Sleep timer) pauses after 15 to 90
-minutes or at the end of what plays, as on the other apps. In its last
-30 s it says "Pausing in 12 s" with Keep watching, which adds the same time
-again (or lets this title play to its end). Paused by it for 10 minutes,
-the player leaves; it isn't kept from one time the player opens to the
-next.
+### A title's page
+
+A movie's, an episode's or a show's page has its buttons in a column at
+the left, Play (or Resume and Play from start) first, then Mark as
+watched, Audio and subtitles, My List, Trailer (where its extras have
+one: it plays from its start) and More…. Audio and subtitles and More
+open a panel at the right; Back closes it, and Down from the buttons goes
+to the rows under them.
+
+- **Audio and subtitles** (a movie or an episode with several files, or
+  whose file has two audio tracks or more, or subtitles):
+  - Version, for several files: one line each ("Director's Cut · 4K ·
+    HEVC · DV P8.1 · TrueHD Atmos 7.1 · 62.0 GB"). Play plays the one
+    chosen (`file_id` in `POST /api/playback`), with the tracks the server
+    picks; it isn't saved, as on the other apps.
+  - Audio, Automatic first, named by the language the profile's defaults
+    pick ("Automatic (English)"), then the file's tracks ("French (AC3
+    5.1)"); Subtitles, Off first, then the file's ("English – SDH (SRT)").
+    A choice is saved at once for the show or movie (`PUT
+    /api/items/{id}/streams`) and Play starts with it. The audio goes with
+    it only when picked here, Automatic as none, as on the other TVs.
+- **More**, what is used less, as on the other TVs: Rate (Your rating,
+  once given: No rating, or 1 to 5 stars, kept for the profile on the
+  server), an episode's Go to show (the show's page) and Go to season
+  (its episodes), Media info and Add to playlist. The Options key on an
+  episode's tile goes to them alike.
+- **Media info** (a movie or an episode with a file): each file, under its
+  edition or "VERSION 2" when there are several, and every stream in
+  full, in the other apps' words (codec, profile and level, size, frame
+  rate, bit depth, HDR and Dolby Vision, colour, channels, sample rate,
+  language, title, flags), as text that Up and Down scroll.
+
+### Collections, people, artists and playlists
 
 A collection's page has its backdrop, "Collection" with a TMDB or Smart
 badge, its title, what it holds ("5 movies · Movies · By release date";
@@ -80,26 +107,7 @@ right, newest first.
 Playlists has New playlist at the right of its heading: what it is for
 (Movies & TV or Music), then its name on the Roku's keyboard. The new
 playlist opens, empty; Add to playlist, the Options key on a title, fills
-it.
-
-Fast forward and rewind show seek previews in Roku's own bar: the server's
-previews of the file as a BIF file, which the Video node fetches beside the
-media (`previews.bif`). While the server is still making them, the bar
-shows the time alone.
-
-Settings has the audio and subtitle defaults, Quality, Play the next
-episode by itself (Up Next counts down only while it is on), Watch
-history, Switch profile, Always start as, Sort libraries, Switch server
-and Sign out. It says where the account is managed on the web (the
-server's address and `/account`), and carries TMDB's notice. Right of the
-settings, Diagnostics shows this Roku and what it tells the server it
-plays (`capsLines` in `components/lib/Caps.brs`), and Open-source licences
-shows Pley's licence and the notices of what the package bundles.
-
-Always start as, for a household of several profiles, names the profile
-the app starts as, or Ask who's watching. As on the other TVs it only
-skips "Who's watching?" at a start: the app starts as the profile it was
-left on. It is kept on the Roku for each server.
+it. A playlist's entries move with the Options key's Move.
 
 ### Libraries
 
@@ -169,37 +177,19 @@ track play to its end). Then the music pauses; at the end of a track, the
 next one waits, paused. Paused by the timer for 10 minutes, the music
 stops. Stop, or the queue's end, turns the timer off.
 
-### A title's page
+### The player
 
-A movie's, an episode's or a show's page has its buttons in a column at
-the left, Play (or Resume and Play from start) first, then Mark as
-watched, Audio and subtitles, My List, Trailer (where its extras have
-one: it plays from its start) and More…. Audio and subtitles and More
-open a panel at the right; Back closes it, and Down from the buttons goes
-to the rows under them.
+Fast forward and rewind show seek previews in Roku's own bar: the server's
+previews of the file as a BIF file, which the Video node fetches beside the
+media (`previews.bif`). While the server is still making them, the bar
+shows the time alone.
 
-- **Audio and subtitles** (a movie or an episode with several files, or
-  whose file has two audio tracks or more, or subtitles):
-  - Version, for several files: one line each ("Director's Cut · 4K ·
-    HEVC · DV P8.1 · TrueHD Atmos 7.1 · 62.0 GB"). Play plays the one
-    chosen (`file_id` in `POST /api/playback`), with the tracks the server
-    picks; it isn't saved, as on the other apps.
-  - Audio, Automatic first, named by the language the profile's defaults
-    pick ("Automatic (English)"), then the file's tracks ("French (AC3
-    5.1)"); Subtitles, Off first, then the file's ("English – SDH (SRT)").
-    A choice is saved at once for the show or movie (`PUT
-    /api/items/{id}/streams`) and Play starts with it. The audio goes with
-    it only when picked here, Automatic as none, as on the other TVs.
-- **More**, what is used less, as on the other TVs: Rate (Your rating,
-  once given: No rating, or 1 to 5 stars, kept for the profile on the
-  server), an episode's Go to show (the show's page) and Go to season
-  (its episodes), Media info and Add to playlist. The Options key on an
-  episode's tile goes to them alike.
-- **Media info** (a movie or an episode with a file): each file, under its
-  edition or "VERSION 2" when there are several, and every stream in
-  full, in the other apps' words (codec, profile and level, size, frame
-  rate, bit depth, HDR and Dolby Vision, colour, channels, sample rate,
-  language, title, flags), as text that Up and Down scroll.
+The sleep timer (Down, then Sleep timer) pauses after 15 to 90 minutes
+or at the end of what plays, as on the other apps. In its last
+30 s it says "Pausing in 12 s" with Keep watching, which adds the same time
+again (or lets this title play to its end). Paused by it for 10 minutes,
+the player leaves; it isn't kept from one time the player opens to the
+next.
 
 ### Audio and subtitles
 
@@ -323,6 +313,22 @@ its number counts what waits: a manager's pending and failed requests
 Not offered: Approve's choices of profile, folder and seasons (on the web
 and phones; Approve here approves what was asked), bulk approve and
 decline, and the requests' settings (the web).
+
+### Settings
+
+Settings has the audio and subtitle defaults, Quality, Play the next
+episode by itself (Up Next counts down only while it is on), Watch
+history, Switch profile, Always start as, Sort libraries, Switch server
+and Sign out. It says where the account is managed on the web (the
+server's address and `/account`), and carries TMDB's notice. Right of the
+settings, Diagnostics shows this Roku and what it tells the server it
+plays (`capsLines` in `components/lib/Caps.brs`), and Open-source licences
+shows Pley's licence and the notices of what the package bundles.
+
+Always start as, for a household of several profiles, names the profile
+the app starts as, or Ask who's watching. As on the other TVs it only
+skips "Who's watching?" at a start: the app starts as the profile it was
+left on. It is kept on the Roku for each server.
 
 ## Building and testing
 
@@ -450,5 +456,7 @@ The manifest asks for SceneGraph 1.2, which every Roku OS from 9 runs.
   requests' summary refresh once a minute, a title page with a request
   each 30 s.
 - Audio other than the file's default isn't played as it is.
+- Live TV has no channel numbers to type: Roku remotes have no number keys.
+- Home has no hero over its rows, which the other TVs have.
 - Not yet: an editable music queue.
 
