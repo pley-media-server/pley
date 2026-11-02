@@ -26,12 +26,14 @@ import app.pley.android.screens.PleyKey
 import app.pley.android.screens.home.HomeViewModel
 import app.pley.android.screens.home.LibrariesViewModel
 import app.pley.android.testing.Fixtures
+import app.pley.android.ui.phone.kit.KitProbe
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.shell.PhoneShellState
 import app.pley.android.ui.phone.shell.rememberPhoneNavigation
 import app.pley.android.ui.phone.theme.PhoneTheme
 import kotlinx.coroutines.Dispatchers
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -79,6 +81,30 @@ class PhoneHomeTest {
         val vm = HomeViewModel(sources, Dispatchers.Unconfined)
         compose.setContent { Page { PhoneHomeScreen(vm) } }
         compose.waitForIdle()
+    }
+
+    @After
+    fun forget() {
+        KitProbe.rowComposed = null
+        KitProbe.cardComposed = null
+    }
+
+    @Test
+    fun theServerAnsweringWithWhatShowsRecomposesNoRowOrCard() {
+        val rows = mutableListOf<String>()
+        val cards = mutableListOf<Long>()
+        KitProbe.rowComposed = { synchronized(rows) { rows += it } }
+        KitProbe.cardComposed = { synchronized(cards) { cards += it } }
+        home()
+        val rowsBefore = synchronized(rows) { rows.size }
+        val cardsBefore = synchronized(cards) { cards.size }
+        assertTrue(rowsBefore > 0 && cardsBefore > 0)
+
+        // The server answers what was saved: only Home's freshness changes.
+        sources.home.value = Loadable.Ready(Fixtures.decode<Hubs>("hubs/home.json"), fresh = true)
+        compose.waitForIdle()
+        assertEquals("rows composed again: ${synchronized(rows) { rows.drop(rowsBefore) }}", rowsBefore, synchronized(rows) { rows.size })
+        assertEquals(cardsBefore, synchronized(cards) { cards.size })
     }
 
     @Test
