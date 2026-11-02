@@ -26,6 +26,9 @@ describes how they are made.
   starts there, and a seek while the rest is read has the pictures where
   the player went read at once. Kodi's `.sup` has everything read by the
   time it opens, not only the pictures around the start.
+- PGS subtitles of a Blu-ray remux come whole about twice as fast from a NAS
+  or a slow disk: each picture is one read of the file, where it was two or
+  three.
 
 ## [0.1.3] - 2026-11-02
 

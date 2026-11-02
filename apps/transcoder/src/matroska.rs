@@ -1382,9 +1382,11 @@ struct Window<R> {
     bytes_read: u64,
 }
 
-/// How much to read for a cluster's head, and around a block.
+/// How much to read for a cluster's head, and around a block: a Blu-ray's
+/// PGS pictures take up to tens of kilobytes, and on a disk a read costs a
+/// seek more than its bytes, so one read takes all of one.
 const HEAD_READ: usize = 64;
-const BLOCK_READ: usize = 16 * 1024;
+const BLOCK_READ: usize = 64 * 1024;
 
 impl<R: Read + Seek> Window<R> {
     fn new(inner: R) -> Self {
@@ -1444,15 +1446,20 @@ impl<R: Read + Seek> Window<R> {
     /// head: a cluster's id and size take 5 to 12 bytes, so the block starts
     /// at one of 8 places, and only one of them can hold a BlockGroup of the
     /// entry's track that lasts as long as the cue says and is filled
-    /// exactly by its elements. With the block's position; `None` when that
-    /// isn't certain (no duration in the cue, a SimpleBlock, two fits).
+    /// exactly by its elements, or, for a cue without a duration (mkvmerge
+    /// writes none for PGS), a whole SimpleBlock of the entry's track. With
+    /// the block's position; `None` when that isn't certain (two fits, a
+    /// block longer than a read).
     fn guess_block(&mut self, cluster: u64, entry: &CueEntry) -> Option<(u64, RawBlock)> {
-        let duration = entry.duration?;
         let earliest = cluster.checked_add(5)?.checked_add(entry.relative?)?;
         let bytes = self.get(earliest, 7 + BLOCK_READ, BLOCK_READ)?.to_vec();
+        let block_at = |bytes: &[u8]| match entry.duration {
+            Some(duration) => block_group_at(bytes, entry.track, duration),
+            None => simple_block_at(bytes, entry.track),
+        };
         let mut found = None;
         for shift in 0..bytes.len().min(8) {
-            if let Some(block) = block_group_at(&bytes[shift..], entry.track, duration) {
+            if let Some(block) = block_at(&bytes[shift..]) {
                 if found.is_some() {
                     return None;
                 }
@@ -1521,6 +1528,19 @@ fn block_group_at(bytes: &[u8], track: u64, duration: u64) -> Option<RawBlock> {
         return None;
     }
     let block = parse_block(block?, length, (start + payload.len()) as u64)?;
+    (block.track == track && block.flags & 0x06 == 0).then_some(block)
+}
+
+/// A whole SimpleBlock of `track`, not laced, at the start of `bytes`.
+fn simple_block_at(bytes: &[u8], track: u64) -> Option<RawBlock> {
+    let mut cursor = std::io::Cursor::new(bytes);
+    let (id, size) = element_header(&mut cursor)?;
+    if id != SIMPLE_BLOCK || size == UNKNOWN_SIZE || size > MAX_BLOCK {
+        return None;
+    }
+    let start = cursor.position() as usize;
+    let payload = bytes.get(start..start.checked_add(usize::try_from(size).ok()?)?)?;
+    let block = parse_block(payload, None, (start + payload.len()) as u64)?;
     (block.track == track && block.flags & 0x06 == 0).then_some(block)
 }
 
@@ -2647,6 +2667,66 @@ pub(crate) mod tests {
         let found = text_tracks(&path, &long_film_media(), &[1], &plenty()).unwrap();
         assert_eq!(lines(&found), expected, "the blocks' own times");
         assert!(found.reads >= 800, "{}", found.reads);
+    }
+
+    #[test]
+    fn pictures_are_found_without_their_cluster_heads() {
+        let dir = tempfile::tempdir().unwrap();
+        // PGS in SimpleBlocks, cued without durations (as mkvmerge writes
+        // them), one in three bigger than a small read, in clusters of video
+        // of three sizes.
+        let film = || {
+            let mut file = long_film();
+            file.tracks[1] = TestTrack::new(2, 17, "S_HDMV/PGS");
+            for (i, (_, blocks)) in file.clusters.iter_mut().enumerate() {
+                let size = [3, 2_000, 40_000][i % 3];
+                blocks[1] = (2, 100, None, [vec![0x16, 0, 0], vec![i as u8; size]].concat());
+            }
+            file
+        };
+        let media = MediaInfo {
+            streams: vec![stream(0, StreamKind::Video, "h264"), stream(1, StreamKind::Subtitle, "hdmv_pgs_subtitle")],
+            ..Default::default()
+        };
+        let read = |file: &TestFile| {
+            let path = file.write(dir.path());
+            let mut found = Vec::new();
+            picture_tracks(&path, &media, &[1], &plenty(), (0, i64::MAX), |stretch| {
+                found.push(stretch);
+                Ok(())
+            })
+            .unwrap();
+            let [found]: [PictureTracks; 1] = found.try_into().expect("one stretch");
+            found
+        };
+        let found = read(&film());
+        let times: Vec<i64> = found.tracks[0].blocks.iter().map(|b| b.time).collect();
+        assert_eq!(times, (0..400).map(|i| i * 1_000 + 100).collect::<Vec<_>>());
+        assert_eq!(found.tracks[0].blocks[2].data.len(), 3 + 40_000);
+        assert!(found.reads < 500, "one read a picture, and a head now and then: {}", found.reads);
+
+        // Cue times that aren't the blocks' are caught: every head is read.
+        let mut file = film();
+        file.cue_time_offset = 1;
+        let found = read(&file);
+        assert_eq!(found.tracks[0].blocks.iter().map(|b| b.time).collect::<Vec<_>>(), times, "the blocks' own times");
+        // A head and its picture, but for the smallest clusters, whose head
+        // read holds their picture.
+        assert!(found.reads > 600, "{}", found.reads);
+    }
+
+    #[test]
+    fn simple_blocks_are_told_from_chance() {
+        let simple =
+            |track: u8, flags: u8| el_short(&[0xA3], &[vec![0x80 | track, 0x00, 0x64, flags], vec![0x16; 4]].concat());
+        let block = simple_block_at(&simple(2, 0x80), 2).unwrap();
+        assert_eq!((block.track, block.timecode, block.data.as_slice()), (2, 100, [0x16; 4].as_slice()));
+        assert!(simple_block_at(&simple(3, 0x80), 2).is_none(), "another track");
+        assert!(simple_block_at(&simple(2, 0x82), 2).is_none(), "laced");
+        assert!(simple_block_at(&simple(2, 0x80)[1..], 2).is_none(), "off by one");
+        let mut cut = simple(2, 0x80);
+        cut.pop();
+        assert!(simple_block_at(&cut, 2).is_none(), "cut short");
     }
 
     #[test]
