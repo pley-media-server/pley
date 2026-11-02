@@ -15,6 +15,13 @@ describes how they are made.
   video, and on a network share the copy could read the whole film.
   Needs a server from the same release.
 
+### Fixed
+
+- Stopping a show or movie no longer turns its subtitles off for the next
+  time: Kodi turns them off as it stops, and that could be saved as the
+  choice. Tracks changed in Kodi's player are saved once they have held 2
+  seconds, at the end of a playback too.
+
 ## [0.1.2] - 2026-11-02
 
 ### Fixed

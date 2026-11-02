@@ -332,17 +332,57 @@ class FollowerTest(unittest.TestCase):
         clock.now += tracks.SETTLE
         f.turn()
         self.assertEqual(saved, [])
-        # The file's English subtitles, and the playback ends at once.
+        # The file's English subtitles, and the playback ends at once: a
+        # change still settling isn't saved.
         player.subtitle = 1
         clock.now += tracks.SETTLE
         f.turn()
+        clock.now += tracks.SETTLE - 1
+        f.finish()
+        self.assertEqual(saved, [])
+        # Held, and the playback ends before a turn saved it: saved.
+        f.turn()
+        clock.now += tracks.SETTLE
         f.finish()
         self.assertEqual(saved, [{"file_id": 7, "subtitle_index": 3}])
         # Audio and subtitles changed together: both.
         player.audio, player.subtitle = 1, 0
         f.turn()
+        clock.now += tracks.SETTLE
         f.finish()
         self.assertEqual(saved[-1], {"file_id": 7, "audio_index": 2, "subtitle_index": 1000})
+
+    def test_subtitles_off_as_kodi_stops_are_not_saved(self):
+        # A stream with the account's PGS beside it, as a .sup file.
+        clock = Clock()
+        player = Kodi(audio=1, subtitles=4)
+        f, saved = follower(tracks.layout(streamed(sup=True), a_file(subtitle=4)), player, clock)
+        f.turn()
+        self.assertEqual(player.calls, [("Player.SetSubtitle", {"subtitle": 1, "enable": True})])
+        clock.now += tracks.QUIET
+        f.turn()
+        # Kodi stopping: no audio, and no subtitles playing. A stream's
+        # layout lists no audio, but Kodi played some: nothing to go by,
+        # however long it lasts.
+        player.audios, player.subtitles = [], []
+        for _ in range(3):
+            f.turn()
+            clock.now += tracks.SETTLE
+        f.finish()
+        self.assertEqual(saved, [])
+        # Subtitles off as the last turn saw them: not saved as it ends,
+        # held or not. Off for SETTLE seconds of turns while it plays, they
+        # are.
+        player.audios, player.subtitles = kodi_lists(audio=1, subtitles=4)
+        player.enabled = False
+        f.turn()
+        clock.now += tracks.SETTLE
+        f.finish()
+        self.assertEqual(saved, [])
+        f.turn()
+        clock.now += tracks.SETTLE
+        f.turn()
+        self.assertEqual(saved, [{"file_id": 7, "subtitle_index": None}])
 
     def test_a_converted_streams_audio_is_the_servers(self):
         clock = Clock()
@@ -353,6 +393,7 @@ class FollowerTest(unittest.TestCase):
         f.turn()
         player.subtitle, player.enabled = 1, True
         f.turn()
+        clock.now += tracks.SETTLE
         f.finish()
         self.assertEqual(saved, [{"file_id": 7, "subtitle_index": 5}])
 
@@ -458,33 +499,58 @@ class ServicePlayer(Player):
 
 
 class ServiceTest(unittest.TestCase):
+    def setUp(self):
+        self.player = Kodi(subtitles=4)
+        self.service = ServicePlayer(self.player)
+
+    def tearDown(self):
+        xbmc.executeJSONRPC = self.service.real_rpc
+        kodi.clear_property(kodi.PLAYING)
+
+    def play(self) -> Clock:
+        """French audio and the Spanish file next to the film, shown as Kodi
+        starts; then where it starts, past the quiet seconds. The follower's
+        clock."""
+        playing = {"item_id": 9, "session_id": "s", "duration_ms": 100_000, "path": self.service.file,
+                   "tracks": tracks.layout(direct(audio=2), a_file(audio=2, subtitle=1000))}
+        kodi.set_property(kodi.PLAYING, json.dumps(playing))
+        self.service.onAVStarted()
+        self.assertEqual(self.player.calls, [
+            ("Player.SetAudioStream", {"stream": 1}),
+            ("Player.SetSubtitle", {"subtitle": 0, "enable": True}),
+        ])
+        clock = Clock()
+        self.service.tracks.clock = clock
+        self.service.tracks.quiet_until = 0
+        self.service.tick()
+        return clock
+
+    def stop(self) -> list:
+        """Kodi stops: the service's requests to save tracks."""
+        self.service.file = ""
+        self.service.onPlayBackStopped()
+        self.assertIsNone(self.service.tracks)
+        return [r for r in self.service.requests if r[1].endswith("/streams")]
+
     def test_the_service_shows_and_saves_them(self):
-        player = Kodi(subtitles=4)
-        service = ServicePlayer(player)
-        try:
-            playing = {"item_id": 9, "session_id": "s", "duration_ms": 100_000, "path": service.file,
-                       "tracks": tracks.layout(direct(audio=2), a_file(audio=2, subtitle=1000))}
-            kodi.set_property(kodi.PLAYING, json.dumps(playing))
-            service.onAVStarted()
-            self.assertEqual(player.calls, [
-                ("Player.SetAudioStream", {"stream": 1}),
-                ("Player.SetSubtitle", {"subtitle": 0, "enable": True}),
-            ])
-            # Subtitles turned off in Kodi's player, and playback stops before it held.
-            service.tracks.quiet_until = 0
-            service.tick()
-            player.enabled = False
-            service.tick()
-            service.file = ""
-            service.onPlayBackStopped()
-            streams = [r for r in service.requests if r[1].endswith("/streams")]
-            self.assertEqual(streams, [("PUT", "/api/items/9/streams", {"file_id": 7, "subtitle_index": None})])
-            # Saved before the last report.
-            self.assertEqual(service.requests[-3][1], "/api/items/9/streams")
-            self.assertIsNone(service.tracks)
-        finally:
-            xbmc.executeJSONRPC = service.real_rpc
-            kodi.clear_property(kodi.PLAYING)
+        clock = self.play()
+        # The film's English subtitles, picked in Kodi's player; they held,
+        # and playback stops before the next turn saved them.
+        self.player.subtitle = 1
+        self.service.tick()
+        clock.now += tracks.SETTLE
+        self.assertEqual(self.stop(), [("PUT", "/api/items/9/streams", {"file_id": 7, "subtitle_index": 3})])
+        # Saved before the last report.
+        self.assertEqual(self.service.requests[-3][1], "/api/items/9/streams")
+
+    def test_subtitles_kodi_turns_off_as_it_stops_are_not_saved(self):
+        clock = self.play()
+        self.player.enabled = False
+        self.service.tick()
+        clock.now += tracks.SETTLE
+        self.assertEqual(self.stop(), [])
+        # The last report and the session's end go all the same.
+        self.assertEqual([r[0] for r in self.service.requests[-2:]], ["POST", "DELETE"])
 
 
 class DefaultsTest(unittest.TestCase):

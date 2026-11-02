@@ -273,6 +273,10 @@ class Follower:
         self.baseline = None
         self.pending = None
         self.pending_since = 0.0
+        # Whether a turn saw Kodi play audio: none playing after that is a
+        # player stopping or between files, also where the layout lists no
+        # audio (a converted stream's).
+        self.had_audio = False
         # Off once Kodi lists a track the layout doesn't know (subtitles
         # added while it plays): its places no longer say pley's tracks.
         self.following = True
@@ -299,9 +303,10 @@ class Follower:
                 self.quiet_until = now + QUIET
             return
         state = current(props)
-        if state[0] is None and (props.get("audiostreams") or self.layout["audio"]):
+        if state[0] is None and (props.get("audiostreams") or self.layout["audio"] or self.had_audio):
             # A player between files, or stopping: nothing to go by.
             return
+        self.had_audio = self.had_audio or state[0] is not None
         if now < self.quiet_until or self.baseline is None:
             # Where it starts, the account's choice shown.
             self.baseline = state
@@ -317,10 +322,17 @@ class Follower:
             self._flush()
 
     def finish(self) -> None:
-        """The playback ended: a change still settling is saved."""
+        """The playback ended: a change that held SETTLE seconds, which no
+        turn came to save, is saved. One still settling isn't, nor one with
+        subtitles off: Kodi turns them off as it stops, and the last turn
+        may have seen that."""
         if self.lock.acquire(timeout=1):
             try:
-                self._flush()
+                if self.pending is not None:
+                    _, subtitle = self.pending[0]
+                    if subtitle is not None and self.clock() - self.pending_since >= SETTLE:
+                        self._flush()
+                    self.pending = None
             finally:
                 self.lock.release()
 
