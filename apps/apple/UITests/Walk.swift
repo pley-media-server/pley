@@ -124,7 +124,12 @@ struct Walk {
     /// Me: the tab on iPhone, the sidebar's foot on iPad and Mac.
     func openMe() {
         openSection("Me", sidebar: "shell.me")
-        wait(element("me.name"), "Me")
+        // Me keeps its scroll: its first row may be scrolled away, out of its lazy list.
+        let name = element("me.name")
+        for _ in 0..<6 where !name.waitForExistence(timeout: 2) {
+            scrollPage(up: false)
+        }
+        wait(name, "Me")
     }
 
     /// Scrolls the page a screen's half, up (`true`: to what is below) or

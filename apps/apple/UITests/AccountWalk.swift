@@ -92,7 +92,9 @@ extension Walk {
                       "Size says 150 %")
         shot("44-settings")
         reveal(element("settings.diagnostics"), "Diagnostics").tap()
-        let json = wait(element("diagnostics.json"), "the caps report")
+        // The report is below the device's lines, out of the lazy list in a short window.
+        wait(app.navigationBars["Diagnostics"], "Diagnostics")
+        let json = scroll(to: element("diagnostics.json"), "the caps report")
         XCTAssertTrue(json.label.hasPrefix("{"), "the report is JSON")
         shot("45-diagnostics")
         wait(app.navigationBars.buttons["Settings"], "Back").tap()
