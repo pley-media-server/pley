@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { appKeys, appLabel, scopesLabel, useMyApps, useSignOutMyApp } from "@/api/apps";
 import { errorMessage } from "@/api/client";
+import { compatibilityTokenKeys } from "@/api/compatibilityTokens";
 import {
   useChangePassword,
   useDeleteAvatar,
@@ -43,6 +44,7 @@ import { formatAgo, formatDay } from "@/lib/format";
 import { LANGUAGES } from "@/lib/languages";
 import { useDocumentTitle } from "@/lib/hooks";
 import { passwordProblem } from "@/lib/passwords";
+import { CompatibilityTokensCard } from "./CompatibilityTokensCard";
 import { TwoStepCard } from "./TwoStepCard";
 
 const MAX_AVATAR_BYTES = 10 * 1024 * 1024;
@@ -401,8 +403,9 @@ function PasswordCard() {
       {
         onSuccess: () => {
           toast.success("Password changed");
-          // A new password signs the account's apps out.
+          // A new password signs the account's apps out, and ends its tokens for other apps.
           void qc.invalidateQueries({ queryKey: appKeys.mine });
+          void qc.invalidateQueries({ queryKey: compatibilityTokenKeys.mine });
           setCurrent("");
           setNext("");
           setConfirm("");
@@ -667,6 +670,7 @@ export function AccountPage() {
       <HistoryCard />
       <DevicesCard />
       <AppsCard />
+      <CompatibilityTokensCard />
       <BuildLine />
     </div>
   );

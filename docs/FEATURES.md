@@ -101,6 +101,11 @@ What Pley does, in full. The [README](../README.md) has the short version.
   documents. Pley's own apps work without internet access; apps by other
   publishers are off until an administrator allows them. TVs show a code to
   type on Pley's `/link` page ([API.md](API.md#apps-oauth-21)).
+- Tools and players that use the compatibility API (Tautulli, Kometa, Plezy,
+  Infuse) get tokens of their own from Account, which work on that API only
+  and do only what you allow: watching and, for administrators, seeing
+  everyone's activity or managing libraries
+  ([COMPATIBILITY.md](COMPATIBILITY.md#authentication)).
 - First-run setup needs a one-time code from the server's log, which the tray
   icon fills in. Passwords have at least 8 characters and can't be common
   ones ([SECURITY.md](../SECURITY.md)).

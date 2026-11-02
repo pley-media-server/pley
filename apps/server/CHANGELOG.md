@@ -23,6 +23,9 @@ describes how they are made.
   with `client` in `POST /api/auth/login`, which makes no session. A token
   ends when it is revoked, after 90 days unused, and with a new password or
   signing out everywhere.
+- Account has Tokens for other apps: a token for each tool or player, with
+  what it may do, shown once to copy, then listed with when it was last
+  used, to revoke.
 
 ### Changed
 
