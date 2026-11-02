@@ -144,6 +144,8 @@ data class LiveState(
  *   after the first HLS segments (as the web's); otherwise, or when it
  *   fails, the answer's HLS from the live edge, on the app's Media3 engine;
  * - it is watched as it airs, as the web's: no pausing, no going back;
+ * - a player failure tunes the channel again twice, after 1 s and 3 s
+ *   (Samsung's), before it says why, unless the server said no ([RETRIES]);
  * - [stop] lets the session and the engine go (the screen went to the
  *   background), [resume] tunes the channel again, [close] ends it all.
  *
@@ -178,8 +180,14 @@ class LivePlayback(
     /** A stall under way, said once it has lasted [STALL_SHOWN_MS]. */
     private var stall: Job? = null
 
+    /** The times the channel was tuned again after a player failure, since it was tuned or retried. */
+    private var retries = 0
+
     /** Starts watching [channelId] in place of what played. */
-    fun tune(channelId: Long) = tune(channelId, allowDirect = true)
+    fun tune(channelId: Long) {
+        retries = 0
+        tune(channelId, allowDirect = true)
+    }
 
     private fun tune(channelId: Long, allowDirect: Boolean, takeOver: Long? = null) {
         if (closed) return
@@ -287,7 +295,28 @@ class LivePlayback(
      * connection to take (one [LiveTrouble.connections] said may be).
      */
     fun retry(takeOver: Long? = null) {
+        retries = 0
         state.value.channelId?.let { tune(it, allowDirect = true, takeOver = takeOver) }
+    }
+
+    /**
+     * The player failed with [trouble]: tuned again after a while, the
+     * server having let the channel go or the network blinked, as long as
+     * [RETRIES] allow; then it says why.
+     */
+    private fun failedPlaying(channelId: Long, trouble: LiveTrouble) {
+        if (trouble.kind !in RETRIED || retries >= RETRIES) {
+            fail(trouble)
+            return
+        }
+        retries++
+        stall?.cancel()
+        tuning?.cancel()
+        mutableState.update { it.copy(phase = LivePhase.Tuning, buffering = false) }
+        tuning = scope.launch {
+            delay(if (retries == 1) FIRST_RETRY_MS else NEXT_RETRY_MS)
+            tune(channelId, allowDirect = true)
+        }
     }
 
     /** Back in front: the channel left in [stop] plays again, from the live edge. */
@@ -380,7 +409,8 @@ class LivePlayback(
                 player.prepare()
                 return
             }
-            fail(LiveTrouble.of(error))
+            val trouble = LiveTrouble.of(error)
+            if (channelId != null) failedPlaying(channelId, trouble) else fail(trouble)
         }
     }
 
@@ -390,6 +420,18 @@ class LivePlayback(
 
         /** `stream.ts` is read under the device's id with this after it (the web's): the HLS session stays. */
         const val STREAM_CLIENT = "-stream"
+
+        /** A player failure tunes the channel again this many times before it says why (Samsung's)... */
+        const val RETRIES = 2
+
+        /** …the first after this long… */
+        const val FIRST_RETRY_MS = 1_000L
+
+        /** …the next after this. */
+        const val NEXT_RETRY_MS = 3_000L
+
+        /** Failures tuning again may help: not the server's refusals (busy, stopped, gone, not allowed). */
+        private val RETRIED = setOf(LiveTrouble.Kind.Other, LiveTrouble.Kind.Offline, LiveTrouble.Kind.Unavailable)
 
         /**
          * Watching on this device: [live]'s server, engines of [engines],

@@ -3,6 +3,9 @@ package app.pley.android.player.live
 import android.os.Looper
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.HttpDataSource
 import app.pley.android.model.BusyConnection
 import app.pley.android.model.LivePlan
 import app.pley.android.network.ApiException
@@ -26,8 +29,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 
-/** Watching a channel: tuning with this device's id, zapping, the server's refusals, no pausing, the background. */
+/** Watching a channel: tuning with this device's id, zapping, the server's refusals, tuning again, no pausing, the background. */
 @RunWith(RobolectricTestRunner::class)
+@androidx.annotation.OptIn(UnstableApi::class)
 class LivePlaybackTest {
     private val scheduler = TestCoroutineScheduler()
     private val scope = CoroutineScope(StandardTestDispatcher(scheduler) + SupervisorJob())
@@ -200,6 +204,58 @@ class LivePlaybackTest {
         engine().player.ready()
         settle()
         assertFalse(playback.state.value.buffering)
+    }
+
+    @Test
+    fun `a player failure tunes the channel again twice, after 1 s and 3 s, before it says why`() {
+        playback.tune(1)
+        settle()
+        engine().player.ready()
+        settle()
+        val broke = PlaybackException("broke", null, PlaybackException.ERROR_CODE_DECODING_FAILED)
+        engine().player.fail(broke)
+        settle()
+        // The server may have let the channel go, or the network blinked: tuning, not failed.
+        assertEquals(LivePhase.Tuning, playback.state.value.phase)
+        scheduler.advanceTimeBy(LivePlayback.FIRST_RETRY_MS - 1)
+        settle()
+        assertEquals(1, live.sent.count { it.startsWith("watch") })
+        scheduler.advanceTimeBy(2)
+        settle()
+        assertEquals(listOf("watch 1 android-1", "leave live-1", "watch 1 android-1"), live.sent)
+        engine().player.fail(broke)
+        settle()
+        scheduler.advanceTimeBy(LivePlayback.NEXT_RETRY_MS - 1)
+        settle()
+        assertEquals(2, live.sent.count { it.startsWith("watch") })
+        scheduler.advanceTimeBy(2)
+        settle()
+        assertEquals(3, live.sent.count { it.startsWith("watch") })
+        engine().player.fail(broke)
+        settle()
+        assertEquals(LiveTrouble.Kind.Other, (playback.state.value.phase as LivePhase.Failed).trouble.kind)
+
+        // Try again starts the count again.
+        playback.retry()
+        settle()
+        engine().player.fail(broke)
+        settle()
+        assertEquals(LivePhase.Tuning, playback.state.value.phase)
+    }
+
+    @Test
+    fun `a channel the server stopped says so at once`() {
+        playback.tune(1)
+        settle()
+        engine().player.ready()
+        settle()
+        val stopped = HttpDataSource.InvalidResponseCodeException(410, "Gone", null, emptyMap(), DataSpec.Builder().setUri("http://x").build(), ByteArray(0))
+        engine().player.fail(PlaybackException("gone", stopped, PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS))
+        settle()
+        assertEquals(LiveTrouble.Kind.Stopped, (playback.state.value.phase as LivePhase.Failed).trouble.kind)
+        scheduler.advanceTimeBy(LivePlayback.NEXT_RETRY_MS * 2)
+        settle()
+        assertEquals(1, live.sent.count { it.startsWith("watch") })
     }
 
     @Test

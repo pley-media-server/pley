@@ -17,6 +17,9 @@ describes how they are made.
 - The live player shows the channel's logo, name and what's on as it
   opens from Live TV or search, where it was black until the server had
   answered for the channel.
+- A live channel whose player fails is tuned again twice, after 1 s and
+  then 3 s, before the player says why, as on Samsung TVs; not when the
+  server refused it.
 - The TV live player's channel list moves as the app's other lists do
   under a held key: at an even pace, without asking for every logo it
   passes, its focused row a third of the way down.

@@ -173,7 +173,10 @@ are set up in the web app's Settings → Live TV ([API.md](API.md#live-tv)).
 On Android the player reads the channel's MPEG-TS (`stream.ts`) at once
 while it asks for the session's `plan`: a channel the server sends as it is
 plays that MPEG-TS from its first keyframe; anything else plays the
-server's HLS. Leaving the player ends the session.
+server's HLS. Leaving the player ends the session. When the player fails,
+the channel is tuned again twice, after 1 s and then 3 s, before the player
+says why; not when the server refused it (every connection in use, the
+channel stopped, gone or not allowed). Try again starts the count again.
 
 On TVs, OK in the player opens the channel list, as Menu and Guide do;
 holding OK shows the controls (the channel list and the favourite) over
