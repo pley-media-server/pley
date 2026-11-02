@@ -1560,10 +1560,11 @@ fn simple_block_at(bytes: &[u8], track: u64) -> Option<RawBlock> {
     let end = start.checked_add(usize::try_from(size).ok()?)?;
     let payload = bytes.get(start..end)?;
     // Another block, void, a checksum, the next cluster, or what comes after
-    // the clusters: a few bytes of something else that look like a block
-    // rarely have one of those after them.
-    const AFTER_A_BLOCK: [u32; 10] =
-        [SIMPLE_BLOCK, BLOCK_GROUP, 0xEC, 0xBF, CLUSTER, CUES, TAGS, ATTACHMENTS, 0x1043_A770, SEEK_HEAD];
+    // the clusters (mkvpropedit moves an element that grows to the end): a
+    // few bytes of something else that look like a block rarely have one of
+    // those after them.
+    const AFTER_A_BLOCK: [u32; 12] =
+        [SIMPLE_BLOCK, BLOCK_GROUP, 0xEC, 0xBF, CLUSTER, CUES, TAGS, ATTACHMENTS, 0x1043_A770, SEEK_HEAD, INFO, TRACKS];
     let after = &bytes[end..];
     if let Some(&first) = after.first()
         && after.len() > first.leading_zeros() as usize
@@ -2695,6 +2696,8 @@ pub(crate) mod tests {
         let expected: Vec<(i64, u64, String)> = (0..400).map(|i| (i * 1_000 + 100, 500, format!("Line {i}"))).collect();
         assert_eq!(lines(&found), expected);
         assert!(found.reads < 500, "one read a block, and a head now and then: {}", found.reads);
+        // Small ones: over a slow link to a share the bytes count.
+        assert!(found.bytes_read <= found.reads as u64 * 16 * 1024, "{} bytes", found.bytes_read);
 
         // Cue times that aren't the blocks' are caught: every head is read.
         let mut file = long_film();
@@ -2774,6 +2777,7 @@ pub(crate) mod tests {
         // What comes after it, as far as the bytes go.
         let then = |after: &[u8]| simple_block_at(&[simple(2, 0x80), after.to_vec()].concat(), 2).is_some();
         assert!(then(&simple(3, 0x80)) && then(&[0x1F, 0x43, 0xB6, 0x75, 0x01, 0xFF]), "a block, the next cluster");
+        assert!(then(&[0x16, 0x54, 0xAE, 0x6B, 0x80]), "the tracks, moved past the clusters");
         assert!(then(&[0x1F, 0x43]), "the bytes end first");
         assert!(!then(&[0x86, 0x81, 0x00]) && !then(&[0x00, 0, 0, 0, 0, 0, 0, 0, 0]), "something else");
     }

@@ -302,10 +302,10 @@ its palette, DVB) next to an HLS stream.
   work does, then comes a few hundred clusters at a time, each taking a
   turn among the reads through the Cues again (another track's first
   blocks and text tracks don't wait for it), and the whole track is
-  written, in order of time. The read keeps at most 192 MiB and
-  may take as long as FFmpeg would take to read the file at 100 MB/s, a
-  minute at least: a Blu-ray's track is thousands of reads, a disk seek
-  each, and FFmpeg reads all of a remux. A later request whose `from_ms` is
+  written, in order of time. The read keeps at most 192 MiB and may take
+  as long as FFmpeg would take to read the file at 100 MB/s, a minute at
+  least: a Blu-ray's track is thousands of reads, a disk seek each, and
+  FFmpeg reads all of a remux. A later request whose `from_ms` is
   away from where the copy started (a seek) is answered with the blocks
   there, from 10 s before it to 40 s after it: those the copy has read,
   when it has all of them, else read through the Cues at once, beside the
