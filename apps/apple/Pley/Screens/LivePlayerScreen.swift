@@ -279,6 +279,9 @@ struct TroubleView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
         .foregroundStyle(.primary)
         .padding(24)
+        // Over the black player, dark whatever the system's appearance: the
+        // material and the words then go together.
+        .environment(\.colorScheme, .dark)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("live.trouble")
         .task(id: spoken) { announce(spoken) }
