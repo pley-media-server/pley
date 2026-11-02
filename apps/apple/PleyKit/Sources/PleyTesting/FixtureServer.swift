@@ -85,6 +85,8 @@ public final class FixtureServer: Sendable {
         /// The file's subtitle streams, and the one the profile shows (`PUT …/streams` sets it).
         public var subtitles: [MediaStream] = []
         public var selectedSubtitle: Int?
+        /// A music track (`addMusic`): it plays, and the browsing fixtures describe it.
+        public var music = false
 
         public init(itemId: Int, fileId: Int, title: String = "Test Movie", container: String = "mp4",
                     durationMs: Int = 4_000, positionMs: Int = 0, watched: Bool = false, media: Data = Data(),
@@ -404,6 +406,24 @@ public final class FixtureServer: Sendable {
     /// Plays `playable` from now on: its details, sessions and keyed media.
     public func addPlayable(_ playable: Playable) {
         state.withLock { $0.playables[playable.itemId] = playable }
+    }
+
+    /// Plays the album All Melody's three tracks (303, 304 and 305) from
+    /// now on, each an `m4a` of `media`, as long as the browsing fixtures say.
+    /// Their pages, the album's and the artist's stay the browsing fixtures'.
+    public func addMusic(media: Data = Data()) {
+        for track in Self.tracks {
+            guard let id = track["id"] as? Int else { continue }
+            var playable = Playable(itemId: id, fileId: 3_000 + id, title: track["title"] as? String ?? "",
+                                    container: "m4a", durationMs: track["duration_ms"] as? Int ?? 0, media: media)
+            playable.music = true
+            addPlayable(playable)
+        }
+    }
+
+    /// Whether `id` is a video the fixture plays: its routes answer, not the browsing fixtures'.
+    static func playsVideo(_ s: State, _ id: Int) -> Bool {
+        s.playables[id].map { !$0.music } ?? false
     }
 
     /// The item as the fixture holds it now (its watch state, its tracks picked).
@@ -810,7 +830,7 @@ public final class FixtureServer: Sendable {
                 return Answer(status: 200, headers: ["Content-Type": "video/mp4"], body: Data(count: 4_096))
             }
             guard parts[3].hasPrefix("file.") else { return notFound("/api/media/…") }
-            return ranged(playable.media, range: request.headers["range"], type: "video/mp4")
+            return ranged(playable.media, range: request.headers["range"], type: playable.music ? "audio/mp4" : "video/mp4")
         default:
             return nil
         }

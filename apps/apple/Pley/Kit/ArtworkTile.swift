@@ -75,7 +75,7 @@ struct ArtworkTile: View {
     }
 
     #if os(macOS)
-    /// What ⌘↩ and the play button play: videos only (music plays in a later version).
+    /// What ⌘↩ and the play button play: videos only (music plays from its album, artist or playlist).
     private var playTarget: PlayTarget? { PlayTarget.item(tile.item, actions: actions) }
 
     /// The play button over a video's picture while the pointer is on the tile.

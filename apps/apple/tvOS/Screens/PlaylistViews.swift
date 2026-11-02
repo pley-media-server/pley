@@ -69,7 +69,7 @@ struct PlaylistsView: View {
 
 /// One playlist: its mosaic, title, Smart badge, count and length and its
 /// filter in words; Play, Shuffle, Rename and Delete; then its entries.
-/// Select plays from an entry (music opens its album); a long press has
+/// Select plays from an entry (music in Now Playing); a long press has
 /// Move and Remove. In Move, up and down move the entry and Select puts it
 /// down (Menu puts it back); a removal can be undone for 5 seconds with
 /// Undo beside Play. Smart playlists are read-only.
@@ -203,10 +203,8 @@ struct PlaylistView: View {
                 // The entry put down keeps the focus, once the others can take it again.
                 let entry = row.entryId
                 Task { @MainActor in focused = entry }
-            } else if model.video {
-                play(model.play(from: row.number - 1))
             } else {
-                app.shell.open(item: row.item)
+                play(model.play(from: row.number - 1))
             }
         } label: {
             EntryRow(app: app, row: row, video: model.video, moving: isMoving)
@@ -229,9 +227,7 @@ struct PlaylistView: View {
             Task { @MainActor in focused = entry }
         } : nil)
         .contextMenu {
-            if model.video {
-                Button("Play from Here") { play(model.play(from: row.number - 1)) }
-            }
+            Button("Play from Here") { play(model.play(from: row.number - 1)) }
             Button(model.video ? "Go to Page" : "Go to Album") { app.shell.open(item: row.item) }
             if model.editable {
                 Button("Move") { moving = row.entryId }

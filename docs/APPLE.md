@@ -50,17 +50,20 @@ in to another server starts every section again at Home.
 - **iPhone**, and iPad in a narrow window (Slide Over, a third of Split
   View): a tab bar with Home, Libraries, Search, Playlists and Me. A library
   opened from the sidebar before the window narrowed shows under
-  Libraries.
+  Libraries. While music has a queue, the mini player sits above the tab
+  bar (on iOS 26.1 and later, in the tab bar's own accessory).
 - **iPad** at regular width, and the **Mac**: a sidebar with Home, Live
   TV when it shows, Search and Playlists, then the libraries in the profile's order, each with its kind's symbol and a
   spinner while it is scanned, and at its foot the profile signed in, its
   picture, name and server, which opens Me. The Mac's window is at least
-  800 by 560 points, and opens at 1100 by 720.
+  800 by 560 points, and opens at 1100 by 720. While music has a queue,
+  the mini player sits at the foot of the page beside the sidebar.
 - **Apple TV**: seven tabs at most across the top, so none is cut off:
   Search (a magnifying glass, first, as in Apple's apps), Home, Live TV
   when it shows, a tab per library with its name while they all fit (the
-  first that fit otherwise, and a Libraries tab for the rest), Playlists
-  and Settings (which holds what Me holds elsewhere). The focus engine and the Siri
+  first that fit otherwise, and a Libraries tab for the rest), Playlists,
+  Now Playing while music has a queue, and Settings (which holds what Me
+  holds elsewhere). The focus engine and the Siri
   Remote move through it; Menu goes back, then to the tabs, then out of
   the app.
 
@@ -91,6 +94,9 @@ Return opens the one with the focus and ⌘↩ plays it.
 | Playback | Play "Title": the tile with the focus, or the title page showing, in a player window | ⌘↩ |
 | Playback | Channel Up, Channel Down (the Live TV window that is key) | ⌘↑, ⌘↓ |
 | Playback | Play or Pause, Back and Forward 10 Seconds, Skip Intro, Play Next, Quality, Audio, Subtitles, Subtitle Sync, Chapters (the player window that is key) | |
+| Playback | Play Music or Pause Music, Next Track, Previous Track (while music has a queue and no player window is key) | ⌘→, ⌘← |
+| Playback | Now Playing (music's window) | |
+| Window | Now Playing | ⌥⌘P |
 
 An iPad with a keyboard has Search (⌘F) and Reload (⌘R) too.
 
@@ -99,7 +105,8 @@ An iPad with a keyboard has Search (⌘F) and Reload (⌘R) too.
 - **Select** opens the tile, row or button with the focus; held (a long
   press), it opens a tile's actions, and on a library or a playlist's
   entry, Move.
-- **Play/Pause** on a video's tile plays it, as Play would.
+- **Play/Pause** on a video's tile plays it, as Play would; anywhere
+  else, it plays and pauses the music.
 - **Menu** goes back a page, then to the tabs, then out of the app; in
   Move, it puts the library or entry back where it was.
 - A row remembers the tile that had the focus: moving up or down to it
@@ -325,8 +332,12 @@ behind it.
   42m", the profile's rating and its tracks (number, title, the track's
   own artist when it isn't the album's, length), with disc headings on an
   album of several discs. An album opened from a track marks that track
-  and scrolls to it (on Apple TV, gives it the focus). Music isn't played
-  yet, so these pages have no Play.
+  and scrolls to it (on Apple TV, gives it the focus). Both have **Play**
+  and **Shuffle**: an album plays its tracks in order, an artist every
+  album's tracks, newest album first (5,000 tracks at most). Choosing a
+  track plays the album from it; the track playing shows a speaker in
+  place of its number (VoiceOver says "playing" or "paused"), and
+  choosing it pauses or plays on. [Music](#music) says how it plays.
 - **Collections**: a library's collections in a grid, each tile with its
   poster, how many titles it holds, and a TMDB badge (made from TMDB's
   movie collections) or a Smart one (filled by a filter). A collection's
@@ -353,9 +364,9 @@ behind it.
   for 5 seconds (on Apple TV, Undo is a button beside Play, since the
   toast takes no focus); the server hears of it after that. Rename and
   Delete (after asking) are in More (buttons on Apple TV). A smart
-  playlist can't be changed: it plays what its filter finds. Music
-  playlists are listed and opened, but their Play says music plays from a
-  later version, and an entry opens its album.
+  playlist can't be changed: it plays what its filter finds. A music
+  playlist plays in Now Playing ([Music](#music)) as a video one plays in
+  the player, and Go to Album is in an entry's menu.
 - **Add to playlist** (a title's actions): a sheet (a panel down the
   right on Apple TV) that names what is added in full ("The Office — S2 ·
   E3 — Office Olympics", "Heat (1995)", "2 items"), a title for a new
@@ -955,6 +966,88 @@ while the original plays changes nothing on the screen.
 conversion, what the server makes of the video ("H.264 1280×720"), read
 from the session's status once it plays.
 
+### Music
+
+Music plays apart from the player, as on Android and the web: one
+`MusicPlayback` (`PleyPlayer`) for the app's life, so it plays on with no
+page open, with the screen locked and in the background (the `audio`
+background mode). It is a port of the Android app's `MusicPlayback`:
+
+- **A session per track**, asked for as a video's is (`POST
+  /api/playback`, `mode: auto`, keyed addresses, the caps report), with
+  music's own client id (the device's with `-music` after it), so a video
+  starting doesn't end music's session, nor the other way round. Before
+  the next track starts, the one before ends (`stopped`, then `DELETE`,
+  waiting 2 seconds at most), so a conversion never waits on it.
+- **Reports**: progress every 10 seconds while it plays and at a pause; at
+  a track's end, `stopped` at its length, and the next track starts.
+  Reports that can't go out wait with the video's ([Reports](#playing)).
+- **Failures**: a track the device can't decode is asked for again as a
+  conversion, from where it was; an expired session (`404`, after a long
+  pause) or a network error starts a new one where it was, three times at
+  most; the server stopping it (`session_stopped`, or `410`) stops the
+  music, says "Playback was stopped by the server.", and Play starts the
+  track again. Otherwise it says "This track can't be played." or "Can't
+  reach the server."
+- **Previous** starts the track again after 3 seconds of it, and goes to
+  the track before otherwise. **Shuffle** keeps the track playing first
+  and plays the rest in a random order; off, the order given comes back
+  at the same track.
+- **The sleep timer**: Off, 15, 30, 45, 60 or 90 minutes, or the end of
+  this track (the next one waits, paused). Its menu says what is left
+  ("15 min left"); in its last 30 seconds, "Pausing in 12 s" shows with
+  **Keep listening**, which adds the same time again. It isn't kept
+  between playbacks.
+- A video or Live TV starting pauses the music, which waits where it was;
+  music starting closes the video or Live TV playing. Switching profile,
+  signing out or opening another server stops the music.
+
+**The mini player** (iPhone, iPad and Mac) shows the album art, the title
+and the artist, Play/Pause and Next, and a thin line of how far the track
+is. VoiceOver reads it as one element ("Now playing, Sunson, Nils Frahm")
+with Play, Pause, Next and Open as its actions; at the accessibility text
+sizes its words and buttons are on lines of their own. Choosing it opens
+**Now Playing**: a sheet on iPhone and iPad, a window of its own on the
+Mac (also in the Window menu, ⌥⌘P). Now Playing has the album art (600
+pixels at most), the title, the artist and the album (each opening its
+page), a scrubber with the time played and left (VoiceOver moves it 10
+seconds at a time), Previous, Play/Pause and Next, Shuffle, the sleep
+timer, AirPlay, and Up next, where choosing a track plays it. On **Apple
+TV**, the Now Playing tab holds the same, with Up next as a row of
+cards; the tab comes when music starts (and opens) and goes when the
+queue is cleared.
+
+**Now Playing on the system and the remote commands.** One owner at a
+time (`NowPlayingCenter`): whichever of music, a video and Live TV played
+last fills `MPNowPlayingInfoCenter` (the lock screen, Control Center, the
+Mac's menu bar and media keys, a headset's buttons) and answers
+`MPRemoteCommandCenter`'s commands, which go through Pley's own
+controllers, so each is reported to the server:
+
+| What plays | Commands |
+|---|---|
+| Music | Play, Pause, Play/Pause, Next Track, Previous Track, a place on the scrubber |
+| A video | Play, Pause, Play/Pause, 10 seconds back and forward, a place on the scrubber |
+| Live TV | None: it is watched as it airs, as on Android |
+
+AVKit's own Now Playing is turned off on iPhone, iPad and the Mac
+(`updatesNowPlayingInfoCenter = false`); Apple TV's player always shows
+its own for a video, which tvOS can't turn off, so there music only lets
+go of it. When a video or Live TV closes and music has a queue, Now
+Playing is music's again. The commands' targets and the artwork's
+handler are `@Sendable` closures that MediaPlayer calls on its own
+queues; each hops to the main actor before it touches the app.
+
+**The audio session** (`AudioSessionController`, iPhone, iPad and Apple
+TV): `.playback` for music, `.playback` with the `.moviePlayback` mode
+for a video or Live TV, and let go, with others told, once nothing plays.
+A call or an alarm pauses what plays; its end resumes music only when the
+system says to. Headphones pulled out pause.
+
+**AirPlay**: music plays on an AirPlay speaker or Apple TV from Now
+Playing's AirPlay button (the route picker lists speakers first), or from
+Control Center. On Apple TV, AirPlay is the system's.
+
 ### The player on each device
 
 Each device shows the system's own player over `PlaybackController`
@@ -1164,8 +1257,8 @@ Between steps 6 and 7, the title pages:
   and closing it comes back to the page.
 - Shows: the show's page with its episodes, its season's page with its
   three episodes, and an episode's page.
-- Music: the artist's page, and the album's with its two tracks and no
-  Play.
+- Music: the artist's page with Play, and the album's with its two tracks,
+  Play and Shuffle.
 
 On iPhone and iPad, a test of its own looks at the screens at the largest
 accessibility text size (Accessibility XXXL): Home, a movie's page and
@@ -1253,9 +1346,9 @@ PleyKit's modules, each depending only on those before it:
 | `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, the server's events gathered into changes and scans (`ServerEvents`), the app's settings (`AppSettings`, under `pley.settings.` in UserDefaults: quality, Up Next, subtitle style, grid size, private sign-in, Always start as, the household last seen, recent searches), and pictures (`ImageLoader`) |
 | `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
 | `PleySubtitles` | Subtitles the app draws: the WebVTT reader, text cues by time, the subtitle sync and its offsets, the server's tracks read with `X-Pley-Complete`, and a port of `packages/picture-subtitles` (the Matroska reader, the PGS, VobSub and DVB decoders, and the pictures by time) |
-| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, and the Mac player's keys |
-| `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Chapters, Details), the subtitles drawn over the video in the system's caption style with the app's overrides (`SubtitleLayer`, `CaptionStyle`), Apple TV's contextual actions and chapter markers, and the audio session |
-| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`) smart filters in words (`SmartFilter`, the Android app's), search (`SearchModel`), Me's track defaults (`MeModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`) and Apple TV's start (`StartGate`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, the device's caps, the session reports and the reports kept for later, one set per server and profile |
+| `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, the Mac player's keys, music (`MusicPlayback`, `MusicQueue`, the `AVMusicOutput` behind a protocol), the sleep timer (`SleepTimer`), the system's Now Playing and remote commands (`NowPlayingCenter`, `SystemNowPlaying`) and the audio session (`AudioSessionController`) |
+| `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Chapters, Details), the subtitles drawn over the video in the system's caption style with the app's overrides (`SubtitleLayer`, `CaptionStyle`), Apple TV's contextual actions and chapter markers, and the AirPlay button (`RoutePicker`) |
+| `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), Now Playing's words (`NowPlayingModel`), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`) smart filters in words (`SmartFilter`, the Android app's), search (`SearchModel`), Me's track defaults (`MeModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`) and Apple TV's start (`StartGate`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, music, the system's Now Playing, the device's caps, the session reports and the reports kept for later, one set per server and profile |
 | `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens, playback sessions with keyed media, libraries with watch marks, My List and orders that change, collections and playlists, an event stream the tests push to, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
 | `pley-apple-play` | A command-line tool, on the Mac only, that plays a real server's test media through the player ([A server to test against](#a-server-to-test-against)) |
@@ -1373,7 +1466,7 @@ address, to have it found by Bonjour. Delete the folder afterwards.
 - No seek-bar previews.
 - Subtitles aren't shown over AirPlay: the app draws them over its own
   view of the video, which AirPlay doesn't send.
-- No music or downloads.
+- No downloads.
 - Live TV has no picture in picture and doesn't switch the display's
   frame rate or range, as on Android.
 - Events aren't read while the app is in the background; back in front,
@@ -1382,8 +1475,6 @@ address, to have it found by Bonjour. Delete the folder afterwards.
   Recording permissions that only a person can grant. Its views are
   checked by building it, and its models and menus' state by the
   packages' tests.
-- Music isn't played: artists' and albums' pages have no Play, and music
-  playlists don't play.
 - Collections are made and changed in Pley on the web; the apps play
   them.
 - People's pages need a title's cast and crew, which come from a metadata

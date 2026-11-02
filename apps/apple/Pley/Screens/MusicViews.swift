@@ -1,10 +1,11 @@
 import PleyModel
+import PleyPlayer
 import PleyScreens
 import SwiftUI
 
 /// An artist's page (docs/APPLE.md, Music): their picture, "4 albums · 40
-/// tracks", what the server says of them, and their albums, newest first.
-/// Music plays from a later version, so there is no Play.
+/// tracks", what the server says of them, Play and Shuffle (every album's
+/// tracks, newest album first), and their albums, newest first.
 struct ArtistView: View {
     @ObservedObject private var app: AppModel
     @StateObject private var model: ArtistModel
@@ -68,6 +69,11 @@ struct ArtistView: View {
                         }
                     }
                 }
+                if model.canPlay {
+                    PlayShuffleButtons(prefix: "artist", canPlay: !model.starting, canShuffle: !model.starting,
+                                       play: { Task { await model.play() } },
+                                       shuffle: { Task { await model.play(shuffle: true) } })
+                }
                 if let summary = page.summary {
                     Text(summary).frame(maxWidth: 760, alignment: .leading)
                 }
@@ -93,16 +99,19 @@ struct ArtistView: View {
 /// An album's page (docs/APPLE.md, Music): its cover, its artist (a link
 /// to their page), the year, "10 tracks · 42m", the profile's rating, and
 /// its tracks, with disc headings on albums of several discs. Opened from
-/// a track, that track is marked and scrolled to. No Play: music plays
-/// from a later version.
+/// a track, that track is marked and scrolled to. Play and Shuffle play
+/// the album; a track plays the album from it, or pauses and plays on
+/// while it is the one playing, which a speaker marks.
 struct AlbumView: View {
     @ObservedObject private var app: AppModel
+    @ObservedObject private var music: MusicPlayback
     @StateObject private var model: AlbumModel
     @Environment(\.dynamicTypeSize) private var typeSize
     private let layout = WideLayout()
 
     init(app: AppModel, itemId: Int, track: Int?) {
         self.app = app
+        music = app.music
         _model = StateObject(wrappedValue: AlbumModel(app: app, itemId: itemId, track: track))
     }
 
@@ -193,6 +202,12 @@ struct AlbumView: View {
             }
             StarRating(rating: page.userRating) { rating in Task { await model.rate(rating) } }
                 .padding(.top, 4)
+            if model.canPlay {
+                PlayShuffleButtons(prefix: "album", canPlay: true, canShuffle: model.canShuffle,
+                                   play: { Task { await model.play() } },
+                                   shuffle: { Task { await model.play(shuffle: true) } })
+                    .padding(.top, 8)
+            }
         }
     }
 
@@ -223,28 +238,41 @@ struct AlbumView: View {
     }
 
     private func trackRow(_ track: TrackRow, highlighted: Bool) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(track.number)
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-                .frame(minWidth: 24, alignment: .trailing)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(track.title)
-                if let artist = track.artist {
-                    Text(artist).font(.subheadline).foregroundStyle(.secondary)
+        let current = music.state.track?.id == track.id
+        let playing = current && music.state.playing
+        return Button { Task { await model.playOrToggle(track.id) } } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Group {
+                    if current {
+                        Image(systemName: playing ? "speaker.wave.2.fill" : "speaker.fill")
+                            .foregroundStyle(Color.accentColor)
+                    } else {
+                        Text(track.number).foregroundStyle(.secondary)
+                    }
                 }
+                .monospacedDigit()
+                .frame(minWidth: 24, alignment: .trailing)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(track.title).foregroundStyle(current ? Color.accentColor : .primary)
+                    if let artist = track.artist {
+                        Text(artist).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 8)
+                Text(track.duration).monospacedDigit().foregroundStyle(.secondary)
             }
-            Spacer(minLength: 8)
-            Text(track.duration).monospacedDigit().foregroundStyle(.secondary)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 8)
+            .background(highlighted ? Color.accentColor.opacity(0.15) : .clear,
+                        in: RoundedRectangle(cornerRadius: 6))
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 8)
-        .background(highlighted ? Color.accentColor.opacity(0.15) : .clear,
-                    in: RoundedRectangle(cornerRadius: 6))
+        .buttonStyle(.plain)
         .overlay(alignment: .bottom) { Divider().padding(.leading, 44) }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(track.spoken)
-        .accessibilityAddTraits(highlighted ? .isSelected : [])
+        .accessibilityLabel(track.spoken + (current ? (playing ? ", playing" : ", paused") : ""))
+        .accessibilityHint(current ? (playing ? "Pauses" : "Plays on") : "Plays the album from this track")
+        .accessibilityAddTraits(highlighted ? [.isButton, .isSelected] : .isButton)
         .accessibilityIdentifier("album.track.\(track.id)")
     }
 }

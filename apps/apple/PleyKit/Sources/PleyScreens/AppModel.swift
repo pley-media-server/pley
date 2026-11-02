@@ -1,4 +1,5 @@
 import Combine
+import CoreGraphics
 import Foundation
 import PleyAuth
 import PleyCaps
@@ -45,6 +46,12 @@ public final class AppModel: ObservableObject {
         public var liveEngines: @MainActor () -> any LiveEngine
         /// The subtitle sync's offsets, per file and profile.
         public var subtitleOffsets: any SubtitleOffsets
+        /// Music's output, made when music first plays.
+        public var musicOutputs: @MainActor () -> any MusicOutput
+        /// The system's Now Playing and remote commands.
+        public var nowPlaying: @MainActor () -> any NowPlayingSystem
+        /// A random number below its argument, for shuffling music.
+        public var random: @Sendable (Int) -> Int
 
         public init(clientId: String = ClientID.current(), lateReports: URL? = nil,
                     quality: any QualityMemory = DefaultsQuality(),
@@ -52,7 +59,10 @@ public final class AppModel: ObservableObject {
                     clock: any PlayerClock = SystemPlayerClock(),
                     engines: @escaping @MainActor () -> any PlayerEngine = { AVPlayerEngine() },
                     liveEngines: @escaping @MainActor () -> any LiveEngine = { AVLiveEngine() },
-                    subtitleOffsets: any SubtitleOffsets = DefaultsSubtitleOffsets()) {
+                    subtitleOffsets: any SubtitleOffsets = DefaultsSubtitleOffsets(),
+                    musicOutputs: @escaping @MainActor () -> any MusicOutput = { AVMusicOutput() },
+                    nowPlaying: @escaping @MainActor () -> any NowPlayingSystem = { SystemNowPlaying() },
+                    random: @escaping @Sendable (Int) -> Int = { Int.random(in: 0..<$0) }) {
             self.clientId = clientId
             self.lateReports = lateReports
             self.quality = quality
@@ -61,6 +71,9 @@ public final class AppModel: ObservableObject {
             self.engines = engines
             self.liveEngines = liveEngines
             self.subtitleOffsets = subtitleOffsets
+            self.musicOutputs = musicOutputs
+            self.nowPlaying = nowPlaying
+            self.random = random
         }
     }
 
@@ -115,6 +128,14 @@ public final class AppModel: ObservableObject {
     public let serverEvents = ServerEvents()
     /// Live TV on the open server, shared by its pages, Search and the live player.
     public let live: LiveTvRepository
+    /// Music, for the app's whole life: it plays on with no screen open.
+    public private(set) lazy var music: MusicPlayback = makeMusic()
+    /// The system's Now Playing: music, video or Live TV, whichever played last.
+    public let nowPlaying: NowPlayingCenter
+    #if os(iOS) || os(tvOS)
+    /// The audio session: music's, a video's, or none.
+    public let audio = AudioSessionController()
+    #endif
     /// The item actions and the marks they made.
     public private(set) lazy var actions = ItemActionsModel(app: self)
     /// The event stream of a server's API (the tests give their own).
@@ -131,6 +152,14 @@ public final class AppModel: ObservableObject {
     /// One queue of late reports per server and profile, shared by every
     /// sign-in and playback, so two never send the same report.
     private var late: [String: LateReports] = [:]
+    /// What the video or the live player shows the system, as they change.
+    private var playerWatch: AnyCancellable?
+    private var liveWatch: AnyCancellable?
+    /// What the system's Now Playing was told last of a video, to send only what changed.
+    private var videoShown: (info: NowPlayingInfo, at: Int64)?
+    /// The picture Now Playing shows for the music or video playing: its path and the image.
+    private var artwork: (path: String, image: CGImage)?
+    private var artworkTask: Task<Void, Never>?
 
     public var client: AppClient { session.client }
 
@@ -152,6 +181,7 @@ public final class AppModel: ObservableObject {
         self.settings = settings
         self.tv = tv
         shell = ShellModel(settings: settings, tv: tv)
+        nowPlaying = NowPlayingCenter(system: playerSetup.nowPlaying())
         self.eventSignals = eventSignals
         live = LiveTvRepository { [session] in
             guard let api = await session.api else { throw PleyError.signedOut }
@@ -176,6 +206,13 @@ public final class AppModel: ObservableObject {
         serverEvents.onSessionStopped = { [weak self] id, message, byAdmin in
             self?.sessionStopped(id, message: message, byAdmin: byAdmin)
         }
+        #if os(iOS) || os(tvOS)
+        audio.onPause = { [weak self] in
+            self?.music.interrupted()
+            self?.player?.pause()
+        }
+        audio.onResumeMusic = { [weak self] in self?.music.play() }
+        #endif
     }
 
     /// The app as it runs: the Keychain, the system's sign-in sheet and Bonjour.
@@ -228,6 +265,7 @@ public final class AppModel: ObservableObject {
         case .signedIn(let user):
             // Another server's pages don't belong to this one, nor its event stream.
             if before != server?.origin {
+                music.stop()
                 stopEvents()
                 shell.reset()
                 actions.reset()
@@ -246,6 +284,7 @@ public final class AppModel: ObservableObject {
         notice = nil
         let household = (try? await session.profiles?.profiles()) ?? []
         noteHousehold(household)
+        music.stop()
         shell.reset()
         actions.reset()
         // A new token, perhaps on another server: its own stream.
@@ -257,6 +296,7 @@ public final class AppModel: ObservableObject {
     public func profileChanged() async {
         await closePlayer()
         closeLivePlayer()
+        music.stop()
         if let api = await session.api, let user = try? await api.me() {
             self.user = user
             signedInNow(user)
@@ -275,6 +315,7 @@ public final class AppModel: ObservableObject {
     public func signOut() async {
         await closePlayer()
         closeLivePlayer()
+        music.stop()
         stopEvents()
         await session.signOut()
         user = nil
@@ -368,6 +409,7 @@ public final class AppModel: ObservableObject {
     public func play(_ request: PlayRequest) async -> PlaybackController? {
         plays += 1
         let asked = plays
+        music.pauseForVideo()
         closeLivePlayer()
         await closePlayer()
         guard asked == plays, let user, let api = await session.api, let origin = await session.origin,
@@ -383,6 +425,7 @@ public final class AppModel: ObservableObject {
         // Started first, so the screens get its AVPlayer with it.
         controller.start()
         player = controller
+        follow(controller)
         return controller
     }
 
@@ -392,6 +435,10 @@ public final class AppModel: ObservableObject {
     public func closePlayer(_ controller: PlaybackController? = nil) async {
         guard let current = player, controller == nil || controller === current else { return }
         player = nil
+        playerWatch = nil
+        videoShown = nil
+        nowPlaying.release(.video)
+        playbackChanged()
         await current.close()
     }
 
@@ -402,6 +449,7 @@ public final class AppModel: ObservableObject {
     public func watchLive(_ request: LiveRequest, seen: LiveChannel? = nil) async -> LivePlayerModel? {
         plays += 1
         let asked = plays
+        music.pauseForVideo()
         closeLivePlayer()
         await closePlayer()
         guard asked == plays, user != nil else { return nil }
@@ -410,6 +458,7 @@ public final class AppModel: ObservableObject {
         let model = LivePlayerModel(request: request, live: live, playback: playback, seen: seen,
                                     toast: { [weak self] text in self?.shell.show(text) })
         livePlayer = model
+        follow(model)
         return model
     }
 
@@ -417,6 +466,9 @@ public final class AppModel: ObservableObject {
     public func closeLivePlayer() {
         guard let current = livePlayer else { return }
         livePlayer = nil
+        liveWatch = nil
+        nowPlaying.release(.live)
+        playbackChanged()
         current.close()
     }
 
@@ -435,6 +487,208 @@ public final class AppModel: ObservableObject {
                                 clock: playerSetup.clock)
         late[key] = queue
         return queue
+    }
+
+    // MARK: Music and Now Playing
+
+    /// Plays `tracks` (music's, in the order given) from the one at
+    /// `start`; with `shuffle`, in a random order that starts there. A
+    /// video or Live TV playing closes first (on the Mac, its window). On
+    /// Apple TV, the Now Playing tab shows.
+    public func playMusic(_ tracks: [ItemSummary], start: Int = 0, shuffle: Bool = false) async {
+        let first = tracks.indices.contains(start) ? start : 0
+        let playable = tracks.enumerated().filter { $0.element.kind == .track }
+        guard !playable.isEmpty, user != nil else { return }
+        let from = playable.firstIndex { $0.offset >= first } ?? 0
+        plays += 1
+        closeLivePlayer()
+        await closePlayer()
+        music.play(tracks: playable.map(\.element), start: from, shuffle: shuffle)
+        if tv { shell.select(.nowPlaying) }
+    }
+
+    private func makeMusic() -> MusicPlayback {
+        let setup = playerSetup
+        let environment = MusicEnvironment(
+            api: { [session] in
+                guard let api = await session.api else { throw PleyError.signedOut }
+                return api
+            },
+            caps: { [caps] in await caps.warmUp().report },
+            // Music's own id: a video starting doesn't end music's session, nor the other way round.
+            clientId: String((setup.clientId + "-music").prefix(128)),
+            reporter: reporter,
+            late: { [weak self] in
+                guard let self, let user = self.user, let origin = await self.session.origin else { return nil }
+                return self.lateReports(origin: origin, profileId: user.id)
+            },
+            clock: setup.clock, outputs: setup.musicOutputs, random: setup.random)
+        let music = MusicPlayback(environment: environment)
+        music.onChange = { [weak self] state in self?.musicChanged(state) }
+        return music
+    }
+
+    private func musicChanged(_ state: MusicState) {
+        shell.setNowPlaying(state.active)
+        playbackChanged()
+        guard state.active else {
+            nowPlaying.release(.music)
+            return
+        }
+        let info = musicInfo(state)
+        if nowPlaying.owner == .music {
+            nowPlaying.update(.music, info: info)
+        } else if player == nil, livePlayer == nil, state.playing || nowPlaying.owner == nil {
+            // Music played last: it owns Now Playing.
+            nowPlaying.take(.music, info: info) { [weak self] event in self?.musicCommand(event) }
+        }
+    }
+
+    private func musicCommand(_ event: RemoteEvent) {
+        switch event {
+        case .play: music.play()
+        case .pause: music.pause()
+        case .toggle: music.toggle()
+        case .next: music.next()
+        case .previous: music.previous()
+        case .seek(let ms): music.seek(toMs: ms)
+        case .skip(let seconds): music.seek(toMs: music.positionMs + seconds * 1000)
+        }
+        // The place moved without the state changing: the system's clock follows.
+        nowPlaying.update(.music, info: musicInfo(music.state))
+    }
+
+    private func musicInfo(_ state: MusicState) -> NowPlayingInfo {
+        NowPlayingInfo(title: state.track?.title ?? "", artist: state.artist, album: state.album,
+                       durationMs: state.durationMs, elapsedMs: music.positionMs, rate: state.playing ? 1 : 0,
+                       kind: .audio, artwork: picture(state.artPath), artworkPath: state.artPath)
+    }
+
+    /// Follows the video playing for the system's Now Playing, which it owns
+    /// now. On Apple TV, AVKit's player shows Now Playing and hears the
+    /// remote itself (tvOS can't turn that off): music only lets go of it.
+    private func follow(_ controller: PlaybackController) {
+        playbackChanged()
+        #if os(tvOS)
+        nowPlaying.release(.music)
+        playerWatch = nil
+        #else
+        videoShown = nil
+        let info = videoInfo(controller)
+        videoShown = (info, playerSetup.clock.now())
+        nowPlaying.take(.video, info: info) { [weak self, weak controller] event in
+            guard let controller, self?.player === controller else { return }
+            switch event {
+            case .play: controller.play()
+            case .pause: controller.pause()
+            case .toggle:
+                if case .playing = controller.state.phase { controller.pause() } else { controller.play() }
+            case .skip(let seconds): controller.seek(byMs: seconds * 1000)
+            case .seek(let ms): controller.seek(toMs: ms)
+            case .next, .previous: break
+            }
+        }
+        playerWatch = controller.objectWillChange.sink { [weak self, weak controller] _ in
+            // `objectWillChange` comes before the change: read it once made.
+            Task { @MainActor in
+                guard let self, let controller, self.player === controller else { return }
+                self.videoChanged(controller)
+            }
+        }
+        #endif
+    }
+
+    /// Tells the system what changed of the video: everything but the
+    /// time, which its clock moves by itself, unless the time jumped.
+    private func videoChanged(_ controller: PlaybackController) {
+        let info = videoInfo(controller)
+        let now = playerSetup.clock.now()
+        if let shown = videoShown {
+            var same = info
+            same.elapsedMs = shown.info.elapsedMs
+            let expected = shown.info.elapsedMs + Int(Double(now - shown.at) * shown.info.rate)
+            if same == shown.info, abs(info.elapsedMs - expected) < 1_500 { return }
+        }
+        videoShown = (info, now)
+        nowPlaying.update(.video, info: info)
+    }
+
+    private func videoInfo(_ controller: PlaybackController) -> NowPlayingInfo {
+        let state = controller.state
+        let playing: Bool = switch state.phase {
+        case .playing: true
+        default: false
+        }
+        let summary = controller.item?.summary
+        let path = summary.flatMap { $0.kind == .episode ? $0.thumbUrl ?? $0.posterUrl : $0.posterUrl ?? $0.thumbUrl }
+        return NowPlayingInfo(title: state.title, album: state.subtitle,
+                              durationMs: state.durationMs > 0 ? state.durationMs : nil, elapsedMs: state.positionMs,
+                              rate: playing ? 1 : 0, kind: .video, artwork: picture(path), artworkPath: path)
+    }
+
+    /// Follows the live player: the channel and what is on, as live, with no commands.
+    private func follow(_ model: LivePlayerModel) {
+        playbackChanged()
+        nowPlaying.take(.live, info: liveInfo(model)) { _ in }
+        liveWatch = model.$channel.sink { [weak self, weak model] _ in
+            Task { @MainActor in
+                guard let self, let model, self.livePlayer === model else { return }
+                self.nowPlaying.update(.live, info: self.liveInfo(model))
+            }
+        }
+    }
+
+    private func liveInfo(_ model: LivePlayerModel) -> NowPlayingInfo {
+        let channel = model.channel
+        return NowPlayingInfo(title: channel?.numberedName ?? "Live TV", album: channel?.now?.title, rate: 1,
+                              kind: .video, isLive: true, artwork: picture(channel?.logo), artworkPath: channel?.logo)
+    }
+
+    /// The picture at `path` for Now Playing (600 px at most), once read;
+    /// `nil` meanwhile, and Now Playing is told again when it comes.
+    private func picture(_ path: String?) -> CGImage? {
+        guard let path else { return nil }
+        if let artwork, artwork.path == path { return artwork.image }
+        guard artworkTask == nil || artwork?.path != path else { return nil }
+        artworkTask?.cancel()
+        let images = images
+        artworkTask = Task { [weak self] in
+            guard let image = try? await images.image(path: path, widthPx: 600), !Task.isCancelled else { return }
+            guard let self else { return }
+            self.artworkTask = nil
+            self.artwork = (path, image)
+            self.showAgain()
+        }
+        return nil
+    }
+
+    /// What Now Playing shows, read again (a picture came).
+    private func showAgain() {
+        switch nowPlaying.owner {
+        case .music?: nowPlaying.update(.music, info: musicInfo(music.state))
+        case .video?:
+            if let player { videoChanged(player) }
+        case .live?:
+            if let livePlayer { nowPlaying.update(.live, info: liveInfo(livePlayer)) }
+        case nil: break
+        }
+    }
+
+    /// A video or Live TV opened or closed: the audio session follows, and
+    /// music, when it has a queue, owns Now Playing again once they close.
+    private func playbackChanged() {
+        #if os(iOS) || os(tvOS)
+        if player != nil || livePlayer != nil {
+            audio.use(.video)
+        } else if music.active {
+            audio.use(.music)
+        } else {
+            audio.use(nil)
+        }
+        #endif
+        if player == nil, livePlayer == nil, nowPlaying.owner == nil, music.active {
+            nowPlaying.take(.music, info: musicInfo(music.state)) { [weak self] event in self?.musicCommand(event) }
+        }
     }
 
     // MARK: The server's events
@@ -482,6 +736,10 @@ public final class AppModel: ObservableObject {
     /// One of this profile's playbacks was stopped from elsewhere: the
     /// player showing it closes, and says why.
     private func sessionStopped(_ id: String, message: String?, byAdmin: Bool) {
+        if music.sessionId == id {
+            music.stoppedByServer()
+            return
+        }
         // A live session's stop shows in its player, which asks why.
         guard let player, player.session?.id == id else { return }
         let text = player.stoppedByServer(message: message, byAdmin: byAdmin)
@@ -603,6 +861,8 @@ public final class AppModel: ObservableObject {
     private func heard(_ event: SessionEvent) {
         guard case .signedOut(let origin, let message) = event, let server, server.origin == origin else { return }
         Task { await closePlayer() }
+        closeLivePlayer()
+        music.stop()
         stopEvents()
         user = nil
         notice = message

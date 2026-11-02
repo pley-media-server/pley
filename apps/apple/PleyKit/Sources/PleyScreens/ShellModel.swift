@@ -14,6 +14,9 @@ public enum ShellSection: Hashable, Codable, Sendable {
     /// Live TV: a row of the sidebar after Home, a tab after Home on Apple
     /// TV; on iPhone a row of Libraries opens it (`Screen.liveTv`).
     case liveTv
+    /// Apple TV's Now Playing tab, while music has a queue. iPhone, iPad
+    /// and the Mac show a mini player instead.
+    case nowPlaying
 
     /// How the section is kept between launches: `home`, `library:3`.
     public var key: String {
@@ -25,6 +28,7 @@ public enum ShellSection: Hashable, Codable, Sendable {
         case .me: "me"
         case .settings: "settings"
         case .liveTv: "liveTv"
+        case .nowPlaying: "nowPlaying"
         case .library(let id): "library:\(id)"
         }
     }
@@ -39,6 +43,7 @@ public enum ShellSection: Hashable, Codable, Sendable {
         case "me": self = .me
         case "settings": self = .settings
         case "liveTv": self = .liveTv
+        case "nowPlaying": self = .nowPlaying
         default:
             guard key.hasPrefix("library:"), let id = Int(key.dropFirst("library:".count)) else { return nil }
             self = .library(id)
@@ -123,6 +128,10 @@ public final class ShellModel: ObservableObject {
     /// Live TV on the open server for this profile (`GET /api/live`);
     /// `nil` while not known. It shows when it is `available`.
     @Published public private(set) var liveTv: LiveSummary?
+    /// Music has a queue: Apple TV shows its Now Playing tab.
+    @Published public private(set) var nowPlaying = false
+    /// iPhone and iPad: Now Playing shows, in a sheet over the shell.
+    @Published public var nowPlayingOpen = false
 
     /// Apple TV shows at most this many tabs: past it, tvOS cuts them off.
     public static let maxTabs = 7
@@ -164,16 +173,18 @@ public final class ShellModel: ObservableObject {
         #endif
     }
 
-    /// The tabs of a shell, with `libraries`, and Live TV when it shows.
-    /// On Apple TV, at most `maxTabs`: Search, Home, Live TV, the
-    /// libraries, Playlists and Settings. While they all fit each library
-    /// has a tab; otherwise the first that fit keep theirs and a Libraries
-    /// tab takes the rest's place.
-    public static func sections(tv: Bool, libraries: [Library], liveTv: Bool = false) -> [ShellSection] {
+    /// The tabs of a shell, with `libraries`, Live TV when it shows and
+    /// Now Playing while music has a queue. On Apple TV, at most
+    /// `maxTabs` (Android's rail rule): Search, Home, Live TV, the
+    /// libraries, Playlists, Now Playing and Settings. While they all fit
+    /// each library has a tab; otherwise the first that fit keep theirs and
+    /// a Libraries tab takes the rest's place.
+    public static func sections(tv: Bool, libraries: [Library], liveTv: Bool = false,
+                                nowPlaying: Bool = false) -> [ShellSection] {
         guard tv else { return [.home, .libraries, .search, .playlists, .me] }
         // Search first, where tvOS puts it.
         let start: [ShellSection] = [.search, .home] + (liveTv ? [.liveTv] : [])
-        let end: [ShellSection] = [.playlists, .settings]
+        let end: [ShellSection] = [.playlists] + (nowPlaying ? [.nowPlaying] : []) + [.settings]
         let room = maxTabs - start.count - end.count
         let tabs = libraries.map { ShellSection.library($0.id) }
         let middle = tabs.count <= room ? tabs : Array(tabs.prefix(room - 1)) + [.libraries]
@@ -214,8 +225,17 @@ public final class ShellModel: ObservableObject {
         refreshSections()
     }
 
+    /// Music has a queue, or no longer: Apple TV's Now Playing tab comes
+    /// or goes (and the tab showing goes back to Home with it).
+    public func setNowPlaying(_ active: Bool) {
+        if !active { nowPlayingOpen = false }
+        guard active != nowPlaying else { return }
+        nowPlaying = active
+        refreshSections()
+    }
+
     private func refreshSections() {
-        sections = Self.sections(tv: tv, libraries: libraries, liveTv: showsLiveTv)
+        sections = Self.sections(tv: tv, libraries: libraries, liveTv: showsLiveTv, nowPlaying: nowPlaying)
         // Waiting for what it needs: the libraries, or Live TV.
         if let restoring, restoring == .liveTv ? liveTv == nil : libraries.isEmpty { return }
         if let restoring {
@@ -306,6 +326,8 @@ public final class ShellModel: ObservableObject {
         paths = [:]
         libraries = []
         liveTv = nil
+        nowPlaying = false
+        nowPlayingOpen = false
         sections = Self.sections(tv: tv, libraries: [])
         sheet = nil
         dismissToast()

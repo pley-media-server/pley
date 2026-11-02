@@ -252,30 +252,30 @@ extension FixtureServer {
                 return Answer(status: 204, headers: [:], body: Data())
             }
         case ("GET", 3, "items"):
-            guard let id = Int(parts[2]), s.playables[id] == nil else { return nil }
+            guard let id = Int(parts[2]), !playsVideo(s, id) else { return nil }
             return withToken(&s, request, scope: "library") { s, _ in
                 guard var detail = detailJSON(s, id) else { return notFound(request.path) }
                 detail["in_watchlist"] = watchlist(s).contains(id)
                 return json(200, patched(s, detail))
             }
         case ("GET", 4, "items") where parts[3] == "on-deck":
-            guard let id = Int(parts[2]), s.playables[id] == nil, id == 201 || id == 202 else { return nil }
+            guard let id = Int(parts[2]), !playsVideo(s, id), id == 201 || id == 202 else { return nil }
             return withToken(&s, request, scope: "library") { _, _ in fixture("items/on_deck.json") }
         case ("GET", 4, "items") where parts[3] == "children":
-            guard let id = Int(parts[2]), s.playables[id] == nil else { return nil }
+            guard let id = Int(parts[2]), !playsVideo(s, id) else { return nil }
             return withToken(&s, request, scope: "library") { s, _ in
                 guard let items = children(id) else { return notFound(request.path) }
                 return json(200, ["items": items.map { patched(s, $0) }])
             }
         case ("GET", 4, "items") where parts[3] == "related":
-            guard let id = Int(parts[2]), s.playables[id] == nil else { return nil }
+            guard let id = Int(parts[2]), !playsVideo(s, id) else { return nil }
             return withToken(&s, request, scope: "library") { s, _ in
                 guard detailJSON(s, id) != nil else { return notFound(request.path) }
                 let items = id == 101 || id == 201 ? object("items/related.json")?["items"] as? [[String: Any]] ?? [] : []
                 return json(200, ["items": items.map { patched(s, $0) }])
             }
         case ("GET", 4, "items") where parts[3] == "collections":
-            guard let id = Int(parts[2]), s.playables[id] == nil else { return nil }
+            guard let id = Int(parts[2]), !playsVideo(s, id) else { return nil }
             return withToken(&s, request, scope: "library") { _, _ in
                 id == 101 ? fixture("items/collections.json") : json(200, ["collections": [Any]()])
             }

@@ -129,26 +129,36 @@ public final class LiveLayerView: UIView {
 #endif
 
 #if os(iOS) || os(macOS)
-/// AirPlay's button (AVRoutePickerView): the live channel can play on an
-/// Apple TV or a speaker, as a video can.
+/// AirPlay's button (AVRoutePickerView): a live channel can play on an
+/// Apple TV or a speaker, as a video can, and music on a speaker. Over
+/// the picture it is white and lists TVs first; in Now Playing it takes
+/// the text's colour and lists speakers first.
 public struct RoutePicker: View {
-    public init() {}
+    let video: Bool
+    let id: String
+
+    public init(video: Bool = true, id: String = "live.airplay") {
+        self.video = video
+        self.id = id
+    }
 
     public var body: some View {
-        RoutePickerView()
+        RoutePickerView(video: video)
             .frame(width: 44, height: 44)
             .accessibilityLabel("AirPlay")
-            .accessibilityIdentifier("live.airplay")
+            .accessibilityIdentifier(id)
     }
 }
 
 #if os(iOS)
 private struct RoutePickerView: UIViewRepresentable {
+    let video: Bool
+
     func makeUIView(context: Context) -> AVRoutePickerView {
         let view = AVRoutePickerView()
-        view.tintColor = .white
+        view.tintColor = video ? .white : .label
         view.activeTintColor = .systemBlue
-        view.prioritizesVideoDevices = true
+        view.prioritizesVideoDevices = video
         return view
     }
 
@@ -156,6 +166,8 @@ private struct RoutePickerView: UIViewRepresentable {
 }
 #else
 private struct RoutePickerView: NSViewRepresentable {
+    let video: Bool
+
     func makeNSView(context: Context) -> AVRoutePickerView {
         let view = AVRoutePickerView()
         view.isRoutePickerButtonBordered = false

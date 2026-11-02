@@ -5,7 +5,7 @@ import PleyNetwork
 
 /// An artist's page (Android's `artistPage`): their picture, "4 albums ·
 /// 40 tracks", what the server says of them, and their albums newest
-/// first. Music plays from a later version, so it has no Play.
+/// first. Play and Shuffle play every track of theirs, album by album.
 public struct ArtistPage: Hashable, Sendable {
     public var id: Int
     public var title: String
@@ -73,8 +73,8 @@ public struct TrackRow: Hashable, Sendable, Identifiable {
 /// An album's page (Android's `albumPage`): its cover, its artist (a link
 /// to their page), the year, "10 tracks · 42m", the profile's rating and
 /// the tracks, with disc headings when there are several discs. The track
-/// it was opened from is `highlight`. No Play: music plays from a later
-/// version.
+/// it was opened from is `highlight`. Play, Shuffle and a track's row play
+/// the album.
 public struct AlbumPage: Hashable, Sendable {
     public var id: Int
     public var title: String
@@ -132,9 +132,17 @@ public struct AlbumPage: Hashable, Sendable {
     }
 }
 
-/// An artist's page: the artist (`GET /api/items/{id}`) and their albums (`/children`).
+/// An artist's page: the artist (`GET /api/items/{id}`) and their albums
+/// (`/children`). Play and Shuffle play every track of the artist in album
+/// order (newest album first, as the page lists them): each album's
+/// `children`, read 4 at a time, 5,000 tracks at most.
 @MainActor
 public final class ArtistModel: ObservableObject {
+    /// The most tracks an artist's Play queues.
+    public static let maxTracks = 5_000
+    /// How many albums' tracks are read at once.
+    static let albumsAtOnce = 4
+
     public enum State: Equatable {
         case loading, loaded, notFound
         case failed(String)
@@ -142,13 +150,45 @@ public final class ArtistModel: ObservableObject {
 
     @Published public private(set) var state: State = .loading
     @Published public private(set) var page: ArtistPage?
+    /// Reading the tracks for Play or Shuffle.
+    @Published public private(set) var starting = false
 
     public let app: AppModel
     public let itemId: Int
+    private var albums: [ItemSummary] = []
 
     public init(app: AppModel, itemId: Int) {
         self.app = app
         self.itemId = itemId
+    }
+
+    /// Whether Play and Shuffle are offered: the artist has albums.
+    public var canPlay: Bool { !(page?.albums.isEmpty ?? true) }
+
+    /// Play (or Shuffle): every track of the artist, album by album as the page lists them.
+    public func play(shuffle: Bool = false) async {
+        guard !starting, let page, let api = await app.session.api else { return }
+        starting = true
+        defer { starting = false }
+        let order = page.albums.map(\.item.id)
+        var tracks: [Int: [ItemSummary]] = [:]
+        var at = 0
+        while at < order.count, tracks.values.reduce(0, { $0 + $1.count }) < Self.maxTracks {
+            let batch = Array(order[at..<min(at + Self.albumsAtOnce, order.count)])
+            at += batch.count
+            await withTaskGroup(of: (Int, [ItemSummary]).self) { group in
+                for id in batch {
+                    group.addTask { (id, (try? await api.children(id)) ?? []) }
+                }
+                for await (id, list) in group { tracks[id] = list }
+            }
+        }
+        let all = Array(order.flatMap { tracks[$0] ?? [] }.filter { $0.kind == .track }.prefix(Self.maxTracks))
+        guard !all.isEmpty else {
+            app.shell.show("Nothing to play yet")
+            return
+        }
+        await app.playMusic(all, shuffle: shuffle)
     }
 
     public func load() async {
@@ -159,7 +199,9 @@ public final class ArtistModel: ObservableObject {
             async let detail = api.item(id)
             async let albums = try? await api.children(id)
             let found = try await detail
-            page = ArtistPage(found, albums: await albums)
+            let list = await albums
+            self.albums = list ?? []
+            page = ArtistPage(found, albums: list)
             state = .loaded
         } catch is CancellationError {
         } catch PleyError.signedOut {
@@ -196,6 +238,27 @@ public final class AlbumModel: ObservableObject {
         self.app = app
         self.itemId = itemId
         self.track = track
+    }
+
+    /// Whether Play is offered: the album has tracks.
+    public var canPlay: Bool { !(tracks?.isEmpty ?? true) }
+    public var canShuffle: Bool { (tracks?.count ?? 0) > 1 }
+
+    /// Play from the first track, or Shuffle.
+    public func play(shuffle: Bool = false) async {
+        guard let tracks, !tracks.isEmpty else { return }
+        await app.playMusic(tracks, start: shuffle ? app.playerSetup.random(tracks.count) : 0, shuffle: shuffle)
+    }
+
+    /// A track's row: the track playing pauses or plays on; another one
+    /// plays the album from it.
+    public func playOrToggle(_ trackId: Int) async {
+        guard let tracks, let at = tracks.firstIndex(where: { $0.id == trackId }) else { return }
+        if app.music.state.track?.id == trackId {
+            app.music.toggle()
+        } else {
+            await app.playMusic(tracks, start: at)
+        }
     }
 
     public func load() async {

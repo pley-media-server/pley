@@ -130,17 +130,18 @@ import Testing
         #expect(shell.sidebar == [.home, .search, .playlists, .library(1), .library(2)])
     }
 
-    @Test func appleTVShowsSevenTabsAtMostWhateverTheLibrariesAndLiveTV() {
-        for live in [false, true] {
+    @Test func appleTVShowsSevenTabsAtMostWhateverTheLibrariesLiveTVAndMusic() {
+        for (live, music) in [(false, false), (true, false), (false, true), (true, true)] {
             for count in 0...9 {
                 let libraries = (1...max(count, 1)).prefix(count).map { Library(id: $0, name: "L\($0)", kind: .movies) }
-                let tabs = ShellModel.sections(tv: true, libraries: libraries, liveTv: live)
+                let tabs = ShellModel.sections(tv: true, libraries: libraries, liveTv: live, nowPlaying: music)
                 #expect(tabs.count <= ShellModel.maxTabs)
                 #expect(Array(tabs.prefix(2)) == [.search, .home])
-                #expect(Array(tabs.suffix(2)) == [.playlists, .settings])
+                let end: [ShellSection] = music ? [.playlists, .nowPlaying, .settings] : [.playlists, .settings]
+                #expect(Array(tabs.suffix(end.count)) == end)
                 #expect(tabs.contains(.liveTv) == live)
                 if live { #expect(tabs[2] == .liveTv) }
-                let room = live ? 2 : 3
+                let room = 3 - (live ? 1 : 0) - (music ? 1 : 0)
                 let shown = tabs.compactMap { if case .library(let id) = $0 { id } else { nil } }
                 if count <= room {
                     // Each library has its tab while they all fit.
@@ -148,12 +149,16 @@ import Testing
                     #expect(!tabs.contains(.libraries))
                 } else {
                     // The first that fit keep theirs; Libraries takes the rest's place, last of them.
-                    #expect(shown == Array(1...(room - 1)))
-                    #expect(tabs[tabs.count - 3] == .libraries)
+                    #expect(shown == Array((1...max(room - 1, 1)).prefix(room - 1)))
+                    #expect(tabs[tabs.count - end.count - 1] == .libraries)
                     #expect(tabs.count == ShellModel.maxTabs)
                 }
             }
         }
+        // Music playing beside Live TV and four libraries: Libraries holds them all.
+        #expect(ShellModel.sections(tv: true, libraries: (1...4).map { Library(id: $0, name: "L\($0)", kind: .movies) },
+                                    liveTv: true, nowPlaying: true)
+            == [.search, .home, .liveTv, .libraries, .playlists, .nowPlaying, .settings])
         // Four libraries and Live TV: one library keeps its tab.
         let four = (1...4).map { Library(id: $0, name: "L\($0)", kind: .movies) }
         #expect(ShellModel.sections(tv: true, libraries: four, liveTv: true)

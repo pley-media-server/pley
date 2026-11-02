@@ -38,6 +38,8 @@ public struct PlayerSurface: NSViewRepresentable {
         view.controlsStyle = .floating
         view.showsFullScreenToggleButton = true
         view.allowsPictureInPicturePlayback = false
+        // The app's Now Playing owns the media keys and the menu bar's Now Playing.
+        view.updatesNowPlayingInfoCenter = false
         view.addSubtitles()
         view.addActionMenu()
         return view

@@ -36,11 +36,7 @@ struct PlayerScreen: View {
         }
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
-        .onAppear {
-            PlaybackAudioSession.activate()
-            showControls()
-        }
-        .onDisappear { PlaybackAudioSession.deactivate() }
+        .onAppear { showControls() }
         .onChange(of: controller.state.notice) { text in
             guard let text else { return }
             notice = text
@@ -226,12 +222,20 @@ private struct PlayerWindowContent: View {
 
 /// The menu bar's Playback menu: Play (⌘↩) plays the tile with the focus
 /// or the title page showing, in a player window; the rest acts on the
-/// player window that is key.
+/// player window that is key. Its Music section (Play/Pause Music, Next
+/// Track ⌘→, Previous Track ⌘←) acts on music while no player window is key.
 struct PlaybackCommands: Commands {
+    let app: AppModel
+    @ObservedObject private var music: MusicPlayback
     @FocusedObject private var player: PlaybackController?
     @FocusedObject private var live: LivePlayerModel?
     @FocusedValue(\.playTarget) private var target
     @Environment(\.openWindow) private var openWindow
+
+    init(app: AppModel) {
+        self.app = app
+        music = app.music
+    }
 
     var body: some Commands {
         CommandMenu("Playback") {
@@ -303,8 +307,24 @@ struct PlaybackCommands: Commands {
                 }
             }
             .disabled(player?.state.chapters.isEmpty ?? true)
+            Divider()
+            Section("Music") {
+                Button(music.state.playing ? "Pause Music" : "Play Music") { music.toggle() }
+                    .disabled(!musicKeys)
+                Button("Next Track") { music.next() }
+                    .keyboardShortcut(.rightArrow, modifiers: .command)
+                    .disabled(!musicKeys || !music.state.hasNext)
+                Button("Previous Track") { music.previous() }
+                    .keyboardShortcut(.leftArrow, modifiers: .command)
+                    .disabled(!musicKeys)
+                Button("Now Playing") { openWindow(id: NowPlayingWindow.id) }
+                    .disabled(!music.state.active)
+            }
         }
     }
+
+    /// Music's items act while music has a queue and no player window is key.
+    private var musicKeys: Bool { music.state.active && player == nil && live == nil }
 
     private var isPlaying: Bool {
         switch player?.state.phase {
@@ -320,9 +340,14 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate {
     weak var app: AppModel?
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let app, app.player != nil else { return .terminateNow }
+        guard let app, app.player != nil || app.music.active else { return .terminateNow }
         Task { @MainActor in
             await app.closePlayer()
+            // Music's session ends too: `stopped` keeps the place.
+            if app.music.active {
+                app.music.stop()
+                await app.reporter.flush(timeoutMs: PlaybackController.flushMs, clock: SystemPlayerClock())
+            }
             sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater

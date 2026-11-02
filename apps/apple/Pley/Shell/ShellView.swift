@@ -9,7 +9,10 @@ import SwiftUI
 /// the profile signed in (Me). Each section keeps its own navigation, and
 /// choosing the section showing goes back to its start. Add to playlist and
 /// New playlist are sheets over it; the toast shows at the bottom; while
-/// the player is open VoiceOver reads only the player.
+/// the player is open VoiceOver reads only the player. While music has a
+/// queue, the mini player sits above the tab bar (in its bottom accessory
+/// from iOS 26.1) or at the foot of the sidebar layout's page, and Now
+/// Playing opens from it.
 struct ShellView: View {
     @ObservedObject var app: AppModel
     @ObservedObject private var shell: ShellModel
@@ -36,20 +39,57 @@ struct ShellView: View {
         .sheet(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { sheet in
             ShellSheet(app: app, sheet: sheet)
         }
+        #if os(iOS)
+        .sheet(isPresented: Binding(get: { shell.nowPlayingOpen }, set: { shell.nowPlayingOpen = $0 })) {
+            NavigationStack {
+                NowPlayingView(app: app) { shell.nowPlayingOpen = false }
+            }
+        }
+        #endif
         .accessibilityHidden(app.player != nil || app.livePlayer != nil)
+    }
+
+    /// The mini player at the foot of a page, while music has a queue.
+    @ViewBuilder private var miniPlayer: some View {
+        if shell.nowPlaying {
+            MiniPlayer(app: app)
+        }
+    }
+
+    /// Whether the tab bar holds the mini player itself (iOS 26.1's bottom
+    /// accessory); before, each section's page has it at its foot.
+    private var accessoryHoldsMiniPlayer: Bool {
+        #if os(iOS)
+        if #available(iOS 26.1, *) { return true }
+        #endif
+        return false
     }
 
     // MARK: Tabs
 
-    private var tabs: some View {
+    @ViewBuilder private var tabs: some View {
         // A library opened from the sidebar shows under Libraries.
-        TabView(selection: Binding(get: { Self.tab(shell.section) }, set: { shell.select($0) })) {
+        let view = TabView(selection: Binding(get: { Self.tab(shell.section) }, set: { shell.select($0) })) {
             ForEach(shell.sections, id: \.self) { section in
                 stack(section == Self.tab(shell.section) ? shell.section : section)
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        if !accessoryHoldsMiniPlayer { miniPlayer }
+                    }
                     .tabItem { Label(Self.title(section), systemImage: Self.symbol(section)) }
                     .tag(section)
             }
         }
+        #if os(iOS)
+        if #available(iOS 26.1, *) {
+            view.tabViewBottomAccessory(isEnabled: shell.nowPlaying) {
+                MiniPlayer(app: app, inAccessory: true)
+            }
+        } else {
+            view
+        }
+        #else
+        view
+        #endif
     }
 
     private static func tab(_ section: ShellSection) -> ShellSection {
@@ -76,6 +116,7 @@ struct ShellView: View {
             stack(shell.section)
                 // Another section, another navigation.
                 .id(shell.section)
+                .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayer }
         }
     }
 
@@ -136,7 +177,7 @@ struct ShellView: View {
         case .library(let id): LibraryView(app: app, libraryId: id)
         case .search: SearchView(app: app)
         case .playlists: PlaylistsView(app: app)
-        case .me, .settings: MeView(app: app)
+        case .me, .settings, .nowPlaying: MeView(app: app)
         case .liveTv: LiveTvView(app: app)
         }
     }
@@ -150,6 +191,7 @@ struct ShellView: View {
         case .me: "Me"
         case .settings: "Settings"
         case .liveTv: "Live TV"
+        case .nowPlaying: "Now Playing"
         case .library: "Library"
         }
     }
@@ -163,6 +205,7 @@ struct ShellView: View {
         case .me: "person.crop.circle"
         case .settings: "gearshape"
         case .liveTv: "tv"
+        case .nowPlaying: "music.note"
         case .library: "folder"
         }
     }

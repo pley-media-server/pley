@@ -249,7 +249,7 @@ struct PlaylistView: View {
         .contextMenu { menu(row) }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(row.spokenLabel)
-        .accessibilityHint(model.video ? "Plays from here" : "Opens its album")
+        .accessibilityHint("Plays from here")
         .accessibilityAddTraits(.isButton)
         .accessibilityActions { menu(row) }
         .accessibilityIdentifier("playlist.entry.\(row.entryId)")
@@ -257,10 +257,8 @@ struct PlaylistView: View {
 
     /// An entry's actions: its context menu, and VoiceOver's.
     @ViewBuilder private func menu(_ row: PlaylistRow) -> some View {
-        if model.video {
-            Button { launcher.play(app, model.play(from: row.number - 1)) } label: {
-                Label("Play from Here", systemImage: "play.fill")
-            }
+        Button { launcher.play(app, model.play(from: row.number - 1)) } label: {
+            Label("Play from Here", systemImage: "play.fill")
         }
         Button { app.shell.open(item: row.item) } label: {
             Label(model.video ? "Go to Page" : "Go to Album", systemImage: "info.circle")
@@ -281,13 +279,9 @@ struct PlaylistView: View {
         }
     }
 
-    /// Video plays from the entry; music opens its album.
+    /// Plays from the entry: video in the player, music in Now Playing.
     private func open(_ row: PlaylistRow) {
-        if model.video {
-            launcher.play(app, model.play(from: row.number - 1))
-        } else {
-            app.shell.open(item: row.item)
-        }
+        launcher.play(app, model.play(from: row.number - 1))
     }
 }
 

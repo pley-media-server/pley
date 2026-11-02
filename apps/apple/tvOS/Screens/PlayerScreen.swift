@@ -46,8 +46,6 @@ struct PlayerScreen: View {
                 EmptyView()
             }
         }
-        .onAppear { PlaybackAudioSession.activate() }
-        .onDisappear { PlaybackAudioSession.deactivate() }
     }
 
     /// The player's size in pixels: Automatic plays no stream size bigger than the screen.

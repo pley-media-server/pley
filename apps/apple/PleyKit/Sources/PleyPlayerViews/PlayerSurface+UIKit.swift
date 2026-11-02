@@ -46,6 +46,10 @@ public struct PlayerSurface: UIViewControllerRepresentable {
         let controller = AVPlayerViewController()
         controller.showsPlaybackControls = true
         #if os(iOS)
+        // The app's Now Playing owns the lock screen and the remote commands
+        // (`NowPlayingCenter`), so music, video and live never fight over them.
+        // Apple TV's AVKit always shows its own, which tvOS can't turn off.
+        controller.updatesNowPlayingInfoCenter = false
         controller.allowsPictureInPicturePlayback = false
         controller.canStartPictureInPictureAutomaticallyFromInline = false
         let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.tapped))

@@ -298,9 +298,10 @@ struct PlaylistScreensTests {
         #expect(model.rows.map(\.entryId) == [9101, 9102, 9103])
     }
 
-    @Test func smartPlaylistsAreReadOnlyAndMusicPlaysLater() async throws {
+    @Test func smartPlaylistsAreReadOnlyAndMusicPlaysInNowPlaying() async throws {
         let server = try await fixture()
         defer { server.stop() }
+        server.addMusic()
         let app = try await signedIn(server)
         let smart = PlaylistModel(app: app, playlistId: 902)
         await smart.load()
@@ -319,9 +320,11 @@ struct PlaylistScreensTests {
         await music.load()
         #expect(!music.video)
         #expect(music.rows.first?.tile.shape == .square)
+        // Music plays in Now Playing, not the player.
         #expect(music.play() == nil)
-        #expect(app.shell.toast?.text == "Music plays from a later version")
-        // A track's row opens its album.
+        #expect(await eventually { app.music.state.track?.id == 303 })
+        #expect(app.player == nil && app.shell.toast == nil)
+        // A track's Go to Album opens its album there.
         let track = try #require(music.rows.first?.item)
         #expect(Screen.page(of: track) == .album(302, track: 303))
     }

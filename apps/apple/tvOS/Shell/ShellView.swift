@@ -4,10 +4,12 @@ import SwiftUI
 /// The signed-in app on Apple TV: seven tabs at most across the top,
 /// Search, Home, Live TV when it shows, a tab per library while they fit
 /// (the first that fit, and a Libraries tab for the rest, otherwise),
-/// Playlists and Settings (which holds the profile, the server, Switch
-/// profile, History, Servers and Sign out, and the device's settings). Each tab keeps its own navigation; Menu goes back
-/// through it, then to the tabs, then out of the app. Add to playlist and
-/// New playlist are a panel down the right. While the player is open
+/// Playlists, Now Playing while music has a queue, and Settings (which
+/// holds the profile, the server, Switch profile, History, Servers and Sign
+/// out, and the device's settings). Each tab keeps its own navigation; Menu
+/// goes back through it, then to the tabs, then out of the app. The
+/// remote's Play/Pause plays and pauses music from any tab. Add to playlist
+/// and New playlist are a panel down the right. While the player is open
 /// VoiceOver reads only the player.
 struct ShellView: View {
     @ObservedObject var app: AppModel
@@ -26,6 +28,9 @@ struct ShellView: View {
                 }
                 .accessibilityIdentifier("shell.tab.\(section.key)")
             }
+        }
+        .onPlayPauseCommand {
+            if app.music.state.active { app.music.toggle() }
         }
         .overlay(alignment: .topTrailing) { ToastView(shell: shell) }
         .fullScreenCover(item: Binding(get: { shell.sheet }, set: { shell.sheet = $0 })) { sheet in
@@ -54,6 +59,7 @@ struct ShellView: View {
         case .playlists: PlaylistsView(app: app)
         case .settings, .me: SettingsView(app: app)
         case .liveTv: LiveTvView(app: app)
+        case .nowPlaying: NowPlayingScreen(app: app)
         }
     }
 
@@ -80,6 +86,7 @@ struct ShellView: View {
         case .me: "Me"
         case .settings: "Settings"
         case .liveTv: "Live TV"
+        case .nowPlaying: "Now Playing"
         case .library: "Library"
         }
     }
@@ -93,6 +100,7 @@ struct ShellView: View {
         case .me: "person.crop.circle"
         case .settings: "gearshape"
         case .liveTv: "tv"
+        case .nowPlaying: "music.note"
         case .library: "folder"
         }
     }

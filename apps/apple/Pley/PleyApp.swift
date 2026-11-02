@@ -28,7 +28,7 @@ struct PleyApp: App {
         .defaultSize(width: 1100, height: 720)
         .commands {
             MacCommands(app: app)
-            PlaybackCommands()
+            PlaybackCommands(app: app)
         }
         #endif
 
@@ -39,6 +39,8 @@ struct PleyApp: App {
         }
         // About Pley, in place of the standard panel.
         AboutWindow()
+        // Music's Now Playing, a window of its own (⌥⌘P).
+        NowPlayingWindow(app: app)
         #endif
 
         #if os(macOS)

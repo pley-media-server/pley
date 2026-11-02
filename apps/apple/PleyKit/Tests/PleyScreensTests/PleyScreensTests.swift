@@ -39,6 +39,8 @@ func app(_ store: any TokenStore = MemoryTokenStore(), servers: [SavedServer] = 
          client: AppClient = .ios,
          discover: @escaping @Sendable () -> AsyncStream<DiscoveryState> = { AsyncStream { $0.finish() } },
          engines: @escaping @MainActor () -> any PlayerEngine = { StillEngine() },
+         music: @escaping @MainActor () -> any MusicOutput = { QuietMusicOutput() },
+         nowPlaying: @escaping @MainActor () -> any NowPlayingSystem = { QuietNowPlaying() },
          settings: AppSettings = freshSettings(), tv: Bool = ShellModel.isTV)
     -> AppModel {
     let transport = HTTPTransport(userAgent: testAgent)
@@ -50,7 +52,8 @@ func app(_ store: any TokenStore = MemoryTokenStore(), servers: [SavedServer] = 
                     authenticator: client.signsInWithBrowser ? FakeWebAuthenticator() : nil, discover: discover,
                     caps: DeviceCaps(probe: RecordedProbe()),
                     playerSetup: .init(clientId: "apple-test", lateReports: late, quality: MemoryQuality(),
-                                       ceilings: { _ in MemoryCeiling() }, engines: engines),
+                                       ceilings: { _ in MemoryCeiling() }, engines: engines, musicOutputs: music,
+                                       nowPlaying: nowPlaying),
                     settings: settings, tv: tv)
 }
 

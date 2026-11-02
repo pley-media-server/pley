@@ -1,10 +1,11 @@
 import PleyModel
+import PleyPlayer
 import PleyScreens
 import SwiftUI
 
 /// An artist's page for the sofa (docs/APPLE.md, Music): their picture,
-/// "4 albums · 40 tracks", what the server says of them, and their albums,
-/// newest first. Music plays from a later version, so there is no Play.
+/// "4 albums · 40 tracks", what the server says of them, Play and Shuffle
+/// (every album's tracks), and their albums, newest first.
 struct ArtistView: View {
     @ObservedObject private var app: AppModel
     @StateObject private var model: ArtistModel
@@ -56,6 +57,12 @@ struct ArtistView: View {
                         if let summary = page.summary {
                             Text(summary).font(.callout).lineLimit(4).frame(maxWidth: 1100, alignment: .leading)
                         }
+                        if model.canPlay {
+                            PlayShuffleButtons(prefix: "artist", canPlay: !model.starting, canShuffle: !model.starting,
+                                               play: { Task { await model.play() } },
+                                               shuffle: { Task { await model.play(shuffle: true) } })
+                                .padding(.top, 10)
+                        }
                     }
                 }
                 .padding(.horizontal, Metrics.gutter)
@@ -80,14 +87,18 @@ struct ArtistView: View {
 /// its title, its artist (a button to their page), the year, "10 tracks ·
 /// 42m" and the profile's rating, then its tracks, with disc headings on
 /// albums of several discs. Opened from a track, that track has the focus.
-/// No Play: music plays from a later version.
+/// Play and Shuffle play the album; Select on a track plays the album from
+/// it, or pauses and plays on while it is the one playing, which a speaker
+/// marks.
 struct AlbumView: View {
     @ObservedObject private var app: AppModel
+    @ObservedObject private var music: MusicPlayback
     @StateObject private var model: AlbumModel
     @FocusState private var focusedTrack: Int?
 
     init(app: AppModel, itemId: Int, track: Int?) {
         self.app = app
+        music = app.music
         _model = StateObject(wrappedValue: AlbumModel(app: app, itemId: itemId, track: track))
     }
 
@@ -126,6 +137,11 @@ struct AlbumView: View {
                 let line = [page.year.map(String.init), page.meta.isEmpty ? nil : page.meta].compactMap { $0 }
                 if !line.isEmpty {
                     Text(line.joined(separator: " · ")).font(.callout).foregroundStyle(.secondary)
+                }
+                if model.canPlay {
+                    PlayShuffleButtons(prefix: "album", canPlay: true, canShuffle: model.canShuffle,
+                                       play: { Task { await model.play() } },
+                                       shuffle: { Task { await model.play(shuffle: true) } })
                 }
                 HStack(spacing: 24) {
                     if let artist = page.artist, let id = page.artistId {
@@ -182,8 +198,12 @@ struct AlbumView: View {
                             .accessibilityAddTraits(.isHeader)
                             .id(row.id)
                     case .track(let track):
-                        TrackLine(track: track, highlighted: track.id == page.highlight)
-                            .focused($focusedTrack, equals: track.id)
+                        let current = music.state.track?.id == track.id
+                        TrackLine(track: track, highlighted: track.id == page.highlight,
+                                  playing: current ? music.state.playing : nil) {
+                            Task { await model.playOrToggle(track.id) }
+                        }
+                        .focused($focusedTrack, equals: track.id)
                             .id(row.id)
                     }
                 }
@@ -193,19 +213,26 @@ struct AlbumView: View {
     }
 }
 
-/// A track of an album: number, title, its own artist and its length. It
-/// takes the focus (so the remote scrolls the list) but does nothing yet.
+/// A track of an album: number, title, its own artist and its length.
+/// Select plays the album from it; the track playing shows a speaker in
+/// place of its number, and Select pauses or plays it on.
 private struct TrackLine: View {
     let track: TrackRow
     let highlighted: Bool
+    /// Whether it plays (`true`) or waits paused; `nil` while another track is current.
+    let playing: Bool?
+    let select: () -> Void
 
     var body: some View {
-        TrackContent(track: track, highlighted: highlighted)
-            .focusable()
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(track.spoken)
-            .accessibilityAddTraits(highlighted ? .isSelected : [])
-            .accessibilityIdentifier("album.track.\(track.id)")
+        Button(action: select) {
+            TrackContent(track: track, highlighted: highlighted, playing: playing)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(track.spoken + (playing.map { $0 ? ", playing" : ", paused" } ?? ""))
+        .accessibilityHint(playing.map { $0 ? "Pauses" : "Plays on" } ?? "Plays the album from this track")
+        .accessibilityAddTraits(highlighted ? [.isButton, .isSelected] : .isButton)
+        .accessibilityIdentifier("album.track.\(track.id)")
     }
 }
 
@@ -213,11 +240,20 @@ private struct TrackLine: View {
 private struct TrackContent: View {
     let track: TrackRow
     let highlighted: Bool
+    let playing: Bool?
     @Environment(\.isFocused) private var focused
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 24) {
-            Text(track.number).monospacedDigit().foregroundStyle(.secondary).frame(minWidth: 50, alignment: .trailing)
+            Group {
+                if let playing {
+                    Image(systemName: playing ? "speaker.wave.2.fill" : "speaker.fill")
+                } else {
+                    Text(track.number).foregroundStyle(.secondary)
+                }
+            }
+            .monospacedDigit()
+            .frame(minWidth: 50, alignment: .trailing)
             VStack(alignment: .leading, spacing: 2) {
                 Text(track.title)
                 if let artist = track.artist {

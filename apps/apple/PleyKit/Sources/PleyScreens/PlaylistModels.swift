@@ -10,9 +10,6 @@ import PleyPlayer
 public enum Playlists {
     /// A title is at most this long, as on the web.
     public static let titleMax = 200
-    /// What Play on a music playlist says until music plays (Phase 4).
-    public static let musicLater = "Music plays from a later version"
-
     /// What is wrong with `title` as a playlist's title; `nil` when it will do.
     public static func check(_ title: String) -> String? {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -159,7 +156,7 @@ public struct PlaylistRow: Identifiable, Hashable, Sendable {
 ///
 /// - **Play and Shuffle.** Video plays as a queue of the playlist
 ///   (`PlayQueue.playlist`) from its first entry, or a random one. Music
-///   says it plays from a later version; its rows open their album.
+///   plays through `AppModel.music`, from an entry or shuffled.
 /// - **Rename and Delete** (the page asks first); deleted, the page goes back.
 /// - **Moving entries**: the new order shows at once and goes to the
 ///   server; moves made while one is on its way are sent after it, the
@@ -283,12 +280,15 @@ public final class PlaylistModel: ObservableObject {
     // MARK: Playing
 
     /// What Play (from the entry at `from`) or Shuffle starts: video as a
-    /// queue of the playlist; `nil` for music, which says it plays later.
+    /// queue of the playlist; `nil` for music, which starts playing here
+    /// (`AppModel.playMusic`) in the order shown.
     public func play(from: Int = 0, shuffle: Bool = false) -> PlayRequest? {
         let rows = rows
         guard !rows.isEmpty else { return nil }
         guard video else {
-            app.shell.show(Playlists.musicLater)
+            let tracks = rows.map(\.item)
+            let start = shuffle ? random(tracks.count) : min(max(from, 0), tracks.count - 1)
+            Task { await app.playMusic(tracks, start: start, shuffle: shuffle) }
             return nil
         }
         let videos = rows.map(\.item).filter { [.movie, .episode, .extra].contains($0.kind) }

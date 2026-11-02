@@ -55,6 +55,12 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   player with channel up and down, a channel number typed or on Apple TV's
   number pad, AirPlay, and Watch here instead when every connection is in
   use. Search shows the channels it finds.
+- Music: Play and Shuffle on albums, artists and music playlists, a track
+  plays its album from there, and it plays on in the background and with
+  the screen locked. A mini player and Now Playing (a window on the Mac,
+  a tab on Apple TV) with Up next, Shuffle, a sleep timer and AirPlay; the
+  lock screen, Control Center, headphones and the Mac's media keys play,
+  pause and skip music and videos.
 
 ### Fixed
 
