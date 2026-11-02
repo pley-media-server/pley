@@ -117,6 +117,17 @@ fn errors_read_pleys_body_or_fall_back_to_the_status() {
     let e = ApiError::from_response(&Response::empty(503));
     assert!(e.unreachable());
     assert_eq!(e.code(), Some("unavailable"));
+    // A 503 in Pley's words is the server answering: its words show, and it is out of reach
+    // only for the player, mid-film.
+    let e = ApiError::from_response(&Response::json(
+        503,
+        &serde_json::json!({"code": "unavailable", "message": "the transcoder isn't running"}),
+    ));
+    assert!(!e.unreachable());
+    assert!(e.out_of_reach());
+    assert_eq!(e.problem(), "The transcoder isn't running.");
+    let e = ApiError::from_response(&Response::json(503, &serde_json::json!({"code": "requests_off", "message": "no"})));
+    assert!(!e.out_of_reach());
     let stopped = Response::json(
         410,
         &serde_json::json!({"code": "session_stopped", "error": "session_stopped", "message": "Time for bed"}),

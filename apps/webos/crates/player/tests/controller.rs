@@ -358,6 +358,37 @@ fn says_so_after_90_s_and_try_again_starts_over() {
 }
 
 #[test]
+fn waits_out_a_transcoder_restart_mid_film_then_plays_on() {
+    let mut w = playing();
+    w.fake.set_restarting(true);
+    w.sim.fail(2, "connection failed");
+    w.advance(3_000);
+    assert!(w.c.state().reconnecting);
+    // The server answers all along; each new session it gives way to fails the same way, and the
+    // wait goes on rather than ending in an error.
+    w.advance(30_000);
+    assert!(w.c.state().reconnecting);
+    assert_eq!(w.c.state().phase, Phase::Buffering);
+    w.fake.set_restarting(false);
+    w.advance(2_500);
+    assert!(!w.c.state().reconnecting);
+    assert!(!matches!(w.c.state().phase, Phase::Error { .. }));
+}
+
+#[test]
+fn a_transcoder_away_90_s_in_all_shows_the_server_s_words() {
+    let mut w = playing();
+    w.fake.set_restarting(true);
+    w.sim.fail(2, "connection failed");
+    w.advance(89_000);
+    assert_eq!(w.c.state().phase, Phase::Buffering);
+    w.advance(4_000);
+    let Phase::Error { message, title, .. } = &w.c.state().phase else { panic!("not an error") };
+    assert_eq!((message.as_str(), title.as_deref()), ("The transcoder isn't running.", None));
+    assert!(!w.c.state().reconnecting);
+}
+
+#[test]
 fn says_so_at_once_when_the_server_is_off_as_play_is_pressed() {
     let mut w = World::new(Fake::new(item(file()), |_| info(|_| ())), |_| ());
     w.fake.set_down(true);

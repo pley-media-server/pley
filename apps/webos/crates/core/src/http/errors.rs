@@ -159,13 +159,25 @@ impl ApiError {
     }
 
     /// The server answered nothing: no connection, no answer in time, or a
-    /// gateway in front of it saying it has none (502–504). Never a cancel.
+    /// gateway in front of it saying it has none (502–504). Never a cancel. A
+    /// 503 in Pley's own words (its JSON, with its `code`) is the server
+    /// answering: pages show what it says, and the TV doesn't go offline for it.
     pub fn unreachable(&self) -> bool {
         match self {
             ApiError::Net(e) => *e != NetError::Cancelled,
-            ApiError::Status { status, .. } => matches!(status, 502..=504),
+            ApiError::Status { status: 502 | 504, .. } => true,
+            ApiError::Status { status: 503, body, .. } => {
+                !body.as_ref().is_some_and(|b| b.get("code").is_some_and(serde_json::Value::is_string))
+            }
             _ => false,
         }
+    }
+
+    /// Nothing answers, or the server says it can't play just now (`503
+    /// unavailable`: its transcoder restarts, say). Pages show the server's
+    /// words for such a 503; mid-playback it is waited out like the server.
+    pub fn out_of_reach(&self) -> bool {
+        self.unreachable() || (self.is(503) && self.code() == Some("unavailable"))
     }
 
     /// Why the server answered nothing, as a sentence: "No answer in time.",

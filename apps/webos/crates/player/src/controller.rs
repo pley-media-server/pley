@@ -392,6 +392,15 @@ struct Asked {
     restart: bool,
 }
 
+/// The wait for the server that a new session ended, which goes on if that session fails the
+/// same way (a transcoder still restarting): `g`, the start it gave way to.
+#[derive(Clone, Copy)]
+struct Away {
+    g: u64,
+    since: i64,
+    attempts: usize,
+}
+
 /// A session opened by a task.
 struct Opened {
     info: PlaybackInfo,
@@ -504,6 +513,7 @@ pub struct PlaybackController {
     shown_once: bool,
     outage: Option<Outage>,
     outages: u64,
+    away: Option<Away>,
 
     recovery: Recovery,
     struggle: StruggleMeter,
@@ -588,6 +598,7 @@ impl PlaybackController {
             shown_once: false,
             outage: None,
             outages: 0,
+            away: None,
             recovery: Recovery::default(),
             struggle: StruggleMeter::default(),
             credits: CreditsGate::default(),
@@ -975,11 +986,18 @@ impl PlaybackController {
     /// step): the new session is made ready while this one plays on. A
     /// recovery starts again at once.
     fn restart(&mut self, at_ms: i64, prepared: bool) {
+        self.restart_after(at_ms, prepared, None);
+    }
+
+    /// [`Self::restart`], after a wait for the server that this start ends (`away`: its start
+    /// and attempts), which goes on if the start fails the same way.
+    fn restart_after(&mut self, at_ms: i64, prepared: bool, away: Option<(i64, usize)>) {
         if self.stopped || self.closed {
             return;
         }
         let alongside = prepared && self.can_prepare();
         let g = self.next_generation();
+        self.away = away.map(|(since, attempts)| Away { g, since, attempts });
         self.begin(at_ms, g, alongside, true, false);
     }
 
@@ -1148,10 +1166,14 @@ impl PlaybackController {
                 if self.preparing == Some(g) {
                     self.preparing = None;
                 }
-                // Mid-playback, a server that doesn't answer is waited for.
-                if asked.restart && self.shown_once && e.unreachable() {
+                // Mid-playback, a server or transcoder that doesn't answer is waited for: 90 s in
+                // all, however often the server answers in between (`away`, the wait this start
+                // ended).
+                let away = self.away.take().filter(|a| a.g == g);
+                let spent = away.is_some_and(|a| self.now - a.since >= OUTAGE_MS);
+                if asked.restart && self.shown_once && e.out_of_reach() && !spent {
                     self.last_position_ms = if asked.alongside { self.live_position() } else { asked.at_ms };
-                    self.reach_lost(true);
+                    self.reach_lost_after(true, away.map(|a| (a.since, a.attempts)));
                 } else {
                     self.fail_with(&e);
                 }
@@ -1558,7 +1580,7 @@ impl PlaybackController {
             Check::Error(error) => match result {
                 Ok(_) => self.recover(&error),
                 Err(ApiError::SessionStopped { message }) => self.stop_by_server(message.as_deref(), true),
-                Err(e) if e.unreachable() => self.reach_lost(true),
+                Err(e) if e.out_of_reach() => self.reach_lost(true),
                 Err(e) if e.is(404) => self.recover(&EngineError::Http { status: 404, detail: e.to_string() }),
                 Err(_) => self.recover(&error),
             },
@@ -1568,7 +1590,7 @@ impl PlaybackController {
                 }
                 let method = self.info.as_ref().map_or(PlaybackMethod::Direct, |i| i.method);
                 match result {
-                    Err(e) if e.unreachable() => self.reach_lost(false),
+                    Err(e) if e.out_of_reach() => self.reach_lost(false),
                     Err(ApiError::SessionStopped { message }) => self.stop_by_server(message.as_deref(), true),
                     _ => {
                         let action = self.recovery.on_stall(method, starving);
@@ -1583,7 +1605,7 @@ impl PlaybackController {
                     self.act(action, starving);
                 }
                 // A stall with the server gone isn't the video's fault: wait for the server rather than convert.
-                Err(e) if e.unreachable() => self.reach_lost(false),
+                Err(e) if e.out_of_reach() => self.reach_lost(false),
                 Err(ApiError::SessionStopped { message }) => self.stop_by_server(message.as_deref(), true),
                 Err(_) => {
                     let action = self.recovery.after_server_check(None, starving);
@@ -3014,11 +3036,18 @@ impl PlaybackController {
 
     // ---------------------------------------------------------------- the server out of reach
 
-    /// The server stopped answering mid-playback (the Android app's
-    /// `MediaLoading` and `ReconnectWatcher`): the player keeps its place, says
-    /// "Reconnecting…" and asks again after 0.5 s, 1 s, then every 2 s, for 90 s.
-    /// No recovery is spent on it, and no stall makes it convert the video.
+    /// The server stopped answering mid-playback, or its transcoder did (the
+    /// Android app's `MediaLoading` and `ReconnectWatcher`): the player keeps
+    /// its place, says "Reconnecting…" and asks again after 0.5 s, 1 s, then
+    /// every 2 s, for 90 s. No recovery is spent on it, and no stall makes it
+    /// convert the video.
     fn reach_lost(&mut self, engine_failed: bool) {
+        self.reach_lost_after(engine_failed, None);
+    }
+
+    /// [`Self::reach_lost`]; `away`: the wait before (its start and attempts), which a new
+    /// session ended too soon, goes on.
+    fn reach_lost_after(&mut self, engine_failed: bool, away: Option<(i64, usize)>) {
         if self.closed || self.stopped {
             return;
         }
@@ -3027,10 +3056,11 @@ impl PlaybackController {
             return;
         }
         self.outages += 1;
+        let (since, attempts) = away.unwrap_or((self.now, 0));
         self.outage = Some(Outage {
             id: self.outages,
-            since: self.now,
-            attempts: 0,
+            since,
+            attempts,
             due: None,
             engine_failed,
             at_ms: self.last_position_ms,
@@ -3075,7 +3105,7 @@ impl PlaybackController {
                 self.stop_by_server(message.as_deref(), true);
             }
             // It answers again, but the session went (404) or failed: a new one.
-            Err(e) if !e.unreachable() => self.reach_back(true),
+            Err(e) if !e.out_of_reach() => self.reach_back(true),
             Err(_) if self.now - since >= OUTAGE_MS => {
                 self.end_outage();
                 self.fail(details::OFFLINE_BODY, true, Some(details::OFFLINE_TITLE.into()));
@@ -3090,14 +3120,14 @@ impl PlaybackController {
             return;
         }
         let Some(o) = self.outage.as_ref() else { return };
-        let engine_failed = o.engine_failed;
+        let (engine_failed, away) = (o.engine_failed, (o.since, o.attempts));
         let at = self.last_position_ms;
         self.end_outage();
         if !session_gone && !engine_failed && self.view.playing && self.view.status == EngineStatus::Ready {
             self.phase(Phase::Playing);
             return;
         }
-        self.restart(at, false);
+        self.restart_after(at, false, Some(away));
     }
 
     fn end_outage(&mut self) {

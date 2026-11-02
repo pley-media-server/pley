@@ -213,8 +213,10 @@ pub fn playlist_for(url: &str) -> String {
     lines.join("\n")
 }
 
+/// A refusal in Pley's words, as the server's JSON reads.
 fn refused(status: u16, code: &str, message: &str) -> ApiError {
-    ApiError::Status { status, code: code.into(), message: message.into(), body: None }
+    let body = serde_json::json!({"code": code, "message": message});
+    ApiError::Status { status, code: code.into(), message: message.into(), body: Some(body) }
 }
 
 // ---- the pretend server
@@ -244,6 +246,7 @@ pub struct Fake {
     down: AtomicBool,
     /// No transcode free for a session asked for beside another (503).
     busy: AtomicBool,
+    restarting: AtomicBool,
     refuse_bitrates: AtomicBool,
     fail_heads: AtomicBool,
     hold_heads: AtomicBool,
@@ -281,6 +284,7 @@ impl Fake {
             speed_tests: AtomicUsize::new(0),
             down: AtomicBool::new(false),
             busy: AtomicBool::new(false),
+            restarting: AtomicBool::new(false),
             refuse_bitrates: AtomicBool::new(false),
             fail_heads: AtomicBool::new(false),
             hold_heads: AtomicBool::new(false),
@@ -319,6 +323,11 @@ impl Fake {
 
     pub fn set_down(&self, down: bool) {
         self.down.store(down, Ordering::SeqCst);
+    }
+
+    /// The server answers, but its transcoder restarts: new sessions get `503 unavailable`.
+    pub fn set_restarting(&self, restarting: bool) {
+        self.restarting.store(restarting, Ordering::SeqCst);
     }
 
     pub fn set_busy(&self, busy: bool) {
@@ -429,6 +438,9 @@ impl PlayerServer for Fake {
         self.answered(|| {
             self.requests.lock().unwrap().push(req.clone());
             self.log(format!("start {}", req.mode.as_str()));
+            if self.restarting.load(Ordering::SeqCst) {
+                return Err(refused(503, "unavailable", "the transcoder isn't running"));
+            }
             if self.busy.load(Ordering::SeqCst) && req.keep_previous {
                 return Err(refused(503, "unavailable", "no transcode free"));
             }
