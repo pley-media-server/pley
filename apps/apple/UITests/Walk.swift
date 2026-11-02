@@ -51,9 +51,18 @@ struct Walk {
 
     // MARK: Steps
 
+    /// The servers: the address field, or a server kept from a test
+    /// before, which at the largest text sizes pushes the field below the
+    /// screen, out of the list.
+    var servers: XCUIElement {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == 'servers.address' OR identifier BEGINSWITH 'servers.server.'"))
+            .firstMatch
+    }
+
     /// Signed out of an earlier run, if it left the app signed in.
     func startSignedOut() {
-        let address = element("servers.address")
+        let address = servers
         if address.waitForExistence(timeout: 8) { return }
         // Signed out at the default text size, where Me is in reach (a test
         // run again after a failure finds the app as that one left it).
@@ -84,7 +93,7 @@ struct Walk {
     /// Adds the server by its address and signs in with a code, which the
     /// administrator allows.
     func signInWithCode() async {
-        let address = wait(element("servers.address"), "the address field")
+        let address = reveal(element("servers.address"), "the address field")
         address.tap()
         address.typeText(Admin.origin + "\n")
         shot("01-sign-in")
@@ -189,7 +198,7 @@ struct Walk {
         let confirm = app.buttons.matching(NSPredicate(format: "label == 'Sign out' AND identifier != 'me.signOut'"))
             .firstMatch
         wait(confirm, "Sign out's confirmation").tap()
-        wait(element("servers.address"), "the servers after signing out")
+        wait(servers, "the servers after signing out")
     }
 
     /// Sign out, checked on the server too: the app's grant is gone from
