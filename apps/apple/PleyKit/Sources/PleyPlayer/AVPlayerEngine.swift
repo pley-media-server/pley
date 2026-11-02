@@ -17,6 +17,8 @@ import PleyCommon
 /// - The system's controls act on the player itself: a play or pause they
 ///   make, and a jump in time, are told to the controller as events.
 /// - Subtitles are the app's to draw: the asset's own are never selected.
+/// - The speed is the player's `defaultRate`, which its play uses, with
+///   the pitch kept (`.spectral`) for every item.
 /// - A file's own audio tracks are its `.audible` media selection group's
 ///   options, in the file's order; a choice made in the system's audio menu
 ///   is told to the controller (`audioChanged`).
@@ -82,6 +84,8 @@ public final class AVPlayerEngine: PlayerEngine {
         hls = url.path.hasSuffix(".m3u8")
         let item = AVPlayerItem(asset: AVURLAsset(url: url))
         item.preferredMaximumResolution = maximumResolution
+        // Another speed keeps the voices' pitch.
+        item.audioTimePitchAlgorithm = .spectral
         let output = AVPlayerItemVideoOutput(pixelBufferAttributes: nil)
         item.add(output)
         self.item = item
@@ -194,6 +198,13 @@ public final class AVPlayerEngine: PlayerEngine {
         audioPlaying = option.position
         item.select(audible.options[option.position], in: audible)
         return true
+    }
+
+    public func setRate(_ rate: Float) {
+        guard !closed, rate > 0 else { return }
+        player.defaultRate = rate
+        // Playing: at once. The rate change is no play or pause request (`rateChanged`).
+        if player.rate != 0 { player.rate = rate }
     }
 
     public func close() {

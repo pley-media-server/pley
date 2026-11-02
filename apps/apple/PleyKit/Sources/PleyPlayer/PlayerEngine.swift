@@ -87,10 +87,14 @@ public protocol PlayerEngine: AnyObject {
     /// Plays `option`'s audio; false when the media has no such option.
     @discardableResult
     func selectAudio(_ option: EngineAudioOption) -> Bool
+    /// The speed it plays at, 1 normal, the sound's pitch kept; it holds for
+    /// the media loaded after too.
+    func setRate(_ rate: Float)
     /// Lets go of the media and the player.
     func close()
 }
 
 extension PlayerEngine {
     public func positionMs() -> Int { sample().positionMs }
+    public func setRate(_ rate: Float) {}
 }

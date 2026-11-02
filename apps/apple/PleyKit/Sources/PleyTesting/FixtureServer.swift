@@ -87,6 +87,8 @@ public final class FixtureServer: Sendable {
         public var selectedSubtitle: Int?
         /// A music track (`addMusic`): it plays, and the browsing fixtures describe it.
         public var music = false
+        /// The video's dynamic range: "sdr", "hdr10", "hlg", "dolby_vision".
+        public var dynamicRange = "sdr"
 
         public init(itemId: Int, fileId: Int, title: String = "Test Movie", container: String = "mp4",
                     durationMs: Int = 4_000, positionMs: Int = 0, watched: Bool = false, media: Data = Data(),
@@ -904,8 +906,9 @@ public final class FixtureServer: Sendable {
 
     private static func detail(_ p: Playable) -> [String: Any] {
         var streams: [Any] = [["index": 0, "kind": "video", "codec": "h264", "default": true, "profile": "High",
-                               "width": p.width, "height": p.height, "frame_rate": 30.0, "bit_depth": 8, "level": 30,
-                               "dynamic_range": "sdr"]]
+                               "width": p.width, "height": p.height, "frame_rate": 30.0,
+                               "bit_depth": p.dynamicRange == "sdr" ? 8 : 10, "level": 30,
+                               "dynamic_range": p.dynamicRange, "hdr": p.dynamicRange != "sdr"]]
         streams += p.audio.map(object(_:))
         streams += p.subtitles.map(object(_:))
         var out = summary(p)

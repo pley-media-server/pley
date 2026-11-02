@@ -623,7 +623,7 @@ public final class AppModel: ObservableObject {
         let path = summary.flatMap { $0.kind == .episode ? $0.thumbUrl ?? $0.posterUrl : $0.posterUrl ?? $0.thumbUrl }
         return NowPlayingInfo(title: state.title, album: state.subtitle,
                               durationMs: state.durationMs > 0 ? state.durationMs : nil, elapsedMs: state.positionMs,
-                              rate: playing ? 1 : 0, kind: .video, artwork: picture(path), artworkPath: path)
+                              rate: playing ? state.speed : 0, kind: .video, artwork: picture(path), artworkPath: path)
     }
 
     /// Follows the live player: the channel and what is on, as live, with no commands.

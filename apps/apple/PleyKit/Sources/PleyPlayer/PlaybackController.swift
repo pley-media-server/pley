@@ -36,6 +36,9 @@ public struct PlaybackEnvironment {
     /// Whether the next episode plays by itself after the Up Next
     /// countdown; `false`: the card shows with no countdown.
     public var autoplayNext: Bool
+    /// Whether a change of what the screen shows (`caps`' HDR, as the Mac's
+    /// window moves to another screen) restarts an HDR video's session for it.
+    public var followsScreen: Bool
 
     public init(api: PleyAPI, caps: DeviceCaps, clientId: String, reporter: SessionReporter, late: LateReports?,
                 quality: any QualityMemory = MemoryQuality(), ceiling: any CeilingMemory = MemoryCeiling(),
@@ -43,9 +46,10 @@ public struct PlaybackEnvironment {
                 engines: @escaping @MainActor () -> any PlayerEngine = { AVPlayerEngine() },
                 warmer: (any StreamWarmer)? = nil, networkTiming: NetworkStart.Timing = NetworkStart.Timing(),
                 subtitleOffsets: any SubtitleOffsets = MemorySubtitleOffsets(), profileId: Int? = nil,
-                pictureFolder: URL? = nil, autoplayNext: Bool = true) {
+                pictureFolder: URL? = nil, autoplayNext: Bool = true, followsScreen: Bool = Self.screensChange) {
         self.api = api
         self.autoplayNext = autoplayNext
+        self.followsScreen = followsScreen
         self.caps = caps
         self.clientId = clientId
         self.reporter = reporter
@@ -62,6 +66,15 @@ public struct PlaybackEnvironment {
         self.pictureFolder = pictureFolder ?? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent(Bundle.main.bundleIdentifier ?? "pley", isDirectory: true)
             .appendingPathComponent("picture-subtitles", isDirectory: true)
+    }
+
+    /// The Mac's player window moves between screens; the other devices' screen stays.
+    public nonisolated static var screensChange: Bool {
+        #if os(macOS)
+        true
+        #else
+        false
+        #endif
     }
 }
 
@@ -107,8 +120,18 @@ public struct PlaybackEnvironment {
 ///   `503`) has them burned into a stream instead. The sync moves them in
 ///   time, remembered per file and profile.
 /// - **Background.** iPhone, iPad and Apple TV pause and report when the
-///   app goes to the background; back after more than 60 s, the session is
-///   checked and started again, paused, if the server forgot it.
+///   app goes to the background (unless Picture in Picture plays on); back
+///   after more than 60 s, the session is checked and started again,
+///   paused, if the server forgot it.
+/// - **Speed** (0.5× to 2×, the pitch kept) holds for this title, its new
+///   sessions included; the next one plays at 1×. **The sleep timer**
+///   pauses after the minutes chosen or at the end of this episode, whose
+///   Up Next then waits, with Keep watching in its last 30 s.
+/// - **Subtitles found online** (Find Subtitles…, `addedSubtitle`) join
+///   the file's tracks and show as one picked.
+/// - **The screen.** On the Mac, an HDR video whose window moves to a
+///   screen that shows HDR differently (the caps' `hdr_types`) starts a new
+///   session for it where it is, beside the one playing.
 ///
 /// One session plays at a time; a switch has a second one ready for a moment.
 @MainActor
@@ -195,6 +218,12 @@ public final class PlaybackController: ObservableObject {
     private var backgroundedAt: Int64?
     /// Counts restarts, so only the latest clears `sessionTask`.
     private var restarts = 0
+    /// The speed, 1 normal, for this title.
+    private var speed: Double = 1
+    /// The sleep timer, made with the controller (it calls back into it).
+    private lazy var sleep: SleepTimer = makeSleepTimer()
+    /// Follows what the device plays, for a screen that changes (`followsScreen`).
+    private var capsWatch: AnyCancellable?
 
     /// The intro and credits of the file playing.
     private var markers: [Marker] = []
@@ -253,6 +282,12 @@ public final class PlaybackController: ObservableObject {
             for await event in events { self?.heard(event) }
         }
         startTask = Task { [weak self] in await self?.prepareFirst() }
+        if env.followsScreen {
+            capsWatch = env.caps.$snapshot.dropFirst().compactMap { $0 }.sink { [weak self] snapshot in
+                // `@Published` tells on the main actor, before it sets the value: given here.
+                Task { @MainActor in self?.capsChanged(snapshot.report) }
+            }
+        }
         let clock = env.clock
         tickTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -265,6 +300,7 @@ public final class PlaybackController: ObservableObject {
     public func play() {
         guard !closed, !stopped else { return }
         wantPlay = true
+        sleep.resumed()
         if let due = schedule.wantsToPlay(true, at: env.clock.now()) { report(due) }
         if ended || expired || session == nil && item != nil && sessionTask == nil {
             restart(at: ended ? 0 : lastPositionMs)
@@ -468,6 +504,55 @@ public final class PlaybackController: ObservableObject {
         applyMaximumResolution()
     }
 
+    /// Plays at `speed` (the nearest of `PlaybackSpeeds.all`), the pitch
+    /// kept, for this title: its new sessions keep it, the next title plays at 1×.
+    public func setSpeed(_ wanted: Double) {
+        guard !closed, !stopped else { return }
+        let next = PlaybackSpeeds.nearest(wanted)
+        guard next != speed else { return }
+        speed = next
+        state.speed = next
+        engine?.setRate(Float(next))
+    }
+
+    /// The sleep timer: off, after some minutes, or at the end of this
+    /// episode (or movie), whose Up Next then waits.
+    public func setSleep(_ choice: SleepChoice) {
+        guard !closed, !stopped else { return }
+        sleep.set(choice)
+    }
+
+    /// Keep watching, in the sleep timer's last 30 s: the same time again.
+    public func keepWatching() {
+        sleep.extend()
+    }
+
+    /// A subtitle track added on the server for the file playing (Find
+    /// Subtitles…): it joins the Subtitles menu and shows, as one picked
+    /// there (saved for the movie or show).
+    public func addedSubtitle(_ track: SubtitleTrack) {
+        guard !closed, !stopped, var item, var file, track.textBased else { return }
+        var stream = MediaStream(index: track.index, kind: .subtitle, codec: track.codec, language: track.language,
+                                 default: track.default)
+        stream.title = track.title
+        stream.forced = track.forced
+        stream.textBased = true
+        stream.external = true
+        stream.added = true
+        file.streams.removeAll { $0.kind == .subtitle && $0.index == track.index }
+        file.streams.append(stream)
+        item.files = item.files.map { $0.id == file.id ? file : $0 }
+        self.file = file
+        self.item = item
+        publishSubtitles()
+        selectSubtitle(track.index)
+    }
+
+    /// Looks at the sleep timer now, as its own clock would (for the tests).
+    func tickSleepTimer() {
+        sleep.tick()
+    }
+
     /// The notice was shown: it goes.
     public func dismissNotice() {
         state.notice = nil
@@ -521,6 +606,8 @@ public final class PlaybackController: ObservableObject {
         guard !closed else { return }
         let position = livePosition()
         closed = true
+        sleep.cancel()
+        capsWatch = nil
         startTask?.cancel()
         sessionTask?.cancel()
         tickTask?.cancel()
@@ -585,6 +672,8 @@ public final class PlaybackController: ObservableObject {
             state.subtitle = nil
         }
         state.itemId = item.id
+        state.sleepItem = item.kind == .episode ? "episode" : "movie"
+        state.canFindSubtitles = true
         state.durationMs = file.durationMs ?? item.durationMs ?? 0
         lastPositionMs = PlaybackPlan.startMs(item, request)
         state.positionMs = lastPositionMs
@@ -938,6 +1027,9 @@ public final class PlaybackController: ObservableObject {
     private func onEnded() {
         guard !ended else { return }
         ended = true
+        // The sleep timer ends with this one: what comes next waits for Play Next.
+        let sleeping = sleep.itemEnded(item.map { AnyHashable($0.id) })
+        if sleeping { stopCountdown() }
         let duration = session.map { $0.info.durationMs > 0 ? $0.info.durationMs : 0 } ?? 0
         let end = duration > 0 ? duration : max(engine?.sample().durationMs ?? 0, lastPositionMs)
         lastPositionMs = end
@@ -950,7 +1042,7 @@ public final class PlaybackController: ObservableObject {
         guard let item, NextUp.hasNext(item.kind, queue: request.queue), !closed, !stopped else { return }
         lookUpNext { [weak self] found in
             guard let self, let found, self.ended else { return }
-            self.showUpNext(found, countdown: self.countdownLeftMs == nil)
+            self.showUpNext(found, countdown: !sleeping && self.countdownLeftMs == nil)
         }
     }
 
@@ -1046,7 +1138,8 @@ public final class PlaybackController: ObservableObject {
         guard let item, NextUp.hasNext(item.kind, queue: request.queue), state.upNext == nil else { return }
         lookUpNext { [weak self] found in
             guard let self, let found, !self.closed, !self.stopped else { return }
-            self.showUpNext(found, countdown: true)
+            // The sleep timer ends with this one: no countdown.
+            self.showUpNext(found, countdown: !self.sleep.endsWith(AnyHashable(item.id)))
         }
     }
 
@@ -1088,6 +1181,12 @@ public final class PlaybackController: ObservableObject {
     private func hideUpNext() {
         countdownLeftMs = nil
         state.upNext = nil
+    }
+
+    /// The card stays, waiting for Play Next.
+    private func stopCountdown() {
+        countdownLeftMs = nil
+        if state.upNext?.secondsLeft != nil { state.upNext?.secondsLeft = nil }
     }
 
     /// The countdown, counted while it is meant to play (or after the end),
@@ -1158,6 +1257,11 @@ public final class PlaybackController: ObservableObject {
         state.canSyncSubtitles = false
         state.subtitlesBurnedIn = false
         state.subtitle = nil
+        state.canFindSubtitles = false
+        // Speed is this title's: the next one plays at 1×.
+        speed = 1
+        state.speed = 1
+        engine?.setRate(1)
         state.title = target.grandparentTitle ?? target.title
         state.itemId = target.id
         state.durationMs = target.durationMs ?? 0
@@ -1537,6 +1641,43 @@ public final class PlaybackController: ObservableObject {
 
     private func report(_ state: ProgressState) {
         session?.progress(positionMs: livePosition(), state: state)
+    }
+
+    // MARK: Sleep timer and the screen
+
+    private func makeSleepTimer() -> SleepTimer {
+        let timer = SleepTimer(
+            clock: env.clock,
+            // In time watched: at 2×, a minute of the episode is half a minute.
+            itemLeftMs: { [weak self] in
+                guard let self, self.mediaShown, !self.ended, self.state.durationMs > 0 else { return nil }
+                return Int(Double(max(self.state.durationMs - self.livePosition(), 0)) / self.speed)
+            },
+            itemKey: { [weak self] in self?.state.itemId.map(AnyHashable.init) },
+            onFire: { [weak self] in
+                guard let self else { return }
+                self.stopCountdown()
+                self.pause()
+            })
+        timer.onChange = { [weak self] sleep in
+            if self?.state.sleep != sleep { self?.state.sleep = sleep }
+        }
+        return timer
+    }
+
+    /// What the device plays changed (the Mac's window moved to another
+    /// screen): the next sessions ask with it, and an HDR video whose
+    /// dynamic ranges changed (HDR to SDR, or back) starts a new session
+    /// where it is, beside the one playing, as a quality change does.
+    private func capsChanged(_ report: ClientCaps) {
+        guard !closed, !stopped, let before = caps else { return }
+        caps = report
+        guard (before.hdrTypes ?? []) != (report.hdrTypes ?? []), let video = file?.video,
+              video.hdr == true || video.dynamicRange.map({ $0 != .sdr }) == true,
+              item != nil, session != nil || sessionTask != nil
+        else { return }
+        Log.player.notice("the screen shows HDR differently: a new session for it")
+        restart(at: livePosition(), alongside: true)
     }
 
     private func livePosition() -> Int {

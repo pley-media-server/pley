@@ -19,6 +19,12 @@ public enum SleepChoice: Hashable, Sendable, Identifiable {
         }
     }
 
+    /// The choice of a menu's id (`id`); `nil` for none offered.
+    public init?(id: String) {
+        guard let choice = Self.all.first(where: { $0.id == id }) else { return nil }
+        self = choice
+    }
+
     /// The menu's words: "Off", "15 minutes", "End of this track" (`item`: "track", "episode").
     public func label(item: String) -> String {
         switch self {

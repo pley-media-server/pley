@@ -71,5 +71,7 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - VoiceOver no longer reads the page behind the player.
 - The Mac's player menu no longer flickers while playing.
 - Larger Tiles takes ⌘= on the Mac, as well as ⌘+.
+- On the Mac, an HDR video starts again where it is when its window moves
+  to a screen that shows HDR differently, so it plays as that screen shows it.
 - A playlist entry moved while a removal can still be undone keeps its
   place, and the removed one comes back where it was.

@@ -69,8 +69,33 @@ public struct PlayerState: Equatable, Sendable {
     public var subtitlesBurnedIn = false
     /// What the subtitle layer draws now.
     public var cues: ShownSubtitles = .none
+    /// "Find Subtitles…" is offered: the file streams from the server.
+    public var canFindSubtitles = false
+    /// The playback speed, 1 normal (`PlaybackController.setSpeed`), for this title.
+    public var speed: Double = 1
+    /// The sleep timer (`PlaybackController.setSleep`).
+    public var sleep = SleepState()
+    /// What the sleep timer's "End of this …" names: "episode", "movie".
+    public var sleepItem = "movie"
 
     public init() {}
+
+    /// The Speed menu, the speed playing selected; ids are `PlaybackSpeeds.id`.
+    public var speeds: [MenuChoice] {
+        PlaybackSpeeds.all.map { MenuChoice(id: PlaybackSpeeds.id($0), label: PlaybackSpeeds.label($0),
+                                            selected: $0 == speed) }
+    }
+
+    /// "1.5×", for the menu's second line.
+    public var speedLabel: String { PlaybackSpeeds.label(speed) }
+
+    /// The Sleep Timer menu, the choice running selected; ids are `SleepChoice.id`.
+    public var sleepChoices: [MenuChoice] {
+        SleepChoice.all.map { MenuChoice(id: $0.id, label: $0.label(item: sleepItem), selected: $0 == sleep.choice) }
+    }
+
+    /// What the Sleep Timer menu says beside its name: "15 min left", "Pausing in 12 s"; `nil` when off.
+    public var sleepSummary: String? { sleep.summary(item: sleepItem) }
 
     /// "Off", or the subtitles shown ("English (SRT)").
     public var subtitleLabel: String { subtitles.first(where: \.selected)?.label ?? PlayerTexts.subtitlesOff }
@@ -96,6 +121,27 @@ public struct PlayerState: Equatable, Sendable {
         if case .failed = phase { return true }
         return false
     }
+}
+
+/// The speeds the player offers, the Android app's: 0.5× to 2×, 1× normal.
+public enum PlaybackSpeeds {
+    public static let all: [Double] = [0.5, 0.75, 1, 1.25, 1.5, 2]
+
+    /// The speed offered nearest `speed`.
+    public static func nearest(_ speed: Double) -> Double {
+        all.min { abs($0 - speed) < abs($1 - speed) } ?? 1
+    }
+
+    /// "0.5", "1", "1.25": a menu choice's id.
+    public static func id(_ speed: Double) -> String {
+        speed == speed.rounded() ? String(Int(speed)) : String(speed)
+    }
+
+    /// "0.5×", "1×", "1.25×".
+    public static func label(_ speed: Double) -> String { id(speed) + "×" }
+
+    /// The speed of a menu choice's id; `nil` for none offered.
+    public static func speed(id: String) -> Double? { Double(id).flatMap { all.contains($0) ? $0 : nil } }
 }
 
 /// The card for what plays next: its words, its picture and its countdown.

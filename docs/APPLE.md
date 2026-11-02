@@ -712,7 +712,10 @@ the system says and from a table of Apple's devices (`PleyCaps`):
 The report is read once and again when something it depends on changes:
 the HDR the system reports (a TV switched, a display connected), the
 audio route, or on the Mac the screen the player's window moves to. A new
-report applies to the next playback.
+report applies to the next playback session. On the Mac, an HDR video whose
+window moves to a screen that shows HDR differently (an XDR display and an
+SDR one) starts a new session where it is, beside the one playing as a
+quality change does, so it plays as that screen shows it.
 
 What a device reports can be seen without playing anything: on a Mac,
 `swift run --package-path apps/apple/PleyKit pley-apple-check --print-caps`
@@ -1096,7 +1099,8 @@ are drawn by the app in the player's content overlay, under the controls
   seconds, ↑ and ↓ change the volume, M mutes, F goes full screen and Esc
   leaves it, S skips the intro or the credits, and C goes to the next
   subtitles (Off after the last). The Mac going to sleep
-  pauses, a move to another screen reads the device's caps again, and
+  pauses, a move to another screen reads the device's caps again (an
+  HDR video starts again for it, [What each device plays](#what-each-device-plays)), and
   quitting waits for the last reports (2 seconds at most).
 
 Quality's choices (and a subtitle track that would be burned in) show
