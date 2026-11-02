@@ -239,7 +239,7 @@ LIBRARY_SLOTS = 5
 SEARCH_FIELD = 5011
 SEARCH_EMPTY_TITLE, SEARCH_EMPTY_BODY = 5012, 5013
 SEARCH_ROWS = 5200
-SEARCH_SLOTS = 7  # movies, shows, episodes, people, music, Live TV's channels and On TMDB
+SEARCH_SLOTS = 7  # movies, shows, episodes, people, music, Live TV's channels and Discover
 
 # A grid page: playlists, a playlist, collections, a collection, a person.
 GRID_TITLE, GRID_SUBTITLE = 6011, 6012

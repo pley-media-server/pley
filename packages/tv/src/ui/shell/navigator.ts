@@ -29,10 +29,11 @@ export type PageKey =
   | { name: "history" }
   | { name: "diagnostics" }
   | { name: "nowPlaying" }
-  /** Discover; `query`: its search, from search's "See all on Discover". */
-  | { name: "discover"; query?: string }
+  | { name: "discover" }
   /** One of Discover's rows, whole. */
   | { name: "discoverList"; list: DiscoverList }
+  /** Everything TMDB has for words, from the See all of search's Discover row. */
+  | { name: "discoverSearch"; query: string }
   /** A movie or show from TMDB; `pick`: its season picker opens (Request more seasons). */
   | { name: "title"; kind: TitleKind; tmdbId: number; pick?: boolean }
   /** Your requests (for managers Requests, opening on Needs attention). */

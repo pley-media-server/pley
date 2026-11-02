@@ -14,7 +14,7 @@ import { CollectionScreen, CollectionsScreen } from "./collections";
 import { AlbumScreen, ArtistScreen, NowPlayingScreen } from "./music";
 import { AddToPlaylistScreen, NewPlaylistScreen, PlaylistScreen, PlaylistsScreen } from "./playlists";
 import { DiagnosticsScreen, HistoryScreen, SettingsScreen } from "./settings";
-import { DiscoverListScreen, DiscoverScreen } from "./discover";
+import { DiscoverListScreen, DiscoverScreen, DiscoverSearchScreen } from "./discover";
 import { TitleScreen } from "./title";
 import { RequestsScreen } from "./requests-page";
 import { PlayerScreen } from "../player/player";
@@ -93,10 +93,13 @@ export function Screen(p: { entry: Entry; state: AppState }) {
       page = <NowPlayingScreen />;
       break;
     case "discover":
-      page = <DiscoverScreen entry={p.entry} query={key.query} />;
+      page = <DiscoverScreen entry={p.entry} />;
       break;
     case "discoverList":
       page = <DiscoverListScreen entry={p.entry} list={key.list} />;
+      break;
+    case "discoverSearch":
+      page = <DiscoverSearchScreen entry={p.entry} query={key.query} />;
       break;
     case "title":
       page = <TitleScreen key={`${key.kind}:${key.tmdbId}`} entry={p.entry} kind={key.kind} tmdbId={key.tmdbId} pick={key.pick} />;

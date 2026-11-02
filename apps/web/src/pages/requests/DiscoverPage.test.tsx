@@ -119,31 +119,28 @@ describe("DiscoverPage", () => {
     expect(await screen.findByRole("link", { name: "Third Page, 1999, Movie" })).toBeInTheDocument();
   });
 
-  it("searches TMDB as one types, keeping the query in the address", async () => {
-    const user = userEvent.setup();
+  it("has no search of its own: TMDB is searched from Search", async () => {
+    const requests = mockApi({ "GET /api/requests/summary": () => makeSummary(), ...lists() });
+    renderWithProviders(<DiscoverPage />, { route: "/discover", user: ann });
+    expect(await screen.findByRole("region", { name: "Trending now" })).toBeInTheDocument();
+    expect(screen.queryByRole("search")).not.toBeInTheDocument();
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    expect(requests.some((r) => r.path.startsWith("/api/discover/search"))).toBe(false);
+  });
+
+  it("shows all TMDB finds for Search's words, with the way back to Search", async () => {
     const requests = mockApi({
       "GET /api/requests/summary": () => makeSummary(),
-      ...lists(),
       "GET /api/discover/search": (req) => (req.path.includes("q=dune") ? page([makeTitle({ tmdb_id: 438631, title: "Dune", year: 2021 })]) : page([])),
     });
-    renderWithProviders(
-      <>
-        <DiscoverPage />
-        <LocationDisplay />
-      </>,
-      { route: "/discover" },
-    );
+    renderWithProviders(<DiscoverPage />, { route: "/discover?q=dune" });
 
-    const box = within(await screen.findByRole("search")).getByRole("searchbox", { name: "Search for movies and shows to ask for" });
-    await user.type(box, "dune");
     expect(await screen.findByRole("heading", { name: "Results for “dune”" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Dune, 2021, Movie" })).toHaveAttribute("href", "/discover/movie/438631");
-    expect(screen.getByTestId("location")).toHaveTextContent("/discover?q=dune");
-    expect(requests.filter((r) => r.path.startsWith("/api/discover/search"))).toHaveLength(1);
-
-    await user.clear(box);
-    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(/^\/discover$/));
-    expect(await screen.findByRole("region", { name: "Trending now" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Dune, 2021, Movie" })).toHaveAttribute("href", "/discover/movie/438631");
+    expect(screen.getByRole("link", { name: "Back to search" })).toHaveAttribute("href", "/search?q=dune");
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    // Every title TMDB has, those in a library too (Search's row leaves them out).
+    expect(requests.filter((r) => r.path.startsWith("/api/discover/search")).map((r) => r.path)).toEqual(["/api/discover/search?q=dune"]);
   });
 
   it("searches for as much of a long query as the server takes, whole characters", async () => {
@@ -154,14 +151,13 @@ describe("DiscoverPage", () => {
     expect(await screen.findByText(`Nothing on TMDB for “${kept}”`)).toBeInTheDocument();
     const asked = new URL(requests.find((r) => r.path.startsWith("/api/discover/search"))?.path ?? "", "http://pley.test");
     expect(asked.searchParams.get("q")).toBe(kept);
-    expect(screen.getByRole("searchbox")).toHaveAttribute("maxlength", "200");
   });
 
   it("says when TMDB finds nothing", async () => {
     mockApi({ "GET /api/requests/summary": () => makeSummary(), "GET /api/discover/search": () => page([]) });
     renderWithProviders(<DiscoverPage />, { route: "/discover?q=zzz" });
     expect(await screen.findByText("Nothing on TMDB for “zzz”")).toBeInTheDocument();
-    expect(screen.getByRole("searchbox")).toHaveValue("zzz");
+    expect(screen.getByRole("link", { name: "Back to search" })).toHaveAttribute("href", "/search?q=zzz");
   });
 
   it("says when TMDB isn't answering, with Retry, and doesn't ask again by itself", async () => {

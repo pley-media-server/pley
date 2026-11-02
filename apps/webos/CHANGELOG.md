@@ -13,6 +13,9 @@ describes how they are made.
 - A library's posters show 4K and the dynamic range (DV, HDR10) whatever
   the sort, where they showed only when sorted by bitrate, and no longer a
   lower resolution (1080p, 720p).
+- Discover has no search field: Search shows what can be asked for in a
+  Discover row after the libraries' results, which says why when TMDB
+  doesn't answer, with Retry.
 
 ## [0.1.1] - 2026-11-01
 

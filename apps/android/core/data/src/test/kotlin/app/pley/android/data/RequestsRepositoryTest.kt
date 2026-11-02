@@ -376,6 +376,16 @@ class RequestsRepositoryTest {
     }
 
     @Test
+    fun `a search past the server's 200 characters is cut to them, never halfway through one`() = runTest {
+        val data = signedIn(folder.newFolder())
+        data.graph.requests.search("  " + "a".repeat(250), missing = true)
+        // 199 letters, then a character Java strings hold in two halves.
+        data.graph.requests.search("b".repeat(199) + "🎬" + "c")
+        val asked = data.api.calls("discoverSearch").map { it.args.first() as String }
+        assertEquals(listOf("a".repeat(200), "b".repeat(199) + "🎬"), asked)
+    }
+
+    @Test
     fun `the gate follows the summary's rules`() {
         assertEquals(RequestsState.Unknown, RequestsState.of(null))
         assertEquals(RequestsState.Hidden, RequestsState.of(RequestSummary(enabled = false, access = RequestAccess.Auto, manage = false)))

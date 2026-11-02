@@ -34,7 +34,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/** Discover: its hero, its rows read page by page, badges following events, its search. */
+/** Discover: its hero, its rows read page by page, badges following events, the person's requests. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiscoverViewModelTest {
     private val dispatcher = StandardTestDispatcher()
@@ -53,8 +53,8 @@ class DiscoverViewModelTest {
         runCurrent()
     }
 
-    private fun TestScope.viewModel(requests: FakeRequests, query: String = ""): DiscoverViewModel {
-        val vm = DiscoverViewModel(query, RequestsDeps(requests, MutableStateFlow("http://pley"), MutableStateFlow(true), dispatcher))
+    private fun TestScope.viewModel(requests: FakeRequests): DiscoverViewModel {
+        val vm = DiscoverViewModel(RequestsDeps(requests, MutableStateFlow("http://pley"), MutableStateFlow(true), dispatcher))
         backgroundScope.launch { vm.state.collect {} }
         return vm
     }
@@ -229,30 +229,6 @@ class DiscoverViewModelTest {
         assertEquals(1, requests.api.calls("ask").size)
         assertEquals(1, events.count { it is RequestEvent.Asked })
         assertFalse(vm.state.value.asking)
-    }
-
-    @Test
-    fun searchWaitsForTypingToPauseAndReadsOnUntilAScreenful() = runTest(dispatcher) {
-        val requests = FakeRequests()
-        val asked = mutableListOf<Pair<String, Int>>()
-        requests.searches = { q, page, _ ->
-            asked += q to page
-            DiscoverPage(page, 2, if (page == 1) trending.results.take(3) else trending.results.drop(3))
-        }
-        val vm = viewModel(requests)
-        backgroundScope.launch { vm.search.collect {} }
-        settle()
-        vm.onQueryChange("ro")
-        advanceTimeBy(100)
-        vm.onQueryChange("robot")
-        advanceTimeBy(249)
-        assertEquals(emptyList<Pair<String, Int>>(), asked)
-        settle()
-        // Three titles aren't a screenful: page 2 too.
-        assertEquals(listOf("robot" to 1, "robot" to 2), asked)
-        val ready = vm.search.value as DiscoverSearch.Ready
-        assertEquals(6, ready.pages.titles.size)
-        assertFalse(ready.pages.more)
     }
 
     @Test

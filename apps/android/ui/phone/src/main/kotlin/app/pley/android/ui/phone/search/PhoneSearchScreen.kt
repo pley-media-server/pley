@@ -117,7 +117,7 @@ import kotlinx.coroutines.delay
  * profile's recent searches with Clear; while typing, the results as
  * rows, grouped and counted (People, Live TV, Movies, Shows…), the ones
  * shown staying while the next load, then what TMDB has that no library
- * has. A channel found plays at once.
+ * has, or why TMDB can't be searched. A channel found plays at once.
  */
 @Composable
 internal fun PhoneSearchScreen(key: PleyKey.Search) {
@@ -146,6 +146,7 @@ internal fun PhoneSearchScreen(key: PleyKey.Search) {
         onRetry = vm::retry,
         onWatch = vm::watch,
         tmdb = tmdb,
+        onRetryTmdb = vm::retryTmdb,
         discover = entry.discover,
     )
 }
@@ -166,6 +167,7 @@ internal fun SearchContent(
     onRetry: () -> Unit = {},
     onWatch: (LiveChannel) -> Unit = {},
     tmdb: TmdbSection = TmdbSection.Hidden,
+    onRetryTmdb: () -> Unit = {},
     /** Discover shows: its way in heads the page before typing. */
     discover: Boolean = false,
 ) {
@@ -203,7 +205,7 @@ internal fun SearchContent(
                         icon = PleyIcons.Search,
                     )
                 } else {
-                    OnlyOnTmdb(results.query, tmdb)
+                    OnlyOnTmdb(results.query, tmdb, onRetryTmdb)
                 }
                 is SearchResultsState.Failed -> Column(Modifier.fillMaxSize().padding(top = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     ErrorState(stringResource(R.string.search_failed), results.error, onRetry = onRetry)
@@ -211,6 +213,7 @@ internal fun SearchContent(
                 is SearchResultsState.Ready -> Results(
                     results,
                     tmdb = tmdb,
+                    onRetryTmdb = onRetryTmdb,
                     onOpen = { group, id -> open(group, id)?.let(navigator::open) },
                     onActions = { id -> navigator.open(PleyKey.ItemActions(id)) },
                     onWatch = onWatch,
@@ -236,7 +239,7 @@ private fun SearchBar(field: TextFieldState, onSubmit: () -> Unit, autoFocus: Bo
  * A search pill: 56 dp in [surface3][PleyColors.Surface3] with the search
  * glyph, the field saying [label] while empty, and Clear. The keyboard's
  * action is Search. [autoFocus] raises the keyboard the first time the
- * page shows. Search's bar, and Discover's.
+ * page shows. Search's bar, and the field that finds a title in Requests.
  */
 @Composable
 internal fun SearchField(
@@ -346,6 +349,7 @@ private fun Recent(recent: List<String>, onRecent: (String) -> Unit, onClear: ()
 private fun Results(
     results: SearchResultsState.Ready<ArtworkTileModel>,
     tmdb: TmdbSection,
+    onRetryTmdb: () -> Unit,
     onOpen: (SearchGroupKind, Long) -> Unit,
     onActions: (Long) -> Unit,
     onWatch: (LiveChannel) -> Unit,
@@ -388,7 +392,7 @@ private fun Results(
             ResultRow(group, onOpen = { onOpen(group.kind, it) }, onActions = onActions)
         }
         if (tmdb != TmdbSection.Hidden) {
-            item(key = "tmdb", contentType = "tmdb") { OnTmdb(results.query, tmdb) }
+            item(key = "tmdb", contentType = "tmdb") { OnTmdb(results.query, tmdb, onRetryTmdb) }
         }
     }
 }

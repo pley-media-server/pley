@@ -8,11 +8,13 @@ import app.pley.android.data.Loadable
 import app.pley.android.data.RequestsRepository
 import app.pley.android.data.SearchRepository
 import app.pley.android.data.mayAsk
+import app.pley.android.data.summary
 import app.pley.android.model.DiscoverTitle
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.PersonSummary
+import app.pley.android.model.RequestSummary
 import app.pley.android.model.SearchResults
 import app.pley.android.screens.PlayerLauncher
 import app.pley.android.screens.PleyKey
@@ -21,6 +23,7 @@ import app.pley.android.screens.library.LibraryViewModel
 import app.pley.android.screens.library.TileFactory
 import app.pley.android.screens.library.TileLook
 import app.pley.android.screens.requests.Pages
+import app.pley.android.screens.requests.RequestProblem
 import app.pley.android.screens.requests.gathered
 import app.pley.android.screens.requests.patchFor
 import java.util.IdentityHashMap
@@ -68,7 +71,7 @@ class SearchDeps(
 }
 
 /**
- * "On TMDB": the first of TMDB's titles for the query
+ * The Discover row: the first of TMDB's titles for the query
  * that no library has, after the libraries' results, while asking works.
  */
 sealed interface TmdbSection {
@@ -78,6 +81,9 @@ sealed interface TmdbSection {
 
     /** [titles], their pictures on the server at [origin]. */
     data class Ready(val query: String, val titles: List<DiscoverTitle>, val origin: String = "") : TmdbSection
+
+    /** TMDB couldn't be searched: [problem] says why, in words for [summary]'s account (an administrator fixes a refused key). */
+    data class Failed(val query: String, val problem: RequestProblem, val summary: RequestSummary? = null) : TmdbSection
 }
 
 /**
@@ -212,17 +218,22 @@ class SearchViewModel<T : Any>(
         SearchUiState(q, recent, results)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), SearchUiState(initialQuery, emptyList(), SearchResultsState.Idle))
 
+    /** Retry after the Discover row failed: TMDB asked again. */
+    private val tmdbRetries = MutableStateFlow(0)
+
     /**
-     * "On TMDB", asked for beside the libraries' search, never before it
+     * The Discover row, asked for beside the libraries' search, never before it
      * nor holding it up: TMDB's first titles that no library has
-     * (`missing=1`), their badges following requests_changed. Hidden
-     * when asking doesn't work, TMDB has none, or it didn't answer.
+     * (`missing=1`), their badges following requests_changed. The query is
+     * cut to what the server takes. Hidden when asking doesn't work or TMDB
+     * has none; when TMDB couldn't be searched, it says why.
      */
     val tmdb: StateFlow<TmdbSection> = combine(
-        typed.map { it.trim() }.distinctUntilChanged().debounce { if (it.isEmpty()) 0L else DEBOUNCE_MS },
+        typed.map { RequestsRepository.searchText(it) }.distinctUntilChanged().debounce { if (it.isEmpty()) 0L else DEBOUNCE_MS },
         deps.requests.state.map { it.mayAsk }.distinctUntilChanged(),
     ) { q, asking -> if (asking) q else "" }
         .distinctUntilChanged()
+        .combine(tmdbRetries) { q, _ -> q }
         .flatMapLatest { q -> if (q.isEmpty()) flowOf(TmdbSection.Hidden) else onTmdb(q) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), TmdbSection.Hidden)
 
@@ -237,8 +248,12 @@ class SearchViewModel<T : Any>(
             } while (pages.short(TMDB_SHOWN) && ++read < TMDB_PAGES)
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
-            // What came before shows; with nothing, the section stays hidden.
+        } catch (e: Exception) {
+            // What came before shows; with nothing, why.
+            if (pages.titles.isEmpty()) {
+                emit(TmdbSection.Failed(q, RequestProblem.of(e), deps.requests.state.value.summary))
+                return@flow
+            }
         }
         var titles = pages.titles.take(TMDB_SHOWN)
         if (titles.isEmpty()) {
@@ -264,6 +279,9 @@ class SearchViewModel<T : Any>(
 
     /** Asks for the query again, after it failed. */
     fun retry() = retries.update { it + 1 }
+
+    /** Asks TMDB again, after the Discover row failed. */
+    fun retryTmdb() = tmdbRetries.update { it + 1 }
 
     /** Search was pressed on the keyboard: the query is kept among the recent ones. */
     fun submit() {
@@ -386,10 +404,10 @@ class SearchViewModel<T : Any>(
         /** How long the results keep being followed after the page stops showing. */
         const val STOP_AFTER_MS = 5_000L
 
-        /** How many of TMDB's titles "On TMDB" shows; See all on Discover has the rest. */
+        /** How many of TMDB's titles the Discover row shows; its See all has the rest. */
         const val TMDB_SHOWN = 12
 
-        /** The most of TMDB's pages "On TMDB" reads for them. */
+        /** The most of TMDB's pages the Discover row reads for them. */
         const val TMDB_PAGES = 3
 
         /**

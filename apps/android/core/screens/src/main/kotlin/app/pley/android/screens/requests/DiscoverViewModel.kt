@@ -16,7 +16,6 @@ import app.pley.android.model.DiscoverTitle
 import app.pley.android.model.MediaRequest
 import app.pley.android.model.NewRequest
 import app.pley.android.model.RequestQuery
-import app.pley.android.model.RequestScope
 import app.pley.android.model.TitleKind
 import app.pley.android.screens.PleyKey
 import kotlinx.coroutines.CancellationException
@@ -29,7 +28,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
@@ -51,7 +49,7 @@ data class DiscoverRow(val list: DiscoverList, val pages: Pages)
 /** Discover's top: the first trending title, with its main action. */
 data class DiscoverHero(val title: DiscoverTitle, val action: MainAction)
 
-/** Discover's page, apart from its search. */
+/** Discover's page. */
 data class DiscoverUiState(
     val gate: RequestsState = RequestsState.Unknown,
     val origin: String = "",
@@ -71,33 +69,18 @@ data class DiscoverUiState(
     val asking: Boolean = false,
 )
 
-/** Discover's search: what was typed, and TMDB's titles for it. */
-sealed interface DiscoverSearch {
-    data object Idle : DiscoverSearch
-
-    data class Loading(val query: String) : DiscoverSearch
-
-    data class Ready(val query: String, val pages: Pages) : DiscoverSearch
-
-    data class Empty(val query: String) : DiscoverSearch
-
-    data class Failed(val query: String, val problem: RequestProblem) : DiscoverSearch
-}
-
 /**
  * Discover, on phones and tablets: a hero for the
  * first trending title, then rows (Trending this week, Popular movies,
  * Popular shows, Coming to cinemas, Popular anime) read as they come into
  * view ([showRow]), page by page until a screenful and then as they
  * scroll ([more]), each title once; then the person's requests (read
- * again as requests change, and every 10 s while one downloads); a search
- * at the top. Badges follow requests_changed in rows already shown,
- * without reading the rows again.
+ * again as requests change, and every 10 s while one downloads). Badges
+ * follow requests_changed in rows already shown, without reading the rows
+ * again. TMDB is searched from Search, its whole results shown by
+ * [DiscoverResultsViewModel].
  */
-class DiscoverViewModel(
-    initialQuery: String,
-    private val deps: RequestsDeps,
-) : ViewModel() {
+class DiscoverViewModel(private val deps: RequestsDeps) : ViewModel() {
     private val requests = deps.requests
     private val eventChannel = Channel<RequestEvent>(Channel.BUFFERED)
 
@@ -108,7 +91,6 @@ class DiscoverViewModel(
     private val rowJobs = HashMap<DiscoverList, Job>()
     private val stale = MutableStateFlow(false)
     private val yours = MutableStateFlow<List<MediaRequest>>(emptyList())
-    private val retries = MutableStateFlow(0)
     private val asking = MutableStateFlow(false)
     private val gate: StateFlow<RequestsState> = requests.state
 
@@ -145,13 +127,7 @@ class DiscoverViewModel(
         val summary = gate.summary
         val allowance = summary?.let(Allowance::of)
         val trending = rowList.first().pages
-        val problem = when {
-            gate is RequestsState.SignInAgain -> RequestProblem.SignInAgain(RequestScope.Requests)
-            gate == RequestsState.Hidden -> RequestProblem.Off
-            gate == RequestsState.NoAccess -> RequestProblem.NoAccess
-            gate is RequestsState.Open && !gate.mayAsk -> RequestProblem.NoAccess
-            else -> trending.problem.takeIf { trending.titles.isEmpty() }
-        }
+        val problem = RequestProblem.of(gate) ?: trending.problem.takeIf { trending.titles.isEmpty() }
         val hero = trending.titles.firstOrNull()?.let { title ->
             val action = detail?.takeIf { it.kind == title.kind && it.tmdbId == title.tmdbId }?.let { mainAction(it, gate) }
                 ?: titleAction(title, gate, allowance)
@@ -171,30 +147,10 @@ class DiscoverViewModel(
         )
     }
 
-    // ---------------------------------------------------------------- search
-
-    private val typed = MutableStateFlow(initialQuery)
-    private val searchMore = MutableStateFlow(0)
-
-    /** What is typed in Discover's search, as the field shows it. */
-    val query: StateFlow<String> = typed.asStateFlow()
-
-    private val _search = MutableStateFlow<DiscoverSearch>(DiscoverSearch.Idle)
-
-    /** TMDB's titles for what is typed: asked for once typing pauses 250 ms, page by page as they scroll. */
-    val search: StateFlow<DiscoverSearch> = _search.asStateFlow()
-
     init {
         viewModelScope.launch {
             // Rows are read only while asking works; the trending row at once, for the hero.
             gate.map { it.mayAsk }.distinctUntilChanged().collect { open -> if (open) showRow(DiscoverList.Trending) }
-        }
-        viewModelScope.launch {
-            combine(gate.map { it.mayAsk }.distinctUntilChanged(), typed.map { it.trim() }.distinctUntilChanged()) { open, q -> if (open) q else "" }
-                .distinctUntilChanged()
-                .debounce { if (it.isEmpty()) 0L else DEBOUNCE_MS }
-                .combine(retries) { q, _ -> q }
-                .collectLatest(::searchFor)
         }
         viewModelScope.launch { requests.changes.gathered().collect { batch -> batch.forEach { patch(it) } } }
         viewModelScope.launch {
@@ -209,55 +165,6 @@ class DiscoverViewModel(
                 }
             }
         }
-    }
-
-    private suspend fun searchFor(q: String) {
-        if (q.isEmpty()) {
-            _search.value = DiscoverSearch.Idle
-            return
-        }
-        val scrolled = searchMore.value
-        _search.value = DiscoverSearch.Loading(q)
-        var pages = Pages()
-        var auto = 0
-        do {
-            val answer = try {
-                requests.search(q, pages.page + 1)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                val problem = RequestProblem.of(e)
-                _search.value = if (pages.titles.isEmpty()) DiscoverSearch.Failed(q, problem) else DiscoverSearch.Ready(q, pages.copy(problem = problem))
-                return
-            }
-            pages = pages.with(answer)
-            _search.value = if (pages.titles.isEmpty() && !pages.more) DiscoverSearch.Empty(q) else DiscoverSearch.Ready(q, pages)
-            // A short page isn't the end: read on until a screenful.
-        } while (pages.short(SEARCH_SCREENFUL) && ++auto < MAX_AUTO_PAGES)
-        // Then more as the results scroll near their end.
-        searchMore.collect { asked ->
-            if (asked == scrolled) return@collect
-            val shown = _search.value as? DiscoverSearch.Ready ?: return@collect
-            if (!shown.pages.more || shown.pages.loading) return@collect
-            _search.value = shown.copy(pages = shown.pages.copy(loading = true, problem = null))
-            _search.value = try {
-                DiscoverSearch.Ready(q, shown.pages.with(requests.search(q, shown.pages.page + 1)))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                shown.copy(pages = shown.pages.copy(loading = false, problem = RequestProblem.of(e)))
-            }
-        }
-    }
-
-    /** The field changed. */
-    fun onQueryChange(text: String) {
-        typed.value = text
-    }
-
-    /** The search results scrolled near their end. */
-    fun moreResults() {
-        searchMore.update { it + 1 }
     }
 
     // ---------------------------------------------------------------- rows
@@ -326,7 +233,7 @@ class DiscoverViewModel(
         }
     }
 
-    /** Tries again what failed: the summary, the rows that couldn't be read, the search. */
+    /** Tries again what failed: the summary, and the rows that couldn't be read. */
     fun retry() {
         requests.refresh()
         for ((list, pages) in rows) {
@@ -335,20 +242,15 @@ class DiscoverViewModel(
             pages.update { it.copy(problem = null, loading = false) }
             showRow(list)
         }
-        retries.update { it + 1 }
     }
 
     // ---------------------------------------------------------------- what changed
 
-    /** Badges in rows and results already shown follow [change]'s request. */
+    /** Badges in rows already shown follow [change]'s request. */
     private suspend fun patch(change: RequestChange) {
-        val shown = sequence {
-            for (pages in rows.values) yieldAll(pages.value.titles)
-            (_search.value as? DiscoverSearch.Ready)?.let { yieldAll(it.pages.titles) }
-        }
+        val shown = rows.values.asSequence().flatMap { it.value.titles }
         val patch = requests.patchFor(change, shown) ?: return
         for (pages in rows.values) pages.update { it.map(patch) }
-        _search.update { s -> if (s is DiscoverSearch.Ready) s.copy(pages = s.pages.map(patch)) else s }
     }
 
     private suspend fun readYours() {
@@ -405,9 +307,6 @@ class DiscoverViewModel(
     }
 
     companion object {
-        /** How long typing pauses before Discover's search asks. */
-        const val DEBOUNCE_MS = 250L
-
         /** Changes gathered before "Your requests" is read again. */
         const val CHANGES_MS = 500L
 
@@ -416,9 +315,6 @@ class DiscoverViewModel(
 
         /** A row's screenful: what fills a phone's or a tablet's width, and a little more. */
         const val ROW_SCREENFUL = 12
-
-        /** Search's screenful: a grid of posters. */
-        const val SEARCH_SCREENFUL = 20
 
         /** Pages read on their own, one after another, before waiting for a scroll. */
         const val MAX_AUTO_PAGES = 4

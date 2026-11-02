@@ -7,9 +7,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
@@ -30,6 +32,7 @@ import app.pley.android.model.RequestList
 import app.pley.android.model.RequestSummary
 import app.pley.android.model.TitleKind
 import app.pley.android.model.TitleStatus
+import app.pley.android.network.ApiException
 import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.requests.ItemRequestState
@@ -53,11 +56,11 @@ import org.robolectric.annotation.Config
 
 /**
  * The phone's request screens over fake requests: Discover's hero asking
- * for a movie and saying what comes next, a show's season picker, the
- * managers' Needs attention with Decline's reason and Approve…, the
- * person's own requests with Watch and Withdraw asking first, Discover
- * when requests are off, Me's ways in, a library title's request, and the
- * news told in a toast.
+ * for a movie and saying what comes next, TMDB's results for words (See
+ * all on Discover), a show's season picker, the managers' Needs attention
+ * with Decline's reason and Approve…, the person's own requests with Watch
+ * and Withdraw asking first, Discover when requests are off, Me's ways in,
+ * a library title's request, and the news told in a toast.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w412dp-h915dp-xxhdpi", application = RequestsTestApplication::class)
@@ -114,8 +117,10 @@ class PhoneRequestsUiTest {
 
     @Test
     fun discoverAsksForTheHerosMovieAndSaysWhatComesNext() {
-        show { PhoneDiscoverScreen(PleyKey.Discover()) }
+        show { PhoneDiscoverScreen() }
         waitFor("Trending this week")
+        // Nothing to type in: TMDB is searched from Search.
+        compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
         val hero = hasAnyAncestor(hasTestTag(DISCOVER_HERO))
         compose.onNode(hasText("The Wild Robot") and hero).assertExists()
         compose.onNode(hasText("Request") and hasClickAction() and hero).performClick()
@@ -129,11 +134,36 @@ class PhoneRequestsUiTest {
 
     @Test
     fun withRequestsOffDiscoverSaysSoAndOnlyThat() {
-        show(FakeRequests(summary.copy(enabled = false))) { PhoneDiscoverScreen(PleyKey.Discover()) }
+        show(FakeRequests(summary.copy(enabled = false))) { PhoneDiscoverScreen() }
         waitFor("Requests are off")
         compose.onNodeWithText("This server doesn't take requests for movies and shows.").assertExists()
-        compose.onNodeWithTag(DISCOVER_FIELD).assertDoesNotExist()
+        compose.onNodeWithTag(DISCOVER_ROWS).assertDoesNotExist()
         assertTrue(requests.api.calls("discover").isEmpty())
+    }
+
+    @Test
+    fun seeAllOnDiscoverShowsEveryTitleTmdbFindsForTheWords() {
+        show { PhoneDiscoverResultsScreen(PleyKey.DiscoverResults("robot")) }
+        waitFor("Results for “robot”")
+        // A results view: no field to type in.
+        compose.onAllNodes(hasSetTextAction()).assertCountEquals(0)
+        assertEquals(listOf<Any?>("robot", 1, false), requests.api.calls("discoverSearch").first().args)
+        // Those in a library too, with their badges.
+        compose.onNodeWithTag(DISCOVER_RESULTS).performScrollToNode(hasContentDescription("In library", substring = true))
+        compose.onNodeWithText("The Wild Robot", useUnmergedTree = true).performClick()
+        assertEquals(listOf<PleyKey>(PleyKey.DiscoverTitle(TitleKind.Movie, 1184918)), opened)
+    }
+
+    @Test
+    fun whenTmdbCantBeSearchedSeeAllOnDiscoverSaysWhyWithRetry() {
+        val away = FakeRequests()
+        var down = true
+        away.searches = { q, page, missing -> if (down) throw ApiException(503, "tmdb_down", "TMDB isn't answering") else away.api.discoverSearch(q, page, missing) }
+        show(away) { PhoneDiscoverResultsScreen(PleyKey.DiscoverResults("robot")) }
+        waitFor("TMDB isn't answering")
+        down = false
+        compose.onNodeWithText("Retry").performClick()
+        waitFor("Results for “robot”")
     }
 
     @Test
@@ -226,7 +256,7 @@ class PhoneRequestsUiTest {
         compose.onNodeWithTag(ME_REQUESTS).assert(hasContentDescription("3 requests need you, 1 couldn't be sent"))
         compose.onNodeWithTag(ME_REQUESTS).performClick()
         compose.onNodeWithTag(ME_DISCOVER).performClick()
-        assertEquals(listOf(PleyKey.Requests, PleyKey.Discover()), opened)
+        assertEquals(listOf(PleyKey.Requests, PleyKey.Discover), opened)
     }
 
     @Test

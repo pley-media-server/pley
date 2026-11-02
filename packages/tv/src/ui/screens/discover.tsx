@@ -11,6 +11,7 @@ import {
   requestsCount,
   requestsProblem,
   requestsTitle,
+  searchText,
   seasonsLabel,
   askedLine,
   titleBadge,
@@ -23,7 +24,6 @@ import {
 import { useUi } from "../context";
 import { Backdrop, useRested } from "../kit/backdrop";
 import { Pill, Round } from "../kit/buttons";
-import { TextField } from "../kit/field";
 import { F, G } from "../kit/focusable";
 import { gridColumns, PosterGrid } from "../kit/grid";
 import { Icon } from "../kit/icons";
@@ -47,11 +47,7 @@ const ROW_WANT = 12;
 const LOAD_AHEAD = 2;
 const HERO_H = 356;
 const ROWS_ANCHOR = 172;
-/** TMDB is asked once typing pauses this long. */
-const SEARCH_DEBOUNCE_MS = 400;
-/** Discover's search results under its search field, two rows whole on the screen; See all's under the page's title. */
-const RESULTS_CLIP = 84;
-const RESULTS_TOP = 96;
+/** A grid of titles (See all, and the See all of search's Discover row) under the page's title. */
 const LIST_CLIP = 72;
 const LIST_TOP = 96;
 
@@ -154,81 +150,31 @@ type Focused = { title: DiscoverTitle } | { request: MediaRequest };
 /**
  * Discover: a hero for the first trending title with a line of its
  * overview and its main action, then TMDB's rows of posters with their
- * badges, then this profile's requests; TMDB's search at the top, which
- * shows its results as a grid in place of the rows while it has words.
- * Each row loads as it comes near.
+ * badges, then this profile's requests; the way to the requests at the
+ * top. Each row loads as it comes near. TMDB's search is in Search.
  */
-export function DiscoverScreen(p: { entry: Entry; query?: string }) {
+export function DiscoverScreen(p: { entry: Entry }) {
   const app = useApp();
   const ui = useUi();
   const entry = p.entry;
-  const [text, setText] = useState<string>((entry.state.text as string | undefined) ?? p.query ?? "");
-  const [query, setQuery] = useState<string>(text.trim());
   const [inRows, setInRows] = useState<boolean>(!!entry.state.inRows);
   const [blocked, setBlocked] = useState(false);
   const bar = useRef<HTMLElement | null>(null);
-
-  // TMDB is asked once typing pauses; emptied, the rows come back at once.
-  useEffect(() => {
-    entry.state.text = text;
-    const q = text.trim();
-    if (q === query) return;
-    if (!q) {
-      setQuery("");
-      return;
-    }
-    const t = setTimeout(() => setQuery(q), SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(t);
-  }, [text]);
-
-  const focusField = () => {
-    const el = bar.current?.querySelector<HTMLElement>('[data-fid="search"]');
-    return !!el && ui.focus.focus(el);
-  };
-  // Back from words typed here empties them (the rows come back); words the page opened with go with the page.
-  useEffect(
-    () =>
-      ui.input.push((key, e) => {
-        const words = text.trim();
-        if (key !== "back" || !words || words === (p.query ?? "").trim()) return false;
-        // On the rail, Back is the rail's.
-        const page = document.querySelector(".discover-page");
-        const at = ui.focus.current;
-        if (!page || !at || !page.contains(at)) return false;
-        if (e.type === "down" && !e.repeat) {
-          setText("");
-          focusField();
-        }
-        return true;
-      }),
-    [text],
-  );
 
   const gate = summaryProblem(app);
   if (gate) return <RequestsMessage problem={gate} title="Couldn't load Discover" onRetry={() => void app.loadRequests()} />;
   return (
     <div class="discover-page">
-      {query ? (
-        <DiscoverResults key={`q:${query}`} entry={entry} query={query} />
-      ) : (
-        <DiscoverRows key="rows" entry={entry} inRows={inRows} setInRows={setInRows} onBlocked={setBlocked} />
-      )}
-      {(!blocked || query) && (
+      <DiscoverRows entry={entry} inRows={inRows} setInRows={setInRows} onBlocked={setBlocked} />
+      {!blocked && (
         <DiscoverBar
-          key="bar"
-          text={text}
-          onText={setText}
-          hidden={!query && inRows}
-          initial={!!query}
+          hidden={inRows}
           elRef={(el) => (bar.current = el)}
           onDown={() => {
-            // Down: the hero's button focused last (else its first), or the first result.
+            // Down: the hero's button focused last, else its first.
             const page = bar.current?.parentElement;
             const buttons = page?.querySelector(".discover-hero [data-fg]") ?? null;
-            const target =
-              (buttons && ui.focus.rememberedIn(buttons)) ??
-              page?.querySelector<HTMLElement>(".discover-hero [data-f]:not([data-fdisabled])") ??
-              page?.querySelector<HTMLElement>(".discover-results [data-f], .discover-note [data-f]");
+            const target = (buttons && ui.focus.rememberedIn(buttons)) ?? page?.querySelector<HTMLElement>(".discover-hero [data-f]:not([data-fdisabled])");
             return !!target && ui.focus.focus(target);
           }}
           onFocus={() => {
@@ -241,22 +187,14 @@ export function DiscoverScreen(p: { entry: Entry; query?: string }) {
   );
 }
 
-/** Discover's top: TMDB's search, and the way to this profile's requests with their number. */
-function DiscoverBar(p: {
-  text: string;
-  onText: (text: string) => void;
-  hidden: boolean;
-  initial: boolean;
-  elRef: (el: HTMLElement | null) => void;
-  onDown: () => boolean;
-  onFocus: () => void;
-}) {
+/** Discover's top: the way to this profile's requests, with their number, for a profile that has any to see. */
+function DiscoverBar(p: { hidden: boolean; elRef: (el: HTMLElement | null) => void; onDown: () => boolean; onFocus: () => void }) {
   const app = useApp();
   const ui = useUi();
   const s = app.requests.value;
-  const shown = hasRequests(s) && !!s && (s.own > 0 || s.manage);
   const { count, danger } = requestsCount(s);
   const label = requestsTitle(s);
+  if (!hasRequests(s) || !s || !(s.own > 0 || s.manage)) return null;
   return (
     <G
       kind="row"
@@ -267,24 +205,11 @@ function DiscoverBar(p: {
         return dir === "right";
       }}
     >
-      <TextField
-        value={p.text}
-        placeholder="Search TMDB for movies and shows"
-        icon="search"
-        type="search"
-        width={380}
-        fid="search"
-        initial={p.initial}
-        onFocus={p.onFocus}
-        onInput={p.onText}
-      />
-      {shown && (
-        <F class="chip t-label requests-chip" fid="requests" label={count ? `${label}, ${count}` : label} onFocus={p.onFocus} onSelect={() => ui.nav.open({ name: "requests" })}>
-          <Icon name="inbox" size={20} />
-          <span class="one-line">{label}</span>
-          {count > 0 && <span class={`chip-count t-badge${danger ? " danger" : ""}`}>{count > 99 ? "99+" : String(count)}</span>}
-        </F>
-      )}
+      <F class="chip t-label requests-chip" fid="requests" label={count ? `${label}, ${count}` : label} onFocus={p.onFocus} onSelect={() => ui.nav.open({ name: "requests" })}>
+        <Icon name="inbox" size={20} />
+        <span class="one-line">{label}</span>
+        {count > 0 && <span class={`chip-count t-badge${danger ? " danger" : ""}`}>{count > 99 ? "99+" : String(count)}</span>}
+      </F>
     </G>
   );
 }
@@ -770,43 +695,6 @@ function TitleGrid(p: {
   );
 }
 
-/** TMDB's search on Discover: a grid of what it found, under the field. */
-function DiscoverResults(p: { entry: Entry; query: string }) {
-  const ui = useUi();
-  const key = `q:${p.query}`;
-  const holder = ((p.entry.state.search as Record<string, unknown> | undefined) ?? {}) as Record<string, unknown>;
-  // Only the newest search is kept.
-  for (const k of Object.keys(holder)) if (k !== key && k !== "grid") delete holder[k];
-  p.entry.state.search = holder;
-  const [want, setWant] = useState(3 * gridColumns("poster"));
-  const read = usePages(holder, key, (n, c) => ui.api.discoverSearch(p.query, n, false, c), want);
-  const grid = holder.grid as { key: string; index: number } | undefined;
-  if (!read.pages.titles.length && !gridGoesOn(read.pages)) {
-    if (read.pages.error) {
-      const why = gridProblem(read.pages.error, "Couldn't search TMDB");
-      return <GridNote title={why.title} body={why.body} onRetry={why.retry ? read.again : undefined} />;
-    }
-    if (read.loading) return <GridSkeleton top={RESULTS_TOP} />;
-    return <GridNote title={`Nothing on TMDB for “${p.query}”`} body="Try another spelling, or the title in its own language." />;
-  }
-  return (
-    <div class="discover-results">
-      <TitleGrid
-        pages={read.pages}
-        more={(n) => setWant((w) => Math.max(w, n))}
-        again={read.again}
-        top={RESULTS_TOP}
-        clipTop={RESULTS_CLIP}
-        fidPrefix="result"
-        startIndex={grid && grid.key === key ? grid.index : undefined}
-        onFocusIndex={(i) => (holder.grid = { key, index: i })}
-      />
-      <GridAside pages={read.pages} nothing={`Nothing yet for “${p.query}”`} failed="Couldn't search TMDB" />
-      <div class="rail-fade" />
-    </div>
-  );
-}
-
 /**
  * No titles, but more pages to read since a fill stopped short: the grid
  * stays, its one tile Show more (Retry after a failure) and its wells
@@ -832,20 +720,66 @@ function GridAside(p: { pages: Pages; nothing: string; failed: string }) {
 
 /** One of Discover's rows, whole (its See all). */
 export function DiscoverListScreen(p: { entry: Entry; list: DiscoverList }) {
-  const app = useApp();
   const ui = useUi();
   const row = DISCOVER_ROWS.filter((r) => r.list === p.list)[0] ?? DISCOVER_ROWS[0]!;
+  return (
+    <TitlesPage
+      entry={p.entry}
+      title={row.title}
+      pagesKey={`list:${p.list}`}
+      fetch={(n, c) => ui.api.discover(p.list, n, c)}
+      fidPrefix={p.list}
+      failed="Couldn't load it"
+      none={{ title: "Nothing here right now", body: "TMDB's list has nothing this profile can ask for." }}
+      noneYet="Nothing here yet"
+    />
+  );
+}
+
+/** Everything TMDB has for the words, each title with its badge (the See all of search's Discover row). */
+export function DiscoverSearchScreen(p: { entry: Entry; query: string }) {
+  const ui = useUi();
+  const words = searchText(p.query);
+  return (
+    <TitlesPage
+      entry={p.entry}
+      title={`Results for “${words}”`}
+      pagesKey={`q:${words}`}
+      fetch={(n, c) => ui.api.discoverSearch(words, n, false, c)}
+      fidPrefix="result"
+      failed="Couldn't search TMDB"
+      none={{ title: `Nothing on TMDB for “${words}”`, body: "Try another spelling, or the title in its own language." }}
+      noneYet={`Nothing yet for “${words}”`}
+    />
+  );
+}
+
+/** TMDB's titles as a grid under the page's title, read page by page and kept in the entry under `pagesKey`. */
+function TitlesPage(p: {
+  entry: Entry;
+  title: string;
+  pagesKey: string;
+  fetch: (page: number, cancel: Cancel) => Promise<DiscoverPage>;
+  fidPrefix: string;
+  /** What the page says when it couldn't load. */
+  failed: string;
+  /** What it says when TMDB had nothing. */
+  none: { title: string; body: string };
+  /** Beside a lone Show more: the pages read so far had nothing. */
+  noneYet: string;
+}) {
+  const app = useApp();
   const [want, setWant] = useState(4 * gridColumns("poster"));
-  const read = usePages(p.entry.state, `list:${p.list}`, (n, c) => ui.api.discover(p.list, n, c), want);
+  const read = usePages(p.entry.state, p.pagesKey, p.fetch, want);
   const gate = summaryProblem(app);
-  if (gate) return <RequestsMessage problem={gate} title="Couldn't load it" onRetry={() => void app.loadRequests()} />;
+  if (gate) return <RequestsMessage problem={gate} title={p.failed} onRetry={() => void app.loadRequests()} />;
   let body;
   if (!read.pages.titles.length && !gridGoesOn(read.pages)) {
     if (read.pages.error) {
-      const why = gridProblem(read.pages.error, "Couldn't load it");
+      const why = gridProblem(read.pages.error, p.failed);
       body = <GridNote title={why.title} body={why.body} onRetry={why.retry ? read.again : undefined} />;
     } else if (read.loading) body = <GridSkeleton top={LIST_TOP} />;
-    else body = <GridNote title="Nothing here right now" body="TMDB's list has nothing this profile can ask for." />;
+    else body = <GridNote title={p.none.title} body={p.none.body} />;
   } else {
     body = (
       <>
@@ -855,19 +789,19 @@ export function DiscoverListScreen(p: { entry: Entry; list: DiscoverList }) {
           again={read.again}
           top={LIST_TOP}
           clipTop={LIST_CLIP}
-          fidPrefix={p.list}
+          fidPrefix={p.fidPrefix}
           initial
           startIndex={p.entry.state.gridIndex as number | undefined}
           onFocusIndex={(i) => (p.entry.state.gridIndex = i)}
         />
-        <GridAside pages={read.pages} nothing="Nothing here yet" failed="Couldn't load it" />
+        <GridAside pages={read.pages} nothing={p.noneYet} failed={p.failed} />
       </>
     );
   }
   return (
     <div class="discover-page">
       {body}
-      <PageTitle>{row.title}</PageTitle>
+      <PageTitle>{p.title}</PageTitle>
       <div class="rail-fade" />
     </div>
   );

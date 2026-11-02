@@ -79,9 +79,15 @@ describes how they are made.
   order.
 - Search shows its results in rows by kind, as the other apps do: People,
   Live TV, Movies, Shows, Seasons, Episodes, Artists, Albums and Tracks,
-  then On TMDB.
+  then Discover.
 - Search lists your recent searches before anything is typed: OK searches
   one again, Clear forgets them.
+
+### Changed
+
+- Discover has no Search of its own: Search shows what can be asked for
+  in a Discover row after the libraries' titles, which says when TMDB
+  can't be searched.
 
 ### Fixed
 

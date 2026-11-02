@@ -72,6 +72,9 @@ ACTIONS = {
 # never are.
 COUNTED = ("", "root", "discover")
 LISTED = ("requests", "seasons")
+# The longest words TMDB is searched for, in characters: the server refuses
+# longer ones.
+QUERY_MAX = 200
 
 
 def summary(client) -> dict | None:
@@ -94,8 +97,8 @@ def discovers(s) -> bool:
 
 
 def may_ask(s) -> bool:
-    """Discover's rows, its search and asking: Discover, from a sign-in
-    that can ask (one made before apps could only says so)."""
+    """Discover's rows, search's Discover row and asking: Discover, from a
+    sign-in that can ask (one made before apps could only says so)."""
     return discovers(s) and s.get("sign_in_again") != "requests"
 
 
@@ -136,6 +139,12 @@ def entry_label(s, text) -> str:
 
 def colored(text: str, color) -> str:
     return "[COLOR %s]%s[/COLOR]" % (color, text) if text and color else text or ""
+
+
+def search_text(query: str) -> str:
+    """Words as the server takes them for TMDB: trimmed, and cut to
+    QUERY_MAX characters."""
+    return query.strip()[:QUERY_MAX].strip()
 
 
 def showing(path: str, routes) -> bool:
