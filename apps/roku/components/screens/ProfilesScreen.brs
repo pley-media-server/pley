@@ -18,6 +18,8 @@ sub init()
     m.picked = invalid
     m.dialog = invalid
     m.busy = false
+    ' A PIN went with the switch under way.
+    m.sentPin = false
     m.profiles.observeField("itemSelected", "onPicked")
     m.buttons.observeField("buttonSelected", "onButton")
     m.top.observeField("active", "onActive")
@@ -178,6 +180,7 @@ end sub
 sub switchTo(profile as object, pin as string)
     m.busy = true
     m.picked = profile
+    m.sentPin = pin <> ""
     m.message.text = "Switching to " + profile.title + "…"
     uiRequest({ op: "switchProfile", profile: profile.itemId, pin: pin }, "onSwitched")
 end sub
@@ -196,7 +199,12 @@ sub onSwitched(event as object)
     end if
     m.message.text = ""
     if answer.error = "signed_out" then return
-    if answer.error = "wrong_pin"
+    if answer.error = "wrong_pin" and not m.sentPin
+        ' The list was older than the profile's PIN: it is asked for.
+        askPin(m.picked, "")
+    else if answer.error = "wrong_pin" or answer.error = "throttled"
+        ' The pad again, saying why: a wrong PIN, or how long to wait. A
+        ' locked one says so on the screen, as the pad can't be dimmed.
         askPin(m.picked, answer.message)
     else if answer.error = "browser"
         askSignIn(m.picked)

@@ -85,6 +85,9 @@ describes how they are made.
 
 ### Fixed
 
+- Too many wrong PINs keep the PIN pad, saying how long to wait, and a
+  profile that got a PIN after "Who's watching?" was loaded asks it
+  without calling it wrong.
 - "Who's watching?" as the app starts asks the PIN of the profile it was
   left on when that profile has one, as on the other TVs, and shows "PIN"
   under it.
