@@ -260,6 +260,8 @@ It has no releases yet: it is built and installed by hand
   make and model ("Kingston DataTraveler 3.0").
 - The rail marks the page a rail entry opened, not Home, when the page has
   nothing to focus yet, as the first page opened after Who's watching?.
+- Diagnostics, Remove from My List and Settings' audio and subtitle rows
+  show their icons.
 - A film's audio track, chosen or saved, plays from the start: it was asked
   for before the TV's player was ready, and the first track played. Beside a
   TrueHD track the TV leaves out, the right track is chosen, and Info shows

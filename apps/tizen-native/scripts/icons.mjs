@@ -21,6 +21,9 @@ if (!imports) throw new Error("No Lucide import in icons.tsx");
 const names = imports[1].split(",").map((s) => s.trim()).filter((s) => s && !s.startsWith("type "));
 // Icons of pages only the native app has yet: a drive's folders, videos and empty folder.
 names.push("Usb", "Folder", "FolderOpen", "FileVideo", "CornerLeftUp");
+// Icons the Android app draws where the web TV app has none: Diagnostics, Remove from My List,
+// and Settings' passthrough formats, subtitle background and position, reduce motion and the web.
+names.push("Activity", "BookmarkMinus", "Volume2", "Square", "ArrowUp", "Sparkles", "AppWindow");
 
 const kebab = (name) => name.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/([A-Za-z])([0-9])/g, "$1-$2").toLowerCase();
 const attrs = (o) => Object.entries(o).map(([k, v]) => ` ${k}="${String(v).replace(/"/g, "&quot;")}"`).join("");
