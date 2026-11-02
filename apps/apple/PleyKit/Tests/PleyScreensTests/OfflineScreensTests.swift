@@ -127,6 +127,35 @@ private func snapshotFolder() -> URL {
         #expect(await eventually { app.change?.everything == true })
     }
 
+    @Test func signingOutAndOpeningAnotherServerIsOnline() async throws {
+        let first = try await fixture()
+        defer { first.stop() }
+        let second = try await fixture()
+        defer { second.stop() }
+        let folder = snapshotFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = MemoryTokenStore()
+        try await keepSignIn(first, in: store)
+        try await keepSignIn(second, in: store)
+        let app = app(store, servers: [SavedServer(origin: first.origin, name: "Living Room", lastUsed: Date())],
+                      snapshots: SnapshotStore(root: folder))
+        await app.start()
+        try #require(app.root == .signedIn)
+        app.wentOffline()
+        #expect(app.offline)
+        await app.signOut()
+        #expect(!app.offline)
+        try await app.open(ServerEntry(origin: second.origin, name: "Bedroom", id: nil, saved: false, found: true))
+        #expect(app.root == .signedIn && !app.offline)
+        // Its screens ask it, with no snapshot of its own to fall back on.
+        let before = second.requests("/api/playlists").count
+        let playlists = PlaylistsModel(app: app)
+        await playlists.load()
+        #expect(second.requests("/api/playlists").count == before + 1)
+        #expect(!playlists.cards.isEmpty)
+        await app.signOut()
+    }
+
     @Test func forgettingAServerDeletesItsDownloadsAndSavedScreens() async throws {
         let server = try await fixture()
         defer { server.stop() }

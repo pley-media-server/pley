@@ -337,6 +337,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
         notice = nil
         let before = server?.origin
         await opened(entry.origin, id: entry.id, name: entry.name, saved: entry.saved, found: entry.found)
+        // Another server isn't out of reach because this one was.
+        if before != server?.origin { goOnline() }
         switch state {
         case .signedIn(let user):
             // Another server's pages don't belong to this one, nor its event stream.
@@ -358,6 +360,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
     /// household has more than one profile.
     public func signedIn(_ user: User) async {
         notice = nil
+        // The sign-in just reached the server.
+        goOnline()
         let household = (try? await session.profiles?.profiles()) ?? []
         noteHousehold(household)
         music.stop()
@@ -397,7 +401,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         // The downloads stay on the device, for when this profile signs in again.
         downloads.signedIn(nil)
         shelf?.clear()
-        stopReconnecting()
+        goOnline()
         user = nil
         shell.reset()
         actions.reset()
@@ -413,6 +417,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         await snapshots?.clear(origin: entry.origin)
         shelf?.forget(origin: entry.origin)
         if server?.origin == entry.origin {
+            goOnline()
             server = nil
             user = nil
         }
@@ -961,6 +966,13 @@ public final class AppModel: ObservableObject, SnapshotCache {
         return true
     }
 
+    /// No longer taken for out of reach: the server or the sign-in changed,
+    /// and the next screen asks the server again.
+    private func goOnline() {
+        stopReconnecting()
+        offline = false
+    }
+
     private func stopReconnecting() {
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -1164,7 +1176,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         closeLivePlayer()
         music.stop()
         stopEvents()
-        stopReconnecting()
+        goOnline()
         downloads.signedIn(nil)
         shelf?.clear()
         user = nil
