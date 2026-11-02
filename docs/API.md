@@ -1053,6 +1053,10 @@ profiles when the app's profile is in the household, else nothing:
   `password` (in the browser) or `locked`. A profile that has to set up
   two-step sign-in, which the server requires, needs `password`: picked in
   the browser, its password sets it up there.
+- The current profile's `needs` is `none`: the app acts as it already.
+  Pley's TV apps asking "Who's watching?" as they start ask its PIN when
+  [`GET /api/auth/me`](#auth) says `has_pin`, and check it with the
+  [switch-profile grant](#tokens).
 - Usernames, roles, libraries, age limits and sign-in settings are left
   out.
 
