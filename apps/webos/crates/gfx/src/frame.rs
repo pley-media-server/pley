@@ -357,7 +357,11 @@ impl Builder {
         };
         // Each piece takes the whole shape's corner colours where its own
         // corners fall, so the pieces together blend as one rectangle.
+        let uniform = whole[1] == whole[0] && whole[2] == whole[0] && whole[3] == whole[0];
         let colors = |s: DevRect| -> [Rgba; 4] {
+            if uniform {
+                return whole;
+            }
             let at = |x: f32, y: f32| {
                 let (tx, ty) = ((x - r.x0) / r.w(), (y - r.y0) / r.h());
                 let top = lerp_rgba(&whole[0], &whole[1], tx);
@@ -380,7 +384,9 @@ impl Builder {
             emit(mesh, body, &clip, r, uv, white, whole);
             return Ok(());
         };
-        let sub_uv = |s: DevRect| sub_uv(&r, &uv, &s);
+        // A colour samples no picture: its coordinates stay zero, piece by piece.
+        let flat = uv == [0.0; 4];
+        let sub_uv = |s: DevRect| if flat { uv } else { sub_uv(&r, &uv, &s) };
         let (x0, y0, x1, y1) = (r.x0, r.y0, r.x1, r.y1);
         let k = radius;
         for s in [
@@ -742,6 +748,27 @@ fn emit(mesh: &mut Mesh, paint: Paint, clip: &DevRect, r: DevRect, uv: [f32; 4],
     }
     let c = r.intersect(clip);
     if c.is_empty() {
+        return;
+    }
+    // Most quads (glyphs, fills, outlines) are one colour and wholly inside the clip: their
+    // corners are the rectangle's own, with nothing to interpolate.
+    if c == r && colors[1] == colors[0] && colors[2] == colors[0] && colors[3] == colors[0] {
+        let color = to_u8(&colors[0]);
+        let vertex = |x: f32, y: f32, u: f32, v: f32, mu: f32, mv: f32| Vertex {
+            pos: [x, y],
+            uv: [u, v],
+            mask: [mu, mv],
+            color,
+        };
+        mesh.push(
+            paint,
+            [
+                vertex(r.x0, r.y0, uv[0], uv[1], mask[0], mask[1]),
+                vertex(r.x1, r.y0, uv[2], uv[1], mask[2], mask[1]),
+                vertex(r.x0, r.y1, uv[0], uv[3], mask[0], mask[3]),
+                vertex(r.x1, r.y1, uv[2], uv[3], mask[2], mask[3]),
+            ],
+        );
         return;
     }
     let tx0 = (c.x0 - r.x0) / r.w();

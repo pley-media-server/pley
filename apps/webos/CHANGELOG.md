@@ -22,6 +22,8 @@ describes how they are made.
   a title's page with its season picker, Your requests (Requests for
   administrators), the "On TMDB" row in Search, a library title's request
   on its page, and what is ready to watch popping up once.
+- Each frame takes less of the TV's processor to put its text and shapes
+  together, leaving more room for scrolling and animations to stay smooth.
 
 ### Fixed
 

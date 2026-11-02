@@ -6,6 +6,7 @@
 //! on to draw (a page of 2048² is enough for a 1080p interface: 4 MiB).
 
 use std::collections::HashMap;
+use std::hash::{BuildHasherDefault, Hasher};
 
 use pley_base::Icon;
 
@@ -28,6 +29,50 @@ pub enum AtlasKey {
     /// A corner piece (quarters of a pixel): its extent, the outer radius and
     /// an outline's width (0 when filled).
     Corner { extent: u16, radius: u16, width: u16 },
+}
+
+/// Hashes atlas keys, a few small numbers looked up for every glyph of every frame, with a
+/// multiply and a rotate per number (FxHash's mixing) rather than the standard map's
+/// SipHash, which guards against keys chosen by an attacker that these never are.
+#[derive(Default)]
+struct KeyHasher(u64);
+
+impl KeyHasher {
+    fn add(&mut self, n: u64) {
+        self.0 = (self.0.rotate_left(5) ^ n).wrapping_mul(0x517c_c1b7_2722_0a95);
+    }
+}
+
+impl Hasher for KeyHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.add(u64::from(b));
+        }
+    }
+
+    fn write_u8(&mut self, n: u8) {
+        self.add(u64::from(n));
+    }
+
+    fn write_u16(&mut self, n: u16) {
+        self.add(u64::from(n));
+    }
+
+    fn write_u32(&mut self, n: u32) {
+        self.add(u64::from(n));
+    }
+
+    fn write_u64(&mut self, n: u64) {
+        self.add(n);
+    }
+
+    fn write_usize(&mut self, n: usize) {
+        self.add(n as u64);
+    }
 }
 
 /// Where an entry's texels are, and for glyphs where they go relative to the
@@ -59,7 +104,7 @@ pub struct Atlas {
     pixels: Vec<u8>,
     shelves: Vec<Shelf>,
     next_y: u32,
-    entries: HashMap<AtlasKey, Option<AtlasEntry>>,
+    entries: HashMap<AtlasKey, Option<AtlasEntry>, BuildHasherDefault<KeyHasher>>,
     /// Bands of rows changed since the last upload, apart from each other.
     dirty: Vec<(u32, u32)>,
     /// Bumped by every reset, so the GPU copy is known to be stale.
@@ -77,7 +122,7 @@ impl Atlas {
             pixels: vec![0; (side * side) as usize],
             shelves: Vec::new(),
             next_y: 0,
-            entries: HashMap::new(),
+            entries: HashMap::default(),
             dirty: Vec::new(),
             generation: 0,
             added: 0,
