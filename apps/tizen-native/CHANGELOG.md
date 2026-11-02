@@ -262,6 +262,8 @@ It has no releases yet: it is built and installed by hand
   nothing to focus yet, as the first page opened after Who's watching?.
 - Diagnostics, Remove from My List and Settings' audio and subtitle rows
   show their icons.
+- The native app carries none of the profiling build's code: its marks, the
+  listener, screenshots and remote keys were compiled into it, unused.
 - A film's audio track, chosen or saved, plays from the start: it was asked
   for before the TV's player was ready, and the first track played. Beside a
   TrueHD track the TV leaves out, the right track is chosen, and Info shows

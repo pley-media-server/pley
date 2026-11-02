@@ -18,12 +18,17 @@ namespace Pley.Tv.Tizen.Kit;
 /// A profiling build's marks (docs/TV_PLATFORMS.md, "Profiling"): what happened when, how long
 /// the UI thread was held and by what, the frame rate, memory, and the marks before a crash,
 /// each a line to the address the build was made with. A build made without one has none of
-/// this: every call here is left out when it's compiled, its arguments with it.
+/// this: every call here is left out when it's compiled, its arguments with it, and so is all
+/// the code behind them.
 /// </summary>
 static class Profile
 {
-    /// <summary>A point in time for <see cref="Took"/>; cheap enough to stay in any build.</summary>
+    /// <summary>A point in time for <see cref="Took"/>; 0 in a build without profiling, which never reads the clock for it.</summary>
+#if PROFILE
     public static long Start() => Stopwatch.GetTimestamp();
+#else
+    public static long Start() => 0;
+#endif
 
     /// <summary>Marks how long it has been since <paramref name="start"/> (<see cref="Start"/>).</summary>
     [Conditional("PROFILE")]
@@ -70,6 +75,7 @@ static class Profile
     [Conditional("PROFILE")]
     public static void Keys(Action<string, bool> onKey) => Run.Keys(onKey);
 
+#if PROFILE
     /// <summary>All the profiling's state, only ever touched in a profiling build.</summary>
     static class Run
     {
@@ -583,4 +589,21 @@ done
             }
         }
     }
+#else
+    /// <summary>
+    /// A build without profiling has none of it: the calls above are left out where they're made,
+    /// and these, all they name, do nothing.
+    /// </summary>
+    static class Run
+    {
+        public static double Ms(long start) => 0;
+        public static void Mark(string what) { }
+        public static void Picture(double ms) { }
+        public static void Begin(Window window, string dataDir) { }
+        public static void End() { }
+        public static void Enter(string what) { }
+        public static void Leave() { }
+        public static void Keys(Action<string, bool> onKey) { }
+    }
+#endif
 }

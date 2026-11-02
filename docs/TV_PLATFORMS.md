@@ -631,7 +631,8 @@ node apps/tizen-native/scripts/metrics.mjs --tv S89C shot
 ```
 
 A build without `PLEY_TIZEN_METRICS` has none of this: the calls of
-`Kit/Profile.cs` are left out when it is compiled.
+`Kit/Profile.cs`, the code behind them (the listener, screenshots, keys,
+the watchdog and sampler) and Core's marks are left out when it is compiled.
 
 ### Videos on a USB drive
 
