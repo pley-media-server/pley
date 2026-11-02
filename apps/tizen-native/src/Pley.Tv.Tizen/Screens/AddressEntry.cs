@@ -11,7 +11,7 @@ namespace Pley.Tv.Tizen.Screens;
 /// Typing a server's address (design spec §2.11, tv-addendum §4.4; the Android app's TvAddressEntry):
 /// a field and Connect under it. The TV's keyboard opens with the screen, so a name or a whole https
 /// address types as easily as an IP; once it is closed, the remote's digit keys type too. Port 7539
-/// is added when none is typed. Back goes back to the list.
+/// is used by default. Back goes back to the list.
 /// </summary>
 sealed class AddressEntry : Sheet
 {
@@ -55,7 +55,7 @@ sealed class AddressEntry : Sheet
         View.Add(connect);
 
         // Under it: how addresses work, and what went wrong.
-        var hint = Paragraph("Port 7539 is added when none is typed.", PleyType.Caption, PleyColors.Muted, 1);
+        var hint = Paragraph("Port 7539 is used by default.", PleyType.Caption, PleyColors.Muted, 1);
         hint.Position = new Position(Ui.Dp(center - FieldWidth / 2), Ui.Dp(connectTop + PleyTv.ButtonHeight + 24));
         View.Add(hint);
         problem = Paragraph("", PleyType.Body, PleyColors.DangerText, 6);

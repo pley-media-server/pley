@@ -37,7 +37,7 @@
     <!-- Typing a server's address (design spec §2.11). -->
     <string name="tv_onboarding_address_title">Enter your server\'s address</string>
     <string name="tv_onboarding_address_placeholder">192.168.1.20 or pley.example.com</string>
-    <string name="tv_onboarding_address_hint">Port 7539 is added when none is typed.</string>
+    <string name="tv_onboarding_address_hint">Port 7539 is used by default.</string>
     <string name="tv_onboarding_connect">Connect</string>
     <string name="tv_onboarding_checking">Checking…</string>
 

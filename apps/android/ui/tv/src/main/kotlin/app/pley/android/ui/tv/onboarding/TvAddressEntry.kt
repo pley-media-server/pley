@@ -39,7 +39,7 @@ import kotlinx.coroutines.flow.drop
  * Typing a server's address (design spec §2.11; tv-addendum §4.4): a field
  * and Connect under it. The TV's keyboard opens with the screen, so a name
  * or a whole https address types as easily as an IP; once it is closed,
- * the remote's digit keys type too. Port 7539 is added when none is typed.
+ * the remote's digit keys type too. Port 7539 is used by default.
  */
 @Composable
 internal fun TvAddressEntry(

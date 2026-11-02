@@ -8,6 +8,10 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Entering a server's address says that port 7539 is used by default.
+
 ## [0.1.1] - 2026-11-01
 
 ### Added

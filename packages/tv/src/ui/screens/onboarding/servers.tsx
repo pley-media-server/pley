@@ -416,7 +416,7 @@ function AddressEntry(p: {
           </div>
         </G>
         <div class="address-info" aria-live="polite">
-          <div class="t-caption c-muted">Port 7539 is added when none is typed.</div>
+          <div class="t-caption c-muted">Port 7539 is used by default.</div>
           {p.problem && <div class="t-body c-danger">{textOf(p.problem)}</div>}
         </div>
       </div>
