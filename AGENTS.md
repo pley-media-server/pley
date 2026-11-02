@@ -119,12 +119,29 @@ They go in `docs/QUESTIONS.md` or `docs/*.local.md`, which git ignores.
 
 - One logical change per commit, with what it needs (code, tests, docs,
   changelog).
-- The subject starts with the area and says what changed, as a user sees
-  it: `server: Live TV starts at the last keyframe`, `web: …`,
-  `kodi, roku: …`, `docs: …`. The body says why, and anything a reviewer
-  should know.
+- The subject starts with the area and says, briefly, what changed as a
+  user sees it: `server: Live TV starts at the last keyframe`, `web: …`,
+  `kodi, roku: …`, `docs: …`. The body is short and to the point: why, and
+  anything a reviewer should know, not a retelling of the diff.
 - Never commit build output (`target/`, `dist/`), keys, `.env` files, local
   data, or files git ignores.
+
+## Branches and pull requests
+
+- A branch is `<kind>/<topic>`: the kind is `fix`, `feature`,
+  `optimization`, `experiment` or `deployment`, and the topic is a few
+  words in snake_case saying what it's for, as in
+  `fix/server_address_input`. Not a generated name like `claude/…`;
+  `release/` is the release workflow's.
+- A pull request's title is written like a commit subject, and kept short:
+  `android, samsung, lg: Enter an address opens the keyboard`. A change to
+  every app says `apps:`.
+- Its description is short and plain: why and what changed in a sentence
+  or two, then what a reviewer should know, by app or area, then what was
+  checked and what wasn't.
+- Write it as a person would: no bold labels, no tables or headings for a
+  few lines, no review history. Don't repeat the diff or the docs; point to
+  the doc.
 
 ## Platform notes
 
