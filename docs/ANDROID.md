@@ -158,7 +158,8 @@ are set up in the web app's Settings → Live TV ([API.md](API.md#live-tv)).
 - **Paging:** channels come 100 at a time (`GET /api/live/browse`), and the
   guide asks only for the rows in view, six hours at a time, so a lineup of
   50,000 channels opens at once.
-- **Live only:** no pause, rewind or seeking; media keys do nothing.
+- **Live only:** no pause, rewind or seeking; play, pause, rewind and fast
+  forward do nothing in the player.
 - **Changing channel:** channel up and down stay in the category the player
   was opened from, wrapping round its ends. A typed number tunes that
   channel among all channels.
@@ -176,7 +177,8 @@ server's HLS. Leaving the player ends the session.
 
 On TVs, OK in the player opens the channel list, as Menu and Guide do;
 holding OK shows the controls (the channel list and the favourite) over
-what's on.
+what's on. Up and Down, Channel up and down, and Previous and Next change
+channel.
 
 ### Requests
 

@@ -12,6 +12,8 @@ describes how they are made.
 
 - In the TV live player, OK opens the channel list, as on Samsung TVs;
   holding OK shows the controls (the channel list and the favourite).
+- Previous and Next change channel in the TV live player, as Channel up
+  and down do.
 
 ### Fixed
 

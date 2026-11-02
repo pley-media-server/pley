@@ -107,8 +107,8 @@ private enum class Overlay { None, Controls, Channels }
  * The TV's live player (the web's LivePlayerPage, for a remote), the
  * channel full screen. With nothing over it:
  *
- * - Up and Down, and Channel up and down, change channel (Up the next
- *   number), digits tune a number;
+ * - Up and Down, Channel up and down, and Previous and Next change
+ *   channel (Up the next number), digits tune a number;
  * - OK opens the channel list, as Menu and Guide do; held, it shows the
  *   controls (the channel list, the favourite) over what's on; Back hides
  *   what shows, then leaves.
@@ -179,11 +179,11 @@ internal fun TvLivePlayerScreen(vm: LivePlayerViewModel, onExit: () -> Unit) {
                 }
                 if (overlay == Overlay.Controls) poked++
                 when {
-                    code == KeyEvent.KEYCODE_CHANNEL_UP -> {
+                    code == KeyEvent.KEYCODE_CHANNEL_UP || code == KeyEvent.KEYCODE_MEDIA_NEXT -> {
                         if (down) vm.step(1)
                         true
                     }
-                    code == KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                    code == KeyEvent.KEYCODE_CHANNEL_DOWN || code == KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
                         if (down) vm.step(-1)
                         true
                     }

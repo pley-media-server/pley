@@ -119,4 +119,18 @@ class TvLivePlayerScreenTest {
         ok()
         compose.onNodeWithTag(TV_LIVE_PLAYER_CHANNELS).assertExists()
     }
+
+    @Test
+    fun `Next and Previous change channel, as channel up and down do`() {
+        show(player(1))
+        send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_MEDIA_NEXT)
+        send(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_MEDIA_NEXT)
+        assertEquals("watch 2 android-1", live.sent.last { it.startsWith("watch") })
+        send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_MEDIA_PREVIOUS)
+        send(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_MEDIA_PREVIOUS)
+        send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_MEDIA_PREVIOUS)
+        send(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_MEDIA_PREVIOUS)
+        // Round the start of every channel: the last.
+        assertEquals("watch 5 android-1", live.sent.last { it.startsWith("watch") })
+    }
 }
