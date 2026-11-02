@@ -48,7 +48,7 @@ let package = Package(
                                                                    "PleyModel", "PleyCommon", "PleyTesting"]),
         // Plays a disposable server's test media through the real player (scripts/check-playback.sh). macOS only.
         .executableTarget(name: "pley-apple-play", dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyAuth",
-                                                                  "PleyNetwork", "PleyModel", "PleyCommon",
+                                                                  "PleyData", "PleyNetwork", "PleyModel", "PleyCommon",
                                                                   "PleyTesting"]),
         .testTarget(name: "PleyModelTests", dependencies: ["PleyModel", "PleyTesting"]),
         .testTarget(name: "PleyCommonTests", dependencies: ["PleyCommon", "PleyTesting"]),

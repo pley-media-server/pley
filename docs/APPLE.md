@@ -1174,6 +1174,17 @@ Search, Me, Settings and About, each with its main control checked to be
 on screen and reachable. Its screenshots are named `large-*`. It changes
 nothing on the server.
 
+Live TV is a test of its own (`testLiveTv`), against `live-source.sh`'s
+four channels with one connection: All channels shows the guide with Test
+One's programmes; a channel plays ("playing" in the player); channel up
+tunes Test Two (on Apple TV, up on the remote, then 1, 0, 3 and OK on the
+number pad tune Test Three); the star makes the channel a favourite on
+the server; leaving ends the session at the server within 4 seconds;
+Favourites and Recently watched list the channels; with another device
+holding the connection, the player says "All connections are in use" and
+Watch here instead takes it, the other device's playlist answering 410;
+and Search finds the channels.
+
 A person's page is a test of its own, which opens the first title with
 cast; the test server has no metadata source, so no title has cast, and
 the test reports itself skipped.
@@ -1189,7 +1200,13 @@ It builds the server, makes the screens' media
 checks do, and gives it a household and libraries: the administrator
 "Admin" and the managed profile Kids, each with a random PIN, and Movies,
 Shows, Clips and Music, and once they are scanned the collection "Test
-collection" of two movies. Playlists the walk makes are deleted, by
+collection" of two movies. It starts `live-source.sh` on 127.0.0.1 and
+adds it as the Live TV source "Test channels" with one connection.
+`live-source.sh <dir> <port>` is a made-up IPTV provider: an M3U lineup
+of four channels in three groups (H.264, MPEG-2, 720p50 and a radio
+station, each with a logo), an XMLTV guide of half-hour programmes, and
+live HLS from FFmpeg's test pictures and tones, served until it is
+stopped. Playlists the walk makes are deleted, by
 title, before and after it, since each simulator walks the same server.
 It boots each simulator afresh, removes the app from it and empties the
 simulator's Keychain, which outlives the app, so the walk starts at the
@@ -1199,7 +1216,9 @@ one. It runs `PleyUITests` on iPhone 17 and iPad (A16)
 TV 4K (4th generation), and stops the server and deletes its folder
 afterwards. `PLEY_IOS_SIMS` (names separated by `;`) and `PLEY_TV_SIM` name
 other simulators, `PLEY_SHOTS` a folder for the walk's screenshots, and
-`PLEY_SCREENS_LOGS` a folder for the logs of a simulator that failed. A
+`PLEY_SCREENS_LOGS` a folder for the logs of a simulator that failed, and
+`PLEY_UI_TESTS` (names separated by spaces, such as `testLiveTv`) the
+tests to run, all of them when unset. A
 test that fails runs once more, in a new test runner
 (`-retry-tests-on-failure`); one that fails
 twice fails the run, which then prints the test's errors and the server's
@@ -1220,7 +1239,7 @@ UI tests skip.
 | `Config/` | Build settings (`.xcconfig`), the apps' Info.plist keys and the Mac's entitlements; `project.pbxproj` holds no settings |
 | `Pley/` | The iPhone, iPad and Mac app: `Shell/` (the tab bar, the sidebar, Me, and the Mac's menus and About window in `MacCommands`), `Kit/` (the views the screens share: `ArtworkTile`, `TileRow`, `TileGrid`, `ItemActionsMenu`, `ServerImage`, `StateView`, `ToastView`, `FlowLayout`, `StarRating`, the collections' and playlists' cards in `ListCards`, and `Metrics` and `Motion` for sizes and Reduce Motion) and `Screens/` |
 | `tvOS/` | The Apple TV app, laid out the same way: `Shell/` (the tabs and Settings), `Kit/` (the same views, built for the focus engine) and `Screens/` |
-| `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `Admin.swift` (the administrator's side), `Walk.swift`, `BrowseWalk.swift`, `ItemWalk.swift`, `ListsWalk.swift` and `AccountWalk.swift` (the steps, by accessibility identifier), `LargeTextWalk.swift` (iPhone and iPad at the largest text size), `RemoteWalk.swift` (Apple TV's Play/Pause and a row's focus) and `ScreensTests.swift` |
+| `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `Admin.swift` (the administrator's side), `Walk.swift`, `BrowseWalk.swift`, `ItemWalk.swift`, `ListsWalk.swift`, `AccountWalk.swift` and `LiveWalk.swift` (the steps, by accessibility identifier), `LargeTextWalk.swift` (iPhone and iPad at the largest text size), `RemoteWalk.swift` (Apple TV's Play/Pause and a row's focus) and `ScreensTests.swift` |
 | `PleyKit/` | One Swift package with everything else, a module per target |
 
 PleyKit's modules, each depending only on those before it:
@@ -1311,6 +1330,11 @@ activity, the session's status and the item:
   plays as it is; the MKV's PGS shows its 480×96 picture at 12.5 seconds,
   from the server's `.mks`, while the session stays repackaged with
   nothing burned in;
+- Live TV, with `live-source.sh`'s channels added as a source with one
+  connection: through `LivePlayback` and AVPlayer, Test One tunes and
+  plays; Test Two takes its place in a new session, Test One's playlist
+  then answering 410 or 404 and one viewer left; and leaving ends the
+  session within 2 seconds;
 - for every recorded Apple device class's caps report
   (`apps/server/tests/fixtures/caps`), the server's decision for eight of
   the files (method, converted audio and reasons) is the one

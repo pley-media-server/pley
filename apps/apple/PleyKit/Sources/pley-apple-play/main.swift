@@ -3,12 +3,14 @@
 // scripts/check-playback.sh makes the media, starts the server and runs
 // this; never point it at a server people use.
 //
-//   pley-apple-play --server http://127.0.0.1:7712 --admin <username> --media <dir> --caps-fixtures <dir> [--work-dir <dir>]
+//   pley-apple-play --server http://127.0.0.1:7712 --admin <username> --media <dir> --caps-fixtures <dir>
+//                   [--work-dir <dir>] [--live-source <origin>]
 //
 // `--media` is what make-test-media.sh wrote; `--caps-fixtures` the server's
 // recorded Apple caps (apps/server/tests/fixtures/caps); `--work-dir` where
 // the player downloads picture subtitles (inside the check's temporary
-// folder, so nothing is left in the user's Caches). The administrator's
+// folder, so nothing is left in the user's Caches); `--live-source` where
+// live-source.sh serves its channels, added as a Live TV source. The administrator's
 // password comes from PLEY_CHECK_PASSWORD. It prints one line per check and
 // stops at the first failure. Nothing it prints holds a token, a code, a
 // password or a keyed media address.
@@ -19,6 +21,7 @@ import Foundation
 import PleyAuth
 import PleyCaps
 import PleyCommon
+import PleyData
 import PleyModel
 import PleyNetwork
 import PleyPlayer
@@ -537,6 +540,84 @@ func checkDecisions(api: PleyAPI, fixtures: URL, items: [String: Int]) async thr
     say("(j) decisions: \(names.count) devices × \(files.count) files match playback_apple.rs")
 }
 
+// MARK: (l) Live TV
+
+/// The channel named `name`'s id, from All channels.
+func channelId(_ page: AdminPage, _ name: String) async throws -> Int {
+    let query = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? name
+    let (status, body) = try await page.send("GET", "/api/live/browse?category=all&q=\(query)&limit=20")
+    try check(status == 200, "browsing Live TV answered HTTP \(status)")
+    let channels = body["channels"] as? [[String: Any]] ?? []
+    return try required(channels.first { $0["name"] as? String == name }?["id"] as? Int, "no channel \(name)")
+}
+
+/// How many sessions watch any channel, for everyone.
+func liveViewers(_ page: AdminPage) async throws -> Int {
+    let (status, data) = try await page.raw("GET", "/api/live/tuners")
+    try check(status == 200, "the tuners answered HTTP \(status)")
+    let tuners = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] ?? []
+    return tuners.reduce(0) { $0 + (($1["viewers"] as? [Any])?.count ?? 0) }
+}
+
+/// What the keyed playlist at `url` answers now (the address itself is never printed).
+func status(of url: URL) async -> Int {
+    guard let (_, response) = try? await URLSession.shared.data(from: url) else { return 0 }
+    return (response as? HTTPURLResponse)?.statusCode ?? 0
+}
+
+/// live-source.sh's channels (one connection at a time) through the real
+/// live player: a channel tunes and plays, the next takes its place and
+/// the first session ends, and leaving ends the second within 2 seconds.
+@MainActor
+func checkLive(api: PleyAPI, page: AdminPage, source: String) async throws {
+    let (made, _) = try await page.send("POST", "/api/live/sources", json: [
+        "name": "Test channels", "kind": "m3u", "url": source + "/list.m3u", "guide_url": source + "/guide.xml",
+        "max_connections": 1,
+    ])
+    try check(made == 200 || made == 201, "the live source wasn't added (HTTP \(made))")
+    try await wait("Live TV's four channels", seconds: 120) {
+        let (_, live) = try await page.send("GET", "/api/live")
+        return live["available"] as? Bool == true && (live["channels"] as? Int ?? 0) >= 4
+    }
+    let one = try await channelId(page, "Test One")
+    let two = try await channelId(page, "Test Two")
+
+    let playback = LivePlayback(live: LiveTvRepository(api: api), clientId: "apple-play-check")
+    defer { playback.close() }
+    func playing(_ name: String) async throws {
+        try await wait("\(name) to play", seconds: 60) {
+            if case .failed(let trouble) = playback.state.phase {
+                throw CheckFailure("\(name) failed: \(trouble.message)")
+            }
+            let player = (playback.engine as? AVLiveEngine)?.player
+            return playback.state.phase == .playing && player?.timeControlStatus == .playing
+        }
+    }
+    func playlist() throws -> URL {
+        let item = (playback.engine as? AVLiveEngine)?.player.currentItem
+        return try required((item?.asset as? AVURLAsset)?.url, "the live player has no playlist")
+    }
+
+    playback.tune(one)
+    try await playing("Test One")
+    let first = try playlist()
+    let firstSession = try required(playback.sessionId, "Test One has no session")
+    say("(l) Live TV: Test One plays, session \(short(firstSession))")
+
+    playback.tune(two)
+    try await playing("Test Two")
+    let secondSession = try required(playback.sessionId, "Test Two has no session")
+    try check(secondSession != firstSession, "Test Two plays in Test One's session")
+    try await wait("Test One's playlist to end", seconds: 10) { [404, 410].contains(await status(of: first)) }
+    try check(try await liveViewers(page) == 1, "more than one session watches after the zap")
+    say("(l) Live TV: Test Two takes its place, session \(short(secondSession)); Test One's playlist answers"
+        + " \(await status(of: first))")
+
+    playback.close()
+    try await wait("no one to watch", seconds: 2) { try await liveViewers(page) == 0 }
+    say("(l) Live TV: leaving ends the session within 2 s")
+}
+
 // MARK: The run
 
 @MainActor
@@ -551,7 +632,7 @@ func run() async throws {
           let fixtures = options["caps-fixtures"]
     else {
         throw CheckFailure("usage: pley-apple-play --server <origin> --admin <username> --media <dir> --caps-fixtures <dir>"
-            + " [--work-dir <dir>]")
+            + " [--work-dir <dir>] [--live-source <origin>]")
     }
     workDir = options["work-dir"].map { URL(fileURLWithPath: $0, isDirectory: true) }
     guard let password = ProcessInfo.processInfo.environment["PLEY_CHECK_PASSWORD"], !password.isEmpty else {
@@ -653,6 +734,10 @@ func run() async throws {
 
     try await checkSubtitles(api: api, caps: caps, reporter: reporter, direct: try item("Direct H264"),
                              remux: try item("Remux H264 AC3"))
+
+    if let source = options["live-source"] {
+        try await checkLive(api: api, page: page, source: source)
+    }
 
     try await checkDecisions(api: api, fixtures: URL(fileURLWithPath: fixtures), items: items)
     await reporter.flush()

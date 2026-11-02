@@ -4,9 +4,10 @@
 # PLEY_CHECK_MEDIA if set), starts a disposable server (a temporary data
 # folder, a free port on 127.0.0.1, no Bonjour, no Plex port, no tray, the
 # managed transcoder working in the same temporary folder), makes an
-# administrator, and runs pley-apple-play, which plays the media through
-# the apps' player. The server, the transcoder and the temporary folder are
-# removed afterwards, whatever happens. macOS only.
+# administrator, starts live-source.sh's made-up channels, and runs
+# pley-apple-play, which plays the media and the channels through the
+# apps' players. The server, the transcoder, the live source and the
+# temporary folder are removed afterwards, whatever happens. macOS only.
 #
 # The administrator's password is PLEY_CHECK_PASSWORD, or a random one.
 # The server reads the web app from apps/web/dist: build it first
@@ -28,7 +29,13 @@ export PLEY_CHECK_PASSWORD
 temp=$(mktemp -d)
 data="$temp/data"
 server=""
+live=""
 cleanup() {
+  # The live source stops its FFmpegs and its web server with it.
+  if [[ -n "$live" ]]; then
+    kill "$live" 2>/dev/null || true
+    wait "$live" 2>/dev/null || true
+  fi
   if [[ -n "$server" ]]; then
     kill "$server" 2>/dev/null || true
     wait "$server" 2>/dev/null || true
@@ -72,6 +79,21 @@ for _ in $(seq 1 100); do
 done
 curl -fsS "$origin/api/health" >/dev/null
 
+# Live TV: a made-up provider on 127.0.0.1 (live-source.sh), which
+# pley-apple-play adds with one connection.
+live_port=$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1])')
+apps/apple/scripts/live-source.sh "$temp/live" "$live_port" >"$temp/live.log" 2>&1 &
+live=$!
+for _ in $(seq 1 60); do
+  if grep -q ready "$temp/live.log" 2>/dev/null; then break; fi
+  sleep 1
+done
+if ! grep -q ready "$temp/live.log"; then
+  echo "check-playback: the live source didn't start:" >&2
+  tail -n 20 "$temp/live.log" >&2
+  exit 1
+fi
+
 # The player's picture subtitles go to the temporary folder, never to the
 # user's Caches; the check says so if the run left a folder there.
 caches="$HOME/Library/Caches/pley/picture-subtitles"
@@ -80,7 +102,7 @@ if [[ -e "$caches" ]]; then cached_before=yes; fi
 
 if ! swift run --skip-build --package-path apps/apple/PleyKit pley-apple-play \
   --server "$origin" --admin checkadmin --media "$media" --caps-fixtures apps/server/tests/fixtures/caps \
-  --work-dir "$temp/player"; then
+  --work-dir "$temp/player" --live-source "http://127.0.0.1:$live_port"; then
   echo "check-playback: the server's last lines:" >&2
   tail -n 30 "$temp/server.log" | redacted >&2
   exit 1

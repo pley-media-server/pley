@@ -6,7 +6,9 @@
 # no Bonjour, no Plex port, no tray), and sets up its household: an
 # administrator ("Admin", with a PIN) and the managed profile Kids (with a
 # PIN), the libraries Movies, Shows, Clips and Music, and once they are
-# scanned the collection "Test collection" of two movies. Then it runs the
+# scanned the collection "Test collection" of two movies, and Live TV's
+# source "Test channels" (live-source.sh: four made-up channels and their
+# guide on another free port, one connection at a time). Then it runs the
 # UI tests (PleyUITests on each iPhone and iPad simulator, PleyTVUITests on
 # the Apple TV one): sign in with a code, "Who's watching?", Home, an item,
 # a library, a collection, a playlist made, changed and deleted, Me
@@ -23,6 +25,8 @@
 #   PLEY_SHOTS         a folder for the walk's screenshots
 #   PLEY_SCREENS_LOGS  a folder for the test logs of the simulators that failed
 #   PLEY_BUNDLE_ID     the app's bundle ID, when Local.xcconfig changes it
+#   PLEY_UI_TESTS      only these tests of ScreensTests, separated by ";"
+#                      (testLiveTv;testSignIn…); all of them when empty
 #
 # Each simulator is booted afresh, the app removed from it and its
 # Keychain emptied, so the walk starts at the servers; a lock per simulator
@@ -57,6 +61,7 @@ fi
 temp=$(mktemp -d)
 data="$temp/data"
 server=""
+live=""
 # The simulators this run holds: a lock directory each, shared by every run.
 locks=()
 lockdir="${TMPDIR:-/tmp}/pley-check-screens"
@@ -64,6 +69,11 @@ cleanup() {
   if [[ -n "$server" ]]; then
     kill "$server" 2>/dev/null || true
     wait "$server" 2>/dev/null || true
+  fi
+  # The live source stops its FFmpegs and its web server with it.
+  if [[ -n "$live" ]]; then
+    kill "$live" 2>/dev/null || true
+    wait "$live" 2>/dev/null || true
   fi
   for lock in ${locks[@]+"${locks[@]}"}; do rm -rf "$lock"; done
   rm -rf "$temp"
@@ -150,6 +160,30 @@ two=$(admin GET "/api/libraries/$movies/items?limit=2" |
   python3 -c 'import json,sys;print(",".join(str(i["id"]) for i in json.load(sys.stdin)["items"][:2]))')
 admin POST "/api/libraries/$movies/collections" "{\"title\":\"Test collection\",\"item_ids\":[$two]}" >/dev/null
 
+# Live TV: a made-up provider on 127.0.0.1, with one connection, so a
+# second channel needs Watch here instead.
+live_port=$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1])')
+apps/apple/scripts/live-source.sh "$temp/live" "$live_port" >"$temp/live.log" 2>&1 &
+live=$!
+for _ in $(seq 1 60); do
+  if grep -q ready "$temp/live.log" 2>/dev/null; then break; fi
+  sleep 1
+done
+live_base="http://127.0.0.1:$live_port"
+admin POST /api/live/sources "{\"name\":\"Test channels\",\"kind\":\"m3u\",\"url\":\"$live_base/list.m3u\",\"guide_url\":\"$live_base/guide.xml\",\"max_connections\":1}" >/dev/null
+available=no
+for _ in $(seq 1 60); do
+  if admin GET /api/live | python3 -c 'import json,sys;d=json.load(sys.stdin);sys.exit(not (d.get("available") and d.get("channels",0)>=4))'; then
+    available=yes
+    break
+  fi
+  sleep 1
+done
+if [[ $available == no ]]; then
+  echo "check-screens: Live TV's channels didn't come" >&2
+  exit 1
+fi
+
 # The simulator's UDID by its name.
 udid() {
   xcrun simctl list devices available -j |
@@ -215,8 +249,17 @@ walk() {
   xcrun simctl bootstatus "$id" -b >/dev/null
   log="$temp/$scheme-$id.log"
   echo "check-screens: $scheme on $name"
+  local only=()
+  if [[ -n "${PLEY_UI_TESTS:-}" ]]; then
+    local target=PleyUITests test wanted
+    [[ $scheme == PleyTVUITests ]] && target=PleyTVUITests
+    IFS=';' read -r -a wanted <<<"$PLEY_UI_TESTS"
+    for test in "${wanted[@]}"; do
+      [[ -n "$test" ]] && only+=("-only-testing:$target/ScreensTests/$test")
+    done
+  fi
   if xcodebuild test -project apps/apple/Pley.xcodeproj -scheme "$scheme" -destination "id=$id" \
-    -retry-tests-on-failure -test-iterations 2 -test-repetition-relaunch-enabled YES \
+    ${only[@]+"${only[@]}"} -retry-tests-on-failure -test-iterations 2 -test-repetition-relaunch-enabled YES \
     -resultBundlePath "$temp/$scheme-$id.xcresult" >"$log" 2>&1; then
     echo "check-screens: $name passed"
   else

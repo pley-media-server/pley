@@ -94,6 +94,83 @@ final class ScreensTests: XCTestCase {
         walk.signOut()
     }
 
+    /// Live TV against live-source.sh's channels (one connection at a
+    /// time): the categories, the guide and the cards, a channel played,
+    /// channel up, a favourite, Recently watched, Watch here instead when
+    /// another device holds the connection, leaving, and Search's channels.
+    func testLiveTv() async throws {
+        guard let one = await Admin.channelId("Test One"), let two = await Admin.channelId("Test Two") else {
+            throw XCTSkip("The test server has no Live TV source: check-screens.sh adds one.")
+        }
+        await Admin.unfavorite(two)
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            XCUIDevice.shared.orientation = .landscapeLeft
+        }
+        let app = XCUIApplication()
+        app.launch()
+        let walk = Walk(app: app, test: self)
+        walk.startSignedOut()
+        await walk.signInWithCode()
+        walk.chooseSignedIn()
+        walk.seeHome(Admin.adminName)
+
+        walk.openLiveTv()
+        walk.chooseCategory("all")
+        let programme = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Test One at'")).firstMatch
+        walk.wait(programme, "Test One's programme in the guide", timeout: 30)
+        walk.shot("70-live-guide")
+        walk.wait(app.buttons["Channels"], "the Channels view").tap()
+        walk.wait(walk.element("live.channel.\(one)"), "Test One's card").tap()
+        await walk.livePlayer(says: "playing")
+        await walk.liveChannel(is: "Test One")
+        walk.shot("71-live-player")
+
+        walk.tapInPlayer("live.channelUp", "Channel up")
+        await walk.liveChannel(is: "Test Two")
+        await walk.livePlayer(says: "playing")
+        walk.tapInPlayer("live.favorite", "the star")
+        let starred = await walk.holds { await Admin.favoriteChannels().contains(two) }
+        XCTAssertTrue(starred, "Test Two is a favourite at the server")
+        walk.tapInPlayer("live.close", "Close")
+        let left = await walk.holds(within: 4) { await Admin.liveViewers() == 0 }
+        XCTAssertTrue(left, "leaving ends the session at the server")
+
+        walk.chooseCategory("favorites")
+        walk.wait(walk.element("live.channel.\(two)"), "Test Two in Favourites")
+        walk.chooseCategory("recent")
+        walk.wait(walk.element("live.channel.\(two)"), "Test Two in Recently watched")
+        walk.wait(walk.element("live.channel.\(one)"), "Test One in Recently watched")
+
+        // Another device holds the one connection: Watch here instead takes it.
+        let other = await Admin.watch(two)
+        XCTAssertNotNil(other, "the other device watches Test Two")
+        walk.chooseCategory("all")
+        walk.wait(walk.element("live.channel.\(one)"), "Test One's card").tap()
+        walk.wait(walk.element("live.trouble"), "All connections are in use", timeout: 30)
+        XCTAssertEqual(walk.element("live.trouble.title").label, "All connections are in use")
+        walk.shot("72-live-busy")
+        walk.tap("live.takeOver", "Watch here instead")
+        await walk.livePlayer(says: "playing")
+        if let other {
+            let stopped = await walk.holds { await Admin.playlistStatus(other) == 410 }
+            XCTAssertTrue(stopped, "the other device's playlist answers 410")
+        }
+        walk.tapInPlayer("live.close", "Close")
+        let gone = await walk.holds(within: 4) { await Admin.liveViewers() == 0 }
+        XCTAssertTrue(gone, "leaving ends the session at the server")
+
+        walk.openSearch()
+        let field = walk.wait(app.searchFields.firstMatch, "the search field")
+        field.tap()
+        field.typeText("Test")
+        walk.wait(walk.element("search.group.channels"), "Live TV's channels found", timeout: 30)
+        walk.shot("73-live-search")
+        let cancel = app.buttons.matching(NSPredicate(format: "label IN {'Cancel', 'Close'}")).firstMatch
+        if cancel.exists { cancel.tap() }
+        walk.openMe()
+        walk.signOut()
+    }
+
     func testPersonPage() async throws {
         let libraries = await Admin.libraryIds()
         var found: (library: String, title: String)?

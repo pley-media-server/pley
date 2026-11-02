@@ -74,11 +74,20 @@ extension Walk {
         _ = await Admin.call("DELETE", "/api/watchlist/\(id)")
     }
 
-    /// A library's tab.
+    /// A library's page: its tab, or, when the tabs ran out, its row under Libraries.
     func openLibraryTab(_ name: String) {
         let tab = app.tabBars.buttons[name]
-        focus(tab, "the \(name) tab", first: [.up, .right, .left])
-        remote.press(.select)
+        if tab.waitForExistence(timeout: 5) {
+            focus(tab, "the \(name) tab", first: [.up, .right, .left])
+            remote.press(.select)
+        } else {
+            let libraries = app.tabBars.buttons["Libraries"]
+            focus(libraries, "the Libraries tab", first: [.up, .right, .left])
+            remote.press(.select)
+            let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'libraries.row.' AND label BEGINSWITH %@",
+                                                       name)).firstMatch
+            select(row, "\(name) under Libraries", first: [.down])
+        }
         wait(element("library.tab.library"), "\(name)'s page")
     }
 
