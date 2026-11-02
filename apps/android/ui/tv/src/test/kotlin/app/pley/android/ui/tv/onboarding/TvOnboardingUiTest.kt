@@ -8,9 +8,13 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performTextInput
 import app.pley.android.auth.Needs
 import app.pley.android.common.FoundServer
 import app.pley.android.screens.onboarding.LinkCode
@@ -32,7 +36,7 @@ import org.robolectric.annotation.Config
 
 /**
  * Getting in on TV with the remote (D-pad rule 11): the PIN pad (focus on
- * 5, the remote's digits, Delete, OK, a locked PIN), the address pad, the
+ * 5, the remote's digits, Delete, OK, a locked PIN), typing an address, the
  * link screen's focus, and the servers list's.
  */
 @OptIn(ExperimentalTestApi::class)
@@ -126,64 +130,53 @@ class TvOnboardingUiTest {
         assertEquals(1, cancelled)
     }
 
-    // ---------------------------------------------------------------- the address pad
+    // ---------------------------------------------------------------- the address
 
-    @Test
-    fun theAddressPadStartsWithTheNetworkAndConnects() {
+    private fun addressEntry(state: ServersUiState = ServersUiState()): List<String> {
         val connected = mutableListOf<String>()
         compose.setContent {
             TvTheme(reducedMotion = true) {
-                TvAddressPad(ServersUiState(subnet = "192.168.1."), onConnect = { connected += it }, onEdited = {})
+                TvAddressEntry(state, onConnect = { connected += it }, onEdited = {})
             }
         }
         compose.waitForIdle()
-        compose.onNodeWithTag("pley.pad.5").assertIsFocused()
-        compose.press(Key.Two)
-        compose.press(Key.Zero)
-        // Down to "0", left to ".", right twice to ":".
-        compose.press(Key.DirectionDown, times = 2)
-        compose.press(Key.DirectionRight)
-        compose.onNodeWithTag("pley.pad.:").assertIsFocused()
-        compose.press(Key.DirectionCenter)
-        compose.press(Key.Eight)
-        compose.press(Key.Zero)
+        return connected
+    }
+
+    @Test
+    fun theKeyboardOpensWithTheAddressAndGoConnects() {
+        val connected = addressEntry()
+        // No number pad: the field is being typed in, and starts empty.
+        compose.onNodeWithTag("pley.pad.5").assertDoesNotExist()
+        val typing = compose.onNode(hasSetTextAction())
+        typing.assertIsFocused()
+        typing.assertTextEquals("")
+        typing.performTextInput("https://pley.example.com")
+        typing.performImeAction()
+        assertEquals(listOf("https://pley.example.com"), connected)
+        // The keyboard closed, leaving focus on the field.
+        compose.onNodeWithTag(ADDRESS_FIELD_TAG).assertIsFocused()
+    }
+
+    @Test
+    fun theRemotesKeysTypeOnceTheKeyboardIsClosed() {
+        val connected = addressEntry()
+        compose.onNode(hasSetTextAction()).performImeAction()
+        assertEquals(emptyList<String>(), connected)
+        compose.onNodeWithTag(ADDRESS_FIELD_TAG).assertIsFocused()
+        for (key in listOf(Key.One, Key.Nine, Key.Two, Key.Period, Key.One, Key.Six, Key.Eight, Key.Period, Key.One, Key.Period, Key.Two, Key.Zero, Key.Nine)) {
+            compose.press(key)
+        }
         compose.press(Key.Backspace)
-        compose.press(Key.One)
         compose.press(Key.DirectionDown)
         compose.onNodeWithTag(CONNECT_TAG).assertIsFocused()
         compose.press(Key.DirectionCenter)
-        assertEquals(listOf("192.168.1.20:81"), connected)
+        assertEquals(listOf("192.168.1.20"), connected)
     }
 
     @Test
-    fun aKeyboardTypesAServersNameIntoThePad() {
-        val connected = mutableListOf<String>()
-        compose.setContent {
-            TvTheme(reducedMotion = true) {
-                TvAddressPad(ServersUiState(), onConnect = { connected += it }, onEdited = {})
-            }
-        }
-        compose.waitForIdle()
-        compose.press(Key.N)
-        compose.press(Key.A)
-        compose.press(Key.S)
-        compose.press(Key.DirectionDown, times = 2)
-        compose.press(Key.DirectionRight)
-        compose.press(Key.DirectionCenter)
-        compose.press(Key.Eight)
-        compose.press(Key.One)
-        compose.press(Key.DirectionDown)
-        compose.press(Key.DirectionCenter)
-        assertEquals(listOf("nas:81"), connected)
-    }
-
-    @Test
-    fun theAddressPadSaysWhatWentWrong() {
-        compose.setContent {
-            TvTheme(reducedMotion = true) {
-                TvAddressPad(ServersUiState(addressProblem = ServersProblem.NotPley("router:7539")), onConnect = {}, onEdited = {})
-            }
-        }
+    fun theAddressSaysWhatWentWrong() {
+        addressEntry(ServersUiState(addressProblem = ServersProblem.NotPley("router:7539")))
         compose.onNodeWithText("Something answers at router:7539, but it isn't Pley.").assertExists()
     }
 

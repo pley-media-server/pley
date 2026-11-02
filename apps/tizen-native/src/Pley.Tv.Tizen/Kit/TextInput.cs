@@ -8,8 +8,9 @@ namespace Pley.Tv.Tizen.Kit;
 /// <summary>
 /// Text entry on TV (D-pad rule 7, design spec §2.11; the Android app's TvTextField), only for search
 /// and server addresses. Focus lands on the field without opening the keyboard, so D-pad users pass
-/// through it; OK opens the TV's keyboard, and Back, the keyboard's own action or its closing ends
-/// typing, leaving focus on the field. Pads type into it too (<see cref="Type"/>).
+/// through it; OK opens the TV's keyboard (or <see cref="Start"/>, on a screen that only asks for
+/// words), and Back, the keyboard's own action or its closing ends typing, leaving focus on the field.
+/// The remote's digit keys type into it too (<see cref="Type"/>).
 ///
 /// 44 dp, Surface2, radius 4, Body. At rest a 1 dp Control edge; focused or typing a 2 dp
 /// AccentBright edge, without scale (fields are wide). With an icon (search's glyph), the icon
@@ -76,7 +77,7 @@ sealed class TextInput : View
 
     public FocusItem Item { get; }
 
-    /// <summary>What is typed changed, by the keyboard or a pad.</summary>
+    /// <summary>What is typed changed, by the keyboard or the remote.</summary>
     public event Action<string>? Changed;
 
     /// <summary>The keyboard's action key (Go, Search) was pressed.</summary>
@@ -88,10 +89,10 @@ sealed class TextInput : View
         set => field.Text = value;
     }
 
-    /// <summary>Adds <paramref name="text"/> at the end, as a pad's key types it.</summary>
+    /// <summary>Adds <paramref name="text"/> at the end, as the remote's digit keys type it.</summary>
     public void Type(string text) => field.Text = Value + text;
 
-    /// <summary>Deletes the last character, as a pad's Delete does.</summary>
+    /// <summary>Deletes the last character, as the remote's Delete does.</summary>
     public void DeleteLast()
     {
         var v = Value;
@@ -99,7 +100,7 @@ sealed class TextInput : View
     }
 
     /// <summary>Opens the TV's keyboard on the field.</summary>
-    void Start()
+    public void Start()
     {
         if (editing) return;
         editing = true;

@@ -12,7 +12,7 @@ namespace Pley.Tv.Tizen.Screens;
 
 /// <summary>
 /// "Choose your server" (design spec §4.7; the Android app's TvServersScreen): saved servers first,
-/// then those that answer as they come; "Enter an address" (the address pad) and "Search this
+/// then those that answer as they come; "Enter an address" (on the TV's keyboard) and "Search this
 /// network". Holding OK on a saved server forgets it.
 /// </summary>
 sealed class ServersScreen : Sheet
@@ -35,7 +35,7 @@ sealed class ServersScreen : Sheet
     IReadOnlyList<ServerRow> shownRows = Array.Empty<ServerRow>();
     readonly IDisposable watch;
     readonly IDisposable anyKey;
-    AddressPad? pad;
+    AddressEntry? address;
     bool touched;
     bool sweepShown;
     float listScroll;
@@ -66,7 +66,7 @@ sealed class ServersScreen : Sheet
         list.Add(listContent);
         View.Add(list);
 
-        enterAddress = buttons.Add(new ButtonView("Enter an address", ButtonKind.Text, OpenPad));
+        enterAddress = buttons.Add(new ButtonView("Enter an address", ButtonKind.Text, OpenAddress));
         searchNetwork = buttons.Add(new ButtonView("Search this network", ButtonKind.Text, () => _ = model.SearchNetwork()));
         buttons.PositionX = Ui.Dp(Left);
         View.Add(buttons);
@@ -105,11 +105,11 @@ sealed class ServersScreen : Sheet
 
     void OnChosen(ChosenServer chosen) => Chosen?.Invoke(chosen);
 
-    void OpenPad()
+    void OpenAddress()
     {
-        pad = new AddressPad(shell, model);
-        pad.Gone += () => pad = null;
-        pad.Show();
+        address = new AddressEntry(shell, model);
+        address.Gone += () => address = null;
+        address.Show();
     }
 
     void Show(ServersState state)

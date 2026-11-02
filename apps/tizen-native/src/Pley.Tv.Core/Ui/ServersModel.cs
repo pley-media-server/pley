@@ -43,8 +43,6 @@ public sealed record ServersState
     /// <summary>About the typed address.</summary>
     public ConnectProblem? AddressProblem { get; init; }
     public bool CheckingAddress { get; init; }
-    /// <summary>The TV's network's first digits for the address pad ("192.168.1.").</summary>
-    public string? Subnet { get; init; }
 }
 
 /// <summary>A server was chosen and saved as the one in use.</summary>
@@ -170,9 +168,9 @@ public sealed class ServersModel : IDisposable
         }
         catch (Exception)
         {
-            // The network's list can't be read: no digits to start the pad with.
+            // The network's list can't be read: "Search this network" has nowhere to look.
         }
-        Update(s => s with { Subnet = subnet, SweepRange = subnet == null ? null : subnet + "1-254" });
+        Update(s => s with { SweepRange = subnet == null ? null : subnet + "1-254" });
         SavedChanged();
         _ = Search();
     }

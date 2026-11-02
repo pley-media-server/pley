@@ -9,7 +9,7 @@ import { F, G } from "../../kit/focusable";
 import { TextField } from "../../kit/field";
 import { Icon } from "../../kit/icons";
 import { Dialog, sentence, useApp } from "../common";
-import { ADDRESS_KEYS, BrandGlow, keyId, NumberPad, PadGlyph, PleyLogo, StatusLine, type PadKey } from "./kit";
+import { BrandGlow, PleyLogo, StatusLine } from "./kit";
 
 /** A row of the server list. */
 interface Row {
@@ -37,9 +37,10 @@ const LIST_MAX = 300;
 
 /**
  * "Choose your server" (TvServersScreen): the servers this TV used, then
- * those that answer on the home network; an address typed on the pad;
- * "Search this network" asks every address of the TV's /24. Choosing one
- * opens sign-in, or Home when the TV is signed in there already.
+ * those that answer on the home network; an address typed on the TV's
+ * keyboard; "Search this network" asks every address of the TV's /24.
+ * Choosing one opens sign-in, or Home when the TV is signed in there
+ * already.
  */
 export function ServersScreen() {
   const app = useApp();
@@ -53,7 +54,7 @@ export function ServersScreen() {
   const [searched, setSearched] = useState(false);
   const [sweeping, setSweeping] = useState(false);
   const [subnet, setSubnet] = useState<string | null>(null);
-  const [pad, setPad] = useState(false);
+  const [entering, setEntering] = useState(false);
   const [forgetting, setForgetting] = useState<Row | null>(null);
   const [shift, setShift] = useState(0);
   const warned = useRef<string | null>(null);
@@ -181,21 +182,20 @@ export function ServersScreen() {
   const enterRef = useRef<HTMLElement | null>(null);
   // The first row takes focus when one appears, until a key was pressed.
   useLayoutEffect(() => {
-    if (touched.current || pad || forgetting) return;
+    if (touched.current || entering || forgetting) return;
     const first = listRef.current?.querySelector<HTMLElement>("[data-f]");
     if (first) ui.focus.focus(first);
     else if (searched && enterRef.current && !ui.focus.current?.isConnected) ui.focus.focus(enterRef.current);
-  }, [rows.length > 0, searched, pad]);
+  }, [rows.length > 0, searched, entering]);
 
-  if (pad) {
+  if (entering) {
     return (
-      <AddressPad
-        subnet={subnet}
+      <AddressEntry
         problem={problem}
         onEdited={() => setProblem(null)}
         onBack={() => {
           touched.current = false;
-          setPad(false);
+          setEntering(false);
         }}
         onConnect={(text, setChecking) => {
           setProblem(null);
@@ -272,7 +272,7 @@ export function ServersScreen() {
           </div>
         )}
         <G kind="row" class="server-buttons" style={`margin-top:${rows.length ? 16 : 0}px`}>
-          <F class="text-btn t-label" label="Enter an address" elRef={(el) => (enterRef.current = el)} initial={!rows.length} onSelect={() => setPad(true)}>
+          <F class="text-btn t-label" label="Enter an address" elRef={(el) => (enterRef.current = el)} initial={!rows.length} onSelect={() => setEntering(true)}>
             <span>Enter an address</span>
           </F>
           <TextButton label="Search this network" disabled={sweeping || !subnet} onSelect={runSweep} />
@@ -349,29 +349,23 @@ function ServerRow(p: { row: Row; busy: boolean; lookalike: boolean; onFocus: ()
 }
 
 /**
- * "Enter your server's address" (TvAddressPad): the field starts with the
- * TV's network ("192.168.1."); digits, "." and ":" from the pad or the
- * remote, letters from the TV's keyboard on the field.
+ * "Enter your server's address" (TvAddressEntry): a field and Connect under
+ * it. The TV's keyboard opens with the screen, so a name or a whole https
+ * address types as easily as an IP; once it is closed, the remote's digit
+ * keys type too.
  */
-function AddressPad(p: {
-  subnet: string | null;
+function AddressEntry(p: {
   problem: Problem | null;
   onEdited: () => void;
   onBack: () => void;
   onConnect: (text: string, setChecking: (checking: boolean) => void) => void;
 }) {
   const ui = useUi();
-  const [text, setText] = useState(p.subnet ?? "");
+  const [text, setText] = useState("");
   const [checking, setChecking] = useState(false);
-  const [flash, setFlash] = useState<{ key: string; n: number } | null>(null);
-  const edited = useRef(false);
   const textRef = useRef(text);
   textRef.current = text;
-  useEffect(() => {
-    if (!edited.current && !textRef.current && p.subnet) setText(p.subnet);
-  }, [p.subnet]);
   const edit = (next: string) => {
-    edited.current = true;
     // Kept at once: the remote's keys can come faster than the screen redraws.
     textRef.current = next;
     p.onEdited();
@@ -382,12 +376,7 @@ function AddressPad(p: {
     const t = textRef.current.trim();
     if (t) p.onConnect(t, setChecking);
   };
-  const press = (k: PadKey) => {
-    if (k.kind === "delete") {
-      if (textRef.current) edit(textRef.current.slice(0, -1));
-    } else if (k.kind === "text") edit(textRef.current + k.text);
-  };
-  // The remote's own digits, "." and Delete, wherever focus is on the pad; Back to the list.
+  // The remote's own digits, "." and Delete while the keyboard is closed; Back to the list.
   useEffect(
     () =>
       ui.input.push((key, e) => {
@@ -396,31 +385,18 @@ function AddressPad(p: {
           return true;
         }
         if (e.type !== "down") return key.indexOf("digit") === 0 || key === "period" || key === "backspace";
-        let k: PadKey | null = null;
-        if (key.indexOf("digit") === 0) k = { kind: "text", text: key.slice(5) };
-        else if (key === "period") k = { kind: "text", text: "." };
-        else if (key === "backspace") k = { kind: "delete" };
-        if (!k) return false;
-        press(k);
-        setFlash({ key: keyId(k), n: Date.now() });
+        if (key.indexOf("digit") === 0) edit(textRef.current + key.slice(5));
+        else if (key === "period") edit(textRef.current + ".");
+        else if (key === "backspace") {
+          if (textRef.current) edit(textRef.current.slice(0, -1));
+        } else return false;
         return true;
       }),
     [],
   );
-  const [deleteFlash, setDeleteFlash] = useState(false);
-  useEffect(() => {
-    if (flash?.key !== "delete") return;
-    setDeleteFlash(true);
-    const t = setTimeout(() => setDeleteFlash(false), 100);
-    return () => clearTimeout(t);
-  }, [flash?.n]);
   return (
     <BrandGlow>
-      <div class="address-info" aria-live="polite">
-        <div class="t-caption c-muted">Port 7539 is added when none is typed. Press OK on the field to type a name.</div>
-        {p.problem && <div class="t-body c-danger">{textOf(p.problem)}</div>}
-      </div>
-      <div class="address-pad">
+      <div class="address-entry">
         <div class="t-title c-fg">Enter your server's address</div>
         <G kind="col" class="address-col">
           <div style="margin-top:8px">
@@ -428,32 +404,22 @@ function AddressPad(p: {
               value={text}
               placeholder="192.168.1.20 or pley.example.com"
               type="url"
-              width={360}
+              width={480}
+              initial
+              typeNow
               onInput={(v) => edit(v)}
               onSubmit={() => setTimeout(connectNow, 0)}
             />
           </div>
           <div style="margin-top:14px">
-            <NumberPad rows={ADDRESS_KEYS} onKey={press} flash={flash} fid="pad" />
+            <Pill label={checking ? "Checking…" : "Connect"} onSelect={connectNow} />
           </div>
-          <G kind="row" class="address-bottom">
-            <F
-              class={`pad-key${deleteFlash ? " flash" : ""}`}
-              label="Delete"
-              onSelect={() => {
-                press({ kind: "delete" });
-                setFlash({ key: "delete", n: Date.now() });
-              }}
-            >
-              <PadGlyph k={{ kind: "delete" }} />
-            </F>
-            <div style="margin-left:14px">
-              <Pill label={checking ? "Checking…" : "Connect"} onSelect={connectNow} />
-            </div>
-          </G>
         </G>
+        <div class="address-info" aria-live="polite">
+          <div class="t-caption c-muted">Port 7539 is added when none is typed.</div>
+          {p.problem && <div class="t-body c-danger">{textOf(p.problem)}</div>}
+        </div>
       </div>
     </BrandGlow>
   );
 }
-

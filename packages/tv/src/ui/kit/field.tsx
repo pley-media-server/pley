@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { useUi } from "../context";
-import { F, G } from "./focusable";
+import { F } from "./focusable";
 import { Icon, type IconName } from "./icons";
 
 /**
@@ -98,36 +98,5 @@ export function TextField(p: {
         spellcheck={false}
       />
     </F>
-  );
-}
-
-/**
- * Number keys for PINs and addresses (the Android app's TvKeypad): three
- * columns of digits, then the extra keys. The remote's own digit keys
- * type too.
- */
-export function Keypad(p: { onDigit: (d: string) => void; onDelete: () => void; extra?: { label: string; onSelect: () => void }; fid?: string; initial?: boolean }) {
-  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
-  return (
-    <G kind="grid" columns={3} class="keypad">
-      {keys.map((k, i) => (
-        <F key={k} class="pad-key t-page" fid={p.fid ? `${p.fid}/${k}` : undefined} initial={p.initial && i === 4} label={k} onSelect={() => p.onDigit(k)}>
-          {k}
-        </F>
-      ))}
-      {p.extra ? (
-        <F class="pad-key t-label" label={p.extra.label} onSelect={p.extra.onSelect}>
-          {p.extra.label}
-        </F>
-      ) : (
-        <F class="pad-key" disabled label="" />
-      )}
-      <F class="pad-key t-page" label="0" onSelect={() => p.onDigit("0")}>
-        0
-      </F>
-      <F class="pad-key" label="Delete" onSelect={p.onDelete}>
-        <Icon name="arrow-left" size={24} />
-      </F>
-    </G>
   );
 }

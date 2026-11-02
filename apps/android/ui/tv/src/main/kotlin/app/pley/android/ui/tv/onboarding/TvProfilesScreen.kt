@@ -416,7 +416,6 @@ internal fun TvPinPad(
                         is PadKey.Digit -> onDigit(key.value)
                         PadKey.Delete -> onDelete()
                         PadKey.Ok -> onSubmit()
-                        is PadKey.Symbol -> Unit
                     }
                 },
             )

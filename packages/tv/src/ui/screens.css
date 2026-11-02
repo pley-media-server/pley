@@ -132,12 +132,11 @@
 }
 .forget-hint { position: absolute; left: 0; bottom: 0; }
 
-/* Address pad */
-.address-info { position: absolute; left: 96px; top: 121px; width: 240px; }
-.address-info > * + * { margin-top: 12px; }
-.address-pad { position: absolute; left: 0; right: 0; top: 27px; display: flex; flex-direction: column; align-items: center; }
+/* Typing an address */
+.address-entry { position: absolute; left: 0; right: 0; top: 27px; display: flex; flex-direction: column; align-items: center; }
 .address-col { display: flex; flex-direction: column; align-items: center; }
-.address-bottom { display: flex; align-items: center; margin-top: 14px; }
+.address-info { width: 480px; margin-top: 24px; text-align: center; }
+.address-info > * + * { margin-top: 12px; }
 
 /* Number pads */
 .number-pad { position: relative; }
@@ -152,7 +151,6 @@
 .pad-key.flash[data-focused],
 .pad-key.flash[data-pressed] { background: var(--surface4); color: var(--fg); }
 .pad-glyph { font-size: 28px; line-height: 28px; font-weight: 500; }
-.address-bottom .pad-key { margin: 0; }
 
 /* Link */
 .link-left { position: absolute; left: 96px; top: 56px; width: 440px; }

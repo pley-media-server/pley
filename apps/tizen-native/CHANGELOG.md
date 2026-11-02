@@ -15,7 +15,7 @@ It has no releases yet: it is built and installed by hand
   than in its place; the app's own icon is the plain logo.
 - A native app for Samsung TVs with Tizen 9, beside the web app: so far the
   Android TV app's "Choose your server" screen, with servers found on the
-  network, an address pad, the TV's keyboard and forgetting a server; its
+  network, an address typed on the TV's keyboard and forgetting a server; its
   sign-in with a code and a QR code, the tokens kept sealed by the TV's key
   manager; Who's watching? with PINs; and Home, with the hero, the
   server's rows and the rail; item pages, with seasons and episodes, Extras,

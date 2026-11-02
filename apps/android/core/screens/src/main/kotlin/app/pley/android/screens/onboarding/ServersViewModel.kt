@@ -96,8 +96,6 @@ data class ServersUiState(
     val demo: Boolean = false,
     /** The phone's chosen card, signed in to with "Continue in browser". */
     val selected: String? = null,
-    /** The device's network's first digits for the address pad ("192.168.1."). */
-    val subnet: String? = null,
 )
 
 /** A server was chosen and saved as the one in use. */
@@ -167,7 +165,7 @@ class ServersViewModel(
         }
         viewModelScope.launch {
             val subnet = runCatching { source.subnet() }.getOrNull()
-            _state.update { it.copy(subnet = subnet, sweepRange = subnet?.let { s -> "${s}1-254" }) }
+            _state.update { it.copy(sweepRange = subnet?.let { s -> "${s}1-254" }) }
         }
         beginSearch()
     }

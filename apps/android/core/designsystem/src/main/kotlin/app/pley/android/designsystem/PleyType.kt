@@ -85,7 +85,7 @@ object PleyType {
         /** The link code, in a monospaced face. */
         val Code = style(48, 56, Bold, 4f, family = FontFamily.Monospace)
 
-        /** PIN and address pad keys. */
+        /** PIN pad keys. */
         val PinDigit = style(28, 28, Medium)
     }
 
