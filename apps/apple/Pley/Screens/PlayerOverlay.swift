@@ -5,14 +5,20 @@ import SwiftUI
 /// What the iPhone, iPad and Mac players lay over the video, bottom
 /// trailing: Skip Intro or Skip Credits while the playhead is in one, and
 /// the Up Next card (the next episode's picture, its countdown, Play Next
-/// and Cancel) while it shows. Apple TV has the same in the system
-/// player's contextual actions.
+/// and Cancel) while it shows; and at the top, in the sleep timer's last
+/// 30 s, "Pausing in 30 s" with Keep watching. Apple TV has the same in
+/// the system player's contextual actions.
 struct PlayerOverlay: View {
     let app: AppModel
     @ObservedObject var controller: PlaybackController
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack {
+            if let notice = controller.state.sleep.notice {
+                sleepNotice(notice)
+                    .transition(.opacity)
+            }
             Spacer()
             HStack {
                 Spacer()
@@ -34,6 +40,25 @@ struct PlayerOverlay: View {
         .padding(.bottom, 96)
         .animation(.easeInOut(duration: 0.2), value: controller.state.upNext?.itemId)
         .animation(.easeInOut(duration: 0.2), value: controller.state.skipLabel)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: controller.state.sleep.secondsLeft == nil)
+    }
+
+    /// The sleep timer's notice: the seconds left and Keep watching.
+    private func sleepNotice(_ notice: String) -> some View {
+        HStack(spacing: 12) {
+            Text(notice)
+                .monospacedDigit()
+                .accessibilityIdentifier("player.sleepNotice")
+            Button("Keep watching") { controller.keepWatching() }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("player.keepWatching")
+        }
+        .font(.callout)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial, in: Capsule())
+        .accessibilityElement(children: .contain)
+        .padding(.top, 8)
     }
 }
 

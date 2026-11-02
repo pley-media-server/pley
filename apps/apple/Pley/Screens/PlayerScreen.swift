@@ -7,16 +7,17 @@ import SwiftUI
 #if os(iOS)
 /// The player on iPhone and iPad, full screen over the app: the system's
 /// player (its own Close ends the playback) with Pley's Options button
-/// (Quality, each with its second line, Audio, Subtitles, Subtitle sync,
-/// Chapters and Details) under
-/// its top row. Options shows with the system's controls (a tap shows it
+/// (Quality, each with its second line, Audio, Subtitles with Find
+/// Subtitles…, Subtitle sync, Speed, Sleep Timer, Chapters and Details)
+/// under its top row. Options shows with the system's controls (a tap shows it
 /// for 3 seconds) and stays while paused; an open menu stays open when
 /// the button hides. Skip Intro, Skip Credits and the
 /// Up Next card show bottom trailing (`PlayerOverlay`). A notice shows at
-/// the top for 4 seconds.
+/// the top for 4 seconds. Find Subtitles… opens its search in a sheet.
 struct PlayerScreen: View {
     let app: AppModel
     @ObservedObject var controller: PlaybackController
+    @State private var search: SubtitleSearchModel?
     @State private var controlsUntil = Date.distantPast
     @State private var hideTask: Task<Void, Never>?
     @State private var notice: String?
@@ -37,6 +38,9 @@ struct PlayerScreen: View {
         }
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
+        .sheet(item: $search) { model in
+            SubtitleSearchView(model: model)
+        }
         .onAppear { showControls() }
         .onChange(of: controller.state.notice) { text in
             guard let text else { return }
@@ -113,8 +117,14 @@ struct PlayerScreen: View {
     /// UIKit's menu, so a checked Quality keeps its second line, and the
     /// sync's offset moves while its menu is open.
     private var options: some View {
-        PlayerOptionsButton(state: controller.state, actions: PlayerMenus.Actions(controller), onTap: showControls)
+        PlayerOptionsButton(state: controller.state, actions: actions, onTap: showControls)
             .frame(width: 44, height: 44)
+    }
+
+    private var actions: PlayerMenus.Actions {
+        var actions = PlayerMenus.Actions(controller)
+        actions.findSubtitles = { [app, controller] in search = SubtitleSearchModel(app: app, controller: controller) }
+        return actions
     }
 
     private func showControls() {
@@ -175,11 +185,13 @@ private struct PlayerWindowContent: View {
     let app: AppModel
     @ObservedObject var controller: PlaybackController
     @State private var notice: String?
+    @State private var search: SubtitleSearchModel?
 
     var body: some View {
         ZStack {
             Color.black
-            PlayerSurface(controller: controller, state: controller.state, caps: app.caps)
+            PlayerSurface(controller: controller, state: controller.state, caps: app.caps,
+                          onFindSubtitles: findSubtitles)
             PlayerOverlay(app: app, controller: controller)
             VStack {
                 if let notice {
@@ -204,6 +216,10 @@ private struct PlayerWindowContent: View {
             }
         }
         .navigationTitle(windowTitle)
+        .sheet(item: $search) { model in
+            SubtitleSearchView(model: model)
+        }
+        .focusedSceneValue(\.findSubtitles, controller.state.canFindSubtitles ? FindSubtitlesAction(run: findSubtitles) : nil)
         .onChange(of: controller.state.notice) { _, text in
             guard let text else { return }
             notice = text
@@ -213,6 +229,10 @@ private struct PlayerWindowContent: View {
                 if notice == text { notice = nil }
             }
         }
+    }
+
+    private func findSubtitles() {
+        search = SubtitleSearchModel(app: app, controller: controller)
     }
 
     private var windowTitle: String {
@@ -231,6 +251,7 @@ struct PlaybackCommands: Commands {
     @FocusedObject private var player: PlaybackController?
     @FocusedObject private var live: LivePlayerModel?
     @FocusedValue(\.playTarget) private var target
+    @FocusedValue(\.findSubtitles) private var findSubtitles
     @Environment(\.openWindow) private var openWindow
 
     init(app: AppModel) {
@@ -294,6 +315,8 @@ struct PlaybackCommands: Commands {
                 }
             }
             .disabled(player?.state.subtitles.isEmpty ?? true)
+            Button("Find Subtitles…") { findSubtitles?.run() }
+                .disabled(findSubtitles == nil)
             Menu("Subtitle Sync (\(player?.state.subtitleOffsetLabel ?? "0.0 s"))") {
                 Button("Earlier (−0.1 s)") { player?.moveSubtitles(steps: -1) }
                 Button("Later (+0.1 s)") { player?.moveSubtitles(steps: 1) }
@@ -301,6 +324,26 @@ struct PlaybackCommands: Commands {
                     .disabled(player?.state.subtitleOffsetMs == 0)
             }
             .disabled(!(player?.state.canSyncSubtitles ?? false))
+            Menu("Speed (\(player?.state.speedLabel ?? "1×"))") {
+                ForEach(player?.state.speeds ?? []) { choice in
+                    Toggle(choice.label, isOn: Binding(get: { choice.selected }, set: { _ in
+                        if let speed = PlaybackSpeeds.speed(id: choice.id) { player?.setSpeed(speed) }
+                    }))
+                }
+            }
+            .disabled(player == nil)
+            Menu(player?.state.sleepSummary.map { "Sleep Timer (\($0))" } ?? "Sleep Timer") {
+                ForEach(player?.state.sleepChoices ?? []) { choice in
+                    Toggle(choice.label, isOn: Binding(get: { choice.selected }, set: { _ in
+                        if let sleep = SleepChoice(id: choice.id) { player?.setSleep(sleep) }
+                    }))
+                }
+                if player?.state.sleep.secondsLeft != nil {
+                    Divider()
+                    Button("Keep Watching") { player?.keepWatching() }
+                }
+            }
+            .disabled(player == nil)
             Menu("Chapters") {
                 ForEach(player?.state.chapters ?? []) { chapter in
                     Toggle(chapter.label, isOn: Binding(get: { chapter.current },

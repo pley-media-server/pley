@@ -1,5 +1,8 @@
 import PleyCommon
 import PleyPlayer
+#if os(iOS)
+import PleyPlayerViews
+#endif
 import PleyScreens
 import SwiftUI
 
@@ -72,14 +75,19 @@ struct RootView: View {
             // Another root starts again.
             .id(app.root)
         #if os(iOS)
-        .fullScreenCover(item: Binding(get: { app.player },
-                                       set: { if $0 == nil { Task { await app.closePlayer() } } })) { controller in
+        // Picture in Picture puts the player away and keeps the playback.
+        .fullScreenCover(item: Binding(get: { app.playerShown },
+                                       set: { if $0 == nil, !app.pictureInPicture { Task { await app.closePlayer() } } })) { controller in
             PlayerScreen(app: app, controller: controller)
         }
         .fullScreenCover(item: Binding(get: { app.livePlayer },
                                        set: { if $0 == nil { app.closeLivePlayer() } })) { model in
             LivePlayerScreen(app: app, model: model) { app.closeLivePlayer() }
         }
+        .onValueChange(of: app.player?.id) { _ in
+            PictureInPictureKeeper.shared.playerChanged(app.player?.player)
+        }
+        .task { keepPictureInPicture() }
         .onChange(of: scenePhase) { phase in
             switch phase {
             case .background: background()
@@ -127,14 +135,24 @@ struct RootView: View {
 
     #if os(iOS)
     /// Going to the background pauses, and the system gives the pause's
-    /// report time to go out.
+    /// report time to go out. A video going on in Picture in Picture
+    /// (started as the app left, a moment later) plays on.
     private func background() {
         guard let player = app.player else { return }
         let task = UIApplication.shared.beginBackgroundTask(withName: "Pley playback report")
         Task {
-            await player.appWillBackground()
+            try? await Task.sleep(for: .milliseconds(300))
+            if !app.pictureInPicture { await player.appWillBackground() }
             UIApplication.shared.endBackgroundTask(task)
         }
+    }
+
+    /// Picture in Picture's start, restore and ✕ go to the app.
+    private func keepPictureInPicture() {
+        let keeper = PictureInPictureKeeper.shared
+        keeper.onStart = { [app] in app.pictureInPictureStarted() }
+        keeper.onRestore = { [app] in app.pictureInPictureRestored() }
+        keeper.onClosed = { [app] in app.pictureInPictureClosed() }
     }
     #endif
 }

@@ -23,18 +23,35 @@ import Testing
         menu.delegate = source
 
         source.menuNeedsUpdate(menu)
-        #expect(menu.items.map(\.title) == ["Quality", "Audio", "Details"])
+        #expect(menu.items.map(\.title) == ["Quality", "Audio", "Speed", "Sleep Timer", "Details"])
         var quality = try #require(menu.items.first?.submenu)
         #expect(quality.items.map(\.state) == [.on, .off])
         #expect(quality.items.map(\.subtitle) == ["The file as it is", "4 Mbps"])
 
         // The state moves on while it plays; the menu is made again only as it opens.
         now = state(quality: "720p", audio: 1)
-        #expect(menu.items.map(\.title) == ["Quality", "Audio", "Details"])
+        #expect(menu.items.map(\.title) == ["Quality", "Audio", "Speed", "Sleep Timer", "Details"])
         source.menuNeedsUpdate(menu)
-        #expect(menu.items.map(\.title) == ["Quality", "Details"])
+        #expect(menu.items.map(\.title) == ["Quality", "Speed", "Sleep Timer", "Details"])
         quality = try #require(menu.items.first?.submenu)
         #expect(quality.items.map(\.state) == [.off, .on])
+    }
+
+    @Test func speedSleepAndFindSubtitlesAreInTheMenu() throws {
+        var now = state(quality: MenuChoice.original)
+        now.speed = 1.5
+        now.subtitles = [MenuChoice(id: MenuChoice.off, label: "Off", selected: true)]
+        now.canFindSubtitles = true
+        let items = PlayerMenus.actionItems(now, controller: nil, findSubtitles: {})
+        let subtitles = try #require(items.first { $0.title == "Subtitles" }?.submenu)
+        #expect(subtitles.items.last?.title == "Find Subtitles…")
+        let speed = try #require(items.first { $0.title == "Speed" })
+        #expect(speed.subtitle == "1.5×")
+        #expect(speed.submenu?.items.filter { $0.state == .on }.map(\.title) == ["1.5×"])
+        #expect(items.contains { $0.title == "Sleep Timer" })
+        // Without a window to open the search, it isn't offered.
+        let without = PlayerMenus.actionItems(now, controller: nil)
+        #expect(without.first { $0.title == "Subtitles" }?.submenu?.items.map(\.title) == ["Off"])
     }
 
     @Test func withoutAStateTheMenuIsEmpty() {

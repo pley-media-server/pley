@@ -274,6 +274,32 @@ private func addShow(to server: FixtureServer) {
         #expect(app.player == nil)
     }
 
+    @Test func pictureInPictureHidesThePlayerAndItsCloseEndsThePlayback() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        playable(server)
+        let app = try await signedIn(server)
+        let controller = try #require(await app.play(PlayRequest(itemId: 7)))
+        try #require(await eventually { controller.session != nil })
+        #expect(app.playerShown === controller)
+
+        app.pictureInPictureStarted()
+        #expect(app.pictureInPicture)
+        #expect(app.playerShown == nil)
+        #expect(app.player === controller)
+        app.pictureInPictureRestored()
+        #expect(app.playerShown === controller)
+        // Restored, a later stop is not a close.
+        app.pictureInPictureClosed()
+        #expect(app.player === controller)
+
+        app.pictureInPictureStarted()
+        app.pictureInPictureClosed()
+        #expect(!app.pictureInPicture)
+        try #require(await eventually { app.player == nil })
+        try #require(await eventually { server.openSessions.isEmpty })
+    }
+
     @Test func signingOutEndsThePlayback() async throws {
         let server = try await fixture()
         defer { server.stop() }

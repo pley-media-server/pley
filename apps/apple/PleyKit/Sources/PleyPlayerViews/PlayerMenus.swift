@@ -19,6 +19,10 @@ public enum PlayerMenus {
         public var moveSubtitles: @MainActor (Int) -> Void = { _ in }
         public var resetSubtitleSync: @MainActor () -> Void = {}
         public var chapter: @MainActor (Int) -> Void = { _ in }
+        public var speed: @MainActor (Double) -> Void = { _ in }
+        public var sleep: @MainActor (SleepChoice) -> Void = { _ in }
+        /// Find Subtitles…: the screen opens the search; `nil` leaves it out.
+        public var findSubtitles: (@MainActor () -> Void)?
 
         public init() {}
 
@@ -31,6 +35,8 @@ public enum PlayerMenus {
             moveSubtitles = { [weak controller] in controller?.moveSubtitles(steps: $0) }
             resetSubtitleSync = { [weak controller] in controller?.setSubtitleOffset(0) }
             chapter = { [weak controller] in controller?.jumpToChapter($0) }
+            speed = { [weak controller] in controller?.setSpeed($0) }
+            sleep = { [weak controller] in controller?.setSleep($0) }
         }
     }
 
@@ -62,16 +68,41 @@ public enum PlayerMenus {
 
     /// Subtitles: Off and each track, the one shown checked, then the sync
     /// (0.1 s earlier or later, kept open while it is moved, and back to 0)
-    /// when they can be moved.
+    /// when they can be moved, and last Find Subtitles… while it streams.
     public static func subtitles(_ state: PlayerState, _ actions: Actions) -> UIMenu {
         let tracks = state.subtitles.map { choice in
             row(choice) { actions.subtitle(choice.id == MenuChoice.off ? nil : Int(choice.id)) }
         }
-        var children: [UIMenuElement] = [UIMenu(title: "", options: .displayInline, children: tracks)]
+        var children: [UIMenuElement] = tracks.isEmpty ? [] : [UIMenu(title: "", options: .displayInline,
+                                                                      children: tracks)]
         if state.canSyncSubtitles {
             children.append(subtitleSync(state, actions))
         }
+        if let find = findSubtitles(state, actions) { children.append(find) }
         return UIMenu(title: "Subtitles", image: UIImage(systemName: "captions.bubble"), children: children)
+    }
+
+    /// Find Subtitles…, while the file streams from the server and the screen can open the search.
+    public static func findSubtitles(_ state: PlayerState, _ actions: Actions) -> UIAction? {
+        guard state.canFindSubtitles, let find = actions.findSubtitles else { return nil }
+        return UIAction(title: "Find Subtitles…", image: UIImage(systemName: "magnifyingglass")) { _ in find() }
+    }
+
+    /// Speed, 0.5× to 2×, the one playing checked, with it as the menu's second line.
+    public static func speed(_ state: PlayerState, _ actions: Actions) -> UIMenu {
+        UIMenu(title: "Speed", subtitle: state.speedLabel, image: UIImage(systemName: "gauge.with.dots.needle.67percent"),
+               children: state.speeds.map { choice in
+                   row(choice) { if let speed = PlaybackSpeeds.speed(id: choice.id) { actions.speed(speed) } }
+               })
+    }
+
+    /// Sleep Timer: Off, the minutes and the end of this episode, the one
+    /// running checked, with what is left as the menu's second line.
+    public static func sleepTimer(_ state: PlayerState, _ actions: Actions) -> UIMenu {
+        UIMenu(title: "Sleep Timer", subtitle: state.sleepSummary, image: UIImage(systemName: "moon.zzz"),
+               children: state.sleepChoices.map { choice in
+                   row(choice) { if let sleep = SleepChoice(id: choice.id) { actions.sleep(sleep) } }
+               })
     }
 
     /// The subtitle sync, with the offset as its second line.
@@ -101,17 +132,21 @@ public enum PlayerMenus {
 
     #if os(iOS)
     /// The iPhone's and iPad's Options menu: Quality, Audio and Subtitles
-    /// as sections, then the subtitle sync, the chapters and the details.
+    /// (Find Subtitles… last) as sections, then the subtitle sync, Speed,
+    /// Sleep Timer, the chapters and the details.
     public static func options(_ state: PlayerState, _ actions: Actions) -> UIMenu {
         var children: [UIMenuElement] = [section(quality(state.qualities, actions))]
         if state.audio.count > 1 { children.append(section(audio(state.audio, actions))) }
-        if !state.subtitles.isEmpty {
-            let tracks = state.subtitles.map { choice in
+        let find = findSubtitles(state, actions)
+        if !state.subtitles.isEmpty || find != nil {
+            let tracks: [UIMenuElement] = state.subtitles.map { choice in
                 row(choice) { actions.subtitle(choice.id == MenuChoice.off ? nil : Int(choice.id)) }
-            }
+            } + [find].compactMap { $0 }
             children.append(UIMenu(title: "Subtitles", options: .displayInline, children: tracks))
             if state.canSyncSubtitles { children.append(subtitleSync(state, actions)) }
         }
+        children.append(speed(state, actions))
+        children.append(sleepTimer(state, actions))
         if !state.chapters.isEmpty { children.append(chapters(state.chapters, actions)) }
         let details = PlayerDetails.lines(state).map { line in
             UIAction(title: line.title, subtitle: line.text, attributes: .disabled) { _ in }
@@ -189,6 +224,10 @@ public struct PlayerOptionsButton: UIViewRepresentable {
         var canSync: Bool
         var chapters: [ChapterChoice]
         var details: [PlayerDetails.Line]
+        var speed: Double
+        var sleep: [MenuChoice]
+        var sleepSummary: String?
+        var canFind: Bool
 
         init(_ state: PlayerState) {
             qualities = state.qualities
@@ -198,6 +237,10 @@ public struct PlayerOptionsButton: UIViewRepresentable {
             canSync = state.canSyncSubtitles
             chapters = state.chapters
             details = PlayerDetails.lines(state)
+            speed = state.speed
+            sleep = state.sleepChoices
+            sleepSummary = state.sleepSummary
+            canFind = state.canFindSubtitles
         }
     }
 }

@@ -10,7 +10,11 @@ import SwiftUI
 /// full-screen button, showing the controller's AVPlayer.
 ///
 /// - Its action menu (the controls' "…") has Quality, each choice with its
-///   second line, Audio, Subtitles, Subtitle sync, Chapters and Details.
+///   second line, Audio, Subtitles (Find Subtitles… last), Subtitle sync,
+///   Speed, Sleep Timer, Chapters and Details.
+/// - Picture in Picture is the controls' own button; restoring it brings
+///   the player's window to the front. The window stays open meanwhile,
+///   and closing it ends the playback and Picture in Picture.
 ///   The menu is set once; its items are made from the controller's state
 ///   each time it opens (`ActionMenuSource`), so the state changing while
 ///   it plays doesn't touch it.
@@ -26,18 +30,25 @@ public struct PlayerSurface: NSViewRepresentable {
     let controller: PlaybackController
     let state: PlayerState
     let caps: DeviceCaps?
+    /// Find Subtitles…: the window opens the search.
+    let onFindSubtitles: (@MainActor () -> Void)?
 
-    public init(controller: PlaybackController, state: PlayerState, caps: DeviceCaps?) {
+    public init(controller: PlaybackController, state: PlayerState, caps: DeviceCaps?,
+                onFindSubtitles: (@MainActor () -> Void)? = nil) {
         self.controller = controller
         self.state = state
         self.caps = caps
+        self.onFindSubtitles = onFindSubtitles
     }
 
     public func makeNSView(context: Context) -> PleyPlayerView {
         let view = PleyPlayerView()
         view.controlsStyle = .floating
         view.showsFullScreenToggleButton = true
-        view.allowsPictureInPicturePlayback = false
+        view.allowsPictureInPicturePlayback = true
+        view.pictureInPictureDelegate = view
+        // The speed is the Speed menu's (`PlaybackController.setSpeed`): one control.
+        view.speeds = []
         // The app's Now Playing owns the media keys and the menu bar's Now Playing.
         view.updatesNowPlayingInfoCenter = false
         view.addSubtitles()
@@ -48,6 +59,7 @@ public struct PlayerSurface: NSViewRepresentable {
     public func updateNSView(_ view: PleyPlayerView, context: Context) {
         view.controller = controller
         view.caps = caps
+        view.actionMenuSource.findSubtitles = onFindSubtitles
         if view.player !== controller.player { view.player = controller.player }
         view.subtitles?.shown = state.cues
     }
@@ -59,8 +71,9 @@ public struct PlayerSurface: NSViewRepresentable {
     }
 }
 
-/// `AVPlayerView` with the window's keys, its screen and the Mac's sleep.
-public final class PleyPlayerView: AVPlayerView {
+/// `AVPlayerView` with the window's keys, its screen, the Mac's sleep and
+/// Picture in Picture.
+public final class PleyPlayerView: AVPlayerView, AVPlayerViewPictureInPictureDelegate {
     weak var controller: PlaybackController? {
         didSet { actionMenuSource.controller = controller }
     }
@@ -159,6 +172,22 @@ public final class PleyPlayerView: AVPlayerView {
         caps?.screenChanged(ScreenFacts(screen))
     }
 
+    // MARK: Picture in Picture
+
+    /// Restoring brings the window to the front, where the video goes back.
+    public nonisolated func playerView(
+        _ playerView: AVPlayerView,
+        restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completion: @escaping (Bool) -> Void) {
+        MainActor.assumeIsolated {
+            if let window {
+                if window.isMiniaturized { window.deminiaturize(nil) }
+                window.makeKeyAndOrderFront(nil)
+                NSApp.activate()
+            }
+        }
+        completion(true)
+    }
+
     /// Acts on a key of `PlayerKeys`; false for any other.
     private func pressed(_ characters: String?, _ flags: NSEvent.ModifierFlags) -> Bool {
         let command = !flags.intersection([.command, .control, .option]).isEmpty
@@ -201,6 +230,8 @@ public final class PleyPlayerView: AVPlayerView {
 @MainActor
 public final class ActionMenuSource: NSObject, NSMenuDelegate {
     weak var controller: PlaybackController?
+    /// Find Subtitles…: the window opens the search.
+    var findSubtitles: (@MainActor () -> Void)?
     /// The state the items are made from: the controller's, or a test's.
     var state: () -> PlayerState?
 
@@ -213,7 +244,7 @@ public final class ActionMenuSource: NSObject, NSMenuDelegate {
     public func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         guard let state = state() else { return }
-        for item in PlayerMenus.actionItems(state, controller: controller) {
+        for item in PlayerMenus.actionItems(state, controller: controller, findSubtitles: findSubtitles) {
             menu.addItem(item)
         }
     }
@@ -224,15 +255,17 @@ public enum PlayerMenus {
     /// Quality (the one playing checked), Audio (when there is a choice),
     /// Subtitles and their sync (when the file has some), Chapters and Details.
     @MainActor
-    public static func actionMenu(_ state: PlayerState, controller: PlaybackController?) -> NSMenu {
+    public static func actionMenu(_ state: PlayerState, controller: PlaybackController?,
+                                  findSubtitles: (@MainActor () -> Void)? = nil) -> NSMenu {
         let menu = NSMenu()
-        actionItems(state, controller: controller).forEach { menu.addItem($0) }
+        actionItems(state, controller: controller, findSubtitles: findSubtitles).forEach { menu.addItem($0) }
         return menu
     }
 
     /// The action menu's items for `state`.
     @MainActor
-    static func actionItems(_ state: PlayerState, controller: PlaybackController?) -> [NSMenuItem] {
+    static func actionItems(_ state: PlayerState, controller: PlaybackController?,
+                            findSubtitles: (@MainActor () -> Void)? = nil) -> [NSMenuItem] {
         let menu = NSMenu()
         let quality = NSMenuItem(title: "Quality", action: nil, keyEquivalent: "")
         quality.submenu = NSMenu(title: "Quality")
@@ -254,10 +287,18 @@ public enum PlayerMenus {
                 return item
             }))
         }
-        if !state.subtitles.isEmpty {
-            menu.addItem(subtitlesMenu(state, controller: controller))
+        let find = state.canFindSubtitles ? findSubtitles : nil
+        if !state.subtitles.isEmpty || find != nil {
+            let subtitles = subtitlesMenu(state, controller: controller)
+            if let find {
+                if !state.subtitles.isEmpty { subtitles.submenu?.addItem(.separator()) }
+                subtitles.submenu?.addItem(ClosureMenuItem(title: "Find Subtitles…", run: find))
+            }
+            menu.addItem(subtitles)
             if state.canSyncSubtitles { menu.addItem(syncMenu(state, controller: controller)) }
         }
+        menu.addItem(speedMenu(state, controller: controller))
+        menu.addItem(sleepMenu(state, controller: controller))
         if !state.chapters.isEmpty {
             menu.addItem(submenu("Chapters", state.chapters.map { chapter in
                 let item = ClosureMenuItem(title: chapter.label) { [weak controller] in
@@ -311,6 +352,42 @@ public enum PlayerMenus {
             },
             reset,
         ])
+    }
+
+    /// Speed, 0.5× to 2×, the one playing checked.
+    @MainActor
+    public static func speedMenu(_ state: PlayerState, controller: PlaybackController?) -> NSMenuItem {
+        let item = submenu("Speed", state.speeds.map { choice in
+            let item = ClosureMenuItem(title: choice.label) { [weak controller] in
+                if let speed = PlaybackSpeeds.speed(id: choice.id) { controller?.setSpeed(speed) }
+            }
+            item.state = choice.selected ? .on : .off
+            return item
+        })
+        item.subtitle = state.speedLabel
+        return item
+    }
+
+    /// Sleep Timer: Off, the minutes and the end of this episode, the one
+    /// running checked, what is left as its second line, and Keep Watching
+    /// in its last 30 s.
+    @MainActor
+    public static func sleepMenu(_ state: PlayerState, controller: PlaybackController?) -> NSMenuItem {
+        var items: [NSMenuItem] = state.sleepChoices.map { choice in
+            let item = ClosureMenuItem(title: choice.label) { [weak controller] in
+                if let sleep = SleepChoice(id: choice.id) { controller?.setSleep(sleep) }
+            }
+            item.state = choice.selected ? .on : .off
+            return item
+        }
+        if state.sleep.secondsLeft != nil {
+            items += [.separator(), ClosureMenuItem(title: "Keep Watching") { [weak controller] in
+                controller?.keepWatching()
+            }]
+        }
+        let item = submenu("Sleep Timer", items)
+        item.subtitle = state.sleepSummary
+        return item
     }
 
     private static func submenu(_ title: String, _ items: [NSMenuItem]) -> NSMenuItem {

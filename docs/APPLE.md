@@ -94,7 +94,7 @@ Return opens the one with the focus and ⌘↩ plays it.
 | View | Show or Hide Sidebar, and the toolbar's own | ⌃⌘S |
 | Playback | Play "Title": the tile with the focus, or the title page showing, in a player window | ⌘↩ |
 | Playback | Channel Up, Channel Down (the Live TV window that is key) | ⌘↑, ⌘↓ |
-| Playback | Play or Pause, Back and Forward 10 Seconds, Skip Intro, Play Next, Quality, Audio, Subtitles, Subtitle Sync, Chapters (the player window that is key) | |
+| Playback | Play or Pause, Back and Forward 10 Seconds, Skip Intro, Play Next, Quality, Audio, Subtitles, Find Subtitles…, Subtitle Sync, Speed, Sleep Timer, Chapters (the player window that is key) | |
 | Playback | Play Music or Pause Music, Next Track, Previous Track (while music has a queue and no player window is key) | ⌘→, ⌘← |
 | Playback | Now Playing (music's window) | |
 | Window | Now Playing | ⌥⌘P |
@@ -845,6 +845,43 @@ playing marked, and jump there. On Apple TV they are the player's chapter
 markers, each with its picture (`/api/files/{id}/chapters/{n}.jpg`, JPEG,
 read with the token; a chapter without one is shown without).
 
+### Speed, sleep timer and Picture in Picture
+
+**Speed** plays at 0.5×, 0.75×, 1×, 1.25×, 1.5× or 2×, the voices' pitch
+kept (`AVAudioTimePitchAlgorithm.spectral`). It holds for the title
+playing, also when its session starts again, and the next title starts
+at 1×. The system player's own speed control is hidden, so there is one.
+Each device reports its position as it is; the server sees the rate in
+the playback's state.
+
+**The sleep timer** is music's ([Music](#music)): Off, 15, 30, 45, 60 or
+90 minutes, or the end of this episode or movie. It counts while it
+plays, the minutes going by at the speed playing. In its last 30 seconds
+"Pausing in 30 s" shows with Keep watching, which adds the same time
+again (or waits for the next episode's end); on Apple TV, Keep Watching
+is the player's first contextual action and the seconds show at the top.
+Then it pauses. Ending with the episode, Up Next's card shows without its
+countdown, and nothing plays by itself.
+
+**Picture in Picture** plays the video in a small window over other apps
+(iPhone, iPad) or over Pley (Apple TV):
+
+- **iPhone and iPad**: from the player's own button, and by itself when
+  Pley is left while a video plays. The player screen goes away and the
+  app shows behind; the playback and its session go on. The window's
+  restore button brings the player back, where it was, and its ✕ ends
+  the playback, as closing the player does. Leaving the app without
+  Picture in Picture pauses, as before.
+- **Apple TV**: from the transport bar's button; Pley shows behind, and
+  the window's buttons bring the player back or end the playback.
+- **Mac**: from the controls' button; the window stays open, and
+  restoring brings it to the front.
+
+Starting another video, or signing out, ends the one in Picture in
+Picture first. `PictureInPictureKeeper` holds the player's
+`AVPlayerViewController`, its subtitles inside, while SwiftUI's player
+screen is away.
+
 ### Audio
 
 The server says which audio track plays (`audio_index`): the one the
@@ -919,6 +956,23 @@ while it plays and every 500 ms while paused. **Subtitle sync** moves
 them 0.1 s at a time, up to 10 s earlier or later (positive: later), and
 the offset is kept on the device for the file and the profile, under the
 server's address (`UserDefaults`, never on the server).
+
+**Find Subtitles…**, last in the Subtitles menu while a title streams
+from the server, searches online through the server
+(`GET /api/items/{id}/subtitles/search`, the file playing and the
+language), in a sheet on iPhone, iPad and Mac and a list over the player
+on Apple TV. It searches in the profile's subtitle language (else its
+audio language, else the server's default), and Language picks another.
+Each result says its name, its language, Hearing impaired, Forced, Made
+for this file (matched by the file's hash) and its downloads, best first.
+Choosing one has the server add it to the title
+(`POST /api/items/{id}/subtitles`): the new track joins the Subtitles
+menu, shows at once, and "Subtitles added" says so; the search closes.
+A server without subtitle search set up says "Subtitle search isn't set
+up on this server" (`503` with `setup: false`); a refused key or the
+day's downloads used up gives the server's own words, with no Try again;
+a server without the routes says it may need an update. The playback
+goes on meanwhile.
 
 ### Quality
 
@@ -1072,29 +1126,33 @@ are drawn by the app in the player's content overlay, under the controls
   the playback. An Options button under the top row (with the controls,
   and while paused) has Quality, Audio (when there are several tracks),
   Subtitles and Subtitle sync (Earlier, Later and Reset, the menu staying
-  open while it moves on iOS 16.4 and later), Chapters and Details: how
+  open while it moves on iOS 16.4 and later), Find Subtitles…, Speed,
+  Sleep Timer, Chapters and Details: how
   the file plays (Direct play, Direct stream or Transcoding, and whether
   the audio is converted), why, the video, and the subtitles shown.
-  Skip Intro, Skip Credits and the Up Next card show at the bottom right.
-  Picture in Picture is off.
-- **Apple TV**: full screen, with Quality, Audio and Subtitles in the
-  transport bar (Subtitles holding Subtitle sync, which stays open while
-  it moves) and a Details tab in the info panel (swipe down). Apple TV's
+  Skip Intro, Skip Credits and the Up Next card show at the bottom right,
+  and the sleep timer's last seconds at the top, with Keep watching.
+  Picture in Picture is the system's button.
+- **Apple TV**: full screen, with Quality, Subtitles, Speed, Sleep Timer
+  and Audio in the transport bar (Subtitles holding Subtitle sync, which
+  stays open while it moves, and Find Subtitles…) and a Details tab in the info panel (swipe down). Apple TV's
   player doesn't say where the video shows: the subtitles go on the
   picture's size fitted to the screen. Skip Intro, Skip
-  Credits and Up Next ("Play Next (8)", Cancel) are the player's own
-  contextual buttons, and the chapters its chapter markers, with their
+  Credits, Up Next ("Play Next (8)", Cancel) and the sleep timer's Keep
+  Watching are the player's own contextual buttons, and the chapters its chapter markers, with their
   pictures. Menu closes the player when the transport bar isn't showing.
   The display's frame rate and dynamic range follow the video when the
   Apple TV is set to match content.
 - **Mac**: a window of its own per playback, opened from the item's page;
   closing the window ends the session, and starting another playback
   closes it. The controls float over the picture, with Quality, Audio,
-  Subtitles, Subtitle Sync, Chapters and Details in their menu, Skip
+  Subtitles (Find Subtitles… last), Subtitle Sync, Speed, Sleep Timer,
+  Chapters and Details in their menu, and Picture in Picture; Skip
   Intro, Skip Credits and the Up Next card at the bottom right, and a
   Playback menu in the menu bar (Play or Pause, Back and Forward 10
-  Seconds, Skip, Play Next, Quality, Audio, Subtitles, Subtitle Sync,
-  Chapters) acts on the window in front. The keys are the web player's:
+  Seconds, Skip, Play Next, Quality, Audio, Subtitles, Find Subtitles…,
+  Subtitle Sync, Speed, Sleep Timer, Chapters) acts on the window in
+  front. The keys are the web player's:
   Space or K plays and pauses, ← or J and → or L go back and forward 10
   seconds, ↑ and ↓ change the volume, M mutes, F goes full screen and Esc
   leaves it, S skips the intro or the credits, and C goes to the next
@@ -1295,6 +1353,17 @@ holding the connection, the player says "All connections are in use" and
 Watch here instead takes it, the other device's playlist answering 410;
 and Search finds the channels.
 
+The player's extras are a test of their own (`testPlayerExtras`), on
+Direct H264: Find Subtitles… (in Options on iPhone and iPad, the
+transport bar's Subtitles on Apple TV) says "Subtitle search isn't set up
+on this server", as the test server has none; Speed 1.5× is marked once
+picked; and where the simulator has Picture in Picture
+(`AVPictureInPictureController.isPictureInPictureSupported()`), its
+button shows the page behind with the session still on the server, and
+playing again ends it. The iPad simulator has Picture in Picture; the
+iPhone and Apple TV simulators have none, so that part is passed over
+there.
+
 A person's page is a test of its own, which opens the first title with
 cast; the test server has no metadata source, so no title has cast, and
 the test reports itself skipped.
@@ -1485,8 +1554,8 @@ address, to have it found by Bonjour. Delete the folder afterwards.
 ## Known limits
 
 - No seek-bar previews.
-- Subtitles aren't shown over AirPlay: the app draws them over its own
-  view of the video, which AirPlay doesn't send.
+- Subtitles aren't shown over AirPlay, nor in Picture in Picture: the app
+  draws them over its own view of the video, which neither shows.
 - No downloads.
 - Live TV has no picture in picture and doesn't switch the display's
   frame rate or range, as on Android.

@@ -1,4 +1,6 @@
 import PleyCommon
+import PleyPlayer
+import PleyPlayerViews
 import PleyScreens
 import SwiftUI
 import UIKit
@@ -28,14 +30,19 @@ struct RootView: View {
         root
             // Another root starts again.
             .id(app.root)
-        .fullScreenCover(item: Binding(get: { app.player },
-                                       set: { if $0 == nil { Task { await app.closePlayer() } } })) { controller in
+        // Picture in Picture puts the player away and keeps the playback.
+        .fullScreenCover(item: Binding(get: { app.playerShown },
+                                       set: { if $0 == nil, !app.pictureInPicture { Task { await app.closePlayer() } } })) { controller in
             PlayerScreen(app: app, controller: controller)
         }
         .fullScreenCover(item: Binding(get: { app.livePlayer },
                                        set: { if $0 == nil { app.closeLivePlayer() } })) { model in
             LivePlayerScreen(app: app, model: model)
         }
+        .onChange(of: app.player?.id) {
+            PictureInPictureKeeper.shared.playerChanged(app.player?.player)
+        }
+        .task { keepPictureInPicture() }
         .onChange(of: scenePhase) { _, phase in
             // The server's events are read while Pley is in front; back in
             // front, what shows is read again.
@@ -57,6 +64,14 @@ struct RootView: View {
             await player.appWillBackground()
             UIApplication.shared.endBackgroundTask(task)
         }
+    }
+
+    /// Picture in Picture's start, restore and ✕ go to the app.
+    private func keepPictureInPicture() {
+        let keeper = PictureInPictureKeeper.shared
+        keeper.onStart = { [app] in app.pictureInPictureStarted() }
+        keeper.onRestore = { [app] in app.pictureInPictureRestored() }
+        keeper.onClosed = { [app] in app.pictureInPictureClosed() }
     }
 
     @ViewBuilder private var root: some View {

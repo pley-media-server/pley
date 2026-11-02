@@ -546,6 +546,7 @@ public final class PlaybackController: ObservableObject {
         self.item = item
         publishSubtitles()
         selectSubtitle(track.index)
+        state.notice = PlayerTexts.subtitleAdded
     }
 
     /// Looks at the sleep timer now, as its own clock would (for the tests).

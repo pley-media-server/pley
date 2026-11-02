@@ -49,6 +49,49 @@ import UIKit
         #expect(tracks.map { $0.image != nil } == [false, true])
     }
 
+    @Test func speedChecksTheOnePlayingAndSaysItBeside() throws {
+        var state = PlayerState()
+        state.speed = 1.5
+        var picked: [Double] = []
+        var actions = PlayerMenus.Actions()
+        actions.speed = { picked.append($0) }
+        let menu = PlayerMenus.speed(state, actions)
+        #expect(menu.title == "Speed")
+        #expect(menu.subtitle == "1.5×")
+        let rows = try #require(menu.children as? [UIAction])
+        #expect(rows.map(\.title) == ["0.5×", "0.75×", "1×", "1.25×", "1.5×", "2×"])
+        #expect(rows.map { $0.image != nil } == [false, false, false, false, true, false])
+    }
+
+    @Test func theSleepTimerSaysWhatIsLeft() throws {
+        var state = PlayerState()
+        state.sleepItem = "episode"
+        state.sleep = SleepState(choice: .minutes(15), minutesLeft: 12)
+        let menu = PlayerMenus.sleepTimer(state, PlayerMenus.Actions())
+        #expect(menu.title == "Sleep Timer")
+        #expect(menu.subtitle == "12 min left")
+        let rows = try #require(menu.children as? [UIAction])
+        #expect(rows.first?.title == "Off")
+        #expect(rows.last?.title == "End of this episode")
+        #expect(rows.filter { $0.image != nil }.map(\.title) == ["15 minutes"])
+    }
+
+    @Test func findSubtitlesIsLastInSubtitlesWhileItStreams() throws {
+        var state = PlayerState()
+        state.subtitles = [MenuChoice(id: MenuChoice.off, label: "Off", selected: true)]
+        var opened = 0
+        var actions = PlayerMenus.Actions()
+        actions.findSubtitles = { opened += 1 }
+        // Not streamed from the server (or nothing playing yet): no search.
+        #expect(PlayerMenus.findSubtitles(state, actions) == nil)
+        state.canFindSubtitles = true
+        let menu = PlayerMenus.subtitles(state, actions)
+        let find = try #require(menu.children.last as? UIAction)
+        #expect(find.title == "Find Subtitles…")
+        // Without a screen to open the search, it isn't offered.
+        #expect(PlayerMenus.findSubtitles(state, PlayerMenus.Actions()) == nil)
+    }
+
     #if os(iOS)
     @Test func theOptionsMenuHoldsEverySection() {
         var state = PlayerState()
@@ -58,7 +101,7 @@ import UIKit
         state.chapters = [ChapterChoice(index: 0, title: "Prologue", startMs: 0, current: true)]
         let menu = PlayerMenus.options(state, PlayerMenus.Actions())
         let titles = menu.children.compactMap { ($0 as? UIMenu)?.title }
-        #expect(titles == ["Quality", "Audio", "Subtitles", "Chapters", "Details"])
+        #expect(titles == ["Quality", "Audio", "Subtitles", "Speed", "Sleep Timer", "Chapters", "Details"])
         let quality = menu.children.first as? UIMenu
         #expect(quality?.options.contains(.displayInline) == true)
         #expect((quality?.children as? [UIAction])?.allSatisfy { $0.subtitle != nil && $0.state == .off } == true)

@@ -98,6 +98,12 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var homeVersion = 0
     /// The playback open, if any; the player screens show it.
     @Published public private(set) var player: PlaybackController?
+    /// The video plays in Picture in Picture: the player screen is put
+    /// away meanwhile, and the playback stays open.
+    @Published public private(set) var pictureInPicture = false
+    /// The playback the player screen shows: `player`, except while it
+    /// plays in Picture in Picture.
+    public var playerShown: PlaybackController? { pictureInPicture ? nil : player }
     /// The live player open, if any: one playback at a time, so it and `player` are never both open.
     @Published public private(set) var livePlayer: LivePlayerModel?
     /// What changed on the server last (its events, gathered for 0.3 s,
@@ -435,11 +441,32 @@ public final class AppModel: ObservableObject {
     public func closePlayer(_ controller: PlaybackController? = nil) async {
         guard let current = player, controller == nil || controller === current else { return }
         player = nil
+        pictureInPicture = false
         playerWatch = nil
         videoShown = nil
         nowPlaying.release(.video)
         playbackChanged()
         await current.close()
+    }
+
+    /// Picture in Picture started: the player screen goes away, and the
+    /// video goes on in its window.
+    public func pictureInPictureStarted() {
+        guard player != nil else { return }
+        pictureInPicture = true
+    }
+
+    /// Picture in Picture asks for the player back: it shows again.
+    public func pictureInPictureRestored() {
+        pictureInPicture = false
+    }
+
+    /// Picture in Picture closed with its ✕: the playback ends, as it would
+    /// closing the player.
+    public func pictureInPictureClosed() {
+        guard pictureInPicture else { return }
+        pictureInPicture = false
+        Task { await closePlayer() }
     }
 
     /// Opens the live player on `request`'s channel, closing what played

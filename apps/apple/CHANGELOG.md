@@ -62,6 +62,14 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   lock screen, Control Center, headphones and the Mac's media keys play,
   pause and skip music and videos.
 
+- Picture in Picture on iPhone, iPad, Apple TV and Mac: from the player's
+  button, and by itself when you leave the app on iPhone and iPad; its ✕
+  ends the playback.
+- Find Subtitles… in the player searches online through your server and
+  adds the subtitles you choose, which show at once.
+- Playback speed from 0.5× to 2×, and a sleep timer for videos with Keep
+  watching in its last 30 seconds.
+
 ### Fixed
 
 - Apple TV's tabs stay on screen: seven at most, with a Libraries tab for

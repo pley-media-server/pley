@@ -194,6 +194,25 @@ final class ScreensTests: XCTestCase {
         XCTAssertTrue(ended, "signing out ends music's session")
     }
 
+    /// The player's extras on Direct H264: Find Subtitles… says the server
+    /// has no subtitle search set up, Speed 1.5× is marked once picked, and
+    /// Picture in Picture shows the page behind with the playback going on.
+    func testPlayerExtras() async throws {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            XCUIDevice.shared.orientation = .landscapeLeft
+        }
+        let app = XCUIApplication()
+        app.launch()
+        let walk = Walk(app: app, test: self)
+        walk.startSignedOut()
+        await walk.signInWithCode()
+        walk.chooseSignedIn()
+        walk.seeHome(Admin.adminName)
+        await walk.playerExtras(movies: await Admin.libraryIds()["Movies"] ?? 0)
+        walk.openMe()
+        walk.signOut()
+    }
+
     func testPersonPage() async throws {
         let libraries = await Admin.libraryIds()
         var found: (library: String, title: String)?
