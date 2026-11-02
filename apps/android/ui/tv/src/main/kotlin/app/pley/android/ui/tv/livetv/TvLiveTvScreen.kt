@@ -1,5 +1,6 @@
 package app.pley.android.ui.tv.livetv
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
@@ -131,10 +132,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * tiles, a page of channels loaded at a time, opening on the channel last
  * watched. OK on a channel watches it; holding OK (or Menu) opens a side
  * panel with what's on, Watch and the favourite.
+ *
+ * Back goes up a step at a time (Samsung's page, the web's search): the
+ * guide back to now first, a search back to the category before, the
+ * guide or the tiles to the categories, then the rail.
  */
 @Composable
-internal fun TvLiveTvScreen() {
-    val vm: LiveTvViewModel = viewModel(factory = LiveTvViewModel.Factory)
+internal fun TvLiveTvScreen(vm: LiveTvViewModel = viewModel(factory = LiveTvViewModel.Factory)) {
     val page by vm.state.collectAsStateWithLifecycle()
     val pages by vm.channels.collectAsStateWithLifecycle()
     val now by vm.now.collectAsStateWithLifecycle()
@@ -164,6 +168,12 @@ internal fun TvLiveTvScreen() {
 
     /** …unless it was sent to them (a category chosen, a search made, the page opened) and they don't have it yet. */
     var toChannels by remember { mutableStateOf(true) }
+
+    /** Focus is in the guide or the tiles. */
+    var inContent by remember { mutableStateOf(false) }
+    // Composed before the guide's own Back (to now), which comes first; the side panel's after.
+    BackHandler(enabled = page.allowed && inContent) { toShownCategory() }
+    BackHandler(enabled = page.allowed && page.searching) { search.clearText() }
     LaunchedEffect(search) { snapshotFlow { search.text.toString() }.collect(vm::setQuery) }
     LaunchedEffect(vm) {
         vm.events.collect { event ->
@@ -229,7 +239,12 @@ internal fun TvLiveTvScreen() {
                 )
                 Spacer(Modifier.width(16.dp))
                 val total = pages.total
-                Box(Modifier.weight(1f).fillMaxHeight().onFocusChanged { if (it.hasFocus) toChannels = false }) {
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().onFocusChanged {
+                        inContent = it.hasFocus
+                        if (it.hasFocus) toChannels = false
+                    },
+                ) {
                     when {
                         total == null && pages.error != null -> Box(Modifier.focusRequester(content).focusGroup()) {
                             TvMessage(

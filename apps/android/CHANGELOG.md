@@ -30,6 +30,9 @@ describes how they are made.
 - In the TV guide, rewind and fast forward (or Previous and Next) move it
   two hours, as on the Samsung and LG apps, and the time now shows in a
   pill over the now line.
+- Back on Live TV's page on TVs goes up a step at a time, as on Samsung
+  TVs: the guide back to now, a search back to the category before, the
+  guide or the tiles to the categories, and only then the rail.
 - On Live TV's page on TVs, a held Left stops at the start of the guide
   or the first column of tiles, and a held Up at the top, rather than
   running on to the categories, the rail or the tabs; a press of its own
