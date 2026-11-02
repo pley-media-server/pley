@@ -21,7 +21,7 @@ public class PlaylistModelTests
     static readonly PlaylistDetail RoadTrip = Playlist(1, "Road trip", new[]
     {
         Film(10, "Northern Lights"),
-        Episode(20, "Half Loop", "Severance", 1, 2, durationMs: 3_000_000, positionMs: 600_000),
+        Episode(20, "The End of the World", "Doctor Who", 1, 2, durationMs: 3_000_000, positionMs: 600_000),
         Film(30, "Low Orbit", durationMs: 3_000_000),
     });
 
@@ -47,8 +47,8 @@ public class PlaylistModelTests
         Assert.True(page.Editable);
         Assert.Equal(new[] { 1, 2, 3 }, page.Rows.Select(r => r.Number));
         var episode = page.Rows[1];
-        Assert.Equal("Half Loop", episode.Title);
-        Assert.Equal("Severance · S1 · E2", episode.Subtitle);
+        Assert.Equal("The End of the World", episode.Title);
+        Assert.Equal("Doctor Who · S1 · E2", episode.Subtitle);
         Assert.Equal("50m", episode.Duration);
         Assert.Equal("1. Northern Lights, 2024, 1h 40m", page.Rows[0].Description);
         // Video entries are 16:9 stills, with how much was played.
@@ -172,8 +172,8 @@ public class PlaylistModelTests
         model.Remove(2, undoable: true);
         Assert.Equal(new[] { 1L, 3L }, Order(model));
         Assert.Equal("2 items · 2h 30m", Page(model).Meta);
-        Assert.Equal(new PlaylistEvent.Removed(2, "Half Loop"), events.Single());
-        Assert.Equal("Removed “Half Loop”", PlaylistText.Removed("Half Loop"));
+        Assert.Equal(new PlaylistEvent.Removed(2, "The End of the World"), events.Single());
+        Assert.Equal("Removed “The End of the World”", PlaylistText.Removed("The End of the World"));
         scheduler.Advance(PlaylistRules.UndoMs - 1);
         model.Undo(2);
         scheduler.Advance(10_000);

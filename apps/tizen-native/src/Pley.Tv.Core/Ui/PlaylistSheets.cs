@@ -6,7 +6,7 @@ using Pley.Tv.Core.Api;
 namespace Pley.Tv.Core.Ui;
 
 /// <summary>The Add to playlist panel: what is being added, and the playlists it can go in.</summary>
-/// <param name="Title">"Severance — S1 · E2 — Half Loop", "Heat (1995)", "3 items"; null while it loads.</param>
+/// <param name="Title">"Doctor Who — S1 · E2 — The End of the World", "Her (2013)", "3 items"; null while it loads.</param>
 /// <param name="Kind">What a playlist must play to take it (<see cref="PlaylistKind"/>); null while that isn't known.</param>
 /// <param name="Playlists">The profile's playlists of that kind, smart ones left out (they fill themselves).</param>
 /// <param name="Busy">A change is on its way: the panel's rows wait.</param>

@@ -85,7 +85,7 @@ public abstract record CreateEvent
 /// <summary>What happened on a playlist's page, for a toast or a move.</summary>
 public abstract record PlaylistEvent
 {
-    /// <summary><paramref name="Title"/>'s entry left the playlist: "Removed “Half Loop”". With an undo, <see cref="PlaylistModel.Undo"/> puts it back for a few seconds.</summary>
+    /// <summary><paramref name="Title"/>'s entry left the playlist: "Removed “The End of the World”". With an undo, <see cref="PlaylistModel.Undo"/> puts it back for a few seconds.</summary>
     public sealed record Removed(long EntryId, string Title) : PlaylistEvent;
 
     /// <summary>The playlist is gone: back to the playlists.</summary>
@@ -260,8 +260,8 @@ public static class PlaylistRules
     };
 
     /// <summary>
-    /// What is added, in words: "Severance — S1 · E2 — Half Loop", "Heat (1995)", a season's
-    /// "Severance — Season 1", a track's "Swell — Harbour Lights".
+    /// What is added, in words: "Doctor Who — S1 · E2 — The End of the World", "Her (2013)", a
+    /// season's "Doctor Who — Season 1", a track's "Swell — Harbour Lights".
     /// </summary>
     public static string FullTitle(ItemSummary item) => item.Kind switch
     {

@@ -80,10 +80,10 @@ public class HistoryModelTests
             Id = 1,
             ViewedAt = Now - 3 * 3600,
             Device = "Chrome on Windows",
-            Item = new ItemSummary { Id = 205, LibraryId = 2, Kind = "episode", Title = "Glasshouse", Index = 5, ParentIndex = 2, ParentId = 202, GrandparentId = 201, GrandparentTitle = "Severance" },
+            Item = new ItemSummary { Id = 205, LibraryId = 2, Kind = "episode", Title = "Glasshouse", Index = 5, ParentIndex = 2, ParentId = 202, GrandparentId = 201, GrandparentTitle = "Driftline" },
         };
         var row = HistoryRules.Row(episode, Now, Origin);
-        Assert.Equal("Severance", row.Title);
+        Assert.Equal("Driftline", row.Title);
         Assert.Equal("S2 · E5 · Glasshouse", row.Subtitle);
         Assert.Equal("3 hours ago", row.Time);
         Assert.Equal("Chrome on Windows", row.Device);

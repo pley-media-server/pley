@@ -226,9 +226,9 @@ describe("request events", () => {
     server.title = () => Promise.resolve({ status: "library", item_id: 54 } as DiscoverDetail);
     let writes = 0;
     const off = app.marks.subscribe(() => writes++);
-    hear({ type: "request_available", request_id: 1, title: "Arrival", kind: "movie", tmdb_id: 101, item_id: 51, seasons: null, complete: true });
+    hear({ type: "request_available", request_id: 1, title: "Casablanca", kind: "movie", tmdb_id: 101, item_id: 51, seasons: null, complete: true });
     expect(app.marks.value["movie:101"]).toMatchObject({ status: "library", item_id: 51 });
-    hear({ type: "request_available", request_id: 4, title: "Severance", kind: "show", tmdb_id: 104, item_id: 54, seasons: [3], complete: true });
+    hear({ type: "request_available", request_id: 4, title: "Doctor Who", kind: "show", tmdb_id: 104, item_id: 54, seasons: [3], complete: true });
     hear({ type: "requests_changed", request_id: 4, kind: "show", tmdb_id: 104 });
     expect(app.marks.value["show:104"]).toBeUndefined();
     await vi.advanceTimersByTimeAsync(300);
@@ -266,10 +266,10 @@ describe("request events", () => {
 
   it("pop up what is ready to watch, once", async () => {
     const { app, hear } = setup();
-    const ready: ServerEvent = { type: "request_available", request_id: 4, title: "Severance", kind: "show", tmdb_id: 104, item_id: 54, seasons: [2], complete: false };
+    const ready: ServerEvent = { type: "request_available", request_id: 4, title: "Doctor Who", kind: "show", tmdb_id: 104, item_id: 54, seasons: [2], complete: false };
     hear(ready);
     hear(ready);
-    expect(app.notices.value.map((n) => n.text)).toEqual(["Season 2 of “Severance” is ready to watch."]);
+    expect(app.notices.value.map((n) => n.text)).toEqual(["Season 2 of “Doctor Who” is ready to watch."]);
     expect(app.notices.value[0]?.itemId).toBe(54);
     expect(app.marks.value["show:104"]).toMatchObject({ status: "partial", item_id: 54 });
     // The next batch of its seasons is news of its own, told once too.
@@ -278,9 +278,9 @@ describe("request events", () => {
     hear(more);
     hear({ ...ready, complete: true, seasons: null });
     expect(app.notices.value.map((n) => n.text)).toEqual([
-      "Season 2 of “Severance” is ready to watch.",
-      "Seasons 3–4 of “Severance” are ready to watch.",
-      "“Severance” is ready to watch.",
+      "Season 2 of “Doctor Who” is ready to watch.",
+      "Seasons 3–4 of “Doctor Who” are ready to watch.",
+      "“Doctor Who” is ready to watch.",
     ]);
   });
 
@@ -382,23 +382,23 @@ describe("news that came while the app wasn't listening", () => {
 
   it("tells a show's seasons that came meanwhile, and none told as they came", async () => {
     const { app, hear, store } = setup();
-    hear({ type: "request_available", request_id: 4, title: "Severance", kind: "show", tmdb_id: 104, item_id: 54, seasons: [1], complete: false });
+    hear({ type: "request_available", request_id: 4, title: "Doctor Who", kind: "show", tmdb_id: 104, item_id: 54, seasons: [1], complete: false });
     expect(app.notices.value.length).toBe(1);
-    const severance = (seasons: number[]) => request(4, { kind: "show", title: "Severance", status: "approved", stage: "partial", available_seasons: seasons });
+    const doctorWho = (seasons: number[]) => request(4, { kind: "show", title: "Doctor Who", status: "approved", stage: "partial", available_seasons: seasons });
     // The next start, with only what was told: nothing.
     const again = setup(store);
     again.server.summary = () => Promise.resolve(summary({ unseen: 1 }));
-    again.server.unseen = () => Promise.resolve([severance([1])]);
+    again.server.unseen = () => Promise.resolve([doctorWho([1])]);
     await again.app.loadRequests();
     await vi.advanceTimersByTimeAsync(0);
     expect(again.app.notices.value).toEqual([]);
     // Another batch came while the app wasn't listening: told.
     const later = setup(store);
     later.server.summary = again.server.summary;
-    later.server.unseen = () => Promise.resolve([severance([1, 2])]);
+    later.server.unseen = () => Promise.resolve([doctorWho([1, 2])]);
     await later.app.loadRequests();
     await vi.advanceTimersByTimeAsync(0);
-    expect(later.app.notices.value.map((n) => n.text)).toEqual(["Seasons 1–2 of “Severance” are ready to watch."]);
+    expect(later.app.notices.value.map((n) => n.text)).toEqual(["Seasons 1–2 of “Doctor Who” are ready to watch."]);
   });
 
   it("is caught up with when unseen rises with no event to explain it, and not when one did", async () => {

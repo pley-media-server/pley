@@ -305,7 +305,7 @@ sealed class PlayerHarness
 
     public static ItemDetail Movie(long id = 1) => new ItemDetail
     {
-        Id = id, LibraryId = 1, Kind = "movie", Title = "Heat", Year = 1995, DurationMs = 2_700_000, Files = new[] { FileOf(id * 10) },
+        Id = id, LibraryId = 1, Kind = "movie", Title = "Her", Year = 2013, DurationMs = 2_700_000, Files = new[] { FileOf(id * 10) },
     };
 
     public PlayerHarness Add(ItemDetail item)

@@ -65,8 +65,8 @@ function request(over: Partial<MediaRequest> = {}): MediaRequest {
     id: 1,
     kind: "movie",
     tmdb_id: 10,
-    title: "Arrival",
-    year: 2016,
+    title: "Casablanca",
+    year: 1942,
     poster_url: null,
     backdrop_url: null,
     seasons: null,
@@ -104,12 +104,12 @@ function detail(over: Partial<DiscoverDetail> = {}): DiscoverDetail {
   return {
     kind: "movie",
     tmdb_id: 10,
-    title: "Arrival",
-    year: 2016,
+    title: "Casablanca",
+    year: 1942,
     overview: "",
     poster_url: null,
     backdrop_url: null,
-    rating: 7.9,
+    rating: 8.2,
     status: "none",
     item_id: null,
     request_id: null,
@@ -117,7 +117,7 @@ function detail(over: Partial<DiscoverDetail> = {}): DiscoverDetail {
     tagline: null,
     genres: [],
     release_date: null,
-    runtime_minutes: 116,
+    runtime_minutes: 102,
     certification: null,
     network: null,
     show_status: null,
@@ -138,7 +138,7 @@ function detail(over: Partial<DiscoverDetail> = {}): DiscoverDetail {
 }
 
 function show(seasons: DiscoverSeason[], over: Partial<DiscoverDetail> = {}): DiscoverDetail {
-  return detail({ kind: "show", tmdb_id: 20, title: "Severance", runtime_minutes: null, seasons, ...over });
+  return detail({ kind: "show", tmdb_id: 20, title: "Doctor Who", runtime_minutes: null, seasons, ...over });
 }
 
 describe("who sees what", () => {
@@ -200,7 +200,7 @@ describe("a title's badge", () => {
   });
 
   it("gives TMDB's search the words trimmed and cut to the server's 200 characters, never halfway through one", () => {
-    expect(searchText("  dune  ")).toBe("dune");
+    expect(searchText("  coco  ")).toBe("coco");
     expect(searchText("a".repeat(250))).toBe("a".repeat(200));
     // 𝄞 is two of JavaScript's characters but one of the server's.
     expect(searchText(`${"𝄞".repeat(150)}x`)).toBe("𝄞".repeat(150) + "x");
@@ -415,9 +415,9 @@ describe("a request's actions", () => {
 
   it("ask first for what can't be undone", () => {
     const [withdraw] = actionRows(request({ actions: ["withdraw"] }));
-    expect(withdraw).toMatchObject({ label: "Withdraw", confirm: { title: "Withdraw your request for “Arrival”?" } });
+    expect(withdraw).toMatchObject({ label: "Withdraw", confirm: { title: "Withdraw your request for “Casablanca”?" } });
     const [remove] = actionRows(request({ status: "declined", stage: "declined", actions: ["withdraw"] }));
-    expect(remove).toMatchObject({ label: "Remove", confirm: { title: "Remove “Arrival” from your requests?" } });
+    expect(remove).toMatchObject({ label: "Remove", confirm: { title: "Remove “Casablanca” from your requests?" } });
     const [del] = actionRows(request({ actions: ["delete"] }));
     expect(del).toMatchObject({ danger: true, confirm: { title: "Delete this request?", body: "Radarr and Sonarr keep what they have." } });
   });
@@ -464,10 +464,10 @@ describe("what may still be asked for", () => {
 
 describe("asking", () => {
   it("says what became of it", () => {
-    expect(askedText(request({ status: "pending" }), true)).toBe("Asked for “Arrival”: an administrator decides.");
-    expect(askedText(request({ status: "approved", stage: "approved" }), true)).toBe("“Arrival” is approved and on its way.");
-    expect(askedText(request({ status: "failed", stage: "failed" }), true)).toBe("Asked for “Arrival”, but it couldn't be sent to download yet.");
-    expect(askedText(request({ mine: false, watching: true }), false)).toBe("You'll hear when “Arrival” is ready.");
+    expect(askedText(request({ status: "pending" }), true)).toBe("Asked for “Casablanca”: an administrator decides.");
+    expect(askedText(request({ status: "approved", stage: "approved" }), true)).toBe("“Casablanca” is approved and on its way.");
+    expect(askedText(request({ status: "failed", stage: "failed" }), true)).toBe("Asked for “Casablanca”, but it couldn't be sent to download yet.");
+    expect(askedText(request({ mine: false, watching: true }), false)).toBe("You'll hear when “Casablanca” is ready.");
   });
 
   it("says when one may ask again from retry_at, never the message's date", () => {
@@ -504,9 +504,9 @@ describe("asking", () => {
 
 describe("news", () => {
   it("names what is ready to watch", () => {
-    expect(readyText("Arrival", null, true)).toBe("“Arrival” is ready to watch.");
-    expect(readyText("Severance", [2], false)).toBe("Season 2 of “Severance” is ready to watch.");
-    expect(readyText("Severance", [1, 2], false)).toBe("Seasons 1–2 of “Severance” are ready to watch.");
+    expect(readyText("Casablanca", null, true)).toBe("“Casablanca” is ready to watch.");
+    expect(readyText("Doctor Who", [2], false)).toBe("Season 2 of “Doctor Who” is ready to watch.");
+    expect(readyText("Doctor Who", [1, 2], false)).toBe("Seasons 1–2 of “Doctor Who” are ready to watch.");
   });
 });
 

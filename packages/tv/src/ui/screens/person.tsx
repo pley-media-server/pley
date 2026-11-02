@@ -19,7 +19,7 @@ const ROLES: { role: CreditRole; title: string }[] = [
 
 const ROWS_TOP = 240;
 
-/** "2019 · as Neo", "Guest star (3 episodes)", "Director". */
+/** "2019 · as Nora", "Guest star (3 episodes)", "Director". */
 export function creditCaption(item: ItemSummary, roles: { role: CreditRole; character?: string; episodes?: number }[]): string {
   const words = roles.map((r) => {
     let w: string;

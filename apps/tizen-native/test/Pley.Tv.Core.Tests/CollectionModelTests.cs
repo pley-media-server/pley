@@ -37,7 +37,7 @@ public class CollectionModelTests
     [Fact]
     public void A_collection_says_what_it_holds_in_words()
     {
-        data.Details[5] = Detail(5, 1, "Alien Collection", new[] { Film(1, "Alien"), Film(2, "Aliens") }, sort: "release", automatic: true) with
+        data.Details[5] = Detail(5, 1, "Airport Collection", new[] { Film(1, "Airport"), Film(2, "Airport 1975") }, sort: "release", automatic: true) with
         {
             BackdropUrl = "/api/collections/5/images/backdrop",
         };
@@ -107,7 +107,7 @@ public class CollectionModelTests
     [Fact]
     public void The_collections_page_has_a_shelf_per_video_library()
     {
-        data.Lists[1] = new[] { new Collection { Id = 5, LibraryId = 1, Title = "Alien Collection", ItemCount = 4 } };
+        data.Lists[1] = new[] { new Collection { Id = 5, LibraryId = 1, Title = "Airport Collection", ItemCount = 4 } };
         data.Lists[2] = new[] { new Collection { Id = 7, LibraryId = 2, Title = "Sitcoms", ItemCount = 3 } };
         var all = new CollectionsModel(data, scheduler);
         var one = new CollectionsModel(data, scheduler, only: 2);
@@ -122,7 +122,7 @@ public class CollectionModelTests
     [Fact]
     public void Libraries_without_collections_are_left_out_and_none_at_all_says_so()
     {
-        data.Lists[1] = new[] { new Collection { Id = 5, LibraryId = 1, Title = "Alien Collection", ItemCount = 4 } };
+        data.Lists[1] = new[] { new Collection { Id = 5, LibraryId = 1, Title = "Airport Collection", ItemCount = 4 } };
         var model = new CollectionsModel(data, scheduler);
         Assert.Equal(new[] { 1L }, CollectionText.Shelves(model.State.Value).Select(s => s.LibraryId));
         data.Lists.Clear();

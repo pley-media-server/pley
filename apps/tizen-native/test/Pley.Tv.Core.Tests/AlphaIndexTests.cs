@@ -19,13 +19,13 @@ public class AlphaIndexTests
         Assert.Equal(Letter("O"), AlphaIndex.LetterOf("  Öresund"));
         Assert.Equal(Letter("A"), AlphaIndex.LetterOf("ångström"));
         Assert.Equal(Letter("C"), AlphaIndex.LetterOf("Ça ira"));
-        Assert.Equal(Letter("#"), AlphaIndex.LetterOf("2001: A Space Odyssey"));
+        Assert.Equal(Letter("#"), AlphaIndex.LetterOf("3:10 to Yuma"));
         Assert.Equal(Letter("#"), AlphaIndex.LetterOf("Ωmega"));
         Assert.Equal(Letter("#"), AlphaIndex.LetterOf("!Women Art Revolution"));
         Assert.Equal(Letter("#"), AlphaIndex.LetterOf(""));
         Assert.Equal(Letter("#"), AlphaIndex.LetterOf("😀 Smile"));
-        // "The Matrix" sorts as "Matrix".
-        var index = AlphaIndex.Of(new[] { Item(1, "The Matrix", "Matrix") });
+        // "The Maltese Falcon" sorts as "Maltese Falcon".
+        var index = AlphaIndex.Of(new[] { Item(1, "The Maltese Falcon", "Maltese Falcon") });
         Assert.True(index.Has(Letter("M")));
         Assert.False(index.Has(Letter("T")));
     }
@@ -35,12 +35,12 @@ public class AlphaIndexTests
     {
         var index = AlphaIndex.Of(new[]
         {
-            Item(1, "12 Monkeys"),
-            Item(2, "Alien"),
-            Item(3, "Aliens"),
+            Item(1, "21 Grams"),
+            Item(2, "Airport"),
+            Item(3, "Airport 1975"),
             Item(4, "Élite Squad"),
-            Item(5, "Heat"),
-            Item(6, "Zodiac"),
+            Item(5, "Her"),
+            Item(6, "Zulu"),
         });
         Assert.Equal(0, index.PositionOf(Letter("#")));
         Assert.Equal(1, index.PositionOf(Letter("A")));
@@ -55,7 +55,7 @@ public class AlphaIndexTests
     [Fact]
     public void An_empty_letter_jumps_to_the_next_that_has_titles()
     {
-        var index = AlphaIndex.Of(new[] { Item(1, "Alien"), Item(2, "Heat"), Item(3, "Up") });
+        var index = AlphaIndex.Of(new[] { Item(1, "Airport"), Item(2, "Her"), Item(3, "Up") });
         Assert.Equal(1, index.JumpTarget(Letter("B")));
         Assert.Equal(2, index.JumpTarget(Letter("U")));
         // Past the last: the last letter's.
@@ -65,7 +65,7 @@ public class AlphaIndexTests
     [Fact]
     public void A_position_is_in_its_letters_section()
     {
-        var index = AlphaIndex.Of(new[] { Item(1, "#1"), Item(2, "Alien"), Item(3, "Aliens"), Item(4, "Heat"), Item(5, "Hero") });
+        var index = AlphaIndex.Of(new[] { Item(1, "#1"), Item(2, "Airport"), Item(3, "Airport 1975"), Item(4, "Her"), Item(5, "Hero") });
         Assert.Equal(Letter("#"), index.LetterAt(0));
         Assert.Equal(Letter("A"), index.LetterAt(1));
         Assert.Equal(Letter("A"), index.LetterAt(2));
@@ -76,7 +76,7 @@ public class AlphaIndexTests
     [Fact]
     public void The_jump_steps_through_the_letters_from_the_focused_titles()
     {
-        var index = AlphaIndex.Of(new[] { Item(1, "Alien"), Item(2, "Brazil"), Item(3, "Heat"), Item(4, "Up") });
+        var index = AlphaIndex.Of(new[] { Item(1, "Airport"), Item(2, "Brazil"), Item(3, "Her"), Item(4, "Up") });
         var jump = new AlphaJump(index);
         // Unfocused, it follows the grid.
         Assert.Equal(Letter("H"), jump.Shown(2));

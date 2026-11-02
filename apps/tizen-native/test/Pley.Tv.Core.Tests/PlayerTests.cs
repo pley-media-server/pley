@@ -145,8 +145,8 @@ public class PlayerTextTests
         var episode = new Api.ItemSummary { Kind = "episode", Title = "The Long Night", GrandparentTitle = "Ashfall", ParentIndex = 2, Index = 5 };
         Assert.Equal("Ashfall", PlayerText.Title(episode));
         Assert.Equal("S2 · E5 · The Long Night", PlayerText.Line(episode));
-        var film = new Api.ItemSummary { Kind = "movie", Title = "Heat", Year = 1995 };
-        Assert.Equal("Heat (1995)", PlayerText.Title(film));
+        var film = new Api.ItemSummary { Kind = "movie", Title = "Her", Year = 2013 };
+        Assert.Equal("Her (2013)", PlayerText.Title(film));
         Assert.Null(PlayerText.Line(film));
     }
 }

@@ -36,7 +36,7 @@ public sealed record PersonPage(long Id, string Name, string? Photo, string Init
 }
 
 /// <summary>
-/// Titles of one role: posters captioned with the year and the part ("2019 · as Neo"). A tile
+/// Titles of one role: posters captioned with the year and the part ("2019 · as Nora"). A tile
 /// opens its item's page (<see cref="PersonRules.Opens"/>); holding OK opens its actions.
 /// </summary>
 /// <param name="Role">"actor", "director", "creator", "writer" or "producer".</param>
@@ -161,11 +161,11 @@ public static class PersonRules
     /// <summary>Where a tile goes: its item's page.</summary>
     public static PageKey Opens(long itemId) => new PageKey.Item(itemId);
 
-    /// <summary>"2019 · as Neo".</summary>
+    /// <summary>"2019 · as Nora".</summary>
     public static string Subtitle(ItemSummary item, IReadOnlyList<PersonRole> roles) =>
         string.Join(" · ", new[] { item.Year?.ToString(CultureInfo.InvariantCulture) ?? "", RoleText(roles) }.Where(s => s.Length > 0));
 
-    /// <summary>"as Neo", "Director", "Guest star (3 episodes)", as the web says it.</summary>
+    /// <summary>"as Nora", "Director", "Guest star (3 episodes)", as the web says it.</summary>
     public static string RoleText(IReadOnlyList<PersonRole> roles) => string.Join(", ", roles.Select(r =>
     {
         var episodes = r.Episodes ?? 0;

@@ -22,7 +22,7 @@ const result = (over: Partial<SubtitleResult>): SubtitleResult => ({
   id: "opensubtitles:1",
   provider: "opensubtitles",
   language: "en",
-  name: "Heat.1995.1080p.BluRay",
+  name: "Her.2013.1080p.BluRay",
   format: "srt",
   hearing_impaired: false,
   forced: false,
@@ -121,17 +121,17 @@ describe("Find subtitles…", () => {
   it("lists what the server finds in the profile's language, and adds the one picked", async () => {
     const t = setup({
       panel: "find",
-      found: () => Promise.resolve([result({}), result({ id: "opensubtitles:2", name: "Heat.DVDRip", matched: "title", hearing_impaired: true, downloads: 1 })]),
+      found: () => Promise.resolve([result({}), result({ id: "opensubtitles:2", name: "Her.DVDRip", matched: "title", hearing_impaired: true, downloads: 1 })]),
     });
     expect(t.notes()).toEqual(["Searching…"]);
     await flush();
     expect(t.asked).toEqual(["eng"]);
     expect(t.rows()).toEqual([
       "LanguageEnglish",
-      "Heat.1995.1080p.BluRayMade for this file · English · SRT · 1,234 downloads",
-      "Heat.DVDRipEnglish · SRT · SDH · 1 download",
+      "Her.2013.1080p.BluRayMade for this file · English · SRT · 1,234 downloads",
+      "Her.DVDRipEnglish · SRT · SDH · 1 download",
     ]);
-    expect(t.focus.current?.textContent).toContain("Heat.1995.1080p.BluRay");
+    expect(t.focus.current?.textContent).toContain("Her.2013.1080p.BluRay");
     t.press("ok");
     await flush();
     expect(t.added).toEqual(["opensubtitles:1"]);

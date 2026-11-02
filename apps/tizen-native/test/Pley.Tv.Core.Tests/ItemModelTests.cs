@@ -41,7 +41,7 @@ public class ItemModelTests
 
     static ItemDetail Episode() => new ItemDetail
     {
-        Id = 41, LibraryId = 2, Kind = "episode", Title = "Half Loop", ParentId = 31, GrandparentId = 10,
+        Id = 41, LibraryId = 2, Kind = "episode", Title = "Glasshouse", ParentId = 31, GrandparentId = 10,
         UserState = new UserState { PositionMs = 5_000 }, DurationMs = 3_480_000,
     };
 
@@ -442,6 +442,6 @@ public class ItemModelTests
     {
         data.Set(Episode() with { GrandparentTitle = "Driftline", ParentIndex = 2, Index = 5 });
         var ready = Assert.IsType<ItemActionsState.Ready>(Actions(41).State.Value);
-        Assert.Equal(("Driftline", "S2 · E5 · Half Loop"), (ready.Title, ready.Subtitle));
+        Assert.Equal(("Driftline", "S2 · E5 · Glasshouse"), (ready.Title, ready.Subtitle));
     }
 }

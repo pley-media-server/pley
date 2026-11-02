@@ -71,8 +71,8 @@ function request(over: Partial<MediaRequest> = {}): MediaRequest {
     id: 1,
     kind: "movie",
     tmdb_id: 10,
-    title: "Arrival",
-    year: 2016,
+    title: "Casablanca",
+    year: 1942,
     poster_url: null,
     backdrop_url: null,
     seasons: null,
@@ -103,7 +103,7 @@ function request(over: Partial<MediaRequest> = {}): MediaRequest {
 }
 
 function title(over: Partial<DiscoverTitle> = {}): DiscoverTitle {
-  return { kind: "movie", tmdb_id: 10, title: "Arrival", year: 2016, overview: "", poster_url: null, backdrop_url: null, rating: 7.9, status: "none", item_id: null, request_id: null, ...over };
+  return { kind: "movie", tmdb_id: 10, title: "Casablanca", year: 1942, overview: "", poster_url: null, backdrop_url: null, rating: 8.2, status: "none", item_id: null, request_id: null, ...over };
 }
 
 function season(number: number, state: DiscoverSeason["state"], over: Partial<DiscoverSeason> = {}): DiscoverSeason {
@@ -117,7 +117,7 @@ function detail(over: Partial<DiscoverDetail> = {}): DiscoverDetail {
     tagline: null,
     genres: [],
     release_date: null,
-    runtime_minutes: 116,
+    runtime_minutes: 102,
     certification: null,
     network: null,
     show_status: null,
@@ -138,7 +138,7 @@ function detail(over: Partial<DiscoverDetail> = {}): DiscoverDetail {
 }
 
 function show(seasons: DiscoverSeason[], over: Partial<DiscoverDetail> = {}): DiscoverDetail {
-  return detail({ kind: "show", tmdb_id: 20, title: "Severance", runtime_minutes: null, seasons, ...over });
+  return detail({ kind: "show", tmdb_id: 20, title: "Doctor Who", runtime_minutes: null, seasons, ...over });
 }
 
 function page(results: DiscoverTitle[], n = 1, total = 1): DiscoverPage {
@@ -268,7 +268,7 @@ describe("a title's page", () => {
     t.press("ok");
     await t.settle();
     expect(asked).toEqual([{ kind: "movie", tmdb_id: 10 }]);
-    expect(t.toasts).toEqual(["Asked for “Arrival”: an administrator decides."]);
+    expect(t.toasts).toEqual(["Asked for “Casablanca”: an administrator decides."]);
     // The page asks again once the change is in, and the same button says where it is.
     t.advance(300);
     await t.settle();
@@ -286,7 +286,7 @@ describe("a title's page", () => {
         discoverTitle: () => Promise.resolve(d),
         askFor: (body: NewRequest) => {
           asked.push(body);
-          return Promise.resolve({ request: request({ id: 6, kind: "show", tmdb_id: 20, title: "Severance", seasons: body.seasons ?? null }), created: true });
+          return Promise.resolve({ request: request({ id: 6, kind: "show", tmdb_id: 20, title: "Doctor Who", seasons: body.seasons ?? null }), created: true });
         },
       },
       summary(),
@@ -312,7 +312,7 @@ describe("a title's page", () => {
     t.select("pick/ask");
     await t.settle();
     expect(asked).toEqual([{ kind: "show", tmdb_id: 20, seasons: [3] }]);
-    expect(t.toasts).toEqual(["Asked for “Severance”: an administrator decides."]);
+    expect(t.toasts).toEqual(["Asked for “Doctor Who”: an administrator decides."]);
     expect(document.querySelector(".side-panel")).toBeNull();
     expect(t.fid()).toBe("more");
   });
@@ -410,7 +410,7 @@ describe("a title's page", () => {
   });
 
   it("puts a season's download time on its own line under its name, without the dot", async () => {
-    const r = request({ id: 5, kind: "show", tmdb_id: 20, title: "Severance", seasons: [2], status: "approved", stage: "downloading", download: { progress: 0.7, state: "downloading", eta: AT + 2 * 3600, episodes: 10 } });
+    const r = request({ id: 5, kind: "show", tmdb_id: 20, title: "Doctor Who", seasons: [2], status: "approved", stage: "downloading", download: { progress: 0.7, state: "downloading", eta: AT + 2 * 3600, episodes: 10 } });
     const d = show([season(1, "library"), season(2, "requested", { request_id: 5 })], { status: "partial", item_id: 7, requests: [r] });
     const t = mount((entry) => <TitleScreen entry={entry} kind="show" tmdbId={20} />, { discoverTitle: () => Promise.resolve(d) }, summary());
     await t.settle();
@@ -420,7 +420,7 @@ describe("a title's page", () => {
 });
 
 describe("Discover", () => {
-  const TITLES = [title({ tmdb_id: 1, title: "Arrival" }), title({ tmdb_id: 2, title: "Dune", status: "library", item_id: 3 }), title({ tmdb_id: 3, title: "Heat", status: "requested", request_id: 9 })];
+  const TITLES = [title({ tmdb_id: 1, title: "Casablanca" }), title({ tmdb_id: 2, title: "Coco", status: "library", item_id: 3 }), title({ tmdb_id: 3, title: "Her", status: "requested", request_id: 9 })];
 
   it("leads with the first trending title and its main action; the rows' posters carry their badges", async () => {
     const lists: string[] = [];
@@ -436,7 +436,7 @@ describe("Discover", () => {
       summary(),
     );
     await t.settle();
-    expect(t.text(".discover-hero .t-hero")).toEqual(["Arrival"]);
+    expect(t.text(".discover-hero .t-hero")).toEqual(["Casablanca"]);
     expect(t.fid()).toBe("hero/main");
     expect(t.el("hero/main")!.textContent).toBe("Request");
     expect(t.text(".title-badge")).toEqual(["In library", "Requested"]);
@@ -483,7 +483,7 @@ describe("Discover", () => {
     const of = (list: string) => asked.filter((a) => a.split(" ")[0] === list);
     expect(of("trending")).toEqual(["trending 1", "trending 2", "trending 3", "trending 4", "trending 5"]);
     expect(of("movies")).toEqual(["movies 1", "movies 2", "movies 3", "movies 4", "movies 5"]);
-    expect(t.text(".discover-hero .t-hero")).toEqual(["Arrival"]);
+    expect(t.text(".discover-hero .t-hero")).toEqual(["Casablanca"]);
     expect(t.text(".row-header")).toContain("Trending this week");
     expect(t.text(".row-header")).not.toContain("Popular movies");
     t.advance(60_000);
@@ -506,14 +506,14 @@ describe("Discover", () => {
     );
     for (let i = 0; i < 4; i++) await t.settle();
     expect(asked).toEqual([1, 2, 3, 4, 5]);
-    expect(t.text(".grid-cells .tile-caption .title")).toEqual(["Arrival", "Dune"]);
+    expect(t.text(".grid-cells .tile-caption .title")).toEqual(["Casablanca", "Coco"]);
     expect(t.el("movies/more")!.getAttribute("aria-label")).toBe("Show more");
     t.select("movies/more");
     // The well in its place holds focus until the next title comes, which takes it.
     expect(t.fid()).toBe("movies/more");
     for (let i = 0; i < 4; i++) await t.settle();
     expect(asked).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    expect(t.text(".grid-cells .tile-caption .title")).toEqual(["Arrival", "Dune", "Heat"]);
+    expect(t.text(".grid-cells .tile-caption .title")).toEqual(["Casablanca", "Coco", "Her"]);
     expect(t.fid()).toBe("movies/movie:3");
     expect(t.el("movies/more")!.getAttribute("aria-label")).toBe("Show more");
   });
@@ -541,7 +541,7 @@ describe("Discover", () => {
     );
     for (let i = 0; i < 3; i++) await t.settle();
     expect(asked).toEqual([1, 2]);
-    expect(t.text(".grid-cells .tile-caption .title")).toEqual(["Arrival", "Dune"]);
+    expect(t.text(".grid-cells .tile-caption .title")).toEqual(["Casablanca", "Coco"]);
     expect(t.el("movies/more")!.getAttribute("aria-label")).toBe("Retry");
     // Left as it is, then shown again (Back to it): asked again by itself.
     const again = mount(
@@ -561,7 +561,7 @@ describe("Discover", () => {
     again.select("movies/more");
     for (let i = 0; i < 3; i++) await again.settle();
     expect(asked).toEqual([1, 2, 2, 2]);
-    expect(again.text(".grid-cells .tile-caption .title")).toEqual(["Arrival", "Dune", "Heat"]);
+    expect(again.text(".grid-cells .tile-caption .title")).toEqual(["Casablanca", "Coco", "Her"]);
     expect(again.fid()).toBe("movies/movie:3");
     expect(again.el("movies/more")).toBeNull();
   });
@@ -569,7 +569,7 @@ describe("Discover", () => {
   it("lists everything TMDB has for search's words under a title for them, each with its badge", async () => {
     const asked: unknown[][] = [];
     const t = mount(
-      (entry) => <DiscoverSearchScreen entry={entry} query="dune" />,
+      (entry) => <DiscoverSearchScreen entry={entry} query="coco" />,
       {
         discoverSearch: (q: string, n: number, missing: boolean) => {
           asked.push([q, n, missing]);
@@ -577,13 +577,13 @@ describe("Discover", () => {
         },
       },
       summary(),
-      { name: "discoverSearch", query: "dune" },
+      { name: "discoverSearch", query: "coco" },
     );
     await t.settle();
-    expect(asked).toEqual([["dune", 1, false]]);
-    expect(t.text(".discover-page .t-page")).toEqual(["Results for “dune”"]);
+    expect(asked).toEqual([["coco", 1, false]]);
+    expect(t.text(".discover-page .t-page")).toEqual(["Results for “coco”"]);
     expect(document.querySelector(".discover-page input")).toBeNull();
-    expect(t.text(".grid-cells .tile-caption .title")).toEqual(["Arrival", "Dune", "Heat"]);
+    expect(t.text(".grid-cells .tile-caption .title")).toEqual(["Casablanca", "Coco", "Her"]);
     expect(t.text(".title-badge")).toEqual(["In library", "Requested"]);
     expect(t.fid()).toBe("result/movie:1");
     t.press("ok");
@@ -619,17 +619,17 @@ describe("Discover", () => {
     const down = new ApiError(503, "tmdb_down", "TMDB isn't answering", { code: "tmdb_down", message: "TMDB isn't answering" });
     let fail = true;
     const t = mount(
-      (entry) => <DiscoverSearchScreen entry={entry} query="dune" />,
+      (entry) => <DiscoverSearchScreen entry={entry} query="coco" />,
       { discoverSearch: (_q: string, n: number) => (fail ? Promise.reject(down) : Promise.resolve(page(TITLES, n))) },
       summary(),
-      { name: "discoverSearch", query: "dune" },
+      { name: "discoverSearch", query: "coco" },
     );
     await t.settle();
     expect(t.text(".discover-note .t-title")).toEqual(["TMDB isn't answering"]);
     fail = false;
     t.select("retry");
     for (let i = 0; i < 3; i++) await t.settle();
-    expect(t.text(".grid-cells .tile-caption .title")).toEqual(["Arrival", "Dune", "Heat"]);
+    expect(t.text(".grid-cells .tile-caption .title")).toEqual(["Casablanca", "Coco", "Her"]);
     expect(t.fid()).toBe("result/movie:1");
   });
 
@@ -646,7 +646,7 @@ describe("the requests", () => {
 
   it("open on Needs attention for administrators, oldest first; Approve takes a card off it and focus goes to the next", async () => {
     const actions: MediaRequest["actions"] = ["approve", "decline", "delete"];
-    let all = [request({ id: 1, mine: false, requested_by: ANN, actions }), request({ id: 2, tmdb_id: 11, title: "Dune", mine: false, requested_by: ANN, actions })];
+    let all = [request({ id: 1, mine: false, requested_by: ANN, actions }), request({ id: 2, tmdb_id: 11, title: "Coco", mine: false, requested_by: ANN, actions })];
     const queries: RequestQuery[] = [];
     const approved: number[] = [];
     const t = mount(
@@ -676,13 +676,13 @@ describe("the requests", () => {
     t.press("ok");
     await t.settle();
     expect(approved).toEqual([1]);
-    expect(t.toasts).toEqual(["Approved “Arrival”."]);
+    expect(t.toasts).toEqual(["Approved “Casablanca”."]);
     expect(t.el("req/1")).toBeNull();
     expect(t.fid()).toBe("req/2");
   });
 
   it("declines with a reason typed on the TV's keyboard: its Done goes to Decline, which sends it", async () => {
-    let all = [request({ id: 2, tmdb_id: 11, title: "Dune", mine: false, requested_by: ANN, actions: ["approve", "decline", "delete"] })];
+    let all = [request({ id: 2, tmdb_id: 11, title: "Coco", mine: false, requested_by: ANN, actions: ["approve", "decline", "delete"] })];
     const declined: [number, string | null][] = [];
     const t = mount(
       (entry) => <RequestsScreen entry={entry} />,
@@ -701,7 +701,7 @@ describe("the requests", () => {
     await t.settle();
     t.press("ok");
     t.select("action/decline_reason");
-    expect(t.text(".side-panel .panel-title")).toEqual(["Decline “Dune”?"]);
+    expect(t.text(".side-panel .panel-title")).toEqual(["Decline “Coco”?"]);
     // The keyboard is up on the reason as the step shows.
     expect(t.fid()).toBe("reason");
     expect(t.input.typing).not.toBeNull();
@@ -713,14 +713,14 @@ describe("the requests", () => {
     t.press("ok");
     await t.settle();
     expect(declined).toEqual([[2, "Not this one"]]);
-    expect(t.toasts).toEqual(["Declined “Dune”."]);
+    expect(t.toasts).toEqual(["Declined “Coco”."]);
     // Nothing else needs attention: the tab has focus, and the list says so.
     expect(t.fid()).toBe("tab/attention");
     expect(t.text(".requests-note .t-section")).toEqual(["No requests need attention."]);
   });
 
   it("withdraws one's own request once asked in the panel; Cancel, first, and Back go back to the actions", async () => {
-    let all = [request({ id: 1, actions: ["withdraw"] }), request({ id: 2, tmdb_id: 11, title: "Dune", actions: ["withdraw"] })];
+    let all = [request({ id: 1, actions: ["withdraw"] }), request({ id: 2, tmdb_id: 11, title: "Coco", actions: ["withdraw"] })];
     const deleted: number[] = [];
     const t = mount(
       (entry) => <RequestsScreen entry={entry} />,
@@ -741,7 +741,7 @@ describe("the requests", () => {
     expect(t.fid()).toBe("req/1");
     t.press("ok");
     t.select("action/withdraw");
-    expect(t.text(".side-panel .panel-title")).toEqual(["Withdraw your request for “Arrival”?"]);
+    expect(t.text(".side-panel .panel-title")).toEqual(["Withdraw your request for “Casablanca”?"]);
     // OK pressed twice withdraws nothing.
     expect(t.fid()).toBe("cancel");
     t.press("ok");
@@ -756,7 +756,7 @@ describe("the requests", () => {
     t.press("ok");
     await t.settle();
     expect(deleted).toEqual([1]);
-    expect(t.toasts).toEqual(["Withdrew your request for “Arrival”."]);
+    expect(t.toasts).toEqual(["Withdrew your request for “Casablanca”."]);
     expect(t.fid()).toBe("req/2");
   });
 
@@ -787,23 +787,23 @@ describe("search", () => {
         search: () => Promise.resolve({ items: [], people: [] }),
         discoverSearch: (q: string, n: number, missing: boolean) => {
           asked.push([q, n, missing]);
-          return Promise.resolve(page([title({ tmdb_id: 1, title: "Arrival" })], n));
+          return Promise.resolve(page([title({ tmdb_id: 1, title: "Casablanca" })], n));
         },
       },
       summary(),
       { name: "search" },
     );
-    t.type(".search-field input", "arr");
+    t.type(".search-field input", "cas");
     t.advance(250);
     await t.settle();
-    expect(asked).toEqual([["arr", 1, true]]);
+    expect(asked).toEqual([["cas", 1, true]]);
     expect(t.text(".search-none")).toEqual(["Nothing in your libraries matches"]);
     expect(t.text(".search-rows .row-header")).toEqual(["Discover"]);
     t.select("tmdb/movie:1");
     t.select("tmdb/all");
     expect(t.opened).toEqual([
       { name: "title", kind: "movie", tmdbId: 1 },
-      { name: "discoverSearch", query: "arr" },
+      { name: "discoverSearch", query: "cas" },
     ]);
   });
 
@@ -816,7 +816,7 @@ describe("search", () => {
         discoverSearch: (q: string, n: number, missing: boolean) => {
           asked.push([q, n, missing]);
           // An age limit leaves most of each page out.
-          return Promise.resolve(page(n === 2 ? [title({ tmdb_id: 1, title: "Arrival" })] : [], n, 500));
+          return Promise.resolve(page(n === 2 ? [title({ tmdb_id: 1, title: "Casablanca" })] : [], n, 500));
         },
       },
       summary(),
@@ -831,7 +831,7 @@ describe("search", () => {
       [words, 2, true],
       [words, 3, true],
     ]);
-    expect(t.text(".search-rows .tile-caption .title")).toEqual(["Arrival"]);
+    expect(t.text(".search-rows .tile-caption .title")).toEqual(["Casablanca"]);
     t.select("tmdb/all");
     expect(t.opened).toEqual([{ name: "discoverSearch", query: words }]);
   });
@@ -843,12 +843,12 @@ describe("search", () => {
       (entry) => <SearchScreen entry={entry} />,
       {
         search: () => Promise.resolve({ items: [], people: [] }),
-        discoverSearch: (_q: string, n: number) => (fail ? Promise.reject(down) : Promise.resolve(page([title({ tmdb_id: 1, title: "Arrival" })], n))),
+        discoverSearch: (_q: string, n: number) => (fail ? Promise.reject(down) : Promise.resolve(page([title({ tmdb_id: 1, title: "Casablanca" })], n))),
       },
       summary(),
       { name: "search" },
     );
-    t.type(".search-field input", "arr");
+    t.type(".search-field input", "cas");
     t.advance(250);
     await t.settle();
     expect(t.text(".search-none")).toEqual(["Nothing in your libraries matches"]);
@@ -859,7 +859,7 @@ describe("search", () => {
     expect(t.fid()).toBe("tmdb/retry");
     t.advance(250);
     await t.settle();
-    expect(t.text(".search-rows .tile-caption .title")).toEqual(["Arrival"]);
+    expect(t.text(".search-rows .tile-caption .title")).toEqual(["Casablanca"]);
     expect(t.fid()).toBe("tmdb/movie:1");
   });
 
@@ -874,7 +874,7 @@ describe("search", () => {
       summary(),
       { name: "search" },
     );
-    t.type(".search-field input", "arr");
+    t.type(".search-field input", "cas");
     t.advance(250);
     await t.settle();
     expect(t.text(".search-tmdb-problem .t-title")).toEqual(["TMDB refused this server's key"]);
@@ -895,11 +895,11 @@ describe("search", () => {
       summary({ access: "off", own: 2 }),
       { name: "search" },
     );
-    t.type(".search-field input", "arr");
+    t.type(".search-field input", "cas");
     t.advance(250);
     await t.settle();
     expect(asked).toEqual([]);
-    expect(t.text(".search-notice .t-title")).toEqual(["No results for “arr”"]);
+    expect(t.text(".search-notice .t-title")).toEqual(["No results for “cas”"]);
   });
 });
 
@@ -961,7 +961,7 @@ describe("a library title's request", () => {
 });
 
 describe("ready-to-watch news", () => {
-  const NEWS = { id: 1, text: "“Arrival” is ready to watch.", itemId: 7, poster: null };
+  const NEWS = { id: 1, text: "“Casablanca” is ready to watch.", itemId: 7, poster: null };
 
   it("waits for the remote to rest, takes focus, and gives it back on Back", () => {
     const t = mount(
@@ -980,7 +980,7 @@ describe("ready-to-watch news", () => {
     t.advance(1000);
     expect(document.querySelector(".request-notice")).toBeNull();
     t.advance(600);
-    expect(t.text(".request-notice-text .t-label")).toEqual(["“Arrival” is ready to watch."]);
+    expect(t.text(".request-notice-text .t-label")).toEqual(["“Casablanca” is ready to watch."]);
     expect(t.focus.current?.textContent).toBe("Open");
     t.press("back");
     expect(document.querySelector(".request-notice")).toBeNull();

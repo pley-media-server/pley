@@ -26,8 +26,8 @@ public class PersonModelTests
         PhotoUrl = "/api/people/70/photo",
         Credits = new[]
         {
-            Credit(Film(1, "Northern Lights", 2019), Role("actor", "Neo"), Role("director")),
-            Credit(Item(2, "show", "Severance") with { Year = 2022 }, Role("actor", episodes: 3)),
+            Credit(Film(1, "Northern Lights", 2019), Role("actor", "Nora"), Role("director")),
+            Credit(Item(2, "show", "Doctor Who") with { Year = 2005 }, Role("actor", episodes: 3)),
             Credit(Film(3, "Low Orbit", 2021), Role("writer")),
             // A title credited twice counts once.
             Credit(Film(1, "Northern Lights", 2019), Role("producer")),
@@ -46,8 +46,8 @@ public class PersonModelTests
         Assert.Equal("2 movies · 1 show in your libraries", page.CountLine);
         Assert.Equal(new[] { "Acting", "Directing", "Writing" }, page.Rows.Select(r => r.Title));
         var acting = page.Rows[0];
-        Assert.Equal(new[] { "Northern Lights", "Severance" }, acting.Tiles.Select(t => t.Title));
-        Assert.Equal(new[] { "2019 · as Neo", "2022 · Guest star (3 episodes)" }, acting.Tiles.Select(t => t.Subtitle));
+        Assert.Equal(new[] { "Northern Lights", "Doctor Who" }, acting.Tiles.Select(t => t.Title));
+        Assert.Equal(new[] { "2019 · as Nora", "2005 · Guest star (3 episodes)" }, acting.Tiles.Select(t => t.Subtitle));
         Assert.Equal("2019 · Director", page.Rows[1].Tiles.Single().Subtitle);
         Assert.Equal(new PageKey.Item(3), PersonRules.Opens(page.Rows[2].Tiles.Single().Id));
     }
@@ -55,7 +55,7 @@ public class PersonModelTests
     [Fact]
     public void Roles_read_as_the_web_says_them()
     {
-        Assert.Equal("as Neo, Director", PersonRules.RoleText(new[] { Role("actor", "Neo"), Role("director") }));
+        Assert.Equal("as Nora, Director", PersonRules.RoleText(new[] { Role("actor", "Nora"), Role("director") }));
         Assert.Equal("Actor", PersonRules.RoleText(new[] { Role("actor") }));
         Assert.Equal("as Mark (1 episode)", PersonRules.RoleText(new[] { Role("actor", "Mark", episodes: 1) }));
         Assert.Equal("Crew", PersonRules.RoleText(new[] { Role("gaffer") }));

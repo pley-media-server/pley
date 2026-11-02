@@ -24,7 +24,7 @@ public class PlayerModelTests
         Assert.False(body.ContainsKey("audio_index"));
         var source = h.Engine.Prepared.Single();
         Assert.Equal((ItemKit.Origin + "/api/media/k3y/files/10/stream", false, "video/x-matroska", 120_000L, "eac3"), (source.Url, source.Hls, source.Mime, source.StartMs, source.AudioCodec));
-        Assert.Equal(("Heat (1995)", (string?)null, "Direct play"), (h.State.Title, h.State.Subtitle, h.State.Method));
+        Assert.Equal(("Her (2013)", (string?)null, "Direct play"), (h.State.Title, h.State.Subtitle, h.State.Method));
         Assert.Equal(PhaseKind.Playing, h.State.Phase.Kind);
         Assert.Equal(2_700_000, h.Model.Clock.Value.DurationMs);
         Assert.NotNull(h.State.FirstFrameMs);

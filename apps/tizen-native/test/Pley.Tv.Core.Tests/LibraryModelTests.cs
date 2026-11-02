@@ -48,7 +48,7 @@ public class LibraryModelTests
     [Fact]
     public void A_complete_listing_by_title_has_its_a_to_z()
     {
-        var titles = Enumerable.Range(1, 40).Select(i => Movie(i, i <= 20 ? $"Alien {i}" : $"Zodiac {i}")).ToList();
+        var titles = Enumerable.Range(1, 40).Select(i => Movie(i, i <= 20 ? $"Airport {i}" : $"Zulu {i}")).ToList();
         data.Set(ByTitle, titles);
         var model = Model();
         var index = model.State.Value.Grid.Index;
@@ -196,7 +196,7 @@ public class LibraryModelTests
         data.SetHubs(1, new Hub { Key = "continue_watching:1", Title = "Continue Watching", LibraryId = 1, Items = new[] { Movie(3) } },
             new Hub { Key = "top_rated:1", Title = "Top Rated", LibraryId = 1, Items = new[] { Movie(4) } },
             new Hub { Key = "recently_released:1", Title = "Recently Released", LibraryId = 1 });
-        data.SetCollections(1, Collection(9, "Alien Collection", 4));
+        data.SetCollections(1, Collection(9, "Airport Collection", 4));
         var model = Model();
         Assert.Equal(0, data.HubAsks);
         Assert.Equal(0, data.CollectionAsks);
@@ -214,7 +214,7 @@ public class LibraryModelTests
         Assert.Equal("Collections", rows[2].Title);
         var shelf = Assert.IsType<Loadable<IReadOnlyList<CollectionTile>>.Ready>(model.State.Value.Collections).Data;
         var only = Assert.Single(shelf);
-        Assert.Equal((9L, 4L, "Alien Collection", "4 movies"), (only.Id, only.Count, only.Tile.Title, only.Tile.Subtitle));
+        Assert.Equal((9L, 4L, "Airport Collection", "4 movies"), (only.Id, only.Count, only.Tile.Title, only.Tile.Subtitle));
         Assert.Equal(new[] { FakeLibraries.Server + "/api/collections/9/images/poster" }, only.Tile.Images);
 
         // Shown again, it doesn't read again.

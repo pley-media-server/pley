@@ -32,9 +32,9 @@ public class PlaylistSheetsTests
     }
 
     static ItemSummary Show(long id, string title, int? episodes) =>
-        new ItemDetail { Id = id, LibraryId = 2, Kind = "show", Title = title, Year = 2022, LeafCount = episodes };
+        new ItemDetail { Id = id, LibraryId = 2, Kind = "show", Title = title, Year = 2005, LeafCount = episodes };
 
-    static ItemSummary EpisodeSeven => new ItemDetail { Id = 7, LibraryId = 2, Kind = "episode", Title = "Half Loop", Index = 2, ParentIndex = 1, GrandparentTitle = "Severance" };
+    static ItemSummary EpisodeSeven => new ItemDetail { Id = 7, LibraryId = 2, Kind = "episode", Title = "The End of the World", Index = 2, ParentIndex = 1, GrandparentTitle = "Doctor Who" };
 
     [Fact]
     public void It_says_what_is_added_and_offers_only_playlists_that_take_it()
@@ -42,7 +42,7 @@ public class PlaylistSheetsTests
         repo.List = Lists;
         repo.Items[7] = EpisodeSeven;
         var state = Sheet(7).Model.State.Value;
-        Assert.Equal("Severance — S1 · E2 — Half Loop", state.Title);
+        Assert.Equal("Doctor Who — S1 · E2 — The End of the World", state.Title);
         Assert.Equal(PlaylistKind.Video, state.Kind);
         // Smart playlists fill themselves; music ones don't take episodes.
         var cards = state.Playlists.Value!;
@@ -67,28 +67,28 @@ public class PlaylistSheetsTests
     public void Adding_says_how_many_entries_went_in()
     {
         repo.List = Lists;
-        repo.Items[8] = Show(8, "Severance", episodes: 19);
+        repo.Items[8] = Show(8, "Doctor Who", episodes: 13);
         var (model, events) = Sheet(8);
         model.Add(model.State.Value.Playlists.Value!.Single());
         Assert.Equal(new[] { "add 1 [8]" }, repo.Sent);
         var added = Assert.IsType<AddEvent.Added>(events.Single());
-        Assert.Equal(new AddEvent.Added("Road trip", 19), added);
-        Assert.Equal("Added 19 items to Road trip", PlaylistText.Added(added));
+        Assert.Equal(new AddEvent.Added("Road trip", 13), added);
+        Assert.Equal("Added 13 items to Road trip", PlaylistText.Added(added));
         Assert.False(model.State.Value.Busy);
     }
 
     [Fact]
     public void The_toasts_counts_are_the_webs()
     {
-        var one = new ItemSummary { Id = 1, LibraryId = 1, Kind = "movie", Title = "Heat" };
+        var one = new ItemSummary { Id = 1, LibraryId = 1, Kind = "movie", Title = "Her" };
         var empty = Show(2, "Nothing yet", episodes: 0);
         var unknown = Show(3, "Unknown", episodes: null);
         Assert.Equal(1, PlaylistRules.EntriesOf(new[] { one }));
         Assert.Equal(0, PlaylistRules.EntriesOf(new[] { empty }));
         Assert.Null(PlaylistRules.EntriesOf(new[] { one, unknown }));
         Assert.Equal("3 items", PlaylistRules.TitleOf(new[] { one, empty, unknown }));
-        Assert.Equal("Heat", PlaylistRules.TitleOf(new[] { one }));
-        Assert.Equal("Heat (1995)", PlaylistRules.FullTitle(one with { Year = 1995 }));
+        Assert.Equal("Her", PlaylistRules.TitleOf(new[] { one }));
+        Assert.Equal("Her (2013)", PlaylistRules.FullTitle(one with { Year = 2013 }));
         Assert.Equal("Nothing to add", PlaylistText.Added(new AddEvent.Added("Road trip", 0)));
         Assert.Equal("Added to Road trip", PlaylistText.Added(new AddEvent.Added("Road trip", 1)));
         Assert.Equal("Added to Road trip", PlaylistText.Added(new AddEvent.Added("Road trip", null)));

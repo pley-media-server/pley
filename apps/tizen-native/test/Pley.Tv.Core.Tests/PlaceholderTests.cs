@@ -13,8 +13,8 @@ public class PlaceholderTests
     {
         var web = new Dictionary<string, int>
         {
-            ["Heat"] = 176, ["Alien"] = 159, [""] = 0, ["Glasshouse"] = 124, ["Northern Lights"] = 121,
-            ["Ashfall"] = 265, ["A Film With No Poster Yet"] = 71, ["Amélie"] = 331, ["千と千尋の神隠し"] = 156,
+            ["Her"] = 77, ["Airport"] = 123, [""] = 0, ["Glasshouse"] = 124, ["Northern Lights"] = 121,
+            ["Ashfall"] = 265, ["A Film With No Poster Yet"] = 71, ["Chéri"] = 323, ["千と千尋の神隠し"] = 156,
             ["The Quiet Harbor"] = 303,
         };
         foreach (var (title, hue) in web) Assert.Equal(hue, Placeholder.Hue(title));
@@ -27,8 +27,8 @@ public class PlaceholderTests
         var (from, to) = Placeholder.Colors("");
         Assert.Equal(0x492727u, from);
         Assert.Equal(0x292214u, to);
-        Assert.NotEqual(Placeholder.Colors("Heat"), Placeholder.Colors("Alien"));
-        Assert.Equal(Placeholder.Colors("Heat"), Placeholder.Colors("Heat"));
+        Assert.NotEqual(Placeholder.Colors("Her"), Placeholder.Colors("Airport"));
+        Assert.Equal(Placeholder.Colors("Her"), Placeholder.Colors("Her"));
     }
 
     [Fact]

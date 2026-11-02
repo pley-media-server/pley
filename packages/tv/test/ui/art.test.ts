@@ -4,7 +4,7 @@ import { placeholderTitleSize } from "../../src/ui/kit/art";
 describe("a placeholder's title", () => {
   it("keeps Title's 16 px while its longest word fits", () => {
     expect(placeholderTitleSize("12 Angry Men", 96)).toBe(16);
-    expect(placeholderTitleSize("Back to the Future", 96)).toBe(16);
+    expect(placeholderTitleSize("Singin' in the Rain", 96)).toBe(16);
     expect(placeholderTitleSize("", 96)).toBe(16);
   });
 

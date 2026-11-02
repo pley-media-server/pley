@@ -94,7 +94,7 @@ public static class PlaylistText
     /// <summary>"Go to Northern Lights".</summary>
     public static string GoTo(string title) => $"Go to {title}";
 
-    /// <summary>Removed “Half Loop”.</summary>
+    /// <summary>Removed “The End of the World”.</summary>
     public static string Removed(string title) => $"Removed “{title}”";
 
     /// <summary>“Road trip” will be deleted. What's in it stays in your libraries.</summary>

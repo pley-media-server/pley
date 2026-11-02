@@ -18,18 +18,18 @@ function summary(over: Partial<ItemSummary>): ItemSummary {
 }
 
 describe("the A–Z jump", () => {
-  const items = ["Alien 1", "Alien 2", "Batman 1", "Ébloui", "Zorro 1", "300", "ünder"].map((t) => ({ title: t, sort_title: t.toLowerCase() }));
+  const items = ["Airport 1", "Airport 2", "Batman 1", "Ébloui", "Zorro 1", "2046", "ünder"].map((t) => ({ title: t, sort_title: t.toLowerCase() }));
   const sorted = items.slice().sort((a, b) => letterOf(a).localeCompare(letterOf(b)));
 
   it("files titles by their first letter, accents removed, the rest under #", () => {
     expect(letterOf({ title: "Ébloui", sort_title: "" })).toBe("E");
-    expect(letterOf({ title: "300", sort_title: "300" })).toBe("#");
-    expect(letterOf({ title: "Matrix", sort_title: "matrix" })).toBe("M");
+    expect(letterOf({ title: "2046", sort_title: "2046" })).toBe("#");
+    expect(letterOf({ title: "Marty", sort_title: "marty" })).toBe("M");
   });
 
   it("jumps to a letter's first title, else the next letter's, else the one before", () => {
     const alpha = new AlphaIndex(sorted);
-    expect(alpha.jumpTarget("A")).toBe(sorted.findIndex((x) => x.title === "Alien 1"));
+    expect(alpha.jumpTarget("A")).toBe(sorted.findIndex((x) => x.title === "Airport 1"));
     // No C: the next letter with titles.
     expect(sorted[alpha.jumpTarget("C")]!.title).toBe("Ébloui");
     // Nothing after Z: the nearest before.

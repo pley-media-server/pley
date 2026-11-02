@@ -99,9 +99,9 @@ public class LibraryParamsTests
     public void Values_are_escaped_as_the_android_app_escapes_them()
     {
         Assert.Equal("Sci-Fi+%26+Fantasy%21", LibraryParams.Encode("Sci-Fi & Fantasy!"));
-        Assert.Equal("Am%C3%A9lie", LibraryParams.Encode("Amélie"));
+        Assert.Equal("Ch%C3%A9ri", LibraryParams.Encode("Chéri"));
         Assert.Equal("Sci-Fi & Fantasy!", LibraryParams.Decode("Sci-Fi+%26+Fantasy%21"));
-        Assert.Equal("Amélie", LibraryParams.Decode("Am%C3%A9lie"));
+        Assert.Equal("Chéri", LibraryParams.Decode("Ch%C3%A9ri"));
         // One that can't be read is taken as it is.
         Assert.Equal("100%", LibraryParams.Decode("100%"));
         Assert.Equal("%zz", LibraryParams.Decode("%zz"));

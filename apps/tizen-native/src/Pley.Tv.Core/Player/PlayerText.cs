@@ -176,7 +176,7 @@ public static class PlayerText
         return EpisodeNumber.Replace(subtitle, "S$1 · E$2").Replace(" — ", " · ");
     }
 
-    /// <summary>The player's title: an episode's show, a film with its year ("Heat (1995)").</summary>
+    /// <summary>The player's title: an episode's show, a film with its year ("Her (2013)").</summary>
     public static string Title(Api.ItemSummary item) =>
         item.Kind == "episode" ? item.GrandparentTitle ?? item.Title
         : item.Year != null ? $"{item.Title} ({item.Year.Value.ToString(CultureInfo.InvariantCulture)})"

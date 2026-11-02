@@ -57,28 +57,28 @@ describe("the request routes", () => {
   it("list with the filters asked for, flags as 1 and statuses joined", async () => {
     const { api, asked } = server(200, { total: 0, counts: {}, requests: [], people: [] });
     await api.requests({ attention: true, order: "oldest", limit: 30, offset: 0 });
-    await api.requests({ status: ["pending", "failed"], kind: "show", userId: 4, q: "sev", mine: true });
+    await api.requests({ status: ["pending", "failed"], kind: "show", userId: 4, q: "doc", mine: true });
     await api.requests({ unseen: true, limit: 20 });
     expect(asked.map((a) => a.line)).toEqual([
       "GET /api/requests?attention=1&order=oldest&offset=0&limit=30",
-      "GET /api/requests?status=pending%2Cfailed&kind=show&user_id=4&q=sev&mine=1",
+      "GET /api/requests?status=pending%2Cfailed&kind=show&user_id=4&q=doc&mine=1",
       "GET /api/requests?unseen=1&limit=20",
     ]);
   });
 
   it("search Discover leaving out what the libraries have, for global search", async () => {
     const { api, asked } = server(200, { page: 1, total_pages: 0, results: [] });
-    await api.discoverSearch("dune", 1, true);
-    await api.discoverSearch("dune", 2);
-    expect(asked.map((a) => a.line)).toEqual(["GET /api/discover/search?q=dune&page=1&missing=1", "GET /api/discover/search?q=dune&page=2"]);
+    await api.discoverSearch("coco", 1, true);
+    await api.discoverSearch("coco", 2);
+    expect(asked.map((a) => a.line)).toEqual(["GET /api/discover/search?q=coco&page=1&missing=1", "GET /api/discover/search?q=coco&page=2"]);
   });
 
   it("tell a new request (201) from requests followed (200)", async () => {
-    const made = server(201, { id: 1, title: "Dune" });
-    expect(await made.api.askFor({ kind: "movie", tmdb_id: 438631 })).toMatchObject({ created: true, request: { id: 1 } });
-    expect(made.asked[0]).toEqual({ line: "POST /api/requests", body: { kind: "movie", tmdb_id: 438631 }, type: "application/json" });
-    const followed = server(200, { id: 2, title: "Severance", watching: true });
-    expect(await followed.api.askFor({ kind: "show", tmdb_id: 95396, seasons: [2] })).toMatchObject({ created: false });
+    const made = server(201, { id: 1, title: "Coco" });
+    expect(await made.api.askFor({ kind: "movie", tmdb_id: 354912 })).toMatchObject({ created: true, request: { id: 1 } });
+    expect(made.asked[0]).toEqual({ line: "POST /api/requests", body: { kind: "movie", tmdb_id: 354912 }, type: "application/json" });
+    const followed = server(200, { id: 2, title: "Doctor Who", watching: true });
+    expect(await followed.api.askFor({ kind: "show", tmdb_id: 57243, seasons: [2] })).toMatchObject({ created: false });
   });
 
   it("decide with a body only where there is something to say", async () => {
