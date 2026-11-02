@@ -35,6 +35,11 @@ describes how they are made.
 - The remote's media keys work the music from every page, not only the
   music pages, and Stop pauses it. Music that was playing when the TV
   hid the app plays on from there when the app is back.
+- The player's keys work as in the Samsung app: OK with the controls
+  hidden shows them rather than pausing, Down shows them on Play/Pause,
+  and Left and Right show them with the seek's preview and wait for OK
+  (5 s at most) before seeking, which Back cancels. A held key scrubs
+  smoothly faster the longer it is held, and waits for OK when let go.
 
 ### Fixed
 

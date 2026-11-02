@@ -13,7 +13,7 @@ use pley_core::store::{SubtitleBackground, SubtitleFont, SubtitlePosition, Subti
 use pley_kit::feedback::{BUFFERING_DELAY, HANDOFF_DELAY};
 use pley_kit::{ListState, LoadingRing, Message, MessageStyle, SidePanel, inert};
 use pley_player::controller::{SeekPreview, SubtitleSearch, UpNextCard, next_chapter_start, previous_chapter_start};
-use pley_player::seeker::{MEDIA_STEP_MS, STEP_MS, Seeker};
+use pley_player::seeker::{MEDIA_STEP_MS, SETTLE_MS, STEP_MS, Seeker, WAIT_MS};
 use pley_player::{Phase, PlayerState};
 use pley_ui::{Dirs, Easing, Edge, FocusOpts, Group, Id, Motion, Ui, theme};
 
@@ -380,6 +380,11 @@ impl PlayerView {
             p.cancel_up_next();
             return true;
         }
+        // A seek waiting for OK: Back lets it go, and it plays on from where it was.
+        if self.controls && self.seeker.pending() {
+            self.seeker.cancel();
+            return true;
+        }
         if self.controls {
             let skip = self.skip_shown(s);
             self.controls = false;
@@ -553,7 +558,6 @@ impl PlayerView {
         let error = matches!(s.phase, Phase::Error { .. });
         let card = s.up_next.is_some();
         let busy = s.phase == Phase::Preparing || s.switching;
-        let has_subtitles = !s.subtitles.is_empty();
         let skip = self.skip_shown(s);
         let clock = p.clock();
 
@@ -587,7 +591,7 @@ impl PlayerView {
                 Key::FastForward | Key::Rewind => {
                     let dir = if e.key == Key::Rewind { -1 } else { 1 };
                     let c = p.clock();
-                    self.seeker.press(now, dir, MEDIA_STEP_MS, c.position_ms, c.duration_ms);
+                    self.seeker.press(now, dir, MEDIA_STEP_MS, SETTLE_MS, c.position_ms, c.duration_ms);
                 }
                 Key::Next => self.next(p),
                 Key::Previous => self.previous(p),
@@ -609,25 +613,23 @@ impl PlayerView {
                 Key::Left | Key::Right => {
                     let dir = if e.key == Key::Left { -1 } else { 1 };
                     if !e.pressed {
-                        if let Some(t) = self.seeker.release() {
-                            p.seek_to(t);
-                            self.confirm_until = now + CONFIRM_MS;
-                        }
+                        // Let go, a scrub waits for OK where it got to, as presses do.
+                        self.seeker.release(now);
                     } else if (holder || on_bar) && !busy {
+                        // With the controls hidden, they show on the scrubber, the seek's preview
+                        // with them.
+                        if !self.controls {
+                            self.show(Target::Scrubber);
+                        }
                         if e.repeat {
                             self.seeker.repeat(now, dir, clock.position_ms, clock.duration_ms);
-                            if !self.controls {
-                                self.show(Target::Scrubber);
-                            }
                         } else {
-                            self.seeker.press(now, dir, STEP_MS, clock.position_ms, clock.duration_ms);
+                            self.seeker.press(now, dir, STEP_MS, WAIT_MS, clock.position_ms, clock.duration_ms);
                         }
                     }
                 }
                 Key::Up if holder && first => self.show(Target::Scrubber),
-                Key::Down if holder && first => {
-                    self.show(Target::Button(if has_subtitles { Btn::Subtitles } else { Btn::Info }));
-                }
+                Key::Down if holder && first => self.show(Target::Button(Btn::PlayPause)),
                 Key::Info | Key::Guide if !self.controls && first => {
                     self.show(if skip { Target::Skip } else { Target::Scrubber });
                 }
@@ -1098,8 +1100,12 @@ impl PlayerView {
         };
         ui.request_repaint();
         match a {
-            Act::VideoOk | Act::ScrubOk if !busy => self.play_pause(p, now),
-            Act::VideoOk | Act::ScrubOk => {}
+            // OK with the controls hidden confirms a seek coming, else shows the controls on the
+            // scrubber as Up does; it never pauses there.
+            Act::VideoOk if self.seeker.pending() => self.play_pause(p, now),
+            Act::VideoOk => self.show(Target::Scrubber),
+            Act::ScrubOk if !busy => self.play_pause(p, now),
+            Act::ScrubOk => {}
             Act::VideoMenu => {
                 let skip = self.skip_shown(p.state());
                 self.show(if skip { Target::Skip } else { Target::Scrubber });
@@ -1127,8 +1133,8 @@ impl PlayerView {
         let c = p.clock();
         match b {
             Btn::PlayPause => self.play_pause(p, now),
-            Btn::Back10 => self.seeker.press(now, -1, STEP_MS, c.position_ms, c.duration_ms),
-            Btn::Forward10 => self.seeker.press(now, 1, STEP_MS, c.position_ms, c.duration_ms),
+            Btn::Back10 => self.seeker.press(now, -1, STEP_MS, SETTLE_MS, c.position_ms, c.duration_ms),
+            Btn::Forward10 => self.seeker.press(now, 1, STEP_MS, SETTLE_MS, c.position_ms, c.duration_ms),
             Btn::Previous => self.previous(p),
             Btn::Next => self.next(p),
             other => {

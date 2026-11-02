@@ -1,9 +1,12 @@
-//! Seeking with the remote (packages/tv/src/player/seeker.ts, the Android
-//! app's `TvSeeker`): each press steps 10 s (media keys 30 s) from where the
-//! last press left the target, and the seek happens once, 400 ms after the
-//! last press; a badge sums the presses. A held key scrubs faster the longer
-//! it is held (30×, then 90×, then a whole video in about 15 s) and seeks
-//! once, on release.
+//! Seeking with the remote (the Samsung app's `Seeker`, the Android app's
+//! `TvSeeker`): each press steps 10 s (media keys 30 s) from where the last
+//! press left the target, and the seek happens once: Left and Right wait for
+//! OK, going by themselves 5 s after the last key ([`WAIT_MS`]), so a few
+//! presses don't start the server's conversion again for each; the media keys
+//! and the Back 10 and Forward 10 buttons seek 400 ms after the last press
+//! ([`SETTLE_MS`]). A badge sums the presses. A held key scrubs faster the
+//! longer it is held (from 20×, doubling every 1.5 s, up to a whole video in
+//! 10 s) and, let go, waits for OK as presses do.
 //!
 //! Time comes in (`now`, ms of the app's clock); the screen calls
 //! [`Seeker::tick`] each frame and wakes at [`Seeker::next_due`].
@@ -12,8 +15,10 @@
 pub const STEP_MS: i64 = 10_000;
 /// A press of fast-forward or rewind.
 pub const MEDIA_STEP_MS: i64 = 30_000;
-/// The seek waits this long after the last press.
+/// The media keys' and buttons' jumps in a row seek once, this long after the last.
 pub const SETTLE_MS: i64 = 400;
+/// A seek with Left and Right waits for OK, and goes by itself this long after the last key.
+pub const WAIT_MS: i64 = 5_000;
 /// The badge goes this long after the last press.
 pub const BADGE_MS: i64 = 600;
 /// A held key's repeats count at most this much time each.
@@ -21,15 +26,20 @@ const MAX_REPEAT_GAP_MS: i64 = 200;
 /// The target stays this far before the end.
 const END_MARGIN_MS: i64 = 1_000;
 
-/// Video ms scrubbed per ms held: 30× for 1.5 s, 90× until 4 s, then a whole video in ~15 s (at least 180×).
+/// A held key's speed as it starts, in ms of video per ms held.
+const HOLD_START_RATE: f64 = 20.0;
+/// A held key's speed doubles this often.
+const HOLD_DOUBLES_MS: f64 = 1_500.0;
+/// The speed it stops at: at least this, or a whole video in [`FULL_SWEEP_MS`].
+const HOLD_TOP_RATE: f64 = 300.0;
+/// At its top speed, a whole video goes by in about this long.
+const FULL_SWEEP_MS: f64 = 10_000.0;
+
+/// Video ms scrubbed per ms held (`Seeker.RateAt`): smoothly faster the longer it's held, from 20×
+/// doubling every 1.5 s, up to a top that grows with the video (300×, or a whole video in 10 s).
 pub fn hold_rate(held_ms: i64, duration_ms: i64) -> f64 {
-    if held_ms < 1_500 {
-        30.0
-    } else if held_ms < 4_000 {
-        90.0
-    } else {
-        180f64.max(duration_ms as f64 / 15_000.0)
-    }
+    let top = HOLD_TOP_RATE.max(duration_ms as f64 / FULL_SWEEP_MS);
+    (HOLD_START_RATE * 2f64.powf(held_ms.max(0) as f64 / HOLD_DOUBLES_MS)).min(top)
 }
 
 /// The remote's seeking: a pending target, the badge and a held key's scrub.
@@ -53,12 +63,14 @@ impl Seeker {
         ms.clamp(0, top)
     }
 
-    /// A press at `now`: one step (`direction` ±1) from the pending target, else from the playhead.
-    pub fn press(&mut self, now: i64, direction: i64, step_ms: i64, position_ms: i64, duration_ms: i64) {
+    /// A press at `now`: one step (`direction` ±1) from the pending target, else from the playhead;
+    /// the seek goes `wait_ms` after the last press ([`WAIT_MS`] or [`SETTLE_MS`]) unless OK
+    /// takes it sooner.
+    pub fn press(&mut self, now: i64, direction: i64, step_ms: i64, wait_ms: i64, position_ms: i64, duration_ms: i64) {
         let from = self.target.unwrap_or(position_ms);
         self.target = Some(Self::clamp(from + direction * step_ms, duration_ms));
         self.badge_ms += direction * step_ms;
-        self.settle_at = Some(now + SETTLE_MS);
+        self.settle_at = Some(now + wait_ms);
         self.badge_until = Some(now + BADGE_MS);
     }
 
@@ -73,20 +85,22 @@ impl Seeker {
             self.settle_at = None;
             self.target.get_or_insert(position_ms);
         }
-        let dt = MAX_REPEAT_GAP_MS.min(now - self.last_repeat);
+        let dt = MAX_REPEAT_GAP_MS.min(now - self.last_repeat).max(0);
         self.last_repeat = now;
         let advance = hold_rate(now - self.hold_start, duration_ms) * dt as f64;
         let from = self.target.unwrap_or(position_ms);
         self.target = Some(Self::clamp(from + (direction as f64 * advance) as i64, duration_ms));
     }
 
-    /// The key let go: a held key seeks now (the target to seek to).
-    pub fn release(&mut self) -> Option<i64> {
+    /// The key let go at `now`: a scrub waits for OK where it got to, as presses do, going by
+    /// itself [`WAIT_MS`] later. Whether a key was held.
+    pub fn release(&mut self, now: i64) -> bool {
         if !self.holding {
-            return None;
+            return false;
         }
         self.holding = false;
-        self.commit()
+        self.settle_at = self.target.map(|_| now + WAIT_MS);
+        true
     }
 
     /// Forgets the pending seek (Up Next or an error came).
@@ -148,52 +162,95 @@ mod tests {
     }
 
     #[test]
-    fn steps_10_s_a_press_and_seeks_once_400_ms_after_the_last() {
+    fn presses_add_up_and_wait_for_ok_5_s_at_most() {
         let (mut s, mut now, mut seeks) = (Seeker::default(), 0, Vec::new());
-        s.press(now, -1, STEP_MS, 600_000, 7_200_000);
-        advance(&mut s, &mut now, 100, &mut seeks);
-        s.press(now, -1, STEP_MS, 600_000, 7_200_000);
-        advance(&mut s, &mut now, 100, &mut seeks);
-        s.press(now, -1, STEP_MS, 600_000, 7_200_000);
+        for _ in 0..3 {
+            s.press(now, -1, STEP_MS, WAIT_MS, 600_000, 7_200_000);
+            advance(&mut s, &mut now, 100, &mut seeks);
+        }
         assert_eq!(s.badge_ms, -30_000);
         assert_eq!(badge_text(s.badge_ms), "−30 s");
-        assert!(seeks.is_empty());
-        advance(&mut s, &mut now, SETTLE_MS + 10, &mut seeks);
-        assert_eq!(seeks, [570_000]);
+        assert_eq!(s.target, Some(570_000), "the scrubber shows where it goes");
         advance(&mut s, &mut now, 600, &mut seeks);
-        assert_eq!(s.badge_ms, 0);
+        assert_eq!(s.badge_ms, 0, "the badge goes");
+        advance(&mut s, &mut now, WAIT_MS - 1_000, &mut seeks);
+        assert!(seeks.is_empty(), "it went before OK or the wait");
+        advance(&mut s, &mut now, 1_000, &mut seeks);
+        assert_eq!(seeks, [570_000]);
+    }
+
+    #[test]
+    fn the_media_keys_jumps_seek_400_ms_after_the_last() {
+        let (mut s, mut now, mut seeks) = (Seeker::default(), 0, Vec::new());
+        s.press(now, 1, MEDIA_STEP_MS, SETTLE_MS, 600_000, 7_200_000);
+        advance(&mut s, &mut now, 100, &mut seeks);
+        s.press(now, 1, MEDIA_STEP_MS, SETTLE_MS, 600_000, 7_200_000);
+        advance(&mut s, &mut now, SETTLE_MS + 10, &mut seeks);
+        assert_eq!(seeks, [660_000]);
     }
 
     #[test]
     fn stays_a_second_short_of_the_end_and_never_before_the_start() {
         let (mut s, mut now, mut seeks) = (Seeker::default(), 0, Vec::new());
-        s.press(now, 1, 30_000, 7_190_000, 7_200_000);
+        s.press(now, 1, 30_000, SETTLE_MS, 7_190_000, 7_200_000);
         advance(&mut s, &mut now, 500, &mut seeks);
-        s.press(now, -1, 30_000, 5_000, 7_200_000);
+        s.press(now, -1, 30_000, SETTLE_MS, 5_000, 7_200_000);
         advance(&mut s, &mut now, 500, &mut seeks);
         assert_eq!(seeks, [7_199_000, 0]);
     }
 
-    #[test]
-    fn scrubs_a_held_key_faster_and_faster_and_seeks_once_on_release() {
-        let (mut s, mut now, mut seeks) = (Seeker::default(), 0, Vec::new());
-        s.press(now, 1, STEP_MS, 600_000, 7_200_000);
-        for _ in 0..100 {
-            advance(&mut s, &mut now, 50, &mut seeks);
-            s.repeat(now, 1, 600_000, 7_200_000);
+    /// How far a key held moves the target from `from` to `to` (ms of holding), repeating every 50 ms.
+    fn scrubbed(s: &mut Seeker, from: i64, to: i64) -> i64 {
+        let before = s.target.unwrap_or(0);
+        let mut t = from + 50;
+        while t <= to {
+            s.repeat(t, 1, 0, 36_000_000);
+            t += 50;
         }
-        assert!(seeks.is_empty());
-        assert!(s.target.unwrap() > 600_000 + 150_000);
-        assert!(s.release().is_some());
-        assert!(s.target.is_none());
-        assert!(s.release().is_none());
+        s.target.unwrap_or(0) - before
     }
 
     #[test]
-    fn gets_to_a_whole_videos_end_in_about_15_s_of_holding() {
-        assert_eq!(hold_rate(1_000, 7_200_000), 30.0);
-        assert_eq!(hold_rate(3_000, 7_200_000), 90.0);
-        assert_eq!(hold_rate(5_000, 7_200_000), 480.0);
-        assert_eq!(hold_rate(5_000, 600_000), 180.0);
+    fn a_held_key_scrubs_twice_as_fast_every_1_5_s_and_waits_when_let_go() {
+        let (mut s, mut seeks) = (Seeker::default(), Vec::new());
+        s.repeat(0, 1, 60_000, 36_000_000);
+        assert!(s.holding);
+        s.repeat(50, 1, 60_000, 36_000_000);
+        assert_eq!(s.target, Some(60_000 + (20.0 * 2f64.powf(50.0 / 1_500.0) * 50.0) as i64));
+        // A second held goes about twice as far as the second 1.5 s before it.
+        scrubbed(&mut s, 50, 500);
+        let early = scrubbed(&mut s, 500, 1_500);
+        scrubbed(&mut s, 1_500, 2_000);
+        let later = scrubbed(&mut s, 2_000, 3_000);
+        let ratio = later as f64 / early as f64;
+        assert!((1.9..=2.1).contains(&ratio), "{ratio}");
+        // Let go, it waits for OK as presses do: nothing yet, then once the wait is over.
+        let mut now = 3_000;
+        assert!(s.release(now));
+        assert!(!s.holding);
+        assert!(!s.release(now), "nothing held");
+        advance(&mut s, &mut now, WAIT_MS - 10, &mut seeks);
+        assert!(seeks.is_empty());
+        advance(&mut s, &mut now, 20, &mut seeks);
+        assert_eq!(seeks.len(), 1);
+    }
+
+    #[test]
+    fn a_held_key_tops_out_at_a_whole_video_in_10_s_or_300_ms_a_ms() {
+        assert_eq!(hold_rate(0, 3_600_000), 20.0);
+        assert!((hold_rate(1_500, 3_600_000) - 40.0).abs() < 1e-6);
+        assert!((hold_rate(4_500, 3_600_000) - 160.0).abs() < 1e-6);
+        // An hour's video: an hour in 10 s, 360 ms of video a ms.
+        assert_eq!(hold_rate(20_000, 3_600_000), 360.0);
+        // A short one: 300 ms a ms at most.
+        assert_eq!(hold_rate(20_000, 600_000), 300.0);
+    }
+
+    #[test]
+    fn a_gap_between_repeats_counts_as_200_ms_at_most() {
+        let mut s = Seeker::default();
+        s.repeat(0, 1, 60_000, 3_600_000);
+        s.repeat(1_000, 1, 60_000, 3_600_000);
+        assert_eq!(s.target, Some(60_000 + (20.0 * 2f64.powf(1_000.0 / 1_500.0) * 200.0) as i64));
     }
 }

@@ -63,6 +63,18 @@ impl Player {
         focus
     }
 
+    /// Shows the controls on Play/Pause (Down, with them hidden) and moves along the row to `btn`.
+    fn open_row_at(&mut self, btn: Btn) {
+        self.press(Key::Down);
+        for _ in 0..12 {
+            if self.focus() == Some(Target::Button(btn)) {
+                return;
+            }
+            self.press(Key::Right);
+        }
+        panic!("{btn:?} never took focus");
+    }
+
     fn back(&mut self) -> bool {
         let closed = self.view.back(&mut self.p);
         self.idle();
@@ -79,15 +91,18 @@ impl Player {
 }
 
 #[test]
-fn opens_with_the_controls_hidden_and_ok_pauses_then_plays() {
+fn opens_with_the_controls_hidden_and_ok_shows_them_then_pauses_and_plays() {
     let mut pl = Player::new(Fake::movie());
     assert!(!pl.view.controls());
     assert_eq!(pl.focus(), Some(Target::Video));
+    // OK with the controls hidden shows them on the scrubber, as Up does; it never pauses there.
     pl.press(Key::Ok);
-    assert_eq!(pl.p.calls, [Call::Pause]);
-    // Pausing shows the controls on the scrubber.
+    assert!(pl.p.calls.is_empty(), "{:?}", pl.p.calls);
     assert!(pl.view.controls());
     assert_eq!(pl.focus(), Some(Target::Scrubber));
+    // OK on the scrubber pauses and plays.
+    pl.press(Key::Ok);
+    assert_eq!(pl.p.calls, [Call::Pause]);
     pl.press(Key::Ok);
     assert_eq!(pl.p.calls, [Call::Pause, Call::Play]);
 }
@@ -104,12 +119,12 @@ fn up_and_down_bring_the_controls_and_back_hides_them() {
     assert!(pl.back());
     assert!(!pl.view.controls());
     assert_eq!(pl.focus(), Some(Target::Video));
-    // Down: Subtitles with subtitle tracks, else Info.
+    // Down with the controls hidden: Play/Pause, with subtitle tracks or without.
     pl.press(Key::Down);
-    assert_eq!(pl.focus(), Some(Target::Button(Btn::Subtitles)));
+    assert_eq!(pl.focus(), Some(Target::Button(Btn::PlayPause)));
     let mut movie = Player::new(Fake::movie());
     movie.press(Key::Down);
-    assert_eq!(movie.focus(), Some(Target::Button(Btn::Info)));
+    assert_eq!(movie.focus(), Some(Target::Button(Btn::PlayPause)));
     // Nothing of its own open: Back leaves the player.
     assert!(movie.back());
     assert!(!movie.back());
@@ -125,21 +140,32 @@ fn the_controls_hide_five_seconds_after_the_last_key_unless_paused() {
     assert!(!pl.view.controls());
     assert_eq!(pl.focus(), Some(Target::Video));
     pl.press(Key::Ok);
+    assert_eq!(pl.focus(), Some(Target::Scrubber));
+    pl.press(Key::Ok);
+    assert_eq!(pl.p.calls, [Call::Pause]);
     assert!(pl.view.controls());
     pl.wait(8.0);
     assert!(pl.view.controls(), "paused, the controls stay");
 }
 
 #[test]
-fn left_and_right_seek_once_the_presses_settle_and_ok_plays_on() {
+fn left_and_right_wait_for_ok_5_s_at_most_and_ok_plays_on() {
     let mut pl = Player::new(Fake::movie());
     pl.press(Key::Right);
+    // With the controls hidden, Left and Right show them on the scrubber, and its preview.
+    assert!(pl.view.controls());
+    assert_eq!(pl.focus(), Some(Target::Scrubber));
     pl.press(Key::Right);
-    assert!(pl.p.calls.is_empty(), "nothing seeks before the presses settle");
-    assert!(pl.texts().contains(&"+20 s".to_string()), "the badge says what was asked");
-    pl.wait(0.5);
+    assert!(pl.texts().contains(&"1:20".to_string()), "the scrubber's time isn't the target's");
+    pl.wait(4.0);
+    assert!(pl.p.calls.is_empty(), "the seek went before OK or 5 s");
+    pl.wait(1.0);
     assert_eq!(pl.p.calls, [Call::Seek(80_000)]);
-    // Within 2 s of the seek, OK confirms it: no pause.
+    // Made, the seek lets the controls hide; within 2 s of it, OK on the scrubber confirms it: no
+    // pause.
+    assert_eq!(pl.focus(), Some(Target::Video));
+    pl.press(Key::Up);
+    assert_eq!(pl.focus(), Some(Target::Scrubber));
     pl.press(Key::Ok);
     assert_eq!(pl.p.calls, [Call::Seek(80_000)]);
     // The next OK pauses.
@@ -153,8 +179,23 @@ fn ok_while_a_seek_is_coming_makes_it_at_once() {
     pl.press(Key::Left);
     pl.press(Key::Ok);
     assert_eq!(pl.p.calls, [Call::Seek(50_000)]);
-    pl.wait(1.0);
+    pl.wait(6.0);
     assert_eq!(pl.p.calls, [Call::Seek(50_000)], "the seek isn't made twice");
+}
+
+#[test]
+fn back_lets_a_coming_seek_go_and_it_plays_on_where_it_was() {
+    let mut pl = Player::new(Fake::movie());
+    pl.press(Key::Right);
+    pl.press(Key::Right);
+    assert!(pl.back());
+    assert!(pl.view.controls(), "the first Back only lets the seek go");
+    pl.wait(6.0);
+    assert!(pl.p.calls.is_empty(), "the seek was made: {:?}", pl.p.calls);
+    // With the controls showing and nothing coming, Back hides them.
+    pl.press(Key::Up);
+    assert!(pl.back());
+    assert!(!pl.view.controls());
 }
 
 #[test]
@@ -167,6 +208,9 @@ fn held_left_scrubs_with_the_controls_and_seeks_on_release() {
     }
     assert!(pl.p.calls.is_empty(), "nothing seeks while the key is held");
     pl.run(&[Step::Up(Key::Left)]);
+    // Let go, it waits for OK where it got to, as presses do.
+    assert!(pl.p.calls.is_empty(), "it seeked on release");
+    pl.wait(5.1);
     let Some(Call::Seek(to)) = pl.p.calls.first().cloned() else { panic!("{:?}", pl.p.calls) };
     assert!(to < 50_000, "{to}");
     // The controls wait while a seek is coming, then hide as usual.
@@ -233,8 +277,7 @@ fn the_audio_key_opens_audio_and_back_returns_to_its_button() {
 #[test]
 fn choosing_a_subtitle_track_closes_the_panel_and_the_look_keeps_it_open() {
     let mut pl = Player::new(Fake::episode());
-    pl.press(Key::Down);
-    assert_eq!(pl.focus(), Some(Target::Button(Btn::Subtitles)));
+    pl.open_row_at(Btn::Subtitles);
     pl.press(Key::Ok);
     pl.wait(0.3);
     assert_eq!(pl.view.panel(), Some(Panel::Subtitles));
@@ -390,6 +433,9 @@ fn the_details_are_asked_for_while_info_or_the_readout_shows() {
 fn the_top_bar_says_what_plays_and_when_it_ends_while_paused() {
     let mut pl = Player::new(Fake::episode());
     pl.press(Key::Ok);
+    assert_eq!(pl.focus(), Some(Target::Scrubber));
+    pl.press(Key::Ok);
+    assert_eq!(pl.p.calls, [Call::Pause]);
     pl.wait(0.3);
     let texts = pl.texts();
     for want in ["Fixture Show", "S1 · E2 · The Second", "Direct play", "1:00", "−19:00"] {
@@ -434,7 +480,7 @@ fn find_subtitles_searches_adds_and_back_returns_to_subtitles() {
     let found =
         SubtitleResult { id: "a".into(), name: "Release.One".into(), downloads: 3, ..SubtitleResult::default() };
     pl.p.finds = Some(vec![found]);
-    pl.press(Key::Down);
+    pl.open_row_at(Btn::Subtitles);
     pl.press(Key::Ok);
     pl.wait(0.3);
     // From English, the track playing: French, then Find subtitles….
@@ -530,8 +576,7 @@ fn info_scrolls_with_up_and_down_and_back_returns_to_its_button() {
         subtitle_delivery: None,
         transcode: None,
     });
-    // A movie without subtitles: Down goes to Info.
-    pl.press(Key::Down);
+    pl.open_row_at(Btn::Info);
     pl.press(Key::Ok);
     assert_eq!(pl.view.panel(), Some(Panel::Info));
     pl.wait(0.4);
@@ -555,7 +600,7 @@ fn info_scrolls_with_up_and_down_and_back_returns_to_its_button() {
 fn sync_steps_a_tenth_of_a_second_and_ok_puts_it_back() {
     let mut pl = Player::new(Fake::episode());
     pl.p.state.subtitle_sync = true;
-    pl.press(Key::Down);
+    pl.open_row_at(Btn::Subtitles);
     pl.press(Key::Ok);
     pl.wait(0.3);
     // From English: Off, then Sync.
@@ -643,9 +688,10 @@ fn hiding_the_controls_puts_focus_on_the_video_not_the_sleep_notice() {
     pl.wait(5.5);
     assert!(!pl.view.controls());
     assert_eq!(pl.focus(), Some(Target::Video));
-    // OK is play/pause again, not Keep watching.
+    // OK is the video's again, not Keep watching's: it shows the controls on the scrubber.
     pl.press(Key::Ok);
-    assert_eq!(pl.p.calls, [Call::Pause]);
+    assert!(pl.p.calls.is_empty(), "{:?}", pl.p.calls);
+    assert_eq!(pl.focus(), Some(Target::Scrubber));
 }
 
 #[test]
@@ -696,7 +742,7 @@ fn reconnecting_shows_under_the_ring_only() {
 fn info_slides_out_as_it_was() {
     let mut pl = Player::new(Fake::movie());
     pl.p.state.details = Some(details(vec![DetailRow { label: "Video".into(), value: "HEVC → H.264".into() }]));
-    pl.press(Key::Down);
+    pl.open_row_at(Btn::Info);
     pl.press(Key::Ok);
     pl.wait(0.4);
     assert!(pl.texts().contains(&"How it plays".to_string()));
@@ -743,7 +789,7 @@ fn info_names_the_subtitle_language_with_its_title_and_flags() {
     d.subtitle = Some(sub);
     d.subtitle_delivery = Some(SubtitleDelivery::ServerText);
     pl.p.state.details = Some(d);
-    pl.press(Key::Down);
+    pl.open_row_at(Btn::Info);
     pl.press(Key::Ok);
     pl.wait(0.4);
     let texts = pl.texts();
