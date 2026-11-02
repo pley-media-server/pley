@@ -122,6 +122,171 @@ function pageCollectionTiles(collections as dynamic, server as string) as object
     return tiles
 end function
 
+' A collection's page (GET /api/collections/{id}): { title, summary,
+' automatic (it mirrors a TMDB collection: the "TMDB" badge), smart (a
+' filter fills it: "Smart"), count, libraryId, notes (what its filter
+' keeps, else its order, in words), backdrop, movies, queue, shows,
+' shown, tiles }. A collection of movies plays them in its order (queue:
+' their Up Next cards); one of shows plays a show's next episode (shows:
+' their ids, in its order).
+function pageCollection(detail as object, server as string) as object
+    id = httpNumber(detail.id, 0)
+    tiles = []
+    queue = []
+    shows = []
+    movies = false
+    for each item in httpArray(detail.items)
+        kind = ""
+        if GetInterface(item, "ifAssociativeArray") <> invalid then kind = httpString(item.kind)
+        if contentShown(kind)
+            tiles.Push(contentTile(item, server, false))
+            if kind = "movie" then movies = true
+            if contentPlayable(kind) then queue.Push(contentUpNext(item, server))
+            if kind = "show" or kind = "season" then shows.Push(httpNumber(item.id, 0))
+        end if
+    end for
+    filter = httpString(detail.smart_filter)
+    notes = []
+    if filter <> ""
+        notes = pageFilterNotes(filter)
+    else
+        order = pageCollectionOrder(detail.sort)
+        if order <> "" then notes.Push(order)
+    end if
+    ' The server's picture of it when the answer names none: its own, else
+    ' a title's.
+    backdrop = urlImage(server, detail.backdrop_url, contentBackdropWidth())
+    if backdrop = "" and id > 0 then backdrop = urlImage(server, "/api/collections/" + urlValue(id) + "/images/backdrop", contentBackdropWidth())
+    return {
+        title: httpSentence(detail.title),
+        summary: httpClean(detail.summary, 600, false),
+        automatic: httpTrue(detail.automatic),
+        smart: filter <> "",
+        count: httpNumber(detail.item_count, tiles.Count()),
+        libraryId: httpNumber(detail.library_id, 0),
+        notes: notes,
+        backdrop: backdrop,
+        movies: movies,
+        queue: queue,
+        shows: shows,
+        shown: tiles.Count(),
+        tiles: tiles
+    }
+end function
+
+' What a collection's page says under its title: "5 movies · Movies · By
+' release date". library ({ name, kind }) is invalid while the libraries
+' aren't known, and its titles are counted as titles.
+function pageCollectionFacts(page as object, library as dynamic) as string
+    kind = ""
+    if library <> invalid then kind = library.kind
+    parts = [fmtCount(page.count, kind)]
+    if library <> invalid and library.name <> "" then parts.Push(library.name)
+    parts.Append(page.notes)
+    return parts.Join(" · ")
+end function
+
+' A collection's order in words; "" for one this version doesn't know.
+function pageCollectionOrder(sort as dynamic) as string
+    key = httpString(sort)
+    if key = "release" then return "By release date"
+    if key = "title" then return "By title"
+    if key = "custom" then return "Custom order"
+    return ""
+end function
+
+' What a smart filter keeps, in words, as the other apps say it: "Genre:
+' Comedy", "Unwatched", "From 2010", "Newest first". The filter is a
+' listing's query string in the compatibility API's syntax
+' (docs/API.md, "Smart collections").
+function pageFilterNotes(filter as string) as object
+    notes = []
+    for each part in filter.Tokenize("&")
+        at = Instr(1, part, "=")
+        key = part
+        value = ""
+        if at > 0
+            key = Left(part, at - 1)
+            value = Mid(part, at + 1)
+        end if
+        key = httpSentence(urlDecode(key))
+        value = httpSentence(urlDecode(value))
+        if key = "genre"
+            notes.Push("Genre: " + value)
+        else if key = "label"
+            notes.Push("Label: " + value)
+        else if key = "studio"
+            notes.Push("Studio: " + value)
+        else if key = "contentRating"
+            notes.Push("Rated " + value)
+        else if key = "unwatched"
+            if value = "0" or value = "false"
+                notes.Push("Watched")
+            else
+                notes.Push("Unwatched")
+            end if
+        else if key = "inProgress"
+            if value = "0" or value = "false"
+                notes.Push("Not in progress")
+            else
+                notes.Push("In progress")
+            end if
+        else if key = "year"
+            notes.Push("From " + value)
+        else if key = "year>>"
+            notes.Push("After " + value)
+        else if key = "year<<"
+            notes.Push("Before " + value)
+        else if key = "decade"
+            notes.Push("The " + value + "s")
+        else if key = "sort"
+            notes.Push(pageFilterOrder(value))
+        else if key = "limit"
+            notes.Push("At most " + value)
+        else if key <> "type" and key <> "includeGuids" and key <> ""
+            ' type and includeGuids are plumbing, not part of what is kept.
+            notes.Push(key + ": " + value)
+        end if
+    end for
+    return notes
+end function
+
+' A smart filter's order in words: "year:desc" is "Newest first". Only its
+' first field counts; python-plexapi may name the kind first
+' ("movie.year").
+function pageFilterOrder(sort as string) as string
+    comma = Instr(1, sort, ",")
+    if comma > 0 then sort = Left(sort, comma - 1)
+    field = sort
+    direction = ""
+    colon = Instr(1, sort, ":")
+    if colon > 0
+        field = Left(sort, colon - 1)
+        direction = Mid(sort, colon + 1)
+    end if
+    dot = Instr(1, field, ".")
+    if dot > 0 then field = Mid(field, dot + 1)
+    notes = [
+        ["titleSort", "By title", "By title, Z to A"],
+        ["year", "Oldest first", "Newest first"],
+        ["originallyAvailableAt", "Earliest release first", "Latest release first"],
+        ["addedAt", "First added first", "Recently added first"],
+        ["rating", "Lowest rated first", "Best rated first"],
+        ["audienceRating", "Lowest rated first", "Best rated first"],
+        ["userRating", "Your lowest rated first", "Your best rated first"],
+        ["lastViewedAt", "Least recently played first", "Recently played first"],
+        ["duration", "Shortest first", "Longest first"],
+        ["viewCount", "Least played first", "Most played first"]
+    ]
+    for each note in notes
+        if note[0] = field
+            if direction = "desc" then return note[2]
+            return note[1]
+        end if
+    end for
+    return "Sorted by " + field
+end function
+
 ' A show's seasons as poster tiles: "Season 1", and its episodes.
 function pageSeasonTiles(children as dynamic, server as string) as object
     tiles = []
@@ -143,29 +308,105 @@ function pageSeasonTiles(children as dynamic, server as string) as object
     return tiles
 end function
 
-' A person's page: their movies and shows, newest first, each with the
-' part they played or what they did ("Director, Writer"; "12 episodes" of
-' a show when the server counts them).
-function pagePersonCredits(person as object, server as string) as object
-    tiles = []
+' --- People ---
+
+' A person's page (GET /api/people/{id}): { name, photo, initials, line,
+' rows }. line says what of theirs is in the libraries ("3 movies · 2 shows
+' in your libraries"; "" for nothing). rows ([{ key, title, wide, tiles }])
+' has a row per role, acting first, then directing, creating, writing and
+' producing, each of their titles in it newest first, as the server sends
+' them, captioned with its year and the part ("2019 · as Neo").
+function pagePerson(person as object, server as string) as object
+    credits = []
+    seen = {}
+    movies = 0
+    shows = 0
     for each credit in httpArray(person.credits)
         item = invalid
         if GetInterface(credit, "ifAssociativeArray") <> invalid then item = httpObject(credit.item)
-        if item <> invalid and contentShown(httpString(item.kind))
-            tile = contentTile(item, server, false)
-            parts = []
-            for each role in httpArray(credit.roles)
-                if GetInterface(role, "ifAssociativeArray") <> invalid
-                    text = httpSentence(role.character)
-                    if text = "" then text = pageRoleLabel(httpString(role.role))
-                    if text <> "" and parts.Count() < 2 then parts.Push(text)
-                end if
-            end for
-            if parts.Count() > 0 then tile.subtitle = parts.Join(", ")
-            tiles.Push(tile)
+        kind = ""
+        if item <> invalid then kind = httpString(item.kind)
+        key = ""
+        if item <> invalid then key = urlValue(httpNumber(item.id, 0))
+        if (kind = "movie" or kind = "show") and not seen.DoesExist(key)
+            seen[key] = true
+            if kind = "movie" then movies = movies + 1
+            if kind = "show" then shows = shows + 1
+            credits.Push({ item: item, roles: httpArray(credit.roles) })
         end if
     end for
-    return tiles
+    counts = []
+    if movies > 0 then counts.Push(fmtCount(movies, "movies"))
+    if shows > 0 then counts.Push(fmtCount(shows, "shows"))
+    line = ""
+    if counts.Count() > 0 then line = counts.Join(" · ") + " in your libraries"
+    rows = []
+    for each row in [["actor", "Acting"], ["director", "Directing"], ["creator", "Creating"], ["writer", "Writing"], ["producer", "Producing"]]
+        tiles = []
+        for each credit in credits
+            roles = []
+            for each role in credit.roles
+                if GetInterface(role, "ifAssociativeArray") <> invalid and httpString(role.role) = row[0] then roles.Push(role)
+            end for
+            if roles.Count() > 0
+                tile = contentTile(credit.item, server, false)
+                parts = []
+                if tile.subtitle <> "" then parts.Push(tile.subtitle)
+                parts.Push(pageRoleText(roles))
+                tile.subtitle = parts.Join(" · ")
+                tiles.Push(tile)
+            end if
+        end for
+        if tiles.Count() > 0 then rows.Push({ key: row[0], title: row[1], wide: false, tiles: tiles })
+    end for
+    name = httpSentence(person.name)
+    return { name: name, photo: urlImage(server, person.photo_url, pagePhotoWidth()), initials: pageInitials(name), line: line, rows: rows }
+end function
+
+' The size of a person's photo on their page, round.
+function pagePhotoWidth() as integer
+    return 160
+end function
+
+' What someone did in a title, as the other apps say it: "as Neo",
+' "Director", "Guest star (3 episodes)"; several the same way, with
+' commas.
+function pageRoleText(roles as object) as string
+    parts = []
+    for each role in roles
+        kind = httpString(role.role)
+        episodes = Int(httpNumber(role.episodes, 0))
+        text = ""
+        if kind = "actor"
+            character = httpSentence(role.character)
+            if character <> ""
+                text = "as " + character
+            else if episodes > 0
+                text = "Guest star"
+            else
+                text = "Actor"
+            end if
+        else
+            text = pageRoleLabel(kind)
+            if text = "" then text = "Crew"
+        end if
+        if episodes = 1
+            text = text + " (1 episode)"
+        else if episodes > 1
+            text = text + " (" + urlValue(episodes) + " episodes)"
+        end if
+        parts.Push(text)
+    end for
+    return parts.Join(", ")
+end function
+
+' "Idris Vale" is "IV": what a person's photo shows without a picture.
+function pageInitials(name as string) as string
+    out = ""
+    for each word in name.Tokenize(" ")
+        if Len(out) < 2 then out = out + UCase(Left(word, 1))
+    end for
+    return out
 end function
 
 ' What the Options key offers on a tile: [{ label, action }]. inList: the
@@ -192,7 +433,10 @@ function pageTileOptions(tile as object, continueWatching as boolean, inList as 
     end if
     options.Push({ label: "Add to playlist", action: "playlist" })
     if continueWatching then options.Push({ label: "Remove from Continue Watching", action: "hide" })
-    if kind = "episode" and httpNumber(tile.grandparentId, 0) > 0 then options.Push({ label: "Go to show", action: "show" })
+    if kind = "episode" and httpNumber(tile.grandparentId, 0) > 0
+        options.Push({ label: "Go to show", action: "show" })
+        if httpNumber(tile.parentId, 0) > 0 then options.Push({ label: "Go to season", action: "season" })
+    end if
     return options
 end function
 
@@ -284,6 +528,25 @@ function pagePlaylistQueue(entries as dynamic, server as string) as object
         if item <> invalid and contentPlayable(httpString(item.kind)) then queue.Push(contentUpNext(item, server))
     end for
     return queue
+end function
+
+' A playlist's queue (one per entry, in the order of the rows before)
+' put in the order of the rows after, matched by their entryId: what Play
+' plays from an entry once the entries moved. A queue that doesn't match
+' the rows stays as it is, until the playlist comes again.
+function pagePlaylistReordered(queue as object, before as object, after as object) as object
+    if queue.Count() <> before.Count() or after.Count() <> before.Count() then return queue
+    places = {}
+    for i = 0 to before.Count() - 1
+        places[urlValue(before[i].entryId)] = i
+    end for
+    out = []
+    for each row in after
+        was = places[urlValue(row.entryId)]
+        if was = invalid then return queue
+        out.Push(queue[was])
+    end for
+    return out
 end function
 
 ' Why a playlist didn't change, in a sentence: a sign-in from before

@@ -88,12 +88,19 @@ function qrPicture(text) {
 
 const state = (position_ms = 0, watched = false) => ({ position_ms, watched, play_count: watched ? 1 : 0 });
 
-const movies = Array.from({ length: 150 }, (_, i) => ({
+// The movies' first words, seven movies each, in the order of their
+// titles: under "#" and most letters (one with an accent, under E), none
+// under Q, X or Z. Three pages of the app's 70; W's first is on the third.
+const WORDS = [
+  "2001", "Amber", "Birch", "Cedar", "Dune", "Écho", "Falcon", "Granite", "Harbor", "Iron", "Juniper", "Kestrel", "Lantern",
+  "Meadow", "North", "Orchid", "Pine", "Raven", "Silver", "Tide", "Umber", "Violet", "Willow", "Yarrow", "Yonder",
+];
+const movies = Array.from({ length: WORDS.length * 7 }, (_, i) => ({
   id: 1000 + i,
   library_id: 1,
   kind: "movie",
-  title: `Movie ${String(i + 1).padStart(3, "0")}`,
-  sort_title: `Movie ${String(i + 1).padStart(3, "0")}`,
+  title: `${WORDS[Math.floor(i / 7)]} Movie ${String(i + 1).padStart(3, "0")}`,
+  sort_title: `${WORDS[Math.floor(i / 7)]} Movie ${String(i + 1).padStart(3, "0")}`,
   year: 1990 + (i % 30),
   duration_ms: 6000000 + i * 1000,
   added_at: 1700000000 + i,
@@ -118,47 +125,95 @@ const episodes = seasons.flatMap((season) => Array.from({ length: 9 }, (_, i) =>
   thumb_url: `/api/items/${season.id + i + 1}/images/thumb?v=1`, summary: `What happens in episode ${i + 1}.`,
   user_state: season.index === 1 && i < 2 ? state(0, true) : season.index === 1 && i === 2 ? state(900000) : state(),
 })));
-// Music: an artist, their album and its tracks.
-const artist = { id: 5000, library_id: 3, kind: "artist", title: "The Fixtures", sort_title: "Fixtures", added_at: 0, poster_url: "/api/items/5000/images/poster?v=1", user_state: state(), child_count: 1 };
+// Music: an artist, their albums (the server lists the older first) and
+// their tracks; the older album's last track is on its second disc
+// (parent_index).
+const artist = {
+  id: 5000, library_id: 3, kind: "artist", title: "The Fixtures", sort_title: "Fixtures", added_at: 0, poster_url: "/api/items/5000/images/poster?v=1",
+  user_state: state(), child_count: 2, leaf_count: 5,
+};
 const album = {
   id: 5100, library_id: 3, kind: "album", title: "Blue", sort_title: "Blue", year: 2001, parent_id: 5000, parent_title: "The Fixtures",
   added_at: 0, poster_url: "/api/items/5100/images/poster?v=1", user_state: state(), leaf_count: 3,
 };
-const tracks = [1, 2, 3].map((n) => ({
-  id: 5200 + n, library_id: 3, kind: "track", title: `Song ${n}`, sort_title: `Song ${n}`, index: n, parent_id: 5100, parent_title: "Blue",
-  grandparent_id: 5000, grandparent_title: "The Fixtures", duration_ms: 200000, added_at: 0, user_state: state(),
+const newerAlbum = {
+  id: 5101, library_id: 3, kind: "album", title: "Red", sort_title: "Red", year: 2005, parent_id: 5000, parent_title: "The Fixtures",
+  added_at: 0, poster_url: "/api/items/5101/images/poster?v=1", user_state: state(), leaf_count: 2,
+};
+// An album's tracks from id first: each one's disc and its place on it.
+const albumTracks = (of, first, places) => places.map(([disc, index], i) => ({
+  id: first + i, library_id: 3, kind: "track", title: `Song ${i + 1}`, sort_title: `Song ${i + 1}`, index, parent_id: of.id, parent_title: of.title,
+  parent_index: disc, grandparent_id: 5000, grandparent_title: "The Fixtures", duration_ms: 200000, added_at: 0, user_state: state(),
 }));
-const items = new Map([...movies, show, ...seasons, ...episodes, artist, album, ...tracks].map((item) => [item.id, item]));
+const tracks = [...albumTracks(album, 5201, [[1, 1], [1, 2], [2, 1]]), ...albumTracks(newerAlbum, 5211, [[1, 1], [1, 2]])];
+// Every movie's trailer, among its extras, which the title's Trailer plays.
+const trailer = {
+  id: 4000, library_id: 1, kind: "extra", title: "Official Trailer", sort_title: "Official Trailer", extra_type: "trailer", duration_ms: 150000,
+  added_at: 0, thumb_url: "/api/items/4000/images/thumb?v=1", user_state: state(),
+};
+// The movie a ready-to-watch notice opens has a summary as long as its page
+// shows, over six buttons: the page near its fullest.
+movies[11].summary = "A linguist is called in when twelve ships come to rest above the earth, and she must find a way to speak with those inside before the nations watching them lose patience. As she learns their language, her memories start to come loose from time, and what she remembers of her daughter changes what she will choose to do.";
+const items = new Map([...movies, show, ...seasons, ...episodes, artist, album, newerAlbum, ...tracks, trailer].map((item) => [item.id, item]));
+// Collections: TMDB's of five movies, and a smart one a filter fills with
+// the show.
+const collections = [
+  { id: 1, library_id: 1, title: "Fixture Collection", summary: "Five films of the fake server, in the order they came out.", automatic: true, sort: "release", smart_filter: null, poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: movies.slice(0, 5) },
+  { id: 2, library_id: 2, title: "Fixture Dramas", summary: null, automatic: false, sort: "release", smart_filter: "type=2&genre=Drama&sort=year%3Adesc", poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: [show] },
+];
+const collectionOf = ({ items: held, ...collection }) => ({ ...collection, item_count: held.length });
 
 // Every file has text and picture subtitles; the choices pick the picture
 // ones for episode 103 (the one the walk plays), which the app asks the
-// server to draw.
+// server to draw. A movie's file has French audio too. Tracks picked
+// (PUT /api/items/{id}/streams) are the item's choices after, as a
+// server keeps them; Automatic is English.
 const PICTURE_SUBTITLES = 4;
-function detail(item, myList) {
+function detail(item, myList, picks) {
   const file = {
     id: 7000 + item.id, path: `${item.title}.mkv`, size: 1000000, container: item.kind === "movie" ? "mkv" : "mp4",
     duration_ms: item.duration_ms ?? null, bitrate: 8000000, width: 1920, height: 1080, video_codec: "h264", audio_codec: "aac",
     streams: [
       { index: 0, kind: "video", codec: "h264" },
-      { index: 1, kind: "audio", codec: "aac", language: "eng" },
+      { index: 1, kind: "audio", codec: "aac", language: "eng", channels: 2, default: true },
+      ...(item.kind === "movie" ? [{ index: 2, kind: "audio", codec: "ac3", language: "fre", channels: 6 }] : []),
       { index: 3, kind: "subtitle", codec: "subrip", language: "eng", text_based: true },
       { index: PICTURE_SUBTITLES, kind: "subtitle", codec: "hdmv_pgs_subtitle", language: "eng", forced: false, text_based: false },
     ],
-    edition: null, selected_audio: 1, selected_subtitle: item.id === 103 ? PICTURE_SUBTITLES : 3,
+    edition: null, selected_audio: 1, selected_subtitle: item.id === 103 ? PICTURE_SUBTITLES : 3, audio_picked: false,
     chapters: [{ start_ms: 0, end_ms: 600000, title: "Opening" }, { start_ms: 600000, end_ms: item.duration_ms ?? 1200000, title: null }],
+  };
+  const pick = picks?.get(item.id);
+  if (pick && (pick.file_id ?? file.id) === file.id) {
+    if ("audio_index" in pick) {
+      file.selected_audio = pick.audio_index ?? 1;
+      file.audio_picked = pick.audio_index !== null;
+    }
+    file.selected_subtitle = pick.subtitle_index ?? null;
+  }
+  // A movie has a second version: its Director's Cut, in 4K.
+  const cut = {
+    id: 9000 + item.id, path: `${item.title} {edition-Director's Cut}.mkv`, size: 66571993088, container: "mkv",
+    duration_ms: item.duration_ms ?? null, bitrate: 61000000, width: 3840, height: 2160, video_codec: "hevc", audio_codec: "truehd",
+    streams: [
+      { index: 0, kind: "video", codec: "hevc", width: 3840, height: 2160, frame_rate: 23.976, bit_depth: 10, pix_fmt: "yuv420p10le", profile: "Main 10", level: 153, dynamic_range: "dolby_vision", dv_profile: 8, dv_bl_compat: 1, dv_level: 6, color_primaries: "bt2020", color_transfer: "smpte2084", color_space: "bt2020nc" },
+      { index: 1, kind: "audio", codec: "truehd", language: "eng", channels: 8, channel_layout: "7.1", sample_rate: 48000, profile: "Dolby TrueHD + Dolby Atmos", default: true },
+      { index: 2, kind: "subtitle", codec: "subrip", language: "eng", title: "English SDH", text_based: true },
+    ],
+    edition: "Director's Cut", selected_audio: 1, selected_subtitle: null, audio_picked: false, chapters: [],
   };
   if (item.kind === "track") {
     file.container = "mp3";
     file.streams = [{ index: 0, kind: "audio", codec: "mp3", channels: 2 }];
     file.chapters = [];
   }
-  const playable = item.kind === "movie" || item.kind === "episode" || item.kind === "track";
+  const playable = item.kind === "movie" || item.kind === "episode" || item.kind === "track" || item.kind === "extra";
   return {
     ...item, summary: item.summary ?? `About ${item.title}.`, original_title: null, tagline: item.kind === "movie" ? "A tagline." : null,
     genres: ["Drama", "Mystery"], studio: null, content_rating: "PG-13", tmdb_id: null, imdb_id: null,
-    files: playable ? [file] : [],
+    files: playable ? (item.kind === "movie" ? [file, cut] : [file]) : [],
     markers: item.kind === "episode" ? [{ file_id: file.id, kind: "credits", start_ms: item.duration_ms - 60000, end_ms: item.duration_ms, source: "chapter" }] : [],
-    extras: item.kind === "movie" ? [{ id: 4000, library_id: 1, kind: "extra", title: "Official Trailer", sort_title: "Official Trailer", extra_type: "trailer", duration_ms: 150000, added_at: 0, thumb_url: "/api/items/4000/images/thumb?v=1", user_state: state() }] : [],
+    extras: item.kind === "movie" ? [trailer] : [],
     cast: [{ id: 7, name: "Ada Lovelace", role: "actor", character: "Herself", photo_url: "/api/people/7/photo?v=1" }, { id: 8, name: "Alan Turing", role: "actor", character: "The Machine" }],
     crew: [{ id: 9, name: "Grace Hopper", role: "director" }, { id: 9, name: "Grace Hopper", role: "writer" }],
     in_watchlist: myList.includes(item.id),
@@ -178,8 +233,9 @@ function detail(item, myList) {
 // `playbackDelayMs` holds back the answers to POST /api/playback.
 // What the app asked for and did is kept: requestsAsked (POST
 // /api/requests bodies), requestsActed ({ id, action }), and
-// discoverPictures ({ kind, file, w }); requestArrives(id, itemId) brings
-// a movie request's title into a library, as time would.
+// discoverPictures ({ kind, file, w }), and smartPlaylists (POST
+// /api/playlists bodies with a smart_filter); requestArrives(id, itemId)
+// brings a movie request's title into a library, as time would.
 export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
   const problems = [];
   const requests = [];
@@ -372,7 +428,11 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       return res.end(JSON.stringify({ index: 10001, codec: "subrip", language: "eng", title: null, default: false, forced: false, external: true, text_based: true, added: true, url: `/api/files/${fileId}/subtitles/10001.vtt` }));
     }
     if ((match = path.match(/^\/api\/items\/(\d+)\/streams$/)) && req.method === "PUT") {
-      fixture.streams.push({ item: Number(match[1]), ...JSON.parse(body) });
+      const asked = JSON.parse(body);
+      fixture.streams.push({ item: Number(match[1]), ...asked });
+      // The audio left out stays as picked before; subtitles left out are off.
+      const before = fixture.picks.get(Number(match[1])) ?? {};
+      fixture.picks.set(Number(match[1]), { ...before, ...asked, subtitle_index: asked.subtitle_index ?? null });
       res.writeHead(204);
       return res.end();
     }
@@ -410,14 +470,58 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     // The household: two profiles until the walk switched, then one, so the
     // second start opens on Home, as the walk times it.
     if (path === "/api/oauth/profiles") return json(200, fixture.switched.length ? fixture.household.filter((p) => p.current) : fixture.household);
-    // Playlists: the profile's one, its entries, taking one out.
+    // Playlists: the profile's one, its entries, taking one out, and those
+    // made since, empty, of the kind asked for.
     const playlist = () => ({
       id: 1, title: "Road trip", kind: "video", item_count: fixture.playlistEntries.length, duration_ms: 9300000,
       artwork: ["/api/items/1000/images/poster?v=1"], smart_filter: null, library_id: null, created_at: 0, updated_at: 0,
     });
-    if (path === "/api/playlists" && req.method === "GET") return json(200, { playlists: [playlist()] });
+    // Smart playlists made from a library's filters (Save as…); they play
+    // the library's titles. Those made here, smart or not, are numbered on
+    // from 2.
+    const smart = (made) => ({
+      id: made.id, title: made.title, kind: "video", item_count: 3, duration_ms: 18000000, artwork: [],
+      smart_filter: made.smart_filter, library_id: made.library_id, created_at: 0, updated_at: 0,
+      entries: movies.slice(0, 3).map((item) => ({ entry_id: item.id, item })),
+    });
+    if (path === "/api/playlists" && req.method === "GET") {
+      const listed = [playlist(), ...fixture.playlistsMade, ...fixture.smartPlaylists.filter((made) => made.id).map((made) => ({ ...smart(made), entries: undefined }))];
+      return json(200, { playlists: listed.sort((a, b) => a.title.localeCompare(b.title)) });
+    }
+    if (path === "/api/playlists" && req.method === "POST" && body && "smart_filter" in JSON.parse(body)) {
+      const made = JSON.parse(body);
+      fixture.smartPlaylists.push(made);
+      if (typeof made.title !== "string" || !made.title.trim() || !made.library_id || !made.smart_filter) return json(400, { code: "bad_request", message: "a smart playlist needs a title, a library and a filter" });
+      made.id = fixture.nextPlaylist++;
+      return json(201, smart(made));
+    }
+    if (path === "/api/playlists" && req.method === "POST") {
+      const asked = JSON.parse(body);
+      fixture.playlistsAsked.push(asked);
+      if (typeof asked.title !== "string" || !asked.title.trim()) return json(400, { code: "bad_request", message: "A playlist needs a title." });
+      if (asked.kind !== undefined && asked.kind !== "video" && asked.kind !== "audio") return json(400, { code: "bad_request", message: "kind is video or audio" });
+      const made = {
+        id: fixture.nextPlaylist++, title: asked.title.trim(), kind: asked.kind ?? "video", item_count: 0, duration_ms: 0,
+        artwork: [], smart_filter: null, library_id: null, created_at: 0, updated_at: 0,
+      };
+      fixture.playlistsMade.push(made);
+      return json(201, { ...made, entries: [] });
+    }
     if (path === "/api/playlists/1" && req.method === "GET") {
       return json(200, { ...playlist(), entries: fixture.playlistEntries.map(([entry_id, id]) => ({ entry_id, item: items.get(id) })) });
+    }
+    if ((match = path.match(/^\/api\/playlists\/(\d+)$/)) && req.method === "GET" && fixture.smartPlaylists.some((made) => made.id === Number(match[1]))) {
+      return json(200, smart(fixture.smartPlaylists.find((made) => made.id === Number(match[1]))));
+    }
+    if (path === "/api/playlists/1/order" && req.method === "PUT") {
+      const ids = JSON.parse(body).entry_ids;
+      fixture.playlistOrders.push(ids);
+      fixture.playlistEntries = ids.map((id) => fixture.playlistEntries.find(([entry]) => entry === id)).filter(Boolean);
+      return json(200, { ...playlist(), entries: fixture.playlistEntries.map(([entry_id, id]) => ({ entry_id, item: items.get(id) })) });
+    }
+    if ((match = path.match(/^\/api\/playlists\/(\d+)$/)) && req.method === "GET") {
+      const made = fixture.playlistsMade.find((p) => p.id === Number(match[1]));
+      return made ? json(200, { ...made, entries: [] }) : json(404, { code: "not_found", message: `playlist ${match[1]} not found` });
     }
     if ((match = path.match(/^\/api\/playlists\/1\/items\/(\d+)$/)) && req.method === "DELETE") {
       fixture.playlistRemoved.push(Number(match[1]));
@@ -435,11 +539,17 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       return json(200, { hubs: listed.length ? [{ key: "recently_added", title: "Recently Added", library_id: Number(match[1]), items: listed }, { key: "top_rated", title: "Top Rated", library_id: Number(match[1]), items: listed }] : [] });
     }
     if ((match = path.match(/^\/api\/libraries\/(\d+)\/collections$/))) {
-      return json(200, { collections: match[1] === "3" ? [] : [{ id: 1, library_id: Number(match[1]), title: "Fixture Collection", summary: null, automatic: false, sort: "release", smart_filter: null, item_count: 5, poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0 }] });
+      return json(200, { collections: collections.filter((c) => c.library_id === Number(match[1])).map(collectionOf) });
     }
     if ((match = path.match(/^\/api\/libraries\/(\d+)\/filters$/))) return json(200, { genres: ["Drama", "Mystery"], years: [2022, 2019] });
     if ((match = path.match(/^\/api\/libraries\/(\d+)\/items$/))) {
-      const listed = match[1] === "1" ? movies : match[1] === "2" ? [show] : [artist];
+      let listed = match[1] === "1" ? movies : match[1] === "2" ? [show] : [artist];
+      // By title, as the server sorts (accents with their letter); other
+      // sorts as listed.
+      if ((url.searchParams.get("sort") ?? "title") === "title") {
+        listed = [...listed].sort((a, b) => a.sort_title.localeCompare(b.sort_title, "en", { sensitivity: "base" }));
+        if (url.searchParams.get("order") === "desc") listed.reverse();
+      }
       const offset = Number(url.searchParams.get("offset") ?? 0);
       const limit = Number(url.searchParams.get("limit") ?? 50);
       return json(200, { total: listed.length, items: listed.slice(offset, offset + limit) });
@@ -464,7 +574,9 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       return json(200, { id: Number(match[1]), name: "Ada Lovelace", photo_url: `/api/people/${match[1]}/photo?v=1`, credits: [{ item: show, roles: [{ role: "actor", character: "Herself", episodes: 9 }] }, ...movies.slice(0, 3).map((item) => ({ item, roles: [{ role: "director" }] }))] });
     }
     if ((match = path.match(/^\/api\/collections\/(\d+)$/))) {
-      return json(200, { id: Number(match[1]), library_id: 1, title: "Fixture Collection", summary: "Five films.", automatic: false, sort: "release", smart_filter: null, item_count: 5, poster_url: "", backdrop_url: "", created_at: 0, updated_at: 0, items: movies.slice(0, 5) });
+      const collection = collections.find((c) => c.id === Number(match[1]));
+      if (!collection) return json(404, { code: "not_found", message: `collection ${match[1]} not found` });
+      return json(200, { ...collectionOf(collection), items: collection.items });
     }
     if (/^\/api\/(people\/\d+\/photo|collections\/\d+\/images\/\w+)$/.test(path)) {
       res.writeHead(200, { "Content-Type": "image/png" });
@@ -484,6 +596,14 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       res.writeHead(204);
       return res.end();
     }
+    // The profile's rating: 0 to 10, or null for none.
+    if ((match = path.match(/^\/api\/items\/(\d+)\/rating$/)) && req.method === "PUT") {
+      const { rating } = JSON.parse(body);
+      if (rating !== null && !(rating >= 0 && rating <= 10)) return json(400, { code: "bad_request", message: "a rating is 0 to 10" });
+      fixture.ratings.push({ item: Number(match[1]), rating });
+      res.writeHead(204);
+      return res.end();
+    }
     if ((match = path.match(/^\/api\/continue-watching\/(\d+)$/)) && req.method === "DELETE") {
       fixture.marks.push({ item: Number(match[1]), action: "hide" });
       res.writeHead(204);
@@ -496,18 +616,20 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     }
     if ((match = path.match(/^\/api\/items\/(\d+)$/))) {
       const item = items.get(Number(match[1]));
-      return item ? json(200, detail(item, fixture.myList)) : json(404, { code: "not_found", message: `item ${match[1]} not found` });
+      return item ? json(200, detail(item, fixture.myList, fixture.picks)) : json(404, { code: "not_found", message: `item ${match[1]} not found` });
     }
     if (path === "/api/playback" && req.method === "POST") {
       const ask = JSON.parse(body);
       if (ask.caps?.caps_version !== 2) problems.push("a playback request without caps_version 2");
       if (!ask.caps?.hls?.master_playlist) problems.push("a playback request without hls.master_playlist");
       const item = items.get(ask.item_id);
-      const fileId = 7000 + ask.item_id;
-      if (ask.file_id != null && ask.file_id !== fileId) problems.push(`playback of file ${ask.file_id} for item ${ask.item_id}`);
+      // A movie's Director's Cut is its second file.
+      const files = item?.kind === "movie" ? [7000 + ask.item_id, 9000 + ask.item_id] : [7000 + ask.item_id];
+      if (ask.file_id != null && !files.includes(ask.file_id)) problems.push(`playback of file ${ask.file_id} for item ${ask.item_id}`);
+      const fileId = ask.file_id ?? files[0];
       const burn = ask.subtitle_index ?? null;
       if (burn !== null && burn !== PICTURE_SUBTITLES) problems.push(`subtitles ${burn} to draw, which aren't pictures`);
-      fixture.playbacks.push({ item: ask.item_id, kind: item?.kind, subtitle_index: burn, mode: ask.mode, max_bitrate: ask.max_bitrate ?? null });
+      fixture.playbacks.push({ item: ask.item_id, kind: item?.kind, file_id: fileId, start_ms: ask.start_ms ?? 0, subtitle_index: burn, mode: ask.mode, max_bitrate: ask.max_bitrate ?? null });
       sessions += 1;
       const session = `s${sessions}`;
       if (fixture.playbackDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, fixture.playbackDelayMs));
@@ -651,7 +773,9 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     if (path === "/api/search") {
       const q = (url.searchParams.get("q") ?? "").toLowerCase();
       const channels = liveChannels().filter((c) => c.name.toLowerCase().includes(q) || c.number.startsWith(q)).slice(0, 12);
-      return json(200, { items: [...movies, show].filter((item) => item.title.toLowerCase().includes(q)).slice(0, 40), people: [], channels });
+      // A person whose name matches, for search's first row.
+      const people = [{ id: 11, name: "Monty Fixture", photo_url: "/api/people/11/photo?v=1" }].filter((p) => p.name.toLowerCase().includes(q));
+      return json(200, { items: [...movies, show].filter((item) => item.title.toLowerCase().includes(q)).slice(0, 40), people, channels });
     }
     if (path.startsWith("/api/files/")) {
       res.writeHead(200, { "Content-Type": "application/octet-stream" });
@@ -660,7 +784,7 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     return json(404, { code: "not_found", message: `nothing at ${path}` });
   });
 
-  const fixture = { issuer: "", down: false, qr: true, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], streams: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [],
+  const fixture = { issuer: "", down: false, qr: true, requestScopes: true, requestsOn: true, twoStep: false, scopesAsked: [], playbackDelayMs: 0, refreshes: 0, playbacks: [], libraryOrder: [1, 2, 3], orders: [], trackDefaults: { audio_language: null, subtitle_language: null, subtitle_mode: "forced" }, trackDefaultsSaved: [], streams: [], picks: new Map(), ratings: [], myList: [1003], marks: [], playlistEntries: [[1, 1000], [2, 101], [3, 102]], playlistRemoved: [], playlistOrders: [], playlistsAsked: [], playlistsMade: [], smartPlaylists: [], nextPlaylist: 2,
     household: [{ id: 1, name: "Anna", avatar_url: null, avatar_color: "#38bdf8", current: true, needs: "none" }, { id: 2, name: "Ben", avatar_url: null, avatar_color: "#f472b6", current: false, needs: "none" }],
     switched: [], subtitlesAdded: [], probed: false, networkTold: [], speedTests: [], requestsAsked: [], requestsActed: [], discoverPictures: [], problems, requests, progress, closed, close: () => server.close(),
     liveRecent: [2], liveBrowses: [], liveFavorites: [], liveFavoriteChanges: [], liveGuides: [], liveWatches: [], liveSessions: new Map(), livePlaylists: [], liveLeft: [] };

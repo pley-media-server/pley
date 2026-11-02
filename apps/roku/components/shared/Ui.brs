@@ -122,14 +122,6 @@ sub uiCloseDialog()
     if dialog <> invalid then dialog.close = true
 end sub
 
-' How many profiles the server's household has, kept for "Who's
-' watching?" at the next start (the API task reads it as the app starts).
-sub uiKeepHousehold(count as integer)
-    section = CreateObject("roRegistrySection", "household")
-    section.Write(m.global.session.server, count.ToStr())
-    section.Flush()
-end sub
-
 ' Notes a change to a title ({ itemId, action, … }: watched, unwatched,
 ' listAdd, listRemove, hide, played) for the screens that show it, the
 ' latest 30 kept on the scene; the change comes back with its count.

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A playlist: its name and what it holds, Play, Shuffle, Rename and
      Delete on the left, its entries on the right. OK on an entry plays the
-     playlist from it; the Options key on one offers Remove from playlist. -->
+     playlist from it; the Options key on one offers Move and Remove from
+     playlist. -->
 <component name="PlaylistScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -20,11 +21,13 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Pages.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/LibraryOrder.brs" />
     <children>
         <Label id="title" translation="[96, 64]" width="540" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
         <Label id="line" translation="[96, 196]" width="540" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[96, 250]" minWidth="520" maxWidth="540" visible="false" />
         <MarkupList id="entries" translation="[700, 64]" itemComponentName="EpisodeRow" itemSize="[1124, 196]" itemSpacing="[0, 16]" numRows="4" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <Label id="message" translation="[700, 400]" width="1124" wrap="true" horizAlign="center" color="0xA1A9B6FF" text="Loading…" font="font:SmallSystemFont" />
+        <Label id="hint" translation="[96, 940]" width="540" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallestSystemFont" visible="false" text="Up and down move it, OK puts it there, Back puts it back." />
     </children>
 </component>

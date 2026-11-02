@@ -62,6 +62,15 @@ sub test_url_encodes_utf8_and_reserved_characters()
     tkEqual(urlEncode("urn:ietf:params:oauth:grant-type:device_code"), "urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code")
 end sub
 
+sub test_url_decodes_query_values()
+    tkEqual(urlDecode("Science+Fiction"), "Science Fiction")
+    tkEqual(urlDecode("Com%C3%A9die%20%26%20Drame"), "Comédie & Drame")
+    tkEqual(urlDecode("year%3E%3E"), "year>>")
+    tkEqual(urlDecode("100%"), "100%", "a % without its digits stays")
+    tkEqual(urlDecode("%zz+é"), "%zz é")
+    tkEqual(urlDecode(urlEncode("a b&c=d/é~")), "a b&c=d/é~")
+end sub
+
 sub test_url_builds_query_strings()
     tkEqual(urlQuery({ q: "star wars", limit: 40, watched: true, missing: invalid }), "limit=40&q=star%20wars&watched=true")
     tkEqual(urlQuery({}), "")

@@ -1,9 +1,9 @@
 ' A library as the web app shows it: Recommended (GET
 ' /api/libraries/{id}/hubs, as rows), Library (GET …/items a page at a time,
-' sorted and filtered as the chips at the right say) and Collections (GET
-' …/collections). The tab, sort and filters it was left on are kept on the
-' Roku for each server, profile and library (lib/Library.brs), and it
-' opens on them again.
+' sorted and filtered as the chips at the right say, with the A to Z beside
+' it when sorted by title) and Collections (GET …/collections). The tab,
+' sort and filters it was left on are kept on the Roku for each server,
+' profile and library (lib/Library.brs), and it opens on them again.
 
 sub init()
     m.title = m.top.findNode("title")
@@ -11,6 +11,8 @@ sub init()
     m.tabs = m.top.findNode("tabs")
     m.viewChips = m.top.findNode("view")
     m.grid = m.top.findNode("grid")
+    m.letters = m.top.findNode("letters")
+    m.jumpTimer = m.top.findNode("jumpTimer")
     m.rows = m.top.findNode("rows")
     m.message = m.top.findNode("message")
     m.panel = m.top.findNode("panel")
@@ -22,14 +24,21 @@ sub init()
     m.library = invalid
     m.view = libDefaultView()
     m.viewKey = ""
+    ' Whether the view is a row's See all's, which isn't kept.
+    m.seeAll = false
     m.tabList = []
-    ' The Library tab's titles: listed so far (the next page's offset), in
-    ' all, and which listing (sort and filters) the answers must be for.
+    ' The Library tab's titles: their places so far (empty frames where a
+    ' page hasn't come), how many in all, the pages asked for ({ "3": true
+    ' }), and which listing (sort and filters) the answers must be for.
     m.content = CreateObject("roSGNode", "ContentNode")
-    m.offset = 0
     m.total = -1
-    m.loading = false
+    m.pages = {}
     m.listing = 0
+    ' Its A to Z (lib/Library.brs): invalid until every title's letter
+    ' came; the one being made; and the place a jump waits for.
+    m.alpha = invalid
+    m.alphaMaking = invalid
+    m.jumpTo = -1
     ' The other tabs, once loaded (invalid until then).
     m.collections = invalid
     m.recommended = invalid
@@ -47,6 +56,8 @@ sub init()
     m.viewChips.observeField("chosen", "onViewChosen")
     m.grid.observeField("itemSelected", "onSelected")
     m.grid.observeField("itemFocused", "onFocused")
+    m.letters.observeField("chosen", "onLetter")
+    m.jumpTimer.observeField("fire", "onJumpDue")
     m.rows.observeField("rowItemSelected", "onRowTile")
     m.choices.observeField("itemSelected", "onChoice")
     m.menu.observeField("itemSelected", "onMenu")
@@ -62,6 +73,7 @@ sub onActive()
         m.lastFocus = m.tabs
         if m.viewChips.isInFocusChain() then m.lastFocus = m.viewChips
         if m.grid.isInFocusChain() then m.lastFocus = m.grid
+        if m.letters.isInFocusChain() then m.lastFocus = m.letters
         if m.rows.isInFocusChain() then m.lastFocus = m.rows
         return
     end if
@@ -73,6 +85,12 @@ sub onActive()
         session = m.global.session
         m.viewKey = libViewKey(session.server, session.profileId, m.library.id)
         m.view = libLoadView(viewSection(), m.viewKey, m.library.kind)
+        ' A row's See all (params.sort): the Library tab in the row's order.
+        sort = httpString(m.top.params.sort)
+        if sort <> ""
+            m.view = libSeeAllView(sort, m.library.kind)
+            m.seeAll = true
+        end if
         m.tabList = libTabs(m.library.kind)
         ' A music library's artists are square.
         if m.library.kind = "music"
@@ -84,6 +102,7 @@ sub onActive()
             chips.Push({ label: libTabLabel(shownTab), width: 270 })
         end for
         m.tabs.chips = chips
+        m.letters.letters = libLetters()
         m.tabs.setFocus(true)
         showViewChips()
         showTab(m.view.tab)
@@ -111,6 +130,17 @@ function viewSection() as object
     return CreateObject("roRegistrySection", "libraryViews")
 end function
 
+' Keeps the view on the Roku. In a See all's order only the tab is kept:
+' the sort and filters kept before stay until the person changes them.
+sub keepView()
+    kept = m.view
+    if m.seeAll
+        kept = libLoadView(viewSection(), m.viewKey, m.library.kind)
+        kept.tab = m.view.tab
+    end if
+    libSaveView(viewSection(), m.viewKey, kept)
+end sub
+
 sub onTitleChanged(change as object)
     uiPatchTiles(m.content, change)
     uiPatchTiles(m.recommended, change)
@@ -126,7 +156,7 @@ end sub
 ' Shows tab, loading it the first time; the Roku keeps it for next time.
 sub showTab(wanted as string)
     m.view.tab = wanted
-    libSaveView(viewSection(), m.viewKey, m.view)
+    keepView()
     for i = 0 to m.tabList.Count() - 1
         if m.tabList[i] = wanted
             m.tabs.current = i
@@ -134,15 +164,19 @@ sub showTab(wanted as string)
         end if
     end for
     m.viewChips.visible = wanted = "library"
-    if m.grid.isInFocusChain() or m.rows.isInFocusChain() then m.tabs.setFocus(true)
+    if m.grid.isInFocusChain() or m.rows.isInFocusChain() or m.letters.isInFocusChain() then m.tabs.setFocus(true)
     m.grid.visible = false
     m.rows.visible = false
+    showLetters()
     if wanted = "library"
         m.grid.content = m.content
-        if m.content.getChildCount() > 0
+        if m.content.getChildCount() > 0 or m.total = 0
             showContent()
         else
-            loadMore()
+            ' Its first page asked for, or on its way: the other tab's
+            ' message goes.
+            showMessage("Loading…")
+            loadPage(0)
         end if
     else if wanted = "collections"
         if m.collections = invalid
@@ -183,6 +217,7 @@ sub showContent()
     m.message.visible = false
     m.rows.visible = shownTab = "recommended"
     m.grid.visible = shownTab <> "recommended"
+    showLetters()
     if m.focusContent and m.top.isInFocusChain() and not m.panel.visible
         m.focusContent = false
         focusContent()
@@ -192,6 +227,7 @@ end sub
 sub showMessage(text as string)
     m.grid.visible = false
     m.rows.visible = false
+    showLetters()
     m.message.text = text
     m.message.visible = true
     if not m.panel.visible and m.top.isInFocusChain() and not m.viewChips.isInFocusChain() then m.tabs.setFocus(true)
@@ -259,74 +295,215 @@ end sub
 
 ' --- The Library tab ---
 
-' A page of posters; the task makes their ContentNodes.
-sub loadMore()
-    if m.loading or (m.total >= 0 and m.offset >= m.total) then return
-    m.loading = true
+' A page of posters, by its number; the task makes their ContentNodes.
+sub loadPage(page as integer)
+    at = page * pageSize()
+    if page < 0 or m.pages.DoesExist(page.ToStr()) or (m.total >= 0 and at >= m.total) then return
+    m.pages[page.ToStr()] = true
     if m.content.getChildCount() = 0 then showMessage("Loading…")
-    query = libQuery(m.view, m.offset, pageSize())
-    uiRequest({ method: "GET", path: urlWithQuery("/api/libraries/" + urlValue(m.library.id) + "/items", query), build: "tiles", listing: m.listing }, "onPage")
+    query = libQuery(m.view, at, pageSize())
+    uiRequest({ method: "GET", path: urlWithQuery("/api/libraries/" + urlValue(m.library.id) + "/items", query), build: "tiles", listing: m.listing, page: page }, "onPage")
 end sub
 
 sub onPage(event as object)
-    if event.getRoSGNode().spec.listing <> m.listing then return
-    m.loading = false
+    request = event.getRoSGNode()
+    spec = request.spec
+    if spec.listing <> m.listing then return
     answer = event.getData()
     if not answer.ok
+        ' Asked again when the focus comes near it.
+        m.pages.Delete(spec.page.ToStr())
         if m.content.getChildCount() = 0 and not uiFailed(answer) and m.view.tab = "library" then showMessage(answer.message)
         return
     end if
     page = answer.data
+    at = spec.page * pageSize()
     m.total = page.total
-    m.offset = m.offset + page.listed
+    nodes = []
+    if request.content <> invalid then nodes = request.content.getChildren(-1, 0)
+    place(at, nodes)
     ' An empty page ends the listing, whatever the total said.
-    if page.listed = 0 then m.total = m.offset
-    tiles = event.getRoSGNode().content
-    if tiles <> invalid and tiles.getChildCount() > 0 then m.content.appendChildren(tiles.getChildren(-1, 0))
+    if page.listed = 0 then m.total = at
+    count = m.content.getChildCount()
+    if m.total >= 0 and count > m.total then m.content.removeChildrenIndex(count - m.total, m.total)
+    askLetters()
+    ' A jump waited for this page.
+    if m.jumpTo >= 0 and m.jumpTo < m.content.getChildCount() then m.jumpTimer.control = "start"
     if m.view.tab <> "library" then return
     showCount()
     showContent()
 end sub
 
-' Two rows before the end, the next page comes.
+' A page's tiles at at. The places between the last title here and the
+' page (a jump far down) are empty frames until their titles come: plain
+' ContentNodes, which Tile draws as frames, made in one native call however
+' many (a library of thousands). The tiles take the frames' places, or
+' come after the rest.
+sub place(at as integer, nodes as object)
+    count = m.content.getChildCount()
+    if at > count
+        m.content.createChildren(at - count, "ContentNode")
+        count = at
+    end if
+    over = []
+    after = []
+    for i = 0 to nodes.Count() - 1
+        if at + i < count
+            over.Push(nodes[i])
+        else
+            after.Push(nodes[i])
+        end if
+    end for
+    if over.Count() > 0 then m.content.replaceChildren(over, at)
+    if after.Count() > 0 then m.content.appendChildren(after)
+end sub
+
+' The pages near the focus come, and the A to Z follows it.
 sub onFocused(event as object)
-    if m.view.tab = "library" and event.getData() >= m.content.getChildCount() - 14 then loadMore()
+    if m.view.tab <> "library" then return
+    near(event.getData())
+    if m.alpha <> invalid then m.letters.current = libAlphaLetterAt(m.alpha, event.getData())
+end sub
+
+' Two rows before a page's end, the next page comes; two rows into a page
+' (after a jump), the one before.
+sub near(index as integer)
+    page = Int(index / pageSize())
+    loadPage(page)
+    if index - page * pageSize() < 14 then loadPage(page - 1)
+    if (page + 1) * pageSize() - index <= 14 then loadPage(page + 1)
 end sub
 
 sub onSelected(event as object)
     uiOpenTile(m.grid.content.getChild(event.getData()))
 end sub
 
+' A title opens; See all shows the Library tab in its row's order, which
+' isn't kept, the focus in the titles once they come.
 sub onRowTile(event as object)
     position = event.getData()
     row = m.rows.content.getChild(position[0])
-    if row <> invalid then uiOpenTile(row.getChild(position[1]))
+    if row = invalid then return
+    tile = row.getChild(position[1])
+    if tile <> invalid and tile.kind = "more" and tile.hasField("sort")
+        m.view = libSeeAllView(tile.sort, m.library.kind)
+        m.seeAll = true
+        m.focusContent = true
+        relist()
+        showTab("library")
+        return
+    end if
+    uiOpenTile(tile)
 end sub
 
 ' The sort and the filters as chips, at the right of the tabs.
 sub showViewChips()
-    sortLabel = libSortLabel(m.view.sort, m.view.order)
+    ' As wide as their words, the filters' at most 420 pixels, so that a
+    ' long sort ("Date added, recently added first") clears the tabs.
     filterLabel = libFilterLabel(m.view)
-    sortWidth = 120 + Len(sortLabel) * 15
-    filterWidth = 120 + Len(filterLabel) * 15
-    if filterWidth > 420 then filterWidth = 420
-    m.viewChips.chips = [{ label: sortLabel, width: sortWidth }, { label: filterLabel, width: filterWidth }]
+    filterWidth = 0
+    if Len(filterLabel) > 20 then filterWidth = 420
+    m.viewChips.chips = [{ label: libSortLabel(m.view.sort, m.view.order), width: 0 }, { label: filterLabel, width: filterWidth }]
     m.viewChips.current = -1
     if libFiltered(m.view) then m.viewChips.current = 1
-    m.viewChips.translation = [1824 - sortWidth - 16 - filterWidth, 132]
+    m.viewChips.translation = [1824 - m.viewChips.rowWidth, 132]
 end sub
 
 ' A new sort or filters: the Roku keeps them, and the titles come again.
 sub applyView()
-    libSaveView(viewSection(), m.viewKey, m.view)
+    m.seeAll = false
+    keepView()
+    relist()
+end sub
+
+' The Library tab's titles of the view, from the top, with their A to Z.
+sub relist()
     showViewChips()
     m.listing = m.listing + 1
     m.content = CreateObject("roSGNode", "ContentNode")
     m.grid.content = m.content
-    m.offset = 0
     m.total = -1
-    m.loading = false
-    loadMore()
+    m.pages = {}
+    m.alpha = invalid
+    m.alphaMaking = invalid
+    m.jumpTo = -1
+    showLetters()
+    loadPage(0)
+end sub
+
+' --- The A to Z ---
+
+' Sorted by title with more than 30 titles, the listing's letters come in
+' pages of a thousand, once the first page said how many there are.
+sub askLetters()
+    if m.alpha <> invalid or m.alphaMaking <> invalid or not libShowsJump(m.view, m.total) then return
+    m.alphaMaking = libAlphaNew()
+    loadLetters()
+end sub
+
+sub loadLetters()
+    query = libQuery(m.view, m.alphaMaking.count, 1000)
+    uiRequest({ method: "GET", path: urlWithQuery("/api/libraries/" + urlValue(m.library.id) + "/items", query), build: "letters", listing: m.listing }, "onLetters")
+end sub
+
+' Without an answer, this listing has no A to Z.
+sub onLetters(event as object)
+    if event.getRoSGNode().spec.listing <> m.listing or m.alphaMaking = invalid then return
+    answer = event.getData()
+    if not answer.ok then return
+    page = answer.data
+    libAlphaAdd(m.alphaMaking, page.runs, page.listed)
+    if page.listed > 0 and m.alphaMaking.count < page.total
+        loadLetters()
+        return
+    end if
+    m.alpha = m.alphaMaking
+    has = []
+    for i = 0 to 26
+        has.Push(libAlphaHas(m.alpha, i))
+    end for
+    m.letters.has = has
+    m.letters.current = libAlphaLetterAt(m.alpha, m.grid.itemFocused)
+    showLetters()
+end sub
+
+' Beside the Library tab's grid while it shows, once its letters came.
+sub showLetters()
+    shown = m.alpha <> invalid and m.view.tab = "library" and m.grid.visible
+    if not shown and m.letters.isInFocusChain()
+        if m.grid.visible
+            m.grid.setFocus(true)
+        else
+            m.tabs.setFocus(true)
+        end if
+    end if
+    m.letters.visible = shown
+end sub
+
+' OK on a letter: the grid at its first title (lib/Library.brs's
+' libAlphaJump), once that title's page is here.
+sub onLetter(event as object)
+    if m.alpha = invalid then return
+    target = libAlphaJump(m.alpha, event.getData())
+    if target < m.content.getChildCount()
+        jumpTo(target)
+    else
+        m.jumpTo = target
+        loadPage(Int(target / pageSize()))
+    end if
+end sub
+
+' The page a jump waited for came: the grid goes there, unless the focus
+' left the letters meanwhile.
+sub onJumpDue()
+    if m.jumpTo >= 0 and m.letters.isInFocusChain() then jumpTo(m.jumpTo)
+    m.jumpTo = -1
+end sub
+
+sub jumpTo(position as integer)
+    m.grid.jumpToItem = position
+    m.grid.setFocus(true)
+    near(position)
 end sub
 
 ' --- The sort's and the filters' panel ---
@@ -351,7 +528,8 @@ sub openSort()
     showChoices("sort", "Sort by", labels, values, current, "OK on the one checked turns the order around.")
 end sub
 
-' The filters, each with what it keeps; OK opens its choices.
+' The filters, each with what it keeps; OK opens its choices. Once some
+' are set, Clear filters and Save as….
 sub openFilters()
     m.panelKind = "filters"
     m.panelTitle.text = "Filter"
@@ -362,7 +540,10 @@ sub openFilters()
     year = "Any"
     if m.view.year > 0 then year = urlValue(m.view.year)
     items.Push({ title: "Year: " + year })
-    if libFiltered(m.view) then items.Push({ title: "Clear filters" })
+    if libFiltered(m.view)
+        items.Push({ title: "Clear filters" })
+        items.Push({ title: "Save as…" })
+    end if
     at = m.menu.itemFocused
     m.menu.content = nodesContent(items)
     if at > 0 and at < items.Count() then m.menu.jumpToItem = at
@@ -395,12 +576,49 @@ sub onMenu(event as object)
             return
         end if
         openFilter(kind)
-    else
+    else if at = 3
         m.view.watched = ""
         m.view.genre = ""
         m.view.year = 0
         applyView()
         openFilters()
+    else
+        saveAs()
+    end if
+end sub
+
+' --- Save as… ---
+
+' These filters, and the order, as a smart playlist (POST /api/playlists
+' with library_id and smart_filter): its name typed on the keyboard, what
+' it finds said above. The panel closes, back to the Filter chip.
+sub saveAs()
+    closePanel()
+    m.smartFilter = libSmartFilter(m.view)
+    dialog = CreateObject("roSGNode", "StandardKeyboardDialog")
+    dialog.title = "Save these filters"
+    dialog.message = [libSmartFilterWords(m.view).Join(" · ") + ". It keeps up with the library by itself."]
+    dialog.buttons = ["Save", "Cancel"]
+    dialog.observeField("buttonSelected", "onSaveNamed")
+    m.top.getScene().dialog = dialog
+end sub
+
+sub onSaveNamed(event as object)
+    dialog = m.top.getScene().dialog
+    name = ""
+    if dialog <> invalid then name = dialog.text.Trim()
+    uiCloseDialog()
+    if event.getData() <> 0 or name = "" then return
+    uiRequest({ method: "POST", path: "/api/playlists", json: { title: name, library_id: m.library.id, smart_filter: m.smartFilter } }, "onSaved")
+end sub
+
+' Saved: the new playlist's page.
+sub onSaved(event as object)
+    answer = event.getData()
+    if answer.ok and httpObject(answer.data) <> invalid
+        uiNavigate({ to: "playlist", params: { id: answer.data.id, title: httpSentence(answer.data.title) } })
+    else if not uiFailed(answer)
+        uiMessage("That didn't work", [pagePlaylistRefusal(answer)])
     end if
 end sub
 
@@ -495,8 +713,10 @@ sub closePanel()
     m.viewChips.setFocus(true)
 end sub
 
-' Down from the chips goes to the titles, up from their top row back;
-' right from the last tab reaches the sort and filters. Back closes the
+' Down from the chips goes to the titles, up from their top row (or the
+' A to Z's first letter) back; right from the last tab reaches the sort
+' and filters, and from the grid's last column the A to Z, at the letter
+' of the title it leaves, which Left goes back to. Back closes the
 ' panel (a filter's choices go back to the filters). The Options key on a
 ' title offers what can be done with it.
 function onKeyEvent(key as string, press as boolean) as boolean
@@ -517,8 +737,17 @@ function onKeyEvent(key as string, press as boolean) as boolean
         focusContent()
         return true
     end if
-    if key = "up" and (m.grid.isInFocusChain() or m.rows.isInFocusChain())
+    if key = "up" and (m.grid.isInFocusChain() or m.rows.isInFocusChain() or m.letters.isInFocusChain())
         m.tabs.setFocus(true)
+        return true
+    end if
+    if key = "right" and m.grid.isInFocusChain() and m.letters.visible
+        m.letters.focusIndex = m.letters.current
+        m.letters.setFocus(true)
+        return true
+    end if
+    if key = "left" and m.letters.isInFocusChain()
+        m.grid.setFocus(true)
         return true
     end if
     if key = "right" and m.tabs.isInFocusChain() and m.viewChips.visible
@@ -537,7 +766,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if key = "options" and m.rows.isInFocusChain()
         position = m.rows.rowItemFocused
         row = m.rows.content.getChild(position[0])
-        if row <> invalid then uiTileOptions(row.getChild(position[1]), m.recommendedKeys[position[0]] = "continue_watching")
+        if row <> invalid then uiTileOptions(row.getChild(position[1]), contentContinueWatching(m.recommendedKeys[position[0]]))
         return true
     end if
     return false

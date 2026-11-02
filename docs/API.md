@@ -1627,9 +1627,9 @@ removed or reordered (`400`).
   A job the transcoder loses comes back at it. `400` for a direct play, a
   remux, or a transcoder too old.
 - **`/api/media/{key}/{file}`**: `master.m3u8`, `index.m3u8` and `{n}.ts`
-  of a stream, `file.{ext}` of a direct play. `HEAD` answers as `GET`
-  without the body: for a segment, once it is made (the TV apps get a stream
-  ready that way).
+  of a stream, `file.{ext}` of a direct play, `previews.bif` of either.
+  `HEAD` answers as `GET` without the body: for a segment, once it is made
+  (the TV apps get a stream ready that way).
 - **`.vtt`**: extracted or converted on demand, and cached.
   - `offset_ms` moves every cue that much later (earlier when negative,
     never before 0; at most ±600000), for players that can't move a track
@@ -1852,7 +1852,8 @@ Some players can't send headers with their media requests (Samsung's AVPlay
 sets only a cookie and a User-Agent; LG's media pipeline only what the web
 engine gives it), and an app's token goes only in the Authorization header.
 A play request with `keyed_urls: true` gets a session whose addresses carry
-a key of their own instead. Pley's Samsung and LG apps ask for keyed URLs.
+a key of their own instead. Pley's Samsung, LG and Roku apps ask for keyed
+URLs.
 
 - `PlaybackInfo.url` is `/api/media/{key}/master.m3u8` (or `index.m3u8`)
   for a stream, whose playlists name their segments relatively, so they
@@ -1860,15 +1861,18 @@ a key of their own instead. Pley's Samsung and LG apps ask for keyed URLs.
   for the file's container, with `Range` and
   `Cache-Control: private, no-store`.
 - The key is `pley_mk_` and 256 random bits, kept in memory only. It opens
-  that session's playlists and segments, or its file, and nothing else: no
-  API route takes it as a token.
+  that session's playlists and segments, or its file, and its seek previews,
+  and nothing else: no API route takes it as a token.
+- `/api/media/{key}/previews.bif` is the file's seek previews as a BIF file,
+  for a player that fetches them itself (Roku's); `404` while they are being
+  made, as for `trickplay`.
 - It ends with the session (closed by its player, or forgotten after 15
   quiet minutes: `404` "playback session expired"), the account (disabled)
   and the app's sign-in (signed out, a new password): `404`. A session
   stopped from elsewhere answers `410 session_stopped` here too, with its
   message.
 - Logs leave the key out (`/api/media/…/12.ts`).
-- Everything else the player asks for (subtitles, seek previews, its
+- Everything else the player asks for (subtitles, sprite sheets, its
   reports) goes with the token as usual.
 - **Live TV** works the same way: `POST /api/live/channels/{id}/watch`
   with `keyed_urls: true` answers `url` as

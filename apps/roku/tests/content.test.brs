@@ -66,11 +66,41 @@ sub test_content_home_rows_of_every_kind()
     tkEqual(rows[1].title, "Recently Added in Movies")
     tkFalse(rows[1].wide)
     tkFalse(rows[1].square)
+    tkEqual(rows[0].tiles.Count(), 2, "Continue Watching has no See all")
+    tkEqual(rows[1].tiles.Count(), 2, "the movie, then See all")
+    tkEqual(rows[1].tiles[1], contentSeeAllTile(1, "added", false, false))
     tkTrue(rows[2].square, "a music library's albums")
     tkTrue(rows[2].tiles[0].square)
+    tkTrue(rows[2].tiles[1].square, "See all in the row's shape")
     tkEqual(rows[2].tiles[0].image, "http://nas:7539/api/items/5/images/poster?w=260", "an album's cover, asked for square")
     tkEqual(contentRowSize(false, true), { size: [260, 340], height: 400 })
     tkEqual(contentLibraries(libraries), [{ id: 1, name: "Movies", kind: "movies", itemCount: 245 }, { id: 2, name: "TV Shows", kind: "shows", itemCount: 31 }, { id: 3, name: "Music", kind: "music", itemCount: 120 }])
+end sub
+
+sub test_content_see_all_by_row()
+    tkEqual(contentSeeAllSort("recently_added:3"), "added")
+    tkEqual(contentSeeAllSort("recently_added"), "added", "a library's own rows")
+    tkEqual(contentSeeAllSort("recently_released:1"), "release")
+    tkEqual(contentSeeAllSort("top_rated:1"), "rating")
+    tkEqual(contentSeeAllSort("continue_watching:1"), "")
+    tkEqual(contentSeeAllSort("my_list"), "")
+    hubs = [
+        { key: "top_rated:1", title: "Top Rated", library_id: 1, items: [contentTestMovie()] },
+        { key: "recently_added", title: "Recently Added", library_id: invalid, items: [contentTestMovie()] }
+    ]
+    rows = contentHomeRows(hubs, contentTestServer())
+    tkEqual(rows[0].tiles[1].sort, "rating")
+    tkEqual(rows[0].tiles[1].libraryId, 1)
+    tkEqual(rows[1].tiles.Count(), 1, "without its library: no See all")
+end sub
+
+sub test_content_continue_watching_on_home_and_in_a_library()
+    tkTrue(contentContinueWatching("continue_watching"))
+    tkTrue(contentContinueWatching("continue_watching:5"), "a library's")
+    tkFalse(contentContinueWatching("continue_watching_more"))
+    tkFalse(contentContinueWatching("recently_added:5"))
+    rows = contentHomeRows([{ key: "continue_watching:5", title: "Continue Watching", library_id: 5, items: [contentTestEpisode()] }], contentTestServer())
+    tkTrue(rows[0].wide, "a library's Continue Watching is wide, as Home's")
 end sub
 
 sub test_content_seasons_and_episodes()
@@ -96,8 +126,9 @@ sub test_content_details_offer_resume_and_start()
     tkEqual(detail.heading, "Arrival")
     tkEqual(detail.line, "2016 · 1 h 56 min · PG-13")
     tkEqual(detail.genres, "Drama, Science Fiction, Mystery")
-    tkEqual(detail.buttons, ["Resume from 10:00", "Play from start", "Mark as watched", "Add to My List"])
-    tkEqual(detail.actions, ["resume", "start", "watched", "listAdd"])
+    tkEqual(detail.buttons, ["Resume from 10:00", "Play from start", "Mark as watched", "Add to My List", "More…"])
+    tkEqual(detail.actions, ["resume", "start", "watched", "listAdd", "more"])
+    tkEqual(detail.more, [{ label: "Rate", action: "rate" }, { label: "Media info", action: "info" }, { label: "Add to playlist", action: "playlist" }])
     tkEqual(detail.backdrop, "http://nas:7539/api/items/12/images/backdrop?v=1729600000&w=640", "faint behind text: small")
     tkEqual(detail.poster, "http://nas:7539/api/items/12/images/poster?v=1729600000&w=420")
 
@@ -105,7 +136,9 @@ sub test_content_details_offer_resume_and_start()
     fresh.user_state.position_ms = 0
     fresh.user_state.watched = true
     fresh.in_watchlist = true
-    tkEqual(contentDetail(fresh, contentTestServer()).buttons, ["Play", "Mark as unwatched", "Remove from My List"])
+    fresh.user_state.rating = 7
+    tkEqual(contentDetail(fresh, contentTestServer()).buttons, ["Play", "Mark as unwatched", "Remove from My List", "More…"])
+    tkEqual(contentDetail(fresh, contentTestServer()).more[0].label, "Your rating: 4 stars", "3.5 stars shown as 4, as the other apps do")
 
     long = contentTestDetail()
     long.summary = String(60, "A long summary. ")
@@ -114,33 +147,81 @@ sub test_content_details_offer_resume_and_start()
     empty = contentTestDetail()
     empty.files = []
     tkEqual(contentDetail(empty, contentTestServer()).note, "This item has no file to play.")
-    tkEqual(contentDetail(empty, contentTestServer()).buttons, ["Mark as watched", "Add to My List"], "what doesn't need a file")
+    tkEqual(contentDetail(empty, contentTestServer()).buttons, ["Mark as watched", "Add to My List", "More…"], "what doesn't need a file")
+    tkEqual(contentDetail(empty, contentTestServer()).more.Count(), 2, "no media info without a file")
+end sub
+
+sub test_content_details_offer_audio_and_subtitles()
+    detail = contentTestDetail()
+    tkFalse(contentHasTracks(detail), "no streams")
+    detail.files[0].streams = [{ index: 1, kind: "audio" }, { index: 2, kind: "audio" }]
+    tkTrue(contentHasTracks(detail), "two audio tracks")
+    tkEqual(contentDetail(detail, contentTestServer()).buttons, ["Resume from 10:00", "Play from start", "Mark as watched", "Audio and subtitles", "Add to My List", "More…"])
+    tkEqual(contentDetail(detail, contentTestServer()).actions[3], "tracks")
+    detail.files[0].streams = [{ index: 1, kind: "audio" }]
+    tkFalse(contentHasTracks(detail), "one audio track: nothing to choose")
+    detail.files[0].streams.Push({ index: 3, kind: "subtitle" })
+    tkTrue(contentHasTracks(detail), "subtitles")
+    detail.files = []
+    tkFalse(contentHasTracks(detail), "no file")
+    detail.files = [{ id: 7, streams: [] }, { id: 8, streams: [] }]
+    tkTrue(contentHasTracks(detail), "versions to choose from")
+end sub
+
+sub test_content_details_offer_the_trailer()
+    detail = contentTestDetail()
+    detail.extras = [{ id: 40, kind: "extra", extra_type: "behind_the_scenes" }, { id: 41, kind: "extra", extra_type: "Trailer" }]
+    shown = contentDetail(detail, contentTestServer())
+    tkEqual(shown.buttons, ["Resume from 10:00", "Play from start", "Mark as watched", "Add to My List", "Trailer", "More…"])
+    tkEqual(shown.actions[4], "trailer")
+    tkEqual(shown.trailerId, 41)
+    detail.extras = [{ id: 40, kind: "extra", extra_type: "featurette" }]
+    tkEqual(contentDetail(detail, contentTestServer()).trailerId, 0, "no trailer among the extras")
+    tkEqual(contentTrailer({ extras: invalid }), 0)
 end sub
 
 sub test_content_show_details_offer_its_next_episode_and_episodes()
     show = ParseJson("{""id"":99,""kind"":""show"",""title"":""Severance"",""year"":2022,""child_count"":2,""content_rating"":""TV-MA"",""user_state"":{""position_ms"":0,""watched"":false,""play_count"":0},""files"":[],""in_watchlist"":true}")
     detail = contentDetail(show, contentTestServer())
     tkEqual(detail.line, "2022 · 2 seasons · TV-MA")
-    tkEqual(detail.buttons, ["Episodes", "Mark as watched", "Remove from My List"], "before the next episode is known")
+    tkEqual(detail.buttons, ["Episodes", "Mark as watched", "Remove from My List", "More…"], "before the next episode is known")
     tkEqual(detail.note, "")
     onDeck = contentTestEpisode()
     onDeck.user_state.position_ms = 600000
     detail = contentDetail(show, contentTestServer(), onDeck)
-    tkEqual(detail.buttons, ["Resume S1 E1", "Episodes", "Mark as watched", "Remove from My List"])
-    tkEqual(detail.actions, ["playNext", "episodes", "watched", "listRemove"])
+    tkEqual(detail.buttons, ["Resume S1 E1", "Episodes", "Mark as watched", "Remove from My List", "More…"])
+    tkEqual(detail.actions, ["playNext", "episodes", "watched", "listRemove", "more"])
+    tkEqual(detail.more, [{ label: "Rate", action: "rate" }, { label: "Add to playlist", action: "playlist" }])
 end sub
 
 sub test_content_episode_details_name_show_and_episode()
     episode = contentTestEpisode()
     episode.files = [{ id: 8, container: "mp4" }]
     detail = contentDetail(episode, contentTestServer())
-    tkEqual(detail.buttons, ["Play", "Mark as unwatched", "Go to show"], "watched; no My List for an episode")
+    tkEqual(detail.buttons, ["Play", "Mark as unwatched", "More…"], "watched; no My List for an episode")
+    tkEqual(detail.more, [{ label: "Rate", action: "rate" }, { label: "Go to show", action: "show" }, { label: "Go to season", action: "season" }, { label: "Media info", action: "info" }, { label: "Add to playlist", action: "playlist" }])
+    episode.parent_id = invalid
+    tkEqual(contentDetail(episode, contentTestServer()).more[2].action, "info", "no season to go to")
     tkEqual(detail.showId, 99)
     tkEqual(detail.seasonId, 100)
     tkEqual(detail.heading, "Severance")
     tkEqual(detail.line, "S1 E1 · Good News About Hell · 55 min")
     tkEqual(contentPlayerTitle(episode), "Severance · S1 E1 · Good News About Hell")
     tkEqual(contentPlayerTitle(contentTestMovie()), "Arrival")
+end sub
+
+sub test_content_stars_round_up_as_the_other_apps()
+    tkEqual(contentStars(invalid), 0)
+    tkEqual(contentStars(0), 0)
+    tkEqual(contentStars(1), 1, "half a star")
+    tkEqual(contentStars(8), 4)
+    tkEqual(contentStars(7.3), 4)
+    tkEqual(contentStars(10), 5)
+    tkEqual(contentStars(12), 5, "never more than 5")
+    tkEqual(contentStarsLabel(0), "No rating")
+    tkEqual(contentStarsLabel(1), "1 star")
+    tkEqual(contentRatingLabel(0), "Rate")
+    tkEqual(contentRatingLabel(5), "Your rating: 5 stars")
 end sub
 
 sub test_content_stream_formats()
@@ -164,6 +245,16 @@ sub test_content_stream_carries_text_subtitles()
         { Language: "und", TrackName: "http://nas:7539/api/files/7/subtitles/4.vtt", Description: "Forced" }
     ])
     tkEqual(stream.subtitle, "http://nas:7539/api/files/7/subtitles/3.vtt", "the file's selected_subtitle")
+    tkEqual(stream.previews, "", "no key, no previews: the Video node sends no token for them")
+end sub
+
+sub test_content_stream_names_a_keyed_sessions_previews()
+    key = "pley_mk_" + String(43, "a")
+    stream = contentStream({ url: "/api/media/" + key + "/master.m3u8", hls: true, file_id: 7 }, contentTestDetail(), contentTestServer(), 0)
+    tkEqual(stream.url, "http://nas:7539/api/media/" + key + "/master.m3u8")
+    tkEqual(stream.previews, "http://nas:7539/api/media/" + key + "/previews.bif")
+    direct = contentStream({ url: "/api/media/" + key + "/file.mkv", hls: false, file_id: 7 }, contentTestDetail(), contentTestServer(), 0)
+    tkEqual(direct.previews, "http://nas:7539/api/media/" + key + "/previews.bif", "a direct play's too")
 end sub
 
 sub test_content_names_subtitles()
