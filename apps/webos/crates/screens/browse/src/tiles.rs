@@ -119,13 +119,13 @@ pub struct Cell {
     pub progress: Option<f32>,
     pub unwatched: u32,
     pub watched: bool,
-    /// Quality badges (a library sorted by bitrate).
+    /// Quality badges: 4K and the dynamic range, from a library listing's media summary.
     pub badges: Vec<String>,
 }
 
 impl Cell {
     /// `item` as a tile of `kind` shows it, its picture asked at `px` device pixels; `bitrate`: a
-    /// library sorted by bitrate, whose tiles carry quality badges and the bitrate line.
+    /// library sorted by bitrate, whose tiles carry the bitrate line.
     pub fn new(item: ItemSummary, api: &Api, kind: TileKind, px: u32, bitrate: bool) -> Cell {
         let art = requests(api, &art_paths(&item, ArtKind::of(kind)), px);
         Cell::with_art(item, kind, art, bitrate)
@@ -166,7 +166,8 @@ impl Cell {
         let unwatched =
             if matches!(item.kind, ItemKind::Show | ItemKind::Season) { unwatched_count(&item) as u32 } else { 0 };
         let progress = in_progress.then(|| progress_fraction(item.user_state.position_ms, item.duration_ms));
-        let badges = if bitrate { item.media.as_ref().map(summary_badges).unwrap_or_default() } else { Vec::new() };
+        // A library's listing carries each title's media summary, whatever the sort.
+        let badges = item.media.as_ref().map(summary_badges).unwrap_or_default();
         let watched = item.user_state.watched && unwatched == 0;
         Cell { item, title, subtitle, art, progress, unwatched, watched, badges }
     }
@@ -186,7 +187,7 @@ impl Cell {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pley_core::model::{MediaSummary, UserState};
+    use pley_core::model::{DynamicRange, MediaSummary, UserState};
 
     fn movie() -> ItemSummary {
         ItemSummary {
@@ -269,6 +270,23 @@ mod tests {
         assert_eq!(c.badges, vec!["4K"]);
         let c = Cell::with_art(movie(), TileKind::LibraryGrid, Vec::new(), true);
         assert_eq!(c.subtitle, "Bitrate unknown");
+    }
+
+    #[test]
+    fn library_tiles_carry_4k_and_the_dynamic_range_whatever_the_sort() {
+        let summary = |w, h, range| MediaSummary {
+            width: Some(w),
+            height: Some(h),
+            dynamic_range: Some(range),
+            ..MediaSummary::default()
+        };
+        let m = ItemSummary { media: Some(summary(3840, 2160, DynamicRange::Hdr10)), ..movie() };
+        let c = Cell::with_art(m, TileKind::LibraryGrid, Vec::new(), false);
+        assert_eq!(c.badges, vec!["4K", "HDR10"]);
+        assert_ne!(c.subtitle, "Bitrate unknown");
+        // No lower resolution.
+        let m = ItemSummary { media: Some(summary(1920, 1080, DynamicRange::Sdr)), ..movie() };
+        assert!(Cell::with_art(m, TileKind::LibraryGrid, Vec::new(), false).badges.is_empty());
     }
 
     #[test]

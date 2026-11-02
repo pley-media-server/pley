@@ -357,10 +357,10 @@ pub fn quality_badges(file: &MediaFile) -> Vec<String> {
     out
 }
 
-/// The badges a listing can give: resolution and dynamic range.
+/// The badges a listing can give: 4K (no other resolution, as on the web) and the dynamic range.
 pub fn summary_badges(media: &MediaSummary) -> Vec<String> {
     [
-        resolution_badge(media.width, media.height).map(str::to_string),
+        resolution_badge(media.width, media.height).filter(|r| *r == "4K").map(str::to_string),
         dynamic_range_short(media.dynamic_range, None, None, None, None),
     ]
     .into_iter()
