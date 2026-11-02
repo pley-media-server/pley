@@ -126,6 +126,8 @@ pub(crate) struct State {
     pub network: NetworkMemory,
     /// Subtitle search is set up.
     pub subtitle_search: bool,
+    /// The server requires two-step sign-in of every account with a password.
+    pub two_step_required: bool,
     /// How often each text subtitle track was asked for, by (file, index).
     pub subtitle_asks: HashMap<(i64, i64), u32>,
     /// Subtitles added to files, by file.

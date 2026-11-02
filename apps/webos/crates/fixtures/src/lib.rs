@@ -264,6 +264,7 @@ impl FixtureServer {
             live: live::Live::new(now_ms),
             network: extra::NetworkMemory::default(),
             subtitle_search: true,
+            two_step_required: false,
             subtitle_asks: Default::default(),
             added_subtitles: Default::default(),
         };
@@ -394,6 +395,11 @@ impl FixtureServer {
     /// Off, subtitle search answers `503` "not set up".
     pub fn set_subtitle_search(&self, on: bool) {
         lock(&self.shared.state).subtitle_search = on;
+    }
+
+    /// The server requires two-step sign-in (`two_step_required` in `GET /api/server`).
+    pub fn set_two_step_required(&self, on: bool) {
+        lock(&self.shared.state).two_step_required = on;
     }
 
     /// The apps play from another network than the server's: a speed test is

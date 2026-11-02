@@ -25,7 +25,7 @@ use crate::{ServerEvent, ids};
 pub(crate) fn routes() -> Vec<Route> {
     vec![
         locked("GET", "/api/health", Need::Public, |_, _| Ok(json(200, &json!({ "status": "ok" })))),
-        locked("GET", "/api/server", Need::Public, |_, _| {
+        locked("GET", "/api/server", Need::Public, |_, state| {
             Ok(json(
                 200,
                 &json!({
@@ -34,6 +34,7 @@ pub(crate) fn routes() -> Vec<Route> {
                     "commit": "unknown",
                     "setup_required": false,
                     "setup_code_required": false,
+                    "two_step_required": state.two_step_required,
                 }),
             ))
         }),

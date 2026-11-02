@@ -14,7 +14,8 @@ use std::sync::mpsc::{Receiver, channel};
 
 use pley_base::{Icon, Point, Rect, Size, TextOpts};
 use pley_core::auth::{AuthError, DeviceCode, DeviceSignIn, LinkState};
-use pley_core::model::Me;
+use pley_core::discovery::probe_timeout;
+use pley_core::model::{Me, ServerInfo};
 use pley_core::{ApiError, Cancel, Device, Promise};
 use pley_kit::{Button, Qr};
 use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen};
@@ -39,6 +40,9 @@ pub const SAME_WIFI: &str = "Your phone must be on the same Wi-Fi as this TV.";
 pub const OTHER_DEVICE: &str = "Or open Pley on a signed-in device → Link a TV";
 pub const SCAN: &str = "Scan with your phone camera";
 pub const CHANGE_SERVER: &str = "Change server";
+/// Under the title, when the server requires two-step sign-in: the phone sets it up for whoever
+/// hasn't.
+pub const TWO_STEP_REQUIRED: &str = "This server requires two-step sign-in: your phone sets it up if you haven't yet.";
 pub const WAITING: &str = "Waiting for approval…";
 pub const GETTING_CODE: &str = "Getting a code…";
 pub const DECLINED: &str = "Request declined";
@@ -586,13 +590,23 @@ pub struct LinkScreen {
     flow: Option<LinkFlow>,
     view: LinkView,
     device: Arc<dyn Device>,
+    /// Whether the server requires two-step sign-in (`GET /api/server`), once it answers.
+    two_step: Option<Promise<Result<ServerInfo, ApiError>>>,
+    two_step_required: bool,
 }
 
 impl LinkScreen {
     /// The code screen for `server`; at its first frame the server becomes the one in use (an
     /// address that can't be read, as the simulator's `link:here`, keeps the server in use).
     pub fn new(cx: &mut AppCx, server: &str) -> LinkScreen {
-        LinkScreen { server: server.to_string(), flow: None, view: LinkView::default(), device: cx.device().clone() }
+        LinkScreen {
+            server: server.to_string(),
+            flow: None,
+            view: LinkView::default(),
+            device: cx.device().clone(),
+            two_step: None,
+            two_step_required: false,
+        }
     }
 
     /// The sign-in, once the screen has shown.
@@ -610,16 +624,26 @@ impl Drop for LinkScreen {
 impl Screen for LinkScreen {
     fn ui(&mut self, ui: &mut Ui, cx: &mut AppCx) {
         let now = ui.time();
-        let flow = self.flow.get_or_insert_with(|| {
+        if self.flow.is_none() {
             cx.state.use_server(&self.server);
             let server = cx.state.server().unwrap_or(&self.server).to_string();
             self.device.keep_awake(true);
+            self.two_step = Some(cx.spawn(move |api| api.reachable(probe_timeout(&server))));
+        }
+        let flow = self.flow.get_or_insert_with(|| {
+            let server = cx.state.server().unwrap_or(&self.server).to_string();
             LinkFlow::new(&server, Purpose::SignIn)
         });
+        // Signing in on the phone sets two-step sign-in up, so this only says so.
+        if let Some(answer) = self.two_step.as_mut().and_then(Promise::take) {
+            self.two_step = None;
+            self.two_step_required = answer.is_ok_and(|info| info.two_step_required);
+        }
         if let Some(at) = flow.update(cx, now) {
             ui.repaint_after((at - now).max(0.0));
         }
-        let labels = LinkLabels { title: TITLE, intro: None, back: CHANGE_SERVER };
+        let intro = self.two_step_required.then_some(TWO_STEP_REQUIRED);
+        let labels = LinkLabels { title: TITLE, intro, back: CHANGE_SERVER };
         let choice = self.view.show(ui, flow, &labels);
         if choice.new_code {
             flow.new_code(cx);
@@ -795,6 +819,20 @@ mod tests {
         assert!(rig.state.profile_gate_passed(), "who approved picked the profile");
         drop(s);
         assert!(!rig.device.awake());
+    }
+
+    #[test]
+    fn says_when_the_server_requires_two_step_sign_in() {
+        let server = fixtures();
+        server.set_device_approval(DeviceApproval::Never);
+        let mut rig = Rig::new();
+        let mut s = rig.cx(|cx| LinkScreen::new(cx, server.url()));
+        assert!(rig.until(&mut s, |rig| rig.says(WAITING)), "no code came");
+        assert!(!rig.says(TWO_STEP_REQUIRED));
+
+        server.set_two_step_required(true);
+        let mut s = rig.cx(|cx| LinkScreen::new(cx, server.url()));
+        assert!(rig.until(&mut s, |rig| rig.says(TWO_STEP_REQUIRED)), "two-step sign-in never said");
     }
 
     #[test]

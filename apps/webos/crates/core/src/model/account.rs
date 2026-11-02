@@ -29,6 +29,10 @@ pub struct ServerInfo {
     /// Setting up takes the code from the server's log.
     #[serde(default, deserialize_with = "nd")]
     pub setup_code_required: bool,
+    /// It requires two-step sign-in of every account with a password: signing in on a phone sets
+    /// it up for whoever hasn't. False from servers before it.
+    #[serde(default, deserialize_with = "nd")]
+    pub two_step_required: bool,
 }
 
 /// `GET /api/health`: `{ "status": "ok" }` while the server runs.
