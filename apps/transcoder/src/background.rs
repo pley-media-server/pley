@@ -14,12 +14,13 @@
 //! Transcodes come first too: while a job's FFmpeg or a conversion runs (it
 //! holds a transcode slot, see [`Background::transcode`]), background FFmpeg
 //! runs wait and are paused the same way, until a few seconds after the last
-//! one ends ([`AFTER_TRANSCODE`]). So do picture subtitles a player waits
-//! for, while they are read through a file's Cues ([`Background::pictures`]):
-//! on a share's disks each of their blocks is a seek, and a seek preview's
-//! FFmpeg reading a remux beside them makes each one wait its turn. Probes
-//! and reading ahead (`prefetch.rs`) wait only for starts: they read little,
-//! and a new file or the next playback shouldn't wait for a film to end.
+//! one ends ([`AFTER_TRANSCODE`]). So do subtitles a player waits for (a text
+//! track, or a picture track's pictures), while they are read through a file's
+//! Cues ([`Background::subtitles`]): on a share's disks each of their blocks
+//! is a seek, and a seek preview's FFmpeg reading a remux beside them makes
+//! each one wait its turn. Probes and reading ahead (`prefetch.rs`) wait only
+//! for starts: they read little, and a new file or the next playback shouldn't
+//! wait for a film to end.
 //!
 //! A paused run only waits: nothing is lost, and its time limit counts the
 //! time it ran.
@@ -46,15 +47,15 @@ pub const MAX_HOLD: Duration = Duration::from_secs(60);
 /// Background work waits this long after the last transcode ends: a job's
 /// FFmpeg restarting (a seek, another preset) ends one before the next.
 pub const AFTER_TRANSCODE: Duration = Duration::from_secs(5);
-/// Background work waits this long after the last read of picture subtitles
-/// ends: a player's next ask comes soon.
-pub const AFTER_PICTURES: Duration = Duration::from_secs(2);
-/// The longest a read of picture subtitles holds background work, its tail
-/// included: a minute of reading, and the playback start it may wait for
-/// ([`MAX_START`]). The pictures a player waits for come in seconds; the rest
-/// of a big file's track on a slow share can take minutes, which seek
-/// previews needn't wait out.
-pub const MAX_PICTURES: Duration = Duration::from_secs(90);
+/// Background work waits this long after the last read of subtitles ends: a
+/// player's next ask comes soon.
+pub const AFTER_SUBTITLES: Duration = Duration::from_secs(2);
+/// The longest a read of subtitles holds background work, its tail included:
+/// a picture track's minute of reading, and the playback start it may wait
+/// for ([`MAX_START`]); a text track's read takes a minute at most. The
+/// pictures a player waits for come in seconds; the rest of a big file's track
+/// on a slow share can take minutes, which seek previews needn't wait out.
+pub const MAX_SUBTITLES: Duration = Duration::from_secs(90);
 
 #[derive(Default)]
 struct State {
@@ -67,11 +68,11 @@ struct State {
     transcodes: usize,
     /// Until when the last transcode to end holds background work.
     transcoded_until: Option<Instant>,
-    /// Reads of picture subtitles under way (see [`Background::pictures`]),
-    /// by id: until when each holds background work at most.
-    picture_reads: HashMap<u64, Instant>,
+    /// Reads of subtitles under way (see [`Background::subtitles`]), by id:
+    /// until when each holds background work at most.
+    subtitle_reads: HashMap<u64, Instant>,
     /// Until when the last of them to end holds background work.
-    pictures_read_until: Option<Instant>,
+    subtitles_read_until: Option<Instant>,
 }
 
 impl State {
@@ -86,8 +87,8 @@ impl State {
         if self.transcodes > 0 {
             return Some(now + MAX_HOLD);
         }
-        let reads = self.picture_reads.values().copied();
-        let after = reads.chain([self.transcoded_until, self.pictures_read_until].into_iter().flatten());
+        let reads = self.subtitle_reads.values().copied();
+        let after = reads.chain([self.transcoded_until, self.subtitles_read_until].into_iter().flatten());
         self.starting_until(now).into_iter().chain(after.filter(|until| *until > now)).max()
     }
 }
@@ -137,18 +138,18 @@ impl Background {
         Transcoding { background: self.clone() }
     }
 
-    /// Picture subtitles a player waits for are read through a file's Cues
-    /// (the blocks around it, or the rest of its track): background work
-    /// waits until the guard is dropped and [`AFTER_PICTURES`] longer, or
-    /// [`MAX_PICTURES`] from now at most.
-    pub fn pictures(self: &Arc<Self>) -> ReadingPictures {
+    /// Subtitles a player waits for are read through a file's Cues (a text
+    /// track, or a picture track's blocks around the player or the rest of
+    /// the track): background work waits until the guard is dropped and
+    /// [`AFTER_SUBTITLES`] longer, or [`MAX_SUBTITLES`] from now at most.
+    pub fn subtitles(self: &Arc<Self>) -> ReadingSubtitles {
         let mut state = self.state.lock();
         let id = state.next_id;
         state.next_id += 1;
-        state.picture_reads.insert(id, Instant::now() + MAX_PICTURES);
+        state.subtitle_reads.insert(id, Instant::now() + MAX_SUBTITLES);
         drop(state);
         self.changed.send_replace(());
-        ReadingPictures { background: self.clone(), id }
+        ReadingSubtitles { background: self.clone(), id }
     }
 
     /// Whether background work must wait now.
@@ -281,22 +282,22 @@ impl Drop for Transcoding {
     }
 }
 
-/// A read of picture subtitles under way (see [`Background::pictures`]);
-/// over when dropped.
-pub struct ReadingPictures {
+/// A read of subtitles under way (see [`Background::subtitles`]); over when
+/// dropped.
+pub struct ReadingSubtitles {
     background: Arc<Background>,
     id: u64,
 }
 
-impl Drop for ReadingPictures {
+impl Drop for ReadingSubtitles {
     fn drop(&mut self) {
         let mut state = self.background.state.lock();
         let now = Instant::now();
         // Its tail stays within what it may hold: one that held all it may
         // has nothing more to hold as it ends.
-        if let Some(until) = state.picture_reads.remove(&self.id).filter(|until| *until > now) {
-            let tail = (now + AFTER_PICTURES).min(until);
-            state.pictures_read_until = Some(state.pictures_read_until.map_or(tail, |held| held.max(tail)));
+        if let Some(until) = state.subtitle_reads.remove(&self.id).filter(|until| *until > now) {
+            let tail = (now + AFTER_SUBTITLES).min(until);
+            state.subtitles_read_until = Some(state.subtitles_read_until.map_or(tail, |held| held.max(tail)));
         }
         drop(state);
         self.background.changed.send_replace(());
@@ -496,9 +497,9 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn picture_reads_hold_background_work_until_a_moment_after_they_end_for_a_while_at_most() {
+    async fn subtitle_reads_hold_background_work_until_a_moment_after_they_end_for_a_while_at_most() {
         let bg = Background::new();
-        let around_one_player = bg.pictures();
+        let around_one_player = bg.subtitles();
         assert!(bg.held());
         assert!(!bg.starting(), "probes and reading ahead go on");
         let waiting = tokio::spawn({
@@ -506,7 +507,7 @@ mod tests {
             async move { bg.wait().await }
         });
         tokio::time::sleep(Duration::from_secs(5)).await;
-        let a_track = bg.pictures();
+        let a_track = bg.subtitles();
         tokio::time::sleep(Duration::from_secs(20)).await;
         assert!(!waiting.is_finished(), "for as long as they read");
         drop(around_one_player);
@@ -515,41 +516,41 @@ mod tests {
         drop(a_track);
         let ended = Instant::now();
         waiting.await.unwrap();
-        assert_eq!(ended.elapsed().as_secs(), AFTER_PICTURES.as_secs(), "the next read comes soon");
+        assert_eq!(ended.elapsed().as_secs(), AFTER_SUBTITLES.as_secs(), "the next read comes soon");
         assert!(!bg.held());
         // A read that goes on, on a slow share: for a while at most, and
         // nothing more as it ends.
-        let slow = bg.pictures();
+        let slow = bg.subtitles();
         let started = Instant::now();
-        tokio::time::timeout(MAX_PICTURES * 2, bg.wait()).await.expect("not held for ever");
-        assert_eq!(started.elapsed().as_secs(), MAX_PICTURES.as_secs());
+        tokio::time::timeout(MAX_SUBTITLES * 2, bg.wait()).await.expect("not held for ever");
+        assert_eq!(started.elapsed().as_secs(), MAX_SUBTITLES.as_secs());
         drop(slow);
         assert!(!bg.held());
     }
 
     #[tokio::test(start_paused = true)]
-    async fn a_picture_read_that_ends_near_its_limit_holds_background_work_up_to_it() {
+    async fn a_subtitle_read_that_ends_near_its_limit_holds_background_work_up_to_it() {
         let bg = Background::new();
-        let late = bg.pictures();
-        tokio::time::sleep(MAX_PICTURES - Duration::from_secs(1)).await;
+        let late = bg.subtitles();
+        tokio::time::sleep(MAX_SUBTITLES - Duration::from_secs(1)).await;
         drop(late);
         let ended = Instant::now();
         bg.wait().await;
         assert_eq!(ended.elapsed().as_secs(), 1, "not past it");
         // Nor does it cut another read's moment short.
-        let late = bg.pictures();
-        tokio::time::sleep(MAX_PICTURES - Duration::from_secs(1)).await;
-        drop(bg.pictures());
+        let late = bg.subtitles();
+        tokio::time::sleep(MAX_SUBTITLES - Duration::from_secs(1)).await;
+        drop(bg.subtitles());
         drop(late);
         let ended = Instant::now();
         bg.wait().await;
-        assert_eq!(ended.elapsed().as_secs(), AFTER_PICTURES.as_secs());
+        assert_eq!(ended.elapsed().as_secs(), AFTER_SUBTITLES.as_secs());
     }
 
     #[cfg(any(windows, target_os = "linux"))]
     #[tokio::test]
-    async fn runs_are_paused_while_a_playback_starts_a_transcode_runs_or_pictures_are_read() {
-        for kind in ["start", "transcode", "pictures"] {
+    async fn runs_are_paused_while_a_playback_starts_a_transcode_runs_or_subtitles_are_read() {
+        for kind in ["start", "transcode", "subtitles"] {
             let bg = Background::new();
             let mut child = chatty().spawn().unwrap();
             let mut lines = BufReader::new(child.stdout.take().unwrap()).lines();
@@ -561,7 +562,7 @@ mod tests {
             let hold: Box<dyn std::any::Any> = match kind {
                 "start" => Box::new(bg.start()),
                 "transcode" => Box::new(bg.transcode()),
-                _ => Box::new(bg.pictures()),
+                _ => Box::new(bg.subtitles()),
             };
             let deadline = Instant::now() + Duration::from_secs(5);
             while bg.paused() == 0 && Instant::now() < deadline {

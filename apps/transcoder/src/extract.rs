@@ -465,7 +465,7 @@ impl Extractor {
             }
             let _seeking = Seeking::new(seeking);
             // A player waits for these: background work makes way.
-            let _reading = background.as_ref().map(|background| background.pictures());
+            let _reading = background.as_ref().map(|background| background.subtitles());
             let read = tokio::task::spawn_blocking(move || {
                 let _permit = permit;
                 window_through_cues(&path, &media, index, at_ms)
@@ -563,7 +563,7 @@ impl Extractor {
         let cue_reads = self.cue_reads.clone();
         let permit = cue_reads.clone().acquire_owned().await.map_err(|e| ApiError::Internal(e.into()))?;
         // A player waits for these: background work makes way.
-        let reading = self.background.as_ref().map(|background| background.pictures());
+        let reading = self.background.as_ref().map(|background| background.subtitles());
         let window = self.subs_dir.join(window_name(track));
         let (file, media, target, first) = (path.to_owned(), media.clone(), target.to_owned(), read.first.clone());
         let (so_far, around_read) = (read.so_far.clone(), read.first.clone());
@@ -895,6 +895,8 @@ impl Extractor {
             return Ok(None);
         }
         let permit = self.cue_reads.clone().acquire_owned().await.map_err(|e| ApiError::Internal(e.into()))?;
+        // A player waits for these: background work makes way.
+        let reading = self.background.as_ref().map(|background| background.subtitles());
         let (file, media, target) = (path.to_owned(), media.clone(), self.subs_dir.join(format!("{track}.vtt")));
         let read = tokio::task::spawn_blocking(move || {
             let _permit = permit;
@@ -902,6 +904,7 @@ impl Extractor {
         })
         .await
         .unwrap_or_else(|e| Err(format!("the read through the cues failed: {e}")));
+        drop(reading);
         match read {
             Ok(text) => Ok(Some(text)),
             Err(reason) => {
@@ -2884,6 +2887,23 @@ mod tests {
         let (_so_far, _unfinished) = copy_under_way(&extractor, &key);
         let (there, _) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(200_000), false).await.unwrap();
         assert_eq!(picture_seconds(&there), (190..240).collect::<Vec<u8>>());
+        assert!(background.held());
+        eventually(|| !background.held()).await;
+    }
+
+    #[tokio::test]
+    async fn a_text_track_read_through_the_cues_holds_background_work() {
+        let dir = tempfile::tempdir().unwrap();
+        let background = Background::new();
+        let mut extractor = extractor_with(dir.path(), dir.path().join("no-ffmpeg"));
+        extractor.background = Some(background.clone());
+        let extractor = Arc::new(extractor);
+        let (name, _) = movie_in(&extractor, dir.path(), &matroska::tests::movie());
+        assert!(!background.held());
+        // A player's text track, read through the Cues, holds seek previews
+        // and the like until a moment after it.
+        let (_, complete) = extractor.subtitle_so_far(&name, 2, Duration::from_secs(10)).await.unwrap();
+        assert!(complete);
         assert!(background.held());
         eventually(|| !background.held()).await;
     }
