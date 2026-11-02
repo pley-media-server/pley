@@ -1733,7 +1733,8 @@ async fn seek_previews_wait_while_a_playback_starts() {
     }
     assert!(made, "the previews were made");
     assert_eq!(w.fake.previews_dropped.load(Ordering::SeqCst), 1);
-    assert_eq!(app.state.trickplay.pending(), 0);
+    // Served once saved; off the queue once the queue hears the task ended.
+    eventually(|| app.state.trickplay.pending() == 0).await;
 }
 
 #[tokio::test]
@@ -2053,7 +2054,8 @@ async fn previews_the_transcoder_could_not_make_for_a_moment_are_not_given_up() 
     assert_eq!(app.state.trickplay.pending(), 1, "still to be made");
     eventually(|| w.fake.previews.lock().len() == 4).await;
     assert!(made(bravo).await);
-    assert_eq!(app.state.trickplay.pending(), 0);
+    // Served once saved; off the queue once the queue hears the task ended.
+    eventually(|| app.state.trickplay.pending() == 0).await;
 }
 
 #[tokio::test]
