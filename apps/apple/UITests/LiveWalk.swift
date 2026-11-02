@@ -65,7 +65,12 @@ extension Walk {
             openSection("Libraries", sidebar: "shell.sidebar.home")
             wait(element("libraries.liveTv"), "Live TV in Libraries", timeout: 30).tap()
         }
-        wait(element("live.guide"), "the guide", timeout: 30)
+        // The view is kept per profile: a run before may have left Channels.
+        let guide = element("live.guide")
+        if !guide.waitForExistence(timeout: 30), element("live.cards").exists {
+            wait(app.buttons["Guide"], "the Guide view").tap()
+        }
+        wait(guide, "the guide", timeout: 30)
     }
 
     /// Chooses `category` in the categories (the sheet on iPhone).

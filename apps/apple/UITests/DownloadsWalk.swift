@@ -35,6 +35,12 @@ extension Walk {
         // The original, as it is: this device plays it.
         openLibrary(movies, "Movies")
         wait(titled("Direct H264"), "Direct H264 in Movies").tap()
+        // A run before that stopped part way may have left it downloaded.
+        if element("item.downloaded").waitForExistence(timeout: 5) {
+            deleteAllDownloads()
+            openLibrary(movies, "Movies")
+            wait(titled("Direct H264"), "Direct H264 in Movies").tap()
+        }
         reveal(button("item.download"), "Download").tap()
         wait(element("item.downloaded"), "Downloaded on the page", timeout: 90)
         shot("90-item-downloaded")
@@ -66,7 +72,11 @@ extension Walk {
         await waitDownloaded("Pley Test Show", count: 3, timeout: 300)
         shot("93-season-downloaded")
 
-        // Settings → Downloads → Delete all downloads.
+        deleteAllDownloads()
+    }
+
+    /// Settings → Downloads → Delete all downloads, and Downloads is empty.
+    func deleteAllDownloads() {
         openMe()
         reveal(element("me.settings"), "Settings").tap()
         reveal(element("settings.downloads"), "Downloads in Settings").tap()

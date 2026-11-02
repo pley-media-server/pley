@@ -123,9 +123,14 @@ struct Walk {
 
     /// Me: the tab on iPhone, the sidebar's foot on iPad and Mac.
     func openMe() {
-        openSection("Me", sidebar: "shell.me")
-        // Me keeps its scroll: its first row may be scrolled away, out of its lazy list.
+        let section = openSection("Me", sidebar: "shell.me")
         let name = element("me.name")
+        // Me keeps the pages opened in it (Downloads, Settings): choosing it
+        // again, while it shows, goes back to its start.
+        if !name.waitForExistence(timeout: 2), app.navigationBars.buttons["Me"].exists {
+            section.tap()
+        }
+        // Me keeps its scroll: its first row may be scrolled away, out of its lazy list.
         for _ in 0..<6 where !name.waitForExistence(timeout: 2) {
             scrollPage(up: false)
         }
