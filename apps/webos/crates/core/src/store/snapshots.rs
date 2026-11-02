@@ -41,6 +41,10 @@ pub mod snapshot_keys {
     pub const LIVE: &str = "live";
     /// Live TV's groups.
     pub const LIVE_GROUPS: &str = "live:groups";
+    /// The requests summary: the rail has its entry before the server answers.
+    pub const REQUESTS: &str = "requests";
+    /// The ready-to-watch news announced, so none pops up twice.
+    pub const REQUEST_NEWS: &str = "requests:news";
 
     /// The first page of a Live TV category (`LiveCategory::key`).
     pub fn live_page(category: &str) -> String {

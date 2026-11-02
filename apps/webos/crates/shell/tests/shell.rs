@@ -120,6 +120,13 @@ fn the_start_gate_picks_the_first_page_from_what_the_tv_kept() {
     app.state.set_always_start_as(Some(pley_fixtures::ids::SAM));
     assert!(app.until(|a| a.state.me().is_some()));
     assert_eq!(app.state.start_route(), Route::Pin { profile: pley_fixtures::ids::SAM });
+    // Who it is is saved off the main thread: the next start finds it once it is on disk.
+    let snapshots = app.state.snapshots().clone();
+    let start = std::time::Instant::now();
+    let saved = || snapshots.read(&url, pley_fixtures::ids::SAM, pley_core::store::snapshot_keys::ME).is_some();
+    while !saved() && start.elapsed() < std::time::Duration::from_secs(5) {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
     drop(app);
     // The next start, from what the TV kept, opens on the pad.
     let app = TestApp::new(device.clone(), s.clone(), h.clone(), Registry::new());

@@ -19,6 +19,7 @@ pub mod format;
 pub mod http;
 pub mod media;
 pub mod model;
+pub mod requests;
 pub mod store;
 pub mod task;
 

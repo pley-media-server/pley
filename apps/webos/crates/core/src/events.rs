@@ -40,6 +40,10 @@ pub enum StreamNews {
     Event(ServerEvent),
     /// The stream stopped for good: `403` (not allowed) or the sign-in ended.
     Stopped,
+    /// The connection failed or ended, and the stream waits before trying again: until
+    /// [`StreamNews::Connected`], what the events would say is asked for instead. Told once a
+    /// wait.
+    Lost,
 }
 
 /// Turns the stream's bytes into the data of its events: `data:` lines
@@ -182,8 +186,12 @@ enum End {
 
 fn run(api: &Api, tx: &Sender<StreamNews>, waker: &Waker, cancel: &Cancel, nudges: &std::sync::Mutex<Cancel>) {
     let mut failures = 0u32;
+    let mut lost = false;
     while !cancel.is_cancelled() {
         let end = cancel.scope(|| connect(api, tx, waker, cancel));
+        if matches!(end, End::Closed { opened: Some(_) }) {
+            lost = false;
+        }
         let wait = match end {
             End::Stop => return,
             End::Forbidden | End::SignedOut => {
@@ -208,6 +216,10 @@ fn run(api: &Api, tx: &Sender<StreamNews>, waker: &Waker, cancel: &Cancel, nudge
             }
         };
         if !wait.is_zero() {
+            if !lost {
+                lost = true;
+                tell(tx, waker, cancel, StreamNews::Lost);
+            }
             let nudge = {
                 let mut n = nudges.lock().unwrap_or_else(|e| e.into_inner());
                 if n.is_cancelled() {
@@ -347,8 +359,8 @@ mod tests {
             r#"{"enabled":true,"access":"ask","movies_left":null,"manage":true,"pending":2,"failed":1,"unseen":3,"own":4,"sign_in_again":null,"new_field":1}"#,
         )
         .unwrap();
-        assert!(summary.may_ask());
-        assert_eq!(summary.badge(), 6);
+        assert!(crate::requests::may_ask(Some(&summary)));
+        assert_eq!(crate::requests::requests_count(Some(&summary)).0, 6);
         let query = RequestQuery {
             status: vec![RequestStatus::Pending, RequestStatus::Failed],
             mine: true,
@@ -421,7 +433,13 @@ mod tests {
         stream.stop();
         assert_eq!(
             news,
-            [StreamNews::Connected, StreamNews::Event(ServerEvent::ScanStarted { library_id: 1 }), StreamNews::Stopped]
+            [
+                StreamNews::Connected,
+                StreamNews::Event(ServerEvent::ScanStarted { library_id: 1 }),
+                // The connection ended at once: the stream waits before trying again.
+                StreamNews::Lost,
+                StreamNews::Stopped
+            ]
         );
         assert!(fake.requests().iter().all(|r| r.header_value("Accept") == Some("text/event-stream")));
     }

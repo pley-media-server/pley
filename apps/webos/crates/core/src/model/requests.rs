@@ -173,18 +173,6 @@ pub struct RequestSummary {
     pub sign_in_again: Option<SignInAgain>,
 }
 
-impl RequestSummary {
-    /// The profile may ask for titles.
-    pub fn may_ask(&self) -> bool {
-        self.enabled && self.access != RequestAccess::Off && self.sign_in_again != Some(SignInAgain::Requests)
-    }
-
-    /// The rail's number: news since last seen, and for managers what waits for them.
-    pub fn badge(&self) -> i64 {
-        self.unseen + if self.manage { self.pending + self.failed } else { 0 }
-    }
-}
-
 /// A movie or show on TMDB, as Discover lists it.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct DiscoverTitle {

@@ -14,9 +14,11 @@
 
 mod cx;
 mod load;
+mod notice;
 mod overlay;
 mod players;
 mod rail;
+mod request_state;
 mod route;
 mod screen;
 mod shell;
@@ -24,9 +26,13 @@ mod state;
 
 pub use cx::{AppCx, BackgroundSession, NavCommand, Requests, ToastRequest};
 pub use load::{Load, Resource};
+pub use notice::{CLOSE as NOTICE_CLOSE, NOTICE_IDLE, NOTICE_SHOWN, Notices, OPEN as NOTICE_OPEN};
 pub use overlay::{DIM_AFTER, DIM_ALPHA, ERROR_TOAST_SECONDS, TOAST_SECONDS};
 pub use rail::{
     MAX_ITEMS, MAX_LIBRARIES, Rail, RailEntries, RailEntry, avatar_color, current_entry, initial, rail_entries,
+};
+pub use request_state::{
+    NOTICES_KEPT, NewsKept, REQUEST_GATHER, RequestNotice, RequestState, SUMMARY_GATHER, SUMMARY_POLL, SummaryNews,
 };
 pub use route::{LibraryTab, PlayQueue, PlayRequest, Route, SettingsSection, SmartPlaylist};
 pub use screen::{AppEvent, Chrome, PLACEHOLDER_TEXT, PlaceholderScreen, Registry, Screen, ScreenFactory};

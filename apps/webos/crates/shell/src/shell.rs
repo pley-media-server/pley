@@ -8,6 +8,7 @@ use pley_base::{ImageRequest, Key};
 use pley_ui::{Dir, Edge, Group, Id, InputEvent, PageMemory, Ui, UiState};
 
 use crate::cx::{AppCx, NavCommand, Requests};
+use crate::notice::Notices;
 use crate::overlay::{self, DIM_AFTER, TOAST_TOP, TOAST_TOP_PLAYER, Toasts};
 use crate::rail::{Rail, RailEntries, RailView, current_entry, rail_entries};
 use crate::route::Route;
@@ -56,6 +57,10 @@ pub struct Shell {
     next_id: u64,
     rail: Rail,
     toasts: Toasts,
+    /// Ready-to-watch news over the pages.
+    notices: Notices,
+    /// A notice waits to show (for [`Shell::next_due`]).
+    notice_waiting: bool,
     requests: Requests,
     /// The page on top when the last frame drew, for the curtain and [`AppEvent::Shown`].
     shown: Option<u64>,
@@ -78,6 +83,8 @@ impl Shell {
             next_id: 1,
             rail: Rail::default(),
             toasts: Toasts::default(),
+            notices: Notices::default(),
+            notice_waiting: false,
             requests: Requests::default(),
             shown: None,
             curtain: None,
@@ -85,7 +92,7 @@ impl Shell {
             dimmed: false,
             music_due: None,
             exited: false,
-            entries: rail_entries(&[], false, false),
+            entries: rail_entries(&[], false, false, None),
             asked: false,
         }
     }
@@ -157,7 +164,10 @@ impl Shell {
     /// When the shell next needs a frame: a toast's end, the dimmer, the music's clock.
     pub fn next_due(&self) -> Option<f64> {
         let dim = (!self.dimmed && self.chrome() != Chrome::Video).then_some(self.last_input + DIM_AFTER);
-        [self.toasts.next_due(), dim, self.music_due].into_iter().flatten().reduce(f64::min)
+        [self.toasts.next_due(), dim, self.music_due, self.notices.next_due(self.notice_waiting)]
+            .into_iter()
+            .flatten()
+            .reduce(f64::min)
     }
 
     // Each frame.
@@ -237,7 +247,8 @@ impl Shell {
         if rail_shown {
             let libraries = state.libraries().unwrap_or(&[]);
             let queued = state.music.as_ref().is_some_and(|m| m.queued());
-            self.entries = rail_entries(libraries, queued, state.live_available());
+            let requests = crate::rail::requests_entry(state.request_summary());
+            self.entries = rail_entries(libraries, queued, state.live_available(), requests);
         } else if self.rail.is_open() {
             self.rail.close();
         }
@@ -251,8 +262,9 @@ impl Shell {
             self.shown = Some(entry_id);
         }
 
-        // Back, before the page draws: in the rail it leaves the app; else the page's own.
-        if ui.key_down(Key::Back) {
+        // Back, before the page draws: in the rail it leaves the app; else the page's own. A
+        // notice on screen takes it itself.
+        if ui.key_down(Key::Back) && !self.notices.showing() {
             if self.rail.is_open() {
                 ui.take_key(Key::Back);
                 self.requests.nav.push(NavCommand::Exit);
@@ -286,7 +298,7 @@ impl Shell {
         }
         // Back the page didn't take, and what the page asked: the rail, or Back's next steps.
         let mut to_rail = ui.failed_move() == Some(Dir::Left) && !modal && !self.rail.is_open();
-        if ui.take_key(Key::Back) {
+        if !self.notices.showing() && ui.take_key(Key::Back) {
             self.requests.nav.push(NavCommand::Back);
         }
         let depth = self.stack.len();
@@ -331,6 +343,15 @@ impl Shell {
         }
 
         let chrome = self.chrome();
+        // Ready-to-watch news: never over a video, a panel or dialog, the open rail or Your
+        // requests, which lists it already.
+        let on_requests = matches!(self.stack.last().map(|e| &e.route), Some(Route::Requests));
+        let free = rail_shown && !modal && !self.rail.is_open() && !on_requests && chrome != Chrome::Video;
+        self.notice_waiting = state.request_notice().is_some();
+        if let Some(n) = self.notices.ui(ui, state, free) {
+            let route = n.item_id.map_or(Route::Requests, |id| Route::Item { id });
+            self.requests.nav.push(NavCommand::Push(route));
+        }
         let top_y = if chrome == Chrome::Video { TOAST_TOP_PLAYER } else { TOAST_TOP };
         let below = overlay::offline_notice(ui, rail_shown && state.offline_notice(), top_y);
         self.toasts.ui(ui, below);

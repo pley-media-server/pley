@@ -10,6 +10,7 @@ publish = false
 [dependencies]
 pley-base = { path = "../base" }
 pley-core = { path = "../core" }
+pley-kit = { path = "../kit" }
 pley-ui = { path = "../ui" }
 pley-player = { path = "../player" }
 log = "0.4.29"

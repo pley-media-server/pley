@@ -9,7 +9,8 @@
 //! that page has something to focus.
 
 use pley_base::{Color, Icon, ImageRequest, Point, Rect, TextOpts};
-use pley_core::model::{Library, LibraryKind, Me};
+use pley_core::model::{Library, LibraryKind, Me, RequestSummary};
+use pley_core::requests::{has_requests, may_ask, requests_count, requests_title};
 use pley_ui::theme::{self, focus};
 use pley_ui::{Dir, Dirs, Easing, Edge, Group, Id, ImageOpts, Motion, Ui};
 
@@ -52,12 +53,30 @@ pub struct RailEntry {
     pub label: String,
     pub icon: Icon,
     pub route: Route,
+    /// A number beside the icon (what waits in requests), in the danger colour with `.1`.
+    pub badge: Option<(i64, bool)>,
 }
 
 impl RailEntry {
     fn new(id: impl Into<String>, label: impl Into<String>, icon: Icon, route: Route) -> RailEntry {
-        RailEntry { id: id.into(), label: label.into(), icon, route }
+        RailEntry { id: id.into(), label: label.into(), icon, route, badge: None }
     }
+}
+
+/// The rail's way to requests, after Home: Discover where the profile may ask, else its requests
+/// ("Requests" for managers) where it has any to see; none without requests. It carries the
+/// requests' one number.
+pub fn requests_entry(s: Option<&RequestSummary>) -> Option<RailEntry> {
+    let (count, danger) = requests_count(s);
+    let badge = (count > 0).then_some((count, danger));
+    let entry = if may_ask(s) {
+        RailEntry::new("discover", "Discover", Icon::Compass, Route::Discover)
+    } else if has_requests(s) {
+        RailEntry::new("requests", requests_title(s), Icon::Inbox, Route::Requests)
+    } else {
+        return None;
+    };
+    Some(RailEntry { badge, ..entry })
 }
 
 /// The rail's entries: those between the avatar and Settings, and Settings at the foot.
@@ -76,12 +95,13 @@ fn library_icon(kind: LibraryKind) -> Icon {
     }
 }
 
-/// The rail's entries (Android's `RailItems`): Search, Home, Live TV where the server has channels
+/// The rail's entries (Android's `RailItems`): Search, Home, Discover (or the requests,
+/// [`requests_entry`]), Live TV where the server has channels
 /// for this profile, up to three libraries, then Libraries when there are more, Playlists, and
 /// Collections when there are one to three libraries; Now Playing last while music has a queue;
 /// Settings at the foot. Seven fit: past that Collections goes first, then libraries from the
 /// last, Libraries listing them.
-pub fn rail_entries(libraries: &[Library], now_playing: bool, live: bool) -> RailEntries {
+pub fn rail_entries(libraries: &[Library], now_playing: bool, live: bool, requests: Option<RailEntry>) -> RailEntries {
     let mut shown = libraries.len().min(MAX_LIBRARIES);
     let mut collections = !libraries.is_empty() && libraries.len() <= MAX_LIBRARIES;
     let build = |shown: usize, collections: bool| {
@@ -89,6 +109,7 @@ pub fn rail_entries(libraries: &[Library], now_playing: bool, live: bool) -> Rai
             RailEntry::new("search", "Search", Icon::Search, Route::Search { query: String::new() }),
             RailEntry::new("home", "Home", Icon::House, Route::Home),
         ];
+        top.extend(requests.clone());
         if live {
             top.push(RailEntry::new("live-tv", "Live TV", Icon::TvMinimal, Route::LiveTv));
         }
@@ -138,6 +159,16 @@ pub fn current_entry(root: Option<&Route>, entries: &RailEntries) -> Option<Stri
         }),
         Route::Settings { .. } => Some("settings".into()),
         Route::Profiles => Some("profile".into()),
+        // Discover's pages, and the requests reached from it, under whichever of the two the rail
+        // has.
+        Route::Discover
+        | Route::DiscoverList { .. }
+        | Route::DiscoverSearch { .. }
+        | Route::Title { .. }
+        | Route::Requests => {
+            let own = if matches!(root?, Route::Requests) { "requests" } else { "discover" };
+            has(own).or_else(|| has("discover")).or_else(|| has("requests"))
+        }
         root => {
             top.iter().find(|e| std::mem::discriminant(&e.route) == std::mem::discriminant(root)).map(|e| e.id.clone())
         }
@@ -417,12 +448,34 @@ fn entry_ui(
             ui.fill(bar, theme::alpha(theme::ACCENT, 1.0 - t), theme::radius::BADGE);
         }
         ui.icon(Rect::new(X + 18.0, y + 14.0, ICON, ICON), e.icon, content);
+        if let Some((count, danger)) = e.badge {
+            badge(ui, Point::new(X + 29.0, y + 6.0), count, danger, focused);
+        }
         if t > 0.0 {
             let at = Point::new(X + LABEL_X, y + (ENTRY_H - theme::LABEL.line_height) / 2.0);
             ui.opacity(t, |ui| ui.text(at, &e.label, &theme::LABEL, &TextOpts::line(LABEL_W), content));
         }
     });
     r
+}
+
+/// The number on an entry's icon: Accent with OnAccent (OnAccent with AccentBright on the focused
+/// entry), Danger while something failed; 18 high, 99 at most.
+fn badge(ui: &mut Ui, at: Point, count: i64, danger: bool, focused: bool) {
+    let text = if count > 99 { "99+".to_string() } else { count.to_string() };
+    let w = (ui.measure(&text, &theme::BADGE, &TextOpts::line(f32::MAX)).w + 10.0).max(18.0);
+    let rect = Rect::new(at.x, at.y, w, 18.0);
+    let (fill, ink) = match (danger, focused) {
+        (true, _) => (theme::DANGER, theme::BG),
+        (false, true) => (theme::ON_ACCENT, theme::ACCENT_BRIGHT),
+        (false, false) => (theme::ACCENT, theme::ON_ACCENT),
+    };
+    // A ring of the background around it, as on the web.
+    ui.fill(Rect::new(rect.x - 2.0, rect.y - 2.0, rect.w + 4.0, rect.h + 4.0), theme::BG, 11.0);
+    ui.fill(rect, fill, 9.0);
+    let line = (rect.h - theme::BADGE.line_height) / 2.0;
+    let opts = TextOpts::line(rect.w).aligned(pley_base::Align::Center);
+    ui.text(Point::new(rect.x, rect.y + line), &text, &theme::BADGE, &opts, ink);
 }
 
 /// The avatar entry: the profile's picture or initial, the offline mark, and while open its name
@@ -499,7 +552,7 @@ mod tests {
     #[test]
     fn three_libraries_fit_with_collections() {
         let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Shows), lib(3, LibraryKind::Music)];
-        let e = rail_entries(&libs, false, false);
+        let e = rail_entries(&libs, false, false, None);
         assert_eq!(ids(&e), ["search", "home", "library:1", "library:2", "library:3", "playlists", "collections"]);
         assert_eq!(e.settings.id, "settings");
     }
@@ -507,24 +560,24 @@ mod tests {
     #[test]
     fn more_libraries_than_fit_go_under_libraries() {
         let libs: Vec<Library> = (1..=5).map(|i| lib(i, LibraryKind::Movies)).collect();
-        let e = rail_entries(&libs, false, false);
+        let e = rail_entries(&libs, false, false, None);
         assert_eq!(ids(&e), ["search", "home", "library:1", "library:2", "library:3", "libraries", "playlists"]);
     }
 
     #[test]
     fn now_playing_takes_the_place_of_collections() {
         let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Shows), lib(3, LibraryKind::Music)];
-        let e = rail_entries(&libs, true, false);
+        let e = rail_entries(&libs, true, false, None);
         assert_eq!(ids(&e), ["search", "home", "library:1", "library:2", "library:3", "playlists", "now-playing"]);
     }
 
     #[test]
     fn live_tv_comes_after_home_and_makes_room() {
         let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Shows), lib(3, LibraryKind::Music)];
-        let e = rail_entries(&libs, false, true);
+        let e = rail_entries(&libs, false, true, None);
         assert_eq!(ids(&e), ["search", "home", "live-tv", "library:1", "library:2", "library:3", "playlists"]);
         // With music as well, the last two libraries give way to Libraries.
-        let e = rail_entries(&libs, true, true);
+        let e = rail_entries(&libs, true, true, None);
         assert_eq!(ids(&e), ["search", "home", "live-tv", "library:1", "libraries", "playlists", "now-playing"]);
         assert!(e.top.len() <= MAX_ITEMS);
     }
@@ -532,18 +585,18 @@ mod tests {
     #[test]
     fn collections_open_on_the_first_library_that_isnt_music() {
         let libs = [lib(7, LibraryKind::Music), lib(8, LibraryKind::Shows)];
-        let e = rail_entries(&libs, false, false);
+        let e = rail_entries(&libs, false, false, None);
         let c = e.top.iter().find(|e| e.id == "collections").unwrap();
         assert_eq!(c.route, Route::Collections { library_id: Some(8) });
         assert_eq!(e.top.iter().find(|e| e.id == "library:7").unwrap().icon, Icon::Music);
         // No libraries: no Collections either.
-        assert_eq!(ids(&rail_entries(&[], false, false)), ["search", "home", "playlists"]);
+        assert_eq!(ids(&rail_entries(&[], false, false, None)), ["search", "home", "playlists"]);
     }
 
     #[test]
     fn the_current_entry_follows_the_first_page() {
         let libs: Vec<Library> = (1..=5).map(|i| lib(i, LibraryKind::Movies)).collect();
-        let e = rail_entries(&libs, false, false);
+        let e = rail_entries(&libs, false, false, None);
         let current = |r: Route| current_entry(Some(&r), &e);
         assert_eq!(current(Route::Home).as_deref(), Some("home"));
         assert_eq!(current(Route::Search { query: "x".into() }).as_deref(), Some("search"));

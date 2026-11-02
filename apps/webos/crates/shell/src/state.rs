@@ -22,13 +22,15 @@ use pley_base::{Fetch, FetchError, Waker};
 use pley_core::addresses::origin;
 use pley_core::auth::{AuthError, StoredTokens, Tokens};
 use pley_core::model::{AppProfile, Hub, Hubs, ItemDetail, Library, LiveCategory, LiveChannel, LiveSummary, Me};
-use pley_core::model::{ScanPhase, ServerEvent};
+use pley_core::model::{RequestList, RequestQuery, RequestSummary, ScanPhase, ServerEvent, TitleKind};
+use pley_core::requests::title_key;
 use pley_core::store::{SavedServer, Snapshots, keys, snapshot_keys};
 use pley_core::{Api, ApiError, CapsOverrides, CapsReport, Device, EventStream, Http, Promise, Settings, Store};
 use pley_core::{StreamNews, Tasks};
 
 use crate::cx::BackgroundSession;
 use crate::players::Players;
+use crate::request_state::{RequestNotice, RequestState, SUMMARY_POLL};
 use crate::route::Route;
 use crate::screen::AppEvent;
 
@@ -170,6 +172,9 @@ pub struct AppState {
     account_libraries: Option<Pending<Result<Vec<Library>, ApiError>>>,
     home_task: Option<Pending<Result<Hubs, ApiError>>>,
     live_task: Option<Pending<Result<LiveSummary, ApiError>>>,
+    requests: RequestState,
+    requests_task: Option<Pending<Result<RequestSummary, ApiError>>>,
+    catch_up_task: Option<Pending<Result<RequestList, ApiError>>>,
     profiles_task: Option<Pending<Result<Vec<AppProfile>, ApiError>>>,
     reach_task: Option<Pending<Result<(), ApiError>>>,
     caps_task: Option<Promise<CapsReport>>,
@@ -237,6 +242,9 @@ impl AppState {
             account_libraries: None,
             home_task: None,
             live_task: None,
+            requests: RequestState::default(),
+            requests_task: None,
+            catch_up_task: None,
             profiles_task: None,
             reach_task: None,
             caps_task: None,
@@ -437,6 +445,8 @@ impl AppState {
         self.me = s.get::<Me>(&server, profile, snapshot_keys::ME).filter(|m| m.id == profile);
         self.libraries = s.get(&server, profile, snapshot_keys::LIBRARIES);
         self.live = s.get(&server, profile, snapshot_keys::LIVE);
+        self.requests.summary = s.get(&server, profile, snapshot_keys::REQUESTS);
+        self.requests.news = Some(s.get(&server, profile, snapshot_keys::REQUEST_NEWS).unwrap_or_default());
         self.home = s.get::<Hubs>(&server, profile, snapshot_keys::HOME).map(|h| h.hubs);
     }
 
@@ -632,6 +642,9 @@ impl AppState {
         self.account_libraries = None;
         self.home_task = None;
         self.live_task = None;
+        self.requests.reset();
+        self.requests_task = None;
+        self.catch_up_task = None;
         self.profiles_task = None;
     }
 
@@ -742,6 +755,188 @@ impl AppState {
         let generation = self.generation;
         self.account_me = Some(Pending { generation, promise: self.spawn(|api| api.me()) });
         self.account_libraries = Some(Pending { generation, promise: self.spawn(|api| api.libraries()) });
+        // What requests are for it, alongside.
+        self.load_requests(false);
+    }
+
+    // Requests.
+
+    /// The requests summary (docs/API.md, "Requests"): whether Discover and the requests show,
+    /// and the rail's number. `None` while unknown, and for a server without requests.
+    pub fn request_summary(&self) -> Option<&RequestSummary> {
+        self.requests.summary.as_ref()
+    }
+
+    /// The events aren't connected: pages that show requests ask on their own meanwhile.
+    pub fn requests_events_down(&self) -> bool {
+        self.requests.events_down
+    }
+
+    /// Asks for the summary: at start, after a profile switch, when the events reconnect, on
+    /// request events (once, 1 s after a burst) and every 60 s while the events are down. One at
+    /// a time: `changed` (something changed since the one on its way was asked for) asks once
+    /// more after it. A server without requests (404) or with an older build of them (403) isn't
+    /// asked until its events reconnect.
+    pub fn load_requests(&mut self, changed: bool) {
+        if self.requests_task.is_some() {
+            self.requests.again |= changed;
+            return;
+        }
+        if self.api.is_none() || !self.signed_in() || self.requests.missing {
+            return;
+        }
+        let generation = self.generation;
+        self.requests_task = Some(Pending { generation, promise: self.spawn(|api| api.request_summary()) });
+    }
+
+    /// The ready-to-watch notice to show next.
+    pub fn request_notice(&self) -> Option<&RequestNotice> {
+        self.requests.notice()
+    }
+
+    /// The shell shows this notice (`None`: none).
+    pub fn showing_request_notice(&mut self, id: Option<u64>) {
+        self.requests.showing_notice(id);
+    }
+
+    /// The notice was opened, closed or timed out.
+    pub fn drop_request_notice(&mut self, id: u64) {
+        self.requests.drop_notice(id);
+    }
+
+    fn collect_requests(&mut self) {
+        if let Some(task) = self.requests_task.as_mut() {
+            let answer = task.take();
+            let failed = answer.is_none() && task.promise.failed();
+            let generation = task.generation;
+            if answer.is_some() || failed {
+                self.requests_task = None;
+            }
+            if let Some(answer) = answer
+                && generation == self.generation
+            {
+                match answer {
+                    Ok(summary) => {
+                        self.save_snapshot(snapshot_keys::REQUESTS, &summary);
+                        let news = self.requests.on_summary(summary);
+                        if news.changed {
+                            self.requests.changed(None, self.now);
+                        }
+                        if news.catch_up {
+                            self.catch_up();
+                        }
+                        self.out.push(AppEvent::Changed);
+                    }
+                    Err(e) if e.is(404) || e.is(403) => {
+                        self.requests.missing = true;
+                        self.requests.summary = None;
+                        if let (Some(server), Some(profile)) = (self.server.clone(), self.profile) {
+                            let snapshots = self.snapshots.clone();
+                            self.tasks.detach(move || snapshots.remove(&server, profile, snapshot_keys::REQUESTS));
+                        }
+                    }
+                    // Out of reach: what was heard stays.
+                    Err(_) => {}
+                }
+            }
+            if self.requests_task.is_none() && std::mem::take(&mut self.requests.again) {
+                self.load_requests(false);
+            }
+        }
+        if let Some(task) = self.catch_up_task.as_mut() {
+            let answer = task.take();
+            if answer.is_some() || task.promise.failed() {
+                let generation = task.generation;
+                self.catch_up_task = None;
+                // Failed: asked again with the next summary that has news.
+                if let Some(Ok(list)) = answer
+                    && generation == self.generation
+                    && self.requests.caught_up_with(&list.requests)
+                    && let Some(kept) = self.requests.news.clone()
+                {
+                    self.save_snapshot(snapshot_keys::REQUEST_NEWS, &kept);
+                }
+            }
+        }
+        if let Some(title) = self.requests.take_change(self.now) {
+            self.out.push(AppEvent::RequestsChanged { title });
+        }
+        if self.requests.summary_due.is_some_and(|t| self.now >= t) {
+            self.requests.summary_due = None;
+            self.load_requests(true);
+        }
+        if self.requests.poll_due.is_some_and(|t| self.now >= t) {
+            self.requests.poll_due = None;
+            if self.requests.events_down && self.events.is_some() {
+                if self.visible {
+                    self.load_requests(false);
+                }
+                self.requests.poll_due = Some(self.now + SUMMARY_POLL);
+            }
+        }
+    }
+
+    /// News that came while the app wasn't listening: the profile's 20 newest unseen requests,
+    /// of which what is ready to watch pops up.
+    fn catch_up(&mut self) {
+        if self.catch_up_task.is_some() || self.api.is_none() {
+            return;
+        }
+        let generation = self.generation;
+        let query = RequestQuery { unseen: true, limit: Some(20), ..RequestQuery::default() };
+        self.catch_up_task = Some(Pending { generation, promise: self.spawn(move |api| api.requests(&query)) });
+    }
+
+    /// A request event: the summary once after the burst, the pages told, and news popped up.
+    fn request_event(&mut self, e: &ServerEvent) {
+        let now = self.now;
+        let key = |kind: &Option<TitleKind>, tmdb: &Option<i64>| match (kind, tmdb) {
+            (Some(k), Some(t)) => Some(title_key(*k, *t)),
+            _ => None,
+        };
+        match e {
+            ServerEvent::RequestsChanged { kind, tmdb_id, .. } => {
+                self.requests.summary_soon(now);
+                self.requests.changed(key(kind, tmdb_id), now);
+            }
+            ServerEvent::RequestAvailable {
+                request_id,
+                title,
+                kind,
+                tmdb_id,
+                item_id,
+                poster_url,
+                seasons,
+                complete,
+            } => {
+                self.requests.news_heard += 1;
+                self.requests.summary_soon(now);
+                self.requests.changed(key(kind, tmdb_id), now);
+                let before = self.requests.news.clone();
+                self.requests.ready(*request_id, title, *item_id, poster_url.clone(), seasons.as_deref(), *complete);
+                if self.requests.news != before
+                    && let Some(kept) = self.requests.news.clone()
+                {
+                    self.save_snapshot(snapshot_keys::REQUEST_NEWS, &kept);
+                }
+            }
+            // Declined news raises `unseen`; TVs show it as the number and in the lists, never as
+            // a pop-up.
+            ServerEvent::RequestDecided { .. } => {
+                self.requests.news_heard += 1;
+                self.requests.summary_soon(now);
+                self.requests.changed(None, now);
+            }
+            ServerEvent::RequestCreated { .. } | ServerEvent::RequestFailed { .. } => {
+                self.requests.summary_soon(now);
+                self.requests.changed(None, now);
+            }
+            ServerEvent::RequestsSettingsChanged => {
+                self.requests.missing = false;
+                self.requests.summary_soon(now);
+            }
+            _ => {}
+        }
     }
 
     /// Asks whether Live TV shows for this profile.
@@ -967,6 +1162,15 @@ impl AppState {
     }
 
     fn reconnected(&mut self) {
+        // The server may have restarted, newer: one without requests is asked again, and what
+        // changed while the events were down is told.
+        let down = std::mem::take(&mut self.requests.events_down);
+        self.requests.poll_due = None;
+        self.requests.missing = false;
+        self.load_requests(false);
+        if down {
+            self.requests.changed(None, self.now);
+        }
         // Nothing is replayed: what is older than 30 s, or anything after the server was out of
         // reach, is fetched again.
         let away = self.offline;
@@ -979,6 +1183,9 @@ impl AppState {
     }
 
     fn handle_event(&mut self, e: ServerEvent) {
+        if e.about_requests() {
+            self.request_event(&e);
+        }
         match &e {
             ServerEvent::LibraryChanged { .. } => self.library_due = Some(self.now + LIBRARY_GATHER),
             ServerEvent::LibrariesChanged => {
@@ -1049,6 +1256,7 @@ impl AppState {
         self.collect_account();
         self.collect_home();
         self.collect_live();
+        self.collect_requests();
         self.collect_profiles();
         self.collect_reach();
         if let Some(p) = self.caps_task.as_mut()
@@ -1082,7 +1290,10 @@ impl AppState {
     /// When a timer of the state is next due ([`pley_base::time::now`]'s clock).
     pub fn next_due(&self) -> Option<f64> {
         let ask = self.ask_at.filter(|_| self.offline && self.visible && self.reach_task.is_none());
-        [self.notice_until, ask, self.library_due, self.state_due].into_iter().flatten().reduce(f64::min)
+        [self.notice_until, ask, self.library_due, self.state_due, self.requests.next_due()]
+            .into_iter()
+            .flatten()
+            .reduce(f64::min)
     }
 
     /// Whether answers are on their way (tests wait for them).
@@ -1090,6 +1301,8 @@ impl AppState {
         self.account_me.is_some()
             || self.home_task.is_some()
             || self.live_task.is_some()
+            || self.requests_task.is_some()
+            || self.catch_up_task.is_some()
             || self.profiles_task.is_some()
             || self.reach_task.is_some()
             || self.caps_task.is_some()
@@ -1279,6 +1492,13 @@ impl AppState {
                 StreamNews::Connected => self.reconnected(),
                 StreamNews::Event(e) => self.handle_event(e),
                 StreamNews::Stopped => stopped = true,
+                // Until the events connect again, the summary is asked for every 60 s.
+                StreamNews::Lost => {
+                    self.requests.events_down = true;
+                    if self.requests.poll_due.is_none() {
+                        self.requests.poll_due = Some(self.now + SUMMARY_POLL);
+                    }
+                }
             }
         }
         if stopped {

@@ -35,6 +35,9 @@ pub enum AppEvent {
     Changed,
     /// Live TV's channels or guide changed: its pages ask again.
     LiveChanged,
+    /// Requests changed (their events, or the summary moving while the events are down): pages
+    /// that show requests or Discover's titles ask again, about one title (`kind:tmdb_id`) or any.
+    RequestsChanged { title: Option<String> },
     /// The app went to the background (`false`) or came back (`true`).
     Visible(bool),
     /// The page is on top again: Back from the page above it, the player closing.

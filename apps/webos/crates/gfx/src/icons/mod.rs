@@ -31,6 +31,7 @@ pub const ALL: &[Icon] = &[
     Icon::CircleX,
     Icon::Clapperboard,
     Icon::Clock,
+    Icon::Compass,
     Icon::Delete,
     Icon::Disc3,
     Icon::Ellipsis,
@@ -42,6 +43,7 @@ pub const ALL: &[Icon] = &[
     Icon::GripVertical,
     Icon::History,
     Icon::House,
+    Icon::Inbox,
     Icon::Info,
     Icon::Languages,
     Icon::Layers,
@@ -368,7 +370,7 @@ mod tests {
         for icon in ALL {
             assert!(seen.insert(*icon), "{icon:?} twice");
         }
-        assert_eq!(ALL.len(), 77);
+        assert_eq!(ALL.len(), 79);
     }
 
     #[test]

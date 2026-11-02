@@ -2,7 +2,7 @@
 //! app's `PageKey`s (`packages/tv/src/ui/shell/navigator.ts`), plus the pages the TV app shows
 //! inside others (the address pad, the PIN pad, a settings category, the licences).
 
-use pley_core::model::{LibrarySort, LiveCategory};
+use pley_core::model::{DiscoverList, LibrarySort, LiveCategory, TitleKind};
 
 use crate::screen::Chrome;
 
@@ -214,6 +214,24 @@ pub enum Route {
     NowPlaying,
     /// Live TV: the guide, or the channels as cards.
     LiveTv,
+    /// Discover: TMDB's lists and titles, for a profile that may ask for them.
+    Discover,
+    /// One of Discover's rows, whole.
+    DiscoverList {
+        list: DiscoverList,
+    },
+    /// Everything TMDB has for words, from the See all of search's Discover row.
+    DiscoverSearch {
+        query: String,
+    },
+    /// A movie or show from TMDB; `pick`: its season picker opens (Request more seasons).
+    Title {
+        kind: TitleKind,
+        tmdb_id: i64,
+        pick: bool,
+    },
+    /// Your requests (for managers Requests, opening on Needs attention).
+    Requests,
     /// A live channel playing; channel up and down stay in `category`.
     LivePlayer {
         channel_id: i64,
@@ -260,6 +278,11 @@ impl Route {
             Route::Album { .. } => "album",
             Route::NowPlaying => "now-playing",
             Route::LiveTv => "live",
+            Route::Discover => "discover",
+            Route::DiscoverList { .. } => "discover-list",
+            Route::DiscoverSearch { .. } => "discover-search",
+            Route::Title { .. } => "title",
+            Route::Requests => "requests",
             Route::LivePlayer { .. } => "live-player",
             Route::Player(_) => "player",
             Route::Settings { .. } => "settings",
@@ -294,6 +317,11 @@ impl Route {
             Route::Album { id, .. } => format!("Album {id}"),
             Route::NowPlaying => "Now Playing".into(),
             Route::LiveTv => "Live TV".into(),
+            Route::Discover => "Discover".into(),
+            Route::DiscoverList { list } => format!("Discover: {}", list.as_str()),
+            Route::DiscoverSearch { query } => format!("On TMDB: {query}"),
+            Route::Title { kind, tmdb_id, .. } => format!("{} {tmdb_id} on TMDB", kind.as_str()),
+            Route::Requests => "Requests".into(),
             Route::LivePlayer { channel_id, .. } => format!("Channel {channel_id}"),
             Route::Player(r) => format!("Playing item {}", r.item_id),
             Route::Settings { section: Some(s) } => format!("Settings: {}", s.label()),
@@ -324,6 +352,8 @@ impl Route {
             Route::Home
                 | Route::Search { .. }
                 | Route::LiveTv
+                | Route::Discover
+                | Route::Requests
                 | Route::Library { .. }
                 | Route::Libraries { .. }
                 | Route::Playlists
@@ -365,6 +395,17 @@ impl Route {
             "album" => Route::Album { id: id()?, track_id: b.and_then(|v| v.parse().ok()) },
             "now-playing" => Route::NowPlaying,
             "live" => Route::LiveTv,
+            "discover" => Route::Discover,
+            "discover-list" => Route::DiscoverList { list: DiscoverList::from_wire(a?) },
+            "discover-search" => {
+                Route::DiscoverSearch { query: [a, b].into_iter().flatten().collect::<Vec<_>>().join(":") }
+            }
+            // `title:movie:603`, or `title:603` for a movie.
+            "title" => match b {
+                Some(id) => Route::Title { kind: TitleKind::from_wire(a?), tmdb_id: id.parse().ok()?, pick: false },
+                None => Route::Title { kind: TitleKind::Movie, tmdb_id: id()?, pick: false },
+            },
+            "requests" => Route::Requests,
             "live-player" => Route::LivePlayer {
                 channel_id: id()?,
                 category: b.map(LiveCategory::parse).unwrap_or_default(),
@@ -404,6 +445,11 @@ impl Route {
             Route::Album { id: 41, track_id: None },
             Route::NowPlaying,
             Route::LiveTv,
+            Route::Discover,
+            Route::DiscoverList { list: DiscoverList::Trending },
+            Route::DiscoverSearch { query: "dune".into() },
+            Route::Title { kind: TitleKind::Movie, tmdb_id: 438631, pick: false },
+            Route::Requests,
             Route::LivePlayer { channel_id: 4, category: LiveCategory::All, pressed_at: 0.0 },
             Route::Player(PlayRequest::item(12)),
             Route::Settings { section: None },
@@ -425,7 +471,7 @@ mod tests {
         unique.sort_unstable();
         unique.dedup();
         assert_eq!(unique.len(), names.len(), "{names:?}");
-        assert_eq!(names.len(), 28);
+        assert_eq!(names.len(), 33);
     }
 
     #[test]
@@ -443,6 +489,10 @@ mod tests {
             Some(Route::Link { server: "http://10.0.0.2:7539".into() })
         );
         assert_eq!(Route::parse("player:12"), Some(Route::Player(PlayRequest::item(12))));
+        assert_eq!(
+            Route::parse("title:show:95396"),
+            Some(Route::Title { kind: TitleKind::Show, tmdb_id: 95396, pick: false })
+        );
         assert_eq!(Route::parse("item"), None);
         assert_eq!(Route::parse("nowhere"), None);
         // Every page can be opened from the command line, with an id where it needs one.
