@@ -575,22 +575,27 @@ impl Extractor {
             // this one's rest (minutes for a remux on a busy NAS).
             let permit = Mutex::new(Some(permit));
             // Reads at players elsewhere go first, those that start while it
-            // waits for its turn too: it keeps its turn through those.
+            // waits for its turn too: it gives that turn back to wait for them.
             let turn_back = || {
                 let mut seeking = seeking.subscribe();
                 runtime.block_on(async {
-                    let _ = seeking.wait_for(|reads| *reads == 0).await;
-                    let turn = cue_reads.clone().acquire_owned().await.ok();
-                    let _ = seeking.wait_for(|reads| *reads == 0).await;
-                    *permit.lock() = turn;
+                    loop {
+                        let _ = seeking.wait_for(|reads| *reads == 0).await;
+                        let turn = cue_reads.clone().acquire_owned().await.ok();
+                        if *seeking.borrow() == 0 {
+                            *permit.lock() = turn;
+                            break;
+                        }
+                    }
                 });
             };
             let first_written = || {
                 first.store(true, Ordering::Release);
-                let Some(background) = &background else { return Duration::ZERO };
                 let started = Instant::now();
                 drop(permit.lock().take());
-                runtime.block_on(background.wait_for_starts());
+                if let Some(background) = &background {
+                    runtime.block_on(background.wait_for_starts());
+                }
                 turn_back();
                 started.elapsed()
             };
@@ -2580,16 +2585,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_rest_of_a_track_lets_its_turn_go_between_stretches() {
+    async fn the_rest_of_a_track_lets_its_turn_go_while_it_waits() {
         let dir = tempfile::tempdir().unwrap();
         // One turn for reads through the Cues.
         let extractor = extractor_without_ffmpeg(dir.path());
         let (name, key) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(1_000));
-        // A read at a seek under way holds the track's rest up after its
-        // first stretch: it lets its turn go while it waits. (With nothing
-        // to wait for, it takes its turn again at once, behind the reads
-        // that asked for it meanwhile: a test file's rest is read too
-        // quickly to tell that from keeping it.)
+        // A read at a seek under way holds the track's rest up after the
+        // pictures around the player, as it does between stretches: it lets
+        // its turn go while it waits. (With nothing to wait for, it takes its
+        // turn again at once, behind the reads that asked for it meanwhile:
+        // a test file's rest is read too quickly to tell that from keeping
+        // it.)
         let seeking = Seeking::new(extractor.seeking.clone());
         let start = PictureStart { from_ms: 0, media: None, asked: true };
         let wait = Duration::from_secs(20);
@@ -2606,7 +2612,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_rest_of_a_track_lets_a_seek_go_first_that_starts_while_it_waits_for_its_turn() {
+    async fn the_rest_of_a_track_lets_seeks_go_first_those_that_start_while_it_waits_for_its_turn_too() {
         let dir = tempfile::tempdir().unwrap();
         // One turn for reads through the Cues.
         let extractor = extractor_without_ffmpeg(dir.path());
@@ -2614,22 +2620,24 @@ mod tests {
         let first_seek = Seeking::new(extractor.seeking.clone());
         let start = PictureStart { from_ms: 0, media: None, asked: true };
         let wait = Duration::from_secs(20);
-        let (_, complete) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, start, false).await.unwrap();
+        let (around, complete) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, start, false).await.unwrap();
         assert!(!complete);
-        // Another read takes the turn the rest lets go of after its first
-        // stretch, which the rest waits for once that seek is over.
+        // The rest reads nothing past the pictures around the player while
+        // the seek goes on, and another read takes the turn it lets go of.
         let turn = extractor.cue_reads.clone().acquire_owned().await.unwrap();
         let so_far = extractor.pictures.lock().get(&format!("{key}_3")).map(|e| e.so_far.clone()).unwrap();
-        let read = so_far.lock().blocks.len();
+        let read = picture_seconds(&around).len();
+        assert_eq!(so_far.lock().blocks.len(), read);
+        // Once the seek is over, the rest waits for that turn. A seek that
+        // starts meanwhile goes first all the same: the rest gives the turn
+        // back, and reads nothing more while that one lasts.
         drop(first_seek);
         tokio::time::sleep(Duration::from_millis(500)).await;
-        // A seek that starts meanwhile goes first: the rest has its turn back,
-        // and reads nothing more while the seek lasts.
         let second_seek = Seeking::new(extractor.seeking.clone());
         drop(turn);
         tokio::time::sleep(Duration::from_millis(500)).await;
-        assert_eq!(extractor.cue_reads.available_permits(), 0, "the rest has its turn");
         assert_eq!(so_far.lock().blocks.len(), read);
+        assert_eq!(extractor.cue_reads.available_permits(), 1, "its turn given back");
         drop(second_seek);
         let whole = dir.path().join("subtitles").join(format!("{key}_3.mks"));
         eventually(|| whole.exists()).await;
