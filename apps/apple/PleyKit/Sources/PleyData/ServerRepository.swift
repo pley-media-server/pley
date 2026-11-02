@@ -10,8 +10,7 @@ public protocol ServerListStore: Sendable {
 }
 
 /// The server list in the Keychain (service `app.pley.apple.servers`,
-/// account `list`), on this device only, where a Top Shelf extension can
-/// read it later from the app's own group.
+/// account `list`), on this device only, in the app's own group.
 public struct KeychainServerListStore: ServerListStore {
     public static let service = "app.pley.apple.servers"
 

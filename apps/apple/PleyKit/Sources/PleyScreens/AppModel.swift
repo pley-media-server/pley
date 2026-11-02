@@ -9,6 +9,7 @@ import PleyData
 import PleyModel
 import PleyNetwork
 import PleyPlayer
+import PleyShelf
 import PleySubtitles
 
 /// The app's state above its screens: which server is open, who is signed
@@ -153,6 +154,13 @@ public final class AppModel: ObservableObject, SnapshotCache {
     /// The screens as last read, per server and profile, for when the
     /// server can't be reached; `nil`: nothing is saved (tests).
     public let snapshots: SnapshotStore?
+    /// Apple TV's Top Shelf: Home's Continue Watching, written for the
+    /// extension; `nil` elsewhere, and on a build without App Groups.
+    public let shelf: TopShelfWriter?
+    /// A Top Shelf link that came before the app could act on it (at
+    /// start, or while "Who's watching?" shows).
+    private var shelfLink: ShelfLink?
+    private var rootWatch: AnyCancellable?
     /// When the server is tried again after it couldn't be reached: then every minute.
     public static let reconnectDelays: [Double] = [2, 5, 15, 30]
     public static let reconnectEvery: Double = 60
@@ -194,12 +202,18 @@ public final class AppModel: ObservableObject, SnapshotCache {
                 caps: DeviceCaps? = nil, playerSetup: PlayerSetup = PlayerSetup(),
                 settings: AppSettings = AppSettings(), tv: Bool = ShellModel.isTV,
                 downloads: (any DownloadsService)? = nil, snapshots: SnapshotStore? = nil,
+                shelf: ((@escaping @Sendable (String, Int) async throws -> Data) -> TopShelfWriter?)? = nil,
                 eventSignals: @escaping @Sendable (PleyAPI) -> AsyncStream<EventSignal> = {
                     EventStream(api: $0).signals()
                 }) {
         self.session = session
         self.downloads = downloads ?? NoDownloads()
         self.snapshots = snapshots
+        // The shelf reads the open server's pictures as they are.
+        self.shelf = shelf? { [session] path, width in
+            guard let api = await session.api else { throw PleyError.signedOut }
+            return try await api.image(path: path, width: width)
+        }
         self.servers = servers
         self.transport = transport
         self.authenticator = authenticator
@@ -231,6 +245,10 @@ public final class AppModel: ObservableObject, SnapshotCache {
             }
         }
         serverEvents.onScans = { [weak self] scans in self?.scans = scans }
+        // A link waiting acts once the app shows what it can act on.
+        rootWatch = $root.dropFirst().removeDuplicates().sink { [weak self] _ in
+            Task { @MainActor in self?.settleShelfLink() }
+        }
         live.cache = self
         serverEvents.onSessionStopped = { [weak self] id, message, byAdmin in
             self?.sessionStopped(id, message: message, byAdmin: byAdmin)
@@ -256,12 +274,16 @@ public final class AppModel: ObservableObject, SnapshotCache {
         #if os(iOS) || os(macOS)
         // Settings' "Sign in privately", read at each sign-in.
         let authenticator: (any WebAuthenticator)? = SystemWebAuthenticator { settings.privateSignIn }
+        let shelf: ((@escaping @Sendable (String, Int) async throws -> Data) -> TopShelfWriter?)? = nil
         #else
         let authenticator: (any WebAuthenticator)? = nil
+        let shelf: ((@escaping @Sendable (String, Int) async throws -> Data) -> TopShelfWriter?)? = {
+            TopShelfWriter.appGroup(images: $0)
+        }
         #endif
         return AppModel(session: session, servers: servers, transport: transport, authenticator: authenticator,
                         discover: { discovery.browse() }, settings: settings,
-                        downloads: downloads?(settings, transport.gate), snapshots: SnapshotStore())
+                        downloads: downloads?(settings, transport.gate), snapshots: SnapshotStore(), shelf: shelf)
     }
 
     /// At start: opens the server used last when the app is signed in to
@@ -374,6 +396,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         await session.signOut()
         // The downloads stay on the device, for when this profile signs in again.
         downloads.signedIn(nil)
+        shelf?.clear()
         stopReconnecting()
         user = nil
         shell.reset()
@@ -388,6 +411,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         // A server forgotten takes its downloads and saved screens with it.
         downloads.forgetServer(entry.origin)
         await snapshots?.clear(origin: entry.origin)
+        shelf?.forget(origin: entry.origin)
         if server?.origin == entry.origin {
             server = nil
             user = nil
@@ -956,6 +980,59 @@ public final class AppModel: ObservableObject, SnapshotCache {
                                          caps: { await caps.warmUp().report }))
     }
 
+    // MARK: Top Shelf
+
+    /// Whose Top Shelf row the app writes: the server and profile signed in.
+    public var shelfOwner: String? {
+        guard let user, let origin = server?.origin else { return nil }
+        return ShelfSnapshot.owner(origin: origin, profileId: user.id)
+    }
+
+    /// Home's rows were read for `owner`: Continue Watching goes to the
+    /// Top Shelf, unless the server or profile changed meanwhile.
+    func homeRead(_ hubs: [Hub], owner: String) {
+        guard let shelf, owner == shelfOwner, root == .signedIn else { return }
+        shelf.show(hubs, owner: owner)
+    }
+
+    /// A Top Shelf link opened the app (`app.pley.apple:/shelf/…`). Only a
+    /// link signed with the shelf's key, for the server and profile open,
+    /// acts: `open` shows the title's page over Home, `play` plays it. At
+    /// start and while "Who's watching?" shows, it waits, and acts once the
+    /// same profile is chosen; another profile, or the servers, drop it.
+    public func openShelfLink(_ url: URL) {
+        guard let key = shelf?.linkKey, let link = ShelfLink.verified(url, key: key) else { return }
+        shelfLink = link
+        settleShelfLink()
+    }
+
+    private func settleShelfLink() {
+        guard let link = shelfLink else { return }
+        switch root {
+        case .starting, .profiles:
+            return
+        case .servers:
+            shelfLink = nil
+        case .signedIn:
+            shelfLink = nil
+            guard link.owner == shelfOwner else { return }
+            Task { await act(link) }
+        }
+    }
+
+    private func act(_ link: ShelfLink) async {
+        switch link.action {
+        case .open:
+            closeLivePlayer()
+            await closePlayer()
+            shell.select(.home)
+            shell.popToRoot()
+            shell.open(.item(link.itemId))
+        case .play:
+            await play(PlayRequest(itemId: link.itemId))
+        }
+    }
+
     // MARK: Inside
 
     /// The start on a server signed in to: on Apple TV, "Who's watching?"
@@ -1010,6 +1087,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
     private func signedInNow(_ user: User) {
         Task { await caps.warmUp() }
         if let origin = server?.origin {
+            // Another server's or profile's row leaves the Top Shelf.
+            shelf?.owner(is: ShelfSnapshot.owner(origin: origin, profileId: user.id))
             settings.setLastProfile(user.id, origin: origin)
             if let snapshots {
                 Task {
@@ -1087,6 +1166,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         stopEvents()
         stopReconnecting()
         downloads.signedIn(nil)
+        shelf?.clear()
         user = nil
         notice = message
         shell.reset()

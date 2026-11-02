@@ -20,6 +20,7 @@ let package = Package(
         .library(name: "PleyScreens", targets: ["PleyScreens"]),
         .library(name: "PleyPlayerViews", targets: ["PleyPlayerViews"]),
         .library(name: "PleyDownloads", targets: ["PleyDownloads"]),
+        .library(name: "PleyShelf", targets: ["PleyShelf"]),
         .library(name: "PleyTesting", targets: ["PleyTesting"]),
         .executable(name: "pley-apple-check", targets: ["pley-apple-check"]),
         .executable(name: "pley-apple-play", targets: ["pley-apple-play"]),
@@ -27,6 +28,9 @@ let package = Package(
     targets: [
         .target(name: "PleyModel"),
         .target(name: "PleyCommon"),
+        // Apple TV's Top Shelf: the row the app saves and the extension shows, and its signed links.
+        // Foundation and CryptoKit only, for the extension.
+        .target(name: "PleyShelf"),
         .target(name: "PleyNetwork", dependencies: ["PleyModel", "PleyCommon"]),
         .target(name: "PleyAuth", dependencies: ["PleyModel", "PleyCommon", "PleyNetwork"]),
         .target(name: "PleyData", dependencies: ["PleyModel", "PleyCommon", "PleyNetwork", "PleyAuth"]),
@@ -39,7 +43,7 @@ let package = Package(
                                                    "PleyCommon"]),
         // The screens' state, shared by the iPhone, iPad and Mac app and the Apple TV app; no views.
         .target(name: "PleyScreens", dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyData", "PleyAuth",
-                                                    "PleyNetwork", "PleyModel", "PleyCommon"]),
+                                                    "PleyNetwork", "PleyModel", "PleyCommon", "PleyShelf"]),
         // The player's surface on each platform (AVKit's own controls) and what the apps lay over it.
         .target(name: "PleyPlayerViews", dependencies: ["PleyPlayer", "PleySubtitles", "PleyCaps", "PleyData",
                                                         "PleyModel", "PleyCommon"]),
@@ -76,7 +80,8 @@ let package = Package(
                                    "PleyCommon", "PleyTesting"]),
         .testTarget(name: "PleyScreensTests",
                     dependencies: ["PleyScreens", "PleyPlayer", "PleyCaps", "PleyData", "PleyAuth", "PleyNetwork",
-                                   "PleyModel", "PleyCommon", "PleyTesting"]),
+                                   "PleyModel", "PleyCommon", "PleyShelf", "PleyTesting"]),
+        .testTarget(name: "PleyShelfTests", dependencies: ["PleyShelf"]),
     ],
     swiftLanguageModes: [.v6]
 )

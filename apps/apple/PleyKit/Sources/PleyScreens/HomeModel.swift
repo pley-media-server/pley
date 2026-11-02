@@ -167,6 +167,7 @@ public final class HomeModel: ObservableObject {
         if case .failed = state { state = .loading }
         do {
             // While the server is out of reach, the rows and libraries saved last.
+            let owner = app.shelfOwner
             async let hubs = app.cached(SnapshotKeys.home) { try await HomeRepository(api: $0).load() }
             async let libraries = app.cached(SnapshotKeys.libraries) { try await $0.libraries() }
             let (found, libs) = try await (hubs, libraries)
@@ -180,6 +181,8 @@ public final class HomeModel: ObservableObject {
                 state = .loaded(rows)
             }
             warmUp(rows, api: api)
+            // Apple TV's Top Shelf follows Continue Watching.
+            if let owner { app.homeRead(found, owner: owner) }
         } catch is CancellationError {
         } catch PleyError.signedOut {
             // The session says so, and sign-in shows.

@@ -33,7 +33,8 @@ extension KeychainError: LocalizedError {
 /// synchronised to iCloud and never restored to another device, so tokens
 /// and server lists stay where they were made. No access group is named, so
 /// items go to the app's own group, `$(AppIdentifierPrefix)` and the bundle
-/// ID; a Top Shelf extension later shares that group by name.
+/// ID, which no other app or extension reads: Apple TV's Top Shelf
+/// extension holds no sign-in (it shows what the app saved, `PleyShelf`).
 ///
 /// On the Mac, items go to the data protection keychain. A build signed to
 /// run locally without a team can't use it (`errSecMissingEntitlement`), and
