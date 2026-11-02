@@ -190,13 +190,16 @@ before using what it names:
 | `dolby_vision` | Dolby Vision profile 5 renders with correct colours (needs libplacebo) |
 | `vulkan_decode` | codecs the GPU decodes straight into Vulkan memory, for libplacebo |
 | `vulkan_encode` | `h264_vulkan` encodes libplacebo's output on the GPU |
-| `gpu_pipelines` | GPU-only decode → scale → encode pipelines, with the codecs each passed for |
+| `gpu_pipelines` | GPU-only decode → scale → encode pipelines, with the codecs each passed for, and `main10`: those Quick Sync's keeps in 10 bits into its HEVC Main 10 encoder (HDR kept) |
+| `qsv_tonemap` | Quick Sync's scaler tone maps HDR10 its decoder decoded into `h264_qsv` (Windows; [Sharing the GPU](#sharing-the-gpu)) |
+| `qsv_opencl_tonemap` | OpenCL tone maps HDR10 between Quick Sync's decoder and `h264_qsv` with BT.2390's curve, the frames mapped rather than copied (Windows; [Tone mapping](#tone-mapping)) |
 | `vaapi_tonemappers` | tone mappers whose frames reach a VAAPI encoder ([VAAPI encoders](#vaapi-encoders)) |
 | `vaapi_vulkan_decode` | `vulkan_decode` on the Vulkan device made from the VAAPI one |
 | `tonemap_speed?` | `{high, balanced, fast}`: frames a second libplacebo tone maps 4K to 4K at each quality ([libplacebo quality](#libplacebo-quality)) |
 | `amf_upload` | FFmpeg uploads AMF's frames to the AMD GPU ([AMF on Windows](#amf-on-windows)) |
 | `h264_metadata` | FFmpeg has the `h264_metadata` bitstream filter, which writes the colour primaries `h264_amf` leaves out |
 | `subtitle_burn_image`, `subtitle_burn_text` | picture and text subtitles can be burned in |
+| `qsv_overlay` | Quick Sync lays picture subtitles on frames it decoded (Windows; [Subtitle burn-in](#subtitle-burn-in)) |
 | `readrate`, `readrate_catchup` | `-readrate` and `-readrate_catchup` work ([Throttling](#throttling)) |
 | `chromaprint` | `POST /v1/fingerprint` works |
 | `hls_master_playlist` | jobs have `master.m3u8`, and remuxes honour `dolby_vision` and `strip_hdr10plus` |
@@ -700,17 +703,37 @@ the VPS, SPS and PPS with every forced keyframe.
 - The decoder is paired with the encoder: `cuda` with NVENC, `d3d11va` with
   QSV or AMF on Windows, `vaapi` with VAAPI, `videotoolbox` with
   VideoToolbox. FFmpeg falls back to software decoding when the GPU doesn't
-  decode the codec.
+  decode the codec. Quick Sync's own decoders (`qsv`) decode for its
+  zero-copy pipeline, and on Windows for some frames that go to memory
+  (below); they have no software fallback, so they decode only what their
+  pipeline's start-up test passed.
 - A job whose hardware decoder failed to start shows `cpu` as its decoder,
   with a warning.
 - **Scaling on the GPU first.** Frames that go to system memory (for
   burned-in subtitles, zimg or OpenCL tone mapping, or x264/x265) are first
   scaled by the GPU that decoded them, so only the output's pixels are
-  copied: `scale_cuda` (10 bits for tone mapping and kept HDR) or
-  `scale_vaapi` (8 bits only). Only where the decoder's pipeline passed its
-  start-up test for the codec (`gpu_pipelines`); not for interlaced video or
-  libplacebo, which scales as it tone maps. Mesa's D3D12 VAAPI driver (WSL)
-  crashes in `scale_vaapi`, so it fails the test.
+  copied: `scale_cuda` (10 bits for tone mapping and kept HDR),
+  `scale_vaapi` (8 bits only) or `vpp_qsv` (10 bits too). Only where the
+  decoder's pipeline passed its start-up test for the codec
+  (`gpu_pipelines`); not for interlaced video, nor for libplacebo, which
+  scales as it tone maps, except after Quick Sync's decoder. Mesa's D3D12
+  VAAPI driver (WSL) crashes in `scale_vaapi`, so it fails the test.
+- **Quick Sync on Windows.** A Quick Sync job whose frames go to memory
+  decodes with `qsv` where its pipeline passed for the codec, and
+  `vpp_qsv` scales the frames on the way, libplacebo's too, which then
+  tone maps at the output's size. Direct3D 11's decoder copies them whole
+  (25 MB a frame of 4K HDR), and some Intel drivers give it no HEVC at
+  all. Direct3D 11 still decodes 8-bit video kept at its size (its copy to
+  memory costs the CPU less), interlaced and turned video, and Dolby Vision
+  and HDR10+ that libplacebo tone maps: Quick Sync's decoder reads neither's
+  metadata, and Dolby Vision profile 5's colours are in it. A software
+  encoder standing in for Quick Sync's gets its frames through `vpp_qsv`.
+- **Chroma and depth.** The start-up tests decode 8- and 10-bit 4:2:0
+  video, and 10-bit 4:2:2 HEVC (what cameras record). Other video (4:2:2
+  H.264, 4:4:4, 12 bits) stays off the GPU pipelines and Vulkan decoding,
+  decoded by `d3d11va`, `vaapi`, `cuda` or `videotoolbox`, which hand what
+  the GPU can't decode to the CPU. For example, Intel's decoders fail on
+  4:2:2 H.264.
 - **Vulkan decoding** (into libplacebo) counts for a codec only when the
   start-up test's frames reach the filters in Vulkan memory. GPUs whose
   driver lacks Vulkan video decoding (AMD's for Vega graphics on Windows,
@@ -731,8 +754,26 @@ available tone mapper:
   profile 5 picks it.
 - libplacebo tone maps by the stream's own metadata (`peak_detect=0`), so
   segments from different FFmpeg processes match at the seams. Thumbnails and
-  seek previews do the same. `tonemap_opencl`'s peak detection can't be
-  turned off, so its brightness can jump between processes.
+  seek previews do the same. Its curve is BT.2390's (`tonemapping=bt.2390`):
+  libplacebo's default, a spline, made two HDR10 films about a fifth darker
+  in SDR, with nothing gained in colour. Made SDR, the picture is lifted
+  first (`brightness=0.03`): BT.2390 puts HDR's reference white at SDR's,
+  which looks dim on an SDR screen. Lifted, the two films scored higher on
+  TMQI (the tone mapping quality index) than mapping a lower white, with
+  more of their saturation and blacks as deep. FFmpeg's own `tonemap_opencl`
+  detects each frame's peak and can't be told not to, so its brightness can
+  jump between processes.
+- On Windows with Intel graphics, HDR10 made SDR goes from Quick Sync's
+  decoder to OpenCL's tone mapper and back to its H.264 encoder without
+  leaving the GPU, where the FFmpeg build can map Quick Sync's 10-bit frames
+  to OpenCL and has BT.2390's curve there (`qsv_opencl_tonemap`, a start-up
+  test; FFmpeg's own builds can't). It takes libplacebo's place, and that of
+  OpenCL's copies when `tonemap=opencl` is asked for: on an Iris Xe a 4K60
+  film made 1080p went at 4.6 times real time rather than 2.2, two at once
+  at 2.4 each, and it scores about as high on TMQI with fewer highlights
+  clipped. It tone maps by the stream's metadata, so a frame comes out the
+  same whichever process makes it. libplacebo keeps HDR10+, Dolby Vision,
+  HLG, burned-in subtitles and `tonemap=libplacebo`.
 - Dolby Vision profiles 7 and 8 have an HDR10- or HLG-compatible base layer
   and work with any tone mapper. Profile 5 without libplacebo plays with off
   colours, with a warning.
@@ -753,13 +794,18 @@ video plan):
 | `fast` | balanced's, plus `downscaler=bilinear:dithering=none:gamut_mode=clip`; `skip_aa=1` where the output is at least half the source's size; `force_low_bit_depth_fbos=yes` for SDR output |
 
 - At start, each quality is timed on synthetic 4K PQ frames made 4K SDR
-  (`tonemap_speed`), from `fast` to `high`, for 20 s at most. A quality not
-  reached in that time is never used.
+  (`tonemap_speed`), from `fast` to `high`, for 20 s at most, after one
+  untimed run (the first libplacebo process starts slower than the rest). A
+  quality not reached in that time is never used, and none reads slower than
+  a dearer one: each does less than the one above it.
 - A process takes the best quality that measured at least twice what the jobs
   tone mapping with libplacebo need together, itself included; when none
   did, the fastest. Each job needs its frame rate × (0.6 × the source's
   pixels + 0.4 × the output's) relative to 4K, so a 4K film made 1080p needs
-  less than one kept 4K. Renditions start at their job's quality.
+  less than one kept 4K. The source's pixels count where Quick Sync scaled
+  the frames first too: its decoder and scaler work on the GPU libplacebo
+  does (a 4K60 HDR10 film made 1080p went at 0.45 of what libplacebo alone
+  measured at 1080p on an Iris Xe). Renditions start at their job's quality.
 - Without a measurement (no libplacebo on a GPU), `high`.
 
 #### Sharing the GPU
@@ -769,7 +815,9 @@ Several jobs tone mapping with libplacebo share the GPU (`src/share.rs`):
 - **Decoding on the CPU.** A job decodes on the CPU (status `decoder: cpu`)
   when all of these hold:
   - its GPU would decode into memory for libplacebo and encode on the same
-    video engine (AMF, VAAPI, Quick Sync; not NVIDIA);
+    video engine (AMF, VAAPI, Quick Sync; not NVIDIA), and wouldn't scale
+    the frames first (Quick Sync on Windows does: those jobs stay on the
+    GPU);
   - the GPU falls behind: no quality measured fast enough for the jobs, or
     they fell behind even at `fast`;
   - the CPU keeps 2 cores free after its decoders (4 cores for 4K at 24 fps,
@@ -784,14 +832,28 @@ Several jobs tone mapping with libplacebo share the GPU (`src/share.rs`):
     waits on something of its own (its disk), and nothing is learned;
   - if the CPU is at least 90 % busy, the jobs decode on the GPU;
   - else the GPU fell behind at its quality: a cheaper one, and at `fast` the
-    CPU decodes where it has the cores.
+    CPU decodes where it has the cores, or Quick Sync tone maps (below).
 
   A lesson holds for 10 minutes after it was last confirmed, while the load
   stays at least 0.9 of what it was; then the start-up measurement is tried
   again. Each is logged once, at `info`.
+- **Tone mapping on Quick Sync.** Where the GPU falls behind (as for decoding
+  on the CPU), HDR10 made SDR that Quick Sync decodes and scales (Windows) is
+  tone mapped by its scaler instead (status `tonemap_quick_sync: true`),
+  where that passed a start-up test (`qsv_tonemap`) and libplacebo isn't
+  asked for (`tonemap=libplacebo`): scaled in 10 bits, then brightness 16 up
+  and tone mapped to NV12 at the output's size, each in a pass of its
+  own (Quick Sync does each at the size it is given), into `h264_qsv`
+  without leaving the GPU (to memory for x264 standing in, or for burned-in
+  subtitles). It costs the GPU a fraction of libplacebo's work: a 4K60 film
+  made 1080p went at about 225 frames a second rather than 99 to 127 on an
+  Iris Xe, and two at once at 120 each. The picture is as bright, with
+  highlights clipped sooner and skin a little pinker than libplacebo's, so
+  it is only for when libplacebo can't keep up.
 - **Moving running jobs.** A running job moves to the quality and decoding
   the load calls for: at once when another job starts using the GPU
-  (checked every 5 s), when a lesson calls for less GPU work, or back to GPU
+  (checked every 5 s), when a lesson calls for less GPU work (a cheaper
+  quality, the CPU decoding, Quick Sync tone mapping), or back to GPU
   decoding when the CPU has no time to spare. It moves back to more GPU work
   only after its process has run 60 s and is 30 s of video ahead of the
   player. Each move restarts FFmpeg at the next segment.
@@ -825,7 +887,8 @@ video is encoded in HEVC Main 10 instead of being tone mapped.
 - Each HEVC encoder is also test-encoded in 10 bits and marked `main10`.
 - **Same range** (HDR10, HDR10+, Dolby Vision 7 and 8.1 as their HDR10 base
   layer for `hdr10`; HLG and Dolby Vision 8.4 for `hlg`): decoded, scaled to
-  P010 (on the GPU where the CUDA pipeline handles the codec) and encoded.
+  P010 (on the GPU where the CUDA pipeline handles the codec; with Quick
+  Sync, see below) and encoded.
 - **Other range** (HLG or Dolby Vision 8.4 to HDR10, PQ to HLG, Dolby Vision
   profile 5 to either): libplacebo with a 10-bit BT.2020 target.
 - **Metadata**: HDR10 mastering display and content light levels are written
@@ -840,7 +903,13 @@ video is encoded in HEVC Main 10 instead of being tone mapped.
 - The master playlist names the output `hvc1.2.4.LLL.B0` with
   `VIDEO-RANGE=PQ` or `HLG`. The plan's `dynamic_range_out` says `hdr10`,
   `hlg` or `sdr` for transcodes.
-- Other hardware encoders stay off the zero-copy GPU paths for HDR.
+- Quick Sync keeps HDR on the GPU where its start-up test passed in 10 bits
+  too (`gpu_pipelines[].main10`, 10-bit HEVC and AV1): decoded by Quick
+  Sync, scaled into P010 by `vpp_qsv`, encoded by `hevc_qsv` in Main 10,
+  the HDR10 metadata going with the frames. Where it didn't, Windows still
+  decodes and scales it with Quick Sync before the copy to memory
+  ([Hardware decoding](#hardware-decoding)). Hardware encoders other than
+  NVENC and Quick Sync stay off the zero-copy GPU paths for HDR.
 
 ### Frame grabs
 
@@ -852,7 +921,14 @@ that went away, say), the frame is grabbed as it is.
 
 - **Picture subtitles** (PGS, VobSub, DVB, `.sup` files) are overlaid on the
   scaled, tone-mapped frame, their canvas fitted to its width, blended on the
-  CPU.
+  CPU. On Windows, Quick Sync lays them on 8-bit SDR itself (`overlay_qsv`),
+  where its start-up test passed (`qsv_overlay`): over the frame at the
+  source's size, then scaled, without the frames leaving the GPU. Its device
+  is made from Direct3D 11's (`d3d11va=dx:,vendor_id=0x8086`, `qsv=qs@dx`):
+  on the one FFmpeg makes itself, uploading the subtitles fails. A 1080p film
+  took a sixth of the CPU it took blended in memory, a 720p one a quarter.
+  The last subtitle picture is kept to the end (`eof_action=repeat`): with
+  `pass`, Quick Sync drops the video's last frame.
 - **Text subtitles** (SRT, ASS) are rendered by libass from an `.ass` file
   extracted into the job folder when the job is created. Extracting an
   embedded track reads the whole file and gives up after 20 minutes (the

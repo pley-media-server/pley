@@ -9,6 +9,39 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Intel graphics on Windows: HDR10 is tone mapped with OpenCL on the GPU,
+  without copying frames, when the FFmpeg build supports it. 4K HDR to 1080p
+  transcodes about twice as fast, with fewer blown-out highlights.
+- Intel graphics on Windows: HDR that Vulkan can't decode is decoded and
+  scaled by Quick Sync before tone mapping, instead of being copied to
+  memory at full size or decoded on the CPU. 4K HDR transcodes twice as fast
+  and uses much less CPU.
+- HDR passthrough in HEVC stays on Intel graphics from decode to encode,
+  when Quick Sync passes a 10-bit check at startup.
+- HDR tone mapped to SDR is brighter. libplacebo now uses the BT.2390 curve
+  instead of its default, which made films about 20% darker, and brightens
+  the picture slightly first, which keeps more colour. New thumbnails and
+  seek previews match.
+- Intel graphics on Windows: when several HDR transcodes would fall behind,
+  Quick Sync tone maps them instead of libplacebo, which is much lighter on
+  the GPU. Two 4K HDR to 1080p transcodes at once went from about 1x to 2x
+  realtime each. A single transcode still uses libplacebo.
+- Intel graphics on Windows: picture subtitles (PGS, VobSub, DVB) burned
+  into SDR video are overlaid by Quick Sync on the GPU. These transcodes use
+  a quarter to a sixth of the CPU they did, and run faster.
+
+### Fixed
+
+- Intel graphics: transcodes no longer fail when the CPU encoder takes over
+  (all Quick Sync sessions busy, or the Quick Sync encoder failing to
+  start).
+- 4:2:2 and 4:4:4 H.264 (some cameras, screen recordings) no longer fails on
+  GPUs that can't decode it, such as Intel's.
+- HDR tone mapping quality is no longer chosen from a slow first startup
+  benchmark, which made Intel GPUs pick a quality too slow to keep up.
+
 ## [0.1.3] - 2026-11-02
 
 ### Added

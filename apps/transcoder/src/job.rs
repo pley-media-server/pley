@@ -956,7 +956,10 @@ impl JobManager {
         };
         let takes = job.plan.source_rate(&job.media).map_or(0.0, |(pixels, fps)| share::decode_cores(pixels, fps));
         let cpu_decode = self.cpu_decode.load(Relaxed) && !held.cpu_busy && share::cpu_decodes(gpu, cpu, takes);
-        Some(Share { quality, cpu_decode })
+        // Where Quick Sync decodes and scales, its scaler tone maps instead,
+        // several times cheaper.
+        let quick_sync = gpu.behind && job.plan.quick_sync_could_tonemap(&job.media, self.ff.caps.qsv_tonemap);
+        Some(Share { quality, cpu_decode, quick_sync })
     }
 
     /// What the jobs tone mapping on the GPU now need together (see
@@ -1000,6 +1003,12 @@ impl JobManager {
             }
             let learned = match verdict {
                 share::Verdict::CpuBound => "the CPU has no time to spare: the GPU decodes".to_owned(),
+                _ if share.quick_sync => "the GPU falls behind even with Quick Sync tone mapping".to_owned(),
+                _ if share.quality == TonemapQuality::Fast
+                    && job.plan.quick_sync_could_tonemap(&job.media, self.ff.caps.qsv_tonemap) =>
+                {
+                    "the GPU falls behind even at fast: Quick Sync tone maps".to_owned()
+                }
                 _ if share.quality == TonemapQuality::Fast => {
                     "the GPU falls behind even at fast: the CPU decodes where it has the cores".to_owned()
                 }
@@ -1028,7 +1037,11 @@ impl JobManager {
                 (rt.share, rt.process.as_ref().is_some_and(|p| p.hardware))
             };
             let Some(have) = have else { continue };
-            let Some(want) = self.gpu_share(&job, hardware).filter(|want| *want != have) else { continue };
+            // On Quick Sync's scaler, libplacebo's quality changes nothing.
+            let same = |want: &Share| {
+                *want == have || (want.quick_sync && have.quick_sync && want.cpu_decode == have.cpu_decode)
+            };
+            let Some(want) = self.gpu_share(&job, hardware).filter(|want| !same(want)) else { continue };
             let Ok(mut guard) = job.process.try_lock() else { continue };
             // A paused process is far ahead already: it moves once it goes on.
             let Some(proc) = guard.as_ref().filter(|p| p.running() && !p.paused()) else { continue };
@@ -1042,11 +1055,12 @@ impl JobManager {
                 continue;
             }
             let decoder = |s: Share| if s.cpu_decode { "CPU" } else { "GPU" };
+            let mapper = |s: Share| if s.quick_sync { "Quick Sync" } else { s.quality.as_str() };
             tracing::info!(
                 job = %job.id,
                 "the GPU's load changed: tone mapping {} → {}, decoding on the {} → {}",
-                have.quality.as_str(),
-                want.quality.as_str(),
+                mapper(have),
+                mapper(want),
                 decoder(have),
                 decoder(want)
             );
@@ -1871,6 +1885,16 @@ impl Job {
             v.tonemap_quality = Some(share.quality);
             if share.cpu_decode {
                 v.decoder = Some("cpu".into());
+            }
+            // Tone mapped by Quick Sync's scaler, maybe without leaving the GPU.
+            if share.quick_sync
+                && let Some(intel) = self.plan.with_share(share).video_plan(&self.media, rt.encoder_override.as_ref())
+            {
+                (v.tonemap, v.tonemap_quick_sync, v.tonemap_quality) = (intel.tonemap, intel.tonemap_quick_sync, None);
+                // CPU-decoded frames still go through memory (`hybrid`, above).
+                if !rt.decoded_in_software {
+                    v.pipeline = intel.pipeline;
+                }
             }
         }
         let mut warnings = self.plan.warnings.clone();
@@ -3030,7 +3054,11 @@ mod tests {
             caps: pley_transcoder_api::Capabilities {
                 encoders: vec![nvenc],
                 hwaccels: vec!["cuda".into()],
-                gpu_pipelines: vec![GpuPipeline { accel: HwAccel::Nvenc, codecs: vec!["h264".into()] }],
+                gpu_pipelines: vec![GpuPipeline {
+                    accel: HwAccel::Nvenc,
+                    codecs: vec!["h264".into()],
+                    ..Default::default()
+                }],
                 ..Default::default()
             },
             segment_times_relative: true,

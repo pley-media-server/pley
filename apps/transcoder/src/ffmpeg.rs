@@ -23,7 +23,7 @@ use crate::devices;
 use crate::util::{configure_child, resolve_executable};
 
 /// Bump when detection logic changes so stale caches are ignored.
-const DETECTION_REVISION: u32 = 13;
+const DETECTION_REVISION: u32 = 18;
 
 pub struct Ffmpeg {
     pub ffmpeg: PathBuf,
@@ -211,7 +211,8 @@ fn gpu_summary(caps: &Capabilities) -> String {
 }
 
 fn tonemapper_names(caps: &Capabilities) -> String {
-    caps.tonemappers.iter().map(|t| t.as_str()).collect::<Vec<_>>().join(", ")
+    let quick_sync = caps.qsv_tonemap.then_some(Tonemapper::QuickSync);
+    caps.tonemappers.iter().copied().chain(quick_sync).map(|t| t.as_str()).collect::<Vec<_>>().join(", ")
 }
 
 fn cache_key(ffmpeg: &Path, ffprobe: &Path) -> String {
@@ -318,7 +319,8 @@ const HDR_TAGS: &str = "setparams=color_trc=smpte2084:color_primaries=bt2020:col
 /// The tone mappers' start-up tests, on HDR-tagged frames.
 fn libplacebo_test_graph() -> String {
     format!(
-        "{HDR_TAGS},libplacebo=w=160:h=120:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:tonemapping=auto:{}",
+        "{HDR_TAGS},libplacebo=w=160:h=120:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:{}:{}",
+        crate::plan::PLACEBO_CURVE,
         crate::plan::PLACEBO_STATIC_PEAK
     )
 }
@@ -431,7 +433,8 @@ const TONEMAP_MEASURE_BUDGET: Duration = Duration::from_secs(20);
 async fn measure_tonemap_speed(ffmpeg: &Path) -> Option<TonemapSpeed> {
     let time = |quality: TonemapQuality, frames: u32| async move {
         let vf = format!(
-            "{HDR_TAGS},libplacebo=w=3840:h=2160:format=nv12:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:tonemapping=auto:{}{}",
+            "{HDR_TAGS},libplacebo=w=3840:h=2160:format=nv12:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:{}:{}{}",
+            crate::plan::PLACEBO_CURVE,
             crate::plan::PLACEBO_STATIC_PEAK,
             crate::plan::placebo_quality_options(quality, (3840, 2160), (3840, 2160), true)
         );
@@ -462,6 +465,11 @@ async fn measure_tonemap_speed(ffmpeg: &Path) -> Option<TonemapSpeed> {
         ok.then(|| started.elapsed().as_secs_f64())
     };
     let started = Instant::now();
+    // The first libplacebo process starts slower than the rest (Vulkan's
+    // and the driver's first start, shaders compiled): timed, its 6 frames
+    // took as long as 42 after it, and `fast` read 720 frames a second on an
+    // Iris Xe that makes 150. It warms up untimed.
+    let _ = time(TonemapQuality::Fast, 6).await;
     let mut speed = TonemapSpeed::default();
     for quality in [TonemapQuality::Fast, TonemapQuality::Balanced, TonemapQuality::High] {
         // Twice where the time allows, the faster run counting: other work
@@ -473,8 +481,11 @@ async fn measure_tonemap_speed(ffmpeg: &Path) -> Option<TonemapSpeed> {
             if started.elapsed() > limit {
                 break;
             }
-            if let (Some(short), Some(long)) = (time(quality, 6).await, time(quality, 42).await) {
-                let fps = 36.0 / (long - short).max(0.05);
+            // A long run no slower than the short one measured nothing.
+            if let (Some(short), Some(long)) = (time(quality, 6).await, time(quality, 42).await)
+                && long > short + 0.05
+            {
+                let fps = 36.0 / (long - short);
                 let best = match quality {
                     TonemapQuality::Fast => &mut speed.fast,
                     TonemapQuality::Balanced => &mut speed.balanced,
@@ -484,6 +495,12 @@ async fn measure_tonemap_speed(ffmpeg: &Path) -> Option<TonemapSpeed> {
             }
         }
     }
+    // Each quality does less than the one above it: one that read slower was
+    // slowed by something else (`fast` read 51 frames a second where
+    // `balanced` read 97, the first runs of a start on an Iris Xe). One that
+    // measured nothing (too fast to time) is as fast as the one above.
+    speed.balanced = speed.balanced.max(speed.high);
+    speed.fast = speed.fast.max(speed.balanced);
     (speed.fast > 0.0 || speed.balanced > 0.0 || speed.high > 0.0).then_some(speed)
 }
 
@@ -737,6 +754,7 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
                 Tonemapper::Libplacebo => placebo,
                 Tonemapper::Opencl => ocl,
                 Tonemapper::Zscale => true,
+                Tonemapper::QuickSync => false,
             })
             .collect();
     }
@@ -746,6 +764,9 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
     caps.vaapi_vulkan_decode = gpu.vaapi_vulkan_decode;
     caps.vulkan_encode = gpu.vulkan_encode;
     caps.gpu_pipelines = gpu.pipelines;
+    caps.qsv_tonemap = gpu.qsv_tonemap;
+    caps.qsv_overlay = gpu.qsv_overlay;
+    caps.qsv_opencl_tonemap = gpu.qsv_opencl_tonemap;
     if libplacebo && libplacebo_on_gpu {
         caps.tonemap_speed = measure_tonemap_speed(ffmpeg).await;
     }
@@ -762,6 +783,9 @@ struct GpuDetection {
     vaapi_vulkan_decode: Vec<String>,
     vulkan_encode: bool,
     pipelines: Vec<GpuPipeline>,
+    qsv_tonemap: bool,
+    qsv_overlay: bool,
+    qsv_opencl_tonemap: bool,
 }
 
 /// Encoder arguments for the tiny clips used to probe hardware decoding,
@@ -775,6 +799,8 @@ fn test_clip_specs(encoders: &HashSet<String>) -> Vec<(&'static str, Vec<&'stati
         let x265 = ["-c:v", "libx265", "-preset", "ultrafast", "-x265-params", "log-level=error"];
         specs.push(("hevc", [x265.as_slice(), &["-pix_fmt", "yuv420p"]].concat()));
         specs.push(("hevc10", [x265.as_slice(), &["-pix_fmt", "yuv420p10le"]].concat()));
+        // What cameras record: some GPUs decode it (Intel's), others don't.
+        specs.push(("hevc10-yuv422p10le", [x265.as_slice(), &["-pix_fmt", "yuv422p10le"]].concat()));
     }
     if encoders.contains("libsvtav1") {
         specs.push(("av1", vec!["-c:v", "libsvtav1", "-preset", "12", "-pix_fmt", "yuv420p10le"]));
@@ -1008,23 +1034,138 @@ async fn detect_gpu_pipelines(
         }));
         async move { (*accel, tests.await) }
     }));
-    let (vulkan_results, vaapi_vulkan_results, vulkan_encode, pipeline_results) =
-        tokio::join!(vulkan_tests, vaapi_vulkan_tests, vulkan_encode_test, pipeline_tests);
+    // HDR kept on Quick Sync: the 10-bit sources' frames stay in 10 bits
+    // from its decoder through its scaler into its HEVC Main 10 encoder.
+    let qsv_main10 = candidates.iter().any(|(accel, ..)| *accel == HwAccel::Qsv)
+        && caps.encoders.iter().any(|e| e.name == "hevc_qsv" && e.main10);
+    let main10_tests = futures::future::join_all(
+        clips.iter().filter(|(key, _)| qsv_main10 && MAIN10_KEYS.contains(key)).map(|(key, clip)| {
+            let mut args = base("error", &["-hwaccel", "qsv", "-hwaccel_output_format", "qsv"], clip);
+            args.extend(
+                [
+                    "-vf",
+                    "vpp_qsv=w=160:h=120:format=p010le",
+                    "-c:v",
+                    "hevc_qsv",
+                    "-profile:v",
+                    "main10",
+                    "-f",
+                    "null",
+                    "-",
+                ]
+                .map(String::from),
+            );
+            let test = run_test(args);
+            async move { (key.to_string(), test.await) }
+        }),
+    );
+    // Quick Sync on Windows into its H.264 encoder: what the next three tests
+    // need (only Windows scales with Quick Sync on the way to memory).
+    let qsv_h264 = cfg!(windows) && candidates.iter().any(|(accel, ..)| *accel == HwAccel::Qsv) && working("h264_qsv");
+    // HDR10 tone mapped by Quick Sync's scaler, from its decoder into its
+    // H.264 encoder (see `Tonemapper::QuickSync`).
+    let qsv_tonemap_test = async {
+        let Some((_, clip)) = clips.iter().find(|(k, _)| *k == "hevc10") else { return false };
+        if !qsv_h264 {
+            return false;
+        }
+        let mut args = base("error", &["-hwaccel", "qsv", "-hwaccel_output_format", "qsv"], clip);
+        let vf = format!("{HDR_TAGS},{}", crate::plan::qsv_tonemap(160, 120));
+        args.extend(["-vf".to_string(), vf]);
+        args.extend(["-c:v", "h264_qsv", "-f", "null", "-"].map(String::from));
+        run_test(args).await
+    };
+    // Picture subtitles laid on by Quick Sync (Windows): a translucent
+    // picture uploaded to its device, made from Direct3D 11's.
+    let qsv_overlay_test = async {
+        let Some((_, clip)) = clips.iter().find(|(k, _)| *k == "h264") else { return false };
+        if !qsv_h264 {
+            return false;
+        }
+        let mut args = base("error", &crate::plan::QSV_D3D11_DEVICES, clip);
+        args.extend(
+            [
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=white@0.5:s=160x40:r=25:d=0.4",
+                "-filter_complex",
+                "[1:0]format=bgra,hwupload=extra_hw_frames=16[subs];[0:0][subs]overlay_qsv=y=main_h-overlay_h[v]",
+                "-map",
+                "[v]",
+                "-c:v",
+                "h264_qsv",
+                "-f",
+                "null",
+                "-",
+            ]
+            .map(String::from),
+        );
+        run_test(args).await
+    };
+    // HDR10 tone mapped by OpenCL between Quick Sync's decoder and its
+    // H.264 encoder, the frames mapped both ways (Windows; see
+    // `plan::qsv_opencl_tonemap`). FFmpeg's own builds fail it: they map no
+    // 10-bit Quick Sync frames to OpenCL and have no BT.2390 there.
+    let qsv_opencl_test = async {
+        let Some((_, clip)) = clips.iter().find(|(k, _)| *k == "hevc10") else { return false };
+        if !(qsv_h264 && filters.contains("tonemap_opencl")) {
+            return false;
+        }
+        let mut args = base("error", &crate::plan::QSV_OPENCL_DEVICES, clip);
+        let vf = format!("{HDR_TAGS},{}", crate::plan::qsv_opencl_tonemap(160, 120));
+        args.extend(["-vf".to_string(), vf]);
+        args.extend(["-c:v", "h264_qsv", "-f", "null", "-"].map(String::from));
+        run_test(args).await
+    };
+    let (
+        vulkan_results,
+        vaapi_vulkan_results,
+        vulkan_encode,
+        pipeline_results,
+        main10_results,
+        qsv_tonemap,
+        qsv_overlay,
+        qsv_opencl_tonemap,
+    ) = tokio::join!(
+        vulkan_tests,
+        vaapi_vulkan_tests,
+        vulkan_encode_test,
+        pipeline_tests,
+        main10_tests,
+        qsv_tonemap_test,
+        qsv_overlay_test,
+        qsv_opencl_test
+    );
     let _ = std::fs::remove_dir_all(&dir);
 
     let ok_keys =
         |results: Vec<(String, bool)>| results.into_iter().filter(|(_, ok)| *ok).map(|(k, _)| k).collect::<Vec<_>>();
+    let main10 = ok_keys(main10_results);
     GpuDetection {
         vulkan_decode: ok_keys(vulkan_results),
         vaapi_vulkan_decode: ok_keys(vaapi_vulkan_results),
         vulkan_encode,
         pipelines: pipeline_results
             .into_iter()
-            .map(|(accel, results)| GpuPipeline { accel, codecs: ok_keys(results) })
+            .map(|(accel, results)| {
+                let codecs = ok_keys(results);
+                let main10 = match accel {
+                    HwAccel::Qsv => main10.iter().filter(|k| codecs.contains(k)).cloned().collect(),
+                    _ => Vec::new(),
+                };
+                GpuPipeline { accel, codecs, main10 }
+            })
             .filter(|p| !p.codecs.is_empty())
             .collect(),
+        qsv_tonemap,
+        qsv_overlay,
+        qsv_opencl_tonemap,
     }
 }
+
+/// The test clips HDR comes in: 10-bit HEVC and AV1 (10 bits from SVT-AV1).
+const MAIN10_KEYS: [&str; 2] = ["hevc10", "av1"];
 
 /// Whether every frame came to the filters in `format`, by an FFmpeg log at
 /// `-loglevel verbose` (each filter graph input names its frames' format as

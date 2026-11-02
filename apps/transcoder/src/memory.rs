@@ -515,6 +515,7 @@ mod tests {
             tonemap: None,
             tonemap_quality: Default::default(),
             tonemap_input: None,
+            libplacebo_asked: false,
             amf_upload: false,
             vui_primaries: None,
             hw_decode: None,
