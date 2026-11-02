@@ -173,6 +173,14 @@ export function addTitles(have: DiscoverTitle[], more: DiscoverTitle[]): Discove
   return out;
 }
 
+/** The most characters TMDB's search takes, as the server has it. */
+export const SEARCH_MAX = 200;
+
+/** Words as TMDB's search takes them: trimmed, and cut to {@link SEARCH_MAX} characters (never halfway through one). */
+export function searchText(q: string): string {
+  return Array.from(q.trim()).slice(0, SEARCH_MAX).join("").trim();
+}
+
 /** A title's badge: "In library", "Partly in library" (where it can be opened), "Requested", "Declined"; none otherwise. */
 export function titleBadge(t: { status: TitleStatus; item_id: number | null }): string | null {
   switch (t.status) {

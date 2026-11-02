@@ -144,8 +144,8 @@ export function TileCaption(p: { title: string; subtitle: string }) {
 }
 
 /**
- * The last tile of a row that lists more: an arrow and "See all" (or where
- * it goes: "See all on Discover"), or another icon and words (Show more).
+ * The last tile of a row that lists more: an arrow and "See all", or another
+ * icon and words (Show more).
  */
 export const SeeAllTile = memo(SeeAllView);
 

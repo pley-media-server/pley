@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Discover has no search field: Search shows what can be asked for in a
+  Discover row after the libraries' results, which says why when TMDB
+  doesn't answer, with Retry.
+
 ## [0.1.1] - 2026-11-01
 
 ### Added
