@@ -210,6 +210,10 @@ sub test_pages_playlists()
     tkEqual(pageQueueFrom(queue, 1, false).Count(), 1, "from the entry chosen")
     shuffled = pageQueueFrom(queue, 1, true)
     tkEqual(shuffled.Count(), 2, "shuffled: every entry")
+    moved = pagePlaylistReordered(queue, rows, [rows[1], rows[0]])
+    tkEqual(moved[0].title, queue[1].title, "Play from an entry moved plays it")
+    tkEqual(moved[1].title, "Arrival")
+    tkEqual(pagePlaylistReordered(queue, rows, [rows[1]]), queue, "rows that don't match: as it was")
     tkEqual(pagePlaylistRefusal({ status: 403, message: "not allowed" }), "This sign-in can't change playlists: sign out in Settings and sign in again to allow it.")
 end sub
 

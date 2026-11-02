@@ -530,6 +530,25 @@ function pagePlaylistQueue(entries as dynamic, server as string) as object
     return queue
 end function
 
+' A playlist's queue (one per entry, in the order of the rows before)
+' put in the order of the rows after, matched by their entryId: what Play
+' plays from an entry once the entries moved. A queue that doesn't match
+' the rows stays as it is, until the playlist comes again.
+function pagePlaylistReordered(queue as object, before as object, after as object) as object
+    if queue.Count() <> before.Count() or after.Count() <> before.Count() then return queue
+    places = {}
+    for i = 0 to before.Count() - 1
+        places[urlValue(before[i].entryId)] = i
+    end for
+    out = []
+    for each row in after
+        was = places[urlValue(row.entryId)]
+        if was = invalid then return queue
+        out.Push(queue[was])
+    end for
+    return out
+end function
+
 ' Why a playlist didn't change, in a sentence: a sign-in from before
 ' pley for Roku asked to change playlists can't (403), until signed in
 ' again.

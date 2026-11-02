@@ -161,13 +161,15 @@ sub onDeleted(event as object)
     end if
 end sub
 
-' A change made: the playlist again, as the server has it now.
+' A change made, or refused: the playlist again, as the server has it now
+' (a move refused goes back where it was).
 sub onChanged(event as object)
     answer = event.getData()
     if answer.ok
         load()
     else if not uiFailed(answer)
         uiMessage("That didn't work", [pagePlaylistRefusal(answer)])
+        load()
     end if
 end sub
 
@@ -272,6 +274,7 @@ sub onEntryFocused(event as object)
 end sub
 
 ' OK: the entry lifted stays where it is, and the server keeps the order.
+' What Play plays from an entry moves with it at once.
 sub drop()
     at = m.moving
     m.moving = -1
@@ -283,6 +286,7 @@ sub drop()
         ids.Push(m.rows[i].entryId)
         if m.rows[i].entryId <> m.before[i].entryId then changed = true
     end for
+    if changed then m.playlist.queue = pagePlaylistReordered(m.playlist.queue, m.before, m.rows)
     if changed then uiRequest({ method: "PUT", path: "/api/playlists/" + urlValue(m.top.params.id) + "/order", json: { entry_ids: ids } }, "onChanged")
 end sub
 
