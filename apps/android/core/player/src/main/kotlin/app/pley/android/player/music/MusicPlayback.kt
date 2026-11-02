@@ -58,14 +58,18 @@ class MusicEnvironment(
  *
  * - one server session per track (POST /api/playback), the one before
  *   ended first, so a transcode never waits on the last one;
- * - progress every 10 s while playing and on pause; at the end of a track
- *   `stopped` at its length and DELETE, then the next track by itself;
+ * - progress every 10 s while playing, on pause, and every 30 s paused (the
+ *   server lets a session it hasn't heard from go, its transcode with it);
+ *   at the end of a track `stopped` at its length and DELETE, then the next
+ *   track by itself;
  * - a track the device can't decode is asked for again as a transcode, and
- *   a session that expired (a long pause) is started again where it was,
- *   up to three times in a row;
+ *   a session that expired is started again where it was, up to three
+ *   times in a row;
  * - Previous restarts a track that has played more than 3 s;
  * - a sleep timer pauses after the minutes chosen, or at the end of the
- *   track (the next one waits, paused).
+ *   track (the next one waits, paused);
+ * - a video or a channel ends the music's session ([pauseForVideo]): the
+ *   queue and the place stay, and Play starts a new session there.
  *
  * It lives as long as the app's process, so it plays on with no screen
  * open; the [MusicService] shows it in the notification and on the lock
@@ -97,6 +101,9 @@ class MusicPlayback(
     private var playing = false
     private var loading = false
     private var ended = false
+
+    /** A video or a channel took over ([pauseForVideo]): the session went, the place stays. */
+    private var yielded = false
     private var error: MusicError? = null
 
     private val timer = SleepTimer(scope, env.now, ::trackLeftMs, { queue.current?.id }) { pause() }
@@ -158,12 +165,12 @@ class MusicPlayback(
         startTrack(0)
     }
 
-    /** Plays, or after the queue's end or a failure, starts the current track again. */
+    /** Plays, or after the queue's end, a failure or a video, starts the current track again. */
     fun play() {
         if (queue.isEmpty) return
         when {
             ended -> startTrack(0)
-            error != null -> startTrack(lastPosition(), sameTrack = true)
+            error != null || yielded -> startTrack(lastPosition(), sameTrack = true, play = true)
             else -> output().play()
         }
     }
@@ -174,7 +181,7 @@ class MusicPlayback(
 
     fun toggle() {
         val o = out
-        if (o != null && o.playWhenReady && !ended && error == null) pause() else play()
+        if (o != null && o.playWhenReady && !ended && error == null && !yielded) pause() else play()
     }
 
     fun next() {
@@ -207,9 +214,22 @@ class MusicPlayback(
         publish()
     }
 
-    /** Pauses for a video; the music waits where it was. */
+    /**
+     * A video or a channel starts: the music pauses and lets go of its
+     * session, which its paused reports would otherwise keep through a
+     * whole film. The queue and the place stay, and Play starts a new
+     * session there. A track still being asked for isn't loaded.
+     */
     fun pauseForVideo() {
+        if (queue.isEmpty) return
+        loadJob?.cancel()
+        yielded = true
+        stopTicker()
+        endSession()
         out?.pause()
+        playing = false
+        loading = false
+        publish()
     }
 
     /** Ends the session, stops the output and forgets the queue. */
@@ -226,6 +246,7 @@ class MusicPlayback(
         playing = false
         loading = false
         ended = false
+        yielded = false
         error = null
         now.value = null
         order.value = MusicQueueState()
@@ -250,6 +271,7 @@ class MusicPlayback(
         val o = output()
         if (!sameTrack) o.stop()
         ended = false
+        yielded = false
         error = null
         loading = true
         playing = false
@@ -279,6 +301,8 @@ class MusicPlayback(
             val info = started.info
             val source = EngineSource(url = server.url(info.url), hls = info.hls, durationMs = info.durationMs.takeIf { it > 0 })
             o.load(source, atMs, wantPlay, trackInfo(track, server))
+            // From now on, also while it waits paused (the sleep timer's next track).
+            startTicker()
             publish()
         }
     }
@@ -315,12 +339,24 @@ class MusicPlayback(
         publish()
     }
 
+    /**
+     * Progress every 10 s while the track plays (or waits for data to), and
+     * every 30 s while it is paused: the server keeps a session, and its
+     * transcode, as long as it hears from it.
+     */
     private fun startTicker() {
         if (ticker?.isActive == true) return
         ticker = scope.launch {
+            var quiet = 0L
             while (isActive) {
                 delay(PROGRESS_EVERY_MS)
-                session?.progress(lastPosition(), ProgressState.Playing)
+                val s = session ?: continue
+                val wants = out?.playWhenReady == true
+                quiet += PROGRESS_EVERY_MS
+                if (wants || quiet >= PAUSED_EVERY_MS) {
+                    quiet = 0
+                    s.progress(lastPosition(), if (wants) ProgressState.Playing else ProgressState.Paused)
+                }
             }
         }
     }
@@ -336,9 +372,6 @@ class MusicPlayback(
             if (playing) {
                 loading = false
                 recreates = 0
-                startTicker()
-            } else {
-                stopTicker()
             }
             publish()
         }
@@ -433,6 +466,9 @@ class MusicPlayback(
     companion object {
         /** Progress reports while playing, as on the web. */
         const val PROGRESS_EVERY_MS = 10_000L
+
+        /** While paused: the server forgets a session it hasn't heard from for 90 s, and its transcode with it. */
+        const val PAUSED_EVERY_MS = 30_000L
 
         /** New sessions asked in a row for one track before it counts as failed. */
         const val MAX_RECREATES = 3

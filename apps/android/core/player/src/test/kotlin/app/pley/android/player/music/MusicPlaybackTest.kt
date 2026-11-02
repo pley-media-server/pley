@@ -33,8 +33,8 @@ import org.junit.Test
 
 /**
  * The music queue against the server: sessions per track, the reports'
- * cadence, the hand-off from one track to the next, Previous, and what
- * happens when a track fails.
+ * cadence, the hand-off from one track to the next, Previous, what
+ * happens when a track fails, and a video taking over.
  */
 class MusicPlaybackTest {
     private val album = (1..3L).map { track(it) }
@@ -94,7 +94,7 @@ class MusicPlaybackTest {
     }
 
     @Test
-    fun progressGoesOutEveryTenSecondsWhilePlayingAndOnPause() = runTest {
+    fun progressGoesOutEveryTenSecondsWhilePlayingOnPauseAndEveryThirtyPaused() = runTest {
         val music = music()
         music.play(album)
         runCurrent()
@@ -111,11 +111,46 @@ class MusicPlaybackTest {
         assertEquals(ProgressState.Paused, reports().last().state)
         assertEquals(31_000, reports().last().positionMs)
 
-        // Paused: nothing more goes out.
+        // Paused: every 30 s, so the server keeps the session (it lets one go after 90 s unheard).
         val count = reports().size
-        advanceTimeBy(60_000)
+        advanceTimeBy(20_000)
         runCurrent()
         assertEquals(count, reports().size)
+        advanceTimeBy(10_000)
+        runCurrent()
+        assertEquals(count + 1, reports().size)
+        assertEquals(ProgressState.Paused, reports().last().state)
+        assertEquals(31_000, reports().last().positionMs)
+    }
+
+    @Test
+    fun aVideoEndsTheMusicsSessionAndPlayStartsANewOneWhereItWas() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 30_000
+        music.pauseForVideo()
+        settle()
+        assertEquals(1, api.calls("stopPlayback").size)
+        assertEquals(ProgressState.Stopped, reports().last().state)
+        assertEquals(30_000, reports().last().positionMs)
+        val now = music.nowPlaying.value!!
+        assertFalse(now.playing)
+        assertEquals(1L, now.itemId)
+
+        // Nothing keeps a session through the film.
+        val asked = api.calls.size
+        advanceTimeBy(600_000)
+        runCurrent()
+        assertEquals(asked, api.calls.size)
+
+        music.toggle()
+        settle()
+        assertEquals(listOf(1L, 1L), starts().map { it.itemId })
+        assertEquals(30_000L, starts().last().startMs)
+        assertEquals(30_000L, output.startPositions.last())
+        assertTrue(output.playWhenReady)
     }
 
     @Test

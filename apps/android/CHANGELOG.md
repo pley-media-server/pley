@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Fixed
 
+- Paused music stays in the server's Now playing, and a converted track
+  plays on at once after a long pause, where it started over. A video or
+  a live channel ends the music's session as well as pausing it, and Play
+  starts the music again where it was.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
