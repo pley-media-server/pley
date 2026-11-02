@@ -313,7 +313,10 @@ class Follower:
             return
         self.had_audio = self.had_audio or state[0] is not None
         if now < self.quiet_until or self.baseline is None:
-            # Where it starts, the account's choice shown.
+            # Where it starts, the account's choice shown. Subtitles turned
+            # on once Kodi took show()'s off are the person's pick.
+            if state[1] is not None and self.baseline is not None and self.baseline[1] is None:
+                self.hidden = None
             self.baseline = state
             return
         if state == self.baseline:
@@ -393,7 +396,8 @@ class Follower:
         return True
 
     def body(self, state: tuple, props: dict):
-        """PUT /api/items/{id}/streams's body for what Kodi plays (None for a
+        """PUT /api/items/{id}/streams's body for what Kodi plays, the
+        account's subtitles while show() keeps Kodi's off (None for a
         subtitle pley doesn't know, which isn't saved). The audio goes only
         when it was changed: the track playing was the server's choice for
         this Kodi, and another device may play another of that language

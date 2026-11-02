@@ -407,11 +407,11 @@ class FollowerTest(unittest.TestCase):
         f.finish()
         self.assertEqual(saved, [{"file_id": 7, "audio_index": 2, "subtitle_index": None}])
 
-    def test_subtitles_kodi_couldnt_show_are_not_saved_as_off(self):
-        # The account's German pictures next to the film come as a .sup file
-        # that Kodi couldn't add: it lists the Spanish file and the film's
-        # own three, and shows the Spanish. Turned off: none rather than
-        # Kodi's own.
+    def a_sup_kodi_couldnt_add(self):
+        """The account's German pictures next to the film come as a .sup
+        file that Kodi couldn't add: it lists the Spanish file and the film's
+        own three, and shows the Spanish. Turned off: none rather than
+        Kodi's own."""
         clock = Clock()
         player = Kodi(enabled=True)
         player.subtitles = [
@@ -424,6 +424,25 @@ class FollowerTest(unittest.TestCase):
         for _ in range(tracks.READY_TURNS + 1):
             f.turn()
         self.assertEqual(player.calls, [("Player.SetSubtitle", {"subtitle": "off"})])
+        return clock, player, f, saved
+
+    def test_subtitles_turned_on_again_at_once_are_the_persons(self):
+        clock, player, f, saved = self.a_sup_kodi_couldnt_add()
+        # Off as the add-on left them, then on again at once, as the
+        # subtitles went: the person's pick, so their "off" later is theirs.
+        f.turn()
+        player.subtitle, player.enabled = 0, True
+        f.turn()
+        clock.now += tracks.QUIET
+        f.turn()
+        player.enabled = False
+        f.turn()
+        clock.now += tracks.SETTLE
+        f.turn()
+        self.assertEqual(saved, [{"file_id": 7, "subtitle_index": None}])
+
+    def test_subtitles_kodi_couldnt_show_are_not_saved_as_off(self):
+        clock, player, f, saved = self.a_sup_kodi_couldnt_add()
         clock.now += tracks.QUIET
         f.turn()
         # French audio, chosen in Kodi's player: saved with the German

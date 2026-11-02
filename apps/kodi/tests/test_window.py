@@ -18,7 +18,7 @@ EPISODE = {
     "grandparent_title": "Driftline",
     "duration_ms": 56 * 60_000,
     "year": 2025,
-    "summary": "Mark gets a lead.",
+    "summary": "Ida gets a lead.",
     "user_state": {"position_ms": 30 * 60_000, "watched": False},
 }
 
@@ -209,7 +209,7 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(info["context"], "S2 · E5 · Glasshouse")
         self.assertEqual(info["left"], "26 min left")
         self.assertTrue(info["progress"])
-        self.assertEqual(info["summary"], "Mark gets a lead.")
+        self.assertEqual(info["summary"], "Ida gets a lead.")
 
     def test_the_metadata_line(self):
         detail = {"id": 31, "content_rating": "TV-MA", "files": [{"width": 1920, "height": 1080, "streams": []}]}
@@ -891,14 +891,14 @@ class WindowTest(unittest.TestCase):
 
         win.session.get = get
         page = window.Item(win, 7)
-        page.detail = {"id": 7, "kind": "show", "title": "Driftline"}
+        page.detail = {"id": 7, "kind": "show", "title": "Low Orbit"}
         keep_summary(self, ASKS)
         page.ask_about()
         self.assertEqual(asked_of, ["/api/items/7/request"])
         # More's Request more seasons: the plugin's picker, over the window.
         del window.xbmc.builtins[:]
         dict(page.more_actions())[window.T("request_more_seasons")]()
-        self.assertEqual(window.xbmc.builtins, ["RunPlugin(plugin://plugin.video.pley/?route=more_seasons&id=7&title=Driftline)"])
+        self.assertEqual(window.xbmc.builtins, ["RunPlugin(plugin://plugin.video.pley/?route=more_seasons&id=7&title=Low+Orbit)"])
         # Nothing more to ask for: no entry.
         found = dict(found, askable=[])
         page.ask_about()

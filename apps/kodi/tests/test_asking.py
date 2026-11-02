@@ -680,7 +680,7 @@ class ProfileTest(Case):
 
 
 class MoreSeasonsTest(Case):
-    SHOW = {"id": 8, "kind": "show", "title": "Driftline", "user_state": {}}
+    SHOW = {"id": 8, "kind": "show", "title": "Low Orbit", "user_state": {}}
 
     def test_library_shows_offer_more_seasons(self):
         lister = plugin.Plugin([BASE, "3", "?route=library&id=1"])
@@ -688,30 +688,30 @@ class MoreSeasonsTest(Case):
         self.summary(ON)
         lister = plugin.Plugin([BASE, "3", "?route=library&id=1"])
         self.assertEqual(lister.menu(self.SHOW)[-1],
-                         ("Request more seasons", "RunPlugin(%s?route=more_seasons&id=8&title=Driftline)" % BASE))
+                         ("Request more seasons", "RunPlugin(%s?route=more_seasons&id=8&title=Low+Orbit)" % BASE))
         self.assertNotIn("Request more seasons", [label for label, _ in lister.menu(dict(self.SHOW, kind="movie"))])
         self.assertEqual(self.sent(), [], "listings ask nothing more")
 
     def test_nothing_more_to_ask_for(self):
         self.answers["GET /api/items/8/request"] = (200, {"kind": "show", "tmdb_id": 1396, "status": "library", "request": None, "askable": []})
-        self.answers["GET /api/items/8"] = (200, {"id": 8, "title": "Driftline"})
+        self.answers["GET /api/items/8"] = (200, {"id": 8, "title": "Low Orbit"})
         with Dialogs() as dialogs:
-            self.run_plugin("route=more_seasons&id=8&title=Driftline", handle="-1")
-        self.assertEqual(dialogs.shown, [("ok", "Request more seasons", "There's nothing more of “Driftline” to ask for.")])
+            self.run_plugin("route=more_seasons&id=8&title=Low+Orbit", handle="-1")
+        self.assertEqual(dialogs.shown, [("ok", "Request more seasons", "There's nothing more of “Low Orbit” to ask for.")])
 
     def test_the_picker_of_a_library_show(self):
         self.answers["GET /api/items/8/request"] = (200, {"kind": "show", "tmdb_id": 1396, "status": "partial", "request": None, "askable": [2]})
         self.answers["GET /api/discover/show/1396"] = (200, dict(SHOW, status="partial", item_id=8))
         with Dialogs(None) as dialogs:
-            self.run_plugin("route=more_seasons&id=8&title=Driftline", handle="-1")
+            self.run_plugin("route=more_seasons&id=8&title=Low+Orbit", handle="-1")
         self.assertEqual([row[0] for row in dialogs.shown[0][2]], ["Season 2", "Season 3", "Specials"])
         self.assertEqual(self.sent("POST"), [])
 
     def test_a_show_tmdb_doesnt_know(self):
         self.answers["GET /api/items/8/request"] = (404, {"code": "not_found", "message": "no TMDB match"})
         with Dialogs():
-            self.run_plugin("route=more_seasons&id=8&title=Driftline", handle="-1")
-        self.assertEqual(xbmcgui.notified, [("Pley", "Nothing on TMDB for “Driftline”")])
+            self.run_plugin("route=more_seasons&id=8&title=Low+Orbit", handle="-1")
+        self.assertEqual(xbmcgui.notified, [("Pley", "Nothing on TMDB for “Low Orbit”")])
 
 
 if __name__ == "__main__":
