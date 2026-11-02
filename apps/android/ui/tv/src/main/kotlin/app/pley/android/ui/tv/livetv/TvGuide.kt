@@ -26,9 +26,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -74,6 +76,8 @@ import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveProgram
 import app.pley.android.screens.livetv.ChannelPages
+import app.pley.android.screens.livetv.GuideCursor
+import app.pley.android.screens.livetv.GuideOk
 import app.pley.android.screens.livetv.Landing
 import app.pley.android.screens.livetv.LiveTv
 import app.pley.android.screens.livetv.LiveTvViewModel
@@ -87,11 +91,12 @@ import kotlin.math.roundToInt
  * The programme guide on TV (the web's GuideGrid, for a remote): what has
  * focus is described above the grid, channels down and time across, now
  * marked by a line. Focus is a programme, moved by the guide itself rather
- * than by geometry (rows only compose what is in view):
+ * than by geometry ([GuideCursor]; rows only compose what is in view):
  *
  * - Left and Right go to the programme before and after, the grid
- *   following by half hours; Left from the guide's first half hour goes to
- *   the categories ([onLeave]);
+ *   following by half hours, back through a long programme a screen at a
+ *   time, and by half hours on a channel without a guide; Left from the
+ *   guide's first half hour goes to the categories ([onLeave]);
  * - Up and Down keep the time and change channel, the category's channels
  *   loaded a page at a time as they come; Up from the first goes to the
  *   tabs above, Channel up and down page through the lineup;
@@ -118,21 +123,23 @@ internal fun TvGuide(
 ) {
     val guide by vm.guide.collectAsStateWithLifecycle()
     val start = vm.guideStart
-    val end = start + LiveTv.GUIDE_SPAN_S
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
     val reduced = reducedMotion()
     val clock = rememberClock()
-    var row by rememberSaveable { mutableStateOf(0) }
-    var cursor by rememberSaveable { mutableStateOf(now) }
-    var left by rememberSaveable { mutableStateOf(leftFor(now, start)) }
+    val saver = remember(start) { cursorSaver(start) }
+    var focus by rememberSaveable(stateSaver = saver) { mutableStateOf(GuideCursor(start, now)) }
     var focused by remember { mutableStateOf(false) }
     var held by remember { mutableStateOf(false) }
     val total = pages.total ?: 0
-    row = row.coerceIn(0, (total - 1).coerceAtLeast(0))
+    // Kept within the rows as the list's length changes: put back after the frame, not while it is drawn.
+    val cursor = focus.fit(total)
+    if (cursor != focus) SideEffect { focus = cursor }
+    val row = cursor.row
+    val left = cursor.left
     val channel = pages[row]
     val programs = guide.byChannel
-    val current = channel?.let { at(programs[it.id], cursor) }
+    val current = channel?.let { cursor.current(programs[it.id]) }
 
     LaunchedEffect(left) { vm.showingTimes(left, left + VIEW_S) }
     // Opens on the channel last watched, once per category and return from the player.
@@ -142,25 +149,11 @@ internal fun TvGuide(
         val l = landing ?: return@LaunchedEffect
         if (l.category != category || placed.value == l) return@LaunchedEffect
         placed.value = l
-        row = l.index ?: 0
+        focus = focus.place(l.index ?: 0, total)
     }
 
-    /** Puts the cursor at [time] (a programme's start, or a half hour), the grid following it. */
-    fun moveTo(time: Long) {
-        cursor = time.coerceIn(start, end - 1)
-        left = when {
-            cursor < left -> slot(cursor).coerceAtLeast(start)
-            cursor >= left + VIEW_S - LiveTv.SLOT_S -> (slot(cursor) - LiveTv.SLOT_S).coerceIn(start, end - VIEW_S)
-            else -> left
-        }
-    }
-
-    fun backToNow() {
-        cursor = now
-        left = leftFor(now, start)
-    }
-
-    BackHandler(enabled = focused && (current?.airingAt(now) != true || left != leftFor(now, start))) { backToNow() }
+    // Not on a row still loading: there is nothing to come back to there.
+    BackHandler(enabled = focused && channel != null && cursor.awayFromNow(programs[channel.id], now)) { focus = focus.backToNow(now) }
 
     val pxPerSecond = with(density) { DP_PER_MINUTE.toPx() } / 60f
     val x by animateFloatAsState(
@@ -190,7 +183,7 @@ internal fun TvGuide(
                 BasicText(dayOf(maxOf(left, start), now), style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), maxLines = 1)
             }
             Box(Modifier.weight(1f).fillMaxHeight().padding(end = TvSafeArea.Horizontal).clipToBounds()) {
-                var t = slot(left - VIEW_S)
+                var t = GuideCursor.slot(left - VIEW_S)
                 while (t < left + 2 * VIEW_S) {
                     val slotStart = t
                     if (slotStart >= start) {
@@ -219,61 +212,62 @@ internal fun TvGuide(
                     val code = event.key.nativeKeyCode
                     val down = event.type == KeyEventType.KeyDown
                     val native = event.nativeKeyEvent
+                    // The focus as it is now, not as this frame drew it: two keys may come between frames.
+                    val at = focus.fit(total)
+                    val c = pages[at.row]
+                    val list = c?.let { programs[it.id] }
+                    val on = at.current(list)
                     when (code) {
                         KeyEvent.KEYCODE_DPAD_LEFT -> {
                             if (!down) return@onPreviewKeyEvent true
-                            val target = current?.start?.minus(1) ?: (cursor - LiveTv.SLOT_S)
-                            // A channel without programmes has no time to move through.
-                            if (target < start || channel == null || programs[channel.id].isNullOrEmpty()) {
-                                onLeave()
-                            } else {
-                                val before = at(programs[channel.id], target)
-                                moveTo(before?.start?.coerceAtLeast(slot(target)) ?: slot(target))
-                            }
+                            val moved = at.moveLeft(list)
+                            if (moved != null) focus = moved else onLeave()
                             true
                         }
                         KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                            if (down) {
-                                val target = current?.stop ?: (slot(cursor) + LiveTv.SLOT_S)
-                                if (target < end) moveTo(target)
-                            }
+                            if (down) focus = at.moveRight(list)
                             true
                         }
                         KeyEvent.KEYCODE_DPAD_UP -> {
                             if (!down) return@onPreviewKeyEvent true
-                            if (row == 0) focusManager.moveFocus(FocusDirection.Up) else row--
+                            val moved = at.moveUp()
+                            if (moved != null) focus = moved else focusManager.moveFocus(FocusDirection.Up)
                             true
                         }
                         KeyEvent.KEYCODE_DPAD_DOWN -> {
-                            if (down && row < total - 1) row++
+                            if (down) focus = at.moveDown(total)
                             true
                         }
                         KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_PAGE_UP -> {
-                            if (down) row = (row - PAGE).coerceAtLeast(0)
+                            if (down) focus = at.pageUp()
                             true
                         }
                         KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_PAGE_DOWN -> {
-                            if (down) row = (row + PAGE).coerceAtMost((total - 1).coerceAtLeast(0))
+                            if (down) focus = at.pageDown(total)
                             true
                         }
                         KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                            val c = channel ?: return@onPreviewKeyEvent true
+                            if (c == null) return@onPreviewKeyEvent true
                             if (down) {
                                 // Held: the details, once.
-                                if (native.repeatCount > 0 && !held && current != null) {
+                                if (native.repeatCount > 0 && !held && on != null) {
                                     held = true
-                                    onDetails(c, current)
+                                    onDetails(c, on)
                                 }
                             } else {
                                 if (!held) {
-                                    if (current == null || current.airingAt(now)) onWatch(c) else onDetails(c, current)
+                                    when (at.ok(c, list, now)) {
+                                        GuideOk.Watch -> onWatch(c)
+                                        GuideOk.Details -> on?.let { onDetails(c, it) }
+                                        GuideOk.None -> Unit
+                                    }
                                 }
                                 held = false
                             }
                             true
                         }
                         KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_INFO -> {
-                            if (!down && channel != null && current != null) onDetails(channel, current)
+                            if (!down && c != null && on != null) onDetails(c, on)
                             true
                         }
                         else -> false
@@ -511,17 +505,18 @@ private fun GuideRow(
     }
 }
 
-/** The programme on at [time] of [programs]. */
-private fun at(programs: List<LiveProgram>?, time: Long): LiveProgram? = programs?.firstOrNull { it.start <= time && it.stop > time }
-
-/** The half hour [time] is in. */
-private fun slot(time: Long): Long = Math.floorDiv(time, LiveTv.SLOT_S) * LiveTv.SLOT_S
-
-/** Where the grid starts for [now]: the half hour before the one it is in, never before the guide. */
-private fun leftFor(now: Long, start: Long): Long = (slot(now) - LiveTv.SLOT_S).coerceAtLeast(start)
+/**
+ * The guide's focus, kept with the page: its row, time and the grid's
+ * edge. None when the guide starts later than it did (the app was let go
+ * meanwhile): it opens at now again.
+ */
+private fun cursorSaver(start: Long) = listSaver<GuideCursor, Long>(
+    save = { listOf(it.row.toLong(), it.cursor, it.left) },
+    restore = { (row, cursor, left) -> GuideCursor(start, row.toInt(), cursor, left).takeIf { cursor >= start && left >= start } },
+)
 
 /** The grid shows this much time: two hours at 3.6 dp a minute in its 432 dp, beside the categories. */
-private const val VIEW_S = 120 * 60L
+private const val VIEW_S = GuideCursor.VIEW_S
 private val DP_PER_MINUTE = 3.6.dp
 private val ROW_HEIGHT = 52.dp
 private val CHANNEL_WIDTH = 160.dp
@@ -530,9 +525,6 @@ private val CHANNEL_WIDTH = 160.dp
 private val CHANNEL_INSET = 10.dp
 private val INFO_HEIGHT = 92.dp
 private val TvSafeAreaBottom = 27.dp
-
-/** Channel up and down move this many rows. */
-private const val PAGE = 5
 
 /** Narrower than this, a programme shows no text. */
 private const val MIN_TEXT_PX = 70f

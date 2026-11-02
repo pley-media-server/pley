@@ -185,7 +185,10 @@ channel stopped, gone or not allowed). Try again starts the count again.
 On TVs, OK in the player opens the channel list, as Menu and Guide do;
 holding OK shows the controls (the channel list and the favourite) over
 what's on. Up and Down, Channel up and down, and Previous and Next change
-channel.
+channel. In the guide, Left and Right go programme by programme, back
+through a programme that began before the guide a screen at a time, and a
+half hour at a time on a channel without a guide; Back first brings the
+guide back to now.
 
 ### Requests
 

@@ -23,12 +23,18 @@ describes how they are made.
 - Live channels start a round trip sooner: the player reads the
   channel's stream as it asks the server for the channel, rather than once
   the server has answered, as on Samsung TVs.
+- In the TV guide, Left goes back through a programme that began before
+  the guide, a screen at a time, before it leaves for the categories; on a
+  channel without a guide, Left and Right move the guide a half hour at a
+  time, as on Samsung TVs.
 - The TV live player's channel list moves as the app's other lists do
   under a held key: at an even pace, without asking for every logo it
   passes, its focused row a third of the way down.
 
 ### Fixed
 
+- Back leaves the TV guide on a channel without guide data, or a row
+  still loading, where it went on bringing the guide back to now.
 - A page of Live TV channels that didn't load is asked for again once
   10 s have passed, as the list moves, where its rows stayed blank until
   another category was chosen.
