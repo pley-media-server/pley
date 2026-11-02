@@ -493,7 +493,7 @@ public static class LibraryRules
                     Description = string.Join(", ", new[] { model.Description, line }.Where(s => s.Length > 0)),
                 };
             default:
-                return TileModel.Of(item, TileKind.LibraryGrid, origin);
+                return TileModel.Of(item, TileKind.LibraryGrid, origin) with { Badges = LibraryText.MediaBadges(item.Media) };
         }
     }
 

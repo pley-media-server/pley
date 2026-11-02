@@ -236,7 +236,7 @@ function LibraryGridTab(p: { entry: Entry; library: Library; asked?: LibrarySort
         kind={kind}
         fid={`grid/${item.id}`}
         initial={p.initial && i === 0}
-        badges={bitrate}
+        badges
         subtitle={bitrate ? bitrateLine(item) : undefined}
         priority={place.priority}
         onFocus={place.onFocus}

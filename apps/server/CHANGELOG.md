@@ -17,9 +17,11 @@ describes how they are made.
 
 ### Changed
 
-- A library sorted by bitrate in the web app badges its posters with 4K and
-  the dynamic range (DV, HDR10) only, no longer the codec (H.264, HEVC) or
-  a lower resolution (1080p, 720p).
+- A library's posters in the web app show 4K and the dynamic range (DV,
+  HDR10) whatever the sort, where they showed only when sorted by bitrate,
+  and no longer the codec (H.264, HEVC) or a lower resolution (1080p,
+  720p). The next start reads each file's dynamic range once, for the
+  libraries to list it quickly.
 
 ## [0.1.2] - 2026-11-01
 
