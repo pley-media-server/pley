@@ -639,8 +639,14 @@ While a drive is plugged into the TV, the rail ends with **USB drive**. It
 lists the drive's folders, then the videos the TV's player opens (MKV, MP4,
 M4V, MOV, TS, M2TS, WebM, AVI, MPEG), sorted as a person sorts names;
 hidden files and what Windows and macOS leave on a drive aren't shown. A
-folder opens over the one before, with ".." first to go back up. At the
-drive's top, the page says how full the drive is.
+folder opens over the one before, with ".." first to go back up. The
+page's title is the drive's make and model as it reports them ("Kingston
+DataTraveler 3.0"), or USB drive when it says nothing; the name given to
+the drive isn't to be read, since an app may not open the device. At the
+drive's top, the line under the title says "/" and how full the drive is;
+in a folder, its path ("/Films/2019"). An empty folder says so in the
+middle of the page, under a folder icon, and keeps focus there, so the
+rail stays closed; Left opens it.
 
 A video plays in Pley's player as it is, with no server
 (`Local/LocalPlayerSource.cs`), so seeking, the panels, the sleep timer and

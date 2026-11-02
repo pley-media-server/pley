@@ -19,8 +19,8 @@ const imports = /import\s*\{([^}]+)\}\s*from\s*"lucide/.exec(source);
 if (!imports) throw new Error("No Lucide import in icons.tsx");
 // Type imports (`type IconNode`) aren't icons.
 const names = imports[1].split(",").map((s) => s.trim()).filter((s) => s && !s.startsWith("type "));
-// Icons of pages only the native app has yet: a drive's folders and videos.
-names.push("Usb", "Folder", "FileVideo", "CornerLeftUp");
+// Icons of pages only the native app has yet: a drive's folders, videos and empty folder.
+names.push("Usb", "Folder", "FolderOpen", "FileVideo", "CornerLeftUp");
 
 const kebab = (name) => name.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/([A-Za-z])([0-9])/g, "$1-$2").toLowerCase();
 const attrs = (o) => Object.entries(o).map(([k, v]) => ` ${k}="${String(v).replace(/"/g, "&quot;")}"`).join("");

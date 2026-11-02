@@ -32,8 +32,15 @@ sealed class StorageScreen : ShellPage
     readonly Action<string, long> play;
     readonly TrackListView list;
     readonly View message = new View();
-    readonly TextLabel where;
+    readonly TextLabel title, where;
     readonly IDisposable watch;
+    readonly KeyRepeatGate gate;
+    /// <summary>
+    /// Where focus waits on a page with only its message (an empty drive's top, no drive): nothing
+    /// shows it, and Left goes to the rail. In the rail, focus would keep it open over the page.
+    /// </summary>
+    readonly FocusGroup waiting = new FocusGroup(Axis.Row, "storage-message");
+    readonly FocusItem waitingItem = new FocusItem("storage-message") { Enabled = false };
     IReadOnlyList<LocalEntry> entries = Array.Empty<LocalEntry>();
     int asked;
     bool gone;
@@ -48,7 +55,8 @@ sealed class StorageScreen : ShellPage
         this.storage = storage;
         this.go = go;
         this.play = play;
-        var title = Text.Label(Pley.Tv.Core.Ui.Rail.StorageItem.Label, PleyType.PageTitle, PleyColors.Fg);
+        this.gate = gate;
+        title = Text.Label(Pley.Tv.Core.Ui.Rail.StorageItem.Label, PleyType.PageTitle, PleyColors.Fg);
         title.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(PleyTv.SafeVertical));
         View.Add(title);
         where = Text.Label("", PleyType.Caption, PleyColors.Muted, width: PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal);
@@ -65,6 +73,14 @@ sealed class StorageScreen : ShellPage
         View.Add(list);
         View.Add(message);
         Group.Add(list.Group);
+        waiting.Add(waitingItem);
+        waiting.Exit = d => d switch
+        {
+            Direction.Left => Scrolling.Left(gate, Shell.FocusRail),
+            Direction.Right => true,
+            _ => false,
+        };
+        Group.Add(waiting);
         // The drive pulled out, or another plugged in: the page shows what is there now.
         watch = drive.Watch(_ => Load());
     }
@@ -76,7 +92,7 @@ sealed class StorageScreen : ShellPage
     {
         // Back from the player: a video's line says where it resumes now.
         Lines();
-        if (!Tree.Enter(list.Group)) Shell.FocusRail();
+        if (!Tree.Enter(list.Group) && !Tree.Enter(waiting)) Shell.FocusRail();
     }
 
     public override void Gone()
@@ -89,26 +105,36 @@ sealed class StorageScreen : ShellPage
     {
         var at = ++asked;
         var dir = Folder;
-        if (dir == null || drive.Value == null || !dir.StartsWith(drive.Value, StringComparison.Ordinal))
+        var root = drive.Value;
+        if (dir == null || root == null || !dir.StartsWith(root, StringComparison.Ordinal))
         {
-            Show(Array.Empty<LocalEntry>(), "No USB drive", "Plug a USB drive into the TV to play its videos here.");
+            Text.Show(title, Pley.Tv.Core.Ui.Rail.StorageItem.Label);
+            Show(Array.Empty<LocalEntry>(), "No USB drive", "Plug a USB drive into the TV to play its videos here.", "usb");
             return;
         }
-        // Where it is on the drive: "USB drive › Films › 2019"; at its top, how full it is.
-        var under = dir.Substring(drive.Value.Length).Trim('/');
-        Text.Show(where, under.Length == 0 ? Space(dir) : string.Join(" › ", new[] { Pley.Tv.Core.Ui.Rail.StorageItem.Label }.Concat(under.Split('/'))));
+        // Where it is on the drive, as a path: "/Films/2019"; at its top, "/" and how full it is.
+        var under = dir.Substring(root.Length).Trim('/');
+        var space = under.Length == 0 ? Space(dir) : "";
+        Text.Show(where, under.Length > 0 ? "/" + under : space.Length > 0 ? $"/ · {space}" : "/");
         IReadOnlyList<LocalEntry> found;
+        string? name = null;
         try
         {
             // A drive that sleeps takes a moment to answer: off the UI thread.
-            found = await Task.Run(() => LocalFolder.List(dir));
+            found = await Task.Run(() =>
+            {
+                name = Drives.Name(root);
+                return LocalFolder.List(dir);
+            });
         }
         catch (Exception)
         {
-            if (at == asked && !gone) Show(Array.Empty<LocalEntry>(), "This folder can't be read", "The drive may have been pulled out.");
+            if (at == asked && !gone) Show(Array.Empty<LocalEntry>(), "This folder can't be read", "The drive may have been pulled out.", "circle-alert");
             return;
         }
         if (at != asked || gone) return;
+        // The title is the drive's make and model when it says them ("Kingston DataTraveler 3.0").
+        Text.Show(title, name ?? Pley.Tv.Core.Ui.Rail.StorageItem.Label);
         if (found.Count == 0) Show(found, "Nothing to play here", "This folder has no videos or folders in it.");
         else Show(found, null, null);
     }
@@ -127,7 +153,7 @@ sealed class StorageScreen : ShellPage
         }
     }
 
-    void Show(IReadOnlyList<LocalEntry> found, string? title, string? body)
+    void Show(IReadOnlyList<LocalEntry> found, string? title = null, string? body = null, string icon = "folder-open")
     {
         entries = found;
         foreach (var child in message.Children.ToList())
@@ -137,23 +163,35 @@ sealed class StorageScreen : ShellPage
         }
         if (title != null)
         {
+            // Centred on the page, under its icon.
             var width = PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal;
             // Under the ".." line when there is one, where it was drawn over it.
             message.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(ListTop + (HasUp ? TrackLineView.IconLine + 24 : 40)));
-            message.Add(Text.Label(title, PleyType.Title, PleyColors.Fg, width: width));
-            var words = Text.Label(body ?? "", PleyType.Body, PleyColors.Muted, maxLines: 3, width: width);
-            words.VerticalAlignment = VerticalAlignment.Top;
-            words.PositionY = Ui.Dp(PleyType.Title.Line + 10);
+            var picture = Icons.Icon(icon, MessageIcon, PleyColors.Muted);
+            picture.PositionX = Ui.Dp((width - MessageIcon) / 2);
+            message.Add(picture);
+            var heading = Text.Label(title, PleyType.Title, PleyColors.Fg, width: width);
+            heading.HorizontalAlignment = HorizontalAlignment.Center;
+            heading.PositionY = Ui.Dp(MessageIcon + 20);
+            message.Add(heading);
+            var words = PanelColumn.Lines(body ?? "", PleyType.Body, PleyColors.Muted, width, 3);
+            words.HorizontalAlignment = HorizontalAlignment.Center;
+            words.PositionY = Ui.Dp(MessageIcon + 20 + PleyType.Title.Line + 10);
             message.Add(words);
         }
-        var hadFocus = list.Focused;
+        var hadFocus = list.Focused || waitingItem.Focused;
         Lines();
-        if (Shell.Top != this) return;
-        // The list keeps focus whenever it has a line (".." at least, under the drive's top); only an empty top gives it to the rail.
+        // The list keeps focus whenever it has a line (".." at least, under the drive's top); an empty top keeps it on its message.
         var hasLines = list.Group.Children.Count > 0;
-        if (hasLines && (Tree.Current == null || hadFocus || Tree.Current.Parent == Shell.Rail.Group && Shell.RootKey is PageKey.Storage)) Tree.Enter(list.Group);
-        else if (!hasLines && hadFocus) Shell.FocusRail();
+        waitingItem.Enabled = !hasLines && title != null;
+        if (Shell.Top != this) return;
+        var into = hasLines ? list.Group : waitingItem.Enabled ? waiting : null;
+        if (into != null && (Tree.Current == null || hadFocus || Tree.Current.Parent == Shell.Rail.Group && Shell.RootKey is PageKey.Storage)) Tree.Enter(into);
+        else if (into == null && hadFocus) Shell.FocusRail();
     }
+
+    /// <summary>The size in dp of the message's icon.</summary>
+    const float MessageIcon = 64;
 
     /// <summary>The line that goes up a folder, first in every folder under the drive's top.</summary>
     const string Up = "..";

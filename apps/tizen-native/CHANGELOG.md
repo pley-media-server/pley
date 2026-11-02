@@ -253,6 +253,11 @@ It has no releases yet: it is built and installed by hand
 
 ### Fixed
 
+- An empty USB drive's page keeps focus, so the rail closes rather than
+  covering its message, which shows under a folder icon; at the drive's top,
+  the line under the title is the folder's path ("/Films/2019"), and "/"
+  at the drive's top beside how full it is. The page's title is the drive's
+  make and model ("Kingston DataTraveler 3.0").
 - The rail marks the page a rail entry opened, not Home, when the page has
   nothing to focus yet, as the first page opened after Who's watching?.
 - A film's audio track, chosen or saved, plays from the start: it was asked
