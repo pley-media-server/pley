@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- An album: its cover, its artist, year and length, Play and Shuffle on
-     the left, its tracks on the right; OK on a track plays the album from
-     it with the music player. -->
+     the left, its tracks on the right (under "Disc 1", "Disc 2" when they
+     are on several discs); OK on a track plays the album from it with the
+     music player. -->
 <component name="AlbumScreen" extends="Group">
     <interface>
         <field id="route" type="string" />

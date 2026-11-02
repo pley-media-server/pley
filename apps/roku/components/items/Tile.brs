@@ -96,11 +96,15 @@ end sub
 
 sub onFocus()
     focused = m.top.itemHasFocus and m.top.rowHasFocus and m.top.rowListHasFocus and m.top.gridHasFocus
+    ' Words in the frame (See all, a title without a picture) stay legible
+    ' on the accent.
     if focused
         m.frame.color = "0x38BDF8FF"
         m.title.color = "0x7DD3FCFF"
+        m.fallback.color = "0x16191EFF"
     else
         m.frame.color = "0x262B35FF"
         m.title.color = "0xEBEBEBFF"
+        m.fallback.color = "0xA1A9B6FF"
     end if
 end sub

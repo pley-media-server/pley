@@ -4,7 +4,7 @@ lost it, images/button-footprint.9.png): nine-patch pictures, a rounded
 box in the app's accent or its raised surface, as its lists have. The
 Live TV guide's programmes sit on images/guide-cell.9.png, and what has
 aired on images/guide-past.9.png; images/spinner.png turns while a channel
-tunes. The
+tunes, and images/round.png makes a person's photo round. The
 icons and splash screens are pley's logo, rendered with the other apps'
 icons by scripts/render-icons.mjs at the repository's root. Standard
 library only.
@@ -32,6 +32,10 @@ MARK_SIZE = 40
 
 # The spinner a BusySpinner turns (components/screens/LivePlayerScreen).
 SPINNER_SIZE = 64
+
+# The mask of round pictures, a person's photo (components/screens/
+# PersonScreen), drawn at this size.
+ROUND_SIZE = 160
 
 
 def segment_distance(px, py, ax, ay, bx, by):
@@ -126,6 +130,27 @@ def render_spinner(size):
     return rows
 
 
+def render_disc(size):
+    """RGBA rows of a white disc as wide as the picture, its edge smoothed:
+    the mask that makes a picture round (a MaskGroup's maskUri)."""
+    samples = 4
+    rows = []
+    for row in range(size):
+        line = bytearray()
+        for col in range(size):
+            inside = 0
+            for sy in range(samples):
+                for sx in range(samples):
+                    x = (col + (sx + 0.5) / samples) / size - 0.5
+                    y = (row + (sy + 0.5) / samples) / size - 0.5
+                    if math.hypot(x, y) <= 0.5:
+                        inside += 1
+            line.extend((255, 255, 255))
+            line.append(round(255 * inside / (samples * samples)))
+        rows.append(bytes(line))
+    return rows
+
+
 def write_png(path, width, height, rows):
     def chunk(kind, data):
         body = kind + data
@@ -156,6 +181,8 @@ def main():
         print("images/" + name, BOX + 2, "x", BOX + 2)
     write_png(os.path.join(folder, "spinner.png"), SPINNER_SIZE, SPINNER_SIZE, render_spinner(SPINNER_SIZE))
     print("images/spinner.png", SPINNER_SIZE, "x", SPINNER_SIZE)
+    write_png(os.path.join(folder, "round.png"), ROUND_SIZE, ROUND_SIZE, render_disc(ROUND_SIZE))
+    print("images/round.png", ROUND_SIZE, "x", ROUND_SIZE)
 
 
 if __name__ == "__main__":

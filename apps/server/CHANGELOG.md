@@ -9,6 +9,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- A playback with keyed addresses has its seek previews beside its media,
+  as a BIF file (`previews.bif`), which Roku's own player fetches and shows
+  as you fast forward and rewind.
+
 ### Changed
 
 - A library sorted by bitrate in the web app badges its posters with 4K and

@@ -1,3 +1,8 @@
+sub test_player_reports_while_paused_too()
+    tkEqual(playerPausedReportEveryMs(), 30000)
+    tkTrue(playerPausedReportEveryMs() * 3 <= 90000, "three reports before the server takes the player for gone")
+end sub
+
 sub test_player_autoplay_kept_on_the_roku()
     section = CreateObject("roRegistrySection", "playerAutoplayTest")
     section.Delete("autoplay")

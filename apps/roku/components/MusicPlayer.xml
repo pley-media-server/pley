@@ -4,20 +4,34 @@
      being used, and reports where each got to. Now Playing shows it. -->
 <component name="MusicPlayer" extends="Group">
     <interface>
-        <!-- { queue: [tracks (lib/Music.brs)], at }: plays queue from at. -->
+        <!-- { queue: [tracks (lib/Music.brs)], at, shuffled }: plays queue
+             from at; shuffled, in a random order that starts there. -->
         <field id="play" type="assocarray" alwaysNotify="true" />
-        <!-- "toggle", "pause", "resume", "next", "previous", "stop". -->
+        <!-- "toggle", "pause", "resume", "next", "previous", "shuffle",
+             "unshuffle", "stop", or "sleep": the sleep timer's button
+             (Keep listening in its last 30 s, else its next choice). -->
         <field id="control" type="string" alwaysNotify="true" />
+        <!-- Plays the track at this place in the queue. -->
+        <field id="jump" type="integer" alwaysNotify="true" />
         <!-- "stopped", "loading", "playing", "paused". -->
         <field id="state" type="string" value="stopped" />
-        <!-- The track playing, its place in the queue, and how far along. -->
-        <field id="track" type="assocarray" />
-        <field id="at" type="integer" />
+        <!-- The queue: its tracks in the order they play, and a number
+             that changes with it. -->
+        <field id="queue" type="array" />
+        <field id="queueId" type="integer" />
         <field id="queueSize" type="integer" />
+        <field id="shuffled" type="boolean" />
+        <!-- The track playing, its place in the queue (told again after
+             the queue changes), and how far along. -->
+        <field id="track" type="assocarray" />
+        <field id="at" type="integer" alwaysNotify="true" />
         <field id="positionMs" type="integer" />
         <field id="durationMs" type="integer" />
         <!-- What went wrong with the track before, or "". -->
         <field id="message" type="string" />
+        <!-- The sleep timer: { button (what its button says), secondsLeft
+             (its last 30 s counting down; -1 otherwise) }. -->
+        <field id="sleep" type="assocarray" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/MusicPlayer.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
@@ -28,7 +42,13 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Player.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Music.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/Sleep.brs" />
     <children>
         <Audio id="audio" />
+        <!-- The sleep timer's look, once a second while it is set or has
+             paused the music. -->
+        <Timer id="sleepTimer" duration="1" repeat="true" />
+        <!-- Progress told while paused (Player.brs). -->
+        <Timer id="pausedTimer" repeat="true" />
     </children>
 </component>

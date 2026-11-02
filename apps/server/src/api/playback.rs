@@ -915,9 +915,10 @@ fn hls_file_kind(name: &str) -> Option<bool> {
 /// `GET /api/media/{key}/{file}`: a session's media for a player that can't
 /// send the Authorization header, a TV's own player (docs/API.md, "Keyed
 /// URLs"). The key its play request asked for (`keyed_urls`) stands in for
-/// the token, for this session's playlists and segments or its file, and
-/// nothing else; it ends with the session, the account, or the app's
-/// sign-in. A session stopped from elsewhere answers `410` here too.
+/// the token, for this session's playlists and segments or its file, and its
+/// seek previews, and nothing else; it ends with the session, the account,
+/// or the app's sign-in. A session stopped from elsewhere answers `410` here
+/// too.
 pub async fn keyed_media(
     State(state): State<AppState>,
     Path((key, file)): Path<(String, String)>,
@@ -942,6 +943,20 @@ pub async fn keyed_media(
         if state.auth.lacks_two_step(id).await? {
             return Err(gone());
         }
+    }
+    // The file's seek previews as a BIF file, which Roku's player fetches
+    // itself, without the Authorization header.
+    if file == "previews.bif" {
+        let row = visible_file(&state, &user, session.file_id).await?;
+        let Some(bytes) = state.trickplay.bif(&row).await.map_err(AppError::Internal)? else {
+            state.trickplay.request(&row);
+            return Err(AppError::not_found("seek previews are not ready yet"));
+        };
+        return Ok((
+            [(header::CONTENT_TYPE, "application/octet-stream"), (header::CACHE_CONTROL, "private, no-store")],
+            bytes,
+        )
+            .into_response());
     }
     if session.transcode.is_some() {
         return session_hls(&state, &user, &session, &file).await;
