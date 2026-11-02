@@ -32,7 +32,7 @@ internal class TvTiles(private val resources: Resources) : TileFactory<ArtworkTi
     override fun item(item: ItemSummary, look: TileLook, origin: String): ArtworkTileModel = when (look) {
         TileLook.Landscape -> ArtworkTileModel.of(item, TileKind.Landscape, origin)
         TileLook.Square -> ArtworkTileModel.of(item, TileKind.Square, origin)
-        TileLook.Poster -> ArtworkTileModel.of(item, TileKind.LibraryGrid, origin)
+        TileLook.Poster -> ArtworkTileModel.of(item, TileKind.LibraryGrid, origin).copy(badges = mediaBadges(item.media))
         TileLook.Bitrate -> ArtworkTileModel.of(item, TileKind.LibraryGrid, origin).let { model ->
             val line = mediaLine(item.media)
             model.copy(

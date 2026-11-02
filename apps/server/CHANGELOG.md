@@ -15,6 +15,14 @@ describes how they are made.
   as a BIF file (`previews.bif`), which Roku's own player fetches and shows
   as you fast forward and rewind.
 
+### Changed
+
+- A library's posters in the web app show 4K and the dynamic range (DV,
+  HDR10) whatever the sort, where they showed only when sorted by bitrate,
+  and no longer the codec (H.264, HEVC) or a lower resolution (1080p,
+  720p). The next start reads each file's dynamic range once, for the
+  libraries to list it quickly.
+
 ## [0.1.2] - 2026-11-01
 
 ### Changed

@@ -476,9 +476,10 @@ describe("watch progress", () => {
 describe("media summaries", () => {
   it("say on the poster what a title's files are like", () => {
     const media = { bitrate: 42_000_000, size: 25_100_000_000, width: 3840, height: 2160, video_codec: "hevc", dynamic_range: "dolby_vision" } as const;
-    expect(mediaBadges(media)).toEqual(["4K", "DV", "HEVC"]);
+    expect(mediaBadges(media)).toEqual(["4K", "DV"]);
     expect(mediaLine(media)).toBe("42 Mbps · 23.4 GB");
-    expect(mediaBadges({ ...media, width: 1920, height: 1080, dynamic_range: "sdr", video_codec: "h264" })).toEqual(["1080p", "H.264"]);
+    expect(mediaBadges({ ...media, width: 1920, height: 1080, dynamic_range: "sdr", video_codec: "h264" })).toEqual([]);
+    expect(mediaBadges({ ...media, width: 1920, height: 1080, dynamic_range: "hdr10" })).toEqual(["HDR10"]);
   });
 
   it("make do with what is known", () => {

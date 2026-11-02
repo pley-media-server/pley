@@ -263,7 +263,7 @@ interface ItemSummary {
   release_date?: string;            // "YYYY-MM-DD"
   extra_type?: string;              // kind "extra": trailer | featurette | behind_the_scenes | deleted_scene |
                                     // interview | scene | short | other
-  media?: MediaSummary;             // only in library listings sorted by bitrate
+  media?: MediaSummary;             // only in library listings
 }
 
 interface MediaSummary {            // a movie's best file, or a show's episodes together

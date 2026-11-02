@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- A library's posters show 4K and the dynamic range (DV, HDR10) whatever
+  the sort, where they showed only when sorted by bitrate, and no longer
+  the codec (H.264, HEVC) or a lower resolution (1080p, 720p).
+
 ## [0.1.2] - 2026-11-01
 
 ### Changed

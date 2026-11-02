@@ -42,14 +42,17 @@ export function formatBytes(bytes: number | null | undefined): string {
   return `${v >= 100 || i === 0 ? v.toFixed(0) : v.toFixed(1)} ${units[i]}`;
 }
 
-/** What a title's files are like, for its poster: `["4K", "DV", "HEVC"]`. */
+/**
+ * What sets a title's files apart, for its poster: `["4K", "DV"]`. Only 4K
+ * of the resolutions, and no codec: "1080p" or "H.264" on most posters says
+ * nothing worth the room.
+ */
 export function mediaBadges(media: MediaSummary | null | undefined): string[] {
   if (!media) return [];
   const range: Partial<Record<DynamicRange, string>> = { dolby_vision: "DV", hdr10plus: "HDR10+", hdr10: "HDR10", hlg: "HLG" };
   return [
-    resolutionLabel(media.width, media.height),
+    resolutionLabel(media.width, media.height) === "4K" ? "4K" : null,
     media.dynamic_range ? (range[media.dynamic_range] ?? null) : null,
-    media.video_codec ? codecLabel(media.video_codec) : null,
   ].filter((b): b is string => !!b);
 }
 

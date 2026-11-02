@@ -55,7 +55,7 @@ export interface MediaCardProps {
   playable?: boolean;
   /** A Continue Watching card: show name first, remaining time; its menu can take it off the row. */
   continueStyle?: boolean;
-  /** Say what the files are like (bitrate, size, resolution…): sorted by bitrate. */
+  /** Put the files' bitrate and size under the title: sorted by bitrate. */
   media?: boolean;
   className?: string;
 }
@@ -102,7 +102,7 @@ export const MediaCard = memo(function MediaCard({
   const defaults = defaultCardTitles(item, continueStyle);
   const t = title ?? defaults.title;
   const st = subtitle ?? (media ? mediaLine(item.media) : defaults.subtitle);
-  const badges = media ? mediaBadges(item.media) : [];
+  const badges = mediaBadges(item.media);
   const to = href ?? itemUrl(item.id);
   const candidates = aspect === "thumb" ? thumbCandidates(item) : posterCandidates(item);
   const progress = item.user_state.watched ? 0 : progressFraction(item);

@@ -920,12 +920,14 @@ async fn upsert_file(
     let now = now();
     sqlx::query(
         "INSERT INTO media_files (id, item_id, library_id, path, size, mtime, container, duration_ms, bitrate, width,
-                                  height, video_codec, audio_codec, media_info, external_subs, probed, added_at, updated_at)
-         VALUES ((SELECT last + 1 FROM file_ids), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                  height, video_codec, dynamic_range, audio_codec, media_info, external_subs, probed,
+                                  added_at, updated_at)
+         VALUES ((SELECT last + 1 FROM file_ids), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(path) DO UPDATE SET
             item_id = excluded.item_id, library_id = excluded.library_id, size = excluded.size, mtime = excluded.mtime,
             container = excluded.container, duration_ms = excluded.duration_ms, bitrate = excluded.bitrate,
             width = excluded.width, height = excluded.height, video_codec = excluded.video_codec,
+            dynamic_range = excluded.dynamic_range,
             audio_codec = excluded.audio_codec, media_info = excluded.media_info, external_subs = excluded.external_subs,
             probed = excluded.probed, updated_at = excluded.updated_at,
             -- A changed file gets fingerprinted again.
@@ -943,6 +945,7 @@ async fn upsert_file(
     .bind(video.and_then(|v| v.width))
     .bind(video.and_then(|v| v.height))
     .bind(video.map(|v| v.codec.clone()))
+    .bind(video.map(|v| v.dynamic_range().as_str()))
     .bind(audio.map(|a| a.codec.clone()))
     .bind(info.map(serde_json::to_string).transpose()?)
     .bind(serde_json::to_string(subs)?)
