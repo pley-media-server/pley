@@ -131,9 +131,10 @@ pub async fn start(
     // sounds on its output), or for a file that streams anyway the one its
     // stream copies. `PlaybackInfo.audio_index` tells the player.
     let decision = decide_picked(&state, user.id, &row, &file, info.as_ref(), &streams, &mut req).await?;
-    // Picture subtitles the player draws from their own file: copied out of
-    // the media file from now on, rather than once the player asks.
-    let picture = if may_draw_pictures(&streams, &req.caps) {
+    // Picture subtitles the player draws from their own file beside a
+    // stream: copied out of the media file from now on, rather than once
+    // the player asks.
+    let picture = if decision.method != Method::Direct && may_draw_pictures(&streams, &req.caps) {
         let chosen = match req.subtitle_index {
             Some(_) => None,
             None => {
@@ -184,15 +185,11 @@ pub async fn start(
         session.app_grant = user.app.as_ref().map(|app| app.grant_id);
         session.media_key = req.keyed_urls.then(new_media_key);
         // The transcoder doesn't see direct plays: its background work waits
-        // for the player's first reads too, and so do the picture subtitles.
+        // for the player's first reads too.
         if state.transcoder.is_available() {
             let transcoder = state.transcoder.clone();
-            let prepare = picture.map(|index| (state.clone(), file.clone(), index));
             tokio::spawn(async move {
                 let _ = transcoder.hold_background(DIRECT_PLAY_HOLD).await;
-                if let Some((state, file, index)) = prepare {
-                    prepare_picture_track(&state, &file, index, start_ms);
-                }
             });
         }
         let session = state.sessions.insert(session);

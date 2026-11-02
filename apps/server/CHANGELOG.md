@@ -26,6 +26,14 @@ describes how they are made.
   starts there, and a seek while the rest is read has the pictures where
   the player went read at once. Kodi's `.sup` has everything read by the
   time it opens, not only the pictures around the start.
+- A stream for Kodi with VobSub or DVB subtitles no longer starts a copy
+  of them that Kodi never reads, which, in a Matroska file whose index
+  doesn't list them, could read the whole film from a network share.
+  Needs Pley for Kodi from the same release, which names the picture
+  subtitles it shows beside a stream (`picture_subtitles_sideload_codecs`).
+- A PGS subtitle file next to the media (`.sup`) is no longer copied as
+  each playback starts, only when a player asks for it: Kodi reads it as
+  it is.
 - PGS subtitles of a Blu-ray remux come whole about twice as fast from a NAS
   or a slow disk: each picture is one read of the file, where it was two or
   three.

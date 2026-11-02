@@ -473,8 +473,9 @@ async fn start_fake() -> (Fake, String) {
         )
         .route(
             "/v1/subtitles/mks",
-            // An EBML header, then what was asked for. Stream 3's copy takes
-            // a while: its first look has what was copied so far.
+            // An EBML header, then what was asked for; a `.sup` next to the
+            // media, a PGS track. Stream 3's copy takes a while: its first
+            // look has what was copied so far.
             post(|State(fake): State<Fake>, Json(req): Json<SubtitleRequest>| async move {
                 let mut mks = vec![0x1A, 0x45, 0xDF, 0xA3];
                 let first =
@@ -482,6 +483,8 @@ async fn start_fake() -> (Fake, String) {
                 let slow = req.partial && req.stream_index == Some(3) && first;
                 if slow {
                     mks.extend(b"so far");
+                } else if req.stream_index.is_none() {
+                    mks = pgs_track();
                 } else {
                     mks.extend(format!("{}#{:?}", req.path, req.stream_index).into_bytes());
                 }
@@ -1271,6 +1274,38 @@ async fn pgs_subtitles_come_as_sup_files_for_kodi() {
         let reply = app.get(&format!("/api/files/{file}/subtitles/{missing}"), admin).await;
         assert_eq!(reply.status, StatusCode::NOT_FOUND, "{missing}");
     }
+    // Chosen for the title, it isn't copied as a stream of it starts for a
+    // player that draws it: the copy reads only this file, when asked.
+    let chosen = app
+        .put(&format!("/api/items/{feature}/streams"), admin, json!({"file_id": file, "subtitle_index": index}))
+        .await;
+    assert!(chosen.status.is_success(), "{:?}", chosen.body);
+    let started = play(app, admin, json!({"item_id": feature, "caps": web_drawing_pictures(), "client_id": "a"})).await;
+    assert_eq!(started.body["method"], json!("remux"), "{:?}", started.body);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(w.fake.tracks.lock().is_empty());
+    // Asked for, it is copied then, from that file alone: as its `.mks`, and
+    // as Roku's pictures for a keyed playback (copied again, the server's
+    // copy gone).
+    let copies = || {
+        let tracks = w.fake.tracks.lock();
+        assert!(tracks.iter().all(|r| r.stream_index.is_none() && r.path.ends_with("Feature (2021).de.sup")));
+        tracks.len()
+    };
+    let mks = app.get(&format!("/api/files/{file}/subtitles/{index}.mks?at=0"), admin).await;
+    assert_eq!(mks.status, StatusCode::OK, "{}", mks.text());
+    assert_eq!(mks.bytes, pgs_track());
+    assert_eq!(copies(), 1);
+    for cached in std::fs::read_dir(app.state.config.cache_dir().join("subtitles")).unwrap() {
+        std::fs::remove_file(cached.unwrap().path()).unwrap();
+    }
+    let keyed = json!({"item_id": feature, "caps": web_drawing_pictures(), "keyed_urls": true, "client_id": "b"});
+    let url = play(app, admin, keyed).await.body["url"].as_str().unwrap().to_owned();
+    let list = format!("{}subtitles-{index}.json?at=0", &url[..url.rfind('/').unwrap() + 1]);
+    let cues = app.call(Method::GET, &list, None, None, &[]).await;
+    assert_eq!(cues.status, StatusCode::OK, "{}", cues.text());
+    assert_eq!(cues.body["cues"][0]["start_ms"], json!(1000));
+    assert_eq!(copies(), 2);
 }
 
 #[tokio::test]

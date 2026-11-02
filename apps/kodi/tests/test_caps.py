@@ -25,6 +25,12 @@ class CapsTest(unittest.TestCase):
         self.assertEqual(report["audio_channels"], 2)
         self.assertTrue(report["audio_track_switching"])
         self.assertIn("hdmv_pgs_subtitle", report["subtitle_codecs"])
+        # Every picture codec shown from the file, PGS alone beside a
+        # stream (as a .sup file): VobSub and DVB are drawn onto it.
+        self.assertIn("dvd_subtitle", report["subtitle_codecs"])
+        self.assertIn("dvb_subtitle", report["subtitle_codecs"])
+        self.assertTrue(report["picture_subtitles_sideload"])
+        self.assertEqual(report["picture_subtitles_sideload_codecs"], ["hdmv_pgs_subtitle"])
         self.assertIn("mkv", report["containers"])
         self.assertEqual(report["display"], {"width": 1920, "height": 1080})
         self.assertEqual(report["device"], {"form": "tv", "model": "Kodi 21.3 on Windows"})

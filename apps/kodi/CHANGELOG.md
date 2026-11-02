@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Starting a stream with VobSub or DVB subtitles no longer has the server
+  copy them out of the film for nothing: Kodi has them drawn onto the
+  video, and on a network share the copy could read the whole film.
+  Needs a server from the same release.
+
 ## [0.1.2] - 2026-11-02
 
 ### Fixed
