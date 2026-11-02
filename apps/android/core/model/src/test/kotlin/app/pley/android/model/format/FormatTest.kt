@@ -314,9 +314,10 @@ class FormatTest {
     @Test
     fun mediaSummaries() {
         val media = MediaSummary(42_000_000, 25_100_000_000, 3840, 2160, "hevc", DynamicRange.DolbyVision)
-        assertEquals(listOf("4K", "DV", "HEVC"), mediaBadges(media))
+        assertEquals(listOf("4K", "DV"), mediaBadges(media))
         assertEquals("42 Mbps · 23.4 GB", mediaLine(media))
-        assertEquals(listOf("1080p", "H.264"), mediaBadges(media.copy(width = 1920, height = 1080, dynamicRange = DynamicRange.Sdr, videoCodec = "h264")))
+        assertEquals(emptyList<String>(), mediaBadges(media.copy(width = 1920, height = 1080, dynamicRange = DynamicRange.Sdr, videoCodec = "h264")))
+        assertEquals(listOf("HDR10"), mediaBadges(media.copy(width = 1920, height = 1080, dynamicRange = DynamicRange.Hdr10)))
         assertEquals(emptyList<String>(), mediaBadges(MediaSummary()))
         assertEquals("Bitrate unknown", mediaLine(MediaSummary()))
         assertEquals("", mediaLine(null))

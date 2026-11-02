@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MediaFile, MediaStream, PlaybackInfo, TranscodeInfo } from "../src/api/types";
-import { automaticAudioLabel, dynamicRangeBadges, isForcedSubtitle, qualityBadges, startingAudio, streamLabel, streamRange } from "../src/format/format";
+import { automaticAudioLabel, dynamicRangeBadges, isForcedSubtitle, qualityBadges, startingAudio, streamLabel, streamRange, summaryBadges } from "../src/format/format";
 import { dolbyVisionDetails, streamBlock } from "../src/format/media-info";
 import { buildDetails, shownAs, videoLabel } from "../src/player/details";
 
@@ -34,6 +34,13 @@ describe("formats, named as the server, the web and Android name them", () => {
     expect(dynamicRangeBadges({ ...p7, dv_el: "fel" })).toEqual(["DV P7 FEL"]);
     const file = { id: 1, path: "a.mkv", size: 1, width: 3840, height: 2160, streams: [{ ...p81, hdr10plus: true }] } as unknown as MediaFile;
     expect(qualityBadges(file)).toEqual(["4K", "DV P8.1", "HDR10+"]);
+  });
+
+  it("badges a listing's poster with 4K and the dynamic range only", () => {
+    const media = { bitrate: 42_000_000, size: 1, width: 3840, height: 2160, video_codec: "hevc", dynamic_range: "dolby_vision" } as const;
+    expect(summaryBadges(media)).toEqual(["4K", "DV"]);
+    expect(summaryBadges({ ...media, width: 1920, height: 1080, video_codec: "h264", dynamic_range: "sdr" })).toEqual([]);
+    expect(summaryBadges({ ...media, width: 1920, height: 1080, dynamic_range: "hdr10" })).toEqual(["HDR10"]);
   });
 
   it("gives the Info panel the profile, level, base layer and enhancement layer", () => {

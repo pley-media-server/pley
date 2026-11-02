@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- A library sorted by bitrate badges its posters with 4K and the dynamic
+  range (DV, HDR10) only, no longer the codec (H.264, HEVC) or a lower
+  resolution (1080p, 720p).
+
 ## [0.1.2] - 2026-11-01
 
 ### Changed

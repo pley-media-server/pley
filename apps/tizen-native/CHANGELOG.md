@@ -153,6 +153,9 @@ It has no releases yet: it is built and installed by hand
   quality badge that doesn't fit the tile is left out rather than running
   past its edge, the unwatched count sits on the accent and the watched
   tick is an accent check, both with square corners.
+- A library sorted by bitrate in the native app badges its posters with 4K
+  and the dynamic range (DV, HDR10) only, as the other apps do: no codec
+  and no lower resolution.
 - Live TV in the native app starts a channel in about 2 seconds, from its
   stream as the provider sends it, where it waited for the server's first
   segments before; channels with surround sound the TV decodes (AC3) play

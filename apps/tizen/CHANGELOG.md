@@ -55,6 +55,8 @@ describes how they are made.
 - The sign-in page names this app by its address on
   `pley-media-server.github.io`. It needs a server from the same release,
   which keeps it signed in.
+- A library sorted by bitrate badges its posters with 4K and the dynamic
+  range (DV, HDR10) only, no longer a lower resolution (1080p, 720p).
 
 ### Fixed
 
