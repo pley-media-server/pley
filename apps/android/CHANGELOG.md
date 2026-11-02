@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Fixed
 
+- Home's rows are no longer drawn again when the server has nothing new
+  for them, as on coming back from a title, so moving through them right
+  then stays smooth; on Android TV and Fire TV a focus move no longer
+  redraws the page around the row.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was

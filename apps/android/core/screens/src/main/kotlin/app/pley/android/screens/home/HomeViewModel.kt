@@ -34,8 +34,10 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
@@ -48,6 +50,7 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -107,7 +110,9 @@ data class HomeProfile(
  *   /api/hubs/home through the hubs repository. A skeleton or an error
  *   shows only when nothing was saved. Rows, the hero and every label are
  *   worked out on [compute], never on the main thread; screens shape them
- *   further for their own tiles with [present].
+ *   further for their own tiles with [present]. It changes only when what
+ *   Home shows does: whether that is the server's answer is [status], and
+ *   a refresh under way [refreshing].
  * - After the first content, the details of the first three Continue
  *   Watching items are asked for ahead: that warms the server's keyframe
  *   index, so playing from Home can remux instead of transcoding
@@ -123,7 +128,7 @@ class HomeViewModel(
     private val sources: HomeSources,
     private val compute: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
-    private val refreshing = MutableStateFlow(false)
+    private val pulled = MutableStateFlow(false)
     private val focused = MutableStateFlow<ItemSummary?>(null)
     private val messageChannel = Channel<HomeMessage>(Channel.BUFFERED)
     private var prefetched = false
@@ -132,20 +137,37 @@ class HomeViewModel(
     /** Messages to show once (toasts). */
     val messages: Flow<HomeMessage> = messageChannel.receiveAsFlow()
 
-    val state: StateFlow<HomeState> = combine(
+    /** What the repositories hold, worked out once for [state] and [status]. */
+    private val loaded: SharedFlow<HomeLoad> = combine(
         flow { emitAll(sources.hubs.home()) },
         flow { emitAll(sources.libraries.libraries()) },
         flow { emitAll(sources.scans) }.map { it.isNotEmpty() }.distinctUntilChanged().onEach(::scanning),
         flow { emitAll(sources.session) }.map { it?.issuer.orEmpty() }.distinctUntilChanged(),
-        refreshing,
-    ) { hubs, libraries, scanning, origin, refreshing ->
-        homeState(hubs, libraries, scanning, origin, refreshing)
+    ) { hubs, libraries, scanning, origin ->
+        val state = homeState(hubs, libraries, scanning, origin)
+        HomeLoad(state, homeStatus(hubs, state))
     }
+        .flowOn(compute)
+        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(), replay = 1)
+
+    val state: StateFlow<HomeState> = loaded
+        .map { it.state }
+        // An answer the same as the one before (the server asked again on coming back) goes no further.
+        .distinctUntilChanged()
         .withHeroDetails()
         .distinctUntilChanged()
         .onEach(::prefetchContinueWatching)
         .flowOn(compute)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), HomeState.Loading)
+
+    /** Whether what [state] shows is the server's answer ([homeStatus]), for the offline notice. */
+    val status: StateFlow<Loadable<Unit>?> = loaded
+        .map { it.status }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), null)
+
+    /** A refresh someone asked for ([refresh]: pull to refresh, Retry) is running. */
+    val refreshing: StateFlow<Boolean> = pulled.asStateFlow()
 
     /** What the TV's info block shows: the item focus rests on, with its details once they are in. */
     val info: StateFlow<HomeInfo?> = focused
@@ -192,8 +214,8 @@ class HomeViewModel(
 
     /** Asks the server again for the rows and the libraries. */
     fun refresh() {
-        if (refreshing.value) return
-        refreshing.value = true
+        if (pulled.value) return
+        pulled.value = true
         viewModelScope.launch(compute) {
             try {
                 coroutineScope {
@@ -201,7 +223,7 @@ class HomeViewModel(
                     launch { sources.libraries.refresh() }
                 }
             } finally {
-                refreshing.value = false
+                pulled.value = false
             }
         }
     }
@@ -319,7 +341,6 @@ fun homeState(
     libraries: Loadable<List<Library>>,
     scanning: Boolean,
     origin: String,
-    refreshing: Boolean = false,
 ): HomeState {
     val libs = libraries.valueOrNull
     val value = hubs.valueOrNull
@@ -332,15 +353,26 @@ fun homeState(
         if (libs != null && libs.isEmpty()) return HomeState.NoLibraries
         return HomeState.Empty(scanning || libs.orEmpty().any { it.scanning })
     }
-    return HomeState.Ready(
-        origin = origin,
-        rows = rows,
-        hero = heroOf(rows)?.let { homeInfo(it, null) },
-        fresh = hubs is Loadable.Ready && hubs.fresh,
-        error = (hubs as? Loadable.Failed)?.error,
-        refreshing = refreshing,
-    )
+    return HomeState.Ready(origin = origin, rows = rows, hero = heroOf(rows)?.let { homeInfo(it, null) })
 }
+
+/**
+ * Whether [state], drawn from [hubs], is the server's answer, as the
+ * offline notice and banner want it: ready, from the server now or from
+ * what was saved; failed, the server not answering. `null` while there is
+ * nothing to tell: nothing shows yet, or no rows do.
+ */
+fun homeStatus(hubs: Loadable<Hubs>, state: HomeState): Loadable<Unit>? {
+    if (state !is HomeState.Ready && state !is HomeState.Failed) return null
+    return when (hubs) {
+        is Loadable.Ready -> Loadable.Ready(Unit, hubs.fresh)
+        is Loadable.Failed -> Loadable.Failed(hubs.error, Unit)
+        Loadable.Loading -> null
+    }
+}
+
+/** Home as the repositories hold it: what it shows, and whether that is the server's answer. */
+private data class HomeLoad(val state: HomeState, val status: Loadable<Unit>?)
 
 /** [url] as the API gave it ("/api/users/2/avatar?v=1") on the server at [origin]. */
 internal fun absolute(url: String, origin: String): String = when {
