@@ -230,7 +230,7 @@ private fun TvLibraryTab(
     val columns = tvGridColumns(kind)
 
     // A new sort or filter starts at the top.
-    val query = params.query().toString()
+    val query = remember(params) { params.query().toString() }
     var shownQuery by rememberSaveable { mutableStateOf(query) }
     LaunchedEffect(query) {
         if (shownQuery != query) {
@@ -331,8 +331,7 @@ private fun TvLibraryTab(
                 }
                 else -> {
                     // A tile its actions took out of the grid (watched, with Unwatched on): focus comes back to the one in its place.
-                    val tileKeys = remember(cells) { cells?.tiles?.mapTo(HashSet()) { "grid/${it.id}" }.orEmpty() }
-                    memory.settle { it in tileKeys }
+                    memory.settle { key -> gridTileId(key)?.let { id -> cells != null && cells.positionOf(id) >= 0 } == true }
                     TvPosterGrid(
                         total = cells?.total ?: SKELETONS,
                         tileAt = { cells?.get(it) },
@@ -439,6 +438,9 @@ private fun TvCollectionsTab(
         }
     }
 }
+
+/** The item id of a grid tile's focus key ("grid/<id>"); `null` for any other key. */
+private fun gridTileId(key: String): Long? = key.removePrefix("grid/").takeIf { it.length < key.length }?.toLongOrNull()
 
 /** Up out of this group goes to [target] (the tabs), not to whatever is geometrically nearest. */
 internal fun Modifier.upTo(target: FocusRequester): Modifier = focusProperties {

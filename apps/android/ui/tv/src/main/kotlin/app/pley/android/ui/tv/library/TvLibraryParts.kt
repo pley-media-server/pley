@@ -143,8 +143,7 @@ internal fun TvRecommendedTab(
             val collections = stringResource(R.string.tv_library_tab_collections)
             val seeAll = stringResource(R.string.tv_library_see_all)
             // A tile its actions took away (Remove from Continue Watching): focus comes back to its neighbour.
-            val tileKeys = remember(rows) { rows.flatMapTo(HashSet()) { row -> row.tiles.map { "${row.key}/${it.id}" } } }
-            memory.settle { it in tileKeys }
+            memory.settle { key -> hasTile(rows, key) }
             TvRowColumn(
                 modifier = modifier.fillMaxSize(),
                 headerY = RowsTop,
@@ -190,6 +189,15 @@ private fun standIn(rows: List<TileRow<ArtworkTileModel>>, rowKey: String, tileI
     if (beside != null) return "$rowKey/${beside.id}"
     val other = rows.getOrNull(at + 1) ?: rows.getOrNull(at - 1) ?: return null
     return other.tiles.firstOrNull()?.let { "${other.key}/${it.id}" }
+}
+
+/** Whether focus key [key] ("<row key>/<tile id>") is one of [rows]' tiles: looked up when asked, not a set made per answer. */
+private fun hasTile(rows: List<TileRow<ArtworkTileModel>>, key: String): Boolean {
+    val slash = key.lastIndexOf('/')
+    if (slash < 0) return false
+    val id = key.substring(slash + 1).toLongOrNull() ?: return false
+    val rowKey = key.substring(0, slash)
+    return rows.any { row -> row.key == rowKey && row.tiles.any { it.id == id } }
 }
 
 private val TileRow<ArtworkTileModel>.tileKind: TileKind
