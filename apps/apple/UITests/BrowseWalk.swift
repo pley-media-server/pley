@@ -53,7 +53,7 @@ extension Walk {
     /// The library `id`'s page: from the Libraries tab on iPhone, the sidebar on iPad.
     func openLibrary(_ id: Int, _ name: String) {
         if wide {
-            wait(element("shell.sidebar.library.\(id)"), "\(name) in the sidebar").tap()
+            sidebarRow("shell.sidebar.library.\(id)", "\(name) in the sidebar").tap()
         } else {
             let tab = app.tabBars.buttons["Libraries"]
             wait(tab, "the Libraries tab").tap()

@@ -176,10 +176,36 @@ struct Walk {
     @discardableResult
     func openSection(_ tab: String, sidebar: String) -> XCUIElement {
         let target = UIDevice.current.userInterfaceIdiom == .pad
-            ? wait(element(sidebar), "\(tab) in the sidebar")
+            ? sidebarRow(sidebar, "\(tab) in the sidebar")
             : wait(app.tabBars.buttons[tab], "the \(tab) tab")
         target.tap()
         return target
+    }
+
+    /// The sidebar's row `id`, scrolled to. At the accessibility text
+    /// sizes the sidebar runs past the screen, and its list makes only the
+    /// rows near what shows: it is dragged up, then down, until the row is
+    /// there.
+    func sidebarRow(_ id: String, _ what: String, timeout: Double = 20, file: StaticString = #filePath,
+                    line: UInt = #line) -> XCUIElement {
+        let row = element(id)
+        let anyRow = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH 'shell.sidebar.'")).firstMatch
+        let shown = row.waitForExistence(timeout: 3) || anyRow.waitForExistence(timeout: timeout)
+        if shown, !inReach(row) {
+            let window = app.windows.firstMatch
+            let x = anyRow.exists ? anyRow.frame.midX / max(window.frame.width, 1) : 0.1
+            let low = window.coordinate(withNormalizedOffset: CGVector(dx: x, dy: 0.7))
+            let high = window.coordinate(withNormalizedOffset: CGVector(dx: x, dy: 0.35))
+            for step in 0..<18 where !inReach(row) {
+                if step < 6 {
+                    low.press(forDuration: 0.05, thenDragTo: high)
+                } else {
+                    high.press(forDuration: 0.05, thenDragTo: low)
+                }
+            }
+        }
+        return wait(row, what, timeout: inReach(row) ? 1 : timeout, file: file, line: line)
     }
 
     /// Home again: the tab on iPhone, the sidebar's row on iPad and Mac.

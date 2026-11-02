@@ -15,7 +15,10 @@ extension Walk {
         seeHome(Admin.adminName)
         openLibrary(libraries["Music"] ?? 0, "Music")
         wait(titled("Test Artist"), "the artist in Music").tap()
-        wait(titled("Test Album"), "the artist's album").tap()
+        // At this size the album can be below the artist's picture and name.
+        let album = titled("Test Album")
+        _ = album.waitForExistence(timeout: 10)
+        scroll(to: album, "the artist's album").tap()
         reveal(button("album.play"), "the album's Play").tap()
         let mini = wait(element("music.mini"), "the mini player", timeout: 30)
         XCTAssertTrue(mini.isHittable, "the mini player can be reached")
