@@ -42,7 +42,8 @@ pley: Pley for LG TV (the simulator on a computer)
   --size <w>x<h>         the window's size (1280x720)
   --keys \"<script>\"      keys to press once the first page shows: up down left right ok back menu
                          info play pause playpause stop ff rew next prev chup chdown red green
-                         yellow blue 0-9, wait:<ms>, text:<chars>, point:<x>,<y> (dp), click
+                         yellow blue 0-9, hold:<key>:<ms>, wait:<ms>, text:<chars>,
+                         point:<x>,<y> (dp), click
   --screenshot <file>    after the keys, write the frame as PNG and leave
   --route <route>        open a page: home, item:12, library:3, search:<query>, settings:about…
   --reduced-motion       as Settings' Reduce motion

@@ -8,11 +8,17 @@ use pley_ui::InputEvent;
 const HOLD: f64 = 0.040;
 /// The pause after each scripted key or click, so each lands on a frame that drew the last.
 const GAP: f64 = 0.150;
+/// A held key's first repeat comes after this delay, then one every `REPEAT_EVERY`, as LG's
+/// remote repeats (crates/ui/src/input.rs).
+const REPEAT_DELAY: f64 = 0.400;
+const REPEAT_EVERY: f64 = 0.050;
 
 /// One step of a script.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Step {
     Key(Key),
+    /// Holds a key down this many seconds, repeating as a remote's held key does.
+    Hold(Key, f64),
     /// Waits this many seconds.
     Wait(f64),
     Text(String),
@@ -65,6 +71,11 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
             if let Some(ms) = w.strip_prefix("wait:") {
                 return ms.parse::<f64>().map(|ms| Step::Wait(ms / 1000.0)).map_err(|_| format!("bad wait: {w}"));
             }
+            if let Some(held) = w.strip_prefix("hold:") {
+                let (name, ms) = held.split_once(':').ok_or_else(|| format!("bad hold: {w}"))?;
+                let key = key(&name.to_ascii_lowercase()).ok_or_else(|| format!("unknown key: {w}"))?;
+                return ms.parse::<f64>().map(|ms| Step::Hold(key, ms / 1000.0)).map_err(|_| format!("bad hold: {w}"));
+            }
             if let Some(text) = w.strip_prefix("text:") {
                 return Ok(Step::Text(text.to_string()));
             }
@@ -93,24 +104,26 @@ pub struct Player {
     at: f64,
     /// A key down whose release is due.
     held: Option<Key>,
+    /// A key held down and repeating, released at the time given.
+    repeating: Option<(Key, f64)>,
 }
 
 impl Player {
     /// Plays `steps` from `start`.
     pub fn new(steps: Vec<Step>, start: f64) -> Player {
-        Player { steps, next: 0, at: start, held: None }
+        Player { steps, next: 0, at: start, held: None, repeating: None }
     }
 
     /// Starts playing at `t` (when it hasn't started yet).
     pub fn start_at(&mut self, t: f64) {
-        if self.next == 0 && self.held.is_none() {
+        if self.next == 0 && self.held.is_none() && self.repeating.is_none() {
             self.at = t;
         }
     }
 
     /// Whether every step was played.
     pub fn done(&self) -> bool {
-        self.held.is_none() && self.next >= self.steps.len()
+        self.held.is_none() && self.repeating.is_none() && self.next >= self.steps.len()
     }
 
     /// When it next has something to do.
@@ -128,6 +141,18 @@ impl Player {
                 // One frame between a key's release and what follows.
                 break;
             }
+            if let Some((k, until)) = self.repeating {
+                if self.at < until {
+                    out.push(InputEvent::Key(KeyEvent { key: k, pressed: true, repeat: true, code: 0 }));
+                    // Repeats keep the remote's beat, however late a frame came.
+                    self.at += REPEAT_EVERY;
+                } else {
+                    out.push(InputEvent::Key(KeyEvent { key: k, pressed: false, repeat: false, code: 0 }));
+                    self.repeating = None;
+                    self.at = now + GAP;
+                }
+                break;
+            }
             let step = self.steps[self.next].clone();
             self.next += 1;
             match step {
@@ -135,6 +160,12 @@ impl Player {
                     out.push(InputEvent::Key(KeyEvent { key: k, pressed: true, repeat: false, code: 0 }));
                     self.held = Some(k);
                     self.at = now + HOLD;
+                    break;
+                }
+                Step::Hold(k, s) => {
+                    out.push(InputEvent::Key(KeyEvent { key: k, pressed: true, repeat: false, code: 0 }));
+                    self.repeating = Some((k, now + s.max(HOLD)));
+                    self.at = now + REPEAT_DELAY.min(s.max(HOLD));
                     break;
                 }
                 Step::Wait(s) => self.at = now + s,
@@ -183,6 +214,36 @@ mod tests {
         );
         assert!(parse("jump").is_err());
         assert!(parse("wait:soon").is_err());
+        assert_eq!(parse("hold:down:2000").unwrap(), [Step::Hold(Key::Down, 2.0)]);
+        assert!(parse("hold:down").is_err());
+        assert!(parse("hold:jump:100").is_err());
+    }
+
+    #[test]
+    fn a_held_key_repeats_as_a_remote_does_then_lets_go() {
+        let key = |e: &[InputEvent]| match e {
+            [InputEvent::Key(k)] => Some((k.key, k.pressed, k.repeat)),
+            _ => None,
+        };
+        let mut p = Player::new(parse("hold:right:1020 ok").unwrap(), 0.0);
+        assert_eq!(key(&p.take(0.0)), Some((Key::Right, true, false)));
+        // Nothing until the first delay, then a repeat every 50 ms until it is let go.
+        assert!(p.take(REPEAT_DELAY - 0.01).is_empty());
+        let (mut repeats, mut t) = (0, REPEAT_DELAY - REPEAT_EVERY);
+        loop {
+            t += REPEAT_EVERY;
+            match key(&p.take(t + 0.001)) {
+                Some((Key::Right, true, true)) => repeats += 1,
+                Some((Key::Right, false, false)) => break,
+                other => panic!("{other:?} at {t}"),
+            }
+            assert!(t < 2.0);
+        }
+        assert_eq!(repeats, 13);
+        // The next step comes after the gap.
+        assert!(!p.done());
+        assert!(p.take(t + 0.01).is_empty());
+        assert_eq!(key(&p.take(t + 0.01 + GAP)), Some((Key::Ok, true, false)));
     }
 
     #[test]

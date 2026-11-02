@@ -434,7 +434,7 @@ but keeps time, seeks, changes speed, waits and ends as the TV's does.
 | `--data <dir>` | Keep the app's data here (by default `pley-lg-sim` in the temporary folder, or a new folder each run with `--fixtures`); the log is `logs/pley.log` in it |
 | `--size <w>x<h>` | The window's size (1280x720; `1920x1080` for the TV's) |
 | `--route <route>` | Open a page: `home`, `item:12`, `library:3`, `search:<query>`, `settings:about`… |
-| `--keys "<script>"` | Keys to press once the first page shows: `up down left right ok back menu info play pause playpause stop ff rew next prev chup chdown red green yellow blue`, digits, `wait:<ms>`, `text:<chars>`, `point:<x>,<y>` (dp), `click` |
+| `--keys "<script>"` | Keys to press once the first page shows: `up down left right ok back menu info play pause playpause stop ff rew next prev chup chdown red green yellow blue`, digits, `hold:<key>:<ms>` (held, repeating as the remote does), `wait:<ms>`, `text:<chars>`, `point:<x>,<y>` (dp), `click` |
 | `--screenshot <file>` | After the keys, write the frame as PNG and leave |
 | `--tier low\|mid\|high` | Act as a TV of that tier |
 | `--reduced-motion` | As Settings' Reduce motion |

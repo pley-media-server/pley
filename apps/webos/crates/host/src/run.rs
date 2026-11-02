@@ -62,31 +62,83 @@ fn gpu_budget(tier: Tier) -> usize {
     }
 }
 
+/// One frame's costs, for `--stats`.
+#[derive(Clone, Copy, Debug, Default)]
+struct FrameCost {
+    /// The display list's builds (one to three) and the time they took, in ms.
+    builds: usize,
+    build: f64,
+    /// The renderer's quads, then its GL calls, in ms.
+    batch: f64,
+    submit: f64,
+    draw_calls: usize,
+    quads: usize,
+    uploads: usize,
+    upload_bytes: usize,
+}
+
+impl FrameCost {
+    fn total(&self) -> f64 {
+        self.build + self.batch + self.submit
+    }
+}
+
 /// Frame times for `--stats`.
 #[derive(Debug, Default)]
 struct Stats {
     started: f64,
     first_frame: Option<f64>,
-    build: Vec<f64>,
-    render: Vec<f64>,
+    frames: Vec<FrameCost>,
 }
 
 impl Stats {
     fn report(&self) {
-        let ms = |v: &[f64]| {
-            if v.is_empty() {
+        let ms = |of: fn(&FrameCost) -> f64| {
+            if self.frames.is_empty() {
                 return "none".to_string();
             }
-            let mut s = v.to_vec();
+            let mut s: Vec<f64> = self.frames.iter().map(of).collect();
             s.sort_by(f64::total_cmp);
             let mean = s.iter().sum::<f64>() / s.len() as f64;
-            format!("mean {mean:.2} ms, p95 {:.2} ms, max {:.2} ms", s[s.len() * 95 / 100], s[s.len() - 1])
+            let at = |p: usize| s[(s.len() * p / 100).min(s.len() - 1)];
+            format!("mean {mean:.2} ms, p95 {:.2} ms, p99 {:.2} ms, max {:.2} ms", at(95), at(99), s[s.len() - 1])
         };
         match self.first_frame {
             Some(t) => println!("first frame after {:.0} ms", (t - self.started) * 1e3),
             None => println!("no frame drawn"),
         }
-        println!("{} frames; display list: {}; render: {}", self.build.len(), ms(&self.build), ms(&self.render));
+        println!(
+            "{} frames; display list: {}; render: {}",
+            self.frames.len(),
+            ms(|f| f.build),
+            ms(|f| f.batch + f.submit)
+        );
+        println!("  renderer's quads: {}; its GL calls: {}", ms(|f| f.batch), ms(|f| f.submit));
+        let most = |of: fn(&FrameCost) -> usize| self.frames.iter().map(of).max().unwrap_or(0);
+        let rebuilt = self.frames.iter().filter(|f| f.builds > 1).count();
+        println!(
+            "  built again in {rebuilt} frames; draw calls up to {}, quads up to {}; {} pictures uploaded, \
+             {} KiB at most in a frame",
+            most(|f| f.draw_calls),
+            most(|f| f.quads),
+            self.frames.iter().map(|f| f.uploads).sum::<usize>(),
+            most(|f| f.upload_bytes) / 1024
+        );
+        let mut slowest: Vec<(usize, &FrameCost)> = self.frames.iter().enumerate().collect();
+        slowest.sort_by(|a, b| b.1.total().total_cmp(&a.1.total()));
+        for (i, f) in slowest.into_iter().take(5) {
+            println!(
+                "  frame {i}: {:.2} ms: {} build(s) {:.2} ms, quads {:.2} ms, GL {:.2} ms, {} draws, {} uploads ({} KiB)",
+                f.total(),
+                f.builds,
+                f.build,
+                f.batch,
+                f.submit,
+                f.draw_calls,
+                f.uploads,
+                f.upload_bytes / 1024
+            );
+        }
     }
 }
 
@@ -250,12 +302,14 @@ pub fn run(
         let frame_input = FrameInput { time: now, events: input };
         let (mut out, mut changed) =
             build(&mut ui_state, &mut list, engine.as_ref(), &mut images, scale, frame_input, &mut shell, &mut state);
+        let mut builds = 1;
         // Focus settled after drawing, or a new page came on top: draw again before presenting, so
         // no frame shows without focus or with the page before.
         for _ in 0..2 {
             if !(out.redraw || changed) {
                 break;
             }
+            builds += 1;
             (out, changed) = build(
                 &mut ui_state,
                 &mut list,
@@ -271,8 +325,16 @@ pub fn run(
         let drawn = renderer.render(&list, &mut images);
         platform.set_pointer_visible(out.pointer_visible);
         if args.stats {
-            stats.build.push(built.as_secs_f64() * 1e3);
-            stats.render.push((drawn.build + drawn.submit).as_secs_f64() * 1e3);
+            stats.frames.push(FrameCost {
+                builds,
+                build: built.as_secs_f64() * 1e3,
+                batch: drawn.build.as_secs_f64() * 1e3,
+                submit: drawn.submit.as_secs_f64() * 1e3,
+                draw_calls: drawn.draw_calls,
+                quads: drawn.quads,
+                uploads: drawn.uploads,
+                upload_bytes: drawn.upload_bytes,
+            });
         }
         wake_at = out.wake_at;
         if drawn.more || waiting || images.has_uploads() {
