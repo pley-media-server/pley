@@ -54,9 +54,9 @@ import kotlinx.coroutines.launch
  * - **Controls hidden.** Only the video and subtitles show; Skip and Up
  *   Next are all that appear unasked. Centre shows the controls on the
  *   scrubber, as Up does (a showing Skip button or Keep watching takes it),
- *   Down on the track buttons. Left and Right show them on the scrubber
- *   too, with the preview, and seek from there. Centre on the scrubber
- *   plays or pauses.
+ *   Down on Play/Pause. Left and Right show them on the scrubber too, with
+ *   the preview, and seek from there. Centre on the scrubber plays or
+ *   pauses.
  * - **Seeking** ([TvSeeker]), as YouTube's TV app does: Left and Right
  *   move where it goes, 10 s a press (held: scrub), and it goes there on
  *   OK, or by itself 5 s after the last key; fast forward, rewind and the
@@ -151,7 +151,7 @@ internal fun TvPlayerScreen(
 
     fun focusFor(focus: ControlFocus): PlayerFocus = when (focus) {
         ControlFocus.Scrubber -> PlayerFocus.Scrubber
-        ControlFocus.Tracks -> if (state.value.subtitles.isNotEmpty()) PlayerFocus.Subtitles else PlayerFocus.Info
+        ControlFocus.PlayPause -> PlayerFocus.PlayPause
         ControlFocus.Default -> if (skipShown) PlayerFocus.Skip else PlayerFocus.Scrubber
     }
 

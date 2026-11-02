@@ -19,7 +19,7 @@ class TvPlayerKeysTest {
         assertEquals(PlayerKey.Step(-1), TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_LEFT, skipShowing = false))
         assertEquals(PlayerKey.Step(1), TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_RIGHT, skipShowing = true))
         assertEquals(PlayerKey.Show(ControlFocus.Scrubber), TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_UP, skipShowing = false))
-        assertEquals(PlayerKey.Show(ControlFocus.Tracks), TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_DOWN, skipShowing = false))
+        assertEquals(PlayerKey.Show(ControlFocus.PlayPause), TvPlayerKeys.hidden(KeyEvent.KEYCODE_DPAD_DOWN, skipShowing = false))
         assertEquals(PlayerKey.Show(ControlFocus.Default), TvPlayerKeys.hidden(KeyEvent.KEYCODE_MENU, skipShowing = false))
     }
 

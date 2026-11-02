@@ -108,6 +108,14 @@ class TvPlayerScreenTest {
 
     private fun focusedOn(tag: String) = compose.onNodeWithTag(tag, useUnmergedTree = true).assertIsFocused()
 
+    /** Down shows the controls on Play/Pause; Right goes on past Forward 10 and Next to Subtitles (then Audio, Info). */
+    private fun toSubtitles() {
+        press(Key.DirectionDown)
+        focusedOn(TAG_PLAY_PAUSE)
+        press(Key.DirectionRight, times = 3)
+        focusedOn(TAG_SUBTITLES)
+    }
+
     @Test
     fun `Centre with the controls hidden shows them on the scrubber, where it pauses and plays`() {
         val controller = playing()
@@ -280,7 +288,7 @@ class TvPlayerScreenTest {
     }
 
     @Test
-    fun `Up shows the controls on the scrubber, Down on the subtitles`() {
+    fun `Up shows the controls on the scrubber, Down on Play-Pause`() {
         val controller = playing()
         show(controller)
         press(Key.DirectionUp)
@@ -288,8 +296,12 @@ class TvPlayerScreenTest {
         press(Key.DirectionDown)
         focusedOn(TAG_PLAY_PAUSE)
         back()
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_SCRUBBER).assertDoesNotExist()
         press(Key.DirectionDown)
-        focusedOn(TAG_SUBTITLES)
+        focusedOn(TAG_PLAY_PAUSE)
+        assertTrue(controller.calls.isEmpty())
     }
 
     /** Media3's SubtitleViews on screen: text first, then pictures. */
@@ -352,7 +364,7 @@ class TvPlayerScreenTest {
             }
         }
         compose.waitForIdle()
-        press(Key.DirectionDown)
+        toSubtitles()
         press(Key.DirectionCenter)
         compose.onNodeWithTag(TAG_PANEL).assertExists()
         // Off, English (SRT), then Small, Normal and Large.
@@ -373,7 +385,7 @@ class TvPlayerScreenTest {
     fun `the Audio panel moves the sound in 50 ms steps above its tracks`() {
         val controller = playing()
         show(controller)
-        press(Key.DirectionDown)
+        toSubtitles()
         press(Key.DirectionRight)
         press(Key.DirectionCenter)
         compose.onNodeWithTag(TAG_PANEL).assertExists()
@@ -390,7 +402,7 @@ class TvPlayerScreenTest {
     fun `Back closes the panel, then hides the controls, then leaves`() {
         val controller = playing()
         show(controller)
-        press(Key.DirectionDown)
+        toSubtitles()
         press(Key.DirectionCenter)
         compose.onNodeWithTag(TAG_PANEL).assertExists()
         back()
@@ -411,7 +423,7 @@ class TvPlayerScreenTest {
     fun `the subtitles panel ticks the current track and chooses another`() {
         val controller = playing()
         show(controller)
-        press(Key.DirectionDown)
+        toSubtitles()
         press(Key.DirectionCenter)
         compose.onNodeWithText("English (SRT)").assertExists()
         press(Key.DirectionDown)
@@ -427,7 +439,7 @@ class TvPlayerScreenTest {
     fun `Info asks for the playback's details while it is open`() {
         val controller = playing()
         show(controller)
-        press(Key.DirectionDown)
+        toSubtitles()
         press(Key.DirectionRight, times = 2)
         focusedOn(TAG_INFO)
         press(Key.DirectionCenter)
@@ -610,7 +622,7 @@ class TvPlayerScreenTest {
             )
         }
         show(controller)
-        press(Key.DirectionDown)
+        toSubtitles()
         press(Key.DirectionRight, times = 2)
         press(Key.DirectionCenter)
         compose.onNodeWithTag(TAG_PANEL).assertExists()

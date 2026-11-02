@@ -42,8 +42,8 @@ internal enum class ControlFocus {
     Default,
     Scrubber,
 
-    /** The track buttons (Subtitles). */
-    Tracks,
+    /** Play/Pause, in the middle of the control row. */
+    PlayPause,
 }
 
 /**
@@ -81,7 +81,7 @@ internal object TvPlayerKeys {
         KeyEvent.KEYCODE_DPAD_LEFT -> PlayerKey.Step(-1)
         KeyEvent.KEYCODE_DPAD_RIGHT -> PlayerKey.Step(1)
         KeyEvent.KEYCODE_DPAD_UP -> PlayerKey.Show(ControlFocus.Scrubber)
-        KeyEvent.KEYCODE_DPAD_DOWN -> PlayerKey.Show(ControlFocus.Tracks)
+        KeyEvent.KEYCODE_DPAD_DOWN -> PlayerKey.Show(ControlFocus.PlayPause)
         in OTHER_SHOW -> PlayerKey.Show(ControlFocus.Default)
         else -> null
     }

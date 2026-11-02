@@ -23,6 +23,8 @@ describes how they are made.
   waiting. Fast forward, rewind and the row's 10 s skips seek as before.
 - On TVs, OK with the player's controls hidden shows them on the scrubber
   instead of pausing; OK there plays and pauses.
+- On TVs, Down with the player's controls hidden shows them on Play/Pause,
+  in the middle of the row, rather than on Subtitles.
 
 ### Fixed
 
