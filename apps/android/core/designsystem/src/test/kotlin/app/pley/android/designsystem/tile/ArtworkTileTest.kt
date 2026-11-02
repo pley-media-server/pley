@@ -19,11 +19,13 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.core.app.ApplicationProvider
 import app.pley.android.common.Tier
+import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.image.ArtworkInterceptor
 import app.pley.android.designsystem.image.ArtworkPolicy
 import app.pley.android.designsystem.image.LocalArtworkImageLoader
 import app.pley.android.designsystem.image.Placeholder
+import app.pley.android.designsystem.image.shownArtwork
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.UserState
@@ -34,6 +36,7 @@ import coil3.request.ErrorResult
 import coil3.test.FakeImage
 import coil3.test.FakeImageLoaderEngine
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -105,6 +108,47 @@ class ArtworkTileTest {
         }
         compose.waitForIdle()
         // Near the top left corner the 135° gradient is at its first colour.
+        assertNear(Placeholder.colors(model.title).first, pixel("tile", 14, 14))
+    }
+
+    @Test
+    fun aPictureShownBeforeWaitsInThePlainWell() {
+        val model = model(id = 5, title = "Saltwind")
+        // Its picture is on its way and doesn't come yet; it loaded once before.
+        val engine = FakeImageLoaderEngine.Builder().default { awaitCancellation() }.build()
+        val interceptor = ArtworkInterceptor(ArtworkPolicy(Tier.T0, 1920))
+        val loader = ImageLoader.Builder(context)
+            .components {
+                add(interceptor)
+                add(engine)
+            }
+            .memoryCache(null)
+            .diskCache(null)
+            .coroutineContext(Dispatchers.Unconfined)
+            .build()
+        loader.shownArtwork!!.add(model.image!!)
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkImageLoader provides loader) {
+                ArtworkTile(model, TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("tile"))
+            }
+        }
+        compose.waitForIdle()
+        // No title's gradient while it comes back: the well, as under the picture.
+        assertNear(PleyColors.Surface2, pixel("tile", 14, 14))
+        assertEquals(0, textLines(compose.onNodeWithTag("tile").captureToImage().toPixelMap()))
+    }
+
+    @Test
+    fun aPictureShownBeforeThatNoLongerLoadsHasItsGradient() {
+        val model = model(id = 6, title = "Driftline")
+        val loader = loader()
+        loader.shownArtwork!!.add(model.image!!)
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkImageLoader provides loader) {
+                ArtworkTile(model, TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("tile"))
+            }
+        }
+        compose.waitForIdle()
         assertNear(Placeholder.colors(model.title).first, pixel("tile", 14, 14))
     }
 

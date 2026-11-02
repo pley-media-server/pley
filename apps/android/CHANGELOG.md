@@ -17,6 +17,8 @@ describes how they are made.
 - On Android TV and Fire TV, a library's Genre and Year panels open with
   focus on the genre or year chosen, however far down the list it is,
   where focus was left behind the panel.
+- Pictures seen before come back at once when a page shows them again:
+  no title in their place while they load, and no fade.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
