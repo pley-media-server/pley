@@ -299,6 +299,7 @@ struct OfflineBanner: View {
             .background(.regularMaterial)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("offline.banner")
+            .task { announce(DownloadWords.offline) }
         }
     }
 }

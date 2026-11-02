@@ -184,6 +184,7 @@ private struct OfflineBanner: View {
                 .background(.regularMaterial, in: Capsule())
                 .padding(.bottom, 40)
                 .accessibilityIdentifier("offline.banner")
+                .task { AccessibilityNotification.Announcement(DownloadWords.offline).post() }
         }
     }
 }

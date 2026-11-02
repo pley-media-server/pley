@@ -36,16 +36,18 @@ struct ToastView: View {
         }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: shell.toast)
     }
+}
 
-    private func announce(_ text: String) {
-        #if os(iOS)
-        if #available(iOS 17, *) {
-            AccessibilityNotification.Announcement(text).post()
-        } else {
-            UIAccessibility.post(notification: .announcement, argument: text)
-        }
-        #else
+/// VoiceOver reads `text` out (a toast, the offline banner, a channel's trouble).
+@MainActor
+func announce(_ text: String) {
+    #if os(iOS)
+    if #available(iOS 17, *) {
         AccessibilityNotification.Announcement(text).post()
-        #endif
+    } else {
+        UIAccessibility.post(notification: .announcement, argument: text)
     }
+    #else
+    AccessibilityNotification.Announcement(text).post()
+    #endif
 }

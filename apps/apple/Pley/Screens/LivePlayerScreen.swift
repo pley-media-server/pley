@@ -281,6 +281,12 @@ struct TroubleView: View {
         .padding(24)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("live.trouble")
+        .task(id: spoken) { announce(spoken) }
+    }
+
+    /// What VoiceOver reads out as the trouble shows.
+    private var spoken: String {
+        "\(trouble.title(channel: model.channel?.name ?? "The channel")). \(trouble.message)"
     }
 }
 
