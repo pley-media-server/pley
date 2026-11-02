@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- A library's posters show 4K and the dynamic range (DV, HDR10) whatever
+  the sort, where they showed only when sorted by bitrate, and no longer a
+  lower resolution (1080p, 720p).
+
 ### Fixed
 
 - A profile that got a PIN after "Who's watching?" was loaded opens the

@@ -81,7 +81,7 @@ public class LibraryModelTests
         Assert.Equal(TileLook.Bitrate, model.State.Value.Grid.Look);
         var tile = Cells(model)[0]!;
         Assert.Equal("42 Mbps · 23.4 GB", tile.Subtitle);
-        Assert.Equal(new[] { "4K", "DV", "HEVC" }, tile.Badges);
+        Assert.Equal(new[] { "4K", "DV" }, tile.Badges);
         Assert.EndsWith(", 42 Mbps · 23.4 GB", tile.Description);
     }
 

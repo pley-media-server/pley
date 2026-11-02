@@ -272,7 +272,7 @@ public static class LibraryText
         return line.Length > 0 ? line : "Bitrate unknown";
     }
 
-    /// <summary>A listing's tile sorted by bitrate: resolution, dynamic range, codec ("4K", "DV", "HEVC").</summary>
+    /// <summary>A listing's tile sorted by bitrate: 4K and the dynamic range ("4K", "DV"), no other resolution and no codec.</summary>
     public static IReadOnlyList<string> MediaBadges(MediaSummary? media)
     {
         if (media == null) return Array.Empty<string>();
@@ -284,8 +284,8 @@ public static class LibraryText
             "hlg" => "HLG",
             _ => null,
         };
-        var codec = ItemFormat.CodecLabel(media.VideoCodec);
-        return new[] { ItemFormat.ResolutionLabel(media.Width, media.Height), range, codec.Length > 0 ? codec : null }
+        var resolution = ItemFormat.ResolutionLabel(media.Width, media.Height) == "4K" ? "4K" : null;
+        return new[] { resolution, range }
             .Where(b => b != null).Select(b => b!).ToList();
     }
 

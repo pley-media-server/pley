@@ -102,6 +102,16 @@ impl DynamicRange {
         !matches!(self, DynamicRange::Sdr)
     }
 
+    pub fn as_str(self) -> &'static str {
+        match self {
+            DynamicRange::Sdr => "sdr",
+            DynamicRange::Hdr10 => "hdr10",
+            DynamicRange::Hdr10plus => "hdr10plus",
+            DynamicRange::Hlg => "hlg",
+            DynamicRange::DolbyVision => "dolby_vision",
+        }
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             DynamicRange::Sdr => "SDR",
