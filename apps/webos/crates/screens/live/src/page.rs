@@ -720,13 +720,28 @@ impl Screen for LiveTvScreen {
         if std::mem::take(&mut self.typing) {
             return true;
         }
-        let clock = Clock::read(true);
-        let Some(pages) = self.pages.as_ref() else { return false };
-        let Some(programs) = self.programs.as_ref() else { return false };
-        let listed = self.listed();
-        let lineup = Lineup { pages, saved: self.saved.as_ref().and_then(|s| s.page.as_ref()) };
-        let data = GuideData { pages: lineup, programs, category: &listed, clock };
-        self.view == View::Guide && self.guide.back(&data)
+        let in_content = match self.view {
+            View::Guide => self.guide.focused,
+            View::Channels => self.cards.focused,
+        };
+        if self.view == View::Guide
+            && let (Some(pages), Some(programs)) = (self.pages.as_ref(), self.programs.as_ref())
+        {
+            let clock = Clock::read(true);
+            let listed = self.listed();
+            let lineup = Lineup { pages, saved: self.saved.as_ref().and_then(|s| s.page.as_ref()) };
+            let data = GuideData { pages: lineup, programs, category: &listed, clock };
+            if self.guide.back(&data) {
+                return true;
+            }
+        }
+        // From the guide or the cards, Back goes to the category shown first; only from the
+        // categories (or the tabs) does the shell take it to the rail (`LiveTvScreen.Back`).
+        if in_content {
+            self.to_category = true;
+            return true;
+        }
+        false
     }
 
     fn event(&mut self, event: &AppEvent, cx: &mut AppCx) {

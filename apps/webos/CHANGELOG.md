@@ -24,6 +24,12 @@ describes how they are made.
   on its page, and what is ready to watch popping up once.
 - Each frame takes less of the TV's processor to put its text and shapes
   together, leaving more room for scrolling and animations to stay smooth.
+- Live TV's guide moves through time as the Samsung app's does: on a
+  channel without programmes each Left or Right moves it a half hour, Left
+  goes back through a long programme before it leaves the guide, and a
+  held Left stops at the guide's start. Back in the guide or the channel
+  tiles goes to the categories before the rail, and Info on a tile opens
+  what's on.
 
 ### Fixed
 

@@ -1,10 +1,11 @@
 //! The channels as cards (`ChannelTiles`, `ChannelTileCard` in `TvLiveTvScreen.kt`): three across
 //! beside the categories, a page of channels loaded at a time as they come near. A card is the
 //! channel's logo in its well with its number at the top left, a star for a favourite and how far
-//! what's on is along its foot, captioned with its name and what's on. OK watches; holding OK or
-//! Menu opens the details; Left from the first column goes to the category shown.
+//! what's on is along its foot, captioned with its name and what's on. OK watches; holding OK,
+//! Menu or Info opens the details; Left from the first column goes to the category shown, on a
+//! press of its own rather than a held key.
 
-use pley_base::{Icon, Point, Rect};
+use pley_base::{Icon, Key, Point, Rect};
 use pley_core::model::LiveChannel;
 use pley_kit::{Badge, BadgeStyle, GridState, PosterGrid, Tile, TileKind, TileSlot};
 use pley_player::live::data::channel_name;
@@ -48,6 +49,8 @@ pub struct CardsOut {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Cards {
     pub grid: GridState,
+    /// Whether a card had focus last frame.
+    pub focused: bool,
 }
 
 impl Cards {
@@ -91,12 +94,16 @@ impl Cards {
             })
         });
         out.focused = r.focused.is_some();
+        self.focused = out.focused;
         out.wanted = (r.visible.0.saturating_sub(MARGIN), (r.visible.1 + MARGIN).min(len));
+        // Info, as it is let go, opens what's on as holding OK and Menu do.
+        let info = r.focused.filter(|_| ui.keys().iter().any(|k| k.key == Key::Info && !k.pressed));
         if let Some(c) = r.activated.and_then(|i| pages.at(i as i64)) {
             out.action = Some(CardAction::Watch(c.clone()));
-        } else if let Some(c) = r.actions.and_then(|i| pages.at(i as i64)) {
+        } else if let Some(c) = r.actions.or(info).and_then(|i| pages.at(i as i64)) {
             out.action = Some(CardAction::Details(c.clone()));
-        } else if ui.edge_hit(id) == Some(Dir::Left) {
+        } else if ui.edge_hit(id) == Some(Dir::Left) && !ui.holding() {
+            // Out to the categories on a press of its own, not under a held key.
             out.action = Some(CardAction::Leave);
         }
         out

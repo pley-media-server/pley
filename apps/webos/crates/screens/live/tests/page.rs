@@ -4,11 +4,12 @@
 mod common;
 
 use common::TestApp;
-use pley_base::Key;
+use pley_base::{Key, KeyEvent};
 use pley_core::Store;
 use pley_core::model::LiveCategory;
 use pley_fixtures::ids;
 use pley_shell::Route;
+use pley_ui::InputEvent;
 
 /// The app on Live TV, its guide drawn and focused.
 fn live() -> TestApp {
@@ -144,8 +145,53 @@ fn back_away_from_now_comes_back_to_now_before_leaving() {
     app.advance(0.4);
     assert_eq!(app.focused(), Some(app.id(&["guide"])));
     assert!(on_now(&app), "not back at now: {:?}", app.list.texts().collect::<Vec<_>>());
+    // At now, Back goes to the category shown, and only from there does it leave.
     app.press(Key::Back);
-    assert_ne!(app.route(), Some(&Route::LiveTv), "a second Back leaves");
+    assert_eq!(app.route(), Some(&Route::LiveTv), "a second Back left the page");
+    assert_eq!(app.focused(), Some(category_row(&app, 3)), "a second Back isn't on All channels");
+    app.press(Key::Back);
+    assert_ne!(app.focused(), Some(category_row(&app, 3)), "a third Back stayed on the categories");
+}
+
+#[test]
+fn a_held_left_stops_at_the_guides_start() {
+    let mut app = live();
+    let guide = app.id(&["guide"]);
+    app.press(Key::Right);
+    app.press(Key::Right);
+    // Left held: the guide goes back to its start and stays there however long it repeats.
+    app.frame(vec![InputEvent::Key(KeyEvent { key: Key::Left, pressed: true, repeat: false, code: 0 })]);
+    for _ in 0..40 {
+        app.time += 0.05;
+        app.frame(vec![InputEvent::Key(KeyEvent { key: Key::Left, pressed: true, repeat: true, code: 0 })]);
+    }
+    app.time += 0.05;
+    app.frame(vec![InputEvent::Key(KeyEvent { key: Key::Left, pressed: false, repeat: false, code: 0 })]);
+    assert_eq!(app.focused(), Some(guide), "a held Left ran out of the guide");
+    // A press of its own, a moment later, goes to the categories.
+    app.advance(0.6);
+    app.press(Key::Left);
+    assert_eq!(app.focused(), Some(category_row(&app, 3)));
+}
+
+#[test]
+fn info_on_a_card_and_back_from_the_cards_go_where_the_guide_does() {
+    let mut app = live();
+    app.press(Key::Up);
+    app.press(Key::Right);
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.shows("Voyage News")), "no cards");
+    app.press(Key::Down);
+    let card = app.focused();
+    app.press(Key::Info);
+    let watch = app.id(&["details", "content", "watch"]);
+    assert!(app.until(|a| a.focused() == Some(watch)), "Info didn't open what's on");
+    app.press(Key::Back);
+    app.advance(0.4);
+    assert_eq!(app.focused(), card, "focus isn't back on the card");
+    app.press(Key::Back);
+    assert_eq!(app.route(), Some(&Route::LiveTv), "Back from the cards left the page");
+    assert_eq!(app.focused(), Some(category_row(&app, 3)), "Back from the cards isn't on All channels");
 }
 
 #[test]

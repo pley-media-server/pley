@@ -2,8 +2,10 @@
 //! time across at 3.6 dp a minute (two hours in view), a time ruler, now marked by a line. The grid
 //! is one focusable area; focus is a programme the guide moves itself:
 //!
-//! - Left and Right go to the programme before and after, the grid following by half hours; Left
-//!   from the guide's first half hour (or on a channel without programmes) goes to the categories;
+//! - Left and Right go to the programme before and after, the grid following by half hours (on a
+//!   row with nothing in view, the grid moves a half hour at each press); Left from the guide's
+//!   first half hour goes to the categories, on a press of its own, not a held key nor one within
+//!   half a second of Left moving in the guide;
 //! - Up and Down keep the time and change channel, Up from the first row going to the tabs above;
 //!   CH+ and CH− move five rows;
 //! - OK on a programme on now (or a channel without one) watches the channel, on another opens its
@@ -54,6 +56,9 @@ pub const KEEP_TITLE: f32 = 90.0;
 pub const MARGIN: usize = 20;
 /// The page's right edge for the guide's content.
 const END: f32 = theme::CANVAS_W - theme::SAFE_X;
+/// A Left at the guide's start this soon after Left last moved within it stays (`EdgePauseMs`):
+/// taps in a row stop at the start rather than run out into the categories.
+pub const EDGE_PAUSE: f64 = 0.5;
 
 /// The half hour `t` is in.
 pub fn slot(t: i64) -> i64 {
@@ -120,25 +125,64 @@ impl Cursor {
         off || self.left != left_for(now, start)
     }
 
-    /// Left: the programme before. True when it leaves the guide instead (from its first half hour,
-    /// or a channel without programmes).
+    /// Left: the programme before. True when it leaves the guide instead, which it does only from
+    /// the guide's first half hour (`GuideCursor.MoveLeft`).
     pub fn step_left(&mut self, programs: Option<&[LiveProgram]>, start: i64) -> bool {
-        let target = at(programs, self.time).map_or(self.time - SLOT, |p| p.start - 1);
-        if target < start || programs.is_none_or(<[LiveProgram]>::is_empty) {
+        let current = at(programs, self.time);
+        if let Some(p) = current
+            && p.start <= start
+            && self.left > start
+        {
+            // The programme began with the guide or before it, and the view is scrolled on: the
+            // view goes back through it first, a screen at a time. Gone by the programme alone,
+            // Left took focus to the categories with the view still scrolled on, the time before
+            // it unseen.
+            self.left = start.max(slot(p.start)).max(self.left - (VIEW_S - SLOT));
+            self.time = p.start.max(start).max(self.left);
+            return false;
+        }
+        let target = current.map_or(self.time - SLOT, |p| p.start - 1);
+        if target < start {
             return true;
+        }
+        if current.is_none() && blank(programs, self.left, start) && self.left > start {
+            // Nothing in view (a channel without a guide): the view goes back a half hour with the
+            // cursor, as Right goes on. Left used to leave from wherever Right had gone, with no
+            // way back through the time.
+            self.left = start.max(self.left - SLOT);
+            self.time = self.left.max(slot(target));
+            return false;
         }
         let to = at(programs, target).map_or(slot(target), |p| p.start.max(slot(target)));
         self.move_to(to, start);
         false
     }
 
-    /// Right: the programme after, up to the guide's end.
+    /// Right: the programme after, or the next half hour; never past the guide's end.
     pub fn step_right(&mut self, programs: Option<&[LiveProgram]>, start: i64) {
-        let target = at(programs, self.time).map_or(slot(self.time) + SLOT, |p| p.stop);
-        if target < start + GUIDE_SPAN {
-            self.move_to(target, start);
+        let current = at(programs, self.time);
+        let target = current.map_or(slot(self.time) + SLOT, |p| p.stop);
+        let end = start + GUIDE_SPAN;
+        if target >= end {
+            return;
         }
+        let last_left = start.max(end - VIEW_S);
+        if current.is_none() && blank(programs, self.left, start) && self.left < last_left {
+            // Nothing in view: the view moves on a half hour with the cursor at each press. Moved
+            // alone, the cursor went unseen until it neared the edge, and Right seemed to take two
+            // presses where Left took one.
+            self.left = last_left.min(self.left + SLOT);
+            self.time = self.left.max(target);
+            return;
+        }
+        self.move_to(target, start);
     }
+}
+
+/// Whether a row has no programme near the view at `left` (a channel without a guide, or one
+/// still loading): a cursor moving alone there would move unseen.
+fn blank(programs: Option<&[LiveProgram]>, left: i64, start: i64) -> bool {
+    between(programs, (left - VIEW_S).max(start), left + 2 * VIEW_S).next().is_none()
 }
 
 /// What the guide asks of the page.
@@ -170,6 +214,8 @@ pub struct Guide {
     snap: bool,
     /// Whether the area had focus last frame.
     pub focused: bool,
+    /// When Left last moved within the guide (the frame's time, in seconds).
+    left_moved_at: f64,
 }
 
 /// What the guide shows this frame.
@@ -202,6 +248,7 @@ impl Guide {
             jumps: 0,
             snap: true,
             focused: false,
+            left_moved_at: f64::NEG_INFINITY,
         }
     }
 
@@ -265,7 +312,12 @@ impl Guide {
                 let row_programs = programs(data.pages.at(self.cursor.row as i64));
                 match k.key {
                     Key::Left => {
-                        if channel.is_none() || self.cursor.step_left(row_programs, self.start) {
+                        if channel.is_some() && !self.cursor.step_left(row_programs, self.start) {
+                            self.left_moved_at = ui.time();
+                        } else if !k.repeat && ui.time() - self.left_moved_at >= EDGE_PAUSE {
+                            // Out to the categories on a press of its own: not under a held key,
+                            // nor straight after Left went back through the programmes, so taps in
+                            // a row stop at the guide's start.
                             out.action = Some(GuideAction::Leave);
                         }
                     }
@@ -642,11 +694,14 @@ mod tests {
         assert_eq!(c.time, start + 1800);
         assert_eq!(at(programs, c.time), Some(&list[0]));
         assert_eq!(c.left, start + 1800);
-        assert!(c.step_left(programs, start), "from the guide's first programme Left leaves");
+        // The first programme began with the guide, the view scrolled on: Left shows its start.
+        assert!(!c.step_left(programs, start));
+        assert_eq!((c.time, c.left), (start, start));
+        assert!(c.step_left(programs, start), "from the guide's start Left leaves");
     }
 
     #[test]
-    fn gaps_are_crossed_by_half_hours_and_programmeless_rows_leave() {
+    fn gaps_are_crossed_by_half_hours() {
         let start = guide_start(NOW);
         let list = vec![p(start, start + 1800), p(start + 5400, start + 7200)];
         let programs = Some(list.as_slice());
@@ -657,8 +712,62 @@ mod tests {
         assert_eq!(c.time, start + 3600);
         c.step_right(programs, start);
         assert_eq!(c.time, start + 5400);
-        assert!(c.step_left(None, start));
-        assert!(c.step_left(Some(&[]), start));
+    }
+
+    #[test]
+    fn a_channel_without_programmes_moves_through_time_by_half_hours_both_ways() {
+        let start = guide_start(NOW);
+        for programs in [None, Some(&[][..])] {
+            let mut c = Cursor::new(NOW, start);
+            c.step_right(programs, start);
+            assert_eq!(c.time, slot(NOW) + SLOT);
+            // Left comes back the way Right went, rather than leave the guide from there, and goes
+            // on to the guide's first half hour; only from there does it leave for the categories.
+            assert!(!c.step_left(programs, start));
+            assert_eq!(c.time, slot(NOW));
+            while !c.step_left(programs, start) {
+                assert!(c.time >= start);
+            }
+            assert_eq!(slot(c.time), start);
+        }
+    }
+
+    #[test]
+    fn on_a_channel_without_programmes_each_press_moves_the_view_a_half_hour() {
+        let start = guide_start(NOW);
+        let mut c = Cursor::new(NOW, start);
+        let left = c.left;
+        c.step_right(None, start);
+        assert_eq!(c.left, left + SLOT);
+        c.step_right(None, start);
+        assert_eq!(c.left, left + 2 * SLOT);
+        assert!(c.time >= c.left && c.time < c.left + VIEW_S, "the cursor stays in view");
+        assert!(!c.step_left(None, start));
+        assert_eq!(c.left, left + SLOT);
+    }
+
+    #[test]
+    fn left_goes_back_through_a_long_programme_before_it_leaves_the_guide() {
+        let start = guide_start(NOW);
+        // A five-hour programme from the guide's start, then another.
+        let list = vec![p(start, start + 18_000), p(start + 18_000, start + 21_600)];
+        let programs = Some(list.as_slice());
+        let mut c = Cursor::new(NOW, start);
+        c.step_right(programs, start);
+        assert_eq!(at(programs, c.time), Some(&list[1]));
+        assert!(c.left > start);
+        assert!(!c.step_left(programs, start));
+        assert_eq!(at(programs, c.time), Some(&list[0]));
+        // Back through the long programme a screen at a time, the view with it, to the guide's start.
+        let mut lefts = Vec::new();
+        while c.left > start {
+            assert!(!c.step_left(programs, start));
+            assert_eq!(at(programs, c.time), Some(&list[0]));
+            lefts.push(c.left);
+        }
+        assert!(lefts.len() >= 2, "{lefts:?}");
+        // Only from there does Left leave for the categories.
+        assert!(c.step_left(programs, start));
     }
 
     #[test]
