@@ -486,6 +486,8 @@ keep a release's.
   26.
 - **No folder that survives a restart** on some older sets: there the
   sign-in lasts until the TV restarts.
+- **No subtitle upload or delete:** the TV has no files to send, so
+  subtitles are searched for and downloaded only.
 
 ## References
 
