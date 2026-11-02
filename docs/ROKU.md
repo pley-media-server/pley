@@ -36,7 +36,8 @@ signs in with a code shown on the TV, approved on the server's `/link` page
 or by its QR code. When the server requires two-step sign-in, the sign-in
 screen says so: the phone that approves the code sets it up for whoever
 hasn't yet. It asks "Who's watching?" at start when the household has more
-than one profile.
+than one profile, and the PIN of the profile it was left on when that
+profile has one, as the other TVs do.
 
 ### Remote keys
 

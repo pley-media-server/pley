@@ -5,8 +5,10 @@
 
 ' The profiles as tiles: [{ title, subtitle, image, color, initial, itemId,
 ' needs, current }]. needs: what switching to it takes ("none", "pin",
-' "password", "locked").
-function profTiles(profiles as dynamic, server as string) as object
+' "password", "locked"). me (profMe), when known, says which is current:
+' the server says switching to that one needs nothing, and it shows "PIN"
+' when it has one, which a start asks.
+function profTiles(profiles as dynamic, server as string, me = invalid as dynamic) as object
     tiles = []
     for each profile in httpArray(profiles)
         if GetInterface(profile, "ifAssociativeArray") <> invalid and httpNumber(profile.id, 0) > 0
@@ -25,7 +27,44 @@ function profTiles(profiles as dynamic, server as string) as object
             })
         end if
     end for
+    if me = invalid then return tiles
+    listed = false
+    for each tile in tiles
+        if tile.itemId = me.id then listed = true
+    end for
+    if not listed then return tiles
+    for each tile in tiles
+        tile.current = tile.itemId = me.id
+        if tile.current
+            tile.needs = "none"
+            if me.hasPin then tile.needs = "pin"
+            tile.subtitle = profNeedsLabel(tile.needs)
+        end if
+    end for
     return tiles
+end function
+
+' Who the app is (GET /api/auth/me), as "Who's watching?" needs it:
+' { id, hasPin }, or invalid without an id.
+function profMe(data as dynamic) as dynamic
+    me = httpObject(data)
+    if me = invalid or httpNumber(me.id, 0) <= 0 then return invalid
+    return { id: httpNumber(me.id, 0), hasPin: httpTrue(me.has_pin) }
+end function
+
+' What choosing a tile leads to, as on the other TVs: "confirm" (the PIN of
+' the profile signed in, checked with the switch-profile grant), "done",
+' "switch", "pin", "approve" (signing in to it with a code) or "locked".
+' atStart: going on as a profile with a PIN asks it then.
+function profChoice(tile as object, me as dynamic, atStart as boolean) as string
+    if tile.current
+        if atStart and me <> invalid and me.id = tile.itemId and me.hasPin then return "confirm"
+        return "done"
+    end if
+    if tile.needs = "none" then return "switch"
+    if tile.needs = "pin" then return "pin"
+    if tile.needs = "password" then return "approve"
+    return "locked"
 end function
 
 ' What a profile asks for under its name.

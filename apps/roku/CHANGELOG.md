@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- "Who's watching?" as the app starts asks the PIN of the profile it was
+  left on when that profile has one, as on the other TVs, and shows "PIN"
+  under it.
+
 ## [0.1.1] - 2026-11-01
 
 ### Added
