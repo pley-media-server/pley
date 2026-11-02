@@ -170,10 +170,13 @@ are set up in the web app's Settings → Live TV ([API.md](API.md#live-tv)).
   allows it (`can_take_over`). A connection taken from you shows the
   server's `410` message.
 
-On Android the player reads the channel's MPEG-TS (`stream.ts`) at once
-while it asks for the session's `plan`: a channel the server sends as it is
-plays that MPEG-TS from its first keyframe; anything else plays the
-server's HLS. Leaving the player ends the session. When the player fails,
+On Android the player reads the channel's MPEG-TS (`stream.ts`) as it
+asks for the channel (`POST …/watch`), the server tuning for whichever
+comes first, then asks for the session's `plan`: a channel the server sends
+as it is plays that MPEG-TS from its first keyframe; anything else plays
+the server's HLS. Taking over a connection, it reads `stream.ts` only once
+the watch has answered, as only the watch takes the connection. Leaving
+the player ends the session. When the player fails,
 the channel is tuned again twice, after 1 s and then 3 s, before the player
 says why; not when the server refused it (every connection in use, the
 channel stopped, gone or not allowed). Try again starts the count again.

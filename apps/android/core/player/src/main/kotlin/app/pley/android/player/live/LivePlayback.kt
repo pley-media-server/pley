@@ -24,6 +24,7 @@ import app.pley.android.player.session.clientIdOf
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -138,8 +139,10 @@ data class LiveState(
  * - [tune] asks the server for the channel with this device's
  *   [clientId], which ends what it watched before (zapping never holds
  *   two of the provider's connections), lets the previous session go, and
- *   reads the channel's `stream.ts` (MPEG-TS as the provider sends it)
- *   while it asks what the channel is made into: sent as it is
+ *   reads the channel's `stream.ts` (MPEG-TS as the provider sends it) as
+ *   it asks, the server tuning for whichever comes first (after it, when
+ *   a connection is taken over, which only the watch does), then asks what
+ *   the channel is made into: sent as it is
  *   ([app.pley.android.model.LivePlan.direct]), that plays from its first keyframe rather than
  *   after the first HLS segments (as the web's); otherwise, or when it
  *   fails, the answer's HLS from the live edge, on the app's Media3 engine;
@@ -202,31 +205,33 @@ class LivePlayback(
         }
         mutableState.value = LiveState(channelId = channelId, phase = LivePhase.Tuning)
         tuning = scope.launch {
-            val watching = try {
-                live.watch(channelId, clientId(), takeOver)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
+            val asked = async {
+                try {
+                    Result.success(live.watch(channelId, clientId(), takeOver))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+            }
+            // As the web's: stream.ts is read at once, under an id of its own (so it doesn't end the HLS
+            // session the plan is asked of), and played once the plan says the channel is sent as it is.
+            // As Samsung's, it is asked for with the channel rather than once the server answered: a
+            // round trip sooner. After the answer when a connection is taken over: only the watch takes it.
+            var stream = if (allowDirect && takeOver == null) readStream(channelId) else null
+            val watching = asked.await().getOrElse { e ->
                 fail(LiveTrouble.of(e))
                 return@launch
             }
             session = watching.sessionId
-            val engine = mutableEngine.value ?: engines().also {
-                it.player.addListener(listener)
-                mutableEngine.value = it
-            }
             val hls = EngineSource(url = watching.url, hls = true, live = true)
-            // As the web's: stream.ts is read at once, under an id of its own (so it doesn't end the HLS
-            // session the plan is asked of), and played once the plan says the channel is sent as it is.
-            val stream = if (allowDirect) quietly { live.streamUrl(channelId, clientId() + STREAM_CLIENT) } else null
+            if (allowDirect && takeOver != null) stream = readStream(channelId)
             if (stream == null) {
                 direct = false
-                engine.prepare(hls, startMs = 0, playWhenReady = true)
+                engine().prepare(hls, startMs = 0, playWhenReady = true)
                 return@launch
             }
-            direct = true
-            holding = true
-            engine.prepare(EngineSource(url = stream, hls = false, mimeType = MimeTypes.VIDEO_MP2T, live = true), startMs = 0, playWhenReady = false)
+            val engine = engine()
             val plan = quietly { live.plan(watching.sessionId) }
             holding = false
             if (plan?.direct == true) {
@@ -238,6 +243,21 @@ class LivePlayback(
                 engine.prepare(hls, startMs = 0, playWhenReady = true)
             }
         }
+    }
+
+    /** The engine, made (and listened to) on the first tune. */
+    private fun engine(): PlayerEngine = mutableEngine.value ?: engines().also {
+        it.player.addListener(listener)
+        mutableEngine.value = it
+    }
+
+    /** [channelId]'s `stream.ts`, read and held until the plan says it plays; `null` when it has no address. */
+    private suspend fun readStream(channelId: Long): String? {
+        val stream = quietly { live.streamUrl(channelId, clientId() + STREAM_CLIENT) } ?: return null
+        direct = true
+        holding = true
+        engine().prepare(EngineSource(url = stream, hls = false, mimeType = MimeTypes.VIDEO_MP2T, live = true), startMs = 0, playWhenReady = false)
+        return stream
     }
 
     /**

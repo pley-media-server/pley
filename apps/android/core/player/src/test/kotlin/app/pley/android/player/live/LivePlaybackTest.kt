@@ -3,6 +3,7 @@ package app.pley.android.player.live
 import android.os.Looper
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.HttpDataSource
@@ -134,7 +135,9 @@ class LivePlaybackTest {
         assertEquals(LiveTrouble.Kind.Busy, failed.trouble.kind)
         assertEquals(message, failed.trouble.message)
         assertTrue(failed.trouble.canRetry)
-        assertTrue("nothing was prepared", engines.isEmpty())
+        // The stream.ts read as the channel was asked for stops; no HLS was asked for.
+        assertEquals(Player.STATE_IDLE, engine().player.playbackState)
+        assertEquals(0, engine().prepared.count { it.source.hls })
 
         live.watchFails = null
         playback.retry()
@@ -158,6 +161,20 @@ class LivePlaybackTest {
         assertEquals("watch 1 android-1 taking 2", live.sent.last())
         // Taken over from here later, the server's sentence says who took it, as it is.
         assertEquals("Bob started watching Film Four on this connection.", LiveTrouble.of(ApiException(410, "gone", "Bob started watching Film Four on this connection.")).message)
+    }
+
+    @Test
+    fun `stream ts is read as the channel is asked for, and after the answer when a connection is taken over`() {
+        live.watchFails = ApiException(409, "conflict", "In use.")
+        playback.tune(1)
+        settle()
+        // Read before the server refused the channel: the server tunes for whichever comes first.
+        assertEquals(listOf("http://127.0.0.1:7539/api/live/channels/1/stream.ts?client_id=android-1-stream"), engine().prepared.map { it.source.url })
+        playback.retry(takeOver = 2)
+        settle()
+        // Only the watch takes a connection over: nothing more read before it answered.
+        assertEquals(1, engine().prepared.size)
+        assertEquals("watch 1 android-1 taking 2", live.sent.last())
     }
 
     @Test

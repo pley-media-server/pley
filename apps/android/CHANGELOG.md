@@ -20,6 +20,9 @@ describes how they are made.
 - A live channel whose player fails is tuned again twice, after 1 s and
   then 3 s, before the player says why, as on Samsung TVs; not when the
   server refused it.
+- Live channels start a round trip sooner: the player reads the
+  channel's stream as it asks the server for the channel, rather than once
+  the server has answered, as on Samsung TVs.
 - The TV live player's channel list moves as the app's other lists do
   under a held key: at an even pace, without asking for every logo it
   passes, its focused row a third of the way down.
