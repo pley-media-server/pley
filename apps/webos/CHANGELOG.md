@@ -17,6 +17,15 @@ describes how they are made.
   Discover row after the libraries' results, which says why when TMDB
   doesn't answer, with Retry.
 
+### Fixed
+
+- A profile that got a PIN after "Who's watching?" was loaded opens the
+  PIN pad, and one whose PIN is locked or asked too often says so on it,
+  as on Android TV; a refusal of another profile's switch no longer goes
+  on as the profile in use.
+- "Who's watching?" as the app starts asks the PIN of the profile it was
+  left on when that profile has one, as on Android TV, and shows its lock.
+
 ## [0.1.1] - 2026-11-01
 
 ### Added

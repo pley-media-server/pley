@@ -162,10 +162,13 @@ class Profiles(private val api: OkHttpClient, private val tokens: Tokens) {
     companion object {
         const val PATH = "/api/oauth/profiles"
 
-        /** A refused switch in a few words, by the server's reason. */
+        /**
+         * A refused switch in a few words, by the server's reason. Throttled,
+         * the server's own sentence says how long to wait.
+         */
         fun message(error: OAuthError?): String = when (error?.reason) {
             "wrong_pin" -> "wrong PIN"
-            "throttled" -> "too many wrong PINs: try again in a few minutes"
+            "throttled" -> error.description ?: "too many wrong PINs: try again in a few minutes"
             "pin_locked" ->
                 "this profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it"
             "browser" -> "this profile needs its password: sign in again to use it"

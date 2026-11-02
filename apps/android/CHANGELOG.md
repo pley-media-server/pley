@@ -17,6 +17,11 @@ describes how they are made.
   Discover row after the libraries' results, which says why when TMDB
   can't be searched, with Retry.
 
+### Fixed
+
+- Too many wrong PINs for the profile a TV starts as say how long to wait,
+  as a switch does, rather than "a few minutes".
+
 ## [0.1.2] - 2026-11-01
 
 ### Changed

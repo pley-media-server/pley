@@ -67,12 +67,15 @@ const PAD = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "back", "0", "ok"] as 
 function PinPad({
   target,
   busy,
+  locked,
   error,
   onSubmit,
   onCancel,
 }: {
   target: User;
   busy: boolean;
+  /** The PIN is locked after too many wrong ones: the keys stop. */
+  locked: boolean;
   error: string | null;
   /** Called with the PIN once it has at least 4 digits. */
   onSubmit: (pin: string) => void;
@@ -89,14 +92,14 @@ function PinPad({
 
   const press = useCallback(
     (key: (typeof PAD)[number]) => {
-      if (busy) return;
+      if (busy || locked) return;
       const current = pinRef.current;
       if (key === "back") setPin(current.slice(0, -1));
       else if (key === "ok") {
         if (current.length >= 4) onSubmit(current);
       } else if (current.length < 8) setPin(current + key);
     },
-    [busy, onSubmit, setPin],
+    [busy, locked, onSubmit, setPin],
   );
 
   useEffect(() => {
@@ -135,7 +138,7 @@ function PinPad({
           <button
             key={key}
             type="button"
-            disabled={busy || (key === "ok" && pin.length < 4)}
+            disabled={busy || locked || (key === "ok" && pin.length < 4)}
             onClick={() => press(key)}
             aria-label={key === "back" ? "Delete digit" : key === "ok" ? "Switch" : key}
             className={cn(
@@ -248,6 +251,7 @@ export function ProfilesPage() {
   const [target, setTarget] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [failures, setFailures] = useState(0);
+  const [pinLocked, setPinLocked] = useState(false);
   const [settingUp, setSettingUp] = useState<SettingUp | null>(null);
 
   const doSwitch = (user: User, secret: { pin?: string; password?: string; code?: string; setup_id?: string } = {}) => {
@@ -269,8 +273,15 @@ export function ProfilesPage() {
             if (secret.code) setError(errorMessage(err));
             return;
           }
+          // A profile that has a PIN since the list was loaded: its pad.
+          if (isApiError(err) && err.code === "wrong_pin" && !secret.pin) {
+            void profiles.refetch();
+            setTarget({ ...user, has_pin: true });
+            return;
+          }
           setError(switchError(err));
           setFailures((n) => n + 1);
+          if (isApiError(err) && err.code === "pin_locked") setPinLocked(true);
         },
       },
     );
@@ -280,6 +291,7 @@ export function ProfilesPage() {
     const needs = challenge(user, me, server.data);
     if (user.id === me.id) return navigate(next, { replace: true });
     setError(null);
+    setPinLocked(false);
     if (needs === "locked") setError(`${user.name} can see more than your profile: an administrator can give it a PIN to switch to it.`);
     else if (needs === "none") doSwitch(user);
     else setTarget(user);
@@ -289,6 +301,7 @@ export function ProfilesPage() {
     setTarget(null);
     setSettingUp(null);
     setError(null);
+    setPinLocked(false);
   };
 
   const list = profiles.data ?? [];
@@ -339,6 +352,7 @@ export function ProfilesPage() {
             key={failures}
             target={target}
             busy={switchProfile.isPending}
+            locked={pinLocked}
             error={error}
             onSubmit={(pin) => doSwitch(target, { pin })}
             onCancel={cancel}
@@ -383,7 +397,7 @@ export function ProfilesPage() {
                         )}
                       >
                         <Avatar user={p} size="xl" />
-                        {p.has_pin && p.id !== me.id ? (
+                        {p.has_pin ? (
                           <span className="absolute bottom-1 right-1 flex size-7 items-center justify-center rounded-full bg-bg text-muted shadow">
                             <Lock className="size-3.5" />
                           </span>

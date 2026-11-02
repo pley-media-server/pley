@@ -80,10 +80,11 @@ class ConfirmPinTest {
         val (profiles, tokens) = profiles()
         for ((reason, message) in listOf(
             "wrong_pin" to "wrong PIN",
-            "throttled" to "too many wrong PINs: try again in a few minutes",
+            // The server's own sentence says how long to wait, as for a switch.
+            "throttled" to "too many attempts, try again in 12 min",
             "pin_locked" to "this profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it",
         )) {
-            answer = refusal("invalid_grant", "no", reason)
+            answer = refusal("invalid_grant", if (reason == "throttled") message else "no", reason)
             assertEquals(PinCheck.Failed(message), profiles.confirmPin(kid, "0000"))
             assertEquals("pley_rt_one", store.load(issuer)!!.refreshToken)
             assertTrue(tokens.signedIn.value)

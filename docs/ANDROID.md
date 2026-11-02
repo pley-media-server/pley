@@ -42,6 +42,18 @@ sign-in, the sign-in screen says so, and whoever hasn't set it up yet does
 it on that page as they sign in (for a code, on the device that approves
 it).
 
+### Profiles
+
+A TV asks "Who's watching?" as it starts when the household has more than
+one profile, unless Settings' Always start as names one; Switch profile
+opens it at any time, on phones too. A profile with a PIN shows a lock and
+asks it on a number pad: a wrong one clears the dots, too many say how
+long to wait, and a PIN locked after 100 wrong ones in a row stops the
+pad. Going on as the profile a TV was left on asks its PIN at a start. A
+profile that can see more and has no PIN takes its password: a phone signs
+in again in the browser, and a TV shows a code to approve on a phone,
+where its owner picks it.
+
 ### TVs and Fire TV
 
 - Select opens, holding Select or Menu (☰) opens a title's actions, Back

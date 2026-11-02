@@ -543,7 +543,9 @@ screen is made, which takes the UI thread half a second the first time.
   from the subtitle plane to the screen.
 - The Core's tests also run the fixtures in `packages/tv/test/fixtures`,
   inputs with the answers `packages/tv` gives, so the two Samsung apps
-  answer the same questions the same way. Where the Android app is
+  answer the same questions the same way: `profiles.json` pins "Who's
+  watching?", which profile is current and locked, what choosing one
+  leads to, and where each refusal of a PIN leaves the screen. Where the Android app is
   stricter (a token answer without `token_type`, a device code without
   `expires_in`), the native app follows it, and its test says which
   fixture case it answers differently.

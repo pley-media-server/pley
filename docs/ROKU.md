@@ -36,7 +36,13 @@ signs in with a code shown on the TV, approved on the server's `/link` page
 or by its QR code. When the server requires two-step sign-in, the sign-in
 screen says so: the phone that approves the code sets it up for whoever
 hasn't yet. It asks "Who's watching?" at start when the household has more
-than one profile, unless Settings' Always start as names one.
+than one profile, unless Settings' Always start as names one. Going on
+there as the profile it was left on asks that profile's PIN when it has
+one, as on the other TVs. A PIN is typed on Roku's own PIN pad: a wrong
+one, or too many, asks again saying why; a PIN locked after too many wrong
+tries is said on the screen, since Roku's pad can't be dimmed. A profile
+that needs its password is signed in to with a code, choosing it in the
+browser.
 
 ### Remote keys
 

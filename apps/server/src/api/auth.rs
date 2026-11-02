@@ -517,9 +517,11 @@ impl From<SwitchError> for AppError {
         match err {
             SwitchError::NotFound => AppError::not_found("profile not found"),
             SwitchError::NotAllowed => AppError::forbidden(NOT_ALLOWED),
-            SwitchError::PinLocked => AppError::forbidden(PIN_LOCKED),
-            SwitchError::PinNeeded => AppError::forbidden(PIN_NEEDED),
-            SwitchError::WrongPin => AppError::forbidden("wrong PIN"),
+            // Told apart by their codes, as the apps' switch tells them by
+            // its reasons: a pad that asks again, or one that stops.
+            SwitchError::PinLocked => AppError::ForbiddenAs("pin_locked", PIN_LOCKED.to_owned()),
+            SwitchError::PinNeeded => AppError::ForbiddenAs("wrong_pin", PIN_NEEDED.to_owned()),
+            SwitchError::WrongPin => AppError::ForbiddenAs("wrong_pin", "wrong PIN".to_owned()),
             SwitchError::NoWayIn => AppError::forbidden(NO_WAY_IN),
             SwitchError::PasswordNeeded => {
                 AppError::forbidden("this profile can see more than yours: it needs its password")

@@ -701,10 +701,12 @@ async fn profiles_switch_with_pins() {
         .as_i64()
         .unwrap();
 
+    // Missing or wrong, the PIN is asked again: the code says so.
     let no_pin = app.post("/api/auth/switch", &admin, json!({"user_id": kid_id})).await;
-    assert_eq!(no_pin.status, StatusCode::FORBIDDEN);
+    assert_eq!((no_pin.status, &no_pin.body["code"]), (StatusCode::FORBIDDEN, &json!("wrong_pin")));
     let wrong = app.post("/api/auth/switch", &admin, json!({"user_id": kid_id, "pin": "9999"})).await;
-    assert_eq!(wrong.status, StatusCode::FORBIDDEN);
+    assert_eq!((wrong.status, &wrong.body["code"]), (StatusCode::FORBIDDEN, &json!("wrong_pin")));
+    assert_eq!(wrong.body["message"], "wrong PIN");
     let ok = app.post("/api/auth/switch", &admin, json!({"user_id": kid_id, "pin": "1234"})).await;
     assert_eq!(ok.status, StatusCode::OK, "{:?}", ok.body);
     let kid = ok.body["token"].as_str().unwrap().to_owned();

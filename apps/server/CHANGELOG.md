@@ -17,6 +17,11 @@ describes how they are made.
 
 ### Changed
 
+- The web app's PIN pad stops once a profile's PIN is locked after too
+  many wrong tries, as the other apps' pads do; a profile that got a PIN
+  after the list was loaded asks it; and the profile in use shows its lock.
+  `POST /api/auth/switch` answers a refused PIN with `code` `wrong_pin` or
+  `pin_locked`.
 - A library's posters in the web app show 4K and the dynamic range (DV,
   HDR10) whatever the sort, where they showed only when sorted by bitrate,
   and no longer the codec (H.264, HEVC) or a lower resolution (1080p,

@@ -48,7 +48,12 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
   so under its notes. Someone who doesn't use it yet sets it up on the
   phone or computer where they approve the code.
 - In a household of more than one profile, Kodi asks "Who's watching?" each
-  time it starts. A PIN is typed in Kodi's number dialog and never kept.
+  time it starts, and the PIN of the profile it was left on when that
+  profile has one, as the other TVs do; a profile with a PIN shows a lock.
+  A PIN is typed in Kodi's number dialog and never kept. A wrong one, or
+  too many, asks again with the reason in the dialog's heading, the only
+  line the dialog has; a PIN locked after too many wrong tries is said on
+  the screen.
 - The same server found at another address must be signed in to again,
   since anything on the network can answer the broadcast.
 - Switch profile, Sign out and Choose a server are in the profile's menu

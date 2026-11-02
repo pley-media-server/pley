@@ -14,6 +14,13 @@ describes how they are made.
   under Discover after the libraries' results, and says when TMDB isn't
   answering or refuses, with Try again where it helps.
 
+### Fixed
+
+- A wrong PIN, or too many, asks again with the reason in the dialog's
+  heading, and the profile in use shows its lock on "Who's watching?".
+  Switch profile in the settings asks the PIN of a profile that got one
+  after the list was loaded.
+
 ## [0.1.1] - 2026-11-01
 
 ### Added

@@ -7,7 +7,7 @@ from unittest import mock
 
 import support
 import xbmcgui
-from pley import kodi, plugin, signin
+from pley import api, kodi, plugin, profiles, signin
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\0" * 16
 STATUS = {"name": "Den", "version": "1.0.0", "two_step_required": True}
@@ -41,6 +41,56 @@ class QrTest(unittest.TestCase):
         self.assertEqual(self.server.requests, [])
         self.assertEqual(os.listdir(self.root), ["temp"])
         self.assertEqual(os.listdir(self.temp), [])
+
+
+class SwitchProfileTest(unittest.TestCase):
+    """Switch profile, in the add-on's settings: Kodi's list and its number
+    dialog, with the PINs asked as on "Who's watching?"."""
+
+    def test_pins_are_asked_as_on_whos_watching(self):
+        household = [{"id": 1, "name": "Anna", "current": True, "needs": "none"}, {"id": 2, "name": "Ben", "needs": "none"}]
+
+        class Client:
+            def get(self, path):
+                return household if path == "/api/oauth/profiles" else {"id": 1, "has_pin": True}
+
+        # Ben took nothing when the list was made and has a PIN since; then
+        # a wrong one, then the right one.
+        refusals = [api.ApiError(400, "wrong_pin", "this profile is protected by a PIN"), api.ApiError(400, "wrong_pin", "wrong PIN")]
+        asked, shown, headings, typed = [], [], [], ["9999", "1234"]
+
+        def switch(client, profile_id, pin=None):
+            asked.append((profile_id, pin))
+            if refusals:
+                raise refusals.pop(0)
+
+        class Dialog:
+            def select(self, heading, entries, preselect=-1, useDetails=False):
+                shown.append([(e.label, e.label2) for e in entries])
+                return 1
+
+            def numeric(self, kind, heading, defaultt="", hidden=False):
+                headings.append(heading)
+                return typed.pop(0)
+
+        self.addCleanup(kodi.clear_property, profiles.GATE)
+        for patch in (
+            mock.patch.object(plugin.Plugin, "client", return_value=Client()),
+            mock.patch.object(plugin.Plugin, "notify_service"),
+            mock.patch.object(plugin.Plugin, "server_name", return_value="Den"),
+            mock.patch.object(profiles, "switch", switch),
+            mock.patch.object(plugin.xbmcgui, "Dialog", Dialog),
+        ):
+            patch.start()
+            self.addCleanup(patch.stop)
+        with mock.patch.object(kodi, "notify") as told:
+            plugin.Plugin(["plugin://plugin.video.pley/", "-1", "?route=profiles"]).route_profiles()
+        # The one in use says it has a PIN, as its lock does on "Who's watching?".
+        self.assertEqual(shown, [[("Anna", kodi.text("pin")), ("Ben", "")]])
+        heading = kodi.text("pin_of") % "Ben"
+        self.assertEqual(headings, [heading, kodi.text("wrong_pin") + " " + heading])
+        self.assertEqual(asked, [(2, None), (2, "9999"), (2, "1234")])
+        told.assert_called_with(kodi.text("watching_as") % "Ben")
 
 
 class TwoStepTest(unittest.TestCase):

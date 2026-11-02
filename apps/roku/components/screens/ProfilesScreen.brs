@@ -11,10 +11,15 @@ sub init()
     m.buttons = m.top.findNode("buttons")
     m.started = false
     m.list = []
+    ' Who the app is (profMe), and the answers load waits for.
+    m.me = invalid
+    m.answers = {}
     ' The profile a PIN is being typed for, and the dialog.
     m.picked = invalid
     m.dialog = invalid
     m.busy = false
+    ' A PIN went with the switch under way.
+    m.sentPin = false
     m.profiles.observeField("itemSelected", "onPicked")
     m.buttons.observeField("buttonSelected", "onButton")
     m.top.observeField("active", "onActive")
@@ -43,11 +48,28 @@ sub load()
         return
     end if
     showMessage("Loading…", [])
+    m.answers = {}
     uiGet("/api/oauth/profiles", "onProfiles")
+    ' Who the app is, for the PIN of the profile signed in; alongside the
+    ' list.
+    uiGet("/api/auth/me", "onMe")
 end sub
 
 sub onProfiles(event as object)
-    answer = event.getData()
+    m.answers.profiles = event.getData()
+    if m.answers.DoesExist("me") then showProfiles()
+end sub
+
+sub onMe(event as object)
+    m.answers.me = event.getData()
+    if m.answers.DoesExist("profiles") then showProfiles()
+end sub
+
+sub showProfiles()
+    answer = m.answers.profiles
+    ' Without who the app is, a start can't tell whether to ask its PIN:
+    ' that is tried again too.
+    if answer.ok and not m.answers.me.ok then answer = m.answers.me
     if not answer.ok
         if answer.error = "signed_out" then return
         message = answer.message
@@ -55,7 +77,8 @@ sub onProfiles(event as object)
         showMessage(message, ["Try again", "Sign in again"])
         return
     end if
-    m.list = profTiles(answer.data, m.global.session.server)
+    m.me = profMe(m.answers.me.data)
+    m.list = profTiles(answer.data, m.global.session.server, m.me)
     profKeepHousehold(CreateObject("roRegistrySection", "household"), m.global.session.server, answer.data)
     if m.list.Count() = 0
         showMessage("No profiles to choose from.", ["Try again", "Sign in again"])
@@ -93,18 +116,14 @@ sub onPicked(event as object)
     if m.busy then return
     profile = m.list[event.getData()]
     m.message.text = ""
-    if profile.current
-        ' At a start, the PIN of the profile signed in is asked too.
-        if profile.needs = "pin" and not m.top.getScene().profileChosen
-            askPin(profile, "")
-        else
-            done()
-        end if
-    else if profile.needs = "none"
+    choice = profChoice(profile, m.me, not m.top.getScene().profileChosen)
+    if choice = "done"
+        done()
+    else if choice = "switch"
         switchTo(profile, "")
-    else if profile.needs = "pin"
+    else if choice = "confirm" or choice = "pin"
         askPin(profile, "")
-    else if profile.needs = "password"
+    else if choice = "approve"
         askSignIn(profile)
     else
         m.message.text = "This profile can't be used from the app."
@@ -161,6 +180,7 @@ end sub
 sub switchTo(profile as object, pin as string)
     m.busy = true
     m.picked = profile
+    m.sentPin = pin <> ""
     m.message.text = "Switching to " + profile.title + "…"
     uiRequest({ op: "switchProfile", profile: profile.itemId, pin: pin }, "onSwitched")
 end sub
@@ -179,7 +199,12 @@ sub onSwitched(event as object)
     end if
     m.message.text = ""
     if answer.error = "signed_out" then return
-    if answer.error = "wrong_pin"
+    if answer.error = "wrong_pin" and not m.sentPin
+        ' The list was older than the profile's PIN: it is asked for.
+        askPin(m.picked, "")
+    else if answer.error = "wrong_pin" or answer.error = "throttled"
+        ' The pad again, saying why: a wrong PIN, or how long to wait. A
+        ' locked one says so on the screen, as the pad can't be dimmed.
         askPin(m.picked, answer.message)
     else if answer.error = "browser"
         askSignIn(m.picked)
