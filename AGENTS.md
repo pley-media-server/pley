@@ -123,7 +123,7 @@ They go in `docs/QUESTIONS.md` or `docs/*.local.md`, which git ignores.
   user sees it: `server: Live TV starts at the last keyframe`, `web: …`,
   `kodi, roku: …`, `docs: …`. The body is short and to the point: why, and
   anything a reviewer should know, not a retelling of the diff. No
-  `Co-Authored-By` trailer and no "Generated with …" line.
+  "Generated with …" line.
 - Never commit build output (`target/`, `dist/`), keys, `.env` files, local
   data, or files git ignores.
 
