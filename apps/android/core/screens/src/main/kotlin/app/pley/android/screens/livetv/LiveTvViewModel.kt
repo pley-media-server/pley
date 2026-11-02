@@ -150,7 +150,7 @@ class LiveTvViewModel(private val deps: LiveTvDeps, private val saved: SavedStat
     /** The category listed: every channel while searching. */
     private val listed: Flow<LiveCategory> = combine(category, query) { c, q -> if (q.isBlank()) c else LiveCategory.All }.distinctUntilChanged()
 
-    private val paging = ChannelPaging(deps.live, listed, query, viewModelScope)
+    private val paging = ChannelPaging(deps.live, listed, query, viewModelScope, deps.clock)
 
     /** The chosen category's channels, as far as they are loaded. */
     val channels: StateFlow<ChannelPages> = paging.pages

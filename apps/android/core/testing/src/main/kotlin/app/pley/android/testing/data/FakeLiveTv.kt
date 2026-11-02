@@ -14,6 +14,8 @@ import app.pley.android.testing.Fixtures
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
 /**
@@ -22,7 +24,7 @@ import kotlinx.coroutines.flow.map
  * server pages it ([LiveTvRepository.PAGE]), guide chunks the test sets
  * ([guides]), and what was sent, in order ([sent]: "watch 1 android-1",
  * "leave live-1", "favorite 2 false", "guide 0 [1, 2]", "refresh"…).
- * [watchFails] makes watching refuse.
+ * [watchFails] makes watching refuse, [failingPages] pages fail.
  */
 class FakeLiveTv : LiveTvRepository {
     private val pageSize = LiveTvRepository.PAGE
@@ -51,6 +53,12 @@ class FakeLiveTv : LiveTvRepository {
     /** The sessions whose plan was asked for, in order. */
     val plansAsked = mutableListOf<String>()
 
+    /** Pages, by number, that fail when asked for, until taken out. */
+    val failingPages = HashMap<Int, Exception>()
+
+    /** The pages asked for, by number, in order: each time a page's flow is collected, as the cache asks for one it lacks. */
+    val pagesAsked = mutableListOf<Int>()
+
     fun guideChunk(from: Long): MutableStateFlow<Loadable<LiveGuide>> = guides.getOrPut(from) { MutableStateFlow(Loadable.Loading) }
 
     private fun list(category: LiveCategory, query: String): Flow<List<LiveChannel>> = combine(lineup, recent) { all, recentIds ->
@@ -68,10 +76,19 @@ class FakeLiveTv : LiveTvRepository {
 
     override fun groups(): Flow<Loadable<LiveGroups>> = groups
 
-    override fun page(category: LiveCategory, query: String, page: Int): Flow<Loadable<LiveChannelPage>> =
-        list(category, query).map { all ->
-            Loadable.Ready(LiveChannelPage(all.size, page * pageSize, all.drop(page * pageSize).take(pageSize)), fresh = true)
+    override fun page(category: LiveCategory, query: String, page: Int): Flow<Loadable<LiveChannelPage>> = flow {
+        pagesAsked += page
+        val fails = failingPages[page]
+        if (fails != null) {
+            emit(Loadable.Failed(fails))
+        } else {
+            emitAll(
+                list(category, query).map { all ->
+                    Loadable.Ready(LiveChannelPage(all.size, page * pageSize, all.drop(page * pageSize).take(pageSize)), fresh = true)
+                },
+            )
         }
+    }
 
     override fun around(category: LiveCategory, channelId: Long): Flow<Loadable<LiveChannelPage>> =
         list(category, "").map { all ->

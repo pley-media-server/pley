@@ -29,6 +29,9 @@ describes how they are made.
 
 ### Fixed
 
+- A page of Live TV channels that didn't load is asked for again once
+  10 s have passed, as the list moves, where its rows stayed blank until
+  another category was chosen.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was

@@ -137,7 +137,7 @@ class LivePlayerViewModel(
     /** A channel number being typed. */
     val digits: StateFlow<ChannelDigits> = mutableDigits.asStateFlow()
 
-    private val panel = ChannelPaging(deps.live, listed, mutableListQuery, viewModelScope)
+    private val panel = ChannelPaging(deps.live, listed, mutableListQuery, viewModelScope, deps.clock)
 
     /** [listed]'s channels for the channel list (those its search finds), as far as they are loaded. */
     val list: StateFlow<ChannelPages> = panel.pages

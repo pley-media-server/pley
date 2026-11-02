@@ -127,6 +127,29 @@ class LiveTvViewModelTest {
     }
 
     @Test
+    fun `a page that failed is asked for again once 10 s have passed, as the list moves`() = liveTest {
+        live.failingPages[1] = ApiException(503, "unavailable", "Busy.")
+        val vm = page()
+        vm.showingRows(150, 160)
+        runCurrent()
+        assertNull(vm.channels.value[150])
+        val asked = live.pagesAsked.count { it == 1 }
+        live.failingPages.remove(1)
+        // Moving on within 10 s: not yet.
+        clock += ChannelPaging.RETRY_MS / 2
+        vm.showingRows(151, 161)
+        runCurrent()
+        assertEquals(asked, live.pagesAsked.count { it == 1 })
+        assertNull(vm.channels.value[150])
+        // Once they have passed, as the list moves: asked for again, and in.
+        clock += ChannelPaging.RETRY_MS / 2
+        vm.showingRows(152, 162)
+        runCurrent()
+        assertEquals(asked + 1, live.pagesAsked.count { it == 1 })
+        assertEquals(1148L, vm.channels.value[150]?.id)
+    }
+
+    @Test
     fun `a search looks among every channel, names the groups it matches, and ends with a category chosen`() = liveTest {
         val vm = page()
         vm.setCategory(LiveCategory.Group("News"))
