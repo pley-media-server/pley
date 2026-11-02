@@ -327,12 +327,14 @@ data class PickerSeason(val season: DiscoverSeason, val askable: Boolean)
 /**
  * The season picker ("Which seasons?"): every season, specials last;
  * [picked] the ones ticked. More than [left] ticked disables the button
- * and shows the allowance line.
+ * and shows the allowance line. [start] is the season it was opened at
+ * (a season's poster, on TVs), where focus starts.
  */
 data class SeasonPicker(
     val seasons: List<PickerSeason>,
     val picked: Set<Int>,
     val left: Int?,
+    val start: Int? = null,
 ) {
     val count: Int get() = picked.size
 
@@ -355,14 +357,16 @@ data class SeasonPicker(
         /**
          * [detail]'s seasons: those askable and missing or partly here
          * (not the specials) are ticked lowest first, up to [left];
-         * unaired seasons and specials are offered unticked.
+         * unaired seasons and specials are offered unticked. Opened at
+         * [start], that season is ticked too when it may be asked for.
          */
-        fun of(detail: DiscoverDetail, left: Int?): SeasonPicker {
+        fun of(detail: DiscoverDetail, left: Int?, start: Int? = null): SeasonPicker {
             val all = detail.seasons.orEmpty().sortedWith(compareBy<DiscoverSeason> { it.number == 0 }.thenBy { it.number })
             val rows = all.map { PickerSeason(it, askable(it, detail)) }
             val wanted = rows.filter { it.askable && wanted(it.season) }.map { it.season.number }
             val picked = if (left == null) wanted else wanted.take(left.coerceAtLeast(0))
-            return SeasonPicker(rows, picked.toSet(), left)
+            val chosen = start?.takeIf { n -> rows.any { it.askable && it.season.number == n } }
+            return SeasonPicker(rows, picked.toSet() + listOfNotNull(chosen), left, start)
         }
     }
 }

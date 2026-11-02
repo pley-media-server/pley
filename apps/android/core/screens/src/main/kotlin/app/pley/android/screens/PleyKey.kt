@@ -94,6 +94,10 @@ sealed interface PleyKey : NavKey {
     @Serializable
     data class DiscoverResults(val query: String) : PleyKey
 
+    /** Every title of one of Discover's lists (a row's See all, on TVs). */
+    @Serializable
+    data class DiscoverList(val list: app.pley.android.model.DiscoverList) : PleyKey
+
     /** A movie or show found on TMDB; [pick] opens its season picker once the page shows (Request more seasons). */
     @Serializable
     data class DiscoverTitle(val kind: TitleKind, val tmdbId: Long, val pick: Boolean = false) : PleyKey

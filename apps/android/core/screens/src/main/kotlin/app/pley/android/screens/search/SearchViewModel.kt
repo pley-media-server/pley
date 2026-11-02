@@ -54,8 +54,9 @@ import kotlinx.coroutines.launch
 
 /**
  * What search reads: the server's answers, recent searches, the server's
- * address for pictures, and [requests] for what TMDB has beside them;
- * [launcher] plays a Live TV channel found.
+ * address for pictures, and [requests] for what TMDB has beside them,
+ * [tmdbShown] of its titles at most (a TV's Discover row holds more than a
+ * phone's); [launcher] plays a Live TV channel found.
  */
 class SearchDeps(
     val search: SearchRepository,
@@ -63,10 +64,11 @@ class SearchDeps(
     val compute: CoroutineDispatcher = Dispatchers.Default,
     val launcher: PlayerLauncher? = null,
     val requests: RequestsRepository = RequestsRepository.None,
+    val tmdbShown: Int = SearchViewModel.TMDB_SHOWN,
 ) {
     companion object {
-        fun of(graph: ScreensGraph): SearchDeps =
-            SearchDeps(graph.data.search, graph.data.servers.active, launcher = graph.playerLauncher, requests = graph.data.requests)
+        fun of(graph: ScreensGraph, tmdbShown: Int = SearchViewModel.TMDB_SHOWN): SearchDeps =
+            SearchDeps(graph.data.search, graph.data.servers.active, launcher = graph.playerLauncher, requests = graph.data.requests, tmdbShown = tmdbShown)
     }
 }
 
@@ -245,7 +247,7 @@ class SearchViewModel<T : Any>(
         try {
             do {
                 pages = pages.with(deps.requests.search(q, pages.page + 1, missing = true))
-            } while (pages.short(TMDB_SHOWN) && ++read < TMDB_PAGES)
+            } while (pages.short(deps.tmdbShown) && ++read < TMDB_PAGES)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -255,7 +257,7 @@ class SearchViewModel<T : Any>(
                 return@flow
             }
         }
-        var titles = pages.titles.take(TMDB_SHOWN)
+        var titles = pages.titles.take(deps.tmdbShown)
         if (titles.isEmpty()) {
             emit(TmdbSection.Hidden)
             return@flow
@@ -404,7 +406,7 @@ class SearchViewModel<T : Any>(
         /** How long the results keep being followed after the page stops showing. */
         const val STOP_AFTER_MS = 5_000L
 
-        /** How many of TMDB's titles the Discover row shows; its See all has the rest. */
+        /** How many of TMDB's titles a phone's Discover row shows; its See all has the rest. */
         const val TMDB_SHOWN = 12
 
         /** The most of TMDB's pages the Discover row reads for them. */

@@ -63,7 +63,7 @@ sealed interface TitleUiState {
 }
 
 /**
- * A title found on TMDB, on phones and tablets: its details, its one main
+ * A title found on TMDB: its details, its one main
  * action, its seasons with their states, and the season picker; the
  * requests for it (this account's and those it follows; everyone's for
  * managers) with their actions. While it shows, the page reads itself
@@ -176,7 +176,7 @@ class DiscoverTitleViewModel(
     private fun refreshed(open: SeasonPicker, detail: DiscoverDetail, summary: RequestSummary?): SeasonPicker {
         val fresh = SeasonPicker.of(detail, Allowance.of(detail, summary).seasonsLeft)
         val askable = fresh.seasons.filter { it.askable }.mapTo(HashSet()) { it.season.number }
-        return fresh.copy(picked = open.picked.filterTo(HashSet()) { it in askable })
+        return fresh.copy(picked = open.picked.filterTo(HashSet()) { it in askable }, start = open.start)
     }
 
     private fun shown(): TitleUiState.Ready? = state.value as? TitleUiState.Ready
@@ -199,10 +199,10 @@ class DiscoverTitleViewModel(
         }
     }
 
-    /** Request more seasons: the picker. */
-    fun openPicker() {
+    /** Request more seasons: the picker; opened from a season's poster ([start], on TVs), that season ticked too. */
+    fun openPicker(start: Int? = null) {
         val page = shown() ?: return
-        _picker.value = SeasonPicker.of(page.detail, page.allowance.seasonsLeft)
+        _picker.value = SeasonPicker.of(page.detail, page.allowance.seasonsLeft, start)
     }
 
     fun toggle(season: Int) {
