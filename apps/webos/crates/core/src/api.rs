@@ -259,6 +259,90 @@ impl Api {
         self.get_query("/api/search", &[("q", Some(q.to_string())), ("limit", Some(limit.to_string()))])
     }
 
+    // Requests and Discover (docs/API.md, "Requests").
+
+    /// What requests are for this sign-in: on or off, what asking does, the limits and the counts.
+    pub fn request_summary(&self) -> Result<RequestSummary, ApiError> {
+        self.get("/api/requests/summary")
+    }
+
+    /// One page of a Discover list.
+    pub fn discover(&self, list: DiscoverList, page: i64) -> Result<DiscoverPage, ApiError> {
+        self.get_query(&format!("/api/discover/{}", list.as_str()), &[("page", Some(page.to_string()))])
+    }
+
+    /// TMDB's movies and shows for `q`; `missing`: without those a library has whole.
+    pub fn discover_search(&self, q: &str, page: i64, missing: bool) -> Result<DiscoverPage, ApiError> {
+        self.get_query(
+            "/api/discover/search",
+            &[
+                ("q", Some(q.to_string())),
+                ("page", Some(page.to_string())),
+                ("missing", missing.then(|| "1".to_string())),
+            ],
+        )
+    }
+
+    /// A movie's or show's page; TMDB numbers the two separately, so `kind` is the one it came with.
+    pub fn discover_title(&self, kind: TitleKind, tmdb_id: i64) -> Result<DiscoverDetail, ApiError> {
+        self.get(&format!("/api/discover/{}/{tmdb_id}", kind.as_str()))
+    }
+
+    /// A library title's place in requests: its status, the request for it, the seasons left to ask for.
+    pub fn item_request(&self, id: i64) -> Result<ItemRequest, ApiError> {
+        self.get(&id_path("/api/items/{id}/request", id))
+    }
+
+    /// Requests, as `query` picks them.
+    pub fn requests(&self, query: &RequestQuery) -> Result<RequestList, ApiError> {
+        self.get_query("/api/requests", &query.params())
+    }
+
+    /// One request.
+    pub fn media_request(&self, id: i64) -> Result<MediaRequest, ApiError> {
+        self.get(&id_path("/api/requests/{id}", id))
+    }
+
+    /// Asks for a title (or follows the request someone made for it); the request, and whether
+    /// it is new (`201`). The server may take a while to reach TMDB.
+    pub fn ask_for(&self, body: &NewRequest) -> Result<(MediaRequest, bool), ApiError> {
+        let req = self.request(Method::Post, "/api/requests").json(body).timeout(Duration::from_secs(30));
+        let answer = self.send(req)?;
+        let created = answer.status == 201;
+        Ok((answer.decode()?, created))
+    }
+
+    /// Withdraws this profile's own request (or removes a declined one); a manager's deletes anyone's.
+    pub fn delete_request(&self, id: i64) -> Result<(), ApiError> {
+        self.act(Method::Delete, &id_path("/api/requests/{id}", id))
+    }
+
+    /// Stops following someone else's request.
+    pub fn unwatch_request(&self, id: i64) -> Result<(), ApiError> {
+        self.act(Method::Delete, &id_path("/api/requests/{id}/watch", id))
+    }
+
+    /// Your requests was seen: its news is no longer new, on this profile's other devices too.
+    pub fn mark_requests_seen(&self) -> Result<(), ApiError> {
+        self.act(Method::Post, "/api/requests/seen")
+    }
+
+    /// Managers: approves (or tries again) with the settings' choices; the request as it is now.
+    pub fn approve_request(&self, id: i64) -> Result<MediaRequest, ApiError> {
+        self.send(self.request(Method::Post, &id_path("/api/requests/{id}/approve", id)))?.decode()
+    }
+
+    /// Managers: declines, with what its maker reads as the reason, if any.
+    pub fn decline_request(&self, id: i64, reason: Option<&str>) -> Result<MediaRequest, ApiError> {
+        let body = DeclineBody { reason: reason.map(str::trim).filter(|r| !r.is_empty()).map(str::to_string) };
+        self.json(Method::Post, &id_path("/api/requests/{id}/decline", id), &body)
+    }
+
+    /// Managers: approved without sending it anywhere, as added to the library by hand.
+    pub fn mark_request_handled(&self, id: i64) -> Result<MediaRequest, ApiError> {
+        self.send(self.request(Method::Post, &id_path("/api/requests/{id}/handled", id)))?.decode()
+    }
+
     // Playlists.
 
     /// The profile's playlists, by title.

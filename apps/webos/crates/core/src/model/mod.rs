@@ -22,6 +22,7 @@ mod library;
 mod live;
 mod oauth;
 mod playback;
+mod requests;
 
 pub use account::*;
 pub use caps::*;
@@ -32,6 +33,7 @@ pub use library::*;
 pub use live::*;
 pub use oauth::*;
 pub use playback::*;
+pub use requests::*;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};

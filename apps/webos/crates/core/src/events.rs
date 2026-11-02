@@ -310,6 +310,55 @@ mod tests {
     }
 
     #[test]
+    fn request_events_read_whole_or_from_an_older_server() {
+        use crate::model::{RequestQuery, RequestStatus, RequestSummary, TitleKind};
+        let e = parse_event(
+            r#"{"type":"request_available","request_id":4,"title":"Severance","kind":"show","tmdb_id":95396,"item_id":12,"poster_url":"/api/discover/images/p.jpg","seasons":[2],"complete":false}"#,
+        );
+        assert_eq!(
+            e,
+            Some(ServerEvent::RequestAvailable {
+                request_id: 4,
+                title: "Severance".into(),
+                kind: Some(TitleKind::Show),
+                tmdb_id: Some(95396),
+                item_id: Some(12),
+                poster_url: Some("/api/discover/images/p.jpg".into()),
+                seasons: Some(vec![2]),
+                complete: false,
+            })
+        );
+        // An older server's: fewer fields, and a ready title is whole.
+        let old =
+            parse_event(r#"{"type":"request_available","request_id":4,"title":"Arrival","item_id":null}"#).unwrap();
+        assert!(matches!(old, ServerEvent::RequestAvailable { complete: true, kind: None, .. }));
+        assert_eq!(
+            parse_event(r#"{"type":"requests_changed","request_id":null,"kind":null,"tmdb_id":null}"#),
+            Some(ServerEvent::RequestsChanged { request_id: None, kind: None, tmdb_id: None })
+        );
+        let decided = parse_event(
+            r#"{"type":"request_decided","request_id":5,"title":"Dune","kind":"movie","tmdb_id":438631,"status":"declined","reason":"Already on disc"}"#,
+        )
+        .unwrap();
+        assert!(matches!(decided, ServerEvent::RequestDecided { approved: false, reason: Some(_), .. }));
+        assert!(decided.about_requests() && !ServerEvent::WatchlistChanged.about_requests());
+
+        let summary: RequestSummary = serde_json::from_str(
+            r#"{"enabled":true,"access":"ask","movies_left":null,"manage":true,"pending":2,"failed":1,"unseen":3,"own":4,"sign_in_again":null,"new_field":1}"#,
+        )
+        .unwrap();
+        assert!(summary.may_ask());
+        assert_eq!(summary.badge(), 6);
+        let query = RequestQuery {
+            status: vec![RequestStatus::Pending, RequestStatus::Failed],
+            mine: true,
+            ..RequestQuery::default()
+        };
+        let set: Vec<(&str, String)> = query.params().into_iter().filter_map(|(k, v)| Some((k, v?))).collect();
+        assert_eq!(set, [("status", "pending,failed".to_string()), ("mine", "1".to_string())]);
+    }
+
+    #[test]
     fn data_that_isnt_an_event_is_skipped() {
         assert_eq!(parse_event("not json"), None);
         assert_eq!(parse_event("[1,2]"), None);
