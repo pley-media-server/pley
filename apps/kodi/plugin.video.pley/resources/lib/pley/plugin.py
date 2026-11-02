@@ -697,9 +697,14 @@ class Plugin(asking.Asking):
             return
         if len(household) < 2:
             return kodi.notify(kodi.text("no_other_profile"))
+        try:
+            # Who the add-on is: the one in use says "PIN" when it has one.
+            me = client.get("/api/auth/me") or {}
+        except api.ApiError:
+            me = {}
         entries = []
         for profile in household:
-            li = xbmcgui.ListItem(profile.get("name") or "", kodi.text("pin") if profile.get("needs") == "pin" else "", offscreen=True)
+            li = xbmcgui.ListItem(profile.get("name") or "", kodi.text("pin") if profiles.needs_pin(profile, me) else "", offscreen=True)
             picture = listing.image(self.proxy_base, profile.get("avatar_url"), 256)
             li.setArt({"icon": picture or "DefaultUser.png", "thumb": picture or "DefaultUser.png"})
             entries.append(li)
@@ -710,19 +715,30 @@ class Plugin(asking.Asking):
         profile = household[chosen]
         name = profile.get("name") or ""
         needs = profile.get("needs")
-        pin = None
-        if needs == "pin":
-            pin = dialog.numeric(0, kodi.text("pin_of") % name, "", True)
-            if not pin:
-                return
-        elif needs != "none":
+        if needs not in ("none", "pin"):
             return self.password_profile(profile) if needs == "password" else kodi.notify(kodi.text("profile_locked"), error=True)
-        try:
-            profiles.switch(client, profile["id"], pin)
-        except api.ApiError as e:
-            if e.code == "browser":
-                return self.password_profile(profile)
-            return kodi.notify(profiles.refusal(e, kodi.text, self.server_name()), error=True)
+        pin, problem = None, ""
+        while True:
+            if needs == "pin":
+                # After a wrong PIN, or too many, the heading says why.
+                heading = kodi.text("pin_of") % name
+                pin = dialog.numeric(0, "%s %s" % (problem, heading) if problem else heading, "", True)
+                if not pin:
+                    return
+            try:
+                profiles.switch(client, profile["id"], pin)
+                break
+            except api.ApiError as e:
+                if e.code == "browser":
+                    return self.password_profile(profile)
+                if e.code == "wrong_pin" and not pin:
+                    # The list was older than the profile's new PIN.
+                    needs = "pin"
+                    continue
+                if e.code in ("wrong_pin", "throttled"):
+                    needs, problem = "pin", profiles.refusal(e, kodi.text, self.server_name())
+                    continue
+                return kodi.notify(profiles.refusal(e, kodi.text, self.server_name()), error=True)
         kodi.set_property(profiles.GATE, "1")
         kodi.notify(kodi.text("watching_as") % name)
         if kodi.get_property(kodi.WINDOW_OPEN):

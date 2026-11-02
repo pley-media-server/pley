@@ -3519,7 +3519,7 @@ class Profiles(Screen):
         faces = win.c(L.PROFILES_LIST)
         if not filled:
             faces.reset()
-            faces.addItems([profile_face(self.session.base, p) for p in self.household])
+            faces.addItems([profile_face(self.session.base, p, self.win.me) for p in self.household])
             win.place(L.PROFILES_LIST, L.profiles_left(len(self.household)) - L.PROFILE_MARGIN, L.PROFILES_TOP - L.PROFILE_MARGIN)
             faces.selectItem(next((i for i, p in enumerate(self.household) if p.get("current")), 0))
             win.put(L.PROFILES_NOTE, "")
@@ -3556,9 +3556,12 @@ class Profiles(Screen):
             return self.sign_in_as(profile)
         self.say(T("profile_locked"))
 
-    def with_pin(self, profile: dict, confirm: bool = False) -> None:
-        """Its PIN, typed in Kodi's number dialog (hidden), then sent."""
-        pin = xbmcgui.Dialog().numeric(0, T("pin_of") % (profile.get("name") or ""), "", True)
+    def with_pin(self, profile: dict, confirm: bool = False, problem: str = "") -> None:
+        """Its PIN, typed in Kodi's number dialog (hidden), then sent. After
+        a wrong one, or too many, the dialog asks again, its heading saying
+        why: it has no line of its own for that."""
+        heading = T("pin_of") % (profile.get("name") or "")
+        pin = xbmcgui.Dialog().numeric(0, "%s %s" % (problem, heading) if problem else heading, "", True)
         if not pin:
             return
         if not (profiles.PIN_MIN <= len(pin) <= profiles.PIN_MAX and pin.isdigit()):
@@ -3581,6 +3584,8 @@ class Profiles(Screen):
             if e.code == "signed_out":
                 return win.failed(e, Home(win))
             name = kodi.setting("server_name") or kodi.setting("server_url")
+            if e.code in ("wrong_pin", "throttled"):
+                return self.with_pin(profile, confirm, profiles.refusal(e, T, name))
             return self.say(profiles.refusal(e, T, name))
         self.done(switched=True)
 
@@ -3602,9 +3607,10 @@ class Profiles(Screen):
         self.win.put(L.PROFILES_NOTE, words_)
 
 
-def profile_face(base: str, profile: dict) -> xbmcgui.ListItem:
+def profile_face(base: str, profile: dict, me: dict) -> xbmcgui.ListItem:
     """A face on "Who's watching?": the name, the picture or the initial on
-    the name's placeholder, and a lock for a PIN."""
+    the name's placeholder, and a lock for a PIN (`me`: who the add-on is,
+    for the one in use)."""
     name = profile.get("name") or ""
     li = xbmcgui.ListItem(name, offscreen=True)
     li.setProperty("ph", words.placeholder(name))
@@ -3612,7 +3618,7 @@ def profile_face(base: str, profile: dict) -> xbmcgui.ListItem:
     found = image(base, profile.get("avatar_url"), 256)
     if found:
         li.setArt({"tile": found})
-    if profile.get("needs") == "pin":
+    if profiles.needs_pin(profile, me):
         li.setProperty("locked", "1")
     return li
 

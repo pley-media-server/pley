@@ -365,6 +365,9 @@ class WindowTest(unittest.TestCase):
         faces = win.made[L.PROFILES_LIST]
         self.assertEqual([li.label for li in faces.items], ["Anna", "Ben", "Kid", "Dad"])
         self.assertEqual(faces.items[2].properties.get("locked"), "1")
+        # The one in use shows its PIN too, which the server's list doesn't.
+        self.assertEqual(faces.items[0].properties.get("locked"), "1")
+        self.assertIsNone(faces.items[1].properties.get("locked"))
         self.assertIn("/api/users/2/avatar", faces.items[1].art["tile"])
         # The one in use first, and the row centred.
         self.assertEqual(faces.selected, 0)
@@ -373,17 +376,32 @@ class WindowTest(unittest.TestCase):
         page.pick(household[1])
         self.assertEqual((asked[-1], switched), ((2, None), [True]))
         self.assertEqual(window.kodi.get_property(window.profiles.GATE), "1")
-        # One with a PIN: Kodi's number dialog, hidden; a wrong one says so.
+        # One with a PIN: Kodi's number dialog, hidden; a wrong one asks
+        # again, saying so, and so does one too many.
         refusals.append(window.api.ApiError(400, "wrong_pin", "wrong PIN"))
-        with Dialogs(typed=["9999"]) as dialogs:
+        refusals.append(window.api.ApiError(400, "throttled", "too many attempts, try again in 15 min"))
+        with Dialogs(typed=["9999", "8888", ""]) as dialogs:
             page.pick(household[2])
-        self.assertEqual(dialogs.asked, [(window.T("pin_of") % "Kid", True)])
-        self.assertEqual(asked[-1], (3, "9999"))
-        self.assertEqual(win.made[L.PROFILES_NOTE].label, window.T("wrong_pin"))
+        heading = window.T("pin_of") % "Kid"
+        self.assertEqual(
+            dialogs.asked,
+            [(heading, True), (window.T("wrong_pin") + " " + heading, True), ("Too many attempts, try again in 15 min. " + heading, True)],
+        )
+        self.assertEqual(asked[-2:], [(3, "9999"), (3, "8888")])
+        # A locked one says so, and isn't asked again.
+        refusals.append(window.api.ApiError(400, "pin_locked", "locked"))
+        with Dialogs(typed=["7777"]) as dialogs:
+            page.pick(household[2])
+        self.assertEqual(win.made[L.PROFILES_NOTE].label, window.T("pin_locked"))
+        # One that took nothing when the list was made, with a PIN since: asked for.
+        refusals.append(window.api.ApiError(400, "wrong_pin", "this profile is protected by a PIN"))
+        with Dialogs(typed=[""]) as dialogs:
+            page.pick(household[1])
+        self.assertEqual(dialogs.asked, [(window.T("pin_of") % "Ben", True)])
         with Dialogs(typed=["12"]):
             page.pick(household[2])
         self.assertEqual(win.made[L.PROFILES_NOTE].label, window.T("pin_digits"))
-        self.assertEqual(asked[-1], (3, "9999"))
+        self.assertEqual(asked[-1], (2, None))
         # One that needs its password: signing in again with a code.
         with Dialogs(yes=[True]):
             page.pick(household[3])
@@ -399,7 +417,7 @@ class WindowTest(unittest.TestCase):
         # Not at the start: no PIN for the one in use, and Back goes back.
         later = window.Profiles(win, household)
         later.pick(household[0])
-        self.assertEqual(len(asked), 3)
+        self.assertEqual(len(asked), 6)
         self.assertFalse(later.back())
 
     def test_editing_a_playlist(self):

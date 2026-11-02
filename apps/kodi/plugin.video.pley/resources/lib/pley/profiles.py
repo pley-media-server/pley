@@ -45,10 +45,12 @@ def switch(client: api.Client, profile_id: int, pin=None) -> None:
 
 
 def needs_pin(profile: dict, me: dict) -> bool:
-    """Whether choosing `profile` asks its PIN: another one with a PIN, or
-    the one in use when it has one (at a start, as the TV apps ask)."""
+    """Whether `profile` has a PIN to ask, which its lock shows: another one
+    whose switch takes it, or the one in use when it has one (GET
+    /api/auth/me's has_pin: the server says switching to it needs nothing),
+    asked at a start, as the TV apps ask it."""
     if profile.get("current"):
-        return profile.get("needs") == "pin" or bool(me.get("has_pin") and me.get("id") == profile.get("id"))
+        return bool(me.get("has_pin") and me.get("id") == profile.get("id"))
     return profile.get("needs") == "pin"
 
 
