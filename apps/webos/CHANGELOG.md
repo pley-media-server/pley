@@ -30,6 +30,8 @@ describes how they are made.
   held Left stops at the guide's start. Back in the guide or the channel
   tiles goes to the categories before the rail, and Info on a tile opens
   what's on.
+- OK on a live channel opens the channel list at once, while it tunes too;
+  holding OK shows the controls.
 
 ### Fixed
 

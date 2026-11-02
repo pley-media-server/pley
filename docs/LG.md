@@ -179,8 +179,9 @@ and goes with `live_channels_changed`. On LG:
   then plays the server's live HLS from its live edge. It never plays the
   channel's MPEG-TS (`stream.ts`) as the Android app does.
 - **The player:** Up and Down, CH+ and CH− change channel within the
-  category; digits tune a number. The menu or guide key opens the channel
-  list beside the picture, which moves aside to make room.
+  category; digits tune a number. OK, the menu or the guide key opens the
+  channel list beside the picture, which moves aside to make room; holding
+  OK shows the controls, as in the Samsung app.
 - **Leaving:** `DELETE /api/live/sessions/{id}` on Back, on each change
   of channel, and when the TV hides the app.
 - **Failures:** a player failure is retried twice (after 1 s, then 3 s).

@@ -1,8 +1,9 @@
 //! The live player (`TvLivePlayerScreen.kt`, `LivePlayerViewModel.kt`): a
 //! channel full screen, tuned through pley-player's [`LiveSession`]. With nothing over the picture, Up
 //! and Down go to the next and previous channel of the category it was opened from (Up the next), as
-//! channel up and down always do; digits tune a number; OK shows what's on with the controls; Menu or
-//! Guide opens the channel list beside the picture, which moves aside; Info shows what's on for 5 s.
+//! channel up and down always do; digits tune a number; OK, Menu or Guide opens the channel list beside
+//! the picture, which moves aside; OK held shows what's on with the controls (Samsung's rule, where
+//! Android's OK shows the controls); Info shows what's on for 5 s.
 //! Live TV is watched as it airs: play, pause, rewind and fast forward, Left and Right do nothing. A
 //! channel that doesn't start says why, with Try again, Other channels and Back to the guide; every
 //! connection in use lists what holds each, with Watch here instead where it may be taken over.
@@ -626,7 +627,7 @@ impl Screen for LivePlayerScreen {
         let failed = phase == Some(LivePhase::Error) || self.unknown.is_some();
         let picture_id = ui.id("picture");
         if self.overlay == Overlay::None && !failed {
-            let r = ui.focusable_with(picture_id, stage, FocusOpts::default().takes(Dirs::ALL));
+            let r = ui.focusable_with(picture_id, stage, FocusOpts::default().long_press().takes(Dirs::ALL));
             ui.initial_focus(picture_id);
             if std::mem::take(&mut self.focus_picture) {
                 ui.request_focus(picture_id);
@@ -642,10 +643,13 @@ impl Screen for LivePlayerScreen {
                     }
                 }
             }
-            if r.menu {
+            // OK opens the channel list as it is let go, tuning or playing, as Menu does; held, it
+            // shows the controls (the list, the favourite) over what's on, as a long press opens
+            // actions elsewhere. Android's OK shows the controls; Samsung's opens the list.
+            if r.menu || r.activated {
                 self.open_list();
             }
-            if r.activated && playing {
+            if r.long_pressed && playing {
                 self.overlay = Overlay::Controls;
                 self.poked_at = now;
                 self.focus_controls = true;
@@ -987,7 +991,7 @@ fn info_bar(
                     }
                 });
             } else {
-                let hint = "▲▼ change channel · OK for more";
+                let hint = "▲▼ change channel · OK for channels · hold OK for more";
                 ui.text(
                     Point::new(x0, below + 12.0),
                     hint,

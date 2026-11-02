@@ -5,11 +5,12 @@
 mod common;
 
 use common::TestApp;
-use pley_base::Key;
+use pley_base::{Key, KeyEvent};
 use pley_core::model::LiveCategory;
 use pley_fixtures::ids;
 use pley_live::picture_aside;
 use pley_shell::Route;
+use pley_ui::InputEvent;
 
 /// The app on the live player of `channel`, channel up and down going through `category`; the
 /// channel watched.
@@ -77,16 +78,29 @@ fn a_typed_number_tunes_its_channel_or_says_there_is_none() {
 }
 
 #[test]
-fn ok_shows_the_controls_and_the_channel_list_moves_the_picture_aside() {
+fn ok_held_shows_the_controls_and_their_channels_opens_the_list() {
+    let mut app = watching(ids::LIVE_CHANNEL, LiveCategory::All);
+    let engine = app.engine().unwrap();
+    assert!(app.until(|_| engine.playing()), "the channel didn't play");
+    app.frame(vec![InputEvent::Key(KeyEvent { key: Key::Ok, pressed: true, repeat: false, code: 0 })]);
+    app.advance(0.6);
+    app.frame(vec![InputEvent::Key(KeyEvent { key: Key::Ok, pressed: false, repeat: false, code: 0 })]);
+    app.advance(0.2);
+    let channels = app.id(&["bar", "channels"]);
+    assert!(app.until(|a| a.focused() == Some(channels)), "the controls' Channels hasn't focus");
+    assert!(app.shows("LIVE"));
+    assert!(!app.shows("Search channels"), "the held OK opened the list as it was let go");
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.shows("Search channels")), "the list didn't open");
+}
+
+#[test]
+fn ok_opens_the_channel_list_which_moves_the_picture_aside() {
     let mut app = watching(ids::LIVE_CHANNEL, LiveCategory::All);
     let engine = app.engine().unwrap();
     assert!(app.until(|_| engine.playing()), "the channel didn't play");
     app.press(Key::Ok);
-    let channels = app.id(&["bar", "channels"]);
-    assert!(app.until(|a| a.focused() == Some(channels)), "the controls' Channels hasn't focus");
-    assert!(app.shows("LIVE"));
-    app.press(Key::Ok);
-    assert!(app.until(|a| a.shows("Search channels")), "the list didn't open");
+    assert!(app.until(|a| a.shows("Search channels")), "OK didn't open the list");
     assert_eq!(app.engine().unwrap().rect(), Some(picture_aside()));
     // The list opens on the channel playing; the next row tunes the next channel.
     let row = |a: &TestApp, i: u64| a.id(&["list", "rows"]).with(i);
