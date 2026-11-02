@@ -99,7 +99,7 @@ private func group(_ name: String, _ count: Int = 1) -> LiveGroup {
         let frame = layout.frame(program)
         #expect(frame.x == 0 && frame.width == 60)
         #expect(GuideLayout.pointsPerMinute(textScale: 4) == 15)
-        #expect(GuideLayout.pointsPerMinute(textScale: 1, tv: true) == 12)
+        #expect(GuideLayout.pointsPerMinute(textScale: 1, tv: true) == 8)
         #expect(layout.slots.count == Int(LiveTvRules.guideSpan / LiveTvRules.slot))
     }
 }
@@ -286,6 +286,23 @@ private func group(_ name: String, _ count: Int = 1) -> LiveGroup {
         model.enterNumber()
         #expect(await eventually { model.notice == "No channel 99999" })
         #expect(model.channelId == 1104)
+    }
+
+    @Test func theOnScreenPadsDigitsWaitForOK() async throws {
+        let server = try await started()
+        defer { server.stop() }
+        server.setLiveLineup(count: 150)
+        let (model, _) = try await player(server)
+        defer { model.close() }
+        model.type(1, waits: false)
+        model.type(0, waits: false)
+        try await Task.sleep(for: .milliseconds(400))
+        model.type(4, waits: false)
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(model.digits == "104")
+        #expect(model.channelId == 1001)
+        model.enterNumber()
+        #expect(await eventually { model.channelId == 1001 + 103 })
     }
 
     @Test func everyConnectionInUseOffersToWatchHereInstead() async throws {

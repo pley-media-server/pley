@@ -302,6 +302,7 @@ public final class LivePlayback: ObservableObject {
     private func brokeOff(_ channelId: Int) {
         let asked = session
         cancelWork()
+        let generation = generation
         tuning = Task { [weak self] in
             guard let self else { return }
             var ended: (any Error)?
@@ -312,7 +313,8 @@ public final class LivePlayback: ObservableObject {
                     if case .sessionStopped? = error as? PleyError { ended = error }
                 }
             }
-            guard !Task.isCancelled else { return }
+            // Tuned elsewhere, stopped or closed meanwhile: nothing more to do.
+            guard self.generation == generation, !self.closed else { return }
             if let ended {
                 // Already gone at the server: nothing to let go.
                 if self.session == asked { self.session = nil }

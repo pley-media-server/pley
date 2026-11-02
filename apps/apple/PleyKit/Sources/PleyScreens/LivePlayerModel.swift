@@ -147,10 +147,13 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
     // MARK: A number
 
     /// A digit typed: it tunes `numberWait` after the last, or at `enterNumber`.
-    public func type(_ digit: Int) {
+    /// `waits` false (Apple TV's on-screen pad, where moving to the next key
+    /// takes longer than the wait) tunes only at `enterNumber`.
+    public func type(_ digit: Int, waits: Bool = true) {
         guard (0...9).contains(digit), digits.count < Self.maxDigits else { return }
         digits += String(digit)
         typing?.cancel()
+        guard waits else { return }
         let wait = numberWait
         typing = Task { [weak self] in
             try? await Task.sleep(for: wait)

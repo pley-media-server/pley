@@ -32,6 +32,7 @@ struct LivePlayerScreen: View {
             Color.black.ignoresSafeArea()
             LiveVideoSurface(player: AVLiveEngine.player(of: playback.engine))
                 .ignoresSafeArea()
+                .allowsHitTesting(false)
             if model.state.audioOnly {
                 VStack(spacing: 30) {
                     if let channel = model.channel { TVChannelLogo(app: app, channel: channel, size: 240) }
@@ -221,11 +222,13 @@ private struct NumberPad: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 30))
         .onExitCommand(perform: done)
         .onChange(of: model.channelId) { _, _ in done() }
+        // A container, so the keys keep their own identifiers.
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("live.pad")
     }
 
     private func digit(_ value: Int) -> some View {
-        Button { model.type(value) } label: {
+        Button { model.type(value, waits: false) } label: {
             Text("\(value)").font(.title2.monospacedDigit()).frame(width: 120, height: 80)
         }
         .accessibilityLabel(Self.words[value])
@@ -267,6 +270,7 @@ private struct TVTrouble: View {
         .padding(60)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
         .onExitCommand(perform: close)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("live.trouble")
     }
 }
@@ -337,6 +341,7 @@ private struct TVChannelsList: View {
             groups = (try? await model.live.groups().groups) ?? []
         }
         .onChange(of: model.category) { _, category in paging.show(category) }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("live.list")
     }
 

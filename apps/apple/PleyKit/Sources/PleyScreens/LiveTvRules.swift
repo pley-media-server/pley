@@ -227,8 +227,9 @@ public struct GuideLayout: Equatable, Sendable {
     }
 
     /// The scale for a text size: `scale` is how much larger the body text is than at the default size.
+    /// Apple TV's two hours fit beside the categories and the channel column on a 1920-point screen.
     public static func pointsPerMinute(textScale scale: Double, tv: Bool = false) -> Double {
-        (tv ? 12 : 6) * min(max(scale, 1), 2.5)
+        (tv ? 8 : 6) * min(max(scale, 1), 2.5)
     }
 
     /// The guide's whole width.

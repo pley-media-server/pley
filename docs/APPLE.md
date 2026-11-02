@@ -407,11 +407,11 @@ behind it.
   seconds after each change; up and down change channel, Select opens
   Channels, Channel number, Favourite and Back to the guide, Play/Pause
   shows the banner, and Menu hides the overlay, then leaves. The number
-  pad (1 to 9, Delete, 0 and OK, each named for VoiceOver) tunes on OK or
-  1.4 seconds after the last digit; "No channel 123" shows for 2 seconds
-  when none has it. When every connection of the channel's source is in
-  use, the player says so, lists what they watch, and offers **Watch here
-  instead** on one it may take. A stall shows a spinner after 0.7
+  pad (1 to 9, Delete, 0 and OK, each named for VoiceOver) tunes on OK,
+  since moving to the next key can take longer than a keyboard's wait;
+  "No channel 123" shows for 2 seconds when none has it. When every
+  connection of the channel's source is in use, the player says so, lists
+  what they watch, and offers **Watch here instead** on one it may take. A stall shows a spinner after 0.7
   seconds; a channel with no picture shows its logo and "Sound only".
   When AVPlayer fails, the session's plan is asked once: a stop at the
   server says why, anything else tunes again. Leaving ends the session at

@@ -33,6 +33,8 @@ struct LivePlayerScreen: View {
             Color.black.ignoresSafeArea()
             LiveVideoSurface(player: AVLiveEngine.player(of: playback.engine))
                 .ignoresSafeArea()
+                // Taps go to the screen under it, which shows the overlay.
+                .allowsHitTesting(false)
                 .accessibilityHidden(true)
             if model.state.audioOnly { soundOnly }
             if model.state.phase == .tuning || model.state.buffering {
@@ -103,22 +105,24 @@ struct LivePlayerScreen: View {
 
     private var overlay: some View {
         VStack(spacing: 0) {
+            // Close sits on the trailing side: an iPad's window controls take
+            // the top-leading corner when the app is in a window.
             HStack(spacing: 16) {
-                Button(action: close) {
-                    Image(systemName: "xmark").font(.title2).frame(width: 44, height: 44)
-                }
-                .accessibilityLabel("Close")
-                .accessibilityIdentifier("live.close")
-                Spacer()
                 Text("Live")
                     .font(.caption.bold())
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(Color.red, in: Capsule())
                     .accessibilityIdentifier("live.badge")
+                Spacer()
                 #if os(iOS) || os(macOS)
                 RoutePicker()
                 #endif
+                Button(action: close) {
+                    Image(systemName: "xmark").font(.title2).frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("Close")
+                .accessibilityIdentifier("live.close")
             }
             .padding(.horizontal)
             .padding(.top, 8)
