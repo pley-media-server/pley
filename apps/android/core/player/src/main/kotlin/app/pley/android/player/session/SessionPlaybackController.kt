@@ -811,12 +811,16 @@ class SessionPlaybackController(
         serverSubtitles.show(info.fileId, sub.index, if (isSavedSubtitle(path, info.url)) path else env.api.url(path))
     }
 
-    /** Pictures beside a stream: the server's .mks of the track, at the stream's own positions (the file's). */
+    /**
+     * Pictures beside a stream: the server's .mks of the track, at the stream's own positions (the file's), asked for
+     * from where the player is.
+     */
     private fun showPictures(sub: MediaStream) {
         val info = session?.info ?: return
         val pictures = pictureSubtitles ?: return
         serverSubtitles.hide()
-        pictures.show(info.fileId, sub.index, env.api.url(PlaybackPlan.pictureSubtitlesPath(info.fileId, sub.index)))
+        val url = env.api.url(PlaybackPlan.pictureSubtitlesPath(info.fileId, sub.index))
+        pictures.show(info.fileId, sub.index, PlaybackPlan.pictureUrlAt(url, livePosition()))
     }
 
     private fun hideServerSubtitles() {

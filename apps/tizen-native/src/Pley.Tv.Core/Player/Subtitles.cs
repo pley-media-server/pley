@@ -442,7 +442,10 @@ public sealed class SubtitlePresenter
         Fetch(url, generation);
     }
 
-    /// <summary>Shows the server's .mks of a picture track at <paramref name="url"/>; the same track again keeps what was fetched.</summary>
+    /// <summary>
+    /// Shows the server's .mks of a picture track at <paramref name="url"/>, asked for from where the player is; the
+    /// same track again keeps what was fetched.
+    /// </summary>
     public void ShowPictures(string url)
     {
         if (Showing == url && showingPictures)
@@ -452,7 +455,7 @@ public sealed class SubtitlePresenter
         }
         Reset(url, true);
         Clear();
-        FetchPictures(url, generation, PartialRetryMs);
+        FetchPictures(PlaybackPlan.PictureUrlAt(url, position()), generation, PartialRetryMs);
     }
 
     public void Hide()

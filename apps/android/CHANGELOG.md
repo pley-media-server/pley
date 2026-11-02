@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Changed
 
+- Picture subtitles (PGS, VobSub, DVB) drawn beside a stream show within
+  a few seconds of a playback starting, where they could take up to a
+  minute: the app tells the server where it plays, and the server reads
+  those around it first.
 - A library's posters show 4K and the dynamic range (DV, HDR10) whatever
   the sort, where they showed only when sorted by bitrate, and no longer
   the codec (H.264, HEVC) or a lower resolution (1080p, 720p).

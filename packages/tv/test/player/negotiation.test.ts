@@ -4,7 +4,7 @@ import type { ClientCaps, ItemDetail, MediaFile, MediaStream, PlaybackInfo, Play
 import type { KeyValue } from "../../src/auth/tokens";
 import { PlaybackController, type PlayerEnv } from "../../src/player/controller";
 import type { EngineListener, EngineSource, EngineStatus, PlayerEngine } from "../../src/player/engine";
-import { dvContainerMode, dvRetryMode, initialAudio, initialSubtitle, playbackRequest, playingAudio, withTracks, type Choices } from "../../src/player/plan";
+import { dvContainerMode, dvRetryMode, initialAudio, initialSubtitle, pictureUrlAt, playbackRequest, playingAudio, withTracks, type Choices } from "../../src/player/plan";
 import { storedMemory, type Remembered } from "../../src/player/autoquality";
 import type { NetworkMemory } from "../../src/player/network";
 import { ORIGINAL } from "../../src/player/quality";
@@ -1279,6 +1279,28 @@ describe("speed", () => {
     expect(w.engine.prepared).toHaveLength(2);
     expect(rates).toEqual([1.5, 1.5]);
     c.close();
+  });
+});
+
+describe("picture subtitles", () => {
+  it("are asked for from where the player is: the server copies them out of the file from there first", async () => {
+    const w = world(item(file({ selected_subtitle: 3 })), () => info());
+    const sent: string[] = [];
+    (w.env.api as unknown as Record<string, unknown>).send = (url: string) => {
+      sent.push(url);
+      return new Promise(() => undefined);
+    };
+    const c = new PlaybackController({ itemId: 70 }, w.env, 0);
+    c.start();
+    await settle();
+    expect(sent).toContain("/api/files/7/subtitles/3.mks?at=600000");
+    c.close();
+  });
+
+  it("say nothing of a start at the beginning", () => {
+    expect(pictureUrlAt("/api/files/7/subtitles/3.mks", 0)).toBe("/api/files/7/subtitles/3.mks");
+    expect(pictureUrlAt("/api/files/7/subtitles/3.mks", 1234.4)).toBe("/api/files/7/subtitles/3.mks?at=1234");
+    expect(pictureUrlAt("/s.mks?k=1", 5000)).toBe("/s.mks?k=1&at=5000");
   });
 });
 

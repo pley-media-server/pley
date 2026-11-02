@@ -48,6 +48,9 @@ describes how they are made.
 
 ### Changed
 
+- Picture subtitles (PGS, VobSub, DVB) show within a few seconds of a
+  playback starting, where they could take up to a minute: the TV tells
+  the server where it plays, and the server reads those around it first.
 - "Enter an address" opens the TV's keyboard at once, on an empty field,
   in place of the number pad, so a server's name or a whole https address
   is as easy to type as an IP. The remote's digit keys still type once the

@@ -118,6 +118,15 @@ class SideloadTest {
     }
 
     @Test
+    fun `pictures are asked for from where the player is, so the server copies them out of the file from there first`() {
+        val movie = Catalogue.movieWithTracks(h.api)
+        val file = movie.files.first()
+        val picture = file.streams.first { it.kind == StreamKind.Subtitle && it.textBased == false }
+        h.play(PlayRequest(movie.id, startMs = 600_000, subtitleIndex = picture.index.toLong()))
+        assertTrue(asked.single(), asked.single().endsWith("/api/files/${file.id}/subtitles/${picture.index}.mks?at=600000"))
+    }
+
+    @Test
     fun `a server without the mks burns the pictures in instead`() {
         // An older server: no .mks route.
         val older = SessionHarness(
@@ -166,6 +175,9 @@ class SideloadPlanTest {
         assertFalse(PlaybackPlan.sideloadsPictures(noSideload))
         assertFalse(PlaybackPlan.sideloadsPictures(null))
         assertEquals("/api/files/7/subtitles/2.mks", PlaybackPlan.pictureSubtitlesPath(7, 2))
+        assertEquals("/s.mks", PlaybackPlan.pictureUrlAt("/s.mks", 0))
+        assertEquals("/s.mks?at=5000", PlaybackPlan.pictureUrlAt("/s.mks", 5_000))
+        assertEquals("/s.mks?k=1&at=5000", PlaybackPlan.pictureUrlAt("/s.mks?k=1", 5_000))
     }
 
     @Test

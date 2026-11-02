@@ -91,6 +91,12 @@ export function picturePath(fileId: number, index: number): string {
   return `/api/files/${fileId}/subtitles/${index}.mks`;
 }
 
+/** `url` asked for from where the player is (`atMs` of the file): a track the server hasn't copied out of its file yet comes from there first. */
+export function pictureUrlAt(url: string, atMs: number): string {
+  const at = Math.max(0, Math.round(atMs));
+  return at > 0 ? `${url}${url.indexOf("?") >= 0 ? "&" : "?"}at=${at}` : url;
+}
+
 /** Whether this TV decodes `stream`'s audio or sends it as it is to the receiver. */
 export function audioPlaysHere(stream: MediaStream | null, caps: ClientCaps | null): boolean {
   if (!stream || !caps) return true;

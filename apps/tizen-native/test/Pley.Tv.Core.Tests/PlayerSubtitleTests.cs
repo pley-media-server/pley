@@ -272,6 +272,9 @@ public class SubtitlePresenterTests
         Assert.NotNull(p.Picture.Value);
         clock.Advance(30_000);
         Assert.Equal(2, asked.Count);
+        // Asked for from where the player was as it was picked: the server copies the track out of its file from
+        // there first.
+        Assert.All(asked, url => Assert.Equal("http://pley/api/files/7/subtitles/4.mks?at=4000", url));
 
         // The same track again changes nothing; text in its place clears the picture.
         p.ShowPictures("http://pley/api/files/7/subtitles/4.mks");

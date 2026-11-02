@@ -235,6 +235,12 @@ It has no releases yet: it is built and installed by hand
   the app as a track still being made comes again: the same picture is
   kept, and an old one's texture goes a second after it leaves the screen.
 
+### Changed
+
+- Picture subtitles (PGS, VobSub, DVB) show within a few seconds of a
+  playback starting, where they could take up to a minute: the TV tells
+  the server where it plays, and the server reads those around it first.
+
 ### Fixed
 
 - Too many wrong PINs for the profile the TV starts as say how long to
