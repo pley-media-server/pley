@@ -20,7 +20,7 @@ EPISODE = {
 MOVIE = {
     "id": 5,
     "kind": "movie",
-    "title": "Heat",
+    "title": "Saltwind",
     "year": 1995,
     "duration_ms": 170 * 60_000,
     "poster_url": "/api/items/5/images/poster?v=1",
@@ -36,7 +36,7 @@ class TilesTest(unittest.TestCase):
     def test_captions_by_shape(self):
         self.assertEqual(tiles.captions(EPISODE, "episode"), ("1. Pilot", "20 min left"))
         self.assertEqual(tiles.captions(EPISODE, "landscape"), ("The Show", "S2 · E1 · 20 min left"))
-        self.assertEqual(tiles.captions(MOVIE, "poster"), ("Heat", "1995"))
+        self.assertEqual(tiles.captions(MOVIE, "poster"), ("Saltwind", "1995"))
         done = dict(EPISODE, user_state={"position_ms": 0, "watched": True})
         self.assertEqual(tiles.captions(done, "landscape"), ("The Show", "S2 · E1 · Pilot"))
 

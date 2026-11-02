@@ -510,7 +510,7 @@ class PrepareTest(unittest.TestCase):
 
     def item(self, subtitle, vobsub=False):
         file = a_file(subtitle=subtitle)
-        return {"id": 9, "kind": "movie", "title": "Heat", "duration_ms": 1000, "files": [as_vobsub(file) if vobsub else file]}
+        return {"id": 9, "kind": "movie", "title": "Saltwind", "duration_ms": 1000, "files": [as_vobsub(file) if vobsub else file]}
 
     def test_picture_subtitles_are_asked_to_be_drawn_on(self):
         # The details known: the pictures are named at once.

@@ -12,9 +12,9 @@ import xbmcplugin
 from pley import api, kodi, plugin, subtitles, tracks
 
 RESULTS = [
-    {"id": "opensubtitles:1", "provider": "opensubtitles", "language": "en", "name": "Heat.1995.1080p.BluRay.x264", "format": "srt",
+    {"id": "opensubtitles:1", "provider": "opensubtitles", "language": "en", "name": "Saltwind.1995.1080p.BluRay.x264", "format": "srt",
      "hearing_impaired": False, "forced": False, "downloads": 12, "matched": "hash"},
-    {"id": "opensubtitles:2", "provider": "opensubtitles", "language": "pt-BR", "name": "Heat.1995.WEB", "format": "srt",
+    {"id": "opensubtitles:2", "provider": "opensubtitles", "language": "pt-BR", "name": "Saltwind.1995.WEB", "format": "srt",
      "hearing_impaired": True, "forced": False, "downloads": 2500, "matched": "title"},
 ]
 TRACK = {"index": 10001, "codec": "subrip", "language": "eng", "title": None, "default": False, "forced": False, "external": True,
@@ -36,7 +36,7 @@ class SubtitlesTest(unittest.TestCase):
         found = subtitles.entries(RESULTS, "plugin://plugin.video.pley/", 9, 7, {"en": "English", "pt": "Portuguese"}.get)
         url, label, label2, art, props = found[0]
         self.assertEqual(url, "plugin://plugin.video.pley/?action=download&result=opensubtitles%3A1&item=9&file=7")
-        self.assertEqual((label, label2), ("English", "Heat.1995.1080p.BluRay.x264"))
+        self.assertEqual((label, label2), ("English", "Saltwind.1995.1080p.BluRay.x264"))
         self.assertEqual(art, {"icon": "5", "thumb": "en"}, "made for this very file: five stars")
         self.assertEqual(props, {"sync": "true", "hearing_imp": "false"})
         _, label, _, art, props = found[1]
@@ -90,7 +90,7 @@ class RouteTest(unittest.TestCase):
     def test_the_results_for_the_title_playing(self):
         items, last = self.run_plugin("action=search&languages=English&preferredlanguage=English")
         self.assertEqual(last, ("end", True))
-        self.assertEqual([i[2].label2 for i in items], ["Heat.1995.1080p.BluRay.x264", "Heat.1995.WEB"])
+        self.assertEqual([i[2].label2 for i in items], ["Saltwind.1995.1080p.BluRay.x264", "Saltwind.1995.WEB"])
         self.assertEqual(self.server.requests[0].path, "/s3cret/api/items/9/subtitles/search?file_id=7", "the profile's language, the server's choice")
 
     def test_nothing_for_what_pley_doesnt_play(self):
