@@ -407,6 +407,52 @@ class FollowerTest(unittest.TestCase):
         f.finish()
         self.assertEqual(saved, [{"file_id": 7, "audio_index": 2, "subtitle_index": None}])
 
+    def test_subtitles_kodi_couldnt_show_are_not_saved_as_off(self):
+        # The account's German pictures next to the film come as a .sup file
+        # that Kodi couldn't add: it lists the Spanish file and the film's
+        # own three, and shows the Spanish. Turned off: none rather than
+        # Kodi's own.
+        clock = Clock()
+        player = Kodi(enabled=True)
+        player.subtitles = [
+            {"index": 0, "language": "spa", "isforced": False},
+            {"index": 1, "language": "eng", "isforced": False},
+            {"index": 2, "language": "eng", "isforced": False},
+            {"index": 3, "language": "fre", "isforced": True},
+        ]
+        f, saved = follower(tracks.layout(direct(sup=True), a_file(subtitle=1001)), player, clock)
+        for _ in range(tracks.READY_TURNS + 1):
+            f.turn()
+        self.assertEqual(player.calls, [("Player.SetSubtitle", {"subtitle": "off"})])
+        clock.now += tracks.QUIET
+        f.turn()
+        # French audio, chosen in Kodi's player: saved with the German
+        # pictures, which the person didn't turn off.
+        player.audio = 1
+        f.turn()
+        clock.now += tracks.SETTLE
+        f.turn()
+        self.assertEqual(saved, [{"file_id": 7, "audio_index": 2, "subtitle_index": 1001}])
+        # Subtitles the person picks are theirs, off too: the Spanish file
+        # turned on, then off, then the English audio as it ends.
+        player.subtitle, player.enabled = 0, True
+        f.turn()
+        clock.now += tracks.SETTLE
+        f.turn()
+        player.enabled = False
+        f.turn()
+        clock.now += tracks.SETTLE
+        f.turn()
+        player.audio = 0
+        f.turn()
+        clock.now += tracks.SETTLE
+        f.finish()
+        self.assertEqual(saved[1:], [
+            {"file_id": 7, "subtitle_index": 1000},
+            {"file_id": 7, "subtitle_index": None},
+            {"file_id": 7, "audio_index": 1, "subtitle_index": None},
+        ])
+
     def test_a_converted_streams_audio_is_the_servers(self):
         clock = Clock()
         player = Kodi(audio=1, subtitles=3)

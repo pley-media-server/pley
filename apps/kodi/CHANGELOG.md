@@ -21,6 +21,9 @@ describes how they are made.
   time: Kodi turns them off as it stops, and that could be saved as the
   choice. A track changed in Kodi's player is saved once it has held 2
   seconds, so one changed just before stopping isn't.
+- Changing the audio no longer turns a show's or movie's subtitles off for
+  the next time when Kodi couldn't show them (PGS whose file didn't load):
+  the add-on turns them off then, and that was saved with the audio.
 
 ### Security
 
