@@ -130,7 +130,7 @@ sub test_music_queue_shuffled_from_the_start()
     tkEqual(queue.order, [1, 0], "the same track twice: places tell them apart")
 end sub
 
-sub test_music_up_next_is_what_follows_the_track_playing()
+sub test_music_up_next_lists_the_queue_the_track_playing_marked()
     tracks = []
     for i = 1 to 4
         track = musicTrack(musicTestTrack(), "http://nas:7539")
@@ -138,11 +138,26 @@ sub test_music_up_next_is_what_follows_the_track_playing()
         tracks.Push(track)
     end for
     tracks[3].album = ""
-    rows = musicUpNextRows(tracks, 1)
-    tkEqual(rows.Count(), 2)
-    tkEqual(rows[0], { title: "3. Song 3", subtitle: "The Fixtures · Blue", duration: "3:20" }, "numbered by its place in the queue")
-    tkEqual(rows[1].subtitle, "The Fixtures", "without an album")
-    tkEqual(musicUpNextRows(tracks, 3).Count(), 0, "the last track: nothing after it")
+    rows = musicUpNextRows(tracks, 0, 4, 1)
+    tkEqual(rows.Count(), 4, "what played before too")
+    tkEqual(rows[2], { title: "3. Song 3", subtitle: "The Fixtures · Blue", duration: "3:20", current: false }, "numbered by its place in the queue")
+    tkTrue(rows[1].current, "the track playing")
+    tkEqual(rows[3].subtitle, "The Fixtures", "without an album")
+    rows = musicUpNextRows(tracks, 2, 4, 3)
+    tkEqual(rows[0].title, "3. Song 3", "a part of the queue keeps the numbers of its places")
+    tkTrue(rows[1].current)
+end sub
+
+sub test_music_up_next_lists_a_long_queue_a_part_at_a_time()
+    tkEqual(musicUpNextPart(0, 12, invalid), { first: 0, last: 12 }, "a short queue whole")
+    tkEqual(musicUpNextPart(11, 12, { first: 0, last: 12 }), { first: 0, last: 12 }, "to its end")
+    part = musicUpNextPart(0, 5000, invalid)
+    tkEqual(part, { first: 0, last: 250 })
+    tkEqual(musicUpNextPart(199, 5000, part), part, "moving on moves only the mark")
+    tkEqual(musicUpNextPart(200, 5000, part), { first: 150, last: 400 }, "near its end, the next part, 50 before the track playing")
+    tkEqual(musicUpNextPart(149, 5000, { first: 150, last: 400 }), { first: 99, last: 349 }, "back before it, the part around the track")
+    tkEqual(musicUpNextPart(4990, 5000, invalid), { first: 4750, last: 5000 }, "at the queue's end, more of what played")
+    tkEqual(musicUpNextPart(1, 2, { first: 0, last: 12 }), { first: 0, last: 2 }, "a part longer than the queue is listed again")
 end sub
 
 sub test_music_tiles_are_square()

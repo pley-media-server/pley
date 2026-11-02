@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A track of Now Playing's Up next: its place and title, its artist and
-     album, and how long it is. A TrackRow as wide as the screen. -->
+<!-- A track of Now Playing's Up next: its place and title (bold, in the
+     accent, for the one playing), its artist and album, and how long it
+     is. A TrackRow as wide as the screen. -->
 <component name="QueueRow" extends="Group">
     <interface>
         <field id="itemContent" type="node" onChange="onContent" />

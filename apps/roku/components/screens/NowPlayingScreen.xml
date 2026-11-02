@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Now Playing: the track the music player plays, its cover, how far
      along it is, Shuffle, Previous, Pause, Next, Stop and the sleep
-     timer, and under them Up next, the tracks after it. Back leaves it;
+     timer, and under them Up next, the queue. Back leaves it;
      the music goes on, and Home's menu brings it back. -->
 <component name="NowPlayingScreen" extends="Group">
     <interface>
@@ -40,7 +40,7 @@
         <Label id="queue" translation="[860, 476]" width="664" horizAlign="center" color="0x8B95A5FF" font="font:SmallestSystemFont" />
         <Label id="left" translation="[1524, 476]" width="300" horizAlign="right" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         <ChipRow id="buttons" translation="[96, 560]" />
-        <!-- Up next: the tracks after the one playing, OK playing one. -->
+        <!-- Up next: the queue, the track playing marked, OK playing one. -->
         <Label id="upNextTitle" translation="[96, 652]" text="Up next" color="0xA1A9B6FF" font="font:SmallerBoldSystemFont" visible="false" />
         <MarkupList id="upNext" translation="[96, 700]" itemComponentName="QueueRow" itemSize="[1728, 56]" itemSpacing="[0, 8]" numRows="5" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
     </children>

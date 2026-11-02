@@ -244,17 +244,47 @@ function musicPreviousAt(at as integer, positionMs as integer) as integer
     return at - 1
 end function
 
-' Now Playing's Up next (QueueRow): the tracks of queue after the one at
-' at, numbered by their place in it ("4. Song"), their artist and album,
-' and how long each is.
-function musicUpNextRows(queue as object, at as integer) as object
+' Now Playing's Up next lists the whole queue, as the other apps do, the
+' track playing marked. A row is a ContentNode made on the render thread,
+' so a long queue (a playlist holds up to 5,000) is listed a part at a
+' time: at most this many rows, from a few before the track playing.
+function musicUpNextMax() as integer
+    return 250
+end function
+
+function musicUpNextBefore() as integer
+    return 50
+end function
+
+' The part of a queue of count tracks Up next lists while the track at at
+' plays: { first, last } (last left out). shown, the part listed now
+' (invalid for none), stays while the track playing is in it and isn't
+' near its end, so moving on only moves the mark.
+function musicUpNextPart(at as integer, count as integer, shown as dynamic) as object
+    if shown <> invalid and shown.last <= count and at >= shown.first and at < shown.last
+        if shown.last = count or at < shown.last - musicUpNextBefore() then return shown
+    end if
+    first = at - musicUpNextBefore()
+    if first < 0 then first = 0
+    last = first + musicUpNextMax()
+    if last > count then last = count
+    ' Near the queue's end: more of what played before instead.
+    if last - first < musicUpNextMax() then first = last - musicUpNextMax()
+    if first < 0 then first = 0
+    return { first: first, last: last }
+end function
+
+' Up next's rows (QueueRow) for queue's tracks from first to last (left
+' out), numbered by their place in it ("4. Song"), with their artist and
+' album and how long each is; current marks the one at at.
+function musicUpNextRows(queue as object, first as integer, last as integer, at as integer) as object
     rows = []
-    for i = at + 1 to queue.Count() - 1
+    for i = first to last - 1
         track = queue[i]
         parts = []
         if track.artist <> "" then parts.Push(track.artist)
         if track.album <> "" then parts.Push(track.album)
-        rows.Push({ title: urlValue(i + 1) + ". " + track.title, subtitle: parts.Join(" · "), duration: fmtClock(track.durationMs) })
+        rows.Push({ title: urlValue(i + 1) + ". " + track.title, subtitle: parts.Join(" · "), duration: fmtClock(track.durationMs), current: i = at })
     end for
     return rows
 end function

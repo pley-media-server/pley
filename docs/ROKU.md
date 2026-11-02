@@ -161,12 +161,16 @@ past it; its Shuffle starts on any track and plays the others after it in
 a random order.
 
 Now Playing shows the track, its cover and how far along it is, Shuffle,
-Previous, Pause, Next, Stop and the sleep timer, and Up next: the tracks
-after the one playing, numbered by their place in the queue. OK on one
-plays it, and the queue goes on from there. Shuffle plays the other tracks
-after the one playing in a random order; Stop shuffling puts them back in
-the album's or playlist's order, at the same track. Play pauses or goes
-on; fast forward and rewind go to the next track or back.
+Previous, Pause, Next, Stop and the sleep timer, and Up next: the queue,
+numbered, the track playing in bold, which stays in view unless the
+focus is on the list. OK on one plays it, and the queue goes on from
+there. A long queue is listed 250 tracks at a time, from 50 before the
+one playing, the next part as playing nears the end of this one: each
+row is a node the Roku draws, and a playlist holds up to 5,000. Shuffle
+plays the other tracks after the one playing in a random order; Stop
+shuffling puts them back in the album's or playlist's order, at the same
+track. Play pauses or goes on; fast forward and rewind go to the next
+track or back.
 
 The sleep timer belongs to the music, not to Now Playing: it runs while
 other screens show. Each OK on its button steps Off, 15, 30, 45, 60 and 90

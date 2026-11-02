@@ -8,6 +8,9 @@ sub init()
     ' never drawn focused.
     m.heading = m.top.findNode("heading")
     m.isHeading = false
+    ' Up next's track playing (current; an album's tracks have none): in
+    ' bold, in the accent.
+    m.isCurrent = false
 end sub
 
 sub onContent()
@@ -19,6 +22,9 @@ sub onContent()
         m.heading.text = ""
         if m.isHeading then m.heading.text = track.title
     end if
+    m.isCurrent = track.hasField("current") and track.current = true
+    m.title.font = "font:SmallSystemFont"
+    if m.isCurrent then m.title.font = "font:SmallBoldSystemFont"
     m.background.visible = not m.isHeading
     m.title.visible = not m.isHeading
     m.title.text = track.title
@@ -36,5 +42,6 @@ sub onFocus()
     else
         m.background.color = "0x1E222AFF"
         m.title.color = "0xEBEBEBFF"
+        if m.isCurrent then m.title.color = "0x38BDF8FF"
     end if
 end sub

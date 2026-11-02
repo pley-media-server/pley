@@ -723,7 +723,7 @@ async function walk() {
   }
   // Music: the artist's page, whose Play gathers every album's tracks for
   // the music player; Now Playing stopped. Then their older album, its
-  // tracks played; the first of Now Playing's Up next played, then Shuffle,
+  // tracks played; the next in Now Playing's Up next played, then Shuffle,
   // which puts the track playing first (Previous plays it again), and Stop
   // shuffling, the album's order again (Previous plays the one before), and
   // the sleep timer's button. Now Playing stopped; then the album's second
@@ -756,11 +756,12 @@ async function walk() {
   await waitFor(/^POST \/api\/playback$/, since, "a track played");
   await sleep(1500);
   shoot("now-playing");
-  await press("down"); // Up next
+  await press("down"); // Up next, on the track playing
+  await press("down"); // the next
   await sleep(300);
   shoot("now-playing-up-next");
   music.upNext = await playedBy("a track of Up next played");
-  await press("up"); // the buttons, on Pause
+  await press("up", 2); // the first track, then the buttons, on Pause
   await press("left", 2); // Shuffle
   await press("select");
   await sleep(300);

@@ -58,8 +58,8 @@ describes how they are made.
   are newest first, each with its year.
 - Playlists has New playlist: Movies & TV or Music, then a name typed on
   the Roku's keyboard; the new playlist opens.
-- Now Playing lists Up next, the tracks after the one playing, as the other
-  apps do; OK on one plays it.
+- Now Playing lists Up next, the queue with the track playing in bold, as
+  the other apps do; OK on one plays it.
 - Now Playing has Shuffle, and Stop shuffling puts the album's or
   playlist's order back. An album or a music playlist played from a track
   plays whole, so Previous goes back past where it started.

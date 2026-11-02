@@ -1,6 +1,6 @@
 ' Now Playing: what the music player (m.global.music) plays, and Up next,
-' the tracks after it: OK on one plays it, and the queue goes on from
-' there. Shuffle plays the other tracks after this one in a random order;
+' the queue with the track playing marked (Music.brs lists a long one a
+' part at a time): OK on one plays it, and the queue goes on from there. Shuffle plays the other tracks after this one in a random order;
 ' Stop shuffling puts the order back. The sleep timer's button steps
 ' through its choices, and in the timer's last 30 s, while a line counts
 ' down, it is Keep listening. The remote's play pauses or goes on, fast
@@ -25,11 +25,14 @@ sub init()
     m.upNext = m.top.findNode("upNext")
     m.watching = false
     m.labels = []
-    ' Up next: the queue it lists (its queueId), its rows, and the place
-    ' in the queue of the first (-1 before any).
+    ' Up next: the queue it lists (its queueId) and its tracks, read once,
+    ' the part of it listed ({ first, last }, invalid before any), its
+    ' rows, and the track marked as playing (-1 for none).
     m.queueId = -1
+    m.tracks = []
+    m.part = invalid
     m.rows = CreateObject("roSGNode", "ContentNode")
-    m.from = -1
+    m.marked = -1
     ' Whether the sleep timer's last 30 s were counting down.
     m.noticing = false
     showButtons()
@@ -83,32 +86,51 @@ sub onTrack()
     end if
 end sub
 
-' Another track, or another queue: Up next lists what comes after the
-' track playing. Moved on in the same queue, it loses its first rows;
-' another queue, or a track before, lists it again.
+' Another track, or another queue: Up next marks the track playing. Moved
+' on within the part listed, only the mark moves; another queue, or a
+' track outside that part or near its end, lists the part around it. The
+' track playing comes into view, unless someone is looking down the list:
+' what has the focus keeps it.
 sub onAt()
     music = m.global.music
     at = music.at
     m.queue.text = "Track " + urlValue(at + 1) + " of " + urlValue(music.queueSize)
-    from = at + 1
-    if music.queueId <> m.queueId or m.from < 0 or from < m.from
+    if music.queueId <> m.queueId
         m.queueId = music.queueId
-        m.rows = nodesContent(musicUpNextRows(music.queue, at))
-        m.upNext.content = m.rows
-    else if from > m.from
-        gone = from - m.from
-        if gone > m.rows.getChildCount() then gone = m.rows.getChildCount()
-        ' The track in focus keeps it, unless it went.
-        focused = m.upNext.itemFocused - gone
-        m.rows.removeChildrenIndex(gone, 0)
-        if focused < 0 then focused = 0
-        if m.upNext.hasFocus() and m.rows.getChildCount() > 0 then m.upNext.jumpToItem = focused
+        m.tracks = music.queue
+        m.part = invalid
     end if
-    m.from = from
-    shown = m.rows.getChildCount() > 0
+    looking = m.upNext.hasFocus()
+    part = musicUpNextPart(at, m.tracks.Count(), m.part)
+    if m.part = invalid or part.first <> m.part.first or part.last <> m.part.last
+        focused = -1
+        if looking and m.part <> invalid then focused = m.part.first + m.upNext.itemFocused
+        m.part = part
+        m.rows = nodesContent(musicUpNextRows(m.tracks, part.first, part.last, at))
+        m.upNext.content = m.rows
+        m.marked = at
+        if focused < part.first or focused >= part.last then focused = at
+        m.upNext.jumpToItem = focused - part.first
+    else if at <> m.marked
+        markRow(m.marked, false)
+        markRow(at, true)
+        m.marked = at
+        if not looking then m.upNext.jumpToItem = at - part.first
+    end if
+    shown = m.tracks.Count() > 1
     m.upNextTitle.visible = shown
     m.upNext.visible = shown
     if not shown and m.upNext.hasFocus() then m.buttons.setFocus(true)
+end sub
+
+' A row as playing or not: a new node, which the list draws again.
+sub markRow(at as integer, current as boolean)
+    index = at - m.part.first
+    row = m.rows.getChild(index)
+    if row = invalid then return
+    fresh = CreateObject("roSGNode", "ContentNode")
+    nodesFill(fresh, { title: row.title, subtitle: row.subtitle, duration: row.duration, current: current })
+    m.rows.replaceChild(fresh, index)
 end sub
 
 ' Stopped (the queue played out, or Stop), the screen goes.
@@ -185,7 +207,7 @@ sub onButton(event as object)
 end sub
 
 sub onUpNext(event as object)
-    m.global.music.jump = m.from + event.getData()
+    if m.part <> invalid then m.global.music.jump = m.part.first + event.getData()
 end sub
 
 function onKeyEvent(key as string, press as boolean) as boolean
