@@ -77,9 +77,9 @@ function NewTokenForm({ onMade, onCancel }: { onMade: (made: CreatedCompatibilit
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!name.trim()) return setError("Name the token after the app that will use it.");
+    if (!name.trim()) return setError("Give the token a name.");
     const allowed = [...new Set([...(local ? [FROM_LOCAL] : []), ...parseAllowedFrom(others)])];
-    if (allowed.length > MAX_ALLOWED_FROM) return setError(`A token takes up to ${MAX_ALLOWED_FROM} addresses and networks.`);
+    if (allowed.length > MAX_ALLOWED_FROM) return setError(`Up to ${MAX_ALLOWED_FROM} addresses.`);
     create.mutate(
       {
         name: name.trim(),
@@ -92,7 +92,7 @@ function NewTokenForm({ onMade, onCancel }: { onMade: (made: CreatedCompatibilit
 
   return (
     <form onSubmit={submit} className="mb-4 space-y-4 rounded-md border border-border p-4">
-      <Field label="Name" htmlFor="token-name" hint="The app, tool or script that will use it.">
+      <Field label="Name" htmlFor="token-name" hint="The app or tool it's for.">
         <TextInput id="token-name" maxLength={MAX_NAME} autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
       <fieldset>
@@ -114,10 +114,10 @@ function NewTokenForm({ onMade, onCancel }: { onMade: (made: CreatedCompatibilit
       <Field
         label="Only from"
         htmlFor="token-allowed-from"
-        hint="Addresses such as 192.168.1.20 and networks such as 10.0.0.0/24, separated by commas, spaces or new lines. With none of these, the token works from anywhere."
+        hint="Addresses or networks, such as 192.168.1.20 or 10.0.0.0/24. Leave empty for anywhere."
       >
         <Choice id="token-local" checked={local} onChange={() => setLocal((on) => !on)}>
-          This computer and the home network
+          This computer and home network
         </Choice>
         <textarea
           id="token-allowed-from"
@@ -149,7 +149,7 @@ function NewToken({ made, onDone }: { made: CreatedCompatibilityToken; onDone: (
   return (
     <div className="mb-4 space-y-3 rounded-md border border-accent/40 bg-accent/5 p-4">
       <p className="text-sm">
-        The token for <span className="font-medium">{made.name}</span>. Copy it into the app now: Pley shows it only once.
+        Copy the token for <span className="font-medium">{made.name}</span> now. It won't be shown again.
       </p>
       <div className="flex items-center gap-2">
         <TextInput readOnly aria-label="New token" value={made.token} className="font-mono" onFocus={(e) => e.target.select()} />
@@ -194,12 +194,7 @@ export function CompatibilityTokensCard() {
           </Button>
         )}
       </div>
-      <p className="mb-4 text-sm text-muted">
-        Jellyfin's apps, Infuse and other apps that use Pley's Jellyfin-compatible API, each signed in on one device,
-        and tokens you make for apps and tools that take one, such as those that use the Plex-compatible API. Each can
-        do what you allow, never more than you can, and ends after 90 days unused, when you change your password, or
-        when you revoke it here.
-      </p>
+      <p className="mb-4 text-sm text-muted">For apps and tools that use the Plex- or Jellyfin-compatible API.</p>
       {made ? <NewToken made={made} onDone={() => setMade(null)} /> : null}
       {making ? (
         <NewTokenForm
@@ -215,10 +210,7 @@ export function CompatibilityTokensCard() {
       ) : tokens.isError ? (
         <p className="text-sm text-danger">{errorMessage(tokens.error)}</p>
       ) : list.length === 0 ? (
-        <p className="text-sm text-subtle">
-          No apps are signed in. Sign in from a Jellyfin app, or make a token for each app that takes one, so you can
-          revoke one without the others.
-        </p>
+        <p className="text-sm text-subtle">No tokens yet.</p>
       ) : (
         <ul className="divide-y divide-white/[0.05] rounded-md border border-border">
           {list.map((t) => {

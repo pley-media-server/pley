@@ -210,7 +210,7 @@ describe("NetworkSettings", () => {
     });
     renderWithProviders(<NetworkSettings />);
     expect(await screen.findByRole("switch", { name: "Plex-compatible API" })).toBeDisabled();
-    expect(screen.getByText("Set by --plex-bind or PLEY_PLEX_BIND, on the command line or in the environment.")).toBeInTheDocument();
+    expect(screen.getByText("Set by --plex-bind or PLEY_PLEX_BIND.")).toBeInTheDocument();
     expect(screen.getByRole("spinbutton", { name: "Plex port" })).toBeDisabled();
     const listener = screen.getByText("0.0.0.0:32400").closest("li");
     expect(listener).toHaveTextContent("Plex-compatible API");

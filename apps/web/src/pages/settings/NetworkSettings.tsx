@@ -52,7 +52,7 @@ const APIS: {
   name: string;
   portLabel: string;
   portHint: string;
-  /** What it is for, while it is off. */
+  /** What it is for. */
   hint: string;
   fixed: string;
 }[] = [
@@ -61,16 +61,16 @@ const APIS: {
     name: LISTENER.jellyfin,
     portLabel: "Jellyfin port",
     portHint: `Jellyfin's own is ${JELLYFIN_PORT}.`,
-    hint: "For Jellyfin's apps, Infuse and other apps that use Jellyfin's API. They sign in with Pley accounts.",
-    fixed: "Set by --jellyfin-bind or PLEY_JELLYFIN_BIND, on the command line or in the environment.",
+    hint: "For Jellyfin apps such as Infuse.",
+    fixed: "Set by --jellyfin-bind or PLEY_JELLYFIN_BIND.",
   },
   {
     api: "plex",
     name: LISTENER.plex,
     portLabel: "Plex port",
     portHint: `Plex's own is ${PLEX_PORT}.`,
-    hint: "For tools and apps that use Plex's API, such as Kometa and Tautulli. They use tokens made in Account → Tokens for other apps.",
-    fixed: "Set by --plex-bind or PLEY_PLEX_BIND, on the command line or in the environment.",
+    hint: "For tools such as Kometa and Tautulli.",
+    fixed: "Set by --plex-bind or PLEY_PLEX_BIND.",
   },
 ];
 
@@ -308,15 +308,7 @@ function ApiChoice({
     <>
       <Row
         label={api.name}
-        hint={
-          fixed
-            ? api.fixed
-            : !value.on
-              ? api.hint
-              : value.onWeb
-                ? "On Pley's address, through your reverse proxy too: apps connect to the address you use for Pley."
-                : "On a port of its own, at the addresses above."
-        }
+        hint={fixed ? api.fixed : api.hint}
       >
         <Toggle checked={value.on} disabled={fixed} onChange={(v) => set({ on: v })} label={api.name} />
       </Row>

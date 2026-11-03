@@ -300,7 +300,7 @@ describe("AccountPage", () => {
     const requests = renderAccount(testUser);
     await user.click(await screen.findByRole("button", { name: "New token" }));
     await user.click(screen.getByRole("button", { name: "Make token" }));
-    expect(screen.getByText("Name the token after the app that will use it.")).toBeInTheDocument();
+    expect(screen.getByText("Give the token a name.")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Name"), " Backup script ");
     await user.click(screen.getByRole("button", { name: "Make token" }));
@@ -308,7 +308,7 @@ describe("AccountPage", () => {
     expect(shown).toHaveValue(NEW_TOKEN);
     const made = requests.find((r) => r.method === "POST" && r.path === "/api/me/compatibility-tokens");
     expect(made?.body).toEqual({ name: "Backup script", scope: "play", allowed_from: [] });
-    expect(screen.getByText(/Pley shows it only once/)).toBeInTheDocument();
+    expect(screen.getByText(/won't be shown again/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Copy" }));
     expect(await screen.findByText("Token copied")).toBeInTheDocument();
@@ -328,11 +328,11 @@ describe("AccountPage", () => {
     expect(screen.getByLabelText(/^Watch/)).toBeChecked();
     expect(screen.getByLabelText(/^Watch/)).toBeDisabled();
     expect(screen.getByLabelText(/^See everyone's activity/)).not.toBeChecked();
-    expect(screen.getByText(/It never manages users/)).toBeInTheDocument();
+    expect(screen.getByText("For tools such as Kometa.")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Name"), "Collections tool");
     await user.click(screen.getByLabelText(/^Manage libraries/));
-    await user.click(screen.getByLabelText("This computer and the home network"));
+    await user.click(screen.getByLabelText("This computer and home network"));
     await user.type(screen.getByLabelText("Only from"), "10.0.0.0/24, fd00::/8{Enter}192.168.1.20  10.0.0.0/24");
     await user.click(screen.getByRole("button", { name: "Make token" }));
     await screen.findByLabelText("New token");
@@ -371,7 +371,7 @@ describe("AccountPage", () => {
     // Too many to send.
     await user.type(from, Array.from({ length: 17 }, (_, i) => `10.0.0.${i + 1}`).join(" "));
     await user.click(screen.getByRole("button", { name: "Make token" }));
-    expect(screen.getByText("A token takes up to 16 addresses and networks.")).toBeInTheDocument();
+    expect(screen.getByText("Up to 16 addresses.")).toBeInTheDocument();
     expect(requests.some((r) => r.method === "POST")).toBe(false);
 
     await user.clear(from);
@@ -403,7 +403,7 @@ describe("AccountPage", () => {
     await user.type(screen.getByLabelText("New password"), "new-password-2");
     await user.type(screen.getByLabelText("Confirm new password"), "new-password-2");
     await user.click(screen.getByRole("button", { name: "Update password" }));
-    expect(await screen.findByText(/No apps are signed in/)).toBeInTheDocument();
+    expect(await screen.findByText("No tokens yet.")).toBeInTheDocument();
   });
 
   it("links to the source code where the server says it is offered", async () => {

@@ -40,19 +40,19 @@ export const TOKEN_SCOPES: { scope: string; label: string; hint: string; admin: 
   {
     scope: "play",
     label: "Watch",
-    hint: "Browse and play what you can, and keep your place, watched marks and playlists.",
+    hint: "Browse and play.",
     admin: false,
   },
   {
     scope: "activity",
     label: "See everyone's activity",
-    hint: "Everyone's sessions, history and accounts, to read only, for a tool such as Tautulli.",
+    hint: "For tools such as Tautulli.",
     admin: true,
   },
   {
     scope: "manage",
     label: "Manage libraries",
-    hint: "Refresh libraries and items, edit details, make and change collections, and stop anyone's playback, for a tool such as Kometa. It never manages users.",
+    hint: "For tools such as Kometa.",
     admin: true,
   },
 ];
