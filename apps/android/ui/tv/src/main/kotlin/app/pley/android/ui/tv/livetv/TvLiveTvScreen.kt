@@ -59,6 +59,11 @@ import androidx.compose.ui.focus.onFocusChanged
 import app.pley.android.screens.livetv.GroupSections
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -647,7 +652,7 @@ private fun ChannelTiles(
 /**
  * A channel's tile: its logo with its number and how far what's on is,
  * captioned with its name and what's on (Live TV's cards, and search's).
- * The long press opens [onDetails], where there are any.
+ * The long press, Menu and Info open [onDetails], where there are any.
  */
 @Composable
 internal fun ChannelTileCard(
@@ -666,7 +671,16 @@ internal fun ChannelTileCard(
         onClick = { onWatch(channel) },
         onLongClick = onDetails?.let { { it(channel) } },
         modifier = modifier,
-        focusModifier = focusModifier,
+        focusModifier = if (onDetails == null) {
+            focusModifier
+        } else {
+            // Info too, as in the guide (Samsung's cards); Fire TV remotes have none: Menu, or OK held.
+            focusModifier.onKeyEvent { event ->
+                if (event.key != Key.Info) return@onKeyEvent false
+                if (event.type == KeyEventType.KeyUp) onDetails(channel)
+                true
+            }
+        },
         caption = { focused ->
             TileCaption(
                 name,

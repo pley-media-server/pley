@@ -22,6 +22,7 @@ import app.pley.android.player.PlayRequest
 import app.pley.android.screens.PlayerLauncher
 import app.pley.android.screens.livetv.LiveTvDeps
 import app.pley.android.screens.livetv.LiveTvViewModel
+import app.pley.android.screens.livetv.LiveView
 import app.pley.android.testing.data.FakeLiveTv
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.theme.TvTheme
@@ -96,6 +97,16 @@ class TvLiveTvScreenTest {
         compose.onNodeWithText(string(R.string.tv_livetv_category_all)).assertIsNotFocused()
         back()
         compose.onNodeWithText(string(R.string.tv_livetv_category_all)).assertIsFocused()
+    }
+
+    @Test
+    fun `Info on a channel's tile opens its details`() {
+        show()
+        vm.setView(LiveView.Channels)
+        compose.waitForIdle()
+        compose.onNodeWithTag(TV_LIVE_TILES).assertExists()
+        press(Key.Info)
+        compose.onNodeWithTag(TV_LIVE_PROGRAM).assertExists()
     }
 
     @Test

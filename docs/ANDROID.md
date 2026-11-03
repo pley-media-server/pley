@@ -189,7 +189,8 @@ channel. In the guide, Left and Right go programme by programme, back
 through a programme that began before the guide a screen at a time, and a
 half hour at a time on a channel without a guide; rewind and fast forward
 (or Previous and Next) move it two hours, and the time now shows in a pill
-over the now line. Back goes up a step at a time: the guide back to now,
+over the now line. Holding OK, Menu or Info on a programme or a channel's
+tile opens its details. Back goes up a step at a time: the guide back to now,
 a search back to the category before, the guide or the tiles to the
 categories, then the rail. A held Left stops at the start of the guide or of the
 tiles, and a held Up at the top: a press of its own goes on to the

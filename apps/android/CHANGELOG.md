@@ -40,6 +40,8 @@ describes how they are made.
 - The TV live player's channel list moves as the app's other lists do
   under a held key: at an even pace, without asking for every logo it
   passes, its focused row a third of the way down.
+- Info on a channel's tile on Live TV's page on TVs opens its details, as
+  it does in the guide and on Samsung TVs.
 
 ### Fixed
 
