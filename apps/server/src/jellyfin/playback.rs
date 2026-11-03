@@ -25,7 +25,7 @@ use super::dto::{self, TICKS_PER_MS};
 use super::ids::Kind;
 use super::items::{libraries, visible_item};
 use super::{Body, Client, Jellyfin, JfError, JfResult, JfUser, Q, QueryResult};
-use crate::auth::AuthUser;
+use crate::auth::{AuthUser, SourceIp};
 use crate::catalog::{self, FileRow, ItemRow};
 use crate::events::ServerEvent;
 use crate::playback::{Caps, Method, PlaybackMode, PlaybackRequest, Session};
@@ -301,24 +301,23 @@ fn transcoding_url(
 // ------------------------------------------------------------------ who asks for a file
 
 /// The caller of a stream, a picture track or a subtitle: its token (in a
-/// header or `ApiKey`) or a media source's id that stands for one, and the
-/// file asked for, which its user may see.
+/// header or `ApiKey`) or a media source's id that stands for one, used from
+/// where the token may be, and the file asked for, which its user may see.
 async fn media_caller(
     state: &AppState,
     jellyfin: &Jellyfin,
-    headers: &HeaderMap,
-    query: Option<&str>,
+    (headers, query, from): (&HeaderMap, Option<&str>, Option<std::net::IpAddr>),
     path_id: &str,
     source: Option<&str>,
 ) -> JfResult<(AuthUser, FileRow)> {
-    let mut user = super::token_user(state, headers, query).await?;
+    let mut user = super::token_user(state, headers, query, from).await?;
     // A source's id, as a query parameter or as the path's id (players that
     // take the source's id for the item's).
     let sourced = source.and_then(|s| jellyfin.ids.read_source(s)).or_else(|| jellyfin.ids.read_source(path_id));
     if user.is_none()
         && let Some((_, token_id)) = sourced
     {
-        user = state.auth.compatibility_user(token_id).await;
+        user = state.auth.compatibility_user(token_id, from).await.map(super::this_apis);
     }
     let user = user.ok_or(JfError::Unauthorized)?;
     let file = match sourced {
@@ -333,6 +332,12 @@ async fn media_caller(
         return Err(JfError::NotFound);
     }
     Ok((user, file))
+}
+
+/// What [`media_caller`] reads of `request`: its headers, its query and
+/// where it came from.
+fn asking(request: &Request) -> (&HeaderMap, Option<&str>, Option<std::net::IpAddr>) {
+    (request.headers(), request.uri().query(), crate::auth::source_ip_of(request.extensions(), request.headers()))
 }
 
 /// The media file, with ranges, sent from the file that was checked.
@@ -366,8 +371,7 @@ async fn video_file(
     if file != "stream" && !file.starts_with("stream.") {
         return Err(JfError::NotFound);
     }
-    let (_, file) =
-        media_caller(&state, &jellyfin, request.headers(), request.uri().query(), &id, q.get("mediaSourceId")).await?;
+    let (_, file) = media_caller(&state, &jellyfin, asking(&request), &id, q.get("mediaSourceId")).await?;
     serve_file(&file, request, false).await
 }
 
@@ -383,8 +387,7 @@ async fn audio_file(
     if file != "stream" && !file.starts_with("stream.") && file != "universal" {
         return Err(JfError::NotFound);
     }
-    let (_, file) =
-        media_caller(&state, &jellyfin, request.headers(), request.uri().query(), &id, q.get("mediaSourceId")).await?;
+    let (_, file) = media_caller(&state, &jellyfin, asking(&request), &id, q.get("mediaSourceId")).await?;
     serve_file(&file, request, false).await
 }
 
@@ -396,8 +399,7 @@ async fn download(
     q: Q,
     request: Request,
 ) -> JfResult<Response> {
-    let (_, file) =
-        media_caller(&state, &jellyfin, request.headers(), request.uri().query(), &id, q.get("mediaSourceId")).await?;
+    let (_, file) = media_caller(&state, &jellyfin, asking(&request), &id, q.get("mediaSourceId")).await?;
     serve_file(&file, request, true).await
 }
 
@@ -438,8 +440,7 @@ async fn master(
     q: Q,
     request: Request,
 ) -> JfResult<Response> {
-    let (user, file) =
-        media_caller(&state, &jellyfin, request.headers(), request.uri().query(), &id, q.get("mediaSourceId")).await?;
+    let (user, file) = media_caller(&state, &jellyfin, asking(&request), &id, q.get("mediaSourceId")).await?;
     let row = catalog::item(&state.db, user.id, file.item_id).await?.ok_or(JfError::NotFound)?;
     let key = stream_key(&user, &file, &q);
     let running = streams.0.lock().get(&key).cloned().filter(|session| state.sessions.get(session).is_some());
@@ -518,18 +519,21 @@ async fn master(
 /// the session's id (128 random bits) stands for the token that started it
 /// through this API. Only those sessions, and only while that token works:
 /// not once it is revoked or ends, its account is disabled, or the server
-/// requires two-step sign-in the account lacks.
+/// requires two-step sign-in the account lacks, nor from where the token
+/// may not be used.
 async fn session_file(
     State(state): State<AppState>,
+    SourceIp(from): SourceIp,
     Path((_id, session_id, file)): Path<(String, String, String)>,
 ) -> JfResult<Response> {
     let session = state.sessions.get(&session_id).ok_or(JfError::NotFound)?;
     let token = session.compatibility_token.ok_or(JfError::NotFound)?;
     let user = state
         .auth
-        .compatibility_user(token)
+        .compatibility_user(token, from)
         .await
         .filter(|user| user.id == session.user_id)
+        .map(super::this_apis)
         .ok_or(JfError::NotFound)?;
     Ok(crate::api::playback::hls_file(State(state), user, Path((session_id, file))).await?)
 }
@@ -641,8 +645,7 @@ async fn subtitle(
     name: &str,
     request: Request,
 ) -> JfResult<Response> {
-    let (user, file) =
-        media_caller(&state, jellyfin, request.headers(), request.uri().query(), id, Some(source)).await?;
+    let (user, file) = media_caller(&state, jellyfin, asking(&request), id, Some(source)).await?;
     let index: i64 = index.parse().map_err(|_| JfError::NotFound)?;
     if !file.streams().iter().any(|s| s.index == index && s.kind == StreamKind::Subtitle) {
         return Err(JfError::NotFound);

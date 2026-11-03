@@ -361,24 +361,52 @@ async fn fix_match_and_artwork_choices() {
     );
     assert_eq!(posters.body[0]["preview_url"], json!(tmdb_image("w342", "en-high.jpg")));
 
-    // Only TMDB pictures can be chosen; this one is already stored, as if downloaded.
+    // Pictures come from the image hosts only; these are already stored, as
+    // if downloaded.
     let elsewhere = app
         .put(&format!("/api/items/{alien}/artwork/poster"), &admin, json!({"url": "https://example.com/x.jpg"}))
         .await;
     assert_eq!(elsewhere.status, StatusCode::BAD_REQUEST);
+    let downloaded = |url: String, bytes: Vec<u8>| {
+        let app = &app;
+        async move {
+            let blob = app.state.store.put(&bytes, "png").await.unwrap();
+            sqlx::query("INSERT INTO remote_images (url, blob, fetched_at) VALUES (?, ?, 0)")
+                .bind(&url)
+                .bind(&blob)
+                .execute(&app.state.db.write)
+                .await
+                .unwrap();
+        }
+    };
     let chosen = tmdb_image("original", "en-high.jpg");
-    let blob = app.state.store.put(b"\xff\xd8\xff\xe0 en-high", "jpg").await.unwrap();
-    sqlx::query("INSERT INTO remote_images (url, blob, fetched_at) VALUES (?, ?, 0)")
-        .bind(&chosen)
-        .bind(&blob)
-        .execute(&app.state.db.write)
-        .await
-        .unwrap();
+    downloaded(chosen.clone(), png()).await;
     let picked = app.put(&format!("/api/items/{alien}/artwork/poster"), &admin, json!({"url": chosen})).await;
     assert_eq!(picked.status, StatusCode::OK, "{:?}", picked.body);
     assert!(picked.body["locked_fields"].as_array().unwrap().contains(&json!("poster")));
+    // Re-encoded as an upload is: nothing of the file is served as it came.
     let poster = app.get(&format!("/api/items/{alien}/images/poster"), &admin).await;
-    assert_eq!(poster.bytes, b"\xff\xd8\xff\xe0 en-high");
+    assert_eq!(image::guess_format(&poster.bytes).unwrap(), image::ImageFormat::Jpeg);
+
+    // And from the hosts library tools take theirs from, such as GitHub's
+    // raw files for Kometa's own, which serve anyone's files: one that only
+    // starts like a picture is refused.
+    let kometa = "https://raw.githubusercontent.com/team/images/master/poster.jpg";
+    downloaded(kometa.into(), b"\xff\xd8\xff\xe0 not a picture".to_vec()).await;
+    let picked = app.put(&format!("/api/items/{alien}/artwork/poster"), &admin, json!({"url": kometa})).await;
+    assert_eq!(picked.status, StatusCode::BAD_REQUEST, "{:?}", picked.body);
+    let kometa = "https://raw.githubusercontent.com/team/images/master/other.jpg";
+    downloaded(kometa.into(), png()).await;
+    let picked = app.put(&format!("/api/items/{alien}/artwork/poster"), &admin, json!({"url": kometa})).await;
+    assert_eq!(picked.status, StatusCode::OK, "{:?}", picked.body);
+}
+
+fn png() -> Vec<u8> {
+    let mut png = Vec::new();
+    image::RgbImage::from_pixel(40, 60, image::Rgb([200, 30, 30]))
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .unwrap();
+    png
 }
 
 #[tokio::test]

@@ -29,7 +29,7 @@ use pley_transcoder_api::{
 };
 use serde_json::{Value, json};
 
-use common::TestApp;
+use common::{TestApp, encode};
 
 const TOKEN: &str = "shared-secret";
 
@@ -1932,6 +1932,61 @@ async fn jellyfin_clients_stream_hls_from_the_transcoder() {
     assert_eq!(stop.status, StatusCode::NO_CONTENT);
     eventually(|| w.fake.deleted.lock().contains(&"job1".to_owned())).await;
     assert_eq!(app.jf(Method::GET, &format!("{base}index.m3u8"), "", None).await.status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn plex_clients_stream_through_the_universal_transcoder() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let feature = w.movies["Feature"];
+    let file = app.file_of(feature).await;
+    let path = encode(&format!("/library/metadata/{feature}"));
+    let client = [("x-plex-client-identifier", "living-room"), ("x-plex-product", "Plex for TV")];
+
+    let start = format!(
+        "/video/:/transcode/universal/start.m3u8?path={path}&offset=30&maxVideoBitrate=2000&videoResolution=1280x720&audioStreamID={}",
+        file * 10_000 + 2
+    );
+    let master = app.plex(Method::GET, &start, admin, &client).await;
+    assert_eq!(master.status, StatusCode::OK, "{}", master.text());
+    let text = master.text();
+    assert!(text.contains("BANDWIDTH=2000000,RESOLUTION=1280x720"), "{text}");
+    let variant = text.lines().find(|l| l.starts_with("session/")).unwrap().to_owned();
+    let job = w.fake.last_request();
+    assert_eq!(job.start_ms, Some(30_000));
+    let video = job.video.unwrap();
+    assert_eq!((video.mode, video.max_height, video.max_bitrate_kbps), (VideoMode::Transcode, Some(720), Some(1_808)));
+    assert_eq!(job.audio.unwrap().stream_index, Some(2), "Plex stream ids map to file streams");
+
+    // The session URLs need no token.
+    let base = format!("/video/:/transcode/universal/{}", variant.trim_end_matches("index.m3u8"));
+    let playlist = app.plex(Method::GET, &format!("{base}index.m3u8"), "", &[]).await;
+    assert_eq!(playlist.status, StatusCode::OK);
+    let segment = app.plex(Method::GET, &format!("{base}0.ts"), "", &[]).await;
+    assert_eq!((segment.status, segment.text()), (StatusCode::OK, "job1:0".to_owned()));
+
+    // It shows up as a transcode session.
+    let sessions = app.plex_json("/transcode/sessions", admin).await;
+    assert_eq!(sessions["size"], json!(1));
+    assert_eq!(sessions["TranscodeSession"]["videoDecision"], json!("transcode"));
+
+    // directStream=0 forces transcoding where a remux would do.
+    let plain = format!("/video/:/transcode/universal/start.m3u8?path={path}&directStream=0");
+    app.plex(Method::GET, &plain, admin, &[("x-plex-client-identifier", "phone")]).await;
+    assert_eq!(w.fake.last_request().video.unwrap().mode, VideoMode::Transcode);
+    let plain = format!("/video/:/transcode/universal/start.m3u8?path={path}");
+    app.plex(Method::GET, &plain, admin, &[("x-plex-client-identifier", "tablet")]).await;
+    assert_eq!(w.fake.last_request().video.unwrap().mode, VideoMode::Copy);
+
+    // Its token revoked, the session's addresses open nothing more.
+    let token = app.plex_token(admin).await;
+    assert!(app.state.auth.end_compatibility_token_of(&token).await.unwrap());
+    assert_eq!(app.plex(Method::GET, &format!("{base}index.m3u8"), "", &[]).await.status, StatusCode::NOT_FOUND);
+
+    // Stopping by client ends that client's session and its job.
+    let stop = app.plex(Method::GET, "/video/:/transcode/universal/stop?session=living-room", admin, &[]).await;
+    assert_eq!(stop.status, StatusCode::OK);
+    eventually(|| w.fake.deleted.lock().contains(&"job1".to_owned())).await;
 }
 
 #[tokio::test]

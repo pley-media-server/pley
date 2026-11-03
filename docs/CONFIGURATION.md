@@ -19,11 +19,12 @@ the next sign-in.
 
 Options come from command-line flags, `PLEY_*` environment variables, or
 `pley.toml` in the data folder ([example](../pley.example.toml)). For
-example, `--jellyfin-bind` is also `PLEY_JELLYFIN_BIND` and `jellyfin_bind`.
+example, `--plex-bind` is also `PLEY_PLEX_BIND` and `plex_bind`.
 
 | Flag | Default | |
 |---|---|---|
 | `--bind` | `0.0.0.0:7539` | Listen address (7539 spells PLEY on a keypad); several separated by commas |
+| `--plex-bind` | `web` (Pley's own port) | [Plex-compatible API](COMPATIBILITY.md): `off`, or addresses of its own (`0.0.0.0:32400`), several as with `--bind` |
 | `--jellyfin-bind` | `off` | [Jellyfin-compatible API](COMPATIBILITY.md): `web` (Pley's own port), or addresses of its own (`0.0.0.0:8096`), several as with `--bind` |
 | `--data-dir` | `%LOCALAPPDATA%\pley`, `~/Library/Application Support/pley`, `~/.local/share/pley` | Database, caches and artwork ([STORAGE.md](STORAGE.md)) |
 | `--ffmpeg`, `--ffprobe` | from `PATH` | Passed to the transcoder |
@@ -38,10 +39,10 @@ Everything else is set in the web app:
 - **Settings → Server**: the server name, metadata sources and keys, scanning.
 - **Settings → Transcoder**: hardware acceleration, tone mapping and transcode
   limits.
-- **Settings → Network**: where Pley listens (networks, port, the
-  Jellyfin-compatible API, discovery), changed while Pley runs and saved in
-  `pley.toml`, unless `--bind`, `--jellyfin-bind` or `--no-discovery` (or
-  their `PLEY_*` variables) set it.
+- **Settings → Network**: where Pley listens (networks, port, the Plex- and
+  Jellyfin-compatible APIs, discovery), changed while Pley runs and saved in
+  `pley.toml`, unless `--bind`, `--plex-bind`, `--jellyfin-bind` or
+  `--no-discovery` (or their `PLEY_*` variables) set it.
 - **Settings → Live TV**: IPTV sources, which channels show, and who may
   watch.
 - **Settings → Requests**: Discover and requests, their limits, and Radarr and

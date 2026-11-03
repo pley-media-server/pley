@@ -1,7 +1,7 @@
 //! An in-process pley for the integration tests that use it (tests/api.rs
 //! and friends have their own copies): a temporary data directory, the pley
-//! API and the Jellyfin-compatible API on the same state, fake media files.
-//! No transcoder runs unless a test points the config at one.
+//! API and the Plex- and Jellyfin-compatible APIs on the same state, fake
+//! media files. No transcoder runs unless a test points the config at one.
 
 #![allow(dead_code)]
 
@@ -37,11 +37,14 @@ pub const ISSUER: &str = "http://pley.local:7539";
 
 pub struct TestApp {
     pub api: Router,
+    /// The Plex-compatible API on a port of its own.
+    pub plex: pley::plex::Service,
     /// The Jellyfin-compatible API on a port of its own.
     pub jellyfin: pley::jellyfin::Service,
     pub state: AppState,
     pub media: tempfile::TempDir,
     _data: tempfile::TempDir,
+    plex_tokens: PlexTokens,
     jellyfin_tokens: JellyfinTokens,
 }
 
@@ -84,13 +87,16 @@ impl TestApp {
         adjust(&mut config);
         let state = AppState::init(config).await.unwrap();
         let api = pley::api::router(state.clone());
+        let plex = pley::plex::service(state.clone());
         let jellyfin = pley::jellyfin::service(state.clone());
         Self {
             api,
+            plex,
             jellyfin,
             state,
             media: tempfile::tempdir().unwrap(),
             _data: data,
+            plex_tokens: Default::default(),
             jellyfin_tokens: Default::default(),
         }
     }
@@ -100,6 +106,7 @@ impl TestApp {
     pub async fn restart(&mut self) {
         self.state = AppState::init(self.state.config.clone()).await.unwrap();
         self.api = pley::api::router(self.state.clone());
+        self.plex = pley::plex::service(self.state.clone());
         self.jellyfin = pley::jellyfin::service(self.state.clone());
     }
 
@@ -170,6 +177,48 @@ impl TestApp {
     /// on its account page, that may do `scope`.
     pub async fn compatibility_token(&self, session: &str, scope: &str) -> String {
         compatibility_token(&self.api, session, scope).await
+    }
+
+    /// The token the Plex-compatible API is sent for `token` (see
+    /// [`PlexTokens`]).
+    pub async fn plex_token(&self, token: &str) -> String {
+        self.plex_tokens.get(&self.state, &self.api, token).await
+    }
+
+    /// The Plex-compatible API, asking for JSON with the token as Plex
+    /// clients send it ([`TestApp::plex_token`]'s for a session).
+    pub async fn plex(&self, method: Method, uri: &str, token: &str, extra: &[(&str, &str)]) -> Reply {
+        let token = self.plex_token(token).await;
+        let mut req = Request::builder()
+            .method(method)
+            .uri(uri)
+            .header("x-plex-token", token)
+            .header(header::ACCEPT, "application/json");
+        for (k, v) in extra {
+            req = req.header(*k, *v);
+        }
+        // On pley's port, as by default: `plex` is the API on its own.
+        reply(self.api.clone().oneshot(req.body(Body::empty()).unwrap()).await.unwrap()).await
+    }
+
+    /// A Plex-compatible API request with `body` (an upload).
+    pub async fn plex_upload(&self, method: Method, uri: &str, token: &str, body: Vec<u8>) -> Reply {
+        let token = self.plex_token(token).await;
+        let req = Request::builder()
+            .method(method)
+            .uri(uri)
+            .header("x-plex-token", token)
+            .header(header::ACCEPT, "application/json")
+            .body(Body::from(body))
+            .unwrap();
+        reply(self.api.clone().oneshot(req).await.unwrap()).await
+    }
+
+    /// `MediaContainer` of a successful Plex request.
+    pub async fn plex_json(&self, uri: &str, token: &str) -> Value {
+        let reply = self.plex(Method::GET, uri, token, &[]).await;
+        assert_eq!(reply.status, StatusCode::OK, "{uri}: {}", reply.text());
+        reply.body["MediaContainer"].clone()
     }
 
     /// The token the Jellyfin-compatible API is sent for `token` (see
@@ -485,15 +534,14 @@ pub async fn compatibility_token(api: &Router, session: &str, scope: &str) -> St
     made.body["token"].as_str().unwrap().to_owned()
 }
 
-/// The compatibility tokens that tests send the compatibility API for the
-/// sessions they signed in with. A session's stands for a compatibility
-/// token of its account with every right the account has (`play`, and
-/// `activity manage` for an administrator), made once and kept as a tool
-/// keeps its token: when the session ends, requests go on with the kept
-/// token, which ended with it. A new one is made only while the session
-/// works and the kept one doesn't (a new password ends the account's tokens
-/// but not the session that set it), or the account's role changed. Any
-/// other token goes as it is.
+/// The compatibility tokens that tests send the Jellyfin-compatible API for
+/// the sessions they signed in with. A session's stands for a token of its
+/// account that may play, as a Jellyfin sign-in gets, made once and kept as
+/// an app keeps its token: when the session ends, requests go on with the
+/// kept token, which ended with it. A new one is made only while the
+/// session works and the kept one doesn't (a new password ends the
+/// account's tokens but not the session that set it). Any other token goes
+/// as it is.
 #[derive(Default)]
 pub struct JellyfinTokens(std::sync::Mutex<HashMap<String, String>>);
 
@@ -520,8 +568,42 @@ impl JellyfinTokens {
     }
 }
 
+/// The tokens tests send the Plex-compatible API, as [`JellyfinTokens`],
+/// but a session stands for one with every right its account has (`play`,
+/// and `activity manage` for an administrator), as a tool's would.
+#[derive(Default)]
+pub struct PlexTokens(std::sync::Mutex<HashMap<String, (bool, String)>>);
+
+impl PlexTokens {
+    /// The token to send for `token`, of the pley of `state` and `api`.
+    pub async fn get(&self, state: &AppState, api: &Router, token: &str) -> String {
+        if token.starts_with("pley_") {
+            return token.to_owned();
+        }
+        let kept = self.0.lock().unwrap().get(token).cloned();
+        let Some(user) = state.auth.validate(token).await else {
+            return kept.map_or_else(|| token.to_owned(), |(_, kept)| kept);
+        };
+        if let Some((admin, kept)) = kept
+            && admin == user.is_admin
+            && state.auth.validate_compatibility(&kept, None).await.is_some()
+        {
+            return kept;
+        }
+        let scope = if user.is_admin { "play activity manage" } else { "play" };
+        let made = compatibility_token(api, token, scope).await;
+        self.0.lock().unwrap().insert(token.to_owned(), (user.is_admin, made.clone()));
+        made
+    }
+}
+
 pub fn titles(items: &Value) -> Vec<String> {
     items.as_array().map(|a| a.iter().map(|i| i["title"].as_str().unwrap().to_owned()).collect()).unwrap_or_default()
+}
+
+/// Titles of the `Metadata` of a Plex `MediaContainer`.
+pub fn plex_titles(container: &Value) -> Vec<String> {
+    titles(&container["Metadata"])
 }
 
 /// The names of the `Items` of a Jellyfin list.

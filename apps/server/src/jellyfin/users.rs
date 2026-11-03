@@ -271,7 +271,11 @@ async fn authenticate(
     // `Pw`; older clients sent `Password`.
     let username = body.str("Username").unwrap_or_default().to_owned();
     let password = body.str("Pw").or(body.str("Password")).unwrap_or_default().to_owned();
-    let asked = compatibility::Asked { name: client.token_name(), scopes: compatibility::Scopes::play() };
+    let asked = compatibility::Asked {
+        name: client.token_name(),
+        scopes: compatibility::Scopes::play(),
+        origins: compatibility::Origins::default(),
+    };
     let account = crate::api::auth::check_password(&state, &username, password, source).await?;
     crate::api::auth::second_step(&state, account.id, &account.username, None, None).await?;
     let (token, _) = state.auth.create_compatibility_token(account.id, &asked).await?;

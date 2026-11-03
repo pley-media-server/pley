@@ -101,9 +101,13 @@ What Pley does, in full. The [README](../README.md) has the short version.
   documents. Pley's own apps work without internet access; apps by other
   publishers are off until an administrator allows them. TVs show a code to
   type on Pley's `/link` page ([API.md](API.md#apps-oauth-21)).
-- Apps that use the Jellyfin-compatible API sign in with tokens of their
-  own, which work on that API only, to browse and play; Account lists each
-  app signed in and revokes it ([COMPATIBILITY.md](COMPATIBILITY.md#signing-in)).
+- Apps and tools that use the compatibility APIs get tokens of their own,
+  from Account or by signing in to the Jellyfin-compatible API, which work on
+  those APIs only and do only what you allow: watching and, for
+  administrators, seeing everyone's activity or managing libraries, never
+  accounts. A token can be limited to the addresses it is used from; Account
+  lists each one and revokes it
+  ([COMPATIBILITY.md](COMPATIBILITY.md#tokens-for-other-apps)).
 - First-run setup needs a one-time code from the server's log, which the tray
   icon fills in. Passwords have at least 8 characters and can't be common
   ones ([SECURITY.md](../SECURITY.md)).
@@ -115,9 +119,15 @@ What Pley does, in full. The [README](../README.md) has the short version.
   (playback, transcoder, scans, and charts of Pley's and the computer's CPU
   and memory) and daily database backups ([STORAGE.md](STORAGE.md)).
 
-## Jellyfin-compatible API
+## Compatibility APIs
 
-Off until it is turned on, on Pley's own port or one of its own (8096):
+The Plex-compatible API, on Pley's own port by default (or 32400), for
+`python-plexapi`, library tools such as Kometa and activity monitors such
+as Tautulli: browsing with their filters, editing, collections, playlists,
+play queues, sessions, history and notifications.
+
+The Jellyfin-compatible API, off until it is turned on, on Pley's own port
+or one of its own (8096):
 Jellyfin's apps and others built on its API browse the libraries, play as
 they are or as HLS from Pley's transcoder, with subtitles, skip intro and
 credits, and keep watch state, favorites (My List) and ratings with Pley's

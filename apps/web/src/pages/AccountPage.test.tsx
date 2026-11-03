@@ -5,7 +5,7 @@ import type { AppGrant } from "@/api/apps";
 import type { CompatibilityToken, CreatedCompatibilityToken } from "@/api/compatibilityTokens";
 import type { User } from "@/api/types";
 import { AudioPlayerProvider } from "@/audio/AudioPlayer";
-import { type FakeRequest, mockApi, renderWithProviders, testUser } from "@/test/render";
+import { apiError, type FakeRequest, mockApi, renderWithProviders, testUser } from "@/test/render";
 import { AccountPage, PlaybackCard } from "./AccountPage";
 
 /** The last account change: queries refetched after it may come later. */
@@ -74,6 +74,9 @@ const SOURCE = "https://example.org/pley-fork";
 /** The token the server makes next. */
 const NEW_TOKEN = "pley_ct_c2VjcmV0LXRva2VuLWZvci10ZXN0cy1vbmx5";
 
+/** An entry the server refuses in where a token may be used from. */
+const NOT_AN_ADDRESS = "10.0.0.300";
+
 /**
  * The whole page as `user`, with nothing in its history or devices, these
  * apps and these tokens for other apps; returns the requests it makes.
@@ -99,11 +102,15 @@ function renderAccount(user: User, apps: AppGrant[] = [], tokens: CompatibilityT
     },
     "GET /api/me/compatibility-tokens": () => tokenList,
     "POST /api/me/compatibility-tokens": (req) => {
-      const { name } = req.body as { name: string };
+      const { name, scope, allowed_from } = req.body as { name: string; scope?: string; allowed_from?: string[] };
+      if (allowed_from?.includes(NOT_AN_ADDRESS)) {
+        return apiError(400, "bad_request", `not an address or network: ${NOT_AN_ADDRESS}`);
+      }
       const made: CompatibilityToken = {
         id: 9,
         name,
-        scopes: ["play"],
+        scopes: scope?.split(" ") ?? ["play"],
+        allowed_from: allowed_from ?? [],
         created_at: NOW,
         last_used_at: null,
         expires_at: NOW + 90 * 86400,
@@ -164,17 +171,19 @@ const findroid: CompatibilityToken = {
   id: 3,
   name: "Findroid on Phone",
   scopes: ["play"],
+  allowed_from: [],
   created_at: NOW - 86400 * 2,
   last_used_at: NOW - 120,
   expires_at: NOW + 86400 * 90,
   device: "Findroid/0.16",
   ip: "192.0.2.9",
 };
-/** A token made for a script, never used yet. */
-const script: CompatibilityToken = {
+/** A token made for a tool that manages the libraries, from home only, never used yet. */
+const tool: CompatibilityToken = {
   id: 4,
-  name: "Backup script",
-  scopes: ["play"],
+  name: "Collections tool",
+  scopes: ["play", "manage"],
+  allowed_from: ["10.0.0.0/24", "local"],
   created_at: NOW - 3600,
   last_used_at: null,
   expires_at: NOW + 86400 * 90,
@@ -275,11 +284,14 @@ describe("AccountPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("lists the apps signed in and the tokens made, with their last use", async () => {
-    renderAccount(testUser, [], [findroid, script]);
+  it("lists the apps signed in and the tokens made, with what they may do, from where, and their last use", async () => {
+    renderAccount(testUser, [], [findroid, tool]);
     const used = (await screen.findByText("Findroid on Phone")).closest("li");
     expect(used).toHaveTextContent(/Findroid\/0\.16 · 192\.0\.2\.9 · last used 2 minutes ago · made 2 days ago/);
-    const unused = screen.getByText("Backup script").closest("li");
+    expect(used).toHaveTextContent("Watch");
+    expect(used).not.toHaveTextContent(/Manage|only from/);
+    const unused = screen.getByText("Collections tool").closest("li");
+    expect(unused).toHaveTextContent("Watch · Manage libraries · only from 10.0.0.0/24, home network");
     expect(unused).toHaveTextContent(/not used yet · made 1 hour ago/);
   });
 
@@ -288,15 +300,15 @@ describe("AccountPage", () => {
     const requests = renderAccount(testUser);
     await user.click(await screen.findByRole("button", { name: "New token" }));
     await user.click(screen.getByRole("button", { name: "Make token" }));
-    expect(screen.getByText("Name the token after the app that will use it.")).toBeInTheDocument();
+    expect(screen.getByText("Give the token a name.")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Name"), " Backup script ");
     await user.click(screen.getByRole("button", { name: "Make token" }));
     const shown = await screen.findByLabelText("New token");
     expect(shown).toHaveValue(NEW_TOKEN);
     const made = requests.find((r) => r.method === "POST" && r.path === "/api/me/compatibility-tokens");
-    expect(made?.body).toEqual({ name: "Backup script" });
-    expect(screen.getByText(/Pley shows it only once/)).toBeInTheDocument();
+    expect(made?.body).toEqual({ name: "Backup script", scope: "play", allowed_from: [] });
+    expect(screen.getByText(/won't be shown again/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Copy" }));
     expect(await screen.findByText("Token copied")).toBeInTheDocument();
@@ -308,16 +320,79 @@ describe("AccountPage", () => {
     expect(screen.queryByText(NEW_TOKEN)).not.toBeInTheDocument();
   });
 
+  it("makes a token that may manage libraries, only from the home network and the addresses given", async () => {
+    const user = userEvent.setup();
+    const requests = renderAccount(testUser);
+    await user.click(await screen.findByRole("button", { name: "New token" }));
+    // Every token may watch.
+    expect(screen.getByLabelText(/^Watch/)).toBeChecked();
+    expect(screen.getByLabelText(/^Watch/)).toBeDisabled();
+    expect(screen.getByLabelText(/^See everyone's activity/)).not.toBeChecked();
+    expect(screen.getByText("For tools such as Kometa.")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Name"), "Collections tool");
+    await user.click(screen.getByLabelText(/^Manage libraries/));
+    await user.click(screen.getByLabelText("This computer and home network"));
+    await user.type(screen.getByLabelText("Only from"), "10.0.0.0/24, fd00::/8{Enter}192.168.1.20  10.0.0.0/24");
+    await user.click(screen.getByRole("button", { name: "Make token" }));
+    await screen.findByLabelText("New token");
+    const made = requests.find((r) => r.method === "POST" && r.path === "/api/me/compatibility-tokens");
+    expect(made?.body).toEqual({
+      name: "Collections tool",
+      scope: "play manage",
+      allowed_from: ["local", "10.0.0.0/24", "fd00::/8", "192.168.1.20"],
+    });
+    expect((await screen.findByText("Not used yet", { exact: false })).closest("li")).toHaveTextContent(
+      "Watch · Manage libraries · only from home network, 10.0.0.0/24, fd00::/8, 192.168.1.20",
+    );
+  });
+
+  it("lets an account that isn't an administrator make tokens that only watch", async () => {
+    const user = userEvent.setup();
+    const requests = renderAccount({ ...testUser, is_admin: false });
+    await user.click(await screen.findByRole("button", { name: "New token" }));
+    expect(screen.getByLabelText(/^Watch/)).toBeChecked();
+    expect(screen.queryByLabelText(/^See everyone's activity/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Manage libraries/)).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("Name"), "Infuse");
+    await user.click(screen.getByRole("button", { name: "Make token" }));
+    await screen.findByLabelText("New token");
+    const made = requests.find((r) => r.method === "POST" && r.path === "/api/me/compatibility-tokens");
+    expect(made?.body).toEqual({ name: "Infuse", scope: "play", allowed_from: [] });
+  });
+
+  it("says which entry of where a token may be used from the server refuses, and how many it takes", async () => {
+    const user = userEvent.setup();
+    const requests = renderAccount(testUser);
+    await user.click(await screen.findByRole("button", { name: "New token" }));
+    await user.type(screen.getByLabelText("Name"), "Stats");
+    const from = screen.getByLabelText("Only from");
+
+    // Too many to send.
+    await user.type(from, Array.from({ length: 17 }, (_, i) => `10.0.0.${i + 1}`).join(" "));
+    await user.click(screen.getByRole("button", { name: "Make token" }));
+    expect(screen.getByText("Up to 16 addresses.")).toBeInTheDocument();
+    expect(requests.some((r) => r.method === "POST")).toBe(false);
+
+    await user.clear(from);
+    await user.type(from, `192.168.1.20, ${NOT_AN_ADDRESS}`);
+    await user.click(screen.getByRole("button", { name: "Make token" }));
+    expect(await screen.findByText(`Not an address or network: ${NOT_AN_ADDRESS}`)).toBeInTheDocument();
+    // The form stays, to fix the entry.
+    expect(screen.queryByLabelText("New token")).not.toBeInTheDocument();
+    expect(from).toHaveValue(`192.168.1.20, ${NOT_AN_ADDRESS}`);
+  });
+
   it("revokes an app's sign-in", async () => {
     const user = userEvent.setup();
-    const requests = renderAccount(testUser, [], [findroid, script]);
+    const requests = renderAccount(testUser, [], [findroid, tool]);
     await user.click(await screen.findByRole("button", { name: "Revoke Findroid on Phone" }));
     expect(await screen.findByText("Revoked Findroid on Phone")).toBeInTheDocument();
     expect(requests.some((r) => r.method === "DELETE" && r.path === "/api/me/compatibility-tokens/3")).toBe(true);
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: "Revoke Findroid on Phone" })).not.toBeInTheDocument(),
     );
-    expect(screen.getByText("Backup script")).toBeInTheDocument();
+    expect(screen.getByText("Collections tool")).toBeInTheDocument();
   });
 
   it("lists the tokens again once a new password ended them", async () => {
@@ -328,7 +403,7 @@ describe("AccountPage", () => {
     await user.type(screen.getByLabelText("New password"), "new-password-2");
     await user.type(screen.getByLabelText("Confirm new password"), "new-password-2");
     await user.click(screen.getByRole("button", { name: "Update password" }));
-    expect(await screen.findByText(/No apps are signed in/)).toBeInTheDocument();
+    expect(await screen.findByText("No tokens yet.")).toBeInTheDocument();
   });
 
   it("links to the source code where the server says it is offered", async () => {

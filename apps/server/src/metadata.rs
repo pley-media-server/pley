@@ -719,14 +719,18 @@ impl MetadataAgent {
         Ok(out)
     }
 
-    /// Download a chosen TMDB image into the metadata folder. Only TMDB's
-    /// image host is fetched, so the server can't be pointed at other URLs.
-    /// Store a picture picked from [`Self::artwork_candidates`]; returns its reference.
-    pub async fn download_artwork(&self, url: &str) -> anyhow::Result<String> {
-        if !url.starts_with(&format!("{IMAGES}/")) {
-            bail!("only TMDB images can be chosen");
+    /// The bytes of a chosen picture ([`Self::artwork_candidates`]'s, or a
+    /// library tool's), for [`crate::api::editing::store_picture`] to check
+    /// and re-encode. Only the image hosts of
+    /// [`crate::store::allowed_image_url`] are fetched, so the server can't
+    /// be pointed at other addresses.
+    pub async fn download_artwork(&self, url: &str) -> anyhow::Result<Vec<u8>> {
+        if !crate::store::allowed_image_url(url) {
+            bail!(
+                "pictures are taken from TMDB, TheTVDB, TVmaze, the Cover Art Archive, fanart.tv, ThePosterDB and GitHub's raw files only"
+            );
         }
-        self.store.remote(url).await
+        self.store.download(url).await
     }
 
     /// Whether TMDB accepts `key` (one not saved yet, say): one request.
