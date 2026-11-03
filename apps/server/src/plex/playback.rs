@@ -637,6 +637,7 @@ pub async fn universal_start(
         keep_previous: false,
         keyed_urls: false,
         hdr_transcodes: false,
+        fmp4_segments: false,
         download: false,
     };
     let Json(info) =
