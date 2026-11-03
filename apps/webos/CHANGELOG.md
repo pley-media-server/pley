@@ -153,6 +153,8 @@ describes how they are made.
   s.
 - A link on a USB drive that leads off the drive is no longer listed,
   played or read for subtitles.
+- A USB drive's video whose drive was pulled out while the TV showed Home
+  says so and leaves when Pley shows again, rather than an empty player.
 
 ### Security
 

@@ -142,6 +142,18 @@ impl PlayerScreen {
         self.end();
         cx.pop();
     }
+
+    /// The playback couldn't be made: says why and leaves, rather than showing an empty page.
+    fn cant_begin(&mut self, cx: &mut AppCx) {
+        if self.request.file.is_some() {
+            log::warn!("the player opened on a drive that isn't there");
+            cx.toast_error(NO_DRIVE);
+        } else {
+            log::warn!("the player opened without a server");
+            cx.toast_error("Can't play this item: no server is chosen.");
+        }
+        self.leave(cx);
+    }
 }
 
 impl Drop for PlayerScreen {
@@ -157,14 +169,7 @@ impl Screen for PlayerScreen {
             self.started = true;
             let pressed = if self.request.pressed_at > 0.0 { self.request.pressed_at } else { cx.now };
             if !self.begin(player_request(&self.request), pressed, cx) {
-                if self.request.file.is_some() {
-                    log::warn!("the player opened on a drive that isn't there");
-                    cx.toast_error(NO_DRIVE);
-                } else {
-                    log::warn!("the player opened without a server");
-                    cx.toast_error("Can't play this item: no server is chosen.");
-                }
-                cx.pop();
+                self.cant_begin(cx);
                 return;
             }
         }
@@ -214,13 +219,17 @@ impl Screen for PlayerScreen {
             }
             // Shown again: a new playback where it was, paused, as the Samsung and Android apps
             // leave a video the TV's Home interrupted, with the controls showing as a pause does.
-            // A drive's video starts again from the same file.
+            // A drive's video starts again from the same file; the drive pulled out meanwhile,
+            // the player says so and leaves, as it does when it opens.
             AppEvent::Visible(true) => {
-                if let Some(saved) = self.saved.take()
-                    && self.begin(saved.request, cx.now, cx)
-                    && let Some(p) = self.playback.as_mut()
-                {
-                    p.pause();
+                if let Some(saved) = self.saved.take() {
+                    if !self.begin(saved.request, cx.now, cx) {
+                        self.cant_begin(cx);
+                        return;
+                    }
+                    if let Some(p) = self.playback.as_mut() {
+                        p.pause();
+                    }
                 }
                 self.view.reopened();
             }

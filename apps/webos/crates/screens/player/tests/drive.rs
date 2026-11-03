@@ -21,6 +21,7 @@ struct TestApp {
     state: AppState,
     time: f64,
     engines: Arc<Mutex<Vec<SimHandle>>>,
+    device: Arc<FakeDevice>,
 }
 
 impl TestApp {
@@ -33,6 +34,7 @@ impl TestApp {
             Box::new(engine) as Box<dyn PlayerEngine>
         }));
         device.set_drive(drive);
+        let tv = device.clone();
         let store = Store::open(scratch_dir("player-drive-store")).unwrap();
         let http = Http::network("pleyLG/0.1.0 (webOS 22; test)");
         let mut registry = Registry::new();
@@ -46,6 +48,7 @@ impl TestApp {
             state,
             time: pley_base::time::now(),
             engines,
+            device: tv,
         }
     }
 
@@ -124,4 +127,24 @@ fn a_drives_video_whose_drive_is_gone_says_so_and_leaves() {
     assert_eq!(app.shell.top_route(), Some(&Route::Home));
     assert!(app.list.texts().any(|t| t == pley_player_ui::NO_DRIVE), "{:?}", app.list.texts().collect::<Vec<_>>());
     assert!(app.loads().is_empty());
+}
+
+#[test]
+fn a_drive_pulled_out_while_the_app_was_hidden_says_so_and_leaves_when_it_shows() {
+    let (drive, film) = film_on_a_drive();
+    let mut app = TestApp::new(Some(drive));
+    app.shell.start(&mut app.state, &mut app.ui, Route::Home);
+    app.shell.navigate(pley_shell::NavCommand::Push(play(film)), &mut app.state, &mut app.ui);
+    assert_eq!(app.until_loads(1).len(), 1);
+    // Home on the remote, the drive pulled out, back to the app.
+    app.shell.visible(false, &mut app.state, &mut app.ui, app.time);
+    app.device.set_drive(None);
+    app.shell.deliver(AppEvent::Visible(true), &mut app.state, &mut app.ui, app.time);
+    for _ in 0..3 {
+        app.frame();
+    }
+    // Not an empty page only Back leaves.
+    assert_eq!(app.shell.top_route(), Some(&Route::Home));
+    assert!(app.list.texts().any(|t| t == pley_player_ui::NO_DRIVE), "{:?}", app.list.texts().collect::<Vec<_>>());
+    assert_eq!(app.loads().len(), 1);
 }
