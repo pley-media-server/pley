@@ -479,11 +479,19 @@ async fn a_connection_in_use_is_taken_over_by_its_watcher_or_an_administrator() 
     assert_eq!((held["channel_id"].as_i64(), held["can_take_over"].as_bool()), (Some(one), Some(true)), "{held}");
     assert_eq!(held["watchers"], json!(["bob"]), "named to administrators");
 
-    // Bob may not take the administrator's back.
+    // Bob's player hears at once who took it, both being in the home; it's
+    // nobody else's to hear.
+    let mut events = app.state.events.subscribe();
     let taken = app
         .post(&format!("/api/live/channels/{two}/watch"), &admin, json!({"client_id": "pc", "take_over": one}))
         .await;
     assert_eq!(taken.status, StatusCode::OK, "{:?}", taken.body);
+    let session = bobs["session_id"].as_str().unwrap();
+    let told = taken_over(&mut events);
+    let said = "admin is watching Two HD now, on the connection this channel used.";
+    assert_eq!(told, [json!({"type": "live_taken_over", "session_id": session, "channel_id": one, "message": said})]);
+
+    // Bob may not take the administrator's back.
     let refused = app.post(&format!("/api/live/channels/{one}/watch"), &bob, json!({"client_id": "tv"})).await;
     let held = &refused.body["connections"][0];
     assert_eq!((held["can_take_over"].as_bool(), held["watchers"].clone()), (Some(false), json!([])), "{held}");
@@ -491,11 +499,44 @@ async fn a_connection_in_use_is_taken_over_by_its_watcher_or_an_administrator() 
         app.post(&format!("/api/live/channels/{one}/watch"), &bob, json!({"client_id": "tv", "take_over": two})).await;
     assert_eq!(not_his.status, StatusCode::FORBIDDEN);
 
-    // Bob's player is told who took the connection.
-    let session = bobs["session_id"].as_str().unwrap();
+    // His session says so from then on.
     let gone = app.get(&format!("/api/live/sessions/{session}/index.m3u8"), &bob).await;
     assert_eq!(gone.status, StatusCode::GONE);
-    assert!(gone.body["message"].as_str().unwrap().contains("started watching"), "{:?}", gone.body);
+    assert_eq!(gone.body["message"], said, "{:?}", gone.body);
+
+    // Someone outside the home learns neither who took it nor for what.
+    let (carol, _) = app.user(&admin, "carol", json!({"home": false})).await;
+    app.delete(&format!("/api/live/sessions/{}", taken.body["session_id"].as_str().unwrap()), &admin).await;
+    let carols = app.post(&format!("/api/live/channels/{one}/watch"), &carol, json!({"client_id": "phone"})).await;
+    assert_eq!(carols.status, StatusCode::OK, "{:?}", carols.body);
+    let mut events = app.state.events.subscribe();
+    let taken = app
+        .post(&format!("/api/live/channels/{two}/watch"), &admin, json!({"client_id": "pc", "take_over": one}))
+        .await;
+    assert_eq!(taken.status, StatusCode::OK, "{:?}", taken.body);
+    let told = taken_over(&mut events);
+    assert_eq!(told.len(), 1, "{told:?}");
+    assert_eq!(told[0]["message"], "Someone else needed this channel's connection to watch another channel.");
+
+    // Joining the channel someone watches ends nobody.
+    let mut events = app.state.events.subscribe();
+    let joined = app.post(&format!("/api/live/channels/{two}/watch"), &carol, json!({"client_id": "phone"})).await;
+    assert_eq!(joined.status, StatusCode::OK, "{:?}", joined.body);
+    assert!(taken_over(&mut events).is_empty());
+    let admins = taken.body["session_id"].as_str().unwrap();
+    assert_ne!(app.get(&format!("/api/live/sessions/{admins}/index.m3u8"), &admin).await.status, StatusCode::GONE);
+}
+
+/// The `live_taken_over` events sent so far, as their streams see them.
+fn taken_over(events: &mut tokio::sync::broadcast::Receiver<pley::events::ServerEvent>) -> Vec<Value> {
+    let mut told = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        let json = serde_json::to_value(&event).unwrap();
+        if json["type"] == "live_taken_over" {
+            told.push(json);
+        }
+    }
+    told
 }
 
 #[tokio::test]

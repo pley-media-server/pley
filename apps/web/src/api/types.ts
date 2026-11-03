@@ -693,6 +693,11 @@ export type ServerEvent =
   /** A live channel started or stopped being watched: the connections in use changed. */
   | { type: "live_tuners_changed" }
   /**
+   * Someone took the connection of a channel this account watched, to watch
+   * another: every player of `channel_id` stops and shows `message`.
+   */
+  | { type: "live_taken_over"; session_id: string; channel_id: Id; message: string }
+  /**
    * A request changed (made, decided, followed, its stage, withdrawn,
    * deleted), to its maker, its followers and managers; all three `null`
    * when many did (or this account's other streams marked them seen).

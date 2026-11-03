@@ -97,6 +97,9 @@ struct Viewer {
     /// The account is an administrator's (whatever signed it in): whose
     /// connections it may take over.
     admin: bool,
+    /// The account is in the home: who took its connection over is named
+    /// to it when they are too.
+    home: bool,
 }
 
 /// How a channel is watched.
@@ -111,6 +114,10 @@ pub struct WatchAs {
     pub admin: bool,
     /// Every connection being in use, the channel whose connection to take.
     pub take_over: Option<i64>,
+    /// The account's name when it is in the home (`None` when it isn't):
+    /// the viewers it takes a connection from who are in the home too are
+    /// told who did.
+    pub home_name: Option<String>,
 }
 
 /// A connection of a source whose connections are all in use, as someone
@@ -325,6 +332,20 @@ fn pmt_pid(packet: &[u8]) -> Option<u16> {
 /// `<client_id>-stream`, beside the session asked for as `<client_id>`.
 fn device_of(client: &str) -> &str {
     client.strip_suffix("-stream").unwrap_or(client)
+}
+
+/// What a viewer whose connection `taker` took over to watch `channel` is
+/// told. The taker is named, with the channel, only to their own devices
+/// and to someone else in the home when they are in it too (`home_name`);
+/// anyone else learns only that the connection was needed.
+fn taken_over_why(viewer: &Viewer, taker: i64, home_name: Option<&str>, channel: &str) -> String {
+    if viewer.user_id == taker {
+        return format!("Watching moved to {channel} on another device.");
+    }
+    match home_name {
+        Some(name) if viewer.home => format!("{name} is watching {channel} now, on the connection this channel used."),
+        _ => "Someone else needed this channel's connection to watch another channel.".to_owned(),
+    }
 }
 
 /// A packet that starts a video PES at a random access point: a keyframe.
@@ -605,7 +626,7 @@ impl Tuners {
     /// `keyed`: the HLS playlist's address carries a key of its own instead
     /// of needing the token (docs/API.md, "Keyed URLs").
     pub async fn watch(self: &Arc<Self>, user: &AuthUser, tune: Tune<'_>, how: WatchAs) -> Result<Watching, AppError> {
-        let WatchAs { client_id, kind, keyed, admin, take_over } = how;
+        let WatchAs { client_id, kind, keyed, admin, take_over, home_name } = how;
         let channel_id = tune.channel.id;
         // What this device watched before ends: its connection is free. Its
         // stream reader of another channel too, though that response may not
@@ -623,7 +644,7 @@ impl Tuners {
             let pulling = self.tuners.lock().get(&channel_id).filter(|t| t.is_live()).cloned();
             match pulling {
                 Some(t) => t,
-                None => self.start_tuner(user, admin, &tune, take_over)?,
+                None => self.start_tuner(user, admin, home_name.as_deref(), &tune, take_over)?,
             }
         };
         let session_id = uuid::Uuid::new_v4().simple().to_string();
@@ -646,6 +667,7 @@ impl Tuners {
                 media_key,
                 app_grant: user.app.as_ref().map(|app| app.grant_id),
                 admin,
+                home: home_name.is_some(),
             },
         );
         tuner.state.lock().idle_since = None;
@@ -667,6 +689,7 @@ impl Tuners {
         self: &Arc<Self>,
         user: &AuthUser,
         admin: bool,
+        home_name: Option<&str>,
         tune: &Tune<'_>,
         take_over: Option<i64>,
     ) -> Result<Arc<Tuner>, AppError> {
@@ -687,7 +710,7 @@ impl Tuners {
                 Some(idle) => self.remove_tuner(idle),
                 None => match take_over.and_then(|id| on_source.iter().find(|t| t.channel_id == id)) {
                     Some(held) if self.may_take_over(user.id, admin, held.channel_id) => {
-                        self.take_over(user, held, tune.channel.display_name());
+                        self.take_over(user, home_name, held, tune.channel.display_name());
                     }
                     Some(_) => {
                         return Err(AppError::forbidden(
@@ -730,26 +753,39 @@ impl Tuners {
             .all(|v| v.user_id == user_id || (admin && !v.admin))
     }
 
-    /// Ends everyone watching `held`, telling them why, and lets its
-    /// connection go for `user` to watch `channel_name` with.
-    fn take_over(&self, user: &AuthUser, held: &Arc<Tuner>, channel_name: &str) {
-        {
+    /// Ends everyone watching `held`, telling them why (their players at
+    /// once, through their event streams), and lets its connection go for
+    /// `user` to watch `channel_name` with. `home_name`: `user`'s name, when
+    /// they are in the home.
+    fn take_over(&self, user: &AuthUser, home_name: Option<&str>, held: &Arc<Tuner>, channel_name: &str) {
+        let told: Vec<(Viewer, String)> = {
             let mut viewers = self.viewers.lock();
             let mut ended = self.ended.lock();
             if ended.len() > ENDED_KEPT {
                 ended.clear();
             }
-            for v in viewers.values().filter(|v| v.channel_id == held.channel_id) {
-                let why = if v.user_id == user.id {
-                    format!("Watching moved to {channel_name} on another device.")
-                } else {
-                    format!("{} started watching {channel_name} on this connection.", user.username)
-                };
-                ended.insert(v.id.clone(), why);
+            let told: Vec<(Viewer, String)> = viewers
+                .values()
+                .filter(|v| v.channel_id == held.channel_id)
+                .map(|v| (v.clone(), taken_over_why(v, user.id, home_name, channel_name)))
+                .collect();
+            for (v, why) in &told {
+                ended.insert(v.id.clone(), why.clone());
             }
             viewers.retain(|_, v| v.channel_id != held.channel_id);
-        }
+            told
+        };
         tracing::info!(channel = held.channel_id, by = %user.username, "live channel's connection taken over");
+        // Told before the stream stops: a player whose stream breaks off
+        // knows why instead of tuning again.
+        for (v, message) in told {
+            self.events.send(ServerEvent::LiveTakenOver {
+                user_id: v.user_id,
+                session_id: v.id,
+                channel_id: v.channel_id,
+                message,
+            });
+        }
         self.remove_tuner(held);
         self.events.send(ServerEvent::LiveTunersChanged);
     }
@@ -1365,6 +1401,38 @@ mod tests {
         p[4] = (TS_PACKET - 6) as u8;
         p[TS_PACKET - 1] = 0;
         assert_eq!(pmt_pid(&p), None);
+    }
+
+    fn viewer(user_id: i64, home: bool) -> Viewer {
+        Viewer {
+            id: "s".into(),
+            user_id,
+            username: format!("user{user_id}"),
+            client_id: None,
+            channel_id: 1,
+            started_at: 0,
+            last_seen: Instant::now(),
+            kind: ViewerKind::Hls,
+            media_key: None,
+            app_grant: None,
+            admin: false,
+            home,
+        }
+    }
+
+    #[test]
+    fn who_took_a_connection_over_is_named_only_in_the_home() {
+        // Their own other device.
+        assert_eq!(taken_over_why(&viewer(1, false), 1, None, "News"), "Watching moved to News on another device.");
+        // Both in the home.
+        assert_eq!(
+            taken_over_why(&viewer(2, true), 1, Some("Sam"), "News"),
+            "Sam is watching News now, on the connection this channel used."
+        );
+        // Either outside it: neither who nor what.
+        let anonymous = "Someone else needed this channel's connection to watch another channel.";
+        assert_eq!(taken_over_why(&viewer(2, false), 1, Some("Sam"), "News"), anonymous);
+        assert_eq!(taken_over_why(&viewer(2, true), 1, None, "News"), anonymous);
     }
 
     #[test]

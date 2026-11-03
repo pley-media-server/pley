@@ -115,6 +115,13 @@ describes how they are made.
 
 ### Fixed
 
+- When someone takes the connection of the Live TV channel you watch, your
+  players stop at once and say why ("Live TV stopped"), with Watch again,
+  in the web app and the apps, where they used to play on until the
+  stream ran out. Who took it, and for which channel, is said only to
+  their own devices and, when you are both in the home, to you; anyone
+  else is told only that the connection was needed. Someone starting the
+  channel you watch shares its connection and stops nothing.
 - Blu-ray subtitles that show two pictures at once, the first one forced,
   show both in the web app, and a picture the disc crops shows cropped.
 - A password or PIN checked while the server is out of memory gets "Pley

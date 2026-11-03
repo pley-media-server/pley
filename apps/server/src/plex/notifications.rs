@@ -237,6 +237,7 @@ impl Listener {
             | ServerEvent::SessionStopped { .. }
             | ServerEvent::LiveChannelsChanged
             | ServerEvent::LiveTunersChanged
+            | ServerEvent::LiveTakenOver { .. }
             | ServerEvent::RequestsChanged { .. }
             | ServerEvent::RequestAvailable { .. }
             | ServerEvent::RequestDecided { .. }

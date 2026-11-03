@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import type HlsType from "hls.js";
@@ -19,6 +19,8 @@ import {
   VolumeX,
 } from "lucide-react";
 import { ApiError, errorMessage, isApiError } from "@/api/client";
+import { onServerEvent } from "@/api/events";
+import type { ServerEvent } from "@/api/types";
 import {
   busyConnections,
   CHANNEL_PAGE,
@@ -53,6 +55,8 @@ const HIDE_CONTROLS_AFTER = 3500;
 const SPINNER_AFTER = 700;
 /** What's on, shown with I, goes after this long. */
 const BANNER_FOR = 5000;
+/** A stream that broke off waits this long to hear it was taken over before tuning again. */
+const TAKEN_OVER_GRACE = 1000;
 /** Digits typed for a channel number wait this long for more. */
 const NUMBER_WAIT = 1400;
 
@@ -68,11 +72,16 @@ function trouble(err: unknown, channel: string): Trouble {
   if (isApiError(err, 409)) {
     return { kind: "busy", title: "All connections are in use", message: errorMessage(err), connections: busyConnections(err) };
   }
-  if (isApiError(err, 410)) return { kind: "stopped", title: "Watching stopped", message: errorMessage(err) };
+  if (isApiError(err, 410)) return stopped(errorMessage(err));
   if (isApiError(err, 404)) return { kind: "missing", title: "This channel isn't here any more", message: errorMessage(err) };
   if (isApiError(err, 403)) return { kind: "other", title: "Live TV isn't open to this account", message: errorMessage(err) };
   if (isApiError(err, 503)) return { kind: "unavailable", title: `${channel} isn't playing`, message: errorMessage(err) };
   return { kind: "other", title: `${channel} didn't start`, message: errorMessage(err) };
+}
+
+/** The channel stopped being watched on the server (its connection taken over, say): why, as it says. */
+function stopped(message: string | null | undefined): Trouble {
+  return { kind: "stopped", title: "Live TV stopped", message: message || "This channel isn't being watched any more." };
 }
 
 /** An HLS error answered by the server: its status and its own words. */
@@ -233,6 +242,9 @@ function LivePlayer({
   // A channel sent as it is plays straight from its stream (mpegts.js).
   const directRef = useRef<{ destroy: () => void } | null>(null);
   const sessionRef = useRef<{ id: string; url: string } | null>(null);
+  // Someone took the channel's connection over (`live_taken_over`): why,
+  // until it is tuned again. Nothing tunes it again by itself meanwhile.
+  const takenOver = useRef<Trouble | null>(null);
   const audioPlayer = useOptionalAudioPlayer();
   const favorite = useSetFavorite();
   const now = useNow(5000);
@@ -271,9 +283,11 @@ function LivePlayer({
     setStatus("tuning");
     setProblem(null);
     setBanner(false);
+    takenOver.current = null;
     const fail = (t: Trouble) => {
       if (cancelled) return;
-      setProblem(t);
+      // Whatever broke as the connection was taken, that's why it stopped.
+      setProblem(takenOver.current ?? t);
       setStatus("error");
       hlsRef.current?.destroy();
       hlsRef.current = null;
@@ -338,8 +352,13 @@ function LivePlayer({
         player.destroy();
         if (directRef.current === player) directRef.current = null;
         if (cancelled || !played) return;
-        // It broke off while playing: the transcoder's segments from now.
-        void watch().then((w) => w && playHls(w.url));
+        // It broke off while playing: the transcoder's segments from now,
+        // unless its connection was taken over (that's told as the stream
+        // ends, and tuning again would only find every connection in use).
+        window.setTimeout(() => {
+          if (cancelled || takenOver.current) return;
+          void watch().then((w) => w && playHls(w.url));
+        }, TAKEN_OVER_GRACE);
       });
       directRef.current = player;
       player.attachMediaElement(video);
@@ -421,6 +440,24 @@ function LivePlayer({
       sessionRef.current = null;
     };
   }, [channel.id, channel.name, attempt]);
+
+  // Someone else took the channel's connection: it stops here at once, and says why.
+  const onEvent = useEffectEvent((ev: ServerEvent) => {
+    if (ev.type !== "live_taken_over" || ev.channel_id !== channel.id || takenOver.current) return;
+    const why = stopped(ev.message);
+    takenOver.current = why;
+    hlsRef.current?.destroy();
+    hlsRef.current = null;
+    directRef.current?.destroy();
+    directRef.current = null;
+    // Already ended on the server: nothing to leave.
+    sessionRef.current = null;
+    videoRef.current?.pause();
+    setBuffering(false);
+    setProblem(why);
+    setStatus("error");
+  });
+  useEffect(() => onServerEvent(onEvent), []);
 
   // Leaving the page (a closed tab) lets the connection go at once.
   useEffect(() => {
@@ -652,7 +689,7 @@ function LivePlayer({
             <TroubleCard
               trouble={problem}
               channel={channel}
-              onRetry={problem.kind === "stopped" || problem.kind === "missing" ? undefined : () => setAttempt((a) => a + 1)}
+              onRetry={problem.kind === "missing" ? undefined : () => setAttempt((a) => a + 1)}
             onTakeOver={(channelId) => {
               takeOver.current = channelId;
               setAttempt((a) => a + 1);
@@ -891,7 +928,7 @@ function TroubleCard({
       <div className="mt-6 flex flex-wrap justify-center gap-2">
         {onRetry ? (
           <button type="button" onClick={onRetry} className="flex h-10 items-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-accent-fg hover:bg-accent-hover">
-            <RefreshCw className="size-4" /> Try again
+            <RefreshCw className="size-4" /> {trouble.kind === "stopped" ? "Watch again" : "Try again"}
           </button>
         ) : null}
         {onChannels ? (

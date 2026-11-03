@@ -121,6 +121,17 @@ pub enum ServerEvent {
     /// A live channel started or stopped being pulled, or someone started
     /// or stopped watching one: the connections in use changed.
     LiveTunersChanged,
+    /// Someone took the connection a Live TV session's channel used, to
+    /// watch another channel: to its viewer's streams, whose player of
+    /// `session_id` stops at once and shows `message` (why, and who only
+    /// when both are in the home).
+    LiveTakenOver {
+        #[serde(skip)]
+        user_id: i64,
+        session_id: String,
+        channel_id: i64,
+        message: String,
+    },
     /// A request changed (made, followed, decided, sent, failed, ready,
     /// withdrawn, deleted, or its stage), to its maker, its followers and
     /// managers; or many did (`request_id`, `kind` and `tmdb_id` all
@@ -214,6 +225,7 @@ impl ServerEvent {
             | ServerEvent::SessionStopped { .. }
             | ServerEvent::LiveChannelsChanged
             | ServerEvent::LiveTunersChanged
+            | ServerEvent::LiveTakenOver { .. }
             | ServerEvent::RequestsChanged { .. }
             | ServerEvent::RequestAvailable { .. }
             | ServerEvent::RequestDecided { .. }
@@ -230,7 +242,8 @@ impl ServerEvent {
             ServerEvent::WatchlistChanged { user_id }
             | ServerEvent::OwnLibrariesChanged { user_id }
             | ServerEvent::UserStateChanged { user_id, .. }
-            | ServerEvent::SessionStopped { user_id, .. } => Some(*user_id),
+            | ServerEvent::SessionStopped { user_id, .. }
+            | ServerEvent::LiveTakenOver { user_id, .. } => Some(*user_id),
             ServerEvent::RequestsSettingsChanged { user_id } => *user_id,
             _ => None,
         }
@@ -298,6 +311,18 @@ mod tests {
         assert_eq!(event.user_id(), Some(4));
         let json = serde_json::to_string(&event).unwrap();
         assert_eq!(json, r#"{"type":"user_state_changed","item_ids":[12,11,10],"children":false}"#);
+        let event = ServerEvent::LiveTakenOver {
+            user_id: 4,
+            session_id: "abc".into(),
+            channel_id: 7,
+            message: "Someone else needed the connection.".into(),
+        };
+        assert_eq!(event.user_id(), Some(4));
+        let json = serde_json::to_string(&event).unwrap();
+        assert_eq!(
+            json,
+            r#"{"type":"live_taken_over","session_id":"abc","channel_id":7,"message":"Someone else needed the connection."}"#
+        );
         let json = serde_json::to_string(&ServerEvent::SessionStopped {
             user_id: 4,
             session_id: "s1".into(),

@@ -3453,6 +3453,9 @@ type ServerEvent =
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean } // theirs only
   | { type: "live_channels_changed" }                // Live TV's sources, channels or guide changed: refetch
   | { type: "live_tuners_changed" }                  // a channel was tuned or let go, or its viewers changed
+  | { type: "live_taken_over"; session_id: string; channel_id: Id; message: string }
+                                                     // someone took the connection of a channel watched in this
+                                                     // Live TV session (theirs only): see Live TV, "Watching"
   | { type: "requests_changed"; request_id: Id | null; kind: TitleKind | null; tmdb_id: number | null }
                                                      // a request changed; all three null: many did (Request events)
   | { type: "request_available"; request_id: Id; title: string; kind: TitleKind; tmdb_id: number;
@@ -3610,9 +3613,23 @@ interface LiveTuner {                  // a connection in use
   administrators only; `yours`: only the asker watches it. Asking again
   with `take_over` set to a `channel_id` whose `can_take_over` is true (all
   its viewers are the asker, or the asker is an administrator and none of
-  them is) ends that channel's viewers and takes its connection; their
-  sessions answer `410` with why. Taking over another's connection
-  otherwise: `403`.
+  them is) ends that channel's viewers and takes its connection. Taking
+  over another's connection otherwise: `403`. A viewer only joins a
+  channel someone already watches; nobody is ended for it.
+- **Taken over.** Each viewer ended by a take-over gets
+  `live_taken_over` (`session_id`, `channel_id`, `message`) on their event
+  streams at once, and its session answers `410` with the same `message`
+  from then on. Every player of that channel on the account stops (a
+  player reading `stream.ts` knows no session, so players go by
+  `channel_id`; one viewer's HLS and stream sessions each send one) and
+  shows the message until it is dismissed; it doesn't tune again by
+  itself. The message
+  says who took the connection and for which channel only to the taker's
+  own devices ("Watching moved to News on another device.") and to an
+  account in the home when the taker is in it too ("Sam is watching News
+  now, on the connection this channel used."). Anyone else is told only
+  that the connection was needed ("Someone else needed this channel's
+  connection to watch another channel.").
 - **The stream.** H.264 is sent as it is; other video, and interlaced
   video while `deinterlace` is on, is made H.264 by the transcoder; audio
   that isn't AAC is made AAC stereo. Every player of a channel reads the
