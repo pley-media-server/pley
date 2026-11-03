@@ -645,9 +645,12 @@ build, with adb and FFmpeg: it sets the device's animator duration scale
 to slow its animations as many times as it says (Compose follows the scale
 at once), presses the keys given 300 ms apart, records the screen with
 `screenrecord` for as long as it says, and puts the scale back. The frames,
-cut to an area of the screen in its pixels (`adb shell wm size`), are
-saved in `apps/android/build/rec-<time>-<model>`, each named with when it
-was shown at the animation's own speed, for `scripts/mark-animation.mjs`.
+cut to an area of the recording in its pixels, are saved in
+`apps/android/build/rec-<time>-<model>`, each named with when it was shown
+at the animation's own speed, for `scripts/mark-animation.mjs`.
+The recording is the display's size, or its override size where
+`adb shell wm size` shows one (a 4K TV's interface is usually 1920×1080);
+the script says the size, and refuses an area that isn't inside it.
 `screenrecord` gives a frame each time the screen changes, up to 60 a
 second, but some devices give five or so a second while an animation plays
 slowly; slowing it more gives more frames of it.

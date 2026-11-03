@@ -9,7 +9,8 @@
 // The device's animations run 20 times slower (its animator duration scale,
 // which Compose follows at once), the keys are pressed (Up, Down, Left, Right,
 // OK, Back, Menu, 300 ms apart), and the screen is recorded for 6 s, cut to
-// that area of it, in the recording's pixels. The frames go to
+// that area of it, in the recording's pixels: the display's size, or the
+// override size where `adb shell wm size` shows one. The frames go to
 // apps/android/build/rec-<time>-<model>/ as NNN-<ms>.jpg, ms when each was
 // caught at the animation's own speed; the scale goes back to what it was.
 // screenrecord gives a frame each time the screen changes, up to 60 a second,
@@ -71,22 +72,33 @@ try {
   // screenrecord's limit is in whole seconds; FFmpeg cuts the rest.
   const seconds = Math.ceil((LEAD_MS + forMs) / 1000);
   const recorder = spawn("adb", [...(serial ? ["-s", serial] : []), "shell", `screenrecord --bit-rate 20000000 --time-limit ${seconds} ${ON_DEVICE}`], { stdio: "inherit" });
-  const recorded = new Promise((resolve, reject) => {
-    recorder.on("error", reject);
-    recorder.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`screenrecord ended with ${code}`))));
+  // Settled with what went wrong rather than rejected: screenrecord can fail during the lead,
+  // before anything awaits it, and an unhandled rejection would end the script past `finally`,
+  // leaving the device's animations slowed.
+  let failed = null;
+  const recorded = new Promise((resolve) => {
+    recorder.on("error", (error) => resolve((failed = error)));
+    recorder.on("exit", (code) => resolve(code === 0 ? null : (failed = new Error(`screenrecord ended with ${code}`))));
   });
   await sleep(LEAD_MS);
-  for (const key of keys) {
+  for (const key of failed ? [] : keys) {
     shell(`input keyevent KEYCODE_${KEYS[key]}`);
     await sleep(300);
   }
-  await recorded;
+  const error = await recorded;
+  if (error) throw error;
   restore();
   adb("pull", ON_DEVICE, video);
   shell(`rm -f ${ON_DEVICE}`);
 } finally {
   restore();
 }
+
+// The recording's size: the display's, or its override size where it has one (`adb shell wm size`
+// lists both), which isn't always the size people expect.
+const [width, height] = execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", video], { encoding: "utf8" })
+  .trim().split(",").map(Number);
+if (area[0] + area[2] > width || area[1] + area[3] > height) throw new Error(`The recording is ${width}x${height}: ${areaWord} isn't inside it`);
 
 // Every frame screenrecord wrote, cut to the area, with when it was shown (showinfo's pts_time).
 const ffmpeg = spawnSync(
@@ -104,7 +116,7 @@ files.forEach((file, n) => {
   renameSync(join(dir, file), join(dir, `${String(n).padStart(3, "0")}-${ms}.jpg`));
 });
 rmSync(video);
-console.log(`${files.length} frames in ${dir}`);
+console.log(`${files.length} frames of ${areaWord} in a ${width}x${height} recording, in ${dir}`);
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
