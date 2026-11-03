@@ -180,6 +180,55 @@ fn refresh_rotates_and_a_reused_token_ends_the_sign_in() {
 }
 
 #[test]
+fn the_server_proves_itself_with_the_sign_ins_key() {
+    use ring::hmac;
+    let server = FixtureServer::start();
+    let base = server.url();
+    let first = server.sign_in(ids::ALEX);
+    // The same key at every refresh, one of its own for every sign-in.
+    let second = refresh(base, &first.refresh_token).json();
+    assert_eq!(second["server_id"], ids::SERVER_ID);
+    assert_eq!(second["proof_id"], first.proof_id);
+    assert_eq!(second["proof_key"], first.proof_key);
+    assert_eq!(first.proof_key.len(), 43);
+    assert_ne!(server.sign_in(ids::ALEX).proof_key, first.proof_key);
+
+    let challenge = "AAECAwQFBgcICQoLDA0ODw";
+    let path = format!("/api/server?challenge={challenge}&proof_id={}", first.proof_id);
+    let reply = send(base, "GET", &path, &[], b"");
+    assert_eq!(reply.status, 200, "{}", reply.text());
+    assert_eq!(reply.header("Cache-Control"), Some("no-store"));
+    let answer = reply.json();
+    assert_eq!(answer["id"], ids::SERVER_ID);
+    assert_eq!(answer["address"], base);
+    let decode = |text: &str| {
+        let alphabet = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+        let bits: Vec<u32> = text.bytes().map(|c| alphabet.iter().position(|a| *a == c).unwrap() as u32).collect();
+        let mut out = Vec::new();
+        for chunk in bits.chunks(4) {
+            let n = chunk.iter().enumerate().fold(0, |n, (i, b)| n | (b << (18 - 6 * i)));
+            out.extend((0..chunk.len() - 1).map(|i| (n >> (16 - 8 * i)) as u8));
+        }
+        out
+    };
+    let key = hmac::Key::new(hmac::HMAC_SHA256, &decode(&first.proof_key));
+    let text = format!("pley-server-proof\n{}\n{base}\n{challenge}", ids::SERVER_ID);
+    hmac::verify(&key, text.as_bytes(), &decode(answer["proof"].as_str().unwrap())).expect("the proof verifies");
+
+    // Without a challenge, no proof; half a request, or one written wrong, is refused.
+    assert!(send(base, "GET", "/api/server", &[], b"").json().get("proof").is_none());
+    for wrong in [
+        format!("/api/server?challenge={challenge}"),
+        "/api/server?proof_id=1".to_string(),
+        format!("/api/server?challenge={challenge}&proof_id=01"),
+        "/api/server?challenge=AAECAwQ&proof_id=1".to_string(),
+        format!("/api/server?challenge={challenge}=&proof_id=1"),
+    ] {
+        assert_eq!(send(base, "GET", &wrong, &[], b"").status, 400, "{wrong}");
+    }
+}
+
+#[test]
 fn expired_access_tokens_refresh() {
     let server = FixtureServer::start();
     let base = server.url();

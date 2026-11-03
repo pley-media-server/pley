@@ -1179,6 +1179,7 @@ version = "0.0.0"
 dependencies = [
  "flate2",
  "jpeg-decoder",
+ "ring",
  "serde",
  "serde_json",
 ]

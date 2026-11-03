@@ -4,8 +4,10 @@
 //! JSON as an app's token sees them (docs/API.md):
 //!
 //! - signing in a TV with a code (approved at once, or after a delay), token
-//!   refresh with rotation and reuse detection, revocation, the household's
-//!   profiles and switching between them (Sam's PIN is [`ids::PIN`]);
+//!   refresh with rotation and reuse detection, revocation, the server's
+//!   proofs of who it is (docs/API.md, "Telling servers apart"), the
+//!   household's profiles and switching between them (Sam's PIN is
+//!   [`ids::PIN`]);
 //! - the catalogue of [`ids`]: libraries with sorting, filters and paging,
 //!   Home's and libraries' hubs, items with files, streams, chapters, markers
 //!   and people, collections, playlists, My List, history and search;
@@ -213,6 +215,11 @@ pub struct Tokens {
     pub expires_in: i64,
     /// Space separated.
     pub scope: String,
+    /// The sign-in's id and key, with which the server proves itself to the
+    /// app later (docs/API.md, "Telling servers apart"): the same at every
+    /// refresh and profile switch.
+    pub proof_id: String,
+    pub proof_key: String,
 }
 
 /// One write an app made: every POST, PUT, PATCH and DELETE under `/api` but

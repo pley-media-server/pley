@@ -7,12 +7,13 @@
 
 use std::collections::HashMap;
 
+use ring::hmac;
 use serde_json::json;
 
 use crate::http::{Request, Response};
 use crate::ids;
 use crate::model::AppProfile;
-use crate::random::{token, unique_u64};
+use crate::random::{base64url, from_base64url, token, unique_u64};
 use crate::server::{
     ALL_SCOPES, Answer, Caller, Cx, LIBRARY, Need, PROFILES, Route, SCOPES, State, error, json, locked, no_content,
     scope_names,
@@ -174,7 +175,14 @@ impl OAuth {
         let scope = scope_names(grant.scopes);
         self.access.insert(access.clone(), grant_id);
         self.refresh.insert(refresh.clone(), RefreshToken { grant: grant_id, spent: false });
-        Tokens { access_token: access, refresh_token: refresh, expires_in: ACCESS_LIFETIME_S, scope }
+        Tokens {
+            access_token: access,
+            refresh_token: refresh,
+            expires_in: ACCESS_LIFETIME_S,
+            scope,
+            proof_id: grant_id.to_string(),
+            proof_key: base64url(&grant_key(grant_id)),
+        }
     }
 
     fn end(&mut self, grant_id: u64) {
@@ -322,8 +330,52 @@ fn tokens_answer(tokens: &Tokens) -> Response {
             "expires_in": tokens.expires_in,
             "scope": tokens.scope,
             "refresh_token": tokens.refresh_token,
+            "server_id": ids::SERVER_ID,
+            "proof_id": tokens.proof_id,
+            "proof_key": tokens.proof_key,
         }),
     ))
+}
+
+/// What the server's proof keys are derived from: the real server's comes
+/// from its `secret.key`; the fake one's is the same on every run, so a TV
+/// that kept a sign-in from an earlier run still finds its server.
+const PROOF_ROOT: &[u8] = b"pley fixture server proofs";
+
+/// The proof key of the sign-in `grant`, the same at every refresh (the
+/// server's `Identity::proof_key`).
+fn grant_key(grant: u64) -> Vec<u8> {
+    let root = hmac::Key::new(hmac::HMAC_SHA256, PROOF_ROOT);
+    hmac::sign(&root, format!("grant {grant}").as_bytes()).as_ref().to_vec()
+}
+
+/// GET /api/server's `proof` and the address it covers, when the request
+/// asks for one with `challenge` and `proof_id` (docs/API.md, "Telling
+/// servers apart"): HMAC-SHA256 under the sign-in's key of
+/// `pley-server-proof`, the server's id, the address it was asked at and the
+/// challenge. Unlike the real server it doesn't look at where the request
+/// comes from: it listens on 127.0.0.1 only, where every client is at home.
+pub(crate) fn server_proof(request: &Request) -> Result<Option<(String, String)>, Response> {
+    let (challenge, proof_id) = match (request.query("challenge"), request.query("proof_id")) {
+        (None, None) => return Ok(None),
+        (Some(challenge), Some(proof_id)) => (challenge, proof_id),
+        _ => return Err(crate::server::bad_request("a proof takes both challenge and proof_id")),
+    };
+    let grant = proof_id
+        .parse::<u64>()
+        .ok()
+        .filter(|id| *id > 0 && id.to_string() == proof_id)
+        .ok_or_else(|| crate::server::bad_request("proof_id isn't a sign-in's id"))?;
+    // A challenge decodes from one spelling only, so the proof covers what the app sent.
+    let canonical =
+        from_base64url(challenge).is_some_and(|b| (16..=64).contains(&b.len()) && base64url(&b) == challenge);
+    if !canonical {
+        return Err(crate::server::bad_request("challenge must be 16 to 64 bytes in base64url without padding"));
+    }
+    let address = issuer(request).ok_or_else(|| crate::server::bad_request("the Host header is missing or wrong"))?;
+    let key = hmac::Key::new(hmac::HMAC_SHA256, &grant_key(grant));
+    let text = format!("pley-server-proof\n{}\n{address}\n{challenge}", ids::SERVER_ID);
+    Ok(Some((base64url(hmac::sign(&key, text.as_bytes()).as_ref()), address)))
 }
 
 /// POST /api/oauth/device: a TV starts signing in with a code.

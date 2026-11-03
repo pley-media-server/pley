@@ -12,6 +12,10 @@
 /// The client id of Pley for LG TV, the only app the fixture server signs in.
 pub const CLIENT_ID: &str = "https://pley-media-server.github.io/pley/oauth/webos.json";
 
+/// The fixture server's id, as GET /api/server and every token answer give it
+/// (40 hexadecimal characters, like a real server's `server-id`).
+pub const SERVER_ID: &str = "f1c7e0f1c7e0f1c7e0f1c7e0f1c7e0f1c7e0f1c7";
+
 /// The fixture server's name and version, as GET /api/server gives them.
 pub const SERVER_NAME: &str = "Fixture Server";
 pub const SERVER_VERSION: &str = "0.1.0-fixtures";

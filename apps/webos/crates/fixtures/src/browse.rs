@@ -25,18 +25,22 @@ use crate::{ServerEvent, ids};
 pub(crate) fn routes() -> Vec<Route> {
     vec![
         locked("GET", "/api/health", Need::Public, |_, _| Ok(json(200, &json!({ "status": "ok" })))),
-        locked("GET", "/api/server", Need::Public, |_, state| {
-            Ok(json(
-                200,
-                &json!({
-                    "name": ids::SERVER_NAME,
-                    "version": ids::SERVER_VERSION,
-                    "commit": "unknown",
-                    "setup_required": false,
-                    "setup_code_required": false,
-                    "two_step_required": state.two_step_required,
-                }),
-            ))
+        locked("GET", "/api/server", Need::Public, |cx, state| {
+            let proof = crate::oauth::server_proof(cx.req)?;
+            let mut body = json!({
+                "id": ids::SERVER_ID,
+                "name": ids::SERVER_NAME,
+                "version": ids::SERVER_VERSION,
+                "commit": "unknown",
+                "setup_required": false,
+                "setup_code_required": false,
+                "two_step_required": state.two_step_required,
+            });
+            let Some((proof, address)) = proof else { return Ok(json(200, &body)) };
+            body["proof"] = json!(proof);
+            body["address"] = json!(address);
+            // An answer to one challenge only.
+            Ok(json(200, &body).with_header("Cache-Control", "no-store"))
         }),
         locked("GET", "/api/auth/me", Need::AnyApp, |cx, state| {
             Ok(json(200, &views::me(state.profile(cx.caller().profile), cx.caller().scope())))

@@ -114,14 +114,20 @@ pub(crate) fn unique_u64() -> u64 {
 /// `n` random bytes as base64url without padding (32 bytes: 43 characters, as
 /// the server's tokens and keys).
 pub(crate) fn token(bytes: usize) -> String {
-    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     let mut raw = Vec::with_capacity(bytes + 8);
     while raw.len() < bytes {
         raw.extend_from_slice(&unique_u64().to_le_bytes());
     }
     raw.truncate(bytes);
-    let mut out = String::with_capacity(bytes * 4 / 3 + 2);
-    for chunk in raw.chunks(3) {
+    base64url(&raw)
+}
+
+const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+/// `bytes` in base64url without padding.
+pub(crate) fn base64url(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len() * 4 / 3 + 2);
+    for chunk in bytes.chunks(3) {
         let n = chunk.iter().enumerate().fold(0u32, |n, (i, b)| n | ((*b as u32) << (16 - 8 * i)));
         let chars = chunk.len() + 1;
         for i in 0..chars {
@@ -129,6 +135,22 @@ pub(crate) fn token(bytes: usize) -> String {
         }
     }
     out
+}
+
+/// The bytes of base64url without padding, when `text` is written so.
+pub(crate) fn from_base64url(text: &str) -> Option<Vec<u8>> {
+    if text.len() % 4 == 1 {
+        return None;
+    }
+    let mut out = Vec::with_capacity(text.len() * 3 / 4);
+    for chunk in text.as_bytes().chunks(4) {
+        let mut n = 0u32;
+        for (i, c) in chunk.iter().enumerate() {
+            n |= (ALPHABET.iter().position(|a| a == c)? as u32) << (18 - 6 * i);
+        }
+        out.extend((0..chunk.len() - 1).map(|i| (n >> (16 - 8 * i)) as u8));
+    }
+    Some(out)
 }
 
 /// 32 hexadecimal digits, as the server's session ids.
@@ -146,6 +168,11 @@ mod tests {
         assert!(token(32).bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'));
         assert_ne!(token(32), token(32));
         assert_eq!(hex_id().len(), 32);
+        let bytes: Vec<u8> = (0..=255).collect();
+        for n in 0..bytes.len() {
+            assert_eq!(from_base64url(&base64url(&bytes[..n])).as_deref(), Some(&bytes[..n]));
+        }
+        assert_eq!(from_base64url("AA=="), None);
     }
 
     #[test]
