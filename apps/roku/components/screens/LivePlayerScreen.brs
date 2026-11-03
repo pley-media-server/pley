@@ -428,6 +428,8 @@ end sub
 ' of the channel; matched on the channel): it stops at once with the
 ' server's words, said once, and isn't tuned again by itself. Said already
 ' from the playlist's 410 without words, the event's words show instead.
+' Changing channel already (Up or Down pressed), the change goes on to the
+' channel chosen, with no notice of the one left.
 sub onTakenOver(event as object)
     data = event.getData()
     if m.channel = invalid or not m.started then return
@@ -441,10 +443,12 @@ sub onTakenOver(event as object)
     ' gone on the server: nothing to leave.
     m.attempt = m.attempt + 1
     abandonWatch()
-    m.zapTo = invalid
-    m.zapTimer.control = "stop"
     m.sessionId = ""
     m.playlist = ""
+    if m.zapTo <> invalid
+        m.video.control = "stop"
+        return
+    end if
     trouble(stopped)
 end sub
 

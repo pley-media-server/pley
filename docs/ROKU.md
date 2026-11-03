@@ -323,7 +323,8 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Roku
   playing (the scene hands it to the player) stops it at once, before its
   stream breaks off. A stream that breaks asks its playlist again, and a
   `410` there stops it too. Either way the notice says "Live TV stopped"
-  with the server's words, and Watch again in place of Try again.
+  with the server's words, and Watch again in place of Try again. Taken
+  while Up or Down changes channel, the change goes on, with no notice.
 - **Radio:** a channel with no picture keeps its card with what's on.
 
 ### Requests and Discover
