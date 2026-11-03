@@ -105,6 +105,18 @@ class TvDiscoverUiTest {
     }
 
     @Test
+    fun backFromARowFurtherDownGoesBackToTheHero() {
+        show { TvDiscoverScreen(DiscoverViewModel(deps())) }
+        waitFor("Trending this week")
+        // Three rows down, the hero has scrolled out of the list.
+        compose.press(Key.DirectionDown, 3)
+        compose.onNodeWithTag(TV_DISCOVER_HERO).assertDoesNotExist()
+        back()
+        compose.onNodeWithTag(TV_DISCOVER_HERO).assertExists()
+        compose.focused().assert(hasText("Request"))
+    }
+
+    @Test
     fun theHerosRequestMoreSeasonsOpensWhichSeasons() {
         // Severance: some of it in a library, more seasons to ask for.
         val partly = trending.results.first { it.tmdbId == 95396L }

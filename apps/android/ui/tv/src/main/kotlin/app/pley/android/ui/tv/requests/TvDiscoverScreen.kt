@@ -2,6 +2,7 @@ package app.pley.android.ui.tv.requests
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.layout.LazyLayoutCacheWindow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -107,7 +109,7 @@ import app.pley.android.ui.tv.kit.rememberBackdropPrefetcher
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberRested
 import app.pley.android.ui.tv.shell.LocalTvNavigator
-import app.pley.android.ui.tv.theme.LocalTvTier
+
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -171,13 +173,14 @@ private sealed interface Focused {
     data class Request(val request: MediaRequest) : Focused
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DiscoverRows(state: DiscoverUiState, hero: DiscoverHero, texts: RequestTexts, vm: DiscoverViewModel) {
     val navigator = LocalTvNavigator.current
-    val tier = LocalTvTier.current
     val scope = rememberCoroutineScope()
     val memory = rememberFocusMemory()
-    val column = rememberLazyListState()
+    // Composes about a row ahead, as Home does, so the next row's posters are on their way before focus gets there.
+    val column = rememberLazyListState(cacheWindow = remember { LazyLayoutCacheWindow(ahead = RowAhead, behind = 0.dp) })
     val heroGroup = remember { FocusRequester() }
     val heroMain = remember { FocusRequester() }
     var inRows by rememberSaveable { mutableStateOf(false) }
@@ -191,7 +194,7 @@ private fun DiscoverRows(state: DiscoverUiState, hero: DiscoverHero, texts: Requ
     val heroAlpha by animateFloatAsState(if (inRows) 0f else 1f, PleyMotion.reveal(), label = "hero")
     val origin = state.origin
     val about = if (inRows) rested else null
-    val backdrop = remember(about, hero.title, origin, tier) {
+    val backdrop = remember(about, hero.title, origin) {
         val picture = when (about) {
             is Focused.Title -> about.title.backdropUrl
             is Focused.Request -> about.request.backdropUrl
@@ -205,11 +208,15 @@ private fun DiscoverRows(state: DiscoverUiState, hero: DiscoverHero, texts: Requ
         null -> hero.title.title
     }
 
-    // Back from the rows: the hero again, on the button it had; the next Back goes to the rail.
+    // Back from the rows: the hero again, on the button it had; the next Back goes to the rail. From a
+    // row further down, the hero scrolled out and is made again: focus waits for it.
     BackHandler(enabled = inRows && hasFocus) {
         inRows = false
-        scope.launch { column.scrollToItem(0) }
-        runCatching { heroGroup.requestFocus() }
+        scope.launch {
+            column.scrollToItem(0)
+            withFrameNanos { }
+            runCatching { heroGroup.requestFocus() }
+        }
     }
 
     Box(Modifier.fillMaxSize().onFocusChanged { hasFocus = it.hasFocus }) {
@@ -633,6 +640,9 @@ private fun DiscoverSkeleton() {
         }
     }
 }
+
+/** How far below the screen rows are made: about a row of posters, with its header and caption. */
+private val RowAhead = 300.dp
 
 /** The hero, down to the first row's header at y = 356 less the gap between rows. */
 private val HeroHeight = 356.dp - PleyTv.RowGap
