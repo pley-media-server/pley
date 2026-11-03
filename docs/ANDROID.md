@@ -422,8 +422,10 @@ is in the rail, which shows once the TV is signed in to a server.
   plays it. The file's own subtitles show as the player draws them.
 - **Subtitle files beside it**, `.srt` and `.vtt` named after the video and
   then a language, "forced" and SDH in any order (`Film.en.forced.srt`;
-  `Film 2.srt` is Film 2's), show through the app's own subtitles, UTF-8 or
-  else Latin-1, and Sync moves them; it doesn't move the file's own tracks.
+  `Film 2.srt` is Film 2's), show through the app's own subtitles, and
+  Sync moves them; it doesn't move the file's own tracks. Their text is
+  UTF-16 when it starts with that byte-order mark (Windows' "Unicode"),
+  else UTF-8, else Latin-1.
   From Android 11 the system decides which of a drive's files an app may
   read: a subtitle file it keeps from Pley isn't offered.
 - **Where it stopped** is kept on the device, by the file's path; past 95 %

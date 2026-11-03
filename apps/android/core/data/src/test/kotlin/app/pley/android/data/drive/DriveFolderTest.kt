@@ -85,4 +85,15 @@ class DriveFolderTest {
         assertEquals("café", DriveFolder.decode(byteArrayOf(0x63, 0x61, 0x66, 0xe9.toByte())))
         assertEquals("café", DriveFolder.decode("café".toByteArray(Charsets.UTF_8)))
     }
+
+    @Test
+    fun aSubtitleFileInUtf16IsReadByItsByteOrderMark() {
+        val text = "Café 日本 \uD83C\uDFAC"
+        val le = byteArrayOf(0xFF.toByte(), 0xFE.toByte()) + text.toByteArray(Charsets.UTF_16LE)
+        val be = byteArrayOf(0xFE.toByte(), 0xFF.toByte()) + text.toByteArray(Charsets.UTF_16BE)
+        assertEquals(text, DriveFolder.decode(le))
+        assertEquals(text, DriveFolder.decode(be))
+        // A lone surrogate and an odd last byte don't stop the rest.
+        assertEquals("\uFFFDA", DriveFolder.decode(byteArrayOf(0xFF.toByte(), 0xFE.toByte(), 0x00, 0xD8.toByte(), 0x41, 0x00, 0x42)))
+    }
 }

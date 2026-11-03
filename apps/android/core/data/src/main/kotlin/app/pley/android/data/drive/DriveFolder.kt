@@ -150,8 +150,16 @@ object DriveFolder {
         return "WEBVTT\n\n" + TIMES.replace(lines, "$1.$2")
     }
 
-    /** A subtitle file's text: UTF-8 when it is, else Latin-1, close to the Western code page older SubRip files are in. */
+    /**
+     * A subtitle file's text: UTF-16 when it starts with that byte-order mark
+     * (as Windows tools save "Unicode" text), UTF-8 when it is, else Latin-1,
+     * close to the Western code page older SubRip files are in.
+     */
     fun decode(bytes: ByteArray): String {
+        val first = bytes.getOrNull(0)?.toInt()?.and(0xFF)
+        val second = bytes.getOrNull(1)?.toInt()?.and(0xFF)
+        if (first == 0xFF && second == 0xFE) return utf16(bytes, littleEndian = true)
+        if (first == 0xFE && second == 0xFF) return utf16(bytes, littleEndian = false)
         val utf8 = Charsets.UTF_8.newDecoder()
             .onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT)
@@ -160,6 +168,28 @@ object DriveFolder {
         } catch (_: CharacterCodingException) {
             String(bytes, Charsets.ISO_8859_1)
         }
+    }
+
+    /** UTF-16 text after its byte-order mark; a lone surrogate reads as U+FFFD and an odd last byte is dropped, as on LG TVs. */
+    private fun utf16(bytes: ByteArray, littleEndian: Boolean): String {
+        val units = CharArray((bytes.size - 2) / 2) { i ->
+            val a = bytes[2 + 2 * i].toInt() and 0xFF
+            val b = bytes[3 + 2 * i].toInt() and 0xFF
+            (if (littleEndian) a or (b shl 8) else (a shl 8) or b).toChar()
+        }
+        val text = StringBuilder(units.size)
+        var i = 0
+        while (i < units.size) {
+            val unit = units[i]
+            if (unit.isHighSurrogate() && units.getOrNull(i + 1)?.isLowSurrogate() == true) {
+                text.append(unit).append(units[i + 1])
+                i += 2
+                continue
+            }
+            text.append(if (unit.isSurrogate()) '\uFFFD' else unit)
+            i++
+        }
+        return text.toString()
     }
 
     private val TIMES = Regex("""(\d{1,2}:\d{2}:\d{2}),(\d{1,3})""")

@@ -252,6 +252,8 @@ describes how they are made.
 - On Android TV and Fire TV, a USB drive's video that played and then
   stood still says the drive may have been pulled out, not that the TV
   doesn't play the file.
+- On Android TV and Fire TV, a subtitle file saved as Unicode (UTF-16)
+  beside a USB drive's video reads right, where it came out garbled.
 
 ### Removed
 
