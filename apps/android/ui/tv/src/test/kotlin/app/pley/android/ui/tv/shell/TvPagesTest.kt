@@ -99,7 +99,7 @@ class TvPagesTest {
      */
     @Composable
     private fun Page(key: NavKey) {
-        remember { made[key] = (made[key] ?: 0) + 1 }
+        remember { made.merge(key, 1, Int::plus) }
         DisposableEffect(key) { onDispose { gone[key] = (gone[key] ?: 0) + 1 } }
         lifecycles[key] = LocalLifecycleOwner.current.lifecycle
         if (key in backs) BackHandler { backs[key] = backs.getValue(key) + 1 }
