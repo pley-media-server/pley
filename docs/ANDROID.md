@@ -241,6 +241,56 @@ to the home server still goes over the Wi-Fi (`LocalRoute`).
   unless Settings → Downloads allows mobile data. Progress made offline is
   sent when the server is back.
 
+### Videos on a USB drive
+
+On Android TV, Google TV and Fire TV, while a USB drive is plugged in, the
+rail has **USB drive** after Now Playing, as the Samsung app does. Its page
+lists the drive's folders, then its videos (MKV, MP4, M4V, MOV, TS, WebM,
+AVI, MPEG), each sorted as a person sorts names ("Part 2" before "Part
+10"); hidden files and what Windows and macOS leave on a drive aren't
+shown. At the drive's top the page says how full the drive is; a folder
+opens over the one before, with ".." first to go back up. A video's line
+gives its kind, or where it resumes with a bar of how far through it is,
+and its size. A video plays in Pley's player as it is, with no server,
+signed in or not, the way a download plays: seeking, the panels, the sleep
+timer and the subtitles' look are the same.
+
+- **The drive** is the first mounted volume of `StorageManager`'s that
+  isn't the device's own, removable ones first (some TV builds don't mark a
+  USB drive removable), at the folder Android 11 and later give, else
+  `/storage/<id>`; with none listed, a readable volume folder under
+  `/storage`. The app follows the media broadcasts and, from Android 11,
+  `StorageManager`'s callback, and looks again as the app or the page
+  opens, for builds that send neither.
+- **Leave to read it** is asked for as the page opens: `READ_MEDIA_VIDEO`
+  from Android 13, `READ_EXTERNAL_STORAGE` before (Android 10 reads the
+  drive as earlier versions do: `requestLegacyExternalStorage`). Refused,
+  the page says so, with **Open settings**. A build for Google Play
+  declares `READ_MEDIA_VIDEO` in the Play Console as the app's core use
+  (playing the videos on the device); an APK installed by hand needs no
+  declaration.
+- **Tracks and chapters** are Media3's, as it reads the file: the audio it
+  starts with is the one Media3 picks, the file's default where the device
+  plays it. The file's own subtitles show as the player draws them.
+- **Subtitle files beside it**, `.srt` and `.vtt` named after the video and
+  then a language, "forced" and SDH in any order (`Film.en.forced.srt`;
+  `Film 2.srt` is Film 2's), show through the app's own subtitles, UTF-8 or
+  else Latin-1, and Sync moves them; it doesn't move the file's own tracks.
+  From Android 11 the system decides which of a drive's files an app may
+  read: a subtitle file it keeps from Pley isn't offered.
+- **Where it stopped** is kept on the device, by the file's path; past 95 %
+  it was watched, and it starts over next time.
+- **Dolby Vision** profile 7 plays as its HDR10 base layer on the HEVC
+  decoder, as there is no server to convert it; other profiles play as a
+  server's stream of them does.
+- **What doesn't play** says so: a file that only a conversion would play
+  ("a file on a drive has no server to convert it"), a picture that doesn't
+  move for 12 s, and a file that can't be read again (the drive pulled
+  out).
+
+What only a server does isn't there: converting, the quality menu, seek
+previews, Find subtitles…, saving track choices and the next episode.
+
 ## Building and testing
 
 ### Modules
@@ -402,3 +452,7 @@ base64 -w0 pley-release.keystore   # the ANDROID_KEYSTORE_BASE64 secret
 - No Watch Next row on phones or Fire TV.
 - Live TV has no picture in picture, and the TV's display mode isn't
   matched for live channels.
+- Videos on a USB drive are on TVs only. Their display mode isn't
+  matched, as their frame rate is known only once they play; HDR10+ shows
+  as HDR10 in the player's details; M2TS and MTS files aren't listed, as
+  Media3 doesn't read their 192-byte packets.

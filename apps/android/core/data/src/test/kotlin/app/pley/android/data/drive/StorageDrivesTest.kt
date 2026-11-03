@@ -45,6 +45,14 @@ class StorageDrivesTest {
     }
 
     @Test
+    fun androidThirteenAsksForVideosAndEarlierVersionsForStorage() {
+        assertEquals(listOf("android.permission.READ_EXTERNAL_STORAGE"), Drives.drivePermissions(28))
+        assertEquals(listOf("android.permission.READ_EXTERNAL_STORAGE"), Drives.drivePermissions(32))
+        assertEquals(listOf("android.permission.READ_MEDIA_VIDEO"), Drives.drivePermissions(33))
+        assertEquals(listOf("android.permission.READ_MEDIA_VIDEO"), Drives.drivePermissions(37))
+    }
+
+    @Test
     fun aDriveTheSystemDidntListIsFoundUnderStorage() {
         val storage = Files.createTempDirectory("pley-storage").toFile()
         try {

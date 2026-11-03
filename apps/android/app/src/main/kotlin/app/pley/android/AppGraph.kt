@@ -11,6 +11,9 @@ import app.pley.android.common.UserAgent
 import app.pley.android.data.DataGraph
 import app.pley.android.data.DownloadTarget
 import app.pley.android.data.Downloads
+import app.pley.android.data.drive.DriveResume
+import app.pley.android.data.drive.Drives
+import app.pley.android.data.drive.StorageDrives
 import app.pley.android.downloads.AppDownloads
 import app.pley.android.network.HttpRoot
 import app.pley.android.network.NetworkGraph
@@ -46,7 +49,7 @@ class AppGraph(private val app: Application) : ScreensGraph {
     override val network: NetworkGraph by lazy { NetworkGraph.create(app, root, auth, device, app.cacheDir) }
     override val data: DataGraph by lazy { DataGraph.create(app, network, auth, device) }
     override val caps: CapsGraph by lazy { CapsGraph.create(app, device) }
-    override val player: PlayerGraph by lazy { PlayerGraph.create(app, data, network, caps, device, local = { localMedia }) }
+    override val player: PlayerGraph by lazy { PlayerGraph.create(app, data, network, caps, device, local = { localMedia }, drives = { drives }) }
 
     /**
      * Phones and tablets only: TVs stay where the server is, and download
@@ -85,6 +88,13 @@ class AppGraph(private val app: Application) : ScreensGraph {
 
     /** What the player plays from the device: the downloads, on phones and tablets. */
     private val localMedia: Downloads get() = downloads
+
+    /**
+     * TVs only: the USB drive plugged in, whose videos play without a
+     * server, and where each stopped. Made when first asked for (the
+     * rail, off the main thread).
+     */
+    override val drives: Drives by lazy { if (device.isTv) StorageDrives(app, DriveResume.preferences(app)) else Drives.None }
     override val playerLauncher: PlayerLauncher by lazy { PlayerLauncherImpl(app, { player }, device) }
 
     /**

@@ -1,5 +1,7 @@
 package app.pley.android.data.drive
 
+import android.Manifest
+import android.os.Build
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,12 +53,23 @@ interface Drives {
     /** Looks for drives again (a page opened, the app came back): some TV builds say nothing when one comes or goes. */
     fun refresh() {}
 
+    /** What the app must still be allowed ([drivePermissions]) to read the drive's videos; empty once it may. */
+    fun missing(): List<String> = emptyList()
+
     val files: DriveFiles
 
     /** Where each video stopped, kept on this device. */
     val resume: DriveResume
 
     companion object {
+        /**
+         * What lets the app read a drive's videos on API [sdk]: Android 13
+         * and later ask for videos, earlier versions for storage (Android 10
+         * with the manifest's requestLegacyExternalStorage).
+         */
+        fun drivePermissions(sdk: Int): List<String> =
+            if (sdk >= Build.VERSION_CODES.TIRAMISU) listOf(Manifest.permission.READ_MEDIA_VIDEO) else listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+
         /** No drives: phones, tests. */
         val None: Drives = object : Drives {
             override val drive: StateFlow<Drive?> = MutableStateFlow<Drive?>(null).asStateFlow()

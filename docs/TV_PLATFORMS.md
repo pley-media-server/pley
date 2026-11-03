@@ -631,7 +631,9 @@ drive's top, the page says how full the drive is.
 A video plays in Pley's player as it is, with no server
 (`Local/LocalPlayerSource.cs`), so seeking, the panels, the sleep timer and
 the subtitles' look are the same; what only a server does isn't there:
-converting, seek previews, the next episode.
+converting, seek previews, the next episode. Android TV and Fire TV have
+the same page ([ANDROID.md](ANDROID.md#videos-on-a-usb-drive)), with
+Media3 reading the file, and without M2TS.
 
 - **Tracks and chapters** come from the file's head: an MKV's Info, Tracks
   and Chapters (`MatroskaHead`), an MP4's movie box (`Mp4Head`). The audio

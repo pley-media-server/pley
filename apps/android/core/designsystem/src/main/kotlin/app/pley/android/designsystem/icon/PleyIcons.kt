@@ -990,6 +990,36 @@ object PleyIcons {
         "M13 20a5 5 0 0 0 9-3 4.5 4.5 0 0 0-4.5-4.5c-1.33 0-2.54.54-3.41 1.41L12 16",
     )
 
+    /** Lucide `usb`. */
+    val Usb = PleyIcon(
+        "usb",
+        false,
+        "M9 7a1 1 0 1 0 2 0a1 1 0 1 0 -2 0z",
+        "M3 20a1 1 0 1 0 2 0a1 1 0 1 0 -2 0z",
+        "M4.7 19.3 19 5",
+        "m21 3-3 1 2 2Z",
+        "M9.26 7.68 5 12l2 5",
+        "m10 14 5 2 3.5-3.5",
+        "m18 12 1-1 1 1-1 1Z",
+    )
+
+    /** Lucide `file-play`. */
+    val FilePlay = PleyIcon(
+        "file-play",
+        false,
+        "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z",
+        "M14 2v5a1 1 0 0 0 1 1h5",
+        "M15.033 13.44a.647.647 0 0 1 0 1.12l-4.065 2.352a.645.645 0 0 1-.968-.56v-4.704a.645.645 0 0 1 .967-.56z",
+    )
+
+    /** Lucide `corner-left-up`. */
+    val CornerLeftUp = PleyIcon(
+        "corner-left-up",
+        false,
+        "M14 9 9 4 4 9",
+        "M20 20h-7a4 4 0 0 1-4-4V4",
+    )
+
     /** Lucide `tv-minimal`. */
     val TvMinimal = PleyIcon(
         "tv-minimal",

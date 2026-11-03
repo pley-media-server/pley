@@ -61,6 +61,7 @@ import app.pley.android.designsystem.reducedMotion
 import app.pley.android.screens.PleyKey
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.account.accountEntries
+import app.pley.android.ui.tv.drive.driveEntries
 import app.pley.android.ui.tv.home.homeEntries
 import app.pley.android.ui.tv.item.itemEntries
 import app.pley.android.ui.tv.kit.KeyRepeatGate
@@ -147,7 +148,12 @@ private fun TvShell(
         withFrameNanos { }
         source.liveTv.collect { value = it }
     }
-    val items = remember(libraries, music, liveTv) { railItems(libraries, nowPlaying = music, liveTv = liveTv) }
+    // And a USB drive, which the system is asked for off the main thread.
+    val drive by produceState(false, source) {
+        withFrameNanos { }
+        source.drive.collect { value = it }
+    }
+    val items = remember(libraries, music, liveTv, drive) { railItems(libraries, nowPlaying = music, liveTv = liveTv, drive = drive) }
     val content = remember { FocusRequester() }
     val rail = remember { RailState(content) }
     val offline = remember { TvOfflineState() }
@@ -244,6 +250,7 @@ private fun TvShell(
                         liveTvEntries()
                         accountEntries()
                         musicEntries()
+                        driveEntries()
                     },
                 )
             }

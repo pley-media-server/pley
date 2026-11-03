@@ -1,6 +1,7 @@
 package app.pley.android.ui.tv.shell
 
 import androidx.compose.ui.graphics.Color
+import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
 import app.pley.android.screens.PleyKey
@@ -107,6 +108,22 @@ class ShellRulesTest {
             for (music in listOf(false, true)) assertTrue(railItems(libraries(n), music, liveTv = true).size <= MAX_ITEMS)
         }
         assertEquals("live-tv", railCurrent(PleyKey.LiveTv, railItems(libraries(2), liveTv = true)))
+    }
+
+    @Test
+    fun aUsbDriveShowsAfterNowPlayingWhileOneIsPluggedIn() {
+        assertTrue(railItems(libraries(1)).none { it.slot == RailSlot.Drive })
+        val items = railItems(libraries(1), nowPlaying = true, drive = true)
+        assertEquals(listOf("now-playing", "drive"), items.takeLast(2).map { it.id })
+        assertEquals(PleyIcons.Usb, items.last().icon)
+        assertEquals(
+            "it makes room as Now Playing does: two libraries make way for Libraries",
+            listOf("search", "home", "library:1", "libraries", "playlists", "now-playing", "drive"),
+            railItems(libraries(3), nowPlaying = true, drive = true).map { it.id },
+        )
+        for (n in 0..6) assertTrue(railItems(libraries(n), nowPlaying = true, liveTv = true, drive = true).size <= MAX_ITEMS)
+        // Its folders are its pages.
+        assertEquals("drive", railCurrent(PleyKey.Drive("/storage/1A2B-3C4D/Films"), items))
     }
 
     @Test

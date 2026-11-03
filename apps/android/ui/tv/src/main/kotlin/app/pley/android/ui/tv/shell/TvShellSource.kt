@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.withContext
 
 /**
  * What the TV's frame reads: how to start, what the rail lists, and who
@@ -63,6 +64,9 @@ interface TvShellSource {
 
     /** Live TV is open to this profile and has channels: the rail leads to it. */
     val liveTv: Flow<Boolean> get() = flowOf(false)
+
+    /** A USB drive is plugged in: the rail leads to its videos. */
+    val drive: Flow<Boolean> get() = flowOf(false)
 
     /** Each time the server's events connect: it answers again (the offline mark goes). */
     val serverAnswered: Flow<Unit> get() = emptyFlow()
@@ -154,6 +158,8 @@ private class GraphShellSource(
     }.distinctUntilChanged()
 
     override suspend fun keepUpdated() {
+        // A drive plugged in or pulled out while the app was away: some TV builds don't say.
+        withContext(Dispatchers.Default) { graph.drives.refresh() }
         // Server events flow while something listens to them (the data module's LiveUpdates).
         offMain { graph.data.liveUpdates.scans }.collect { }
     }
@@ -169,6 +175,8 @@ private class GraphShellSource(
     override val music: Flow<Boolean> = offMain { graph.player.music.nowPlaying }.map { it != null }.distinctUntilChanged()
 
     override val liveTv: Flow<Boolean> = offMain { graph.data.liveTv.summary() }.map { it.valueOrNull?.available == true }.distinctUntilChanged()
+
+    override val drive: Flow<Boolean> = offMain { graph.drives.drive }.map { it != null }.distinctUntilChanged()
 
     override val serverAnswered: Flow<Unit> = offMain { graph.data.liveUpdates.answered }
 

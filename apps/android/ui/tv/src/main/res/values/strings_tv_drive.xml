@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- A USB drive's page (the Samsung app's StorageScreen). -->
+    <string name="tv_drive_title">USB drive</string>
+    <!-- At the drive's top: "437 GB free of 1.0 TB". -->
+    <string name="tv_drive_space">%1$s free of %2$s</string>
+    <!-- In a folder: "USB drive › Films › 2019". -->
+    <string name="tv_drive_path_separator">" › "</string>
+    <string name="tv_drive_up">Up a folder</string>
+    <!-- A video started before: "MKV · Resumes at 1:02:03". -->
+    <string name="tv_drive_resumes">%1$s · Resumes at %2$s</string>
+    <string name="tv_drive_none_title">No USB drive</string>
+    <string name="tv_drive_none_body">Plug a USB drive into the TV to play its videos here.</string>
+    <string name="tv_drive_unreadable_title">This folder can\'t be read</string>
+    <string name="tv_drive_unreadable_body">The drive may have been pulled out.</string>
+    <string name="tv_drive_empty_title">Nothing to play here</string>
+    <string name="tv_drive_empty_body">This folder has no videos or folders in it.</string>
+    <!-- Leave to read the drive, refused. -->
+    <string name="tv_drive_refused_title">Allow Pley to read the drive</string>
+    <string name="tv_drive_refused_body">Pley needs access to your videos to list and play what is on a USB drive.</string>
+    <string name="tv_drive_open_settings">Open settings</string>
+</resources>

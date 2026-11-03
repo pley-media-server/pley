@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Environment
 import android.os.storage.StorageManager
@@ -65,6 +66,9 @@ class StorageDrives(
     override fun refresh() {
         looks.launch { state.value = look() }
     }
+
+    override fun missing(): List<String> =
+        Drives.drivePermissions(Build.VERSION.SDK_INT).filter { app.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
 
     private fun look(): Drive? {
         val volumes = try {

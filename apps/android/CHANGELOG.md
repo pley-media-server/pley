@@ -8,6 +8,15 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Android TV and Fire TV play videos from a USB drive, with no server: while
+  one is plugged in, the rail has USB drive after Now Playing. Its page
+  lists the drive's folders and videos, sorted as a person sorts names,
+  with where each video resumes, and a video plays in Pley's player with
+  the subtitle files beside it, from where it stopped. The page asks for
+  leave to read the drive as it opens.
+
 ### Fixed
 
 - Paused music stays in the server's Now playing, and a converted track
