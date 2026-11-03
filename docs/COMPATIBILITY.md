@@ -319,7 +319,7 @@ them.
 | Area | Endpoints |
 |---|---|
 | Server | `/`, `/identity`, `/servers`, `/accounts` (listed, never changed), `/myplex/account`, `/system`, `/prefs`, `/:/prefs` (`PUT` answers `403`: no token changes the server's settings), `/media/providers`, `/:/websockets/notifications`; `/clients`, `/devices`, `/activities`, `/butler` and `/updater/status` answer empty containers |
-| Sections | `/library`, `/library/sections`, `/library/sections/{id}`, `…/all`, `…/albums`, `…/recentlyAdded`, `…/onDeck`, `…/search`, `…/firstCharacter`, `…/collections`, `…/{genre,year,decade,contentRating,studio,actor,director,writer,producer,label}` (filter choices), `…/refresh` and `/library/sections/all/refresh` (`manage`); `…/emptyTrash` and `…/analyze` are accepted and change nothing |
+| Sections | `/library`, `/library/sections` (`allowSync="1"` for a token with `manage`: Kometa takes a section without it for a read-only token), `/library/sections/{id}`, `…/all`, `…/albums`, `…/recentlyAdded`, `…/onDeck`, `…/search`, `…/firstCharacter`, `…/collections`, `…/{genre,year,decade,contentRating,studio,actor,director,writer,producer,label}` (filter choices), `…/prefs` (no settings; `PUT` answers `403`), `…/refresh` and `/library/sections/all/refresh` (`manage`); `…/emptyTrash` and `…/analyze` are accepted and change nothing |
 | Items | `/library/metadata/{id}` (comma-separated ids allowed), `…/extras` (trailers and other bonus material as `clip`s with the API's `extraType` and `subtype`), `…/children`, `…/allLeaves`, `…/grandchildren`, `…/related` ("More Like This" hub), `…/similar` (the same items), `…/thumb[/{version}]`, `…/art[/{version}]`, `…/refresh` (`manage`) |
 | Lists | `/library/all`, `/library/onDeck`, `/library/recentlyAdded`, `/hubs`, `/hubs/sections/{id}`, `/hubs/continueWatching/items`, `/hubs/sections/{id}/continueWatching/items`, `/hubs/home/recentlyAdded`, `/hubs/search`, `/search`, `PUT /actions/removeFromContinueWatching?ratingKey=` (the movie, or the episode's show, leaves the user's Continue Watching until it is played again, as `DELETE /api/continue-watching/{id}`) |
 | Collections | `/library/sections/{id}/collections` (also `…/all?type=18`), `/library/collections/{id}`, `…/children`, `…/{thumb,art,composite}[/{version}]`; changes under [Editing](#editing) |
@@ -377,19 +377,38 @@ comma-separated), `limit` and the API's filters with their operators:
 
 - strings (`title`, `studio`): contains, `!=` does not contain, `==` is,
   `!==` is not, `<=` begins with, `>=` ends with;
-- numbers (`year`, `decade`, `viewCount`, `duration`, `rating`, `index`,
-  `id`): is, `!=`, `>>=`, `<<=`;
+- numbers (`year`, `decade`, `viewCount`, `duration`, `rating`,
+  `audienceRating`, `userRating`, `index`, `id`): is, `!=`, `>>=` greater,
+  `<<=` less, `>=` at least, `<=` at most. To `=` and `!=` a missing value
+  is `-1`, so `rating!=-1` finds what is rated;
+- dates (`addedAt`, `lastViewedAt`, `originallyAvailableAt`, as unix time,
+  a date or relative like `-30d`): the same day, `!=`, `>>=` after, `<<=`
+  before, `>=` on or after, `<=` on or before;
 - tags (`genre`, `label`, `contentRating`), booleans (`unwatched`,
-  `inProgress`), dates (`addedAt`, `lastViewedAt`, `originallyAvailableAt`,
-  as unix time or relative like `-30d`) and `guid`;
+  `inProgress`) and `guid`: is, `!=`;
 - people (`actor`, `director`, `writer`, `producer`): a person id (the tag
   `id`, also listed by `/library/sections/{id}/actor` and the like) or a
   name; `!=` excludes.
 
+The operator's `=` may come in the key, percent-encoded, as Kometa sends it:
+`title%3D=Alien` is `title==Alien`, `year%3E=1979` is `year>=1979`. Several
+values (`genre=Comedy,Horror`) match any of them. Filters are all to match,
+or joined as the query string joins them: `or=1` between two filters
+matches either, `and=1` both, and `push=1` … `pop=1` group them, as in
+`push=1&genre=Comedy&or=1&genre=Horror&pop=1&year>>=1980`. `and` binds
+tighter than `or`, and groups nest eight deep at most.
+
 Filters on ancestors work (`artist.id=5` on albums, `show.title=…` on
-episodes). With `includeMeta=1` the response describes these filters, sorts
-and fields in a `Meta` element; `python-plexapi` validates searches against
-it. Pley's smart collections and smart playlists use the same query string
+episodes). A filter Pley can't apply answers `400` (`Pley can't filter by
+hdr`) rather than being ignored, as a tool acting on what it finds would
+act on the whole library: one on descendants (`episode.title` on shows), on
+a field Pley doesn't read (`resolution`, `hdr`, `dovi`, `audioLanguage`,
+`subtitleLanguage`, `editionTitle`, `collection`, `country`, `network`,
+`unmatched` and others), or with an operator its field doesn't take
+(`genre>>=`). Other query parameters, a client's own, change nothing. With
+`includeMeta=1` the response describes these filters, sorts and fields in a
+`Meta` element; `python-plexapi` validates searches against it. Pley's
+smart collections and smart playlists use the same query string
 ([API.md](API.md#collections)).
 
 ### Tested
@@ -432,7 +451,8 @@ and the playback tests that go through this API), and with
 - Editing episodes' and seasons' artwork from URLs other than TMDB images
   (upload the file instead), and per-item preferences (`/prefs`).
 - Filters on descendants (`episode.title` on shows) and on `resolution`,
-  `hdr`, audio or subtitle language: ignored, so they don't narrow results.
+  `hdr`, audio or subtitle language, among others: refused
+  ([Searching and filtering](#searching-and-filtering)).
 - Player remote control, photos and live TV.
 - Notifications about transcodes (`transcodeSession.*`), deleted items and
   reachability.

@@ -78,6 +78,12 @@ impl From<AppError> for JfError {
     }
 }
 
+impl From<crate::listing::FilterError> for JfError {
+    fn from(err: crate::listing::FilterError) -> Self {
+        JfError::BadRequest(err.0)
+    }
+}
+
 impl From<sqlx::Error> for JfError {
     fn from(err: sqlx::Error) -> Self {
         AppError::from(err).into()

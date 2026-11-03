@@ -258,7 +258,7 @@ async fn list_libraries(
             pairs.push(("id".into(), ids.iter().map(i64::to_string).collect::<Vec<_>>().join(",")));
         }
         let params = Params(pairs);
-        let (found, count) = SectionQuery::new(lib.id, kind, &params).page(&state.db, user.id, &window).await?;
+        let (found, count) = SectionQuery::new(lib.id, kind, &params)?.page(&state.db, user.id, &window).await?;
         rows.extend(found);
         total += count;
     }
@@ -1028,7 +1028,7 @@ async fn artists(
     let window = if several { Page { start: 0, size: page.size.map(|s| s + page.start) } } else { page };
     let (mut rows, mut total) = (Vec::new(), 0);
     for lib in &libs {
-        let (found, count) = SectionQuery::new(lib.id, "artist", &params).page(&state.db, user.id, &window).await?;
+        let (found, count) = SectionQuery::new(lib.id, "artist", &params)?.page(&state.db, user.id, &window).await?;
         rows.extend(found);
         total += count;
     }

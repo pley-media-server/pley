@@ -198,9 +198,9 @@ enum Op {
     Greater,
     /// `field<<=v`
     Less,
-    /// `field<=v` (strings)
+    /// `field<=v`: begins with (strings), at most (numbers, dates).
     Begins,
-    /// `field>=v` (strings)
+    /// `field>=v`: ends with (strings), at least (numbers, dates).
     Ends,
     /// `field==v` (strings)
     Exactly,
@@ -275,10 +275,6 @@ const NOT_FILTERS: &[&str] = &[
     "includeMarkers",
     "includeChapters",
     "checkFiles",
-    "push",
-    "pop",
-    "and",
-    "or",
     "group",
     "having",
     "sectionId",
@@ -290,47 +286,277 @@ const NOT_FILTERS: &[&str] = &[
     "asyncAugmentMetadata",
 ];
 
+/// Fields of the query string Pley doesn't keep the data for or doesn't read
+/// yet. A filter on one is refused rather than ignored: a tool changing what
+/// the filter finds would otherwise change the whole library.
+const UNREAD_FIELDS: &[&str] = &[
+    "collection",
+    "country",
+    "network",
+    "resolution",
+    "videoResolution",
+    "hdr",
+    "dovi",
+    "hdr10plus",
+    "atmos",
+    "audioLanguage",
+    "subtitleLanguage",
+    "audioTrackTitle",
+    "subtitleTrackTitle",
+    "audioCodec",
+    "videoCodec",
+    "audioChannels",
+    "videoFrameRate",
+    "mediaSize",
+    "mediaBitrate",
+    "editionTitle",
+    "originalTitle",
+    "unmatched",
+    "duplicate",
+    "trash",
+    "location",
+    "contentRatingAge",
+    "mood",
+    "style",
+    "format",
+    "subformat",
+    "source",
+    "skipCount",
+    "lastSkippedAt",
+    "lastRatedAt",
+    "place",
+    "tag",
+];
+
+/// What a field holds, which decides the operators it takes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FieldKind {
+    Text,
+    Number,
+    Tag,
+    Boolean,
+    Date,
+    Guid,
+}
+
+impl FieldKind {
+    /// The fields [`Filter::matches`] reads, at their level.
+    fn of(level: Level, field: &str) -> Option<FieldKind> {
+        Some(match (level, field) {
+            (Level::Parent, "id" | "index") | (Level::Grandparent, "id") => FieldKind::Number,
+            (Level::Parent | Level::Grandparent, "title") => FieldKind::Text,
+            (Level::Parent | Level::Grandparent, _) => return None,
+            (Level::Own, "title" | "studio") => FieldKind::Text,
+            (
+                Level::Own,
+                "year" | "decade" | "index" | "id" | "duration" | "viewCount" | "viewOffset" | "rating"
+                | "audienceRating" | "userRating" | "leafCount",
+            ) => FieldKind::Number,
+            (Level::Own, "genre" | "label" | "contentRating") => FieldKind::Tag,
+            (Level::Own, field) if people_role(field).is_some() => FieldKind::Tag,
+            (Level::Own, "unwatched" | "unwatchedLeaves" | "watched" | "inProgress") => FieldKind::Boolean,
+            (Level::Own, "addedAt" | "updatedAt" | "lastViewedAt" | "originallyAvailableAt") => FieldKind::Date,
+            (Level::Own, "guid") => FieldKind::Guid,
+            (Level::Own, _) => return None,
+        })
+    }
+
+    fn takes(self, op: Op) -> bool {
+        match self {
+            FieldKind::Text => !matches!(op, Op::Greater | Op::Less),
+            FieldKind::Number | FieldKind::Date => true,
+            FieldKind::Tag | FieldKind::Boolean | FieldKind::Guid => {
+                matches!(op, Op::Is | Op::Not | Op::Exactly | Op::NotExactly)
+            }
+        }
+    }
+}
+
+/// A filter Pley can't apply: the listing is refused, as a tool acting on
+/// what the filter finds would otherwise act on everything.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FilterError(pub String);
+
+/// How deep `push=1` groups nest at most.
+const MAX_GROUPS: usize = 8;
+
+/// Filters joined as the query string joins them: `and=1` (or nothing) and
+/// `or=1` between terms, `push=1` … `pop=1` around a group. `and` binds
+/// tighter than `or`.
+#[derive(Debug, Clone)]
+enum Expr {
+    Filter(Filter),
+    All(Vec<Expr>),
+    Any(Vec<Expr>),
+}
+
+impl Expr {
+    fn parse(params: &Params, kind: &str) -> Result<Expr, FilterError> {
+        // The groups open, innermost last: each a list of runs joined by
+        // `or`, each run a list of terms joined by `and`. A group always
+        // has a run.
+        let mut groups: Vec<Vec<Vec<Expr>>> = vec![vec![Vec::new()]];
+        let add = |groups: &mut Vec<Vec<Vec<Expr>>>, term: Expr| {
+            if let Some(run) = groups.last_mut().and_then(|runs| runs.last_mut()) {
+                run.push(term);
+            }
+        };
+        for (key, value) in &params.0 {
+            match key.as_str() {
+                "push" => {
+                    if groups.len() > MAX_GROUPS {
+                        return Err(FilterError("filters nest too deep".into()));
+                    }
+                    groups.push(vec![Vec::new()]);
+                }
+                "pop" => {
+                    if groups.len() > 1
+                        && let Some(group) = groups.pop()
+                    {
+                        add(&mut groups, Expr::of_runs(group));
+                    }
+                }
+                "or" => {
+                    if let Some(runs) = groups.last_mut()
+                        && runs.last().is_some_and(|run| !run.is_empty())
+                    {
+                        runs.push(Vec::new());
+                    }
+                }
+                "and" => {}
+                _ => {
+                    if let Some(filter) = Filter::parse(key, value, kind)? {
+                        add(&mut groups, Expr::Filter(filter));
+                    }
+                }
+            }
+        }
+        // Groups left open end with the query.
+        while groups.len() > 1 {
+            if let Some(group) = groups.pop() {
+                add(&mut groups, Expr::of_runs(group));
+            }
+        }
+        Ok(Expr::of_runs(groups.pop().unwrap_or_default()))
+    }
+
+    /// A group: its one term, all of its run, or any of its runs.
+    fn of_runs(runs: Vec<Vec<Expr>>) -> Expr {
+        let mut any: Vec<Expr> = runs
+            .into_iter()
+            .filter(|run| !run.is_empty())
+            .map(|mut run| if run.len() == 1 { run.remove(0) } else { Expr::All(run) })
+            .collect();
+        match any.len() {
+            0 => Expr::All(Vec::new()),
+            1 => any.remove(0),
+            _ => Expr::Any(any),
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        matches!(self, Expr::All(terms) if terms.is_empty())
+    }
+
+    fn any_filter(&self, test: &dyn Fn(&Filter) -> bool) -> bool {
+        match self {
+            Expr::Filter(filter) => test(filter),
+            Expr::All(terms) | Expr::Any(terms) => terms.iter().any(|t| t.any_filter(test)),
+        }
+    }
+
+    fn matches(&self, row: &ItemRow, extras: Option<&Extras>, now: i64) -> bool {
+        match self {
+            Expr::Filter(filter) => filter.matches(row, extras, now),
+            Expr::All(terms) => terms.iter().all(|t| t.matches(row, extras, now)),
+            Expr::Any(terms) => terms.iter().any(|t| t.matches(row, extras, now)),
+        }
+    }
+
+    /// [`Expr::matches`] as SQL, when every filter in it can be.
+    fn condition(&self, kind: &str, now: i64) -> Condition {
+        let (terms, any) = match self {
+            Expr::Filter(filter) => return filter.condition(kind, now),
+            Expr::All(terms) => (terms, false),
+            Expr::Any(terms) => (terms, true),
+        };
+        let mut tests = Vec::new();
+        let mut args = Vec::new();
+        let mut state = false;
+        for term in terms {
+            match term.condition(kind, now) {
+                Condition::InMemory => return Condition::InMemory,
+                // Any of a group that holds everything holds everything.
+                Condition::All if any => return Condition::All,
+                Condition::All => {}
+                Condition::Sql { sql, args: more, state: reads } => {
+                    tests.push(format!("({sql})"));
+                    args.extend(more);
+                    state |= reads;
+                }
+            }
+        }
+        if tests.is_empty() {
+            return Condition::All;
+        }
+        Condition::Sql { sql: tests.join(if any { " OR " } else { " AND " }), args, state }
+    }
+}
+
 impl Filter {
-    fn parse(params: &Params, kind: &str) -> Vec<Filter> {
-        params
-            .0
-            .iter()
-            .filter_map(|(raw_key, raw_value)| {
-                if raw_key.len() > 7 && raw_key.get(..7).is_some_and(|p| p.eq_ignore_ascii_case("x-plex-")) {
-                    return None;
-                }
-                if NOT_FILTERS.contains(&raw_key.as_str()) {
-                    return None;
-                }
-                let mut key = raw_key.as_str();
-                let mut level = Level::Own;
-                if let Some((prefix, rest)) = key.split_once('.') {
-                    // Filters on descendants (`episode.title` on shows) are not supported.
-                    level = level_of(prefix, kind)?;
-                    key = rest;
-                }
-                let (field, op) = if let Some(f) = key.strip_suffix(">>") {
-                    (f, Op::Greater)
-                } else if let Some(f) = key.strip_suffix("<<") {
-                    (f, Op::Less)
-                } else if let Some(f) = key.strip_suffix('!') {
-                    (f, Op::Not)
-                } else if let Some(f) = key.strip_suffix('<') {
-                    (f, Op::Begins)
-                } else if let Some(f) = key.strip_suffix('>') {
-                    (f, Op::Ends)
-                } else {
-                    (key, Op::Is)
-                };
-                let (op, value) = match (op, raw_value.strip_prefix('=')) {
-                    (Op::Is, Some(rest)) => (Op::Exactly, rest),
-                    (Op::Not, Some(rest)) => (Op::NotExactly, rest),
-                    (op, _) => (op, raw_value.as_str()),
-                };
-                let values = value.split(',').map(|v| v.trim().to_owned()).filter(|v| !v.is_empty()).collect();
-                Some(Filter { level, field: field.to_owned(), op, values })
-            })
-            .collect()
+    /// The filter of one query parameter, `None` for a parameter that isn't
+    /// one (the client's own, or a field this isn't a filter of).
+    fn parse(raw_key: &str, raw_value: &str, kind: &str) -> Result<Option<Filter>, FilterError> {
+        if raw_key.len() > 7 && raw_key.get(..7).is_some_and(|p| p.eq_ignore_ascii_case("x-plex-")) {
+            return Ok(None);
+        }
+        if NOT_FILTERS.contains(&raw_key) {
+            return Ok(None);
+        }
+        let refused = || FilterError(format!("Pley can't filter by {raw_key}"));
+        // The operator's `=` may come in the key, encoded: `title%3D=x` is
+        // `title==x`, as Kometa writes it.
+        let (mut key, equals_in_key) = match raw_key.strip_suffix('=') {
+            Some(key) => (key, true),
+            None => (raw_key, false),
+        };
+        let mut level = Level::Own;
+        let mut prefixed = false;
+        if let Some((prefix, rest)) = key.split_once('.') {
+            // Descendants (`episode.title` on shows) aren't read.
+            level = level_of(prefix, kind).ok_or_else(refused)?;
+            key = rest;
+            prefixed = true;
+        }
+        let (field, op) = if let Some(f) = key.strip_suffix(">>") {
+            (f, Op::Greater)
+        } else if let Some(f) = key.strip_suffix("<<") {
+            (f, Op::Less)
+        } else if let Some(f) = key.strip_suffix('!') {
+            (f, Op::Not)
+        } else if let Some(f) = key.strip_suffix('<') {
+            (f, Op::Begins)
+        } else if let Some(f) = key.strip_suffix('>') {
+            (f, Op::Ends)
+        } else {
+            (key, Op::Is)
+        };
+        let (op, value) = match (op, equals_in_key, raw_value.strip_prefix('=')) {
+            (Op::Is, true, _) => (Op::Exactly, raw_value),
+            (Op::Not, true, _) => (Op::NotExactly, raw_value),
+            (Op::Is, false, Some(rest)) => (Op::Exactly, rest),
+            (Op::Not, false, Some(rest)) => (Op::NotExactly, rest),
+            (op, _, _) => (op, raw_value),
+        };
+        match FieldKind::of(level, field) {
+            Some(field_kind) if field_kind.takes(op) => {}
+            Some(_) => return Err(refused()),
+            // With an operator or a level it is a filter all the same.
+            None if prefixed || op != Op::Is || UNREAD_FIELDS.contains(&field) => return Err(refused()),
+            None => return Ok(None),
+        }
+        let values = value.split(',').map(|v| v.trim().to_owned()).filter(|v| !v.is_empty()).collect();
+        Ok(Some(Filter { level, field: field.to_owned(), op, values }))
     }
 
     fn needs_extras(&self) -> bool {
@@ -341,7 +567,7 @@ impl Filter {
         people_role(&self.field).is_some()
     }
 
-    /// Unknown fields don't filter anything out.
+    /// Fields it doesn't read match nothing ([`Filter::parse`] refuses them).
     fn matches(&self, row: &ItemRow, extras: Option<&Extras>, now: i64) -> bool {
         let ancestor = match self.level {
             Level::Own => None,
@@ -358,7 +584,7 @@ impl Filter {
             }),
         };
         if let Some(result) = ancestor {
-            return result.unwrap_or(true);
+            return result.unwrap_or(false);
         }
         let watched = match row.kind.as_str() {
             "show" | "season" => {
@@ -416,11 +642,12 @@ impl Filter {
                     .filter(|_| matches!(row.kind.as_str(), "artist" | "album"))
                     .map(|m| format!("mbid://{m}"));
                 let known = [imdb, tmdb, tvdb, mbid];
-                Some(self.values.iter().any(|v| *v == own || known.iter().any(|g| g.as_ref() == Some(v))))
+                let any = self.values.iter().any(|v| *v == own || known.iter().any(|g| g.as_ref() == Some(v)));
+                Some(if matches!(self.op, Op::Not | Op::NotExactly) { !any } else { any })
             }
             _ => None,
         };
-        result.unwrap_or(true)
+        result.unwrap_or(false)
     }
 
     fn text(&self, value: Option<&str>) -> bool {
@@ -433,19 +660,24 @@ impl Filter {
             Op::NotExactly => !any(&|v| value == v),
             Op::Begins => any(&|v| value.starts_with(v)),
             Op::Ends => any(&|v| value.ends_with(v)),
-            Op::Greater | Op::Less => true,
+            Op::Greater | Op::Less => false,
         }
     }
 
+    /// A missing value is -1 to `=` and `!=` (`rating!=-1` is "rated"), and
+    /// passes no comparison.
     fn number(&self, value: Option<f64>) -> bool {
         let targets: Vec<f64> = self.values.iter().filter_map(|v| v.parse().ok()).collect();
-        let Some(value) = value else { return matches!(self.op, Op::Not | Op::NotExactly) };
-        match self.op {
-            Op::Is | Op::Exactly => targets.iter().any(|t| (value - t).abs() < 1e-9),
-            Op::Not | Op::NotExactly => !targets.iter().any(|t| (value - t).abs() < 1e-9),
-            Op::Greater => targets.first().is_some_and(|t| value > *t),
-            Op::Less => targets.first().is_some_and(|t| value < *t),
-            Op::Begins | Op::Ends => true,
+        let equal = |value: f64| targets.iter().any(|t| (value - t).abs() < 1e-9);
+        let first = targets.first().copied();
+        match (self.op, value) {
+            (Op::Is | Op::Exactly, value) => equal(value.unwrap_or(-1.0)),
+            (Op::Not | Op::NotExactly, value) => !equal(value.unwrap_or(-1.0)),
+            (_, None) => false,
+            (Op::Greater, Some(value)) => first.is_some_and(|t| value > t),
+            (Op::Less, Some(value)) => first.is_some_and(|t| value < t),
+            (Op::Ends, Some(value)) => first.is_some_and(|t| value >= t),
+            (Op::Begins, Some(value)) => first.is_some_and(|t| value <= t),
         }
     }
 
@@ -472,6 +704,8 @@ impl Filter {
         match self.op {
             Op::Greater => value > target,
             Op::Less => value < target,
+            Op::Ends => value >= target,
+            Op::Begins => value <= target,
             Op::Not | Op::NotExactly => value.abs_diff(target) >= DAY.unsigned_abs(),
             _ => value.abs_diff(target) < DAY.unsigned_abs(),
         }
@@ -655,7 +889,7 @@ fn watched_sql(kind: &str) -> (&'static str, bool) {
 enum Condition {
     /// Every item.
     All,
-    /// ` AND …` and its arguments; `state`: it reads the user's state `s`.
+    /// A condition and its arguments; `state`: it reads the user's state `s`.
     Sql { sql: String, args: Vec<SqlArg>, state: bool },
     /// Only [`Filter::matches`] can tell (Unicode case folding, calendar dates).
     InMemory,
@@ -668,7 +902,7 @@ impl Condition {
 
     /// No item.
     fn none() -> Self {
-        Self::sql(" AND 0".into(), Vec::new())
+        Self::sql("0".into(), Vec::new())
     }
 
     fn reading_state(self, state: bool) -> Self {
@@ -689,7 +923,7 @@ impl Filter {
             (Level::Parent, "index") => self.number_sql("p.idx"),
             (Level::Grandparent, "id") => self.number_sql("i.grandparent_id"),
             (Level::Grandparent, "title") => self.text_sql("gp.title"),
-            (Level::Parent | Level::Grandparent, _) => Condition::All,
+            (Level::Parent | Level::Grandparent, _) => Condition::none(),
             (Level::Own, "title") => self.text_sql("i.title"),
             (Level::Own, "studio") => self.text_sql("i.studio"),
             (Level::Own, "year") => self.number_sql("i.year"),
@@ -733,7 +967,7 @@ impl Filter {
             (Level::Own, "lastViewedAt") => self.date_sql("s.last_played_at", now).reading_state(true),
             (Level::Own, "originallyAvailableAt") => Condition::InMemory,
             (Level::Own, "guid") => self.guid_sql(kind),
-            (Level::Own, _) => Condition::All,
+            (Level::Own, _) => Condition::none(),
         }
     }
 
@@ -743,15 +977,15 @@ impl Filter {
         match (tests.is_empty(), negated) {
             (true, false) => Condition::none(),
             (true, true) => Condition::All,
-            (false, false) => Condition::sql(format!(" AND ({})", tests.join(" OR ")), args),
-            (false, true) => Condition::sql(format!(" AND NOT ({})", tests.join(" OR ")), args),
+            (false, false) => Condition::sql(tests.join(" OR "), args),
+            (false, true) => Condition::sql(format!("NOT ({})", tests.join(" OR ")), args),
         }
     }
 
     /// [`Filter::text`]: in SQL when every value is ASCII once lowercased.
     fn text_sql(&self, column: &str) -> Condition {
         if matches!(self.op, Op::Greater | Op::Less) {
-            return Condition::All;
+            return Condition::none();
         }
         let needles: Vec<String> = self.values.iter().map(|v| v.to_lowercase()).collect();
         if needles.iter().any(|n| !n.is_ascii()) {
@@ -785,32 +1019,28 @@ impl Filter {
         let targets: Vec<f64> = self.values.iter().filter_map(|v| v.parse().ok()).collect();
         // SQLite would compare an integer with a real exactly; `f64` doesn't.
         let value = format!("({expr} + 0.0)");
-        match self.op {
+        let op = match self.op {
             Op::Is | Op::Exactly | Op::Not | Op::NotExactly => {
                 let mut tests = Vec::new();
                 let mut args = Vec::new();
                 // NaN equals nothing (and SQLite would take it for NULL).
                 for target in targets.into_iter().filter(|t| !t.is_nan()) {
-                    tests.push(format!("abs({value} - ?) < ?"));
+                    tests.push(format!("abs(COALESCE({value}, -1.0) - ?) < ?"));
                     args.extend([SqlArg::Real(target), SqlArg::Real(1e-9)]);
                 }
                 let any = if tests.is_empty() { "0".to_owned() } else { tests.join(" OR ") };
-                // A missing value equals nothing.
-                let sql = if matches!(self.op, Op::Not | Op::NotExactly) {
-                    format!(" AND ({expr} IS NULL OR NOT ({any}))")
-                } else {
-                    format!(" AND {expr} IS NOT NULL AND ({any})")
-                };
-                Condition::sql(sql, args)
+                let negated = matches!(self.op, Op::Not | Op::NotExactly);
+                return Condition::sql(if negated { format!("NOT ({any})") } else { any }, args);
             }
-            Op::Greater | Op::Less => match targets.first() {
-                Some(target) if !target.is_nan() => {
-                    let op = if self.op == Op::Greater { ">" } else { "<" };
-                    Condition::sql(format!(" AND {value} {op} ?"), vec![SqlArg::Real(*target)])
-                }
-                _ => Condition::none(),
-            },
-            Op::Begins | Op::Ends => Condition::sql(format!(" AND {expr} IS NOT NULL"), Vec::new()),
+            Op::Greater => ">",
+            Op::Less => "<",
+            Op::Ends => ">=",
+            Op::Begins => "<=",
+        };
+        // A missing value (NULL) passes no comparison.
+        match targets.first() {
+            Some(target) if !target.is_nan() => Condition::sql(format!("{value} {op} ?"), vec![SqlArg::Real(*target)]),
+            _ => Condition::none(),
         }
     }
 
@@ -849,27 +1079,32 @@ impl Filter {
     fn boolean_sql(&self, expr: &str) -> Condition {
         let wanted = !self.values.first().is_some_and(|v| matches!(v.as_str(), "0" | "false"));
         let negated = matches!(self.op, Op::Not | Op::NotExactly);
-        Condition::sql(if wanted != negated { format!(" AND {expr}") } else { format!(" AND NOT {expr}") }, Vec::new())
+        Condition::sql(if wanted != negated { expr.to_owned() } else { format!("NOT {expr}") }, Vec::new())
     }
 
     /// [`Filter::date`] of a unix time.
     fn date_sql(&self, expr: &str, now: i64) -> Condition {
         let Some(target) = self.values.first().and_then(|v| parse_date(v, now)) else {
             // An unreadable date keeps whatever has a date.
-            return Condition::sql(format!(" AND {expr} IS NOT NULL"), Vec::new());
+            return Condition::sql(format!("{expr} IS NOT NULL"), Vec::new());
         };
         // The same day: less than a day apart.
         let day = [SqlArg::Int(target.saturating_sub(DAY - 1)), SqlArg::Int(target.saturating_add(DAY - 1))];
+        let compared = |op: &str| Condition::sql(format!("{expr} {op} ?"), vec![SqlArg::Int(target)]);
         match self.op {
-            Op::Greater => Condition::sql(format!(" AND {expr} > ?"), vec![SqlArg::Int(target)]),
-            Op::Less => Condition::sql(format!(" AND {expr} < ?"), vec![SqlArg::Int(target)]),
-            Op::Not | Op::NotExactly => Condition::sql(format!(" AND {expr} NOT BETWEEN ? AND ?"), day.into()),
-            _ => Condition::sql(format!(" AND {expr} BETWEEN ? AND ?"), day.into()),
+            Op::Greater => compared(">"),
+            Op::Less => compared("<"),
+            Op::Ends => compared(">="),
+            Op::Begins => compared("<="),
+            Op::Not | Op::NotExactly => Condition::sql(format!("{expr} NOT BETWEEN ? AND ?"), day.into()),
+            _ => Condition::sql(format!("{expr} BETWEEN ? AND ?"), day.into()),
         }
     }
 
     /// `plex://`, `imdb://`, `tmdb://`, `tvdb://` (shows) and `mbid://`
-    /// (artists, albums) guids, whatever the operator, like [`Filter::matches`].
+    /// (artists, albums) guids, like [`Filter::matches`].
+    /// Compared with `IS`, so that a missing id is a different one, not an
+    /// unknown that `!=` would drop.
     fn guid_sql(&self, kind: &str) -> Condition {
         let mut tests = Vec::new();
         let mut args = Vec::new();
@@ -884,29 +1119,25 @@ impl Filter {
                 args.push(SqlArg::Int(id));
             }
             if let Some(imdb) = value.strip_prefix("imdb://") {
-                tests.push("i.imdb_id = ?".to_owned());
+                tests.push("i.imdb_id IS ?".to_owned());
                 args.push(SqlArg::Text(imdb.to_owned()));
             }
             let tmdb = value.strip_prefix("tmdb://").and_then(|t| t.parse::<i64>().ok());
             if let Some(tmdb) = tmdb.filter(|t| format!("tmdb://{t}") == *value) {
-                tests.push("i.tmdb_id = ?".to_owned());
+                tests.push("i.tmdb_id IS ?".to_owned());
                 args.push(SqlArg::Int(tmdb));
             }
             let tvdb = value.strip_prefix("tvdb://").and_then(|t| t.parse::<i64>().ok());
             if let Some(tvdb) = tvdb.filter(|t| kind == "show" && format!("tvdb://{t}") == *value) {
-                tests.push("i.tvdb_id = ?".to_owned());
+                tests.push("i.tvdb_id IS ?".to_owned());
                 args.push(SqlArg::Int(tvdb));
             }
             if let Some(mbid) = value.strip_prefix("mbid://").filter(|_| matches!(kind, "artist" | "album")) {
-                tests.push("i.musicbrainz_id = ?".to_owned());
+                tests.push("i.musicbrainz_id IS ?".to_owned());
                 args.push(SqlArg::Text(mbid.to_owned()));
             }
         }
-        if tests.is_empty() {
-            Condition::none()
-        } else {
-            Condition::sql(format!(" AND ({})", tests.join(" OR ")), args)
-        }
+        self.any_sql(tests, args)
     }
 }
 
@@ -965,7 +1196,7 @@ struct SqlFilters {
 pub(crate) struct SectionQuery<'a> {
     library_id: i64,
     kind: &'a str,
-    filters: Vec<Filter>,
+    filter: Expr,
     sort: Vec<(SortField, bool)>,
     /// Plex's `limit`: how many items there are at most.
     cap: Option<usize>,
@@ -973,15 +1204,15 @@ pub(crate) struct SectionQuery<'a> {
 }
 
 impl<'a> SectionQuery<'a> {
-    pub(crate) fn new(library_id: i64, kind: &'a str, params: &Params) -> Self {
-        SectionQuery {
+    pub(crate) fn new(library_id: i64, kind: &'a str, params: &Params) -> Result<Self, FilterError> {
+        Ok(SectionQuery {
             library_id,
             kind,
-            filters: Filter::parse(params, kind),
+            filter: Expr::parse(params, kind)?,
             sort: parse_sort(params.get("sort")),
             cap: params.parse("limit"),
             now: now(),
-        }
+        })
     }
 
     /// The `page` of the items and how many there are: filtered, sorted and
@@ -994,19 +1225,13 @@ impl<'a> SectionQuery<'a> {
     }
 
     fn sql_filters(&self) -> Option<SqlFilters> {
-        let mut out = SqlFilters { filter: String::new(), args: Vec::new(), uses_state: false };
-        for filter in &self.filters {
-            match filter.condition(self.kind, self.now) {
-                Condition::All => {}
-                Condition::Sql { sql, args, state } => {
-                    out.filter.push_str(&sql);
-                    out.args.extend(args);
-                    out.uses_state |= state;
-                }
-                Condition::InMemory => return None,
+        match self.filter.condition(self.kind, self.now) {
+            Condition::All => Some(SqlFilters { filter: String::new(), args: Vec::new(), uses_state: false }),
+            Condition::Sql { sql, args, state } => {
+                Some(SqlFilters { filter: format!(" AND ({sql})"), args, uses_state: state })
             }
+            Condition::InMemory => None,
         }
-        Some(out)
     }
 
     async fn page_in_sql(
@@ -1049,15 +1274,15 @@ impl<'a> SectionQuery<'a> {
         // Titles tie by id, in SQL as here.
         rows.sort_by(|a, b| a.sort_title.cmp(&b.sort_title).then(a.id.cmp(&b.id)));
         let mut extras = HashMap::new();
-        if self.filters.iter().any(Filter::needs_extras) {
+        if self.filter.any_filter(&Filter::needs_extras) {
             let ids: Vec<i64> = rows.iter().map(|r| r.id).collect();
             extras = load_extras(db, &ids).await?;
-            if self.filters.iter().any(Filter::needs_people) {
+            if self.filter.any_filter(&Filter::needs_people) {
                 add_people(db, &ids, &mut extras).await?;
             }
         }
-        if !self.filters.is_empty() {
-            rows.retain(|r| self.filters.iter().all(|f| f.matches(r, extras.get(&r.id), self.now)));
+        if !self.filter.is_empty() {
+            rows.retain(|r| self.filter.matches(r, extras.get(&r.id), self.now));
         }
         let bitrates = bitrates_for(db, &rows, &self.sort).await?;
         sort_rows(&mut rows, &self.sort, &bitrates);
@@ -1092,26 +1317,28 @@ fn smart_kind(lib: &LibraryRow, params: &Params) -> Option<&'static str> {
     kinds_of(lib).contains(&kind).then_some(kind)
 }
 
-/// Whether `filter` is a section listing query a smart collection can use.
+/// Whether `filter` is a section listing query a smart collection can use:
+/// of a kind `lib` has, with filters Pley can apply.
 pub(crate) fn valid_smart_filter(lib: &LibraryRow, filter: &str) -> bool {
     let params = filter_params(filter);
-    !params.0.is_empty() && smart_kind(lib, &params).is_some()
+    !params.0.is_empty() && smart_kind(lib, &params).is_some_and(|kind| Expr::parse(&params, kind).is_ok())
 }
 
 /// What a smart collection's filter finds in `lib`, as `user_id` may see it,
-/// in its order.
+/// in its order. A filter Pley can't apply finds nothing.
 pub(crate) async fn smart_items(db: &Db, user_id: i64, lib: &LibraryRow, filter: &str) -> sqlx::Result<Vec<ItemRow>> {
     let params = filter_params(filter);
     let Some(kind) = smart_kind(lib, &params) else { return Ok(Vec::new()) };
-    Ok(SectionQuery::new(lib.id, kind, &params).page(db, user_id, &Page::default()).await?.0)
+    let Ok(query) = SectionQuery::new(lib.id, kind, &params) else { return Ok(Vec::new()) };
+    Ok(query.page(db, user_id, &Page::default()).await?.0)
 }
 
 /// How many items a smart collection's filter finds.
 pub(crate) async fn smart_count(db: &Db, user_id: i64, lib: &LibraryRow, filter: &str) -> sqlx::Result<usize> {
     let params = filter_params(filter);
     let Some(kind) = smart_kind(lib, &params) else { return Ok(0) };
-    let count = Page { start: 0, size: Some(0) };
-    Ok(SectionQuery::new(lib.id, kind, &params).page(db, user_id, &count).await?.1)
+    let Ok(query) = SectionQuery::new(lib.id, kind, &params) else { return Ok(0) };
+    Ok(query.page(db, user_id, &Page { start: 0, size: Some(0) }).await?.1)
 }
 
 #[cfg(test)]
@@ -1122,35 +1349,109 @@ mod tests {
         Params(pairs.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect())
     }
 
+    fn parsed(pairs: &[(&str, &str)], kind: &str) -> Result<Expr, FilterError> {
+        Expr::parse(&params(pairs), kind)
+    }
+
+    /// The filters of a query joined by `and` alone.
+    fn filters(pairs: &[(&str, &str)], kind: &str) -> Vec<Filter> {
+        match parsed(pairs, kind).unwrap() {
+            Expr::Filter(filter) => vec![filter],
+            Expr::All(terms) => terms
+                .into_iter()
+                .map(|t| match t {
+                    Expr::Filter(filter) => filter,
+                    other => panic!("{other:?}"),
+                })
+                .collect(),
+            other => panic!("{other:?}"),
+        }
+    }
+
     #[test]
     fn parses_plex_filters() {
-        let filters = Filter::parse(
-            &params(&[
+        let found = filters(
+            &[
                 ("type", "1"),
                 ("title", "=Exact"),
                 ("year>>", "2000"),
                 ("genre!", "Horror,Comedy"),
-                ("show.title<", "The"),
                 ("X-Plex-Token", "secret"),
                 ("includeGuids", "1"),
-            ]),
+            ],
             "movie",
         );
-        assert_eq!(filters.len(), 3, "{filters:?}");
-        assert_eq!((filters[0].field.as_str(), filters[0].op), ("title", Op::Exactly));
-        assert_eq!(filters[0].values, vec!["Exact"]);
-        assert_eq!((filters[1].field.as_str(), filters[1].op), ("year", Op::Greater));
-        assert_eq!((filters[2].op, filters[2].values.len()), (Op::Not, 2));
+        assert_eq!(found.len(), 3, "{found:?}");
+        assert_eq!((found[0].field.as_str(), found[0].op), ("title", Op::Exactly));
+        assert_eq!(found[0].values, vec!["Exact"]);
+        assert_eq!((found[1].field.as_str(), found[1].op), ("year", Op::Greater));
+        assert_eq!((found[2].op, found[2].values.len()), (Op::Not, 2));
 
-        let filters = Filter::parse(&params(&[("show.unwatched", "1")]), "show");
-        assert_eq!((filters[0].field.as_str(), filters[0].op), ("unwatched", Op::Is));
+        let found = filters(&[("show.unwatched", "1")], "show");
+        assert_eq!((found[0].field.as_str(), found[0].op), ("unwatched", Op::Is));
 
-        // Ancestor filters (python-plexapi's `artist.albums()`), descendants ignored.
-        let filters = Filter::parse(&params(&[("artist.id", "16"), ("track.title", "x")]), "album");
-        assert_eq!(filters.len(), 1);
-        assert_eq!((filters[0].level, filters[0].field.as_str()), (Level::Parent, "id"));
-        let filters = Filter::parse(&params(&[("show.id", "3")]), "episode");
-        assert_eq!(filters[0].level, Level::Grandparent);
+        // Ancestor filters (python-plexapi's `artist.albums()`).
+        let found = filters(&[("artist.id", "16")], "album");
+        assert_eq!((found[0].level, found[0].field.as_str()), (Level::Parent, "id"));
+        assert_eq!(filters(&[("show.id", "3")], "episode")[0].level, Level::Grandparent);
+
+        // Kometa writes the operator's `=` into the key, encoded.
+        let found = filters(&[("title=", "Exact"), ("title!=", "Not"), ("year>", "2000"), ("year<", "2010")], "movie");
+        let ops: Vec<Op> = found.iter().map(|f| f.op).collect();
+        assert_eq!(ops, [Op::Exactly, Op::NotExactly, Op::Ends, Op::Begins]);
+        assert_eq!(found[0].values, vec!["Exact"]);
+    }
+
+    #[test]
+    fn groups_join_filters_with_or_and_and() {
+        let ids = |pairs: &[(&str, &str)]| match parsed(pairs, "movie").unwrap() {
+            Expr::Any(runs) => runs.len(),
+            Expr::All(terms) => 100 + terms.len(),
+            Expr::Filter(_) => 1000,
+        };
+        // Kometa's `any:` of two genres, and a year with it.
+        let query = [
+            ("push", "1"),
+            ("genre", "Horror"),
+            ("or", "1"),
+            ("genre", "Comedy"),
+            ("pop", "1"),
+            ("and", "1"),
+            ("year>>", "1990"),
+        ];
+        assert_eq!(ids(&query), 102, "all of the group and the year");
+        assert_eq!(ids(&[("genre", "a"), ("or", "1"), ("genre", "b"), ("year", "1")]), 2, "`and` binds tighter");
+        assert_eq!(ids(&[("or", "1"), ("genre", "a")]), 1000, "a leading `or` joins nothing");
+        assert_eq!(ids(&[("push", "1"), ("pop", "1"), ("pop", "1")]), 100, "empty, and a `pop` too many");
+        assert_eq!(ids(&[("push", "1"), ("genre", "a"), ("or", "1"), ("genre", "b")]), 2, "open groups close");
+        let deep: Vec<(&str, &str)> = std::iter::repeat_n(("push", "1"), MAX_GROUPS + 1).collect();
+        assert!(parsed(&deep, "movie").is_err());
+        let deep: Vec<(&str, &str)> = std::iter::repeat_n(("push", "1"), MAX_GROUPS).collect();
+        assert!(parsed(&deep, "movie").is_ok());
+    }
+
+    #[test]
+    fn refuses_filters_pley_cant_apply() {
+        for (pairs, kind) in [
+            (&[("resolution", "4k")][..], "movie"),
+            (&[("hdr", "1")], "movie"),
+            (&[("editionTitle", "Director's Cut")], "movie"),
+            (&[("collection", "5")], "movie"),
+            (&[("episode.title", "x")], "show"),
+            (&[("show.year", "2004")], "episode"),
+            (&[("show.title", "x")], "movie"),
+            (&[("title>>", "a")], "movie"),
+            (&[("genre>>", "x")], "movie"),
+            (&[("genre<", "x")], "movie"),
+            (&[("unwatched>>", "1")], "movie"),
+            (&[("audioLanguage", "en")], "movie"),
+            (&[("someField!", "1")], "movie"),
+            (&[("someField=", "1")], "movie"),
+            (&[("genre", "a"), ("or", "1"), ("hdr", "1")], "movie"),
+        ] {
+            assert!(parsed(pairs, kind).is_err(), "{pairs:?} on {kind}s");
+        }
+        assert_eq!(parsed(&[("hdr", "1")], "movie").unwrap_err().0, "Pley can't filter by hdr");
     }
 
     #[test]
@@ -1170,7 +1471,7 @@ mod tests {
         ItemRow::test_row(id, kind, title)
     }
 
-    /// Titles of `rows` that pass every filter in `pairs` (query keys as
+    /// Titles of `rows` that pass the filters in `pairs` (query keys as
     /// Plex clients send them: `year>>=2000` arrives as `("year>>", "2000")`).
     fn matching(
         rows: &[ItemRow],
@@ -1179,11 +1480,8 @@ mod tests {
         extras: &HashMap<i64, Extras>,
         now: i64,
     ) -> Vec<String> {
-        let filters = Filter::parse(&params(pairs), kind);
-        rows.iter()
-            .filter(|r| filters.iter().all(|f| f.matches(r, extras.get(&r.id), now)))
-            .map(|r| r.title.clone())
-            .collect()
+        let filter = parsed(pairs, kind).unwrap();
+        rows.iter().filter(|r| filter.matches(r, extras.get(&r.id), now)).map(|r| r.title.clone()).collect()
     }
 
     #[test]
@@ -1204,6 +1502,22 @@ mod tests {
         assert_eq!(titles(&[("title", "bravo,charlie")]), ["Bravo", "The Charlie Movie"], "any of several values");
         // Every filter must match.
         assert_eq!(titles(&[("title", "alpha"), ("title>", "city")]), ["Alphabet City"]);
+        // Kometa's `.is` and `.isnot`.
+        assert_eq!(titles(&[("title=", "alpha")]), ["Alpha"]);
+        assert_eq!(titles(&[("title!=", "alpha")]), ["Alphabet City", "Bravo", "The Charlie Movie"]);
+        // Kometa's `any:`.
+        let either = [("push", "1"), ("title", "bravo"), ("or", "1"), ("title>", "movie"), ("pop", "1")];
+        assert_eq!(titles(&either), ["Bravo", "The Charlie Movie"]);
+        let both = [
+            ("title", "alpha"),
+            ("or", "1"),
+            ("push", "1"),
+            ("title", "c"),
+            ("and", "1"),
+            ("title<", "the"),
+            ("pop", "1"),
+        ];
+        assert_eq!(titles(&both), ["Alpha", "Alphabet City", "The Charlie Movie"]);
     }
 
     #[test]
@@ -1222,6 +1536,10 @@ mod tests {
         assert_eq!(titles(&[("year!", "2001")]), ["Alpha", "Charlie", "Delta"], "no year is not 2001");
         assert_eq!(titles(&[("year>>", "2001")]), ["Charlie"], "strictly after");
         assert_eq!(titles(&[("year<<", "2001")]), ["Alpha"], "strictly before; no year is never before");
+        assert_eq!(titles(&[("year>", "2001")]), ["Bravo", "Charlie"], "`>=` is at least, Kometa's `.gte`");
+        assert_eq!(titles(&[("year<", "2001")]), ["Alpha", "Bravo"], "`<=` is at most, Kometa's `.lte`");
+        assert_eq!(titles(&[("year!", "-1")]), ["Alpha", "Bravo", "Charlie"], "a missing value is -1");
+        assert_eq!(titles(&[("year", "-1")]), ["Delta"]);
         assert_eq!(titles(&[("decade", "2000")]), ["Bravo"]);
         assert_eq!(titles(&[("decade", "1990")]), ["Alpha"]);
         assert_eq!(titles(&[("id", "3")]), ["Charlie"]);
@@ -1353,6 +1671,9 @@ mod tests {
         assert_eq!(titles(&[("lastViewedAt>>", "-1d")]), ["Recent"], "never played never matches");
         assert_eq!(titles(&[("originallyAvailableAt>>", "2000-01-01")]), ["Recent"]);
         assert_eq!(titles(&[("addedAt>>", "-3x")]), ["Recent", "Old"], "an unreadable date filters nothing");
+        let old_added = (now - 40 * 86_400).to_string();
+        assert_eq!(titles(&[("addedAt>", old_added.as_str())]), ["Recent", "Old"], "on or after");
+        assert_eq!(titles(&[("addedAt<", old_added.as_str())]), ["Old"], "on or before");
     }
 
     #[test]
@@ -1373,7 +1694,6 @@ mod tests {
         assert_eq!(titles(&[("show.id", "11")]), ["Return"]);
         assert_eq!(titles(&[("season.index", "2")]), ["Return"]);
         assert_eq!(titles(&[("season.id", "101")]), ["Pilot"]);
-        assert_eq!(titles(&[("show.year", "2004")]), ["Pilot", "Return"], "unsupported ancestor fields are ignored");
 
         let mut album = row(3, "album", "Discovery");
         album.parent_id = Some(5);
@@ -1384,23 +1704,22 @@ mod tests {
     }
 
     #[test]
-    fn unknown_and_non_ascii_parameters_filter_nothing() {
+    fn other_and_non_ascii_parameters_filter_nothing() {
         let rows = vec![row(1, "movie", "Alpha"), row(2, "movie", "Beta")];
         let none = HashMap::new();
         let pairs = [
-            ("resolution", "4k"),
             ("X-Plex-Product", "Plex Web"),
             ("x-plex-container-start", "0"),
             ("includeGuids", "1"),
             ("sort", "titleSort"),
+            ("token", "abc"),
+            ("checkFiles", "1"),
             // Keys whose 7th byte falls inside a character.
             ("abcdefé", "1"),
             ("ééééé", "x"),
         ];
         assert_eq!(matching(&rows, "movie", &pairs, &none, 0), ["Alpha", "Beta"]);
-        let filters = Filter::parse(&params(&pairs), "movie");
-        let fields: Vec<&str> = filters.iter().map(|f| f.field.as_str()).collect();
-        assert_eq!(fields, ["resolution", "abcdefé", "ééééé"]);
+        assert!(parsed(&pairs, "movie").unwrap().is_empty());
     }
 
     #[test]
@@ -1842,7 +2161,7 @@ mod tests {
     const NOW: i64 = 1_000_000;
 
     fn section_query<'a>(library: i64, kind: &'a str, pairs: &[(&str, &str)]) -> SectionQuery<'a> {
-        SectionQuery { now: NOW, ..SectionQuery::new(library, kind, &params(pairs)) }
+        SectionQuery { now: NOW, ..SectionQuery::new(library, kind, &params(pairs)).unwrap() }
     }
 
     const SORTS: &[&str] = &[
@@ -1896,7 +2215,6 @@ mod tests {
             vec![("title", "=kiss")],
             vec![("title<", "k")],
             vec![("title", "x,ze")],
-            vec![("title>>", "a")],
             vec![("title", "")],
             vec![("title!", "")],
             vec![("title", "123")],
@@ -1919,6 +2237,15 @@ mod tests {
             vec![("year", "2001.0000000001")],
             vec![("year", "2001.1")],
             vec![("year<", "20")],
+            vec![("year<", "2001")],
+            vec![("year>", "2001")],
+            vec![("year>", "nan")],
+            vec![("year", "-1")],
+            vec![("year!", "-1")],
+            vec![("rating!", "-1")],
+            vec![("rating", "-1")],
+            vec![("title=", "alpha")],
+            vec![("title!=", "alpha")],
             vec![("decade", "2000")],
             vec![("decade", "1960")],
             vec![("decade!", "2000")],
@@ -1946,7 +2273,6 @@ mod tests {
             vec![("genre!", "horror")],
             vec![("genre", "")],
             vec![("genre!", "")],
-            vec![("genre>>", "horror")],
             vec![("contentRating", "pg")],
             vec![("contentRating!", "R")],
             vec![("contentRating", "PG-13,g")],
@@ -1982,6 +2308,9 @@ mod tests {
             vec![("addedAt", "1970-01-02")],
             vec![("addedAt>>", "-2d")],
             vec![("addedAt<<", "-2d")],
+            vec![("addedAt>", "1000")],
+            vec![("addedAt<", "1000")],
+            vec![("addedAt<", "soon")],
             vec![("updatedAt>>", "2000")],
             vec![("lastViewedAt>>", "5500")],
             vec![("lastViewedAt", "soon")],
@@ -1999,9 +2328,20 @@ mod tests {
             vec![("label", "OVERLAY,4k")],
             vec![("label!", "overlay")],
             vec![("label", "")],
-            vec![("resolution", "4k")],
-            vec![("show.title", "x")],
             vec![("genre", "horror"), ("unwatched", "1")],
+            vec![
+                ("push", "1"),
+                ("genre", "horror"),
+                ("or", "1"),
+                ("genre", "comedy"),
+                ("pop", "1"),
+                ("year>>", "1990"),
+            ],
+            vec![("genre", "horror"), ("or", "1"), ("unwatched", "1")],
+            vec![("title", "alpha"), ("or", "1"), ("push", "1"), ("year", "2001"), ("and", "1"), ("genre!", "drama")],
+            vec![("or", "1"), ("rating>>", "7"), ("or", "1")],
+            vec![("push", "1"), ("pop", "1"), ("label", "overlay")],
+            vec![("title", "zzz"), ("or", "1"), ("title", "")],
             vec![("year>>", "2000"), ("rating>>", "7"), ("title!", "zeta")],
             vec![("actor!", "1"), ("contentRating", "PG"), ("lastViewedAt>>", "0")],
         ];
@@ -2013,6 +2353,7 @@ mod tests {
             vec![("title", "alpha,ÉCOLE")],
             vec![("originallyAvailableAt>>", "2000-01-01")],
             vec![("originallyAvailableAt", "2005-03-03")],
+            vec![("title", "alpha"), ("or", "1"), ("title", "é")],
         ];
         movie_filters.extend(memory_only.iter().cloned());
         let show_filters: Vec<Vec<(&str, &str)>> = vec![
@@ -2041,7 +2382,6 @@ mod tests {
             vec![("show.id", "100")],
             vec![("show.title", "fringe")],
             vec![("show.index", "1")],
-            vec![("show.year", "2004")],
             vec![("index", "1")],
             vec![("season.title", "2")],
         ];
@@ -2054,8 +2394,8 @@ mod tests {
             vec![("show.title", "LOST")],
             vec![("show.title<", "fr")],
             vec![("season.title", "season")],
-            vec![("show.year", "2004")],
             vec![("unwatched", "1")],
+            vec![("show.title", "lost"), ("or", "1"), ("season.index", "2")],
             vec![("inProgress", "1")],
             vec![("title", "pilot")],
             vec![("title", "=pilot")],

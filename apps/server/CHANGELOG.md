@@ -59,6 +59,13 @@ describes how they are made.
 - The Plex-compatible API's stream addresses, which players fetch without a
   token, work only for streams started with a token for other apps, while
   that token works; a web-player's playback can't be opened through them.
+- The Plex-compatible API's filters take the operators and groups Kometa
+  writes (`title%3D=`, `year%3E=`, `push=1` … `or=1` … `pop=1`), and numbers
+  and dates take at least (`>=`) and at most (`<=`). A filter Pley can't
+  apply (on `resolution`, `hdr`, audio language, an episode's fields under
+  a show, and the like) answers `400` where it was ignored, which let a
+  tool's change reach the whole library; a smart collection or playlist
+  isn't made of one.
 
 ### Removed
 
@@ -67,6 +74,9 @@ describes how they are made.
 
 ### Fixed
 
+- Kometa connects to the Plex-compatible API with a token that may manage
+  libraries: library sections say so (`allowSync`), and a library's
+  settings answer, with none to change.
 - Tautulli no longer takes Pley for a server that is down when nothing has
   happened for 15 seconds: the Plex-compatible API's notifications send
   pings, as Plex's server does.

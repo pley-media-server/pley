@@ -260,6 +260,59 @@ async fn section_directories_and_filter_choices() {
 }
 
 #[tokio::test]
+async fn library_tools_connect_and_filter_as_kometa_does() {
+    let (app, admin, movies, tv, _) = world().await;
+    // `allowSync` says whether the token may change the libraries: Kometa
+    // stops at a section without it, calling the token read-only.
+    let sync = |sections: &Value| -> Vec<Option<bool>> {
+        sections["Directory"].as_array().unwrap().iter().map(|d| d["allowSync"].as_bool()).collect()
+    };
+    assert_eq!(sync(&app.plex_json("/library/sections", &admin).await), [Some(true); 3]);
+    let watching = app.compatibility_token(&admin, "play activity").await;
+    assert_eq!(sync(&app.plex_json("/library/sections", &watching).await), [Some(false); 3]);
+
+    // A library's settings: none to list, and none to change.
+    let prefs = app.plex_json(&format!("/library/sections/{movies}/prefs"), &watching).await;
+    assert_eq!(prefs["size"], json!(0));
+    let change = format!("/library/sections/{movies}/prefs?enableCinemaTrailers=0");
+    assert_eq!(app.plex(Method::PUT, &change, &admin, &[]).await.status, StatusCode::FORBIDDEN);
+    let elsewhere = app.plex(Method::GET, "/library/sections/999/prefs", &admin, &[]).await;
+    assert_eq!(elsewhere.status, StatusCode::NOT_FOUND);
+
+    // Kometa's queries: groups joined by `or`, and operators in the key.
+    let listed = |query: &str| {
+        let app = &app;
+        let admin = &admin;
+        let uri = format!("/library/sections/{movies}/all?{query}&sort=titleSort");
+        async move { plex_titles(&app.plex_json(&uri, admin).await) }
+    };
+    assert_eq!(listed("push=1&genre=Horror&or=1&genre=Comedy&pop=1").await, ["Alien", "Brazil"]);
+    assert_eq!(listed("push=1&genre=Horror&or=1&genre=Comedy&pop=1&and=1&year%3E%3E=1980").await, ["Brazil"]);
+    assert_eq!(listed("title%3D=Alien").await, ["Alien"]);
+    assert_eq!(listed("title!%3D=Alien").await, ["2001 A Space Odyssey", "Brazil", "Zardoz"]);
+    assert_eq!(listed("year%3E=1979").await, ["Alien", "Brazil"]);
+    assert_eq!(listed("year%3C=1974").await, ["2001 A Space Odyssey", "Zardoz"]);
+
+    // A filter Pley can't apply is refused, never taken for everything.
+    for (section, query) in [(movies, "hdr=1"), (movies, "editionTitle=Final"), (tv, "episode.title=Pilot")] {
+        let refused = app.plex(Method::GET, &format!("/library/sections/{section}/all?{query}"), &admin, &[]).await;
+        assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{query}");
+        assert!(refused.text().contains("Pley can't filter by"), "{}", refused.text());
+    }
+    // And a smart collection isn't made of one.
+    let uri = format!("server://x/com.plexapp.plugins.library/library/sections/{movies}/all?type=1&hdr=1");
+    let made = app
+        .plex(
+            Method::POST,
+            &format!("/library/collections?type=1&title=HDR&smart=1&sectionId={movies}&uri={}", common::encode(&uri)),
+            &admin,
+            &[],
+        )
+        .await;
+    assert_eq!(made.status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
 async fn sections_and_hubs_follow_the_library_order() {
     let (app, admin, movies, tv, music) = world().await;
     let order = app.put("/api/libraries/order", &admin, json!({"ids": [tv, music, movies]})).await;

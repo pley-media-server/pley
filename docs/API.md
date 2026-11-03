@@ -1741,7 +1741,8 @@ interface Collection {
 **Smart collections** hold no items. `smart_filter` is a library listing in
 the Plex-compatible API's syntax: the query string of
 `/library/sections/{id}/all`, such as `genre=Comedy&unwatched=1&sort=year:desc`
-([COMPATIBILITY.md](COMPATIBILITY.md#searching-and-filtering)). The collection shows what it
+([COMPATIBILITY.md](COMPATIBILITY.md#searching-and-filtering)). A filter
+Pley can't apply is refused (`400`). The collection shows what it
 finds, in its order, as each user may see it. Its items can't be added,
 removed or reordered (`400`); change the filter instead.
 

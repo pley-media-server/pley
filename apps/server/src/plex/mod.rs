@@ -257,6 +257,7 @@ fn router(state: AppState, info: Arc<PlexInfo>) -> Router {
         .route("/library/sections/{id}/search", get(library::section_search))
         .route("/library/sections/{id}/emptyTrash", any(server::accepted))
         .route("/library/sections/{id}/analyze", any(server::accepted))
+        .route("/library/sections/{id}/prefs", get(library::section_prefs).put(server::settings_refused))
         .route("/library/sections/{id}/{filter}", get(library::filter_choices))
         .route("/library/all", get(library::library_all))
         .route("/library/onDeck", get(library::on_deck))
@@ -447,6 +448,12 @@ impl From<AppError> for PlexError {
             }
             AppError::Internal(e) => PlexError::Internal(e),
         }
+    }
+}
+
+impl From<crate::listing::FilterError> for PlexError {
+    fn from(err: crate::listing::FilterError) -> Self {
+        PlexError::BadRequest(err.0)
     }
 }
 

@@ -138,7 +138,10 @@ pub async fn root(_user: PlexUser) -> Node {
         .child(Node::new("Directory").attr("key", "onDeck").attr("title", "On Deck Content"))
 }
 
-fn section_node(state: &AppState, info: &PlexInfo, lib: &LibraryRow) -> Node {
+/// A section as `/library/sections` lists it. `allowSync` says whether the
+/// token may change the library (Manage libraries): Kometa takes a section
+/// without it for a read-only token.
+fn section_node(state: &AppState, info: &PlexInfo, lib: &LibraryRow, manages: bool) -> Node {
     let (agent, scanner) = match section_type(lib) {
         "movie" => ("tv.plex.agents.movie", "Plex Movie"),
         "show" => ("tv.plex.agents.series", "Plex TV Series"),
@@ -146,7 +149,7 @@ fn section_node(state: &AppState, info: &PlexInfo, lib: &LibraryRow) -> Node {
     };
     let changed = lib.scanned_at.unwrap_or(lib.created_at);
     let mut node = Node::new("Directory")
-        .attr("allowSync", false)
+        .attr("allowSync", manages)
         .attr("filters", true)
         .attr("refreshing", state.scanner.is_scanning(lib.id))
         .attr("key", lib.id.to_string())
@@ -179,11 +182,24 @@ pub async fn sections(
     Extension(info): Extension<Arc<PlexInfo>>,
 ) -> PlexResult<Node> {
     let libraries = visible_libraries(&state, &user).await?;
+    let manages = user.compatibility_allows(crate::auth::compatibility::Scope::Manage);
     let mut mc = base_container().attr("size", libraries.len()).attr("title1", "Plex Library");
     for lib in &libraries {
-        mc.push(section_node(&state, &info, lib));
+        mc.push(section_node(&state, &info, lib, manages));
     }
     Ok(mc)
+}
+
+/// `/library/sections/{id}/prefs`: a library's settings. Pley has none that
+/// map onto Plex's, so there are none to list; changing them is refused,
+/// as the server's settings are.
+pub async fn section_prefs(
+    State(state): State<AppState>,
+    PlexUser(user): PlexUser,
+    Path(id): Path<String>,
+) -> PlexResult<Node> {
+    library_for(&state, &user, &id).await?;
+    Ok(Node::container().attr("size", 0))
 }
 
 pub async fn section(
@@ -278,7 +294,7 @@ pub async fn all(
     let (lib, libraries) = library_for(&state, &user, &id).await?;
     let kind = params.get("type").and_then(kind_for_number).unwrap_or(lib.kind().top_level_kind());
     let (rows, total) = if kinds_of(&lib).contains(&kind) {
-        SectionQuery::new(lib.id, kind, &params).page(&state.db, user.id, &page).await?
+        SectionQuery::new(lib.id, kind, &params)?.page(&state.db, user.id, &page).await?
     } else {
         (Vec::new(), 0)
     };
@@ -327,7 +343,7 @@ pub async fn library_all(
             None => vec![lib.kind().top_level_kind()],
         };
         for kind in kinds {
-            let (found, count) = SectionQuery::new(lib.id, kind, &params).page(&state.db, user.id, &window).await?;
+            let (found, count) = SectionQuery::new(lib.id, kind, &params)?.page(&state.db, user.id, &window).await?;
             rows.extend(found);
             total += count;
         }
@@ -830,7 +846,7 @@ pub async fn home_recently_added(
     for lib in libraries.iter().filter(|l| section.is_none_or(|s| s == l.id)) {
         match wanted {
             Some(kind) if kinds_of(lib).contains(&kind) => {
-                let query = SectionQuery::new(lib.id, kind, &newest);
+                let query = SectionQuery::new(lib.id, kind, &newest)?;
                 rows.extend(query.page(&state.db, user.id, &Page::default()).await?.0);
             }
             Some(_) => {}
