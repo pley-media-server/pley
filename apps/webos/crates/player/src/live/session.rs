@@ -373,10 +373,11 @@ impl LiveSession {
         let trouble = stopped_trouble(message);
         if self.state.phase == LivePhase::Error {
             let said = message.is_some_and(|m| !m.trim().is_empty());
+            // Only a card without the server's words takes these: another stop's words stay.
             if let Some(shown) = self.state.trouble.as_mut()
                 && shown.kind == TroubleKind::Stopped
                 && said
-                && shown.message != trouble.message
+                && shown.message == stopped_trouble(None).message
             {
                 *shown = trouble;
                 self.changed();
@@ -871,7 +872,8 @@ impl LiveSession {
         self.changed();
     }
 
-    /// The TV hid the app: watching ends on the server, to start again when it shows.
+    /// The TV hid the app: watching ends on the server, to start again when it shows, unless it had
+    /// stopped there (taken over, say).
     pub fn suspend(&mut self) {
         self.next_generation();
         self.jobs.clear();
@@ -881,9 +883,15 @@ impl LiveSession {
         self.leave();
     }
 
-    /// The TV shows the app again: the channel from its live edge.
+    /// The TV shows the app again: the channel from its live edge. One that stopped on the server
+    /// keeps its card, and is watched again only with Watch again (as Android's).
     pub fn resume(&mut self) {
         if self.closed {
+            return;
+        }
+        if self.state.phase == LivePhase::Error
+            && self.state.trouble.as_ref().is_some_and(|t| t.kind == TroubleKind::Stopped)
+        {
             return;
         }
         self.retries = 0;

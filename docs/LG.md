@@ -267,6 +267,8 @@ and goes with `live_channels_changed`. On LG:
   playing stops the player at once, before its stream breaks off, so it
   isn't tuned again into a connection that is gone. The card says "Live TV
   stopped" with the server's words, and Watch again in place of Try again.
+  The card stays when the app is hidden and shown again; nothing is tuned
+  until Watch again.
 
 ### Music
 

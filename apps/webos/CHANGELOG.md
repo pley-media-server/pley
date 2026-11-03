@@ -128,7 +128,8 @@ describes how they are made.
   Discover title's page.
 - A Live TV channel whose connection someone else takes over stops at
   once and says why, under "Live TV stopped", with Watch again, where it
-  said so only once its picture had stopped.
+  said so only once its picture had stopped. "Live TV stopped" stays when
+  the app is hidden and shown again, until Watch again.
 - The posters of a library's grid wear their quality badges ("4K", "DV",
   "HDR") when it is filtered by resolution or dynamic range, as when it
   is sorted by bitrate; otherwise posters carry none.

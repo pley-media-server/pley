@@ -634,6 +634,45 @@ fn a_take_overs_words_replace_a_410_without_any_that_came_first() {
 }
 
 #[test]
+fn a_take_over_leaves_the_words_of_a_stop_that_came_first() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    w.fake.end("s1", "The channel was stopped.");
+    w.sim.fail(2, "the playlist went");
+    w.settle();
+    let shown = w.c.state().trouble.clone().unwrap();
+    assert_eq!((shown.kind, shown.message.as_str()), (TroubleKind::Stopped, "The channel was stopped."));
+    let version = w.c.version();
+    // Later, the same account's phone watches the channel and is taken over.
+    w.c.taken_over(1, Some("Watching moved to Two HD on another device."));
+    assert_eq!(w.c.version(), version);
+    assert_eq!(w.c.state().trouble.as_ref(), Some(&shown));
+}
+
+#[test]
+fn a_take_overs_card_stays_through_the_background_and_nothing_is_watched_until_watch_again() {
+    let mut w = Live::new(LiveFake::new());
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    w.c.taken_over(1, Some("Watching moved to Two HD on another device."));
+    let shown = w.c.state().clone();
+    w.c.suspend();
+    w.settle();
+    w.c.resume();
+    w.settle();
+    w.advance(10_000);
+    assert_eq!(w.c.state(), &shown);
+    assert_eq!(w.fake.watches().len(), 1);
+    assert_eq!(w.sim.loads().len(), 1);
+    w.c.retry();
+    w.settle();
+    assert_eq!(w.fake.watches().len(), 2);
+}
+
+#[test]
 fn a_take_over_in_the_second_before_a_failures_retry_stops_it_there() {
     let mut w = Live::new(LiveFake::new());
     w.c.tune(channel(1));
