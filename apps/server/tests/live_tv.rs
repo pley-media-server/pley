@@ -472,7 +472,11 @@ async fn a_connection_in_use_is_taken_over_by_its_watcher_or_an_administrator() 
     let (one, two) = (channels[0]["id"].as_i64().unwrap(), channels[1]["id"].as_i64().unwrap());
 
     // Bob watches One; the administrator wants Two and may take One's connection.
-    let bobs = app.post(&format!("/api/live/channels/{one}/watch"), &bob, json!({"client_id": "tv"})).await.body;
+    // (as a TV's own player, with a keyed address)
+    let bobs = app
+        .post(&format!("/api/live/channels/{one}/watch"), &bob, json!({"client_id": "tv", "keyed_urls": true}))
+        .await
+        .body;
     let refused = app.post(&format!("/api/live/channels/{two}/watch"), &admin, json!({"client_id": "pc"})).await;
     assert_eq!(refused.status, StatusCode::CONFLICT);
     let held = &refused.body["connections"][0];
@@ -499,10 +503,14 @@ async fn a_connection_in_use_is_taken_over_by_its_watcher_or_an_administrator() 
         app.post(&format!("/api/live/channels/{one}/watch"), &bob, json!({"client_id": "tv", "take_over": two})).await;
     assert_eq!(not_his.status, StatusCode::FORBIDDEN);
 
-    // His session says so from then on.
+    // His session says so from then on, at its keyed address too.
     let gone = app.get(&format!("/api/live/sessions/{session}/index.m3u8"), &bob).await;
     assert_eq!(gone.status, StatusCode::GONE);
     assert_eq!(gone.body["message"], said, "{:?}", gone.body);
+    let keyed = bobs["url"].as_str().unwrap();
+    assert!(keyed.starts_with("/api/live/media/"), "{keyed}");
+    let gone = app.call(Method::GET, keyed, None, None, &[]).await;
+    assert_eq!((gone.status, gone.body["message"].as_str()), (StatusCode::GONE, Some(said)), "{:?}", gone.body);
 
     // Someone outside the home learns neither who took it nor for what.
     let (carol, _) = app.user(&admin, "carol", json!({"home": false})).await;

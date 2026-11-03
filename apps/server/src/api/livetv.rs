@@ -300,7 +300,10 @@ pub async fn keyed_file(
     Path((key, file)): Path<(String, String)>,
 ) -> ApiResult<Response> {
     let gone = || AppError::SessionStopped(Some("this channel isn't being watched any more".into()));
-    let (session, user_id, grant) = state.live.tuners.by_media_key(&key).ok_or_else(gone)?;
+    let Some((session, user_id, grant)) = state.live.tuners.by_media_key(&key) else {
+        // Taken over: why, as the session's own address says.
+        return Err(state.live.tuners.ended_by_key(&key).map_or_else(gone, |why| AppError::SessionStopped(Some(why))));
+    };
     let mut user = AuthUser::load(&state.db, user_id).await?.ok_or_else(gone)?;
     if let Some(grant) = grant {
         // Signed out since: the key goes with the token.

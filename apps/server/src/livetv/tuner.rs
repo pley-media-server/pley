@@ -475,6 +475,9 @@ pub struct Tuners {
     starting: tokio::sync::Mutex<()>,
     /// Why sessions ended that were taken over: their players are told.
     ended: Mutex<HashMap<String, String>>,
+    /// The same, by the keyed address's key of those that had one (a TV's
+    /// own player asks by the key alone).
+    ended_keys: Mutex<Vec<(String, String)>>,
     played: mpsc::UnboundedSender<Played>,
 }
 
@@ -501,6 +504,7 @@ impl Tuners {
             viewers: Mutex::default(),
             starting: tokio::sync::Mutex::new(()),
             ended: Mutex::default(),
+            ended_keys: Mutex::default(),
             played,
         })
     }
@@ -675,6 +679,12 @@ impl Tuners {
         Ok(Watching { url, session_id, kind })
     }
 
+    /// Why the session a keyed address's `key` opened ended, when it was
+    /// taken over.
+    pub fn ended_by_key(&self, key: &str) -> Option<String> {
+        self.ended_keys.lock().iter().find(|(k, _)| crate::playback::same_key(k, key)).map(|(_, why)| why.clone())
+    }
+
     /// The session a keyed address's `key` opens, who watches in it, and
     /// the app sign-in it was started with.
     pub fn by_media_key(&self, key: &str) -> Option<(String, i64, Option<i64>)> {
@@ -769,8 +779,15 @@ impl Tuners {
                 .filter(|v| v.channel_id == held.channel_id)
                 .map(|v| (v.clone(), taken_over_why(v, user.id, home_name, channel_name)))
                 .collect();
+            let mut ended_keys = self.ended_keys.lock();
+            if ended_keys.len() > ENDED_KEPT {
+                ended_keys.clear();
+            }
             for (v, why) in &told {
                 ended.insert(v.id.clone(), why.clone());
+                if let Some(key) = &v.media_key {
+                    ended_keys.push((key.clone(), why.clone()));
+                }
             }
             viewers.retain(|_, v| v.channel_id != held.channel_id);
             told

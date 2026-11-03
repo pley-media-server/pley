@@ -3619,7 +3619,7 @@ interface LiveTuner {                  // a connection in use
 - **Taken over.** Each viewer ended by a take-over gets
   `live_taken_over` (`session_id`, `channel_id`, `message`) on their event
   streams at once, and its session answers `410` with the same `message`
-  from then on. Every player of that channel on the account stops (a
+  from then on, at its keyed address too. Every player of that channel on the account stops (a
   player reading `stream.ts` knows no session, so players go by
   `channel_id`; one viewer's HLS and stream sessions each send one) and
   shows the message until it is dismissed; it doesn't tune again by
