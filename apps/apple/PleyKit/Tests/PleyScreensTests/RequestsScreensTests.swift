@@ -164,7 +164,8 @@ private func object(_ data: Data?) -> [String: Any]? {
         #expect(trending.pages.settled)
         let hero = try #require(model.hero)
         #expect(hero.card.title == "The Wild Robot" && hero.primary == .request(enabled: true))
-        #expect(hero.lines.first == "You can ask for 2 more movies.")
+        // What's left to ask for shows on the title's page, unless nothing is.
+        #expect(hero.lines.isEmpty)
         #expect(model.problem == nil && !model.nothing)
         // Your requests.
         #expect(await eventually { model.yourRequests?.isEmpty == false })
@@ -187,6 +188,27 @@ private func object(_ data: Data?) -> [String: Any]? {
         // Pressed twice while on its way: asked once.
         #expect(server.askedBodies.count == 1)
         #expect(object(server.askedBodies.first)?["tmdb_id"] as? Int == 1_184_918)
+        // Its page is read again: no button now, only the request's stage.
+        #expect(await eventually { if case .mine(_?) = model.hero?.action { true } else { false } })
+        #expect(model.hero?.primary == nil && model.hero?.pill != nil)
+        #expect(model.rows.first?.cards.first?.badge == "Requested")
+    }
+
+    @Test func aHeroWithNothingLeftToAskForSaysWhen() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.setRequestSummary("""
+        {"enabled": true, "access": "ask", "movies_left": 0, "seasons_left": 5, "movies_limit": 3,
+         "seasons_limit": 10, "manage": false, "pending": 0, "failed": 0, "unseen": 0, "own": 4}
+        """)
+        // The title's page isn't read: the hero goes by the summary.
+        server.failRequests(prefix: "/api/discover/movie/", status: 500)
+        let app = try await ready(server)
+        let model = DiscoverModel(app: app)
+        await model.load()
+        let hero = try #require(model.hero)
+        #expect(hero.action == .request(.limit) && hero.primary == .request(enabled: false))
+        #expect(hero.lines == [RequestWords.allForNow])
     }
 
     @Test func discoverSaysWhyItCantShow() async throws {

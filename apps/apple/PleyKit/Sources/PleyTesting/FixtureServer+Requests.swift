@@ -23,6 +23,8 @@ extension FixtureServer {
         /// `201` a new request, `200` one followed now.
         var askStatus = 201
         var asked: [Data] = []
+        /// The titles asked for (`movie:1184918`), with the request that came back: their pages say so.
+        var askedTitles: [String: Data] = [:]
         /// The decisions and removals sent: method, path, body.
         var acted: [(method: String, path: String, body: Data)] = []
         var seen = 0
@@ -154,7 +156,7 @@ extension FixtureServer {
             }
             return withToken(&s, request, scope: "requests") { s, _ in
                 if let refused = refusal(s, path) { return refused }
-                return discover(request, parts)
+                return discover(s, request, parts)
             }
         }
         let scope = ["approve", "decline", "handled"].contains(parts.last ?? "") || path == "/api/requests/options"
@@ -172,10 +174,17 @@ extension FixtureServer {
         return Answer(status: failing.status, headers: ["Content-Type": "application/json"], body: failing.body)
     }
 
-    private static func discover(_ request: Request, _ parts: [String]) -> Answer {
+    private static func discover(_ s: State, _ request: Request, _ parts: [String]) -> Answer {
         guard request.method == "GET" else { return notFound(request.path) }
         if parts.count == 4, let id = Int(parts[3]), parts[2] == "movie" || parts[2] == "show" {
             guard id != 0 else { return fixture("errors/not_found.json").with(status: 404) }
+            if let asked = dict(s.requests.askedTitles["\(parts[2]):\(id)"]),
+               var page = dict(try? Fixtures.data("discover/\(parts[2]).json")) {
+                page["status"] = "requested"
+                page["request_id"] = asked["id"]
+                page["requests"] = [asked]
+                return json(200, page)
+            }
             return fixture("discover/\(parts[2]).json")
         }
         guard parts.count == 3, var trending = dict(try? Fixtures.data("discover/trending.json")) else {
@@ -232,6 +241,13 @@ extension FixtureServer {
             asked["stage"] = "pending"
             asked["mine"] = true
             asked["actions"] = ["withdraw"]
+            // The request is for the title asked for, and its page says it's requested from now on.
+            let body = dict(request.body)
+            if let kind = body?["kind"] as? String, let tmdbId = body?["tmdb_id"] as? Int {
+                asked["kind"] = kind
+                asked["tmdb_id"] = tmdbId
+                s.requests.askedTitles["\(kind):\(tmdbId)"] = try? JSONSerialization.data(withJSONObject: asked)
+            }
             return json(s.requests.askStatus, asked)
         case ("POST", 3) where parts[2] == "seen":
             s.requests.seen += 1

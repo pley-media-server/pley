@@ -1408,15 +1408,19 @@ phones and tablets: its rules, words and timings are ported to
 - **Discover**: a hero for the first trending title (when trending has
   nothing the account may ask for, every row is read at once and the hero
   is the first title of the next one with any), with its backdrop, its
-  main action and Details; rows (Trending this week, Popular movies,
-  Popular shows, Coming to cinemas, Popular anime) of posters with their
-  badges ("In library", "Requested"), each read as it comes into view and
-  page by page as it scrolls; the person's requests, with See all; and
-  TMDB's credit. A movie is asked for from the hero; a show opens its
-  page with Which seasons?. When requests can't be used (off, no access,
-  signed in before them, TMDB's key refused or TMDB not answering), the
-  page says why, and only that; every row read and none with a title
-  says "Nothing here right now".
+  main action (Request, Tell me too, Open or Request more seasons; for
+  a title already asked for, its request's stage; with nothing left to
+  ask for, a disabled Request and when more may be asked for) and
+  Details; rows (Trending this week, Popular movies, Popular shows,
+  Coming to cinemas, Popular anime) of posters with their badges ("In
+  library", "Requested"), each read as it comes into view and page by
+  page as it scrolls; the person's requests, with See all; and TMDB's
+  credit. A movie is asked for from the hero; a show opens its page with
+  Which seasons?; Stop following and the rest are on the title's page.
+  When requests can't be used (off, no access, signed in before them,
+  TMDB's key refused or TMDB not answering), the page says why, and only
+  that; every row read and none with a title says "Nothing here right
+  now".
 - **A title's page**, laid out as a library's: the backdrop, poster,
   title, facts and genres; the one main action (Request, Requested,
   Following with Stop following, Tell me too, Open, Request more seasons,

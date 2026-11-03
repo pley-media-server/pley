@@ -127,8 +127,8 @@ struct DiscoverView: View {
 /// Discover's hero: the title's backdrop fading into the page, its kind,
 /// year and badge, its title and two lines of its overview over the fade
 /// (under the picture at the accessibility text sizes); its main action
-/// and Details; its request's stage, or the lines that say why there's no
-/// button and what's left to ask for. The picture opens its page too.
+/// and Details; its request's stage, the declined line, or, when nothing
+/// more may be asked for, what's left and when. The picture opens its page too.
 private struct DiscoverHeroView: View {
     let app: AppModel
     @ObservedObject var model: DiscoverModel
@@ -154,12 +154,6 @@ private struct DiscoverHeroView: View {
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("discover.hero.details")
-                if hero.primary == .following {
-                    Button(RequestWords.stopFollowing, action: model.heroStopFollowing)
-                        .buttonStyle(.borderless)
-                        .disabled(model.asking)
-                        .accessibilityIdentifier("discover.hero.stopFollowing")
-                }
             }
             .controlSize(.large)
             if let pill = hero.pill {
@@ -218,9 +212,8 @@ private struct DiscoverHeroView: View {
     @ViewBuilder private var primary: some View {
         if let button = hero.primary {
             let enabled: Bool = switch button {
-            case .request(let enabled), .tellMeToo(let enabled): enabled
-            case .open, .requestMore: true
-            case .requested, .following: false
+            case .request(let enabled): enabled
+            case .tellMeToo, .open, .requestMore: true
             }
             Button(action: model.heroPrimary) {
                 Label(button.title, systemImage: Self.symbol(button))
@@ -235,7 +228,6 @@ private struct DiscoverHeroView: View {
         switch button {
         case .open: "play.fill"
         case .tellMeToo: "bookmark"
-        case .requested, .following: "checkmark"
         case .request, .requestMore: "plus"
         }
     }

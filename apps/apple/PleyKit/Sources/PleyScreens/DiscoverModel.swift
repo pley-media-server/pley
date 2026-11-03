@@ -20,17 +20,13 @@ public struct DiscoverRowModel: Hashable, Sendable, Identifiable {
     public var visible: Bool { !cards.isEmpty || (!pages.settled && pages.problem == nil) }
 }
 
-/// The hero's main button.
+/// The hero's main button, for what it does from Discover; the rest is on the title's page.
 public enum HeroButton: Hashable, Sendable {
-    /// Request; disabled when nothing more may be asked for (or the account may not).
+    /// Request; disabled when nothing more may be asked for.
     case request(enabled: Bool)
-    case tellMeToo(enabled: Bool)
+    case tellMeToo
     case open
     case requestMore
-    /// Requested, inert.
-    case requested
-    /// Following, with Stop following beside it.
-    case following
 
     public var title: String {
         switch self {
@@ -38,8 +34,6 @@ public enum HeroButton: Hashable, Sendable {
         case .tellMeToo: RequestWords.tellMeToo
         case .open: RequestWords.open
         case .requestMore: RequestWords.moreSeasons
-        case .requested: RequestWords.requested
-        case .following: RequestWords.following
         }
     }
 }
@@ -52,7 +46,7 @@ public struct DiscoverHero: Hashable, Sendable {
     public var backdropPath: String?
     public var action: MainAction
     public var primary: HeroButton?
-    /// Under the buttons: the declined line, no access, the allowance lines.
+    /// Under the buttons: the declined line, or the allowance lines when nothing more may be asked for.
     public var lines: [String]
     /// Its request's pill, when its page says it.
     public var pill: PillWords?
@@ -261,15 +255,19 @@ public final class DiscoverModel: ObservableObject {
     }
 
     private var heroRead: String?
+    /// Counts the hero's reads: a read that a later one replaced keeps what it found to itself.
+    private var heroReads = 0
 
     /// The hero's page, read for its exact main action.
     private func readHero(_ title: DiscoverTitle) {
         guard heroRead != title.key else { return }
         heroRead = title.key
+        heroReads += 1
+        let read = heroReads
         Task {
             guard let detail = try? await app.requestsAPI().discoverDetail(title.kind, tmdbId: title.tmdbId),
-                  heroTitle()?.key == title.key else { return }
-            hero = hero(for: title, detail: detail)
+                  read == heroReads, let now = heroTitle(), now.key == title.key else { return }
+            hero = hero(for: now, detail: detail)
         }
     }
 
@@ -280,34 +278,30 @@ public final class DiscoverModel: ObservableObject {
         let allowance = page.map { Allowance(detail: $0, summary: summary) } ?? summary.map(Allowance.init(summary:))
         let action = page.map { RequestRules.mainAction($0, gate: gate) }
             ?? RequestRules.titleAction(title, gate: gate, allowance: allowance)
+        // Only what the hero does from here gets a button: Requested and
+        // Following show the request's stage, and Stop following, the
+        // seasons and why asking doesn't work are on the title's page.
         var primary: HeroButton?
         var lines: [String] = []
         var pill: PillWords?
         let now = now()
         switch action {
         case .signInAgain, .restricted:
-            primary = nil
-        case .open:
-            primary = .open
+            break
+        case .open(let itemId):
+            primary = itemId != nil ? .open : nil
         case .declined(let reason, let againAt):
             lines.append(RequestWords.declined(reason: reason, againAt: againAt, now: now))
-        case .mine(let request):
-            primary = .requested
-            pill = request.map { PillWords.of($0, manage: summary?.manage == true, now: now) }
-        case .following(let request):
-            primary = .following
+        case .mine(let request), .following(let request):
             pill = request.map { PillWords.of($0, manage: summary?.manage == true, now: now) }
         case .tellMeToo(let ask):
-            primary = .tellMeToo(enabled: ask == .yes)
-            lines.append(ask == .noAccess ? RequestWords.noAccessLine : RequestWords.askedAlready)
+            primary = ask == .yes ? .tellMeToo : nil
         case .partial(let itemId, let more):
-            primary = itemId != nil ? .open : more.map { _ in .requestMore }
-            if more == .noAccess { lines.append(RequestWords.noAccessLine) }
+            primary = itemId != nil ? .open : more == .yes ? .requestMore : nil
         case .request(let ask):
-            primary = .request(enabled: ask == .yes)
-            if ask == .noAccess { lines.append(RequestWords.noAccessLine) }
+            primary = ask == .noAccess ? nil : .request(enabled: ask == .yes)
+            if ask == .limit, let allowance { lines += RequestWords.allowance(allowance, kind: title.kind, now: now) }
         }
-        if gate.mayAsk, let allowance { lines += RequestWords.allowance(allowance, kind: title.kind, now: now) }
         return DiscoverHero(card: DiscoverCard(title), overview: page?.overview ?? title.overview,
                             backdropPath: page?.backdropUrl ?? title.backdropUrl, action: action, primary: primary,
                             lines: lines, pill: pill, detail: page)
@@ -348,27 +342,10 @@ public final class DiscoverModel: ObservableObject {
         }
     }
 
-    /// The hero's Request more seasons, beside Open: the show's page, with Which seasons? open.
-    public func heroMore() {
-        guard let title = hero?.card.source else { return }
-        app.shell.open(.discoverTitle(title.kind, tmdbId: title.tmdbId, pick: true))
-    }
-
     /// The hero's Details: its page.
     public func heroDetails() {
         guard let hero else { return }
         app.shell.open(hero.card.screen)
-    }
-
-    /// The hero's Stop following.
-    public func heroStopFollowing() {
-        guard case .following(let request?) = hero?.action, !asking else { return }
-        asking = true
-        Task {
-            let outcome = await app.perform(.stopFollowing, on: request)
-            asking = false
-            if case .failed(let problem) = outcome { app.tell(problem) }
-        }
     }
 
     /// Asks for `new`, once at a time: a second press while it's on its way does nothing.
@@ -389,12 +366,17 @@ public final class DiscoverModel: ObservableObject {
 
     // MARK: What changed
 
-    /// Badges in rows already shown follow the change.
+    /// Badges in rows already shown follow the change; a change to the
+    /// hero's title lets its page go, to be read again for its main action.
     private func patch(_ change: RequestChange) async {
-        heroRead = nil
+        let before = heroTitle()
         let shown = rows.flatMap(\.pages.titles)
         if let patch = await app.patchFor(change, shown: shown) {
             for i in rows.indices { rows[i].pages.titles = rows[i].pages.titles.map(patch) }
+        }
+        if [before, heroTitle()].contains(where: { $0.map { RequestRules.touches($0, change) } == true }) {
+            hero?.detail = nil
+            heroRead = nil
         }
         rebuild()
     }
