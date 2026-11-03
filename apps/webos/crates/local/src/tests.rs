@@ -268,6 +268,38 @@ fn a_text_track_is_read_to_8_mib_and_a_picture_track_to_64() {
 }
 
 #[test]
+fn reading_a_track_stops_once_it_holds_its_most() {
+    use std::io::Write;
+    // Twelve blocks that each inflate to 1 MiB, in one cluster that two cues name without
+    // saying where in it.
+    let mut zlib = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+    zlib.write_all(&[b'a'; 1 << 20]).unwrap();
+    let compressed = zlib.finish().unwrap();
+    let zlib_encoding = el(0x6D80, &[el(0x6240, &[el(0x5034, &[])])]);
+    let info = el(0x1549A966, &[el(0x2AD7B1, &[u(1_000_000)]), el(0x4489, &[f(60_000.0)])]);
+    let entry = el(0xAE, &[el(0xD7, &[u(5)]), el(0x83, &[u(0x11)]), el(0x86, &[s("S_TEXT/UTF8")]), zlib_encoding]);
+    let tracks = el(0x1654AE6B, &[entry]);
+    let mut parts = vec![el(0xE7, &[u(1_000)])];
+    for i in 0..12i16 {
+        parts.push(el(0xA3, &[[&[0x85][..], &(i * 100).to_be_bytes(), &[0], &compressed].concat()]));
+    }
+    let cluster = el(0x1F43B675, &parts);
+    let seek_head = |cues: u64| el(0x114D9B74, &[el(0x4DBB, &[el(0x53AB, &[u(0x1C53BB6B)]), el(0x53AC, &[u(cues)])])]);
+    let cluster_at = (seek_head(0).len() + info.len() + tracks.len()) as u64;
+    let cues_at = cluster_at + cluster.len() as u64;
+    let point =
+        |time: u64| el(0xBB, &[el(0xB3, &[u(time)]), el(0xB7, &[el(0xF7, &[u(5)]), el(0xF1, &[u(cluster_at)])])]);
+    let cues = el(0x1C53BB6B, &[point(1_000), point(1_500)]);
+    let file = [ebml_header(), el(0x18538067, &[seek_head(cues_at), info, tracks, cluster, cues])].concat();
+    let facts = read_head(&file, usize::MAX);
+    assert_eq!(cues::track_most(&facts.tracks[0]), 8 << 20);
+    let mut held = 0;
+    let count = cues::read(&file, &facts, &facts.tracks[0], |b| held += b.data.len(), &AtomicBool::new(false));
+    // The ninth block takes it past 8 MiB, and the reading stops there.
+    assert_eq!((count, held), (9, 9 << 20));
+}
+
+#[test]
 fn reading_a_track_stops_when_asked() {
     let file = subtitled("S_TEXT/UTF8", None, vec![]);
     let facts = read_head(&file, usize::MAX);

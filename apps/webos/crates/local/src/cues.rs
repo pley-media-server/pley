@@ -89,12 +89,17 @@ pub fn read<R: ReadAt + ?Sized>(
     cues.sort_by_key(|c| (c.cluster, c.relative.unwrap_or(0)));
     let mut count = 0;
     let mut starts = HashSet::new();
+    let mut places = HashSet::new();
     let mut held = 0usize;
     let mut cluster_times = HashMap::new();
     let most = track_most(track);
-    for cue in cues {
-        if cancel.load(Ordering::Relaxed) || held > most {
+    'cues: for cue in cues {
+        if cancel.load(Ordering::Relaxed) {
             break;
+        }
+        // A place the Cues name again, a cluster to read whole among them, is read once.
+        if !places.insert((cue.cluster, cue.relative)) {
+            continue;
         }
         let Some(cluster_at) = facts.segment_start.checked_add(cue.cluster) else { continue };
         let time = *cluster_times.entry(cluster_at).or_insert_with(|| cluster_time(file, cluster_at));
@@ -117,6 +122,10 @@ pub fn read<R: ReadAt + ?Sized>(
             held = held.saturating_add(data.len());
             count += 1;
             found(SubtitleBlock { start_ms, duration_ms, data });
+            // Checked at each block: a cluster read whole can hold thousands of them.
+            if held > most {
+                break 'cues;
+            }
         }
     }
     count
