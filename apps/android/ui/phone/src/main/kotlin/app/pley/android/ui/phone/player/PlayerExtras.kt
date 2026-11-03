@@ -117,12 +117,6 @@ internal fun BoxScope.SleepNotice(secondsLeft: Int?, music: Boolean, onKeep: () 
     val reduced = reducedMotion()
     val resources = LocalResources.current
     val countStyle = MaterialTheme.typography.bodyMedium
-    val measurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    val countWidth = remember(resources, measurer, density, countStyle) {
-        val widest = SleepTexts.notice(resources, (SleepTimer.NOTICE_MS / 1_000).toInt())
-        with(density) { measurer.measure(widest, countStyle, maxLines = 1).size.width.toDp() }
-    }
     AnimatedVisibility(
         visible = secondsLeft != null,
         modifier = modifier
@@ -132,6 +126,13 @@ internal fun BoxScope.SleepNotice(secondsLeft: Int?, music: Boolean, onKeep: () 
         enter = fadeIn(PleyMotion.overlay(reduced)),
         exit = fadeOut(PleyMotion.overlay(reduced)),
     ) {
+        // Measured as the notice shows: most playbacks never have one.
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val countWidth = remember(resources, measurer, density, countStyle) {
+            val widest = SleepTexts.notice(resources, (SleepTimer.NOTICE_MS / 1_000).toInt())
+            with(density) { measurer.measure(widest, countStyle, maxLines = 1).size.width.toDp() }
+        }
         Row(
             Modifier
                 .background(PleyColors.Surface3, PleyShape.Control)

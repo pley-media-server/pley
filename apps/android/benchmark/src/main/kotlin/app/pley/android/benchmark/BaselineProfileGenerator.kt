@@ -11,8 +11,10 @@ import org.junit.runner.RunWith
 /**
  * Makes the app's Baseline and Startup Profiles from its journeys, on an
  * emulator or device with API 33 or later (docs/ANDROID.md): run on purpose,
- * the result committed. Cold start; the TV's journey on a TV and the phone's
- * on a phone or tablet, each skipped on the other kind of device. Both walk
+ * the result committed. Cold start, the only source of the Startup Profile,
+ * which lays out the dex for what starting runs; the TV's journey on a TV and
+ * the phone's on a phone or tablet, each skipped on the other kind of device,
+ * for the Baseline Profile only. Both walk
  * the demo server of benchmark builds and wait at each step for the screen
  * it leads to ([Steps]), so a walk that goes astray fails where it does
  * rather than filling the profile with the wrong screens.
@@ -40,7 +42,7 @@ class BaselineProfileGenerator {
     @Test
     fun tv() {
         assumeTrue("The TV's journey runs on a TV", isTv())
-        rule.collect(packageName = TARGET, includeInStartupProfile = true) {
+        rule.collect(packageName = TARGET, includeInStartupProfile = false) {
             with(TvJourney(this)) {
                 signIn()
                 restart()
@@ -67,7 +69,7 @@ class BaselineProfileGenerator {
     @Test
     fun phone() {
         assumeFalse("The phone's journey runs on a phone or tablet", isTv())
-        rule.collect(packageName = TARGET, includeInStartupProfile = true) {
+        rule.collect(packageName = TARGET, includeInStartupProfile = false) {
             with(PhoneJourney(this)) {
                 signedIn()
                 restart()

@@ -61,6 +61,13 @@ Whether it has one is the profile's `has_pin` from `GET /api/auth/me`, saved
 with the session, so the start reads it from the device; until the TV has
 heard it for that profile, the start asks "Who's watching?".
 
+### Phones and tablets
+
+- **The player** shows its controls, the title with them, for 3 s as
+  playback starts and as each later item begins (the next episode, a
+  queue's next), where TVs show the title alone at the top; a tap shows
+  them again.
+
 ### TVs and Fire TV
 
 - Select opens, holding Select or Menu (☰) opens a title's actions, Back
@@ -440,7 +447,9 @@ On an emulator, add `-e androidx.benchmark.suppressErrors EMULATOR`. Traces
 are in `/storage/emulated/0/Android/data/app.pley.android.benchmark/cache`.
 
 The Baseline and Startup Profiles come from `BaselineProfileGenerator`'s
-journeys against the demo server: a cold start, then on a TV, with the
+journeys against the demo server: a cold start (the Startup Profile, which
+puts what starting runs first in the dex), then, for the Baseline Profile
+only, on a TV, with the
 D-pad, signing in, Who's watching?, Home (a tile's actions, the rows), a
 show's page (its episodes, OK held on one, its rows, the cast, a person),
 search, a library's grid, Collections and a collection, Playlists and a

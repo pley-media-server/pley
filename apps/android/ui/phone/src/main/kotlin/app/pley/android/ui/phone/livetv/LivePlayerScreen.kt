@@ -77,6 +77,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -152,7 +153,8 @@ internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit) {
     }
 
     CompositionLocalProvider(LocalCategory provides category) {
-    Box(Modifier.fillMaxSize().background(Color.Black).testTag(LIVE_PLAYER)) {
+    // A window of its own: UI Automator (the benchmarks' journeys) finds its tags as resource ids.
+    Box(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.background(Color.Black).testTag(LIVE_PLAYER)) {
         VideoSurface(engine?.player, Modifier.fillMaxSize().testTag(TestTags.PLAYER_SURFACE))
         val density = LocalDensity.current
         Box(
