@@ -5,6 +5,7 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -30,7 +31,8 @@ import org.robolectric.annotation.Config
 /**
  * Search with the remote (design spec §4.5, D-pad rules 1 and 7): focus
  * starts on the field; Down goes into the results' rows and Up back to
- * the field; recent searches are chips under it.
+ * the field; recent searches are chips under it, which move only when
+ * one would pass the gutter or the safe area's edge.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
@@ -113,6 +115,20 @@ class TvSearchTest {
         assertEquals(listOf("halcyon"), chosen)
         // The chips go once results come: focus waits on the field.
         compose.onNodeWithTag(TV_SEARCH_FIELD).assertIsFocused()
+    }
+
+    @Test
+    fun recentChipsMoveOnlyWhenOneWouldPassTheEdge() {
+        show(SearchUiState("", List(12) { "a longer search $it" }, SearchResultsState.Idle))
+        compose.press(Key.DirectionDown)
+        // Along the chips that show between the gutter and the safe area's edge, nothing moves.
+        compose.press(Key.DirectionRight, times = 5)
+        compose.focused().assert(hasText("a longer search 5"))
+        assertEquals(96f, compose.onNodeWithText("a longer search 0").getBoundsInRoot().left.value, 1f)
+        // On to Clear, past the edge: the row moves just far enough for it, to the safe area's edge.
+        compose.press(Key.DirectionRight, times = 7)
+        compose.press(Key.DirectionLeft)
+        assertEquals(912f, compose.onNodeWithText("Clear").getBoundsInRoot().right.value, 1f)
     }
 
     @Test

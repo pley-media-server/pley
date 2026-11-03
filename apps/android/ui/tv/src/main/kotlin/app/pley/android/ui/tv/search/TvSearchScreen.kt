@@ -2,7 +2,9 @@ package app.pley.android.ui.tv.search
 
 import app.pley.android.ui.tv.shell.failedTitle
 import app.pley.android.ui.tv.shell.failedBody
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +25,7 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -34,6 +37,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -73,6 +77,7 @@ import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvRow
 import app.pley.android.ui.tv.kit.TvRowColumn
+import app.pley.android.ui.tv.kit.TvScrolling
 import app.pley.android.ui.tv.kit.TvTextButton
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.kit.railFade
@@ -302,6 +307,7 @@ private fun ChannelRow(channels: List<LiveChannel>, origin: String, memory: Focu
 }
 
 /** Before typing: "Recent searches" and a chip for each, with Clear; or what search finds. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun Recent(recent: List<String>, focus: FocusRequester, onRecent: (String) -> Unit, onClear: () -> Unit) {
     if (recent.isEmpty()) {
@@ -309,6 +315,9 @@ private fun Recent(recent: List<String>, focus: FocusRequester, onRecent: (Strin
         return
     }
     val rail = LocalTvRailFocus.current
+    val density = LocalDensity.current
+    // The chips move only when one would pass the gutter or the safe area's edge.
+    val within = remember(density) { TvScrolling.within(density) }
     Column(Modifier.fillMaxWidth().padding(top = ResultsTop).testTag(TV_SEARCH_RECENT)) {
         BasicText(
             stringResource(R.string.tv_search_recent),
@@ -316,17 +325,19 @@ private fun Recent(recent: List<String>, focus: FocusRequester, onRecent: (Strin
             modifier = Modifier.padding(start = PleyTv.Gutter).semantics { heading() },
         )
         Spacer(Modifier.height(16.dp))
-        LazyRow(
-            modifier = Modifier.fillMaxWidth().railFade().focusRequester(focus).railOnLeftStopOnRight(rail).focusGroup(),
-            contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeArea.Horizontal, top = 6.dp, bottom = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            items(recent, key = { it }, contentType = { "recent" }) { q ->
-                TvChip(label = q, onClick = { onRecent(q) }, icon = PleyIcons.History, modifier = Modifier.widthIn(max = 320.dp))
-            }
-            item(key = "pley.clear", contentType = "clear") {
-                TvTextButton(stringResource(R.string.tv_search_recent_clear), onClick = onClear)
+        CompositionLocalProvider(LocalBringIntoViewSpec provides within) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth().railFade().focusRequester(focus).railOnLeftStopOnRight(rail).focusGroup(),
+                contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeArea.Horizontal, top = 6.dp, bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                items(recent, key = { it }, contentType = { "recent" }) { q ->
+                    TvChip(label = q, onClick = { onRecent(q) }, icon = PleyIcons.History, modifier = Modifier.widthIn(max = 320.dp))
+                }
+                item(key = "pley.clear", contentType = "clear") {
+                    TvTextButton(stringResource(R.string.tv_search_recent_clear), onClick = onClear)
+                }
             }
         }
     }

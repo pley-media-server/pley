@@ -35,6 +35,9 @@ describes how they are made.
   search, people, collections and Recommended now load their pictures
   ahead of the scroll, as Home's do, and a list stops loading pictures it
   has moved past.
+- On Android TV and Fire TV, Search's recent searches stay put while the
+  chip you move to shows, and move only when it would pass the edge,
+  rather than bringing each chip to a third of the way across.
 
 ### Fixed
 

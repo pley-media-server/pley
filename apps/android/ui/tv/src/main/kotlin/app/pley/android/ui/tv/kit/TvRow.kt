@@ -101,6 +101,8 @@ import kotlin.math.roundToInt
  *   gutter, its tiles keeping their resting look ([TileQuiet]); when the
  *   key comes up focus lands on the tile under the ring and the row
  *   settles there.
+ * - Its pictures load a screen and a half ahead of the scroll; under a
+ *   held key they wait, and where it comes up loads them.
  * - A focused tile that leaves the row (Remove from Continue Watching)
  *   hands focus to the tile that takes its place; a row that goes with
  *   its last tile hands it to the row that takes its place ([TvRowColumn]).
