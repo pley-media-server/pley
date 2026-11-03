@@ -31,10 +31,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -46,10 +48,8 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.scene.SinglePaneSceneStrategy
 import androidx.navigation3.ui.NavDisplay
-import androidx.tv.material3.DrawerValue
-import androidx.tv.material3.ModalNavigationDrawer
-import androidx.tv.material3.rememberDrawerState
 import app.pley.android.common.TestTags
 import app.pley.android.common.Tier
 import app.pley.android.common.perf.StartupSignals
@@ -57,15 +57,23 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
+import app.pley.android.designsystem.image.LocalArtworkHold
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.account.accountEntries
+import app.pley.android.ui.tv.drive.driveEntries
 import app.pley.android.ui.tv.home.homeEntries
+import app.pley.android.ui.tv.item.LocalTvTileActions
+import app.pley.android.ui.tv.item.TvTileActionsPanel
+import app.pley.android.ui.tv.item.TvTileActionsState
 import app.pley.android.ui.tv.item.itemEntries
 import app.pley.android.ui.tv.kit.KeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
+import app.pley.android.ui.tv.kit.LocalTvOverlays
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
+import app.pley.android.ui.tv.kit.TvOverlays
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvScrolling
 import app.pley.android.ui.tv.kit.initialFocus
@@ -76,6 +84,7 @@ import app.pley.android.ui.tv.music.musicEntries
 import app.pley.android.ui.tv.onboarding.onboardingEntries
 import app.pley.android.ui.tv.livetv.liveTvEntries
 import app.pley.android.ui.tv.playlists.playlistsEntries
+import app.pley.android.ui.tv.requests.requestsEntries
 import app.pley.android.ui.tv.search.searchEntries
 import app.pley.android.ui.tv.theme.TvTheme
 import kotlinx.coroutines.flow.Flow
@@ -111,9 +120,10 @@ fun TvApp(
     TvTheme(tier, reducedMotion ?: true.takeIf { chosen }) {
         val gate = remember { KeyRepeatGate() }
         val root = remember { TvScrolling.root() }
-        CompositionLocalProvider(LocalKeyRepeatGate provides gate, LocalBringIntoViewSpec provides root) {
-            // No background: the window's is pley's (one full-screen fill, not two).
-            Box(Modifier.fillMaxSize().keyRepeatGate(gate).testTag(TestTags.TV_ROOT)) {
+        CompositionLocalProvider(LocalKeyRepeatGate provides gate, LocalArtworkHold provides gate, LocalBringIntoViewSpec provides root) {
+            // No background: the window's is Pley's (one full-screen fill, not two). Test tags are
+            // resource ids as well, which the benchmarks' journeys find things by (TestTags).
+            Box(Modifier.fillMaxSize().keyRepeatGate(gate).semantics { testTagsAsResourceId = true }.testTag(TestTags.TV_ROOT)) {
                 // Known already (read as the activity started), the first screen is in the first frame.
                 val start by produceState(source.startFactsNow()?.let(::startKey), source) {
                     if (value == null) value = startKey(source.startFacts())
@@ -147,17 +157,32 @@ private fun TvShell(
         withFrameNanos { }
         source.liveTv.collect { value = it }
     }
-    val items = remember(libraries, music, liveTv) { railItems(libraries, nowPlaying = music, liveTv = liveTv) }
+    // Requests too: reading them starts their events and news.
+    val requests by produceState(RequestsEntry.None, source) {
+        withFrameNanos { }
+        source.requests.collect { value = it }
+    }
+    // And a USB drive, which the system is asked for off the main thread.
+    val drive by produceState(false, source) {
+        withFrameNanos { }
+        source.drive.collect { value = it }
+    }
+    val items = remember(libraries, music, liveTv, requests, drive) {
+        railItems(libraries, nowPlaying = music, liveTv = liveTv, requests = requestsItem(requests), drive = drive)
+    }
     val content = remember { FocusRequester() }
     val rail = remember { RailState(content) }
     val offline = remember { TvOfflineState() }
+    val overlays = remember { TvOverlays() }
     val navigator = remember(backStack) { TvNavigator(backStack, rail, onExit) }
+    val tileActions = remember(backStack) { TvTileActionsState(content) { backStack.lastOrNull() } }
+    val pages = remember(rail) { RootUnderPages { rail.shown } }
     val root = navigator.root ?: start
     rail.current = railCurrent(root, items + SettingsItem)
     // Signing in and choosing a profile are full screen.
     rail.shown = root !is PleyKey.Servers && root !is PleyKey.Link && root !is PleyKey.SignIn && root !is PleyKey.Profiles
     val curtain = rememberCurtain(backStack.lastOrNull())
-    ReturnFocus(rail, content)
+    ReturnFocus(rail, content, pages)
     // The app is fully drawn (Android's time to full display) once Home has its
     // rows and pictures; a start elsewhere (sign-in, "Who's watching?") is at once.
     if (start == PleyKey.Home) {
@@ -188,32 +213,20 @@ private fun TvShell(
     val select: (PleyKey) -> Unit = { key ->
         if (navigator.root == key && backStack.size == 1) rail.backToContent() else navigator.restart(key)
     }
-    ModalNavigationDrawer(
-        drawerState = rememberDrawerState(DrawerValue.Closed),
-        scrimBrush = SolidColor(PleyColors.Bg.copy(alpha = 0.5f)),
-        drawerContent = {
-            if (rail.shown) {
-                TvRail(
-                    items = items,
-                    profile = profile,
-                    rail = rail,
-                    onSelect = { select(it.key) },
-                    onProfile = { select(PleyKey.Profiles()) },
-                    offline = offline.offline,
-                )
-            }
-        },
-    ) {
+    Box(Modifier.fillMaxSize()) {
         Box(
             Modifier
                 .fillMaxSize()
                 .focusRequester(content)
+                .onFocusChanged { rail.contentFocused = it.hasFocus }
                 // No focusRestorer here: it would hand focus back to a page that is leaving.
                 // The rail saves and restores the page's focus itself.
                 .railOnLeftStopOnRight(if (rail.shown) rail else null, stopRight = false)
                 .focusGroup()
                 .drawWithContent {
                     drawContent()
+                    // The open rail dims the page behind it, at once.
+                    if (rail.hasFocus) drawRect(RailDim)
                     val a = curtain.value
                     if (a > 0f) drawRect(PleyColors.Bg.copy(alpha = a))
                 },
@@ -222,6 +235,8 @@ private fun TvShell(
                 LocalTvNavigator provides navigator,
                 LocalTvRailFocus provides rail.takeIf { it.shown },
                 LocalTvOffline provides offline,
+                LocalTvOverlays provides overlays,
+                LocalTvTileActions provides tileActions,
             ) {
                 NavDisplay(
                     backStack = backStack,
@@ -229,7 +244,10 @@ private fun TvShell(
                     entryDecorators = listOf(
                         rememberSaveableStateHolderNavEntryDecorator(),
                         rememberViewModelStoreNavEntryDecorator(),
+                        rememberRootPageDecorator(backStack, pages),
                     ),
+                    // The rail's page stays under the pages opened on it (RootUnderPages).
+                    sceneStrategies = listOf(pages, SinglePaneSceneStrategy()),
                     // Screens change under the curtain, not with sliding or fading pages.
                     transitionSpec = { EnterTransition.None togetherWith ExitTransition.None },
                     popTransitionSpec = { EnterTransition.None togetherWith ExitTransition.None },
@@ -244,33 +262,61 @@ private fun TvShell(
                         liveTvEntries()
                         accountEntries()
                         musicEntries()
+                        requestsEntries()
+                        driveEntries()
                     },
                 )
             }
             // Signing in and choosing a profile say for themselves when the server can't be reached.
             if (rail.shown) TvOfflineNotice(offline)
+            // Requests' news, once nothing else holds focus; not on the requests, which show it.
+            if (rail.shown && backStack.lastOrNull() !is PleyKey.Requests) {
+                TvRequestNotices(source, content, rail, free = { !rail.hasFocus && !overlays.any }, onOpen = navigator::open)
+            }
+        }
+        // A tile's actions, over the page they were asked on.
+        TvTileActionsPanel(tileActions, page = backStack.lastOrNull(), navigator = navigator)
+        if (rail.shown) {
+            TvRail(
+                items = items,
+                profile = profile,
+                rail = rail,
+                onSelect = { select(it.key) },
+                onProfile = { select(PleyKey.Profiles()) },
+                offline = offline.offline,
+            )
         }
     }
 }
+
+/** The page under the open rail: [bg][PleyColors.Bg] at 50 %. */
+private val RailDim = PleyColors.Bg.copy(alpha = 0.5f)
 
 /**
  * Another activity (the player) had the window: when it comes back, focus
  * goes back to where it was on the page, or to the page's first element
  * when that one is gone (Resume that became Play). Left to Compose, it
- * lands in the rail. Not when focus was in the rail already.
+ * lands in the rail. Not when focus was in the rail already. While
+ * requests' news shows, focus goes back to it, and the page's place saved
+ * as it came stays saved for when it closes.
  */
 @Composable
-private fun ReturnFocus(rail: RailState, content: FocusRequester) {
+private fun ReturnFocus(rail: RailState, content: FocusRequester, pages: RootUnderPages) {
     val window = LocalWindowInfo.current
-    LaunchedEffect(window, rail, content) {
+    LaunchedEffect(window, rail, content, pages) {
         var inRail = false
         snapshotFlow { window.isWindowFocused }.drop(1).collect { focused ->
             if (!focused) {
                 inRail = rail.hasFocus
-                if (!inRail) runCatching { content.saveFocusedChild() }
+                if (!inRail) {
+                    pages.saveFocus()
+                    // Not while a notice has focus: closed, it would hand focus back to itself.
+                    if (rail.notice == null) runCatching { content.saveFocusedChild() }
+                }
             } else if (!inRail) {
                 withFrameNanos { }
-                rail.backToContent()
+                val notice = rail.notice
+                if (notice == null || !runCatching { notice.requestFocus() }.isSuccess) rail.backToContent()
             }
         }
     }

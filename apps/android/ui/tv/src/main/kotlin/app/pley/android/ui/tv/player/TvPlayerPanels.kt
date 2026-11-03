@@ -80,7 +80,7 @@ import java.util.Locale
  * the subtitles chosen can move, Find subtitles… while the file streams
  * from the server, and their size, background, font and position while
  * they are text, when [onSubtitleStyle] saves them), Find subtitles' results, Audio (with the
- * audio delay), Quality, Chapters, Sleep timer, Speed and Info. 360 dp (Info 440 dp) from the right edge, full height, surface2
+ * audio delay), Quality, Sleep timer, Speed and Info. 360 dp (Info 440 dp) from the right edge, full height, surface2
  * with 16 dp left corners. It slides in on its own layer over 200 ms (in
  * place with reduced motion) and the scrim behind it fades by its colour
  * while drawing, so no layer covers the video. Focus starts on the current
@@ -143,7 +143,6 @@ private fun ChoicePanel(
             PlayerPanel.Subtitles -> R.string.tv_player_subtitles
             PlayerPanel.Audio -> R.string.tv_player_audio
             PlayerPanel.Quality -> R.string.tv_player_quality
-            PlayerPanel.Chapters -> R.string.tv_player_chapters
             PlayerPanel.Info -> R.string.tv_player_info_title
             PlayerPanel.Sleep -> R.string.tv_player_sleep
             PlayerPanel.Speed -> R.string.tv_player_speed
@@ -271,16 +270,6 @@ private fun ChoicePanel(
                     ui.closePanel()
                 }
             }
-            PlayerPanel.Chapters -> {
-                val playing = TvPlayerText.chapterAt(s.chapters, s.positionMs)
-                choices(
-                    s.chapters.mapIndexed { i, c -> Row(c.title?.takeIf { it.isNotBlank() } ?: resources.getString(R.string.tv_player_chapter, i + 1), i == playing, TvPlayerText.time(c.startMs)) },
-                    focus,
-                ) { i ->
-                    controller.seekTo(s.chapters[i].startMs)
-                    ui.closePanel()
-                }
-            }
             PlayerPanel.Info -> Unit
         }
     }
@@ -353,11 +342,8 @@ private data class PanelData(
     val subtitles: List<app.pley.android.player.TrackChoice>,
     val audio: List<app.pley.android.player.TrackChoice>,
     val qualities: List<app.pley.android.player.QualityChoice>,
-    val chapters: List<app.pley.android.player.ChapterMark>,
     val note: String?,
     val canPlayOriginal: Boolean,
-    /** To the chapter, so the chapters panel ticks the one playing. */
-    val positionMs: Long,
     val subtitleSync: Boolean,
     val subtitleStyled: Boolean,
     val subtitleOffsetMs: Long,
@@ -373,10 +359,8 @@ private data class PanelData(
             subtitles = s.subtitles,
             audio = s.audio,
             qualities = s.qualities,
-            chapters = s.chapters,
             note = s.note,
             canPlayOriginal = s.canPlayOriginal,
-            positionMs = TvPlayerText.chapterAt(s.chapters, s.positionMs)?.let { s.chapters[it].startMs } ?: 0,
             subtitleSync = s.subtitleSync,
             subtitleStyled = s.subtitleStyled,
             subtitleOffsetMs = s.subtitleOffsetMs,

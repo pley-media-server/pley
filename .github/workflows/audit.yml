@@ -25,6 +25,13 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
         with:
           command: check advisories
+      # Pley for LG TV is a workspace of its own, with its own Cargo.lock.
+      - name: Pley for LG TV's crates
+        if: ${{ !cancelled() }}
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        with:
+          manifest-path: apps/webos/Cargo.toml
+          command: check advisories
 
   js:
     name: JavaScript packages

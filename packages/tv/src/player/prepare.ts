@@ -5,9 +5,9 @@
  * transcoder makes them, and the TV's player moves to it once that segment
  * is there rather than waiting for it on a black screen.
  *
- * The TV's own player can't use what is fetched here (AVPlay and LG's
- * pipeline have HTTP of their own), so the segment is asked for with HEAD:
- * the server answers once it is made, and no picture crosses the network
+ * The TV's own player can't use what is fetched here (AVPlay has HTTP of
+ * its own), so the segment is asked for with HEAD: the server answers once
+ * it is made, and no picture crosses the network
  * twice, which matters most when Automatic steps down for a slow one.
  */
 

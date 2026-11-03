@@ -42,6 +42,7 @@ import app.pley.android.screens.person.PersonUiState
 import app.pley.android.screens.person.PersonViewModel
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.item.TvMessage
+import app.pley.android.ui.tv.item.tileActions
 import app.pley.android.ui.tv.kit.TvRow
 import app.pley.android.ui.tv.kit.TvRowColumn
 import app.pley.android.ui.tv.kit.rememberFocusMemory
@@ -60,6 +61,7 @@ internal fun TvPersonScreen(personId: Long) {
     val model: PersonViewModel = viewModel(factory = PersonViewModel.factory(personId))
     val state by model.state.collectAsStateWithLifecycle()
     val navigator = LocalTvNavigator.current
+    val actions = tileActions()
     Box(Modifier.fillMaxSize().testTag(TV_PERSON_PAGE)) {
         when (val s = state) {
             PersonUiState.Loading -> PersonHeader(null)
@@ -78,7 +80,7 @@ internal fun TvPersonScreen(personId: Long) {
             )
             is PersonUiState.Ready -> {
                 PersonHeader(s.page)
-                PersonRows(s.page, onOpen = { navigator.open(PleyKey.Item(it)) }, onActions = { navigator.open(PleyKey.ItemActions(it)) })
+                PersonRows(s.page, onOpen = { navigator.open(PleyKey.Item(it)) }, onActions = { actions.open(it, continueWatching = false) })
             }
         }
     }

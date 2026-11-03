@@ -66,7 +66,7 @@ import kotlinx.coroutines.delay
 internal fun TvLinkScreen(server: String) {
     val navigator = LocalTvNavigator.current
     val given = LocalOnboardingSource.current
-    val vm = viewModel(key = "link:$server") { LinkViewModel(given ?: onboardingSource(), server, requests = false) }
+    val vm = viewModel(key = "link:$server") { LinkViewModel(given ?: onboardingSource(), server) }
     LaunchedEffect(vm) { vm.navigation.collect { navigator.go(it) } }
     TvLinkRunner(vm)
     val state by vm.state.collectAsStateWithLifecycle()
@@ -86,7 +86,7 @@ internal fun TvLinkScreen(server: String) {
 internal fun TvApproveContent(server: String, profileId: Long, title: String, body: String, onBack: () -> Unit) {
     val navigator = LocalTvNavigator.current
     val given = LocalOnboardingSource.current
-    val vm = viewModel(key = "approve:$server:$profileId") { LinkViewModel(given ?: onboardingSource(), server, LinkPurpose.Profile(profileId), requests = false) }
+    val vm = viewModel(key = "approve:$server:$profileId") { LinkViewModel(given ?: onboardingSource(), server, LinkPurpose.Profile(profileId)) }
     LaunchedEffect(vm) { vm.navigation.collect { navigator.go(it) } }
     TvLinkRunner(vm)
     val state by vm.state.collectAsStateWithLifecycle()

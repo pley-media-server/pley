@@ -22,6 +22,8 @@ import app.pley.android.player.QualityChoice
 import app.pley.android.player.SubtitleSearchUi
 import app.pley.android.player.TrackChoice
 import app.pley.android.player.UpNextUi
+import app.pley.android.player.sleep.SleepChoice
+import app.pley.android.player.sleep.SleepState
 import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.testing.player.session.FakePlaybackController
 import app.pley.android.ui.phone.theme.PhoneTheme
@@ -133,6 +135,22 @@ class PhonePlayerScreenTest {
 
     private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.onAllNodesWithTextCount(text: String): Int =
         onAllNodes(androidx.compose.ui.test.hasText(text)).fetchSemanticsNodes().size
+
+    @Test
+    fun theNextItemShowsTheControlsWithItsTitleAsItBegins() {
+        val fake = FakePlaybackController(playing())
+        compose.mainClock.autoAdvance = false
+        show(fake)
+        compose.mainClock.advanceTimeBy(4_000)
+        assertTrue(compose.onAllNodesWithTextCount("Fixture Show") == 0)
+
+        // The next episode plays: its title shows at the top, then goes with the controls.
+        fake.update { it.copy(itemId = 20_002, title = "Second Show", subtitle = "S1 E2 — Second") }
+        compose.mainClock.advanceTimeBy(500)
+        compose.onNodeWithText("Second Show").assertIsDisplayed()
+        compose.mainClock.advanceTimeBy(3_500)
+        assertTrue(compose.onAllNodesWithTextCount("Second Show") == 0)
+    }
 
     @Test
     fun skipShowsWhileAMarkerRunsAndSkips() {
@@ -371,5 +389,95 @@ class PhonePlayerScreenTest {
         }
         val after = synchronized(composed) { composed.toList() }
         assertEquals("compositions while playing hidden: ${after.drop(before.size)}", before.size, after.size)
+    }
+
+    @Test
+    fun draggingTheSeekBarMovesTheKnobWithoutRecomposingTheControls() {
+        val composed = mutableListOf<String>()
+        PlayerProbe.composed = { synchronized(composed) { composed += it } }
+        // Skip shows: it steps aside for the drag, once.
+        val fake = FakePlaybackController(playing { it.copy(skipLabel = "Skip Intro") })
+        show(fake)
+        val bar = compose.onNodeWithContentDescription("Position")
+        bar.performTouchInput { down(androidx.compose.ui.geometry.Offset(width * 0.2f, height / 2f)) }
+        compose.waitForIdle()
+        val before = synchronized(composed) { composed.size }
+
+        // Twenty moves of the finger along the bar: only the knob, the preview and the times follow it.
+        repeat(20) {
+            bar.performTouchInput { moveBy(androidx.compose.ui.geometry.Offset(width * 0.02f, 0f)) }
+            compose.waitForIdle()
+        }
+        val during = synchronized(composed) { composed.drop(before) }
+        bar.performTouchInput { up() }
+        compose.waitForIdle()
+
+        val controls = setOf("seekBar", "centre", "skip", "top", "bottom", "screen")
+        assertEquals("compositions while dragging: $during", emptyList<String>(), during.filter { it in controls })
+        assertEquals(1, fake.calls("seekTo").size)
+    }
+
+    @Test
+    fun theSleepNoticeKeepsTheWidthOfItsThirtySecondsAsTheCountGoesDown() {
+        val fake = FakePlaybackController(playing { it.copy(sleep = SleepState(SleepChoice.Minutes(30), secondsLeft = 30, minutesLeft = 1)) })
+        show(fake)
+        compose.onNodeWithText("Pausing in 30 s").assertExists()
+        val wide = compose.onNodeWithTag(TAG_SLEEP_NOTICE).getBoundsInRoot()
+
+        fake.update { it.copy(sleep = it.sleep.copy(secondsLeft = 9)) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Pausing in 9 s").assertExists()
+        assertEquals(wide, compose.onNodeWithTag(TAG_SLEEP_NOTICE).getBoundsInRoot())
+    }
+
+    @Test
+    fun previewsThatArriveDuringADragShowWithoutTheFingerMoving() {
+        val asked = mutableListOf<Long>()
+        val fake = FakePlaybackController(playing())
+        fake.thumbnails = { at ->
+            asked += at
+            null
+        }
+        show(fake)
+        val bar = compose.onNodeWithContentDescription("Position")
+        bar.performTouchInput {
+            down(androidx.compose.ui.geometry.Offset(width * 0.3f, height / 2f))
+            moveBy(androidx.compose.ui.geometry.Offset(width * 0.02f, 0f))
+        }
+        compose.waitForIdle()
+        assertEquals(emptyList<Long>(), asked)
+
+        // The file's previews come while the finger rests on the bar: the one under it is asked for at once.
+        fake.update { it.copy(hasThumbnails = true) }
+        compose.waitForIdle()
+        assertEquals(1, asked.size)
+        bar.performTouchInput { up() }
+    }
+
+    @Test
+    fun aVolumeDragMovesItsBarWithoutRecomposingIt() {
+        val composed = mutableListOf<String>()
+        PlayerProbe.composed = { synchronized(composed) { composed += it } }
+        val fake = FakePlaybackController(playing())
+        show(fake)
+        val player = compose.onNodeWithTag(TAG_PLAYER)
+        // Up on the right half, past the touch slop: the volume shows.
+        player.performTouchInput {
+            down(androidx.compose.ui.geometry.Offset(width * 0.85f, height * 0.6f))
+            moveBy(androidx.compose.ui.geometry.Offset(0f, -40f))
+        }
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Volume").assertIsDisplayed()
+        val before = synchronized(composed) { composed.size }
+
+        repeat(10) {
+            player.performTouchInput { moveBy(androidx.compose.ui.geometry.Offset(0f, -8f)) }
+            compose.waitForIdle()
+        }
+        val during = synchronized(composed) { composed.drop(before) }
+        player.performTouchInput { up() }
+
+        assertEquals("compositions while dragging: $during", emptyList<String>(), during.filter { it == "level" })
+        assertTrue(host.level > 0.5f)
     }
 }

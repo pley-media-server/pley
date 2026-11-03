@@ -26,8 +26,9 @@ public sealed record ChannelDigits(string Typed = "", string? NotFound = null)
 ///
 /// The screen (the Android app's TvLivePlayerScreen): with nothing over the picture, Up and Down
 /// and Channel up and down change channel (<see cref="Step"/>: Up the next), digits tune a
-/// number, OK shows the controls (the channel list, the favourite) over what's on, Menu or Guide
-/// the channel list, Info what's on for <see cref="InfoMs"/>; Back hides what shows, then leaves.
+/// number, OK, Menu or Guide the channel list, OK held the controls (the channel list, the
+/// favourite) over what's on, Info what's on for <see cref="InfoMs"/>; Back hides what shows, then
+/// leaves.
 /// Play, pause, rewind, fast forward, Left and Right do nothing. The controls hide after
 /// <see cref="ControlsMs"/> untouched while it plays.
 /// </summary>

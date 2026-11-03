@@ -1,0 +1,24 @@
+[package]
+name = "pley-webos"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: the TV itself (SDL2, luna-service2, facts, capability report, media pipeline)"
+license = "AGPL-3.0-only"
+publish = false
+
+[dependencies]
+pley-base = { path = "../base" }
+pley-core = { path = "../core" }
+# The trait and glow only: the TV's window comes from the firmware's SDL, not winit.
+pley-platform = { path = "../platform", default-features = false }
+# Every firmware library (SDL2, luna-service2, GLib, wayland-client, LG's ACB) is
+# opened at run time by SONAME, never linked: a firmware that lacks one must
+# still start the app.
+libloading = "0.8.9"
+serde_json = "1.0.154"
+
+[target.'cfg(unix)'.dependencies]
+# dlopen's RTLD_NOLOAD, O_NOFOLLOW, dup2 and statvfs, with the values of the
+# platform's own headers.
+libc = "0.2.191"

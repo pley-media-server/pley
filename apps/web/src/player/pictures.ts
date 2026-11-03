@@ -8,7 +8,7 @@
  */
 import { matroskaEnd, readPictureTrack } from "pley-picture-subtitles/mks";
 import { PictureSubtitles } from "pley-picture-subtitles/picture-track";
-import type { PictureFrame } from "pley-picture-subtitles/pictures";
+import { CACHE_BYTES, frameBytes, type PictureFrame } from "pley-picture-subtitles/pictures";
 
 export type { PictureSubtitles };
 
@@ -303,6 +303,9 @@ interface Decoded {
 
 /** Frames kept decoded: the one showing and those coming up. */
 const KEPT = 8;
+
+/** The bytes an entry holds: its frame's pictures, and its images as many again. */
+const entryBytes = (entry: Decoded | null | undefined) => 2 * frameBytes(entry?.frame);
 /** Frames decoded ahead, while the browser is idle. */
 const AHEAD = 3;
 
@@ -328,6 +331,9 @@ export class PictureRenderer {
   private shown = -1;
   private dirty = true;
   private readonly cache = new Map<number, Decoded | null>();
+  private cacheBytes = 0;
+  /** The most bytes the frames kept hold, with their images. */
+  private readonly keptBytes: number;
   private frameHandle: number | null = null;
   private animation: number | null = null;
   private idle: number | null = null;
@@ -336,9 +342,10 @@ export class PictureRenderer {
   private stopDpr: (() => void) | null = null;
   private gone = false;
 
-  constructor(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
+  constructor(video: HTMLVideoElement, canvas: HTMLCanvasElement, keptBytes = CACHE_BYTES) {
     this.video = video;
     this.canvas = canvas;
+    this.keptBytes = keptBytes;
     this.g = canvas.getContext("2d");
     const on = (target: EventTarget, type: string, fn: () => void) => {
       target.addEventListener(type, fn);
@@ -533,9 +540,13 @@ export class PictureRenderer {
 
   private keep(i: number, entry: Decoded | null): void {
     this.cache.set(i, entry);
-    while (this.cache.size > KEPT) {
-      const [oldest, old] = this.cache.entries().next().value!;
-      this.cache.delete(oldest);
+    this.cacheBytes += entryBytes(entry);
+    // The oldest go first, never the frame showing nor the one just decoded.
+    for (const [kept, old] of this.cache) {
+      if (this.cache.size <= KEPT && this.cacheBytes <= this.keptBytes) break;
+      if (kept === i || kept === this.shown) continue;
+      this.cache.delete(kept);
+      this.cacheBytes -= entryBytes(old);
       release(old);
     }
   }
@@ -563,6 +574,7 @@ export class PictureRenderer {
   private forget(): void {
     for (const entry of this.cache.values()) release(entry);
     this.cache.clear();
+    this.cacheBytes = 0;
     this.shown = -1;
   }
 }

@@ -593,7 +593,7 @@ public class LivePlayerTests
     [Fact]
     public void Sound_the_tv_decodes_itself_plays_from_stream_ts_though_the_plan_converts_it()
     {
-        // Deviation from Android, which plays only what the plan sends as it is: every Samsung TV decodes AC3.
+        // Every Samsung TV decodes AC3 (Android asks its device's probe).
         live.StreamAt = _ => Relayed;
         live.PlanAnswer = new LivePlan { Video = "copy", Audio = "aac", AudioCodec = "ac3", AudioChannels = 6 };
         var p = Playback();

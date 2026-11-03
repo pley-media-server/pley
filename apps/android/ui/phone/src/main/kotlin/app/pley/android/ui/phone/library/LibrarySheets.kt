@@ -117,8 +117,8 @@ internal fun LibrarySheetHost(
 @Composable
 private fun <T : Any> Choices(all: String, values: List<T>, selected: T?, label: (T) -> String, onSelect: (T?) -> Unit) {
     LazyColumn(Modifier.fillMaxWidth().heightIn(max = 520.dp)) {
-        item(key = "all") { ChoiceRow(all, selected = selected == null, onClick = { onSelect(null) }) }
-        items(values, key = { it.toString() }) { value ->
+        item(key = "all", contentType = "choice") { ChoiceRow(all, selected = selected == null, onClick = { onSelect(null) }) }
+        items(values, key = { it.toString() }, contentType = { "choice" }) { value ->
             ChoiceRow(label(value), selected = value == selected, onClick = { onSelect(value) })
         }
     }

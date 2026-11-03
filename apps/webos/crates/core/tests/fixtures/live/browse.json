@@ -1,0 +1,18 @@
+{
+  "total": 57176,
+  "offset": 100,
+  "channels": [
+    {
+      "id": 102,
+      "source_id": 2,
+      "name": "UK| Sky Sports Main Event",
+      "number": "101",
+      "group": "UK| Sport",
+      "logo": "/api/live/channels/102/logo",
+      "favorite": false,
+      "has_guide": true,
+      "now": null,
+      "next": null
+    }
+  ]
+}

@@ -59,7 +59,21 @@ data class ChapterMark(
     val endMs: Long,
     /** Absolute address of its picture, once the file has seek previews. */
     val imageUrl: String?,
-)
+) {
+    /**
+     * What the chapter is called wherever chapters show: its title, unless
+     * it has none or the title only says where it starts ("00:06:19.212",
+     * as mkvmerge names chapters, or "6:19"), which tells a viewer nothing.
+     * `null` then, and the screens number it: "Chapter 3". A time inside a
+     * real name ("Act 2: 12:00 at Noon") keeps it.
+     */
+    val name: String? = title?.trim()?.takeIf { it.isNotEmpty() && !TIME_ONLY.matches(it) }
+
+    private companion object {
+        /** A title that is only a time: "6:19", "00:06:19", "00:06:19.212", "01:02:03,500". */
+        val TIME_ONLY = Regex("""\d{1,2}(:\d{2}){1,2}([.,]\d+)?""")
+    }
+}
 
 /** One line of the details: "Video", "HEVC 4K HDR10 → H.264 1080p SDR". */
 data class DetailRow(val label: String, val value: String)

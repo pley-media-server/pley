@@ -305,7 +305,7 @@ pub(crate) async fn check_password(
     // real check against a stand-in hash takes as long as one against a
     // user's, so neither can be told apart by timing.
     let Some((id, hash, disabled)) = row.filter(|(_, hash, _)| !hash.starts_with('!')) else {
-        verify_password(password, dummy_password_hash().await).await?;
+        verify_password(password, dummy_password_hash().await?).await?;
         attempt.failed();
         return Err(AppError::Unauthorized);
     };

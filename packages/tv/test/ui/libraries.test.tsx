@@ -38,7 +38,7 @@ function setup(opts: { sort?: boolean; answer?: (ids: number[] | null) => Promis
   document.body.innerHTML = "";
   root = document.createElement("div");
   document.body.appendChild(root);
-  const platform = { name: "webos", clientId: "test", storage: memoryStore() } as unknown as Platform;
+  const platform = { name: "tizen", clientId: "test", storage: memoryStore() } as unknown as Platform;
   const app = new AppState(platform, () => Promise.reject(new Error("no network in tests")));
   const sent: (number[] | null)[] = [];
   const answer = opts.answer ?? ((ids: number[] | null) => Promise.resolve(ids ? inOrder(LIBRARIES, ids) : LIBRARIES));

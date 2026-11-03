@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pley.android.common.TestTags
-import app.pley.android.data.Loadable
 import app.pley.android.designsystem.PleyPhone
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.tile.TileKind
@@ -99,14 +98,10 @@ internal fun PhoneHomeScreen(vm: HomeViewModel = viewModel(factory = HomeViewMod
         }
     }
     val state = model?.state
+    val status by vm.status.collectAsStateWithLifecycle()
+    val refreshing by vm.refreshing.collectAsStateWithLifecycle()
     // The offline banner: up while what shows is what was saved, down once the server answers.
-    ReportLoad(
-        when (state) {
-            is HomeState.Ready -> state.error?.let { Loadable.Failed(it, Unit) } ?: Loadable.Ready(Unit, state.fresh)
-            is HomeState.Failed -> Loadable.Failed(state.error, Unit)
-            else -> null
-        },
-    )
+    ReportLoad(status)
 
     Column(Modifier.fillMaxSize()) {
         PleyTopAppBar(
@@ -115,7 +110,7 @@ internal fun PhoneHomeScreen(vm: HomeViewModel = viewModel(factory = HomeViewMod
             actions = { ProfileButton(profile, onClick = { navigator.open(PleyKey.Me) }) },
         )
         PullToRefreshBox(
-            isRefreshing = (state as? HomeState.Ready)?.refreshing == true,
+            isRefreshing = refreshing,
             onRefresh = vm::refresh,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         ) {
@@ -159,14 +154,17 @@ private fun HomeRows(model: PhoneHomeModel, list: LazyListState, vm: HomeViewMod
     ) {
         items(model.rows, key = { it.model.key }, contentType = { it.model.kind }) { row ->
             val rowState = rememberHubRowState()
+            // Home told again what it shows leaves its rows alone: the press's prefetch is kept while the
+            // row's items are, and the handlers read the row (compared by value), never a new key.
+            val prefetch = remember(rowState, row.items) { Modifier.prefetchOnPress(rowState, row.items, vm::prefetch) }
             HubRow(
                 row = row.model,
                 skeleton = skeleton,
                 state = rowState,
                 onOpen = { tile -> row.itemOf(tile)?.let { navigator.open(pageOf(it)) } },
                 onLongPress = { tile -> navigator.open(PleyKey.ItemActions(tile.id, continueWatching = HubKeys.isContinueWatching(row.model.key))) },
-                onTitleClick = row.seeAll?.let { key -> { navigator.open(key) } },
-                modifier = Modifier.prefetchOnPress(rowState, row.items, vm::prefetch),
+                onTitleClick = if (row.seeAll == null) null else { { row.seeAll?.let(navigator::open) } },
+                modifier = prefetch,
             )
         }
     }

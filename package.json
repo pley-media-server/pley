@@ -7,8 +7,7 @@
     "apps/desktop",
     "packages/picture-subtitles",
     "packages/tv",
-    "apps/tizen",
-    "apps/webos"
+    "apps/tizen"
   ],
   "scripts": {
     "dev": "bun run --cwd apps/web dev",
@@ -18,10 +17,9 @@
     "test": "bun run --cwd apps/web test",
     "check": "bun run --cwd packages/picture-subtitles check && bun run --cwd apps/web check && bun run --cwd apps/desktop check",
     "desktop": "bun run --cwd apps/desktop dev",
-    "tv:check": "bun run --cwd packages/picture-subtitles check && bun run --cwd packages/tv check && bun run --cwd apps/tizen check && bun run --cwd apps/webos check",
+    "tv:check": "bun run --cwd packages/picture-subtitles check && bun run --cwd packages/tv check && bun run --cwd apps/tizen check",
     "tizen": "bun run --cwd apps/tizen package",
-    "tizen-native": "bun apps/tizen-native/scripts/package.mjs",
-    "webos": "bun run --cwd apps/webos package"
+    "tizen-native": "bun apps/tizen-native/scripts/package.mjs"
   },
   "engines": {
     "bun": ">=1.4"

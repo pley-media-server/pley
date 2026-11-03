@@ -387,8 +387,11 @@ pub fn device_name(user_agent: Option<&str>) -> String {
     if ua.contains("pleyRoku/") {
         return "Pley for Roku".into();
     }
-    // Samsung's and LG's TV apps are web apps, which can't set their own
-    // agent: the TV's web engine names the TV.
+    if ua.contains("pleyLG/") {
+        return "Pley for LG TV".into();
+    }
+    // Samsung's TV app, and LG's before it was a native app, are web apps,
+    // which can't set their own agent: the TV's web engine names the TV.
     if ua.contains("Tizen") && ua.contains("TV") {
         return "Samsung TV".into();
     }
@@ -484,6 +487,7 @@ mod tests {
         assert_eq!(device_name(Some("pleyAndroid/0.1.0 (Android 16)")), "Pley for Android");
         assert_eq!(device_name(Some("pleyKodi/0.1.0 (Kodi 21.2; Windows)")), "Pley for Kodi");
         assert_eq!(device_name(Some("pleyRoku/0.1.0 (Roku OS 14.5; Roku Ultra)")), "Pley for Roku");
+        assert_eq!(device_name(Some("pleyLG/0.1.0 (webOS 23; OLED65C3PUA)")), "Pley for LG TV");
         let tizen = "Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) 76.0.3809.146/6.0 TV Safari/537.36";
         assert_eq!(device_name(Some(tizen)), "Samsung TV");
         let webos = "Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.128 Safari/537.36 WebAppManager";

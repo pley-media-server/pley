@@ -1,25 +1,44 @@
 package app.pley.android.ui.tv.shell
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusEnterExitScope
 import androidx.compose.ui.focus.FocusRequester
@@ -30,6 +49,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -38,20 +61,21 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.tv.material3.Border
-import androidx.tv.material3.Glow
-import androidx.tv.material3.LocalContentColor
-import androidx.tv.material3.NavigationDrawerItem
-import androidx.tv.material3.NavigationDrawerItemDefaults
-import androidx.tv.material3.NavigationDrawerScope
-import androidx.tv.material3.Text
+import androidx.compose.ui.util.lerp
 import app.pley.android.common.TestTags
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyFocus
+import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
@@ -60,8 +84,14 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.GradientBitmaps
 import app.pley.android.designsystem.image.drawStretched
+import app.pley.android.designsystem.reducedMotion
+import app.pley.android.screens.R as ScreensR
+import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvRailFocus
+import app.pley.android.ui.tv.requests.rememberRequestTexts
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * The rail's focus, for the shell and for content leaving on the left:
@@ -78,6 +108,8 @@ import app.pley.android.ui.tv.kit.TvRailFocus
  * focus yet (still loading), Android hands focus to the first thing it
  * finds, top left: the rail's avatar, which would open the rail by itself.
  * The rail refuses it ([enter]), and the page's initial focus takes it.
+ * When focus is nowhere (what had it went with a redraw of its page) and
+ * stays so, the next Up, Down or Right brings it back to the page.
  */
 @Stable
 class RailState(private val content: FocusRequester = FocusRequester()) : TvRailFocus {
@@ -85,6 +117,14 @@ class RailState(private val content: FocusRequester = FocusRequester()) : TvRail
 
     /** The current entry's id; `null` while none (sign-in, Who's watching?). */
     var current: String? = null
+
+    /**
+     * The button that has focus in requests' news while the card shows
+     * ([TvRequestNotices]): the window coming back (from the player, the
+     * assistant) gives focus to it, and the page's place, saved as the card
+     * came, is kept for when it closes.
+     */
+    internal var notice: FocusRequester? = null
 
     /** Whether focus is in the rail, which is what opens it. */
     var hasFocus by mutableStateOf(false)
@@ -99,8 +139,14 @@ class RailState(private val content: FocusRequester = FocusRequester()) : TvRail
     var shown by mutableStateOf(false)
         internal set
 
+    /** Whether focus is on the page, as the shell's content tells it ([enter]). */
+    internal var contentFocused = false
+
     /** Set while [focusCurrent] sends focus to an entry: the one way in ([enter]). */
     private var sending = false
+
+    /** The rail's own, while it shows ([TvRail]): where [enter] waits for focus to settle. */
+    internal var scope: CoroutineScope? = null
 
     internal fun requester(id: String): FocusRequester = requesters.getOrPut(id) { FocusRequester() }
 
@@ -132,11 +178,28 @@ class RailState(private val content: FocusRequester = FocusRequester()) : TvRail
      * nothing focused, while a page loads) goes to the current entry, not
      * the nearest one; anything else, such as Android placing focus on the
      * first thing it finds, is refused.
+     *
+     * Up, Down or Right with nothing focused (neither the page nor the
+     * rail: what had focus went with a redraw) goes back to the page, so
+     * the key isn't lost, but only once focus has stayed nowhere for a few
+     * frames. Android comes here too when a focused tile leaves its row,
+     * and that row hands focus to the tile in its place a frame later (a
+     * row going with its last tile, two): taking focus to the page at once
+     * would scroll it to wherever focus landed first.
      */
     internal fun FocusEnterExitScope.enter() {
         if (sending) return
         cancelFocusChange()
-        if (requestedFocusDirection == FocusDirection.Left) focusCurrent()
+        when (requestedFocusDirection) {
+            FocusDirection.Left -> focusCurrent()
+            FocusDirection.Up, FocusDirection.Down, FocusDirection.Right -> if (!contentFocused) {
+                scope?.launch {
+                    repeat(SETTLE_FRAMES) { withFrameNanos { } }
+                    if (!hasFocus && !contentFocused) backToContent()
+                }
+            }
+            else -> Unit
+        }
     }
 
     /** Back to the page: the element that had focus there, or the page's first. */
@@ -146,16 +209,27 @@ class RailState(private val content: FocusRequester = FocusRequester()) : TvRail
 }
 
 /**
- * The rail (design spec §2.1): tv-material's drawer items, 56 dp wide
- * collapsed and 256 open. The avatar at the top switches profiles; then
- * [items]; Settings at the foot, at y = 465. Collapsed, the current entry
- * has a 4 by 20 accent mark and its icon in [fg][PleyColors.Fg]; open, it
- * is a [surface3][PleyColors.Surface3] pill. The focused entry is the
- * accent pill at 1.05. Open, the rail is [surface][PleyColors.Surface] at
- * 96 % with a soft edge, and tv-material dims the page behind it.
+ * The rail (design spec §2.1): 56 dp entries collapsed, 256 open. The
+ * avatar at the top switches profiles; then [items]; Settings at the foot,
+ * at y = 465. Collapsed, the current entry has a 4 by 20 accent mark and
+ * its icon in [fg][PleyColors.Fg]; open, it is a [surface3][PleyColors.Surface3]
+ * pill. The focused entry is the accent pill at 1.05. Open, the rail is
+ * [surface][PleyColors.Surface] at 96 % with a soft edge, and the shell
+ * dims the page behind it.
+ *
+ * Focus in it is what opens it. Over 200 ms ([PleyMotion.OVERLAY_MS]),
+ * eased out as the Samsung app's rail is ([PleyMotion.EaseOut]), the
+ * panel widens from 72 to 272 dp with its edge, the pills from 56 to 256,
+ * and the labels fade in as they slide 24 dp into place; leaving, the
+ * same back, the labels fading where they are. With
+ * reduced motion (Settings' or the system's) it opens and closes in place,
+ * and an entry's scale changes at once. What moves is drawn, in the rail's
+ * own layer: the rail is laid out open or closed as focus comes and goes,
+ * once each way (closed, it sits left of the page, where Left looks for
+ * it), and nothing of the page behind is laid out or drawn again.
  */
 @Composable
-internal fun NavigationDrawerScope.TvRail(
+internal fun TvRail(
     items: List<RailItem>,
     profile: RailProfile?,
     rail: RailState,
@@ -163,25 +237,30 @@ internal fun NavigationDrawerScope.TvRail(
     onProfile: () -> Unit,
     offline: Boolean = false,
 ) {
-    val open = hasFocus
+    val open = rail.hasFocus
+    val opening = rememberRailOpening(open)
+    rail.scope = rememberCoroutineScope()
     val offlineSaid = stringResource(R.string.tv_shell_offline)
     Box(
         Modifier
             .fillMaxHeight()
+            // Its own layer: each frame of the opening redraws the rail, not the page under it.
+            .graphicsLayer()
             .drawBehind {
-                // Painted while the rail is wider than closed, closing too: the drawer narrows
-                // after focus has left it, and the page showed through it, over its entries.
-                if (!open && size.width <= ClosedWidth.toPx() + 1f) return@drawBehind
-                val panel = if (open) size.width - RailShadow.toPx() else size.width
+                val shown = opening.value
+                // Closed, the page's own fade is under the entries: nothing to paint.
+                if (shown <= 0f) return@drawBehind
+                // Past the rail's bounds while it closes: it is laid out closed by then.
+                val panel = lerp(PleyTv.RailCollapsed.toPx(), PleyTv.RailExpanded.toPx(), shown)
                 drawRect(PleyColors.Surface.copy(alpha = 0.96f), size = Size(panel, size.height))
                 // A stretched picture rather than a gradient shader (GradientBitmaps): cheaper on TV GPUs.
-                drawStretched(RailEdge, Offset(panel, 0f), Size(RailShadow.toPx(), size.height))
-            }
-            .padding(end = if (open) RailShadow else 0.dp),
+                drawStretched(RailEdge, Offset(panel, 0f), Size(RailShadow.toPx(), size.height), alpha = shown)
+            },
     ) {
         Column(
             Modifier
                 .fillMaxHeight()
+                .width(if (open) PleyTv.RailExpanded else PleyTv.RailCollapsed)
                 .testTag(TestTags.TV_RAIL)
                 .onFocusChanged { rail.focusChanged(it.hasFocus) }
                 .focusProperties { onEnter = { with(rail) { enter() } } }
@@ -197,75 +276,258 @@ internal fun NavigationDrawerScope.TvRail(
                 }
                 .padding(start = 8.dp, end = 8.dp, top = AvatarItemTop, bottom = TvSafeArea.Vertical),
         ) {
-            NavigationDrawerItem(
+            RailPill(
                 selected = rail.current == PROFILE_ITEM,
+                open = open,
+                opening = opening,
                 onClick = onProfile,
+                leadingSize = AvatarSize,
                 leadingContent = { Avatar(profile, offline) },
                 // The name over "Switch profile", set close so both lines fit the entry.
-                supportingContent = {
-                    Text(
+                supportingContent = { ink ->
+                    BasicText(
                         stringResource(R.string.tv_shell_switch_profile),
-                        style = PleyType.Tv.Caption.copy(lineHeight = 15.sp),
+                        style = PleyType.Tv.Caption.copy(color = if (ink == PleyColors.OnAccent) ink else PleyColors.Muted, lineHeight = 15.sp),
                         maxLines = 1,
                     )
                 },
                 // Room for its two lines when open; the entries below keep their 56 dp pitch from y = 75.
+                height = AvatarItemHeight,
                 modifier = Modifier
-                    .height(AvatarItemHeight)
                     .focusRequester(rail.requester(PROFILE_ITEM))
                     .semantics { if (offline) stateDescription = offlineSaid },
-                colors = railColors(collapsedSelected = false),
-                scale = railScale,
-                shape = railShape,
-                border = railBorder(),
-                glow = railGlow,
-            ) {
-                Text(profile?.name.orEmpty(), style = PleyType.Tv.Label.copy(lineHeight = 17.sp), maxLines = 1)
+            ) { ink ->
+                BasicText(profile?.name.orEmpty(), style = PleyType.Tv.Label.copy(color = ink, lineHeight = 17.sp), maxLines = 1)
             }
             Spacer(Modifier.height(AvatarGap))
             items.forEachIndexed { i, item ->
                 if (i > 0) Spacer(Modifier.height(ItemGap))
-                RailEntry(item, rail, onSelect)
+                RailEntry(item, rail, open, opening, onSelect)
             }
             Spacer(Modifier.weight(1f))
-            RailEntry(SettingsItem, rail, onSelect)
+            RailEntry(SettingsItem, rail, open, opening, onSelect)
         }
     }
 }
 
 @Composable
-private fun NavigationDrawerScope.RailEntry(item: RailItem, rail: RailState, onSelect: (RailItem) -> Unit) {
+private fun RailEntry(
+    item: RailItem,
+    rail: RailState,
+    open: Boolean,
+    opening: Animatable<Float, AnimationVector1D>,
+    onSelect: (RailItem) -> Unit,
+) {
     val selected = rail.current == item.id
-    val open = hasFocus
-    NavigationDrawerItem(
+    val interactions = remember { MutableInteractionSource() }
+    // Read whether or not a number shows, so one that comes on a focused entry has its focused colours.
+    val focused by interactions.collectIsFocusedAsState()
+    RailPill(
         selected = selected,
+        open = open,
+        opening = opening,
         onClick = { onSelect(item) },
-        leadingContent = { Icon(item.icon, contentDescription = null, size = PleyTv.IconSize, tint = LocalContentColor.current) },
+        leadingContent = { ink ->
+            Box {
+                Icon(item.icon, contentDescription = null, size = PleyTv.IconSize, tint = ink)
+                val requests = item.requests
+                if (requests != null && requests.badge > 0) RailCount(requests, focused)
+            }
+        },
+        interactions = interactions,
         modifier = Modifier
             .focusRequester(rail.requester(item.id))
             .testTag("${TestTags.TV_RAIL}.${item.id}")
             .then(if (selected && !open) Modifier.currentMark() else Modifier),
-        colors = railColors(collapsedSelected = selected && !open),
-        scale = railScale,
-        shape = railShape,
-        border = railBorder(),
-        glow = railGlow,
-    ) {
-        Text(label(item), style = PleyType.Tv.Label, maxLines = 1)
+    ) { ink ->
+        BasicText(label(item), style = PleyType.Tv.Label.copy(color = ink), maxLines = 1)
     }
 }
+
+/**
+ * How far the rail is open, 0 to 1, following [open] over 200 ms, at
+ * once with reduced motion. Read only while drawing and in layers.
+ */
+@Composable
+private fun rememberRailOpening(open: Boolean): Animatable<Float, AnimationVector1D> {
+    val reduced = reducedMotion()
+    val opening = remember { Animatable(if (open) 1f else 0f) }
+    LaunchedEffect(open, reduced) {
+        val target = if (open) 1f else 0f
+        // Both ways on the Samsung app's ease out, as its rail moves.
+        if (reduced) opening.snapTo(target) else opening.animateTo(target, tween(PleyMotion.OVERLAY_MS, easing = PleyMotion.EaseOut))
+    }
+    return opening
+}
+
+/**
+ * One of the rail's entries: a pill drawn as wide as the rail is open
+ * ([opening]: 56 dp closed, 256 open), [height] tall, and laid out at
+ * either end ([open]). [leadingContent] (an icon, the avatar) is centred
+ * on the closed pill; [content] (the label), with [supportingContent]
+ * under it and [trailingContent] at the end, fades in as the pill widens,
+ * sliding in as the rail opens, cut at its edge. Each is given the
+ * colour to draw in.
+ *
+ * Entries are in [muted][PleyColors.Muted], the current one ([selected])
+ * in fg, on the [surface3][PleyColors.Surface3] pill while [open]. Focused,
+ * the pill is the accent fill with [onAccent][PleyColors.OnAccent]
+ * content, and grows to 1.05 in its layer (in place with reduced motion);
+ * pressed, accentBright. No border and no glow: focus is the fill.
+ */
+@Composable
+private fun RailPill(
+    selected: Boolean,
+    open: Boolean,
+    opening: Animatable<Float, AnimationVector1D>,
+    onClick: () -> Unit,
+    leadingContent: @Composable (ink: Color) -> Unit,
+    modifier: Modifier = Modifier,
+    leadingSize: Dp = LeadingSize,
+    height: Dp = EntryHeight,
+    supportingContent: (@Composable (ink: Color) -> Unit)? = null,
+    trailingContent: (@Composable (ink: Color) -> Unit)? = null,
+    interactions: MutableInteractionSource = remember { MutableInteractionSource() },
+    content: @Composable (ink: Color) -> Unit,
+) {
+    val focused by interactions.collectIsFocusedAsState()
+    val pressed by interactions.collectIsPressedAsState()
+    val reduced = reducedMotion()
+    val scale = remember { Animatable(1f) }
+    LaunchedEffect(focused, reduced) {
+        val target = if (focused) PleyFocus.PILL_SCALE else 1f
+        when {
+            reduced -> scale.snapTo(target)
+            // 150 ms eased out to 1.05, 120 eased in back, as the Samsung app's entries.
+            focused -> scale.animateTo(target, tween(PleyMotion.FOCUS_MS, easing = PleyMotion.EaseOut))
+            else -> scale.animateTo(target, tween(PleyMotion.UNFOCUS_MS, easing = PleyMotion.EaseIn))
+        }
+    }
+    val fill = when {
+        pressed -> PleyColors.AccentBright
+        focused -> PleyColors.Accent
+        selected && open -> PleyColors.Surface3
+        else -> Color.Transparent
+    }
+    val ink = when {
+        pressed || focused -> PleyColors.OnAccent
+        selected -> PleyColors.Fg
+        else -> PleyColors.Muted
+    }
+    Box(
+        modifier
+            // Its focus area is where it shows at rest; the widening between is drawn.
+            .width(if (open) OpenPillWidth else ClosedPillWidth)
+            .height(height)
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+                // About the pill's middle, as wide as it shows.
+                transformOrigin = TransformOrigin(pillWidth(opening.value) / 2f / size.width, 0.5f)
+            }
+            .drawWithContent {
+                // Past its bounds while the rail closes.
+                val width = pillWidth(opening.value)
+                if (fill.alpha > 0f) {
+                    val radius = PleyShape.ControlRadius.toPx()
+                    drawRoundRect(fill, size = Size(width, size.height), cornerRadius = CornerRadius(radius, radius))
+                }
+                clipRect(right = width) { this@drawWithContent.drawContent() }
+            }
+            .semantics { this.selected = selected }
+            .clickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick),
+    ) {
+        Box(
+            Modifier
+                .padding(start = (ClosedPillWidth - leadingSize) / 2)
+                .size(leadingSize)
+                .align(Alignment.CenterStart),
+            contentAlignment = Alignment.Center,
+        ) {
+            leadingContent(ink)
+        }
+        Row(
+            Modifier
+                .align(Alignment.CenterStart)
+                // Laid out open, the rail closed too: opening it only draws them.
+                .wrapContentWidth(Alignment.Start, unbounded = true)
+                .width(OpenPillWidth)
+                .padding(start = ClosedPillWidth, end = LabelEnd)
+                .graphicsLayer {
+                    alpha = opening.value
+                    // Opening, they slide in from a little to the left as they fade in; closing, they fade
+                    // where they are, as the Samsung app's labels do.
+                    translationX = if (open) -LabelSlide.toPx() * (1f - opening.value) else 0f
+                    // Text doesn't overlap itself: faded as it draws, with no offscreen buffer.
+                    compositingStrategy = CompositingStrategy.ModulateAlpha
+                },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                content(ink)
+                supportingContent?.invoke(ink)
+            }
+            trailingContent?.invoke(ink)
+        }
+    }
+}
+
+/** A pill's width when the rail is [opening] that far open: 56 dp closed to 256 open. */
+private fun Density.pillWidth(opening: Float): Float = lerp(ClosedPillWidth.toPx(), OpenPillWidth.toPx(), opening)
 
 @Composable
 private fun label(item: RailItem): String = when (item.slot) {
     RailSlot.Search -> stringResource(R.string.tv_shell_rail_search)
     RailSlot.Home -> stringResource(R.string.tv_shell_rail_home)
+    RailSlot.Discover -> stringResource(ScreensR.string.requests_discover)
+    RailSlot.Requests -> stringResource(if (item.requests?.manage == true) ScreensR.string.requests_manage else ScreensR.string.requests_yours)
     RailSlot.LiveTv -> stringResource(R.string.tv_shell_rail_live_tv)
     RailSlot.Library -> item.name.orEmpty()
     RailSlot.Libraries -> stringResource(R.string.tv_shell_rail_libraries)
     RailSlot.Playlists -> stringResource(R.string.tv_shell_rail_playlists)
     RailSlot.Collections -> stringResource(R.string.tv_shell_rail_collections)
     RailSlot.NowPlaying -> stringResource(R.string.tv_shell_rail_now_playing)
+    RailSlot.Drive -> stringResource(R.string.tv_shell_rail_drive)
     RailSlot.Settings -> stringResource(R.string.tv_shell_rail_settings)
+}
+
+/**
+ * The number on the way into requests ([RequestsEntry.badge]), as the
+ * Samsung and LG apps draw it: astride the icon's upper right, ringed in
+ * the page's colour, "99+" past 99; in the accent (its ink while the entry
+ * has focus), or the danger colour while failed requests wait for a
+ * manager. Screen readers hear it in words.
+ */
+@Composable
+private fun BoxScope.RailCount(entry: RequestsEntry, focused: Boolean) {
+    val texts = rememberRequestTexts()
+    val said = remember(entry, texts) { texts.count(entry) }
+    val fill = when {
+        entry.alarm -> PleyColors.Danger
+        focused -> PleyColors.OnAccent
+        else -> PleyColors.Accent
+    }
+    val ink = when {
+        entry.alarm -> PleyColors.Bg
+        focused -> PleyColors.AccentBright
+        else -> PleyColors.OnAccent
+    }
+    Box(
+        Modifier
+            .align(Alignment.TopStart)
+            .offset(x = CountX, y = CountY)
+            .wrapContentSize(Alignment.TopStart, unbounded = true)
+            .background(PleyColors.Bg, PleyShape.Circle)
+            .padding(CountRing)
+            .heightIn(min = CountHeight)
+            .widthIn(min = CountHeight)
+            .background(fill, PleyShape.Circle)
+            .padding(horizontal = 5.dp)
+            .clearAndSetSemantics { contentDescription = said },
+        contentAlignment = Alignment.Center,
+    ) {
+        BasicText(if (entry.badge > MAX_COUNT) "$MAX_COUNT+" else entry.badge.toString(), style = PleyType.Tv.Badge.copy(color = ink), maxLines = 1)
+    }
 }
 
 /** The profile's 32 dp circle: its picture, or its initial on its colour; marked while [offline]. */
@@ -297,60 +559,6 @@ private fun Modifier.currentMark(): Modifier = drawBehind {
 }
 
 /**
- * Entries in muted, the current one in fg; focus is the accent fill. A
- * collapsed rail shows the current entry without its pill (it has the
- * mark), an open one with the surface3 pill.
- */
-@Composable
-private fun railColors(collapsedSelected: Boolean) = NavigationDrawerItemDefaults.colors(
-    containerColor = Color.Transparent,
-    contentColor = PleyColors.Muted,
-    inactiveContentColor = PleyColors.Muted,
-    focusedContainerColor = PleyColors.Accent,
-    focusedContentColor = PleyColors.OnAccent,
-    pressedContainerColor = PleyColors.AccentBright,
-    pressedContentColor = PleyColors.OnAccent,
-    selectedContainerColor = if (collapsedSelected) Color.Transparent else PleyColors.Surface3,
-    selectedContentColor = PleyColors.Fg,
-    disabledContainerColor = Color.Transparent,
-    disabledContentColor = PleyColors.Disabled,
-    disabledInactiveContentColor = PleyColors.Disabled,
-    focusedSelectedContainerColor = PleyColors.Accent,
-    focusedSelectedContentColor = PleyColors.OnAccent,
-    pressedSelectedContainerColor = PleyColors.AccentBright,
-    pressedSelectedContentColor = PleyColors.OnAccent,
-)
-
-private val railScale = NavigationDrawerItemDefaults.scale(
-    scale = 1f,
-    focusedScale = PleyFocus.PILL_SCALE,
-    pressedScale = 1f,
-    selectedScale = 1f,
-    disabledScale = 1f,
-    focusedSelectedScale = PleyFocus.PILL_SCALE,
-    focusedDisabledScale = 1f,
-    pressedSelectedScale = 1f,
-)
-
-/** No borders: focus is the fill (tv-material's default is a 2 dp border). */
-@Composable
-private fun railBorder() = NavigationDrawerItemDefaults.border(
-    border = Border.None,
-    focusedBorder = Border.None,
-    pressedBorder = Border.None,
-    selectedBorder = Border.None,
-    disabledBorder = Border.None,
-    focusedSelectedBorder = Border.None,
-    focusedDisabledBorder = Border.None,
-    pressedSelectedBorder = Border.None,
-)
-
-/** Entries are rounded a little, as every control is ([PleyShape.Control]). */
-private val railShape = NavigationDrawerItemDefaults.shape(PleyShape.Control)
-
-private val railGlow = NavigationDrawerItemDefaults.glow(Glow.None, Glow.None, Glow.None, Glow.None, Glow.None, Glow.None)
-
-/**
  * The avatar's entry: 56 tall from y = 15, so its 32 dp circle sits at
  * y = 27 and, 4 below it, Search starts at y = 75 (design spec §2.1).
  */
@@ -360,14 +568,34 @@ private val AvatarGap = 4.dp
 private val AvatarSize = 32.dp
 
 /** 48 dp entries on a 56 dp pitch. */
+private val EntryHeight = 48.dp
 private val ItemGap = 8.dp
+
+/** The number's 18 dp pill, ringed 2 dp, its corner 9 right of the icon's and 10 above it. */
+private val CountHeight = 18.dp
+private val CountRing = 2.dp
+private val CountX = 9.dp
+private val CountY = (-10).dp
+
+/** What the number counts to before it says "99+". */
+private const val MAX_COUNT = 99
+
+/** A pill closed and open; the label starts where the closed pill ends, and stops 12 dp short of the open one's end. */
+private val ClosedPillWidth = 56.dp
+private val OpenPillWidth = 256.dp
+private val LabelEnd = 12.dp
+
+/** How far the labels slide in from as the rail opens: a little, so they don't cross the icons. */
+private val LabelSlide = 24.dp
+
+/** The box an entry's icon is centred in. */
+private val LeadingSize = 24.dp
 
 /** The open rail's soft right edge. */
 private val RailShadow = 64.dp
 
-/** The closed rail: 56 dp entries, 8 dp either side. */
-private val ClosedWidth = 72.dp
+/** Frames a key from nowhere waits before it takes focus to the page: past a row's own handing on ([RailState.enter]). */
+private const val SETTLE_FRAMES = 3
 
 /** That edge: surface at 85 % to clear. */
 private val RailEdge by lazy { GradientBitmaps.horizontal(0f to PleyColors.Surface.copy(alpha = 0.85f), 1f to PleyColors.Surface.copy(alpha = 0f)) }
-

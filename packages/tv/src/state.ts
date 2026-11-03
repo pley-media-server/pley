@@ -357,7 +357,7 @@ export class AppState {
   }
 
   /**
-   * This TV's own id for its playbacks ("webos-1f3a…"), kept for good: the
+   * This TV's own id for its playbacks ("tizen-1f3a…"), kept for good: the
    * server ends a client's earlier sessions when it starts another, so two
    * TVs of a household must never share one.
    */

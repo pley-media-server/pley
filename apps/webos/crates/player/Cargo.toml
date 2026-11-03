@@ -1,0 +1,22 @@
+[package]
+name = "pley-player"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: the playback controller, music and Live TV sessions"
+license = "AGPL-3.0-only"
+publish = false
+
+[dependencies]
+pley-base = { path = "../base" }
+pley-core = { path = "../core" }
+pley-subs = { path = "../subs" }
+log = "0.4.29"
+# Automatic's memory in the store is `{kbps, at}`, as the TV app kept it.
+serde = { version = "1.0.229", features = ["derive"] }
+
+[dev-dependencies]
+pley-fixtures = { path = "../fixtures" }
+# A video on a drive played through its own server (tests/local.rs).
+pley-local = { path = "../local" }
+serde_json = "1.0.154"

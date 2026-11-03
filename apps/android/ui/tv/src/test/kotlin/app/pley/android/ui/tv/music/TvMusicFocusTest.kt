@@ -5,16 +5,20 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.Tier
+import app.pley.android.player.MusicQueueState
 import app.pley.android.player.NowPlaying
 import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepState
 import app.pley.android.screens.PleyKey
+import app.pley.android.ui.tv.item.LocalTvTileActions
+import app.pley.android.ui.tv.item.TvTileActions
 import app.pley.android.ui.tv.kit.focused
 import app.pley.android.ui.tv.kit.press
 import app.pley.android.ui.tv.settings.TvAccountTestApplication
@@ -34,8 +38,9 @@ import org.robolectric.annotation.Config
 /**
  * Music on TV with the D-pad: an album starts on Play and plays from a
  * track chosen on the right, opening Now Playing; an album opened from a
- * track starts on it; Now Playing starts on Play/Pause, and the queue
- * under it jumps to a track.
+ * track starts on it; Now Playing starts on Play/Pause, the queue under it
+ * jumps to a track, and Down from the controls lands on the track playing.
+ * An artist's album opens its actions beside the page.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi", application = TvAccountTestApplication::class)
@@ -87,6 +92,24 @@ class TvMusicFocusTest {
     }
 
     @Test
+    fun anAlbumsActionsOpenOverTheArtistsPage() {
+        val asked = mutableListOf<Long>()
+        show {
+            CompositionLocalProvider(LocalTvTileActions provides TvTileActions { id, _ -> asked += id }) {
+                TvArtistScreen(TvAccountTestGraph.ARTIST)
+            }
+        }
+        waitFor("Harbour Lights")
+        compose.waitUntil(5_000) { compose.onAllNodes(hasContentDescription("Shallows", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+        compose.press(Key.DirectionDown)
+        compose.focused().assert(hasContentDescription("Shallows", substring = true))
+        compose.press(Key.Menu)
+        // The shell's panel, not a page of their own.
+        assertEquals(1, asked.size)
+        assertEquals(listOf<NavKey>(PleyKey.Home), stack)
+    }
+
+    @Test
     fun nowPlayingStartsOnPlayPauseAndTheQueueJumps() {
         graph.music.now.value = NowPlaying(501, "Song 1", "Harbour Lights", playing = true, album = "Deep Water", count = 12, index = 0)
         show { TvNowPlayingScreen() }
@@ -98,6 +121,18 @@ class TvMusicFocusTest {
         compose.press(Key.DirectionDown, times = 2)
         compose.press(Key.DirectionCenter)
         assertEquals(1, graph.music.jumps.size)
+    }
+
+    @Test
+    fun downFromTheControlsLandsOnTheTrackPlaying() {
+        // The last track: the queue can't bring it to its top, so it isn't the nearest line.
+        graph.music.queueState.value = MusicQueueState(TvAccountTestGraph.TRACKS, 11)
+        graph.music.now.value = NowPlaying(512, "Song 12", "Harbour Lights", playing = true, album = "Deep Water", count = 12, index = 11)
+        show { TvNowPlayingScreen() }
+        waitFor("Harbour Lights · Deep Water")
+        compose.onNodeWithTag(TV_PLAY_PAUSE).assertIsFocused()
+        compose.press(Key.DirectionDown)
+        compose.focused().assert(hasText("Song 12"))
     }
 
     @Test

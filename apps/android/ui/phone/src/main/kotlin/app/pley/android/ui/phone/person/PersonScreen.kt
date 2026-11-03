@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -38,6 +39,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.rememberImagePrefetcher
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.SkeletonTile
 import app.pley.android.designsystem.tile.TileKind
@@ -53,9 +55,12 @@ import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.EmptyState
 import app.pley.android.ui.phone.kit.ErrorState
 import app.pley.android.ui.phone.kit.FittedCells
+import app.pley.android.ui.phone.kit.LocalPhoneDeviceTier
 import app.pley.android.ui.phone.kit.MediaCard
 import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.fullWidth
+import app.pley.android.ui.phone.kit.gridColumns
+import app.pley.android.ui.phone.kit.rememberItemGridState
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.shell.ReportLoad
@@ -98,8 +103,33 @@ private fun PersonContent(page: PersonPage, onOpen: (Long) -> Unit, onActions: (
     val shows = remember(page) { page.shows.map { it.tile(page.origin) } }
     val movieTitle = stringResource(R.string.person_movies)
     val showTitle = stringResource(R.string.person_shows)
+    // About a screen composed ahead, and the posters of the next 1.5 screens asked for, as a library's grid does.
+    val grid = rememberItemGridState()
+    val available = metrics.contentWidth - metrics.margin * 2
+    val columns = gridColumns(TileKind.Poster, available, gap)
+    val width = (available - gap * (columns - 1)) / columns
+    val density = LocalDensity.current
+    // By the grid's index: the header and each section's title have none.
+    val images = remember(movies, shows) {
+        buildList<ArtworkImage?> {
+            add(null)
+            for (section in listOf(movies, shows)) {
+                if (section.isEmpty()) continue
+                add(null)
+                section.forEach { add(it.image) }
+            }
+        }
+    }
+    rememberImagePrefetcher(
+        state = grid,
+        images = images,
+        widthPx = with(density) { width.roundToPx() },
+        heightPx = with(density) { (width / TileKind.Poster.aspectRatio).roundToPx() },
+        tier = LocalPhoneDeviceTier.current,
+    )
     LazyVerticalGrid(
         columns = remember(gap) { FittedCells(TileKind.Poster, gap) },
+        state = grid,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = metrics.marginStart, end = metrics.marginEnd, bottom = 32.dp),
         horizontalArrangement = Arrangement.spacedBy(gap),

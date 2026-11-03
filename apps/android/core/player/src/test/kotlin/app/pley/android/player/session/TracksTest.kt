@@ -146,7 +146,7 @@ class TracksTest {
     }
 
     @Test
-    fun `the subtitle style is for text: not for pictures, nor with subtitles off`() {
+    fun `the subtitle style is for text, not for pictures, nor with subtitles off`() {
         val movie = Catalogue.movieWithTracks(h.api)
         val subs = movie.files.first().streams.filter { it.kind == StreamKind.Subtitle }
         val c = h.play(PlayRequest(movie.id))

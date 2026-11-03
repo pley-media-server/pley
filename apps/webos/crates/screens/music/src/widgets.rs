@@ -1,0 +1,145 @@
+//! The pieces the music pages share (`TvMusicKit.kt`): the art wells, the faint
+//! art behind a page, the rating's stars and the page-sized message.
+
+use pley_base::{Icon, ImageRequest, Point, Priority, Rect, TextOpts};
+use pley_core::ApiError;
+use pley_core::model::ItemList;
+use pley_kit::{Button, first_art, is_inert, placeholder};
+use pley_shell::Resource;
+use pley_ui::theme;
+use pley_ui::{FocusOpts, Id, ImageOpts, Response, Ui};
+
+use crate::pages::star_lit;
+
+/// Registers a focusable drawn by this crate, as the kit registers its own: nothing while drawn
+/// inert, and one more frame after it is selected, since the page changes in answer after drawing.
+pub fn register(ui: &mut Ui, id: Id, rect: Rect, opts: FocusOpts) -> Response {
+    if is_inert() {
+        return inert_response(id);
+    }
+    let r = ui.focusable_with(id, rect, opts);
+    if r.activated || r.long_pressed || r.menu {
+        ui.request_repaint();
+    }
+    r
+}
+
+fn inert_response(id: Id) -> Response {
+    Response {
+        id,
+        focused: false,
+        gained: false,
+        activated: false,
+        clicked: false,
+        long_pressed: false,
+        menu: false,
+        pressed: false,
+        hovered: false,
+        pointer: None,
+    }
+}
+
+/// A picture well: the first of `art` that loads, cropped to fill `rect`, over the gradient
+/// `seed` picks until it covers it (`Artwork` over a Surface2 box; the music pages give it no
+/// title style, so no title is written on the gradient).
+pub fn art_well(ui: &mut Ui, rect: Rect, art: &[ImageRequest], seed: &str, corner: f32) {
+    let shown = first_art(ui, art, Priority::Visible);
+    if shown.is_some_and(|s| s.opaque()) {
+        ui.fill(rect, theme::SURFACE2, corner);
+    } else {
+        placeholder(ui, rect, seed, "", corner);
+    }
+    if let Some(s) = shown {
+        ui.draw_image(rect, &s, &ImageOpts::cover().rounded(corner));
+    }
+}
+
+/// The widest the faint art is asked for: drawn at a fifth of its strength, it needs no more (the
+/// TV app's `FaintArt` asks for 960 px).
+pub const FAINT_ART_PX: u32 = 960;
+
+/// The album art over the whole page at `alpha` (14 % on an album, 20 % on Now Playing),
+/// unblurred, fading into Bg from 40 % of the height down (`FaintArt`): the gradient `seed` picks
+/// until the picture covers it, and nothing at all without a picture to show.
+pub fn faint_art(ui: &mut Ui, art: &[ImageRequest], seed: &str, alpha: f32) {
+    if art.is_empty() {
+        return;
+    }
+    let full = Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H);
+    let shown = first_art(ui, art, Priority::Visible);
+    ui.opacity(alpha, |ui| {
+        if !shown.as_ref().is_some_and(|s| s.opaque()) {
+            placeholder(ui, full, seed, "", 0.0);
+        }
+        if let Some(s) = &shown {
+            ui.draw_image(full, s, &ImageOpts::cover());
+        }
+    });
+    ui.ramp(full, true, &theme::FAINT_ART_FADE);
+}
+
+/// A star's side and the gap between stars.
+const STAR: f32 = 16.0;
+const STAR_GAP: f32 = 2.0;
+
+/// The profile's rating as five 16 dp stars from `at`, lit in Accent, else Surface4.
+pub fn stars(ui: &mut Ui, at: Point, rating: i64) {
+    for star in 1..=5 {
+        let x = at.x + (star - 1) as f32 * (STAR + STAR_GAP);
+        let color = if star_lit(rating, star) { theme::ACCENT } else { theme::SURFACE4 };
+        ui.icon(Rect::new(x, at.y, STAR, STAR), Icon::Star, color);
+    }
+}
+
+/// The most of a message's sentence laid out: it may be the server's own words, of any length.
+const MESSAGE_CHARS: usize = 400;
+const MESSAGE_LINES: u16 = 4;
+
+/// `body` cut to [`MESSAGE_CHARS`].
+fn clipped(body: &str) -> &str {
+    body.char_indices().nth(MESSAGE_CHARS).map_or(body, |(end, _)| &body[..end])
+}
+
+/// A page-sized message (`MusicMessage`): at x 96, y 60, a title in `Tv.Title`, its sentence in
+/// `Tv.Body` Muted 10 below (four lines at most), and one pill 32 below that, which takes the
+/// first focus.
+pub fn message(ui: &mut Ui, title: &str, body: &str, action: &str) -> Response {
+    let width = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
+    let body = clipped(body);
+    let mut y = 60.0;
+    y += ui.text(Point::new(theme::GUTTER, y), title, &theme::TITLE, &TextOpts::wrap(width, 2), theme::FG).h;
+    y += 10.0;
+    let opts = TextOpts::wrap(width, MESSAGE_LINES);
+    y += ui.text(Point::new(theme::GUTTER, y), body, &theme::BODY, &opts, theme::MUTED).h;
+    y += 10.0 + 12.0 + 10.0;
+    let id = ui.id("message");
+    ui.initial_focus(id);
+    Button::pill(action).show(ui, id, Point::new(theme::GUTTER, y))
+}
+
+/// What a page's list (an album's tracks, an artist's albums) shows.
+pub enum ListState<'a> {
+    /// Its skeleton: nothing came yet, or it is asked for again after Retry.
+    Loading,
+    /// Why it couldn't come, with Retry.
+    Failed(&'a ApiError),
+    /// What came, saved or fresh.
+    Ready,
+}
+
+/// What `list` shows. Android keeps a list that failed loading for good; here it says why and
+/// offers Retry, rather than calling it empty.
+pub fn list_state(list: &Resource<ItemList>) -> ListState<'_> {
+    match (list.value(), list.error()) {
+        (Some(_), _) => ListState::Ready,
+        (None, Some(e)) if !list.asking() => ListState::Failed(e),
+        _ => ListState::Loading,
+    }
+}
+
+/// A list that couldn't come, in its place at `at`: why, in `Tv.Body` Muted (three lines at
+/// most), and Retry 12 below.
+pub fn list_failure(ui: &mut Ui, at: Point, width: f32, body: &str) -> Response {
+    let h = ui.text(at, clipped(body), &theme::BODY, &TextOpts::wrap(width, 3), theme::MUTED).h;
+    Button::pill("Retry").show(ui, ui.id("retry"), Point::new(at.x, at.y + h + 12.0))
+}

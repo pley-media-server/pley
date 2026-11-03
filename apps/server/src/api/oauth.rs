@@ -1258,6 +1258,13 @@ fn refused_switch(err: SwitchError) -> OAuthError {
             "browser",
             "this profile takes its password: sign in to the app again, and pick the profile in the browser".to_owned(),
         ),
+        // Too busy to check the PIN now (or without the memory to): try again.
+        SwitchError::Internal(AppError::Unavailable(busy)) => {
+            return OAuthError {
+                status: StatusCode::SERVICE_UNAVAILABLE,
+                ..OAuthError::new("temporarily_unavailable", busy)
+            };
+        }
         SwitchError::Internal(err) => return OAuthError::server_error(err),
     };
     OAuthError { reason: Some(reason), ..OAuthError::invalid_grant(description) }
@@ -1437,11 +1444,12 @@ impl From<GrantRow> for AppGrant {
 
 /// What an app's grant was last used from, by the User-Agent of its token
 /// requests. pley's apps say "pleyAndroid/1.0 (Android 15)",
-/// "pleyKodi/0.1.0 (Kodi 21.2; Windows)" or "pleyRoku/0.1.0 (Roku OS 14.5;
-/// Roku Ultra)": the row names the app already, so the platform it gives in
-/// brackets.
+/// "pleyKodi/0.1.0 (Kodi 21.2; Windows)", "pleyRoku/0.1.0 (Roku OS 14.5;
+/// Roku Ultra)" or "pleyLG/0.1.0 (webOS 23; OLED65C3PUA)": the row names the
+/// app already, so the platform it gives in brackets.
 fn grant_device(user_agent: &str) -> String {
-    for (app, platform) in [("pleyAndroid/", "Android"), ("pleyKodi/", "Kodi"), ("pleyRoku/", "Roku")] {
+    let apps = [("pleyAndroid/", "Android"), ("pleyKodi/", "Kodi"), ("pleyRoku/", "Roku"), ("pleyLG/", "webOS")];
+    for (app, platform) in apps {
         if user_agent.contains(app) {
             let given = user_agent
                 .split_once('(')
@@ -1451,7 +1459,8 @@ fn grant_device(user_agent: &str) -> String {
             return given.unwrap_or(platform).chars().take(60).collect();
         }
     }
-    // Samsung's and LG's TV apps send their TV's own agent: the system's version.
+    // Samsung's TV app, and LG's before it was a native app, send their TV's
+    // own agent: the system's version.
     if let Some(at) = user_agent.find("Tizen ") {
         return user_agent[at..].chars().take_while(|c| *c != ')' && *c != ';').take(60).collect();
     }
@@ -1544,6 +1553,8 @@ mod tests {
         assert_eq!(grant_device(webos), "webOS 23");
         assert_eq!(grant_device(&webos.replace("Chrome/94", "Chrome/99")), "webOS");
         assert_eq!(grant_device("pleyKodi/0.1.0 (Kodi 21.2; Windows)"), "Kodi 21.2; Windows");
+        assert_eq!(grant_device("pleyLG/0.1.0 (webOS 23; OLED65C3PUA)"), "webOS 23; OLED65C3PUA");
+        assert_eq!(grant_device("pleyLG/0.1.0"), "webOS");
     }
 
     fn headers(pairs: &[(&'static str, &str)]) -> HeaderMap {
