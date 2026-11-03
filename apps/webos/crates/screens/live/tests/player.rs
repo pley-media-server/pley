@@ -46,6 +46,16 @@ fn up_and_down_change_channel_round_the_category() {
 }
 
 #[test]
+fn next_and_previous_change_channel_as_channel_up_and_down_do() {
+    let mut app = watching(ids::LIVE_CHANNEL, LiveCategory::All);
+    app.press(Key::Next);
+    assert!(tuned(&mut app, 2), "Next isn't the next channel");
+    app.press(Key::Previous);
+    assert!(tuned(&mut app, ids::LIVE_CHANNEL), "Previous isn't the one before");
+    assert_eq!(app.watches(2), 1, "Next tuned more than once");
+}
+
+#[test]
 fn favourites_zap_among_themselves() {
     // Alex's favourites are 1, 3, 9 and 17.
     let mut app = watching(3, LiveCategory::Favorites);

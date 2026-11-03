@@ -81,7 +81,7 @@ differs on LG:
 | Back | Closes what the page has open, then goes back. On a first page it opens the rail; in the rail (or on a first page without it) it leaves the app as LG's [Back-button guide](https://webostv.developer.lge.com/develop/guides/back-button) says. From webOS 6 it asks "Exit Pley?", as the Samsung app does: Exit (focused) ends playback, tells the server and closes the app; Cancel or Back stays. On webOS 4 and 5 the TV's Home shows, and Pley waits behind it where it was |
 | Exit | Closes the app |
 | OK held, or the menu key | A title's actions, in a side panel over the page as in the Android TV app: a choice closes it, focus goes back to the tile, then it runs. In the guide, a programme's details |
-| CH+, CH− | The next or previous channel in the Live TV player; a page of channels in the guide |
+| CH+, CH− | The next or previous channel in the Live TV player, as Next and Previous do there; a page of channels in the guide |
 | Digits | A channel's number in Live TV; the address and PIN pads |
 | Red, green, yellow, blue | Nothing, as on the Android TV app |
 
@@ -242,8 +242,8 @@ and goes with `live_channels_changed`. On LG:
   address, every channel plays its HLS.
 - **The guide:** ◀◀ and ▶▶, Previous and Next, move it two hours back
   or on, a press at a time, as in the Android TV app.
-- **The player:** Up and Down, CH+ and CH− change channel within the
-  category; digits tune a number. OK, the menu or the guide key opens the
+- **The player:** Up and Down, CH+ and CH−, Next and Previous change
+  channel within the category; digits tune a number. OK, the menu or the guide key opens the
   channel list beside the picture, which moves aside to make room; holding
   OK shows the controls, as in the Samsung app.
 - **Leaving:** `DELETE /api/live/sessions/{id}` on Back, on each change

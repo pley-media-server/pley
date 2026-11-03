@@ -26,6 +26,8 @@ describes how they are made.
   plays it otherwise and whenever the stream fails.
 - In Live TV's guide, ◀◀ and ▶▶, Previous and Next, move it two hours
   back or on, as in the Android TV app.
+- In the Live TV player, Next and Previous change channel as CH+ and CH−
+  do, once a press, as in the Android TV app.
 
 ### Changed
 

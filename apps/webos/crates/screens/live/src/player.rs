@@ -500,7 +500,8 @@ impl LivePlayerScreen {
         self.list.patch(id, on);
     }
 
-    /// The keys that act whatever shows: channel up and down, digits, Menu or Guide, Info.
+    /// The keys that act whatever shows: channel up and down (Next and Previous too, as on
+    /// Android), digits, Menu or Guide, Info.
     fn keys(&mut self, ui: &mut Ui, cx: &AppCx, now: f64) {
         let keys = ui.keys().to_vec();
         if self.overlay == Overlay::Controls && !keys.is_empty() {
@@ -508,8 +509,8 @@ impl LivePlayerScreen {
         }
         for k in keys {
             match k.key {
-                Key::ChannelUp if k.pressed && !k.repeat => self.step(cx, 1),
-                Key::ChannelDown if k.pressed && !k.repeat => self.step(cx, -1),
+                Key::ChannelUp | Key::Next if k.pressed && !k.repeat => self.step(cx, 1),
+                Key::ChannelDown | Key::Previous if k.pressed && !k.repeat => self.step(cx, -1),
                 Key::Digit(d) if k.pressed && !k.repeat && !self.list.typing() => {
                     self.lookup = None;
                     self.digits.push(d, now);
