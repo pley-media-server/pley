@@ -1128,9 +1128,9 @@ mod tests {
         rig.cx(|cx| cx.state.use_server("http://127.0.0.1:9"));
         let mut s = screen(&mut rig, &[("http://127.0.0.1:9", "Gone")]);
         rig.frame(&mut s, Vec::new());
-        // The dead one is first (used last); its check fails and marks it.
+        // The dead one is first (used last); its check fails and marks it. (Linux refuses the
+        // connection before the next frame, so "Connecting to…" may never show: `row.line` has it.)
         rig.press(&mut s, Key::Ok);
-        assert!(rig.says("Connecting to 127.0.0.1:9…"));
         assert!(rig.until(&mut s, |rig| rig.says(UNREACHABLE)), "the dead server was never marked");
         assert!(rig.says("Couldn't reach 127.0.0.1:9"));
         rig.press(&mut s, Key::Down);
