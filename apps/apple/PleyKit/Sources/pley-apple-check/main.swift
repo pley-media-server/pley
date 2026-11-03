@@ -137,7 +137,9 @@ func run() async throws {
 
     // 5. Who, the household and Home.
     let me = try await api.me()
-    try check(Set(me.scopes) == ["library", "play", "playlists", "profiles"], "me has scope \(me.scope ?? "nil")")
+    // What was asked for: the four, and requests and approvals where the server lists them.
+    try check(Set(me.scopes) == Set(metadata.scope.split(separator: " ").map(String.init)),
+              "me has scope \(me.scope ?? "nil")")
     try check(!me.isAdmin, "an app's token has administrator rights")
     let profiles = try await api.householdProfiles()
     let home = try await api.home()

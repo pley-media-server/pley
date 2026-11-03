@@ -40,9 +40,15 @@ public enum PleyError: Error, Sendable, Equatable {
     /// The playback session was stopped from elsewhere, with what the
     /// person who stopped it wrote.
     case sessionStopped(message: String?)
-    /// Subtitle search's `503`: `setup` false when the server has none set
-    /// up, true when it has one that failed (with what failed in `message`).
-    case notAvailable(message: String?, setup: Bool)
+    /// A `503` saying what isn't there (subtitle search's, requests'):
+    /// `setup` false when the server has none set up, true when it has one
+    /// that failed (with what failed in `message`). `code` tells them apart
+    /// (`unavailable`, requests' `tmdb_key` and `tmdb_down`).
+    case notAvailable(code: String, message: String?, setup: Bool)
+    /// Requests' refusals that say when, or what is now: `409 declined`
+    /// and `429` with `retryAt`, `409 conflict` with the request as it is
+    /// now. `message` is made plain.
+    case refused(status: Int, code: String, message: String?, retryAt: Int?, request: MediaRequest?)
     /// The server no longer accepts this sign-in.
     case signedOut
     /// An OAuth endpoint's refusal.
@@ -81,9 +87,11 @@ public enum PleyError: Error, Sendable, Equatable {
             "this app wasn't allowed to do that: sign in to it again to allow it"
         case .sessionStopped(let message):
             message.flatMap { $0.isEmpty ? nil : "playback was stopped: \($0)" } ?? "playback was stopped"
-        case .notAvailable(let message, let setup):
+        case .notAvailable(_, let message, let setup):
             setup ? message.flatMap { $0.isEmpty ? nil : $0 } ?? "subtitle search isn't working on this server"
                 : "subtitle search isn't set up on this server"
+        case .refused(let status, let code, let message, _, _):
+            message.flatMap { $0.isEmpty ? nil : $0 } ?? "the server refused (\(code), HTTP \(status))"
         case .signedOut:
             "you were signed out: sign in again"
         case .oauth(_, let body):

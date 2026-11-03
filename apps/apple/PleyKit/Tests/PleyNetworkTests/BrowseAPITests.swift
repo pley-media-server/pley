@@ -126,10 +126,12 @@ private func eventually(_ condition: () -> Bool) async -> Bool {
         }
         let heard = Heard()
         let connected = OSAllocatedUnfairLock(initialState: 0)
+        let disconnected = OSAllocatedUnfairLock(initialState: 0)
         let reader = Task {
             for await signal in stream.signals() {
                 switch signal {
                 case .connected: connected.withLock { $0 += 1 }
+                case .disconnected: disconnected.withLock { $0 += 1 }
                 case .event(let event): heard.add(event)
                 }
             }
@@ -146,6 +148,8 @@ private func eventually(_ condition: () -> Bool) async -> Bool {
         server.endEvents()
         #expect(await eventually { server.eventConnects == 2 && connected.withLock { $0 } == 2 })
         #expect(waits.all == [1])
+        // Each connection that ended says so, before the next one opens.
+        #expect(disconnected.withLock { $0 } == 1)
 
         // A line too long drops the connection, and it connects again.
         server.pushEventText("data: " + String(repeating: "x", count: EventStream.maxLine + 10))

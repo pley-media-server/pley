@@ -175,6 +175,24 @@ public final class AppSettings: @unchecked Sendable {
         defaults.set(all, forKey: Self.prefix + "recentSearches")
     }
 
+    // MARK: Requests
+
+    /// The newest `updated_at` of the profile's requests whose news was
+    /// told (by a notice or by catching up), so none is told twice, across
+    /// starts too.
+    public func requestNewsMark(origin: String, profileId: Int) -> Int {
+        let all = defaults.dictionary(forKey: Self.prefix + "requestNews") as? [String: Int]
+        return all?[Self.viewKey(origin, profileId)] ?? 0
+    }
+
+    /// Raises the mark to `mark`; it never goes down.
+    public func setRequestNewsMark(_ mark: Int, origin: String, profileId: Int) {
+        var all = defaults.dictionary(forKey: Self.prefix + "requestNews") as? [String: Int] ?? [:]
+        let key = Self.viewKey(origin, profileId)
+        all[key] = max(all[key] ?? 0, mark)
+        defaults.set(all, forKey: Self.prefix + "requestNews")
+    }
+
     // MARK: Libraries
 
     /// How a library was left on this device (its tab, sort and filters,

@@ -159,7 +159,7 @@ struct APIExampleTests {
               "token_endpoint_auth_methods_supported": ["none"],
               "revocation_endpoint_auth_methods_supported": ["none"],
               "code_challenge_methods_supported": ["S256"],
-              "scopes_supported": ["library", "play", "playlists", "profiles"],
+              "scopes_supported": ["library", "play", "playlists", "profiles", "requests", "approvals"],
               "authorization_response_iss_parameter_supported": true,
               "client_id_metadata_document_supported": false,
               "service_documentation": "https://github.com/pley-media-server/pley/blob/master/docs/API.md"
@@ -173,6 +173,7 @@ struct APIExampleTests {
         #expect(metadata.codeChallengeMethodsSupported == ["S256"])
         #expect(metadata.grantTypesSupported?.contains("urn:ietf:params:oauth:grant-type:device_code") == true)
         #expect(metadata.authorizationResponseIssParameterSupported == true)
+        #expect(metadata.scopesSupported?.suffix(2) == ["requests", "approvals"])
     }
 
     @Test func deviceAnswer() throws {

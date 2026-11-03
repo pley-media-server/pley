@@ -366,6 +366,9 @@ struct ScreenView: View {
             DownloadsView(app: app)
         case .downloadSettings:
             DownloadSettingsView(app: app)
+        // Nothing opens requests' pages yet: Me shows meanwhile.
+        case .discover, .discoverResults, .discoverTitle, .requests:
+            MeView(app: app)
         }
     }
 }

@@ -28,12 +28,15 @@ public struct ServerMetadata: Sendable, Hashable {
     }
 
     /// What to ask this server for: every scope of the app's that it
-    /// offers. A server without profiles doesn't know `profiles` and would
-    /// refuse the whole sign-in for it.
+    /// offers (all of them when it doesn't say), and `requests` and
+    /// `approvals` only where it lists them. A server without profiles
+    /// doesn't know `profiles` and would refuse the whole sign-in for it.
     public var scope: String {
         let wanted = AppClient.scope.split(separator: " ").map(String.init)
         let offered = wanted.filter { scopesSupported == nil || scopesSupported!.contains($0) }
-        return (offered.isEmpty ? ["library"] : offered).joined(separator: " ")
+        let listed = AppClient.listedScope.split(separator: " ").map(String.init)
+            .filter { scopesSupported?.contains($0) == true }
+        return ((offered.isEmpty ? ["library"] : offered) + listed).joined(separator: " ")
     }
 
     /// Reads and checks the metadata of the server at `origin`.

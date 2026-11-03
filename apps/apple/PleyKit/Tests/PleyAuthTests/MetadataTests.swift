@@ -113,6 +113,21 @@ import Testing
         #expect(!noGrant.signsInWithCodes)
     }
 
+    @Test func requestsAndApprovalsAreAskedForOnlyWhereTheServerListsThem() throws {
+        let issuer = "http://192.168.1.20:7539"
+        // A server that doesn't say what it offers is asked for the four it has always had.
+        let silent = try ServerMetadata.parse(document(issuer) { $0["scopes_supported"] = nil }, origin: issuer)
+        #expect(silent.scope == "library play playlists profiles")
+        let both = try ServerMetadata.parse(document(issuer) {
+            $0["scopes_supported"] = ["library", "play", "playlists", "profiles", "requests", "approvals"]
+        }, origin: issuer)
+        #expect(both.scope == "library play playlists profiles requests approvals")
+        let one = try ServerMetadata.parse(document(issuer) {
+            $0["scopes_supported"] = ["library", "play", "playlists", "profiles", "requests"]
+        }, origin: issuer)
+        #expect(one.scope == "library play playlists profiles requests")
+    }
+
     @Test func theFixturesMetadataIsFetched() async throws {
         let server = try await fixture()
         defer { server.stop() }

@@ -1755,8 +1755,9 @@ iPhone:
 3. It collects the tokens, with the server's id and the sign-in's proof
    key, has the server prove itself with that key, and checks that a proof
    under another key is refused ("another device answers there") with no
-   token sent. It then fetches `/api/auth/me` (with the app's four scopes
-   and no administrator rights), the household and Home.
+   token sent. It then fetches `/api/auth/me` (with the scopes asked for:
+   the app's four, and `requests` and `approvals` where the server lists
+   them; no administrator rights), the household and Home.
 4. It refreshes once, checks the proof key stayed the sign-in's first, and
    checks that `/api/me/apps` names the grant
    ("Pley for Apple TV", device `tvOS 18.2; Apple TV`).

@@ -55,6 +55,9 @@ public final class ItemModel: ObservableObject {
     /// The page that shows this item instead: an artist's, an album's
     /// (a track's), or an extra's movie or show.
     @Published public private(set) var elsewhere: Screen?
+    /// What requests say of this movie or show: the stage of its newest
+    /// active request, and Request more seasons; `nil`: nothing to say.
+    @Published public private(set) var requestBlock: ItemRequestBlock?
 
     public let app: AppModel
     public let itemId: Int
@@ -73,6 +76,13 @@ public final class ItemModel: ObservableObject {
     private var writing = 0
     private var listeners: Set<AnyCancellable> = []
     private var seasonTask: Task<Void, Never>?
+    /// The server said the title isn't TMDB's (404): it isn't asked again.
+    private var noRequest = false
+    private var requestTask: Task<Void, Never>?
+    private var requestSoon: Task<Void, Never>?
+    /// How long a failed read of the request block waits, and how often it's tried again.
+    public var requestRetry: Double = 3
+    public static let requestRetries = 4
 
     public init(app: AppModel, itemId: Int) {
         self.app = app
@@ -89,7 +99,9 @@ public final class ItemModel: ObservableObject {
             Task { @MainActor in self?.objectWillChange.send() }
         }.store(in: &listeners)
         app.$change.dropFirst().compactMap { $0 }.sink { [weak self] change in
-            guard let self, self.writing == 0, self.follows(change) else { return }
+            guard let self else { return }
+            if self.followsRequest(change.requests) { self.loadRequestSoon() }
+            guard self.writing == 0, self.follows(change) else { return }
             Task { await self.load() }
         }.store(in: &listeners)
     }
@@ -159,6 +171,7 @@ public final class ItemModel: ObservableObject {
             }
             state = .loaded
             rebuild()
+            if requestTask == nil { loadRequest() }
         } catch is CancellationError {
         } catch PleyError.signedOut {
             // The session says so, and sign-in shows.
@@ -448,6 +461,69 @@ public final class ItemModel: ObservableObject {
 
     /// Whether `change` names what the page shows: the item, its show or
     /// season, or one of the episodes listed.
+    // MARK: Requests
+
+    /// Reads what requests say of this movie or show, once the page is
+    /// read, while asking works or the account has requests: tried again
+    /// every 3 s, 4 times at most, while it fails or the server doesn't
+    /// know yet what may be asked for; then read again as its requests
+    /// change, and every 10 s while one moves.
+    public func loadRequest() {
+        requestTask?.cancel()
+        let wait = requestRetry
+        requestTask = Task { [weak self] in
+            // The page holds itself only while it reads: a page gone stops here.
+            var tries = 0
+            while !Task.isCancelled {
+                guard let settled = await self?.readRequest() else { return }
+                if settled || tries >= Self.requestRetries { break }
+                tries += 1
+                try? await Task.sleep(for: .seconds(wait))
+            }
+            while !Task.isCancelled, self?.requestBlock?.moving == true {
+                try? await Task.sleep(for: .seconds(RequestTimings.movingSeconds))
+                guard !Task.isCancelled else { return }
+                _ = await self?.readRequest()
+            }
+        }
+    }
+
+    /// One read; whether it settled (no need to try again).
+    private func readRequest() async -> Bool {
+        guard !noRequest, let item, item.kind == .movie || item.kind == .show else { return true }
+        let gate = app.requests.gate
+        guard let summary = gate.summary, gate.mayAsk || (summary.own > 0 && summary.yourRequests) else {
+            requestBlock = nil
+            return true
+        }
+        do {
+            guard let answer = try await app.requestsAPI().itemRequest(itemId) else {
+                noRequest = true
+                requestBlock = nil
+                return true
+            }
+            let now = Int(Date().timeIntervalSince1970)
+            requestBlock = ItemRequestBlock.of(answer, mayAsk: gate.mayAsk, manage: summary.manage, now: now)
+            return answer.askable != nil
+        } catch {
+            return false
+        }
+    }
+
+    private func followsRequest(_ change: RequestChange) -> Bool {
+        guard !change.isEmpty, !noRequest, let block = requestBlock else { return false }
+        return change.about(block.kind, tmdbId: block.tmdbId) || block.requestId.map(change.ids.contains) == true
+    }
+
+    private func loadRequestSoon() {
+        requestSoon?.cancel()
+        requestSoon = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(RequestTimings.changeDebounce))
+            guard !Task.isCancelled else { return }
+            self?.loadRequest()
+        }
+    }
+
     private func follows(_ change: ServerChange) -> Bool {
         if change.names(itemId, parent: item?.summary.parentId) { return true }
         if let show = item?.summary.grandparentId, change.parentIds.contains(show) { return true }

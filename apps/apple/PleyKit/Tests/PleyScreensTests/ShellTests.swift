@@ -221,10 +221,35 @@ import Testing
         var undone = 0
         shell.show("Removed Arrival") { undone += 1 }
         #expect(shell.toast?.text == "Removed Arrival")
-        shell.undoToast()
-        shell.undoToast()
+        shell.runToastAction()
+        shell.runToastAction()
         #expect(undone == 1)
         #expect(shell.toast == nil)
+    }
+
+    @Test func aToastCarriesItsOneButtonAndSaysAnError() {
+        let shell = ShellModel(settings: freshSettings(), tv: false)
+        var opened = 0
+        shell.show("“Arrival” is ready to watch.", action: ToastAction("Open") { opened += 1 })
+        #expect(shell.toast?.action?.label == "Open" && shell.toast?.action?.identifier == "toast.action")
+        #expect(shell.toast?.style == .plain)
+        shell.runToastAction()
+        #expect(opened == 1 && shell.toast == nil)
+        shell.show("TMDB isn't answering.", action: nil, error: true)
+        #expect(shell.toast?.style == .error && shell.toast?.action == nil)
+        // Undo keeps its own identifier.
+        shell.show("Removed Arrival") {}
+        #expect(shell.toast?.action?.identifier == "toast.undo")
+    }
+
+    @Test func theWayIntoRequestsCarriesItsNumberUntilAReset() {
+        let shell = ShellModel(settings: freshSettings(), tv: false)
+        #expect(shell.requestsEntry == .none)
+        let entry = RequestsEntry(discover: true, requests: true, manage: true, badge: 3, failed: 1)
+        shell.setRequestsEntry(entry)
+        #expect(shell.requestsEntry == entry && shell.requestsEntry.alarm && shell.requestsEntry.badgeText == "3")
+        shell.reset()
+        #expect(shell.requestsEntry == .none)
     }
 }
 

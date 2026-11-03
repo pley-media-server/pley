@@ -152,9 +152,9 @@ public final class SubtitleSearchModel: ObservableObject, Identifiable {
 
     private func failure(_ error: any Error) -> State {
         switch error as? PleyError {
-        case .notAvailable(_, setup: false)?:
+        case .notAvailable(_, _, setup: false)?:
             .notSetUp(Self.notSetUp, hint: admin ? Self.setUpHint : nil)
-        case .notAvailable(_, setup: true)?, .api(429, _, _)?:
+        case .notAvailable(_, _, setup: true)?, .api(429, _, _)?:
             .failed(Self.message(error), canRetry: false)
         case .api(404, _, _)?, .api(405, _, _)?:
             .failed("This server can't search for subtitles: it may need an update.", canRetry: false)

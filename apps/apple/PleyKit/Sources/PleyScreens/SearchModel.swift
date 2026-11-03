@@ -13,6 +13,10 @@ import PleyNetwork
 /// channels, then People: someone searching usually wants a title, as in
 /// every app. A query is kept among the profile's last 10 searches when
 /// it is submitted or one of its results is opened.
+///
+/// While asking for movies and shows works, TMDB is searched beside the
+/// libraries (never holding them up) for titles the libraries don't have:
+/// the Discover row after the results, with See all.
 @MainActor
 public final class SearchModel: ObservableObject {
     /// The groups results come in, in the order they show.
@@ -95,6 +99,20 @@ public final class SearchModel: ObservableObject {
     public static let limit = 40
     /// How many channels show.
     public nonisolated static let channels = 12
+    /// Titles the Discover row reads, at most, and the pages it reads for them.
+    public nonisolated static let discoverTitles = 12
+    public nonisolated static let discoverPages = 3
+
+    /// Search's Discover row.
+    public enum DiscoverRow: Hashable, Sendable {
+        /// Asking doesn't work here, or nothing is typed.
+        case hidden
+        case loading
+        /// TMDB's titles for the query; none: the row says nothing.
+        case ready(query: String, cards: [DiscoverCard])
+        /// TMDB couldn't be searched: why, with Retry.
+        case failed(ProblemWords)
+    }
 
     /// What is typed now, as the field shows it.
     @Published public var query = "" {
@@ -103,10 +121,15 @@ public final class SearchModel: ObservableObject {
     @Published public private(set) var state: State = .idle
     /// The profile's recent searches, newest first.
     @Published public private(set) var recent: [String] = []
+    /// TMDB's titles for the query, the libraries don't have.
+    @Published public private(set) var discover: DiscoverRow = .hidden
 
     public let app: AppModel
     private let wait: Duration
     private var asking: Task<Void, Never>?
+    private var discovering: Task<Void, Never>?
+    private var discoverTitles: [DiscoverTitle] = []
+    private var listeners: Set<AnyCancellable> = []
     /// The query asked for last, trimmed.
     private var asked = ""
     /// The query whose results show.
@@ -116,6 +139,34 @@ public final class SearchModel: ObservableObject {
         self.app = app
         wait = debounce
         loadRecent()
+        // Badges in the Discover row follow the changes to requests.
+        app.$change.dropFirst().compactMap { $0 }.sink { [weak self] change in
+            guard let self, !change.requests.isEmpty, !self.discoverTitles.isEmpty else { return }
+            Task { await self.patchDiscover(change.requests) }
+        }.store(in: &listeners)
+    }
+
+    /// Discover's card above the recent searches: requests are open to this account.
+    public var discoverEntry: Bool { app.shell.requestsEntry.discover }
+
+    /// The libraries found nothing, and the Discover row shows instead: "Nothing in your libraries matches".
+    public var nothingInLibraries: Bool {
+        guard case .empty = state else { return false }
+        return discover != .hidden
+    }
+
+    /// See all: every title TMDB finds for the query.
+    public var discoverAll: Screen? {
+        guard case .ready(let query, let cards) = discover, !cards.isEmpty else { return nil }
+        return .discoverResults(query: query)
+    }
+
+    /// Searches TMDB again, after it failed.
+    public func retryDiscover() {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        discovering?.cancel()
+        discovering = Task { [weak self] in await self?.searchDiscover(trimmed) }
     }
 
     /// `No results for "north"`.
@@ -194,6 +245,10 @@ public final class SearchModel: ObservableObject {
         if trimmed.isEmpty {
             asking?.cancel()
             asking = nil
+            discovering?.cancel()
+            discovering = nil
+            discoverTitles = []
+            discover = .hidden
             asked = ""
             shown = ""
             state = .idle
@@ -215,6 +270,53 @@ public final class SearchModel: ObservableObject {
             }
             await self?.fetch(text)
         }
+        discovering?.cancel()
+        discovering = Task { [weak self] in
+            if delay > .zero {
+                try? await Task.sleep(for: delay)
+                guard !Task.isCancelled else { return }
+            }
+            await self?.searchDiscover(text)
+        }
+    }
+
+    /// TMDB's titles for `text` the libraries don't have, page by page
+    /// until a row's worth. A failure with titles already found keeps them.
+    private func searchDiscover(_ text: String) async {
+        guard app.requests.gate.mayAsk else {
+            discover = .hidden
+            return
+        }
+        if discoverTitles.isEmpty { discover = .loading }
+        var pages = TitlePages()
+        var read = 0
+        while pages.more && pages.titles.count < Self.discoverTitles && read < Self.discoverPages {
+            do {
+                let answer = try await app.requestsAPI().discoverSearch(text, page: pages.page + 1, missing: true)
+                guard !Task.isCancelled, text == asked else { return }
+                pages = pages.with(answer)
+                read += 1
+            } catch {
+                guard !Task.isCancelled, text == asked, !(error is CancellationError) else { return }
+                if pages.titles.isEmpty {
+                    discoverTitles = []
+                    let problem = RequestProblem.of(error)
+                    discover = .failed(problem.words(manage: false, summary: app.requests.summary,
+                                                     failure: RequestWords.searchFailed))
+                    return
+                }
+                break
+            }
+        }
+        discoverTitles = Array(pages.titles.prefix(Self.discoverTitles))
+        discover = .ready(query: text, cards: discoverTitles.map(DiscoverCard.init))
+    }
+
+    private func patchDiscover(_ change: RequestChange) async {
+        guard case .ready(let query, _) = discover,
+              let patch = await app.patchFor(change, shown: discoverTitles) else { return }
+        discoverTitles = discoverTitles.map(patch)
+        discover = .ready(query: query, cards: discoverTitles.map(DiscoverCard.init))
     }
 
     private func fetch(_ text: String) async {
