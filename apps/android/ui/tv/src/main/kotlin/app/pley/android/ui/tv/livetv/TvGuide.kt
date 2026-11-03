@@ -396,7 +396,8 @@ private fun Focused(channel: LiveChannel?, name: String?, program: LiveProgram?,
                 }
             }
             BasicText(meta.joinToString("  ·  "), style = PleyType.Tv.Label.copy(color = PleyColors.Muted), maxLines = 1, modifier = Modifier.padding(top = 2.dp))
-            val text = program?.let { p -> listOfNotNull(p.subtitle, p.description).joinToString(" — ").ifEmpty { null } }
+            // Cut to what the two lines can show: laid out whole at every move, a long one held each.
+            val text = remember(program) { program?.let { p -> listOfNotNull(p.subtitle, p.description).joinToString(" — ").ifEmpty { null }?.let(::shortened) } }
             if (text != null) {
                 BasicText(
                     text,

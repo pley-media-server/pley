@@ -42,6 +42,8 @@ describes how they are made.
   passes, its focused row a third of the way down.
 - Info on a channel's tile on Live TV's page on TVs opens its details, as
   it does in the guide and on Samsung TVs.
+- A programme with a long description no longer holds each move along a
+  row of the TV guide: what shows over the grid is cut to its two lines.
 
 ### Fixed
 

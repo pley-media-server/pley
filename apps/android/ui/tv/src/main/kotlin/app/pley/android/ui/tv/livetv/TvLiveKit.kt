@@ -56,6 +56,24 @@ internal fun timeLeft(program: LiveProgram, now: Long): String {
     }
 }
 
+/**
+ * [text] cut at a word to a little more than the guide's two lines over
+ * the grid hold, ended with "…" (Samsung's): a text is laid out whole
+ * before its last line is ended with "…", and a provider's description can
+ * run to pages, which held each move along a row 20 to 40 ms on a TV.
+ */
+internal fun shortened(text: String, chars: Int = DESCRIPTION_CHARS): String {
+    if (text.length <= chars) return text
+    val space = text.lastIndexOf(' ', chars)
+    var end = if (space > chars / 2) space else chars
+    // Not between the two halves of a character outside the BMP (an emoji).
+    if (text[end - 1].isHighSurrogate()) end--
+    return text.substring(0, end) + "…"
+}
+
+/** Three lines' worth of the guide's text over the grid, past which nothing shows. */
+internal const val DESCRIPTION_CHARS = 240
+
 /** "Today", "Tomorrow", "Yesterday", or the date as the device writes it. */
 @Composable
 internal fun dayOf(seconds: Long, now: Long): String {
