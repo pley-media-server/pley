@@ -44,6 +44,8 @@ describes how they are made.
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
   left on has a PIN, the start asks "Who's watching?".
+- On TVs, the player's Info shows the playback's details as soon as the
+  server sends them, rather than "Asking the server…" for up to a second.
 
 ## [0.1.3] - 2026-11-02
 

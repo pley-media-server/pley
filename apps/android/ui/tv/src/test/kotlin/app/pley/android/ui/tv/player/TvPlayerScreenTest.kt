@@ -587,6 +587,20 @@ class TvPlayerScreenTest {
     }
 
     @Test
+    fun `Info shows the playback's details as soon as they come, not a second later`() {
+        val controller = playing()
+        show(controller)
+        toSubtitles()
+        press(Key.DirectionRight, times = 2)
+        press(Key.DirectionCenter)
+        compose.onNodeWithText("Asking the server…").assertExists()
+        controller.update { it.copy(details = FakePlaybackController.everything().details) }
+        compose.mainClock.advanceTimeBy(100)
+        compose.waitForIdle()
+        compose.onNodeWithText("Asking the server…").assertDoesNotExist()
+    }
+
+    @Test
     fun `Skip takes focus while its marker runs and Centre skips`() {
         val controller = playing {
             it.copy(
