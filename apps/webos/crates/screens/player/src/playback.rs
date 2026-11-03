@@ -24,8 +24,10 @@ pub trait Playback {
     fn wants_to_play(&self) -> bool;
     /// The seek preview for a target.
     fn seek_preview(&self, target_ms: i64) -> Option<SeekPreview>;
-    /// What the TV's player says of itself, for Playback details.
+    /// What the TV's player says of itself, and the network's speed, for Info.
     fn engine_stats(&self) -> EngineStats;
+    /// What the TV's player says of itself, for Playback details' readout (no network speed).
+    fn readout_stats(&self) -> EngineStats;
     /// A server event (a session stopped elsewhere).
     fn server_event(&mut self, event: &ServerEvent);
     /// Plays (after the end: again from the start).
@@ -103,6 +105,10 @@ impl Playback for PlaybackController {
 
     fn engine_stats(&self) -> EngineStats {
         PlaybackController::engine_stats(self)
+    }
+
+    fn readout_stats(&self) -> EngineStats {
+        PlaybackController::readout_stats(self)
     }
 
     fn server_event(&mut self, event: &ServerEvent) {

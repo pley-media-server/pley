@@ -731,9 +731,15 @@ impl PlaybackController {
         self.presenter.shown()
     }
 
-    /// What the engine says of itself, and the TV's network speed, for Info and the readout.
+    /// What the engine says of itself, and the TV's network speed, for Info.
     pub fn engine_stats(&self) -> EngineStats {
         EngineStats { network_bps: self.engine.network_bps(), ..self.engine.stats() }
+    }
+
+    /// What the engine says of itself, for Playback details' readout: it shows no network speed,
+    /// which on LG means reading a file.
+    pub fn readout_stats(&self) -> EngineStats {
+        self.engine.stats()
     }
 
     /// Whether the player means to play (play/pause shows the other).

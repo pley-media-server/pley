@@ -450,6 +450,9 @@ fn the_tvs_network_speed_is_read_for_info_alone_not_all_through_playback() {
     w.drop_frames(10, 0);
     // The frames are sampled every 2 s; LG's network speed reads a file, so they leave it.
     assert_eq!(w.sim.network_asks(), 0);
+    // Nor does Playback details' readout, which shows no network speed.
+    let _ = w.c.readout_stats();
+    assert_eq!(w.sim.network_asks(), 0);
     let _ = w.c.engine_stats();
     assert_eq!(w.sim.network_asks(), 1);
 }

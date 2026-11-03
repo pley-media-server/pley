@@ -963,7 +963,7 @@ impl PlayerView {
 
         let readout = env.settings.playback_details && !self.controls && self.panel.is_none() && !card && !error;
         if readout {
-            overlays::readout(ui, &panels::readout_lines(s, &p.engine_stats()));
+            overlays::readout(ui, &panels::readout_lines(s, &p.readout_stats()));
             ui.repaint_after(1.0);
         }
         let details = readout || self.panel == Some(Panel::Info);

@@ -155,6 +155,10 @@ impl Playback for Fake {
         self.stats.clone()
     }
 
+    fn readout_stats(&self) -> EngineStats {
+        self.stats.clone()
+    }
+
     fn server_event(&mut self, _event: &ServerEvent) {}
 
     fn play(&mut self) {

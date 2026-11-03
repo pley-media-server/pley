@@ -16,6 +16,9 @@ use std::path::{Path, PathBuf};
 pub const WINDOW_MS: u64 = 10_000;
 /// Readings closer together than this are left out: a second's rate from less is noise.
 pub const EVERY_MS: u64 = 900;
+/// A reading this long after the last gives no rate: it would be the average of a time nothing
+/// asked (Info closed), not a second's.
+pub const GAP_MS: u64 = 3_000;
 /// Where Linux lists what each network interface has received and sent.
 pub const PROC_NET_DEV: &str = "/proc/net/dev";
 /// The most of the file read: a TV's is well under 2 KB.
@@ -39,8 +42,9 @@ impl NetworkMeter {
             if at_ms < then || at_ms - then < EVERY_MS {
                 return;
             }
-            // A counter that went back (an interface come again) starts over from here.
-            if received >= before {
+            // A counter that went back (an interface come again), or a reading after a gap, starts
+            // over from here.
+            if received >= before && at_ms - then <= GAP_MS {
                 let bps = (received - before) as f64 * 8_000.0 / (at_ms - then) as f64;
                 self.rates.push_back((at_ms, bps as u64));
             }
@@ -163,6 +167,11 @@ mod tests {
         assert_eq!(m.bps(), Some(8_000_000));
         m.add(3_000, 4_000_100);
         assert_eq!(m.bps(), Some(32_000_000));
+        // Info closed for a minute: the bytes since are no second's rate, and the next one counts.
+        m.add(63_000, 64_000_100);
+        assert_eq!(m.bps(), None);
+        m.add(64_000, 66_000_100);
+        assert_eq!(m.bps(), Some(16_000_000));
     }
 
     #[test]
