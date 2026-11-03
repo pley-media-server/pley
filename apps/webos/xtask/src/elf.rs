@@ -69,8 +69,9 @@ pub struct Facts {
 /// Checks the TV binary: an EABI version 5, soft-float, ARMv7 executable that needs only
 /// glibc's libraries at versions webOS 4.0 has, takes libm's functions from glibc, carries
 /// none of the toolchain's polyfill, names none of `private_paths` (the build machine's
-/// folders, which `--remap-path-prefix` replaces) and fits the size budget. The binary must
-/// still have its symbol table: `cargo xtask build` keeps it, and `ipk` strips the copy it packs.
+/// folders, which `--remap-path-prefix` replaces) outside the assembler's file symbols, and
+/// fits the size budget. The binary must still have its symbol table: `cargo xtask build`
+/// keeps it, and `ipk` strips the copy it packs.
 pub fn check(data: &[u8], private_paths: &[String], budget: u64) -> Result<(Facts, Vec<String>)> {
     let header = FileHeader32::<Endianness>::parse(data).map_err(|_| "not a 32-bit ELF file")?;
     let endian = header.endian()?;
@@ -155,11 +156,18 @@ pub fn check(data: &[u8], private_paths: &[String], budget: u64) -> Result<(Fact
     }
 
     let symbols = sections.symbols(endian, data, elf::SHT_SYMTAB)?;
+    // Where each file symbol's name is in the file.
+    let mut file_names = Vec::new();
     if symbols.is_empty() {
         wrong.push("stripped: the check reads the symbol table (check `cargo xtask build`'s binary)".to_owned());
     } else {
+        let names_at = sections.section(symbols.string_section())?.sh_offset(endian) as usize;
         for symbol in symbols.iter() {
             let name = symbols.symbol_name(endian, symbol).unwrap_or_default();
+            if symbol.st_type() == elf::STT_FILE {
+                let at = names_at + symbol.st_name(endian) as usize;
+                file_names.push(at..at + name.len());
+            }
             let Ok(name) = std::str::from_utf8(name) else { continue };
             let defined = symbol.st_shndx(endian) != elf::SHN_UNDEF;
             if defined && symbol.st_type() == elf::STT_FUNC && LIBM_NAMES.contains(&name) {
@@ -173,9 +181,21 @@ pub fn check(data: &[u8], private_paths: &[String], budget: u64) -> Result<(Fact
         }
     }
 
+    // The assembler names each `.S` file it assembles (ring's, under rustls) by the path the
+    // build gave it, in a file symbol that --remap-path-prefix doesn't reach. Those go with the
+    // rest of the symbol table when `ipk` strips the binary, so the search leaves them out.
+    let mut searched = data.to_vec();
+    for range in file_names {
+        if let Some(name) = searched.get_mut(range) {
+            name.fill(0);
+        }
+    }
     for path in private_paths.iter().filter(|p| p.len() > 3) {
-        if contains(data, path.as_bytes()) {
-            wrong.push(format!("names the build machine's {path} (pass --remap-path-prefix)"));
+        if let Some(at) = find(&searched, path.as_bytes()) {
+            wrong.push(format!(
+                "names the build machine's {path} (pass --remap-path-prefix): {}",
+                text_around(&searched, at)
+            ));
         }
     }
 
@@ -203,8 +223,20 @@ fn glibc_version(text: &str) -> Option<(u32, u32)> {
     Some((major, minor))
 }
 
-fn contains(haystack: &[u8], needle: &[u8]) -> bool {
-    !needle.is_empty() && haystack.windows(needle.len()).any(|w| w == needle)
+fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    if needle.is_empty() {
+        return None;
+    }
+    haystack.windows(needle.len()).position(|w| w == needle)
+}
+
+/// The string that `at` is in: from the NUL before it to the NUL after, 200 bytes each way at most.
+fn text_around(data: &[u8], at: usize) -> String {
+    let from = at.saturating_sub(200);
+    let start = data[from..at].iter().rposition(|&b| b == 0).map_or(from, |i| from + i + 1);
+    let to = (at + 200).min(data.len());
+    let end = data[at..to].iter().position(|&b| b == 0).map_or(to, |i| at + i);
+    String::from_utf8_lossy(&data[start..end]).into_owned()
 }
 
 /// The two build attributes the check reads.
@@ -603,8 +635,17 @@ mod tests {
 
     #[test]
     fn build_machine_paths_and_size_fail() {
-        let elf = TestElf { rodata: b"/home/runner/.cargo/registry/src/x.rs\0".to_vec(), ..TestElf::default() };
-        assert!(problems(&elf).iter().any(|w| w.contains("/home/runner")));
+        let elf = TestElf { rodata: b"\0/home/runner/.cargo/registry/src/x.rs\0".to_vec(), ..TestElf::default() };
+        assert_eq!(
+            problems(&elf),
+            [
+                "names the build machine's /home/runner (pass --remap-path-prefix): /home/runner/.cargo/registry/src/x.rs"
+            ]
+        );
+        // An assembler's file symbol isn't remapped, and goes when `ipk` strips the binary.
+        let mut elf = TestElf::default();
+        elf.symbols.push(("/home/runner/.cargo/registry/src/ring/x.S", true, elf::STT_FILE));
+        assert_eq!(problems(&elf), Vec::<String>::new());
         let data = TestElf::default().build();
         let (_, wrong) = check(&data, &[], 100).unwrap();
         assert!(wrong.iter().any(|w| w.contains("over the budget of 100")), "{wrong:?}");
