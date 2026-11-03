@@ -232,8 +232,10 @@ other apps (`pley_ct_…`), never with a session's
   a path must be its own.
 - A token may be limited to addresses and networks (or the home network).
   From elsewhere it is refused as if it didn't exist; the address is the
-  connection's, or a proxy's on this computer or its network
-  (`X-Forwarded-For`), never one a client on the internet chooses.
+  connection's, or the one a proxy on this computer or its network names
+  (`X-Forwarded-For`). A proxy that passes the header on without adding
+  the client's address (or forwards bare TCP) lets the client choose it,
+  so the limit holds only behind proxies that add it.
 - On Pley's port, only requests that name themselves an API's (its headers
   or token) or paths it alone has reach it; `/api/…` never does. Answers
   are never pages (a sandboxing `Content-Security-Policy`, `nosniff`, no

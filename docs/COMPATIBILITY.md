@@ -110,11 +110,12 @@ Tailscale's addresses). Without any, it works from anywhere. Up to 16.
 Used from elsewhere, it is refused (`401`) as if it didn't exist, and that
 use isn't listed as its last. The address is the one Pley's sign-in limits
 go by: the other end of the connection, or the client a proxy on this
-computer or its network names (`X-Forwarded-For`), which nobody on the
-internet can choose. The addresses a token hands out in its stead (a
-stream's segments, a Jellyfin media source) follow its origins too. A tool
-on a server of its own does well with that server's address, and one on
-the home network with `local`.
+computer or its network names (`X-Forwarded-For`). Behind a proxy, the
+limit holds only if the proxy adds the client's address to that header
+([deploy](../deploy/README.md#firewall-and-remote-access)). The addresses a
+token hands out in its stead (a stream's segments, a Jellyfin media source)
+follow its origins too. A tool on a server of its own does well with that
+server's address, and one on the home network with `local`.
 
 ### Where they work
 
@@ -376,17 +377,16 @@ does:
   applied: the critic and audience ratings (Pley shows TMDB's), cast and
   crew, countries and other tags, added dates and editions.
 - Posters and backgrounds: `POST /library/metadata/{id}/posters` (or
-  `/arts`) with the picture as the body (25 MB at most, re-encoded without
-  the file's metadata but Kometa's overlay mark, so Kometa still knows a
-  poster it drew on), or `?url=` and `PUT /library/metadata/{id}/poster?url=`
-  (or `/art`) with a picture's HTTPS address on one of the hosts Pley takes
-  pictures from: TMDB, TheTVDB, TVmaze, the Cover Art Archive, fanart.tv
-  (`assets.fanart.tv`), ThePosterDB and GitHub's raw files
+  `/arts`) with the picture as the body, or `?url=` and
+  `PUT /library/metadata/{id}/poster?url=` (or `/art`) with an HTTPS address
+  on TMDB, TheTVDB, TVmaze, the Cover Art Archive, fanart.tv
+  (`assets.fanart.tv`), ThePosterDB or GitHub's raw files
   (`raw.githubusercontent.com`, where Kometa's own images are). Other
-  addresses are refused (`400`): the server doesn't fetch arbitrary ones,
-  which could lead into its own network. Upload the file instead. A
-  collection's key sets the collection's; a playlist's answers `400`, as a
-  playlist shows its first entry's picture. An episode's poster is its
+  addresses answer `400`, so the server is never sent into its own network.
+  Either way the picture (25 MB at most) is re-encoded, keeping none of the
+  file's metadata but Kometa's overlay mark. A collection's key sets the
+  collection's; a playlist's answers `400`, as a playlist shows its first
+  entry's picture. An episode's poster is its
   still, as Plex shows it. Pley keeps one picture of each kind, the one
   shown: `PUT …/poster?url=` with the name `/posters` lists
   (`python-plexapi`'s `setPoster()`) changes nothing, and with a name it no
@@ -478,33 +478,9 @@ names only those.
 ### Tested
 
 The server's tests (`apps/server/tests/plex*.rs`, `compatibility_tokens.rs`
-and the playback tests that go through this API), and with
-`python-plexapi` 4.18 against the test media:
-
-- connecting, the library and its sections, `all()`, `get()`, `search()` with
-  title, `unwatched`, year, sort and paging, `recentlyAdded()`,
-  `listSorts()` and `listFilterChoices()`;
-- item details: media, parts, streams, guids, genres, `reload()`;
-- shows (`seasons()`, `episodes()`, `episode(season=, episode=)`, `onDeck()`),
-  music (`albums()`, `tracks()`, `album()`, `artist()`);
-- `markPlayed()` and `markUnplayed()`, `updateProgress()`, `updateTimeline()`;
-- `server.search()`, `library.search()`, `onDeck()`, hubs, `continueWatching()`;
-- `systemAccounts()`, `account()`, `clients()`, `playlists()`, `history()`,
-  `totalDuration` and `totalStorage`;
-- `getStreamURL()` with the playlist and segments it leads to, direct-play
-  range requests, `sessions()` and `transcodeSessions()`;
-- a non-administrator only sees their own sessions and accounts and cannot
-  refresh libraries;
-- `editTitle()`, `editSummary()` and their `locked` argument, `fields`,
-  `addGenre()`/`removeGenre()`, `addLabel()`/`removeLabel()`,
-  `search(label=…)`, `listFilterChoices('label')`, `addCollection()`,
-  `collections()` and `uploadPoster()`;
-- collections' `editSummary()`, `editSortTitle()`, `uploadPoster()`,
-  `createCollection()` (also `smart=True`), `filters()`, `updateFilters()`,
-  `removeItems()` and `delete()`; `createPlaylist(smart=True)`;
-- play queues: `PlayQueue.create()` (from items, a section listing or a
-  playlist, with `continuous`), `get()`, `addItem(playNext=True)`,
-  `moveItem()`, `removeItem()` and `clear()`.
+and the playback tests that go through this API), and `python-plexapi` 4.18
+against test media: browsing, searching and filtering, watch state,
+playback and sessions, editing, collections, playlists and play queues.
 
 ### Not supported
 
