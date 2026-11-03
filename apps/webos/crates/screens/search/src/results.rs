@@ -16,11 +16,10 @@ use pley_core::requests::{Tone, add_titles, title_badge, title_subtitle, title_t
 use pley_kit::TileKind;
 use pley_shell::Route;
 
-/// The rows results come in, in the order they show: People, Live TV, then each kind of title.
+/// The rows results come in, in the order they show: each kind of title, then Live TV, then
+/// People.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Group {
-    People,
-    Live,
     Movies,
     Shows,
     Seasons,
@@ -28,13 +27,14 @@ pub enum Group {
     Artists,
     Albums,
     Tracks,
+    Live,
+    People,
 }
 
 impl Group {
-    /// Every group, in the page's order (Live TV's row after People, as on the web).
+    /// Every group, in the page's order: the titles (movies, shows and episodes before music),
+    /// then Live TV, then People, as in the Samsung, Android TV and web apps.
     pub const ALL: [Group; 9] = [
-        Group::People,
-        Group::Live,
         Group::Movies,
         Group::Shows,
         Group::Seasons,
@@ -42,6 +42,8 @@ impl Group {
         Group::Artists,
         Group::Albums,
         Group::Tracks,
+        Group::Live,
+        Group::People,
     ];
 
     /// The row's header (`strings_tv_search.xml`).
@@ -193,13 +195,13 @@ impl Found {
     /// The rows to show, in order.
     pub fn groups(&self) -> Vec<Group> {
         let mut out = Vec::with_capacity(self.titles.len() + 2);
-        if !self.people.is_empty() {
-            out.push(Group::People);
-        }
+        out.extend(self.titles.iter().map(|(g, _)| *g));
         if !self.channels.is_empty() {
             out.push(Group::Live);
         }
-        out.extend(self.titles.iter().map(|(g, _)| *g));
+        if !self.people.is_empty() {
+            out.push(Group::People);
+        }
         out
     }
 
@@ -448,7 +450,7 @@ mod tests {
         let found = Found::new(results, &resolve);
         assert_eq!(
             found.groups(),
-            [Group::People, Group::Live, Group::Movies, Group::Episodes, Group::Artists, Group::Tracks]
+            [Group::Movies, Group::Episodes, Group::Artists, Group::Tracks, Group::Live, Group::People]
         );
         let movies: Vec<i64> = found.tiles(Group::Movies).iter().map(|t| t.id).collect();
         assert_eq!(movies, [2, 5], "the server's order inside a group");

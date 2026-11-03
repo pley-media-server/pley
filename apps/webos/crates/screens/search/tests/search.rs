@@ -209,10 +209,10 @@ fn what_is_typed_is_asked_once_typing_pauses_and_shows_in_rows() {
     let mut app = App::new();
     app.press(Key::Ok);
     app.type_text("ma");
-    assert!(!app.says("People"), "not before typing pauses");
+    assert!(!app.says("Movies"), "not before typing pauses");
     assert!(app.says(EMPTY_TITLE));
-    app.shows("People");
-    assert!(app.says("Movies") && app.says("Live TV"));
+    app.shows("Movies");
+    assert!(!app.says("People"), "people come after the titles and Live TV, below the screen");
     assert!(!app.says(SEARCHING));
     assert!(app.typing(), "results come in while the keyboard shows");
 }
@@ -222,7 +222,7 @@ fn down_from_the_field_goes_to_the_first_row_and_up_comes_back() {
     let mut app = App::new();
     // Typed on a keyboard plugged into the TV, with the field focused.
     app.type_text("ma");
-    app.shows("People");
+    app.shows("Movies");
     assert_eq!(app.focused(), Some(app.field()));
     app.press(Key::Down);
     let first = app.focused().unwrap();
@@ -246,15 +246,15 @@ fn down_from_the_field_goes_to_the_first_row_and_up_comes_back() {
 fn opening_a_result_keeps_the_query_and_back_returns_to_the_results() {
     let mut app = App::new();
     app.type_text("ma");
-    app.shows("People");
+    app.shows("Movies");
     assert!(app.recent().is_empty());
     app.press(Key::Down);
     app.press(Key::Ok);
-    assert!(matches!(app.top(), Route::Person { .. }), "opened {:?}", app.top());
+    assert!(matches!(app.top(), Route::Item { .. }), "opened {:?}", app.top());
     assert!(app.kept(&["ma"]));
     app.press(Key::Back);
     assert!(matches!(app.top(), Route::Search { .. }));
-    assert!(app.says("People"), "the results are still there");
+    assert!(app.says("Movies"), "the results are still there");
 }
 
 #[test]
@@ -262,9 +262,7 @@ fn holding_ok_on_a_title_opens_its_actions() {
     let mut app = App::new();
     app.type_text("ma");
     app.shows("Movies");
-    // People, Live TV, then the movies.
-    app.press(Key::Down);
-    app.press(Key::Down);
+    // The movies first, before Live TV and People.
     app.press(Key::Down);
     app.press(Key::Menu);
     assert!(matches!(app.top(), Route::ItemActions { continue_watching: false, .. }), "opened {:?}", app.top());
@@ -309,7 +307,7 @@ fn search_on_the_keyboard_keeps_the_query_and_recent_searches_show_with_nothing_
     }
     assert!(!app.typing());
     assert!(app.kept(&["ma", "zzqx"]));
-    app.shows("People");
+    app.shows("Movies");
     assert_eq!(app.focused(), Some(app.field()));
 
     // Emptied, the field shows them again; a chip searches again and focus waits on the field.
@@ -353,7 +351,7 @@ fn a_failure_offers_retry_below_the_field() {
     assert_ne!(app.focused(), Some(app.field()));
     app.server.set_mode(Mode::Normal).unwrap();
     app.press(Key::Ok);
-    app.shows("People");
+    app.shows("Movies");
     assert_eq!(app.focused(), Some(app.field()));
 }
 
@@ -362,7 +360,7 @@ fn a_search_opened_with_a_query_asks_it_at_once() {
     let mut app = App::new();
     app.shell.navigate(NavCommand::Reset(Route::Search { query: "ma".into() }), &mut app.state, &mut app.ui);
     app.frame(Vec::new());
-    assert!(app.until(|a| a.says("People")));
+    assert!(app.until(|a| a.says("Movies")));
 }
 
 #[test]
@@ -420,17 +418,17 @@ fn without_requests_nothing_found_says_so_alone() {
 fn the_results_stay_when_asking_them_again_fails() {
     let mut app = App::new();
     app.type_text("ma");
-    app.shows("People");
+    app.shows("Movies");
     app.press(Key::Down);
     app.press(Key::Right);
     let tile = app.focused();
     app.press(Key::Ok);
-    assert!(matches!(app.top(), Route::Person { .. }), "opened {:?}", app.top());
+    assert!(matches!(app.top(), Route::Item { .. }), "opened {:?}", app.top());
     // Back after more than 30 s with the server gone: the results are asked again, and fail.
     app.server.set_mode(Mode::Down).unwrap();
     app.advance(31.0);
     app.press(Key::Back);
     assert!(app.until(|a| a.state.offline() && !a.says(SEARCHING)), "never asked again");
-    assert!(app.says("People") && !app.says(CANT_REACH), "the results stay");
+    assert!(app.says("Movies") && !app.says(CANT_REACH), "the results stay");
     assert_eq!(app.focused(), tile, "on the tile it had");
 }

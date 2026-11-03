@@ -68,6 +68,8 @@ describes how they are made.
   Live TV's guide and cards. Down on a grid's last row stays.
 - The rail opens as in the Samsung app: its panel widens out of the closed
   rail as it fades in, and the labels slide in beside the icons.
+- Search shows movies, shows and episodes first, then music, then Live
+  TV, then people, as the other apps do.
 
 ### Removed
 
