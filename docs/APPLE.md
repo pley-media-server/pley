@@ -1624,8 +1624,11 @@ apps/apple/scripts/check-screens.sh
 ```
 
 It builds the server, makes the screens' media
-(`make-test-media.sh --screens`), starts a disposable server as the other
-checks do, and gives it a household and libraries: the administrator
+(`make-test-media.sh --screens`) and builds the UI tests once
+(`xcodebuild build-for-testing`). Then every simulator walks at the same
+time, each against a disposable server of its own, started as the other
+checks do, so one walk's playlists, sessions and Live TV connection never
+meet another's. Each server gets a household and libraries: the administrator
 "Admin" and the managed profile Kids, each with a random PIN, and Movies,
 Shows, Clips and Music, and once they are scanned the collection "Test
 collection" of two movies. It starts `live-source.sh` on 127.0.0.1 and
@@ -1635,14 +1638,16 @@ of four channels in three groups (H.264, MPEG-2, 720p50 and a radio
 station, each with a logo), an XMLTV guide of half-hour programmes, and
 live HLS from FFmpeg's test pictures and tones, served until it is
 stopped. Playlists the walk makes are deleted, by
-title, before and after it, since each simulator walks the same server.
+title, before and after it.
 It boots each simulator afresh, removes the app from it and empties the
-simulator's Keychain, which outlives the app, so the walk starts at the
-servers; a lock per simulator keeps two runs of the script off the same
-one. It runs `PleyUITests` on iPhone 17 and iPad (A16)
+simulator's Keychain, which outlives the app, so the first test starts at
+the servers; the tests after it keep that sign-in rather than sign in
+again, and only the sign-in walk, and those that check what signing out
+does, sign out. A lock per simulator keeps two runs of the script off the
+same one. It runs `PleyUITests` on iPhone 17 and iPad (A16)
 (turned to landscape, where the sidebar shows) and `PleyTVUITests` on Apple
-TV 4K (4th generation), and stops the server and deletes its folder
-afterwards. `PLEY_IOS_SIMS` (names separated by `;`) and `PLEY_TV_SIM` name
+TV 4K (4th generation) with `xcodebuild test-without-building`, and stops
+the servers and deletes their folders afterwards. `PLEY_IOS_SIMS` (names separated by `;`) and `PLEY_TV_SIM` name
 other simulators, `PLEY_SHOTS` a folder for the walk's screenshots, and
 `PLEY_SCREENS_LOGS` a folder for the logs of a simulator that failed, and
 `PLEY_UI_TESTS` (names separated by `;`, such as `testMusic;testLiveTv`) the
@@ -1654,10 +1659,28 @@ last 40 log lines, with addresses, tokens and codes left out. The server's
 address reaches the tests as a `TEST_RUNNER_` variable; the
 administrator's token and the PINs are in a file only its owner reads
 (`PLEY_SECRETS_FILE`), never in the environment, and go with the
-temporary folder. Nothing the script prints holds them. Sign out is
+server's folder (a quick run's, when it is stopped). Nothing the script
+prints holds them. Sign out is
 checked on the server too: the app's grant leaves the administrator's
 signed-in apps (`GET /api/users/{id}/apps`). Run without the script, the
 UI tests skip.
+
+For work on one test or one screen, `PLEY_SCREENS_QUICK=1` makes a run
+quick to repeat. It keeps each simulator's server, with its household,
+media and Live TV source, and the booted simulator with the app signed in,
+for the next quick run; it starts a kept server again when the server's
+binary changed, and empties the simulator only when its server is new. A
+failed test isn't run again. With `PLEY_UI_TESTS` and one simulator, a run
+after the first is the app's build and the test itself:
+
+```sh
+PLEY_SCREENS_QUICK=1 PLEY_IOS_SIMS="iPhone 17" PLEY_TV_SIM= PLEY_UI_TESTS=testLiveTv \
+  apps/apple/scripts/check-screens.sh
+```
+
+The kept servers run on 127.0.0.1 until `PLEY_SCREENS_QUICK=stop
+apps/apple/scripts/check-screens.sh` stops them. A full run, without
+`PLEY_SCREENS_QUICK`, is the check before a pull request.
 
 ## Code layout
 
