@@ -62,6 +62,40 @@ const LEVEL_ONE = new Set<number>([0x114d9b74, ID.Info, ID.Tracks, ID.Cluster, 0
 
 const SUBTITLE_TRACK = 0x11;
 
+/**
+ * The samples read of a track: a film's subtitles have a few thousand, a
+ * day's broadcast tens of thousands. A crafted file of tiny blocks could
+ * hold millions, each kept as an object many times its size.
+ */
+export const MAX_SAMPLES = 100_000;
+
+/**
+ * A sample's bytes at most, and a track's: a display set is a few KiB to
+ * a MiB, and the server extracts a track up to 512 MiB.
+ */
+export const MAX_SAMPLE_BYTES = 16 << 20;
+export const MAX_TRACK_BYTES = 512 << 20;
+
+/**
+ * How deep elements are read: the deepest this reader needs is 6 (a
+ * track's compression), and a crafted file nesting thousands deep would
+ * run the stack out.
+ */
+const MAX_DEPTH = 8;
+
+/** The tracks read: the server's files have one. */
+const MAX_TRACKS = 64;
+
+/** A track's private data read: a VobSub index's header is a KiB or two. */
+const MAX_PRIVATE_BYTES = 64 << 10;
+
+/**
+ * The bytes stripped from every frame, at most (ContentCompAlgo 3): a few
+ * in practice. More is taken for compression this reader can't undo, as
+ * each sample gets a copy.
+ */
+const MAX_STRIPPED_BYTES = 1024;
+
 export class MatroskaError extends Error {
   constructor(message: string) {
     super(message);
@@ -101,14 +135,23 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
   let groupBlock: { track: number; time: number; data: Uint8Array } | null = null;
   let groupDuration: number | null = null;
 
+  let rawBytes = 0;
+  /** Keeps a block within a sample's bytes, and the track's samples and bytes. */
+  const keep = (b: { track: number; time: number; data: Uint8Array }, duration: number | null) => {
+    const size = b.data.length;
+    if (size > MAX_SAMPLE_BYTES || raw.length >= MAX_SAMPLES || rawBytes + size > MAX_TRACK_BYTES) return;
+    raw.push({ ...b, duration });
+    rawBytes += size;
+  };
+
   const endGroup = () => {
-    if (groupBlock) raw.push({ ...groupBlock, duration: groupDuration });
+    if (groupBlock) keep(groupBlock, groupDuration);
     groupBlock = null;
     groupDuration = null;
   };
 
-  /** Reads the elements from `start` to `end`; where it stopped (an unknown-size cluster ends at the next level-1 element). */
-  const walk = (start: number, end: number, unknownSize: boolean): number => {
+  /** Reads the elements from `start` to `end`, `depth` deep; where it stopped (an unknown-size cluster ends at the next level-1 element). */
+  const walk = (start: number, end: number, unknownSize: boolean, depth: number): number => {
     let at = start;
     while (at < end) {
       const el = r.element(at, end);
@@ -128,8 +171,10 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
       }
       let next = el.size === null ? end : el.dataStart + el.size;
       if (MASTERS.has(el.id)) {
-        const stopped = walk(el.dataStart, dataEnd, el.size === null && el.id !== ID.Segment);
-        if (el.size === null) next = stopped;
+        if (depth < MAX_DEPTH) {
+          const stopped = walk(el.dataStart, dataEnd, el.size === null && el.id !== ID.Segment, depth + 1);
+          if (el.size === null) next = stopped;
+        }
       } else {
         const body = bytes.subarray(el.dataStart, dataEnd);
         switch (el.id) {
@@ -146,7 +191,7 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
             if (track) track.codecId = ascii(body);
             break;
           case ID.CodecPrivate:
-            if (track) track.codecPrivate = body.slice();
+            if (track) track.codecPrivate = body.slice(0, MAX_PRIVATE_BYTES);
             break;
           case ID.ContentCompAlgo:
             compAlgo = uint(body);
@@ -159,7 +204,7 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
             break;
           case ID.SimpleBlock: {
             const b = block(body, clusterTime);
-            if (b) raw.push({ ...b, duration: null });
+            if (b) keep(b, null);
             break;
           }
           case ID.Block:
@@ -172,11 +217,11 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
       }
       if (el.id === ID.ContentCompression && track) {
         const t: Track = track;
-        if (compAlgo === 3) t.stripped = compSettings;
+        if (compAlgo === 3 && (compSettings?.length ?? 0) <= MAX_STRIPPED_BYTES) t.stripped = compSettings;
         else t.compressed = true;
       }
       if (el.id === ID.TrackEntry && track) {
-        tracks.push(track);
+        if (tracks.length < MAX_TRACKS) tracks.push(track);
         track = null;
       }
       if (el.id === ID.BlockGroup) endGroup();
@@ -186,7 +231,7 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
   };
 
   const segmentStart = header.dataStart + (header.size ?? 0);
-  walk(segmentStart, bytes.length, false);
+  walk(segmentStart, bytes.length, false, 0);
 
   const subtitle = tracks.filter((t) => t.type === SUBTITLE_TRACK)[0] ?? tracks[0];
   if (!subtitle) throw new MatroskaError("no track");
@@ -216,7 +261,10 @@ export function matroskaEnd(bytes: Uint8Array): number | null {
   return segment?.id === ID.Segment && segment.size !== null ? segment.dataStart + segment.size : null;
 }
 
-/** A block's track, absolute time in ticks and its one frame (subtitles are never laced). */
+/**
+ * A block's track, absolute time in ticks and its one frame (subtitles are
+ * never laced), in place in the file's bytes: a copy would hold the track twice.
+ */
 function block(body: Uint8Array, clusterTime: number): { track: number; time: number; data: Uint8Array } | null {
   const v = vint(body, 0, true);
   if (!v || v.length + 3 > body.length) return null;
@@ -231,7 +279,7 @@ function block(body: Uint8Array, clusterTime: number): { track: number; time: nu
     if (frames < 1) return null;
     data = data.subarray(1);
   }
-  return { track: v.value, time: clusterTime + signed, data: data.slice() };
+  return { track: v.value, time: clusterTime + signed, data };
 }
 
 interface Element {
@@ -289,9 +337,10 @@ function uint(body: Uint8Array): number {
   return value;
 }
 
+/** A codec id: 64 characters are far more than any has. */
 function ascii(body: Uint8Array): string {
   let s = "";
-  for (let i = 0; i < body.length && body[i] !== 0; i++) s += String.fromCharCode(body[i]!);
+  for (let i = 0; i < body.length && i < 64 && body[i] !== 0; i++) s += String.fromCharCode(body[i]!);
   return s;
 }
 
