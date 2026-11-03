@@ -22,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -33,7 +32,6 @@ import app.pley.android.common.TestTags
 import app.pley.android.data.Loadable
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyTv
-import app.pley.android.designsystem.image.rememberImagePrefetcher
 import app.pley.android.model.HubKeys
 import app.pley.android.model.ItemSummary
 import app.pley.android.screens.Navigator
@@ -53,7 +51,6 @@ import app.pley.android.ui.tv.kit.TvRowColumn
 import app.pley.android.ui.tv.kit.rememberBackdropPrefetcher
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberRested
-import app.pley.android.ui.tv.kit.rememberTvRowState
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 import app.pley.android.ui.tv.shell.ReportOffline
 import app.pley.android.ui.tv.shell.failedBody
@@ -125,7 +122,6 @@ private data class FocusedTile(val item: ItemSummary, val ahead: List<ItemSummar
 @Composable
 private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: HomeViewModel, navigator: Navigator) {
     val tier = LocalTvTier.current
-    val density = LocalDensity.current
     val rail = LocalTvRailFocus.current
     val scope = rememberCoroutineScope()
     val memory = rememberFocusMemory()
@@ -181,15 +177,6 @@ private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: Hom
             }
             model.rows.forEach { row ->
                 item(row.key, contentType = row.kind) {
-                    val rowState = rememberTvRowState()
-                    val images = remember(row.tiles) { row.tiles.map { it.image } }
-                    rememberImagePrefetcher(
-                        state = rowState,
-                        images = images,
-                        widthPx = with(density) { row.kind.tvWidth.roundToPx() },
-                        heightPx = with(density) { row.kind.tvHeight.roundToPx() },
-                        tier = tier,
-                    )
                     val seeAllLabel = stringResource(R.string.tv_home_see_all)
                     val seeAll = remember(row.seeAll, seeAllLabel) { row.seeAll?.let { key -> SeeAll(seeAllLabel) { navigator.open(key) } } }
                     TvRow(
@@ -197,7 +184,6 @@ private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: Hom
                         title = row.title,
                         tiles = row.tiles,
                         kind = row.kind,
-                        state = rowState,
                         memory = memory,
                         seeAll = seeAll,
                         onOpen = { tile -> row.itemOf(tile)?.let { navigator.open(pageOf(it)) } },

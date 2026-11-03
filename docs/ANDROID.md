@@ -85,6 +85,12 @@ heard it for that profile, the start asks "Who's watching?".
 - A held key never leaves its row or grid: a held Left stops at a row's
   first tile, and a held Right or Up at a library grid's edge. The rail,
   the A to Z jump and the chips above the grid take a press of their own.
+- Pictures wait while a key is held: the tiles a row slides past or a
+  page glides past ask for none, unless the memory cache has them, and
+  no backdrop is fetched ahead; where the key comes up, the tiles on
+  screen and just past it load, with the backdrops around the focused
+  tile. Every page's rows ask for the pictures ahead of them, a screen
+  and a half, and stop asking for those the row has moved past.
 - **Fire TV** runs the same APK and TV screens. The app spots it by the
   `amazon.hardware.fire_tv` feature and follows Amazon's player guidelines
   (asynchronous decoder queueing, surround from Fire OS's audio setting,

@@ -28,6 +28,13 @@ describes how they are made.
   library's grid rather than running on to the A to Z jump, the chips and
   the tabs; a press of its own still reaches them, as on the native
   Samsung app.
+- On Android TV and Fire TV, pictures wait while a direction key is held:
+  the posters a row or page passes ask for nothing, and those where the
+  key comes up load then, so a weak TV spends nothing on what flies by.
+  Pictures already in memory still show at once. The rows of item pages,
+  search, people, collections and Recommended now load their pictures
+  ahead of the scroll, as Home's do, and a list stops loading pictures it
+  has moved past.
 
 ### Fixed
 

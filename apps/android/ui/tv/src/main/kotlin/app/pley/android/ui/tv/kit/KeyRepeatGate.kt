@@ -27,6 +27,7 @@ import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.requireView
 import androidx.compose.ui.platform.InspectorInfo
 import app.pley.android.designsystem.PleyMotion
+import app.pley.android.designsystem.image.ArtworkHold
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -43,7 +44,9 @@ import kotlinx.coroutines.launch
  *   key comes up ([TvRow]);
  * - tiles change their focus look evenly over [GLIDE_MS] instead of easing;
  * - backdrops and details wait until focus has rested [REST_MS]
- *   ([awaitRest], [rememberRested]).
+ *   ([awaitRest], [rememberRested]);
+ * - pictures wait unless the memory cache has them: the gate is the
+ *   window's [ArtworkHold], and where the key comes up loads them.
  *
  * A hold ends when its key comes up, another key goes down, or no sign of
  * the key comes for [LOST_KEY_UP_MS] (the window lost the key-up):
@@ -58,9 +61,9 @@ import kotlinx.coroutines.launch
 class KeyRepeatGate(
     private val firstRepeatMs: Long = ViewConfiguration.getKeyRepeatTimeout().toLong(),
     private val clock: () -> Long = SystemClock::uptimeMillis,
-) {
+) : ArtworkHold {
     /** Whether a direction key is held down and moving focus by itself now. Read it while drawing, or in effects. */
-    var holding: Boolean by mutableStateOf(false)
+    override var holding: Boolean by mutableStateOf(false)
         private set
 
     /** The direction key down now, as it went down: what the held moves repeat. */
@@ -194,7 +197,7 @@ class KeyRepeatGate(
      * up, another went down, or its key-up was lost. At once when no key is
      * held.
      */
-    suspend fun awaitRelease() {
+    override suspend fun awaitRelease() {
         released?.await()
     }
 

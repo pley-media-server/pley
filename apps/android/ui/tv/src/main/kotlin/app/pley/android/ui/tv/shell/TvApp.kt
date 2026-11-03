@@ -57,6 +57,7 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
+import app.pley.android.designsystem.image.LocalArtworkHold
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.screens.PleyKey
 import app.pley.android.ui.tv.R
@@ -111,7 +112,7 @@ fun TvApp(
     TvTheme(tier, reducedMotion ?: true.takeIf { chosen }) {
         val gate = remember { KeyRepeatGate() }
         val root = remember { TvScrolling.root() }
-        CompositionLocalProvider(LocalKeyRepeatGate provides gate, LocalBringIntoViewSpec provides root) {
+        CompositionLocalProvider(LocalKeyRepeatGate provides gate, LocalArtworkHold provides gate, LocalBringIntoViewSpec provides root) {
             // No background: the window's is pley's (one full-screen fill, not two).
             Box(Modifier.fillMaxSize().keyRepeatGate(gate).testTag(TestTags.TV_ROOT)) {
                 // Known already (read as the activity started), the first screen is in the first frame.

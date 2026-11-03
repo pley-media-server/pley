@@ -68,12 +68,14 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyFocus
 import app.pley.android.designsystem.image.GradientBitmaps
 import app.pley.android.designsystem.image.drawStretched
+import app.pley.android.designsystem.image.rememberImagePrefetcher
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
+import app.pley.android.ui.tv.theme.LocalTvTier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -134,6 +136,15 @@ fun TvRow(
     val row = remember { RowFocus() }
     val motion = remember(state, gate) { RowMotion(state, gate, scope) }
     motion.measure(density, kind, tiles.size + if (seeAll != null) 1 else 0, reduced)
+    // Pictures ahead of the scroll, not only as each tile composes: every page's rows, as on Samsung.
+    val images = remember(tiles) { tiles.map { it.image } }
+    rememberImagePrefetcher(
+        state = state,
+        images = images,
+        widthPx = with(density) { kind.tvWidth.roundToPx() },
+        heightPx = with(density) { kind.tvHeight.roundToPx() },
+        tier = LocalTvTier.current,
+    )
     val group = remember { FocusRequester() }
     if (column != null) {
         DisposableEffect(column, rowKey) {

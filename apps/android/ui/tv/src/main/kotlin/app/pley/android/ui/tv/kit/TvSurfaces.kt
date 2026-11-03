@@ -213,7 +213,8 @@ private fun ArtworkImage.cappedAt(cap: Int): ArtworkImage = if (maxWidth in 1..c
  * Loads backdrops before [TvBackdrop] shows them, at the size it asks for
  * (the window's, capped as it caps them), so it finds them in the cache
  * and swaps as soon as focus rests. Only the last ones asked for keep
- * loading.
+ * loading. Not for every tile a held key passes: while [gate] holds, only
+ * the last ones asked for load, once the key comes up.
  */
 @Stable
 class BackdropPrefetcher internal constructor(
@@ -221,9 +222,19 @@ class BackdropPrefetcher internal constructor(
     private val loader: ImageLoader,
     private val tier: Tier,
     private val size: IntSize,
+    private val gate: KeyRepeatGate,
 ) {
     /** What is loading or loaded, by picture and whether only to disk. */
     private var loading: Map<Pair<ArtworkImage, Boolean>, Disposable> = emptyMap()
+
+    /** Asked for while a key was held: loaded as it comes up. */
+    private var heldFocused: ArtworkImage? = null
+    private var heldBeside: List<ArtworkImage?>? = null
+    private val released: () -> Unit = {
+        val beside = heldBeside
+        heldBeside = null
+        if (beside != null) prefetch(heldFocused, beside)
+    }
 
     /**
      * Loads [focused]'s backdrop and those [beside] it (only to the disk
@@ -232,6 +243,12 @@ class BackdropPrefetcher internal constructor(
      */
     fun prefetch(focused: ArtworkImage?, beside: List<ArtworkImage?>) {
         if (size.width <= 0 || size.height <= 0) return
+        if (gate.holding) {
+            heldFocused = focused
+            heldBeside = beside
+            gate.onRelease(released)
+            return
+        }
         val cap = ArtworkImage.backdropCap(tier)
         val wanted = LinkedHashMap<ArtworkImage, Boolean>()
         focused?.takeUnless { it.isEmpty }?.let { wanted[it.cappedAt(cap)] = false }
@@ -268,7 +285,8 @@ fun rememberBackdropPrefetcher(): BackdropPrefetcher {
     val loader = LocalArtworkImageLoader.current ?: SingletonImageLoader.get(context)
     val tier = LocalTvTier.current
     val size = LocalWindowInfo.current.containerSize
-    return remember(context, loader, tier, size) { BackdropPrefetcher(context, loader, tier, size) }
+    val gate = LocalKeyRepeatGate.current
+    return remember(context, loader, tier, size, gate) { BackdropPrefetcher(context, loader, tier, size, gate) }
 }
 
 /** Subjects sit right of centre and above the middle. */
