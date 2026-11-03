@@ -146,6 +146,9 @@ describes how they are made.
   server can't be reached.
 - With Playback details on, the title shown as a video begins no longer
   covers them at the top left, as in the Android TV app.
+- On a Live TV channel with sound only, the logo, "Sound only" and what's
+  on rise above the bar at the foot while it shows, rather than sitting
+  among its words.
 
 ## [0.1.3] - 2026-11-02
 

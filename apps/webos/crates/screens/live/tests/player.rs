@@ -5,7 +5,7 @@
 mod common;
 
 use common::TestApp;
-use pley_base::{Key, KeyEvent};
+use pley_base::{Cmd, Key, KeyEvent};
 use pley_core::model::LiveCategory;
 use pley_fixtures::ids;
 use pley_live::picture_aside;
@@ -102,6 +102,38 @@ fn ok_held_shows_the_controls_and_their_channels_opens_the_list() {
     assert!(!app.shows("Search channels"), "the held OK opened the list as it was let go");
     app.press(Key::Ok);
     assert!(app.until(|a| a.shows("Search channels")), "the list didn't open");
+}
+
+/// Where the last frame drew `text`'s top, if it did.
+fn text_top(app: &TestApp, text: &str) -> Option<f32> {
+    app.list.cmds.iter().find_map(|c| match c {
+        Cmd::Text { origin, layout, .. } if &*layout.text == text => Some(origin.y),
+        _ => None,
+    })
+}
+
+#[test]
+fn sound_only_keeps_clear_of_the_controls() {
+    let mut app = watching(ids::LIVE_CHANNEL, LiveCategory::All);
+    // The simulator's player shows no picture: a channel plays as sound only.
+    assert!(app.until(|a| a.shows("Sound only")), "the channel isn't sound only");
+    let alone = text_top(&app, "Sound only").unwrap();
+    app.frame(vec![InputEvent::Key(KeyEvent { key: Key::Ok, pressed: true, repeat: false, code: 0 })]);
+    app.advance(0.6);
+    app.frame(vec![InputEvent::Key(KeyEvent { key: Key::Ok, pressed: false, repeat: false, code: 0 })]);
+    app.advance(0.4);
+    let channels = app.id(&["bar", "channels"]);
+    assert!(app.until(|a| a.focused() == Some(channels)), "the controls' Channels hasn't focus");
+    // Its caption and what's on rise above the bar's channel name, which they crowded.
+    let caption = text_top(&app, "Sound only").unwrap();
+    let name = text_top(&app, "Voyage News").expect("the bar names the channel");
+    assert!(caption < alone, "the block didn't rise: {caption} from {alone}");
+    let on = app.list.cmds.iter().filter_map(|c| match c {
+        Cmd::Text { origin, layout, .. } if origin.y > caption && origin.y < name => Some(&*layout.text),
+        _ => None,
+    });
+    assert_eq!(on.count(), 1, "what's on isn't between the caption and the bar");
+    assert!(caption + 2.0 * 30.0 < name, "the caption at {caption} crowds the bar's name at {name}");
 }
 
 #[test]

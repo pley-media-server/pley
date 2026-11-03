@@ -658,12 +658,32 @@ impl Screen for LivePlayerScreen {
             }
         }
 
+        // What's on at the foot, with the controls after OK: shown or not this frame.
+        let info = self.info_until.is_some_and(|t| now < t);
+        if let Some(t) = self.info_until {
+            if now < t {
+                ui.repaint_after(t - now);
+            } else {
+                self.info_until = None;
+            }
+        }
+        let bar_id = ui.id("bar");
+        let controls = self.overlay == Overlay::Controls;
+        let visible = playing && self.overlay != Overlay::Channels && (controls || info);
+        let p = ui.animate(bar_id.with("shown"), if visible { 1.0 } else { 0.0 }, Motion::OVERLAY);
+
         // What shows in place of a picture.
         match (&state, &channel) {
             (Some((_, s)), Some(c)) if s.phase == LivePhase::Tuning => {
                 tuning(ui, cx, stage, c, &self.category, clock.now, now);
             }
-            (Some((_, s)), Some(c)) if s.audio_only && playing => sound_only(ui, cx, stage, c, clock.now),
+            (Some((_, s)), Some(c)) if s.audio_only && playing => {
+                // Above the bar while it shows, rather than under its name and what's on.
+                let bar_top = theme::CANVAS_H - bar_height(c, clock.now, controls).2 + BAR_PAD_TOP;
+                let above = Rect::new(stage.x, stage.y, stage.w, bar_top - BAR_CLEARANCE - stage.y);
+                let room = Rect { h: stage.h + (above.h - stage.h) * p, ..stage };
+                sound_only(ui, cx, room, c, clock.now);
+            }
             (None, _) if self.unknown.is_none() => {
                 LoadingRing::tuning().show(ui, stage.center(), now);
             }
@@ -708,21 +728,9 @@ impl Screen for LivePlayerScreen {
         }
 
         // What's on at the foot, with the controls after OK.
-        let info = self.info_until.is_some_and(|t| now < t);
-        if let Some(t) = self.info_until {
-            if now < t {
-                ui.repaint_after(t - now);
-            } else {
-                self.info_until = None;
-            }
-        }
-        let bar_id = ui.id("bar");
-        let visible = playing && self.overlay != Overlay::Channels && (self.overlay == Overlay::Controls || info);
-        let p = ui.animate(bar_id.with("shown"), if visible { 1.0 } else { 0.0 }, Motion::OVERLAY);
         if p > 0.0
             && let (Some(c), Some((_, s))) = (&channel, &state)
         {
-            let controls = self.overlay == Overlay::Controls;
             let focus = std::mem::take(&mut self.focus_controls);
             let live = s.phase == LivePhase::Playing || s.phase == LivePhase::Buffering;
             let bar = |ui: &mut Ui| info_bar(ui, cx, bar_id, c, &self.category, &clock, live, controls, p, focus);
@@ -864,6 +872,24 @@ fn centred(ui: &mut Ui, text: &str, style: &pley_base::TextStyle, x: f32, y: f32
     ui.draw_text(Point::new(x - w / 2.0, y), layout, color);
 }
 
+/// The info bar's scrim above its row: the row starts this far below the bar's top.
+const BAR_PAD_TOP: f32 = 64.0;
+/// What shows in place of a picture keeps this far above the bar's row while the bar shows.
+const BAR_CLEARANCE: f32 = 24.0;
+
+/// The info bar's sizes for channel `c` at `seconds`: its column of words, its row (at least the
+/// logo's 63) and the whole bar, with the controls' row or the hint under it.
+fn bar_height(c: &LiveChannel, seconds: i64, controls: bool) -> (f32, f32, f32) {
+    let column_h = theme::LABEL.line_height
+        + 2.0
+        + theme::SECTION.line_height
+        + c.on_at(seconds).map_or(0.0, |_| 6.0 + theme::CAPTION.line_height)
+        + c.next_at(seconds).map_or(0.0, |_| 4.0 + theme::CAPTION.line_height);
+    let row_h = column_h.max(63.0);
+    let after = if controls { 16.0 + ROUND_SIZE + theme::BUTTON_LABEL_ROOM } else { 12.0 + theme::CAPTION.line_height };
+    (column_h, row_h, BAR_PAD_TOP + row_h + after + theme::SAFE_Y)
+}
+
 /// The bar at the foot (`InfoBar`): the channel's logo, number and name, what's on with its times, how
 /// far it is and what's next, the Live badge at the right; with `controls`, the channel list and
 /// favourite buttons, else the hint. It slides up a third of its height and fades as `p` goes to 1.
@@ -883,14 +909,7 @@ fn info_bar(
     let seconds = clock.now;
     let on = c.on_at(seconds).cloned();
     let next = c.next_at(seconds).cloned();
-    let column_h = theme::LABEL.line_height
-        + 2.0
-        + theme::SECTION.line_height
-        + on.as_ref().map_or(0.0, |_| 6.0 + theme::CAPTION.line_height)
-        + next.as_ref().map_or(0.0, |_| 4.0 + theme::CAPTION.line_height);
-    let row_h = column_h.max(63.0);
-    let after = if controls { 16.0 + ROUND_SIZE + theme::BUTTON_LABEL_ROOM } else { 12.0 + theme::CAPTION.line_height };
-    let h = 64.0 + row_h + after + theme::SAFE_Y;
+    let (column_h, row_h, h) = bar_height(c, seconds, controls);
     let top = theme::CANVAS_H - h;
     let mut action = None;
     ui.translate(Point::new(0.0, (1.0 - p) * h / 3.0), |ui| {
@@ -903,7 +922,7 @@ fn info_bar(
             ui.gradient(Rect::new(0.0, top, theme::CANVAS_W, h), true, stops);
             let x0 = theme::SAFE_X;
             let right = theme::CANVAS_W - theme::SAFE_X;
-            let row_top = top + 64.0;
+            let row_top = top + BAR_PAD_TOP;
             let well = Well::PAGE.named().filled(Color::WHITE.alpha(0.08), radius::TILE);
             channel_tile(ui, cx, Rect::new(x0, row_top + (row_h - 63.0) / 2.0, 112.0, 63.0), c, well);
 
