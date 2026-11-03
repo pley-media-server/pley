@@ -1,0 +1,17 @@
+{
+  "session_id": "5d0f7f2a9c8e4b1d8a6e3f2b1c0d9e8f",
+  "url": "/api/live/sessions/5d0f7f2a9c8e4b1d8a6e3f2b1c0d9e8f/index.m3u8",
+  "kind": "hls",
+  "channel": {
+    "id": 1,
+    "source_id": 1,
+    "name": "Pley News HD",
+    "number": "101",
+    "group": "News",
+    "logo": "/api/live/channels/1/logo",
+    "favorite": false,
+    "has_guide": true,
+    "now": null,
+    "next": null
+  }
+}

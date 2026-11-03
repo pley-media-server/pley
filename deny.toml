@@ -2,8 +2,8 @@
 #   cargo install cargo-deny && cargo deny check licenses
 # Third-party crates must be permissively licensed. Our own crates are
 # unpublished (`publish = false`) and skipped here; scripts/check-licenses.ps1
-# also keeps copyleft-only crates out of the server and the transcoder, and
-# the transcoder out of the server (see LICENSING.md).
+# also keeps copyleft-only crates out of the server, the transcoder and the
+# LG app, and the transcoder out of the server (see LICENSING.md).
 
 [graph]
 all-features = false

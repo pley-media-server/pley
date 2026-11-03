@@ -31,11 +31,11 @@ export interface FoundServer {
 
 /** What the TV reports of itself, for Diagnostics and the capabilities. */
 export interface DeviceFacts {
-  /** "Samsung", "LG". */
+  /** "Samsung". */
   maker: string;
-  /** "QN65S95CAFXZA", "OLED65C3PUA". */
+  /** "QN65S95CAFXZA". */
   model: string;
-  /** "Tizen 7.0", "webOS 23". */
+  /** "Tizen 7.0". */
   os: string;
   firmware: string | null;
   /** The model year when the TV says it; else from its system version. */
@@ -45,12 +45,11 @@ export interface DeviceFacts {
 }
 
 /**
- * What each TV app gives the shared app: its keys, its player, what the
- * TV plays, and how it leaves. Samsung's (apps/tizen) drives AVPlay; LG's
- * (apps/webos) drives the TV's pipeline behind a <video> element.
+ * What the TV app (apps/tizen) gives the screens: its keys, its player
+ * (AVPlay), what the TV plays, and how it leaves.
  */
 export interface Platform {
-  name: "tizen" | "webos";
+  name: "tizen";
   /** The app's OAuth client ID (built into the server). */
   clientId: string;
   version: string;
@@ -68,7 +67,7 @@ export interface Platform {
   device(): DeviceFacts;
   /** "low" for TVs that struggle (little memory, old engines). */
   tier(): "low" | "mid" | "high";
-  /** Servers on the home network that answer pley's UDP call, when the TV lets an app send one (LG, through its service). */
+  /** Servers on the home network that answer Pley's UDP call, when the TV lets an app send one. */
   discover?(onFound: (server: FoundServer) => void, stopped: () => boolean): Promise<void>;
   /** The TV's own IPv4 address on the home network, for "Search this network". */
   localAddress?(): Promise<string | null>;
@@ -76,15 +75,14 @@ export interface Platform {
   keepAwake(on: boolean): void;
   /** Closes the app (Back on the rail). */
   exit(): void;
-  /** Asks "Exit pley?" first: Samsung's rule for Back on the first screen. LG's Back shows the TV's own exit popup. */
+  /** Asks "Exit Pley?" first: Samsung's rule for Back on the first screen. */
   asksBeforeExit?: boolean;
   /** Tells the app when the TV hides or shows it (Home key, another app, standby). */
   onVisibility(listener: (visible: boolean) => void): void;
   /**
-   * Whether the TV's screen reader (Samsung's Voice Guide, LG's Audio
-   * Guidance) is on: told at once, when the TV says, and on each change.
-   * Both read the element with the browser's focus, which the app then
-   * moves along with its own.
+   * Whether the TV's screen reader (Samsung's Voice Guide) is on: told at
+   * once, when the TV says, and on each change. It reads the element with
+   * the browser's focus, which the app then moves along with its own.
    */
   screenReader?(listener: (on: boolean) => void): void;
   /** Whether the TV draws in 24-hour time. */

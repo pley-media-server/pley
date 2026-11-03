@@ -20,9 +20,10 @@ server talks to it only over HTTP ([TRANSCODER.md](TRANSCODER.md)).
 | `apps/android` | Pley for Android phones, tablets and TVs (Kotlin, Compose, Media3) |
 | `apps/kodi` | Pley for Kodi, an add-on (Python, GPL-2.0-or-later) |
 | `apps/roku` | Pley for Roku (BrightScript, SceneGraph) |
-| `apps/tizen`, `apps/webos` | Pley for Samsung TV and Pley for LG TV |
+| `apps/tizen` | Pley for Samsung TV, a web app for Tizen |
 | `apps/tizen-native` | Pley for Samsung TV, native (C#, Tizen .NET, NUI), built beside the web app |
-| `packages/tv` | The TV app both share (TypeScript, Preact) |
+| `apps/webos` | Pley for LG TV, a native webOS app (Rust, a Cargo workspace of its own) |
+| `packages/tv` | The Samsung TV app's screens, player and API client (TypeScript, Preact) |
 | `packages/transcoder-api` | Protocol types shared by server and transcoder |
 | `deploy/` | Docker, systemd and launchd setups, the Windows installer, store listings |
 | `docs/` | Documentation |
@@ -37,6 +38,8 @@ server talks to it only over HTTP ([TRANSCODER.md](TRANSCODER.md)).
   says so).
 - Node.js 22 or newer, for the Roku app's tools only.
 - The .NET 8 SDK, for the native Samsung app only.
+- For the LG app's TV build, Linux with the webOS toolchain, or Docker
+  ([LG.md](LG.md#the-tv-build)); its tests and simulator need only Rust.
 - FFmpeg and ffprobe on `PATH` or configured; 6.1 or newer throttles
   transcodes. For hardware transcoding and GPU tone mapping, use a build
   with NVENC, QSV, AMF or VAAPI and libplacebo: gyan.dev's "full" build on
@@ -62,11 +65,12 @@ Then follow [First start](CONFIGURATION.md#first-start).
 | `cargo test --workspace` | The Rust tests, including end-to-end tests of both APIs |
 | `cargo test -p pley-server --test providers -- --ignored` | Also checks the real TVmaze and MusicBrainz (and TheTVDB with `PLEY_TEST_TVDB_KEY` and, if needed, `PLEY_TEST_TVDB_PIN`) |
 | `cargo clippy --workspace --all-targets`, `cargo fmt --all` | Lint and format the Rust code |
-| `scripts/check-licenses.ps1` | Checks that no copyleft-only crate is in the server or the transcoder ([LICENSING.md](../LICENSING.md)) |
+| `scripts/check-licenses.ps1` | Checks that no copyleft-only crate is in the server, the transcoder or the LG app ([LICENSING.md](../LICENSING.md)) |
 | `bun run check` | The web app's and desktop app's type check, ESLint and tests (Vitest) |
 | `bun run desktop` | Runs the desktop app (on Linux needs WebKitGTK: `libwebkit2gtk-4.1-dev`); `bun run --cwd apps/desktop build` makes its installers |
-| `bun run tv:check` | Type-checks and tests the Samsung and LG apps; `bun run tizen` and `bun run webos` package them ([TV_PLATFORMS.md](TV_PLATFORMS.md)) |
+| `bun run tv:check` | Type-checks and tests the Samsung app; `bun run tizen` packages it ([TV_PLATFORMS.md](TV_PLATFORMS.md)) |
 | `dotnet test apps/tizen-native/test/Pley.Tv.Core.Tests` | Tests the native Samsung app's logic; `bun run tizen-native` packages it ([TV_PLATFORMS.md](TV_PLATFORMS.md#the-native-samsung-app)) |
+| `cargo test --workspace` in `apps/webos` | Tests the LG app; `cargo clippy --workspace --all-targets` and `cargo fmt --all` there lint and format it, `cargo run -- --fixtures` starts its simulator, and `cargo xtask` builds and packs it for the TV ([LG.md](LG.md#building-and-testing)) |
 | `bun install && bun run check` in `apps/roku` | Compiles, lints and tests the Roku app ([ROKU.md](ROKU.md)) |
 | `python -m unittest discover -s tests` in `apps/kodi` | Tests the Kodi add-on ([KODI.md](KODI.md)) |
 | `scripts/build.ps1` (or `build.sh`) | Builds the server's release archive locally |
@@ -119,7 +123,8 @@ after on the pull request's. Each app is captured its own way:
 | Native Samsung app | Its debug build takes them from the computer: `metrics.mjs shot` ([TV_PLATFORMS.md](TV_PLATFORMS.md), "Profiling"); a video's picture comes out black |
 | Kodi | Kodi's own (the `screenshot` action); [KODI.md](KODI.md) has the setting that keeps the whole screen drawn |
 | Roku | The developer page's Utilities → Screenshot, of a sideloaded app; a video's picture doesn't come out |
-| Samsung web app, LG | A photo of the screen |
+| LG | The simulator writes the frame as PNG: `cargo run -- --fixtures --keys "<keys>" --screenshot shot.png` in `apps/webos`, with `--screenshot-after <ms>` for a playing video ([LG.md](LG.md#the-simulator)); the simulator's player draws no picture, so a video's place stays empty |
+| Samsung web app | A photo of the screen |
 
 `scripts/mark-screenshot.mjs` marks where to look, in the screenshot's own
 pixels, and writes a PNG; it takes a phone's JPEG too:

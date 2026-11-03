@@ -1,0 +1,22 @@
+[package]
+name = "pley-live"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: Live TV and its player"
+license = "AGPL-3.0-only"
+publish = false
+
+[dependencies]
+pley-base = { path = "../../base" }
+pley-core = { path = "../../core" }
+pley-ui = { path = "../../ui" }
+pley-kit = { path = "../../kit" }
+pley-shell = { path = "../../shell" }
+pley-player = { path = "../../player" }
+log = "0.4.29"
+
+[dev-dependencies]
+# The simulator with this crate's screens alone (examples/live_sim.rs), and the fake server.
+pley-host = { path = "../../host" }
+pley-fixtures = { path = "../../fixtures" }

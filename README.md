@@ -29,9 +29,10 @@
 ## Apps
 
 Web, Windows, macOS, Linux, [Android](docs/ANDROID.md), [Kodi](docs/KODI.md),
-[Roku](docs/ROKU.md), [Samsung TV and LG TV](docs/TV_PLATFORMS.md). Jellyfin's
-apps work too, and tools built on Plex's API such as Kometa and Tautulli,
-through the [compatibility APIs](docs/COMPATIBILITY.md).
+[Roku](docs/ROKU.md), [Samsung TV](docs/TV_PLATFORMS.md),
+[LG TV](docs/LG.md). Jellyfin's apps work too, and tools built on Plex's API
+such as Kometa and Tautulli, through the
+[compatibility APIs](docs/COMPATIBILITY.md).
 
 ## Install
 

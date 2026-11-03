@@ -1,0 +1,17 @@
+{
+  "item_id": 101,
+  "file_id": 501,
+  "audio_index": 1,
+  "max_bitrate": 20000,
+  "max_height": 1080,
+  "start_ms": 2412000,
+  "mode": "auto",
+  "client_id": "android-8f3b2c1d",
+  "caps": {
+    "containers": ["mkv", "mp4", "m4v", "mov", "webm", "ts", "avi"],
+    "video_codecs": ["h264", "hevc", "vp9", "av1"],
+    "audio_codecs": ["aac", "mp3", "opus", "vorbis", "flac", "ac3", "eac3"],
+    "hdr": false,
+    "dolby_vision": false
+  }
+}

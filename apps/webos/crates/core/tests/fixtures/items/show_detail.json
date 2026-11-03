@@ -1,0 +1,42 @@
+{
+  "id": 201,
+  "library_id": 2,
+  "kind": "show",
+  "title": "Severance",
+  "sort_title": "Severance",
+  "year": 2022,
+  "rating": 8.4,
+  "added_at": 1761200000,
+  "poster_url": "/api/items/201/images/poster?v=1761200400",
+  "backdrop_url": "/api/items/201/images/backdrop?v=1761200400",
+  "user_state": { "position_ms": 0, "watched": false, "play_count": 0, "last_played_at": 1761250000 },
+  "leaf_count": 19,
+  "viewed_leaf_count": 1,
+  "child_count": 2,
+  "summary": "Mark leads a team of office workers whose memories have been surgically divided between their work and personal lives.",
+  "release_date": "2022-02-18",
+  "original_title": "Severance",
+  "tagline": null,
+  "genres": ["Drama", "Mystery", "Sci-Fi & Fantasy"],
+  "studio": "Apple TV+",
+  "content_rating": "TV-MA",
+  "tmdb_id": 95396,
+  "imdb_id": "tt11280740",
+  "files": [],
+  "markers": [],
+  "locked_fields": [],
+  "extras": [
+    {
+      "id": 207, "library_id": 2, "kind": "extra", "title": "Season 2 Teaser", "sort_title": "Season 2 Teaser", "parent_id": 201,
+      "parent_title": "Severance", "duration_ms": 62000, "added_at": 1761200000, "thumb_url": "/api/items/207/images/thumb?v=1761200400",
+      "user_state": { "position_ms": 0, "watched": false, "play_count": 0 }, "extra_type": "trailer"
+    }
+  ],
+  "cast": [
+    { "id": 704, "name": "Adam Scott", "role": "actor", "character": "Mark Scout", "photo_url": "/api/people/704/photo?v=f6a7b8c9d0" },
+    { "id": 712, "name": "Britt Lower", "role": "actor", "character": "Helly R." }
+  ],
+  "crew": [
+    { "id": 705, "name": "Dan Erickson", "role": "creator" }
+  ]
+}

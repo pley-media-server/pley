@@ -37,7 +37,7 @@ function setup(opts: { tab?: LibraryTab; sort?: LibrarySort; store?: KeyValue })
   root = document.createElement("div");
   document.body.appendChild(root);
   const storage = opts.store ?? memoryStore();
-  const platform = { name: "webos", clientId: "test", storage } as unknown as Platform;
+  const platform = { name: "tizen", clientId: "test", storage } as unknown as Platform;
   const app = new AppState(platform, () => Promise.reject(new Error("no network in tests")));
   const asked: { sort?: string; order?: string; watched?: boolean }[] = [];
   const hubs: Hub[] = [{ key: "recently_added:1", title: "Recently Added", library_id: 1, items: [item(1), item(2)] }];

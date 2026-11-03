@@ -17,7 +17,7 @@ Read the doc for the part you touch; they say how things work and why.
 | Quality, Automatic, playback decisions | [docs/QUALITY.md](docs/QUALITY.md) |
 | Data folder, caches, backups | [docs/STORAGE.md](docs/STORAGE.md) |
 | Plex- and Jellyfin-compatible APIs, tokens for other apps | [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) |
-| Android, Kodi, Roku, Samsung and LG apps | [docs/ANDROID.md](docs/ANDROID.md), [docs/KODI.md](docs/KODI.md), [docs/ROKU.md](docs/ROKU.md), [docs/TV_PLATFORMS.md](docs/TV_PLATFORMS.md) |
+| Android, Kodi, Roku, Samsung and LG apps | [docs/ANDROID.md](docs/ANDROID.md), [docs/KODI.md](docs/KODI.md), [docs/ROKU.md](docs/ROKU.md), [docs/TV_PLATFORMS.md](docs/TV_PLATFORMS.md) (Samsung), [docs/LG.md](docs/LG.md) |
 | Docker, Unraid, Windows, services | [deploy/README.md](deploy/README.md) |
 | Licences and dependencies | [LICENSING.md](LICENSING.md) |
 | Versions, changelogs, CI | [docs/RELEASING.md](docs/RELEASING.md) |
@@ -32,9 +32,10 @@ too, each app's workflow when that app changes.
 | Rust (server, transcoder, protocol) | `cargo clippy --workspace --all-targets`, `cargo fmt --all`, `cargo test -p <crate>` (the whole workspace before a large change) |
 | A Rust dependency | `scripts/check-licenses.ps1` and `cargo deny check licenses` |
 | Web or desktop app | `bun run check` (type check, ESLint, Vitest) |
-| Samsung or LG app, `packages/tv` | `bun run tv:check` |
+| Samsung app, `packages/tv` | `bun run tv:check` |
 | Native Samsung app (`apps/tizen-native`), `packages/tv/test/fixtures` | `dotnet test apps/tizen-native/test/Pley.Tv.Core.Tests`, `dotnet build apps/tizen-native/src/Pley.Tv.Tizen` (and `bun run tv:check` for a fixture) |
 | A NuGet package | `bun scripts/check-nuget-licenses.mjs` |
+| LG app | In `apps/webos`, a workspace of its own: `cargo clippy --workspace --all-targets`, `cargo fmt --all`, `cargo test --workspace`; for a Rust dependency there, also `scripts/check-licenses.ps1`, `cargo deny check licenses` and `cargo xtask check --licenses-only` |
 | Roku app | `bun install && bun run check` in `apps/roku` |
 | Kodi add-on | `python -m unittest discover -s tests` in `apps/kodi` |
 | Android app | `./gradlew testDebugUnitTest lintDebug` in `apps/android`; `pwsh ../../scripts/check-android.ps1` after `assembleStoreRelease` when libraries change |
@@ -63,9 +64,14 @@ licences ([CONTRIBUTING.md](CONTRIBUTING.md)).
   transcoder over HTTP with the types in `packages/transcoder-api`.
 - Never copy the Kodi add-on's code into another part of Pley.
 - The Android app takes no FFmpeg, mpv or GPL library and no new native
-  code (`scripts/check-android.ps1` has the allowed library groups). The TV
-  apps' build fails on a bundled package that `packages/tv/src/licenses.ts`
-  doesn't name.
+  code (`scripts/check-android.ps1` has the allowed library groups). The
+  Samsung app's build fails on a bundled package that
+  `packages/tv/src/licenses.ts` doesn't name.
+- The LG app takes no FFmpeg (the TV's pipeline plays) and links only the
+  TV's C library: SDL2, EGL and GLES, luna-service2, GLib and LG's media
+  libraries are the TV's own, opened at run time with `dlopen`, never
+  linked or shipped. `cargo xtask check` enforces the libraries and the
+  crates' licences.
 - Don't add licence texts or headers of your own; new transcoder files
   start with `// SPDX-License-Identifier: AGPL-3.0-only`, as the
   others do.

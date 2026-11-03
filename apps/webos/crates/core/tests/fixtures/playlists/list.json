@@ -1,0 +1,19 @@
+{
+  "playlists": [
+    {
+      "id": 903, "title": "Focus", "kind": "audio", "item_count": 1, "duration_ms": 245000,
+      "artwork": ["/api/items/302/images/poster?v=1761100300"], "smart_filter": null, "library_id": null,
+      "created_at": 1761100500, "updated_at": 1761100500
+    },
+    {
+      "id": 902, "title": "Unwatched Sci-Fi Night", "kind": "video", "item_count": 2, "duration_ms": 16948000,
+      "artwork": ["/api/items/104/images/poster?v=1761300500", "/api/items/101/images/poster?v=1761300500"],
+      "smart_filter": "genre=Science%20Fiction&unwatched=1", "library_id": 1, "created_at": 1761310500, "updated_at": 1761310500
+    },
+    {
+      "id": 901, "title": "Weekend", "kind": "video", "item_count": 3, "duration_ms": 13621000,
+      "artwork": ["/api/items/101/images/poster?v=1761300500", "/api/items/203/images/thumb?v=1761200400", "/api/items/204/images/thumb?v=1761200400"],
+      "smart_filter": null, "library_id": null, "created_at": 1761320000, "updated_at": 1761390500
+    }
+  ]
+}

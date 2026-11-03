@@ -1,0 +1,79 @@
+{
+  "id": 203,
+  "library_id": 2,
+  "kind": "episode",
+  "title": "Good News About Hell",
+  "sort_title": "Good News About Hell",
+  "year": 2022,
+  "index": 1,
+  "parent_id": 202,
+  "parent_title": "Season 1",
+  "parent_index": 1,
+  "grandparent_id": 201,
+  "grandparent_title": "Severance",
+  "duration_ms": 3427000,
+  "rating": 8.0,
+  "added_at": 1761200000,
+  "poster_url": "/api/items/202/images/poster?v=1761200400",
+  "backdrop_url": "/api/items/201/images/backdrop?v=1761200400",
+  "thumb_url": "/api/items/203/images/thumb?v=1761200400",
+  "user_state": { "position_ms": 0, "watched": true, "play_count": 1, "last_played_at": 1761250000 },
+  "summary": "Mark is promoted to lead his team of severed employees at Lumon, and a new hire has trouble settling in.",
+  "release_date": "2022-02-18",
+  "original_title": null,
+  "tagline": null,
+  "genres": [],
+  "studio": null,
+  "content_rating": null,
+  "tmdb_id": null,
+  "imdb_id": "tt11650492",
+  "files": [
+    {
+      "id": 601,
+      "path": "Severance - S01E01 - Good News About Hell.mkv",
+      "size": 2834567123,
+      "container": "mkv",
+      "duration_ms": 3427000,
+      "bitrate": 6617000,
+      "width": 1920,
+      "height": 1080,
+      "video_codec": "h264",
+      "audio_codec": "eac3",
+      "streams": [
+        {
+          "index": 0, "kind": "video", "codec": "h264", "language": null, "title": null, "default": true, "forced": false,
+          "profile": "High", "width": 1920, "height": 1080, "frame_rate": 23.976, "bit_depth": 8, "pix_fmt": "yuv420p",
+          "level": 40, "interlaced": false, "hdr": false, "dynamic_range": "sdr"
+        },
+        {
+          "index": 1, "kind": "audio", "codec": "eac3", "language": "eng", "title": null, "default": true, "forced": false,
+          "bitrate": 640000, "channels": 6, "channel_layout": "5.1(side)", "sample_rate": 48000
+        },
+        {
+          "index": 2, "kind": "audio", "codec": "eac3", "language": "ger", "title": null, "default": false, "forced": false,
+          "bitrate": 640000, "channels": 6, "channel_layout": "5.1(side)", "sample_rate": 48000
+        },
+        { "index": 3, "kind": "subtitle", "codec": "subrip", "language": "eng", "title": "SDH", "default": false, "forced": false, "text_based": true },
+        { "index": 4, "kind": "subtitle", "codec": "subrip", "language": "ger", "title": null, "default": false, "forced": false, "text_based": true }
+      ],
+      "edition": null,
+      "selected_audio": 1,
+      "audio_picked": false,
+      "selected_subtitle": null,
+      "chapters": []
+    }
+  ],
+  "markers": [
+    { "file_id": 601, "kind": "intro", "start_ms": 312400, "end_ms": 372900, "source": "fingerprint" },
+    { "file_id": 601, "kind": "credits", "start_ms": 3341000, "end_ms": 3427000, "source": "frames" }
+  ],
+  "locked_fields": [],
+  "extras": [],
+  "cast": [
+    { "id": 711, "name": "Yul Vazquez", "role": "actor", "character": "Peyton", "photo_url": "/api/people/711/photo?v=d4e5f6a7b8" }
+  ],
+  "crew": [
+    { "id": 706, "name": "Ben Stiller", "role": "director", "photo_url": "/api/people/706/photo?v=e5f6a7b8c9" },
+    { "id": 705, "name": "Dan Erickson", "role": "writer" }
+  ]
+}

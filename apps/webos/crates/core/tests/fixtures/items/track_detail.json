@@ -1,0 +1,52 @@
+{
+  "id": 303,
+  "library_id": 3,
+  "kind": "track",
+  "title": "The Whole Universe Wants to Be Touched",
+  "sort_title": "Whole Universe Wants to Be Touched",
+  "year": 2018,
+  "index": 2,
+  "parent_id": 302,
+  "parent_title": "All Melody",
+  "parent_index": 1,
+  "grandparent_id": 301,
+  "grandparent_title": "Nils Frahm",
+  "duration_ms": 245000,
+  "added_at": 1761100000,
+  "poster_url": "/api/items/302/images/poster?v=1761100300",
+  "user_state": { "position_ms": 0, "watched": false, "play_count": 7, "last_played_at": 1761380000 },
+  "original_title": null,
+  "tagline": null,
+  "genres": ["Ambient", "Modern Classical"],
+  "studio": "Erased Tapes",
+  "content_rating": null,
+  "tmdb_id": null,
+  "imdb_id": null,
+  "files": [
+    {
+      "id": 651,
+      "path": "02 - The Whole Universe Wants to Be Touched.flac",
+      "size": 31245678,
+      "container": "flac",
+      "duration_ms": 245000,
+      "bitrate": 1020000,
+      "width": null,
+      "height": null,
+      "video_codec": null,
+      "audio_codec": "flac",
+      "streams": [
+        { "index": 0, "kind": "audio", "codec": "flac", "language": null, "title": null, "default": true, "forced": false, "channels": 2, "channel_layout": "stereo", "sample_rate": 44100 }
+      ],
+      "edition": null,
+      "selected_audio": 0,
+      "audio_picked": false,
+      "selected_subtitle": null,
+      "chapters": []
+    }
+  ],
+  "markers": [],
+  "locked_fields": [],
+  "extras": [],
+  "cast": [],
+  "crew": []
+}

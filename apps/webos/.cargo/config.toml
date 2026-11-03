@@ -1,0 +1,41 @@
+# Cargo reads this file only when it runs in apps/webos (or below), so run cargo from here.
+
+[alias]
+# The build tasks (xtask/src/main.rs): build, check, notices, ipk, ipk-verify.
+xtask = "run --package xtask --"
+
+[env]
+# The toolchain's C compiler and archiver for crates that build C for the TV (ring, under
+# rustls), which the cc crate reads; host builds don't look at them.
+CC_armv7_unknown_linux_gnueabi = "arm-webos-linux-gnueabi-gcc"
+AR_armv7_unknown_linux_gnueabi = "arm-webos-linux-gnueabi-ar"
+
+# The TV: 32-bit ARMv7 with the soft-float calling convention of webOS userland, linked by the
+# webOS toolchain's GCC (openlgtv/buildroot-nc4), whose sysroot holds the TV's glibc 2.12, so
+# the binary loads on every firmware. The toolchain runs on Linux only: CI and
+# scripts/build-tv.ps1 put its bin folder on PATH. `cargo xtask build` adds the
+# --remap-path-prefix flags (and GCC's -ffile-prefix-map for C), which need this
+# machine's folders.
+[target.armv7-unknown-linux-gnueabi]
+linker = "arm-webos-linux-gnueabi-gcc"
+rustflags = [
+    # ARMv7 code that every webOS TV's CPU runs, from Cortex-A9 class cores to ARMv8 cores in
+    # 32-bit mode. Never a newer CPU, nor the ARMv6 arm- target, whose atomics trap on Cortex-A53.
+    "-C", "target-cpu=cortex-a9",
+    # The FPU on, keeping the soft-float calling convention ("softfp", as the toolchain's GCC);
+    # without it every float operation is a library call. NEON stays off: a dependency's NEON
+    # intrinsics don't build on stable Rust.
+    "-C", "target-feature=-neon,-soft-float",
+    # The frame chain, so a crash report can walk the stack.
+    "-C", "force-frame-pointers=yes",
+    # glibc's libm before the Rust libraries: rustc puts a library named with -l right after
+    # the program's own code, ahead of std and compiler-builtins, so the linker takes glibc's
+    # roundf, floorf and the rest (VFP code) instead of compiler-builtins' weak soft-float
+    # copies. `cargo xtask check` fails on a local copy.
+    "-l", "m",
+    # An id that pairs the stripped binary in the package with the one kept for crash reports.
+    "-C", "link-arg=-Wl,--build-id=sha1",
+    # Not the toolchain's libglibc_polyfills.a, which its GCC otherwise adds to every link: its
+    # licence isn't known. The app defines getauxval, the one function std needs from it.
+    "-C", "link-arg=-tno-glibc-polyfill",
+]
