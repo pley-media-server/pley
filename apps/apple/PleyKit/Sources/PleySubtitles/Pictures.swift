@@ -101,9 +101,9 @@ struct FrameCache {
     mutating func put(_ index: Int, _ frame: PictureFrame?) {
         if let kept = frames[index] {
             bytes -= Self.size(kept)
-        } else {
-            order.append(index)
+            order.removeAll { $0 == index }
         }
+        order.append(index)
         frames[index] = .some(frame)
         bytes += Self.size(frame)
         // The frame just decoded stays, whatever its size.

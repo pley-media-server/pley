@@ -83,6 +83,12 @@ struct PicturesTests {
         // One frame over the bound is still kept: it is the one showing.
         cache.put(3, frame(Pictures.cacheBytes + 1))
         #expect(cache.get(2) == nil && cache.get(3) != nil)
+        // A frame decoded again is the newest, not the next to go.
+        var again = FrameCache()
+        for i in 0..<25 { again.put(i, nil) }
+        again.put(0, nil)
+        again.put(25, nil)
+        #expect(again.get(0) != nil && again.get(1) == nil)
         // Frames with nothing to show are kept by number, as before.
         for i in 10..<40 { cache.put(i, nil) }
         #expect(cache.get(10) == nil && cache.get(15) != nil && cache.get(39) != nil)
@@ -211,6 +217,20 @@ struct PicturesTests {
 
     @Test func dvbSplitsADisplaySetIntoSegments() {
         #expect(DVBDecoder.segments(Self.dvbDisplaySet()).map(\.type) == [0x10, 0x11, 0x12, 0x13, 0x80])
+    }
+
+    @Test func dvbDecodesAFramesWorthOfPixelsAtMost() throws {
+        // One 3000×2000 region filled with an opaque colour, placed twice:
+        // twice would pass a 4K screen's pixels.
+        let placements: [UInt8] = [0, 0] + u16(0) + u16(0) + [0, 0] + u16(10) + u16(10)
+        let page = Self.dvbSegment(0x10, [5, 2 << 2] + placements)
+        let size: [UInt8] = u16(3000) + u16(2000)
+        let region = Self.dvbSegment(0x11, [0, 0x08] + size + [2 << 2, 0, 0, 1 << 4])
+        let clut = Self.dvbSegment(0x12, [0, 0, 1, 0x40 | 0x01, 81, 240, 90, 0])
+        let set: [UInt8] = [0x20, 0x00] + page + region + clut + Self.dvbSegment(0x80, []) + [0xFF]
+        let frame = try #require(DVBDecoder(samples: [set]).decode(0))
+        #expect(frame.bitmaps.count == 1)
+        #expect(frame.bitmaps.first.map { [$0.width, $0.height] } == [3000, 2000])
     }
 
     @Test func dvbDrawsObjectsIntoRegionsPlacedByThePage() throws {

@@ -442,8 +442,12 @@ public final class DVBDecoder: PictureDecoder {
         }
         guard let page else { return nil }
         var bitmaps: [SubtitleBitmap] = []
+        // A page may place a region any number of times, each a picture of its own.
+        var pixelsLeft = Pictures.maxPixels
         for placed in page.regions {
             guard let region = regions[placed.id], region.width > 0, region.height > 0 else { continue }
+            pixelsLeft -= region.width * region.height
+            guard pixelsLeft >= 0 else { break }
             let table = (cluts[region.clut] ?? Self.tables())[region.depth == 2 ? 0 : region.depth == 4 ? 1 : 2]
             var rgba = [UInt8](repeating: 0, count: region.width * region.height * 4)
             var visible = false
