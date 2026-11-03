@@ -81,16 +81,10 @@ final class ScreensTests: XCTestCase {
         app.launchArguments += Walk.largestText
         app.launch()
         let walk = Walk(app: app, test: self)
-        walk.startSignedOut()
-        await walk.signInWithCode()
-        // The profile signed in goes on without its PIN.
-        walk.wait(walk.button("profiles.profile.\(Admin.adminName)"), "Who's watching?", timeout: 30).tap()
-        if walk.element("profiles.pin").waitForExistence(timeout: 3) {
-            walk.element("profiles.pin").tap()
-            walk.element("profiles.pin").typeText(Admin.adminPin)
-            walk.tap("profiles.pin.continue", "Continue")
-        }
+        await walk.startSignedIn()
         walk.largeTextPass(libraries: await Admin.libraryIds())
+        // Signing out ends music's session, which the tests after this one
+        // would otherwise find on the server.
         walk.signOut()
     }
 
@@ -109,10 +103,7 @@ final class ScreensTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         let walk = Walk(app: app, test: self)
-        walk.startSignedOut()
-        await walk.signInWithCode()
-        walk.chooseSignedIn()
-        walk.seeHome(Admin.adminName)
+        await walk.startSignedIn()
 
         walk.openLiveTv()
         walk.chooseCategory("all")
@@ -167,8 +158,6 @@ final class ScreensTests: XCTestCase {
         walk.shot("73-live-search")
         let cancel = app.buttons.matching(NSPredicate(format: "label IN {'Cancel', 'Close'}")).firstMatch
         if cancel.exists { cancel.tap() }
-        walk.openMe()
-        walk.signOut()
     }
 
     /// Music: an album played from its page (the mini player, the track
@@ -183,10 +172,7 @@ final class ScreensTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         let walk = Walk(app: app, test: self)
-        walk.startSignedOut()
-        await walk.signInWithCode()
-        walk.chooseSignedIn()
-        walk.seeHome(Admin.adminName)
+        await walk.startSignedIn()
         await walk.musicWalk(music: await Admin.libraryIds()["Music"] ?? 0)
         walk.openMe()
         walk.signOut()
@@ -204,13 +190,8 @@ final class ScreensTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         let walk = Walk(app: app, test: self)
-        walk.startSignedOut()
-        await walk.signInWithCode()
-        walk.chooseSignedIn()
-        walk.seeHome(Admin.adminName)
+        await walk.startSignedIn()
         await walk.playerExtras(movies: await Admin.libraryIds()["Movies"] ?? 0)
-        walk.openMe()
-        walk.signOut()
     }
 
     /// Downloads: the original of Direct H264 played from the device, the
@@ -222,14 +203,9 @@ final class ScreensTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         let walk = Walk(app: app, test: self)
-        walk.startSignedOut()
-        await walk.signInWithCode()
-        walk.chooseSignedIn()
-        walk.seeHome(Admin.adminName)
+        await walk.startSignedIn()
         let libraries = await Admin.libraryIds()
         await walk.downloads(movies: libraries["Movies"] ?? 0, shows: libraries["Shows"] ?? 0)
-        walk.openMe()
-        walk.signOut()
     }
 
     func testPersonPage() async throws {
@@ -250,12 +226,7 @@ final class ScreensTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         let walk = Walk(app: app, test: self)
-        walk.startSignedOut()
-        await walk.signInWithCode()
-        walk.choose(Admin.adminName, pin: Admin.adminPin)
-        walk.seeHome(Admin.adminName)
+        await walk.startSignedIn()
         walk.personPage(library: libraries[found.library] ?? 0, name: found.library, title: found.title)
-        walk.openMe()
-        walk.signOut()
     }
 }

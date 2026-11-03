@@ -82,10 +82,7 @@ final class ScreensTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         let walk = Walk(app: app, test: self)
-        walk.startSignedOut()
-        await walk.signInWithCode()
-        walk.chooseSignedIn()
-        walk.seeHome(Admin.adminName)
+        await walk.startSignedIn()
 
         walk.openLiveTv()
         walk.shot("70-live-tabs")
@@ -157,8 +154,6 @@ final class ScreensTests: XCTestCase {
         }
         walk.wait(channels, "Live TV's channels found")
         walk.shot("75-live-search")
-        walk.openSettings()
-        walk.signOut()
     }
 
     /// Music: an album played from its page opens the Now Playing tab (the
@@ -170,10 +165,7 @@ final class ScreensTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         let walk = Walk(app: app, test: self)
-        walk.startSignedOut()
-        await walk.signInWithCode()
-        walk.chooseSignedIn()
-        walk.seeHome(Admin.adminName)
+        await walk.startSignedIn()
         await walk.musicWalk(music: await Admin.libraryIds()["Music"] ?? 0)
         walk.openSettings()
         walk.signOut()
@@ -188,13 +180,8 @@ final class ScreensTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         let walk = Walk(app: app, test: self)
-        walk.startSignedOut()
-        await walk.signInWithCode()
-        walk.chooseSignedIn()
-        walk.seeHome(Admin.adminName)
+        await walk.startSignedIn()
         await walk.playerExtras(movies: await Admin.libraryIds()["Movies"] ?? 0)
-        walk.openSettings()
-        walk.signOut()
     }
 
     /// Apple TV's Top Shelf: Home's Continue Watching is saved for the
@@ -211,10 +198,7 @@ final class ScreensTests: XCTestCase {
         app.launchArguments += ["-PleyShelfLinks", "YES"]
         app.launch()
         let walk = Walk(app: app, test: self)
-        walk.startSignedOut()
-        await walk.signInWithCode()
-        walk.chooseSignedIn()
-        walk.seeHome(Admin.adminName)
+        await walk.startSignedIn()
         await walk.shelfLinks(id)
         walk.openSettings()
         walk.signOut()
@@ -238,12 +222,7 @@ final class ScreensTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         let walk = Walk(app: app, test: self)
-        walk.startSignedOut()
-        await walk.signInWithCode()
-        walk.choose(Admin.adminName, pin: Admin.adminPin)
-        walk.seeHome(Admin.adminName)
+        await walk.startSignedIn()
         walk.personPage(library: found.library, title: found.title)
-        walk.openSettings()
-        walk.signOut()
     }
 }

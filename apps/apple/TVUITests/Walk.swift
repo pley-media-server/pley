@@ -95,6 +95,24 @@ struct Walk {
         wait(add, "the servers")
     }
 
+    /// At the administrator's Home: with the sign-in an earlier test kept,
+    /// or a new one with a code. Only the sign-in walk starts at the
+    /// servers; the others don't spend a sign-in each.
+    func startSignedIn() async {
+        let shown = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier BEGINSWITH 'tile.item.' OR identifier BEGINSWITH 'profiles.profile.' "
+                + "OR identifier == 'servers.add'")).firstMatch
+        _ = shown.waitForExistence(timeout: 20)
+        if button("profiles.profile.\(Admin.adminName)").exists {
+            chooseSignedIn()
+        } else if !tile.exists {
+            startSignedOut()
+            await signInWithCode()
+            chooseSignedIn()
+        }
+        seeHome(Admin.adminName)
+    }
+
     /// Adds the server by its address; the sign-in code shows, and the
     /// administrator allows it.
     func signInWithCode() async {

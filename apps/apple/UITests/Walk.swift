@@ -90,6 +90,34 @@ struct Walk {
         wait(address, "the servers")
     }
 
+    /// At the administrator's Home: with the sign-in an earlier test kept,
+    /// or a new one with a code. Only the sign-in walk starts at the
+    /// servers; the others don't spend a sign-in each.
+    func startSignedIn() async {
+        // The app opens where the test before left it: Home, another tab
+        // or the sidebar's section, "Who's watching?", or the servers.
+        let shown = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier BEGINSWITH 'tile.item.' OR identifier BEGINSWITH 'profiles.profile.' "
+                + "OR identifier BEGINSWITH 'shell.' "
+                + "OR identifier == 'servers.address' OR identifier BEGINSWITH 'servers.server.'")).firstMatch
+        let tabs = app.tabBars.firstMatch
+        for _ in 0..<40 where !shown.exists && !tabs.exists {
+            usleep(500_000)
+        }
+        let signedIn = tile.exists || element("shell.me").exists || element("shell.sidebar.home").exists
+            || app.tabBars.buttons["Home"].exists
+        if button("profiles.profile.\(Admin.adminName)").exists {
+            chooseSignedIn()
+        } else if signedIn {
+            openHome()
+        } else {
+            startSignedOut()
+            await signInWithCode()
+            chooseSignedIn()
+        }
+        seeHome(Admin.adminName)
+    }
+
     /// Adds the server by its address and signs in with a code, which the
     /// administrator allows.
     func signInWithCode() async {
