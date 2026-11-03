@@ -109,8 +109,9 @@ fn open_append(path: &Path) -> Option<File> {
 const HIDDEN: &str = "…";
 
 /// `line` with secrets taken out: bearer tokens, token and code parameters (in queries, forms and
-/// JSON), the key of keyed media addresses (`/api/media/pley_mk_…`), and the folders and names of
-/// a file on a USB drive (`/tmp/usb/sda/sda1/….mkv`).
+/// JSON), the key of keyed media addresses (`/api/media/pley_mk_…`), the random path a live
+/// channel's stream.ts is handed on at (`/relay/…/stream.ts`), and the folders and names of a file
+/// on a USB drive (`/tmp/usb/sda/sda1/….mkv`), as the TV's log has them (webos/src/log.rs).
 pub fn redact(line: &str) -> String {
     let mut out = line.to_string();
     for marker in ["Bearer ", "bearer "] {
@@ -122,6 +123,7 @@ pub fn redact(line: &str) -> String {
         out = mask_after(&out, &format!("\"{name}\": \""), |c| c == '"');
     }
     out = mask_after(&out, "pley_mk_", |c| c == '/' || c == '?' || c == '"' || c.is_whitespace());
+    out = mask_after(&out, "/relay/", |c| c == '/' || c == '?' || c == '"' || c.is_whitespace());
     pley_core::device::hide_drive_paths(&out)
 }
 
@@ -159,6 +161,10 @@ mod tests {
             "load http://10.0.0.2:7539/api/media/pley_mk_…/master.m3u8"
         );
         assert_eq!(redact("device_code=dc&user_code=ABCD-EFGH"), "device_code=…&user_code=…");
+        assert_eq!(
+            redact("load http://127.0.0.1:41234/relay/00112233445566778899aabbccddeeff/stream.ts"),
+            "load http://127.0.0.1:41234/relay/…/stream.ts"
+        );
         assert_eq!(redact("page home opens"), "page home opens");
         assert_eq!(redact("load file:///tmp/usb/sdb/sdb1/Kids/Frozen.mkv"), "load file:///tmp/usb/sdb/sdb1/….mkv");
     }
