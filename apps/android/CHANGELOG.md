@@ -35,6 +35,7 @@ describes how they are made.
   An empty folder or no drive says so under an icon, with focus on the
   page, so the rail closes over it. The page asks for leave to read the
   drive as it opens.
+
 ### Changed
 
 - On phones, the first scrolls after an install or an update are smoother:
@@ -49,9 +50,9 @@ describes how they are made.
 - On TVs, Left and Right show the controls with the preview and wait for
   OK before they seek, as YouTube's TV app does: OK goes there, it goes by
   itself 5 s after the last key, the controls going with it, and Back
-  lets it go. A held key let go
-  waits there too, and Previous, Next or Skip take the place of a seek
-  waiting. Fast forward and rewind seek as before.
+  lets it go. A held key let go waits there too, and Previous, Next or
+  Skip take the place of a seek waiting. Fast forward and rewind seek as
+  before.
 - On TVs, OK with the player's controls hidden shows them on the scrubber
   instead of pausing; OK there plays and pauses.
 - On TVs, Play/Pause, the player's button or the remote's key, plays and
@@ -107,9 +108,8 @@ describes how they are made.
   it does in the guide and on Samsung TVs.
 - A programme with a long description no longer holds each move along a
   row of the TV guide: what shows over the grid is cut to its two lines.
-- The TV guide moves more smoothly on slower TVs: a row is drawn again
-  only when what it shows changes, and the grid slides without placing
-  its programmes again.
+- The TV guide keeps up with the remote on slower TVs: moving along a
+  row or down the channels no longer stutters.
 - Under a held Up or Down the TV guide's channels keep up with focus, a
   row at a time, where each repeat began their scroll again; it opens on
   the channel last watched without scrolling there.
@@ -204,10 +204,8 @@ describes how they are made.
 - A page of Live TV channels that didn't load is asked for again once
   10 s have passed, as the list moves, where its rows stayed blank until
   another category was chosen.
-- Home's rows are no longer drawn again when the server has nothing new
-  for them, as on coming back from a title, so moving through them right
-  then stays smooth; on Android TV and Fire TV a focus move no longer
-  redraws the page around the row.
+- Moving through Home's rows stays smooth on coming back from a title,
+  and on Android TV and Fire TV moving along a row no longer stutters.
 - On Android TV and Fire TV, a library's Genre and Year panels open with
   focus on the genre or year chosen, however far down the list it is,
   where focus was left behind the panel.
@@ -218,7 +216,7 @@ describes how they are made.
 - On Android TV and Fire TV, Reduce motion (in Settings, or the system's
   Remove animations) stills the rail too: it opens and closes in place.
 - On Android TV and Fire TV, Up, Down or Right pressed while nothing on
-  the page has focus, as when what had it was drawn again, brings focus
+  the page has focus, as when what had it went away, brings focus
   back to the page, where the key did nothing.
 - Paused music stays in the server's Now playing, and a converted track
   plays on at once after a long pause, where it started over. A video or
@@ -239,9 +237,6 @@ describes how they are made.
   next episode under it; Stop still leaves.
 - On TVs, the sleep timer's notice keeps its width as the count goes under
   10 s, so Keep watching no longer moves under the focus.
-- On phones and tablets, dragging the seek bar, the volume or the
-  brightness moves only what is drawn: the controls no longer redraw with
-  each move of the finger.
 - On phones and tablets, the seek bar, the volume and the brightness keep
   up with a finger dragging them, without stutters.
 - On phones and tablets, the sleep timer's notice keeps its width as the
