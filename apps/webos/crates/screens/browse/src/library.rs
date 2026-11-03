@@ -4,7 +4,8 @@
 //!
 //! The header is a 44 dp row at y 27: the name at x 96 and the tabs at the right safe edge, 8
 //! apart; Up from a tab's content goes to the tab shown. The Library tab has its chips at y 80
-//! (Sort, Filter, Unwatched, Genre, Year, then the count) and its grid's focused row at y 136;
+//! (Sort, Filter, Unwatched, Genre, Year, the resolution and dynamic range while chosen, then the
+//! count) and its grid's focused row at y 136;
 //! the jump control sits at x 872, level with that row. The view (sort, order, filters) and the
 //! tab are kept per server, profile and library, read off the main thread before the page shows
 //! (500 ms at most); a row's See all opens the Library tab in its order, kept only once changed.
@@ -12,7 +13,7 @@
 use pley_base::{Icon, Point, Size, TextOpts};
 use pley_core::model::{
     CollectionList, CollectionSummary, Hub, Hubs, Library, LibraryFilters, LibraryKind, LibraryQuery, LibrarySort,
-    SortOrder,
+    RangeFilter, ResolutionFilter, SortOrder,
 };
 use pley_core::store::{keys, snapshot_keys};
 use pley_core::{ApiError, Promise};
@@ -27,10 +28,11 @@ use pley_ui::{Dir, Dirs, Edge, Group, Id, Tier, Ui};
 use crate::alpha::{AlphaIndex, JUMP_FROM};
 use crate::listing::{Listing, WINDOW_ABOVE, WINDOW_ABOVE_LOW};
 use crate::parts::{Line, Rest, column_message, failed_title, titled_panel_lines};
-use crate::tiles::{Cell, page_of, requests};
+use crate::tiles::{Cell, Quality, page_of, requests};
 use crate::view::{
     collection_count, collections_label, count_label, default_order, default_view, filtered, fit, opening_tab,
-    see_all_sort, see_all_view, smart_filter_of, sort_label, sorts_for, tab_label, tabs_for, unfiltered,
+    range_label, resolution_label, see_all_sort, see_all_view, smart_filter_of, sort_label, sorts_for, tab_label,
+    tabs_for, unfiltered,
 };
 
 /// The header row's top and height.
@@ -53,6 +55,10 @@ const UNKNOWN_CELLS: usize = 18;
 const KEPT_WAIT: f64 = 0.5;
 /// Genre and Year chips cut their label at this width.
 const CHIP_LABEL_MAX: f32 = 220.0;
+/// The least the Genre and Sort chips' labels give way to, for the row to fit.
+const CHIP_LABEL_MIN: f32 = 48.0;
+/// The least room the count is drawn in.
+const COUNT_LEAST: f32 = 48.0;
 
 /// What this TV kept of a library: its view and its tab.
 type Kept = (Option<LibraryQuery>, Option<String>);
@@ -345,6 +351,20 @@ enum Panel {
     Filter,
     Genre,
     Year,
+    Resolution,
+    DynamicRange,
+}
+
+/// A line of the Filter panel: the "Show" heading and its three choices, Genre and Year, then
+/// Resolution and Dynamic range where the library has them to choose (or one is chosen), then
+/// Clear filters and Save as… while the view is filtered.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FilterLine {
+    Show,
+    Watched(Option<bool>),
+    Panel(Panel),
+    Clear,
+    SaveAs,
 }
 
 /// The Library tab: chips, the grid, the A–Z jump and the panels.
@@ -365,6 +385,8 @@ struct GridTab {
     /// The panel drawn while it slides out.
     last_panel: Panel,
     panel_list: ListState,
+    /// A chip went with its value: Filter takes focus at the next frame.
+    focus_filter: bool,
     rest: Rest,
     window_above: usize,
 }
@@ -392,6 +414,7 @@ impl GridTab {
             panel: None,
             last_panel: Panel::Sort,
             panel_list: ListState::default(),
+            focus_filter: false,
             rest: Rest::default(),
             window_above,
         }
@@ -421,6 +444,13 @@ impl GridTab {
 
     fn close_panel(&mut self) -> bool {
         self.panel.take().is_some()
+    }
+
+    /// Closes the Resolution or Dynamic range panel once chosen in. Cleared, its chip goes, so
+    /// focus goes to Filter, where the choice is made again, once the panel has let it go.
+    fn close_chooser(&mut self, cleared: bool) {
+        self.panel = None;
+        self.focus_filter |= cleared;
     }
 
     fn open_panel(&mut self, panel: Panel, current: usize) {
@@ -550,44 +580,68 @@ impl GridTab {
             None => (0, 0),
         };
         let year_label = self.view.year.map(|y| y.to_string());
+        // Each chip's name, label and button.
+        let sort = sort_label(self.view.sort);
+        let mut chips: Vec<(&'static str, &str, Button)> = vec![("sort", sort, Button::chip(sort).icon(sort_icon))];
+        if !self.music {
+            chips.push(("filter", "Filter", Button::chip("Filter").icon(Icon::SlidersHorizontal)));
+            let unwatched = Button::chip("Unwatched").selected(self.view.watched == Some(false));
+            chips.push(("unwatched", "Unwatched", unwatched));
+            if genres > 0 || self.view.genre.is_some() {
+                let label = self.view.genre.as_deref().unwrap_or("Genre");
+                let b = Button::chip(label).selected(self.view.genre.is_some()).max_label_width(CHIP_LABEL_MAX);
+                chips.push(("genre", label, b));
+            }
+            if years > 0 || self.view.year.is_some() {
+                let label = year_label.as_deref().unwrap_or("Year");
+                chips.push(("year", label, Button::chip(label).selected(self.view.year.is_some())));
+            }
+            // The row has no room for two more choosers: Resolution and Dynamic range are chosen
+            // in the Filter panel, and show here only while chosen, named by their value.
+            if let Some(r) = self.view.resolution.map(resolution_label) {
+                chips.push(("resolution", r, Button::chip(r).selected(true)));
+            }
+            if let Some(r) = self.view.dynamic_range.map(range_label) {
+                chips.push(("range", r, Button::chip(r).selected(true)));
+            }
+        }
+        // With most filters chosen, the genre's name gives way, then the sort's (its panel names
+        // it whole), so the row ends within the safe area.
+        let right = theme::CANVAS_W - theme::SAFE_X;
+        let row_w = chips.iter().map(|(_, _, b)| b.size(ui).w + CHIP_GAP).sum::<f32>() - CHIP_GAP;
+        let mut over = theme::GUTTER + row_w - right;
+        for yielding in ["genre", "sort"] {
+            if over <= 0.0 {
+                break;
+            }
+            let Some((_, label, button)) = chips.iter_mut().find(|(name, _, _)| *name == yielding) else { continue };
+            let shown = ui.measure(label, &theme::LABEL, &TextOpts::line(f32::MAX)).w.min(CHIP_LABEL_MAX);
+            let cut = (shown - over).max(CHIP_LABEL_MIN).min(shown);
+            *button = button.max_label_width(cut);
+            over -= shown - cut;
+        }
         let chips_id = ui.id("chips");
         let mut x = theme::GUTTER;
         let mut acted: Option<&'static str> = None;
         ui.group(chips_id, Group::row().edge(Dir::Left, Edge::Out).edge(Dir::Right, Edge::Stop), |ui| {
-            let mut chip = |ui: &mut Ui, name: &'static str, button: Button| {
-                let r = button.show(ui, chips_id.with(name), Point::new(x, CHIPS_Y));
+            for (name, _, button) in &chips {
+                let r = button.show(ui, chips_id.with(*name), Point::new(x, CHIPS_Y));
                 x += button.size(ui).w + CHIP_GAP;
                 if r.activated {
-                    acted = Some(name);
-                }
-            };
-            chip(ui, "sort", Button::chip(sort_label(self.view.sort)).icon(sort_icon));
-            if !self.music {
-                chip(ui, "filter", Button::chip("Filter").icon(Icon::SlidersHorizontal));
-                chip(ui, "unwatched", Button::chip("Unwatched").selected(self.view.watched == Some(false)));
-                if genres > 0 || self.view.genre.is_some() {
-                    let label = self.view.genre.as_deref().unwrap_or("Genre");
-                    let b = Button::chip(label).selected(self.view.genre.is_some()).max_label_width(CHIP_LABEL_MAX);
-                    chip(ui, "genre", b);
-                }
-                if years > 0 || self.view.year.is_some() {
-                    let label = year_label.as_deref().unwrap_or("Year");
-                    chip(ui, "year", Button::chip(label).selected(self.view.year.is_some()));
+                    acted = Some(*name);
                 }
             }
         });
-        if let Some(total) = total {
+        if std::mem::take(&mut self.focus_filter) {
+            ui.request_focus(chips_id.with("filter"));
+        }
+        // The count in what is left of the row; none where little more than its "…" would show.
+        let width = theme::CANVAS_W - theme::SAFE_X - x + CHIP_GAP - 8.0;
+        if let Some(total) = total.filter(|_| width >= COUNT_LEAST) {
             let of = (filtered_view && library.item_count >= total as i64).then_some(library.item_count);
             let text = count_label(total as i64, library.kind, of);
             let y = CHIPS_Y + (theme::BUTTON_HEIGHT - theme::CAPTION.line_height) / 2.0;
-            let width = theme::CANVAS_W - theme::SAFE_X - x + CHIP_GAP - 8.0;
-            ui.text(
-                Point::new(x - CHIP_GAP + 8.0, y),
-                &text,
-                &theme::CAPTION,
-                &TextOpts::line(width.max(1.0)),
-                theme::MUTED,
-            );
+            ui.text(Point::new(x - CHIP_GAP + 8.0, y), &text, &theme::CAPTION, &TextOpts::line(width), theme::MUTED);
         }
         match acted {
             Some("sort") => {
@@ -608,18 +662,71 @@ impl GridTab {
                 let at = self.year_line();
                 self.open_panel(Panel::Year, at);
             }
+            Some("resolution") => {
+                let at = self.resolution_line();
+                self.open_panel(Panel::Resolution, at);
+            }
+            Some("range") => {
+                let at = self.range_line();
+                self.open_panel(Panel::DynamicRange, at);
+            }
             _ => {}
         }
     }
 
+    /// The Filter panel's lines ([`FilterLine`]).
+    fn filter_lines(&self) -> Vec<FilterLine> {
+        let mut lines = vec![
+            FilterLine::Show,
+            FilterLine::Watched(None),
+            FilterLine::Watched(Some(false)),
+            FilterLine::Watched(Some(true)),
+            FilterLine::Panel(Panel::Genre),
+            FilterLine::Panel(Panel::Year),
+        ];
+        if !self.resolutions().is_empty() || self.view.resolution.is_some() {
+            lines.push(FilterLine::Panel(Panel::Resolution));
+        }
+        if !self.ranges().is_empty() || self.view.dynamic_range.is_some() {
+            lines.push(FilterLine::Panel(Panel::DynamicRange));
+        }
+        if filtered(&self.view) {
+            lines.extend([FilterLine::Clear, FilterLine::SaveAs]);
+        }
+        lines
+    }
+
     /// The Filter panel's line with the "Show" choice in force (under the fixed title: "Show",
-    /// All, Unwatched, Watched, Genre, Year, then Clear filters and Save as…).
+    /// All, Unwatched, Watched, then the filters' rows, Clear filters and Save as…).
     fn show_line(&self) -> usize {
         match self.view.watched {
             None => 1,
             Some(false) => 2,
             Some(true) => 3,
         }
+    }
+
+    /// The resolutions the Resolution panel offers: the server's, in its order, but any this app
+    /// doesn't know.
+    fn resolutions(&self) -> Vec<ResolutionFilter> {
+        let offered = self.filters.value().map_or(&[][..], |f| f.resolutions.as_slice());
+        offered.iter().copied().filter(|r| *r != ResolutionFilter::Unknown).collect()
+    }
+
+    /// The dynamic ranges the Dynamic range panel offers, as [`GridTab::resolutions`].
+    fn ranges(&self) -> Vec<RangeFilter> {
+        let offered = self.filters.value().map_or(&[][..], |f| f.dynamic_ranges.as_slice());
+        offered.iter().copied().filter(|r| *r != RangeFilter::Unknown).collect()
+    }
+
+    /// The Resolution panel's line in force: All resolutions, then the resolutions.
+    fn resolution_line(&self) -> usize {
+        self.view.resolution.and_then(|r| self.resolutions().iter().position(|x| *x == r)).map_or(0, |i| i + 1)
+    }
+
+    /// The Dynamic range panel's line in force: All dynamic ranges, then the ranges.
+    fn range_line(&self) -> usize {
+        self.view.dynamic_range.and_then(|r| self.ranges().iter().position(|x| *x == r)).map_or(0, |i| i + 1)
     }
 
     /// The Genre panel's line in force: All genres, then the genres.
@@ -641,6 +748,8 @@ impl GridTab {
             Panel::Filter => self.show_line(),
             Panel::Genre => self.genre_line(),
             Panel::Year => self.year_line(),
+            Panel::Resolution => self.resolution_line(),
+            Panel::DynamicRange => self.range_line(),
         }
     }
 
@@ -654,6 +763,8 @@ impl GridTab {
         let panel_id = ui.id("panel");
         let list_id = ui.id(("panel-list", panel as u8));
         let mut chosen = None;
+        let filter_lines = self.filter_lines();
+        let (resolutions, ranges) = (self.resolutions(), self.ranges());
         let (view, labels, state) = (&self.view, &self.years, &mut self.panel_list);
         let filters = self.filters.value();
         let genres = filters.map_or(&[][..], |f| f.genres.as_slice());
@@ -662,6 +773,8 @@ impl GridTab {
             let order = view.order.unwrap_or(default_order(view.sort));
             let genre_value = view.genre.as_deref().unwrap_or("All genres");
             let year_value = view.year.map_or_else(|| "All years".to_string(), |y| y.to_string());
+            let resolution_value = view.resolution.map_or("All resolutions", resolution_label);
+            let range_value = view.dynamic_range.map_or("All dynamic ranges", range_label);
             let mut lines: Vec<Line> = Vec::new();
             let title = match panel {
                 Panel::Sort => {
@@ -674,15 +787,29 @@ impl GridTab {
                     "Sort by"
                 }
                 Panel::Filter => {
-                    lines.push(Line::Heading(Heading::Small, "Show"));
-                    lines.push(Line::Row(ListRow::new("All").checked(view.watched.is_none())));
-                    lines.push(Line::Row(ListRow::new("Unwatched").checked(view.watched == Some(false))));
-                    lines.push(Line::Row(ListRow::new("Watched").checked(view.watched == Some(true))));
-                    lines.push(Line::Row(ListRow::new("Genre").trailing(Trailing::Value(genre_value))));
-                    lines.push(Line::Row(ListRow::new("Year").trailing(Trailing::Value(&year_value))));
-                    if filtered(view) {
-                        lines.push(Line::Row(ListRow::new("Clear filters")));
-                        lines.push(Line::Row(ListRow::new("Save as…").icon(Icon::Save)));
+                    for line in &filter_lines {
+                        lines.push(match line {
+                            FilterLine::Show => Line::Heading(Heading::Small, "Show"),
+                            FilterLine::Watched(w) => {
+                                let label = match w {
+                                    None => "All",
+                                    Some(false) => "Unwatched",
+                                    Some(true) => "Watched",
+                                };
+                                Line::Row(ListRow::new(label).checked(view.watched == *w))
+                            }
+                            FilterLine::Panel(p) => {
+                                let (label, value) = match p {
+                                    Panel::Genre => ("Genre", genre_value),
+                                    Panel::Year => ("Year", year_value.as_str()),
+                                    Panel::Resolution => ("Resolution", resolution_value),
+                                    _ => ("Dynamic range", range_value),
+                                };
+                                Line::Row(ListRow::new(label).trailing(Trailing::Value(value)))
+                            }
+                            FilterLine::Clear => Line::Row(ListRow::new("Clear filters")),
+                            FilterLine::SaveAs => Line::Row(ListRow::new("Save as…").icon(Icon::Save)),
+                        });
                     }
                     "Filter"
                 }
@@ -699,6 +826,22 @@ impl GridTab {
                         lines.push(Line::Row(ListRow::new(label).checked(view.year == Some(*y))));
                     }
                     "Year"
+                }
+                Panel::Resolution => {
+                    lines.push(Line::Row(ListRow::new("All resolutions").checked(view.resolution.is_none())));
+                    for r in &resolutions {
+                        let row = ListRow::new(resolution_label(*r)).checked(view.resolution == Some(*r));
+                        lines.push(Line::Row(row));
+                    }
+                    "Resolution"
+                }
+                Panel::DynamicRange => {
+                    let none = view.dynamic_range.is_none();
+                    lines.push(Line::Row(ListRow::new("All dynamic ranges").checked(none)));
+                    for r in &ranges {
+                        lines.push(Line::Row(ListRow::new(range_label(*r)).checked(view.dynamic_range == Some(*r))));
+                    }
+                    "Dynamic range"
                 }
             };
             chosen = titled_panel_lines(ui, list_id, area, state, title, &lines, Some(initial));
@@ -725,33 +868,27 @@ impl GridTab {
                 self.set_view(cx, library, next, true);
                 self.panel = None;
             }
-            Panel::Filter => match chosen {
-                1..=3 => {
-                    let watched = [None, Some(false), Some(true)][chosen - 1];
-                    self.set_view(cx, library, LibraryQuery { watched, ..view }, true);
+            Panel::Filter => match filter_lines.get(chosen) {
+                Some(FilterLine::Watched(watched)) => {
+                    self.set_view(cx, library, LibraryQuery { watched: *watched, ..view }, true);
                 }
-                4 => {
-                    let at = self.genre_line();
-                    self.open_panel(Panel::Genre, at);
-                    ui.request_focus(ui.id(("panel-list", Panel::Genre as u8)).with(at as u64));
+                Some(FilterLine::Panel(sub)) => {
+                    let at = self.initial_line(*sub, library);
+                    self.open_panel(*sub, at);
+                    ui.request_focus(ui.id(("panel-list", *sub as u8)).with(at as u64));
                 }
-                5 => {
-                    let at = self.year_line();
-                    self.open_panel(Panel::Year, at);
-                    ui.request_focus(ui.id(("panel-list", Panel::Year as u8)).with(at as u64));
-                }
-                6 => {
+                Some(FilterLine::Clear) => {
                     self.set_view(cx, library, unfiltered(&view), true);
                     self.panel = None;
                 }
-                7 => {
+                Some(FilterLine::SaveAs) => {
                     // Save as…: Save these filters; Back from it lands on the Filter chip.
                     self.panel = None;
                     ui.request_focus(ui.id("chips").with("filter"));
                     let smart = pley_shell::SmartPlaylist { library_id: library.id, filter: smart_filter_of(&view) };
                     route = Some(Route::NewPlaylist { item_ids: Vec::new(), smart: Some(smart) });
                 }
-                _ => {}
+                Some(FilterLine::Show) | None => {}
             },
             Panel::Genre => {
                 let genres = self.filters.value().map_or(&[][..], |f| f.genres.as_slice());
@@ -764,6 +901,16 @@ impl GridTab {
                 let year = if chosen == 0 { None } else { years.get(chosen - 1).copied() };
                 self.set_view(cx, library, LibraryQuery { year, ..view }, true);
                 self.panel = None;
+            }
+            Panel::Resolution => {
+                let resolution = if chosen == 0 { None } else { resolutions.get(chosen - 1).copied() };
+                self.set_view(cx, library, LibraryQuery { resolution, ..view }, true);
+                self.close_chooser(resolution.is_none());
+            }
+            Panel::DynamicRange => {
+                let dynamic_range = if chosen == 0 { None } else { ranges.get(chosen - 1).copied() };
+                self.set_view(cx, library, LibraryQuery { dynamic_range, ..view }, true);
+                self.close_chooser(dynamic_range.is_none());
             }
         }
         route
@@ -883,7 +1030,7 @@ impl RecommendedTab {
                 };
                 let px = ui.image_px(kind.size().w);
                 let cells = match cx.api() {
-                    Some(api) => hub.items.into_iter().map(|i| Cell::new(i, api, kind, px, false)).collect(),
+                    Some(api) => hub.items.into_iter().map(|i| Cell::new(i, api, kind, px, Quality::NONE)).collect(),
                     None => Vec::new(),
                 };
                 RecRow {

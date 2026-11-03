@@ -36,6 +36,12 @@ describes how they are made.
   back or on, while music plays too, as in the Android TV app.
 - In the Live TV player, Next and Previous change channel as CH+ and CH−
   do, once a press, as in the Android TV app.
+- A library of movies or shows filters by resolution (4K, 1080p, 720p,
+  SD) and dynamic range (HDR, Dolby Vision, HDR10+, HDR10, HLG, SDR),
+  from the Filter panel's Resolution and Dynamic range, where its titles
+  have more than one. A chip names the choice while one is chosen; Clear
+  filters, the count, the kept view and Save as… treat them as Genre and
+  Year.
 
 ### Changed
 
@@ -119,6 +125,9 @@ describes how they are made.
 - A season partly in the library says how much of it is, "4 of 10
   episodes in library", as in the Android TV app, under its name on a
   Discover title's page.
+- The posters of a library's grid wear their quality badges ("4K", "DV",
+  "HDR10") when it is filtered by resolution or dynamic range, as when it
+  is sorted by bitrate; otherwise posters carry none.
 
 ### Removed
 

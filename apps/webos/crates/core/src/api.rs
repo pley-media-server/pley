@@ -193,7 +193,7 @@ impl Api {
         self.get(&id_path("/api/libraries/{id}/hubs", id))
     }
 
-    /// The genres and years a library can be filtered by.
+    /// The genres, years, resolutions and dynamic ranges a library can be filtered by.
     pub fn library_filters(&self, id: i64) -> Result<LibraryFilters, ApiError> {
         self.get(&id_path("/api/libraries/{id}/filters", id))
     }

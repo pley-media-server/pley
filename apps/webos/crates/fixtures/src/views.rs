@@ -16,7 +16,7 @@ pub(crate) struct ListOpts {
     /// Summaries for every kind (`summaries=1`); else only episodes have them,
     /// as the server's lists.
     pub summaries: bool,
-    /// The best file's numbers (listings sorted by bitrate).
+    /// The best file's numbers (library listings, whatever the sort).
     pub media: bool,
 }
 
@@ -55,6 +55,50 @@ pub(crate) fn summary(catalog: &Catalog, item: &ItemDetail, profile: &Profile, o
     }
     s.media = if opts.media { media_summary(catalog, item) } else { None };
     s
+}
+
+/// The resolutions a library filters by, best first (apps/server/src/catalog.rs, `RESOLUTIONS`).
+pub(crate) const RESOLUTIONS: [&str; 4] = ["4k", "1080", "720", "sd"];
+/// The dynamic ranges a library filters by, best first; `hdr` names the first four.
+pub(crate) const DYNAMIC_RANGES: [&str; 5] = ["dolby_vision", "hdr10plus", "hdr10", "hlg", "sdr"];
+
+/// The files a title's quality comes from: its own, or its episodes' (an artist's tracks').
+fn title_files<'a>(catalog: &'a Catalog, item: &'a ItemDetail) -> Vec<&'a MediaFile> {
+    if item.kind().playable() {
+        return item.files.iter().collect();
+    }
+    catalog.leaves(item.id()).into_iter().filter_map(|id| catalog.item(id)).flat_map(|i| i.files.iter()).collect()
+}
+
+/// A title's resolution, its best file's (a show's best episode's), by the server's lines: a
+/// width or a height is enough. None without a video file.
+pub(crate) fn title_resolution(catalog: &Catalog, item: &ItemDetail) -> Option<&'static str> {
+    let files = title_files(catalog, item);
+    let w = files.iter().filter_map(|f| f.width).max().unwrap_or(0);
+    let h = files.iter().filter_map(|f| f.height).max().unwrap_or(0);
+    let at = if w >= 3800 || h >= 2100 {
+        0
+    } else if w >= 1800 || h >= 1000 {
+        1
+    } else if w >= 1200 || h >= 700 {
+        2
+    } else if w > 0 || h > 0 {
+        3
+    } else {
+        return None;
+    };
+    Some(RESOLUTIONS[at])
+}
+
+/// A title's dynamic range, its best file's (a show's best episode's), in the order of
+/// [`DYNAMIC_RANGES`]. None without a video file.
+pub(crate) fn title_range(catalog: &Catalog, item: &ItemDetail) -> Option<&'static str> {
+    title_files(catalog, item)
+        .iter()
+        .filter_map(|f| f.streams.iter().find(|s| s.is("video"))?.dynamic_range)
+        .filter_map(|r| DYNAMIC_RANGES.iter().position(|x| *x == r))
+        .min()
+        .map(|i| DYNAMIC_RANGES[i])
 }
 
 pub(crate) fn summary_of(catalog: &Catalog, id: i64, profile: &Profile, opts: ListOpts) -> Option<ItemSummary> {
@@ -145,7 +189,8 @@ pub(crate) fn media_summary(catalog: &Catalog, item: &ItemDetail) -> Option<Medi
             width: files.iter().filter_map(|f| f.width).max(),
             height: files.iter().filter_map(|f| f.height).max(),
             video_codec: None,
-            dynamic_range: None,
+            // The best episode's, as its resolution is.
+            dynamic_range: title_range(catalog, item),
         });
     }
     let best = item.files.iter().max_by_key(|f| f.bitrate.unwrap_or(0))?;

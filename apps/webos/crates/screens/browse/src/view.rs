@@ -3,8 +3,10 @@
 //! `library-data.ts` and the Android app's `LibraryParams.kt` and `SmartFilter.kt`.
 
 use pley_core::format::grouped;
-use pley_core::model::{LibraryKind, LibraryQuery, LibrarySort, SortOrder};
+use pley_core::model::{LibraryKind, LibraryQuery, LibrarySort, RangeFilter, ResolutionFilter, SortOrder};
 use pley_shell::LibraryTab;
+
+use crate::tiles::Quality;
 
 /// Every sort, in the order the Sort panel lists them (`LibraryParams.kt:89-99`).
 const ALL_SORTS: [LibrarySort; 9] = [
@@ -66,15 +68,23 @@ pub fn order_of(query: &LibraryQuery) -> SortOrder {
 }
 
 /// A view fit for a library of `kind`: a sort it doesn't offer becomes Title, the order is always
-/// said (so the query string is the same every time, for the server's ETag), and music has no
-/// filters.
+/// said (so the query string is the same every time, for the server's ETag), a resolution or
+/// dynamic range this app doesn't know is dropped, and music has no filters.
 pub fn fit(query: LibraryQuery, kind: LibraryKind) -> LibraryQuery {
     let sort = if sorts_for(kind).contains(&query.sort) { query.sort } else { LibrarySort::Title };
     let order = Some(query.order.filter(|_| sort == query.sort).unwrap_or(default_order(sort)));
     if kind == LibraryKind::Music {
         return LibraryQuery { sort, order, ..LibraryQuery::default() };
     }
-    LibraryQuery { sort, order, watched: query.watched, genre: query.genre.filter(|g| !g.is_empty()), year: query.year }
+    LibraryQuery {
+        sort,
+        order,
+        watched: query.watched,
+        genre: query.genre.filter(|g| !g.is_empty()),
+        year: query.year,
+        resolution: query.resolution.filter(|r| *r != ResolutionFilter::Unknown),
+        dynamic_range: query.dynamic_range.filter(|r| *r != RangeFilter::Unknown),
+    }
 }
 
 /// The view a library opens in by default: by title, A to Z, unfiltered.
@@ -87,14 +97,50 @@ pub fn see_all_view(sort: LibrarySort, kind: LibraryKind) -> LibraryQuery {
     fit(LibraryQuery { sort, order: Some(default_order(sort)), ..LibraryQuery::default() }, kind)
 }
 
-/// Whether the view filters the library (watched, genre or year).
+/// Whether the view filters the library (watched, genre, year, resolution or dynamic range).
 pub fn filtered(query: &LibraryQuery) -> bool {
-    query.watched.is_some() || query.genre.is_some() || query.year.is_some()
+    query.watched.is_some()
+        || query.genre.is_some()
+        || query.year.is_some()
+        || query.resolution.is_some()
+        || query.dynamic_range.is_some()
 }
 
 /// The view without its filters.
 pub fn unfiltered(query: &LibraryQuery) -> LibraryQuery {
-    LibraryQuery { watched: None, genre: None, year: None, ..query.clone() }
+    LibraryQuery { watched: None, genre: None, year: None, resolution: None, dynamic_range: None, ..query.clone() }
+}
+
+/// A resolution as its chip and the Resolution panel name it.
+pub fn resolution_label(resolution: ResolutionFilter) -> &'static str {
+    match resolution {
+        ResolutionFilter::Uhd => "4K",
+        ResolutionFilter::Fhd => "1080p",
+        ResolutionFilter::Hd => "720p",
+        ResolutionFilter::Sd => "SD",
+        ResolutionFilter::Unknown => "",
+    }
+}
+
+/// A dynamic range as its chip and the Dynamic range panel name it.
+pub fn range_label(range: RangeFilter) -> &'static str {
+    match range {
+        RangeFilter::Hdr => "HDR",
+        RangeFilter::DolbyVision => "Dolby Vision",
+        RangeFilter::Hdr10Plus => "HDR10+",
+        RangeFilter::Hdr10 => "HDR10",
+        RangeFilter::Hlg => "HLG",
+        RangeFilter::Sdr => "SDR",
+        RangeFilter::Unknown => "",
+    }
+}
+
+/// What the views ask for of the grid's quality badges and bitrate line: the badges sorted by
+/// bitrate or filtered by resolution or dynamic range, where they say why a title is there; the
+/// bitrate line sorted by bitrate.
+pub fn quality_of(query: &LibraryQuery) -> Quality {
+    let bitrate = query.sort == LibrarySort::Bitrate;
+    Quality { badges: bitrate || query.resolution.is_some() || query.dynamic_range.is_some(), bitrate }
 }
 
 /// The tabs a library of `kind` has: music has no Collections.
@@ -183,7 +229,8 @@ fn plex_sort(sort: LibrarySort) -> &'static str {
 }
 
 /// The view's filters and order as a smart filter in Plex's syntax, each part form-encoded
-/// (`genre=Comedy&unwatched=1&sort=year%3Adesc`): what "Save as…" saves (`SmartFilter.of`).
+/// (`genre=Comedy&resolution=4k&unwatched=1&sort=year%3Adesc`): what "Save as…" saves
+/// (`SmartFilter.of`). Resolution is Plex's own field, `dynamicRange` the server's.
 pub fn smart_filter_of(query: &LibraryQuery) -> String {
     let mut parts: Vec<(&str, String)> = Vec::new();
     if let Some(g) = &query.genre {
@@ -191,6 +238,12 @@ pub fn smart_filter_of(query: &LibraryQuery) -> String {
     }
     if let Some(y) = query.year {
         parts.push(("year", y.to_string()));
+    }
+    if let Some(r) = query.resolution {
+        parts.push(("resolution", r.as_str().to_string()));
+    }
+    if let Some(r) = query.dynamic_range {
+        parts.push(("dynamicRange", r.as_str().to_string()));
     }
     if let Some(w) = query.watched {
         parts.push(("unwatched", if w { "0" } else { "1" }.to_string()));
@@ -262,8 +315,25 @@ fn sort_note(value: &str) -> String {
     if direction == Some("desc") { notes.1 } else { notes.0 }.to_string()
 }
 
-/// What a smart filter finds, in words: "Genre: Comedy", "Unwatched", "From 1999", "Newest
-/// first"… (`SmartFilter.describe`).
+/// A smart filter's resolution as the Resolution panel names it, Plex's own values too (`2160`,
+/// `1080p`, and `576` and `480`, which are SD).
+fn resolution_words(value: &str) -> Option<&'static str> {
+    let value = value.trim().to_ascii_lowercase();
+    let resolution = match value.strip_suffix('p').unwrap_or(&value) {
+        "2160" => ResolutionFilter::Uhd,
+        "576" | "480" => ResolutionFilter::Sd,
+        other => ResolutionFilter::from_wire(other),
+    };
+    Some(resolution_label(resolution)).filter(|l| !l.is_empty())
+}
+
+/// A smart filter's dynamic range as the Dynamic range panel names it.
+fn range_words(value: &str) -> Option<&'static str> {
+    Some(range_label(RangeFilter::from_wire(&value.trim().to_ascii_lowercase()))).filter(|l| !l.is_empty())
+}
+
+/// What a smart filter finds, in words: "Genre: Comedy", "Unwatched", "From 1999", "4K", "Dolby
+/// Vision", "Newest first"… (`SmartFilter.describe`).
 pub fn describe_smart_filter(filter: &str) -> Vec<String> {
     let mut out = Vec::new();
     for part in filter.split('&').filter(|p| !p.is_empty()) {
@@ -283,6 +353,8 @@ pub fn describe_smart_filter(filter: &str) -> Vec<String> {
             "year>>" => out.push(format!("After {value}")),
             "year<<" => out.push(format!("Before {value}")),
             "decade" => out.push(format!("The {value}s")),
+            "resolution" => out.push(resolution_words(&value).map_or_else(|| format!("{key}: {value}"), String::from)),
+            "dynamicRange" => out.push(range_words(&value).map_or_else(|| format!("{key}: {value}"), String::from)),
             "sort" => out.push(sort_note(&value)),
             "limit" => out.push(format!("At most {value}")),
             // Plumbing, not part of what is found.
@@ -364,9 +436,18 @@ mod tests {
             watched: Some(false),
             genre: Some("Science Fiction".into()),
             year: Some(2010),
+            ..LibraryQuery::default()
         };
         // Java's URLEncoder, as Android writes it, escapes the colon too.
         assert_eq!(smart_filter_of(&q), "genre=Science+Fiction&year=2010&unwatched=1&sort=year%3Adesc");
+        // Resolution (Plex's field) and dynamic range (the server's) after the year.
+        let q = LibraryQuery { resolution: Some(ResolutionFilter::Uhd), dynamic_range: Some(RangeFilter::Hdr), ..q };
+        assert_eq!(
+            smart_filter_of(&q),
+            "genre=Science+Fiction&year=2010&resolution=4k&dynamicRange=hdr&unwatched=1&sort=year%3Adesc"
+        );
+        let range = LibraryQuery { dynamic_range: Some(RangeFilter::DolbyVision), ..default_view() };
+        assert_eq!(smart_filter_of(&range), "dynamicRange=dolby_vision&sort=titleSort");
         assert_eq!(smart_filter_of(&default_view()), "sort=titleSort");
         let watched = LibraryQuery { watched: Some(true), ..default_view() };
         assert_eq!(smart_filter_of(&watched), "unwatched=0&sort=titleSort");
@@ -388,5 +469,55 @@ mod tests {
         assert_eq!(describe_smart_filter("sort=mediaBitrate"), vec!["Sorted by mediaBitrate"]);
         assert_eq!(describe_smart_filter("studio=A24&limit=10"), vec!["Studio: A24", "At most 10"]);
         assert!(describe_smart_filter("").is_empty());
+        // Resolution and dynamic range by the labels of their panels, Plex's resolutions too.
+        assert_eq!(
+            describe_smart_filter("resolution=4k&dynamicRange=dolby_vision&unwatched=1"),
+            vec!["4K", "Dolby Vision", "Unwatched"]
+        );
+        assert_eq!(describe_smart_filter("resolution=1080p&dynamicRange=hdr"), vec!["1080p", "HDR"]);
+        assert_eq!(describe_smart_filter("resolution=480&dynamicRange=hdr10plus"), vec!["SD", "HDR10+"]);
+        assert_eq!(describe_smart_filter("resolution=8k"), vec!["resolution: 8k"]);
+    }
+
+    #[test]
+    fn resolution_and_dynamic_range_filter_like_genre_and_year() {
+        let q = LibraryQuery { resolution: Some(ResolutionFilter::Hd), ..default_view() };
+        assert!(filtered(&q));
+        assert!(filtered(&LibraryQuery { dynamic_range: Some(RangeFilter::Sdr), ..default_view() }));
+        let both = LibraryQuery { dynamic_range: Some(RangeFilter::Hlg), ..q.clone() };
+        assert_eq!(unfiltered(&both), default_view());
+        // Kept as they are; a value this app doesn't know is dropped; music keeps neither.
+        assert_eq!(fit(both.clone(), LibraryKind::Shows), both);
+        let odd = LibraryQuery {
+            resolution: Some(ResolutionFilter::Unknown),
+            dynamic_range: Some(RangeFilter::Unknown),
+            ..default_view()
+        };
+        assert_eq!(fit(odd, LibraryKind::Movies), default_view());
+        assert_eq!(fit(both, LibraryKind::Music), default_view());
+        // Chosen values are named by their labels, never their tokens.
+        let labels: Vec<&str> = ResolutionFilter::ALL.iter().map(|r| resolution_label(*r)).collect();
+        assert_eq!(labels, ["4K", "1080p", "720p", "SD", ""]);
+        let labels: Vec<&str> = RangeFilter::ALL.iter().map(|r| range_label(*r)).collect();
+        assert_eq!(labels, ["HDR", "Dolby Vision", "HDR10+", "HDR10", "HLG", "SDR", ""]);
+    }
+
+    #[test]
+    fn badges_show_where_they_say_why_a_title_is_there() {
+        let by = |sort| LibraryQuery { sort, ..default_view() };
+        assert_eq!(quality_of(&by(LibrarySort::Title)), Quality { badges: false, bitrate: false });
+        assert_eq!(quality_of(&by(LibrarySort::Bitrate)), Quality { badges: true, bitrate: true });
+        let res = LibraryQuery { resolution: Some(ResolutionFilter::Uhd), ..by(LibrarySort::Added) };
+        assert_eq!(quality_of(&res), Quality { badges: true, bitrate: false });
+        let range = LibraryQuery { dynamic_range: Some(RangeFilter::Hdr), ..by(LibrarySort::Title) };
+        assert_eq!(quality_of(&range), Quality { badges: true, bitrate: false });
+        // Other filters say nothing of quality.
+        let other = LibraryQuery {
+            genre: Some("Drama".into()),
+            year: Some(1999),
+            watched: Some(false),
+            ..by(LibrarySort::Year)
+        };
+        assert_eq!(quality_of(&other), Quality::NONE);
     }
 }

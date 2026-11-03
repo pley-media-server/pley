@@ -309,6 +309,15 @@ fn listing(cx: &Cx<'_>, state: &mut State) -> Answer {
     if let Some(year) = number(cx, "year")? {
         items.retain(|i| i.base.year == Some(year));
     }
+    // A title by its best file, a show by its best episode; an unknown value is refused.
+    if let Some(value) = cx.query("resolution").map(str::trim).filter(|v| !v.is_empty()) {
+        let wanted = resolutions_named(value).ok_or_else(|| bad_request(&format!("unknown resolution '{value}'")))?;
+        items.retain(|i| views::title_resolution(catalog, i).is_some_and(|r| wanted.contains(&r)));
+    }
+    if let Some(value) = cx.query("dynamic_range").map(str::trim).filter(|v| !v.is_empty()) {
+        let wanted = ranges_named(value).ok_or_else(|| bad_request(&format!("unknown dynamic_range '{value}'")))?;
+        items.retain(|i| views::title_range(catalog, i).is_some_and(|r| wanted.contains(&r)));
+    }
     if let Some(watched) = cx.query("watched") {
         let want = matches!(watched, "1" | "true" | "yes");
         items.retain(|i| views::state(catalog, i, profile).watched == want);
@@ -333,7 +342,7 @@ fn listing(cx: &Cx<'_>, state: &mut State) -> Answer {
         primary.then(by_title)
     });
     let total = keyed.len();
-    let opts = ListOpts { listing: true, summaries: cx.summaries(), media: sort == "bitrate" };
+    let opts = ListOpts { listing: true, summaries: cx.summaries(), media: true };
     let page: Vec<ItemSummary> = keyed
         .into_iter()
         .skip(offset)
@@ -345,12 +354,45 @@ fn listing(cx: &Cx<'_>, state: &mut State) -> Answer {
         .with_header("Cache-Control", "private, no-cache"))
 }
 
-/// GET /api/libraries/{id}/filters: genres (case-insensitively sorted) and
-/// years (newest first).
+/// The resolutions a `resolution` value names: the server's, `2160`, and
+/// Plex's `576` and `480`, which are SD. None for another value.
+fn resolutions_named(value: &str) -> Option<&'static [&'static str]> {
+    let value = value.to_ascii_lowercase();
+    let at = match value.strip_suffix('p').unwrap_or(&value) {
+        "4k" | "2160" => 0,
+        "1080" => 1,
+        "720" => 2,
+        "sd" | "576" | "480" => 3,
+        _ => return None,
+    };
+    Some(&views::RESOLUTIONS[at..=at])
+}
+
+/// The dynamic ranges a `dynamic_range` value names: one, or `hdr` for every
+/// one but SDR. None for another value.
+fn ranges_named(value: &str) -> Option<&'static [&'static str]> {
+    let value = value.to_ascii_lowercase();
+    if value == "hdr" {
+        return Some(&views::DYNAMIC_RANGES[..4]);
+    }
+    views::DYNAMIC_RANGES.iter().position(|r| *r == value).map(|i| &views::DYNAMIC_RANGES[i..=i])
+}
+
+/// The values of a filter worth offering: those of `order` the titles have,
+/// when they have two or more (one would keep every title).
+fn offered(found: &HashSet<&'static str>, order: &[&'static str]) -> Vec<&'static str> {
+    let values: Vec<&'static str> = order.iter().copied().filter(|v| found.contains(v)).collect();
+    if values.len() > 1 { values } else { Vec::new() }
+}
+
+/// GET /api/libraries/{id}/filters: genres (case-insensitively sorted),
+/// years (newest first), and for movies and shows the resolutions and dynamic
+/// ranges worth filtering by, best first (`hdr` first when the titles have SDR
+/// and two kinds of HDR).
 fn filters(cx: &Cx<'_>, _: &mut State) -> Answer {
     let id = cx.id(0)?;
     let catalog = cx.catalog();
-    catalog.library(id).ok_or_else(|| not_found(&format!("library {id} not found")))?;
+    let library = catalog.library(id).ok_or_else(|| not_found(&format!("library {id} not found")))?;
     let items = catalog.top(id);
     let mut genres: Vec<&str> = items.iter().flat_map(|i| i.genres.iter().map(String::as_str)).collect();
     genres.sort_by_key(|g| g.to_lowercase());
@@ -358,7 +400,18 @@ fn filters(cx: &Cx<'_>, _: &mut State) -> Answer {
     let mut years: Vec<i64> = items.iter().filter_map(|i| i.base.year).collect();
     years.sort_by(|a, b| b.cmp(a));
     years.dedup();
-    Ok(json(200, &json!({ "genres": genres, "years": years })))
+    let (mut resolutions, mut ranges) = (Vec::new(), Vec::new());
+    if library.kind != "music" {
+        let found: HashSet<&'static str> = items.iter().filter_map(|i| views::title_resolution(catalog, i)).collect();
+        resolutions = offered(&found, &views::RESOLUTIONS);
+        let found: HashSet<&'static str> = items.iter().filter_map(|i| views::title_range(catalog, i)).collect();
+        ranges = offered(&found, &views::DYNAMIC_RANGES);
+        if ranges.iter().filter(|r| **r != "sdr").count() > 1 && ranges.contains(&"sdr") {
+            ranges.insert(0, "hdr");
+        }
+    }
+    let body = json!({ "genres": genres, "years": years, "resolutions": resolutions, "dynamic_ranges": ranges });
+    Ok(json(200, &body))
 }
 
 /// Continue Watching: in progress, and the episode after a show's last

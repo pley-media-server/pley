@@ -108,6 +108,21 @@ pub fn is_music(item: &ItemSummary) -> bool {
     matches!(item.kind, ItemKind::Artist | ItemKind::Album | ItemKind::Track)
 }
 
+/// What a tile says of the title's files, from a library listing's media summary.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Quality {
+    /// The "4K" and dynamic range badges on the picture.
+    pub badges: bool,
+    /// "42 Mbps · 23.4 GB" as the second line.
+    pub bitrate: bool,
+}
+
+impl Quality {
+    /// Nothing: Recommended's rows, collections and playlists, and a grid that isn't about
+    /// quality ([`crate::view::quality_of`]).
+    pub const NONE: Quality = Quality { badges: false, bitrate: false };
+}
+
 /// An item as a tile shows it: its caption, pictures and overlays, worked out once.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Cell {
@@ -119,25 +134,26 @@ pub struct Cell {
     pub progress: Option<f32>,
     pub unwatched: u32,
     pub watched: bool,
-    /// Quality badges: 4K and the dynamic range, from a library listing's media summary.
+    /// Quality badges: 4K and the dynamic range, from a library listing's media summary, where
+    /// [`Quality::badges`] asks for them.
     pub badges: Vec<String>,
 }
 
 impl Cell {
-    /// `item` as a tile of `kind` shows it, its picture asked at `px` device pixels; `bitrate`: a
-    /// library sorted by bitrate, whose tiles carry the bitrate line.
-    pub fn new(item: ItemSummary, api: &Api, kind: TileKind, px: u32, bitrate: bool) -> Cell {
+    /// `item` as a tile of `kind` shows it, its picture asked at `px` device pixels, saying what
+    /// `quality` asks of its files.
+    pub fn new(item: ItemSummary, api: &Api, kind: TileKind, px: u32, quality: Quality) -> Cell {
         let art = requests(api, &art_paths(&item, ArtKind::of(kind)), px);
-        Cell::with_art(item, kind, art, bitrate)
+        Cell::with_art(item, kind, art, quality)
     }
 
     /// `item` as a tile of `kind` shows it, with its pictures given.
-    pub fn with_art(item: ItemSummary, kind: TileKind, art: Vec<ImageRequest>, bitrate: bool) -> Cell {
+    pub fn with_art(item: ItemSummary, kind: TileKind, art: Vec<ImageRequest>, quality: Quality) -> Cell {
         let in_progress = is_in_progress(&item);
         let left =
             if in_progress { format_time_left(item.user_state.position_ms, item.duration_ms) } else { String::new() };
         let mut title = item.title.clone();
-        let subtitle = if bitrate {
+        let subtitle = if quality.bitrate {
             bitrate_line(&item)
         } else if kind == TileKind::Episode {
             if let Some(i) = item.index {
@@ -166,8 +182,9 @@ impl Cell {
         let unwatched =
             if matches!(item.kind, ItemKind::Show | ItemKind::Season) { unwatched_count(&item) as u32 } else { 0 };
         let progress = in_progress.then(|| progress_fraction(item.user_state.position_ms, item.duration_ms));
-        // A library's listing carries each title's media summary, whatever the sort.
-        let badges = item.media.as_ref().map(summary_badges).unwrap_or_default();
+        // A library's listing carries each title's media summary whatever the sort, but its badges
+        // show only where the grid is about quality.
+        let badges = item.media.as_ref().filter(|_| quality.badges).map(summary_badges).unwrap_or_default();
         let watched = item.user_state.watched && unwatched == 0;
         Cell { item, title, subtitle, art, progress, unwatched, watched, badges }
     }
@@ -225,13 +242,16 @@ mod tests {
         );
     }
 
+    const SORTED_BY_BITRATE: Quality = Quality { badges: true, bitrate: true };
+    const FILTERED_BY_QUALITY: Quality = Quality { badges: true, bitrate: false };
+
     #[test]
     fn tiles_say_what_android_says() {
-        let c = Cell::with_art(movie(), TileKind::LibraryGrid, Vec::new(), false);
+        let c = Cell::with_art(movie(), TileKind::LibraryGrid, Vec::new(), Quality::NONE);
         assert_eq!((c.title.as_str(), c.subtitle.as_str(), c.progress, c.watched), ("Arrival", "2016", None, false));
         let started =
             ItemSummary { user_state: UserState { position_ms: 3_480_000, ..UserState::default() }, ..movie() };
-        let c = Cell::with_art(started, TileKind::LibraryGrid, Vec::new(), false);
+        let c = Cell::with_art(started, TileKind::LibraryGrid, Vec::new(), Quality::NONE);
         assert_eq!(c.subtitle, "58 min left");
         assert!((c.progress.unwrap() - 0.5).abs() < 1e-3);
         let show = ItemSummary {
@@ -242,13 +262,13 @@ mod tests {
             user_state: UserState { watched: true, ..UserState::default() },
             ..ItemSummary::default()
         };
-        let c = Cell::with_art(show.clone(), TileKind::LibraryGrid, Vec::new(), false);
+        let c = Cell::with_art(show.clone(), TileKind::LibraryGrid, Vec::new(), Quality::NONE);
         assert_eq!((c.subtitle.as_str(), c.unwatched, c.watched), ("2 seasons", 0, true));
         let c = Cell::with_art(
             ItemSummary { viewed_leaf_count: Some(7), ..show },
             TileKind::LibraryGrid,
             Vec::new(),
-            false,
+            Quality::NONE,
         );
         assert_eq!((c.unwatched, c.watched), (3, false));
     }
@@ -265,28 +285,33 @@ mod tests {
             }),
             ..movie()
         };
-        let c = Cell::with_art(m, TileKind::LibraryGrid, Vec::new(), true);
+        let c = Cell::with_art(m, TileKind::LibraryGrid, Vec::new(), SORTED_BY_BITRATE);
         assert_eq!(c.subtitle, "42 Mbps · 23.4 GB");
         assert_eq!(c.badges, vec!["4K"]);
-        let c = Cell::with_art(movie(), TileKind::LibraryGrid, Vec::new(), true);
+        let c = Cell::with_art(movie(), TileKind::LibraryGrid, Vec::new(), SORTED_BY_BITRATE);
         assert_eq!(c.subtitle, "Bitrate unknown");
     }
 
     #[test]
-    fn library_tiles_carry_4k_and_the_dynamic_range_whatever_the_sort() {
+    fn quality_badges_show_only_where_the_grid_is_about_quality() {
         let summary = |w, h, range| MediaSummary {
             width: Some(w),
             height: Some(h),
             dynamic_range: Some(range),
             ..MediaSummary::default()
         };
-        let m = ItemSummary { media: Some(summary(3840, 2160, DynamicRange::Hdr10)), ..movie() };
-        let c = Cell::with_art(m, TileKind::LibraryGrid, Vec::new(), false);
+        let uhd = ItemSummary { media: Some(summary(3840, 2160, DynamicRange::Hdr10)), ..movie() };
+        // Filtered by resolution or dynamic range: 4K and the range, the usual second line.
+        let c = Cell::with_art(uhd.clone(), TileKind::LibraryGrid, Vec::new(), FILTERED_BY_QUALITY);
         assert_eq!(c.badges, vec!["4K", "HDR10"]);
-        assert_ne!(c.subtitle, "Bitrate unknown");
-        // No lower resolution.
+        assert_eq!(c.subtitle, "2016");
+        // Otherwise none, though every listing carries the media summary.
+        let c = Cell::with_art(uhd, TileKind::LibraryGrid, Vec::new(), Quality::NONE);
+        assert!(c.badges.is_empty());
+        assert_eq!(c.subtitle, "2016");
+        // No lower resolution, and no badge for SDR.
         let m = ItemSummary { media: Some(summary(1920, 1080, DynamicRange::Sdr)), ..movie() };
-        assert!(Cell::with_art(m, TileKind::LibraryGrid, Vec::new(), false).badges.is_empty());
+        assert!(Cell::with_art(m, TileKind::LibraryGrid, Vec::new(), FILTERED_BY_QUALITY).badges.is_empty());
     }
 
     #[test]

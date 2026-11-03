@@ -21,6 +21,7 @@ use pley_shell::{AppCx, Load, Resource};
 
 use crate::parts::answer;
 use crate::tiles::Cell;
+use crate::view::quality_of;
 
 /// The first request's length: enough for the first screens, and it tells the total.
 pub const HEAD: usize = 200;
@@ -290,10 +291,10 @@ impl Listing {
         self.pager.showing(first);
         for offset in self.pager.requests() {
             let (library, query, kind, px) = (self.library, self.query.clone(), self.kind, self.px);
-            let bitrate = query.sort == pley_core::model::LibrarySort::Bitrate;
+            let quality = quality_of(&query);
             let promise = cx.spawn(move |api| {
                 let page = api.library_items(library, &query, offset as i64, PAGE as i64)?;
-                Ok(page.items.into_iter().take(PAGE).map(|item| Cell::new(item, api, kind, px, bitrate)).collect())
+                Ok(page.items.into_iter().take(PAGE).map(|item| Cell::new(item, api, kind, px, quality)).collect())
             });
             self.requests.push((offset, self.generation, promise));
         }
@@ -343,9 +344,9 @@ impl Listing {
             _ => return,
         };
         let Some(api) = cx.api() else { return };
-        let bitrate = self.query.sort == pley_core::model::LibrarySort::Bitrate;
+        let quality = quality_of(&self.query);
         self.first =
-            items.iter().take(HEAD).map(|item| Cell::new(item.clone(), api, self.kind, self.px, bitrate)).collect();
+            items.iter().take(HEAD).map(|item| Cell::new(item.clone(), api, self.kind, self.px, quality)).collect();
         self.total = Some(total);
         // A listing that got shorter lets go of what is past its end.
         self.pages.retain(|&start, _| start < total);
