@@ -163,22 +163,6 @@ describes how they are made.
   the address gets nothing, and the TV says "Another device answers
   there."
 
-### Fixed
-
-- Blu-ray subtitles that show two pictures at once, the first one forced,
-  show both, and a picture the disc crops shows cropped.
-
-### Security
-
-- A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer keep
-  the app busy: decoding one moment of them stops after a set amount of
-  work, far more than real subtitles take, and that moment isn't shown.
-- A crafted file's picture subtitles can no longer run the app out of
-  memory: a track is read up to 100,000 samples and 512 MiB, a moment's
-  pictures are a 4K screen's pixels at most (2 pictures for PGS, 32 for
-  DVB), and the frames kept decoded hold 128 MiB besides the one showing.
-  Real subtitles show as before.
-
 ## [0.1.3] - 2026-11-02
 
 ### Changed

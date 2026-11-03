@@ -339,8 +339,8 @@ other apps (`pley_ct_…`), never with a session's
   plain HTTP.
 - A file's attached fonts (for burned-in ASS subtitles) are taken up to
   256 MiB and 1,000 fonts, under names of the transcoder's own.
-- Picture subtitles (PGS, DVB, VobSub), which the web app and the Samsung
-  and LG apps decode themselves, are read within bounds that real tracks
+- Picture subtitles (PGS, DVB, VobSub), which the web app and both
+  Samsung apps decode themselves, are read within bounds that real tracks
   are far inside: a track up to 100,000 samples and 512 MiB, a sample up
   to 16 MiB and 256 segments (a VobSub one up to 64 KiB and 64 control
   sequences), and for one moment up to 4,096 display sets back and a set
