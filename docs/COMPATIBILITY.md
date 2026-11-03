@@ -69,20 +69,30 @@ Neither API uses another port. Pley doesn't answer Plex's or Jellyfin's
 network discovery (UDP 32410 to 32414, and 7359): apps and tools are given
 the server's address.
 
-On Pley's port, an API needs nothing more than the web app does. A port of
-its own has to be reachable too, which depends on how Pley runs:
+An API answers on Pley's port or on a port of its own, not both. On
+Pley's port it needs nothing more than the web app does, reverse proxy
+and HTTPS included. A port of its own has to be reachable too, which
+depends on how Pley runs:
 
 | Pley runs | For a port of its own |
 |---|---|
-| On Windows | Nothing: the installer's firewall rule lets Pley in on any port. |
-| With Docker Compose | Use the add-on, `compose.plex.yaml` or `compose.jellyfin.yaml`, rather than Settings → Network: it moves the API and publishes the port, on this computer only unless `PLEY_PLEX_LISTEN` or `PLEY_JELLYFIN_LISTEN` says otherwise ([deploy/docker](../deploy/docker/README.md)). Docker lets in only the ports it publishes, so a port chosen in Settings → Network alone can't be reached. |
-| With `docker run` | Add `-p 32400:32400 -e PLEY_PLEX_BIND=0.0.0.0:32400` (or `-p 8096:8096 -e PLEY_JELLYFIN_BIND=0.0.0.0:8096`). |
+| On Windows | Nothing: the installer's firewall rule lets Pley in on any port, on the same networks as Pley's port. |
+| With Docker Compose | Use the add-on, `compose.plex.yaml` or `compose.jellyfin.yaml`, rather than Settings → Network: it puts the API on that port and publishes it, on this computer only unless `PLEY_PLEX_LISTEN` or `PLEY_JELLYFIN_LISTEN` says otherwise ([deploy/docker](../deploy/docker/README.md)). Docker lets in only the ports it publishes, so a port chosen in Settings → Network alone can't be reached. Tools in containers on a Docker network Pley is on (Tautulli, Kometa) need neither: they reach `http://pley:7539`. |
+| With `docker run` | Add `-p 32400:32400 -e PLEY_PLEX_BIND=0.0.0.0:32400` (or `-p 8096:8096 -e PLEY_JELLYFIN_BIND=0.0.0.0:8096`). With `--network host`, only the variable: the container has the computer's ports already. |
 | On Unraid | On the default *Bridge*: edit the container, add a Port (32400 in the container and on the server, TCP) and a Variable `PLEY_PLEX_BIND` = `0.0.0.0:32400` (8096 and `PLEY_JELLYFIN_BIND` for Jellyfin's). On **br0** or **Host**: nothing, choose it in Settings → Network. |
 | On a Synology NAS | With DSM's firewall on, add a rule for the port (**Control Panel → Security → Firewall → Edit Rules → Ports: Custom**, TCP 32400 or 8096). The package registers Pley's port only. |
-| As a service on Linux or macOS | Allow the port in the computer's firewall, if it has one (`sudo ufw allow 32400/tcp`, for one). |
+| As a service on Linux | Allow the port in the computer's firewall, if it has one: `sudo ufw allow 32400/tcp` on Ubuntu and Debian, `sudo firewall-cmd --permanent --add-port=32400/tcp` then `sudo firewall-cmd --reload` on Fedora and RHEL. |
+| On a Mac | Nothing more than for Pley's port: the Mac's firewall lets apps in, not ports. |
 
-A port of its own isn't behind a reverse proxy, so it has no HTTPS: from
-outside your network, use the API on Pley's port, through the proxy.
+A port of its own isn't behind the reverse proxy and has no HTTPS, so an
+API used from outside your network stays on Pley's port.
+
+A Plex Media Server or Jellyfin still running on the same computer has
+32400 or 8096 already. Pley run by itself tries the port again every 30
+seconds, and Settings → Network says why it can't listen there; a
+container that publishes a port already taken doesn't start at all.
+Choose another port, or keep the API on Pley's port, until the other
+server is gone.
 
 ## Tokens for other apps
 
