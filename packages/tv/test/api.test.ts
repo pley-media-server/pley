@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Api, unreachable, unreachableReason } from "../src/api/client";
 import type { Tokens } from "../src/auth/tokens";
 import { NetworkError, TIMED_OUT, type HttpRequest, type HttpResponse } from "../src/net/transport";
+import { Listing } from "../src/ui/screens/library-data";
 
 const tokens = { accessToken: () => Promise.resolve("token"), doubtServer: () => {} } as unknown as Tokens;
 
@@ -117,6 +118,16 @@ describe("the token", () => {
       ["http://pley.example.com/api/items/1", undefined],
       ["https://pley.example.com:8443/x", undefined],
     ]);
+  });
+});
+
+describe("a library's listing", () => {
+  it("asks for its filters in one order, the resolution and dynamic range after the year, as the listing's ETag hashes it", async () => {
+    const t = transport(() => ok({ total: 0, items: [] }));
+    const api = new Api("http://192.168.1.20:7539", tokens, t.http);
+    const params = { sort: "year", order: "desc", watched: false, genre: "Drama", year: 1999, resolution: "4k", dynamicRange: "hdr" } as const;
+    await new Listing(api, 3, params, 5000, () => undefined).start();
+    expect(t.asked).toEqual(["GET /api/libraries/3/items?sort=year&order=desc&watched=false&genre=Drama&year=1999&resolution=4k&dynamic_range=hdr&offset=0&limit=200"]);
   });
 });
 

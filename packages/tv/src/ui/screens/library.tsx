@@ -2,7 +2,7 @@ import { useSignal, type Signal } from "@preact/signals";
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { errorMessage, isApiError } from "../../api/client";
-import type { Collection, Hub, ItemSummary, Library, LibraryKind, LibrarySort } from "../../api/types";
+import type { Collection, Hub, ItemSummary, Library, LibraryFilters, LibraryKind, LibrarySort } from "../../api/types";
 import { formatBitrate, formatBytes, pluralize } from "../../format/format";
 import type { AppState } from "../../state";
 import { useUi } from "../context";
@@ -22,8 +22,10 @@ import { seeAllSort } from "./home";
 import { pageOf, prefetchPlayback } from "./item-actions";
 import {
   AlphaIndex,
+  cleared,
   countLabel,
   defaultOrder,
+  dynamicRangeLabel,
   fitParams,
   gridStep,
   grouped,
@@ -33,13 +35,18 @@ import {
   Listing,
   moved,
   ParamsStore,
+  qualityChoices,
+  resolutionLabel,
   TabStore,
   sameOrder,
+  showsBadges,
   showsJump,
   smartFilterOf,
   SORT_LABELS,
   sortsFor,
+  type DynamicRangeFilter,
   type LibraryParams,
+  type Resolution,
 } from "./library-data";
 
 const CHIPS_TOP = 80;
@@ -153,7 +160,10 @@ export function LibraryScreen(p: { entry: Entry; id: number; tab?: LibraryTab; s
 
 // ---- the Library tab
 
-type Panel = null | { kind: "sort" } | { kind: "filter" } | { kind: "genre"; from: "filter" | "chip" } | { kind: "year"; from: "filter" | "chip" };
+type Panel = null | { kind: "sort" } | { kind: "filter" } | { kind: FilterList; from: "filter" | "chip" };
+
+/** The filters whose choices are a list of their own, opened from the Filter panel or their chip. */
+type FilterList = "genre" | "year" | "resolution" | "dynamicRange";
 
 function LibraryGridTab(p: { entry: Entry; library: Library; asked?: LibrarySort; initial: boolean; focusTab: () => boolean }) {
   const app = useApp();
@@ -169,7 +179,7 @@ function LibraryGridTab(p: { entry: Entry; library: Library; asked?: LibrarySort
   const [version, setVersion] = useState(0);
   const listing = useMemo(
     () => new Listing(ui.api, lib.id, params, ui.tier === "low" ? 2000 : 5000, () => setVersion((v) => v + 1)),
-    [lib.id, params.sort, params.order, params.watched, params.genre, params.year],
+    [lib.id, params.sort, params.order, params.watched, params.genre, params.year, params.resolution, params.dynamicRange],
   );
   useEffect(() => {
     void listing.start();
@@ -181,13 +191,38 @@ function LibraryGridTab(p: { entry: Entry; library: Library; asked?: LibrarySort
   useEffect(() => {
     if (changes !== firstChanges.current) void listing.start();
   }, [changes]);
-  const filters = useLoad((c) => (music ? Promise.resolve({ genres: [], years: [] }) : ui.api.libraryFilters(lib.id, c)), [lib.id], { live: false });
+  const filters = useLoad((c) => (music ? Promise.resolve<LibraryFilters>({ genres: [], years: [] }) : ui.api.libraryFilters(lib.id, c)), [lib.id], { live: false });
   const [panel, setPanel] = useState<Panel>(null);
   const [jumpTo, setJumpTo] = useState<{ index: number; n: number } | null>(null);
   // Where focus is in the grid: only the A–Z jump reads it, so a move draws nothing else of the tab again.
   const focusedIndex = useSignal<number>((p.entry.state.gridIndex as number | undefined) ?? 0);
   const chipsRef = useRef<HTMLElement | null>(null);
+  const countRef = useRef<HTMLDivElement>(null);
   const panelOpener = useRef<string | null>(null);
+  /** How far the chips slide left: with many filters chosen they are wider than the screen. */
+  const [chipsShift, setChipsShift] = useState(0);
+  // The focused chip in view between the gutter and the safe area's edge, as Search's recent searches on Android and the native app.
+  useEffect(
+    () =>
+      ui.focus.onChange((el) => {
+        const row = chipsRef.current;
+        if (!el || !row || !row.contains(el)) return;
+        const max = Math.max(0, row.scrollWidth - row.clientWidth);
+        setChipsShift((s) => nudge(s, el.offsetLeft, el.offsetLeft + el.offsetWidth, 0, row.clientWidth, 0, max));
+      }),
+    [],
+  );
+  useLayoutEffect(() => {
+    const row = chipsRef.current;
+    if (row) {
+      // Fewer chips (a filter cleared): no further than they need.
+      const max = Math.max(0, row.scrollWidth - row.clientWidth);
+      if (chipsShift > max) setChipsShift(max);
+    }
+    // The count after the chips shows whole or not at all: with many filters chosen, cut short ("23 of 3…") it says nothing.
+    const el = countRef.current;
+    if (el) el.style.visibility = el.scrollWidth > el.clientWidth ? "hidden" : "";
+  });
 
   const setParams = (next: LibraryParams) => {
     const fitted = fitParams(next, lib.kind);
@@ -236,7 +271,7 @@ function LibraryGridTab(p: { entry: Entry; library: Library; asked?: LibrarySort
         kind={kind}
         fid={`grid/${item.id}`}
         initial={p.initial && i === 0}
-        badges
+        badges={showsBadges(params)}
         subtitle={bitrate ? bitrateLine(item) : undefined}
         priority={place.priority}
         onFocus={place.onFocus}
@@ -262,7 +297,7 @@ function LibraryGridTab(p: { entry: Entry; library: Library; asked?: LibrarySort
         top={146}
         title="No matches"
         body="Nothing in this library matches the current filters."
-        action={{ label: "Clear filters", onSelect: () => setParams({ ...params, watched: null, genre: null, year: null }) }}
+        action={{ label: "Clear filters", onSelect: () => setParams(cleared(params)) }}
       />
     );
   } else if (total === 0) {
@@ -279,9 +314,16 @@ function LibraryGridTab(p: { entry: Entry; library: Library; asked?: LibrarySort
 
   const genres = filters.data?.genres ?? [];
   const years = filters.data?.years ?? [];
+  const { resolutions, dynamicRanges } = qualityChoices(filters.data);
   return (
     <>
-      <G kind="row" class="library-chips" elRef={(el) => (chipsRef.current = el)} onEnter={(dir) => (dir === "down" ? chipsRef.current?.querySelector<HTMLElement>("[data-f]") ?? null : null)}>
+      <G
+        kind="row"
+        class="library-chips"
+        style={chipsShift ? `transform:translateX(${-chipsShift}px)` : undefined}
+        elRef={(el) => (chipsRef.current = el)}
+        onEnter={(dir) => (dir === "down" ? chipsRef.current?.querySelector<HTMLElement>("[data-f]") ?? null : null)}
+      >
         <Chip
           fid="chip/sort"
           label={SORT_LABELS[params.sort]}
@@ -298,11 +340,27 @@ function LibraryGridTab(p: { entry: Entry; library: Library; asked?: LibrarySort
         {!music && (years.length > 0 || params.year) && (
           <Chip fid="chip/year" label={params.year ? String(params.year) : "Year"} selected={!!params.year} onSelect={() => openPanel({ kind: "year", from: "chip" }, "chip/year")} />
         )}
-        {total !== null && <div class="t-caption c-muted chips-count">{countLabel(total, lib.kind, filterSet && lib.item_count >= total ? lib.item_count : null)}</div>}
+        {/* The row has no room for two more filters: these are chosen in the Filter panel, and show here while chosen. */}
+        {!music && params.resolution && (
+          <Chip fid="chip/resolution" label={resolutionLabel(params.resolution)!} selected onSelect={() => openPanel({ kind: "resolution", from: "chip" }, "chip/resolution")} />
+        )}
+        {!music && params.dynamicRange && (
+          <Chip
+            fid="chip/dynamicRange"
+            label={dynamicRangeLabel(params.dynamicRange)!}
+            selected
+            onSelect={() => openPanel({ kind: "dynamicRange", from: "chip" }, "chip/dynamicRange")}
+          />
+        )}
+        {total !== null && (
+          <div ref={countRef} class="t-caption c-muted chips-count">
+            {countLabel(total, lib.kind, filterSet && lib.item_count >= total ? lib.item_count : null)}
+          </div>
+        )}
       </G>
       {message ?? (
         <PosterGrid
-          key={`${params.sort}.${params.order}.${params.watched}.${params.genre}.${params.year}`}
+          key={`${params.sort}.${params.order}.${params.watched}.${params.genre}.${params.year}.${params.resolution}.${params.dynamicRange}`}
           kind={kind}
           count={count}
           top={GRID_TOP}
@@ -327,6 +385,8 @@ function LibraryGridTab(p: { entry: Entry; library: Library; asked?: LibrarySort
         />
       )}
       {!message && <GridRest at={focusedIndex} itemAt={(i) => listing.at(i) ?? null} />}
+      {/* Chips slid past the gutter go under the closed rail, as a row's tiles do. */}
+      {chipsShift > 0 && <div class="rail-fade" />}
       {jump && alpha && (
         <JumpControl
           alpha={alpha}
@@ -354,12 +414,13 @@ function LibraryGridTab(p: { entry: Entry; library: Library; asked?: LibrarySort
         <FilterPanel
           music={music}
           params={params}
+          resolutions={resolutions.length > 0}
+          dynamicRanges={dynamicRanges.length > 0}
           onClose={closePanel}
           onChange={(next) => setParams(next)}
-          onGenre={() => setPanel({ kind: "genre", from: "filter" })}
-          onYear={() => setPanel({ kind: "year", from: "filter" })}
+          onList={(kind) => setPanel({ kind, from: "filter" })}
           onClear={() => {
-            setParams({ ...params, watched: null, genre: null, year: null });
+            setParams(cleared(params));
             closePanel();
           }}
           onSaveAs={() => {
@@ -393,6 +454,34 @@ function LibraryGridTab(p: { entry: Entry; library: Library; asked?: LibrarySort
           onClose={closePanel}
           onPick={(y) => {
             setParams({ ...params, year: y ? Number(y) : null });
+            closePanel();
+          }}
+        />
+      )}
+      {panel?.kind === "resolution" && (
+        <ChoicePanel
+          title="Resolution"
+          all="All resolutions"
+          choices={resolutions}
+          labelOf={(r) => resolutionLabel(r) ?? r}
+          current={params.resolution}
+          onClose={closePanel}
+          onPick={(r) => {
+            setParams({ ...params, resolution: r as Resolution | null });
+            closePanel();
+          }}
+        />
+      )}
+      {panel?.kind === "dynamicRange" && (
+        <ChoicePanel
+          title="Dynamic range"
+          all="All dynamic ranges"
+          choices={dynamicRanges}
+          labelOf={(d) => dynamicRangeLabel(d) ?? d}
+          current={params.dynamicRange}
+          onClose={closePanel}
+          onPick={(d) => {
+            setParams({ ...params, dynamicRange: d as DynamicRangeFilter | null });
             closePanel();
           }}
         />
@@ -494,15 +583,19 @@ function SortPanel(p: { kind: LibraryKind; params: LibraryParams; onClose: () =>
 function FilterPanel(p: {
   music: boolean;
   params: LibraryParams;
+  /** The server offers resolutions to choose from; and dynamic ranges. */
+  resolutions: boolean;
+  dynamicRanges: boolean;
   onClose: () => void;
   onChange: (next: LibraryParams) => void;
-  onGenre: () => void;
-  onYear: () => void;
+  /** A filter's own list. */
+  onList: (kind: FilterList) => void;
   onClear: () => void;
   /** Save these filters as a smart playlist (Save as…). */
   onSaveAs: () => void;
 }) {
   const w = p.params.watched;
+  const { resolution, dynamicRange } = p.params;
   const value = (text: string) => <span class="panel-value t-caption">{text}</span>;
   const chevron = <Icon name="chevron-right" size={20} class="check" />;
   return (
@@ -514,8 +607,23 @@ function FilterPanel(p: {
       <PanelRow label="Watched" checked={w === true} initial={w === true} onSelect={() => p.onChange({ ...p.params, watched: true })} />
       {!p.music && (
         <>
-          <PanelRow label="Genre" trailing={<>{value(p.params.genre ?? "All genres")}{chevron}</>} onSelect={p.onGenre} />
-          <PanelRow label="Year" trailing={<>{value(p.params.year ? String(p.params.year) : "All years")}{chevron}</>} onSelect={p.onYear} />
+          <PanelRow label="Genre" trailing={<>{value(p.params.genre ?? "All genres")}{chevron}</>} onSelect={() => p.onList("genre")} />
+          <PanelRow label="Year" trailing={<>{value(p.params.year ? String(p.params.year) : "All years")}{chevron}</>} onSelect={() => p.onList("year")} />
+          {/* When the library has two or more to choose from, or one is chosen, to change or clear it. */}
+          {(p.resolutions || resolution) && (
+            <PanelRow
+              label="Resolution"
+              trailing={<>{value(resolution ? resolutionLabel(resolution)! : "All resolutions")}{chevron}</>}
+              onSelect={() => p.onList("resolution")}
+            />
+          )}
+          {(p.dynamicRanges || dynamicRange) && (
+            <PanelRow
+              label="Dynamic range"
+              trailing={<>{value(dynamicRange ? dynamicRangeLabel(dynamicRange)! : "All dynamic ranges")}{chevron}</>}
+              onSelect={() => p.onList("dynamicRange")}
+            />
+          )}
         </>
       )}
       {hasFilter(p.params) && <PanelRow label="Clear filters" onSelect={p.onClear} />}
@@ -524,13 +632,22 @@ function FilterPanel(p: {
   );
 }
 
-function ChoicePanel(p: { title: string; all: string; choices: string[]; current: string | null; onClose: () => void; onPick: (v: string | null) => void }) {
+/** A filter's list: its "None" choice ("All genres"), then each of the server's, in its words when `labelOf` gives them. */
+function ChoicePanel(p: {
+  title: string;
+  all: string;
+  choices: string[];
+  labelOf?: (choice: string) => string;
+  current: string | null;
+  onClose: () => void;
+  onPick: (v: string | null) => void;
+}) {
   return (
     <SidePanel onClose={p.onClose} label={p.title}>
       <PanelTitle>{p.title}</PanelTitle>
       <PanelRow label={p.all} checked={p.current === null} initial={p.current === null} onSelect={() => p.onPick(null)} />
       {p.choices.map((c) => (
-        <PanelRow key={c} label={c} checked={c === p.current} initial={c === p.current} onSelect={() => p.onPick(c)} />
+        <PanelRow key={c} label={p.labelOf ? p.labelOf(c) : c} checked={c === p.current} initial={c === p.current} onSelect={() => p.onPick(c)} />
       ))}
     </SidePanel>
   );

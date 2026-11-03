@@ -24,6 +24,7 @@ import type {
   NetworkAnswer,
   NetworkReport,
   NewRequest,
+  LibraryFilters,
   LibrarySort,
   PersonDetail,
   PersonSummary,
@@ -304,7 +305,17 @@ export class Api {
 
   libraryItems(
     id: Id,
-    query: { sort?: LibrarySort; order?: "asc" | "desc"; watched?: boolean; genre?: string; year?: number; offset?: number; limit?: number },
+    query: {
+      sort?: LibrarySort;
+      order?: "asc" | "desc";
+      watched?: boolean;
+      genre?: string;
+      year?: number;
+      resolution?: string;
+      dynamic_range?: string;
+      offset?: number;
+      limit?: number;
+    },
     cancel?: Cancel,
   ): Promise<{ total: number; items: ItemSummary[] }> {
     return this.get(`/api/libraries/${id}/items`, { query, cancel });
@@ -314,7 +325,7 @@ export class Api {
     return this.get(`/api/libraries/${id}/hubs`, { cancel });
   }
 
-  libraryFilters(id: Id, cancel?: Cancel): Promise<{ genres: string[]; years: number[] }> {
+  libraryFilters(id: Id, cancel?: Cancel): Promise<LibraryFilters> {
     return this.get(`/api/libraries/${id}/filters`, { cancel });
   }
 

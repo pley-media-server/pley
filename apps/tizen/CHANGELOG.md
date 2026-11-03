@@ -63,6 +63,11 @@ describes how they are made.
   request's stage, with Request more seasons for a show missing some.
 - Signing in with a code says when the server requires two-step sign-in:
   the phone that approves the code sets it up for whoever hasn't.
+- Movie and show libraries filter by resolution (4K, 1080p, 720p, SD) and
+  dynamic range (HDR, Dolby Vision, HDR10+, HDR10, HLG, SDR), where the
+  server offers more than one of them: in the Filter panel after Year,
+  with a chip saying the one chosen. Clear filters and Save as… take them
+  in, and the library opens with them as it was left.
 
 ### Changed
 
@@ -83,9 +88,10 @@ describes how they are made.
 - The sign-in page names this app by its address on
   `pley-media-server.github.io`. It needs a server from the same release,
   which keeps it signed in.
-- A library's posters show 4K and the dynamic range (DV, HDR10) whatever
-  the sort, where they showed only when sorted by bitrate, and no longer a
-  lower resolution (1080p, 720p).
+- A library's posters show 4K and the dynamic range (DV, HDR10) when it is
+  sorted by bitrate or filtered by resolution or dynamic range, and no
+  longer a lower resolution (1080p, 720p); otherwise they carry no
+  quality badges.
 - Search shows movies, shows and episodes first, then music, then Live
   TV, then people, the closest matches first in each.
 
