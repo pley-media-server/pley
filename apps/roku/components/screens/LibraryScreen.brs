@@ -308,7 +308,8 @@ sub loadPage(page as integer)
     m.pages[page.ToStr()] = true
     if m.content.getChildCount() = 0 then showMessage("Loading…")
     query = libQuery(m.view, at, pageSize())
-    uiRequest({ method: "GET", path: urlWithQuery("/api/libraries/" + urlValue(m.library.id) + "/items", query), build: "tiles", listing: m.listing, page: page }, "onPage")
+    path = urlWithQuery("/api/libraries/" + urlValue(m.library.id) + "/items", query)
+    uiRequest({ method: "GET", path: path, build: "tiles", badges: libShowsBadges(m.view), bitrate: m.view.sort = "bitrate", listing: m.listing, page: page }, "onPage")
 end sub
 
 sub onPage(event as object)

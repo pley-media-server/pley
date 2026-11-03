@@ -52,6 +52,26 @@ sub test_library_query_and_filters()
     tkEqual(libFilterLabel(view), "SD")
 end sub
 
+sub test_library_posters_badged_only_where_it_says_something()
+    view = libDefaultView()
+    tkFalse(libShowsBadges(view), "by title, nothing filtered")
+    view.watched = "false"
+    view.genre = "Drama"
+    view.year = 1999
+    view.sort = "added"
+    tkFalse(libShowsBadges(view), "other sorts and filters")
+    view.sort = "bitrate"
+    tkTrue(libShowsBadges(view), "sorted by bitrate")
+    view.order = "asc"
+    tkTrue(libShowsBadges(view), "either way")
+    view.sort = "title"
+    view.resolution = "1080"
+    tkTrue(libShowsBadges(view), "filtered by resolution")
+    view.resolution = ""
+    view.dynamic_range = "sdr"
+    tkTrue(libShowsBadges(view), "filtered by dynamic range")
+end sub
+
 sub test_library_filters_the_server_offers()
     filters = libFilters(ParseJson("{""genres"":[""Drama"","""",3],""years"":[2022,0,""x""],""resolutions"":[""4k"",""1080"",""8k"",7],""dynamic_ranges"":[""hdr"",""dolby_vision"",""sdr""]}"))
     tkEqual(filters, { genres: ["Drama"], years: [2022], resolutions: ["4k", "1080"], dynamicRanges: ["hdr", "dolby_vision", "sdr"] }, "tokens this version can't name left out")

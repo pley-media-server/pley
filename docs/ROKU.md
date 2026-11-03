@@ -125,6 +125,12 @@ left on, kept on the Roku for each server, profile and library.
 - **Library** is a grid of posters, 70 at a time as the focus comes near
   the next ones; places a jump passes over show empty frames until their
   titles come.
+- **Quality badges:** sorted by bitrate, or filtered by resolution or
+  dynamic range, the posters say what sets their best file apart at their
+  foot: "4K" (no other resolution), then "DV", "HDR10+", "HDR10" or "HLG".
+  Sorted by bitrate, its bitrate and size take the year's place under the
+  poster ("42 Mbps · 23.4 GB"). Otherwise, and in rows, collections,
+  playlists and search, posters have no quality badges.
 - **See all** ends the rows of a library's newest, newly released and top
   rated titles, on Home and on a library's Recommended tab. It shows the
   library's Library tab in the row's order (date added, release date or
@@ -515,15 +521,15 @@ bun run images    # the nine-patch focus and watched-mark images
   draws (their list asked for where it starts, then again until whole, and
   a picture loaded), then the same episode on a server without their
   pictures, which burns them in; it jumps down a library with its A to Z,
-  filters it by resolution, saves another's filters as a smart playlist,
-  plays a collection of movies and a smart one of shows, and an artist's
-  tracks, makes a playlist, plays a track from Now Playing's Up next,
-  shuffles the queue and puts its order back, steps the music's sleep
-  timer through its choices, plays a track from under an album's "Disc
-  2", opens the See all of Search's Discover row, asks for a movie and
-  three seasons from Discover, approves a request, opens a title from its
-  ready-to-watch notice, and checks that a server without requests is
-  asked nothing but the summary.
+  sorts it by bitrate and filters it by resolution, saves another's
+  filters as a smart playlist, plays a collection of movies and a smart
+  one of shows, and an artist's tracks, makes a playlist, plays a track
+  from Now Playing's Up next, shuffles the queue and puts its order back,
+  steps the music's sleep timer through its choices, plays a track from
+  under an album's "Disc 2", opens the See all of Search's Discover row,
+  asks for a movie and three seasons from Discover, approves a request,
+  opens a title from its ready-to-watch notice, and checks that a server
+  without requests is asked nothing but the summary.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
   Next, the sleep timers' ends and picture subtitles shown in time have
   only unit tests), one fetch at a time, the odd dropped key, and no

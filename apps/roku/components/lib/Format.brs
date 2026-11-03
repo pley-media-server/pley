@@ -1,5 +1,5 @@
-' Times and progress as the screens write them. Durations and positions
-' are milliseconds, as the server sends them.
+' Times, progress, sizes and rates as the screens write them. Durations and
+' positions are milliseconds, as the server sends them.
 
 ' "1:02:03", or "12:34" under an hour.
 function fmtClock(ms as dynamic) as string
@@ -99,6 +99,32 @@ function fmtOneDecimal(value as dynamic) as string
     tenths = Int(value * 10 + 0.5)
     if tenths mod 10 = 0 then return Int(tenths / 10).ToStr()
     return Int(tenths / 10).ToStr() + "." + (tenths mod 10).ToStr()
+end function
+
+' "8.2 Mbps", "24 Mbps", "640 kbps"; "" without one.
+function fmtBitrate(bps as dynamic) as string
+    value = httpNumber(bps, 0)
+    if value <= 0 then return ""
+    if value >= 10000000 then return urlValue(Int(value / 1000000 + 0.5)) + " Mbps"
+    if value >= 1000000 then return fmtOneDecimal(value / 1000000) + " Mbps"
+    return urlValue(Int(value / 1000 + 0.5)) + " kbps"
+end function
+
+' 1536 → "1.5 KB", 150 MiB → "150 MB", "62.0 GB": three digits, in units
+' of 1024, as the other apps write sizes. A size past 32 bits comes as a
+' LongInteger, which the first division makes a Float.
+function fmtBytes(bytes as dynamic) as string
+    size = httpNumber(bytes, -1)
+    if size < 0 then return ""
+    units = ["B", "KB", "MB", "GB", "TB"]
+    at = 0
+    while size >= 1024 and at < units.Count() - 1
+        size = size / 1024
+        at = at + 1
+    end while
+    if size >= 100 or at = 0 then return urlValue(Int(size + 0.5)) + " " + units[at]
+    tenths = Int(size * 10 + 0.5)
+    return urlValue(Int(tenths / 10)) + "." + urlValue(tenths mod 10) + " " + units[at]
 end function
 
 ' The languages offered for the audio and subtitle defaults, as ISO 639-2/B

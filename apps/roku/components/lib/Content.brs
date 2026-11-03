@@ -252,13 +252,48 @@ function contentRowChanges(hubs as dynamic, server as string, known as dynamic) 
 end function
 
 ' Tiles of the titles in a listing (a library page, search) this version
-' shows.
-function contentTiles(items as dynamic, server as string) as object
+' shows. A library's listing carries each title's media (MediaSummary):
+' with badges its posters carry their quality badges (qualityBadges), and
+' with bitrate their bitrate and size take the year's place under them.
+function contentTiles(items as dynamic, server as string, badges = false as boolean, bitrate = false as boolean) as object
     tiles = []
     for each item in httpArray(items)
-        if GetInterface(item, "ifAssociativeArray") <> invalid and contentShown(httpString(item.kind)) then tiles.Push(contentTile(item, server, false))
+        if GetInterface(item, "ifAssociativeArray") <> invalid and contentShown(httpString(item.kind))
+            tile = contentTile(item, server, false)
+            if badges then tile.qualityBadges = contentQualityBadges(item.media)
+            if bitrate then tile.subtitle = contentMediaLine(item.media)
+            tiles.Push(tile)
+        end if
     end for
     return tiles
+end function
+
+' What sets a title's best file apart, as the other apps badge a library's
+' posters: "4K", then its dynamic range ("DV", "HDR10+", "HDR10", "HLG").
+' No other resolution and no codec: "1080p" or "H.264" on most posters
+' says nothing worth the room.
+function contentQualityBadges(media as dynamic) as object
+    summary = httpObject(media)
+    if summary = invalid then return []
+    badges = []
+    if httpNumber(summary.width, 0) >= 3800 or httpNumber(summary.height, 0) >= 2100 then badges.Push("4K")
+    ranges = { dolby_vision: "DV", hdr10plus: "HDR10+", hdr10: "HDR10", hlg: "HLG" }
+    range = httpString(summary.dynamic_range)
+    if range <> "" and ranges.DoesExist(range) then badges.Push(ranges[range])
+    return badges
+end function
+
+' The line under a poster sorted by bitrate: "42 Mbps · 23.4 GB", or
+' "Bitrate unknown".
+function contentMediaLine(media as dynamic) as string
+    summary = httpObject(media)
+    if summary = invalid then return "Bitrate unknown"
+    parts = []
+    for each part in [fmtBitrate(summary.bitrate), fmtBytes(summary.size)]
+        if part <> "" then parts.Push(part)
+    end for
+    if parts.Count() = 0 then return "Bitrate unknown"
+    return parts.Join(" · ")
 end function
 
 ' A show's seasons: [{ itemId, title, index, episodes, watchedEpisodes }].

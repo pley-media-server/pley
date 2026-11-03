@@ -113,6 +113,14 @@ function libFiltered(view as object) as boolean
     return view.watched <> "" or view.genre <> "" or view.year > 0 or view.resolution <> "" or view.dynamic_range <> ""
 end function
 
+' Whether the Library tab's posters carry their quality badges ("4K",
+' "DV"), as on the other apps: only sorted by bitrate or filtered by
+' resolution or dynamic range, where they say why a title is where it is.
+' Sorted by bitrate, its bitrate and size are under it too.
+function libShowsBadges(view as object) as boolean
+    return view.sort = "bitrate" or view.resolution <> "" or view.dynamic_range <> ""
+end function
+
 ' Clear filters: every title again, in the same order.
 sub libClearFilters(view as object)
     view.watched = ""

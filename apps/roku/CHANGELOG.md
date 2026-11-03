@@ -14,6 +14,10 @@ describes how they are made.
   and dynamic range (HDR, Dolby Vision, HDR10+, HDR10, HLG, SDR) in its
   Filter panel, offering those its titles have. Clear filters clears them,
   the library keeps them, and Save as… saves them.
+- A library sorted by bitrate, or filtered by resolution or dynamic range,
+  badges its posters with "4K" and their dynamic range ("DV", "HDR10+",
+  "HDR10", "HLG"), as the other apps do. Sorted by bitrate, each poster
+  shows its bitrate and size under it ("42 Mbps · 23.4 GB").
 
 ### Changed
 

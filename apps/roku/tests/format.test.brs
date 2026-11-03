@@ -49,6 +49,24 @@ sub test_format_library_counts()
     tkEqual(fmtCount(3, "other"), "3 titles")
 end sub
 
+sub test_format_sizes_as_the_other_apps()
+    tkEqual(fmtBytes(512), "512 B")
+    tkEqual(fmtBytes(1536), "1.5 KB")
+    tkEqual(fmtBytes(157286400), "150 MB")
+    tkEqual(fmtBytes(66571993088&), "62.0 GB", "past 32 bits")
+    tkEqual(fmtBytes(1000000), "977 KB", "three digits")
+    tkEqual(fmtBytes(1048576), "1.0 MB")
+    tkEqual(fmtBytes(invalid), "")
+end sub
+
+sub test_format_bitrates_as_the_other_apps()
+    tkEqual(fmtBitrate(24000000), "24 Mbps")
+    tkEqual(fmtBitrate(8200000), "8.2 Mbps")
+    tkEqual(fmtBitrate(640000), "640 kbps")
+    tkEqual(fmtBitrate(0), "")
+    tkEqual(fmtBitrate(invalid), "")
+end sub
+
 sub test_format_resolutions_and_dynamic_ranges_by_token()
     tkEqual(fmtTokenLabel(fmtResolutions(), "4k"), "4K")
     tkEqual(fmtTokenLabel(fmtResolutions(), "1080"), "1080p")

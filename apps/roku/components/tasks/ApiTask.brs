@@ -180,15 +180,17 @@ function apiForm(job as object, params as object) as object
 end function
 
 ' A request of the screens: { method, path, query, json, jsonText, auth,
-' timeoutMs, build, known, manage }, to the current server, with the token
-' unless auth is false. jsonText is a body made into JSON on the render
-' thread, for one with nulls (a field's associative array may not keep
-' invalid). build ("rows", "tiles", "seasons", "episodes") makes the
-' answer's list into ContentNodes here, off the render thread (apiBuild);
-' for "rows", known holds the signatures of the rows Home shows, which
-' aren't built again, and for "discoverTiles" the titles shown already
-' ({ "movie:603": true }). manage: the requests are a manager's, who sees
-' why one failed.
+' timeoutMs, build, known, manage, badges, bitrate }, to the current
+' server, with the token unless auth is false. jsonText is a body made into
+' JSON on the render thread, for one with nulls (a field's associative
+' array may not keep invalid). build ("rows", "tiles", "seasons",
+' "episodes") makes the answer's list into ContentNodes here, off the
+' render thread (apiBuild); for "rows", known holds the signatures of the
+' rows Home shows, which aren't built again, and for "discoverTiles" the
+' titles shown already ({ "movie:603": true }); for "tiles", badges and
+' bitrate say what a library's posters show of their files
+' (contentTiles). manage: the requests are a manager's, who sees why one
+' failed.
 sub apiCall(request as object, spec as object)
     if m.server = ""
         apiAnswer(request, apiFail("no_server", "Choose a server first."))
@@ -201,6 +203,8 @@ sub apiCall(request as object, spec as object)
     job.build = httpString(spec.build)
     job.known = spec.known
     job.manage = httpTrue(spec.manage)
+    job.badges = httpTrue(spec.badges)
+    job.bitrate = httpTrue(spec.bitrate)
     job.play = httpTrue(spec.play)
     job.auth = true
     if GetInterface(spec.auth, "ifBoolean") <> invalid then job.auth = spec.auth
@@ -435,7 +439,7 @@ sub apiBuild(job as object, answer as object)
         answer.data = { rows: changes.summary, myList: listed }
     else if job.build = "tiles"
         items = httpArray(data.items)
-        tiles = contentTiles(items, server)
+        tiles = contentTiles(items, server, job.badges, job.bitrate)
         job.request.content = nodesContent(tiles)
         ' listed: the page's items (the next page's offset), shown or not.
         answer.data = { total: httpNumber(data.total, -1), listed: items.Count(), shown: tiles.Count() }
