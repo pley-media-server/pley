@@ -14,6 +14,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -168,7 +170,24 @@ class DriveViewModelTest {
         assertTrue("drives are looked for again as the page shows", drives.looks > 0)
     }
 
+    @Test
+    fun aFolderReadAgainIsNotUndoneByTheLinesOfTheOneBefore() {
+        // The drive is read on a clock of its own, so both reads below wait for it together.
+        val disk = TestCoroutineScheduler()
+        drives.tree[OTHER] = listOf(DriveFile("Fury Road.mkv", folder = false, size = 1))
+        val vm = DriveViewModel(drives, null, { played += it }, StandardTestDispatcher(disk))
+        disk.runCurrent()
+        assertEquals(4, (vm.state.value.page as DrivePage.Folder).lines.size)
+        // Another drive comes in as the page shows again: its folder is read first, then the lines before.
+        drives.plugged.value = Drive(OTHER)
+        dispatcher.scheduler.runCurrent()
+        vm.resumed()
+        disk.runCurrent()
+        assertEquals(listOf("Fury Road"), (vm.state.value.page as DrivePage.Folder).lines.map { it.name })
+    }
+
     private companion object {
+        const val OTHER = "/storage/5E6F-7A8B"
         const val ROOT = "/storage/1A2B-3C4D"
     }
 }

@@ -128,8 +128,11 @@ class DriveViewModel(
         }
         drives.refresh()
         if (_state.value.page !is DrivePage.Folder) return
+        val shown = entries
         viewModelScope.launch {
-            val lines = withContext(io) { lines(entries) }
+            val lines = withContext(io) { lines(shown) }
+            // Read again meanwhile (a drive came or went): what was read stands.
+            if (entries !== shown) return@launch
             _state.update { s -> (s.page as? DrivePage.Folder)?.let { s.copy(page = it.copy(lines = lines)) } ?: s }
         }
     }
