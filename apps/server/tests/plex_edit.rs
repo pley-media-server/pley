@@ -239,6 +239,80 @@ async fn what_pley_doesnt_keep_is_refused_whole() {
     assert_eq!(w.app.plex(Method::PUT, &summary, &w.admin, &[]).await.status, StatusCode::BAD_REQUEST);
 }
 
+fn png(rgb: [u8; 3]) -> Vec<u8> {
+    let mut png = Vec::new();
+    image::RgbImage::from_pixel(40, 60, image::Rgb(rgb))
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .unwrap();
+    png
+}
+
+/// The pictures `/library/metadata/{key}/{list}` lists.
+async fn pictures(w: &World, key: i64, list: &str) -> Vec<Value> {
+    let listed = w.app.plex_json(&format!("/library/metadata/{key}/{list}"), &w.admin).await;
+    listed["Photo"].as_array().cloned().unwrap_or_default()
+}
+
+#[tokio::test]
+async fn pictures_are_listed_as_python_plexapi_reads_them() {
+    let w = world().await;
+    assert!(pictures(&w, w.alien, "posters").await.is_empty(), "none yet");
+
+    // The metadata agent's: Kometa takes it as it is.
+    sqlx::query("UPDATE items SET poster = 'agent.jpg' WHERE id = ?")
+        .bind(w.brazil)
+        .execute(&w.app.state.db.write)
+        .await
+        .unwrap();
+    let agents = pictures(&w, w.brazil, "posters").await;
+    assert_eq!(agents.len(), 1);
+    assert!(agents[0]["ratingKey"].as_str().unwrap().starts_with("metadata://posters/"), "{agents:?}");
+    assert_eq!((&agents[0]["selected"], &agents[0]["provider"]), (&json!(true), &json!("tv.plex.agents.movie")));
+
+    // An upload: Kometa checks it for its overlay before it takes it.
+    let posters = format!("/library/metadata/{}/posters", w.alien);
+    assert_eq!(w.app.plex_upload(Method::POST, &posters, &w.admin, png([9, 9, 9])).await.status, StatusCode::OK);
+    let uploaded = pictures(&w, w.alien, "posters").await;
+    let name = uploaded[0]["ratingKey"].as_str().unwrap().to_owned();
+    assert!(name.starts_with("upload://posters/"), "{name}");
+    let file = uploaded[0]["key"].as_str().unwrap().to_owned();
+    assert!(file.starts_with(&format!("/library/metadata/{}/file?url=", w.alien)), "a query Kometa adds its token to");
+    let served = w.app.plex(Method::GET, &file, &w.admin, &[]).await;
+    assert_eq!(served.status, StatusCode::OK);
+    assert!(pictures(&w, w.alien, "arts").await.is_empty());
+
+    // setPoster() of the one shown changes nothing; of one Pley no longer keeps, 400.
+    let chosen = format!("/library/metadata/{}/poster?url={}", w.alien, common::encode(&name));
+    assert_eq!(w.app.plex(Method::PUT, &chosen, &w.admin, &[]).await.status, StatusCode::OK);
+    let stale = format!("/library/metadata/{}/poster?url=upload%3A%2F%2Fposters%2F1", w.alien);
+    assert_eq!(w.app.plex(Method::PUT, &stale, &w.admin, &[]).await.status, StatusCode::BAD_REQUEST);
+
+    // A collection's: its first item's until it has its own.
+    let query = format!("type=1&id={}&collection[0].tag.tag=Pair", w.brazil);
+    assert_eq!(put(&w, &format!("/library/sections/{}/all", w.movies), &query).await, StatusCode::OK);
+    let collections = w.app.plex_json(&format!("/library/sections/{}/collections", w.movies), &w.admin).await;
+    let key: i64 = collections["Metadata"][0]["ratingKey"].as_str().unwrap().parse().unwrap();
+    assert!(pictures(&w, key, "posters").await[0]["ratingKey"].as_str().unwrap().starts_with("metadata://"));
+    let own = format!("/library/metadata/{key}/posters");
+    assert_eq!(w.app.plex_upload(Method::POST, &own, &w.admin, png([1, 2, 3])).await.status, StatusCode::OK);
+    assert!(pictures(&w, key, "posters").await[0]["ratingKey"].as_str().unwrap().starts_with("upload://"));
+}
+
+#[tokio::test]
+async fn an_episodes_poster_is_its_still() {
+    let w = world().await;
+    w.app.media_file("tv/Taxi (1978)/Season 01/Taxi - S01E01 - Pilot.mkv", 1024);
+    let tv = w.app.library(&w.admin, "TV", "shows", "tv").await;
+    let show = w.app.ids(tv, &w.admin).await["Taxi"];
+    let season = w.app.children(show, &w.admin).await["Season 1"];
+    let pilot = w.app.children(season, &w.admin).await["Pilot"];
+    let posters = format!("/library/metadata/{pilot}/posters");
+    assert_eq!(w.app.plex_upload(Method::POST, &posters, &w.admin, png([5, 5, 5])).await.status, StatusCode::OK);
+    let pley = w.app.get(&format!("/api/items/{pilot}"), &w.admin).await.body;
+    assert_eq!(pley["locked_fields"], json!(["thumb"]), "what Plex clients show of it");
+    assert!(pictures(&w, pilot, "posters").await[0]["ratingKey"].as_str().unwrap().starts_with("upload://"));
+}
+
 #[tokio::test]
 async fn only_administrators_edit_and_only_in_the_section_named() {
     let w = world().await;

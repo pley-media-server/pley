@@ -29,6 +29,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 
 use super::keys::{self, Key};
+use super::pictures;
 use super::{Params, PlexAdmin, PlexError, PlexResult};
 use crate::auth::AuthUser;
 use crate::events::ServerEvent;
@@ -457,17 +458,28 @@ fn artwork_field(name: &str) -> Option<&'static str> {
     }
 }
 
-/// What a picture goes onto: an item or a collection, and its library.
-/// Playlists show their first entry's picture and keep none of their own.
-async fn picture_target(state: &AppState, user: &AuthUser, key: i64) -> PlexResult<(Key, i64)> {
+/// What a picture goes onto: an item or a collection.
+struct Target {
+    key: Key,
+    library_id: i64,
+    /// An episode's poster is its still, as Plex shows it.
+    episode: bool,
+}
+
+/// What `key` names, for a picture. Playlists show their first entry's
+/// picture and keep none of their own.
+async fn picture_target(state: &AppState, user: &AuthUser, key: i64) -> PlexResult<Target> {
     let target = Key::of(key);
-    let library_id = match target {
-        Key::Item(id) => sqlx::query_scalar("SELECT library_id FROM items WHERE id = ?")
-            .bind(id)
-            .fetch_optional(&state.db.read)
-            .await?
-            .ok_or(PlexError::NotFound)?,
-        Key::Collection(id) => collections::library_of(&state.db, id).await?.ok_or(PlexError::NotFound)?,
+    let (library_id, episode) = match target {
+        Key::Item(id) => {
+            let row: (i64, String) = sqlx::query_as("SELECT library_id, kind FROM items WHERE id = ?")
+                .bind(id)
+                .fetch_optional(&state.db.read)
+                .await?
+                .ok_or(PlexError::NotFound)?;
+            (row.0, row.1 == "episode")
+        }
+        Key::Collection(id) => (collections::library_of(&state.db, id).await?.ok_or(PlexError::NotFound)?, false),
         Key::Playlist(id) => {
             crate::playlists::get_rows(&state.db, user, id).await?.ok_or(PlexError::NotFound)?;
             return Err(PlexError::BadRequest(
@@ -475,7 +487,7 @@ async fn picture_target(state: &AppState, user: &AuthUser, key: i64) -> PlexResu
             ));
         }
     };
-    Ok((target, library_id))
+    Ok(Target { key: target, library_id, episode })
 }
 
 /// `POST /library/metadata/{key}/posters` (or `/arts`): the body as the
@@ -488,15 +500,17 @@ pub async fn upload_artwork(
     body: Bytes,
 ) -> PlexResult<StatusCode> {
     let field = artwork_field(&name).filter(|_| name.ends_with('s')).ok_or(PlexError::NotFound)?;
-    let (target, library_id) = picture_target(&state, &admin, key).await?;
+    let target = picture_target(&state, &admin, key).await?;
     let blob = match params.get("url").filter(|u| !u.is_empty()) {
         Some(url) => state.metadata.download_artwork(url).await.map_err(|e| PlexError::BadRequest(e.to_string()))?,
         None => crate::api::editing::store_picture(&state, body).await.map_err(PlexError::from)?,
     };
-    set_artwork_blob(&state, target, library_id, field, blob).await
+    set_artwork_blob(&state, &target, field, blob).await
 }
 
-/// `PUT /library/metadata/{key}/poster?url=…` (or `/art`): a TMDB image.
+/// `PUT /library/metadata/{key}/poster?url=…` (or `/art`): a TMDB image,
+/// or the picture `/posters` lists (python-plexapi's `setPoster()`), which
+/// is the one shown already.
 pub async fn choose_artwork(
     State(state): State<AppState>,
     PlexAdmin(admin): PlexAdmin,
@@ -505,9 +519,17 @@ pub async fn choose_artwork(
 ) -> PlexResult<StatusCode> {
     let field = artwork_field(&name).filter(|_| !name.ends_with('s')).ok_or(PlexError::NotFound)?;
     let url = params.get("url").filter(|u| !u.is_empty()).ok_or(PlexError::BadRequest("`url` is missing".into()))?;
-    let (target, library_id) = picture_target(&state, &admin, key).await?;
+    let target = picture_target(&state, &admin, key).await?;
+    let kind = if field == "poster" { pictures::Kind::Poster } else { pictures::Kind::Art };
+    match pictures::is_current(&state, &admin, key, kind, url).await? {
+        Some(true) => return Ok(StatusCode::OK),
+        Some(false) => {
+            return Err(PlexError::BadRequest("Pley keeps the picture shown alone: upload another instead".into()));
+        }
+        None => {}
+    }
     let blob = state.metadata.download_artwork(url).await.map_err(|e| PlexError::BadRequest(e.to_string()))?;
-    set_artwork_blob(&state, target, library_id, field, blob).await
+    set_artwork_blob(&state, &target, field, blob).await
 }
 
 /// `POST /library/collections/{key}/posters` (or `/arts`): a collection's
@@ -523,15 +545,12 @@ pub async fn upload_collection_artwork(
     upload_artwork(state, admin, Path((keys::collection(id), name)), params, body).await
 }
 
-async fn set_artwork_blob(
-    state: &AppState,
-    target: Key,
-    library_id: i64,
-    field: &str,
-    blob: String,
-) -> PlexResult<StatusCode> {
-    match target {
-        Key::Item(id) => overrides::set(&state.db, id, &[(field.to_owned(), Some(blob))]).await?,
+async fn set_artwork_blob(state: &AppState, target: &Target, field: &str, blob: String) -> PlexResult<StatusCode> {
+    match target.key {
+        Key::Item(id) => {
+            let field = if field == "poster" && target.episode { "thumb" } else { field };
+            overrides::set(&state.db, id, &[(field.to_owned(), Some(blob))]).await?
+        }
         Key::Collection(id) => {
             // `field` is `poster` or `backdrop`, both columns of collections.
             sqlx::query(sqlx::AssertSqlSafe(format!(
@@ -545,7 +564,7 @@ async fn set_artwork_blob(
         }
         Key::Playlist(_) => return Err(PlexError::NotFound),
     }
-    state.events.send(ServerEvent::LibraryChanged { library_id });
+    state.events.send(ServerEvent::LibraryChanged { library_id: target.library_id });
     Ok(StatusCode::OK)
 }
 

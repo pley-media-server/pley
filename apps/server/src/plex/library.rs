@@ -7,10 +7,11 @@ use std::sync::Arc;
 use axum::Extension;
 use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 
 use super::keys::Key;
 use super::meta::{self, Detail, Extras, Sections, kind_for_number, kinds_of, plex_type, section_type, type_number};
+use super::pictures;
 use super::{Node, Page, Params, PlexAdmin, PlexError, PlexInfo, PlexResult, PlexUser};
 use crate::auth::AuthUser;
 use crate::catalog::{self, ItemRow, ME_CTE, VISIBLE, VISIBLE_ITEMS};
@@ -617,7 +618,7 @@ pub async fn filter_choices(
 }
 
 /// Percent-encodes a query value.
-fn encode(value: &str) -> String {
+pub(super) fn encode(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
     for byte in value.bytes() {
         match byte {
@@ -1233,7 +1234,7 @@ pub(super) async fn serve_image(
 
 /// The picture of whatever `key` names: an item, a collection (its own, or
 /// its first item's) or a playlist (its first entry's).
-async fn serve_key_image(
+pub(super) async fn serve_key_image(
     state: AppState,
     user: AuthUser,
     key: i64,
@@ -1252,6 +1253,8 @@ async fn serve_key_image(
     }
 }
 
+/// `/library/metadata/{key}/{thumb|art|…}`, the lists of pictures
+/// (`posters`, `arts`) and the pictures they name (`file?url=`).
 pub async fn image(
     State(state): State<AppState>,
     PlexUser(user): PlexUser,
@@ -1259,6 +1262,13 @@ pub async fn image(
     params: Params,
     headers: HeaderMap,
 ) -> PlexResult<Response> {
+    if let Some(kind) = pictures::Kind::of_list(&image) {
+        return Ok(pictures::list(&state, &user, key, kind).await?.into_response());
+    }
+    if image == "file" {
+        let url = params.get("url").unwrap_or_default();
+        return pictures::file(state, user, key, url, params.parse("width"), headers).await;
+    }
     serve_key_image(state, user, key, &image, None, params.parse("width"), headers).await
 }
 

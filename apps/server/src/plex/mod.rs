@@ -15,6 +15,7 @@ mod library;
 mod lists;
 pub(crate) mod meta;
 mod notifications;
+mod pictures;
 mod playback;
 pub(crate) use playback::SessionKeys;
 mod queues;
