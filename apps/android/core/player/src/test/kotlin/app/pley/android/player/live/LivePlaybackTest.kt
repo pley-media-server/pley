@@ -7,8 +7,10 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.HttpDataSource
+import app.pley.android.caps.CapsSnapshot
 import app.pley.android.model.BusyConnection
 import app.pley.android.model.LivePlan
+import app.pley.android.model.caps.ClientCaps
 import app.pley.android.network.ApiException
 import app.pley.android.testing.Fixtures
 import app.pley.android.network.OfflineException
@@ -109,6 +111,41 @@ class LivePlaybackTest {
         playback.tune(2)
         settle()
         assertTrue(engine().prepared.last().source.hls)
+    }
+
+    @Test
+    fun `sound the server converts plays from stream ts where this device decodes it or sends it on as it is`() {
+        var caps: CapsSnapshot? = CapsSnapshot(ClientCaps(audioCodecs = listOf("aac", "ac3")), emptyList())
+        val playback = LivePlayback(live, { FakePlayerEngine().also { engines += it } }, { "android-1" }, scope) { caps }
+        live.plan = Fixtures.decode<LivePlan>("live/plan.json").copy(audio = "aac", audioCodec = "ac3", audioChannels = 6)
+        playback.tune(1)
+        settle()
+        // The stream.ts read as the channel was asked for plays: no HLS.
+        assertEquals(listOf(false), engine().prepared.map { it.source.hls })
+        assertTrue(engine().player.playWhenReady)
+
+        // Not where it neither decodes nor passes it, nor before the device is probed: the HLS made for every player.
+        caps = CapsSnapshot(ClientCaps(audioCodecs = listOf("aac")), emptyList())
+        playback.tune(2)
+        settle()
+        assertTrue(engine().prepared.last().source.hls)
+        caps = null
+        playback.tune(1)
+        settle()
+        assertTrue(engine().prepared.last().source.hls)
+        playback.close()
+    }
+
+    @Test
+    fun `a plan plays as sent with its picture as it is, and its sound as it is or one the device plays`() {
+        val passes = CapsSnapshot(ClientCaps(audioCodecs = listOf("aac"), audioPassthrough = listOf("eac3")), emptyList())
+        assertTrue(LivePlayback.playsAsSent(LivePlan(video = "copy", audio = "aac", audioCodec = "eac3"), passes))
+        assertTrue(LivePlayback.playsAsSent(LivePlan(video = "copy", audio = "none"), null))
+        assertFalse(LivePlayback.playsAsSent(LivePlan(video = "h264_vaapi", audio = "aac", audioCodec = "eac3"), passes))
+        // DTS isn't one the server's plan converts for some players only: it goes to HLS everywhere.
+        val dts = CapsSnapshot(ClientCaps(audioCodecs = listOf("aac", "dts")), emptyList())
+        assertFalse(LivePlayback.playsAsSent(LivePlan(video = "copy", audio = "aac", audioCodec = "dts"), dts))
+        assertFalse(LivePlayback.playsAsSent(LivePlan(video = "copy", audio = "aac", audioCodec = "mp2"), passes))
     }
 
     @Test

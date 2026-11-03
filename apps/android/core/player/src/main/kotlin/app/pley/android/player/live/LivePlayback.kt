@@ -9,12 +9,14 @@ import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.HttpDataSource
+import app.pley.android.caps.CapsSnapshot
 import app.pley.android.common.DeviceProfile
 import app.pley.android.common.asSentence
 import app.pley.android.common.sentenceOf
 import app.pley.android.data.LiveTvRepository
 import app.pley.android.model.ApiErrorBody
 import app.pley.android.model.BusyConnection
+import app.pley.android.model.LivePlan
 import app.pley.android.model.PleyJson
 import app.pley.android.network.ApiException
 import app.pley.android.network.OfflineException
@@ -142,10 +144,11 @@ data class LiveState(
  *   reads the channel's `stream.ts` (MPEG-TS as the provider sends it) as
  *   it asks, the server tuning for whichever comes first (after it, when
  *   a connection is taken over, which only the watch does), then asks what
- *   the channel is made into: sent as it is
- *   ([app.pley.android.model.LivePlan.direct]), that plays from its first keyframe rather than
- *   after the first HLS segments (as the web's); otherwise, or when it
- *   fails, the answer's HLS from the live edge, on the app's Media3 engine;
+ *   the channel is made into: sent as it is, or with sound the server
+ *   converts that this device plays as it comes ([playsAsSent]), that
+ *   plays from its first keyframe rather than after the first HLS segments
+ *   (as the web's); otherwise, or when it fails, the answer's HLS from the
+ *   live edge, on the app's Media3 engine;
  * - it is watched as it airs, as the web's: no pausing, no going back;
  * - a player failure tunes the channel again twice, after 1 s and 3 s
  *   (Samsung's), before it says why, unless the server said no ([RETRIES]);
@@ -160,6 +163,8 @@ class LivePlayback(
     private val engines: () -> PlayerEngine,
     private val clientId: () -> String,
     private val scope: CoroutineScope,
+    /** What this device plays, for the sound the server converts ([playsAsSent]); `null` until probed. */
+    private val caps: () -> CapsSnapshot? = { null },
 ) {
     private val mutableState = MutableStateFlow(LiveState())
     val state: StateFlow<LiveState> = mutableState.asStateFlow()
@@ -234,7 +239,7 @@ class LivePlayback(
             val engine = engine()
             val plan = quietly { live.plan(watching.sessionId) }
             holding = false
-            if (plan?.direct == true) {
+            if (plan != null && playsAsSent(plan, caps())) {
                 engine.player.play()
                 if (engine.player.playbackState == Player.STATE_READY) playing()
             } else {
@@ -450,12 +455,38 @@ class LivePlayback(
         /** …the next after this. */
         const val NEXT_RETRY_MS = 3_000L
 
+        /**
+         * Whether this device plays [plan]'s channel from `stream.ts` as the
+         * provider sends it: its picture sent as it is (or none), and its
+         * sound too ([LivePlan.direct]), or AC3, E-AC3 or MP2, which the
+         * plan converts for players that can't, where this device decodes it
+         * or sends it to its receiver as it is ([caps], as Samsung's
+         * PlaysAsSent, whose TVs all decode them; the probe lists no MP2
+         * decoders, so MP2 stays with the HLS). Before the device is probed,
+         * only what is sent as it is: such a channel's HLS, made for every
+         * player, starts later, but plays.
+         */
+        fun playsAsSent(plan: LivePlan, caps: CapsSnapshot?): Boolean {
+            if (plan.direct) return true
+            if (plan.video !in AS_SENT) return false
+            val codec = plan.audioCodec?.lowercase()?.takeIf { it in CONVERTED_SOUND } ?: return false
+            val report = caps?.report ?: return false
+            return codec in report.audioCodecs + report.audioDecode.orEmpty() + report.audioPassthrough.orEmpty()
+        }
+
+        /** A plan's picture or sound as the provider sends it, or none of it. */
+        private val AS_SENT = setOf("copy", "none")
+
+        /** Sound the server converts for HLS that a device may play as it comes, in the server's names. */
+        private val CONVERTED_SOUND = setOf("ac3", "eac3", "mp2")
+
         /** Failures tuning again may help: not the server's refusals (busy, stopped, gone, not allowed). */
         private val RETRIED = setOf(LiveTrouble.Kind.Other, LiveTrouble.Kind.Offline, LiveTrouble.Kind.Unavailable)
 
         /**
          * Watching on this device: [live]'s server, engines of [engines],
-         * the device's own client id (the one its playbacks send).
+         * the device's own client id (the one its playbacks send), what it
+         * plays as [caps] last probed it.
          */
         fun create(
             context: Context,
@@ -463,9 +494,10 @@ class LivePlayback(
             engines: PlayerEngine.Factory,
             profile: DeviceProfile,
             scope: CoroutineScope,
+            caps: () -> CapsSnapshot? = { null },
         ): LivePlayback {
             val app = context.applicationContext
-            return LivePlayback(live, { engines.create(app, profile, music = false) }, clientIdOf(app), scope)
+            return LivePlayback(live, { engines.create(app, profile, music = false) }, clientIdOf(app), scope, caps)
         }
     }
 }

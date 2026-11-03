@@ -173,8 +173,10 @@ are set up in the web app's Settings → Live TV ([API.md](API.md#live-tv)).
 On Android the player reads the channel's MPEG-TS (`stream.ts`) as it
 asks for the channel (`POST …/watch`), the server tuning for whichever
 comes first, then asks for the session's `plan`: a channel the server sends
-as it is plays that MPEG-TS from its first keyframe; anything else plays
-the server's HLS. Taking over a connection, it reads `stream.ts` only once
+as it is plays that MPEG-TS from its first keyframe, as does one whose AC3
+or E-AC3 sound the server converts, where the device decodes it or sends it
+to its receiver as it is (Diagnostics lists both); anything else
+plays the server's HLS. Taking over a connection, it reads `stream.ts` only once
 the watch has answered, as only the watch takes the connection. Leaving
 the player ends the session. A page of channels that didn't load is asked
 for again once 10 s have passed, as the list moves. When the player fails,

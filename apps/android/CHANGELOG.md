@@ -23,6 +23,10 @@ describes how they are made.
 - Live channels start a round trip sooner: the player reads the
   channel's stream as it asks the server for the channel, rather than once
   the server has answered, as on Samsung TVs.
+- A live channel with AC3 or E-AC3 sound starts sooner where the device
+  decodes that sound or sends it to a receiver: it plays from the
+  channel's own stream, as on Samsung TVs, rather than from the HLS the
+  server makes with the sound converted.
 - In the TV guide, Left goes back through a programme that began before
   the guide, a screen at a time, before it leaves for the categories; on a
   channel without a guide, Left and Right move the guide a half hour at a
