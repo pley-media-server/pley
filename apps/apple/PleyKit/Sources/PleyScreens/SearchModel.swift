@@ -16,7 +16,8 @@ import PleyNetwork
 ///
 /// While asking for movies and shows works, TMDB is searched beside the
 /// libraries (never holding them up) for titles the libraries don't have:
-/// the Discover row after the results, with See all.
+/// the Discover row after the results, with See all. It comes and goes as
+/// asking starts or stops working, and Apple TV, without Discover, has none.
 @MainActor
 public final class SearchModel: ObservableObject {
     /// The groups results come in, in the order they show.
@@ -108,7 +109,7 @@ public final class SearchModel: ObservableObject {
         /// Asking doesn't work here, or nothing is typed.
         case hidden
         case loading
-        /// TMDB's titles for the query; none: the row says nothing.
+        /// TMDB's titles for the query (some: with none, the row is hidden).
         case ready(query: String, cards: [DiscoverCard])
         /// TMDB couldn't be searched: why, with Retry.
         case failed(ProblemWords)
@@ -144,6 +145,20 @@ public final class SearchModel: ObservableObject {
             guard let self, !change.requests.isEmpty, !self.discoverTitles.isEmpty else { return }
             Task { await self.patchDiscover(change.requests) }
         }.store(in: &listeners)
+        // Asking starting or stopping to work (the summary read late, signing
+        // in again, access changed) brings the row for what is typed, or hides it.
+        app.requests.$summary.dropFirst().map { RequestsGate.of($0).mayAsk }.removeDuplicates().sink { [weak self] _ in
+            Task { @MainActor in self?.retryDiscover() }
+        }.store(in: &listeners)
+    }
+
+    /// TMDB is searched for the Discover row: asking works, and the app has Discover.
+    private var discovers: Bool {
+        #if os(tvOS)
+        false
+        #else
+        app.requests.gate.mayAsk
+        #endif
     }
 
     /// Discover's card above the recent searches: requests are open to this account.
@@ -161,7 +176,7 @@ public final class SearchModel: ObservableObject {
         return .discoverResults(query: query)
     }
 
-    /// Searches TMDB again, after it failed.
+    /// Searches TMDB again, after it failed or as asking starts or stops working.
     public func retryDiscover() {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -283,7 +298,8 @@ public final class SearchModel: ObservableObject {
     /// TMDB's titles for `text` the libraries don't have, page by page
     /// until a row's worth. A failure with titles already found keeps them.
     private func searchDiscover(_ text: String) async {
-        guard app.requests.gate.mayAsk else {
+        guard discovers else {
+            discoverTitles = []
             discover = .hidden
             return
         }
@@ -309,7 +325,8 @@ public final class SearchModel: ObservableObject {
             }
         }
         discoverTitles = Array(pages.titles.prefix(Self.discoverTitles))
-        discover = .ready(query: text, cards: discoverTitles.map(DiscoverCard.init))
+        // TMDB found nothing missing: no row, and Search says "No results" as without one.
+        discover = discoverTitles.isEmpty ? .hidden : .ready(query: text, cards: discoverTitles.map(DiscoverCard.init))
     }
 
     private func patchDiscover(_ change: RequestChange) async {

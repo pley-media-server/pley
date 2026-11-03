@@ -140,7 +140,12 @@ extension FixtureServer {
                     return json(200, ["enabled": true, "access": "ask", "sign_in_again": "requests", "pending": 0,
                                       "failed": 0, "unseen": 0, "own": 0, "manage": false])
                 }
+                // An administrator's app without approvals isn't a manager, as on the server: it
+                // sees only its own requests, and is told to sign in again for approvals.
                 if summary["manage"] as? Bool == true, !access.scope.split(separator: " ").contains("approvals") {
+                    summary["manage"] = false
+                    summary["pending"] = 0
+                    summary["failed"] = 0
                     summary["sign_in_again"] = "approvals"
                 }
                 return json(200, summary)

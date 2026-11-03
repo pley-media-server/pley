@@ -341,9 +341,13 @@ public final class RequestsListModel: ObservableObject {
             reloadSoon()
             return
         }
-        // Only that request: it alone is read again.
-        guard let request = try? await app.requestsAPI().request(id) else { return }
-        replace(id, with: request)
+        // Only that request: it alone is read again. Not found (`nil`), it
+        // was deleted or isn't this account's any more, and its card goes;
+        // a read that fails keeps the card as it was.
+        guard let api = try? await app.requestsAPI() else { return }
+        do {
+            replace(id, with: try await api.request(id))
+        } catch {}
     }
 
     private func reloadSoon() {

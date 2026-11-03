@@ -177,15 +177,18 @@ public final class DiscoverTitleModel: ObservableObject {
             await reading.value
             return
         }
+        // The read lets go of `reading` itself, as its last loop ends: a
+        // call that comes after that starts a read of its own, rather than
+        // waiting on one that won't look again.
         let task = Task {
             repeat {
                 again = false
                 await read()
             } while again
+            reading = nil
         }
         reading = task
         await task.value
-        reading = nil
     }
 
     private func read() async {

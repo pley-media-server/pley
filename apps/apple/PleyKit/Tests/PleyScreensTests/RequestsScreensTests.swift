@@ -101,9 +101,12 @@ private func object(_ data: Data?) -> [String: Any]? {
         server.useManagerSummary()
         let app = try await ready(server, scope: "library play playlists profiles requests")
         #expect(app.requests.summary?.signInAgain == "approvals")
+        #expect(app.requests.summary?.manage == false && !app.shell.requestsEntry.manage)
+        // Not a manager: Your requests, on all of them, with the banner.
         let list = RequestsListModel(app: app)
         await list.load()
-        #expect(list.approvalsBanner && list.manage)
+        #expect(list.approvalsBanner && !list.manage && list.title == "Your requests")
+        #expect(list.filter?.view == .all)
         // The list still reads: approving is what needs the sign-in again.
         #expect(await eventually { !list.cards.isEmpty })
     }
@@ -314,6 +317,34 @@ private func object(_ data: Data?) -> [String: Any]? {
         #expect(server.requests("/api/discover/search").allSatisfy { $0.query["missing"] == "1" })
     }
 
+    @Test func searchWithNothingAnywhereSaysNoResults() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await ready(server)
+        let model = SearchModel(app: app, debounce: .milliseconds(10))
+        model.query = "nothing at all"
+        #expect(await eventually { !server.requests("/api/discover/search").isEmpty && model.state == .empty("nothing at all") })
+        // TMDB has none either (the row was loading once it was asked): no
+        // row, and not "Nothing in your libraries matches".
+        #expect(await eventually { model.discover == .hidden })
+        #expect(!model.nothingInLibraries)
+    }
+
+    @Test func theDiscoverRowFollowsWhetherAskingWorks() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await ready(server)
+        let model = SearchModel(app: app, debounce: .milliseconds(10))
+        model.query = "dune"
+        #expect(await eventually { if case .ready = model.discover { true } else { false } })
+        server.setRequestsOff(true)
+        await app.requests.refreshNow()
+        #expect(await eventually { model.discover == .hidden })
+        server.setRequestsOff(false)
+        await app.requests.refreshNow()
+        #expect(await eventually { if case .ready(let query, _) = model.discover { query == "dune" } else { false } })
+    }
+
     @Test func aLibraryShowOffersMoreSeasons() async throws {
         let server = try await fixture()
         defer { server.stop() }
@@ -325,8 +356,9 @@ private func object(_ data: Data?) -> [String: Any]? {
         #expect(model.requestBlock?.picker == .discoverTitle(.show, tmdbId: 95396, pick: true))
         // A movie Discover doesn't know: nothing, and it isn't asked again.
         let movie = ItemModel(app: app, itemId: 101)
+        movie.requestRetry = 0.02
         await movie.load()
-        try await Task.sleep(for: .milliseconds(200))
+        try await Task.sleep(for: .milliseconds(300))
         #expect(movie.requestBlock == nil)
         #expect(server.requests("/api/items/101/request").count == 1)
     }
@@ -369,6 +401,21 @@ private func object(_ data: Data?) -> [String: Any]? {
         model.runner.confirm()
         #expect(await eventually { !model.cards.contains { $0.id == 44 } })
         #expect(server.requestActions == ["DELETE /api/requests/44"])
+    }
+
+    @Test func aRequestGoneElsewhereLeavesTheList() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await ready(server)
+        #expect(await eventually { server.openEventStreams == 1 })
+        let model = RequestsListModel(app: app)
+        await model.load()
+        #expect(model.cards.contains { $0.id == 45 })
+        // Deleted on another device: it reads as not found, and its card goes.
+        try await app.requestsAPI().deleteRequest(45)
+        server.pushEvent(#"{ "type": "requests_changed", "request_id": 45 }"#)
+        #expect(await eventually { !model.cards.contains { $0.id == 45 } })
+        #expect(model.cards.map(\.id) == [48, 47, 46, 44, 42])
     }
 
     @Test func managersOpenOnWhatNeedsThem() async throws {
