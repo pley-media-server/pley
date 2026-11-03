@@ -617,6 +617,11 @@ adb -s <device> shell am instrument -w -e class app.pley.android.benchmark.TvSta
 On an emulator, add `-e androidx.benchmark.suppressErrors EMULATOR`. Traces
 are in `/storage/emulated/0/Android/data/app.pley.android.benchmark/cache`.
 
+On a device that already has Pley, signed with another key, build both with
+`-Ppley.applicationIdSuffix=.bench`: the benchmarked app installs beside it
+as `com.formandelement.pley.bench`, and the benchmarks (which clear the
+app's data between runs) touch only that one.
+
 On an emulator, frame times (`dumpsys gfxinfo` while a key is held, as
 with `adb shell input keyevent --duration 3000 KEYCODE_DPAD_RIGHT`) say
 little about drawing: the emulator's GPU takes about the same time a frame

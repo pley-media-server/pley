@@ -11,8 +11,16 @@ android {
 
     defaultConfig {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // The app's id, with the suffix it was built with (-Ppley.applicationIdSuffix).
+        val target = "com.formandelement.pley" + providers.gradleProperty("pley.applicationIdSuffix").orElse("").get()
+        buildConfigField("String", "TARGET", "\"$target\"")
+        manifestPlaceholders["target"] = target
         // The profiles are made on the store build; the direct one has the same code.
         missingDimensionStrategy("channel", "store")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 }
 
