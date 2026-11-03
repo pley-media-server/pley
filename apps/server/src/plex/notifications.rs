@@ -14,7 +14,8 @@
 //! A user hears about their own sessions (an administrator's token with
 //! `activity` about everyone's) and the libraries they may open. The token
 //! is checked again every 10 s: the socket closes once it is revoked, and
-//! changed rights apply.
+//! changed rights apply. A ping goes with each check, so that a quiet
+//! socket isn't taken for a server gone.
 
 use std::collections::HashMap;
 use std::time::Duration;
@@ -160,6 +161,11 @@ impl Listener {
                         if let Err(err) = self.load_libraries().await {
                             tracing::debug!("notification socket: {err}");
                         }
+                    }
+                    // A ping as Plex's server sends them: clients such as
+                    // Tautulli take a socket quiet for 15 s for a server down.
+                    if socket.send(Message::Ping(Default::default())).await.is_err() {
+                        return;
                     }
                     self.sessions_changed()
                 }

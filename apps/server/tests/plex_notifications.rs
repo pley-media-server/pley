@@ -1,6 +1,6 @@
 //! `/:/websockets/notifications` over a real socket (docs/COMPATIBILITY.md): playback
 //! states with the session keys of `/status/sessions`, new items as Tautulli
-//! expects them, scans, and who hears about what.
+//! expects them, scans, who hears about what, and the pings that keep it open.
 
 mod common;
 
@@ -205,4 +205,23 @@ async fn new_items_and_scans_where_the_user_may_look() {
     assert!(!has(&heard, "Hidden", 0) && !has(&heard, "Hidden", 5), "{heard:?}");
     let scans = entries(&heard, "activity", "ActivityNotification");
     assert!(scans.iter().all(|a| a["Activity"]["title"] == json!("Scanning Movies")), "{scans:?}");
+}
+
+#[tokio::test]
+async fn a_quiet_socket_hears_pings() {
+    // Tautulli takes a socket quiet for 15 s for a server down.
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let addr = serve(&app).await;
+    let mut socket = connect(&app, addr, &app.compatibility_token(&admin, "activity").await).await;
+    let ping = async {
+        loop {
+            match socket.next().await {
+                Some(Ok(Message::Ping(_))) => break,
+                Some(Ok(_)) => {}
+                other => panic!("the socket ended: {other:?}"),
+            }
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(15), ping).await.expect("a ping within 15 s");
 }

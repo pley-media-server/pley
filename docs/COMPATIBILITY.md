@@ -163,7 +163,8 @@ tool over:
    are, as Kometa does; a player, Watch alone. Limit
    it to the address the tool runs at.
 2. Put the new token where the tool kept the old one (for Kometa, `token`
-   under `plex` in its `config.yml`).
+   under `plex` in its `config.yml`; for Tautulli, `pms_token` in its
+   `config.ini`, while it is stopped).
 
 The session the old token belonged to stays signed in until it is signed
 out in Account → Devices, or goes 90 days unused.
@@ -186,9 +187,24 @@ for movie in server.library.section('Movies').search(unwatched=True):
 A tool works when it takes a server's address and a token, as these do:
 Kometa, `python-plexapi` scripts, poster and artwork tools, refresh
 triggers in the manner of Autoscan (a refresh's `?path=` is ignored: the
-whole library is scanned again), and Maintainerr's collections. Tautulli
-works in part: with a token entered by hand, and without the user list it
-reads from plex.tv.
+whole library is scanned again), and Maintainerr's collections.
+
+Tautulli works in part. Its setup asks for a plex.tv sign-in and has no
+field for a token, so it is set up in its `config.ini` while it is stopped:
+`first_run_complete = 1` under `[General]`, and under `[PMS]` Pley's
+address (`pms_ip`, `pms_port`, `pms_url` with `pms_url_manual = 1`), the
+server's `machineIdentifier` from `/identity` as `pms_identifier`, and as
+`pms_token` a token that may See everyone's activity. It then shows what is
+playing, keeps the history and lists the libraries, what was added and its
+statistics. What it can't do:
+
+- tell accounts apart: its users come from plex.tv, so every play is
+  listed under its Local user;
+- stop a stream: it asks plex.tv for a Plex Pass first.
+
+Its settings say the token is no longer valid, as plex.tv never knew it;
+that changes nothing. Tautulli sends the token to plex.tv as it would a
+Plex one, so limit the token to Tautulli's address.
 
 Tools that reach a server only through a plex.tv sign-in don't, as Pley has
 no plex.tv account: Overseerr, Ombi, Sonarr's and Radarr's Plex connection,

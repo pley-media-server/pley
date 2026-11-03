@@ -65,6 +65,12 @@ describes how they are made.
 - The web player's Back 10 seconds and Forward 30 seconds buttons. Left
   and Right (or J and L) still seek 10 s.
 
+### Fixed
+
+- Tautulli no longer takes Pley for a server that is down when nothing has
+  happened for 15 seconds: the Plex-compatible API's notifications send
+  pings, as Plex's server does.
+
 ## [0.1.4] - 2026-11-02
 
 ### Added
