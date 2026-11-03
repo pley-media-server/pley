@@ -59,7 +59,7 @@ pub fn sign_in(server: &FixtureServer, profile: i64, store: &Store, http: &Http)
 pub type Heard = Rc<RefCell<Vec<(Route, AppEvent)>>>;
 
 /// A test page: a button at the page's left edge (OK on Home opens an item, Menu opens a panel
-/// that Back closes) that records what it hears.
+/// that Back closes) and one beside it, that records what it hears.
 pub struct Page {
     pub route: Route,
     pub panel: bool,
@@ -84,6 +84,7 @@ impl Screen for Page {
         if r.menu {
             self.panel = true;
         }
+        ui.focusable(ui.id("next"), Rect::new(240.0, 100.0, 120.0, 40.0));
         if self.panel {
             let panel = ui.id("panel");
             ui.group(panel, Group::column().trap(), |ui| {

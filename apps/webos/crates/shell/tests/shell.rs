@@ -7,8 +7,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use common::{TestApp, device, fixtures, http, registry, sign_in, store};
-use pley_base::Key;
+use pley_base::{Key, KeyEvent};
 use pley_shell::{NavCommand, PLACEHOLDER_TEXT, Rail, Registry, Route};
+use pley_ui::InputEvent;
 
 fn heard() -> common::Heard {
     Rc::new(RefCell::new(Vec::new()))
@@ -156,6 +157,33 @@ fn left_at_the_page_s_edge_opens_the_rail_and_right_comes_back() {
     app.press(Key::Menu);
     app.press(Key::Left);
     assert!(!app.shell.rail_open());
+}
+
+#[test]
+fn a_held_left_stops_at_the_page_s_edge_and_a_press_opens_the_rail() {
+    let server = fixtures();
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    let mut app = TestApp::new(device, store, http, registry(&heard(), &[]));
+    let button = app.button();
+    app.press(Key::Right);
+    assert_ne!(app.focused(), Some(button));
+    // Left held: back to the first button, and there it stays however long the key repeats.
+    let key = |pressed, repeat| vec![InputEvent::Key(KeyEvent { key: Key::Left, pressed, repeat, code: 0 })];
+    app.frame(key(true, false));
+    for i in 0..30 {
+        app.time += 0.05;
+        app.frame(if i >= 8 { key(true, true) } else { Vec::new() });
+    }
+    app.time += 0.05;
+    app.frame(key(false, false));
+    assert!(!app.shell.rail_open(), "a held Left opened the rail");
+    assert_eq!(app.focused(), Some(button));
+    // A press of its own opens it.
+    app.advance(0.3);
+    app.press(Key::Left);
+    assert!(app.shell.rail_open());
 }
 
 #[test]

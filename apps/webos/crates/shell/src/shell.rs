@@ -319,7 +319,10 @@ impl Shell {
             self.toasts.show(t, now);
         }
         // Back the page didn't take, and what the page asked: the rail, or Back's next steps.
-        let mut to_rail = ui.failed_move() == Some(Dir::Left) && !modal && !self.rail.is_open();
+        // Left from a page's first column opens the rail on a press of its own: a held Left stops
+        // there, so scrolling back along a row never opens it by itself.
+        let mut to_rail =
+            ui.failed_move() == Some(Dir::Left) && !ui.failed_move_held() && !modal && !self.rail.is_open();
         if !self.notices.showing() && ui.take_key(Key::Back) {
             self.requests.nav.push(NavCommand::Back);
         }

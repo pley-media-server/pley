@@ -324,7 +324,12 @@ impl Guide {
                         }
                     }
                     Key::Right => self.cursor.step_right(row_programs, self.start),
-                    Key::Up if self.cursor.row == 0 => out.action = Some(GuideAction::Up),
+                    // A held Up stops at the top row; the tabs take a press of its own.
+                    Key::Up if self.cursor.row == 0 => {
+                        if !k.repeat {
+                            out.action = Some(GuideAction::Up);
+                        }
+                    }
                     Key::Up => self.cursor.row -= 1,
                     Key::Down => self.cursor.row = (self.cursor.row + 1).min(total.saturating_sub(1)),
                     Key::ChannelUp if !k.repeat => self.cursor.row = self.cursor.row.saturating_sub(PAGE),

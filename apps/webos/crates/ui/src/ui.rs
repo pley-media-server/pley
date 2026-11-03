@@ -217,6 +217,8 @@ struct FrameEvents {
     long_pressed: Option<Id>,
     menu: Option<Id>,
     failed_move: Option<Dir>,
+    /// The failed move came from a held key (or a run of the wheel).
+    failed_held: bool,
     edges: Vec<(Id, Dir)>,
     wheel: Vec<(Id, i32)>,
     pointer_outside: Option<Id>,
@@ -231,6 +233,7 @@ impl FrameEvents {
         self.long_pressed = None;
         self.menu = None;
         self.failed_move = None;
+        self.failed_held = false;
         self.edges.clear();
         self.wheel.clear();
         self.pointer_outside = None;
@@ -503,7 +506,7 @@ impl UiState {
             self.ev.keys.push(e);
             return;
         }
-        match focus::move_focus(&self.prev, &self.focus.memory, self.focus.focused, dir) {
+        match focus::move_focus(&self.prev, &self.focus.memory, self.focus.focused, dir, e.repeat) {
             Move::To(i) => {
                 if self.focus.set(&self.prev, i, false) {
                     self.gained_frame = self.frame;
@@ -515,6 +518,7 @@ impl UiState {
                     self.ev.edges.push((self.prev.node(g).id, dir));
                 }
                 self.ev.failed_move = Some(dir);
+                self.ev.failed_held = e.repeat;
             }
         }
     }
@@ -1088,6 +1092,12 @@ impl<'a> Ui<'a> {
     /// sends it to the rail.
     pub fn failed_move(&self) -> Option<Dir> {
         self.st.ev.failed_move
+    }
+
+    /// Whether this frame's failed move came from a held key rather than a press of its own: a
+    /// held Left stops at a row's start instead of opening the rail.
+    pub fn failed_move_held(&self) -> bool {
+        self.st.ev.failed_held
     }
 
     /// A move this frame that met `group`'s [`crate::Edge::Stop`] or [`crate::Edge::Out`].

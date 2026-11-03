@@ -22,7 +22,7 @@ use pley_kit::{
 };
 use pley_shell::{AppCx, AppEvent, Chrome, LibraryTab, Load, Resource, Route, Screen};
 use pley_ui::theme;
-use pley_ui::{Dir, Edge, Group, Id, Tier, Ui};
+use pley_ui::{Dir, Dirs, Edge, Group, Id, Tier, Ui};
 
 use crate::alpha::{AlphaIndex, JUMP_FROM};
 use crate::listing::{Listing, WINDOW_ABOVE, WINDOW_ABOVE_LOW};
@@ -488,7 +488,9 @@ impl GridTab {
                 ui.initial_focus(grid_id.with(0u64));
             }
             let edge = if jump { Edge::To(jump_id) } else { Edge::Stop };
-            let grid = PosterGrid::new(self.kind, GRID_TOP).right_edge(edge);
+            // A held Right or Up stays in the grid; a press goes on to the jump control or the
+            // chips.
+            let grid = PosterGrid::new(self.kind, GRID_TOP).right_edge(edge).held_stop(Dirs::RIGHT.union(Dirs::UP));
             let kind = self.kind;
             let listing = &self.listing;
             let r = grid.show(ui, grid_id, &mut self.grid, len, |ui, slot| match listing.at(slot.index) {
@@ -1106,7 +1108,8 @@ impl CollectionsTab {
         }
         let cells = &self.cells;
         let len = if known { cells.len() } else { UNKNOWN_CELLS };
-        let r = PosterGrid::new(TileKind::LibraryGrid, GRID_TOP).long_press(false).show(
+        // A held Up stays in the grid; the tabs take a press of its own.
+        let r = PosterGrid::new(TileKind::LibraryGrid, GRID_TOP).long_press(false).held_stop(Dirs::UP).show(
             ui,
             grid_id,
             &mut self.grid,

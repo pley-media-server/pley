@@ -62,6 +62,10 @@ describes how they are made.
   smoothly from tile to tile instead of jumping. In a library, Collections,
   playlists and a collection's page, the rows slide under one still ring,
   and their pictures load once the key is let go.
+- A held arrow key stops at the end of a list instead of leaving it, as in
+  the Samsung app: a held Left no longer opens the rail (a press does), and
+  a held Up or Right stays in a library's grid, the Collections tab and
+  Live TV's guide and cards. Down on a grid's last row stays.
 - The rail opens as in the Samsung app: its panel widens out of the closed
   rail as it fades in, and the labels slide in beside the icons.
 

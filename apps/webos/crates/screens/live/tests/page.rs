@@ -95,6 +95,43 @@ fn up_from_the_first_row_reaches_the_tabs_and_channels_shows_cards() {
     assert!(matches!(app.route(), Some(Route::LivePlayer { category: LiveCategory::All, .. })), "{:?}", app.route());
 }
 
+/// Holds `key` for 1.5 s, the TV repeating every 50 ms from 400 ms, then lets it go.
+fn hold(app: &mut TestApp, key: Key) {
+    let event = |pressed, repeat| vec![InputEvent::Key(KeyEvent { key, pressed, repeat, code: 0 })];
+    app.frame(event(true, false));
+    for i in 0..30 {
+        app.time += 0.05;
+        app.frame(if i >= 8 { event(true, true) } else { Vec::new() });
+    }
+    app.time += 0.05;
+    app.frame(event(false, false));
+    app.advance(0.2);
+}
+
+#[test]
+fn a_held_up_stops_at_the_top_row_and_a_press_reaches_the_tabs() {
+    let mut app = live();
+    let guide = app.id(&["guide"]);
+    app.press(Key::Down);
+    app.press(Key::Down);
+    hold(&mut app, Key::Up);
+    assert_eq!(app.focused(), Some(guide), "a held Up left the guide");
+    app.press(Key::Up);
+    assert_eq!(app.focused(), Some(app.id(&["tabs", "guide"])));
+    // The cards too.
+    app.press(Key::Right);
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.shows("Voyage News")), "no cards");
+    app.press(Key::Down);
+    app.press(Key::Down);
+    let in_cards = app.focused();
+    assert_ne!(in_cards, Some(app.id(&["tabs", "channels"])));
+    hold(&mut app, Key::Up);
+    assert_ne!(app.focused(), Some(app.id(&["tabs", "channels"])), "a held Up left the cards");
+    app.press(Key::Up);
+    assert_eq!(app.focused(), Some(app.id(&["tabs", "channels"])));
+}
+
 #[test]
 fn ok_on_whats_on_now_watches_the_channel() {
     let mut app = live();

@@ -8,7 +8,8 @@
 //!
 //! Cells are one per position, loaded or not, so a skeleton keeps focus when its page of items
 //! arrives. One grid focus group returns to its last cell; Right from the last column goes where
-//! [`PosterGrid::right_edge`] says (the jump control). Only the rows on screen and one either side
+//! [`PosterGrid::right_edge`] says (the jump control), Down from the last row stays, and a held key
+//! stops at the sides [`PosterGrid::held_stop`] names. Only the rows on screen and one either side
 //! are drawn; the pictures of the next 1.5 screens are asked for ahead.
 //!
 //! [`JumpControl`] is the library's A–Z jump (`JumpControl.kt`).
@@ -87,6 +88,7 @@ pub struct PosterGrid {
     right: Edge,
     bottom_pad: f32,
     long_press: bool,
+    held_stops: Dirs,
 }
 
 impl PosterGrid {
@@ -100,7 +102,14 @@ impl PosterGrid {
             right: Edge::Stop,
             bottom_pad: GRID_BOTTOM_PAD,
             long_press: true,
+            held_stops: Dirs::NONE,
         }
+    }
+
+    /// Sides a held key stops at, where a press leaves the grid: a library's Up to its chips and
+    /// Right to the jump control.
+    pub fn held_stop(self, dirs: Dirs) -> PosterGrid {
+        PosterGrid { held_stops: dirs, ..self }
     }
 
     /// The columns that fit between the gutter and [`GRID_END`]: 7 for library posters, 6 for
@@ -235,7 +244,12 @@ impl PosterGrid {
         out.visible = ((first_row * cols).min(len), (past_row * cols).min(len));
 
         let opts = if self.long_press { FocusOpts::default().long_press() } else { FocusOpts::default() };
-        let group = Group::grid(cols as u16).edge(Dir::Left, self.left).edge(Dir::Right, self.right);
+        // Down from the last row stays.
+        let group = Group::grid(cols as u16)
+            .edge(Dir::Left, self.left)
+            .edge(Dir::Right, self.right)
+            .edge(Dir::Down, Edge::Stop)
+            .held_stop(self.held_stops);
         let cell = |i: usize| {
             let x = theme::GUTTER + (i % cols) as f32 * col_pitch;
             Rect::new(x, row_y(i / cols), size.w, size.h)

@@ -471,6 +471,43 @@ fn a_held_down_glides_the_grid_under_one_still_ring() {
 }
 
 #[test]
+fn a_held_key_stops_at_a_grids_held_stops_and_down_stays_on_its_last_row() {
+    let jump = Id::new("jump");
+    let chips = Id::new("chips");
+    let below = Id::new("below");
+    let state = RefCell::new(GridState::default());
+    let mut screen = |ui: &mut Ui| {
+        ui.focusable(chips, Rect::new(96.0, 80.0, 120.0, 40.0));
+        let grid = PosterGrid::new(TileKind::LibraryGrid, 122.0)
+            .right_edge(Edge::To(jump))
+            .held_stop(pley_ui::Dirs::UP.union(pley_ui::Dirs::RIGHT));
+        grid.show(ui, Id::new("grid"), &mut state.borrow_mut(), 10, |ui, slot| {
+            Tile::new(TileKind::LibraryGrid, "T").paint(ui, slot);
+        });
+        let mut l = 0;
+        JumpControl { available: &[true; 27], current: 1 }.show(ui, jump, Point::new(872.0, 136.0), &mut l);
+        ui.focusable(below, Rect::new(96.0, 500.0, 120.0, 30.0));
+    };
+    let cell = |i: u64| Some(Id::new("grid").with(i));
+    let mut h = Harness::new();
+    h.idle(&mut screen);
+    // Down on the last row stays, though something is below.
+    press(&mut h, Key::Down, &mut screen);
+    assert_eq!(press(&mut h, Key::Down, &mut screen), cell(7));
+    // A held Up goes up the grid and stops at its top; a press goes on to the chips.
+    hold(&mut h, Key::Up, &mut screen);
+    assert_eq!(settle(&mut h, &mut screen).focused, cell(0));
+    h.step(Step::Up(Key::Up), &mut screen);
+    assert_eq!(press(&mut h, Key::Up, &mut screen), Some(chips));
+    // A held Right goes along the row and stops at its end; a press goes on to the jump control.
+    press(&mut h, Key::Down, &mut screen);
+    hold(&mut h, Key::Right, &mut screen);
+    h.step(Step::Up(Key::Right), &mut screen);
+    assert_eq!(settle(&mut h, &mut screen).focused, cell(6));
+    assert_eq!(press(&mut h, Key::Right, &mut screen), Some(jump));
+}
+
+#[test]
 fn reduce_motion_steps_a_held_grid_a_row_at_a_time() {
     let state = RefCell::new(GridState::default());
     let shown = RefCell::new(Vec::new());

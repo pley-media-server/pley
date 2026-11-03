@@ -12,7 +12,7 @@ use pley_player::live::data::channel_name;
 use pley_player::live::{Category, ChannelPages};
 use pley_shell::AppCx;
 use pley_ui::theme;
-use pley_ui::{Dir, Edge, Id, Ui};
+use pley_ui::{Dir, Dirs, Edge, Id, Ui};
 
 use crate::draw::{Well, channel_tile, progress};
 use crate::lineup::Lineup;
@@ -82,7 +82,9 @@ impl Cards {
         // The kit's grid lays its columns out from the gutter: moved across to the cards' place.
         let grid = PosterGrid::new(TileKind::Episode, top + WELLS_DOWN - theme::GRID_CONTENT_TOP)
             .columns(COLUMNS)
-            .left_edge(Edge::Stop);
+            .left_edge(Edge::Stop)
+            // A held Up stops at the top row; the tabs take a press of its own.
+            .held_stop(Dirs::UP);
         let r = ui.translate(Point::new(x - theme::GUTTER, 0.0), |ui| {
             grid.show(ui, id, &mut self.grid, len, |ui, slot| {
                 let column = (slot.index % COLUMNS) as f32;

@@ -143,13 +143,25 @@ pub struct Group {
     pub takes: Dirs,
     /// Where focus lands when it enters the group, before its memory (a panel's current choice).
     pub enter: Option<Id>,
+    /// Sides a held key stops at, where a press goes on out: a library grid's Up to its chips and
+    /// Right to its jump control (the Samsung app's `Exit` rules under `gate.Holding`).
+    pub held_stops: Dirs,
     edges: [Edge; 4],
 }
 
 impl Group {
     /// A group of `kind` that remembers its last element and passes every edge on.
     pub const fn new(kind: GroupKind) -> Group {
-        Group { kind, memory: true, trap: false, wheel: false, takes: Dirs::NONE, enter: None, edges: [Edge::Pass; 4] }
+        Group {
+            kind,
+            memory: true,
+            trap: false,
+            wheel: false,
+            takes: Dirs::NONE,
+            enter: None,
+            held_stops: Dirs::NONE,
+            edges: [Edge::Pass; 4],
+        }
     }
 
     /// A row: Left and Right move along it.
@@ -181,6 +193,12 @@ impl Group {
     /// The rule for leaving toward `dir`.
     pub const fn edge_for(&self, dir: Dir) -> Edge {
         self.edges[dir.index()]
+    }
+
+    /// A held key stops at these sides; a press of its own goes on.
+    pub const fn held_stop(mut self, dirs: Dirs) -> Group {
+        self.held_stops = dirs;
+        self
     }
 
     /// Keeps focus inside while drawn.
@@ -650,8 +668,9 @@ pub(crate) enum Move {
 
 /// One step of focus toward `dir` (the TV app's `FocusManager.move`): the focused element's group
 /// picks the next item; at its edge, the group's rule applies, then the group above is asked, up
-/// to the scope. With nothing focused in the scope, focus enters the scope.
-pub(crate) fn move_focus(tree: &Tree, memory: &IdMap<Id>, focused: Option<Id>, dir: Dir) -> Move {
+/// to the scope. With nothing focused in the scope, focus enters the scope. A `held` key stops at
+/// a group's [`Group::held_stops`].
+pub(crate) fn move_focus(tree: &Tree, memory: &IdMap<Id>, focused: Option<Id>, dir: Dir, held: bool) -> Move {
     let scope = tree.scope();
     let from = focused.and_then(|id| tree.get(id)).filter(|&i| tree.is_element(i) && tree.within(i, scope));
     let Some(from) = from else {
@@ -667,6 +686,9 @@ pub(crate) fn move_focus(tree: &Tree, memory: &IdMap<Id>, focused: Option<Id>, d
             && let Some(t) = enter(tree, memory, next, Some(dir), Some(from_rect))
         {
             return Move::To(t);
+        }
+        if held && g.held_stops.contains(dir) {
+            return Move::Stay { edge: group };
         }
         match g.edge_for(dir) {
             Edge::Pass => {}
@@ -898,7 +920,7 @@ mod tests {
         }
         let t = tree(&rows);
         let memory = IdMap::default();
-        let go = |from: &str, d| match move_focus(&t, &memory, Some(Id::new(from)), d) {
+        let go = |from: &str, d| match move_focus(&t, &memory, Some(Id::new(from)), d, false) {
             Move::To(i) => Some(id_at(&t, i)),
             _ => None,
         };
