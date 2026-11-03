@@ -129,21 +129,38 @@ class TvTileActionsTest {
         assertTrue(focusedDescription(), focusedDescription().startsWith(HALF_LOOP))
     }
 
-    @Test
-    fun backAsThePanelComesInLeavesFocusOnTheTile() {
-        home(reduced = false)
+    private fun frame() {
+        compose.mainClock.advanceTimeByFrame()
+        ShadowLooper.idleMainLooper()
+    }
+
+    /** Menu, then Back [frames] frames after the panel comes in, as it slides in; it has gone once this returns. */
+    private fun backAsThePanelComesIn(frames: Int) {
         compose.mainClock.autoAdvance = false
         compose.onRoot().performKeyInput { pressKey(Key.Menu) }
-        // The frame the panel comes in, before it takes focus: Back closes it as it slides in.
-        var frames = 0
-        while (!exists(hasTestTag(TV_TILE_ACTIONS)) && frames++ < 300) {
-            compose.mainClock.advanceTimeByFrame()
-            ShadowLooper.idleMainLooper()
-        }
+        var waited = 0
+        while (!exists(hasTestTag(TV_TILE_ACTIONS)) && waited++ < 300) frame()
         assertTrue("the panel came", exists(hasTestTag(TV_TILE_ACTIONS)))
+        repeat(frames) { frame() }
         back()
         compose.mainClock.autoAdvance = true
         waitUntil { !exists(hasTestTag(TV_TILE_ACTIONS)) }
+    }
+
+    @Test
+    fun backAsThePanelComesInLeavesFocusOnTheTile() {
+        home(reduced = false)
+        // The frame the panel comes in, before it takes focus.
+        backAsThePanelComesIn(frames = 0)
+        assertTrue(focusedDescription(), focusedDescription().startsWith(HALF_LOOP))
+    }
+
+    @Test
+    fun backJustBeforeThePanelsFirstRowTakesFocusLeavesFocusOnTheTile() {
+        home(reduced = false)
+        // The panel has kept where focus was on the page and waits a frame more for its first row:
+        // Back then leaves focus on the tile, and the row doesn't take it as the panel goes.
+        backAsThePanelComesIn(frames = 2)
         assertTrue(focusedDescription(), focusedDescription().startsWith(HALF_LOOP))
     }
 

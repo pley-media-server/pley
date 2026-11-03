@@ -255,11 +255,13 @@ fun Modifier.tvSafeArea(): Modifier = padding(horizontal = TvSafeArea.Horizontal
  * the rows in view, so a requester on a row below them (the current
  * language far down a list of them, the 12th subtitle track) isn't
  * attached yet, and asking it alone leaves focus behind the panel.
- * Whether focus got there.
+ * It gives up once [wanted] says no (the panel closed while it waited),
+ * so focus isn't moved into a panel going away. Whether focus got there.
  */
-suspend fun LazyListState.focusRow(requester: FocusRequester): Boolean {
+suspend fun LazyListState.focusRow(requester: FocusRequester, wanted: () -> Boolean = { true }): Boolean {
     repeat(FOCUS_ROW_TRIES) {
         withFrameNanos { }
+        if (!wanted()) return false
         if (runCatching { requester.requestFocus() }.getOrDefault(false)) return true
         val info = layoutInfo
         val last = info.visibleItemsInfo.lastOrNull()?.index

@@ -76,16 +76,24 @@ internal class TvTileActionsState(private val page: FocusRequester, private val 
         private set
 
     override fun open(itemId: Long, continueWatching: Boolean) {
+        // The page has focus again (a panel that went with its page never gave it back): this
+        // panel hasn't taken it yet.
+        left = false
         request = TileActionsRequest(itemId, continueWatching, top())
     }
 
     /** Whether the panel took focus from the page ([leavePage]). */
     private var left = false
 
-    /** The panel takes focus: which element of the page had it is kept. */
-    internal fun leavePage() {
-        left = true
+    /**
+     * The panel takes focus with [take]: which element of the page had it is
+     * kept first. Only once [take] got it has the page lost it; until then
+     * the page still has it, and a Back meanwhile leaves it there (asking
+     * the page for focus it holds would leave nothing focused).
+     */
+    internal suspend fun leavePage(take: suspend () -> Boolean) {
         runCatching { page.saveFocusedChild() }
+        if (take()) left = true
     }
 
     /**
@@ -182,10 +190,10 @@ private fun TileActions(request: TileActionsRequest, page: Any?, state: TvTileAc
             // Once the panel is placed, as the item page's panels do; where focus was on the page is kept first.
             withFrameNanos { }
             withFrameNanos { }
-            // Back within those frames closed it: focus stays on the page, not in a panel going away.
+            // Back within those frames, or before the first row takes focus, closed it: focus stays
+            // on the page, not in a panel going away.
             if (phase != Phase.Shown) return@LaunchedEffect
-            state.leavePage()
-            list.focusRow(first)
+            state.leavePage { list.focusRow(first) { phase == Phase.Shown } }
         }
         LazyColumn(
             state = list,
