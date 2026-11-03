@@ -9,9 +9,12 @@ use tiny_skia::{FillRule, LineCap, LineJoin, Paint, Path, PathBuilder, Pixmap, S
 
 /// Every icon, for warming caches and for tests.
 pub const ALL: &[Icon] = &[
+    Icon::Activity,
+    Icon::AppWindow,
     Icon::ArrowDownWideNarrow,
     Icon::ArrowLeft,
     Icon::ArrowRight,
+    Icon::ArrowUp,
     Icon::ArrowUpDown,
     Icon::ArrowUpNarrowWide,
     Icon::AudioLines,
@@ -82,6 +85,8 @@ pub const ALL: &[Icon] = &[
     Icon::SkipBack,
     Icon::SkipForward,
     Icon::SlidersHorizontal,
+    Icon::Sparkles,
+    Icon::Square,
     Icon::Star,
     Icon::StarOutline,
     Icon::Tag,
@@ -92,6 +97,7 @@ pub const ALL: &[Icon] = &[
     Icon::Usb,
     Icon::UserRound,
     Icon::Users,
+    Icon::Volume2,
     Icon::WifiOff,
     Icon::X,
 ];
@@ -376,7 +382,7 @@ mod tests {
         for icon in ALL {
             assert!(seen.insert(*icon), "{icon:?} twice");
         }
-        assert_eq!(ALL.len(), 85);
+        assert_eq!(ALL.len(), 91);
     }
 
     #[test]

@@ -88,7 +88,7 @@ pub fn category_look(c: SettingsSection) -> (&'static str, Icon) {
         SettingsSection::Audio => Icon::AudioLines,
         SettingsSection::SubtitlesAndDisplay => Icon::Captions,
         SettingsSection::Server => Icon::Server,
-        SettingsSection::Diagnostics => Icon::Gauge,
+        SettingsSection::Diagnostics => Icon::Activity,
         SettingsSection::About => Icon::Info,
         SettingsSection::SignOut => Icon::LogOut,
     };
@@ -318,7 +318,7 @@ pub fn items(c: SettingsSection, f: &Facts) -> Vec<Item> {
         SettingsSection::Audio => {
             out.push(Item::Intro(AUDIO_INTRO.into()));
             for (format, label, hint) in PASSTHROUGH_SWITCHES {
-                out.push(Item::Row(switch(Icon::AudioLines, label, hint, Toggle::Passthrough(format), f)));
+                out.push(Item::Row(switch(Icon::Volume2, label, hint, Toggle::Passthrough(format), f)));
             }
         }
         SettingsSection::SubtitlesAndDisplay => {
@@ -330,7 +330,7 @@ pub fn items(c: SettingsSection, f: &Facts) -> Vec<Item> {
                 RowAction::Choose(Picking::Size),
             ));
             row(Row::new(
-                Some(Icon::Captions),
+                Some(Icon::Square),
                 "Subtitle background",
                 s.subtitle_background.label(),
                 RowAction::Choose(Picking::Background),
@@ -342,13 +342,13 @@ pub fn items(c: SettingsSection, f: &Facts) -> Vec<Item> {
                 RowAction::Choose(Picking::Font),
             ));
             row(Row::new(
-                Some(Icon::Captions),
+                Some(Icon::ArrowUp),
                 "Subtitle position",
                 s.subtitle_position.label(),
                 RowAction::Choose(Picking::Position),
             ));
             row(switch(
-                Icon::Layers,
+                Icon::Sparkles,
                 "Reduce motion",
                 "No zooming, sliding or fading: things change in place",
                 Toggle::ReduceMotion,
@@ -363,7 +363,7 @@ pub fn items(c: SettingsSection, f: &Facts) -> Vec<Item> {
         }
         SettingsSection::Diagnostics => {
             row(Row::new(
-                Some(Icon::Gauge),
+                Some(Icon::Activity),
                 "Open diagnostics",
                 "What this TV decodes and shows, and why",
                 RowAction::Open(pley_shell::Route::Diagnostics),
@@ -454,7 +454,7 @@ fn profile(f: &Facts) -> Vec<Item> {
         row(Row::new(Some(Icon::UserRound), "Always start as", name, RowAction::Choose(Picking::AlwaysStartAs)));
     }
     row(Row::new(
-        Some(Icon::Monitor),
+        Some(Icon::AppWindow),
         "Manage your account on the web",
         "Name, picture, password, PIN, two-step, devices and apps",
         RowAction::Web,
@@ -737,6 +737,18 @@ mod tests {
         assert_eq!((r[0].label.as_str(), r[0].danger, &r[0].action), ("Sign out", true, &RowAction::SignOut));
         let delete = (r[1].label.as_str(), r[1].danger, &r[1].action);
         assert_eq!(delete, ("Delete all local data", true, &RowAction::DeleteData));
+    }
+
+    #[test]
+    fn rows_carry_the_android_apps_icons() {
+        let f = alex();
+        let icons = |c| rows(&items(c, &f)).iter().map(|r| r.icon).collect::<Vec<_>>();
+        let display = [Icon::Captions, Icon::Square, Icon::Pencil, Icon::ArrowUp, Icon::Sparkles].map(Some);
+        assert_eq!(icons(SettingsSection::SubtitlesAndDisplay), display);
+        assert!(icons(SettingsSection::Audio).iter().all(|i| *i == Some(Icon::Volume2)));
+        assert_eq!(icons(SettingsSection::Diagnostics)[0], Some(Icon::Activity));
+        assert_eq!(category_look(SettingsSection::Diagnostics).1, Icon::Activity);
+        assert_eq!(icons(SettingsSection::Profile).last(), Some(&Some(Icon::AppWindow)));
     }
 
     #[test]

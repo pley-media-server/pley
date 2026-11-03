@@ -5,9 +5,12 @@
 /// An icon by its Lucide name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Icon {
+    Activity,
+    AppWindow,
     ArrowDownWideNarrow,
     ArrowLeft,
     ArrowRight,
+    ArrowUp,
     ArrowUpDown,
     ArrowUpNarrowWide,
     AudioLines,
@@ -78,6 +81,8 @@ pub enum Icon {
     SkipBack,
     SkipForward,
     SlidersHorizontal,
+    Sparkles,
+    Square,
     Star,
     /// The star's outline alone (an empty rating star).
     StarOutline,
@@ -89,6 +94,7 @@ pub enum Icon {
     Usb,
     UserRound,
     Users,
+    Volume2,
     WifiOff,
     X,
 }

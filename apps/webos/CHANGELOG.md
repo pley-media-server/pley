@@ -70,6 +70,10 @@ describes how they are made.
   rail as it fades in, and the labels slide in beside the icons.
 - Search shows movies, shows and episodes first, then music, then Live
   TV, then people, as the other apps do.
+- Settings draws the Android TV app's icons: a pulse for Diagnostics, a
+  speaker for each pass-through format, and their own icons for Subtitle
+  background, Subtitle position, Reduce motion and Manage your account on
+  the web.
 
 ### Removed
 
