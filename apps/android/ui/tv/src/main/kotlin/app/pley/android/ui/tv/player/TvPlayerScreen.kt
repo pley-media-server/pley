@@ -180,9 +180,14 @@ internal fun TvPlayerScreen(
         ControlFocus.Default -> if (skipShown) PlayerFocus.Skip else PlayerFocus.Scrubber
     }
 
-    /** A seek of its own (Previous, Next, a chapter): one waiting for OK gives way to it. */
+    /**
+     * A seek of its own (Previous, Next, a chapter): one waiting for OK gives
+     * way to it, and so do the chapters' cards, whose scrubber would show the
+     * card focused rather than where the video went.
+     */
     fun seekTo(ms: Long) {
         seeker.cancel()
+        ui.closeChapters()
         controller.seekTo(ms)
     }
 
@@ -214,6 +219,7 @@ internal fun TvPlayerScreen(
         when {
             s.subtitle != null -> {
                 seeker.cancel()
+                ui.closeChapters()
                 controller.playNext()
             }
             chapter != null -> seekTo(chapter.startMs)
@@ -272,7 +278,11 @@ internal fun TvPlayerScreen(
                 controller.pause()
                 if (!ui.controls && card == null && error == null) ui.showControls(PlayerFocus.Scrubber)
             }
-            is PlayerKey.Jump -> seeker.press(if (key.deltaMs < 0) -1 else 1, kotlin.math.abs(key.deltaMs), TvSeeker.SETTLE_MS)
+            is PlayerKey.Jump -> {
+                // Fast forward and rewind seek from the scrubber, with its preview: the cards give way.
+                ui.closeChapters()
+                seeker.press(if (key.deltaMs < 0) -1 else 1, kotlin.math.abs(key.deltaMs), TvSeeker.SETTLE_MS)
+            }
             PlayerKey.Next -> next()
             PlayerKey.Previous -> previous()
             PlayerKey.Captions -> toggleCaptions()

@@ -246,6 +246,9 @@ describes how they are made.
 - On Android TV and Fire TV, a reason for declining a request keeps to
   the server's 500 characters, as on phones, where a longer one wasn't
   sent.
+- On TVs, the chapters' cards close when a media key seeks (Previous,
+  Next, fast forward or rewind), where they stayed over the scrubber on
+  the chapter left behind.
 
 ### Removed
 

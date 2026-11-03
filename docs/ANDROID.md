@@ -94,7 +94,8 @@ heard it for that profile, the start asks "Who's watching?".
   and a seek waiting still goes. Up while a seek waits shows the chapters
   as a row of cards over the scrubber, on the one it was going to; the
   Chapters button shows them on the one playing. Left and Right go
-  through them, OK goes to one, Down or Back closes them.
+  through them, OK goes to one, Down or Back closes them, and so does a
+  media key's seek (Previous, Next, fast forward or rewind).
 - A direction key held for 180 ms moves focus by itself, every 45 ms
   (about 22 a second), on the app's own clock: the system's repeats start
   later and come unevenly, so the app drops them. A held Left or Right

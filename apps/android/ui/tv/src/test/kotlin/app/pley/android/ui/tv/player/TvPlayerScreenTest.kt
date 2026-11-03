@@ -448,6 +448,31 @@ class TvPlayerScreenTest {
     }
 
     @Test
+    fun `a media key's seek closes the cards, onto where they were opened from`() {
+        val controller = playing { it.copy(subtitle = null) }
+        show(controller)
+        press(Key.DirectionDown)
+        press(Key.DirectionLeft, times = 4)
+        val button = tagOf(PlayerFocus.Chapters)
+        press(Key.DirectionCenter)
+        focusedOn(TAG_CHAPTER_STRIP)
+        // Next goes to the next chapter: the cards go, rather than stand over the scrubber on the old one.
+        press(Key.MediaNext)
+        assertEquals(listOf(1_800_000L), controller.calls("seekTo").map { it.args.single() })
+        compose.onNodeWithTag(TAG_CHAPTER_STRIP).assertDoesNotExist()
+        focusedOn(button)
+        // Fast forward too: its seek shows on the scrubber, and goes as it settles.
+        press(Key.DirectionCenter)
+        focusedOn(TAG_CHAPTER_STRIP)
+        press(Key.MediaFastForward)
+        compose.onNodeWithTag(TAG_CHAPTER_STRIP).assertDoesNotExist()
+        focusedOn(button)
+        compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + 100)
+        compose.waitForIdle()
+        assertEquals(listOf(1_800_000L, 630_000L), controller.calls("seekTo").map { it.args.single() })
+    }
+
+    @Test
     fun `the cards slide to keep the focused one at the gutter, and the last at the right safe edge`() {
         val parts = (0 until 10).map { ChapterMark("Part ${it + 1}", it * 360_000L, (it + 1) * 360_000L, null) }
         val controller = playing { it.copy(chapters = parts, positionMs = 0) }
