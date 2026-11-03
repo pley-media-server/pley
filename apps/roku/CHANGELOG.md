@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- A library of movies or shows filters by resolution (4K, 1080p, 720p, SD)
+  and dynamic range (HDR, Dolby Vision, HDR10+, HDR10, HLG, SDR) in its
+  Filter panel, offering those its titles have. Clear filters clears them,
+  the library keeps them, and Save as… saves them.
+
 ### Changed
 
 - Search shows movies, shows and episodes first, then music, then Live

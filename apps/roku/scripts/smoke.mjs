@@ -3,8 +3,9 @@
 // it with the remote: sign in with the TV code and its QR code on a server
 // that requires two-step sign-in, Home, a title's details, the player, the
 // Options key, a library's grid, its A to Z and the pages a jump passes
-// over, filters saved as a smart playlist, collections played (movies and
-// a smart one of shows), a show's page, its episodes and a person's page,
+// over, a filter by resolution, filters saved as a smart playlist,
+// collections played (movies and a smart one of shows), a show's page,
+// its episodes and a person's page,
 // music (an artist, an album, Now Playing), playlists, Live TV (its guide,
 // a channel watched, the next one, the channel list, a favourite, every
 // connection in use, the Channels tab), Search (and its Discover row's
@@ -611,6 +612,32 @@ async function walk() {
   for (let i = 0; i < 4 && !seen(/^GET \/api\/libraries\/1\/items\?.*offset=70/, since); i++) await press("up");
   await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=70/, since, "the page before");
   shoot("library-scrolled");
+  await press("back");
+  // Movies again: its Filter panel, which adds Resolution and Dynamic
+  // range once the server says the movies differ in them, then
+  // Resolution's 4K: the grid lists 4K titles only, and the chip says so.
+  await openFromMenu(2, /^GET \/api\/libraries\/1\/items\?.*offset=0/, "Movies again");
+  await settle();
+  await press("up"); // the tabs, on Library
+  await press("right", 3); // past Collections and the sort, to the filters
+  since = mark();
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/1\/filters$/, since, "what a library can be filtered by");
+  await settle();
+  shoot("library-filters");
+  await press("down", 3); // Resolution, after Year
+  await press("select");
+  await sleep(500);
+  shoot("library-resolutions");
+  since = mark();
+  await press("down"); // 4K
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/1\/items\?.*resolution=4k/, since, "the library filtered by resolution");
+  await settle();
+  shoot("library-filtered");
+  await press("back"); // the chips
+  await settle();
+  shoot("library-4k");
   await press("back");
   await openFromMenu(3, /^GET \/api\/libraries\/2\/items/, "TV Shows");
   // Its tabs: Recommended, Collections, then Library again, sorted by year.
@@ -1312,6 +1339,8 @@ const checks = [
   ["showed a library's Library tab from its Recommended row's See all", asked(/^GET \/api\/libraries\/2\/items\?.*order=desc.*sort=added/)],
   ["sorted a library by year, newest first", asked(/^GET \/api\/libraries\/2\/items\?.*order=desc.*sort=year/)],
   ["kept the library's tab and sort on the Roku", registry !== null && /libraryViews.*\\"sort\\":\\"year\\"/.test(JSON.stringify([...registry]))],
+  ["filtered a library by a resolution its titles have", asked(/^GET \/api\/libraries\/1\/filters$/) && asked(/^GET \/api\/libraries\/1\/items\?.*resolution=4k/)],
+  ["kept the library's resolution on the Roku", registry !== null && /libraryViews.*\\"resolution\\":\\"4k\\"/.test(JSON.stringify([...registry]))],
   [
     "saved a library's filters and order as a smart playlist, named on the keyboard",
     fixture.smartPlaylists.some((p) => p.library_id === 2 && p.title.length > 0 && p.smart_filter === "unwatched=1&sort=year%3Adesc"),

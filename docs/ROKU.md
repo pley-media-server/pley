@@ -138,6 +138,13 @@ left on, kept on the Roku for each server, profile and library.
   index of letters: the app reads the listing's titles a thousand at a
   time and keeps only where each letter starts
   (`components/lib/Library.brs`).
+- **Filter**, the chip after the sort's, opens a panel: Show (all titles,
+  unwatched or watched), Genre and Year, then, in a library of movies or
+  shows, Resolution (4K, 1080p, 720p, SD) and Dynamic range (HDR, which is
+  any of them, Dolby Vision, HDR10+, HDR10, HLG, SDR). Those two show once
+  the server says the titles differ in them, offering what they have, or
+  while one is chosen; a title counts by its best file, a show by its best
+  episode. The chip says what is kept ("Unwatched, 4K, Dolby Vision").
 - **Save as…:** once filters are set, the Filter panel ends with Clear
   filters and Save as…, which saves them and the order as a smart playlist
   (`POST /api/playlists` with `library_id` and `smart_filter`, written as
@@ -508,15 +515,15 @@ bun run images    # the nine-patch focus and watched-mark images
   draws (their list asked for where it starts, then again until whole, and
   a picture loaded), then the same episode on a server without their
   pictures, which burns them in; it jumps down a library with its A to Z,
-  saves a library's filters as a smart playlist, plays a collection of
-  movies and a smart one of shows, and an artist's tracks, makes a
-  playlist, plays a track from Now Playing's Up next, shuffles the queue
-  and puts its order back, steps the music's sleep timer through its
-  choices, plays a track from under an album's "Disc 2", opens the See all
-  of Search's Discover row, asks for a movie and three seasons from
-  Discover, approves a request, opens a title from its ready-to-watch
-  notice, and checks that a server without requests is asked nothing but
-  the summary.
+  filters it by resolution, saves another's filters as a smart playlist,
+  plays a collection of movies and a smart one of shows, and an artist's
+  tracks, makes a playlist, plays a track from Now Playing's Up next,
+  shuffles the queue and puts its order back, steps the music's sleep
+  timer through its choices, plays a track from under an album's "Disc
+  2", opens the See all of Search's Discover row, asks for a movie and
+  three seasons from Discover, approves a request, opens a title from its
+  ready-to-watch notice, and checks that a server without requests is
+  asked nothing but the summary.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
   Next, the sleep timers' ends and picture subtitles shown in time have
   only unit tests), one fetch at a time, the odd dropped key, and no

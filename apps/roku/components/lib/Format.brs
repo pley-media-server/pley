@@ -126,6 +126,31 @@ function fmtLanguageName(code as string, none as string) as string
     return code
 end function
 
+' --- Resolutions and dynamic ranges ---
+' A library's filters (lib/Library.brs) and smart filters (lib/Pages.brs)
+' name them by the server's tokens (docs/API.md, GET
+' /api/libraries/{id}/items).
+
+' The resolutions, best first, as the other apps name them: [[token,
+' label]]. 1080 holds 1440p too.
+function fmtResolutions() as object
+    return [["4k", "4K"], ["1080", "1080p"], ["720", "720p"], ["sd", "SD"]]
+end function
+
+' The dynamic ranges, best first; "hdr" is any of them but SDR.
+function fmtDynamicRanges() as object
+    return [["hdr", "HDR"], ["dolby_vision", "Dolby Vision"], ["hdr10plus", "HDR10+"], ["hdr10", "HDR10"], ["hlg", "HLG"], ["sdr", "SDR"]]
+end function
+
+' What table ([[token, label]]) calls token; "" for one it doesn't hold.
+function fmtTokenLabel(table as object, token as dynamic) as string
+    wanted = httpString(token)
+    for each pair in table
+        if pair[0] = wanted then return pair[1]
+    end for
+    return ""
+end function
+
 ' --- Times to come and gone (requests' words, lib/Requests.brs) ---
 ' Roku has no relative-time formatter: these are the app's own, in its
 ' words. Times are unix seconds; zone is what fmtZoneSeconds gives.

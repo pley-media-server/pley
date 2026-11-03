@@ -49,6 +49,20 @@ sub test_format_library_counts()
     tkEqual(fmtCount(3, "other"), "3 titles")
 end sub
 
+sub test_format_resolutions_and_dynamic_ranges_by_token()
+    tkEqual(fmtTokenLabel(fmtResolutions(), "4k"), "4K")
+    tkEqual(fmtTokenLabel(fmtResolutions(), "1080"), "1080p")
+    tkEqual(fmtTokenLabel(fmtResolutions(), "sd"), "SD")
+    tkEqual(fmtTokenLabel(fmtDynamicRanges(), "hdr"), "HDR", "any HDR")
+    tkEqual(fmtTokenLabel(fmtDynamicRanges(), "dolby_vision"), "Dolby Vision")
+    tkEqual(fmtTokenLabel(fmtDynamicRanges(), "hdr10plus"), "HDR10+")
+    tkEqual(fmtTokenLabel(fmtDynamicRanges(), "sdr"), "SDR")
+    tkEqual(fmtTokenLabel(fmtResolutions(), "4K"), "", "tokens are lower case")
+    tkEqual(fmtTokenLabel(fmtResolutions(), "8k"), "")
+    tkEqual(fmtTokenLabel(fmtDynamicRanges(), 10), "")
+    tkEqual(fmtTokenLabel(fmtDynamicRanges(), invalid), "")
+end sub
+
 sub test_format_meta_line()
     tkEqual(fmtMeta({ year: 2016, duration_ms: 6960000, content_rating: "PG-13", rating: 7.9 }), "2016 · 1 h 56 min · PG-13 · ★ 7.9")
     tkEqual(fmtMeta({ year: 2016, rating: 8 }), "2016 · ★ 8")
