@@ -81,8 +81,8 @@ asks "Who's watching?". What differs:
   the TV.
 - **Settings → Subtitles and display:** size, background, font and
   position (raised 5, 10 or 16 % of the height). A font is offered only if
-  the TV has a face for it. Picture subtitles keep their own
-  position.
+  the TV has a face for it. They are for text subtitles: picture subtitles
+  keep their own look.
 - **Pley draws every subtitle itself:** AVPlay takes external files from
   local paths only. Picture subtitles (PGS, VobSub, DVB) are decoded from
   the server's `.mks` onto a canvas.
@@ -407,8 +407,8 @@ for a few seconds as each item begins, text subtitles in Settings' look
 (the CAPTIONS key turns them off and on), picture subtitles (PGS, VobSub,
 DVB) decoded from the server's `.mks` and drawn as the web app draws them,
 burned in by the server only when it can't make that file, the side
-panels (Subtitles with Sync and the subtitles' look, Audio, Quality, the
-sleep timer, Speed where the TV's player has other speeds, and Info,
+panels (Subtitles with Sync and, for text subtitles, their look, Audio,
+Quality, the sleep timer, Speed where the TV's player has other speeds, and Info,
 where the server's speed sits beside the TV's network speed: the fastest
 second of the last ten, from the bytes the TV's network received, since
 Tizen's player doesn't say how fast it downloads),
@@ -579,12 +579,13 @@ Media3 reading the file, and without M2TS.
   Dolby Vision plays as its HDR10 base layer, profile 7 too: there is no
   server to convert it.
 - **Subtitles**: the `.srt` and `.vtt` files beside the video
-  (`Film.en.forced.srt`), and an MKV's own tracks, read block by block
-  through its Cues (`MatroskaSubtitles`): text as WebVTT, pictures handed
-  to the decoder as they are. A track still being read is asked for again
-  after 1 s, then 2, then every 4 s, and at once after a seek. An MKV
-  without Cues for them (FFmpeg writes them for video alone) shows only the
-  files beside it.
+  (`Film.en.forced.srt`; 2 MB at most, in the encodings the Android app
+  reads, `LocalFolder.Decode`), and an MKV's own tracks, read block by
+  block through its Cues (`MatroskaSubtitles`): text as WebVTT, pictures
+  handed to the decoder as they are. A track still being read is asked for
+  again after 1 s, then 2, then every 4 s, and at once after a seek. An
+  MKV without Cues for them (FFmpeg writes them for video alone) shows
+  only the files beside it.
 - **Where it stopped** is kept on the TV; past 95 % it was watched.
 - **The TV's player** opens the file at its path. Its buffering is left as
   the TV has it: read or set for a file, the player said Playing and stood

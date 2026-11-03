@@ -18,6 +18,7 @@ Read the doc for the part you touch; they say how things work and why.
 | Data folder, caches, backups | [docs/STORAGE.md](docs/STORAGE.md) |
 | Plex- and Jellyfin-compatible APIs, tokens for other apps | [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) |
 | Android, Kodi, Roku, Samsung and LG apps | [docs/ANDROID.md](docs/ANDROID.md), [docs/KODI.md](docs/KODI.md), [docs/ROKU.md](docs/ROKU.md), [docs/TV_PLATFORMS.md](docs/TV_PLATFORMS.md) (Samsung), [docs/LG.md](docs/LG.md) |
+| Apple apps (iPhone, iPad, Mac, Apple TV) | [docs/APPLE.md](docs/APPLE.md) |
 | Docker, Unraid, Windows, services | [deploy/README.md](deploy/README.md) |
 | Licences and dependencies | [LICENSING.md](LICENSING.md) |
 | Versions, changelogs, CI | [docs/RELEASING.md](docs/RELEASING.md) |
@@ -39,6 +40,7 @@ too, each app's workflow when that app changes.
 | Roku app | `bun install && bun run check` in `apps/roku` |
 | Kodi add-on | `python -m unittest discover -s tests` in `apps/kodi` |
 | Android app | `./gradlew testDebugUnitTest lintDebug` in `apps/android`; `pwsh ../../scripts/check-android.ps1` after `assembleStoreRelease` when libraries change |
+| Apple app (`apps/apple`) | `swift test --package-path apps/apple/PleyKit`, and the `xcodebuild` builds in [docs/APPLE.md](docs/APPLE.md#building-and-testing) |
 | Docker image | built and checked by CI (`.github/workflows/server.yml`) |
 
 Fix what fails, including tests a change breaks elsewhere. Don't weaken or

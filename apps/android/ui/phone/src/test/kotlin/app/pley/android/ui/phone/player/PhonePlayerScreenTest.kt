@@ -86,6 +86,7 @@ class PhonePlayerScreenTest {
                 TrackChoice(3, "English (SRT)", true),
                 TrackChoice(4, "French (PGS)", false, burnIn = true),
             ),
+            subtitleStyled = true,
             quality = "Original",
             qualities = listOf(
                 QualityChoice("original", "Original", "4K · 62 Mbps", true),
@@ -279,6 +280,23 @@ class PhonePlayerScreenTest {
         compose.waitForIdle()
         compose.onNodeWithText("French (PGS)").performClick()
         assertEquals(listOf<Any?>(4L), fake.calls("selectSubtitle").single().args)
+    }
+
+    @Test
+    fun subtitleStyleShowsOnlyWhileTheSubtitlesChosenAreText() {
+        val fake = FakePlaybackController(playing())
+        show(fake)
+        compose.onNodeWithContentDescription("Playback settings").performClick()
+        compose.waitForIdle()
+        compose.onNode(hasText("Subtitle style") and hasText("Normal")).performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Large").assertIsDisplayed()
+        // The next episode starts with pictures: they keep their own look, and the sheet goes back to Settings.
+        fake.update { it.copy(subtitles = it.subtitles.map { t -> t.copy(selected = t.index == 4L) }, subtitleStyled = false) }
+        compose.waitForIdle()
+        assertEquals(0, compose.onAllNodesWithTextCount("Large"))
+        assertEquals(0, compose.onAllNodesWithTextCount("Subtitle style"))
+        compose.onNode(hasText("Quality") and hasText("Original")).assertIsDisplayed()
     }
 
     @Test

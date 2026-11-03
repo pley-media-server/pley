@@ -168,13 +168,14 @@ leaves the audio unpinned.
 |---|---|---|
 | Audio language, Subtitles, Subtitle language | Me (phones), Settings (TVs) | The profile's defaults |
 | Sync | The subtitle menu | 0.1 s steps, up to 10 s either way, kept per file on the device |
-| Subtitle style | Settings, or the player's subtitle menu | Size, background, font, and position (bottom, or raised 5, 10 or 15 %) |
+| Subtitle style | Settings, or the player's subtitle menu while text subtitles show | Size, background, font, and position (bottom, or raised 5, 10 or 15 %) |
 | Find subtitles… | End of the subtitle menu, while streaming | Searches online in the profile's subtitle language |
 | Speed | Phones: player settings. TVs: a button at the player's left | 0.5× to 2×, pitch kept, this title only |
 | Audio delay | Above the audio tracks (Left and Right on TVs) | Up to 5 s either way in 50 ms steps, this title only |
 
-A chosen font overrides the system's caption style; position applies to
-text subtitles only.
+A chosen font overrides the system's caption style. The style is for text
+subtitles only: picture subtitles (PGS, VobSub, DVB) keep their own look,
+so the player doesn't offer it for them, nor with subtitles off.
 
 Media3 changes the speed of decoded sound only, and a tunneled output
 times the picture against the sound itself. So while the speed isn't
@@ -429,8 +430,9 @@ in the rail, which shows once the TV is signed in to a server.
   then a language, "forced" and SDH in any order (`Film.en.forced.srt`;
   `Film 2.srt` is Film 2's), show through the app's own subtitles, and
   Sync moves them; it doesn't move the file's own tracks. Their text is
-  UTF-16 when it starts with that byte-order mark (Windows' "Unicode"),
-  else UTF-8, else Latin-1.
+  UTF-16 or UTF-32 when it starts with that byte-order mark (Windows'
+  "Unicode"), UTF-16 without one when its NUL bytes say so, else UTF-8,
+  else Windows' Western code page (Windows-1252), as on LG TVs.
   From Android 11 the system decides which of a drive's files an app may
   read: a subtitle file it keeps from Pley isn't offered.
 - **Where it stopped** is kept on the device, by the file's path; past 95 %

@@ -293,13 +293,23 @@ public sealed class LocalPlayerSource : IPlayerSource
     const int ExtractWaitMs = 1_000;
 
     /// <summary>
+    /// A subtitle file beside the video larger than this isn't read, as in the Android app: a
+    /// film's SubRip file is some 100 KB, and its text is copied a few times on the way to WebVTT.
+    /// </summary>
+    const long SidecarMost = 2L * 1024 * 1024;
+
+    /// <summary>
     /// A subtitle file beside the video, as WebVTT, whole; or a text track of the file's own, as
     /// much of it as is read out yet (asked again until all is).
     /// </summary>
     public Task<SubtitleText> Subtitles(string url)
     {
         if (!url.StartsWith(EmbeddedPrefix, StringComparison.Ordinal))
-            return Task.Run(() => new SubtitleText(LocalFolder.ToWebVtt(LocalFolder.Decode(File.ReadAllBytes(url))), true));
+            return Task.Run(() =>
+            {
+                if (new FileInfo(url).Length > SidecarMost) throw new IOException("A subtitle file too large to read");
+                return new SubtitleText(LocalFolder.ToWebVtt(LocalFolder.Decode(File.ReadAllBytes(url))), true);
+            });
         return Task.Run(async () =>
         {
             var x = Extract(int.Parse(url.Substring(EmbeddedPrefix.Length), System.Globalization.CultureInfo.InvariantCulture));

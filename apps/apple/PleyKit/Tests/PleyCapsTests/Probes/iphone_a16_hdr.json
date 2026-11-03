@@ -1,0 +1,32 @@
+{
+  "platform": "iOS",
+  "os_version": "26.1",
+  "model": "iPhone15,2",
+  "memory_bytes": 6143606784,
+  "simulator": false,
+  "hardware_decode": {
+    "hevc": true,
+    "av1": false,
+    "vp9": false
+  },
+  "hdr": {
+    "eligible": true,
+    "modes": [
+      "hdr10",
+      "hlg",
+      "dolby_vision"
+    ],
+    "edr_headroom": 8.0
+  },
+  "display": {
+    "width": 2556,
+    "height": 1179,
+    "max_fps": 120,
+    "match_content": false
+  },
+  "audio": {
+    "max_channels": 2,
+    "spatial": true,
+    "route": "bluetooth"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "audio_channels": 2,
+  "audio_codecs": [
+    "aac",
+    "mp3",
+    "alac",
+    "flac",
+    "opus",
+    "ac3",
+    "eac3"
+  ],
+  "audio_decode": [
+    "aac",
+    "mp3",
+    "alac",
+    "flac",
+    "opus",
+    "ac3",
+    "eac3"
+  ],
+  "audio_passthrough": [],
+  "audio_track_switching": true,
+  "caps_version": 2,
+  "containers": [
+    "mp4",
+    "m4v",
+    "mov",
+    "m4a",
+    "mp3",
+    "flac",
+    "wav"
+  ],
+  "device": {
+    "fire_tv": false,
+    "form": "tv",
+    "model": "AppleTV5,3",
+    "tier": "low"
+  },
+  "display": {
+    "height": 1080,
+    "refresh_rates": [
+      60
+    ],
+    "width": 1920
+  },
+  "dolby_vision": false,
+  "dolby_vision_profiles": [],
+  "hdr": false,
+  "hdr_types": [],
+  "hls": {
+    "master_playlist": true,
+    "segments": [
+      "fmp4"
+    ],
+    "variants": true
+  },
+  "picture_subtitles_sideload": true,
+  "subtitle_codecs": [
+    "subrip",
+    "ass",
+    "ssa",
+    "webvtt",
+    "mov_text",
+    "hdmv_pgs_subtitle",
+    "dvd_subtitle",
+    "dvb_subtitle"
+  ],
+  "video": [
+    {
+      "codec": "h264",
+      "hardware": true,
+      "max_bit_depth": 8,
+      "max_fps": 60,
+      "max_height": 1080,
+      "max_level": 42,
+      "max_width": 1920,
+      "profiles": [
+        "Constrained Baseline",
+        "Baseline",
+        "Main",
+        "High"
+      ]
+    }
+  ],
+  "video_codecs": [
+    "h264"
+  ]
+}

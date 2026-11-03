@@ -105,6 +105,7 @@ public class PlayerModelTests
         h.Source.Vtt[ItemKit.Origin + "/api/files/10/subtitles/3.vtt"] = new SubtitleText("WEBVTT\n\n00:00:01.000 --> 00:00:04.000\nHello\n", Complete: true);
         h.Start(new PlayRequest(1, 0, true, SubtitleIndex: 3));
         Assert.True(h.State.SubtitleSync);
+        Assert.True(h.State.SubtitleStyled);
         Assert.Empty(h.Model.Cues.Value);
         h.Play(1_000);
         Assert.Equal("Hello", h.Model.Cues.Value.Single().Text);
@@ -118,6 +119,7 @@ public class PlayerModelTests
         h.Model.SelectSubtitle(null);
         Assert.Empty(h.Model.Cues.Value);
         Assert.False(h.State.SubtitleSync);
+        Assert.False(h.State.SubtitleStyled);
     }
 
     [Fact]
@@ -159,6 +161,9 @@ public class PlayerModelTests
         Assert.Single(h.Source.Bodies);
         Assert.False(h.LastBody.ContainsKey("subtitle_index"));
         Assert.True(h.State.SubtitleSync);
+        // They move with Sync but keep their own look: the panel has none to choose.
+        Assert.False(h.State.SubtitleStyled);
+        Assert.DoesNotContain(h.Model.Panel(PlayerPanelKind.Subtitles).Rows, r => r.Kind == PlayerRowKind.Heading);
         Assert.Null(h.Model.Picture.Value);
         h.Play(1_000);
         var frame = h.Model.Picture.Value!;
@@ -690,6 +695,8 @@ public class PlayerPanelTests
         // A track closes it.
         Assert.False(h.Model.Choose(panel.Rows[1]));
         Assert.Null(h.State.Subtitles.Single(t => t.Selected).Index);
+        // Off, there is nothing to style.
+        Assert.DoesNotContain(h.Model.Panel(PlayerPanelKind.Subtitles).Rows, r => r.Kind == PlayerRowKind.Heading);
     }
 
     [Fact]

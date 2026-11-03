@@ -236,8 +236,9 @@ and goes with `live_channels_changed`. On LG:
   first HLS segments. The pipeline can't send the token, so the app reads
   the stream with it and hands it on from the TV's loopback address
   (`http://127.0.0.1:<port>/relay/<128 random bits>/stream.ts`): only that
-  one stream, to at most four connections, closed when the channel changes
-  or the player goes (`crates/player/src/live/relay.rs`). LG's pipeline
+  one stream, to at most four players (a place taken only by a request
+  that names it), closed when the channel changes or the player goes
+  (`crates/player/src/live/relay.rs`). LG's pipeline
   takes no buffering setting from an app, so the stream starts as the TV
   buffers it (the Samsung app asks for 0.5 s, and 1.5 s after a stall).
 - **The server's HLS** otherwise: the app waits for the playlist (up to
@@ -344,12 +345,13 @@ them), the next episode, and Find subtitles.
   (profile 7 too, since nothing converts it), and a profile 5 file, which
   has none, shows with wrong colours. LG shows no HDR10+: such a file
   shows as HDR10.
-- **Subtitles**: the `.srt` and `.vtt` files beside the video (UTF-8,
-  UTF-16 with its byte-order mark as Windows saves "Unicode" text, else
-  Latin-1), and an MKV's own tracks read through its Cues, text as WebVTT
-  and pictures handed to the app's decoders as they are; a track still
-  being read is asked for again after 1 s, then 2, then every 4 s, and at
-  once after a seek.
+- **Subtitles**: the `.srt` and `.vtt` files beside the video (UTF-16 or
+  UTF-32 by its byte-order mark, as Windows saves "Unicode" text, UTF-16
+  without one by its NUL bytes, else UTF-8, else Windows' Western code
+  page, Windows-1252), and an MKV's own tracks read through its Cues, text
+  as WebVTT and pictures handed to the app's decoders as they are; a track
+  still being read is asked for again after 1 s, then 2, then every 4 s,
+  and at once after a seek.
 - **Where it stopped** is kept on the TV, by the file's path on the drive
   and its size, so a drive mounted under another letter still resumes;
   past 95 % it was watched. Delete all local data forgets it too.

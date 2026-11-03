@@ -1,0 +1,41 @@
+// Project-wide settings for Pley's Apple apps: versions, Swift, and the
+// oldest system each platform runs. Each target adds its own file
+// (Pley.xcconfig, PleyTV.xcconfig); project.pbxproj holds no settings.
+
+MARKETING_VERSION = 0.1.0
+CURRENT_PROJECT_VERSION = 1
+
+SWIFT_VERSION = 6.0
+SWIFT_EMIT_LOC_STRINGS = YES
+IPHONEOS_DEPLOYMENT_TARGET = 16.0
+MACOSX_DEPLOYMENT_TARGET = 15.0
+TVOS_DEPLOYMENT_TARGET = 18.0
+
+ENABLE_USER_SCRIPT_SANDBOXING = YES
+ENABLE_STRICT_OBJC_MSGSEND = YES
+ALWAYS_SEARCH_USER_PATHS = NO
+DEAD_CODE_STRIPPING = YES
+CLANG_ENABLE_MODULES = YES
+CLANG_ENABLE_OBJC_ARC = YES
+LOCALIZATION_PREFERS_STRING_CATALOGS = YES
+
+GENERATE_INFOPLIST_FILE = YES
+INFOPLIST_KEY_CFBundleDisplayName = Pley
+INFOPLIST_KEY_LSApplicationCategoryType = public.app-category.entertainment
+INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO
+
+// Debug builds: unoptimised, testable, for the machine's own architecture.
+SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Debug] = DEBUG $(inherited)
+SWIFT_OPTIMIZATION_LEVEL[config=Debug] = -Onone
+SWIFT_OPTIMIZATION_LEVEL[config=Release] = -O
+SWIFT_COMPILATION_MODE[config=Release] = wholemodule
+GCC_OPTIMIZATION_LEVEL[config=Debug] = 0
+GCC_PREPROCESSOR_DEFINITIONS[config=Debug] = DEBUG=1 $(inherited)
+DEBUG_INFORMATION_FORMAT[config=Debug] = dwarf
+DEBUG_INFORMATION_FORMAT[config=Release] = dwarf-with-dsym
+ENABLE_TESTABILITY[config=Debug] = YES
+ONLY_ACTIVE_ARCH[config=Debug] = YES
+ENABLE_NS_ASSERTIONS[config=Release] = NO
+VALIDATE_PRODUCT[config=Release] = YES
+
+#include "Signing.xcconfig"

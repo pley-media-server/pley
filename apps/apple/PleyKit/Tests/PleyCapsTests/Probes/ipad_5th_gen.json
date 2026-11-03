@@ -1,0 +1,28 @@
+{
+  "platform": "iPadOS",
+  "os_version": "16.7.10",
+  "model": "iPad6,11",
+  "memory_bytes": 2071019520,
+  "simulator": false,
+  "hardware_decode": {
+    "hevc": true,
+    "av1": false,
+    "vp9": false
+  },
+  "hdr": {
+    "eligible": false,
+    "modes": [],
+    "edr_headroom": 1.0
+  },
+  "display": {
+    "width": 2048,
+    "height": 1536,
+    "max_fps": 60,
+    "match_content": false
+  },
+  "audio": {
+    "max_channels": 2,
+    "spatial": false,
+    "route": "speaker"
+  }
+}

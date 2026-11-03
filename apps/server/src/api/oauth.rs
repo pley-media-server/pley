@@ -1443,19 +1443,22 @@ impl From<GrantRow> for AppGrant {
 }
 
 /// What an app's grant was last used from, by the User-Agent of its token
-/// requests. pley's apps say "pleyAndroid/1.0 (Android 15)",
+/// requests. Pley's apps say "pleyAndroid/1.0 (Android 15)",
 /// "pleyKodi/0.1.0 (Kodi 21.2; Windows)", "pleyRoku/0.1.0 (Roku OS 14.5;
-/// Roku Ultra)" or "pleyLG/0.1.0 (webOS 23; OLED65C3PUA)": the row names the
-/// app already, so the platform it gives in brackets.
+/// Roku Ultra)", "pleyLG/0.1.0 (webOS 23; OLED65C3PUA)" or
+/// "pleyApple/0.1.0 (iPadOS 16.7; iPad)": the row names the app already,
+/// so the platform it gives in brackets.
 fn grant_device(user_agent: &str) -> String {
-    let apps = [("pleyAndroid/", "Android"), ("pleyKodi/", "Kodi"), ("pleyRoku/", "Roku"), ("pleyLG/", "webOS")];
+    let apps = [
+        ("pleyAndroid/", "Android"),
+        ("pleyKodi/", "Kodi"),
+        ("pleyRoku/", "Roku"),
+        ("pleyLG/", "webOS"),
+        ("pleyApple/", "Apple"),
+    ];
     for (app, platform) in apps {
         if user_agent.contains(app) {
-            let given = user_agent
-                .split_once('(')
-                .and_then(|(_, rest)| rest.split_once(')'))
-                .map(|(inside, _)| inside.trim())
-                .filter(|inside| !inside.is_empty());
+            let given = crate::accounts::bracketed(user_agent);
             return given.unwrap_or(platform).chars().take(60).collect();
         }
     }
@@ -1555,6 +1558,13 @@ mod tests {
         assert_eq!(grant_device("pleyKodi/0.1.0 (Kodi 21.2; Windows)"), "Kodi 21.2; Windows");
         assert_eq!(grant_device("pleyLG/0.1.0 (webOS 23; OLED65C3PUA)"), "webOS 23; OLED65C3PUA");
         assert_eq!(grant_device("pleyLG/0.1.0"), "webOS");
+    }
+
+    #[test]
+    fn apple_apps_name_their_system_and_device() {
+        assert_eq!(grant_device("pleyApple/0.1.0 (tvOS 18.2; Apple TV)"), "tvOS 18.2; Apple TV");
+        assert_eq!(grant_device("pleyApple/0.1.0 (iPadOS 16.7; iPad)"), "iPadOS 16.7; iPad");
+        assert_eq!(grant_device("pleyApple/0.1.0"), "Apple");
     }
 
     fn headers(pairs: &[(&'static str, &str)]) -> HeaderMap {

@@ -1,0 +1,10 @@
+{
+  "client_id": "https://pley-media-server.github.io/pley/oauth/macos.json",
+  "client_name": "Pley for Mac",
+  "client_uri": "https://github.com/pley-media-server/pley",
+  "redirect_uris": ["app.pley.apple:/oauth/callback"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none",
+  "scope": "library play playlists profiles requests approvals"
+}

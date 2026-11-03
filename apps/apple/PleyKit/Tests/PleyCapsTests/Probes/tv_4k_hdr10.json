@@ -1,0 +1,30 @@
+{
+  "platform": "tvOS",
+  "os_version": "26.1",
+  "model": "AppleTV14,1",
+  "memory_bytes": 4294967296,
+  "simulator": false,
+  "hardware_decode": {
+    "hevc": true,
+    "av1": false,
+    "vp9": false
+  },
+  "hdr": {
+    "eligible": true,
+    "modes": [
+      "hdr10",
+      "hlg"
+    ]
+  },
+  "display": {
+    "width": 3840,
+    "height": 2160,
+    "max_fps": 60,
+    "match_content": true
+  },
+  "audio": {
+    "max_channels": 8,
+    "spatial": false,
+    "route": "hdmi"
+  }
+}

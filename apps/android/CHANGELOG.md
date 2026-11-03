@@ -34,7 +34,8 @@ describes how they are made.
   folder's path and lists the drive's folders and videos, sorted as a
   person sorts names, with where each video resumes, and a video plays in
   Pley's player with the subtitle files beside it (UTF-8, UTF-16 or
-  Latin-1), from where it stopped. A video whose picture never starts
+  UTF-32, or Windows' Western code page, its curly quotes and euro
+  included), from where it stopped. A video whose picture never starts
   says the TV doesn't play it; one that played and then stands still,
   that the drive may have been pulled out. An empty folder or no drive
   says so under an icon, with focus on the page, so the rail closes over
@@ -259,6 +260,14 @@ describes how they are made.
 
 - The player's −10 s and +10 s buttons, on phones and on TV. Double-tapping
   the sides of the picture (phones) and Left and Right (TV) still seek.
+
+### Fixed
+
+- The player offers the subtitle style (Subtitle style on phones, the
+  size, background, font and position under the tracks on TV) only while
+  text subtitles show, where it changes something: picture subtitles (PGS,
+  VobSub, DVB) keep their own look, and subtitles off have nothing to
+  style.
 
 ## [0.1.4] - 2026-11-02
 

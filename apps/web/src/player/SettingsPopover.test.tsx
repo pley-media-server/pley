@@ -32,8 +32,8 @@ function renderPopover(overrides: Partial<SettingsPopoverProps> = {}) {
     onSleep: vi.fn(),
     ...overrides,
   };
-  render(<SettingsPopover {...props} />);
-  return props;
+  const { rerender } = render(<SettingsPopover {...props} />);
+  return { ...props, rerender: (more: Partial<SettingsPopoverProps>) => rerender(<SettingsPopover {...props} {...more} />) };
 }
 
 describe("SettingsPopover", () => {
@@ -128,9 +128,25 @@ describe("SettingsPopover", () => {
     expect(props.setOpen).toHaveBeenCalledWith(false);
   });
 
-  it("has no style to choose without text subtitles", () => {
-    renderPopover({ subtitleStreams: [{ ...english, codec: "hdmv_pgs_subtitle", text_based: false }] });
+  it("offers a style only while text subtitles show: pictures keep their own look", () => {
+    const pgs: MediaStream = { ...english, index: 4, codec: "hdmv_pgs_subtitle", text_based: false };
+    const { rerender } = renderPopover({ subtitleStreams: [english, pgs] });
+    // Off: nothing to style.
     expect(screen.queryByRole("button", { name: /Subtitle style/ })).not.toBeInTheDocument();
+    rerender({ subtitleIndex: 4 });
+    expect(screen.queryByRole("button", { name: /Subtitle style/ })).not.toBeInTheDocument();
+    rerender({ subtitleIndex: 3 });
+    expect(screen.getByRole("button", { name: /Subtitle style\s*Normal/ })).toBeInTheDocument();
+  });
+
+  it("goes back to the menu from the style when the subtitles go off", async () => {
+    const user = userEvent.setup();
+    const { rerender } = renderPopover({ subtitleStreams: [english], subtitleIndex: 3 });
+    await user.click(screen.getByRole("button", { name: /Subtitle style/ }));
+    expect(screen.getByRole("menuitemradio", { name: "Large" })).toBeInTheDocument();
+    rerender({ subtitleIndex: null });
+    expect(screen.queryByRole("menuitemradio", { name: "Large" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Subtitles\s*Off/ })).toBeInTheDocument();
   });
 
   it("moves text subtitles earlier or later, 0.1 s at a time", async () => {

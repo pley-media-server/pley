@@ -1923,6 +1923,8 @@ class SessionPlaybackController(
         // files beside it only: the server's WebVTT moves a file's own tracks, and a drive has no server.
         val syncable = sub != null &&
             (if (env.drive) sub.external else !PlaybackPlan.isImage(sub) || (streaming && sideload && info?.burnSubtitles != true))
+        // The style is for text: pictures, drawn here or burned in, keep their own look.
+        val styled = sub != null && !PlaybackPlan.isImage(sub)
         val auto = serverQuality(info)
         val playing = label(auto ?: quality)
         val fileHint = chosenFile?.let { f ->
@@ -1949,6 +1951,7 @@ class SessionPlaybackController(
                 qualities = qualities,
                 quality = if (automatic) texts.automatic(playing) else label(quality),
                 subtitleSync = syncable,
+                subtitleStyled = styled,
                 subtitleOffsetMs = offset.value,
             )
         }

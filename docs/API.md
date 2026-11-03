@@ -1,7 +1,7 @@
 # Pley HTTP API (v1)
 
-The API the web app and Pley's own apps (Android, desktop, Kodi, Roku,
-Samsung and LG) use, for anyone writing a client or a script. Tools built
+The API the web app and Pley's own apps (Android, Apple, desktop, Kodi,
+Roku, Samsung and LG) use, for anyone writing a client or a script. Tools built
 on Plex's API (Kometa, Tautulli, `python-plexapi`) and Jellyfin's apps go
 through the Plex- and Jellyfin-compatible APIs instead, with tokens of their
 own that this API refuses: [COMPATIBILITY.md](COMPATIBILITY.md).
@@ -950,7 +950,7 @@ to every port of a host, so opening a server without a key on the host of
 one with a key deletes them first.
 
 Every app checks proofs: the Samsung (web and native), LG, Android,
-Kodi, Roku and desktop apps.
+Kodi, Roku, desktop and Apple (iPhone, iPad, Mac and Apple TV) apps.
 
 ### Signing in
 
@@ -1116,7 +1116,8 @@ apps allowed `profiles` move to another profile of the household. Send
 TVs and other devices without a usable browser sign in with a code they
 show (OAuth 2.0 Device Authorization Grant, RFC 8628). Only Pley's own apps
 may: the Android app (also on Android TV and Fire TV), Pley for Kodi, Pley
-for Roku, and the Samsung and LG apps.
+for Roku, the Samsung and LG apps, Pley for Apple TV, and Pley for iPhone
+and iPad (an iPad on a stand, an iPhone shared by the household).
 
 1. The TV calls **`POST /api/oauth/device`** with `client_id` and an
    optional `scope` (as at `/oauth/authorize`: none means `library`):
@@ -1139,8 +1140,9 @@ for Roku, and the Samsung and LG apps.
      shown as `BCDF-GHJK`.
    - Errors: `invalid_client` for an app that isn't Pley's own;
      `unauthorized_client` for one of Pley's own that doesn't sign in this
-     way (the desktop app); `invalid_scope` as at `/oauth/authorize`;
-     `429 temporarily_unavailable` past the limits below.
+     way (the desktop app, Pley for Mac); `invalid_scope` as at
+     `/oauth/authorize`; `429 temporarily_unavailable` past the limits
+     below.
 
    A TV that can't draw a QR code shows
    **`GET /api/oauth/device/qr?code=BCDF-GHJK`**: the address as a PNG
@@ -1265,8 +1267,8 @@ interface AppGrant {
   profile: { id: Id; name: string };     // the profile it acts as
   approved_by: { id: Id; name: string };
   device: string | null;            // of its last token request: "Chrome on Windows". Pley's Android, Kodi,
-                                    // Roku, Samsung and LG apps: their platform, e.g. "Android 15",
-                                    // "Kodi 21.2; Windows", "Tizen 7.0", "webOS 23"
+                                    // Roku, Apple, Samsung and LG apps: their platform, e.g. "Android 15",
+                                    // "Kodi 21.2; Windows", "iPadOS 16.7; iPad", "Tizen 7.0", "webOS 23"
   ip: string | null;
   created_at: Timestamp;
   last_used_at: Timestamp;
@@ -1297,6 +1299,9 @@ profiles when the app's profile is in the household, else nothing:
 |---|---|---|
 | Pley for Android | `https://pley-media-server.github.io/pley/oauth/android.json` | `app.pley.android:/oauth/callback` |
 | Pley for desktop | `https://pley-media-server.github.io/pley/oauth/desktop.json` | `http://127.0.0.1/oauth/callback`, `http://[::1]/oauth/callback` (any port) |
+| Pley for iPhone and iPad | `https://pley-media-server.github.io/pley/oauth/ios.json` | `app.pley.apple:/oauth/callback` |
+| Pley for Mac | `https://pley-media-server.github.io/pley/oauth/macos.json` | `app.pley.apple:/oauth/callback` |
+| Pley for Apple TV | `https://pley-media-server.github.io/pley/oauth/tvos.json` | none: a code only |
 | Pley for Kodi | `https://pley-media-server.github.io/pley/oauth/kodi.json` | none: a code only |
 | Pley for Roku | `https://pley-media-server.github.io/pley/oauth/roku.json` | none: a code only |
 | Pley for Samsung TV | `https://pley-media-server.github.io/pley/oauth/tizen.json` | none: a code only |
@@ -1307,9 +1312,15 @@ profiles when the app's profile is in the household, else nothing:
 - All get refresh tokens and may ask for every scope, but the desktop app
   for `requests` and `approvals`: its window shows the server's own pages,
   signed in as the web app is.
-- The Android app may also sign in with a code, on a TV ([TVs](#tvs)). The
-  Kodi, Roku, Samsung and LG apps sign in only that way: with no return
-  address, `/oauth/authorize` never sends them a code.
+- The Android app and Pley for iPhone and iPad may also sign in with a
+  code, on a TV or a shared screen ([TVs](#tvs)). The Kodi, Roku, Samsung,
+  LG and Apple TV apps sign in only that way: with no return address,
+  `/oauth/authorize` never sends them a code.
+- The Apple app has its own client ID on each kind of device, so someone
+  with Pley for Mac and Pley for desktop on one Mac sees two sign-ins they
+  can tell apart. Its User-Agent, `pleyApple/0.1.0 (iPadOS 16.7; iPad)`,
+  gives the system first, so its sessions are named "Pley for iPhone",
+  "Pley for iPad", "Pley for Mac" or "Pley for Apple TV".
 - The Samsung app can't set its own User-Agent: the TV's web engine names
   the TV ("Samsung TV"; for an app's grant its system, "Tizen 7.0"). The LG
   app says `pleyLG/<version> (webOS <n>; <model>)`; a TV still on the
@@ -1398,7 +1409,8 @@ with too many sign-ins in progress.
 
 - `device`: what the TV said it is when it asked for the code, unchecked
   (Pley's apps give their platform in their User-Agent's brackets, "Kodi
-  21.3; Windows"; anything else is named as the sign-ins list names it).
+  21.3; Windows" or the Apple TV's "tvOS 18.2; Apple TV"; anything else is
+  named as the sign-ins list names it).
   `address`: where it asked from. Each `null` when unknown.
 - `400` for something that can't be a code; `404` for a code no TV shows
   (it counts as a wrong one); `409` for one answered already or shown on
@@ -2016,7 +2028,7 @@ removed or reordered (`400`).
     audio_codecs: string[];       // ["aac","mp3","opus","flac","vorbis"]
     hdr?: boolean;                // shows HDR10 and HLG without tone mapping
     dolby_vision?: boolean;       // decodes Dolby Vision (needed for profile 5)
-    // Version 2 (the Android app); every field optional. Codec names are ffprobe's.
+    // Version 2 (the Android and Apple apps); every field optional. Codec names are ffprobe's.
     caps_version?: 2;
     video?: {                     // every video decoder; a stream plays when one entry takes it
       codec: string;              // "h264", "hevc", "vp9", "av1"…
@@ -2045,8 +2057,8 @@ removed or reordered (`400`).
             variants?: boolean }; // moves between a stream's sizes itself: transcodes come in several
                                   // (any caps version)
     display?: { width: number; height: number; refresh_rates?: number[] };
-    device?: { form?: "phone" | "tablet" | "tv" | "unknown"; tier?: "low" | "mid" | "high";
-               fire_tv?: boolean; model?: string };
+    device?: { form?: "phone" | "tablet" | "tv" | "desktop" | "unknown";
+               tier?: "low" | "mid" | "high"; fire_tv?: boolean; model?: string };
   };
 }
 ```
@@ -2154,7 +2166,7 @@ sets only a cookie and a User-Agent; LG's media pipeline takes only an
 address), and an app's token goes only in the Authorization header.
 A play request with `keyed_urls: true` gets a session whose addresses carry
 a key of their own instead. Pley's Samsung, LG and Roku apps ask for keyed
-URLs.
+URLs, and so do the Apple apps, whose AVPlayer adds no header of its own.
 
 - `PlaybackInfo.url` is `/api/media/{key}/master.m3u8` (or `index.m3u8`)
   for a stream, whose playlists name their segments (and an fMP4 stream's

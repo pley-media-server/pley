@@ -98,6 +98,8 @@ public sealed record PlayerState
     public long SubtitleOffsetMs { get; init; }
     /// <summary>The subtitles chosen can be moved: text drawn by the app.</summary>
     public bool SubtitleSync { get; init; }
+    /// <summary>The subtitles chosen are text, which the subtitles' look (size, background, font, position) is for: pictures keep their own.</summary>
+    public bool SubtitleStyled { get; init; }
     /// <summary>The playback speed, 1 normal, for this title only.</summary>
     public double Speed { get; init; } = 1;
     /// <summary>The speeds the TV's player plays with their sound; empty when only normal speed (Speed isn't offered then).</summary>

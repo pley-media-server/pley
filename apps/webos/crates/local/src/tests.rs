@@ -594,12 +594,38 @@ fn a_subtitle_file_in_utf16_is_read_by_its_byte_order_mark() {
     assert_eq!(folder::decode(&be), "Café 日本");
     // A lone surrogate and an odd last byte don't stop the rest.
     assert_eq!(folder::decode(&[0xFF, 0xFE, 0x00, 0xD8, 0x41, 0x00, 0x42]), "\u{FFFD}A");
+    // UTF-32 by its mark, not read as UTF-16 with a NUL in every other character.
+    let le32: Vec<u8> =
+        [0xFF, 0xFE, 0, 0].into_iter().chain("Café".chars().flat_map(|c| (c as u32).to_le_bytes())).collect();
+    let be32: Vec<u8> =
+        [0, 0, 0xFE, 0xFF].into_iter().chain("Café".chars().flat_map(|c| (c as u32).to_be_bytes())).collect();
+    assert_eq!((folder::decode(&le32), folder::decode(&be32)), ("Café".into(), "Café".into()));
 }
 
 #[test]
-fn a_subtitle_file_not_in_utf8_is_read_as_latin1() {
+fn a_subtitle_file_in_utf16_without_its_mark_is_read_by_its_nul_bytes() {
+    let text = "1\n00:00:01,000 --> 00:00:02,000\nCafé 日本\n";
+    let words: Vec<u16> = text.encode_utf16().collect();
+    let le: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
+    let be: Vec<u8> = words.iter().flat_map(|w| w.to_be_bytes()).collect();
+    assert_eq!(folder::decode(&le), text);
+    assert_eq!(folder::decode(&be), text);
+    // Text in a single-byte encoding has no NULs: never taken for UTF-16.
+    assert_eq!(
+        folder::decode(b"1\n00:00:01,000 --> 00:00:02,000\nHello\n"),
+        "1\n00:00:01,000 --> 00:00:02,000\nHello\n"
+    );
+}
+
+#[test]
+fn a_subtitle_file_not_in_utf8_is_read_as_windows_1252() {
     assert_eq!(folder::decode(&[0x63, 0x61, 0x66, 0xE9]), "café");
     assert_eq!(folder::decode("café".as_bytes()), "café");
+    // Its curly quotes, dash and euro, which Latin-1 would make control characters.
+    assert_eq!(
+        folder::decode(&[0x93, 0x48, 0x69, 0x94, 0x20, 0x96, 0x20, 0x35, 0x80]),
+        "\u{201C}Hi\u{201D} \u{2013} 5\u{20AC}"
+    );
     let dir = scratch_dir("local-sidecar");
     let path = dir.join("Film.fr.srt");
     std::fs::write(&path, b"1\n00:00:01,000 --> 00:00:02,000\nCaf\xE9\n").unwrap();

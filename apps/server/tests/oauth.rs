@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use axum::http::{Method, StatusCode, header};
 use serde_json::json;
 
-use common::{ANDROID_APP, DESKTOP_APP, HOST, ISSUER, Reply, TestApp, encode};
+use common::{ANDROID_APP, DESKTOP_APP, HOST, IOS_APP, ISSUER, MACOS_APP, Reply, TestApp, encode};
 use pley::oauth::fetch::Source;
 
 /// RFC 7636 appendix B.
@@ -18,6 +18,7 @@ const VERIFIER: &str = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
 const CHALLENGE: &str = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
 const ANDROID_BACK: &str = "app.pley.android:/oauth/callback";
 const DESKTOP_BACK: &str = "http://127.0.0.1:53111/oauth/callback";
+const APPLE_BACK: &str = "app.pley.apple:/oauth/callback";
 const OTHER_APP: &str = "https://apps.example.com/pley.json";
 const OTHER_BACK: &str = "https://apps.example.com/callback?from=pley";
 const NOT_FROM_PLEY: &str = "this page must be opened from Pley itself";
@@ -279,6 +280,46 @@ async fn the_desktop_app_signs_in_through_any_loopback_port() {
         let reply = start(&app, &admin, &query(&request_params(DESKTOP_APP, refused))).await;
         assert_eq!(reply.status, StatusCode::BAD_REQUEST, "{refused}");
     }
+}
+
+#[tokio::test]
+async fn the_apple_app_signs_in_through_its_own_scheme_on_iphone_ipad_and_mac() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    for (client_id, name) in [(IOS_APP, "Pley for iPhone and iPad"), (MACOS_APP, "Pley for Mac")] {
+        let started = start(&app, &admin, &query(&request_params(client_id, APPLE_BACK))).await;
+        assert_eq!(started.status, StatusCode::OK, "{}", started.text());
+        assert_eq!(started.body["redirect"], json!({"kind": "app", "to": "app.pley.apple"}), "{}", started.text());
+        assert_eq!(
+            started.body["client"],
+            json!({"id": client_id, "host": "pley-media-server.github.io", "name": name, "first_party": true})
+        );
+
+        let address = allow(&app, &admin, &query(&request_params(client_id, APPLE_BACK))).await;
+        assert!(address.starts_with("app.pley.apple:/oauth/callback?code="), "{address}");
+        let code = &params_of(&address)["code"];
+        let (access, refresh_token) = pair(&exchange(&app, code, client_id, APPLE_BACK, VERIFIER).await);
+        assert_eq!(app.get("/api/auth/me", &access).await.status, StatusCode::OK);
+        pair(&refresh(&app, &refresh_token, client_id).await);
+
+        // Only the address it registered: not another app's, another path,
+        // or a loopback port as the desktop app's.
+        for refused in [ANDROID_BACK, "app.pley.apple:/other", DESKTOP_BACK] {
+            let reply = start(&app, &admin, &query(&request_params(client_id, refused))).await;
+            assert_eq!(reply.status, StatusCode::BAD_REQUEST, "{name}: {refused}");
+        }
+    }
+    // Android's address isn't the Apple app's either.
+    let reply = start(&app, &admin, &query(&request_params(ANDROID_APP, APPLE_BACK))).await;
+    assert_eq!(reply.status, StatusCode::BAD_REQUEST);
+
+    // One return address for both: a code given to Pley for iPhone and
+    // iPad isn't Pley for Mac's to redeem.
+    let request = query(&request_params(IOS_APP, APPLE_BACK));
+    assert_eq!(start(&app, &admin, &request).await.status, StatusCode::OK);
+    let address = allow(&app, &admin, &request).await;
+    let crossed = exchange(&app, &params_of(&address)["code"], MACOS_APP, APPLE_BACK, VERIFIER).await;
+    assert_eq!(oauth_error(&crossed), (StatusCode::BAD_REQUEST, "invalid_grant"));
 }
 
 #[tokio::test]

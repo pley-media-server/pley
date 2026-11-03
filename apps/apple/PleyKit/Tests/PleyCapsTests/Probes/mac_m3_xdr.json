@@ -1,0 +1,29 @@
+{
+  "platform": "macOS",
+  "os_version": "26.1",
+  "model": "Mac15,6",
+  "chip": "Apple M3 Pro",
+  "memory_bytes": 19327352832,
+  "simulator": false,
+  "hardware_decode": {
+    "hevc": true,
+    "av1": true,
+    "vp9": true
+  },
+  "hdr": {
+    "eligible": true,
+    "modes": [],
+    "edr_headroom": 16.0
+  },
+  "display": {
+    "width": 3024,
+    "height": 1964,
+    "max_fps": 120,
+    "match_content": false
+  },
+  "audio": {
+    "max_channels": 2,
+    "spatial": false,
+    "route": "speaker"
+  }
+}

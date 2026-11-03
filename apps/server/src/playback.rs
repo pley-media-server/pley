@@ -167,7 +167,7 @@ pub struct DisplayCaps {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct DeviceCaps {
-    /// "phone", "tablet", "tv" or "unknown".
+    /// "phone", "tablet", "tv", "desktop" or "unknown".
     pub form: String,
     /// "low", "mid" or "high".
     pub tier: Option<String>,

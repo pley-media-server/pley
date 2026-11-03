@@ -150,7 +150,8 @@ public static class PlayerPanels
                 if (state.SubtitleSync)
                     rows.Add(new PlayerRow(PlayerRowKind.Step, PlayerText.Sync, Supporting: PlayerText.SyncHint, Value: Player.SubtitleSync.Label(state.SubtitleOffsetMs), Action: new PlayerRowAction.SubtitleSync()));
                 Choices(state.Subtitles.Select(t => new PlayerRow(PlayerRowKind.Choice, t.Label, t.Selected, Action: new PlayerRowAction.Subtitle(t.Index))));
-                if (state.Subtitles.Count > 0) Look(rows, settings, fonts);
+                // Pictures keep their own look, and subtitles off have none.
+                if (state.SubtitleStyled) Look(rows, settings, fonts);
                 break;
             case PlayerPanelKind.Audio:
                 Choices(state.Audio.Where(t => t.Index != null).Select(t => new PlayerRow(PlayerRowKind.Choice, t.Label, t.Selected, Action: new PlayerRowAction.Audio(t.Index!.Value))));
@@ -189,7 +190,7 @@ public static class PlayerPanels
         return new PlayerPanel(kind, Title(kind), rows, focus ?? 0);
     }
 
-    /// <summary>The subtitles' size, background, font and position under the tracks, as Settings has them (and saved there).</summary>
+    /// <summary>The subtitles' size, background, font and position under the tracks while they are text, as Settings has them (and saved there).</summary>
     static void Look(List<PlayerRow> rows, Settings settings, IReadOnlyList<Core.SubtitleFont>? fonts)
     {
         var sizes = Settings.SubtitleSizes;

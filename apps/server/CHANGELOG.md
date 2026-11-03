@@ -11,6 +11,13 @@ describes how they are made.
 
 ### Added
 
+- Pley's apps for iPhone and iPad, Apple TV and Mac can sign in, as
+  "Pley for iPhone and iPad", "Pley for Apple TV" and "Pley for Mac". The
+  Apple TV signs in with a code, as the other TVs do; an iPhone or iPad
+  may too.
+- Devices and watch history name Pley's Apple apps by device: Pley for
+  iPhone, iPad, Mac or Apple TV.
+- A player may say it runs on a desktop (`form: "desktop"`).
 - The server can announce itself on the local network by Bonjour
   (`_pley._tcp`), with its id, name and version, so Apple's devices find it
   without its address. It is off until turned on in Settings → Network
@@ -146,6 +153,9 @@ describes how they are made.
 - Tautulli no longer takes Pley for a server that is down when nothing has
   happened for 15 seconds: the Plex-compatible API's notifications send
   pings, as Plex's server does.
+- The web player offers Subtitle style only while text subtitles show,
+  where it changes something: picture subtitles (PGS, VobSub, DVB) keep
+  their own look, and subtitles off have nothing to style.
 
 ### Security
 

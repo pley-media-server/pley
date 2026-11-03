@@ -776,7 +776,7 @@ mod tests {
             client_name: Some("pley".into()),
             scopes: Scopes::parse(scopes).unwrap(),
             refresh: true,
-            first_party: client_id == ANDROID,
+            first_party: crate::oauth::clients::builtin(client_id).is_some(),
             session_hash: None,
             user_agent: Some("okhttp".into()),
             ip: Some("10.0.0.2".into()),
@@ -1039,6 +1039,21 @@ mod tests {
             .unwrap();
         let next = refresh(&db, exchange(fourth.refresh_token.as_ref().unwrap(), OTHER), false).await.unwrap();
         assert!(next.expires_in <= 100, "never past the grant's end");
+    }
+
+    #[tokio::test]
+    async fn every_one_of_pleys_own_apps_has_no_yearly_end() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = database(dir.path()).await;
+        for id in crate::oauth::clients::BUILTIN_IDS {
+            let (issued, _) = issue(&db, grant(id, "library")).await.unwrap();
+            let ends: Option<i64> = sqlx::query_scalar("SELECT ends_at FROM app_grants WHERE id = ?")
+                .bind(issued.grant_id)
+                .fetch_one(&db.read)
+                .await
+                .unwrap();
+            assert_eq!(ends, None, "{id}");
+        }
     }
 
     #[tokio::test]

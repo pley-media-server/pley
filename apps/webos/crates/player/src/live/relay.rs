@@ -7,8 +7,9 @@
 //! connections of the one before.
 //!
 //! What it takes from a player is bounded: a request's head of 8 KiB at most, all of it sent
-//! within 5 s, four players at once. Nothing it logs carries the path, which stands in for the
-//! token here.
+//! within 5 s, sixteen connections sending theirs at once, and four players at once. A place to
+//! play is taken only by a request that names the stream, so connections that say nothing keep
+//! no player from it. Nothing it logs carries the path, which stands in for the token here.
 //!
 //! What LG says of it: its player takes media over HTTP and HTTPS
 //! (<https://webostv.developer.lge.com/develop/specifications/streaming-protocol-drm>) and plays
@@ -37,8 +38,10 @@ pub const HEAD_WAIT: Duration = Duration::from_secs(5);
 const ACCEPT_BACKOFF_MOST: Duration = Duration::from_secs(1);
 /// How long a write to a player that reads nothing may wait: a live stream isn't paused.
 const WRITE_WAIT: Duration = Duration::from_secs(30);
-/// Players served at once; more are closed as they connect.
+/// Players served at once: a request for the stream past them is answered 503.
 pub const PLAYERS_MOST: usize = 4;
+/// Connections sending their request at once; more are closed as they connect.
+pub const HEADS_MOST: usize = 16;
 const BUFFER: usize = 64 * 1024;
 
 /// Opens the stream upstream (with the token), until the cancel fires.
@@ -58,6 +61,7 @@ struct Serving {
 struct Shared {
     serving: Mutex<Option<Serving>>,
     closed: AtomicBool,
+    heads: AtomicUsize,
     players: AtomicUsize,
 }
 
@@ -81,6 +85,7 @@ impl StreamRelay {
         let shared = Arc::new(Shared {
             serving: Mutex::new(None),
             closed: AtomicBool::new(false),
+            heads: AtomicUsize::new(0),
             players: AtomicUsize::new(0),
         });
         let accepting = shared.clone();
@@ -194,10 +199,21 @@ fn same(a: &str, b: &str) -> bool {
     a.len() == b.len() && a.bytes().zip(b.bytes()).fold(0u8, |d, (x, y)| d | (x ^ y)) == 0
 }
 
-/// A player's place, given back when its connection ends.
-struct Player<'a>(&'a AtomicUsize);
+/// A place among `most` (a connection sending its request, or a player), given back when it
+/// is dropped.
+struct Place<'a>(&'a AtomicUsize);
 
-impl Drop for Player<'_> {
+impl<'a> Place<'a> {
+    fn take(count: &'a AtomicUsize, most: usize) -> Option<Place<'a>> {
+        if count.fetch_add(1, Ordering::SeqCst) >= most {
+            count.fetch_sub(1, Ordering::SeqCst);
+            return None;
+        }
+        Some(Place(count))
+    }
+}
+
+impl Drop for Place<'_> {
     fn drop(&mut self) {
         self.0.fetch_sub(1, Ordering::SeqCst);
     }
@@ -216,33 +232,44 @@ fn accept(listener: &TcpListener, shared: &Arc<Shared>) {
             continue;
         };
         backoff = Duration::ZERO;
-        if shared.players.fetch_add(1, Ordering::SeqCst) >= PLAYERS_MOST {
-            shared.players.fetch_sub(1, Ordering::SeqCst);
+        if shared.heads.fetch_add(1, Ordering::SeqCst) >= HEADS_MOST {
+            shared.heads.fetch_sub(1, Ordering::SeqCst);
             continue;
         }
         let s = shared.clone();
         let spawned = std::thread::Builder::new().name("pley-relay-player".into()).spawn(move || {
-            let _place = Player(&s.players);
-            handle(client, &s);
+            let head = Place(&s.heads);
+            handle(client, &s, head);
         });
         if spawned.is_err() {
-            shared.players.fetch_sub(1, Ordering::SeqCst);
+            shared.heads.fetch_sub(1, Ordering::SeqCst);
         }
     }
 }
 
-fn handle(mut client: TcpStream, shared: &Shared) {
+/// `head`: the connection's place among those sending their request, given back once it is read.
+fn handle(mut client: TcpStream, shared: &Shared, head: Place<'_>) {
     let _ = client.set_write_timeout(Some(WRITE_WAIT));
-    let Some((method, target)) = read_head(&mut client, HEAD_WAIT) else { return };
+    let request = read_head(&mut client, HEAD_WAIT);
+    drop(head);
+    let Some((method, target)) = request else { return };
+    // A place to play, taken before the stream opened for the first player is: one refused a
+    // place leaves it for the next.
+    let mut place = None;
     let found = {
         let mut serving = lock(&shared.serving);
         serving.as_mut().filter(|s| same(&s.path, &target)).map(|s| {
-            let early = if method == "GET" { s.early.take() } else { None };
+            place = Place::take(&shared.players, PLAYERS_MOST);
+            let early = if method == "GET" && place.is_some() { s.early.take() } else { None };
             (s.cancel.clone(), s.open.clone(), early)
         })
     };
     let Some((cancel, open, early)) = found else {
         let _ = answer(&mut client, "404 Not Found", "", true);
+        return;
+    };
+    let Some(_place) = place else {
+        let _ = answer(&mut client, "503 Service Unavailable", "", true);
         return;
     };
     match method.as_str() {
@@ -486,6 +513,17 @@ mod tests {
         assert!(took < Duration::from_millis(1500), "held for {took:?}");
         drop(client);
         trickle.join().unwrap();
+    }
+
+    #[test]
+    fn connections_that_say_nothing_keep_no_player_from_the_stream() {
+        let relay = StreamRelay::new().unwrap();
+        let url = served(&relay, opener(vec![9]));
+        let host = url.strip_prefix("http://").and_then(|r| r.split('/').next()).unwrap().to_string();
+        // More of them than there are places to play, each holding on to its connection.
+        let silent: Vec<_> = (0..PLAYERS_MOST * 2).map(|_| TcpStream::connect(&host).unwrap()).collect();
+        assert_eq!(get(&url).2, [9]);
+        drop(silent);
     }
 
     #[test]

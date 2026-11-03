@@ -381,6 +381,20 @@ pub fn device_name(user_agent: Option<&str>) -> String {
     if ua.contains("pleyAndroid/") {
         return "Pley for Android".into();
     }
+    // The Apple apps say "pleyApple/0.1.0 (iPadOS 16.7; iPad)": one app
+    // for iPhone, iPad and Mac and one for Apple TV, told apart by the
+    // system they give first.
+    if ua.contains("pleyApple/") {
+        let system = bracketed(ua).and_then(|inside| inside.split([';', ' ']).next());
+        return match system {
+            Some("iOS") => "Pley for iPhone",
+            Some("iPadOS") => "Pley for iPad",
+            Some("tvOS") => "Pley for Apple TV",
+            Some("macOS") => "Pley for Mac",
+            _ => "Pley for Apple",
+        }
+        .into();
+    }
     if ua.contains("pleyKodi/") {
         return "Pley for Kodi".into();
     }
@@ -435,6 +449,16 @@ pub fn device_name(user_agent: Option<&str>) -> String {
     }
 }
 
+/// What a User-Agent gives in its first brackets, trimmed: Pley's apps put
+/// their platform there, "pleyKodi/0.1.0 (Kodi 21.2; Windows)".
+pub(crate) fn bracketed(user_agent: &str) -> Option<&str> {
+    user_agent
+        .split_once('(')
+        .and_then(|(_, rest)| rest.split_once(')'))
+        .map(|(inside, _)| inside.trim())
+        .filter(|inside| !inside.is_empty())
+}
+
 // ------------------------------------------------------------------ avatars
 
 pub fn avatars_dir(data_dir: &Path) -> PathBuf {
@@ -487,6 +511,15 @@ mod tests {
         assert_eq!(device_name(Some("pleyAndroid/0.1.0 (Android 16)")), "Pley for Android");
         assert_eq!(device_name(Some("pleyKodi/0.1.0 (Kodi 21.2; Windows)")), "Pley for Kodi");
         assert_eq!(device_name(Some("pleyRoku/0.1.0 (Roku OS 14.5; Roku Ultra)")), "Pley for Roku");
+        assert_eq!(device_name(Some("pleyApple/0.1.0 (iOS 18.1; iPhone)")), "Pley for iPhone");
+        assert_eq!(device_name(Some("pleyApple/0.1.0 (iPadOS 16.7; iPad)")), "Pley for iPad");
+        assert_eq!(device_name(Some("pleyApple/0.1.0 (tvOS 18.2; Apple TV)")), "Pley for Apple TV");
+        assert_eq!(device_name(Some("pleyApple/0.1.0 (macOS 15.2; Mac)")), "Pley for Mac");
+        assert_eq!(device_name(Some("pleyApple/0.1.0")), "Pley for Apple");
+        assert_eq!(device_name(Some("pleyApple/0.1.0 (visionOS 2.0; Apple Vision Pro)")), "Pley for Apple");
+        // AVPlayer's own requests are not the app's.
+        let core_media = "AppleCoreMedia/1.0.0.22A (iPhone; U; CPU OS 18_0 like Mac OS X; en_us)";
+        assert_eq!(device_name(Some(core_media)), "AppleCoreMedia/1.0.0.22A");
         assert_eq!(device_name(Some("pleyLG/0.1.0 (webOS 23; OLED65C3PUA)")), "Pley for LG TV");
         let tizen = "Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) 76.0.3809.146/6.0 TV Safari/537.36";
         assert_eq!(device_name(Some(tizen)), "Samsung TV");

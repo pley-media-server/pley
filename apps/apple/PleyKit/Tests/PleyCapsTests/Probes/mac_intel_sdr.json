@@ -1,0 +1,29 @@
+{
+  "platform": "macOS",
+  "os_version": "15.7.1",
+  "model": "MacBookPro16,1",
+  "chip": "Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz",
+  "memory_bytes": 17179869184,
+  "simulator": false,
+  "hardware_decode": {
+    "hevc": true,
+    "av1": false,
+    "vp9": false
+  },
+  "hdr": {
+    "eligible": false,
+    "modes": [],
+    "edr_headroom": 1.0
+  },
+  "display": {
+    "width": 3072,
+    "height": 1920,
+    "max_fps": 60,
+    "match_content": false
+  },
+  "audio": {
+    "max_channels": 2,
+    "spatial": false,
+    "route": "speaker"
+  }
+}

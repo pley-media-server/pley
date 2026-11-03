@@ -36,6 +36,9 @@ const SUBSCRIBE_TIMEOUT: Duration = Duration::from_secs(5);
 /// stopped, doubled each time up to the last.
 const NETWORK_RETRY: Duration = Duration::from_secs(5);
 const NETWORK_RETRY_MOST: Duration = Duration::from_secs(300);
+/// News that has come this long before it stops was a working subscription: the waits start
+/// over. One that stops as soon as it answers keeps doubling them.
+const NETWORK_STEADY: Duration = Duration::from_secs(60);
 /// How long showing the TV's Home may take before the app hides itself instead.
 const HOME_TIMEOUT: Duration = Duration::from_secs(1);
 /// Back pressed again within this long doesn't ask the TV twice.
@@ -67,8 +70,10 @@ struct Inner {
     joined: Mutex<Option<Value>>,
     /// The connection manager's subscription, made again when it stops.
     network_watch: Mutex<Option<Subscription>>,
-    /// Times in a row the network's news stopped without an answer.
+    /// Times in a row the network's news stopped before it had come for [`NETWORK_STEADY`].
     network_failures: AtomicU32,
+    /// When the subscription in use first answered.
+    network_answered: Mutex<Option<Instant>>,
     drive: Mutex<Option<Drive>>,
     awake: AtomicBool,
     subscribers: Mutex<Vec<Sender<DeviceEvent>>>,
@@ -117,6 +122,7 @@ impl WebosDevice {
                 joined: Mutex::new(None),
                 network_watch: Mutex::new(None),
                 network_failures: AtomicU32::new(0),
+                network_answered: Mutex::new(None),
                 drive: Mutex::new(None),
                 awake: AtomicBool::new(false),
                 subscribers: Mutex::new(Vec::new()),
@@ -277,7 +283,7 @@ fn watch_network(inner: &Arc<Inner>) {
         SUBSCRIBE_TIMEOUT,
         move |answer| {
             let Some(inner) = weak.upgrade() else { return };
-            if let Some(wait) = inner.network_answer(answer) {
+            if let Some(wait) = inner.network_answer(answer, Instant::now()) {
                 let weak = Arc::downgrade(&inner);
                 again.after(wait, move || {
                     if let Some(inner) = weak.upgrade() {
@@ -297,12 +303,16 @@ impl Inner {
         self.waker.wake();
     }
 
-    /// Takes the connection manager's answer; when the news stopped, the wait
-    /// before subscribing again (5 s, doubling to 5 min).
-    fn network_answer(&self, answer: Answer) -> Option<Duration> {
+    /// Takes the connection manager's answer at `now`; when the news stopped, the
+    /// wait before subscribing again (5 s, doubling to 5 min).
+    fn network_answer(&self, answer: Answer, now: Instant) -> Option<Duration> {
         let v = match answer {
             Ok(v) => v,
             Err(why) => {
+                let answered = self.network_answered.lock().unwrap_or_else(|e| e.into_inner()).take();
+                if answered.is_some_and(|t| now.saturating_duration_since(t) >= NETWORK_STEADY) {
+                    self.network_failures.store(0, Ordering::SeqCst);
+                }
                 let failures = self.network_failures.fetch_add(1, Ordering::SeqCst).saturating_add(1);
                 let wait = (1..failures.min(16)).fold(NETWORK_RETRY, |w, _| (w * 2).min(NETWORK_RETRY_MOST));
                 crate::log::line(&format!(
@@ -312,7 +322,8 @@ impl Inner {
                 return Some(wait);
             }
         };
-        let after_stop = self.network_failures.swap(0, Ordering::SeqCst) > 0;
+        let after_stop = self.network_failures.load(Ordering::SeqCst) > 0;
+        self.network_answered.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert(now);
         // Joining or leaving a network, or another one under the same
         // address, makes the server prove itself again before its next token
         // (pley_core::auth::proof). The first answer is the network the app
@@ -618,22 +629,28 @@ mod tests {
         let (tx, rx) = std::sync::mpsc::channel();
         device.subscribe(tx);
         let inner = &device.inner;
+        let now = Instant::now();
         let waits: Vec<u64> = [LunaError::Timeout, LunaError::Unreadable, LunaError::Timeout, LunaError::Timeout]
             .into_iter()
-            .map(|e| inner.network_answer(Err(e)).unwrap().as_secs())
+            .map(|e| inner.network_answer(Err(e), now).unwrap().as_secs())
             .collect();
         assert_eq!(waits, [5, 10, 20, 40]);
         for _ in 0..20 {
-            assert!(inner.network_answer(Err(LunaError::Timeout)).unwrap() <= Duration::from_secs(300));
+            assert!(inner.network_answer(Err(LunaError::Timeout), now).unwrap() <= Duration::from_secs(300));
         }
-        // An answer is news as ever, and the next stop waits the least again.
+        // An answer is news as ever; news that stops as soon as it came keeps the long wait.
         let wifi = json!({ "wifi": { "state": "connected", "ipAddress": "192.168.1.23" } });
-        assert_eq!(inner.network_answer(Ok(wifi)), None);
+        assert_eq!(inner.network_answer(Ok(wifi.clone()), now), None);
         assert_eq!(
             rx.try_recv().unwrap(),
             DeviceEvent::Network { connected: true, ipv4: Some(Ipv4Addr::new(192, 168, 1, 23)) }
         );
-        assert_eq!(inner.network_answer(Err(LunaError::Timeout)), Some(Duration::from_secs(5)));
+        let soon = now + Duration::from_secs(1);
+        assert_eq!(inner.network_answer(Err(LunaError::Timeout), soon), Some(Duration::from_secs(300)));
+        // News that came for a minute was a working subscription: the next stop waits the least.
+        assert_eq!(inner.network_answer(Ok(wifi), soon), None);
+        let later = soon + Duration::from_secs(61);
+        assert_eq!(inner.network_answer(Err(LunaError::Timeout), later), Some(Duration::from_secs(5)));
     }
 
     #[test]
@@ -642,10 +659,10 @@ mod tests {
         let (device, _) = tv();
         let inner = &device.inner;
         // The first watch never answered, and the TV may have moved before the next one did.
-        assert!(inner.network_answer(Err(LunaError::Timeout)).is_some());
+        assert!(inner.network_answer(Err(LunaError::Timeout), Instant::now()).is_some());
         let before = pley_core::auth::proof::network();
         let wifi = json!({ "wifi": { "state": "connected", "ipAddress": "192.168.1.23", "ssid": "Home" } });
-        assert_eq!(inner.network_answer(Ok(wifi)), None);
+        assert_eq!(inner.network_answer(Ok(wifi), Instant::now()), None);
         assert!(pley_core::auth::proof::network() > before, "the server isn't asked to prove itself again");
     }
 

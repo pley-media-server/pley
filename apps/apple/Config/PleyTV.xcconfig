@@ -1,0 +1,16 @@
+// The app for Apple TV, built for the focus engine.
+
+PRODUCT_NAME = Pley
+SDKROOT = appletvos
+SUPPORTED_PLATFORMS = appletvos appletvsimulator
+TARGETED_DEVICE_FAMILY = 3
+
+INFOPLIST_FILE = Config/PleyTV-Info.plist
+INFOPLIST_KEY_UILaunchScreen_Generation = YES
+
+// The app group shared with the Top Shelf extension; Signing.xcconfig has
+// the default, and Local.xcconfig can empty it for a team without App Groups.
+CODE_SIGN_ENTITLEMENTS = $(PLEY_TV_ENTITLEMENTS)
+
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/Frameworks
+ENABLE_PREVIEWS = YES
