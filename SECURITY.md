@@ -396,7 +396,8 @@ other apps (`pley_ct_…`), never with a session's
 ### The Android app
 
 - It is native and shows no web pages.
-- It holds app tokens only, with a viewer's rights whoever signs in: never a
+- It holds app tokens only, with a viewer's rights whoever signs in (and,
+  for an administrator who allows it, approving requests): never a
   session or a password.
 - Phones sign in on the server's own page in a Custom Tab, with PKCE (a
   private tab where the browser offers one, unless turned off in settings).
@@ -437,7 +438,8 @@ other apps (`pley_ct_…`), never with a session's
 Pley for iPhone, iPad, Mac and Apple TV (in development).
 
 - It is native and shows no web pages.
-- It holds app tokens only, with a viewer's rights whoever signs in: never a
+- It holds app tokens only, with a viewer's rights whoever signs in (and,
+  for an administrator who allows it, approving requests): never a
   session or a password.
 - iPhone, iPad and Mac sign in on the server's own page in the system's
   sign-in sheet (`ASWebAuthenticationSession`), with PKCE (S256), a `state`

@@ -312,6 +312,14 @@ async fn the_apple_app_signs_in_through_its_own_scheme_on_iphone_ipad_and_mac() 
     // Android's address isn't the Apple app's either.
     let reply = start(&app, &admin, &query(&request_params(ANDROID_APP, APPLE_BACK))).await;
     assert_eq!(reply.status, StatusCode::BAD_REQUEST);
+
+    // One return address for both: a code given to Pley for iPhone and
+    // iPad isn't Pley for Mac's to redeem.
+    let request = query(&request_params(IOS_APP, APPLE_BACK));
+    assert_eq!(start(&app, &admin, &request).await.status, StatusCode::OK);
+    let address = allow(&app, &admin, &request).await;
+    let crossed = exchange(&app, &params_of(&address)["code"], MACOS_APP, APPLE_BACK, VERIFIER).await;
+    assert_eq!(oauth_error(&crossed), (StatusCode::BAD_REQUEST, "invalid_grant"));
 }
 
 #[tokio::test]

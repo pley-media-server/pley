@@ -1,7 +1,7 @@
 # Pley HTTP API (v1)
 
-The API the web app and Pley's own apps (Android, desktop, Kodi, Roku,
-Samsung and LG) use, for anyone writing a client or a script. Tools built
+The API the web app and Pley's own apps (Android, Apple, desktop, Kodi,
+Roku, Samsung and LG) use, for anyone writing a client or a script. Tools built
 on Plex's API (Kometa, Tautulli, `python-plexapi`) and Jellyfin's apps go
 through the Plex- and Jellyfin-compatible APIs instead, with tokens of their
 own that this API refuses: [COMPATIBILITY.md](COMPATIBILITY.md).
