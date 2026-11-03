@@ -31,6 +31,8 @@ private final class FixtureTokens: DownloadTokens, @unchecked Sendable {
     func proveServer() async throws {
         lock.withLock { proved += 1 }
     }
+
+    func connectionLeaked() async {}
 }
 
 /// Bytes of a made-up file: what matters is that each arrives in its place.

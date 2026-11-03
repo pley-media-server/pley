@@ -160,6 +160,9 @@ public protocol DownloadTokens: Sendable {
     /// Returns once the server has proved itself as an access token needs:
     /// before a piece goes on from its resume data with the token it began with.
     func proveServer() async throws
+    /// A piece's token reached an address that isn't private over plain
+    /// http: the sign-in ends on the device.
+    func connectionLeaked() async
 }
 
 extension Tokens: DownloadTokens {}
