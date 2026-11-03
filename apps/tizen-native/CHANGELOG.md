@@ -255,7 +255,9 @@ It has no releases yet: it is built and installed by hand
 - Videos on a USB drive play in the native app: the rail's USB drive,
   while one is plugged in, lists its folders and videos; a video plays in
   Pley's player from where it stopped, with its audio tracks, chapters,
-  HDR, its own subtitles and the subtitle files beside it.
+  HDR, its own subtitles and the subtitle files beside it (UTF-8, UTF-16 or
+  UTF-32, or Windows' Western code page, as in the Android app; 2 MB at
+  most).
 
 ### Changed
 

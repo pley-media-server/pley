@@ -158,9 +158,21 @@ public static class LocalFolder
         return "WEBVTT\n\n" + times;
     }
 
-    /// <summary>A subtitle file's text: UTF-8 when it is, else Latin-1, close to the Western code page older SubRip files are in.</summary>
+    /// <summary>
+    /// A subtitle file's text, as in the Android app's DriveFolder.decode. A byte-order mark says
+    /// its encoding: UTF-16 or UTF-32, as Windows tools save "Unicode" text (UTF-8's goes in
+    /// <see cref="ToWebVtt"/>). Without one, UTF-16 shows by its NUL bytes, which text in UTF-8 or a
+    /// code page never has; then UTF-8 when it is, else Windows-1252, the Western code page older
+    /// SubRip files are in.
+    /// </summary>
     public static string Decode(byte[] bytes)
     {
+        bool Starts(params byte[] mark) => bytes.Length >= mark.Length && bytes.Take(mark.Length).SequenceEqual(mark);
+        if (Starts(0xFF, 0xFE, 0, 0)) return Utf32(bytes, 4, littleEndian: true);
+        if (Starts(0, 0, 0xFE, 0xFF)) return Utf32(bytes, 4, littleEndian: false);
+        if (Starts(0xFF, 0xFE)) return Utf16(bytes, 2, littleEndian: true);
+        if (Starts(0xFE, 0xFF)) return Utf16(bytes, 2, littleEndian: false);
+        if (Utf16Order(bytes) is bool little) return Utf16(bytes, 0, little);
         try
         {
             return new UTF8Encoding(false, true).GetString(bytes);
@@ -168,8 +180,71 @@ public static class LocalFolder
         catch (DecoderFallbackException)
         {
             var chars = new char[bytes.Length];
-            for (var i = 0; i < bytes.Length; i++) chars[i] = (char)bytes[i];
+            for (var i = 0; i < bytes.Length; i++) chars[i] = bytes[i] is >= 0x80 and <= 0x9F ? Windows1252High[bytes[i] - 0x80] : (char)bytes[i];
             return new string(chars);
         }
+    }
+
+    /// <summary>Windows-1252's 0x80–0x9F: the euro, curly quotes, dashes and the like (the five it leaves out stay as Latin-1 has them).</summary>
+    const string Windows1252High =
+        "€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008DŽ\u008F" +
+        "\u0090‘’“”•–—˜™š›œ\u009DžŸ";
+
+    /// <summary>
+    /// Whether UTF-16 without its mark is little-endian, from its first 4 KB: where it is Latin
+    /// text, times or numbers, every other byte is NUL, the high one. Null when it isn't UTF-16.
+    /// </summary>
+    static bool? Utf16Order(byte[] bytes)
+    {
+        var pairs = Math.Min(bytes.Length, 4096) / 2;
+        int first = 0, second = 0;
+        for (var i = 0; i < pairs; i++)
+        {
+            if (bytes[2 * i] == 0) first++;
+            if (bytes[2 * i + 1] == 0) second++;
+        }
+        bool Many(int n) => pairs >= 8 && n * 4 >= pairs;
+        if (Many(second) && first * 8 <= second) return true;
+        if (Many(first) && second * 8 <= first) return false;
+        return null;
+    }
+
+    /// <summary>UTF-16 text from <paramref name="from"/>; a lone surrogate reads as U+FFFD and an odd last byte is dropped.</summary>
+    static string Utf16(byte[] bytes, int from, bool littleEndian)
+    {
+        var units = new char[(bytes.Length - from) / 2];
+        for (var i = 0; i < units.Length; i++)
+        {
+            int a = bytes[from + 2 * i], b = bytes[from + 1 + 2 * i];
+            units[i] = (char)(littleEndian ? a | (b << 8) : (a << 8) | b);
+        }
+        var text = new StringBuilder(units.Length);
+        for (var i = 0; i < units.Length; i++)
+        {
+            if (char.IsHighSurrogate(units[i]) && i + 1 < units.Length && char.IsLowSurrogate(units[i + 1]))
+            {
+                text.Append(units[i]).Append(units[i + 1]);
+                i++;
+            }
+            else
+            {
+                text.Append(char.IsSurrogate(units[i]) ? '�' : units[i]);
+            }
+        }
+        return text.ToString();
+    }
+
+    /// <summary>UTF-32 text from <paramref name="from"/>; what isn't a character reads as U+FFFD, and a last word cut short is dropped.</summary>
+    static string Utf32(byte[] bytes, int from, bool littleEndian)
+    {
+        var text = new StringBuilder();
+        for (var at = from; at + 4 <= bytes.Length; at += 4)
+        {
+            uint point = littleEndian
+                ? bytes[at] | ((uint)bytes[at + 1] << 8) | ((uint)bytes[at + 2] << 16) | ((uint)bytes[at + 3] << 24)
+                : ((uint)bytes[at] << 24) | ((uint)bytes[at + 1] << 16) | ((uint)bytes[at + 2] << 8) | bytes[at + 3];
+            text.Append(point is <= 0x10FFFF and not (>= 0xD800 and <= 0xDFFF) ? char.ConvertFromUtf32((int)point) : "�");
+        }
+        return text.ToString();
     }
 }
