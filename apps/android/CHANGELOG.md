@@ -25,6 +25,8 @@ describes how they are made.
   each move of the finger.
 - On phones and tablets, the sleep timer's notice keeps its width as the
   count goes under 10 s, so Keep watching no longer moves under the finger.
+- On phones and tablets, seek previews that arrive while a finger rests on
+  the seek bar show at once, rather than when the finger moves again.
 
 ## [0.1.3] - 2026-11-02
 

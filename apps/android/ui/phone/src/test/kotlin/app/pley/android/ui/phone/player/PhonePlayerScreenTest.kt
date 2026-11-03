@@ -397,6 +397,30 @@ class PhonePlayerScreenTest {
     }
 
     @Test
+    fun previewsThatArriveDuringADragShowWithoutTheFingerMoving() {
+        val asked = mutableListOf<Long>()
+        val fake = FakePlaybackController(playing())
+        fake.thumbnails = { at ->
+            asked += at
+            null
+        }
+        show(fake)
+        val bar = compose.onNodeWithContentDescription("Position")
+        bar.performTouchInput {
+            down(androidx.compose.ui.geometry.Offset(width * 0.3f, height / 2f))
+            moveBy(androidx.compose.ui.geometry.Offset(width * 0.02f, 0f))
+        }
+        compose.waitForIdle()
+        assertEquals(emptyList<Long>(), asked)
+
+        // The file's previews come while the finger rests on the bar: the one under it is asked for at once.
+        fake.update { it.copy(hasThumbnails = true) }
+        compose.waitForIdle()
+        assertEquals(1, asked.size)
+        bar.performTouchInput { up() }
+    }
+
+    @Test
     fun aVolumeDragMovesItsBarWithoutRecomposingIt() {
         val composed = mutableListOf<String>()
         PlayerProbe.composed = { synchronized(composed) { composed += it } }

@@ -224,11 +224,12 @@ private fun ScrubPreview(state: PlayerScreenState) {
     if (!state.scrubbing) return
     var picture by remember { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(state) {
-        snapshotFlow { state.scrubMs }
+        // The file's previews arriving counts as a move: one that comes while the finger rests shows at once.
+        snapshotFlow { state.scrubMs?.takeIf { state.hasThumbnails } }
             .filterNotNull()
             .map { it / PREVIEW_STEP_MS * PREVIEW_STEP_MS }
             .distinctUntilChanged()
-            .collect { at -> if (state.hasThumbnails) picture = state.controller.thumbnail(at) ?: picture }
+            .collect { at -> picture = state.controller.thumbnail(at) ?: picture }
     }
     val wide = LocalConfiguration.current.smallestScreenWidthDp >= 600
     val tile = if (wide) Size(224f, 126f) else Size(160f, 90f)
