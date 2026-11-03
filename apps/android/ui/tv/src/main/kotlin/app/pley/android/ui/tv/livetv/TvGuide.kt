@@ -637,13 +637,18 @@ private fun GuideRow(
  * focused row first ([run]). Made and used on the main thread.
  */
 @Stable
-private class RowFill {
+internal class RowFill {
     private val waiting = HashMap<Int, CancellableContinuation<Unit>>()
     private val asked = Channel<Unit>(Channel.CONFLATED)
 
-    /** Returns once row [index] may draw. */
+    /**
+     * Returns once row [index] may draw. A row waiting under the same index
+     * (the list reordered under it: Recently watched after a watch, a
+     * favourite gone) draws now: cancelled, it would keep what it last drew
+     * until its programmes changed again.
+     */
     suspend fun turn(index: Int) = suspendCancellableCoroutine { turn ->
-        waiting.put(index, turn)?.cancel()
+        waiting.put(index, turn)?.resume(Unit)
         turn.invokeOnCancellation { if (waiting[index] === turn) waiting.remove(index) }
         asked.trySend(Unit)
     }
