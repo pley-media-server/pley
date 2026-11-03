@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- The TV can be cast to from a phone or a browser signed in to the same
+  profile: a movie, an episode or an extra sent there plays at once, from
+  any page, and the phone or browser pauses, resumes, seeks and stops it
+  and sees what plays. It shows as "LG TV".
+
 ### Changed
 
 - Search shows movies, shows and episodes first, then music, then Live

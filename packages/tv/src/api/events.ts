@@ -1,4 +1,5 @@
 import type { Tokens } from "../auth/tokens";
+import { castQuery, type CastIdentity } from "../cast";
 import type { ServerEvent } from "./types";
 
 /** First wait after a stream fails, doubled each time up to the last. */
@@ -13,30 +14,51 @@ export const STABLE_MS = 30_000;
  * an app's token. Reconnects as the Android app's EventStream does; tells
  * `onReconnect` on every connection, since nothing is replayed, and
  * `onDown` whenever it isn't connected (until it is again), so what
- * follows the events can ask instead meanwhile.
+ * follows the events can ask instead meanwhile. With `cast`, the TV is
+ * listed for casting while the stream is open; a server that refuses it
+ * (`400`, `403`, `429`) gets the stream without it until the next start.
  */
 export class EventStream {
   private xhr: XMLHttpRequest | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private failures = 0;
   private stopped = true;
+  /** The server refused the TV as a device to cast to: the stream goes on without it until the next start. */
+  private castRefused = false;
+  /** The stream open now lists the TV for casting. */
+  private castOpen = false;
   private readonly server: string;
   private readonly tokens: Tokens;
   private readonly onEvent: (e: ServerEvent) => void;
   private readonly onReconnect: () => void;
   private readonly onDown: () => void;
+  private readonly cast: CastIdentity | null;
 
-  constructor(server: string, tokens: Tokens, onEvent: (e: ServerEvent) => void, onReconnect: () => void, onDown: () => void = () => undefined) {
+  constructor(
+    server: string,
+    tokens: Tokens,
+    onEvent: (e: ServerEvent) => void,
+    onReconnect: () => void,
+    onDown: () => void = () => undefined,
+    cast: CastIdentity | null = null,
+  ) {
     this.server = server;
     this.tokens = tokens;
     this.onEvent = onEvent;
     this.onReconnect = onReconnect;
     this.onDown = onDown;
+    this.cast = cast;
+  }
+
+  /** A stream is open that lists the TV for casting: what it plays is worth saying. */
+  get casting(): boolean {
+    return this.castOpen;
   }
 
   start(): void {
     if (!this.stopped) return;
     this.stopped = false;
+    this.castRefused = false;
     void this.connect();
   }
 
@@ -99,13 +121,15 @@ export class EventStream {
     let read = 0;
     let buffer = "";
     let openedAt = -1;
-    xhr.open("GET", `${this.server}/api/events`, true);
+    const cast = this.castRefused ? null : this.cast;
+    xhr.open("GET", `${this.server}/api/events${castQuery(cast)}`, true);
     xhr.setRequestHeader("Accept", "text/event-stream");
     xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     xhr.onreadystatechange = () => {
       if (xhr.readyState === 2 && xhr.status === 200 && openedAt < 0) {
         openedAt = Date.now();
         this.failures = 0;
+        this.castOpen = cast !== null;
         this.onReconnect();
       }
     };
@@ -135,8 +159,15 @@ export class EventStream {
     const ended = () => {
       if (this.xhr !== xhr) return;
       this.xhr = null;
+      this.castOpen = false;
       if (this.stopped) return;
       this.onDown();
+      // Refused as a device to cast to (an id or name it doesn't take, a token without `play`, too many devices): the events still come.
+      if (cast && openedAt < 0 && (xhr.status === 400 || xhr.status === 403 || xhr.status === 429)) {
+        this.castRefused = true;
+        this.later(0);
+        return;
+      }
       if (xhr.status === 401) {
         this.tokens.refresh(token).then(
           () => this.later(0),

@@ -101,6 +101,19 @@ export class Navigator {
   }
 }
 
+/**
+ * Where a title cast to the TV opens its player: over the page on top
+ * (`open`), or in place of a player on top (`replace`), which leaves as
+ * Back would. `null` before the app is in use: choosing a server, signing
+ * in, "Who's watching?" and its PINs.
+ */
+export function castOpening(stack: Entry[]): "open" | "replace" | null {
+  const root = stack[0]?.key.name;
+  const top = stack[stack.length - 1]?.key.name;
+  if (!root || root === "servers" || root === "link" || root === "profiles") return null;
+  return top === "player" || top === "livePlayer" ? "replace" : "open";
+}
+
 export function sameKey(a: PageKey, b: PageKey): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }

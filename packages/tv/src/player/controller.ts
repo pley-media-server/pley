@@ -284,6 +284,8 @@ export class PlaybackController {
   readonly state: Signal<PlayerState> = signal(INITIAL);
   readonly clock: Signal<PlayerClock> = signal({ positionMs: 0, durationMs: 0, bufferedMs: 0 });
   readonly subs: Signal<ShownSubtitles> = signal(NOTHING_SHOWN);
+  /** Bumped by each seek, so what follows the playback (a phone casting to the TV) hears where it went. */
+  readonly seeks: Signal<number> = signal(0);
 
   private readonly env: PlayerEnv;
   private readonly now: () => number;
@@ -1138,6 +1140,11 @@ export class PlaybackController {
     return this.wantPlay;
   }
 
+  /** The title played to its end: nothing plays, whether Up Next shows or not. */
+  get atEnd(): boolean {
+    return this.ended;
+  }
+
   private setWantPlay(play: boolean): void {
     const was = this.wantPlay;
     this.wantPlay = play;
@@ -1164,6 +1171,7 @@ export class PlaybackController {
       this.lastPositionMs = target;
       this.setClock({ positionMs: target });
       this.restart(target);
+      this.seeks.value++;
       return;
     }
     engine.seekTo(target);
@@ -1181,6 +1189,7 @@ export class PlaybackController {
       this.seekReportTimer = null;
       this.report(this.wantPlay ? "playing" : "paused");
     }, SEEK_REPORT_MS);
+    this.seeks.value++;
   }
 
   selectAudio(index: number): void {

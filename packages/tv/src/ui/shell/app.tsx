@@ -11,7 +11,8 @@ import { AppContext, Dialog } from "../screens/common";
 import { Screen } from "../screens/screens";
 import { Icon } from "../kit/icons";
 import { Toast } from "../kit/toast";
-import { Navigator, type Entry, type PageKey } from "./navigator";
+import { castCommand } from "../../cast";
+import { castOpening, Navigator, type Entry, type PageKey } from "./navigator";
 import { RequestNotices, type NoticeApi } from "./notice";
 import { currentEntry, OFFLINE_TEXT, Rail, railEntries, requestsEntry, type RailApi } from "./rail";
 
@@ -151,6 +152,27 @@ export function App(p: ShellProps) {
       detach();
     };
   }, []);
+
+  // A title cast from a phone or a browser plays from whatever page shows, once the app is in use; a video or channel playing leaves first, as on Back.
+  useEffect(
+    () =>
+      state.onEvent((e) => {
+        if (e.type !== "cast_play" || !state.signedIn || state.signedOut.value) return;
+        const cast = castCommand(e, state.castIdentity().id);
+        if (cast?.kind !== "play") return;
+        const opening = castOpening(nav.stack.value);
+        if (!opening) return;
+        exiting.value = false;
+        const key: PageKey = {
+          name: "player",
+          request: { itemId: cast.itemId, fileId: cast.fileId, startMs: cast.positionMs },
+          pressedAt: typeof performance !== "undefined" ? performance.now() : Date.now(),
+        };
+        if (opening === "replace") nav.replace(key);
+        else nav.open(key);
+      }),
+    [],
+  );
 
   // A held direction key: rows and tiles move without animating. Told as keys come, so an idle TV runs no timer.
   useEffect(() => {

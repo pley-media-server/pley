@@ -449,7 +449,11 @@ export type ServerEvent =
   /** To managers: a request couldn't be sent and the server won't try again by itself. */
   | { type: "request_failed"; request_id: Id; title: string; kind: TitleKind; reason: string | null; retry_at: Timestamp | null }
   /** Requests turned on or off, the limits or the TMDB key changed, or this profile's access did: the summary is asked again. */
-  | { type: "requests_settings_changed" };
+  | { type: "requests_settings_changed" }
+  /** To this TV's stream alone, while it may be cast to: play this (`position_ms` null: where the profile left off). */
+  | { type: "cast_play"; device_id: string; item_id: Id; file_id: Id | null; position_ms: number | null }
+  /** To this TV's stream alone: its video player pauses, resumes, seeks (to `position_ms`) or stops. */
+  | { type: "cast_control"; device_id: string; action: "pause" | "resume" | "seek" | "stop"; position_ms: number | null };
 
 // ---- Live TV (docs/API.md, "Live TV")
 

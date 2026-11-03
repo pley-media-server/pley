@@ -5,6 +5,7 @@ import type { Hub, HouseholdProfile, ItemDetail, Library, LiveChannel, LiveSumma
 import { origin } from "./auth/addresses";
 import { SignedOutError, Tokens, type KeyValue } from "./auth/tokens";
 import { xhrTransport, type Transport } from "./net/transport";
+import { castIdentity, newCastId, type CastIdentity, type CastStateBody } from "./cast";
 import type { Platform, Probe } from "./platform";
 import { Reporter } from "./player/reporter";
 import { isSummary, newsKeys, newsText, readyNews, readyText, statusFromRequest, titleKey } from "./requests";
@@ -78,6 +79,10 @@ const REQUEST_GATHER_MS = 300;
 export const SUMMARY_POLL_MS = 60_000;
 /** Ready-to-watch notices kept while they can't show (a video plays): the last three. */
 const NOTICES_KEPT = 3;
+/** This TV's id as a device to cast to, made once. */
+const CAST_DEVICE_KEY = "pley.castDevice";
+/** How long a report of what plays may take before the next goes. */
+const CAST_WAIT_MS = 10_000;
 
 /** News of requests popped up over the pages: on TVs, only what is ready to watch. */
 export interface RequestNotice {
@@ -211,6 +216,8 @@ export class AppState {
   readonly notices = signal<RequestNotice[]>([]);
   /** The events aren't connected: pages that show requests ask on their own meanwhile. */
   readonly eventsDown = signal(false);
+  /** Bumped each time the events connect with the TV listed for casting: a video playing says so again. */
+  readonly castConnects = signal(0);
   /**
    * "Who's watching?" was answered in this launch (a profile picked, a PIN
    * checked, or a sign-in approved on a phone): the current profile's PIN
@@ -260,6 +267,8 @@ export class AppState {
   private markTimer: ReturnType<typeof setTimeout> | null = null;
   private noticeIds = 0;
   private noticeOnScreen: number | null = null;
+  /** Reports of what plays, on their way one at a time. */
+  private castQueue: Promise<void> = Promise.resolve();
 
   constructor(platform: Platform, http: Transport = xhrTransport) {
     this.platform = platform;
@@ -374,6 +383,31 @@ export class AppState {
       this.store.set("pley.installId", id);
     }
     return id;
+  }
+
+  /** How this TV is listed for casting: its id made once and kept for good (`pley.castDevice`), its name and platform. */
+  castIdentity(): CastIdentity {
+    let id = this.store.get(CAST_DEVICE_KEY);
+    if (!id || !/^[0-9a-f]{32}$/.test(id)) {
+      id = newCastId();
+      this.store.set(CAST_DEVICE_KEY, id);
+    }
+    return castIdentity(this.platform.name, id);
+  }
+
+  /**
+   * Says what the video player plays (PUT /api/cast/devices/{id}/state),
+   * while the events list the TV for casting: one at a time, in order,
+   * and what fails is dropped.
+   */
+  castState(body: CastStateBody): void {
+    const api = this.api.value;
+    if (!api || !this.events?.casting) return;
+    const path = `/api/cast/devices/${encodeURIComponent(this.castIdentity().id)}/state`;
+    this.castQueue = this.castQueue.then(() => api.send(path, { method: "PUT", body, timeoutMs: CAST_WAIT_MS })).then(
+      () => undefined,
+      () => undefined,
+    );
   }
 
   /** The profile "Always start as" names for this server; `null` asks who's watching. */
@@ -809,6 +843,7 @@ export class AppState {
         (e) => this.handleEvent(e),
         () => this.reconnected(),
         () => this.eventsLost(),
+        this.castIdentity(),
       );
     }
     this.events.start();
@@ -828,6 +863,8 @@ export class AppState {
     this.requestsMissing = false;
     void this.loadRequests();
     if (down) this.requestsChanged(null);
+    // Listed afresh for casting: the server knows nothing of what plays here.
+    if (this.events?.casting) this.castConnects.value++;
     if (away || Date.now() - this.lastSync > 30_000) {
       this.lastSync = Date.now();
       this.items.clear();

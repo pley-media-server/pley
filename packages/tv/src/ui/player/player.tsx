@@ -1,4 +1,6 @@
+import type { Signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+import { castCommand, CastReporter } from "../../cast";
 import { formatClock, formatTimeOfDay } from "../../format/format";
 import { storedMemory } from "../../player/autoquality";
 import { initMusic } from "../../player/music";
@@ -86,6 +88,24 @@ export function PlayerScreen(p: { request: PlayRequest; pressedAt: number }) {
     };
   }, [controller]);
 
+  // What plays, said to the server for the phones and browsers that cast to the TV; nothing once it closes.
+  useLayoutEffect(() => {
+    const requested = (saved ? saved.request : p.request).itemId;
+    const cast = new CastReporter(
+      () => {
+        const s = controller.state.peek();
+        const clock = controller.clock.peek();
+        return { itemId: s.itemId || requested, phase: s.phase.kind, positionMs: controller.livePositionMs(), durationMs: clock.durationMs, ended: controller.atEnd };
+      },
+      (body) => app.castState(body),
+    );
+    const offs = [controller.state.subscribe(() => cast.changed()), afterNow(controller.seeks, () => cast.now()), afterNow(app.castConnects, () => cast.now())];
+    return () => {
+      for (const off of offs) off();
+      cast.close();
+    };
+  }, [controller]);
+
   // While it plays, Home and the pages wait to ask the server again; after it, they do (its reports moved resume points).
   useLayoutEffect(() => {
     app.holdRefresh(true);
@@ -109,6 +129,15 @@ export function PlayerScreen(p: { request: PlayRequest; pressedAt: number }) {
   }, [controller]);
 
   return <PlayerView key={run} controller={controller} host={host} queued={!!(saved ? saved.request : p.request).queue} />;
+}
+
+/** Calls `fn` on each change of `value` from now on; returns the unsubscribe. */
+function afterNow(value: Signal<number>, fn: () => void): () => void {
+  let first = true;
+  return value.subscribe(() => {
+    if (first) first = false;
+    else fn();
+  });
 }
 
 function PlayerView(p: { controller: PlaybackController; host: { current: HTMLDivElement | null }; queued: boolean }) {
@@ -425,6 +454,20 @@ function PlayerView(p: { controller: PlaybackController; host: { current: HTMLDi
           }
         }
         return false;
+      }),
+    [c],
+  );
+  // A phone or a browser casting to the TV steers the video playing, cast or not, as the remote's media keys do.
+  useEffect(
+    () =>
+      app.onEvent((e) => {
+        if (e.type !== "cast_control") return;
+        const cast = castCommand(e, app.castIdentity().id);
+        if (cast?.kind !== "control") return;
+        if (cast.action === "seek") {
+          seeker.cancel();
+          c.seekTo(cast.positionMs ?? 0);
+        } else mediaRef.current(cast.action === "resume" ? "play" : cast.action);
       }),
     [c],
   );

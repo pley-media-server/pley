@@ -25,6 +25,10 @@ describes how they are made.
 
 ### Added
 
+- The TV can be cast to from a phone or a browser signed in to the same
+  profile: a movie, an episode or an extra sent there plays at once, from
+  any page, and the phone or browser pauses, resumes, seeks and stops it
+  and sees what plays. It shows as "Samsung TV".
 - Live TV, where the server has IPTV channels for the profile, by
   category: Favourites, Recently watched, All
   channels, the regions in alphabetical order, each opening to its

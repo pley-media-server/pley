@@ -172,6 +172,31 @@ shows it after Home, remembered on the TV so it shows at launch. On these TVs:
   (`GET /api/live/sessions/{id}/plan`) and shows its words; a stall of 20 s
   is a failure.
 
+### Casting
+
+A phone or a browser signed in to the same profile casts movies,
+episodes and extras to the TV, then pauses, resumes, seeks and stops them,
+and sees what the TV plays ([API.md](API.md#casting-to-another-device)).
+The TVs are cast to; they don't cast themselves.
+
+- **Listed:** while the app shows and is signed in, its event stream says
+  it may be cast to, as "Samsung TV" or "LG TV" with an id the app makes
+  once (`pley.castDevice`). A server that refuses that (`400`, `403`,
+  `429`) gets the events without it until the app is shown again or
+  another profile is chosen.
+- **A title sent:** whatever plays (a video, a channel) leaves as on
+  Back, and the player opens over the page showing, where the sender says,
+  else where the profile left off, without asking. Nothing opens while the
+  TV chooses a server, signs in or asks "Who's watching?" or a PIN.
+- **Steering:** pause, resume, seek and stop reach the video player
+  whether its title was cast or picked on the TV. Music and Live TV aren't
+  steered.
+- **What plays:** the video player says what it plays
+  (`PUT /api/cast/devices/{id}/state`) as it starts (buffering, then
+  playing), pauses, resumes, waits and seeks, every 10 s while it plays,
+  and when the events connect again; nothing playing once it closes or the
+  title ends, and the next episode is a new report. Failures are dropped.
+
 ### Requests
 
 Where the server takes requests ([API.md](API.md#requests)), the rail has
@@ -301,6 +326,7 @@ bun run --cwd apps/webos build       # only an app's dist/ (apps/tizen too); --d
 | `api/`, `net/`, `auth/` | HTTP API, event stream, server discovery, sign-in with a code, profiles and PINs, the server's proof before a token goes ([Telling servers apart](API.md#telling-servers-apart)) |
 | `state.ts`, `platform.ts` | What the TV keeps (servers, sign-ins, settings, a per-install id, what requests are for the profile); what a shell provides |
 | `requests.ts` | Requests' words and rules: badges, a title's one main action, the season picker, stages, what may be done to a request, the server's answers |
+| `cast.ts` | Being cast to: the commands, the event stream's query, what the player says it plays |
 | `ui/focus.ts`, `ui/input.ts`, `ui/keys.ts` | Focus, remote keys, LG's Magic Remote pointer and wheel |
 | `ui/shell/`, `ui/screens/`, `ui/kit/` | The rail, back stack and screens |
 | `player/` | Playback: the play request, recovery, quality, Up Next, skip markers, seek previews, sleep timer, reports, music |
