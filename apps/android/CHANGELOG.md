@@ -13,6 +13,8 @@ describes how they are made.
 - On phones and tablets, the posters of search results, a person's page, a
   collection and a library's Collections tab load ahead of the scroll, as
   Home's rows and a library's grid already did.
+- On phones and tablets, a video's first picture fades in from black,
+  rather than appearing at once.
 
 ### Fixed
 
