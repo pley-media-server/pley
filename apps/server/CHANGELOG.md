@@ -66,12 +66,11 @@ describes how they are made.
   a show, and the like) answers `400` where it was ignored, which let a
   tool's change reach the whole library; a smart collection or playlist
   isn't made of one.
-
 - Pictures chosen by address, through the Plex-compatible API or the
   artwork picker, may come from fanart.tv, ThePosterDB and GitHub's raw
   files (where Kometa's own images are) as well as TMDB, TheTVDB, TVmaze and
-  the Cover Art Archive. Other addresses are still refused.
-
+  the Cover Art Archive, and are re-encoded as uploads are. Other addresses
+  are still refused.
 - Through the Plex-compatible API, collections keep labels and are
   found by title and label; their order (`collectionSort`) and an item's
   place in it can be changed; items and collections list their pictures;

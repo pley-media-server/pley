@@ -508,10 +508,13 @@ pub async fn upload_artwork(
         return Err(PlexError::NotFound);
     }
     let target = picture_target(&state, &admin, key).await?;
-    let blob = match params.get("url").filter(|u| !u.is_empty()) {
-        Some(url) => state.metadata.download_artwork(url).await.map_err(|e| PlexError::BadRequest(e.to_string()))?,
-        None => crate::api::editing::store_picture(&state, body).await.map_err(PlexError::from)?,
+    let body = match params.get("url").filter(|u| !u.is_empty()) {
+        Some(url) => {
+            state.metadata.download_artwork(url).await.map_err(|e| PlexError::BadRequest(e.to_string()))?.into()
+        }
+        None => body,
     };
+    let blob = crate::api::editing::store_picture(&state, body).await.map_err(PlexError::from)?;
     set_artwork_blob(&state, &target, field, blob).await
 }
 
@@ -538,7 +541,8 @@ pub async fn choose_artwork(
         }
         None => {}
     }
-    let blob = state.metadata.download_artwork(url).await.map_err(|e| PlexError::BadRequest(e.to_string()))?;
+    let bytes = state.metadata.download_artwork(url).await.map_err(|e| PlexError::BadRequest(e.to_string()))?;
+    let blob = crate::api::editing::store_picture(&state, bytes.into()).await.map_err(PlexError::from)?;
     set_artwork_blob(&state, &target, field, blob).await
 }
 

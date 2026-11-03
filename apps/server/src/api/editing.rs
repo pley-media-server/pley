@@ -163,7 +163,8 @@ pub async fn choose_artwork(
 ) -> ApiResult<Json<ItemDetail>> {
     let row = item_or_404(&state, user.id, id).await?;
     let kind = artwork_kind(&kind)?;
-    let blob = state.metadata.download_artwork(&body.url).await.map_err(|e| AppError::bad_request(e.to_string()))?;
+    let bytes = state.metadata.download_artwork(&body.url).await.map_err(|e| AppError::bad_request(e.to_string()))?;
+    let blob = store_picture(&state, bytes.into()).await?;
     overrides::set(&state.db, id, &[(kind.to_owned(), Some(blob))]).await?;
     state.events.send(ServerEvent::LibraryChanged { library_id: row.library_id });
     Ok(Json(detail(&state, user.id, id).await?))
