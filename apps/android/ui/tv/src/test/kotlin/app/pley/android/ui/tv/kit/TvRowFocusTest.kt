@@ -19,6 +19,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -76,6 +77,9 @@ class TvRowFocusTest {
     private lateinit var list: LazyListState
     private lateinit var rowA: LazyListState
 
+    /** The ids of row A's tiles opened. */
+    private val opened = mutableListOf<Long>()
+
     private fun page(withHero: Boolean = false, reduced: Boolean? = null) {
         compose.setContent {
             list = rememberLazyListState()
@@ -114,7 +118,7 @@ class TvRowFocusTest {
                                 }
                             }
                             item("a") {
-                                TvRow("a", "Row A", tiles("A", 20), TileKind.Landscape, onOpen = {}, initialFocus = !withHero, state = rowA)
+                                TvRow("a", "Row A", tiles("A", 20), TileKind.Landscape, onOpen = { opened += it.id }, initialFocus = !withHero, state = rowA)
                             }
                             item("b") { TvRow("b", "Row B", tiles("B", 8, from = 100), TileKind.Poster, onOpen = {}) }
                         }
@@ -302,6 +306,24 @@ class TvRowFocusTest {
         // And from there the keys go on as ever.
         compose.press(Key.DirectionRight)
         compose.focused().assertContentDescriptionEquals("A ${landed + 2}")
+    }
+
+    @Test
+    fun selectWhileARowSlidesOpensNothingAndTheTileItLandsOnOpensAfter() {
+        page()
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionRight)
+        compose.mainClock.advanceTimeBy(304)
+        // Focus waits on A 2, slid off the screen: Select doesn't open it.
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
+        compose.mainClock.advanceTimeBy(48)
+        assertTrue("$opened", opened.isEmpty())
+        keyUp(Key.DirectionRight)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.press(Key.DirectionCenter)
+        val landed = compose.focused().fetchSemanticsNode().config[SemanticsProperties.ContentDescription].single()
+        assertEquals(listOf(landed.removePrefix("A ").toLong()), opened)
     }
 
     @Test

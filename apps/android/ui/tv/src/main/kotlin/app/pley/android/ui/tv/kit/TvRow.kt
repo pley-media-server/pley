@@ -272,6 +272,9 @@ fun rememberTvRowState(initialFirstVisibleItemIndex: Int = 0): LazyListState = r
 /** How far past its edge a row composes, in screens. */
 private const val ROW_AHEAD = 0.5f
 
+/** The keys that act on the focused tile: Select (and Enter) opens it, Menu its actions. */
+private val TileKeys = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.Menu)
+
 /**
  * How a row moves (design spec §2.4, D-pad rules 4 and 5), as the native
  * Samsung app moves it. Focus on a tile brings the tile's left edge to the
@@ -325,9 +328,12 @@ internal class RowMotion(private val state: LazyListState, private val gate: Key
     /**
      * A key the row's tiles get first. Under a held key, Left or Right from
      * a tile resting at the gutter, where the row has room that way, starts
-     * a slide; while it runs, its keys go to it and focus waits.
+     * a slide; while it runs, its keys go to it and focus waits. So does
+     * Select or Menu pressed meanwhile: focus is still on the tile the
+     * slide left behind, which they would open.
      */
     fun onKey(event: KeyEvent): Boolean {
+        if (sliding != 0 && event.key in TileKeys) return true
         if (event.type != KeyEventType.KeyDown) return false
         val step = when (event.key) {
             Key.DirectionLeft -> -1
@@ -413,7 +419,8 @@ internal class RowMotion(private val state: LazyListState, private val gate: Key
         if (step == 0) return
         sliding = 0
         val under = scrolled() / pitch
-        val target = (if (step > 0) ceil(under - 0.01f) else floor(under + 0.01f)).toInt().coerceIn(0, count - 1)
+        // The row's tiles may have changed meanwhile, even to none.
+        val target = (if (step > 0) ceil(under - 0.01f) else floor(under + 0.01f)).toInt().coerceIn(0, (count - 1).coerceAtLeast(0))
         if (!hasFocus || target == focused || !slots.focus(target)) moveTo(restFor(target))
         looks = scope.launch { quiet.end(reduced) }
     }
