@@ -64,7 +64,8 @@ describes how they are made.
 - Signing in with a code says when the server requires two-step sign-in:
   the phone that approves the code sets it up for whoever hasn't.
 - Movie and show libraries filter by resolution (4K, 1080p, 720p, SD) and
-  dynamic range (Any HDR, Dolby Vision, HDR+, HDR, HLG, SDR), where the
+  dynamic range (Any HDR, HDR including Dolby Vision and HDR+, Dolby
+  Vision, HDR+, HLG, SDR), where the
   server offers more than one of them: in the Filter panel after Year,
   with a chip saying the one chosen. Clear filters and Save as… take them
   in, and the library opens with them as it was left.

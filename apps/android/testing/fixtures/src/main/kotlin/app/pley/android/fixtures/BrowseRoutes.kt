@@ -220,17 +220,32 @@ internal class BrowseRoutes(private val s: State) {
         return ResolutionFilter.entries.filter { it in found }.takeIf { it.size > 1 }.orEmpty().map { it.wire }
     }
 
-    /** The dynamic ranges [items] have, as [resolutionsOf]; "hdr" first when they have SDR and two kinds of HDR. */
+    /**
+     * The dynamic ranges worth offering to [items], as the server offers them: broadest first, each that keeps
+     * some of the titles but not all, and not the same ones as a choice of fewer kinds.
+     */
     private fun dynamicRangesOf(items: List<ItemDetail>): List<String> {
         val found = items.mapNotNull(views::dynamicRangeOf).map { it.wire }.toSet()
-        val ranges = DynamicRangeFilter.entries.filter { it != DynamicRangeFilter.Hdr && it.wire in found }.takeIf { it.size > 1 }.orEmpty()
-        val hdr = ranges.count { it != DynamicRangeFilter.Sdr } > 1 && DynamicRangeFilter.Sdr in ranges
-        return (if (hdr) listOf(DynamicRangeFilter.Hdr) + ranges else ranges).map { it.wire }
+        val chosen = mutableListOf<Pair<DynamicRangeFilter, Set<String>>>()
+        for (choice in RANGE_CHOICES.sortedBy { it.keeps().size }) {
+            val kept = choice.keeps() intersect found
+            if (kept.isNotEmpty() && kept.size < found.size && chosen.none { it.second == kept }) chosen += choice to kept
+        }
+        return RANGE_CHOICES.filter { choice -> chosen.any { it.first == choice } }.map { it.wire }
     }
 
-    /** Whether a title of dynamic range [range] is one this filter keeps: [DynamicRangeFilter.Hdr] keeps every one but SDR. */
-    private fun DynamicRangeFilter.matches(range: DynamicRange): Boolean =
-        if (this == DynamicRangeFilter.Hdr) range != DynamicRange.Sdr else range.wire == wire
+    /**
+     * The ranges this filter keeps, as the server's: [DynamicRangeFilter.Hdr] every one but SDR,
+     * [DynamicRangeFilter.Hdr10] (HDR) HDR10 with HDR10+ and Dolby Vision, the others themselves alone.
+     */
+    private fun DynamicRangeFilter.keeps(): Set<String> = when (this) {
+        DynamicRangeFilter.Hdr -> setOf("dolby_vision", "hdr10plus", "hdr10", "hlg")
+        DynamicRangeFilter.Hdr10 -> setOf("dolby_vision", "hdr10plus", "hdr10")
+        else -> setOf(wire)
+    }
+
+    /** Whether a title of dynamic range [range] is one this filter keeps. */
+    private fun DynamicRangeFilter.matches(range: DynamicRange): Boolean = range.wire in keeps()
 
     // ---------------------------------------------------------------- hubs
 
@@ -415,6 +430,16 @@ internal class BrowseRoutes(private val s: State) {
 
         /** A scope no app has: the route is the web app's only. */
         const val WEB_ONLY = "web"
+
+        /** The dynamic ranges a library can be filtered by, as the server offers them: broadest first. */
+        private val RANGE_CHOICES = listOf(
+            DynamicRangeFilter.Hdr,
+            DynamicRangeFilter.Hdr10,
+            DynamicRangeFilter.DolbyVision,
+            DynamicRangeFilter.Hdr10Plus,
+            DynamicRangeFilter.Hlg,
+            DynamicRangeFilter.Sdr,
+        )
 
         private fun sha1(text: String): String =
             MessageDigest.getInstance("SHA-1").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }

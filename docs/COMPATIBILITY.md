@@ -503,8 +503,9 @@ a field Pley doesn't read (`hdr`, `dovi`, `audioLanguage`,
 `/library/sections/{id}/resolution`, so Kometa's movie collections by
 resolution work; for shows Kometa asks for `episode.resolution`, a filter on
 descendants. Pley also reads `dynamicRange`, a title's best: `hdr` (any but
-SDR), `dolby_vision`, `hdr10plus`, `hdr10`, `hlg` or `sdr`; its apps save
-these two in smart collections and playlists.
+SDR), `hdr10` (HDR10, HDR10+ and Dolby Vision), or `dolby_vision`,
+`hdr10plus`, `hlg` or `sdr` alone; its apps save these two in smart
+collections and playlists.
 
 With `includeMeta=1` the response describes these filters, sorts and fields
 in a `Meta` element; `python-plexapi` validates searches against it. Pley's

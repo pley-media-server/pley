@@ -275,9 +275,14 @@ impl FileFilter {
 /// below 720p.
 pub const RESOLUTIONS: [&str; 4] = ["4k", "1080", "720", "sd"];
 
-/// The dynamic ranges a library can be filtered by, best first: a title's
-/// is its best file's (a show's best episode's). `hdr` names the first four.
+/// The dynamic ranges a title can have, best first: a title's is its best
+/// file's (a show's best episode's). `hdr10` names the first three, `hdr`
+/// the first four ([`dynamic_ranges_named`]).
 pub const DYNAMIC_RANGES: [&str; 5] = ["dolby_vision", "hdr10plus", "hdr10", "hlg", "sdr"];
+
+/// The dynamic ranges a library can be filtered by, as they're offered:
+/// from those that keep the most kinds to those that keep one.
+const RANGE_CHOICES: [&str; 6] = ["hdr", "hdr10", "dolby_vision", "hdr10plus", "hlg", "sdr"];
 
 /// The resolutions a filter's value names: Pley's, `2160`, and the `576`
 /// and `480` of Plex's filters, which are SD here. Nothing for another value.
@@ -292,14 +297,16 @@ pub fn resolutions_named(value: &str) -> &'static [&'static str] {
     }
 }
 
-/// The dynamic ranges a filter's value names: one of them, or `hdr` for
-/// every one but SDR. Nothing for another value.
+/// The dynamic ranges a filter's value names: `hdr` every one but SDR,
+/// `hdr10` (HDR) HDR10 with HDR10+ and Dolby Vision, and the others
+/// themselves alone (a Dolby Vision + HDR10+ title is Dolby Vision).
+/// Nothing for another value.
 pub fn dynamic_ranges_named(value: &str) -> &'static [&'static str] {
-    let value = value.trim().to_ascii_lowercase();
-    if value == "hdr" {
-        return &DYNAMIC_RANGES[..4];
+    match value.trim().to_ascii_lowercase().as_str() {
+        "hdr" => &DYNAMIC_RANGES[..4],
+        "hdr10" => &DYNAMIC_RANGES[..3],
+        value => DYNAMIC_RANGES.iter().position(|r| *r == value).map_or(&[], |i| &DYNAMIC_RANGES[i..=i]),
     }
-    DYNAMIC_RANGES.iter().position(|r| *r == value).map_or(&[], |i| &DYNAMIC_RANGES[i..=i])
 }
 
 /// The resolution of a `width` and `height`, with the same lines as the
@@ -930,8 +937,7 @@ pub async fn library_filters(
 pub struct MediaFilters {
     /// Of [`RESOLUTIONS`], those titles have.
     pub resolutions: Vec<&'static str>,
-    /// Of [`DYNAMIC_RANGES`], those titles have, after `hdr` when they have
-    /// SDR and two kinds of HDR.
+    /// Of [`RANGE_CHOICES`], those worth offering ([`range_choices`]).
     pub dynamic_ranges: Vec<&'static str>,
 }
 
@@ -940,6 +946,28 @@ pub struct MediaFilters {
 fn offered(found: &HashSet<String>, order: &[&'static str]) -> Vec<&'static str> {
     let values: Vec<&'static str> = order.iter().copied().filter(|v| found.contains(*v)).collect();
     if values.len() > 1 { values } else { Vec::new() }
+}
+
+/// The dynamic ranges worth offering to titles of the ranges `found`, in
+/// the order of [`RANGE_CHOICES`]: each that keeps some of the titles but
+/// not all, and not the same ones as a choice of fewer kinds. Dolby Vision
+/// alone takes the place of an HDR that would keep only it, and HDR that of
+/// Any HDR without HLG beside it.
+fn range_choices(found: &HashSet<String>) -> Vec<&'static str> {
+    let kept = |choice: &str| -> Vec<&'static str> {
+        dynamic_ranges_named(choice).iter().copied().filter(|r| found.contains(*r)).collect()
+    };
+    let all = DYNAMIC_RANGES.iter().filter(|r| found.contains(**r)).count();
+    let mut narrowest_first = RANGE_CHOICES;
+    narrowest_first.sort_by_key(|choice| dynamic_ranges_named(choice).len());
+    let mut chosen: Vec<(&str, Vec<&str>)> = Vec::new();
+    for choice in narrowest_first {
+        let titles = kept(choice);
+        if !titles.is_empty() && titles.len() < all && chosen.iter().all(|(_, other)| *other != titles) {
+            chosen.push((choice, titles));
+        }
+    }
+    RANGE_CHOICES.into_iter().filter(|choice| chosen.iter().any(|(c, _)| c == choice)).collect()
 }
 
 /// The resolutions and dynamic ranges of the titles of a movie or show
@@ -971,12 +999,7 @@ pub async fn media_filters(db: &Db, user_id: i64, library_id: i64, kind: &str) -
     .await?;
     let (resolutions, ranges): (HashSet<String>, HashSet<String>) =
         found.into_iter().map(|(r, d)| (r.unwrap_or_default(), d.unwrap_or_default())).unzip();
-    let mut dynamic_ranges = offered(&ranges, &DYNAMIC_RANGES);
-    let hdr_kinds = dynamic_ranges.iter().filter(|r| **r != "sdr").count();
-    if hdr_kinds > 1 && dynamic_ranges.contains(&"sdr") {
-        dynamic_ranges.insert(0, "hdr");
-    }
-    Ok(MediaFilters { resolutions: offered(&resolutions, &RESOLUTIONS), dynamic_ranges })
+    Ok(MediaFilters { resolutions: offered(&resolutions, &RESOLUTIONS), dynamic_ranges: range_choices(&ranges) })
 }
 
 pub async fn files_for_item(db: &Db, item_id: i64) -> sqlx::Result<Vec<FileRow>> {
@@ -2278,5 +2301,46 @@ mod tests {
         assert_eq!(page(LibraryQuery { offset: 1, limit: Some(2), ..base() }).await, (vec![2, 3], 4));
         assert_eq!(page(LibraryQuery { limit: Some(0), ..base() }).await, (vec![], 4));
         assert_eq!(page(LibraryQuery { offset: 10, ..base() }).await, (vec![], 4));
+    }
+
+    /// HDR keeps HDR10, HDR10+ and Dolby Vision; Any HDR HLG too; the rest
+    /// themselves alone.
+    #[test]
+    fn hdr_takes_in_hdr10plus_and_dolby_vision() {
+        assert_eq!(dynamic_ranges_named("hdr10"), ["dolby_vision", "hdr10plus", "hdr10"]);
+        assert_eq!(dynamic_ranges_named("HDR"), ["dolby_vision", "hdr10plus", "hdr10", "hlg"]);
+        assert_eq!(dynamic_ranges_named("dolby_vision"), ["dolby_vision"]);
+        assert_eq!(dynamic_ranges_named("hdr10plus"), ["hdr10plus"]);
+        assert_eq!(dynamic_ranges_named("hlg"), ["hlg"]);
+        assert_eq!(dynamic_ranges_named("hdr12"), [] as [&str; 0]);
+    }
+
+    /// Choices that keep the same titles as a narrower one aren't offered,
+    /// nor those that keep all or none.
+    #[test]
+    fn range_choices_each_keep_other_titles() {
+        let choices = |found: &[&str]| range_choices(&found.iter().map(|r| r.to_string()).collect());
+        assert_eq!(choices(&["dolby_vision", "sdr"]), ["dolby_vision", "sdr"], "HDR would be Dolby Vision");
+        assert_eq!(choices(&["hdr10", "sdr"]), ["hdr10", "sdr"]);
+        assert_eq!(choices(&["dolby_vision", "hdr10", "sdr"]), ["hdr10", "dolby_vision", "sdr"], "Any HDR is HDR");
+        assert_eq!(
+            choices(&["dolby_vision", "hdr10plus", "hdr10", "sdr"]),
+            ["hdr10", "dolby_vision", "hdr10plus", "sdr"]
+        );
+        assert_eq!(choices(&["dolby_vision", "hdr10plus", "sdr"]), ["hdr10", "dolby_vision", "hdr10plus", "sdr"]);
+        assert_eq!(
+            choices(&["dolby_vision", "hdr10", "hlg", "sdr"]),
+            ["hdr", "hdr10", "dolby_vision", "hlg", "sdr"],
+            "Any HDR with HLG beside the rest"
+        );
+        assert_eq!(choices(&["dolby_vision", "hlg", "sdr"]), ["hdr", "dolby_vision", "hlg", "sdr"]);
+        assert_eq!(choices(&["hlg", "sdr"]), ["hlg", "sdr"]);
+        // Without SDR, HDR keeps every title: only what narrows it.
+        assert_eq!(choices(&["hdr10plus", "hdr10"]), ["hdr10plus"]);
+        assert_eq!(choices(&["dolby_vision", "hdr10plus"]), ["dolby_vision", "hdr10plus"]);
+        // One range, none, or titles with no probed file: nothing to choose.
+        assert_eq!(choices(&["dolby_vision"]), [] as [&str; 0]);
+        assert_eq!(choices(&[]), [] as [&str; 0]);
+        assert_eq!(choices(&["", "sdr"]), [] as [&str; 0]);
     }
 }

@@ -147,10 +147,10 @@ left on, kept on the Roku for each server, profile and library.
 - **Filter**, the chip after the sort's, opens a panel: Show (all titles,
   unwatched or watched), Genre and Year, then, in a library of movies or
   shows, Resolution (4K, 1080p, 720p, SD) and Dynamic range (Any HDR,
-  Dolby Vision, HDR+, HDR, HLG, SDR). Those two show once
-  the server says the titles differ in them, offering what they have, or
-  while one is chosen; a title counts by its best file, a show by its best
-  episode. The chip says what is kept ("Unwatched, 4K, Dolby Vision").
+  HDR, which takes in Dolby Vision and HDR+, Dolby Vision, HDR+, HLG,
+  SDR). Those two show once the server says the titles differ in them,
+  offering the choices it lists, or while one is chosen; a title counts by
+  its best file, a show by its best episode. The chip says what is kept ("Unwatched, 4K, Dolby Vision").
 - **Save as…:** once filters are set, the Filter panel ends with Clear
   filters and Save as…, which saves them and the order as a smart playlist
   (`POST /api/playlists` with `library_id` and `smart_filter`, written as

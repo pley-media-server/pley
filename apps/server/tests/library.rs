@@ -1226,17 +1226,20 @@ async fn libraries_filter_by_resolution_and_dynamic_range() {
     assert_eq!(listed("dynamic_range=hdr").await, ["Alien", "Brazil"]);
     assert_eq!(listed("dynamic_range=dolby_vision").await, ["Brazil"]);
     assert_eq!(listed("dynamic_range=sdr").await, ["Casablanca", "Dune"]);
-    assert_eq!(listed("resolution=4k&dynamic_range=hdr10").await, ["Alien"]);
+    // HDR takes in Dolby Vision (and HDR10+); Dolby Vision is Dolby Vision alone.
+    assert_eq!(listed("dynamic_range=hdr10").await, ["Alien", "Brazil"]);
+    assert_eq!(listed("resolution=1080&dynamic_range=hdr10").await, [] as [&str; 0]);
     assert_eq!(listed("resolution=&dynamic_range=").await.len(), 4, "empty is no filter");
     for bad in ["resolution=8k", "dynamic_range=hdr12"] {
         let reply = app.get(&format!("/api/libraries/{movies}/items?{bad}"), &admin).await;
         assert_eq!(reply.status, StatusCode::BAD_REQUEST, "{bad}");
     }
 
-    // What the library has to filter by, best first.
+    // What the library has to filter by: resolutions best first, ranges
+    // broadest first, Any HDR left out as it would keep what HDR keeps.
     let filters = app.get(&format!("/api/libraries/{movies}/filters"), &admin).await.body;
     assert_eq!(filters["resolutions"], json!(["4k", "1080", "sd"]));
-    assert_eq!(filters["dynamic_ranges"], json!(["hdr", "dolby_vision", "hdr10", "sdr"]));
+    assert_eq!(filters["dynamic_ranges"], json!(["hdr10", "dolby_vision", "sdr"]));
 
     // Filtered, a title is described and sorted by the version that
     // matches: Alien's 4K HDR10 file, not its higher-bitrate 1080p one.
@@ -1261,7 +1264,7 @@ async fn libraries_filter_by_resolution_and_dynamic_range() {
     for (filter, found) in [
         ("resolution=4k", vec!["Brazil", "Alien"]),
         ("dynamic_range=hdr", vec!["Brazil", "Alien"]),
-        ("dynamic_range=hdr10", vec!["Alien"]),
+        ("dynamic_range=hdr10", vec!["Brazil", "Alien"]),
     ] {
         let reply = app.get(&format!("/api/libraries/{movies}/items?sort=bitrate&{filter}"), &admin).await.body;
         assert_eq!(titles(&reply["items"]), found, "{filter}: by the matching version's bitrate");
@@ -1293,6 +1296,9 @@ async fn libraries_filter_by_resolution_and_dynamic_range() {
         ("type=1&resolution=480", vec!["Casablanca"]),
         ("type=1&resolution!=4k", vec!["Casablanca", "Dune"]),
         ("type=1&dynamicRange=hdr", vec!["Alien", "Brazil"]),
+        ("type=1&dynamicRange=hdr10", vec!["Alien", "Brazil"]),
+        ("type=1&dynamicRange=dolby_vision", vec!["Brazil"]),
+        ("type=1&dynamicRange=hdr10&title!=é", vec!["Alien", "Brazil"]),
         ("type=1&dynamicRange=sdr&resolution=1080", vec!["Dune"]),
         ("type=1&dynamicRange=hdr&title!=é", vec!["Alien", "Brazil"]),
         ("type=1&resolution=sd&title!=é", vec!["Casablanca"]),

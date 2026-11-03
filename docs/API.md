@@ -1494,7 +1494,7 @@ open only some libraries see those, in that order.
 | `genre` | a genre name |
 | `year` | `yyyy` |
 | `resolution` | `4k`, `1080` (up to 1440p), `720`, `sd`: the title's best file's, a show's best episode's; another value: `400` |
-| `dynamic_range` | `hdr` (any but SDR), `dolby_vision`, `hdr10plus`, `hdr10`, `hlg`, `sdr`: the title's best file's, in that order, a show's best episode's; another value: `400` |
+| `dynamic_range` | `hdr` (Any HDR: any but SDR), `hdr10` (HDR: HDR10, HDR10+ and Dolby Vision), `dolby_vision`, `hdr10plus`, `hlg`, `sdr` (each alone; Dolby Vision + HDR10+ is Dolby Vision): the title's best file's, best in the order Dolby Vision, HDR10+, HDR10, HLG, SDR, a show's best episode's; another value: `400` |
 | `offset`, `limit` | paging |
 | `summaries` | `1`: with synopses ([`summaries=1`](#types)) |
 
@@ -1506,10 +1506,13 @@ its bitrate and size under them sorted by `bitrate`. Filtered by either,
 rather than its higher-bitrate HDR10 one; a show's matching episodes), and
 `sort=bitrate` orders by that version's bitrate.
 
-`GET /api/libraries/{id}/filters` lists `resolutions` and `dynamic_ranges`
-best first, only those the titles have and only when they have two or
-more (one leaves nothing to choose); `dynamic_ranges` starts with `hdr` when
-the titles have SDR and two kinds of HDR. Music has neither.
+`GET /api/libraries/{id}/filters` lists `resolutions` best first, only
+those the titles have and only when they have two or more (one leaves
+nothing to choose). It lists `dynamic_ranges` broadest first (`hdr`,
+`hdr10`, `dolby_vision`, `hdr10plus`, `hlg`, `sdr`), each that keeps some
+of the titles but not all, and not the same ones as a choice of fewer
+kinds: Dolby Vision alone stands for an HDR that would keep only it, and HDR
+for an Any HDR without HLG beside it. Music has neither.
 
 Answers to `/items` carry an `ETag` and
 `Cache-Control: private, no-cache`;

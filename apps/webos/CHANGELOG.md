@@ -35,7 +35,8 @@ describes how they are made.
 - In the Live TV player, Next and Previous change channel as CH+ and CH−
   do, once a press, as in the Android TV app.
 - A library of movies or shows filters by resolution (4K, 1080p, 720p,
-  SD) and dynamic range (Any HDR, Dolby Vision, HDR+, HDR, HLG, SDR),
+  SD) and dynamic range (Any HDR, HDR including Dolby Vision and HDR+,
+  Dolby Vision, HDR+, HLG, SDR),
   from the Filter panel's Resolution and Dynamic range, where its titles
   have more than one. A chip names the choice while one is chosen; Clear
   filters, the count, the kept view and Save as… treat them as Genre and

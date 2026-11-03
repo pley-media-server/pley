@@ -170,9 +170,10 @@ heard it for that profile, the start asks "Who's watching?".
 
 A library's Library tab sorts and filters its grid as the web app does:
 watched or not, genre, year and, in movie and show libraries, resolution
-(4K, 1080p, 720p, SD) and dynamic range (Any HDR, Dolby Vision, HDR+,
-HDR, HLG, SDR) where the library has titles of more than one. A title
-counts by its best file, a show by its best episode.
+(4K, 1080p, 720p, SD) and dynamic range (Any HDR, HDR, which takes in
+Dolby Vision and HDR+, Dolby Vision, HDR+, HLG, SDR), the choices the
+server lists where the library's titles differ in them. A title counts by
+its best file, a show by its best episode.
 
 - **Phones**: each filter is a chip over the grid that opens its sheet.
 - **TVs**: Genre and Year are chips and rows of the Filter panel;

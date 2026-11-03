@@ -69,7 +69,7 @@ fn libraries_and_browsing() {
     let filters: LibraryFilters = decode("libraries/filters.json");
     assert!(!filters.genres.is_empty());
     assert_eq!(filters.resolutions, [ResolutionFilter::Uhd, ResolutionFilter::Fhd, ResolutionFilter::Sd]);
-    assert_eq!(filters.dynamic_ranges[..2], [RangeFilter::Hdr, RangeFilter::DolbyVision]);
+    assert_eq!(filters.dynamic_ranges, [RangeFilter::Hdr10, RangeFilter::DolbyVision, RangeFilter::Sdr]);
     let hubs: Hubs = decode("libraries/hubs.json");
     assert!(!hubs.hubs.is_empty());
     let home: Hubs = decode("hubs/home.json");

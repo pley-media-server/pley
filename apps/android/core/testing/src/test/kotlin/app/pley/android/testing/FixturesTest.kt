@@ -371,7 +371,7 @@ class FixturesTest {
         val filters = Fixtures.decode<LibraryFilters>("libraries/filters.json")
         assertEquals(listOf(ResolutionFilter.Uhd, ResolutionFilter.FullHd), filters.resolutionChoices)
         assertEquals(
-            listOf(DynamicRangeFilter.Hdr, DynamicRangeFilter.DolbyVision, DynamicRangeFilter.Hdr10, DynamicRangeFilter.Sdr),
+            listOf(DynamicRangeFilter.Hdr10, DynamicRangeFilter.DolbyVision, DynamicRangeFilter.Sdr),
             filters.dynamicRangeChoices,
         )
         // An older server's answer has neither, and a token this app doesn't know is left out.

@@ -65,9 +65,11 @@ fn libraries_list_sort_filter_and_page() {
     let years: Vec<i64> = filters["years"].as_array().unwrap().iter().map(|y| y.as_i64().unwrap()).collect();
     assert!(years.windows(2).all(|w| w[0] > w[1]));
     assert!(filters["genres"].as_array().unwrap().iter().any(|g| g == "Comedy"));
-    // The resolutions and dynamic ranges the films have, best first, HDR of any kind first.
+    // The resolutions the films have, best first, and the dynamic ranges
+    // broadest first: HDR (which takes in Dolby Vision and HDR10+) leads,
+    // and Any HDR, which would keep the same films without HLG, is left out.
     assert_eq!(filters["resolutions"], json!(["4k", "1080"]));
-    assert_eq!(filters["dynamic_ranges"], json!(["hdr", "dolby_vision", "hdr10plus", "hdr10", "sdr"]));
+    assert_eq!(filters["dynamic_ranges"], json!(["hdr10", "dolby_vision", "hdr10plus", "sdr"]));
     assert_eq!(api.get("/api/libraries/3/filters").json()["resolutions"], json!([]), "music has none");
     // The listing filters by them: a title by its best file.
     let uhd = api.get("/api/libraries/1/items?resolution=4k").json();
@@ -81,6 +83,15 @@ fn libraries_list_sort_filter_and_page() {
     assert!(all(&hdr, &|m| m["dynamic_range"] != "sdr"));
     let dv = api.get("/api/libraries/1/items?dynamic_range=dolby_vision&resolution=4k").json();
     assert!(all(&dv, &|m| m["dynamic_range"] == "dolby_vision"));
+    // HDR takes in Dolby Vision and HDR10+: without HLG, the same films as Any HDR.
+    let total = |query: &str| api.get(&format!("/api/libraries/1/items?{query}")).json()["total"].as_i64().unwrap();
+    let (hdr10, dolby_vision, hdr10plus) =
+        (total("dynamic_range=hdr10"), total("dynamic_range=dolby_vision"), total("dynamic_range=hdr10plus"));
+    assert_eq!(hdr10, hdr["total"].as_i64().unwrap());
+    assert!(
+        dolby_vision > 0 && hdr10plus > 0 && hdr10 > dolby_vision + hdr10plus,
+        "{hdr10} {dolby_vision} {hdr10plus}"
+    );
     assert_eq!(api.get("/api/libraries/1/items?resolution=8k").status, 400);
     assert_eq!(api.get("/api/libraries/1/items?dynamic_range=hdr11").status, 400);
     assert_eq!(api.get("/api/libraries/1/items?resolution=").json()["total"], 1500, "empty is no filter");

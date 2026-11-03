@@ -375,15 +375,20 @@ fn resolutions_named(value: &str) -> Option<&'static [&'static str]> {
     Some(&views::RESOLUTIONS[at..=at])
 }
 
-/// The dynamic ranges a `dynamic_range` value names: one, or `hdr` for every
-/// one but SDR. None for another value.
+/// The dynamic ranges a `dynamic_range` value names, as the server's: `hdr`
+/// every one but SDR, `hdr10` (HDR) HDR10 with HDR10+ and Dolby Vision, the
+/// others themselves alone. None for another value.
 fn ranges_named(value: &str) -> Option<&'static [&'static str]> {
-    let value = value.to_ascii_lowercase();
-    if value == "hdr" {
-        return Some(&views::DYNAMIC_RANGES[..4]);
+    match value.to_ascii_lowercase().as_str() {
+        "hdr" => Some(&views::DYNAMIC_RANGES[..4]),
+        "hdr10" => Some(&views::DYNAMIC_RANGES[..3]),
+        value => views::DYNAMIC_RANGES.iter().position(|r| *r == value).map(|i| &views::DYNAMIC_RANGES[i..=i]),
     }
-    views::DYNAMIC_RANGES.iter().position(|r| *r == value).map(|i| &views::DYNAMIC_RANGES[i..=i])
 }
+
+/// The dynamic ranges a library can be filtered by, as the server offers
+/// them: from those that keep the most kinds to those that keep one.
+const RANGE_CHOICES: [&str; 6] = ["hdr", "hdr10", "dolby_vision", "hdr10plus", "hlg", "sdr"];
 
 /// The values of a filter worth offering: those of `order` the titles have,
 /// when they have two or more (one would keep every title).
@@ -392,10 +397,29 @@ fn offered(found: &HashSet<&'static str>, order: &[&'static str]) -> Vec<&'stati
     if values.len() > 1 { values } else { Vec::new() }
 }
 
+/// The dynamic ranges worth offering to titles of the ranges `found`, as the
+/// server's: each that keeps some of the titles but not all, and not the
+/// same ones as a choice of fewer kinds.
+fn range_choices(found: &HashSet<&'static str>) -> Vec<&'static str> {
+    let kept = |choice: &str| -> Vec<&'static str> {
+        ranges_named(choice).unwrap_or_default().iter().copied().filter(|r| found.contains(r)).collect()
+    };
+    let all = views::DYNAMIC_RANGES.iter().filter(|r| found.contains(*r)).count();
+    let mut narrowest_first = RANGE_CHOICES;
+    narrowest_first.sort_by_key(|choice| ranges_named(choice).map_or(0, <[_]>::len));
+    let mut chosen: Vec<(&str, Vec<&str>)> = Vec::new();
+    for choice in narrowest_first {
+        let titles = kept(choice);
+        if !titles.is_empty() && titles.len() < all && chosen.iter().all(|(_, other)| *other != titles) {
+            chosen.push((choice, titles));
+        }
+    }
+    RANGE_CHOICES.into_iter().filter(|choice| chosen.iter().any(|(c, _)| c == choice)).collect()
+}
+
 /// GET /api/libraries/{id}/filters: genres (case-insensitively sorted),
-/// years (newest first), and for movies and shows the resolutions and dynamic
-/// ranges worth filtering by, best first (`hdr` first when the titles have SDR
-/// and two kinds of HDR).
+/// years (newest first), and for movies and shows the resolutions (best
+/// first) and dynamic ranges ([`range_choices`]) worth filtering by.
 fn filters(cx: &Cx<'_>, _: &mut State) -> Answer {
     let id = cx.id(0)?;
     let catalog = cx.catalog();
@@ -412,10 +436,7 @@ fn filters(cx: &Cx<'_>, _: &mut State) -> Answer {
         let found: HashSet<&'static str> = items.iter().filter_map(|i| views::title_resolution(catalog, i)).collect();
         resolutions = offered(&found, &views::RESOLUTIONS);
         let found: HashSet<&'static str> = items.iter().filter_map(|i| views::title_range(catalog, i)).collect();
-        ranges = offered(&found, &views::DYNAMIC_RANGES);
-        if ranges.iter().filter(|r| **r != "sdr").count() > 1 && ranges.contains(&"sdr") {
-            ranges.insert(0, "hdr");
-        }
+        ranges = range_choices(&found);
     }
     let body = json!({ "genres": genres, "years": years, "resolutions": resolutions, "dynamic_ranges": ranges });
     Ok(json(200, &body))

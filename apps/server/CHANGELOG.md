@@ -62,7 +62,8 @@ describes how they are made.
   to the addresses or networks it is used from, or the home network; from
   elsewhere it is refused, and so are the streams it started.
 - Movie and show libraries can be filtered by resolution (4K, 1080p, 720p,
-  SD) and by dynamic range (Any HDR, Dolby Vision, HDR+, HDR, HLG, SDR),
+  SD) and by dynamic range (Any HDR, HDR including Dolby Vision and HDR+,
+  Dolby Vision, HDR+, HLG, SDR),
   each title by its best file (a show by its best episode), and shown and
   sorted by the version that matches: a film filtered by Dolby Vision shows
   its Dolby Vision file's badges and bitrate. The choices are those the

@@ -141,11 +141,13 @@ const RESOLUTIONS = [
   ["sd", () => true],
 ];
 const resolutionOf = (media) => RESOLUTIONS.find(([, fits]) => fits(media?.width ?? 0, media?.height ?? 0))[0];
+// The ranges a dynamic_range value keeps, as the server's: "hdr" every one
+// but SDR, "hdr10" (HDR) HDR10+ and Dolby Vision too, the rest themselves.
+const RANGES_NAMED = { hdr: ["dolby_vision", "hdr10plus", "hdr10", "hlg"], hdr10: ["dolby_vision", "hdr10plus", "hdr10"] };
 function matchesQuality(item, resolution, range) {
   const media = mediaOf(item);
   if (resolution && resolutionOf(media) !== resolution) return false;
-  if (range === "hdr") return !!media?.dynamic_range && media.dynamic_range !== "sdr";
-  return !range || media?.dynamic_range === range;
+  return !range || (RANGES_NAMED[range] ?? [range]).includes(media?.dynamic_range);
 }
 
 const show = {
@@ -610,11 +612,12 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
     if ((match = path.match(/^\/api\/libraries\/(\d+)\/collections$/))) {
       return json(200, { collections: collections.filter((c) => c.library_id === Number(match[1])).map(collectionOf) });
     }
-    // Resolutions and dynamic ranges only where the titles have two or
-    // more, as the server lists them: the movies differ, the one show and
+    // Resolutions and dynamic ranges only where they tell titles apart, as
+    // the server lists them: the movies differ (Dolby Vision, HDR10 and SDR,
+    // so HDR, which takes in Dolby Vision, and no Any HDR), the one show and
     // music don't.
     if ((match = path.match(/^\/api\/libraries\/(\d+)\/filters$/))) {
-      const quality = match[1] === "1" ? { resolutions: ["4k", "1080"], dynamic_ranges: ["hdr", "dolby_vision", "hdr10", "sdr"] } : { resolutions: [], dynamic_ranges: [] };
+      const quality = match[1] === "1" ? { resolutions: ["4k", "1080"], dynamic_ranges: ["hdr10", "dolby_vision", "sdr"] } : { resolutions: [], dynamic_ranges: [] };
       return json(200, { genres: ["Drama", "Mystery"], years: [2022, 2019], ...quality });
     }
     if ((match = path.match(/^\/api\/libraries\/(\d+)\/items$/))) {

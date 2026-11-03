@@ -84,7 +84,8 @@ class EndpointsTest {
         val app = Client(server, server.accessToken())
         val filters = app.read("/api/libraries/1/filters", LibraryFilters.serializer())
         assertEquals(listOf("4k", "1080"), filters.resolutions)
-        assertEquals(listOf("hdr", "dolby_vision", "hdr10plus", "hdr10", "sdr"), filters.dynamicRanges)
+        // Broadest first; Any HDR would keep what HDR does, there being no HLG.
+        assertEquals(listOf("hdr10", "dolby_vision", "hdr10plus", "sdr"), filters.dynamicRanges)
         fun count(query: String) = app.read("/api/libraries/1/items?$query&limit=0", ItemsPage.serializer()).total
         // Each title is of one resolution and one range.
         assertEquals(1_500, filters.resolutions.sumOf { count("resolution=$it") })
@@ -92,7 +93,10 @@ class EndpointsTest {
         val uhd = app.read("/api/libraries/1/items?resolution=4k&dynamic_range=dolby_vision", ItemsPage.serializer())
         assertTrue(uhd.items.isNotEmpty())
         assertTrue(uhd.items.all { it.media?.height == 2160 && it.media?.dynamicRange == DynamicRange.DolbyVision })
-        assertTrue(count("dynamic_range=hdr") > count("dynamic_range=hdr10"))
+        // HDR takes in Dolby Vision and HDR10+; each of those keeps itself alone.
+        assertEquals(count("dynamic_range=hdr"), count("dynamic_range=hdr10"))
+        val (dolbyVision, hdr10plus) = count("dynamic_range=dolby_vision") to count("dynamic_range=hdr10plus")
+        assertTrue(dolbyVision > 0 && hdr10plus > 0 && count("dynamic_range=hdr10") > dolbyVision + hdr10plus)
         // A value the server doesn't know is refused; none is no filter.
         assertEquals(400, app.get("/api/libraries/1/items?resolution=8k").code)
         assertEquals(400, app.get("/api/libraries/1/items?dynamic_range=hdr12").code)

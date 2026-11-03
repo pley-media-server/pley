@@ -11,7 +11,8 @@ describes how they are made.
 ### Added
 
 - A library of movies or shows filters by resolution (4K, 1080p, 720p, SD)
-  and dynamic range (Any HDR, Dolby Vision, HDR+, HDR, HLG, SDR) in its
+  and dynamic range (Any HDR, HDR including Dolby Vision and HDR+, Dolby
+  Vision, HDR+, HLG, SDR) in its
   Filter panel, offering those its titles have. Clear filters clears them,
   the library keeps them, and Save as… saves them.
 - A library sorted by bitrate, or filtered by resolution or dynamic range,

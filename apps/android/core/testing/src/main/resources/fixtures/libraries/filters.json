@@ -2,5 +2,5 @@
   "genres": ["Action", "Adventure", "Drama", "Science Fiction", "Thriller"],
   "years": [2024, 2021, 2016, 2015, 2013],
   "resolutions": ["4k", "1080"],
-  "dynamic_ranges": ["hdr", "dolby_vision", "hdr10", "sdr"]
+  "dynamic_ranges": ["hdr10", "dolby_vision", "sdr"]
 }
