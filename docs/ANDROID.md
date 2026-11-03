@@ -433,8 +433,8 @@ is in the rail, which shows once the TV is signed in to a server.
   server's stream of them does.
 - **What doesn't play** says so: a file that only a conversion would play
   ("a file on a drive has no server to convert it"), a picture that doesn't
-  move for 12 s, and a file that can't be read again (the drive pulled
-  out).
+  start in 12 s, and a file that can't be read again or that stands still
+  12 s once its picture has shown (the drive pulled out), as on LG TVs.
 
 What only a server does isn't there: converting, the quality menu, seek
 previews, Find subtitles…, saving track choices and the next episode.

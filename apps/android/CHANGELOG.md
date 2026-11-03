@@ -249,6 +249,9 @@ describes how they are made.
 - On TVs, the chapters' cards close when a media key seeks (Previous,
   Next, fast forward or rewind), where they stayed over the scrubber on
   the chapter left behind.
+- On Android TV and Fire TV, a USB drive's video that played and then
+  stood still says the drive may have been pulled out, not that the TV
+  doesn't play the file.
 
 ### Removed
 

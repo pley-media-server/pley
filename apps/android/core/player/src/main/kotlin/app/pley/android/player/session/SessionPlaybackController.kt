@@ -1111,8 +1111,10 @@ class SessionPlaybackController(
             lastAdvancePos = pos
         } else if (now - lastAdvanceAt >= STALL_MS) {
             lastAdvanceAt = now
-            // A file on a drive waits for no server, and the same file again would only stand still again.
-            if (env.drive) return fail(texts.driveStuck, canRetry = true)
+            // A file on a drive waits for no server, and the same file again would only stand still
+            // again: one whose picture never came isn't one this TV plays; one that showed and then
+            // stood still can't be read any more (the drive pulled out), as on LG TVs.
+            if (env.drive) return fail(if (mediaShown) texts.driveUnreadable else texts.driveStuck, canRetry = true)
             val starving = engineLink.status == EngineStatus.Buffering && engineLink.bufferedMs - engineLink.positionMs < STARVING_MS
             act(recovery.onStall(s.info.method, starving), starving)
             return

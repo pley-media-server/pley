@@ -196,9 +196,8 @@ class DrivePlaybackTest {
 
     @Test
     fun aPictureThatNeverStartsSaysSoAfterTwelveSeconds() {
+        // Loading and loading, its picture never showing.
         val c = play()
-        engine.ready()
-        engine.stall()
         advance(13_000)
         val error = c.state.value.phase as PlayerPhase.Error
         assertEquals(texts.driveStuck, error.message)
@@ -207,12 +206,29 @@ class DrivePlaybackTest {
         scheduler.runCurrent()
         assertEquals(2, engine.prepared.size)
         assertTrue(api.calls.isEmpty())
+    }
 
-        // Waiting for data that doesn't come, as from a slow drive: the same, as on the Samsung app.
+    @Test
+    fun aPictureThatShowedThenStandsStillSaysTheDriveMayHaveBeenPulledOut() {
+        // It played, then waits for data that doesn't come: the file is one this TV plays, so not
+        // "try another copy" (as on LG TVs).
+        val c = play()
         engine.ready()
+        advance(2_000)
         engine.starve()
         advance(13_000)
-        assertEquals(texts.driveStuck, (c.state.value.phase as PlayerPhase.Error).message)
+        val error = c.state.value.phase as PlayerPhase.Error
+        assertEquals(texts.driveUnreadable, error.message)
+        assertTrue(error.canRetry)
+        assertTrue(api.calls.isEmpty())
+
+        // Shown and standing still with data: the same, once it has shown.
+        c.retry()
+        scheduler.runCurrent()
+        engine.ready()
+        engine.stall()
+        advance(13_000)
+        assertEquals(texts.driveUnreadable, (c.state.value.phase as PlayerPhase.Error).message)
         assertEquals(2, engine.prepared.size)
     }
 
