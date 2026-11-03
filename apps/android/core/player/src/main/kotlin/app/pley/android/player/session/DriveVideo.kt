@@ -113,8 +113,8 @@ internal class DriveVideo(
 
 /**
  * The subtitle files beside a video on a drive (their `file:` addresses),
- * whole, as the app's WebVTT: SubRip made WebVTT, UTF-16 with a byte-order
- * mark, UTF-8, else Latin-1 ([DriveFolder.decode]). A file larger than
+ * whole, as the app's WebVTT: SubRip made WebVTT, in the encodings
+ * [DriveFolder.decode] tells apart. A file larger than
  * [MAX_BYTES] isn't read: no subtitle file comes near it, and its text is
  * copied a few times on the way to WebVTT, beside the video's buffers on a
  * 1 GB TV.

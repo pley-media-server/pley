@@ -426,8 +426,9 @@ in the rail, which shows once the TV is signed in to a server.
   then a language, "forced" and SDH in any order (`Film.en.forced.srt`;
   `Film 2.srt` is Film 2's), show through the app's own subtitles, and
   Sync moves them; it doesn't move the file's own tracks. Their text is
-  UTF-16 when it starts with that byte-order mark (Windows' "Unicode"),
-  else UTF-8, else Latin-1.
+  UTF-16 or UTF-32 when it starts with that byte-order mark (Windows'
+  "Unicode"), UTF-16 without one when its NUL bytes say so, else UTF-8,
+  else Windows' Western code page (Windows-1252), as on LG TVs.
   From Android 11 the system decides which of a drive's files an app may
   read: a subtitle file it keeps from Pley isn't offered.
 - **Where it stopped** is kept on the device, by the file's path; past 95 %

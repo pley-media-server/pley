@@ -81,9 +81,31 @@ class DriveFolderTest {
     }
 
     @Test
-    fun aSubtitleFileNotInUtf8IsReadAsLatin1() {
+    fun aSubtitleFileNotInUtf8IsReadAsWindows1252() {
         assertEquals("café", DriveFolder.decode(byteArrayOf(0x63, 0x61, 0x66, 0xe9.toByte())))
         assertEquals("café", DriveFolder.decode("café".toByteArray(Charsets.UTF_8)))
+        // Its curly quotes, dash and euro, which Latin-1 would make control characters.
+        val quoted = byteArrayOf(0x93.toByte(), 0x48, 0x69, 0x94.toByte(), 0x20, 0x96.toByte(), 0x20, 0x35, 0x80.toByte())
+        assertEquals("“Hi” – 5€", DriveFolder.decode(quoted))
+    }
+
+    @Test
+    fun aSubtitleFileInUtf16WithoutItsMarkIsReadByItsNulBytes() {
+        val text = "1\n00:00:01,000 --> 00:00:02,000\nCafé 日本\n"
+        assertEquals(text, DriveFolder.decode(text.toByteArray(Charsets.UTF_16LE)))
+        assertEquals(text, DriveFolder.decode(text.toByteArray(Charsets.UTF_16BE)))
+        // Text in a single-byte encoding has no NULs: never taken for UTF-16.
+        val plain = "1\n00:00:01,000 --> 00:00:02,000\nHello\n"
+        assertEquals(plain, DriveFolder.decode(plain.toByteArray(Charsets.UTF_8)))
+    }
+
+    @Test
+    fun aSubtitleFileInUtf32IsReadByItsByteOrderMark() {
+        val points = "Café".codePoints().toArray()
+        val le = byteArrayOf(0xFF.toByte(), 0xFE.toByte(), 0, 0) + points.flatMap { p -> List(4) { (p shr (8 * it)).toByte() } }
+        val be = byteArrayOf(0, 0, 0xFE.toByte(), 0xFF.toByte()) + points.flatMap { p -> List(4) { (p shr (24 - 8 * it)).toByte() } }
+        assertEquals("Café", DriveFolder.decode(le))
+        assertEquals("Café", DriveFolder.decode(be))
     }
 
     @Test
