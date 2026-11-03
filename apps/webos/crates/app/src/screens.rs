@@ -18,7 +18,8 @@ pub fn registry() -> Registry {
         .add(pley_live::screen)
         .add(pley_requests::screen)
         .add(pley_storage::screen)
-        .add(pley_player_ui::screen);
+        .add(pley_player_ui::screen)
+        .tile_actions(pley_item::tile_actions);
     screens
 }
 

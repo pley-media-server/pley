@@ -1209,6 +1209,7 @@ dependencies = [
  "pley-core",
  "pley-fixtures",
  "pley-host",
+ "pley-item",
  "pley-kit",
  "pley-shell",
  "pley-ui",

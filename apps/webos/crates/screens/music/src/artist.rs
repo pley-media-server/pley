@@ -254,7 +254,7 @@ impl ArtistScreen {
             if let Some(i) = r.activated {
                 open = Some(Route::Album { id: albums[i].id, track_id: None });
             } else if let Some(i) = r.actions {
-                open = Some(Route::ItemActions { id: albums[i].id, continue_watching: false });
+                cx.tile_actions(albums[i].id, false);
             }
         }
         self.art = Some(art);

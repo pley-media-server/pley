@@ -609,7 +609,7 @@ impl HomeScreen {
                         .map(|r| (r.section, r.tiles.iter().map(|t| t.item.id).collect()))
                         .collect();
                     self.on_deck = None;
-                    cx.push(Route::ItemActions { id: at.1, continue_watching });
+                    cx.tile_actions(at.1, continue_watching);
                     self.leaving = Some(Leaving { tile: at, stand_in: stand_in(&ids, at.0, at.1) });
                 }
                 Intent::Play { item, from_start } => match play_of(&item, from_start) {

@@ -9,7 +9,7 @@ use pley_base::{Icon, ImageRequest, Point, Rect, TextOpts};
 use pley_core::model::{CreditRole, PersonDetail, PersonRole};
 use pley_core::store::snapshot_keys;
 use pley_kit::{ColumnState, Row, RowColumn, RowState, Section, TileKind};
-use pley_shell::{AppCx, AppEvent, Chrome, Load, Resource, Route, Screen};
+use pley_shell::{AppCx, AppEvent, Chrome, Load, Resource, Screen};
 use pley_ui::theme::{self, radius};
 use pley_ui::{Id, ImageOpts, Ui};
 
@@ -191,7 +191,7 @@ impl PersonScreen {
             cx.push(route);
         }
         if let Some(id) = actions {
-            cx.push(Route::ItemActions { id, continue_watching: false });
+            cx.tile_actions(id, false);
         }
     }
 }

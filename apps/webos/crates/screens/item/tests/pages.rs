@@ -271,11 +271,36 @@ fn a_person_page_starts_on_their_first_title() {
     assert!(app.shows("41 movies · 8 shows in your libraries"));
     let focused = app.focused().expect("nothing focused");
     app.press(Key::Ok);
-    let Some(Route::Item { id }) = app.route().cloned() else { panic!("OK didn't open a title: {:?}", app.route()) };
+    assert!(matches!(app.route(), Some(Route::Item { .. })), "OK didn't open a title: {:?}", app.route());
     app.press(Key::Back);
     assert!(app.until(|a| a.focused() == Some(focused)), "focus didn't come back to the title");
+    // The menu key opens its actions over the page; Back gives focus back to the title.
     app.press(Key::Menu);
-    assert_eq!(app.route(), Some(&Route::ItemActions { id, continue_watching: false }));
+    assert!(app.until(|a| a.shell.panel_open() && a.shows("Add to playlist")), "no actions panel");
+    assert_eq!(app.route(), Some(&Route::Person { id: 1 }));
+    assert!(!app.shows("Remove from Continue Watching"));
+    app.press(Key::Back);
+    app.advance(0.3);
+    assert!(!app.shell.panel_open());
+    assert_eq!(app.focused(), Some(focused), "focus didn't come back to the title");
+}
+
+#[test]
+fn a_tiles_actions_panel_plays_a_show_from_its_next_episode() {
+    let mut app = TestApp::start();
+    app.open(Route::Item { id: ids::SHOW_S1E2 });
+    assert!(app.until(|a| a.shows("Fixture Show")));
+    // What a tile asks for: the show's actions over the page; Play is first.
+    app.shell.navigate(
+        pley_shell::NavCommand::TileActions { id: ids::SHOW, continue_watching: false },
+        &mut app.state,
+        &mut app.ui,
+    );
+    assert!(app.until(|a| a.shell.panel_open()), "no actions panel");
+    app.press(Key::Ok);
+    assert!(!app.shell.panel_open(), "the panel didn't close");
+    assert!(app.until(|a| played(a).is_some()), "the next episode never played");
+    assert_eq!(played(&app).map(|r| r.item_id), Some(ids::SHOW_S1E2));
 }
 
 #[test]

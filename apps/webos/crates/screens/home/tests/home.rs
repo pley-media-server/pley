@@ -106,9 +106,42 @@ fn a_tile_opens_its_page_and_its_actions() {
     app.press(Key::Back);
     app.advance(0.3);
     assert_eq!(app.route(), Some(&Route::Home));
-    assert_eq!(app.focused(), Some(tile(&app, "continue_watching", cw[0])), "focus didn't come back to the tile");
+    let held = tile(&app, "continue_watching", cw[0]);
+    assert_eq!(app.focused(), Some(held), "focus didn't come back to the tile");
+    // Its actions open in a side panel over Home, which stays the page, focus on the first.
     app.hold_ok();
-    assert_eq!(app.route(), Some(&Route::ItemActions { id: cw[0], continue_watching: true }));
+    assert!(app.until(|a| a.shell.panel_open() && a.shows("Remove from Continue Watching")), "no actions panel");
+    assert_eq!(app.route(), Some(&Route::Home));
+    assert!(app.shows("Resume") && app.shows("Play from start"));
+    assert_ne!(app.focused(), Some(held), "focus stayed on the tile under the panel");
+    // Back closes it, focus back on the tile.
+    app.press(Key::Back);
+    app.advance(0.3);
+    assert!(!app.shell.panel_open());
+    assert_eq!(app.route(), Some(&Route::Home), "Back left Home");
+    assert_eq!(app.focused(), Some(held), "focus didn't come back to the tile");
+}
+
+#[test]
+fn a_choice_in_a_tiles_actions_runs_with_focus_back_on_the_tile() {
+    let (mut app, cw) = home();
+    app.until(|a| a.focused() == Some(resume(a)));
+    app.press(Key::Down);
+    let held = tile(&app, "continue_watching", cw[0]);
+    app.press(Key::Menu);
+    assert!(app.until(|a| a.shell.panel_open()), "no actions panel");
+    // Play from start, the second row: the player opens over Home, and Back comes to the tile.
+    app.press(Key::Down);
+    app.press(Key::Ok);
+    match app.route() {
+        Some(Route::Player(request)) => assert!(request.item_id == cw[0] && request.from_start),
+        other => panic!("Play from start opened {other:?}"),
+    }
+    app.press(Key::Back);
+    app.advance(0.3);
+    assert_eq!(app.route(), Some(&Route::Home));
+    assert!(!app.shell.panel_open(), "the panel came back with Home");
+    assert_eq!(app.focused(), Some(held), "focus didn't come back to the tile");
 }
 
 #[test]
@@ -116,12 +149,20 @@ fn a_tile_its_actions_took_away_leaves_focus_to_its_neighbour() {
     let (mut app, cw) = home();
     app.until(|a| a.focused() == Some(resume(a)));
     app.press(Key::Down);
+    let held = tile(&app, "continue_watching", cw[0]);
     app.press(Key::Menu);
-    assert_eq!(app.route(), Some(&Route::ItemActions { id: cw[0], continue_watching: true }));
-    // What the actions page does: the title leaves Continue Watching, and Home asks again.
-    app.state.api().unwrap().hide_from_continue_watching(cw[0]).unwrap();
+    assert!(app.until(|a| a.shell.panel_open() && a.shows("Remove from Continue Watching")), "no actions panel");
+    // Resume, Play from start, Mark as watched, then Remove from Continue Watching.
+    for _ in 0..3 {
+        app.press(Key::Down);
+    }
+    app.press(Key::Ok);
+    // The panel closes and focus is back on the tile before the title leaves the row.
+    assert!(!app.shell.panel_open(), "the panel didn't close");
+    assert_eq!(app.focused(), Some(held), "focus didn't come back to the tile");
+    let path = format!("/api/continue-watching/{}", cw[0]);
+    assert!(app.until(|a| !a.server.writes("DELETE", &path).is_empty()), "the change wasn't sent");
     app.state.refresh();
-    app.press(Key::Back);
     assert!(app.until(|a| a.state.home().is_some_and(|h| h[0].items.first().map(|i| i.id) == Some(cw[1]))));
     app.advance(0.2);
     assert_eq!(app.focused(), Some(tile(&app, "continue_watching", cw[1])));

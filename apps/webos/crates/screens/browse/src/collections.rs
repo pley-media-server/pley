@@ -506,7 +506,7 @@ impl Screen for CollectionScreen {
             cx.push(page_of(&cells[i].item));
         }
         if let Some(i) = r.actions {
-            cx.push(Route::ItemActions { id: cells[i].item.id, continue_watching: false });
+            cx.tile_actions(cells[i].item.id, false);
         }
         let focused = r.focused.map(|i| &cells[i].item);
         let rested = focused.is_some() && ui.rested();

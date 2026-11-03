@@ -36,6 +36,9 @@ pub enum NavCommand {
     /// Ends the app ("Exit Pley?" answered Exit): playback ends, the reports go, the frame loop
     /// stops.
     Quit,
+    /// Opens a tile's actions over the page (OK held, or the menu key, on a tile): the app's side
+    /// panel, else their page.
+    TileActions { id: i64, continue_watching: bool },
 }
 
 /// A message shown at the top right for a few seconds.
@@ -223,6 +226,13 @@ impl<'a> AppCx<'a> {
     /// Leaves the app.
     pub fn exit(&mut self) {
         self.requests.nav.push(NavCommand::Exit);
+    }
+
+    /// Opens item `id`'s actions over the page in a side panel (OK held, or the menu key, on its
+    /// tile); `continue_watching`: the tile is in Continue Watching. Focus goes back to the tile
+    /// when the panel closes, before what was chosen runs.
+    pub fn tile_actions(&mut self, id: i64, continue_watching: bool) {
+        self.requests.nav.push(NavCommand::TileActions { id, continue_watching });
     }
 
     /// What this frame asked to open, so far.

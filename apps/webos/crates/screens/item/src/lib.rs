@@ -10,9 +10,9 @@ mod person;
 mod request;
 mod words;
 
-use pley_shell::{AppCx, Route, Screen};
+use pley_shell::{AppCx, Overlay, Route, Screen};
 
-pub use actions::ItemActionsScreen;
+pub use actions::{ItemActionsScreen, TileActions};
 pub use item::ItemScreen;
 pub use person::PersonScreen;
 
@@ -27,4 +27,10 @@ pub fn screen(route: &Route, cx: &mut AppCx) -> Option<Box<dyn Screen>> {
         Route::Person { id } => Some(Box::new(PersonScreen::new(*id))),
         _ => None,
     }
+}
+
+/// A tile's actions in a side panel over the page (OK held, or the menu key, on a tile anywhere):
+/// the shell's [`pley_shell::Registry::tile_actions`].
+pub fn tile_actions(id: i64, continue_watching: bool, cx: &mut AppCx) -> Box<dyn Overlay> {
+    Box::new(TileActions::new(id, continue_watching, cx))
 }

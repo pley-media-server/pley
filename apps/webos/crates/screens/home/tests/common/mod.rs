@@ -1,5 +1,5 @@
 //! A headless app for Home's and the libraries list's tests: the shell with this crate's screens
-//! alone (other pages are the shell's placeholder), over a fake TV, signed in to the fake server as
+//! and pley-item's tile actions alone (other pages are the shell's placeholder), over a fake TV, signed in to the fake server as
 //! Alex. Frames run with pley-ui's stub shaper and pictures.
 
 #![allow(dead_code)]
@@ -43,7 +43,7 @@ impl TestApp {
         sign_in(&server, ids::ALEX, &store, &http);
         server.set_mode(mode).unwrap();
         let mut registry = Registry::new();
-        registry.add(pley_home::screen);
+        registry.add(pley_home::screen).tile_actions(pley_item::tile_actions);
         let state = AppState::new(device, store, http, Tasks::new(Waker::noop()));
         let mut app = TestApp {
             ui: UiState::new(),

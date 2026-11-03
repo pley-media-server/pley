@@ -35,7 +35,9 @@ pub use request_state::{
     NOTICES_KEPT, NewsKept, REQUEST_GATHER, RequestNotice, RequestState, SUMMARY_GATHER, SUMMARY_POLL, SummaryNews,
 };
 pub use route::{LibraryTab, PlayQueue, PlayRequest, Route, SettingsSection, SmartPlaylist};
-pub use screen::{AppEvent, Chrome, PLACEHOLDER_TEXT, PlaceholderScreen, Registry, Screen, ScreenFactory};
+pub use screen::{
+    AppEvent, Chrome, Overlay, PLACEHOLDER_TEXT, PlaceholderScreen, Registry, Screen, ScreenFactory, TileActionsFactory,
+};
 pub use shell::{Entry, Shell};
 pub use state::{
     AppState, CurrentFetch, ITEM_TTL, LIBRARY_GATHER, OFFLINE_ASK, OFFLINE_NOTICE, OFFLINE_TEXT, REVALIDATE,

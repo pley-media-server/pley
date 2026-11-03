@@ -1,5 +1,5 @@
 //! A headless app for the title, actions and person pages' tests: the shell with this crate's
-//! screens alone, over a fake TV whose player is pley-player's simulated engine, signed in to the
+//! screens and tile actions alone, over a fake TV whose player is pley-player's simulated engine, signed in to the
 //! fake server as Alex. Frames run with pley-ui's stub shaper and pictures.
 
 #![allow(dead_code)]
@@ -40,7 +40,7 @@ impl TestApp {
         let http = Http::network("pleyLG/0.1.0 (webOS 22; test)");
         sign_in(&server, ids::ALEX, &store, &http);
         let mut registry = Registry::new();
-        registry.add(pley_item::screen);
+        registry.add(pley_item::screen).tile_actions(pley_item::tile_actions);
         let mut state = AppState::new(device, store, http, Tasks::new(Waker::noop()));
         let mut ui = UiState::new();
         let mut shell = Shell::new(registry);

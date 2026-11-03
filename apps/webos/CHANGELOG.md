@@ -85,6 +85,11 @@ describes how they are made.
   on (3 s, doubling to 15 s; 24 s for a large one).
 - Search shows movies, shows and episodes first, then music, then Live
   TV, then people, as the other apps do.
+- A tile's actions (OK held, or the menu key) open in a side panel over
+  the page, as in the Android TV and Samsung apps, rather than on a page
+  of their own. A choice closes the panel and focus is back on the tile
+  first, so Back from what it opened comes to the tile, and a tile the
+  choice takes away hands focus to its neighbour.
 - Settings draws the Android TV app's icons: a pulse for Diagnostics, a
   speaker for each pass-through format, and their own icons for Subtitle
   background, Subtitle position, Reduce motion and Manage your account on

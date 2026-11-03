@@ -5,7 +5,7 @@
 //!
 //! Pages open each other only through routes: an album's tiles open [`Route::Album`], its artist
 //! link [`Route::Artist`], Play and Shuffle [`Route::NowPlaying`]; a tile's actions (long OK or
-//! the menu key) open pley-item's [`Route::ItemActions`].
+//! the menu key) open over the page ([`pley_shell::AppCx::tile_actions`]).
 
 mod album;
 mod artist;

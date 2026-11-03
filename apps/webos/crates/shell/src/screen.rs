@@ -88,15 +88,32 @@ pub trait Screen {
     }
 }
 
+/// What the shell draws over the page on top until it is done with it: a tile's actions in a side
+/// panel (Android's `TvTileActionsPanel`). It goes with the page it was opened on.
+pub trait Overlay {
+    /// Draws it over the page and does what was chosen in it; whether it is still wanted (`false`:
+    /// the shell drops it).
+    fn ui(&mut self, ui: &mut Ui, cx: &mut AppCx) -> bool;
+
+    /// Whether it is open and has focus: the page under it then acts as [`Screen::modal`].
+    fn modal(&self) -> bool;
+}
+
 /// Makes the screen of a route, or says it doesn't draw that route.
 pub type ScreenFactory = Box<dyn Fn(&Route, &mut AppCx) -> Option<Box<dyn Screen>>>;
 
+/// Makes a tile's actions over the page: the title's id, and whether the tile is in Continue
+/// Watching.
+pub type TileActionsFactory = Box<dyn Fn(i64, bool, &mut AppCx) -> Box<dyn Overlay>>;
+
 /// Every page's screen: the app adds each screen crate's factory (a function
 /// `fn(&Route, &mut AppCx) -> Option<Box<dyn Screen>>`); a route no factory draws gets the
-/// [`PlaceholderScreen`].
+/// [`PlaceholderScreen`]. A tile's actions open in the side panel the app gives
+/// ([`Registry::tile_actions`]), else as their page ([`Route::ItemActions`]).
 #[derive(Default)]
 pub struct Registry {
     factories: Vec<ScreenFactory>,
+    tile_actions: Option<TileActionsFactory>,
 }
 
 impl Registry {
@@ -117,6 +134,20 @@ impl Registry {
             .iter()
             .find_map(|f| f(route, cx))
             .unwrap_or_else(|| Box::new(PlaceholderScreen::new(route.clone())))
+    }
+
+    /// Sets what draws a tile's actions over the page.
+    pub fn tile_actions(
+        &mut self,
+        factory: impl Fn(i64, bool, &mut AppCx) -> Box<dyn Overlay> + 'static,
+    ) -> &mut Registry {
+        self.tile_actions = Some(Box::new(factory));
+        self
+    }
+
+    /// The side panel of item `id`'s actions, if the app has one.
+    pub fn make_tile_actions(&self, id: i64, continue_watching: bool, cx: &mut AppCx) -> Option<Box<dyn Overlay>> {
+        self.tile_actions.as_ref().map(|f| f(id, continue_watching, cx))
     }
 
     /// Whether a factory draws `route` (rather than the placeholder).

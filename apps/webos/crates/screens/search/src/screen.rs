@@ -381,7 +381,7 @@ impl SearchScreen {
                 }
                 cx.push(route);
             }
-            Act::Actions(id) => cx.push(Route::ItemActions { id, continue_watching: false }),
+            Act::Actions(id) => cx.tile_actions(id, false),
             Act::Watch(channel) => {
                 if let Some(q) = self.query.shown_query().map(str::to_owned) {
                     self.remember(cx, &q);

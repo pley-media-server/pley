@@ -505,7 +505,7 @@ impl GridTab {
             if let Some(i) = r.actions
                 && let Some(cell) = self.listing.at(i)
             {
-                open = Some(Route::ItemActions { id: cell.item.id, continue_watching: false });
+                cx.tile_actions(cell.item.id, false);
             }
             let focused = r.focused.and_then(|i| self.listing.at(i)).map(|c| &c.item);
             let rested = focused.is_some() && ui.rested();
@@ -1011,11 +1011,7 @@ impl RecommendedTab {
                         };
                     }
                     if let Some(cell) = r.actions.and_then(|k| row.cells.get(k)) {
-                        let id = cell.item.id;
-                        out = Some(RecommendedOut::Open(Route::ItemActions {
-                            id,
-                            continue_watching: row.continue_watching,
-                        }));
+                        cx.tile_actions(cell.item.id, row.continue_watching);
                     }
                     if let Some(k) = r.focused.filter(|k| *k < row.cells.len()) {
                         focused_at = Some((i, k));

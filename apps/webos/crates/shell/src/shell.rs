@@ -1,6 +1,7 @@
 //! The shell (the TV app's `ui/shell/app.tsx`, Android's `TvApp.kt` and `TvNavigator.kt`): one
 //! page at a time from the back stack, the rail beside the pages that have it, the curtain
-//! between pages, toasts, the offline notice, the idle dimmer, and Back in the Android app's order:
+//! between pages, a tile's actions over the page (Android's `TvTileActionsPanel`), toasts, the
+//! offline notice, the idle dimmer, and Back in the Android app's order:
 //! what the page has open, then the rail leaves the app, a page above the first pops, a first
 //! page opens the rail, else the app is left. Leaving follows LG's Back-button guide
 //! (<https://webostv.developer.lge.com/develop/guides/back-button>): from webOS 6 it asks "Exit
@@ -15,7 +16,7 @@ use crate::notice::Notices;
 use crate::overlay::{self, DIM_AFTER, TOAST_TOP, TOAST_TOP_PLAYER, Toasts};
 use crate::rail::{Rail, RailEntries, RailView, current_entry, rail_entries};
 use crate::route::Route;
-use crate::screen::{AppEvent, Chrome, Registry, Screen};
+use crate::screen::{AppEvent, Chrome, Overlay, Registry, Screen};
 use crate::state::AppState;
 
 /// One page on the back stack: its route, its screen (kept while pages above it show) and the
@@ -53,12 +54,23 @@ impl Entry {
     }
 }
 
+/// A tile's actions over the page they were asked on.
+struct PagePanel {
+    /// The page's [`Entry::id`]: the panel goes with it.
+    page: u64,
+    /// Unique per panel opened: its focus ids are scoped by it.
+    serial: u64,
+    overlay: Box<dyn Overlay>,
+}
+
 /// The shell: the back stack and everything drawn around the page on top.
 pub struct Shell {
     registry: Registry,
     stack: Vec<Entry>,
     next_id: u64,
     rail: Rail,
+    /// A tile's actions over the page on top.
+    panel: Option<PagePanel>,
     toasts: Toasts,
     /// Ready-to-watch news over the pages.
     notices: Notices,
@@ -89,6 +101,7 @@ impl Shell {
             stack: Vec::new(),
             next_id: 1,
             rail: Rail::default(),
+            panel: None,
             toasts: Toasts::default(),
             notices: Notices::default(),
             notice_waiting: false,
@@ -142,6 +155,11 @@ impl Shell {
     /// The rail's entries as last drawn.
     pub fn rail_entries(&self) -> &RailEntries {
         &self.entries
+    }
+
+    /// Whether a tile's actions are open over the page (they have focus).
+    pub fn panel_open(&self) -> bool {
+        self.panel.as_ref().is_some_and(|p| p.overlay.modal())
     }
 
     /// The toast showing.
@@ -295,10 +313,16 @@ impl Shell {
             }
         }
 
+        // A tile's actions go with the page they were asked on.
+        if self.panel.as_ref().is_some_and(|p| p.page != entry_id) {
+            self.panel = None;
+        }
+        let panel_open = self.panel_open();
+
         // Back, before the page draws: in the rail it leaves the app; else the page's own. A
-        // notice on screen, or "Exit Pley?", takes it itself.
+        // notice on screen, "Exit Pley?" or a tile's actions take it themselves.
         let asking = self.exit_asked;
-        if ui.key_down(Key::Back) && !self.notices.showing() && !asking {
+        if ui.key_down(Key::Back) && !self.notices.showing() && !asking && !panel_open {
             if self.rail.is_open() {
                 ui.take_key(Key::Back);
                 self.requests.nav.push(NavCommand::Exit);
@@ -330,6 +354,15 @@ impl Shell {
             ui.group(entry.group_id(), group, |ui| entry.screen.ui(ui, &mut cx));
             entry.screen.modal()
         };
+        // A tile's actions over the page; the page under them holds still as under its own panel.
+        if let Some(p) = self.panel.as_mut() {
+            let mut cx = AppCx::new(state, &mut self.requests, now);
+            let id = Id::new("pley.tile-actions").with(p.serial);
+            if !ui.group(id, Group::free(), |ui| p.overlay.ui(ui, &mut cx)) {
+                self.panel = None;
+            }
+        }
+        let modal = modal || self.panel_open();
         if let Some(c) = self.curtain
             && !overlay::curtain(ui, c)
         {
@@ -546,6 +579,18 @@ impl Shell {
                 state.end_playback();
                 state.device().exit();
                 self.exited = true;
+            }
+            NavCommand::TileActions { id, continue_watching } => {
+                let Some(page) = self.stack.last().map(|e| e.id) else { return };
+                let mut cx = AppCx::new(state, &mut self.requests, now);
+                match self.registry.make_tile_actions(id, continue_watching, &mut cx) {
+                    Some(overlay) => {
+                        let serial = self.next_id;
+                        self.next_id += 1;
+                        self.panel = Some(PagePanel { page, serial, overlay });
+                    }
+                    None => self.apply(NavCommand::Push(Route::ItemActions { id, continue_watching }), state, ui, now),
+                }
             }
             NavCommand::Quit => {
                 log::info!("the app ends");
