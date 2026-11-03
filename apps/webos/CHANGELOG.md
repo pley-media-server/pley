@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Videos on a USB drive plugged into the TV play in Pley's player, as in
+  the Samsung app: the rail's USB drive lists the drive's folders and
+  videos, each saying where it resumes, and a video plays as it is with
+  its own tracks, chapters and subtitles and the subtitle files beside it.
+
 ### Changed
 
 - Pley for LG TV is a native app now, in place of the web app: it starts

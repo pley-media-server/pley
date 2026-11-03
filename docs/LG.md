@@ -229,6 +229,60 @@ them (`scopes_supported`): a server that doesn't know a scope refuses the
 whole sign-in. A TV signed in before is asked to sign in again to ask
 for titles.
 
+### Videos on a USB drive
+
+As in the Samsung app
+([TV_PLATFORMS.md](TV_PLATFORMS.md#videos-on-a-usb-drive)), while a drive
+the app can read is plugged into the TV, the rail ends with **USB drive**.
+Its page lists the drive's folders, then the videos the TV's player opens
+(MKV, MP4, M4V, MOV, TS, M2TS, MTS, AVI, MPEG; LG's pipeline lists no
+WebM), sorted as a person sorts names; hidden files, what Windows and macOS
+leave on a drive, and other files aren't shown. A folder opens over the one
+before, with ".." first to go back up and its place on the drive under the
+title; at the drive's top, the page says how full the drive is. A video
+started before says where it resumes, with a bar of how far through it is.
+With Discover, Live TV and Now Playing in the rail as well, the drive's
+entry takes Playlists' place.
+
+webOS mounts a drive at `/tmp/usb/<disk>/<partition>`, and the letters
+change with what is plugged in, so the app looks for the first drive in
+its own mount table (`/proc/self/mountinfo`) and follows drives as they
+come and go (`crates/webos/src/drives.rs`). The app runs in LG's jail: a
+drive the TV mounted that the jail doesn't show to the app gets no entry
+in the rail.
+
+A video plays in Pley's player as it is, with no server
+(`crates/local`), so seeking, the panels, the sleep timer and the
+subtitles' look are the same; what only a server does isn't there:
+converting, Quality and Automatic, seek previews (the TV can't make
+them), the next episode, and Find subtitles.
+
+- **Tracks, chapters and HDR** come from the file itself, as on Samsung:
+  an MKV's head, an MP4's movie box, and the first HEVC frames. The audio
+  it starts with is the default track the TV decodes, else the first it
+  decodes; TrueHD only when Settings sends it to a receiver, DTS where the
+  table below says. A switch of audio track never reloads the file.
+- **What the screen shows** follows LG's rules, and Playback details says
+  it as the server does for a file played as it is. Dolby Vision shows as
+  Dolby Vision where the TV takes it from the file's container (MP4 and TS
+  always, MKV from webOS 25); otherwise the TV shows its HDR10 base layer
+  (profile 7 too, since nothing converts it), and a profile 5 file, which
+  has none, shows with wrong colours. LG shows no HDR10+: such a file
+  shows as HDR10.
+- **Subtitles**: the `.srt` and `.vtt` files beside the video, and an
+  MKV's own tracks read through its Cues, text as WebVTT and pictures
+  handed to the app's decoders as they are; a track still being read is
+  asked for again after 1 s, then 2, then every 4 s, and at once after a
+  seek.
+- **Where it stopped** is kept on the TV, by the file's path on the drive
+  and its size, so a drive mounted under another letter still resumes;
+  past 95 % it was watched. Delete all local data forgets it too.
+- **The TV's pipeline** opens the file at its `file://` address. A file
+  whose picture never starts says so after 12 s, and a file the TV
+  refuses says that there is no server to convert it.
+- **The log** never names a drive's folders or files: everything after
+  `/tmp/usb/<disk>/<partition>/` up to the extension is left out.
+
 ## How it works
 
 - **One binary for every webOS from 4.0.** It is 32-bit ARMv7 code tuned
@@ -305,12 +359,14 @@ The code, by crate:
 | `crates/core` | The server's API, HTTP, sign-in, discovery, events, saved data, formatting |
 | `crates/ui`, `crates/kit` | Focus, keys, the pointer, animation and the theme; the controls built on them |
 | `crates/subs` | WebVTT, subtitle timing and style; the PGS, VobSub and DVB decoders |
+| `crates/local` | Videos on a USB drive: folders, MKV and MP4 heads, subtitle files and tracks, resume points, and the player's server for a file |
 | `crates/player` | Playback: the controller, Automatic, recovery, Up Next, music, Live TV sessions |
 | `crates/webos` | The TV: SDL2, luna-service2, its facts, the capability report, the uMediaServer engine, the data folder, the log |
 | `crates/shell` | Routes, the back stack, the rail, the app's state |
 | `crates/screens/*` | The screens: onboarding, Home, browsing, a title, search, music, settings, Live TV, the player |
+| `crates/screens/storage` | The USB drive's page: a folder's folders and videos |
 | `crates/host`, `crates/app` | The frame loop and the command line; the binary `pley` (package `pley-lg`) |
-| `crates/fixtures` | A fake Pley server for the simulator and the tests |
+| `crates/fixtures` | A fake Pley server for the simulator and the tests, and a sample USB drive |
 | `xtask` | `cargo xtask`: the TV build, its checks, the notices and the package |
 
 ## What an LG TV plays
