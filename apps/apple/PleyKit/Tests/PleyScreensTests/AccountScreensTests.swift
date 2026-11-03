@@ -437,6 +437,31 @@ private func searches(_ server: FixtureServer) -> [String] {
         return app
     }
 
+    @Test func appleTVAsksWhosWatchingWhenAServerIsOpenedFromTheServers() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let settings = freshSettings()
+        let first = try await tvApp(server, settings: settings)
+        await ProfilesModel(app: first).load()
+
+        // A start that showed the servers (the server out of reach, say),
+        // then the server chosen from them once it answers.
+        let store = MemoryTokenStore()
+        try await keepSignIn(server, in: store)
+        let tv = app(store, settings: settings, tv: true)
+        await tv.start()
+        try #require(tv.root == .servers)
+        try await tv.open(ServerEntry(origin: server.origin, name: "Living Room", saved: true, found: false))
+        #expect(tv.root == .profiles)
+        #expect(tv.profilesAtStart)
+
+        // On iPhone, iPad and Mac, Home as before.
+        let phone = app(store, settings: settings, tv: false)
+        await phone.start()
+        try await phone.open(ServerEntry(origin: server.origin, name: "Living Room", saved: true, found: false))
+        #expect(phone.root == .signedIn)
+    }
+
     @Test func appleTVAsksWhosWatchingAtStart() async throws {
         let server = try await fixture()
         defer { server.stop() }

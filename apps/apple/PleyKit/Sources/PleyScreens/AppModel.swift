@@ -381,14 +381,22 @@ public final class AppModel: ObservableObject, SnapshotCache {
         if before != server?.origin { goOnline() }
         switch state {
         case .signedIn(let user):
+            let another = before != server?.origin
             // Another server's pages don't belong to this one, nor its event stream.
-            if before != server?.origin {
+            if another {
                 music.stop()
                 stopEvents()
                 shell.reset()
                 actions.reset()
             }
-            show(user, chooseProfile: false)
+            // Coming in from the servers (a start that couldn't reach this
+            // one, another server): Apple TV's start gate, as at start, so
+            // the servers are no way past "Who's watching?" and a PIN.
+            if another || self.user == nil {
+                await startAs(user)
+            } else {
+                show(user, chooseProfile: false)
+            }
         case .signedOut:
             user = nil
             root = .servers

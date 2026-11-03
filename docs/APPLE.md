@@ -520,7 +520,9 @@ it when it is another and needs no PIN, and asks when it needs one.
 At that start, going on as the profile in use asks for its PIN when it
 has one, so the profile used last is no way past it; Switch profile's
 Menu, and the choice right after signing in, keep the profile in use
-without it. When a sign-in ends without the
+without it. A server opened from the servers, after a start that
+couldn't reach it or from another server, goes through the same gate.
+When a sign-in ends without the
 person asking (the server ended it, or the address rule below), the app
 goes back to that server's sign-in and says why.
 
