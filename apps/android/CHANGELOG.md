@@ -47,7 +47,7 @@ describes how they are made.
 - Chapters named only by where they start ("00:06:19.212", as mkvmerge
   names them) show as "Chapter 3" on phones and TVs, as untitled ones do.
 - On TVs, a held Left or Right scrubs on a smooth curve, twice as fast
-  every 1.5 s, up to a whole video in 10 s, as on Samsung TVs.
+  every 1.5 s, up to a whole video in 10 s, as in the native Samsung app.
 - While a seek is coming on TVs, the scrubber's played part and both its
   times stand where it goes, with the thumb, rather than at the playhead.
 - On TVs, Left and Right show the controls with the preview and wait for
@@ -60,7 +60,7 @@ describes how they are made.
   instead of pausing; OK there plays and pauses.
 - On TVs, Play/Pause, the player's button or the remote's key, plays and
   pauses even just after a seek, and a seek waiting still goes; only OK on
-  the scrubber goes there at once, as on Samsung TVs.
+  the scrubber goes there at once, as in the native Samsung app.
 - On TVs, Down with the player's controls hidden shows them on Play/Pause,
   in the middle of the row, rather than on Subtitles.
 - On TVs, the chapters show as a row of cards over the scrubber, with
@@ -73,8 +73,9 @@ describes how they are made.
   loses its sides.
 - On TVs, a video's first picture fades in from black, as the player's
   controls do, rather than appearing at once (at once with reduced motion).
-- In the TV live player, OK opens the channel list, as on Samsung TVs;
-  holding OK shows the controls (the channel list and the favourite).
+- In the TV live player, OK opens the channel list, as in the native
+  Samsung app; holding OK shows the controls (the channel list and the
+  favourite).
 - Previous and Next change channel in the TV live player, as Channel up
   and down do.
 - The live player shows the channel's logo, name and what's on as it
@@ -85,11 +86,11 @@ describes how they are made.
   server refused it.
 - Live channels start a round trip sooner: the player reads the
   channel's stream as it asks the server for the channel, rather than once
-  the server has answered, as on Samsung TVs.
+  the server has answered, as in the native Samsung app.
 - A live channel with AC3 or E-AC3 sound starts sooner where the device
   decodes that sound or sends it to a receiver: it plays from the
-  channel's own stream, as on Samsung TVs, rather than from the HLS the
-  server makes with the sound converted.
+  channel's own stream, as in the native Samsung app, rather than from the
+  HLS the server makes with the sound converted.
 - In the TV guide, Left goes back through a programme that began before
   the guide, a screen at a time, before it leaves for the categories; on a
   channel without a guide, Left and Right move the guide a half hour at a
@@ -97,9 +98,10 @@ describes how they are made.
 - In the TV guide, rewind and fast forward (or Previous and Next) move it
   two hours, as in the Samsung and LG web apps, and the time now shows in a
   pill over the now line.
-- Back on Live TV's page on TVs goes up a step at a time, as on Samsung
-  TVs: the guide back to now, a search back to the category before, the
-  guide or the tiles to the categories, and only then the rail.
+- Back on Live TV's page on TVs goes up a step at a time, as in the native
+  Samsung app: the guide back to now, a search back to the category
+  before, the guide or the tiles to the categories, and only then the
+  rail.
 - On Live TV's page on TVs, a held Left stops at the start of the guide
   or the first column of tiles, and a held Up at the top, rather than
   running on to the categories, the rail or the tabs; a press of its own
@@ -171,8 +173,8 @@ describes how they are made.
 - On Android TV and Fire TV, Back to the page the rail opened (Home, a
   library, search) shows it at once as it was left, focus included, rather
   than building it again with its pictures.
-- On Android TV and Fire TV, the rail and the side panels move as they do
-  on Samsung TVs: they open quickly and settle, the rail's names sliding
+- On Android TV and Fire TV, the rail and the side panels move as in the
+  native Samsung app: they open quickly and settle, the rail's names sliding
   in as they appear, the rail's entries grow on focus the same way and
   shrink back slow to start, and panels leave the same way.
 - Search shows movies, shows and episodes first, then music, then Live
@@ -244,7 +246,8 @@ describes how they are made.
   the seek bar show at once, rather than when the finger moves again.
 - On Android TV and Fire TV, Search's Live TV channels move as the other
   rows do: the channel focused glides to the row's left edge, and a held
-  Left or Right slides the row under a still ring, as on Samsung TVs.
+  Left or Right slides the row under a still ring, as in the native
+  Samsung app.
 - On TVs, Up from a collection's titles to its buttons glides the page
   back to its top over 150 ms, as Home does, and with Reduce motion goes
   there at once.

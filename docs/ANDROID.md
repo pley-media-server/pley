@@ -379,7 +379,7 @@ to the home server still goes over the Wi-Fi (`LocalRoute`).
 ### Videos on a USB drive
 
 On Android TV, Google TV and Fire TV, while a USB drive is plugged in, the
-rail has **USB drive** after Now Playing, as the Samsung app does. The
+rail has **USB drive** after Now Playing, as in the native Samsung app. The
 rail holds seven entries: the drive makes room as the other entries do
 (Collections goes, then libraries behind **Libraries**), and when no
 library can make way, Playlists does. The drive's page
@@ -393,13 +393,13 @@ the folder's path ("/Films/2019"), at the drive's top "/" and how full the
 drive is. A folder opens over the one before, with ".." first to go back
 up. A video's line gives its kind, or where it resumes with a bar of how
 far through it is, and its size. No drive, an empty folder and one that
-can't be read say so centred on the page under an icon, as on the Samsung
-app; with nothing to focus (no ".." line) focus waits on that message,
-showing nothing, so the rail closes over the page and Left opens it. A
-video plays in Pley's player as it is, with no server,
-also while the server is out of reach, the way a download plays: seeking,
-the panels, the sleep timer and the subtitles' look are the same. The page
-is in the rail, which shows once the TV is signed in to a server.
+can't be read say so centred on the page under an icon, as in the native
+Samsung app; with nothing to focus (no ".." line) focus waits on that
+message, showing nothing, so the rail closes over the page and Left opens
+it. A video plays in Pley's player as it is, with no server, also while
+the server is out of reach, the way a download plays: seeking, the
+panels, the sleep timer and the subtitles' look are the same. The page is
+in the rail, which shows once the TV is signed in to a server.
 
 - **The drive** is the first mounted volume of `StorageManager`'s that
   isn't the device's own, removable ones first (some TV builds don't mark a
@@ -409,8 +409,8 @@ is in the rail, which shows once the TV is signed in to a server.
   `StorageManager`'s callback, and looks again as the app or the page
   opens, for builds that send neither. Its make and model come from the
   disk `/proc/self/mounts` says it is mounted from, in `/sys`, as the
-  Samsung app reads them; most TVs keep both from apps, and the volume's
-  own description stands in.
+  native Samsung app reads them; most TVs keep both from apps, and the
+  volume's own description stands in.
 - **Leave to read it** is asked for as the page opens: `READ_MEDIA_VIDEO`
   from Android 13, `READ_EXTERNAL_STORAGE` before (Android 10 reads the
   drive as earlier versions do: `requestLegacyExternalStorage`). Refused,
