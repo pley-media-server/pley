@@ -24,6 +24,9 @@ pub const PROOF_TIMEOUT: Duration = Duration::from_secs(10);
 const CHALLENGE_BYTES: usize = 16;
 /// A proof key's bytes.
 const KEY_BYTES: usize = 32;
+/// The most of a proof's answer read: it comes from a device not proved yet,
+/// and the server's own is a few hundred bytes.
+const ANSWER_MOST: u64 = 64 << 10;
 
 /// Counts the times the TV may have changed networks.
 static NETWORK: AtomicU64 = AtomicU64::new(0);
@@ -144,13 +147,17 @@ pub fn prove(
         .header("Accept", "application/json")
         .timeout(PROOF_TIMEOUT)
         .cancel(None);
-    let answer = http.send(req)?;
+    let answer = http.open(req)?;
     if answer.status >= 500 {
         return Err(NetError::ServerFailed);
     }
     if answer.status != 200 {
         return Err(NetError::AnotherDevice);
     }
+    let answer = answer.read_all(ANSWER_MOST).map_err(|e| match e {
+        NetError::TooBig => NetError::AnotherDevice,
+        e => e,
+    })?;
     let body: Value = serde_json::from_slice(&answer.body).map_err(|_| NetError::AnotherDevice)?;
     let given = body.get("proof").and_then(Value::as_str).and_then(from_base64url);
     let same_server = body.get("id").and_then(Value::as_str) == Some(proof.server_id.as_str());

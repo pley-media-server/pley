@@ -242,6 +242,8 @@ fn another_device_at_the_address_gets_no_token() {
         (403, r#"{"message":"a proof for a plain-http address is made for the home network only"}"#.into()),
         (404, "Not found".into()),
         (200, "<html>a router</html>".into()),
+        // A right proof in an answer far bigger than the server's own is not read.
+        (200, json!({ "id": ID, "proof": proof_of(CHALLENGE), "more": "x".repeat(70_000) }).to_string()),
     ];
     for (status, body) in others {
         let rig = Rig::new();
