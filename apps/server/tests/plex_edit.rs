@@ -170,6 +170,76 @@ async fn posters_are_uploaded() {
 }
 
 #[tokio::test]
+async fn what_pley_doesnt_keep_is_refused_whole() {
+    let w = world().await;
+    let section = format!("/library/sections/{}/all", w.movies);
+    let alien = format!("/library/metadata/{}", w.alien);
+    let pley = |id: i64| format!("/api/items/{id}");
+
+    // Kometa's combined edits: a genre with a rating Pley doesn't keep. Nothing is applied.
+    for refused in [
+        "genre[0].tag.tag=Horror&genre.locked=1&audienceRating.value=8.1&audienceRating.locked=1",
+        "genre[0].tag.tag=Horror&rating.value=7.5&rating.locked=1",
+        "genre[0].tag.tag=Horror&director[0].tag.tag=Someone&director.locked=1",
+        "genre[0].tag.tag=Horror&country[0].tag.tag=France",
+        "genre[0].tag.tag=Horror&addedAt.value=1700000000&addedAt.locked=1",
+    ] {
+        let reply = w.app.plex(Method::PUT, &format!("{alien}?{refused}"), &w.admin, &[]).await;
+        assert_eq!(reply.status, StatusCode::BAD_REQUEST, "{refused}");
+        assert!(reply.text().contains("can't be edited"), "{}", reply.text());
+    }
+    assert_eq!(tags(&details(&w, w.alien).await, "Genre"), ["Science Fiction"]);
+    assert_eq!(w.app.get(&pley(w.alien), &w.admin).await.body["locked_fields"], json!([]));
+
+    // One film that isn't there: neither is edited.
+    let both = format!("type=1&id={},999999&title.value=Renamed&title.locked=1", w.brazil);
+    assert_eq!(put(&w, &section, &both).await, StatusCode::NOT_FOUND);
+    assert_eq!(details(&w, w.brazil).await["title"], json!("Brazil"));
+
+    // The user's own rating is kept, as /:/rate keeps it.
+    let rated = format!("type=1&id={}&userRating.value=8.0&userRating.locked=1", w.alien);
+    assert_eq!(put(&w, &section, &rated).await, StatusCode::OK);
+    assert_eq!(details(&w, w.alien).await["userRating"].as_f64(), Some(8.0));
+    assert_eq!(put(&w, &alien, "userRating.value=&userRating.locked=1").await, StatusCode::OK);
+    assert_eq!(details(&w, w.alien).await.get("userRating"), None);
+    assert_eq!(put(&w, &alien, "userRating.value=12").await, StatusCode::BAD_REQUEST);
+
+    // Locks: the genres as they are, the poster given back to the agent.
+    assert_eq!(put(&w, &alien, "genre.locked=1").await, StatusCode::OK);
+    assert_eq!(w.app.get(&pley(w.alien), &w.admin).await.body["locked_fields"], json!(["genres"]));
+    let mut png = Vec::new();
+    image::RgbImage::from_pixel(40, 60, image::Rgb([200, 30, 30]))
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .unwrap();
+    let uploaded = w.app.plex_upload(Method::POST, &format!("{alien}/posters"), &w.admin, png).await;
+    assert_eq!(uploaded.status, StatusCode::OK);
+    assert_eq!(put(&w, &alien, "thumb.locked=0").await, StatusCode::OK);
+    assert_eq!(w.app.get(&pley(w.alien), &w.admin).await.body["locked_fields"], json!(["genres"]));
+
+    // Collections keep their title, sort title, summary and labels alone.
+    let query = format!("type=1&id={}&collection[0].tag.tag=Two%20Films", w.alien);
+    assert_eq!(put(&w, &section, &query).await, StatusCode::OK);
+    let collections = w.app.plex_json(&format!("/library/sections/{}/collections", w.movies), &w.admin).await;
+    let key = collections["Metadata"][0]["ratingKey"].as_str().unwrap().to_owned();
+    let rated = format!("type=18&id={key}&summary.value=Both&summary.locked=1&contentRating.value=PG");
+    assert_eq!(put(&w, &section, &rated).await, StatusCode::BAD_REQUEST);
+    let unlocked = format!("type=18&id={key}&summary.value=Both&summary.locked=0");
+    assert_eq!(put(&w, &section, &unlocked).await, StatusCode::BAD_REQUEST);
+    let collection = w.app.plex_json(&format!("/library/collections/{key}"), &w.admin).await;
+    assert_eq!(collection["Metadata"][0].get("summary"), None);
+
+    // Playlists keep their title alone.
+    let uri = common::encode(&format!("server://m/com.plexapp.plugins.library/library/metadata/{}", w.alien));
+    let made = w.app.plex(Method::POST, &format!("/playlists?type=video&title=Tonight&uri={uri}"), &w.admin, &[]).await;
+    let playlist = made.body["MediaContainer"]["Metadata"][0]["ratingKey"].as_str().unwrap().to_owned();
+    let renamed = format!("/playlists/{playlist}?title.value=Tomorrow&title.locked=1");
+    let renamed = w.app.plex(Method::PUT, &renamed, &w.admin, &[]).await;
+    assert_eq!(renamed.body["MediaContainer"]["Metadata"][0]["title"], json!("Tomorrow"));
+    let summary = format!("/playlists/{playlist}?summary.value=Later&summary.locked=1");
+    assert_eq!(w.app.plex(Method::PUT, &summary, &w.admin, &[]).await.status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
 async fn only_administrators_edit_and_only_in_the_section_named() {
     let w = world().await;
     let (kid, _) = w.app.user(&w.admin, "kid", json!({})).await;

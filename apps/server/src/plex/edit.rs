@@ -10,12 +10,19 @@
 //!   `genre[].tag.tag-=Action,Drama` removes (each name percent-encoded once
 //!   more). An item joins or leaves the collection of that name in its
 //!   library, which is made when missing;
+//! - `userRating.value`: the caller's own rating, as `/:/rate` sets it;
+//!   `thumb.locked` and `art.locked` keep the poster and background, or give
+//!   them back to the metadata agent;
 //! - `POST /library/metadata/{id}/posters` (or `/arts`) with a picture as the
 //!   body sets the poster (or background); with `?url=`, and
 //!   `PUT /library/metadata/{id}/poster?url=` (or `/art`), a TMDB image;
 //! - collections (`type=18` edits through their section, or by their keys):
 //!   title, sort title, summary and labels, and their pictures by their keys
 //!   or `POST /library/collections/{key}/posters` (or `/arts`).
+//!
+//! A field Pley doesn't keep (ratings other than the user's, credits,
+//! countries, added dates, …) answers `400` naming it, and nothing of that
+//! request is applied: tools such as Kometa take a `200` as done.
 
 use axum::body::Bytes;
 use axum::extract::{Path, State};
@@ -26,7 +33,7 @@ use super::{Params, PlexAdmin, PlexError, PlexResult};
 use crate::auth::AuthUser;
 use crate::events::ServerEvent;
 use crate::state::AppState;
-use crate::{collections, labels, overrides};
+use crate::{catalog, collections, labels, overrides};
 
 /// Plex's type number of collections.
 const COLLECTION_TYPE: &str = "18";
@@ -44,6 +51,13 @@ const FIELDS: &[(&str, &str)] = &[
     ("originallyAvailableAt", "release_date"),
 ];
 
+/// Pictures that are locked or unlocked, never given a value this way
+/// (they are uploaded): Plex's name and pley's field.
+const PICTURES: &[(&str, &str)] = &[("thumb", "poster"), ("art", "backdrop")];
+
+/// Tags one request may add or remove, of each kind.
+const MAX_TAGS: usize = 1000;
+
 /// Tags a request adds and removes, and whether it (un)locks their list.
 #[derive(Debug, Default, PartialEq)]
 struct Tags {
@@ -55,6 +69,27 @@ struct Tags {
 impl Tags {
     fn is_empty(&self) -> bool {
         self.add.is_empty() && self.remove.is_empty() && self.locked.is_none()
+    }
+
+    /// One `tag[…]` or `tag.locked` parameter: `rest` follows the tag's name.
+    fn read(&mut self, name: &str, rest: &str, value: &str) -> PlexResult<()> {
+        if rest == ".locked" {
+            self.locked = Some(value == "1");
+        } else if rest == "[].tag.tag-" {
+            self.remove.extend(
+                value.split(',').map(|t| crate::util::percent_decode(t, false)).filter(|t| !t.trim().is_empty()),
+            );
+        } else if rest.starts_with('[') && rest.ends_with("].tag.tag") {
+            if !value.trim().is_empty() {
+                self.add.push(value.trim().to_owned());
+            }
+        } else {
+            return Err(refused(&format!("{name}{rest}")));
+        }
+        if self.add.len() > MAX_TAGS || self.remove.len() > MAX_TAGS {
+            return Err(PlexError::BadRequest(format!("at most {MAX_TAGS} {name} tags at once")));
+        }
+        Ok(())
     }
 }
 
@@ -68,39 +103,65 @@ struct Edit {
     genres: Tags,
     labels: Tags,
     collections: Tags,
+    /// The caller's own rating (0-10), or `Some(None)` to clear it.
+    user_rating: Option<Option<f64>>,
+}
+
+/// A parameter that isn't an edit: the request's own and the client's.
+fn not_an_edit(key: &str) -> bool {
+    matches!(key, "type" | "id") || key.get(..7).is_some_and(|p| p.eq_ignore_ascii_case("x-plex-"))
+}
+
+/// The answer to an edit of something Pley doesn't keep.
+fn refused(name: &str) -> PlexError {
+    PlexError::BadRequest(format!("`{name}` can't be edited: Pley doesn't keep it"))
+}
+
+/// A parameter's name (`genre` of `genre[0].tag.tag`) and the rest.
+fn split_key(key: &str) -> (&str, &str) {
+    key.split_at(key.find(['[', '.']).unwrap_or(key.len()))
 }
 
 impl Edit {
-    fn parse(params: &Params) -> Self {
+    /// An item edit, refused whole if any part of it can't be applied.
+    fn parse(params: &Params) -> PlexResult<Self> {
         let mut edit = Edit::default();
         for (key, value) in &params.0 {
-            if let Some((name, part)) = key.split_once('.')
-                && let Some(&(_, field)) = FIELDS.iter().find(|(plex, _)| *plex == name)
-            {
-                match part {
-                    "value" => edit.values.push((field, value.clone())),
-                    "locked" => edit.locks.push((field, value == "1")),
-                    _ => {}
-                }
+            if not_an_edit(key) {
                 continue;
             }
-            let Some(tags) = edit.tags_for(key) else { continue };
-            let rest = &key[key.find(['[', '.']).unwrap_or(key.len())..];
-            if rest == ".locked" {
-                tags.locked = Some(value == "1");
-            } else if rest.ends_with("].tag.tag-") {
-                tags.remove.extend(
-                    value.split(',').map(|t| crate::util::percent_decode(t, false)).filter(|t| !t.trim().is_empty()),
-                );
-            } else if rest.ends_with("].tag.tag") && !value.trim().is_empty() {
-                tags.add.push(value.trim().to_owned());
+            let (name, rest) = split_key(key);
+            if let Some(tags) = edit.tags_for(name) {
+                tags.read(name, rest, value)?;
+                continue;
+            }
+            let field = FIELDS.iter().find(|(plex, _)| *plex == name).map(|(_, field)| *field);
+            let picture = PICTURES.iter().find(|(plex, _)| *plex == name).map(|(_, field)| *field);
+            match (field, picture, rest) {
+                (Some(field), _, ".value") => edit.values.push((field, value.clone())),
+                (Some(field), _, ".locked") | (_, Some(field), ".locked") => edit.locks.push((field, value == "1")),
+                _ if name == "userRating" && rest == ".value" => {
+                    let rating = match value.trim() {
+                        "" => None,
+                        value => Some(
+                            value
+                                .parse::<f64>()
+                                .ok()
+                                .and_then(catalog::valid_rating)
+                                .ok_or_else(|| PlexError::BadRequest("userRating must be 0-10".into()))?,
+                        ),
+                    };
+                    edit.user_rating = Some(rating);
+                }
+                // The user's rating is never changed by anyone else: always kept.
+                _ if name == "userRating" && rest == ".locked" => {}
+                _ => return Err(refused(name)),
             }
         }
-        edit
+        Ok(edit)
     }
 
-    fn tags_for(&mut self, key: &str) -> Option<&mut Tags> {
-        let name = &key[..key.find(['[', '.']).unwrap_or(key.len())];
+    fn tags_for(&mut self, name: &str) -> Option<&mut Tags> {
         match name {
             "genre" => Some(&mut self.genres),
             "label" => Some(&mut self.labels),
@@ -115,13 +176,61 @@ impl Edit {
             && self.genres.is_empty()
             && self.labels.is_empty()
             && self.collections.is_empty()
+            && self.user_rating.is_none()
+    }
+}
+
+/// What one request changes in collections.
+#[derive(Debug, Default, PartialEq)]
+struct CollectionEdit {
+    title: Option<String>,
+    sort_title: Option<String>,
+    /// `Some(None)` clears it.
+    summary: Option<Option<String>>,
+    labels: Tags,
+}
+
+impl CollectionEdit {
+    /// A collection edit, refused whole if any part of it can't be applied.
+    /// Pley keeps every edit of a collection: locks are accepted, unlocking
+    /// is refused.
+    fn parse(params: &Params) -> PlexResult<Self> {
+        let mut edit = CollectionEdit::default();
+        for (key, value) in &params.0 {
+            if not_an_edit(key) {
+                continue;
+            }
+            let (name, rest) = split_key(key);
+            if name == "label" {
+                edit.labels.read(name, rest, value)?;
+                continue;
+            }
+            let value = value.trim();
+            match (name, rest) {
+                ("title" | "titleSort" | "summary" | "thumb" | "art", ".locked") if value == "1" => {}
+                ("title" | "titleSort" | "summary" | "thumb" | "art", ".locked") => {
+                    return Err(PlexError::BadRequest(format!(
+                        "Pley keeps edits of collections: `{name}` stays locked"
+                    )));
+                }
+                ("title", ".value") if value.is_empty() => {
+                    return Err(PlexError::BadRequest("the title can't be empty".into()));
+                }
+                ("title", ".value") => edit.title = Some(value.chars().take(200).collect()),
+                // Empty: sorted by the title again.
+                ("titleSort", ".value") => edit.sort_title = Some(value.chars().take(200).collect()),
+                ("summary", ".value") => edit.summary = Some(Some(value.to_owned()).filter(|s| !s.is_empty())),
+                _ => return Err(refused(name)),
+            }
+        }
+        Ok(edit)
     }
 }
 
 /// `PUT /library/sections/{id}/all?type=…&id=1,2&…`
 pub async fn section(
     State(state): State<AppState>,
-    PlexAdmin(_admin): PlexAdmin,
+    PlexAdmin(admin): PlexAdmin,
     Path(section): Path<String>,
     params: Params,
 ) -> PlexResult<StatusCode> {
@@ -135,9 +244,9 @@ pub async fn section(
         // Collections' keys, or their ids as this API gave them before.
         let ids = ids.into_iter().map(|key| keys::collection_id(key).ok_or(PlexError::NotFound));
         let ids = ids.collect::<PlexResult<Vec<i64>>>()?;
-        return edit_collections(&state, Some(section), &ids, &params).await;
+        return edit_collections(&state, Some(section), &ids, &CollectionEdit::parse(&params)?).await;
     }
-    apply(&state, Some(section), &ids, &Edit::parse(&params)).await
+    apply(&state, &admin, Some(section), &ids, &Edit::parse(&params)?).await
 }
 
 /// Title, sort title, summary and labels of collections, which
@@ -147,9 +256,8 @@ async fn edit_collections(
     state: &AppState,
     section: Option<i64>,
     ids: &[i64],
-    params: &Params,
+    edit: &CollectionEdit,
 ) -> PlexResult<StatusCode> {
-    let value = |name: &str| params.get(&format!("{name}.value")).map(str::trim);
     let mut libraries = Vec::new();
     for &id in ids {
         let library_id = collections::library_of(&state.db, id).await?.ok_or(PlexError::NotFound)?;
@@ -160,16 +268,24 @@ async fn edit_collections(
             libraries.push(library_id);
         }
     }
-    let tags = Edit::parse(params).labels;
+    let summary = edit.summary.as_ref().map(|s| s.as_deref());
     for &id in ids {
-        let title = value("title").filter(|t| !t.is_empty());
-        let summary = value("summary").map(|s| Some(s).filter(|s| !s.is_empty()));
-        collections::update(&state.db, id, title, summary, None).await?;
-        if !tags.add.is_empty() || !tags.remove.is_empty() {
-            labels::edit_collection(&state.db, id, &tags.add, &tags.remove).await?;
+        collections::update(&state.db, id, edit.title.as_deref(), summary, None).await?;
+        if !edit.labels.add.is_empty() || !edit.labels.remove.is_empty() {
+            labels::edit_collection(&state.db, id, &edit.labels.add, &edit.labels.remove).await?;
         }
-        // An explicit sort title (Kometa orders collections with them).
-        if let Some(sort) = value("titleSort").filter(|s| !s.is_empty()) {
+        // An explicit sort title (Kometa orders collections with them), or
+        // the title's own again.
+        if let Some(sort) = &edit.sort_title {
+            let sort = if sort.is_empty() {
+                let title: String = sqlx::query_scalar("SELECT title FROM collections WHERE id = ?")
+                    .bind(id)
+                    .fetch_one(&state.db.read)
+                    .await?;
+                crate::util::sort_title(&title)
+            } else {
+                sort.clone()
+            };
             sqlx::query("UPDATE collections SET sort_title = ?, edited = 1 WHERE id = ?")
                 .bind(sort)
                 .bind(id)
@@ -186,7 +302,7 @@ async fn edit_collections(
 /// `PUT /library/metadata/{keys}?…`: items, or collections by their keys.
 pub async fn item(
     State(state): State<AppState>,
-    PlexAdmin(_admin): PlexAdmin,
+    PlexAdmin(admin): PlexAdmin,
     Path(ids): Path<String>,
     params: Params,
 ) -> PlexResult<StatusCode> {
@@ -197,36 +313,52 @@ pub async fn item(
     match (items.len(), collections.len()) {
         (0, 0) if keys.is_empty() => Err(PlexError::NotFound),
         (0, 0) => Err(PlexError::BadRequest("playlists are edited at /playlists/{key}".into())),
-        (_, 0) if items.len() == keys.len() => apply(&state, None, &items, &Edit::parse(&params)).await,
-        (0, _) if collections.len() == keys.len() => edit_collections(&state, None, &collections, &params).await,
+        (_, 0) if items.len() == keys.len() => apply(&state, &admin, None, &items, &Edit::parse(&params)?).await,
+        (0, _) if collections.len() == keys.len() => {
+            edit_collections(&state, None, &collections, &CollectionEdit::parse(&params)?).await
+        }
         _ => Err(PlexError::BadRequest("items, collections and playlists are edited apart".into())),
     }
 }
 
-/// Applies `edit` to every item of `ids` (in `section` when given).
-async fn apply(state: &AppState, section: Option<i64>, ids: &[i64], edit: &Edit) -> PlexResult<StatusCode> {
+/// Applies `edit` to every item of `ids` (in `section` when given), once
+/// they are all found; `user`'s own rating for `userRating`.
+async fn apply(
+    state: &AppState,
+    user: &AuthUser,
+    section: Option<i64>,
+    ids: &[i64],
+    edit: &Edit,
+) -> PlexResult<StatusCode> {
     if edit.is_empty() {
         return Ok(StatusCode::OK);
     }
     for (field, value) in &edit.values {
         overrides::validate(field, Some(value.trim()))?;
     }
-    let mut libraries = Vec::new();
+    let mut rows = Vec::with_capacity(ids.len());
     for &id in ids {
-        let row: Option<(i64, Option<String>)> = sqlx::query_as("SELECT library_id, genres FROM items WHERE id = ?")
-            .bind(id)
-            .fetch_optional(&state.db.read)
-            .await?;
-        let Some((library_id, genres)) = row else { return Err(PlexError::NotFound) };
+        let row: Option<(i64, String, Option<String>)> =
+            sqlx::query_as("SELECT library_id, kind, genres FROM items WHERE id = ?")
+                .bind(id)
+                .fetch_optional(&state.db.read)
+                .await?;
+        let Some((library_id, kind, genres)) = row else { return Err(PlexError::NotFound) };
         if section.is_some_and(|s| s != library_id) {
             return Err(PlexError::NotFound);
         }
+        rows.push((id, library_id, kind, genres));
+    }
+    let mut libraries = Vec::new();
+    for (id, library_id, kind, genres) in rows {
         let mut changes: Vec<(String, Option<String>)> =
             edit.values.iter().map(|(field, value)| ((*field).to_owned(), Some(value.trim().to_owned()))).collect();
         for &(field, locked) in &edit.locks {
             if edit.values.iter().any(|(f, _)| *f == field) {
                 continue;
             }
+            // An episode's picture is its still (Plex's `thumb` of it).
+            let field = if field == "poster" && kind == "episode" { "thumb" } else { field };
             if locked {
                 // Keep what the field holds now.
                 let current: Option<String> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
@@ -256,6 +388,11 @@ async fn apply(state: &AppState, section: Option<i64>, ids: &[i64], edit: &Edit)
             ));
         } else if edit.genres.locked == Some(false) {
             changes.push(("genres".into(), None));
+        } else if edit.genres.locked == Some(true)
+            && let Some(genres) = genres
+        {
+            // Kept as they are.
+            changes.push(("genres".into(), Some(genres)));
         }
         if !changes.is_empty() {
             overrides::set(&state.db, id, &changes).await?;
@@ -274,7 +411,12 @@ async fn apply(state: &AppState, section: Option<i64>, ids: &[i64], edit: &Edit)
         if !edit.labels.add.is_empty() || !edit.labels.remove.is_empty() {
             labels::edit(&state.db, id, &edit.labels.add, &edit.labels.remove).await?;
         }
+        if let Some(rating) = edit.user_rating {
+            catalog::set_rating(&state.db, user.id, id, rating).await?;
+        }
         for title in &edit.collections.add {
+            let title: String = title.chars().take(200).collect();
+            let title = title.as_str();
             let collection = match collection_named(state, library_id, title).await? {
                 Some(collection) => collection,
                 None => collections::create(&state.db, library_id, title, None).await?,
@@ -428,18 +570,64 @@ mod tests {
             ("genre.locked", "1"),
             ("label[].tag.tag-", "Old%20Overlay,4K"),
             ("collection[0].tag.tag", "Alien Collection"),
-            ("unknown.value", "x"),
-        ]));
+            ("thumb.locked", "1"),
+            ("userRating.value", "8.0"),
+            ("userRating.locked", "1"),
+            ("X-Plex-Token", "t"),
+        ]))
+        .unwrap();
         assert_eq!(edit.values, [("title", "Alien: Director's Cut".to_owned())]);
-        assert_eq!(edit.locks, [("title", true), ("summary", false)]);
+        assert_eq!(edit.locks, [("title", true), ("summary", false), ("poster", true)]);
         assert_eq!(
             edit.genres,
             Tags { add: vec!["Horror".into(), "Science Fiction".into()], remove: vec![], locked: Some(true) }
         );
         assert_eq!(edit.labels.remove, ["Old Overlay", "4K"]);
         assert_eq!(edit.collections.add, ["Alien Collection"]);
-        assert!(Edit::parse(&params(&[("type", "1"), ("id", "7")])).is_empty());
+        assert_eq!(edit.user_rating, Some(Some(8.0)));
+        assert!(Edit::parse(&params(&[("type", "1"), ("id", "7")])).unwrap().is_empty());
+        assert_eq!(Edit::parse(&params(&[("userRating.value", "")])).unwrap().user_rating, Some(None));
         assert_eq!(crate::util::percent_decode("Sci%2DFi%zz%+", false), "Sci-Fi%zz%+");
         assert_eq!(crate::util::percent_decode("a+b", true), "a b");
+    }
+
+    #[test]
+    fn what_pley_doesnt_keep_is_refused() {
+        for (key, value) in [
+            ("rating.value", "7.5"),
+            ("audienceRating.value", "8"),
+            ("addedAt.value", "1700000000"),
+            ("editionTitle.value", "Extended"),
+            ("director[0].tag.tag", "Someone"),
+            ("country[0].tag.tag", "France"),
+            ("writer[].tag.tag-", "Someone"),
+            ("logo.locked", "1"),
+            ("thumb.value", "x"),
+            ("userRating.value", "11"),
+            ("genre[0].tag.ta", "Horror"),
+            ("title", "No .value"),
+        ] {
+            let pairs = [("title.value", "Kept"), (key, value)];
+            assert!(Edit::parse(&params(&pairs)).is_err(), "{key}");
+        }
+        let collection = CollectionEdit::parse(&params(&[
+            ("titleSort.value", "001"),
+            ("summary.value", ""),
+            ("label[0].tag.tag", "Kometa"),
+            ("label.locked", "1"),
+            ("thumb.locked", "1"),
+        ]))
+        .unwrap();
+        assert_eq!(collection.sort_title.as_deref(), Some("001"));
+        assert_eq!(collection.summary, Some(None));
+        assert_eq!(collection.labels.add, ["Kometa"]);
+        for (key, value) in [
+            ("contentRating.value", "PG"),
+            ("userRating.value", "5"),
+            ("summary.locked", "0"),
+            ("genre[0].tag.tag", "x"),
+        ] {
+            assert!(CollectionEdit::parse(&params(&[(key, value)])).is_err(), "{key}");
+        }
     }
 }

@@ -468,7 +468,8 @@ pub async fn get(State(state): State<AppState>, PlexUser(user): PlexUser, Path(k
     playlist_container_of(&state, &user, playlist_path(key)?).await
 }
 
-/// `PUT /playlists/{key}?title=…`
+/// `PUT /playlists/{key}?title.value=…` (python-plexapi's `editTitle()`), or
+/// `?title=…`. A playlist keeps its title alone: anything else answers `400`.
 pub async fn edit(
     State(state): State<AppState>,
     PlexUser(user): PlexUser,
@@ -476,7 +477,20 @@ pub async fn edit(
     params: Params,
 ) -> PlexResult<Node> {
     let id = playlist_path(key)?;
-    if let Some(title) = params.get("title").map(|t| t.trim().chars().take(200).collect::<String>()) {
+    let mut title = None;
+    for (name, value) in &params.0 {
+        match name.as_str() {
+            "title" | "title.value" => title = Some(value.trim().chars().take(200).collect::<String>()),
+            // Kept as it is set.
+            "title.locked" => {}
+            _ if name.get(..7).is_some_and(|p| p.eq_ignore_ascii_case("x-plex-")) => {}
+            _ => {
+                let field = name.split(['.', '[']).next().unwrap_or_default();
+                return Err(PlexError::BadRequest(format!("`{field}` can't be edited: Pley doesn't keep it")));
+            }
+        }
+    }
+    if let Some(title) = title {
         if title.is_empty() {
             return Err(PlexError::BadRequest("title is required".into()));
         }

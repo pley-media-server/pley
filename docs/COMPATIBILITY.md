@@ -327,7 +327,7 @@ them.
 | Items | `/library/metadata/{id}` (comma-separated ids allowed; a collection's or playlist's key answers as `/library/collections/{key}` or `/playlists/{key}` does, and `…/children`, its pictures and `…/refresh` reach it too), `…/extras` (trailers and other bonus material as `clip`s with the API's `extraType` and `subtype`), `…/children`, `…/allLeaves`, `…/grandchildren`, `…/related` ("More Like This" hub), `…/similar` (the same items), `…/thumb[/{version}]`, `…/art[/{version}]`, `…/refresh` (`manage`) |
 | Lists | `/library/all`, `/library/onDeck`, `/library/recentlyAdded`, `/hubs`, `/hubs/sections/{id}`, `/hubs/continueWatching/items`, `/hubs/sections/{id}/continueWatching/items`, `/hubs/home/recentlyAdded`, `/hubs/search`, `/search`, `PUT /actions/removeFromContinueWatching?ratingKey=` (the movie, or the episode's show, leaves the user's Continue Watching until it is played again, as `DELETE /api/continue-watching/{id}`) |
 | Collections | `/library/sections/{id}/collections` (also `…/all?type=18`), `/library/collections/{id}`, `…/children`, `…/{thumb,art,composite}[/{version}]`; changes under [Editing](#editing) |
-| Playlists | `GET`/`POST /playlists` (`?type=&title=&uri=…/library/metadata/1,2`, or `smart=1&uri=…/library/sections/{id}/all?…` for a smart playlist of that listing; `?smart=0\|1` filters the list), `GET`/`PUT` (`?title=`)/`DELETE /playlists/{id}`, `GET`/`PUT /playlists/{id}/items` (`?uri=`), `DELETE /playlists/{id}/items/{playlistItemID}`, `PUT …/{playlistItemID}/move?after=`, `/playlists/{id}/composite/{version}` |
+| Playlists | `GET`/`POST /playlists` (`?type=&title=&uri=…/library/metadata/1,2`, or `smart=1&uri=…/library/sections/{id}/all?…` for a smart playlist of that listing; `?smart=0\|1` filters the list), `GET`/`PUT` (`?title.value=` or `?title=`)/`DELETE /playlists/{id}`, `GET`/`PUT /playlists/{id}/items` (`?uri=`), `DELETE /playlists/{id}/items/{playlistItemID}`, `PUT …/{playlistItemID}/move?after=`, `/playlists/{id}/composite/{version}` |
 | Previews | `/library/parts/{id}/indexes/sd` (BIF), `/library/parts/{id}/indexes/sd/{offset}` (the frame at `offset` ms), `/library/media/{id}/chapterImages/{n}` |
 | Playback | `/library/parts/…`, `/library/streams/{id}` (subtitles), `/:/timeline`, `/:/progress`, `/:/scrobble`, `/:/unscrobble`, `/:/rate?key=&rating=` (the user's rating, 0-10; negative clears it), `/status/sessions`, `/status/sessions/terminate?sessionId=&reason=` (`manage`: stops the session whose `Session` `id` it is, `reason` as the message its player shows, as `DELETE /api/sessions/{id}`; that client's reports don't start it again), `/transcode/sessions`, `/{video,audio}/:/transcode/universal/{start.m3u8,start,decision,stop,ping,session/…}` |
 | Play queues | `POST /playQueues` (`uri=` items, a container, a section listing, a collection or a playlist, or `playlistID=`; `key=` the item to start with; `shuffle=1`; `continuous=1` plays the rest of an episode's show after it), `GET`/`PUT /playQueues/{id}` (`uri=`/`playlistID=` adds, `next=1` right after the playing item), `DELETE /playQueues/{id}/items[/{playQueueItemID}]`, `PUT …/items/{playQueueItemID}/move?after=`, `PUT /playQueues/{id}/shuffle`, `…/unshuffle`; kept in memory for a day, for the user who made them |
@@ -353,6 +353,13 @@ does:
   `label` filter and `/library/sections/{id}/label` find, and for
   `collection`: the item joins or leaves the collection of that name in its
   library, which is made when missing. Details list it as `Collection`.
+- `userRating.value` (0-10; empty clears it) is the token's account's own
+  rating, as `/:/rate` sets it. `thumb.locked` and `art.locked` keep the
+  poster and background (`1`) or give them back to the metadata agent
+  (`0`), and `genre.locked=1` keeps the genres as they are.
+- Anything else answers `400` naming it, and nothing of that request is
+  applied: the critic and audience ratings (Pley shows TMDB's), cast and
+  crew, countries and other tags, added dates and editions.
 - Posters and backgrounds: `POST /library/metadata/{id}/posters` (or
   `/arts`) with the picture as the body (25 MB at most, re-encoded), or
   `?url=` and `PUT /library/metadata/{id}/poster?url=` (or `/art`) with a
@@ -369,7 +376,9 @@ does:
   through their section (`type=18&id=…`, as `python-plexapi` edits them)
   or `PUT /library/metadata/{key}`, their poster and background through
   `POST /library/metadata/{key}/posters` or
-  `/library/collections/{key}/posters` (or `/arts`).
+  `/library/collections/{key}/posters` (or `/arts`). Pley keeps every edit
+  of a collection: locks are taken, unlocking and other fields answer
+  `400`. Playlists take their title alone (`title.value`).
 - `POST /library/collections?type=1&title=…&sectionId=…&smart=0&uri=server://…/library/metadata/1,2`
   makes a collection of those items; with `smart=1` and
   `uri=server://…/library/sections/{id}/all?genre=…` a smart collection,
