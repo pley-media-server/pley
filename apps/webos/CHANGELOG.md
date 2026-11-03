@@ -127,6 +127,10 @@ describes how they are made.
 - The Play/Pause key no longer makes a seek that waits for OK at once, as
   in the Android TV and Samsung apps: it only plays or pauses, and the
   seek lands by itself. OK still makes it at once.
+- A video on a USB drive that can no longer be read, the drive pulled
+  out, says "This video can't be read. The drive may have been pulled
+  out." with Try again, as the Android app does, rather than that the
+  server can't be reached.
 
 ## [0.1.3] - 2026-11-02
 

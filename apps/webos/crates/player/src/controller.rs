@@ -1737,6 +1737,12 @@ impl PlaybackController {
     }
 
     fn act(&mut self, action: RecoveryAction, starving: bool) {
+        // A file on a drive that still can't be read (the drive pulled out) says so, not that a
+        // server is away (`SessionPlaybackController.kt`'s `act`).
+        if self.local() && matches!(action, RecoveryAction::Fail { failure: Failure::Network | Failure::Stopped, .. }) {
+            self.fail(details::DRIVE_UNREADABLE, true, None);
+            return;
+        }
         match action {
             RecoveryAction::NewSession { reason, .. } => {
                 // The player's own fallback is a change too: Automatic waits before it changes again.
@@ -3181,6 +3187,12 @@ impl PlaybackController {
     }
 
     fn fail_with(&mut self, e: &ApiError) {
+        // A file on a drive asks nothing of a server: what fails is reading it. What nothing
+        // converts says so itself.
+        if self.local() && !matches!(e, ApiError::Status { code, .. } if code == "local_file") {
+            self.fail(details::DRIVE_UNREADABLE, true, None);
+            return;
+        }
         if let ApiError::SessionStopped { message } = e {
             self.stop_by_server(message.as_deref(), true);
             return;

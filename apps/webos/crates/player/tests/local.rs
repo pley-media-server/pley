@@ -20,7 +20,7 @@ use pley_local::LocalServer;
 use pley_local::server::ITEM_ID;
 use pley_player::Reporter;
 use pley_player::controller::{Phase, PlaybackController};
-use pley_player::details::LOCAL_STUCK;
+use pley_player::details::{DRIVE_UNREADABLE, LOCAL_STUCK};
 use pley_player::env::{CapsProbe, PlayerEnv};
 use pley_player::plan::PlayRequest;
 use pley_player::sim::{SimClock, SimEngine};
@@ -83,6 +83,35 @@ fn an_engine_error_asks_no_server_and_says_nothing_converts_it() {
         Phase::Error { message: "Nothing converts it.".into(), can_retry: true, title: None }
     );
     assert!(w.fake.questions().is_empty(), "{:?}", w.fake.questions());
+}
+
+#[test]
+fn a_drive_pulled_out_mid_play_says_so_not_that_a_server_is_away() {
+    let mut w = on_drive(file(), &[]);
+    w.start();
+    w.open();
+    // The file can't be read any more: the TV's network errors, the file tried again each time.
+    for _ in 0..10 {
+        if matches!(w.c.state().phase, Phase::Error { .. }) {
+            break;
+        }
+        w.sim.fail(2, "connection failed");
+        w.advance(100);
+        w.open();
+    }
+    let unreadable = Phase::Error { message: DRIVE_UNREADABLE.into(), can_retry: true, title: None };
+    assert_eq!(w.c.state().phase, unreadable);
+    assert!(w.fake.questions().is_empty(), "{:?}", w.fake.questions());
+}
+
+#[test]
+fn a_drive_that_cant_be_read_at_the_start_says_so() {
+    let mut w = on_drive(file(), &[]);
+    w.fake.set_down(true);
+    w.start();
+    w.settle();
+    let unreadable = Phase::Error { message: DRIVE_UNREADABLE.into(), can_retry: true, title: None };
+    assert_eq!(w.c.state().phase, unreadable);
 }
 
 #[test]

@@ -68,6 +68,9 @@ pub const OFFLINE_TITLE: &str = "Can't reach your server";
 pub const OFFLINE_BODY: &str = "Check that the server is on and that this device is on its network.";
 /// A server that can't give keyed addresses.
 pub const TOO_OLD: &str = "This server is too old to play on this TV: update it.";
+/// A video on a drive that can't be read (Android's `driveUnreadable`): what a server out of reach
+/// would say of a stream.
+pub const DRIVE_UNREADABLE: &str = "This video can't be read. The drive may have been pulled out.";
 /// A video on a drive whose picture stood still 12 s: the same file again would too.
 pub const LOCAL_STUCK: &str =
     "This TV doesn't play this file: its picture never started. With no server to convert it, try another copy.";

@@ -335,8 +335,10 @@ them), the next episode, and Find subtitles.
   and its size, so a drive mounted under another letter still resumes;
   past 95 % it was watched. Delete all local data forgets it too.
 - **The TV's pipeline** opens the file at its `file://` address. A file
-  whose picture never starts says so after 12 s, and a file the TV
-  refuses says that there is no server to convert it.
+  whose picture never starts says so after 12 s, a file the TV refuses
+  says that there is no server to convert it, and a file that can no
+  longer be read says "This video can't be read. The drive may have been
+  pulled out.", with Try again, as in the Android app.
 - **The log** never names a drive's folders or files: everything after
   `/tmp/usb/<disk>/<partition>/` up to the extension is left out.
 
