@@ -212,6 +212,72 @@ def quality_badges(file) -> list:
     return [b for b in badges if b]
 
 
+# A library's quality filters (GET /api/libraries/{id}/items' `resolution`
+# and `dynamic_range`): the server's tokens and what the filters call them,
+# best first, as the server lists them.
+RESOLUTIONS = {"4k": "4K", "1080": "1080p", "720": "720p", "sd": "SD"}
+# HDR10 and HDR10+ read as plain "HDR" and "HDR+" here and on the posters;
+# a title's page names them exactly.
+DYNAMIC_RANGES = {"hdr": "Any HDR", "dolby_vision": "Dolby Vision", "hdr10plus": "HDR+", "hdr10": "HDR", "hlg": "HLG", "sdr": "SDR"}
+# A poster's dynamic range badge, by its file's (the web's mediaBadges):
+# SDR and HDR of no known kind have none.
+RANGE_BADGES = {"dolby_vision": "DV", "hdr10plus": "HDR+", "hdr10": "HDR", "hlg": "HLG"}
+
+
+# The Filter chip's short words for a dynamic range while it's on, the
+# posters' where they have one: "4K · DV" fits the chip row where
+# "4K · Dolby Vision" can push it past the screen.
+CHIP_RANGES = dict(DYNAMIC_RANGES, **RANGE_BADGES)
+
+
+def media_badge_keys(media) -> list:
+    """A library poster's badges from its listing's media summary (the
+    web's mediaBadges), by the server's tokens: "4k" of the resolutions
+    only, then the dynamic range; no codec, which on most posters says
+    nothing worth the room."""
+    if not isinstance(media, dict):
+        return []
+    keys = ["4k" if resolution_badge(media.get("width"), media.get("height")) == "4K" else None]
+    range_ = media.get("dynamic_range") or ""
+    keys.append(range_ if range_ in RANGE_BADGES else None)
+    return [k for k in keys if k]
+
+
+def media_badges(media) -> list:
+    """media_badge_keys' words: ["4K", "DV"]."""
+    return ["4K" if key == "4k" else RANGE_BADGES[key] for key in media_badge_keys(media)]
+
+
+def size(n) -> str:
+    """Bytes as the web writes them, in units of 1024: "23.4 GB", "150 MB";
+    "" when unknown."""
+    if not n or n < 0:
+        return ""
+    units = ("B", "KB", "MB", "GB", "TB")
+    value, unit = float(n), 0
+    while value >= 1024 and unit < len(units) - 1:
+        value /= 1024
+        unit += 1
+    return ("%.0f %s" if value >= 100 or unit == 0 else "%.1f %s") % (value, units[unit])
+
+
+def bitrate(bps) -> str:
+    """Bits a second as the web writes them: "8.2 Mbps", "42 Mbps", "320 kbps"."""
+    if not bps or bps <= 0:
+        return ""
+    if bps >= 1_000_000:
+        return ("%.0f Mbps" if bps >= 10_000_000 else "%.1f Mbps") % (bps / 1_000_000)
+    return "%d kbps" % int(bps / 1000 + 0.5)
+
+
+def media_line(media) -> str:
+    """The line under a poster sorted by bitrate: "42 Mbps · 23.4 GB",
+    "Bitrate unknown" when neither is known, "" without a summary."""
+    if not isinstance(media, dict):
+        return ""
+    return " · ".join(p for p in (bitrate(media.get("bitrate")), size(media.get("size"))) if p) or "Bitrate unknown"
+
+
 def stars(value) -> str:
     """Your rating, 0 to 10 on the server, in stars: 7 → "3½ stars"."""
     whole, half = divmod(int(value), 2)

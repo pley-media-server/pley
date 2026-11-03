@@ -3,11 +3,12 @@
 // it with the remote: sign in with the TV code and its QR code on a server
 // that requires two-step sign-in, Home, a title's details, the player, the
 // Options key, a library's grid, its A to Z and the pages a jump passes
-// over, filters saved as a smart playlist, collections played (movies and
-// a smart one of shows), a show's page, its episodes and a person's page,
-// music (an artist, an album, Now Playing), playlists, Live TV (its guide,
-// a channel watched, the next one, the channel list, a favourite, every
-// connection in use, the Channels tab), Search (and its Discover row's
+// over, a sort by bitrate and a filter by resolution with their quality
+// badges, filters saved as a smart playlist, collections played (movies
+// and a smart one of shows), a show's page, its episodes and a person's
+// page, music (an artist, an album, Now Playing), playlists, Live TV (its
+// guide, a channel watched, the next one, the channel list, a favourite,
+// every connection in use, the Channels tab), Search (and its Discover row's
 // See all), Discover (a movie asked for, a show's seasons picked), the
 // managers' Requests (Approve, a ready-to-watch notice whose movie's
 // audio and subtitles are picked on its page, then Yours), Settings, the
@@ -611,6 +612,43 @@ async function walk() {
   for (let i = 0; i < 4 && !seen(/^GET \/api\/libraries\/1\/items\?.*offset=70/, since); i++) await press("up");
   await waitFor(/^GET \/api\/libraries\/1\/items\?.*offset=70/, since, "the page before");
   shoot("library-scrolled");
+  await press("back");
+  // Movies again, sorted by bitrate: the posters' quality badges, and
+  // their bitrate and size under them. Then the Filter panel, which adds
+  // Resolution and Dynamic range once the server says the movies differ in
+  // them, and Resolution's 4K: the grid lists 4K titles only, and the chip
+  // says so.
+  await openFromMenu(2, /^GET \/api\/libraries\/1\/items\?.*offset=0/, "Movies again");
+  await settle();
+  await press("up"); // the tabs, on Library
+  await press("right", 2); // past Collections to the sort
+  await press("select");
+  await sleep(500);
+  since = mark();
+  await press("down", 10); // Bitrate, the last
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/1\/items\?.*sort=bitrate/, since, "the library sorted by bitrate");
+  await settle();
+  shoot("library-bitrate");
+  await press("right"); // the filters
+  since = mark();
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/1\/filters$/, since, "what a library can be filtered by");
+  await settle();
+  shoot("library-filters");
+  await press("down", 3); // Resolution, after Year
+  await press("select");
+  await sleep(500);
+  shoot("library-resolutions");
+  since = mark();
+  await press("down"); // 4K
+  await press("select");
+  await waitFor(/^GET \/api\/libraries\/1\/items\?.*resolution=4k/, since, "the library filtered by resolution");
+  await settle();
+  shoot("library-filtered");
+  await press("back"); // the chips
+  await settle();
+  shoot("library-4k");
   await press("back");
   await openFromMenu(3, /^GET \/api\/libraries\/2\/items/, "TV Shows");
   // Its tabs: Recommended, Collections, then Library again, sorted by year.
@@ -1312,6 +1350,9 @@ const checks = [
   ["showed a library's Library tab from its Recommended row's See all", asked(/^GET \/api\/libraries\/2\/items\?.*order=desc.*sort=added/)],
   ["sorted a library by year, newest first", asked(/^GET \/api\/libraries\/2\/items\?.*order=desc.*sort=year/)],
   ["kept the library's tab and sort on the Roku", registry !== null && /libraryViews.*\\"sort\\":\\"year\\"/.test(JSON.stringify([...registry]))],
+  ["sorted a library by bitrate", asked(/^GET \/api\/libraries\/1\/items\?.*order=desc.*sort=bitrate/)],
+  ["filtered a library by a resolution its titles have", asked(/^GET \/api\/libraries\/1\/filters$/) && asked(/^GET \/api\/libraries\/1\/items\?.*resolution=4k/)],
+  ["kept the library's resolution on the Roku", registry !== null && /libraryViews.*\\"resolution\\":\\"4k\\"/.test(JSON.stringify([...registry]))],
   [
     "saved a library's filters and order as a smart playlist, named on the keyboard",
     fixture.smartPlaylists.some((p) => p.library_id === 2 && p.title.length > 0 && p.smart_filter === "unwatched=1&sort=year%3Adesc"),
@@ -1343,7 +1384,7 @@ const checks = [
   ["stepped the sleep timer through End of this track back to Off", music.sleepEnd && music.sleepCycled],
   ["played the track OK was on under an album's second disc", music.disc === 5203],
   ["played a playlist from its top, the next entry to come", fixture.playbacks.some((p) => p.item === 101)],
-  ["searched", asked(/^GET \/api\/search\?/)],
+  ["searched, asking for every title, person and channel found", asked(/^GET \/api\/search\?limit=200&/)],
   ["showed search's results in rows by kind, People last, a person's page opened from it", asked(/^GET \/api\/people\/11$/)],
   ["searched a recent search again from the list shown before typing", searched.again],
   ["kept the recent searches on the Roku for the server and profile", registry !== null && /searches\.http[^"]*\|1","\[\\"mo\\"\]"/.test(JSON.stringify([...registry]))],

@@ -1,6 +1,8 @@
 package app.pley.android.screens.library
 
+import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.LibrarySort
+import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.SortOrder
 
 /**
@@ -34,10 +36,16 @@ object SmartFilter {
         "viewCount" to ("Least played first" to "Most played first"),
     )
 
-    /** The library page's filters and order as a smart filter: what "Save as…" saves. */
+    /**
+     * The library page's filters and order as a smart filter: what "Save
+     * as…" saves. Resolution is Plex's own field, dynamic range Pley's
+     * (`dynamicRange`), each with the listing's token.
+     */
     fun of(params: LibraryParams): String = buildList {
         params.genre?.let { add("genre" to it) }
         params.year?.let { add("year" to it.toString()) }
+        params.resolution?.let { add("resolution" to it.wire) }
+        params.dynamicRange?.let { add("dynamicRange" to it.wire) }
         params.watched?.let { add("unwatched" to if (it) "0" else "1") }
         val field = PLEX_SORT.getValue(params.sort)
         add("sort" to if (params.effectiveOrder == SortOrder.Descending) "$field:desc" else field)
@@ -61,6 +69,9 @@ object SmartFilter {
                 "year>>" -> add("After $value")
                 "year<<" -> add("Before $value")
                 "decade" -> add("The ${value}s")
+                // "4K", "Dolby Vision": the names the library's filters give them.
+                "resolution" -> add(ResolutionFilter.of(value)?.label ?: "$key: $value")
+                "dynamicRange" -> add(DynamicRangeFilter.of(value)?.label ?: "$key: $value")
                 "sort" -> add(sortNote(value))
                 "limit" -> add("At most $value")
                 // Plumbing, not part of what is found.

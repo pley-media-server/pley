@@ -8,6 +8,18 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Libraries filter by resolution and dynamic range, in the Filter menu
+  after Year, where their titles differ in them. The Filter chip says
+  what is chosen, and Save as… keeps them. Needs a server from the same
+  release.
+- Library posters show "4K" and their dynamic range ("DV", "HDR+",
+  "HDR", "HLG") while the library is sorted by bitrate or filtered by
+  resolution or dynamic range.
+- Libraries sort by your rating and by bitrate, as on the other apps;
+  sorted by bitrate, the line under each poster is its bitrate and size.
+
 ### Changed
 
 - Search shows movies, shows and episodes first, then music, then Live
@@ -15,6 +27,15 @@ describes how they are made.
 - A Live TV channel whose connection someone else takes over stops at
   once and says who or why under "Live TV stopped", with Watch again,
   where it said only "The server stopped this stream."
+- Search finds up to 200 titles, people and Live TV channels each, where
+  it stopped at 100 titles, 12 people and 12 channels. People and
+  channels past 12 need a server from the same release.
+- The rail's entries are smaller, as on the other TV apps, and it lists
+  five libraries (four beside Live TV) instead of three before Libraries
+  takes Collections' place.
+- A library's sorts are the other apps' for its kind: shows no longer
+  sort by duration, and music sorts by title, date added, your rating and
+  last played.
 
 ## [0.1.3] - 2026-11-02
 

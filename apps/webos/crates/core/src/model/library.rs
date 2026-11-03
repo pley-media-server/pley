@@ -47,7 +47,7 @@ pub struct LibraryIds {
 }
 
 /// A page of `GET /api/libraries/{id}/items`: `total` counts every match.
-/// Items leave out backdrops and stills; sorted by bitrate they carry `media`.
+/// Items leave out backdrops and stills, and carry `media` (older servers only sorted by bitrate).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ItemsPage {
     #[serde(default, deserialize_with = "nd")]
@@ -56,13 +56,49 @@ pub struct ItemsPage {
     pub items: Vec<ItemSummary>,
 }
 
-/// `GET /api/libraries/{id}/filters`: the genres (by name) and years (newest first) to filter by.
+/// `GET /api/libraries/{id}/filters`: the genres (by name) and years (newest first) to filter by,
+/// and the resolutions and dynamic ranges, best first, when the titles have two or more (none
+/// from an older server, nor for music).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct LibraryFilters {
     #[serde(default, deserialize_with = "nd")]
     pub genres: Vec<String>,
     #[serde(default, deserialize_with = "nd")]
     pub years: Vec<i64>,
+    #[serde(default, deserialize_with = "nd")]
+    pub resolutions: Vec<ResolutionFilter>,
+    #[serde(default, deserialize_with = "nd")]
+    pub dynamic_ranges: Vec<RangeFilter>,
+}
+
+wire_enum! {
+    /// A listing's `resolution` filter: the best file's (a show's best episode's), `1080` up to
+    /// 1440p, `sd` below 720p.
+    pub enum ResolutionFilter or Unknown {
+        Uhd = "4k",
+        Fhd = "1080",
+        Hd = "720",
+        Sd = "sd",
+        /// A value this app doesn't know: never offered nor sent.
+        #[default]
+        Unknown = "unknown",
+    }
+}
+
+wire_enum! {
+    /// A listing's `dynamic_range` filter: the best file's (a show's best episode's); `hdr` is any
+    /// but SDR.
+    pub enum RangeFilter or Unknown {
+        Hdr = "hdr",
+        DolbyVision = "dolby_vision",
+        Hdr10Plus = "hdr10plus",
+        Hdr10 = "hdr10",
+        Hlg = "hlg",
+        Sdr = "sdr",
+        /// A value this app doesn't know: never offered nor sent.
+        #[default]
+        Unknown = "unknown",
+    }
 }
 
 wire_enum! {
@@ -79,7 +115,7 @@ wire_enum! {
         Release = "release",
         Duration = "duration",
         LastPlayed = "last_played",
-        /// The best file's bitrate; items then carry `media`.
+        /// The best file's bitrate.
         Bitrate = "bitrate",
     }
 }
@@ -116,6 +152,12 @@ pub struct LibraryQuery {
     pub watched: Option<bool>,
     pub genre: Option<String>,
     pub year: Option<i64>,
+    /// Views kept before these two filters have neither; a value this app doesn't know reads as
+    /// `Unknown`, which the library drops.
+    #[serde(default)]
+    pub resolution: Option<ResolutionFilter>,
+    #[serde(default)]
+    pub dynamic_range: Option<RangeFilter>,
 }
 
 impl LibraryQuery {
@@ -128,12 +170,15 @@ impl LibraryQuery {
             ("watched", self.watched.map(|w| w.to_string())),
             ("genre", self.genre.clone()),
             ("year", self.year.map(|y| y.to_string())),
+            ("resolution", self.resolution.map(|r| r.as_str().to_string())),
+            ("dynamic_range", self.dynamic_range.map(|r| r.as_str().to_string())),
             ("offset", Some(offset.to_string())),
             ("limit", limit.map(|l| l.to_string())),
         ]
     }
 
-    /// The query in a snapshot key: sort, order, watched, genre and year.
+    /// The query in a snapshot key: sort, order, watched, genre, year, resolution and dynamic
+    /// range.
     pub fn key(&self) -> String {
         let mut key = format!("{}.{}", self.sort, self.order.unwrap_or(self.sort.default_order()));
         match self.watched {
@@ -147,6 +192,12 @@ impl LibraryQuery {
         }
         if let Some(y) = self.year {
             key.push_str(&format!(".y={y}"));
+        }
+        if let Some(r) = self.resolution {
+            key.push_str(&format!(".r={r}"));
+        }
+        if let Some(d) = self.dynamic_range {
+            key.push_str(&format!(".d={d}"));
         }
         key
     }

@@ -68,6 +68,8 @@ fn libraries_and_browsing() {
     assert!(by_bitrate.items.iter().any(|i| i.media.is_some()));
     let filters: LibraryFilters = decode("libraries/filters.json");
     assert!(!filters.genres.is_empty());
+    assert_eq!(filters.resolutions, [ResolutionFilter::Uhd, ResolutionFilter::Fhd, ResolutionFilter::Sd]);
+    assert_eq!(filters.dynamic_ranges, [RangeFilter::Hdr10, RangeFilter::DolbyVision, RangeFilter::Sdr]);
     let hubs: Hubs = decode("libraries/hubs.json");
     assert!(!hubs.hubs.is_empty());
     let home: Hubs = decode("hubs/home.json");

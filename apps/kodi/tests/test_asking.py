@@ -638,7 +638,8 @@ class SearchTest(Case):
         self.waits["GET /api/search"] = 0.3
         typed = "  " + "x" * 250
         entries = self.run_plugin("route=search&q=" + urllib.parse.quote(typed))
-        self.assertEqual(self.sent("GET", "/api/search")[0][1], "/api/search?" + urllib.parse.urlencode({"q": typed, "limit": 100, "summaries": 1}))
+        # Every title and channel found, up to 200 of each, the words as typed.
+        self.assertEqual(self.sent("GET", "/api/search")[0][1], "/api/search?" + urllib.parse.urlencode({"q": typed, "limit": 200, "summaries": 1}))
         self.assertEqual(self.sent("GET", "/api/discover/search")[0][1], "/api/discover/search?q=%s&missing=1" % ("x" * 200))
         self.assertEqual(entries[-1][0], BASE + "?route=discover_search&q=" + "x" * 200)
         # Nothing but spaces: TMDB isn't asked.

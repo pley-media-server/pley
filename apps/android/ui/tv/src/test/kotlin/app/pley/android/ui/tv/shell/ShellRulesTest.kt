@@ -45,72 +45,55 @@ class ShellRulesTest {
     private fun libraries(n: Int) = (1..n).map { Library(it.toLong(), "Library $it", if (it % 2 == 0) LibraryKind.Shows else LibraryKind.Movies) }
 
     @Test
-    fun theRailListsUpToThreeLibrariesThenCollections() {
-        val items = railItems(libraries(3))
+    fun theRailListsUpToSixLibrariesThenCollections() {
+        val items = railItems(libraries(6))
         assertEquals(
-            listOf("search", "home", "library:1", "library:2", "library:3", "playlists", "collections"),
+            listOf("search", "home", "library:1", "library:2", "library:3", "library:4", "library:5", "library:6", "playlists", "collections"),
             items.map { it.id },
         )
         assertEquals(PleyKey.Collections(1), items.last().key)
+        // Four, five and six libraries all show, without "Libraries".
+        for (n in 4..6) {
+            val ids = railItems(libraries(n)).map { it.id }
+            assertEquals((1..n).map { "library:$it" }, ids.filter { it.startsWith("library:") })
+            assertFalse(ids.contains("libraries"))
+        }
     }
 
     @Test
-    fun moreThanThreeLibrariesAddLibrariesInCollectionsPlace() {
-        val items = railItems(libraries(5))
+    fun moreThanSixLibrariesAddLibrariesInCollectionsPlace() {
         assertEquals(
-            listOf("search", "home", "library:1", "library:2", "library:3", "libraries", "playlists"),
-            items.map { it.id },
+            listOf("search", "home", "library:1", "library:2", "library:3", "library:4", "library:5", "library:6", "libraries", "playlists"),
+            railItems(libraries(8)).map { it.id },
         )
-        // Seven entries between the avatar and Settings, as the rail has room for.
-        assertEquals(7, items.size)
+        assertEquals(6, MAX_LIBRARIES)
     }
 
     @Test
-    fun whileMusicPlaysNowPlayingComesLastWithinTheRailsSevenEntries() {
+    fun whileMusicPlaysNowPlayingComesLast() {
         assertEquals(
-            "in Collections' place",
-            listOf("search", "home", "library:1", "library:2", "library:3", "playlists", "now-playing"),
+            listOf("search", "home", "library:1", "library:2", "library:3", "playlists", "collections", "now-playing"),
             railItems(libraries(3), nowPlaying = true).map { it.id },
         )
         assertEquals(
-            "in the last library's, which Libraries lists",
-            listOf("search", "home", "library:1", "library:2", "libraries", "playlists", "now-playing"),
-            railItems(libraries(5), nowPlaying = true).map { it.id },
-        )
-        assertEquals(
-            "added where there is room",
-            listOf("search", "home", "library:1", "library:2", "playlists", "collections", "now-playing"),
-            railItems(libraries(2), nowPlaying = true).map { it.id },
+            listOf("search", "home", "library:1", "library:2", "library:3", "library:4", "library:5", "library:6", "libraries", "playlists", "now-playing"),
+            railItems(libraries(7), nowPlaying = true).map { it.id },
         )
         val items = railItems(libraries(3), nowPlaying = true)
         assertEquals("now-playing", railCurrent(PleyKey.NowPlaying, items))
     }
 
     @Test
-    fun liveTvComesAfterHomeAndMakesRoomAsNowPlayingDoes() {
+    fun liveTvComesAfterHome() {
         assertEquals(
-            "in Collections' place",
-            listOf("search", "home", "live-tv", "library:1", "library:2", "library:3", "playlists"),
+            listOf("search", "home", "live-tv", "library:1", "library:2", "library:3", "playlists", "collections"),
             railItems(libraries(3), liveTv = true).map { it.id },
-        )
-        assertEquals(
-            "in the last library's, which Libraries lists",
-            listOf("search", "home", "live-tv", "library:1", "library:2", "libraries", "playlists"),
-            railItems(libraries(5), liveTv = true).map { it.id },
-        )
-        assertEquals(
-            "with Now Playing too, two libraries make way for Libraries",
-            listOf("search", "home", "live-tv", "library:1", "libraries", "playlists", "now-playing"),
-            railItems(libraries(3), nowPlaying = true, liveTv = true).map { it.id },
         )
         assertEquals(
             "without libraries",
             listOf("search", "home", "live-tv", "playlists"),
             railItems(emptyList(), liveTv = true).map { it.id },
         )
-        for (n in 0..6) {
-            for (music in listOf(false, true)) assertTrue(railItems(libraries(n), music, liveTv = true).size <= MAX_ITEMS)
-        }
         assertEquals("live-tv", railCurrent(PleyKey.LiveTv, railItems(libraries(2), liveTv = true)))
     }
 
@@ -130,35 +113,12 @@ class ShellRulesTest {
     }
 
     @Test
-    fun theWayIntoRequestsMakesRoomAsLiveTvDoesAndComesBeforeIt() {
+    fun theWayIntoRequestsComesBeforeLiveTv() {
         val discover = requestsItem(RequestsEntry(discover = true))
         assertEquals(
-            "in Collections' place",
-            listOf("search", "home", "discover", "library:1", "library:2", "library:3", "playlists"),
-            railItems(libraries(3), requests = discover).map { it.id },
-        )
-        assertEquals(
-            "in the last library's, which Libraries lists",
-            listOf("search", "home", "discover", "library:1", "library:2", "libraries", "playlists"),
-            railItems(libraries(5), requests = discover).map { it.id },
-        )
-        assertEquals(
-            listOf("search", "home", "discover", "library:1", "libraries", "playlists", "now-playing"),
-            railItems(libraries(3), nowPlaying = true, requests = discover).map { it.id },
-        )
-        assertEquals(
-            listOf("search", "home", "discover", "library:1", "libraries", "playlists", "now-playing"),
-            railItems(libraries(5), nowPlaying = true, requests = discover).map { it.id },
-        )
-        assertEquals(
-            listOf("search", "home", "discover", "live-tv", "library:1", "libraries", "playlists"),
+            listOf("search", "home", "discover", "live-tv", "library:1", "library:2", "library:3", "playlists", "collections"),
             railItems(libraries(3), liveTv = true, requests = discover).map { it.id },
         )
-        for (n in 0..6) {
-            for (music in listOf(false, true)) {
-                for (live in listOf(false, true)) assertTrue(railItems(libraries(n), music, live, discover).size <= MAX_ITEMS)
-            }
-        }
     }
 
     @Test
@@ -181,47 +141,39 @@ class ShellRulesTest {
         assertEquals(listOf("now-playing", "drive"), items.takeLast(2).map { it.id })
         assertEquals(PleyIcons.Usb, items.last().icon)
         assertEquals(
-            "it makes room as Now Playing does: two libraries make way for Libraries",
-            listOf("search", "home", "library:1", "libraries", "playlists", "now-playing", "drive"),
+            listOf("search", "home", "library:1", "library:2", "library:3", "playlists", "collections", "now-playing", "drive"),
             railItems(libraries(3), nowPlaying = true, drive = true).map { it.id },
         )
-        for (n in 0..6) assertTrue(railItems(libraries(n), nowPlaying = true, liveTv = true, drive = true).size <= MAX_ITEMS)
         // Its folders are its pages.
         assertEquals("drive", railCurrent(PleyKey.Drive("/storage/1A2B-3C4D/Films"), items))
     }
 
     @Test
-    fun withEveryExtraPlaylistsLeavesForTheLibrariesPageWhenNoLibraryCanMakeWay() {
+    fun nothingMakesWayForAnotherEntry() {
         val discover = requestsItem(RequestsEntry(discover = true, requests = true))
-        val many = railItems(libraries(5), nowPlaying = true, liveTv = true, requests = discover, drive = true)
         assertEquals(
-            "the libraries have all made way for Live TV, Discover and Now Playing: Playlists makes way for the drive",
-            listOf("search", "home", "discover", "live-tv", "libraries", "now-playing", "drive"),
-            many.map { it.id },
+            "every extra, and every one of six libraries",
+            listOf(
+                "search", "home", "discover", "live-tv", "library:1", "library:2", "library:3", "library:4", "library:5", "library:6",
+                "playlists", "collections", "now-playing", "drive",
+            ),
+            railItems(libraries(6), nowPlaying = true, liveTv = true, requests = discover, drive = true).map { it.id },
         )
-        assertTrue("the Libraries page lists Playlists", playlistsOnLibrariesPage(many))
-        assertEquals(
-            "the one library becomes Libraries, which lists it and Playlists",
-            listOf("search", "home", "discover", "live-tv", "libraries", "now-playing", "drive"),
-            railItems(libraries(1), nowPlaying = true, liveTv = true, requests = discover, drive = true).map { it.id },
-        )
-        assertFalse(playlistsOnLibrariesPage(railItems(libraries(5), nowPlaying = true, liveTv = true, requests = discover)))
         for (n in 0..8) {
             for (music in listOf(false, true)) {
                 for (live in listOf(false, true)) {
                     for (requests in listOf(null, discover)) {
                         for (drive in listOf(false, true)) {
                             val case = "$n libraries, music $music, live $live, requests ${requests != null}, drive $drive"
-                            val items = railItems(libraries(n), music, live, requests, drive)
-                            assertTrue(case, items.size <= MAX_ITEMS)
-                            assertEquals(case, drive, items.any { it.slot == RailSlot.Drive })
-                            // Playlists in the rail, else on the Libraries page, which the rail leads to.
-                            val inRail = items.any { it.slot == RailSlot.Playlists }
-                            assertEquals(case, !inRail, playlistsOnLibrariesPage(items))
-                            assertTrue(case, inRail || items.any { it.slot == RailSlot.Libraries })
-                            // And every library, in the rail or on that page.
-                            val listed = items.any { it.slot == RailSlot.Libraries }
-                            assertTrue(case, listed || libraries(n).all { library -> items.any { it.key == PleyKey.Library(library.id) } })
+                            val ids = railItems(libraries(n), music, live, requests, drive).map { it.id }
+                            assertEquals(case, (1..minOf(n, MAX_LIBRARIES)).map { "library:$it" }, ids.filter { it.startsWith("library:") })
+                            assertEquals(case, n > MAX_LIBRARIES, "libraries" in ids)
+                            assertEquals(case, n in 1..MAX_LIBRARIES, "collections" in ids)
+                            assertTrue(case, "playlists" in ids)
+                            assertEquals(case, music, "now-playing" in ids)
+                            assertEquals(case, drive, "drive" in ids)
+                            assertEquals(case, live, "live-tv" in ids)
+                            assertEquals(case, requests != null, "discover" in ids)
                         }
                     }
                 }
@@ -236,24 +188,17 @@ class ShellRulesTest {
 
     @Test
     fun theCurrentEntryFollowsTheBackStacksFirstPage() {
-        val items = railItems(libraries(5)) + SettingsItem
+        val items = railItems(libraries(8)) + SettingsItem
         assertEquals("home", railCurrent(PleyKey.Home, items))
         assertEquals("search", railCurrent(PleyKey.Search("north"), items))
         assertEquals("library:2", railCurrent(PleyKey.Library(2), items))
-        assertEquals("libraries", railCurrent(PleyKey.Library(5), items))
+        assertEquals("library:6", railCurrent(PleyKey.Library(6), items))
+        assertEquals("libraries", railCurrent(PleyKey.Library(8), items))
         assertEquals("libraries", railCurrent(PleyKey.Libraries, items))
         assertEquals("playlists", railCurrent(PleyKey.Playlists, items))
         assertEquals("settings", railCurrent(PleyKey.Settings, items))
         assertEquals(PROFILE_ITEM, railCurrent(PleyKey.Profiles(), items))
         assertNull(railCurrent(PleyKey.Servers, items))
-    }
-
-    @Test
-    fun playlistsNotInTheRailAreUnderLibraries() {
-        val discover = requestsItem(RequestsEntry(discover = true))
-        val items = railItems(libraries(1), nowPlaying = true, liveTv = true, requests = discover, drive = true) + SettingsItem
-        assertEquals("libraries", railCurrent(PleyKey.Playlists, items))
-        assertEquals("the library it lists too", "libraries", railCurrent(PleyKey.Library(1), items))
     }
 
     @Test

@@ -4,12 +4,13 @@
 mod common;
 
 use common::TestApp;
-use pley_base::Key;
+use pley_base::{Cmd, Key, Rect};
 use pley_core::device::Drive;
-use pley_core::model::{NewPlaylist, PlaylistKind};
+use pley_core::model::{LibraryQuery, LibrarySort, NewPlaylist, PlaylistKind, RangeFilter, ResolutionFilter};
+use pley_core::store::keys;
 use pley_fixtures::ids;
 use pley_shell::{BackgroundSession, Route};
-use pley_ui::Id;
+use pley_ui::{Id, theme};
 
 /// An entry's card on a playlist's page.
 fn card(app: &TestApp, entry: u64) -> Id {
@@ -52,15 +53,16 @@ impl BackgroundSession for Queued {
 }
 
 #[test]
-fn audio_guidance_names_playlists_as_it_opens_also_from_the_libraries_page() {
+fn audio_guidance_names_playlists_as_it_opens_with_the_rail_full() {
     let mut app = TestApp::start();
     let rail_has = |a: &TestApp, id: &str| a.shell.rail_entries().has(id);
     assert!(app.until(|a| rail_has(a, "discover") && rail_has(a, "live-tv")), "no Discover or Live TV");
-    // Now Playing and a drive as well: Playlists leaves the rail for the Libraries page, whose
-    // entry the rail marks, but the page still says its own name.
+    // Now Playing and a drive as well: Playlists keeps its place in the rail, and the page says
+    // its name.
     app.state.music = Some(Box::new(Queued));
     app.device.set_drive(Some(Drive { root: std::env::temp_dir(), hidden: false }));
-    assert!(app.until(|a| !rail_has(a, "playlists")), "Playlists kept its place in the rail");
+    assert!(app.until(|a| rail_has(a, "storage") && rail_has(a, "now-playing")), "no drive or Now Playing");
+    assert!(rail_has(&app, "playlists"), "Playlists left the rail");
     app.ui.set_speaking(true);
     app.open(Route::Playlists);
     let words = app.ui.take_speech().unwrap_or_default();
@@ -263,6 +265,144 @@ fn unwatched_counts_what_is_left() {
     // Up to the chips, Right twice to Unwatched.
     press(&mut app, &[Key::Up, Key::Right, Key::Right, Key::Ok]);
     assert!(app.until(|a| a.shows_part(" of 1,500 movies")));
+}
+
+/// How many times the last frame drew `text`.
+fn times(app: &TestApp, text: &str) -> usize {
+    app.list.texts().filter(|t| *t == text).count()
+}
+
+#[test]
+fn resolution_and_dynamic_range_filter_from_the_filter_panel_and_badge_the_posters() {
+    let mut app = TestApp::start();
+    app.open(Route::Library { id: ids::MOVIES, tab: None, sort: None });
+    assert!(app.until(|a| a.shows("1,500 movies")));
+    // By title, the posters carry no quality badges, though the listing has each title's media.
+    assert!(!app.shows("4K") && !app.shows("HDR"), "badges on a grid that isn't about quality");
+
+    // Up to the chips, Right to Filter: its rows reach Resolution and Dynamic range after Year.
+    press(&mut app, &[Key::Up, Key::Right, Key::Ok]);
+    assert!(app.until(|a| a.shows("Resolution") && a.shows("Dynamic range")), "no rows for them");
+    assert!(app.shows("All resolutions") && app.shows("All dynamic ranges"));
+    // From All, five down: Unwatched, Watched, Genre, Year, Resolution.
+    press(&mut app, &[Key::Down, Key::Down, Key::Down, Key::Down, Key::Down, Key::Ok]);
+    assert!(app.until(|a| a.shows("1080p")), "the Resolution panel didn't open");
+    // The server's choices after All resolutions: 4K, then 1080p.
+    press(&mut app, &[Key::Down, Key::Ok]);
+    assert!(app.until(|a| a.shows_part(" of 1,500 movies")), "the count doesn't say it's filtered");
+    // A chip names the choice; the posters wear their badges.
+    assert!(app.until(|a| times(a, "4K") > 1 && a.shows("HDR")), "no chip or no badges");
+
+    // The view is kept: the library opens in it again.
+    app.open(Route::Library { id: ids::MOVIES, tab: None, sort: None });
+    assert!(app.until(|a| a.shows_part(" of 1,500 movies") && times(a, "4K") > 1), "the filter wasn't kept");
+
+    // The chip opens its panel on the choice: All resolutions clears it, the badges go, and so
+    // does the chip, focus going to Filter.
+    let grid = app.id(&[]).with(("grid", 0u64)).with(0u64);
+    assert!(app.until(|a| a.focused() == Some(grid)));
+    press(&mut app, &[Key::Up, Key::Right, Key::Right, Key::Right, Key::Right, Key::Right]);
+    assert_eq!(app.focused(), Some(app.id(&["chips", "resolution"])));
+    press(&mut app, &[Key::Ok, Key::Up, Key::Ok]);
+    assert!(app.until(|a| a.shows("1,500 movies") && !a.shows("HDR")), "the filter didn't clear");
+    // Once the panel has slid out, no chip or poster says 4K.
+    assert!(app.until(|a| !a.shows("4K") && !a.shows("All resolutions")), "the chip stayed");
+    assert!(app.until(|a| a.focused() == Some(a.id(&["chips", "filter"]))), "focus went with the chip");
+
+    // Dynamic range: Dolby Vision, then Save as… writes it in Plex's syntax.
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.shows("Dynamic range")));
+    press(&mut app, &[Key::Down, Key::Down, Key::Down, Key::Down, Key::Down, Key::Down, Key::Ok]);
+    assert!(app.until(|a| a.shows("HDR+")), "the Dynamic range panel didn't open");
+    // All dynamic ranges, HDR, then Dolby Vision.
+    press(&mut app, &[Key::Down, Key::Down, Key::Ok]);
+    assert!(app.until(|a| a.shows("Dolby Vision") && a.shows_part(" of 1,500 movies")));
+    assert!(app.until(|a| a.focused() == Some(a.id(&["chips", "filter"]))), "Filter has focus back");
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.shows("Save as…")));
+    // Down from All to Save as…, past Clear filters.
+    press(&mut app, &[Key::Down; 8]);
+    app.press(Key::Ok);
+    let filter = "dynamicRange=dolby_vision&sort=titleSort";
+    assert!(
+        app.until(|a| matches!(a.route(), Some(Route::NewPlaylist { smart: Some(s), .. }) if s.filter == filter)),
+        "saved {:?}",
+        app.route()
+    );
+}
+
+/// Opens the Movies library in `view`, kept on the TV before it opens, and waits for its listing
+/// to say nothing matches.
+fn open_in(app: &mut TestApp, view: LibraryQuery) {
+    assert!(app.until(|a| a.state.profile().is_some()), "no profile");
+    let (server, profile) = (app.state.server().unwrap().to_string(), app.state.profile().unwrap());
+    app.state.store().set(&keys::library_view(&server, profile, ids::MOVIES), &view).unwrap();
+    app.open(Route::Library { id: ids::MOVIES, tab: None, sort: None });
+    assert!(app.until(|a| a.shows("Dolby Vision") && a.shows("No matches")), "the kept view didn't show");
+    app.advance(0.5);
+}
+
+/// The chips' pills in the last frame, in their order.
+fn chip_rects(app: &TestApp) -> Vec<Rect> {
+    let pills = app.list.cmds.iter().filter_map(|c| match c {
+        Cmd::Fill { rect, .. } if rect.y == theme::HEADER_Y_LIBRARY && rect.h == theme::BUTTON_HEIGHT => Some(*rect),
+        _ => None,
+    });
+    pills.collect()
+}
+
+#[test]
+fn the_chips_fit_the_screen_whatever_is_chosen() {
+    let right = theme::CANVAS_W - theme::SAFE_X;
+    let mut app = TestApp::start();
+    // Unwatched, 1080p and Dolby Vision, after the Genre and Year chips, leave the count less
+    // room than it takes: it doesn't show, rather than show cut short ("0 of 1,5…").
+    let crowded = LibraryQuery {
+        watched: Some(false),
+        resolution: Some(ResolutionFilter::Fhd),
+        dynamic_range: Some(RangeFilter::DolbyVision),
+        ..LibraryQuery::default()
+    };
+    open_in(&mut app, crowded);
+    assert!(app.until(|a| a.shows("Genre") && a.shows("Year")), "no Genre or Year chip");
+    let room = right - chip_rects(&app).last().unwrap().right();
+    assert!(room > 48.0, "the count has some room: {room}");
+    assert!(!app.shows_part("of 1,500 movies"), "the count shows cut short");
+
+    // The most the row holds: by release date, Unwatched, a long genre, a year, 1080p and Dolby
+    // Vision. With the genre's and the sort's names cut short it is wider than the screen still.
+    let fullest = LibraryQuery {
+        sort: LibrarySort::Release,
+        watched: Some(false),
+        genre: Some("Science Fiction & Fantasy".into()),
+        year: Some(2019),
+        resolution: Some(ResolutionFilter::Fhd),
+        dynamic_range: Some(RangeFilter::DolbyVision),
+        ..LibraryQuery::default()
+    };
+    open_in(&mut app, fullest);
+    let chips = ["sort", "filter", "unwatched", "genre", "year", "resolution", "range"];
+    assert!(app.until(|a| a.shows("2019")), "no year chip");
+    let rects = chip_rects(&app);
+    assert_eq!(rects.len(), chips.len(), "{rects:?}");
+    assert!(rects.last().unwrap().right() > right, "the row fits: {rects:?}");
+    assert!(!app.shows_part("of 1,500 movies"), "the count shows cut short");
+    // Along the row, each chip shows whole between the gutter and the safe area's edge.
+    app.ui.request_focus(app.id(&["chips", "sort"]));
+    for (i, chip) in chips.iter().enumerate() {
+        if i > 0 {
+            app.press(Key::Right);
+        }
+        app.advance(0.5);
+        assert_eq!(app.focused(), Some(app.id(&["chips", chip])), "{chip}");
+        let r = chip_rects(&app)[i];
+        assert!(r.x >= theme::GUTTER - 0.01 && r.right() <= right + 0.01, "{chip} at {r:?}");
+    }
+    // Back at the first, the row is where it started.
+    press(&mut app, &[Key::Left; 6]);
+    app.advance(0.5);
+    assert_eq!(app.focused(), Some(app.id(&["chips", "sort"])));
+    assert_eq!(chip_rects(&app)[0].x, theme::GUTTER);
 }
 
 #[test]

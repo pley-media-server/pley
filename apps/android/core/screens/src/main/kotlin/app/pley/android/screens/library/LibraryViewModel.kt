@@ -15,6 +15,7 @@ import app.pley.android.data.LibraryViews
 import app.pley.android.data.Loadable
 import app.pley.android.data.map
 import app.pley.android.data.valueOrNull
+import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.Hub
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
@@ -22,6 +23,7 @@ import app.pley.android.model.Library
 import app.pley.android.model.LibraryFilters
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.LibrarySort
+import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.SortOrder
 import app.pley.android.screens.LibraryTab
 import app.pley.android.screens.PleyKey
@@ -131,7 +133,7 @@ data class LibraryUiState<T : Any>(
     val openedOn: LibraryTab? = null,
     val tabs: List<LibraryTab> = LibraryTab.entries,
     val sorts: List<LibrarySort> = LibraryParams.sortsFor(LibraryKind.Movies),
-    /** Genres and years the listing can be filtered by (none for music). */
+    /** Genres, years, resolutions and dynamic ranges the listing can be filtered by (none for music). */
     val filters: LibraryFilters = LibraryFilters(),
     val grid: LibraryGrid<T> = LibraryGrid(Loadable.Loading, TileLook.Poster, null),
     val density: GridDensity = GridDensity.Medium,
@@ -144,6 +146,17 @@ data class LibraryUiState<T : Any>(
     /** The listing is narrowed by a filter. */
     val filtered: Boolean get() = params.filtered
 
+    /**
+     * The resolutions to choose from: the library's (none for music), and
+     * the one chosen while it has it no more, so it can be seen and changed.
+     */
+    val resolutions: List<ResolutionFilter> get() = offered(filters.resolutionChoices, params.resolution)
+
+    /** The dynamic ranges to choose from, as [resolutions]. */
+    val dynamicRanges: List<DynamicRangeFilter> get() = offered(filters.dynamicRangeChoices, params.dynamicRange)
+
+    private fun <C> offered(choices: List<C>, chosen: C?): List<C> = if (chosen == null || chosen in choices) choices else choices + chosen
+
     /** Where a tile of the grid goes: an artist's page in music, else the item's. */
     fun opens(itemId: Long): PleyKey = if (kind == LibraryKind.Music) PleyKey.Artist(itemId) else PleyKey.Item(itemId)
 }
@@ -153,9 +166,10 @@ data class LibraryUiState<T : Any>(
  *
  * - **Recommended:** the library's hubs, then its collections.
  * - **Library:** every item, in a grid sized from the listing's total;
- *   sorted, ordered and filtered by watched state, genre and year as the
- *   web does, with the A to Z when sorted by title. Sorted by bitrate,
- *   tiles say what the files are like.
+ *   sorted, ordered and filtered by watched state, genre, year, resolution
+ *   and dynamic range as the web does, with the A to Z when sorted by
+ *   title. Sorted by bitrate, tiles say what the files are like; filtered
+ *   by resolution or dynamic range, they carry their quality badges.
  * - **Collections:** the library's collections (not for music).
  *
  * [params] are the tab, sort and filters, which the screen keeps across
@@ -331,6 +345,10 @@ class LibraryViewModel<T : Any>(
 
     fun year(year: Int?) = params.update { it.copy(year = year) }
 
+    fun resolution(resolution: ResolutionFilter?) = params.update { it.copy(resolution = resolution) }
+
+    fun dynamicRange(dynamicRange: DynamicRangeFilter?) = params.update { it.copy(dynamicRange = dynamicRange) }
+
     fun clearFilters() = params.update { it.cleared() }
 
     /** Cards smaller or larger, for every grid on this device. */
@@ -385,6 +403,7 @@ class LibraryViewModel<T : Any>(
             get() = when {
                 kind == LibraryKind.Music -> TileLook.Square
                 params.sort == LibrarySort.Bitrate -> TileLook.Bitrate
+                params.badges -> TileLook.Badged
                 else -> TileLook.Poster
             }
     }

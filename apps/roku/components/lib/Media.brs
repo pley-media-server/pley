@@ -199,23 +199,6 @@ end sub
 
 ' --- Versions ---
 
-' 1536 → "1.5 KB", 150 MiB → "150 MB", "62.0 GB": three digits, in units
-' of 1024, as the other apps write sizes. A size past 32 bits comes as a
-' LongInteger, which the first division makes a Float.
-function mediaBytes(bytes as dynamic) as string
-    size = httpNumber(bytes, -1)
-    if size < 0 then return ""
-    units = ["B", "KB", "MB", "GB", "TB"]
-    at = 0
-    while size >= 1024 and at < units.Count() - 1
-        size = size / 1024
-        at = at + 1
-    end while
-    if size >= 100 or at = 0 then return urlValue(Int(size + 0.5)) + " " + units[at]
-    tenths = Int(size * 10 + 0.5)
-    return urlValue(Int(tenths / 10)) + "." + urlValue(tenths mod 10) + " " + units[at]
-end function
-
 ' A file's first video stream, invalid for none.
 function mediaVideo(file as object) as dynamic
     for each stream in httpArray(file.streams)
@@ -266,7 +249,7 @@ function mediaVersionLine(file as object, number as integer) as string
         format = mediaAudioFormat(audio)
         if format <> "" then parts.Push(format)
     end if
-    if httpNumber(file.size, 0) > 0 then parts.Push(mediaBytes(file.size))
+    if httpNumber(file.size, 0) > 0 then parts.Push(fmtBytes(file.size))
     if parts.Count() = 0 then return "Version " + urlValue(number)
     return parts.Join(" · ")
 end function
@@ -436,9 +419,9 @@ function mediaFacts(file as object) as object
     facts = []
     mediaFact(facts, "Name", mediaFileName(file.path))
     mediaFact(facts, "Container", UCase(httpString(file.container)))
-    if httpNumber(file.size, 0) > 0 then mediaFact(facts, "Size", mediaBytes(file.size))
+    if httpNumber(file.size, 0) > 0 then mediaFact(facts, "Size", fmtBytes(file.size))
     mediaFact(facts, "Duration", fmtDuration(file.duration_ms))
-    mediaFact(facts, "Overall bitrate", detBitrate(file.bitrate))
+    mediaFact(facts, "Overall bitrate", fmtBitrate(file.bitrate))
     blocks = [{ title: "File", facts: facts }]
     names = { video: "Video", audio: "Audio", subtitle: "Subtitles" }
     for each kind in ["video", "audio", "subtitle"]
@@ -475,7 +458,7 @@ function mediaStreamFacts(stream as object) as object
         mediaFact(facts, "Primaries", mediaColour(mediaPrimaries(), stream.color_primaries))
         mediaFact(facts, "Transfer", mediaColour(mediaTransfers(), stream.color_transfer))
         mediaFact(facts, "Matrix", mediaColour(mediaMatrices(), stream.color_space))
-        mediaFact(facts, "Bitrate", detBitrate(stream.bitrate))
+        mediaFact(facts, "Bitrate", fmtBitrate(stream.bitrate))
         mediaFact(facts, "Title", httpSentence(stream.title))
     else if kind = "audio"
         codec = detCodec(stream.codec)
@@ -490,7 +473,7 @@ function mediaStreamFacts(stream as object) as object
         if hertz > 0 then mediaFact(facts, "Sample rate", fmtOneDecimal(hertz / 1000) + " kHz")
         mediaFact(facts, "Language", language)
         mediaFact(facts, "Title", httpSentence(stream.title))
-        mediaFact(facts, "Bitrate", detBitrate(stream.bitrate))
+        mediaFact(facts, "Bitrate", fmtBitrate(stream.bitrate))
         mediaFact(facts, "Flags", mediaFlags(stream))
     else
         nature = "text"

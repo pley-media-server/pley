@@ -11,6 +11,9 @@ TIMEOUT = 20
 # A server that is off answers nothing at all: waiting longer than this to
 # connect tells nobody more.
 CONNECT_TIMEOUT = 4
+# What GET /api/search is asked for: the most it gives of titles, of people
+# and of Live TV's channels each, so a row holds every one found.
+SEARCH_LIMIT = 200
 
 
 class ApiError(Exception):

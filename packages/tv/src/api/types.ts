@@ -789,3 +789,11 @@ export type LibrarySort =
   | "duration"
   | "last_played"
   | "bitrate";
+
+/** What a library's listing can be filtered by: `resolutions` and `dynamic_ranges` hold the server's tokens, best first, from a server that has them. */
+export interface LibraryFilters {
+  genres: string[];
+  years: number[];
+  resolutions?: string[];
+  dynamic_ranges?: string[];
+}

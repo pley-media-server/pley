@@ -11,10 +11,10 @@ namespace Pley.Tv.Tizen.Screens;
 /// <summary>
 /// A library's page on TV (design spec §4.2; the Android app's TvLibraryScreen): the name at the
 /// top left and the tabs on the same line at the right, then the tab. The Library tab: the chips
-/// (Sort, Filter, Unwatched, Genre, Year and the count) at y = 80 over a grid of posters from
-/// y = 136, with the A to Z jump beside it; Recommended: the library's rows; Collections: their
-/// posters with their counts. Sort and filters open in a side panel. Content takes focus on its
-/// own only on the tab the page opened on.
+/// (Sort, Filter, Unwatched, Genre, Year, the resolution and dynamic range chosen, and the count) at
+/// y = 80 over a grid of posters from y = 136, with the A to Z jump beside it; Recommended: the
+/// library's rows; Collections: their posters with their counts. Sort and filters open in a side
+/// panel. Content takes focus on its own only on the tab the page opened on.
 /// </summary>
 sealed class LibraryScreen : ShellPage
 {
@@ -44,6 +44,13 @@ sealed class LibraryScreen : ShellPage
     readonly FocusGroup chips = new FocusGroup(Axis.Row, "chips");
     IReadOnlyList<LibraryChip> shownChips = Array.Empty<LibraryChip>();
     TextLabel? count;
+    /// <summary>The count's text as shown, and the room after the chips for it, in dp.</summary>
+    string? shownCount;
+    float countRoom;
+    /// <summary>Each chip's left and width in the row, in dp, and how far the row slides left to keep the focused one in view.</summary>
+    readonly List<(float Left, float Width)> chipPlaces = new List<(float, float)>();
+    float chipScroll;
+    Animation? chipAnimation;
     GridView? grid;
     JumpView? jump;
     string? shownQuery;
@@ -70,6 +77,10 @@ sealed class LibraryScreen : ShellPage
         View.Add(tabsView);
         Group.Add(tabs);
         Group.Add(content);
+        chips.ChildFocused += i =>
+        {
+            if (i >= 0 && i < chipPlaces.Count) ScrollChips(chipPlaces[i].Left, chipPlaces[i].Width);
+        };
         tabs.Exit = d => d == Direction.Left && Scrolling.Left(gate, Shell.FocusRail);
         watches.Add(model.State.Watch(Show));
     }
@@ -201,6 +212,9 @@ sealed class LibraryScreen : ShellPage
     {
         if (chipsView.GetParent() == null)
         {
+            chipScroll = 0;
+            chipAnimation?.Stop();
+            chipAnimation = null;
             chipsView.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(ChipsTop));
             body.Add(chipsView);
             content.Add(chips);
@@ -315,7 +329,7 @@ sealed class LibraryScreen : ShellPage
         var line = LibraryText.CountLine(s);
         if (list.SequenceEqual(shownChips))
         {
-            if (count != null && line != null) Text.Show(count, line);
+            ShowCount(line);
             return;
         }
         // Focus stays on the chip of the same kind, by kind and not by its label: a sort chosen
@@ -329,6 +343,7 @@ sealed class LibraryScreen : ShellPage
             child.Dispose();
         }
         chips.Clear();
+        chipPlaces.Clear();
         float x = 0;
         FocusItem? again = null;
         foreach (var chip in list)
@@ -342,15 +357,59 @@ sealed class LibraryScreen : ShellPage
             button.PositionX = Ui.Dp(x);
             chipsView.Add(button);
             chips.Add(button.Item);
+            chipPlaces.Add((x, button.WidthDp));
             if (again == null && chip.Kind == focusedKind) again = button.Item;
             x += button.WidthDp + 10;
         }
         // Its kind gone: the chip in its place.
         if (again == null && focusedAt >= 0 && chips.Children.Count > 0) again = chips.Children[Math.Min(focusedAt, chips.Children.Count - 1)] as FocusItem;
-        count = Text.Label(line ?? "", PleyType.Caption, PleyColors.Muted, width: 300);
-        count.Position = new Position(Ui.Dp(x - 10 + 8), Ui.Dp((ChipHeight - PleyType.Caption.Line) / 2));
+        // The count gives way to the chips rather than run past the row's end (ShowCount).
+        var countX = x - 10 + 8;
+        countRoom = Math.Min(300, ChipsRoom - countX);
+        count = Text.Label("", PleyType.Caption, PleyColors.Muted, width: Math.Max(countRoom, 1));
+        count.Position = new Position(Ui.Dp(countX), Ui.Dp((ChipHeight - PleyType.Caption.Line) / 2));
+        shownCount = null;
+        ShowCount(line);
         chipsView.Add(count);
+        // Fewer chips (a filter cleared): the row slides no further than they need.
+        var most = Math.Max(0, x - 10 - ChipsRoom);
+        if (chipScroll > most) SlideChips(most);
         if (again != null) Tree.Focus(again);
+    }
+
+    /// <summary>The chips' room: from the gutter to the right safe edge.</summary>
+    static float ChipsRoom => PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal;
+
+    /// <summary>
+    /// Keeps the focused chip between the gutter and the right safe edge, as Search's recent searches
+    /// do: the row is wider than that only with many filters chosen.
+    /// </summary>
+    void ScrollChips(float left, float width)
+    {
+        var target = chipScroll;
+        if (left < target) target = left;
+        else if (left + width > target + ChipsRoom) target = left + width - ChipsRoom;
+        if (target != chipScroll) SlideChips(target);
+    }
+
+    void SlideChips(float target)
+    {
+        chipScroll = target;
+        chipAnimation?.Stop();
+        chipAnimation = Scrolling.Glide(gate);
+        chipAnimation.AnimateTo(chipsView, "PositionX", Ui.Dp(PleyTv.Gutter - chipScroll));
+        chipAnimation.Play();
+    }
+
+    /// <summary>The count after the chips, whole or not at all: with many filters chosen, cut short ("23 of 3…") it says nothing.</summary>
+    void ShowCount(string? line)
+    {
+        // While the listing isn't known, the count shown stays.
+        if (count == null || line == null || line == shownCount) return;
+        shownCount = line;
+        count.Text = line;
+        if (Text.Width(count) <= countRoom) count.Show();
+        else count.Hide();
     }
 
     void Chip(LibraryChip chip)

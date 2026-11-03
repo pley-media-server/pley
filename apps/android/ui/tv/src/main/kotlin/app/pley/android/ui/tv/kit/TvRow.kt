@@ -810,14 +810,15 @@ private fun Modifier.focusedRowOnTop(row: RowFocus): Modifier = layout { measura
 
 /**
  * Hides what scrolls under the collapsed rail (design spec §2.4): [Bg][PleyColors.Bg]
- * up to x = 56, clear from x = 72, drawn once over the content. The focused
- * tile's ring sits right of it.
+ * up to x = 56, clear from x = 72, drawn once over the content, while
+ * [shown] (read as it draws: a row that has scrolled). The focused tile's
+ * ring sits right of it.
  */
-fun Modifier.railFade(): Modifier = drawWithContent {
+fun Modifier.railFade(shown: () -> Boolean = { true }): Modifier = drawWithContent {
     drawContent()
     // A stretched picture rather than a gradient shader (GradientBitmaps): it is
     // drawn every frame, over the whole height.
-    drawStretched(RailFade, Offset.Zero, Size(PleyTv.RailFadeClearFrom.toPx(), size.height))
+    if (shown()) drawStretched(RailFade, Offset.Zero, Size(PleyTv.RailFadeClearFrom.toPx(), size.height))
 }
 
 /** Bg to x = 56 of its 72 dp, then clear at 72. */

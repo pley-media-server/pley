@@ -220,7 +220,7 @@ export function SettingsScreen(p: { entry: Entry }) {
         );
       }
       rows.push(<SettingRow key="history" fid="row-history" icon="history" label="Watch history" chevron onSelect={() => ui.nav.open({ name: "history" })} />);
-      // The Libraries page sorts them too, but with three or fewer the rail lists them and has no way there.
+      // The Libraries page sorts them too, but with six or fewer the rail lists them and has no way there.
       if (librariesSort !== "no") {
         rows.push(
           <SettingRow

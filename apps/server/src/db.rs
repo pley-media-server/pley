@@ -268,4 +268,69 @@ mod tests {
         );
         db.close().await;
     }
+
+    /// Probes now find Dolby Vision in the frames of 10-bit HEVC whose file
+    /// doesn't name it: an upgrade has those files probed again, and only
+    /// those.
+    #[tokio::test]
+    async fn hevc_that_may_hide_dolby_vision_is_probed_again() {
+        let dir = crate::testing::tempdir();
+        let path = dir.path().join("pley.db");
+        let pool = database_before(44, &path).await;
+        sqlx::query("INSERT INTO libraries (id, name, kind, created_at) VALUES (1, 'Movies', 'movies', 0)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        let video = |codec: &str, range: Option<&str>, bits: Option<i64>| {
+            serde_json::json!({"streams": [{"index": 0, "kind": "video", "codec": codec,
+                "dynamic_range": range, "bit_depth": bits}]})
+            .to_string()
+        };
+        let files = [
+            ("hdr10", Some(video("hevc", Some("hdr10"), Some(10)))),
+            ("hdr10plus", Some(video("hevc", Some("hdr10plus"), Some(10)))),
+            ("hlg", Some(video("hevc", Some("hlg"), Some(10)))),
+            ("sdr 10-bit", Some(video("hevc", Some("sdr"), Some(10)))),
+            ("no range or depth", Some(video("hevc", None, None))),
+            ("named", Some(video("hevc", Some("dolby_vision"), Some(10)))),
+            ("8-bit", Some(video("hevc", Some("sdr"), Some(8)))),
+            ("avc", Some(video("h264", Some("sdr"), Some(8)))),
+            ("unreadable", None),
+        ];
+        for (id, (name, info)) in files.iter().enumerate() {
+            sqlx::query(
+                "INSERT INTO items (id, library_id, kind, key, title, sort_title, added_at, updated_at)
+                 VALUES (?, 1, 'movie', ?, ?, ?, 0, 0)",
+            )
+            .bind(id as i64)
+            .bind(name)
+            .bind(name)
+            .bind(name)
+            .execute(&pool)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO media_files (item_id, library_id, path, size, mtime, media_info, probed, added_at, updated_at)
+                 VALUES (?, 1, ?, 1, 0, ?, 1, 0, 0)",
+            )
+            .bind(id as i64)
+            .bind(format!("/m/{name}.mkv"))
+            .bind(info)
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+        pool.close().await;
+
+        let db = Db::open(&path).await.unwrap();
+        let again: Vec<String> = sqlx::query_scalar("SELECT path FROM media_files WHERE probed = 0 ORDER BY id")
+            .fetch_all(&db.read)
+            .await
+            .unwrap();
+        assert_eq!(
+            again,
+            ["/m/hdr10.mkv", "/m/hdr10plus.mkv", "/m/hlg.mkv", "/m/sdr 10-bit.mkv", "/m/no range or depth.mkv"]
+        );
+        db.close().await;
+    }
 }

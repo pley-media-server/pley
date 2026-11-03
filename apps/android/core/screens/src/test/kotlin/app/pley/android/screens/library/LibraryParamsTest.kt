@@ -1,8 +1,10 @@
 package app.pley.android.screens.library
 
 import app.pley.android.data.LibraryQuery
+import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.LibrarySort
+import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.SortOrder
 import app.pley.android.screens.LibraryTab
 import org.junit.Assert.assertEquals
@@ -33,6 +35,46 @@ class LibraryParamsTest {
         val query = params.toQueryString()
         assertEquals("sort=year&order=asc&watched=false&genre=Science+Fiction&year=1999", query)
         assertEquals(params, LibraryParams.parse(query))
+    }
+
+    @Test
+    fun resolutionAndDynamicRangeRoundTripAfterTheYear() {
+        val params = LibraryParams(year = 2016, resolution = ResolutionFilter.Uhd, dynamicRange = DynamicRangeFilter.DolbyVision)
+        val query = params.toQueryString()
+        assertEquals("year=2016&resolution=4k&dynamic_range=dolby_vision", query)
+        assertEquals(params, LibraryParams.parse(query))
+        assertEquals(
+            LibraryQuery(LibrarySort.Title, SortOrder.Ascending, year = 2016, resolution = ResolutionFilter.Uhd, dynamicRange = DynamicRangeFilter.DolbyVision),
+            params.query(),
+        )
+        for (r in ResolutionFilter.entries) assertEquals(r, LibraryParams.parse("resolution=${r.wire}").resolution)
+        for (d in DynamicRangeFilter.entries) assertEquals(d, LibraryParams.parse("dynamic_range=${d.wire}").dynamicRange)
+    }
+
+    @Test
+    fun aStoredResolutionOrDynamicRangeTheServerWouldRefuseIsDropped() {
+        assertEquals(LibraryParams(genre = "Drama"), LibraryParams.parse("genre=Drama&resolution=8k&dynamic_range=hdr12"))
+        assertEquals(LibraryParams(), LibraryParams.parse("resolution=4K&dynamic_range=Dolby+Vision"))
+        assertEquals(LibraryParams(), LibraryParams.parse("resolution=&dynamic_range="))
+    }
+
+    @Test
+    fun resolutionAndDynamicRangeAreFilters() {
+        for (params in listOf(LibraryParams(resolution = ResolutionFilter.Sd), LibraryParams(dynamicRange = DynamicRangeFilter.Hdr))) {
+            assertTrue(params.filtered)
+            assertFalse(params.cleared().filtered)
+        }
+        val both = LibraryParams(sort = LibrarySort.Added, resolution = ResolutionFilter.Hd, dynamicRange = DynamicRangeFilter.Hlg)
+        assertEquals(LibraryParams(sort = LibrarySort.Added), both.cleared())
+    }
+
+    @Test
+    fun postersCarryBadgesOnlyByBitrateOrFilteredByWhatTheyShow() {
+        assertFalse(LibraryParams().badges)
+        assertFalse(LibraryParams(sort = LibrarySort.Added, watched = false, genre = "Drama", year = 1999).badges)
+        assertTrue(LibraryParams(sort = LibrarySort.Bitrate).badges)
+        assertTrue(LibraryParams(resolution = ResolutionFilter.Uhd).badges)
+        assertTrue(LibraryParams(dynamicRange = DynamicRangeFilter.Sdr).badges)
     }
 
     @Test
@@ -84,8 +126,19 @@ class LibraryParamsTest {
 
     @Test
     fun musicKeepsNoFiltersOrCollections() {
-        val params = LibraryParams(tab = LibraryTab.Collections, sort = LibrarySort.Bitrate, order = SortOrder.Ascending, watched = false, genre = "Jazz")
+        val params = LibraryParams(
+            tab = LibraryTab.Collections,
+            sort = LibrarySort.Bitrate,
+            order = SortOrder.Ascending,
+            watched = false,
+            genre = "Jazz",
+            resolution = ResolutionFilter.Uhd,
+            dynamicRange = DynamicRangeFilter.Hdr,
+        )
         assertEquals(LibraryParams(tab = LibraryTab.Library), params.validFor(LibraryKind.Music))
+        // Shows keep them, as movies do.
+        val shows = LibraryParams(resolution = ResolutionFilter.Uhd, dynamicRange = DynamicRangeFilter.Hdr)
+        assertEquals(shows, shows.validFor(LibraryKind.Shows))
         // Shows can't sort by duration: back to titles, in their order.
         assertEquals(LibraryParams(), LibraryParams(sort = LibrarySort.Duration, order = SortOrder.Descending).validFor(LibraryKind.Shows))
         // What a kind offers stays as it is.

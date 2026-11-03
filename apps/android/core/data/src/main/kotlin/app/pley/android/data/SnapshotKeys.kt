@@ -91,7 +91,7 @@ object SnapshotKeys {
         return key.substringAfter(':').substringBefore(':').toLongOrNull()
     }
 
-    /** [query] in a key: sort, order, watched, genre and year. */
+    /** [query] in a key: sort, order, watched, genre, year, resolution and dynamic range. */
     fun queryKey(query: LibraryQuery): String = buildString {
         append(query.sort.wire).append('.').append(query.order.wire)
         when (query.unwatched) {
@@ -101,6 +101,8 @@ object SnapshotKeys {
         }
         query.genre?.let { append(".g=").append(it) }
         query.year?.let { append(".y=").append(it) }
+        query.resolution?.let { append(".r=").append(it.wire) }
+        query.dynamicRange?.let { append(".d=").append(it.wire) }
     }
 
     private val LIBRARY_KEYS = setOf("libhubs", "library", "filters", "collections")

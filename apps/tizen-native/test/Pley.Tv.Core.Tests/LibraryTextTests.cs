@@ -63,6 +63,59 @@ public class LibraryTextTests
     }
 
     [Fact]
+    public void A_resolution_or_dynamic_range_has_a_chip_only_while_chosen_saying_it()
+    {
+        data.FiltersAnswer = new FiltersAnswer(new[] { "Drama" }, new[] { 1999 }) { Resolutions = new[] { "4k", "1080" }, DynamicRanges = new[] { "hdr", "sdr" } };
+        Assert.DoesNotContain(LibraryText.Chips(StateOf()), c => c.Kind is LibraryChipKind.Resolution or LibraryChipKind.DynamicRange);
+        var chips = LibraryText.Chips(StateOf(saved: "resolution=4k&dynamic_range=dolby_vision"));
+        Assert.Equal(new[] { LibraryChipKind.Sort, LibraryChipKind.Filter, LibraryChipKind.Unwatched, LibraryChipKind.Genre, LibraryChipKind.Year, LibraryChipKind.Resolution, LibraryChipKind.DynamicRange },
+            chips.Select(c => c.Kind));
+        Assert.Equal(new[] { ("4K", true), ("Dolby Vision", true) }, chips.Skip(5).Select(c => (c.Label, c.Selected)));
+        Assert.Equal(LibraryPanel.Resolution, LibraryText.PanelOf(LibraryChipKind.Resolution));
+        Assert.Equal(LibraryPanel.DynamicRange, LibraryText.PanelOf(LibraryChipKind.DynamicRange));
+        // Music has none.
+        Assert.Single(LibraryText.Chips(StateOf(Music.Id, "resolution=4k")));
+    }
+
+    [Fact]
+    public void The_filter_panel_offers_resolution_and_dynamic_range_after_year_when_there_is_a_choice()
+    {
+        data.FiltersAnswer = new FiltersAnswer(new[] { "Drama" }, new[] { 1999 }) { Resolutions = new[] { "4k", "1080", "sd" }, DynamicRanges = new[] { "hdr", "dolby_vision", "hdr10", "sdr" } };
+        var plain = LibraryText.Panel(LibraryPanel.Filter, StateOf());
+        Assert.Equal(new[] { "Show", "All", "Unwatched", "Watched", "Genre", "Year", "Resolution", "Dynamic range" }, plain.Rows.Select(r => r.Label));
+        Assert.Equal(new[] { "All genres", "All years", "All resolutions", "All dynamic ranges" }, plain.Rows.Where(r => r.Opens).Select(r => r.Detail));
+
+        var chosen = LibraryText.Panel(LibraryPanel.Filter, StateOf(saved: "resolution=1080&dynamic_range=hdr10"));
+        Assert.Equal(new[] { "Genre", "Year", "Resolution", "Dynamic range", "Clear filters", "Save as…" }, chosen.Rows.Skip(4).Select(r => r.Label));
+        Assert.Equal(new[] { "1080p", "HDR" }, chosen.Rows.Where(r => r.Kind is LibraryRowKind.Resolutions or LibraryRowKind.DynamicRanges).Select(r => r.Detail));
+
+        var resolutions = LibraryText.Panel(LibraryPanel.Resolution, StateOf(saved: "resolution=1080"));
+        Assert.Equal("Resolution", resolutions.Title);
+        Assert.Equal(new[] { "All resolutions", "4K", "1080p", "SD" }, resolutions.Rows.Select(r => r.Label));
+        Assert.Equal(new[] { null, "4k", "1080", "sd" }, resolutions.Rows.Select(r => r.Value));
+        Assert.Equal(2, resolutions.Focus);
+        var ranges = LibraryText.Panel(LibraryPanel.DynamicRange, StateOf());
+        Assert.Equal("Dynamic range", ranges.Title);
+        Assert.Equal(new[] { "All dynamic ranges", "Any HDR", "Dolby Vision", "HDR", "SDR" }, ranges.Rows.Select(r => r.Label));
+        Assert.Equal(0, ranges.Focus);
+
+        // A library with one of each has nothing to choose: the rows show only while one is chosen, to change or clear it.
+        data.FiltersAnswer = new FiltersAnswer(new[] { "Drama" }, new[] { 1999 });
+        Assert.DoesNotContain(LibraryText.Panel(LibraryPanel.Filter, StateOf()).Rows, r => r.Kind is LibraryRowKind.Resolutions or LibraryRowKind.DynamicRanges);
+        Assert.Equal(new[] { "Resolution" }, LibraryText.Panel(LibraryPanel.Filter, StateOf(saved: "resolution=sd")).Rows
+            .Where(r => r.Kind is LibraryRowKind.Resolutions or LibraryRowKind.DynamicRanges).Select(r => r.Label));
+    }
+
+    [Fact]
+    public void Resolutions_and_dynamic_ranges_have_their_words()
+    {
+        Assert.Equal(new[] { "4K", "1080p", "720p", "SD" }, LibraryParams.Resolutions.Select(LibraryText.ResolutionLabel));
+        Assert.Equal(new[] { "Any HDR", "Dolby Vision", "HDR+", "HDR", "HLG", "SDR" }, LibraryParams.DynamicRanges.Select(LibraryText.DynamicRangeLabel));
+        Assert.Null(LibraryText.ResolutionLabel("8k"));
+        Assert.Null(LibraryText.DynamicRangeLabel(null));
+    }
+
+    [Fact]
     public void The_sort_panel_lists_the_kinds_sorts_then_the_order_focused_on_the_one_in_force()
     {
         var panel = LibraryText.Panel(LibraryPanel.Sort, StateOf(Shows.Id, "sort=added"));
@@ -150,7 +203,7 @@ public class LibraryTextTests
         Assert.Equal("", LibraryText.MediaLine(null));
         Assert.Equal("Bitrate unknown", LibraryText.MediaLine(new MediaSummary()));
         Assert.Equal("8.2 Mbps", LibraryText.MediaLine(new MediaSummary { Bitrate = 8_200_000 }));
-        Assert.Equal(new[] { "HDR10" }, LibraryText.MediaBadges(new MediaSummary { Width = 1920, Height = 1080, DynamicRange = "hdr10" }));
+        Assert.Equal(new[] { "HDR" }, LibraryText.MediaBadges(new MediaSummary { Width = 1920, Height = 1080, DynamicRange = "hdr10" }));
         Assert.Empty(LibraryText.MediaBadges(new MediaSummary { Width = 1920, Height = 1080, VideoCodec = "h264", DynamicRange = "sdr" }));
         Assert.Equal(new[] { "4K" }, LibraryText.MediaBadges(new MediaSummary { Width = 3840, Height = 2160, VideoCodec = "h264", DynamicRange = "sdr" }));
         Assert.Empty(LibraryText.MediaBadges(null));

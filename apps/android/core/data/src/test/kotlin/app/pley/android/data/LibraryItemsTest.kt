@@ -1,9 +1,11 @@
 package app.pley.android.data
 
+import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.ItemsPage
 import app.pley.android.model.LibrarySort
+import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.SortOrder
 import app.pley.android.network.PleyApi
 import app.pley.android.testing.data.TestData
@@ -34,6 +36,8 @@ class LibraryItemsTest {
             watched: Boolean?,
             genre: String?,
             year: Int?,
+            resolution: ResolutionFilter?,
+            dynamicRange: DynamicRangeFilter?,
             offset: Int,
             limit: Int?,
         ): ItemsPage {
@@ -138,12 +142,23 @@ class LibraryItemsTest {
     @Test
     fun `the query goes to the server as the web sends it`() = runTest {
         val data = signedIn(folder.newFolder())
-        val q = LibraryQuery(sort = LibrarySort.Added, order = SortOrder.Descending, unwatched = true, genre = "Drama", year = 2016)
+        val q = LibraryQuery(
+            sort = LibrarySort.Added,
+            order = SortOrder.Descending,
+            unwatched = true,
+            genre = "Drama",
+            year = 2016,
+            resolution = ResolutionFilter.Uhd,
+            dynamicRange = DynamicRangeFilter.Hdr,
+        )
         collect(data.graph.libraryItems.items(1, q))
         testScheduler.runCurrent()
 
         val call = data.api.calls("libraryItems").first()
-        assertEquals(listOf<Any?>(1L, LibrarySort.Added, SortOrder.Descending, false, "Drama", 2016, 0, 200), call.args)
+        assertEquals(
+            listOf<Any?>(1L, LibrarySort.Added, SortOrder.Descending, false, "Drama", 2016, ResolutionFilter.Uhd, DynamicRangeFilter.Hdr, 0, 200),
+            call.args,
+        )
     }
 
     @Test
@@ -154,5 +169,8 @@ class LibraryItemsTest {
         val file = snapshotFile(data.dir, ProfileScope(data.issuer, 2), SnapshotKeys.libraryHead(1, query))
         assertTrue(file.isFile)
         assertEquals("library:1:title.asc:head", SnapshotKeys.libraryHead(1, query))
+        // Each filter is a listing of its own.
+        val filtered = LibraryQuery(resolution = ResolutionFilter.Uhd, dynamicRange = DynamicRangeFilter.DolbyVision)
+        assertEquals("library:1:title.asc.r=4k.d=dolby_vision:head", SnapshotKeys.libraryHead(1, filtered))
     }
 }

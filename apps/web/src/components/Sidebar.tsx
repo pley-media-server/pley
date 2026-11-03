@@ -16,7 +16,8 @@ import { IconButton, Skeleton } from "./ui";
 import { discoverUrl, libraryUrl, playlistUrl, requestsUrl } from "@/lib/urls";
 
 export function LibraryIcon({ kind, className }: { kind: LibraryKind; className?: string }) {
-  const cls = cn("size-[18px] shrink-0", className);
+  // A size in `className` replaces the default: `cn` doesn't merge classes, and the later rule would win.
+  const cls = cn(className ?? "size-[18px]", "shrink-0");
   if (kind === "movies") return <Film className={cls} />;
   if (kind === "shows") return <Tv className={cls} />;
   return <Music className={cls} />;
@@ -29,14 +30,14 @@ function NavItem({ to, icon, children, end, trailing }: { to: string; icon: Reac
       end={end}
       className={({ isActive }) =>
         cn(
-          "group relative flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors duration-150",
+          "group relative flex h-8 items-center gap-2.5 rounded-md px-3 text-sm font-medium transition-colors duration-150",
           isActive ? "bg-white/[0.07] text-fg" : "text-muted hover:bg-white/[0.04] hover:text-fg",
         )
       }
     >
       {({ isActive }) => (
         <>
-          {isActive ? <span className="absolute inset-y-2 left-0 w-[3px] rounded-r bg-accent" /> : null}
+          {isActive ? <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-r bg-accent" /> : null}
           <span className={cn("transition-colors", isActive ? "text-accent" : "text-subtle group-hover:text-muted")}>{icon}</span>
           <span className="min-w-0 flex-1 truncate">{children}</span>
           {trailing}
@@ -56,7 +57,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
   return (
     <nav className="flex h-full flex-col overflow-y-auto px-3 pb-4 pt-4" aria-label="Main">
-      <div className="mb-6 flex items-center justify-between px-2">
+      <div className="mb-5 flex items-center justify-between px-2">
         <Link to="/" aria-label="Pley home">
           <Logo />
         </Link>
@@ -68,18 +69,18 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
       </div>
 
       <div className="space-y-0.5">
-        <NavItem to="/" end icon={<House className="size-[18px]" />}>
+        <NavItem to="/" end icon={<House className="size-4" />}>
           Home
         </NavItem>
         {showLive ? (
-          <NavItem to="/live" icon={<Tv2 className="size-[18px]" />}>
+          <NavItem to="/live" icon={<Tv2 className="size-4" />}>
             Live TV
           </NavItem>
         ) : null}
         <RequestsNav />
       </div>
 
-      <div className="mb-0.5 mt-5 flex h-7 items-center justify-between pl-3 pr-1 text-xs font-medium text-subtle">
+      <div className="mb-0.5 mt-4 flex h-7 items-center justify-between pl-3 pr-1 text-xs font-medium text-subtle">
         Libraries
         {(libs.data?.length ?? 0) > 1 ? (
           <IconButton label="Sort libraries" size="xs" className="text-subtle" onClick={() => setSorting(true)}>
@@ -90,12 +91,12 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
       <SortLibrariesModal open={sorting} onClose={() => setSorting(false)} />
       <div className="space-y-0.5">
         {libs.isPending
-          ? Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="mx-3 my-2.5 h-5" />)
+          ? Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="mx-3 my-1.5 h-5" />)
           : libs.data?.map((lib) => (
               <NavItem
                 key={lib.id}
                 to={libraryUrl(lib.id)}
-                icon={<LibraryIcon kind={lib.kind} />}
+                icon={<LibraryIcon kind={lib.kind} className="size-4" />}
                 trailing={
                   lib.scanning ? (
                     <LoaderCircle className="size-3.5 animate-spin text-accent" aria-label="Scanning" />
@@ -109,9 +110,9 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           user.is_admin ? (
             <Link
               to="/settings/libraries?add=1"
-              className="flex h-10 items-center gap-3 rounded-md px-3 text-sm text-muted transition-colors hover:bg-white/[0.04] hover:text-fg"
+              className="flex h-8 items-center gap-2.5 rounded-md px-3 text-sm text-muted transition-colors hover:bg-white/[0.04] hover:text-fg"
             >
-              <Plus className="size-[18px] text-subtle" />
+              <Plus className="size-4 text-subtle" />
               Add library
             </Link>
           ) : (
@@ -125,8 +126,8 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
       <div className="flex-1" />
 
       {user.is_admin ? (
-        <div className="mt-6 space-y-0.5">
-          <NavItem to="/settings" icon={<Settings className="size-[18px]" />}>
+        <div className="mt-4 space-y-0.5">
+          <NavItem to="/settings" icon={<Settings className="size-4" />}>
             Settings
           </NavItem>
         </div>
@@ -148,13 +149,13 @@ function RequestsNav() {
   return (
     <>
       {mayRequest(data) ? (
-        <NavItem to={discoverUrl()} icon={<Compass className="size-[18px]" />}>
+        <NavItem to={discoverUrl()} icon={<Compass className="size-4" />}>
           Discover
         </NavItem>
       ) : null}
       <NavItem
         to={requestsUrl}
-        icon={<Inbox className="size-[18px]" />}
+        icon={<Inbox className="size-4" />}
         trailing={
           // The spaces outside the spans, as names are made of their trimmed text: "Requests 3 waiting".
           count > 0 ? (
@@ -184,18 +185,18 @@ function PlaylistsSection() {
   const shown = playlists.data?.slice(0, 8) ?? [];
   return (
     <>
-      <div className="mb-1.5 mt-6 px-3 text-xs font-medium text-subtle">Playlists</div>
+      <div className="mb-0.5 mt-4 flex h-7 items-center px-3 text-xs font-medium text-subtle">Playlists</div>
       <div className="space-y-0.5">
         {shown.map((p) => (
           <NavItem
             key={p.id}
             to={playlistUrl(p.id)}
-            icon={p.kind === "audio" ? <ListMusic className="size-[18px]" /> : <ListVideo className="size-[18px]" />}
+            icon={p.kind === "audio" ? <ListMusic className="size-4" /> : <ListVideo className="size-4" />}
           >
             {p.title}
           </NavItem>
         ))}
-        <NavItem to="/playlists" end icon={<List className="size-[18px]" />}>
+        <NavItem to="/playlists" end icon={<List className="size-4" />}>
           {shown.length ? "All playlists" : "Your playlists"}
         </NavItem>
       </div>

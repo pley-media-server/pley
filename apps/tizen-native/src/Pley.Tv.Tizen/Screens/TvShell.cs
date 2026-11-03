@@ -77,6 +77,7 @@ sealed class TvShell : Sheet
     readonly View toast;
     readonly TextLabel toastText;
     readonly Timer toastTimer = new Timer(3_500);
+    IReadOnlyList<RailItem> railItems = Array.Empty<RailItem>();
     LiveTvEntry? liveTv;
     bool nowPlaying;
     bool storage;
@@ -128,9 +129,6 @@ sealed class TvShell : Sheet
     }
 
     public RailView Rail { get; }
-
-    /// <summary>The rail's entries above Settings, for the Libraries page, which lists Playlists while they have none.</summary>
-    public Signal<IReadOnlyList<RailItem>> RailEntries { get; } = new Signal<IReadOnlyList<RailItem>>(Array.Empty<RailItem>());
 
     /// <summary>The page on top.</summary>
     public ShellPage? Top => stack.Count > 0 ? stack[stack.Count - 1] : null;
@@ -224,9 +222,8 @@ sealed class TvShell : Sheet
     /// <summary>The rail's entries for the libraries, with Live TV while it has channels and Now Playing while music has a queue.</summary>
     void RailItems()
     {
-        var items = Pley.Tv.Core.Ui.Rail.Items(state.Libraries.Value ?? Array.Empty<Library>(), nowPlaying: nowPlaying, liveTv: liveTv?.Channels.Value > 0, storage: storage);
-        Rail.SetItems(items);
-        RailEntries.Value = items;
+        railItems = Pley.Tv.Core.Ui.Rail.Items(state.Libraries.Value ?? Array.Empty<Library>(), nowPlaying: nowPlaying, liveTv: liveTv?.Channels.Value > 0, storage: storage);
+        Rail.SetItems(railItems);
         MarkCurrent();
     }
 
@@ -259,7 +256,7 @@ sealed class TvShell : Sheet
         }));
     }
 
-    void MarkCurrent() => Rail.SetCurrent(RootKey == null ? null : Core.Ui.Rail.Current(RootKey, RailEntries.Value));
+    void MarkCurrent() => Rail.SetCurrent(RootKey == null ? null : Core.Ui.Rail.Current(RootKey, railItems));
 
     bool OnBack()
     {

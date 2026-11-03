@@ -201,6 +201,8 @@ class ChangesTest {
         assertEquals(listOf<Loadable<SearchResults>>(Loadable.Loading), older)
         assertEquals(Loadable.Ready(results, fresh = true), newer.last())
         assertEquals(listOf("arr", "arri"), data.api.calls("search").map { it.args.first() })
+        // Every result there is, up to the server's most: titles, people and channels each.
+        assertEquals(listOf(200, 200), data.api.calls("search").map { it.args[1] })
     }
 
     @Test

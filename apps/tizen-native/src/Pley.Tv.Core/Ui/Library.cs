@@ -35,14 +35,24 @@ public sealed record SaveSmartPlaylistPage(long LibraryId, string Filter) : Page
 /// <param name="Sort">One of <see cref="LibrarySort"/>.</param>
 /// <param name="Order">Null is the sort's own order (<see cref="DefaultOrder"/>).</param>
 /// <param name="Watched">The web's: false lists unwatched titles only, true watched ones, null both.</param>
+/// <param name="Resolution">One of <see cref="Resolutions"/>, or null for every one.</param>
+/// <param name="DynamicRange">One of <see cref="DynamicRanges"/>, or null for every one.</param>
 public sealed record LibraryParams(
     LibraryTab Tab = LibraryTab.Library,
     string Sort = LibrarySort.Title,
     string? Order = null,
     bool? Watched = null,
     string? Genre = null,
-    int? Year = null)
+    int? Year = null,
+    string? Resolution = null,
+    string? DynamicRange = null)
 {
+    /// <summary>The resolutions a library can be filtered by, as the server names them, best first.</summary>
+    public static readonly IReadOnlyList<string> Resolutions = new[] { "4k", "1080", "720", "sd" };
+
+    /// <summary>The dynamic ranges a library can be filtered by, as the server names them: "hdr" is any but SDR.</summary>
+    public static readonly IReadOnlyList<string> DynamicRanges = new[] { "hdr", "dolby_vision", "hdr10plus", "hdr10", "hlg", "sdr" };
+
     /// <summary>Every sort, in the web's order.</summary>
     public static readonly IReadOnlyList<string> AllSorts = new[]
     {
@@ -62,16 +72,25 @@ public sealed record LibraryParams(
     public string EffectiveOrder => Order ?? DefaultOrder(Sort);
 
     /// <summary>A filter narrows the listing (the sort doesn't count).</summary>
-    public bool Filtered => Watched != null || Genre != null || Year != null;
+    public bool Filtered => Watched != null || Genre != null || Year != null || Resolution != null || DynamicRange != null;
+
+    /// <summary>
+    /// The grid's posters carry their quality badges ("4K", "DV"): only when the listing is about the
+    /// files' quality, sorted by bitrate or filtered by resolution or dynamic range.
+    /// </summary>
+    public bool ShowsBadges => Sort == LibrarySort.Bitrate || Resolution != null || DynamicRange != null;
 
     /// <summary>The listing as the server is asked for it, from its start.</summary>
-    public LibraryQuery Query() => new LibraryQuery { Sort = Sort, Order = EffectiveOrder, Watched = Watched, Genre = Genre, Year = Year };
+    public LibraryQuery Query() => new LibraryQuery
+    {
+        Sort = Sort, Order = EffectiveOrder, Watched = Watched, Genre = Genre, Year = Year, Resolution = Resolution, DynamicRange = DynamicRange,
+    };
 
     /// <summary>The tab, sort, order and filters: how a library is left, to open so again.</summary>
     public string View() => ToQueryString();
 
     /// <summary>Without any filter: "Clear filters".</summary>
-    public LibraryParams Cleared() => this with { Watched = null, Genre = null, Year = null };
+    public LibraryParams Cleared() => this with { Watched = null, Genre = null, Year = null, Resolution = null, DynamicRange = null };
 
     /// <summary>Sorted by <paramref name="sort"/> in its own order, as choosing a sort does on the web.</summary>
     public LibraryParams SortedBy(string sort) => this with { Sort = sort, Order = null };
@@ -88,7 +107,7 @@ public sealed record LibraryParams(
         var sort = SortsFor(kind).Contains(Sort) ? Sort : LibrarySort.Title;
         var valid = this with { Sort = sort, Order = sort != Sort ? null : Order };
         if (kind != "music") return valid;
-        return valid with { Tab = Tab == LibraryTab.Collections ? LibraryTab.Library : Tab, Watched = null, Genre = null, Year = null };
+        return valid.Cleared() with { Tab = Tab == LibraryTab.Collections ? LibraryTab.Library : Tab };
     }
 
     /// <summary>The web's query: parameters at their default are left out, so a fresh page is "" and the Library tab is never named.</summary>
@@ -101,6 +120,8 @@ public sealed record LibraryParams(
         if (Watched != null) parts.Add(("watched", Watched.Value ? "true" : "false"));
         if (Genre != null) parts.Add(("genre", Genre));
         if (Year != null) parts.Add(("year", Year.Value.ToString(CultureInfo.InvariantCulture)));
+        if (Resolution != null) parts.Add(("resolution", Resolution));
+        if (DynamicRange != null) parts.Add(("dynamic_range", DynamicRange));
         return string.Join("&", parts.Select(p => $"{p.Key}={Encode(p.Value)}"));
     }
 
@@ -128,7 +149,8 @@ public sealed record LibraryParams(
 
     /// <summary>
     /// <paramref name="query"/> as the web's page reads it: unknown values fall back to the
-    /// defaults, a page opened on <paramref name="tab"/> (a route's) unless the query names one.
+    /// defaults (a resolution or dynamic range that isn't one of the server's is none), a page
+    /// opened on <paramref name="tab"/> (a route's) unless the query names one.
     /// </summary>
     public static LibraryParams Parse(string query, LibraryTab tab = LibraryTab.Library)
     {
@@ -154,7 +176,9 @@ public sealed record LibraryParams(
                 _ => null,
             },
             Value("genre") is { Length: > 0 } genre ? genre : null,
-            int.TryParse(Value("year"), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var year) ? year : null);
+            int.TryParse(Value("year"), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var year) ? year : null,
+            Value("resolution") is { } resolution && Resolutions.Contains(resolution) ? resolution : null,
+            Value("dynamic_range") is { } range && DynamicRanges.Contains(range) ? range : null);
     }
 
     /// <summary>
@@ -229,8 +253,10 @@ public enum TileLook
     Landscape,
     /// <summary>Music, 1:1.</summary>
     Square,
-    /// <summary>A poster that says what the files are like ("4K", "DV", "HEVC"; "42 Mbps · 23.4 GB"): sorted by bitrate.</summary>
+    /// <summary>A poster that says what the files are like ("4K", "DV"; "42 Mbps · 23.4 GB"): sorted by bitrate.</summary>
     Bitrate,
+    /// <summary>A poster with its files' badges ("4K", "DV"): filtered by resolution or dynamic range.</summary>
+    Quality,
 }
 
 /// <summary>
@@ -410,7 +436,7 @@ public sealed record LibraryState
     public IReadOnlyList<LibraryTab> Tabs { get; init; } = LibraryParams.TabsFor(null);
     /// <summary>The sorts the Sort panel offers, in order.</summary>
     public IReadOnlyList<string> Sorts { get; init; } = LibraryParams.SortsFor(null);
-    /// <summary>Genres and years the listing can be filtered by (none for music).</summary>
+    /// <summary>Genres, years, resolutions and dynamic ranges the listing can be filtered by (none for music).</summary>
     public FiltersAnswer Filters { get; init; } = NoFilters;
     public LibraryGrid Grid { get; init; } = new LibraryGrid(new Loadable<GridCells>.Loading(), TileLook.Poster, null);
     public GridDensity Density { get; init; } = GridDensity.Medium;
@@ -455,9 +481,16 @@ public static class LibraryRules
     /// <summary>The first position of <paramref name="position"/>'s row: where a jump scrolls to, before focusing the position.</summary>
     public static int RowStart(int position, int columns) => columns <= 1 ? position : position - position % columns;
 
-    /// <summary>How the grid draws a library of <paramref name="kind"/> listed by <paramref name="sort"/>.</summary>
-    public static TileLook GridLook(string? kind, string sort) =>
-        kind == "music" ? TileLook.Square : sort == LibrarySort.Bitrate ? TileLook.Bitrate : TileLook.Poster;
+    /// <summary>
+    /// How the grid draws a library of <paramref name="kind"/> listed as <paramref name="p"/> says:
+    /// sorted by bitrate, with each file's line and badges; filtered by resolution or dynamic range,
+    /// with the badges; otherwise plain posters, though every listing has its files' summary.
+    /// </summary>
+    public static TileLook GridLook(string? kind, LibraryParams p) =>
+        kind == "music" ? TileLook.Square
+        : p.Sort == LibrarySort.Bitrate ? TileLook.Bitrate
+        : p.ShowsBadges ? TileLook.Quality
+        : TileLook.Poster;
 
     /// <summary>How a Recommended row draws its tiles: Continue Watching as stills, music as squares.</summary>
     public static TileLook RowLook(string hubKey, string? kind) =>
@@ -473,7 +506,8 @@ public static class LibraryRules
 
     /// <summary>
     /// <paramref name="item"/>'s tile drawn as <paramref name="look"/> (the Android app's TvTiles):
-    /// sorted by bitrate, it says what the files are like.
+    /// sorted by bitrate, it says what the files are like; filtered by their quality, it badges it.
+    /// Posters elsewhere (rows, collections) carry no quality badges.
     /// </summary>
     public static TileModel Tile(ItemSummary item, TileLook look, string origin)
     {
@@ -492,8 +526,10 @@ public static class LibraryRules
                     Badges = LibraryText.MediaBadges(item.Media),
                     Description = string.Join(", ", new[] { model.Description, line }.Where(s => s.Length > 0)),
                 };
-            default:
+            case TileLook.Quality:
                 return TileModel.Of(item, TileKind.LibraryGrid, origin) with { Badges = LibraryText.MediaBadges(item.Media) };
+            default:
+                return TileModel.Of(item, TileKind.LibraryGrid, origin);
         }
     }
 
@@ -556,8 +592,7 @@ public abstract record LibrariesState
     /// <summary>The libraries in the server's order, with moves not saved yet; empty: "No libraries yet".</summary>
     /// <param name="Error">The server couldn't be asked again: the list is what was saved.</param>
     /// <param name="Sortable">They can be put in another order: there are two or more, and the sign-in may.</param>
-    /// <param name="Playlists">The rail has no entry for Playlists (<see cref="Rail.PlaylistsOnLibrariesPage"/>): the page lists them after the libraries.</param>
-    public sealed record Ready(IReadOnlyList<LibraryEntry> Libraries, Exception? Error = null, bool Refreshing = false, bool Sortable = false, bool Playlists = false) : LibrariesState;
+    public sealed record Ready(IReadOnlyList<LibraryEntry> Libraries, Exception? Error = null, bool Refreshing = false, bool Sortable = false) : LibrariesState;
 }
 
 /// <summary>Something the Libraries page tells the person once, as a toast.</summary>
@@ -580,10 +615,9 @@ public static class LibrariesRules
     /// The list from the libraries the app holds and the scans running, in <paramref name="order"/>
     /// (the libraries' ids, those it doesn't name after) while moves are made or saved.
     /// <paramref name="mayChange"/>: the sign-in may change the profile's choices, its libraries' order among them.
-    /// <paramref name="playlists"/>: the rail has no entry for Playlists.
     /// </summary>
     public static LibrariesState StateOf(IReadOnlyList<Library>? libraries, Exception? error, IReadOnlyList<ScanState> scans,
-        bool refreshing = false, IReadOnlyList<long>? order = null, bool mayChange = false, bool playlists = false)
+        bool refreshing = false, IReadOnlyList<long>? order = null, bool mayChange = false)
     {
         if (libraries == null) return error != null ? new LibrariesState.Failed(error) : new LibrariesState.Loading();
         var scanning = new HashSet<long>(scans.Select(s => s.LibraryId));
@@ -598,8 +632,7 @@ public static class LibrariesRules
             shown.Select(l => new LibraryEntry(l, LibraryText.LibraryCount(l), l.Scanning || scanning.Contains(l.Id))).ToList(),
             error,
             refreshing,
-            mayChange && libraries.Count > 1,
-            playlists);
+            mayChange && libraries.Count > 1);
     }
 
     /// <summary>Whether the sign-in may change the profile's choices: a profile's own, or an app allowed to play.</summary>

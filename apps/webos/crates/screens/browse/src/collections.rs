@@ -27,7 +27,7 @@ use pley_ui::theme::{self, radius};
 use pley_ui::{Motion, Ui};
 
 use crate::parts::{Rest, column_message, failed_title, page_title, skeleton_blocks};
-use crate::tiles::{Cell, page_of, requests};
+use crate::tiles::{Cell, Quality, page_of, requests};
 use crate::view::{collection_count, describe_smart_filter};
 
 /// The rows' header line on the Collections page.
@@ -424,9 +424,11 @@ impl Screen for CollectionScreen {
         {
             let px = ui.image_px(TileKind::LibraryGrid.size().w);
             self.cells = match cx.api() {
-                Some(api) => {
-                    detail.items.iter().map(|i| Cell::new(i.clone(), api, TileKind::LibraryGrid, px, false)).collect()
-                }
+                Some(api) => detail
+                    .items
+                    .iter()
+                    .map(|i| Cell::new(i.clone(), api, TileKind::LibraryGrid, px, Quality::NONE))
+                    .collect(),
                 None => Vec::new(),
             };
             let path = detail.backdrop_url.clone().or(detail.poster_url.clone());

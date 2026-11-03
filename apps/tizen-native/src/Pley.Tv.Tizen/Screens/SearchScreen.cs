@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Live;
 using Pley.Tv.Core.Ui;
@@ -36,6 +37,8 @@ sealed class SearchScreen : ShellPage
     readonly TextLabel searching;
     /// <summary>What is under the field: the rows, the chips or Retry.</summary>
     readonly FocusGroup below = new FocusGroup(Axis.Column, "below");
+    /// <summary>The results' rows, while shown: disposed as they go, so they stop making tiles and give up their channels' logos.</summary>
+    readonly List<View> rows = new List<View>();
 
     /// <summary>What the body shows now: the groups, the recent searches, a message, or "skeleton".</summary>
     object? shown;
@@ -95,7 +98,15 @@ sealed class SearchScreen : ShellPage
         foreach (var w in watches) w.Dispose();
         field.Changed -= model.Type;
         chipAnimation?.Stop();
+        DropRows();
         model.Dispose();
+    }
+
+    /// <summary>The results' rows go, each disposed here: a view's Dispose leaves its children, and a row left would make tiles and load logos on for an answer gone.</summary>
+    void DropRows()
+    {
+        foreach (var row in rows) row.Dispose();
+        rows.Clear();
     }
 
     void Show(SearchState s)
@@ -131,6 +142,7 @@ sealed class SearchScreen : ShellPage
         chipStrip = null;
         chipScroll = 0;
         channelRow = null;
+        DropRows();
         below.Clear();
         foreach (var child in body.Children.ToList())
         {
@@ -165,16 +177,19 @@ sealed class SearchScreen : ShellPage
             {
                 channelRow = new ChannelRowView(ready.Channels, model.Origin, model.Now.Value, gate, images, Watch, Shell.FocusRail);
                 column.Add(channelRow, channelRow.Group);
+                rows.Add(channelRow);
             }
             if (i == groups.Count) break;
             var g = groups[i];
-            column.Add(new RowView(g.Title, g.Tiles, g.TileKind, gate, images,
+            var row = new RowView(g.Title, g.Tiles, g.TileKind, gate, images,
                 tile =>
                 {
                     if (model.Open(g.Kind, tile.Id) is { } key) go(key);
                 },
                 g.Kind == SearchGroupKind.People ? null : tile => Shell.Actions?.Invoke(tile.Id, false),
-                Shell.FocusRail, focusItem: Tree.Focus));
+                Shell.FocusRail, focusItem: Tree.Focus);
+            column.Add(row);
+            rows.Add(row);
         }
         body.Add(column);
         below.Add(column.Group);
@@ -302,15 +317,29 @@ sealed class SearchScreen : ShellPage
 sealed class ChannelRowView : View
 {
     static readonly TileKind Kind = ChannelCard.Kind;
+    static readonly int PerScreen = RowReach.PerScreen(Kind);
 
+    readonly IReadOnlyList<LiveChannel> channels;
+    readonly string origin;
     readonly KeyRepeatGate gate;
+    readonly Images images;
     readonly View strip;
+    /// <summary>Each channel's place in the focus tree, there from the start, whether its card is made yet or not.</summary>
+    readonly List<FocusItem> items = new List<FocusItem>();
+    /// <summary>The cards made so far, from the row's start (<see cref="Make"/>).</summary>
     readonly List<ChannelCard> cards = new List<ChannelCard>();
+    /// <summary>The logos asked for, given up when the row goes.</summary>
+    readonly CancellationTokenSource logos = new CancellationTokenSource();
+    long now;
     Animation? scroll;
 
     public ChannelRowView(IReadOnlyList<LiveChannel> channels, string origin, long now, KeyRepeatGate gate, Images images, Action<LiveChannel> onWatch, Func<bool> toRail)
     {
+        this.channels = channels;
+        this.origin = origin;
+        this.now = now;
         this.gate = gate;
+        this.images = images;
         Group = new FocusGroup(Axis.Row, SearchText.LiveTv);
         Group.Exit = d => d == Direction.Right || (d == Direction.Left && Scrolling.Left(gate, toRail));
         var header = Text.Label(SearchText.LiveTv, PleyType.Section, PleyColors.Fg, width: PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal);
@@ -319,35 +348,54 @@ sealed class ChannelRowView : View
         var top = Ui.Dp(PleyTv.RowHeaderHeight + PleyTv.HeaderToTiles);
         strip = new View { Position = new Position(Ui.Dp(PleyTv.Gutter), top) };
         Add(strip);
-        var step = Ui.Dp(Kind.Width + Kind.Gap);
-        // Twelve at most: each is made now, its logo asked for with it.
         for (var i = 0; i < channels.Count; i++)
         {
             var channel = channels[i];
-            var card = new ChannelCard(channel, channel.Name, origin, images, now) { Position = new Position(i * step, 0) };
+            var at = i;
             var item = Group.Add(new FocusItem($"{SearchText.LiveTv}/{channel.Id}") { Selected = () => onWatch(channel) });
-            item.FocusChanged += on => card.Focus(on);
-            strip.Add(card);
-            cards.Add(card);
+            item.FocusChanged += on =>
+            {
+                if (at < cards.Count) cards[at].Focus(on);
+            };
+            items.Add(item);
         }
+        // A card costs a few milliseconds on a TV and its logo a download, and search finds up to
+        // 200 channels: the cards on screen are made now, the rest as focus comes near them
+        // (RowReach), each logo asked for as its card is made.
+        Make(RowReach.Now(0, PerScreen, channels.Count));
         Group.ChildFocused += ScrollTo;
         Size = new Size(Ui.Dp(PleyTv.CanvasWidth), top + Ui.Dp(Kind.Height + PleyTv.TilesToCaption + PleyTv.CaptionHeight));
     }
 
     public FocusGroup Group { get; }
 
-    /// <summary>What's on each channel, and how far it is, at <paramref name="now"/>.</summary>
+    /// <summary>What's on each channel whose card is made, and how far it is, at <paramref name="now"/>; cards made later start from it.</summary>
     public void SetNow(long now)
     {
         if (Disposed) return;
+        this.now = now;
         foreach (var card in cards) card.Now(now);
+    }
+
+    /// <summary>Makes the row's first <paramref name="count"/> cards, those not made yet, each looking as its focus is.</summary>
+    void Make(int count)
+    {
+        var step = Ui.Dp(Kind.Width + Kind.Gap);
+        for (var i = cards.Count; i < Math.Min(count, channels.Count); i++)
+        {
+            var channel = channels[i];
+            var card = new ChannelCard(channel, channel.Name, origin, images, now, logos.Token) { Position = new Position(i * step, 0) };
+            strip.Add(card);
+            cards.Add(card);
+            if (items[i].Focused) card.Focus(true);
+        }
     }
 
     /// <summary>Where the strip sits for the tile at <paramref name="index"/>, as in <see cref="RowView"/>: its left edge at the gutter, or as far as the row goes.</summary>
     float OffsetFor(int index)
     {
         var step = Ui.Dp(Kind.Width + Kind.Gap);
-        var content = cards.Count * step - Ui.Dp(Kind.Gap);
+        var content = channels.Count * step - Ui.Dp(Kind.Gap);
         var room = Ui.Dp(PleyTv.CanvasWidth - PleyTv.Gutter - PleyTv.SafeHorizontal);
         if (content <= room) return 0;
         var most = content + Ui.Dp(PleyTv.SafeHorizontal + Kind.Width) - Ui.Dp(PleyTv.CanvasWidth - PleyTv.Gutter);
@@ -356,9 +404,29 @@ sealed class ChannelRowView : View
 
     void ScrollTo(int index)
     {
+        // The first on screen is the one cut off at the gutter's left, as in RowView.
+        var first = Math.Max(0, (int)(-OffsetFor(index) / Ui.Dp(Kind.Width + Kind.Gap)) - 1);
+        Make(RowReach.Now(first, PerScreen, channels.Count));
         scroll?.Stop();
         scroll = Scrolling.Glide(gate);
         scroll.AnimateTo(strip, "PositionX", Ui.Dp(PleyTv.Gutter) + OffsetFor(index));
         scroll.Play();
+    }
+
+    /// <summary>
+    /// The row goes (the next answer came, or the page went): its logos still coming are given up,
+    /// and its cards go with it, so the one focus leaves has no animation running once nothing holds it.
+    /// </summary>
+    protected override void Dispose(DisposeTypes type)
+    {
+        if (Disposed) return;
+        // Only when disposed by the app: collected, the cards' animations may have gone first (Kit/Held.cs).
+        if (type == DisposeTypes.Explicit)
+        {
+            logos.Cancel();
+            scroll?.Stop();
+            foreach (var card in cards) card.Dispose();
+        }
+        base.Dispose(type);
     }
 }

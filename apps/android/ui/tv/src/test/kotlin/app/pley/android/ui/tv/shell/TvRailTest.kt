@@ -26,6 +26,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.getBoundsInRoot
@@ -37,6 +38,9 @@ import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
 import app.pley.android.common.TestTags
 import app.pley.android.designsystem.PleyColors
+import app.pley.android.model.Library
+import app.pley.android.model.LibraryKind
+import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.ui.tv.kit.press
 import app.pley.android.ui.tv.kit.railOnLeftStopOnRight
 import app.pley.android.ui.tv.theme.TvTheme
@@ -54,7 +58,9 @@ import org.robolectric.annotation.GraphicsMode
 /**
  * The rail (design spec §2.1): Left from the page opens it over 200 ms, in
  * place with reduced motion. Only Left goes into it, and a key pressed
- * with nothing focused brings focus back to the page.
+ * with nothing focused brings focus back to the page. Its entries are 40
+ * tall on a 44 pitch, and scroll between the avatar and Settings when they
+ * don't all fit.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -77,7 +83,12 @@ class TvRailTest {
      * [far] can take focus), and [NEAR] above and left of it while [near].
      * Focus starts on the page.
      */
-    private fun shell(reduced: Boolean, near: () -> Boolean = { false }, far: () -> Boolean = { true }) {
+    private fun shell(
+        reduced: Boolean,
+        near: () -> Boolean = { false },
+        far: () -> Boolean = { true },
+        items: List<RailItem> = railItems(emptyList()),
+    ) {
         compose.setContent {
             input = LocalInputModeManager.current
             TvTheme(reducedMotion = reduced) {
@@ -93,7 +104,7 @@ class TvRailTest {
                         if (near()) Box(Modifier.offset(300.dp, 100.dp).size(40.dp).testTag(NEAR).focusRequester(nearFocus).focusable())
                         Box(Modifier.offset(600.dp, 300.dp).size(40.dp).testTag(FAR).focusProperties { canFocus = far() }.focusable())
                     }
-                    TvRail(railItems(emptyList()), RailProfile("Anna"), rail, onSelect = {}, onProfile = {})
+                    TvRail(items, RailProfile("Anna"), rail, onSelect = {}, onProfile = {})
                 }
             }
         }
@@ -202,8 +213,127 @@ class TvRailTest {
         compose.onNodeWithTag(FAR).assertIsFocused()
     }
 
+    private fun entry(id: String) = compose.onNodeWithTag("${TestTags.TV_RAIL}.$id")
+
+    /** Where an entry's middle is: the focused one grows about it, 1 dp at either end, into the gaps. */
+    private fun middle(id: String): Float = entry(id).getBoundsInRoot().let { (it.top + it.bottom).value / 2f }
+
+    /** Where entry [id] starts and ends at rest, without its focus growth. */
+    private fun top(id: String): Float = middle(id) - ENTRY / 2f
+
+    private fun bottom(id: String): Float = middle(id) + ENTRY / 2f
+
+    /** Wholly between the avatar's entry and Settings. */
+    private fun assertInView(id: String) {
+        assertTrue("$id starts at ${top(id)}", top(id) >= ENTRIES_TOP - 0.5f)
+        assertTrue("$id ends at ${bottom(id)}", bottom(id) <= ENTRIES_BOTTOM + 0.5f)
+    }
+
+    /** Six libraries and more, Discover, Live TV, Now Playing and a USB drive: fourteen entries, where nine fit. */
+    private val many = railItems(
+        (1L..8L).map { Library(it, "Library $it", LibraryKind.Movies) },
+        nowPlaying = true,
+        liveTv = true,
+        requests = requestsItem(RequestsEntry(discover = true)),
+        drive = true,
+    )
+
+    @Test
+    fun entriesAre40TallOnA44PitchWithSettingsAt473() {
+        shell(reduced = true)
+        assertEquals(ENTRIES_TOP, top("search"), 0.5f)
+        assertEquals(ENTRY, entry("search").getBoundsInRoot().let { it.bottom - it.top }.value, 0.5f)
+        assertEquals(ENTRIES_TOP + 44f, top("home"), 0.5f)
+        assertEquals(ENTRIES_TOP + 88f, top("playlists"), 0.5f)
+        assertEquals(473f, top("settings"), 0.5f)
+        assertEquals(513f, bottom("settings"), 0.5f)
+    }
+
+    /**
+     * Where entry [i] of [many] starts while it has focus: down to the fourth
+     * place, then there while the entries scroll by whole entries, until the
+     * last nine show.
+     */
+    private fun restingTop(i: Int): Float = ENTRIES_TOP + i * 44f - ((i - 3) * 44f).coerceIn(0f, (many.size - 9) * 44f)
+
+    @Test
+    fun entriesThatDontFitScrollUnderFocusFourthFromTheTopTheSameBothWays() {
+        assertEquals(14, many.size)
+        shell(reduced = true, items = many)
+        compose.press(Key.DirectionLeft)
+        entry("home").assertIsFocused()
+        // Down through them all: focus goes down to the fourth entry shown, stays there while the
+        // entries move under it an entry a press, then goes on to the last.
+        for (i in 1 until many.size) {
+            if (i > 1) compose.press(Key.DirectionDown)
+            entry(many[i].id).assertIsFocused()
+            assertEquals(many[i].id, restingTop(i), top(many[i].id), 0.5f)
+            assertInView(many[i].id)
+        }
+        // The last ends at y = 459, the eight above it whole too.
+        assertEquals(ENTRIES_TOP + 9 * 44f - 4f, bottom(many.last().id), 0.5f)
+        // Settings hasn't moved, and focus on it moves nothing.
+        assertEquals(473f, top("settings"), 0.5f)
+        compose.press(Key.DirectionDown)
+        entry("settings").assertIsFocused()
+        assertEquals(restingTop(many.lastIndex), top(many.last().id), 0.5f)
+        // Back up, each entry where it was on the way down, to the first at the top.
+        for (i in many.lastIndex downTo 0) {
+            compose.press(Key.DirectionUp)
+            entry(many[i].id).assertIsFocused()
+            assertEquals(many[i].id, restingTop(i), top(many[i].id), 0.5f)
+        }
+        assertEquals(ENTRIES_TOP, top("search"), 0.5f)
+        // Up goes to the avatar, Down from it to the first entry.
+        compose.press(Key.DirectionUp)
+        assertTrue(rail.hasFocus)
+        compose.onAllNodes(isFocused() and hasTestTag("${TestTags.TV_RAIL}.search")).assertCountEquals(0)
+        assertEquals(ENTRIES_TOP, top("search"), 0.5f)
+        compose.press(Key.DirectionDown)
+        entry("search").assertIsFocused()
+    }
+
+    @Test
+    fun theClosedRailPlacesThePagesEntryAsFocusWouldSoOpeningMovesNothing() {
+        // The seventh of fourteen: fourth from the top, the entries scrolled three.
+        val page = many[6].id
+        rail.current = page
+        shell(reduced = true, items = many)
+        assertEquals(restingTop(6), top(page), 0.5f)
+        assertEquals(ENTRIES_TOP + 3 * 44f, top(page), 0.5f)
+        compose.press(Key.DirectionLeft)
+        entry(page).assertIsFocused()
+        assertEquals(restingTop(6), top(page), 0.5f)
+    }
+
+    @Test
+    fun theScrollPutsTheFocusedEntryFourthFromTheTopByWholeEntries() {
+        val viewport = ENTRIES_BOTTOM - ENTRIES_TOP
+        val rule = { focused: Int, count: Int -> railScroll(0f, focused, count, viewport) }
+        // Nine fit: nothing moves.
+        for (i in 0 until 9) assertEquals(0f, rule(i, 9), 0.01f)
+        // Down to the fourth place, then the entries move under it until the last nine show.
+        assertEquals(listOf(0f, 0f, 0f, 0f, 44f, 88f, 132f, 132f, 132f, 132f, 132f, 132f), (0 until 12).map { rule(it, 12) })
+        assertEquals(listOf(0f, 0f, 0f, 0f, 44f, 88f, 88f, 88f, 88f, 88f, 88f), (0 until 11).map { rule(it, 11) })
+        assertEquals(listOf(0f, 0f, 0f, 0f, 44f, 44f, 44f, 44f, 44f, 44f), (0 until 10).map { rule(it, 10) })
+        // An entry's place is its own, whatever the scroll was.
+        assertEquals(88f, railScroll(500f, 5, 12, viewport), 0.01f)
+        assertEquals(88f, railScroll(13f, 5, 12, viewport), 0.01f)
+        // Avatar or Settings (no entry): the scroll kept, within the ends, as when entries go.
+        assertEquals(50f, railScroll(50f, -1, 12, viewport), 0.01f)
+        assertEquals(132f, railScroll(200f, 12, 12, viewport), 0.01f)
+        assertEquals(0f, railScroll(44f, -1, 7, viewport), 0.01f)
+        // A taller view, on a screen that isn't 16:9, holds ten whole entries.
+        assertEquals(176f, railScroll(0f, 13, 14, viewport + 44f), 0.01f)
+    }
+
     private companion object {
         const val NEAR = "near"
         const val FAR = "far"
+
+        /** The entries' room: from 4 below the avatar's entry to a gap above Settings. */
+        const val ENTRIES_TOP = 67f
+        const val ENTRIES_BOTTOM = 469f
+        const val ENTRY = 40f
     }
 }

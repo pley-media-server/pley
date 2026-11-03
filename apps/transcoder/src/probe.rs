@@ -29,6 +29,13 @@ const TIMED_PACKETS: &str = "%+#128";
 const MIN_TIMED_PACKETS: usize = 8;
 /// Packets of a suspect stream decoded to see the order its frames come out in.
 const ORDERED_PACKETS: &str = "%+#48";
+/// What ffprobe shows of the first frames' side data: each kind's type, and
+/// of Dolby Vision's metadata what tells its profile
+/// ([`dolby_vision_profile_in_frames`]) and what profile 7's enhancement
+/// layer holds ([`dolby_vision_layer_in_frames`]), not its curves.
+const FRAME_ENTRIES: &str = "frame=key_frame:frame_side_data=side_data_type,vdr_rpu_profile,vdr_bit_depth,\
+    bl_video_full_range_flag,el_spatial_resampling_filter_flag,disable_residual_flag,coef_data_type,coef_log2_denom:\
+    frame_side_data_component=nlq_offset,vdr_in_max,linear_deadzone_slope,linear_deadzone_threshold";
 
 pub struct Prober {
     ff: Arc<Ffmpeg>,
@@ -133,36 +140,24 @@ impl Prober {
 
     /// What only a video's frames say, so the first few are decoded (a
     /// fraction of a second): whether the video carries closed captions
-    /// (CEA-608/708) in its frames, whether a Dolby Vision or PQ stream
-    /// carries HDR10+ (a PQ one is then HDR10+, not HDR10), and what a
-    /// profile 7 stream's enhancement layer holds. Left unknown when that
-    /// fails.
+    /// (CEA-608/708) in its frames, whether 10-bit HEVC the container
+    /// doesn't name Dolby Vision carries it all the same (RPUs in its
+    /// frames, see [`MediaStream::dv_unnamed`]), whether a Dolby Vision or
+    /// PQ stream carries HDR10+ (a PQ one is then HDR10+, not HDR10), and
+    /// what a profile 7 stream's enhancement layer holds. Left unknown when
+    /// that fails.
     async fn read_first_frames(&self, path: &Path, info: &mut MediaInfo) {
         let Some(video) = info.streams.iter_mut().find(|s| s.kind == StreamKind::Video) else {
             return;
         };
-        let range = video.dynamic_range();
-        let profile_7 = range == DynamicRange::DolbyVision && video.dv_profile == Some(7);
-        let hdr_wanted = match range {
-            DynamicRange::DolbyVision => video.hdr10plus.is_none() || (profile_7 && video.dv_el.is_none()),
-            DynamicRange::Hdr10 => video.hdr10plus.is_none(),
-            _ => false,
-        };
         // An ffprobe before 7.1 says whether there are captions itself.
-        if !hdr_wanted && video.closed_captions.is_some() {
+        if !hdr_wanted(video) && video.closed_captions.is_some() {
             return;
         }
-        // The enhancement layer takes the whole Dolby Vision metadata; the
-        // rest only which side data there is.
-        let entries = if profile_7 {
-            "frame=key_frame:frame_side_data"
-        } else {
-            "frame=key_frame:frame_side_data=side_data_type"
-        };
         let mut cmd = self.ff.probe_command();
         cmd.args(["-v", "error", "-select_streams"])
             .arg(video.index.to_string())
-            .args(["-read_intervals", "%+#12", "-show_entries", entries])
+            .args(["-read_intervals", "%+#12", "-show_entries", FRAME_ENTRIES])
             .args(["-of", "json"])
             .args(MEDIA_INPUT_OPTIONS)
             .arg(input_arg(path))
@@ -177,20 +172,13 @@ impl Prober {
                 return;
             }
         };
-        if video.closed_captions.is_none() {
-            video.closed_captions = captions_in_frames(&output);
-        }
-        if !hdr_wanted {
-            return;
-        }
-        if video.hdr10plus.is_none() {
-            video.hdr10plus = hdr10plus_in_frames(&output);
-        }
-        if range == DynamicRange::Hdr10 && video.hdr10plus == Some(true) {
-            video.dynamic_range = Some(DynamicRange::Hdr10plus);
-        }
-        if profile_7 && video.dv_el.is_none() {
-            video.dv_el = dolby_vision_layer_in_frames(&output);
+        take_first_frames(video, &output);
+        if video.dv_unnamed {
+            tracing::info!(
+                "{}: Dolby Vision profile {} found in the frames of a file that doesn't name it",
+                path.display(),
+                video.dv_profile.unwrap_or_default()
+            );
         }
     }
 
@@ -239,6 +227,60 @@ async fn head(path: &Path) -> Vec<u8> {
     head
 }
 
+/// Whether `video` may carry Dolby Vision its file doesn't name: 10-bit
+/// HEVC (profiles 4, 5, 7 and 8) not named Dolby Vision.
+fn unnamed_dolby_vision_wanted(video: &MediaStream) -> bool {
+    video.dynamic_range() != DynamicRange::DolbyVision
+        && video.codec == "hevc"
+        && video.bit_depth.is_none_or(|bits| bits >= 10)
+}
+
+/// Whether the first frames of `video` are read for its dynamic range:
+/// Dolby Vision its file doesn't name, HDR10+, or what profile 7's
+/// enhancement layer holds, not known yet.
+fn hdr_wanted(video: &MediaStream) -> bool {
+    unnamed_dolby_vision_wanted(video)
+        || match video.dynamic_range() {
+            DynamicRange::DolbyVision => {
+                video.hdr10plus.is_none() || (video.dv_profile == Some(7) && video.dv_el.is_none())
+            }
+            DynamicRange::Hdr10 => video.hdr10plus.is_none(),
+            _ => false,
+        }
+}
+
+/// Takes into `video` what its first frames, as ffprobe shows them
+/// ([`FRAME_ENTRIES`]), say ([`Prober::read_first_frames`]). Dolby Vision
+/// found in the frames of a stream the file doesn't name so makes it Dolby
+/// Vision, its base layer's HDR10+ kept.
+fn take_first_frames(video: &mut MediaStream, frames: &[u8]) {
+    if video.closed_captions.is_none() {
+        video.closed_captions = captions_in_frames(frames);
+    }
+    if !hdr_wanted(video) {
+        return;
+    }
+    let mut range = video.dynamic_range();
+    let profile = dolby_vision_profile_in_frames(frames).filter(|_| unnamed_dolby_vision_wanted(video));
+    if let Some(profile) = profile {
+        video.dv_profile = Some(profile);
+        video.dv_bl_compat = Some(unnamed_compat(profile, range));
+        video.dv_unnamed = true;
+        range = DynamicRange::DolbyVision;
+        video.dynamic_range = Some(range);
+        video.hdr = Some(true);
+    }
+    if video.hdr10plus.is_none() && matches!(range, DynamicRange::DolbyVision | DynamicRange::Hdr10) {
+        video.hdr10plus = hdr10plus_in_frames(frames);
+    }
+    if range == DynamicRange::Hdr10 && video.hdr10plus == Some(true) {
+        video.dynamic_range = Some(DynamicRange::Hdr10plus);
+    }
+    if range == DynamicRange::DolbyVision && video.dv_profile == Some(7) && video.dv_el.is_none() {
+        video.dv_el = dolby_vision_layer_in_frames(frames);
+    }
+}
+
 /// Whether frames ffprobe showed (`-show_entries frame_side_data`) carry
 /// HDR10+ metadata; `None` without frames.
 pub fn hdr10plus_in_frames(json: &[u8]) -> Option<bool> {
@@ -261,6 +303,48 @@ fn side_data_in_frames(json: &[u8], kind: &str) -> Option<bool> {
             list.iter().any(|sd| sd.get("side_data_type").and_then(|t| t.as_str()).is_some_and(|t| t.contains(kind)))
         })
     }))
+}
+
+/// The Dolby Vision profile the RPUs of frames ffprobe showed point to, as
+/// FFmpeg (libavcodec/dovi_rpudec.c) and `dovi_tool` guess it when the
+/// container doesn't say: 5 for full-range RPUs of RPU profile 0; for RPU
+/// profile 1, 7 (12-bit) or 4 with a residual from a resampled
+/// enhancement layer, 8 without. `None` without Dolby Vision metadata (the
+/// decoder exports it only from RPUs it could read), or for a profile it
+/// can't tell.
+pub fn dolby_vision_profile_in_frames(json: &[u8]) -> Option<i64> {
+    let value: serde_json::Value = serde_json::from_slice(json).ok()?;
+    value
+        .get("frames")?
+        .as_array()?
+        .iter()
+        .flat_map(|frame| frame.get("side_data_list").and_then(|l| l.as_array()).into_iter().flatten())
+        .filter(|sd| sd.get("side_data_type").and_then(|t| t.as_str()) == Some("Dolby Vision Metadata"))
+        .find_map(|metadata| {
+            let int = |key: &str| metadata.get(key).and_then(|n| n.as_i64());
+            match int("vdr_rpu_profile")? {
+                0 if int("bl_video_full_range_flag") == Some(1) => Some(5),
+                1 if int("el_spatial_resampling_filter_flag") == Some(1) && int("disable_residual_flag") != Some(1) => {
+                    Some(if int("vdr_bit_depth") == Some(12) { 7 } else { 4 })
+                }
+                1 => Some(8),
+                _ => None,
+            }
+        })
+}
+
+/// The base layer's signal compatibility id of Dolby Vision the file
+/// doesn't name, from its profile and what its transfer makes it alone
+/// (`base`): none for profile 5, Blu-ray HDR10 for 7, else HDR10 for PQ,
+/// HLG for HLG and SDR for the rest.
+fn unnamed_compat(profile: i64, base: DynamicRange) -> i64 {
+    match (profile, base) {
+        (5, _) => 0,
+        (7, _) => 6,
+        (_, DynamicRange::Hdr10 | DynamicRange::Hdr10plus) => 1,
+        (_, DynamicRange::Hlg) => 4,
+        _ => 2,
+    }
 }
 
 /// What a profile 7 stream's enhancement layer holds, from the Dolby
@@ -927,6 +1011,134 @@ mod tests {
         assert_eq!(dolby_vision_layer_in_frames(none.as_bytes()), None);
         assert_eq!(dolby_vision_layer_in_frames(br#"{"frames":[]}"#), None);
         assert_eq!(dolby_vision_layer_in_frames(b"not json"), None);
+    }
+
+    /// The first frame of a profile 8.1 stream with HDR10+, as ffprobe shows
+    /// it with [`FRAME_ENTRIES`].
+    const P81_FRAMES: &str = r#"{"frames":[{"key_frame":1,"side_data_list":[
+        {"side_data_type":"Mastering display metadata"},{"side_data_type":"Content light level metadata"},
+        {"side_data_type":"HDR Dynamic Metadata SMPTE2094-40 (HDR10+)"},{"side_data_type":"Dolby Vision RPU Data"},
+        {"side_data_type":"Dolby Vision Metadata","vdr_rpu_profile":1,"coef_data_type":0,"coef_log2_denom":23,
+         "bl_video_full_range_flag":0,"vdr_bit_depth":12,"el_spatial_resampling_filter_flag":0,
+         "disable_residual_flag":1,"components":[{},{},{}]}]}]}"#;
+
+    /// The same of a profile 7 stream with a full enhancement layer.
+    const P7_FEL_FRAMES: &str = r#"{"frames":[{"key_frame":1,"side_data_list":[
+        {"side_data_type":"Mastering display metadata"},{"side_data_type":"Content light level metadata"},
+        {"side_data_type":"Dolby Vision RPU Data"},
+        {"side_data_type":"Dolby Vision Metadata","vdr_rpu_profile":1,"coef_data_type":0,"coef_log2_denom":23,
+         "bl_video_full_range_flag":0,"vdr_bit_depth":12,"el_spatial_resampling_filter_flag":1,
+         "disable_residual_flag":0,"components":[
+          {"nlq_offset":512,"vdr_in_max":1048576,"linear_deadzone_slope":2048,"linear_deadzone_threshold":0},
+          {"nlq_offset":512,"vdr_in_max":1048576,"linear_deadzone_slope":2048,"linear_deadzone_threshold":0},
+          {"nlq_offset":512,"vdr_in_max":1048576,"linear_deadzone_slope":2048,"linear_deadzone_threshold":0}]}]}]}"#;
+
+    /// The same of plain HDR10.
+    const HDR10_FRAMES: &str = r#"{"frames":[{"key_frame":1,"side_data_list":[
+        {"side_data_type":"H.26[45] User Data Unregistered SEI message"},
+        {"side_data_type":"Mastering display metadata"},{"side_data_type":"Content light level metadata"}]}]}"#;
+
+    /// Dolby Vision metadata with only the header fields the profile is
+    /// told by.
+    fn rpu_header(rpu_profile: i64, full_range: i64, el_resampling: i64, no_residual: i64, vdr_bits: i64) -> String {
+        format!(
+            r#"{{"frames":[{{"side_data_list":[{{"side_data_type":"Dolby Vision RPU Data"}},
+            {{"side_data_type":"Dolby Vision Metadata","vdr_rpu_profile":{rpu_profile},
+            "bl_video_full_range_flag":{full_range},"el_spatial_resampling_filter_flag":{el_resampling},
+            "disable_residual_flag":{no_residual},"vdr_bit_depth":{vdr_bits}}}]}}]}}"#
+        )
+    }
+
+    #[test]
+    fn the_rpus_tell_the_profile() {
+        assert_eq!(dolby_vision_profile_in_frames(P81_FRAMES.as_bytes()), Some(8));
+        assert_eq!(dolby_vision_profile_in_frames(P7_FEL_FRAMES.as_bytes()), Some(7));
+        // FFmpeg's guess (libavcodec/dovi_rpudec.c), as dovi_tool's.
+        assert_eq!(dolby_vision_profile_in_frames(rpu_header(0, 1, 0, 1, 12).as_bytes()), Some(5));
+        assert_eq!(dolby_vision_profile_in_frames(rpu_header(1, 0, 1, 0, 12).as_bytes()), Some(7));
+        assert_eq!(dolby_vision_profile_in_frames(rpu_header(1, 0, 1, 0, 10).as_bytes()), Some(4));
+        assert_eq!(dolby_vision_profile_in_frames(rpu_header(1, 0, 0, 0, 12).as_bytes()), Some(8));
+        assert_eq!(dolby_vision_profile_in_frames(rpu_header(1, 0, 1, 1, 12).as_bytes()), Some(8), "no residual");
+        // Limited-range RPUs of profile 0, and other RPU profiles: unknown.
+        assert_eq!(dolby_vision_profile_in_frames(rpu_header(0, 0, 0, 1, 12).as_bytes()), None);
+        assert_eq!(dolby_vision_profile_in_frames(rpu_header(2, 0, 0, 1, 12).as_bytes()), None);
+        // An RPU FFmpeg couldn't read gives no metadata; no Dolby Vision at all.
+        let unread = r#"{"frames":[{"side_data_list":[{"side_data_type":"Dolby Vision RPU Data"}]}]}"#;
+        assert_eq!(dolby_vision_profile_in_frames(unread.as_bytes()), None);
+        assert_eq!(dolby_vision_profile_in_frames(HDR10_FRAMES.as_bytes()), None);
+        assert_eq!(dolby_vision_profile_in_frames(br#"{"frames":[]}"#), None);
+        assert_eq!(dolby_vision_profile_in_frames(b"not json"), None);
+    }
+
+    /// The video stream ffprobe shows for 10-bit HEVC with `transfer`, its
+    /// container naming no Dolby Vision.
+    fn hevc(transfer: &str) -> MediaStream {
+        let json = format!(
+            r#"{{"streams":[{{"index":0,"codec_type":"video","codec_name":"hevc","pix_fmt":"yuv420p10le",
+            "width":3840,"height":2160,"avg_frame_rate":"24000/1001","color_transfer":"{transfer}",
+            "color_primaries":"bt2020"}}],"format":{{"format_name":"matroska","duration":"10"}}}}"#
+        );
+        parse_ffprobe_json(json.as_bytes(), Path::new("a.mkv")).unwrap().video().unwrap().clone()
+    }
+
+    /// Dolby Vision in the frames of a file that doesn't name it (a remux
+    /// without its configuration record): the probe makes it Dolby Vision,
+    /// from what the RPUs and the base layer's transfer say.
+    #[test]
+    fn dolby_vision_the_file_doesnt_name_is_found_in_its_frames() {
+        let found = |mut video: MediaStream, frames: &str| {
+            take_first_frames(&mut video, frames.as_bytes());
+            video
+        };
+        let p81 = found(hevc("smpte2084"), P81_FRAMES);
+        assert_eq!(p81.dynamic_range, Some(DynamicRange::DolbyVision));
+        assert_eq!((p81.dv_profile, p81.dv_bl_compat, p81.dv_level), (Some(8), Some(1), None));
+        assert!(p81.dv_unnamed && p81.hdr == Some(true));
+        // Its HDR10+ is kept: a hybrid, as when the file names it.
+        assert_eq!(p81.hdr10plus, Some(true));
+        assert_eq!(p81.dynamic_range_label(), "Dolby Vision P8.1 + HDR10+");
+        // Named at the level its size and frame rate need.
+        assert_eq!(p81.dv_level_named(), Some(6));
+
+        let p7 = found(hevc("smpte2084"), P7_FEL_FRAMES);
+        assert_eq!((p7.dv_profile, p7.dv_bl_compat, p7.dv_el), (Some(7), Some(6), Some(DolbyVisionLayer::Fel)));
+        assert_eq!((p7.hdr10plus, p7.dynamic_range_label().as_str()), (Some(false), "Dolby Vision P7 FEL"));
+
+        // The base layer's transfer says what it is alone.
+        assert_eq!(found(hevc("arib-std-b67"), P81_FRAMES).dolby_vision_label(), "Dolby Vision P8.4");
+        assert_eq!(found(hevc("bt709"), P81_FRAMES).dolby_vision_label(), "Dolby Vision P8.2");
+        // Without Dolby Vision, HLG isn't looked at for HDR10+.
+        assert_eq!(found(hevc("arib-std-b67"), HDR10_FRAMES).hdr10plus, None);
+        let p5 = found(hevc("unknown"), &rpu_header(0, 1, 0, 1, 12));
+        assert_eq!((p5.dolby_vision_label().as_str(), p5.dv_bl_compat), ("Dolby Vision P5", Some(0)));
+        assert!(p5.is_dolby_vision_only());
+
+        // HDR10 and HDR10+ without Dolby Vision stay what they are.
+        let hdr10 = found(hevc("smpte2084"), HDR10_FRAMES);
+        assert_eq!(
+            (hdr10.dynamic_range, hdr10.hdr10plus, hdr10.dv_unnamed),
+            (Some(DynamicRange::Hdr10), Some(false), false)
+        );
+        let hdr10plus =
+            r#"{"frames":[{"side_data_list":[{"side_data_type":"HDR Dynamic Metadata SMPTE2094-40 (HDR10+)"}]}]}"#;
+        let hdr10plus = found(hevc("smpte2084"), hdr10plus);
+        assert_eq!((hdr10plus.dynamic_range, hdr10plus.dv_profile), (Some(DynamicRange::Hdr10plus), None));
+
+        // A file that names its Dolby Vision keeps what it says.
+        let named = parse_ffprobe_json(SAMPLE.as_bytes(), Path::new("/m/Movie.mkv")).unwrap().video().unwrap().clone();
+        let kept = found(named.clone(), &rpu_header(1, 0, 1, 0, 12));
+        assert_eq!(
+            (kept.dv_profile, kept.dv_bl_compat, kept.dv_unnamed),
+            (named.dv_profile, named.dv_bl_compat, false)
+        );
+
+        // 8-bit HEVC and other codecs aren't Dolby Vision's profiles 4 to 8.
+        let mut eight_bit = hevc("bt709");
+        eight_bit.bit_depth = Some(8);
+        assert!(!found(eight_bit, P81_FRAMES).dv_unnamed);
+        let mut avc = hevc("smpte2084");
+        avc.codec = "h264".into();
+        assert!(!found(avc, P81_FRAMES).dv_unnamed);
     }
 
     #[test]

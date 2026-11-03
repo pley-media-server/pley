@@ -1112,6 +1112,8 @@ export interface LibraryItemsQuery {
   watched?: boolean;
   genre?: string;
   year?: number;
+  resolution?: Resolution;
+  dynamic_range?: RangeFilter;
   offset?: number;
   limit?: number;
 }
@@ -1121,7 +1123,16 @@ export interface LibraryItemsResponse {
   items: ItemSummary[];
 }
 
+/** A title's best file's resolution, as libraries filter by it. */
+export type Resolution = "4k" | "1080" | "720" | "sd";
+
+/** A title's best dynamic range, as libraries filter by it; `hdr` is any but SDR. */
+export type RangeFilter = "hdr" | DynamicRange;
+
 export interface LibraryFilters {
   genres: string[];
   years: number[];
+  /** Best first; only those the titles have, and only two or more (older servers: none). */
+  resolutions?: Resolution[];
+  dynamic_ranges?: RangeFilter[];
 }

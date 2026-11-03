@@ -49,6 +49,38 @@ sub test_format_library_counts()
     tkEqual(fmtCount(3, "other"), "3 titles")
 end sub
 
+sub test_format_sizes_as_the_other_apps()
+    tkEqual(fmtBytes(512), "512 B")
+    tkEqual(fmtBytes(1536), "1.5 KB")
+    tkEqual(fmtBytes(157286400), "150 MB")
+    tkEqual(fmtBytes(66571993088&), "62.0 GB", "past 32 bits")
+    tkEqual(fmtBytes(1000000), "977 KB", "three digits")
+    tkEqual(fmtBytes(1048576), "1.0 MB")
+    tkEqual(fmtBytes(invalid), "")
+end sub
+
+sub test_format_bitrates_as_the_other_apps()
+    tkEqual(fmtBitrate(24000000), "24 Mbps")
+    tkEqual(fmtBitrate(8200000), "8.2 Mbps")
+    tkEqual(fmtBitrate(640000), "640 kbps")
+    tkEqual(fmtBitrate(0), "")
+    tkEqual(fmtBitrate(invalid), "")
+end sub
+
+sub test_format_resolutions_and_dynamic_ranges_by_token()
+    tkEqual(fmtTokenLabel(fmtResolutions(), "4k"), "4K")
+    tkEqual(fmtTokenLabel(fmtResolutions(), "1080"), "1080p")
+    tkEqual(fmtTokenLabel(fmtResolutions(), "sd"), "SD")
+    tkEqual(fmtTokenLabel(fmtDynamicRanges(), "hdr"), "Any HDR", "any HDR")
+    tkEqual(fmtTokenLabel(fmtDynamicRanges(), "dolby_vision"), "Dolby Vision")
+    tkEqual(fmtTokenLabel(fmtDynamicRanges(), "hdr10plus"), "HDR+")
+    tkEqual(fmtTokenLabel(fmtDynamicRanges(), "sdr"), "SDR")
+    tkEqual(fmtTokenLabel(fmtResolutions(), "4K"), "", "tokens are lower case")
+    tkEqual(fmtTokenLabel(fmtResolutions(), "8k"), "")
+    tkEqual(fmtTokenLabel(fmtDynamicRanges(), 10), "")
+    tkEqual(fmtTokenLabel(fmtDynamicRanges(), invalid), "")
+end sub
+
 sub test_format_meta_line()
     tkEqual(fmtMeta({ year: 2016, duration_ms: 6960000, content_rating: "PG-13", rating: 7.9 }), "2016 · 1 h 56 min · PG-13 · ★ 7.9")
     tkEqual(fmtMeta({ year: 2016, rating: 8 }), "2016 · ★ 8")

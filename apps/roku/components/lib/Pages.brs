@@ -196,8 +196,8 @@ function pageCollectionOrder(sort as dynamic) as string
 end function
 
 ' What a smart filter keeps, in words, as the other apps say it: "Genre:
-' Comedy", "Unwatched", "From 2010", "Newest first". The filter is a
-' listing's query string in the compatibility API's syntax
+' Comedy", "Unwatched", "From 2010", "4K", "Dolby Vision", "Newest first".
+' The filter is a listing's query string in the compatibility API's syntax
 ' (docs/API.md, "Smart collections").
 function pageFilterNotes(filter as string) as object
     notes = []
@@ -239,6 +239,10 @@ function pageFilterNotes(filter as string) as object
             notes.Push("Before " + value)
         else if key = "decade"
             notes.Push("The " + value + "s")
+        else if key = "resolution" and fmtTokenLabel(fmtResolutions(), value) <> ""
+            notes.Push(fmtTokenLabel(fmtResolutions(), value))
+        else if key = "dynamicRange" and fmtTokenLabel(fmtDynamicRanges(), value) <> ""
+            notes.Push(fmtTokenLabel(fmtDynamicRanges(), value))
         else if key = "sort"
             notes.Push(pageFilterOrder(value))
         else if key = "limit"

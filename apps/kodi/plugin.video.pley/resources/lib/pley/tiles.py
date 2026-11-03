@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import xbmcgui
 
+from . import layout as L
 from . import words
 from .listing import image
 
@@ -71,8 +72,12 @@ def captions(item: dict, shape: str) -> tuple:
     return title, left or words.card_subtitle(item)
 
 
-def tile(base: str, item: dict, shape: str) -> xbmcgui.ListItem:
+def tile(base: str, item: dict, shape: str, quality: bool = False, bitrate: bool = False) -> xbmcgui.ListItem:
+    """`quality`: the poster carries its quality badges ("4K", "DV");
+    `bitrate`: its second line is its file's bitrate and size."""
     title, subtitle = captions(item, shape)
+    if bitrate:
+        subtitle = words.media_line(item.get("media"))
     li = xbmcgui.ListItem(title, subtitle, offscreen=True)
     found = picture(base, item, shape)
     if found:
@@ -86,11 +91,21 @@ def tile(base: str, item: dict, shape: str) -> xbmcgui.ListItem:
         li.setProperty("countsize", str(min(len(str(count)), 3)))
     elif words.state(item).get("watched"):
         li.setProperty("state", "watched")
+    if quality:
+        for key, _ in badges(item.get("media")):
+            li.setProperty("resolution" if key == "4k" else "range", key)
     if words.in_progress(item):
         # ListItem.IsResumable and .PercentPlayed draw the progress bar.
         tag = li.getVideoInfoTag()
         tag.setResumePoint(words.state(item)["position_ms"] / 1000.0, item["duration_ms"] / 1000.0)
     return li
+
+
+def badges(media) -> list:
+    """A poster's quality badges (words.media_badges) as (key, word): the
+    skin draws each by its key (layout.BADGES), the server's token, as its
+    conditions can't name "HDR+" (Kodi reads + as "and")."""
+    return [(key, L.BADGES[key][0]) for key in words.media_badge_keys(media) if key in L.BADGES]
 
 
 def person(base: str, credit: dict) -> xbmcgui.ListItem:

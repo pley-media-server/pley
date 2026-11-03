@@ -415,6 +415,8 @@ function libraryItemsQuery(id: Id, q: LibraryItemsQuery, enabled: boolean) {
           watched: q.watched,
           genre: q.genre,
           year: q.year,
+          resolution: q.resolution,
+          dynamic_range: q.dynamic_range,
           offset: q.offset,
           limit: q.limit ?? DEFAULT_ITEMS_LIMIT,
         })}`,
@@ -729,7 +731,8 @@ export function useHomeHubs() {
   });
 }
 
-export function useSearch(q: string, limit = 60) {
+/** Every result the server gives (up to 200 of each kind); the search page shows a few of each until asked. */
+export function useSearch(q: string, limit = 200) {
   const trimmed = q.trim();
   return useQuery({
     queryKey: keys.search(trimmed, limit),

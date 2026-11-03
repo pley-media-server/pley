@@ -24,6 +24,7 @@ import type {
   NetworkAnswer,
   NetworkReport,
   NewRequest,
+  LibraryFilters,
   LibrarySort,
   PersonDetail,
   PersonSummary,
@@ -304,7 +305,17 @@ export class Api {
 
   libraryItems(
     id: Id,
-    query: { sort?: LibrarySort; order?: "asc" | "desc"; watched?: boolean; genre?: string; year?: number; offset?: number; limit?: number },
+    query: {
+      sort?: LibrarySort;
+      order?: "asc" | "desc";
+      watched?: boolean;
+      genre?: string;
+      year?: number;
+      resolution?: string;
+      dynamic_range?: string;
+      offset?: number;
+      limit?: number;
+    },
     cancel?: Cancel,
   ): Promise<{ total: number; items: ItemSummary[] }> {
     return this.get(`/api/libraries/${id}/items`, { query, cancel });
@@ -314,7 +325,7 @@ export class Api {
     return this.get(`/api/libraries/${id}/hubs`, { cancel });
   }
 
-  libraryFilters(id: Id, cancel?: Cancel): Promise<{ genres: string[]; years: number[] }> {
+  libraryFilters(id: Id, cancel?: Cancel): Promise<LibraryFilters> {
     return this.get(`/api/libraries/${id}/filters`, { cancel });
   }
 
@@ -350,9 +361,12 @@ export class Api {
     return this.get(`/api/people/${id}`, { cancel });
   }
 
-  /** Items, people and (where Live TV is open to the profile) up to 12 Live TV channels. */
+  /**
+   * Up to 200 items, 200 people and (where Live TV is open to the profile)
+   * 200 Live TV channels, the server's most: search's rows show them all.
+   */
   search(q: string, cancel?: Cancel): Promise<{ items: ItemSummary[]; people?: PersonSummary[]; channels?: LiveChannel[] }> {
-    return this.get("/api/search", { query: { q, limit: 60 }, cancel });
+    return this.get("/api/search", { query: { q, limit: 200 }, cancel });
   }
 
   playlists(cancel?: Cancel): Promise<{ playlists: Playlist[] }> {

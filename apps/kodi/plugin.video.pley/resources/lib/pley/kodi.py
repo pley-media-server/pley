@@ -229,10 +229,10 @@ TEXT = {
     "someone_else": 30276,
     "people_watching": 30277,
     "watch_here": 30278,
-    "live_stopped": 30551,
-    "live_stopped_body": 30552,
-    "watch_again": 30553,
-    "ok": 30554,
+    "live_stopped": 30557,
+    "live_stopped_body": 30558,
+    "watch_again": 30559,
+    "ok": 30560,
     "two_step_required": 30279,
     # Requests (requests.py, asking.py, news.py).
     "discover": 30447,
@@ -337,6 +337,12 @@ TEXT = {
     "yours": 30548,
     "results_for": 30549,
     "another_device": 30550,
+    "sort_user_rating": 30551,
+    "sort_bitrate": 30552,
+    "resolution": 30553,
+    "dynamic_range": 30554,
+    "any_resolution": 30555,
+    "any_dynamic_range": 30556,
 }
 
 

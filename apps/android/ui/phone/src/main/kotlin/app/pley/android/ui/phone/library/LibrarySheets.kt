@@ -34,8 +34,9 @@ import app.pley.android.ui.phone.kit.SegmentedControl
 
 /**
  * The toolbar's sheets (design spec §3.4): Sort (the sorts, the order,
- * which titles to show, the card size), Genre and Year (the library's,
- * from its filters). The choice in force has a check.
+ * which titles to show, the card size), Genre, Year, Resolution and
+ * Dynamic range (the library's, from its filters). The choice in force
+ * has a check.
  */
 @Composable
 internal fun LibrarySheetHost(
@@ -107,6 +108,30 @@ internal fun LibrarySheetHost(
                 label = { it.toString() },
                 onSelect = {
                     vm.year(it)
+                    onDismiss()
+                },
+            )
+        }
+        LibrarySheet.Resolution -> PleySheet(onDismiss = onDismiss, title = stringResource(R.string.library_resolution)) {
+            Choices(
+                all = stringResource(R.string.library_all_resolutions),
+                values = state.resolutions,
+                selected = params.resolution,
+                label = { it.label },
+                onSelect = {
+                    vm.resolution(it)
+                    onDismiss()
+                },
+            )
+        }
+        LibrarySheet.DynamicRange -> PleySheet(onDismiss = onDismiss, title = stringResource(R.string.library_dynamic_range)) {
+            Choices(
+                all = stringResource(R.string.library_all_dynamic_ranges),
+                values = state.dynamicRanges,
+                selected = params.dynamicRange,
+                label = { it.label },
+                onSelect = {
+                    vm.dynamicRange(it)
                     onDismiss()
                 },
             )

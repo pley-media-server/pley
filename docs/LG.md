@@ -316,12 +316,11 @@ can't be read) says why in the middle, under a folder, USB or alert icon,
 below ".." in a folder under the drive's top, which keeps focus. Where
 not even ".." shows (no drive, or the drive's top), the message keeps
 focus, unmarked, so the rail closes; Left opens it.
-With Discover, Live TV and Now Playing in the rail as well, no library is
-left to make room for the drive's entry, so Playlists leaves the rail for
-the Libraries page: the rail's Libraries (which a lone library becomes)
-lists Playlists after the libraries, as a card like theirs, while the rail
-has no room for it. Playlists opened from there is under Libraries in the
-rail.
+Nothing leaves the rail to make room for the drive's entry: with more
+entries than its nine places, those between the avatar and Settings
+scroll, keeping the focused entry fourth from the top as on Android TV.
+The Magic Remote moves them only as far as brings a cut-off entry in
+whole, as it does a tile.
 
 webOS mounts a drive at `/tmp/usb/<disk>/<partition>`, and the letters
 change with what is plugged in, so the app looks for the first drive in

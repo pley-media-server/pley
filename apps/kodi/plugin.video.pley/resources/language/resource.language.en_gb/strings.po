@@ -1331,17 +1331,41 @@ msgid "Another device answers at %s's address"
 msgstr ""
 
 msgctxt "#30551"
-msgid "Live TV stopped"
+msgid "Your rating"
 msgstr ""
 
 msgctxt "#30552"
-msgid "This channel isn't being watched any more."
+msgid "Bitrate"
 msgstr ""
 
 msgctxt "#30553"
-msgid "Watch again"
+msgid "Resolution"
 msgstr ""
 
 msgctxt "#30554"
+msgid "Dynamic range"
+msgstr ""
+
+msgctxt "#30555"
+msgid "All resolutions"
+msgstr ""
+
+msgctxt "#30556"
+msgid "All dynamic ranges"
+msgstr ""
+
+msgctxt "#30557"
+msgid "Live TV stopped"
+msgstr ""
+
+msgctxt "#30558"
+msgid "This channel isn't being watched any more."
+msgstr ""
+
+msgctxt "#30559"
+msgid "Watch again"
+msgstr ""
+
+msgctxt "#30560"
 msgid "OK"
 msgstr ""

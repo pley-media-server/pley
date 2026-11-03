@@ -289,7 +289,7 @@ interface MediaSummary {            // a movie's best file, or a show's episodes
   width: number | null;
   height: number | null;            // show: its largest episode
   video_codec: string | null;       // null for shows
-  dynamic_range: "sdr" | "hdr10" | "hdr10plus" | "hlg" | "dolby_vision" | null; // null for shows
+  dynamic_range: "sdr" | "hdr10" | "hdr10plus" | "hlg" | "dolby_vision" | null; // show: its best episode's
 }
 
 interface ItemDetail extends ItemSummary {
@@ -390,8 +390,10 @@ interface MediaStream {
                                     // 6 = Blu-ray HDR10 (profile 7), 0 = none
   dv_el?: "fel" | "mel";            // profile 7's enhancement layer: full (picture data) or minimal;
                                     // absent: not known
+  dv_unnamed?: boolean;             // Dolby Vision found in the frames' RPUs, which the file doesn't name
+                                    // (no configuration record): played as it is, its base layer shows
   decode_order_times?: boolean;     // frames timed in decode order, not display order: the video is converted
-  dv_level?: number;                // Dolby Vision level
+  dv_level?: number;                // Dolby Vision level (absent with dv_unnamed)
   hdr10plus?: boolean;              // Dolby Vision and PQ streams: HDR10+ in the first frames (absent: not
                                     // looked for). On Dolby Vision, true means Dolby Vision + HDR10+
   // Clients name the dynamic range the same way everywhere: "Dolby Vision P8.1", "Dolby Vision P8.4",
@@ -465,7 +467,8 @@ interface PlaybackInfo {
                                     // "HDR10 (Dolby Vision base layer, as this screen doesn't show Dolby
                                     // Vision)", "HDR10+ (Dolby Vision base layer, as this player doesn't
                                     // decode profile 7)": the base layer plays for the screen, the
-                                    // player's profiles or level, a remux that doesn't name Dolby Vision,
+                                    // player's profiles or level, a file or remux that doesn't name Dolby
+                                    // Vision,
                                     // or HDR10+ in the stream; "as Dolby Vision isn't shown here" for a
                                     // player that lists no profiles (Kodi and Roku can't tell their
                                     // screen from their decoders);
@@ -1464,7 +1467,7 @@ artwork, streams and the compatibility APIs.
 | POST | `/api/libraries/{id}/scan` | `admin` | `{ force?: boolean }` → `202`. `force` re-probes files and refreshes metadata |
 | POST | `/api/libraries/scan` | `admin` | `202`: scans every library |
 | GET | `/api/libraries/{id}/items` | `library` | `{ total, items: ItemSummary[] }`: top-level items, paged |
-| GET | `/api/libraries/{id}/filters` | `library` | `{ genres: string[], years: number[] }` |
+| GET | `/api/libraries/{id}/filters` | `library` | `{ genres: string[], years: number[], resolutions: string[], dynamic_ranges: string[] }`: what the titles the user may see can be filtered by |
 | GET | `/api/libraries/{id}/hubs` | `library` | `{ hubs: Hub[] }`: `continue_watching:{id}`, `recently_added:{id}`, `recently_released:{id}`, `top_rated:{id}`; music libraries only the second; empty hubs left out |
 
 **Order.** Libraries have one shared order, chosen by administrators (new
@@ -1490,11 +1493,28 @@ open only some libraries see those, in that order.
 | `watched` | `true`, `false`; `true` matches shows whose every episode is watched |
 | `genre` | a genre name |
 | `year` | `yyyy` |
+| `resolution` | `4k`, `1080` (up to 1440p), `720`, `sd`: the title's best file's, a show's best episode's; another value: `400` |
+| `dynamic_range` | `hdr` (Any HDR: any but SDR), `hdr10` (HDR: HDR10, HDR10+ and Dolby Vision), `dolby_vision`, `hdr10plus`, `hlg`, `sdr` (each alone; Dolby Vision + HDR10+ is Dolby Vision): the title's best file's, best in the order Dolby Vision, HDR10+, HDR10, HLG, SDR, a show's best episode's; another value: `400` |
 | `offset`, `limit` | paging |
 | `summaries` | `1`: with synopses ([`summaries=1`](#types)) |
 
-Items leave out `backdrop_url` and `thumb_url` (grids show posters);
-sorted by `bitrate`, they carry `media`. Answers carry an `ETag` and
+Items leave out `backdrop_url` and `thumb_url` (grids show posters), and
+carry `media`. The apps show its badges ("4K", "DV", "HDR") on posters
+sorted by `bitrate` or filtered by `resolution` or `dynamic_range`, and
+its bitrate and size under them sorted by `bitrate`. Filtered by either,
+`media` describes the version that matches (a film's Dolby Vision file
+rather than its higher-bitrate HDR10 one; a show's matching episodes), and
+`sort=bitrate` orders by that version's bitrate.
+
+`GET /api/libraries/{id}/filters` lists `resolutions` best first, only
+those the titles have and only when they have two or more (one leaves
+nothing to choose). It lists `dynamic_ranges` broadest first (`hdr`,
+`hdr10`, `dolby_vision`, `hdr10plus`, `hlg`, `sdr`), each that keeps some
+of the titles but not all, and not the same ones as a choice of fewer
+kinds: Dolby Vision alone stands for an HDR that would keep only it, and HDR
+for an Any HDR without HLG beside it. Music has neither.
+
+Answers to `/items` carry an `ETag` and
 `Cache-Control: private, no-cache`;
 `If-None-Match` with the same tag answers `304` while the library, the
 user's watch state and their access are unchanged.
@@ -1663,7 +1683,7 @@ WebVTT file named `.srt` is taken as WebVTT). Its language is kept as ISO
 |---|---|---|---|
 | GET | `/api/hubs/home` | `library` | `{ hubs: Hub[] }` |
 | DELETE | `/api/continue-watching/{id}` | `play` | `204`: takes a title out of the user's Continue Watching |
-| GET | `/api/search?q=&limit=` | `library` | `{ items: ItemSummary[], people: PersonSummary[], channels: LiveChannel[] }`: `items` up to `limit` (default 40, 1 to 200); `people` up to 12; `channels` up to 12 Live TV channels by name, number or what's on, for those Live TV is open to |
+| GET | `/api/search?q=&limit=` | `library` | `{ items: ItemSummary[], people: PersonSummary[], channels: LiveChannel[] }`: `items`, `people` and `channels` each up to `limit` (default 40, 1 to 200): titles, people, and Live TV channels by name, number or what's on, for those Live TV is open to. The apps ask for 200 |
 
 - **Home** hubs, empty ones left out: `continue_watching` (in progress and
   next up), then `my_list` ("My List", its 20 newest), then
@@ -2518,6 +2538,15 @@ become:
   Dolby Vision play these files normally. Files analyzed by an older server
   don't carry the flag until a forced scan of their library analyzes them
   again.
+- **Dolby Vision the file doesn't name** (`dv_unnamed: true`: no
+  configuration record, the RPUs found in the frames when the file is
+  analyzed): as it is, a player decodes its base layer. A player that would
+  decode it as Dolby Vision gets it repackaged with Dolby Vision named
+  ("The file doesn't name its Dolby Vision P8.1."), by the rules above
+  (profile 7 converted to 8.1, HDR10+ left out). Without a master playlist,
+  and for a download, it plays as it is, as its base layer; profile 5,
+  which has none, is converted. Files analyzed before the server looked for
+  it are analyzed again by the next scan of their library.
 - A server whose transcoder lacks `hls_master_playlist` in its capabilities
   decides as if no player read master playlists.
 

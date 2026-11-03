@@ -218,6 +218,22 @@ class SearchViewModelTest {
     }
 
     @Test
+    fun eachGroupHoldsEveryResultTheServerGives() = runTest(dispatcher) {
+        val vm = viewModel("the")
+        search.answer("the").complete(
+            SearchResults(
+                items = (1L..150L).map { item(it, ItemKind.Movie) } + (151L..230L).map { item(it, ItemKind.Episode) },
+                people = (1L..60L).map { PersonSummary(1_000 + it, "Person $it") },
+            ),
+        )
+        advanceUntilIdle()
+        val groups = (vm.results() as SearchResultsState.Ready).groups
+        // Nothing cut at 12, nor anywhere else: one row each, as long as the server's answer.
+        assertEquals(listOf(150, 80, 60), groups.map { it.count })
+        assertEquals((1L..150L).toList(), groups.first().ids)
+    }
+
+    @Test
     fun aQueryIsRememberedWhenSubmittedOrOneOfItsResultsIsOpened() = runTest(dispatcher) {
         val vm = viewModel()
         advanceUntilIdle()

@@ -8,6 +8,7 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.test.core.app.ApplicationProvider
@@ -20,15 +21,19 @@ import app.pley.android.data.LibraryItemsRepository
 import app.pley.android.data.LibraryQuery
 import app.pley.android.data.Loadable
 import app.pley.android.data.Settings
+import app.pley.android.data.valueOrNull
 import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.CollectionSummary
+import app.pley.android.model.DynamicRange
 import app.pley.android.model.Hubs
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryFilters
 import app.pley.android.model.LibraryKind
+import app.pley.android.model.MediaSummary
+import app.pley.android.model.ResolutionFilter
 import app.pley.android.screens.LibraryTab
 import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyKey
@@ -63,6 +68,7 @@ class LibraryGridTest {
     private val movies = Library(1, "Movies", LibraryKind.Movies, itemCount = 300)
     private val all = (1L..300L).map { id -> ItemSummary(id = id, libraryId = 1, kind = ItemKind.Movie, title = "Movie $id", sortTitle = "Movie $id") }
     private val listing = MutableStateFlow<Loadable<LibraryItems>>(Loadable.Loading)
+    private val filters = MutableStateFlow<Loadable<LibraryFilters>>(Loadable.Ready(LibraryFilters(), fresh = true))
 
     private val deps = LibraryDeps(
         libraries = object : LibrariesRepository {
@@ -73,7 +79,7 @@ class LibraryGridTest {
         },
         items = object : LibraryItemsRepository {
             override fun items(libraryId: Long, query: LibraryQuery): Flow<Loadable<LibraryItems>> = listing
-            override fun filters(libraryId: Long): Flow<Loadable<LibraryFilters>> = flowOf(Loadable.Ready(LibraryFilters(), fresh = true))
+            override fun filters(libraryId: Long): Flow<Loadable<LibraryFilters>> = filters
         },
         hubs = object : HubsRepository {
             override fun home(): Flow<Loadable<Hubs>> = flowOf(Loadable.Loading)
@@ -143,5 +149,36 @@ class LibraryGridTest {
         // A card still opens its page, read from the page as it is now.
         compose.onAllNodesWithContentDescription("Movie 1", substring = true).onFirst().performClick()
         assertEquals(PleyKey.Item(1), opened.last())
+    }
+
+    @Test
+    fun postersCarryQualityBadgesOnlyWhileFilteredByWhatTheyShow() {
+        val uhd = MediaSummary(bitrate = 58_000_000, width = 3840, height = 2160, videoCodec = "hevc", dynamicRange = DynamicRange.DolbyVision)
+        listing.value = Loadable.Ready(LibraryItems(total = 3, items = all.take(3).map { it.copy(media = uhd) }), fresh = true)
+        filters.value = Loadable.Ready(LibraryFilters(resolutions = listOf("4k", "1080"), dynamicRanges = listOf("dolby_vision", "sdr")), fresh = true)
+        val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
+        val vm = LibraryViewModel(movies.id, LibraryTab.Library, null, deps, PhoneTiles(resources))
+        compose.setContent {
+            Page {
+                val state by vm.state.collectAsStateWithLifecycle()
+                LibraryPane(state, vm, rememberSkeleton(animated = false))
+            }
+        }
+        compose.waitForIdle()
+        fun badges() = vm.state.value.grid.cells.valueOrNull!![0]!!.badges
+        // By title, the posters say nothing of their files, though the listing has them.
+        assertEquals(emptyList<String>(), badges())
+        compose.onNodeWithText("Resolution").assertExists()
+
+        compose.runOnIdle { vm.resolution(ResolutionFilter.Uhd) }
+        compose.waitForIdle()
+        assertEquals(listOf("4K", "DV"), badges())
+        // The chip names what is chosen, and the listing is filtered.
+        compose.onNodeWithText("4K").assertExists()
+        compose.onNodeWithText("Resolution").assertDoesNotExist()
+        compose.runOnIdle { vm.clearFilters() }
+        compose.waitForIdle()
+        assertEquals(emptyList<String>(), badges())
+        compose.onNodeWithText("Resolution").assertExists()
     }
 }

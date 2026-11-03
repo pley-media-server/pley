@@ -243,7 +243,7 @@ impl Screen for PlaylistsScreen {
         self.list.value().is_some() || self.list.error().is_some()
     }
 
-    /// Its own name, also when opened from the Libraries page, whose rail entry the rail marks.
+    /// Its own name, for Audio Guidance to read as it opens.
     fn title(&self) -> Option<String> {
         Some("Playlists".into())
     }

@@ -1,7 +1,8 @@
 // Smart collection filters: a library listing in Plex's syntax
 // (`genre=Comedy&unwatched=1&sort=year:desc`), see docs/COMPATIBILITY.md.
 
-import type { LibrarySort, SortOrder } from "@/api/types";
+import type { LibrarySort, RangeFilter, Resolution, SortOrder } from "@/api/types";
+import { RANGE_FILTER_LABELS, rangeFilterOf, RESOLUTION_LABELS, resolutionOf } from "./format";
 
 const PLEX_SORT: Record<LibrarySort, string> = {
   title: "titleSort",
@@ -22,10 +23,15 @@ export function smartFilterOf(query: {
   watched?: boolean;
   genre?: string;
   year?: number;
+  resolution?: Resolution;
+  dynamic_range?: RangeFilter;
 }): string {
   const params = new URLSearchParams();
   if (query.genre) params.set("genre", query.genre);
   if (query.year !== undefined) params.set("year", String(query.year));
+  // Plex's `resolution`, and Pley's own `dynamicRange`.
+  if (query.resolution) params.set("resolution", query.resolution);
+  if (query.dynamic_range) params.set("dynamicRange", query.dynamic_range);
   if (query.watched !== undefined) params.set("unwatched", query.watched ? "0" : "1");
   const field = PLEX_SORT[query.sort];
   params.set("sort", query.order === "desc" ? `${field}:desc` : field);
@@ -90,6 +96,16 @@ export function describeSmartFilter(filter: string): string[] {
       case "decade":
         parts.push(`The ${value}s`);
         break;
+      case "resolution": {
+        const resolution = resolutionOf(value.toLowerCase());
+        parts.push(resolution ? RESOLUTION_LABELS[resolution] : `Resolution: ${value}`);
+        break;
+      }
+      case "dynamicRange": {
+        const range = rangeFilterOf(value.toLowerCase());
+        parts.push(range ? RANGE_FILTER_LABELS[range] : `Dynamic range: ${value}`);
+        break;
+      }
       case "sort":
         parts.push(sortNote(value));
         break;

@@ -146,7 +146,8 @@ pub struct Tile<'a> {
     /// Unwatched episodes of a show or season: a count instead of the tick.
     pub unwatched: u32,
     pub watched: bool,
-    /// Quality badges at the bottom left (a library sorted by bitrate).
+    /// Quality badges at the bottom left (a library sorted by bitrate or filtered by resolution or
+    /// dynamic range).
     pub badges: &'a [String],
     /// A count at the top right (a collection's items).
     pub count: Option<&'a str>,

@@ -28,6 +28,10 @@
     <string name="tv_library_all_genres">All genres</string>
     <string name="tv_library_year">Year</string>
     <string name="tv_library_all_years">All years</string>
+    <string name="tv_library_resolution">Resolution</string>
+    <string name="tv_library_all_resolutions">All resolutions</string>
+    <string name="tv_library_dynamic_range">Dynamic range</string>
+    <string name="tv_library_all_dynamic_ranges">All dynamic ranges</string>
     <string name="tv_library_clear_filters">Clear filters</string>
     <string name="tv_library_save_as">Save as…</string>
 

@@ -653,6 +653,7 @@ body {
 .reduced .rail-edge,
 .reduced .rail-scrim,
 .reduced .rail-pill > i { transition: none; }
+/* The avatar at the top (y 15), Settings at the foot (y 473), and between them the entries' view. */
 .rail-items {
   position: absolute;
   left: 8px;
@@ -661,18 +662,38 @@ body {
   display: flex;
   flex-direction: column;
 }
+/*
+ * The entries, 4 apart from y 67 to 469: they scroll by transform when
+ * there are more than nine, clipped from the avatar's foot to Settings'
+ * top, and as wide as the open rail with room for a focused entry's 1.05.
+ * Only the entries take the pointer: the page under the closed rail's
+ * labels keeps it.
+ */
+.rail-view {
+  position: absolute;
+  left: -8px;
+  top: 48px;
+  bottom: 40px;
+  width: 272px;
+  box-sizing: border-box;
+  padding: 4px 0 0 8px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.rail-scroll { will-change: transform; transition: transform 200ms var(--focus-ease); }
+.reduced .rail-scroll { transition: none; }
+.rail-scroll > .rail-item { margin-bottom: 4px; pointer-events: auto; }
 /* An entry is 56 wide closed and 256 open, at once: its fill grows (.rail-pill), not its box. */
 .rail-item {
   position: relative;
   width: 56px;
-  height: 48px;
-  margin-bottom: 8px;
+  height: 40px;
   display: flex;
   align-items: center;
   color: var(--muted);
   transition: transform 300ms cubic-bezier(0, 0, 0.2, 1);
 }
-.rail-item .icon { position: absolute; left: 18px; top: 14px; }
+.rail-item .icon { position: absolute; left: 18px; top: 10px; }
 /* As wide as on the open rail, so a closing rail's labels fade without being cut short. */
 .rail-item .label {
   position: absolute;
@@ -702,7 +723,7 @@ body {
   content: "";
   position: absolute;
   left: 0;
-  top: 14px;
+  top: 10px;
   width: 4px;
   height: 20px;
   border-radius: 2px;
@@ -723,7 +744,7 @@ body {
 .rail-badge {
   position: absolute;
   left: 29px;
-  top: 6px;
+  top: 2px;
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
@@ -740,11 +761,11 @@ body {
 }
 .rail-badge.danger { background: var(--danger); color: var(--bg); }
 .rail-item[data-focused] .rail-badge:not(.danger) { background: var(--on-accent); color: var(--accent-bright); }
-.rail-item.avatar { height: 56px; margin-bottom: 4px; }
+.rail-item.avatar { height: 48px; }
 .rail-avatar {
   position: absolute;
   left: 12px;
-  top: 12px;
+  top: 8px;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -758,7 +779,7 @@ body {
 .offline-mark {
   position: absolute;
   left: 34px;
-  top: 34px;
+  top: 30px;
   width: 16px;
   height: 16px;
   box-sizing: border-box;

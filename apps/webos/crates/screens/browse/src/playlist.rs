@@ -38,7 +38,7 @@ use pley_ui::{Dir, Dirs, Edge, FocusOpts, Group, Id, Motion, Response, Ui, nudge
 use crate::collections::random_index;
 use crate::parts::{Line, Typing, answer, column_message, failed_title, panel_lines, skeleton_blocks};
 use crate::playlists::playlist_meta;
-use crate::tiles::{ArtKind, Cell, art_paths, page_of, requests};
+use crate::tiles::{ArtKind, Cell, Quality, art_paths, page_of, requests};
 use crate::view::describe_smart_filter;
 
 /// The page's top, down to just above the first entry.
@@ -184,7 +184,7 @@ impl Row {
         let (title, subtitle) = entry_titles(item);
         let art = api.map(|api| requests(api, &art_paths(item, ArtKind::of(kind)), px)).unwrap_or_default();
         Row {
-            cell: Cell::with_art(item.clone(), kind, art, false),
+            cell: Cell::with_art(item.clone(), kind, art, Quality::NONE),
             title,
             subtitle,
             duration: format_duration(item.duration_ms),

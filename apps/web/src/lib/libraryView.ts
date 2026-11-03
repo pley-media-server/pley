@@ -1,7 +1,7 @@
 import { getStored, writeStorage } from "./hooks";
 
 /** What of a library page's address is its view: the sort, order and filters (not the tab). */
-export const VIEW_KEYS = ["sort", "order", "watched", "genre", "year"] as const;
+export const VIEW_KEYS = ["sort", "order", "watched", "genre", "year", "resolution", "dynamic_range"] as const;
 
 const isViewKey = (key: string) => (VIEW_KEYS as readonly string[]).includes(key);
 

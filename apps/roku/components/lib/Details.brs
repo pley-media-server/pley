@@ -83,15 +83,6 @@ function detAudio(stream as dynamic) as string
     return label.Trim()
 end function
 
-' "8.2 Mbps", "24 Mbps", "640 kbps"; "" without one.
-function detBitrate(bps as dynamic) as string
-    value = httpNumber(bps, 0)
-    if value <= 0 then return ""
-    if value >= 10000000 then return urlValue(Int(value / 1000000 + 0.5)) + " Mbps"
-    if value >= 1000000 then return fmtOneDecimal(value / 1000000) + " Mbps"
-    return urlValue(Int(value / 1000 + 0.5)) + " kbps"
-end function
-
 ' How the stream plays: "Direct play", "Direct stream", "Direct stream ·
 ' Audio transcoding", "Transcoding".
 function detMethod(info as object) as string
@@ -183,7 +174,7 @@ function detPlayback(info as object, file as dynamic, audioIndex as integer, liv
         rows.Push({ label: "Audio", value: value })
     end if
     if file <> invalid
-        bitrate = detBitrate(file.bitrate)
+        bitrate = fmtBitrate(file.bitrate)
         if bitrate <> "" then rows.Push({ label: "Bitrate", value: bitrate })
     end if
     shown = httpSentence(info.video_range)

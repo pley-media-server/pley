@@ -168,10 +168,31 @@ public class ApiTests
     }
 
     [Fact]
-    public async Task Search_asks_for_60_and_reads_the_live_tv_channels_found()
+    public async Task A_librarys_listing_asks_for_its_quality_after_the_year_and_reads_what_it_can_be_filtered_by()
     {
         var (api, server, _) = SignedIn();
-        server.On("GET", Home + "/api/search?q=dune&limit=60", 200, @"{""items"":[],""people"":[{""id"":714,""name"":""Dune Hartley""}],
+        // In one order: the listing's ETag hashes the query as written.
+        server.On("GET", Home + "/api/libraries/3/items?sort=year&order=desc&genre=Drama&year=1999&resolution=4k&dynamic_range=hdr&offset=0&limit=200", 200,
+            @"{""total"":0,""items"":[]}");
+        await api.LibraryItems(3, new Pley.Tv.Core.Ui.LibraryParams(Sort: LibrarySort.Year, Genre: "Drama", Year: 1999, Resolution: "4k", DynamicRange: "hdr").Query() with { Limit = 200 });
+        server.On("GET", Home + "/api/libraries/3/filters", 200,
+            @"{""genres"":[""Drama""],""years"":[1999],""resolutions"":[""4k"",""1080""],""dynamic_ranges"":[""hdr"",""dolby_vision"",""sdr""]}");
+        var filters = await api.LibraryFilters(3);
+        Assert.Equal(new[] { "4k", "1080" }, filters.Resolutions);
+        Assert.Equal(new[] { "hdr", "dolby_vision", "sdr" }, filters.DynamicRanges);
+        // A server from before them sends neither.
+        server.On("GET", Home + "/api/libraries/4/filters", 200, @"{""genres"":[],""years"":[2001]}");
+        var older = await api.LibraryFilters(4);
+        Assert.Equal(new[] { 2001 }, older.Years);
+        Assert.Empty(older.Resolutions);
+        Assert.Empty(older.DynamicRanges);
+    }
+
+    [Fact]
+    public async Task Search_asks_for_200_of_each_and_reads_the_live_tv_channels_found()
+    {
+        var (api, server, _) = SignedIn();
+        server.On("GET", Home + "/api/search?q=dune&limit=200", 200, @"{""items"":[],""people"":[{""id"":714,""name"":""Dune Hartley""}],
             ""channels"":[{""id"":9,""source_id"":1,""name"":""Dune Classics"",""number"":""212"",""group"":""Films"",
             ""logo"":""/api/live/channels/9/logo"",""favorite"":false,""has_guide"":false,""now"":null,""next"":null}]}");
         var found = await api.Search("dune");
@@ -179,7 +200,7 @@ public class ApiTests
         Assert.Equal((9L, "Dune Classics", "212", "/api/live/channels/9/logo"), (channel.Id, channel.Name, channel.Number, channel.Logo));
         Assert.Null(channel.Now);
         // A server from before search found channels sends none.
-        server.On("GET", Home + "/api/search?q=north&limit=60", 200, @"{""items"":[],""people"":[]}");
+        server.On("GET", Home + "/api/search?q=north&limit=200", 200, @"{""items"":[],""people"":[]}");
         Assert.Null((await api.Search("north")).Channels);
     }
 

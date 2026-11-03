@@ -31,10 +31,12 @@ import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemIds
 import app.pley.android.model.ItemList
 import app.pley.android.model.ItemsPage
+import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryFilters
 import app.pley.android.model.LibraryIds
 import app.pley.android.model.LibrarySort
+import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveChannelPage
@@ -174,9 +176,11 @@ class FakePleyApi(val issuer: String = "http://127.0.0.1:7539") : PleyApi {
         watched: Boolean?,
         genre: String?,
         year: Int?,
+        resolution: ResolutionFilter?,
+        dynamicRange: DynamicRangeFilter?,
         offset: Int,
         limit: Int?,
-    ): ItemsPage = respond("libraryItems", libraryId, sort, order, watched, genre, year, offset, limit) {
+    ): ItemsPage = respond("libraryItems", libraryId, sort, order, watched, genre, year, resolution, dynamicRange, offset, limit) {
         val page = fixture<ItemsPage>(if (sort == LibrarySort.Bitrate) "libraries/items_by_bitrate.json" else "libraries/items.json")
         val items = page.items.drop(offset)
         page.copy(items = if (limit != null) items.take(limit) else items)

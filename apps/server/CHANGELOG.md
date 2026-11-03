@@ -61,9 +61,26 @@ describes how they are made.
   administrator's role, at once. A token can be limited
   to the addresses or networks it is used from, or the home network; from
   elsewhere it is refused, and so are the streams it started.
+- Movie and show libraries can be filtered by resolution (4K, 1080p, 720p,
+  SD) and by dynamic range (Any HDR, HDR including Dolby Vision and HDR+,
+  Dolby Vision, HDR+, HLG, SDR),
+  each title by its best file (a show by its best episode), and shown and
+  sorted by the version that matches: a film filtered by Dolby Vision shows
+  its Dolby Vision file's badges and bitrate. The choices are those the
+  library has, and smart collections and playlists saved from a filtered
+  library keep them. Kometa's movie collections by resolution work too.
 
 ### Changed
 
+- Search finds as many people and Live TV channels as titles, up to 200 of
+  each, where it stopped at 12 people and 12 channels. The web app shows
+  two rows of each group of results and **Show all** for the rest.
+- Library posters on the web carry their quality badges ("4K", "DV",
+  "HDR") only when the library is sorted by bitrate or filtered by
+  resolution or dynamic range: on every poster they mostly said the same
+  thing.
+- The web app's sidebar is more compact, so more libraries and playlists
+  fit without scrolling; Settings' list of pages matches it.
 - Updating the Windows service no longer takes minutes on a large library:
   Setup no longer sets the permissions of every file in the data
   folder again when the folder is set up already.
@@ -122,6 +139,13 @@ describes how they are made.
   their own devices and, when you are both in the home, to you; anyone
   else is told only that the connection was needed. Someone starting the
   channel you watch shares its connection and stops nothing.
+- Dolby Vision files whose container doesn't say they are Dolby Vision
+  (some remuxes and older muxers leave that out) are found by what their
+  frames carry. They are labelled Dolby Vision P8.1, P7 FEL and so on
+  rather than HDR10 or HDR10+, and the next scan finds those already in a
+  library. Players that show Dolby Vision get them repackaged with Dolby
+  Vision named, since played as they are they would show the HDR10 base
+  layer.
 - Blu-ray subtitles that show two pictures at once, the first one forced,
   show both in the web app, and a picture the disc crops shows cropped.
 - A password or PIN checked while the server is out of memory gets "Pley

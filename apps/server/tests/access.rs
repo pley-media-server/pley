@@ -450,11 +450,32 @@ async fn filter_choices_only_come_from_titles_the_user_can_see() {
             .unwrap();
     }
 
+    // The adult film is the only one in 4K and Dolby Vision.
+    for (title, width, height, range) in
+        [("Adult Film", 3840, 2160, "dolby_vision"), ("Family Film", 1920, 1080, "sdr")]
+    {
+        sqlx::query(
+            "UPDATE media_files SET width = ?, height = ?, dynamic_range = ?
+             WHERE item_id = (SELECT id FROM items WHERE title = ?)",
+        )
+        .bind(width)
+        .bind(height)
+        .bind(range)
+        .bind(title)
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+    }
+
     let filters = format!("/api/libraries/{}/filters", w.movies);
-    assert_eq!(app.get(&filters, kid).await.body, json!({"genres": ["Family"], "years": [2019]}));
+    assert_eq!(
+        app.get(&filters, kid).await.body,
+        json!({"genres": ["Family"], "years": [2019], "resolutions": [], "dynamic_ranges": []})
+    );
     assert_eq!(
         app.get(&filters, &w.admin).await.body,
-        json!({"genres": ["Family", "Horror"], "years": [2020, 2019, 2015]})
+        json!({"genres": ["Family", "Horror"], "years": [2020, 2019, 2015],
+               "resolutions": ["4k", "1080"], "dynamic_ranges": ["dolby_vision", "sdr"]})
     );
 
     let movies = app.jf_library(w.movies);

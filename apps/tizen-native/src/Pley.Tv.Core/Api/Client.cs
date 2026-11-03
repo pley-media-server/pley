@@ -88,7 +88,16 @@ public sealed record HubsAnswer(IReadOnlyList<Hub> Hubs);
 public sealed record ItemsPage(long Total, IReadOnlyList<ItemSummary> Items);
 public sealed record ItemsAnswer(IReadOnlyList<ItemSummary> Items);
 public sealed record ItemAnswer(ItemSummary? Item);
-public sealed record FiltersAnswer(IReadOnlyList<string> Genres, IReadOnlyList<int> Years);
+/// <summary>
+/// What a library's listing can be filtered by. <see cref="Resolutions"/> and <see cref="DynamicRanges"/>
+/// hold the server's tokens, best first, and only when the titles have two or more; a server from
+/// before them sends neither.
+/// </summary>
+public sealed record FiltersAnswer(IReadOnlyList<string> Genres, IReadOnlyList<int> Years)
+{
+    public IReadOnlyList<string> Resolutions { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> DynamicRanges { get; init; } = Array.Empty<string>();
+}
 public sealed record CollectionsAnswer(IReadOnlyList<Collection> Collections);
 public sealed record CollectionDetail : Collection
 {
@@ -99,7 +108,7 @@ public sealed record PlaylistDetail : Playlist
 {
     public IReadOnlyList<PlaylistEntry> Entries { get; init; } = new PlaylistEntry[0];
 }
-/// <summary>Live TV's <see cref="Channels"/> (up to 12) by name, number or what's on, for those it's open to; none from a server without it.</summary>
+/// <summary>Live TV's <see cref="Channels"/> by name, number or what's on, for those it's open to; none from a server without it.</summary>
 public sealed record SearchAnswer(IReadOnlyList<ItemSummary> Items, IReadOnlyList<PersonSummary>? People, IReadOnlyList<LiveChannel>? Channels = null);
 public sealed record CollectionRef(long Id, string Title);
 public sealed record ItemCollectionsAnswer(IReadOnlyList<CollectionRef> Collections);
@@ -115,6 +124,10 @@ public sealed record LibraryQuery
     public bool? Watched { get; init; }
     public string? Genre { get; init; }
     public int? Year { get; init; }
+    /// <summary>"4k", "1080", "720" or "sd": a title's best file's.</summary>
+    public string? Resolution { get; init; }
+    /// <summary>"hdr" (any but SDR), "dolby_vision", "hdr10plus", "hdr10", "hlg" or "sdr": a title's best file's.</summary>
+    public string? DynamicRange { get; init; }
     /// <summary>Always sent, as the Android app sends it: the first page is at 0.</summary>
     public int Offset { get; init; }
     public int? Limit { get; init; }
@@ -347,8 +360,10 @@ public sealed class Api
     public Task<ItemsPage> LibraryItems(long id, LibraryQuery query, CancellationToken cancel = default) =>
         Get<ItemsPage>($"/api/libraries/{id}/items", new[]
         {
+            // In this order: the server's listing ETag hashes the query as written.
             Q("sort", query.Sort), Q("order", query.Order), Q("watched", query.Watched), Q("genre", query.Genre),
-            Q("year", query.Year), Q("offset", query.Offset), Q("limit", query.Limit),
+            Q("year", query.Year), Q("resolution", query.Resolution), Q("dynamic_range", query.DynamicRange),
+            Q("offset", query.Offset), Q("limit", query.Limit),
         }, cancel);
 
     public Task<HubsAnswer> LibraryHubs(long id, CancellationToken cancel = default) => Get<HubsAnswer>($"/api/libraries/{id}/hubs", cancel: cancel);
@@ -371,8 +386,8 @@ public sealed class Api
 
     public Task<PersonDetail> Person(long id, CancellationToken cancel = default) => Get<PersonDetail>($"/api/people/{id}", cancel: cancel);
 
-    /// <summary>Items and people; Live TV channels come with Live TV.</summary>
-    public Task<SearchAnswer> Search(string q, CancellationToken cancel = default) => Get<SearchAnswer>("/api/search", new[] { Q("q", q), Q("limit", 60) }, cancel);
+    /// <summary>Up to 200 items and 200 people, the server's most, which search's rows show all of; as many Live TV channels come with Live TV.</summary>
+    public Task<SearchAnswer> Search(string q, CancellationToken cancel = default) => Get<SearchAnswer>("/api/search", new[] { Q("q", q), Q("limit", 200) }, cancel);
 
     public Task<PlaylistsAnswer> Playlists(CancellationToken cancel = default) => Get<PlaylistsAnswer>("/api/playlists", cancel: cancel);
 

@@ -385,6 +385,8 @@ async fn channels_by_group_a_page_at_a_time() {
     let found = app.get("/api/search?q=foot", &bob).await.body;
     let found: Vec<&str> = found["channels"].as_array().unwrap().iter().map(|c| c["name"].as_str().unwrap()).collect();
     assert_eq!(found, ["Two HD"]);
+    let first = app.get("/api/search?q=1&limit=1", &bob).await.body;
+    assert_eq!(first["channels"].as_array().map(Vec::len), Some(1), "as many as titles: {first}");
 
     app.put(&format!("/api/live/channels/{ten}/favorite"), &bob, json!({})).await;
     assert_eq!(app.get("/api/live/groups", &bob).await.body["favorites"], 1);
