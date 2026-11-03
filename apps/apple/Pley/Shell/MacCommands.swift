@@ -1,6 +1,7 @@
 #if os(macOS)
 import AppKit
 import PleyData
+import PleyModel
 import PleyScreens
 import SwiftUI
 
@@ -9,7 +10,8 @@ import SwiftUI
 ///
 /// - File: Add Server… (⇧⌘N), Servers, Switch Profile… (⇧⌘P) and Sign Out….
 /// - View: Home (⌘1), Search (⌘F), Playlists (⌘2), the first seven
-///   libraries (⌘3 to ⌘9), Reload (⌘R), Larger and Smaller Tiles (⌘=, ⌘−;
+///   libraries (⌘3 to ⌘9), Discover (⇧⌘D) and Your requests or Requests
+///   (⇧⌘R) where requests are open, Reload (⌘R), Larger and Smaller Tiles (⌘=, ⌘−;
 ///   ⌘+ too, through `MacAppDelegate`'s key monitor),
 ///   then the sidebar's and the toolbar's own commands.
 struct MacCommands: Commands {
@@ -44,6 +46,16 @@ struct MacCommands: Commands {
         CommandGroup(before: .sidebar) {
             ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
                 section(entry)
+            }
+            if shell.requestsEntry.discover {
+                Button(RequestWords.discover) { openUnderMe(.discover) }
+                    .keyboardShortcut("d", modifiers: [.command, .shift])
+                    .disabled(!signedIn)
+            }
+            if shell.requestsEntry.requests {
+                Button(shell.requestsEntry.requestsTitle) { openUnderMe(.requests) }
+                    .keyboardShortcut("r", modifiers: [.command, .shift])
+                    .disabled(!signedIn)
             }
             Divider()
             Button("Reload") { Task { await shell.reloadShowing() } }
@@ -83,6 +95,12 @@ struct MacCommands: Commands {
                 .keyboardShortcut("f")
                 .disabled(!signedIn)
         }
+    }
+
+    /// Requests' pages open under Me, where their rows are.
+    private func openUnderMe(_ screen: Screen) {
+        if shell.section != .me { shell.select(.me) }
+        shell.open(screen)
     }
 
     private var current: GridDensity { GridDensity(rawValue: density) ?? .medium }

@@ -12,7 +12,8 @@ import SwiftUI
 /// the player is open VoiceOver reads only the player. While music has a
 /// queue, the mini player sits above the tab bar (in its bottom accessory
 /// from iOS 26.1) or at the foot of the sidebar layout's page, and Now
-/// Playing opens from it.
+/// Playing opens from it. Me's tab, and Me's row at the sidebar's foot,
+/// carry the number on the way into requests.
 struct ShellView: View {
     @ObservedObject var app: AppModel
     @ObservedObject private var shell: ShellModel
@@ -71,6 +72,8 @@ struct ShellView: View {
                         if !accessoryHoldsMiniPlayer { FootMiniPlayer(app: app) }
                     }
                     .tabItem { Label(Self.title(section), systemImage: Self.symbol(section)) }
+                    // The system draws the tab's badge in its own red; Me's rows show the alarm's colour.
+                    .badge(section == .me ? shell.requestsEntry.badgeText.map { Text($0) } : nil)
                     .tag(section)
             }
         }
@@ -135,6 +138,9 @@ struct ShellView: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
+                if let badge = shell.requestsEntry.badgeText {
+                    CountBadge(text: badge, alarm: shell.requestsEntry.alarm)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -149,6 +155,7 @@ struct ShellView: View {
         .background(Color(uiColor: .systemGroupedBackground))
         #endif
         .accessibilityLabel("Me, \(app.user.map { $0.displayName ?? $0.name } ?? "")")
+        .accessibilityValue(shell.requestsEntry.spoken ?? "")
         .accessibilityAddTraits(shell.section == .me ? .isSelected : [])
         .accessibilityIdentifier("shell.me")
     }
@@ -366,9 +373,14 @@ struct ScreenView: View {
             DownloadsView(app: app)
         case .downloadSettings:
             DownloadSettingsView(app: app)
-        // Nothing opens requests' pages yet: Me shows meanwhile.
-        case .discover, .discoverResults, .discoverTitle, .requests:
-            MeView(app: app)
+        case .discover:
+            DiscoverView(app: app)
+        case .discoverResults(let query):
+            DiscoverResultsView(app: app, query: query)
+        case .discoverTitle(let kind, let tmdbId, let pick):
+            DiscoverTitleView(app: app, kind: kind, tmdbId: tmdbId, pick: pick)
+        case .requests:
+            RequestsView(app: app)
         }
     }
 }

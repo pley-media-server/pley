@@ -142,7 +142,8 @@ public final class RequestsListModel: ObservableObject {
     /// Reads the list, then again every 10 s while something in it moves
     /// and every 30 s while events can't come, until the view goes.
     public func run() async {
-        await load()
+        // Back on the page (from a title it opened): what shows is read again quietly, where it was.
+        if state == .ready { await reload(quiet: true) } else { await load() }
         var waited: Double = 0
         let tick = min(movingEvery, pollEvery)
         while !Task.isCancelled {

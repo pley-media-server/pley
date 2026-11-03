@@ -1,4 +1,5 @@
 import PleyData
+import PleyModel
 import PleyPlayer
 import PleyScreens
 import SwiftUI
@@ -366,7 +367,8 @@ struct DiagnosticsView: View {
     }
 }
 
-/// About: Pley's version, that the app holds no third-party code, and Pley's licence.
+/// About: Pley's version, that the app holds no third-party code, Pley's
+/// licence, and TMDB's notice for Discover's details and pictures.
 struct AboutView: View {
     private let model = AboutModel()
 
@@ -384,6 +386,10 @@ struct AboutView: View {
             Section {
                 Text(AboutModel.licences)
                 Text(AboutModel.licence)
+            }
+            Section {
+                Text(RequestWords.creditAbout)
+                    .accessibilityIdentifier("about.tmdb")
             }
         }
         #if os(macOS)

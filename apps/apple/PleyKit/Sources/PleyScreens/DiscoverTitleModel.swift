@@ -98,6 +98,8 @@ public final class DiscoverTitleModel: ObservableObject {
     @Published public private(set) var lines: [String] = []
     /// The allowance lines are red: nothing is left to ask for.
     @Published public private(set) var limitReached = false
+    /// Requested or Following: the stage pill of the request, under the button.
+    @Published public private(set) var actionPill: PillWords?
     /// "Your requests", or "Requests" for managers.
     @Published public private(set) var requestsHeading = RequestWords.yourRequests
     @Published public private(set) var requests: [RequestCard] = []
@@ -262,6 +264,8 @@ public final class DiscoverTitleModel: ObservableObject {
         var lines: [String] = []
         var limit = false
         switch action {
+        case .open(itemId: nil):
+            lines.append(RequestWords.readyElsewhere)
         case .restricted(let text):
             if let text, !text.isEmpty { lines.append(text) }
         case .declined(let reason, let againAt):
@@ -277,6 +281,10 @@ public final class DiscoverTitleModel: ObservableObject {
         if gate.mayAsk { lines += RequestWords.allowance(allowance, kind: detail.kind, now: now) }
         self.lines = lines
         limitReached = limit
+        switch action {
+        case .mine(let request?), .following(let request?): actionPill = PillWords.of(request, manage: manage, now: now)
+        default: actionPill = nil
+        }
         state = .ready
         if pickPending && detail.kind == .show {
             pickPending = false
