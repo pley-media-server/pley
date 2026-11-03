@@ -28,7 +28,9 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
@@ -39,6 +41,7 @@ import app.pley.android.ui.tv.kit.press
 import app.pley.android.ui.tv.kit.railOnLeftStopOnRight
 import app.pley.android.ui.tv.theme.TvTheme
 import kotlin.math.abs
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -129,6 +132,23 @@ class TvRailTest {
         compose.mainClock.advanceTimeBy(300)
         assertTrue(isPanel(panelAt(250)))
         compose.onNodeWithTag("${TestTags.TV_RAIL}.home").assertIsFocused()
+    }
+
+    @Test
+    fun labelsSlideInAsTheRailOpens() {
+        shell(reduced = false)
+        compose.mainClock.autoAdvance = false
+        pressNow(Key.DirectionLeft)
+        compose.mainClock.advanceTimeByFrame()
+        compose.mainClock.advanceTimeByFrame()
+        // Search's, as Home's is focused and grows.
+        val search = compose.onNodeWithText("Search", useUnmergedTree = true)
+        val sliding = search.getBoundsInRoot().left
+        compose.mainClock.advanceTimeBy(300)
+        // In place 56 dp into the pill, 8 dp into the rail; on its way, short of it.
+        val rest = search.getBoundsInRoot().left
+        assertEquals(64f, rest.value, 0.5f)
+        assertTrue("$sliding", sliding.value < rest.value - 1f)
     }
 
     @Test

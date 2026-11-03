@@ -18,9 +18,9 @@ describes how they are made.
   library, search) shows it at once as it was left, focus included, rather
   than building it again with its pictures.
 - On Android TV and Fire TV, the rail and the side panels move as they do
-  on Samsung TVs: they open quickly and settle, the rail's entries grow on
-  focus the same way and shrink back slow to start, and panels leave the
-  same way.
+  on Samsung TVs: they open quickly and settle, the rail's names sliding
+  in as they appear, the rail's entries grow on focus the same way and
+  shrink back slow to start, and panels leave the same way.
 
 ### Fixed
 

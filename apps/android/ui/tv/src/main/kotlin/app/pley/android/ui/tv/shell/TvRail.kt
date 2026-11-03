@@ -202,7 +202,8 @@ class RailState(private val content: FocusRequester = FocusRequester()) : TvRail
  * Focus in it is what opens it. Over 200 ms ([PleyMotion.OVERLAY_MS]),
  * eased out as the Samsung app's rail is ([PleyMotion.EaseOut]), the
  * panel widens from 72 to 272 dp with its edge, the pills from 56 to 256,
- * and the labels fade in as they widen; leaving, the same back. With
+ * and the labels fade in as they slide 24 dp into place; leaving, the
+ * same back, the labels fading where they are. With
  * reduced motion (Settings' or the system's) it opens and closes in place,
  * and an entry's scale changes at once. What moves is drawn, in the rail's
  * own layer: the rail is laid out open or closed as focus comes and goes,
@@ -337,7 +338,8 @@ private fun rememberRailOpening(open: Boolean): Animatable<Float, AnimationVecto
  * either end ([open]). [leadingContent] (an icon, the avatar) is centred
  * on the closed pill; [content] (the label), with [supportingContent]
  * under it and [trailingContent] at the end, fades in as the pill widens,
- * cut at its edge. Each is given the colour to draw in.
+ * sliding in as the rail opens, cut at its edge. Each is given the
+ * colour to draw in.
  *
  * Entries are in [muted][PleyColors.Muted], the current one ([selected])
  * in fg, on the [surface3][PleyColors.Surface3] pill while [open]. Focused,
@@ -425,6 +427,9 @@ private fun RailPill(
                 .padding(start = ClosedPillWidth, end = LabelEnd)
                 .graphicsLayer {
                     alpha = opening.value
+                    // Opening, they slide in from a little to the left as they fade in; closing, they fade
+                    // where they are, as the Samsung app's labels do.
+                    translationX = if (open) -LabelSlide.toPx() * (1f - opening.value) else 0f
                     // Text doesn't overlap itself: faded as it draws, with no offscreen buffer.
                     compositingStrategy = CompositingStrategy.ModulateAlpha
                 },
@@ -500,6 +505,9 @@ private val ItemGap = 8.dp
 private val ClosedPillWidth = 56.dp
 private val OpenPillWidth = 256.dp
 private val LabelEnd = 12.dp
+
+/** How far the labels slide in from as the rail opens: a little, so they don't cross the icons. */
+private val LabelSlide = 24.dp
 
 /** The box an entry's icon is centred in. */
 private val LeadingSize = 24.dp
