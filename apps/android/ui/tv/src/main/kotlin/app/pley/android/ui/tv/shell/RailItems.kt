@@ -1,6 +1,7 @@
 package app.pley.android.ui.tv.shell
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.compositionLocalOf
 import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.model.Library
@@ -79,8 +80,11 @@ fun railItems(
  * without Collections, else without the last library ("Libraries" lists
  * it); with no "Libraries" yet, the last two libraries make way for it.
  * When no library can make way (none is left, or the only one, which
- * "Libraries" would merely replace), Playlists does, so the rail never
- * holds more than [MAX_ITEMS].
+ * "Libraries" would merely replace), Playlists leaves for the Libraries
+ * page, which lists it after the libraries while the rail doesn't
+ * ([playlistsOnLibrariesPage]). Without "Libraries" in the rail, a lone
+ * library becomes "Libraries" (which lists it), so the rail keeps a way
+ * there. The rail never holds more than [MAX_ITEMS].
  */
 private fun roomIn(items: List<RailItem>): List<RailItem> {
     if (items.size < MAX_ITEMS) return items
@@ -92,10 +96,21 @@ private fun roomIn(items: List<RailItem>): List<RailItem> {
         val leaving = libraries.takeLast(2)
         val at = items.indexOf(leaving.first())
         val kept = items - leaving.toSet()
-        return kept.take(at) + RailItem("libraries", RailSlot.Libraries, PleyKey.Libraries) + kept.drop(at)
+        return kept.take(at) + LibrariesItem + kept.drop(at)
     }
-    return items.filter { it.slot != RailSlot.Playlists }
+    val kept = items.filter { it.slot != RailSlot.Playlists }
+    val lone = libraries.singleOrNull()
+    return if (listed || lone == null) kept else kept.map { if (it == lone) LibrariesItem else it }
 }
+
+/**
+ * Whether the Libraries page lists Playlists after the libraries: while
+ * the rail has no entry for them, which made way for another ([roomIn]).
+ */
+fun playlistsOnLibrariesPage(items: List<RailItem>): Boolean = items.none { it.slot == RailSlot.Playlists }
+
+/** The rail's entries, for the Libraries page ([playlistsOnLibrariesPage]): the shell provides them. */
+val LocalTvRailItems = compositionLocalOf<List<RailItem>> { emptyList() }
 
 private fun mainItems(libraries: List<Library>): List<RailItem> = buildList {
     add(RailItem("search", RailSlot.Search, PleyKey.Search()))
@@ -103,7 +118,7 @@ private fun mainItems(libraries: List<Library>): List<RailItem> = buildList {
     libraries.take(MAX_LIBRARIES).forEach { library ->
         add(RailItem("library:${library.id}", RailSlot.Library, PleyKey.Library(library.id), library.name, library.kind))
     }
-    if (libraries.size > MAX_LIBRARIES) add(RailItem("libraries", RailSlot.Libraries, PleyKey.Libraries))
+    if (libraries.size > MAX_LIBRARIES) add(LibrariesItem)
     add(RailItem("playlists", RailSlot.Playlists, PleyKey.Playlists))
     if (libraries.size <= MAX_LIBRARIES) {
         // A library's collections; the first video library's, as the web's Collections link.
@@ -111,6 +126,9 @@ private fun mainItems(libraries: List<Library>): List<RailItem> = buildList {
         if (first != null) add(RailItem("collections", RailSlot.Collections, PleyKey.Collections(first.id)))
     }
 }
+
+/** Every library, and Playlists while the rail has no room for them: the Libraries page. */
+private val LibrariesItem = RailItem("libraries", RailSlot.Libraries, PleyKey.Libraries)
 
 /** Live TV, where it has channels. */
 val LiveTvItem = RailItem("live-tv", RailSlot.LiveTv, PleyKey.LiveTv)
@@ -140,12 +158,13 @@ const val PROFILE_ITEM = "profile"
 
 /**
  * Which entry is current for a back stack whose first page is [root]: the
- * entry that opened it, "libraries" for a library not in the rail, or
- * `null` (Who's watching?, sign-in).
+ * entry that opened it, "libraries" for a library or Playlists not in the
+ * rail, or `null` (Who's watching?, sign-in).
  */
 fun railCurrent(root: PleyKey, items: List<RailItem>): String? = when (root) {
     is PleyKey.Library -> items.firstOrNull { it.key == PleyKey.Library(root.libraryId) }?.id
         ?: items.firstOrNull { it.slot == RailSlot.Libraries }?.id
+    PleyKey.Playlists -> (items.firstOrNull { it.slot == RailSlot.Playlists } ?: items.firstOrNull { it.slot == RailSlot.Libraries })?.id
     is PleyKey.Collections -> items.firstOrNull { it.slot == RailSlot.Collections }?.id
         ?: railCurrent(PleyKey.Library(root.libraryId), items)
     is PleyKey.Search -> "search"

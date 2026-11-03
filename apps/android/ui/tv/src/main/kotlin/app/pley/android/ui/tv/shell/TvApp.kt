@@ -233,6 +233,7 @@ private fun TvShell(
         ) {
             CompositionLocalProvider(
                 LocalTvNavigator provides navigator,
+                LocalTvRailItems provides items,
                 LocalTvRailFocus provides rail.takeIf { it.shown },
                 LocalTvOffline provides offline,
                 LocalTvOverlays provides overlays,
