@@ -27,9 +27,7 @@ describes how they are made.
   begins, the next episode too, while the player's controls are hidden
   and Playback details aren't over the video.
 - Android TV and Fire TV play videos from a USB drive, with no server: while
-  one is plugged in, the rail has USB drive after Now Playing (when no
-  library can make way for it, Playlists moves to the Libraries page,
-  after the libraries, and a lone library becomes Libraries). Its page,
+  one is plugged in, the rail has USB drive after Now Playing. Its page,
   titled with the drive's make and model when it says them, gives the
   folder's path and lists the drive's folders and videos, sorted as a
   person sorts names, with where each video resumes, and a video plays in
@@ -51,6 +49,10 @@ describes how they are made.
 - Library posters carry their quality badges ("4K", "DV") while filtered
   by resolution or dynamic range, as they do sorted by bitrate, and
   nowhere else.
+- On TVs, the rail lists up to six libraries before Libraries, and no
+  entry leaves it to make room for another: its entries are a little
+  smaller, and scroll between the avatar and Settings when they don't all
+  fit.
 - On phones, the first scrolls after an install or an update are smoother:
   the app comes compiled ahead for the phone's screens too, not only the
   TV's.

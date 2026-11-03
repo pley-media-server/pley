@@ -8,10 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -47,7 +44,6 @@ import app.pley.android.ui.tv.kit.TvRailFocus
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 import app.pley.android.ui.tv.shell.ANNOUNCE_MS
 import app.pley.android.ui.tv.shell.LocalTvOffline
-import app.pley.android.ui.tv.shell.LocalTvRailItems
 import app.pley.android.ui.tv.shell.TvOfflineNotice
 import app.pley.android.ui.tv.shell.TvOfflineState
 import app.pley.android.ui.tv.shell.RailState
@@ -263,42 +259,25 @@ class TvHomeTest {
     }
 
     @Test
-    fun theLibrariesPageListsPlaylistsOnlyWhileTheRailHasNoRoomForThem() {
+    fun theLibrariesPageListsTheLibrariesAloneWhilePlaylistsStaysInTheRail() {
         val libraries = listOf(Library(1, "Movies", LibraryKind.Movies, itemCount = 412), Library(2, "Shows", LibraryKind.Shows, itemCount = 38))
         sources.libraryList.value = Loadable.Ready(libraries, fresh = true)
         val vm = LibrariesViewModel({ sources.libraries }, { sources.scans }, Dispatchers.Unconfined)
-        var rail by mutableStateOf(railItems(libraries))
+        // Live TV, Discover, Now Playing and a USB drive: nothing leaves the rail for them.
+        val rail = railItems(libraries, nowPlaying = true, liveTv = true, requests = requestsItem(RequestsEntry(discover = true)), drive = true)
+        assertTrue(rail.any { it.key == PleyKey.Playlists })
         compose.setContent {
             TvTheme {
                 val navigator = remember { TvNavigator(backStack, RailState(), exit = {}) }
-                CompositionLocalProvider(LocalTvNavigator provides navigator, LocalTvRailItems provides rail) { TvLibrariesScreen(vm) }
+                CompositionLocalProvider(LocalTvNavigator provides navigator) { TvLibrariesScreen(vm) }
             }
         }
         compose.waitForIdle()
         compose.onNodeWithText("Shows").assertExists()
-        compose.onNodeWithTag(TV_LIBRARIES_PLAYLISTS).assertDoesNotExist()
-
-        // Live TV, Discover, Now Playing and a USB drive: Playlists has left the rail, and is here after the libraries.
-        rail = railItems(libraries, nowPlaying = true, liveTv = true, requests = requestsItem(RequestsEntry(discover = true)), drive = true)
-        compose.waitForIdle()
-        compose.onNodeWithText("Playlists").assertExists()
+        compose.onNodeWithText("Playlists").assertDoesNotExist()
         compose.onNodeWithText("Movies").assertIsFocused()
         press(Key.DirectionRight, times = 2)
-        compose.onNodeWithTag(TV_LIBRARIES_PLAYLISTS).assertIsFocused()
-
-        // Sorting moves the libraries alone.
-        press(Key.DirectionUp)
-        compose.onNodeWithTag(TV_LIBRARIES_SORT).assertIsFocused()
-        press(Key.DirectionCenter)
-        compose.onNodeWithTag(TV_LIBRARIES_PLAYLISTS).assertDoesNotExist()
-        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.waitForIdle()
-
-        compose.onNodeWithTag(TV_LIBRARIES_PLAYLISTS).assertExists()
-        press(Key.DirectionRight, times = 2)
-        compose.onNodeWithTag(TV_LIBRARIES_PLAYLISTS).assertIsFocused()
-        press(Key.DirectionCenter)
-        assertEquals(PleyKey.Playlists, backStack.last())
+        compose.onNodeWithText("Shows").assertIsFocused()
     }
 
     @Test
