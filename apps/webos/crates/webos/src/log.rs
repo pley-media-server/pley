@@ -34,7 +34,8 @@ pub fn line(text: &str) {
 
 /// `text` with credentials, keyed addresses and a drive's files taken out:
 /// bearer tokens, token and key parameters in queries, forms and JSON, the
-/// key of a `/api/media/<key>/…` address, and the folders and names of a
+/// key of a `/api/media/<key>/…` address, the random path a live channel's
+/// stream.ts is handed on at (`/relay/<path>/stream.ts`), and the folders and names of a
 /// file on a USB drive (`/tmp/usb/sda/sda1/….mkv`). The call sites keep such
 /// values out of their lines; this is the backstop.
 pub fn scrub(text: &str) -> String {
@@ -47,6 +48,7 @@ pub fn scrub(text: &str) -> String {
     }
     out = redact_after(&out, "/api/media/", |c| c == '/' || c == '?' || c == '"' || c.is_whitespace());
     out = redact_after(&out, "pley_mk_", |c| !c.is_ascii_alphanumeric() && c != '_' && c != '-');
+    out = redact_after(&out, "/relay/", |c| c == '/' || c == '?' || c == '"' || c.is_whitespace());
     pley_core::device::hide_drive_paths(&out)
 }
 
@@ -221,6 +223,10 @@ mod tests {
         assert_eq!(scrub(r#"{"refresh_token":"r1","id":3}"#), r#"{"refresh_token":"…","id":3}"#);
         assert_eq!(scrub(r#"{"token": "t"}"#), r#"{"token": "…"}"#);
         assert_eq!(scrub("uri pley_mk_ABC-12_x/file.mkv"), "uri pley_mk_…/file.mkv");
+        assert_eq!(
+            scrub(r#"{"uri":"http://127.0.0.1:40123/relay/0f1e2d3c4b5a69788796a5b4c3d2e1f0/stream.ts"}"#),
+            r#"{"uri":"http://127.0.0.1:40123/relay/…/stream.ts"}"#
+        );
         assert_eq!(scrub("nothing to hide"), "nothing to hide");
         assert_eq!(scrub("ends with Bearer "), "ends with Bearer ");
         assert_eq!(

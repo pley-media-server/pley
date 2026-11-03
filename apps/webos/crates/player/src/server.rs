@@ -6,14 +6,14 @@
 use std::time::Duration;
 
 use pley_core::api::LiveBrowse;
-use pley_core::http::{Method, Request};
+use pley_core::http::{Method, Request, Streamed};
 use pley_core::model::{
     AddSubtitle, BitrateAnswer, CollectionDetail, ItemDetail, ItemSummary, LiveChannel, LiveChannelPage, LiveGroups,
     LiveGuide, LivePlan, LiveWatching, NetworkAnswer, NetworkReport, PlaybackInfo, PlaybackRequest, PlaylistDetail,
     ProgressReport, ServerInfo, SessionStatus, SpeedSample, StreamChoice, SubtitleResult, SubtitleTrack, TrickplayInfo,
     WatchRequest,
 };
-use pley_core::{Api, ApiError};
+use pley_core::{Api, ApiError, Cancel, NetError};
 use pley_subs::PictureTrack;
 
 /// A subtitle file's answer: its bytes, the status (206 for a range), and whether it is whole (`X-Pley-Complete`).
@@ -69,6 +69,12 @@ pub trait PlayerServer: Send + Sync {
     fn add_subtitle(&self, item_id: i64, add: &AddSubtitle) -> Result<SubtitleTrack, ApiError>;
 
     fn watch_channel(&self, channel: i64, req: &WatchRequest) -> Result<LiveWatching, ApiError>;
+    /// A channel's MPEG-TS as the provider sends it, read with the token under `client_id` until
+    /// `cancel`; none where the server can't be read that way (a drive's own server).
+    fn live_stream(&self, channel: i64, client_id: &str, cancel: Cancel) -> Result<Streamed, ApiError> {
+        let _ = (channel, client_id, cancel);
+        Err(ApiError::Net(NetError::Failed("no stream.ts here".into())))
+    }
     fn live_plan(&self, session: &str) -> Result<Option<LivePlan>, ApiError>;
     fn leave_channel(&self, session: &str) -> Result<(), ApiError>;
     fn live_channel(&self, id: i64) -> Result<LiveChannel, ApiError>;
@@ -191,6 +197,10 @@ impl PlayerServer for Api {
 
     fn watch_channel(&self, channel: i64, req: &WatchRequest) -> Result<LiveWatching, ApiError> {
         Api::watch_channel(self, channel, req)
+    }
+
+    fn live_stream(&self, channel: i64, client_id: &str, cancel: Cancel) -> Result<Streamed, ApiError> {
+        Api::live_stream(self, channel, client_id, cancel)
     }
 
     fn live_plan(&self, session: &str) -> Result<Option<LivePlan>, ApiError> {

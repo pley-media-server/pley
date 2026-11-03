@@ -218,9 +218,26 @@ and goes with `live_channels_changed`. On LG:
 
 - **Tuning:** `POST …/watch` with this TV's id (`pley.installId`,
   `webos-<32 hex digits>`) and `keyed_urls`, so the pipeline can play the
-  playlist without the token. The app waits for the playlist (up to 45 s),
-  then plays the server's live HLS from its live edge. It never plays the
-  channel's MPEG-TS (`stream.ts`) as the Android app does.
+  playlist without the token. As in the Samsung app, the channel's MPEG-TS
+  (`stream.ts`) is read at once beside it, under the TV's id with
+  `-stream` after it, while the server is asked what the channel is made
+  into (`GET /api/live/sessions/{id}/plan`).
+- **The channel's own stream:** a channel the server sends as it is, or
+  whose only change is sound the TV decodes itself (AC-3, E-AC-3, MP2),
+  plays from its `stream.ts`, from its first keyframe rather than after the
+  first HLS segments. The pipeline can't send the token, so the app reads
+  the stream with it and hands it on from the TV's loopback address
+  (`http://127.0.0.1:<port>/relay/<128 random bits>/stream.ts`): only that
+  one stream, to at most four connections, closed when the channel changes
+  or the player goes (`crates/player/src/live/relay.rs`). LG's pipeline
+  takes no buffering setting from an app, so the stream starts as the TV
+  buffers it (the Samsung app asks for 0.5 s, and 1.5 s after a stall).
+- **The server's HLS** otherwise: the app waits for the playlist (up to
+  45 s), then plays it from its live edge. So does a channel whose
+  `stream.ts` fails or ends before it plays, or doesn't play within 10 s,
+  at once; one that breaks off later does once the server has said
+  watching didn't end there. Where the app can't listen on the loopback
+  address, every channel plays its HLS.
 - **The player:** Up and Down, CH+ and CH− change channel within the
   category; digits tune a number. OK, the menu or the guide key opens the
   channel list beside the picture, which moves aside to make room; holding
@@ -230,8 +247,9 @@ and goes with `live_channels_changed`. On LG:
 - **Failures:** a player failure is retried twice (after 1 s, then 3 s).
   The pipeline says nothing of a playlist gone (`410`), so a stall of 5 s
   asks the server why watching ended
-  (`GET /api/live/sessions/{id}/plan`) and shows its words; a stall of
-  20 s is a failure.
+  (`GET /api/live/sessions/{id}/plan`) and shows its words (not while the
+  `stream.ts` plays: its HLS session, unread, would say watching ended); a
+  stall of 20 s is a failure.
 
 ### Music
 
@@ -349,7 +367,8 @@ them), the next episode, and Find subtitles.
   (`luna://com.webos.media`), the pipeline the web app's `<video>` used;
   LG documents it only for webOS OSE. The pipeline takes only an address,
   no request headers, so the app plays from
-  [keyed addresses](API.md#keyed-urls). The start position goes in the
+  [keyed addresses](API.md#keyed-urls), and a live channel's `stream.ts`
+  from the app's own relay on the loopback address. The start position goes in the
   load (`option.transmission.playTime.start`), since a seek after loading
   buffers from the beginning first; a live channel gets none and starts at
   its live edge. An HLS stream declares the most it needs
@@ -516,8 +535,8 @@ were just installed.
 **Logs** go to `/tmp/app.pley.tv/pley.log`, rotated at 1 MiB into
 `pley.log.1`, and a restart of the TV empties them. Everything the app
 and the TV's libraries print goes through one writer, which stamps each
-line with the time since start and takes out tokens, codes and keyed
-addresses. The files are 0640, readable by the app's group.
+line with the time since start and takes out tokens, codes, keyed
+addresses and the relay's path. The files are 0640, readable by the app's group.
 
 ## Building and testing
 

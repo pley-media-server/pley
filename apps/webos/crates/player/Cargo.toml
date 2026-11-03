@@ -11,6 +11,7 @@ publish = false
 pley-base = { path = "../base" }
 pley-core = { path = "../core" }
 pley-subs = { path = "../subs" }
+log = "0.4.29"
 # Automatic's memory in the store is `{kbps, at}`, as the TV app kept it.
 serde = { version = "1.0.229", features = ["derive"] }
 

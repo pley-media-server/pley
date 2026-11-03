@@ -3,14 +3,19 @@
 //! while it plays, and it honours seeks, the rate, buffering and ends, so
 //! everything above the engine behaves as on the TV. A [`SimHandle`] lets a
 //! test (or the simulator's key script) make it wait, fail, end, drop frames
-//! or report its buffer.
+//! or report its buffer. In the simulator (on the app's clock) it reads a
+//! live channel's stream.ts from the app's relay as the TV's player would,
+//! and throws it away.
 
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::io::{Read, Write};
+use std::net::TcpStream;
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::Duration;
 
 use pley_base::Rect;
-use pley_core::media::{AudioTrack, EngineEvent, EngineStats, LoadRequest, PlayerEngine};
+use pley_core::media::{AudioTrack, EngineEvent, EngineStats, LoadRequest, MediaKind, PlayerEngine};
 use pley_core::model::DynamicRange;
 
 /// How long a source takes to open, by default.
@@ -150,6 +155,8 @@ pub struct SimHandle {
 pub struct SimEngine {
     sim: Arc<Mutex<Sim>>,
     clock: SimClock,
+    /// Stops the reading of a stream.ts.
+    reading: Option<Arc<AtomicBool>>,
 }
 
 impl SimEngine {
@@ -178,12 +185,64 @@ impl SimEngine {
             frames: None,
             rect: None,
         }));
-        (SimEngine { sim: sim.clone(), clock: clock.clone() }, SimHandle { sim, clock })
+        (SimEngine { sim: sim.clone(), clock: clock.clone(), reading: None }, SimHandle { sim, clock })
     }
 
     fn sim(&self) -> MutexGuard<'_, Sim> {
         self.sim.lock().unwrap_or_else(|e| e.into_inner())
     }
+
+    /// Reads a live channel's stream.ts as the TV's player does, in the simulator only (tests
+    /// read it themselves); stops what it read before.
+    fn read_stream(&mut self, req: Option<&LoadRequest>) {
+        if let Some(stop) = self.reading.take() {
+            stop.store(true, Ordering::SeqCst);
+        }
+        let Some(req) = req.filter(|r| r.kind == MediaKind::LiveTs && self.clock.0.is_none()) else { return };
+        let stop = Arc::new(AtomicBool::new(false));
+        self.reading = Some(stop.clone());
+        let url = req.url.clone();
+        let _ = std::thread::Builder::new().name("pley-sim-stream".into()).spawn(move || read_ts(&url, &stop));
+    }
+}
+
+impl Drop for SimEngine {
+    fn drop(&mut self) {
+        self.read_stream(None);
+    }
+}
+
+/// Reads `url` (plain HTTP) until it ends or `stop`, saying in the log what came (never the
+/// address: its path stands in for the token).
+fn read_ts(url: &str, stop: &AtomicBool) {
+    let Some(rest) = url.strip_prefix("http://") else { return };
+    let Some(slash) = rest.find('/') else { return };
+    let (host, path) = rest.split_at(slash);
+    let Ok(mut conn) = TcpStream::connect(host) else {
+        log::info!("sim: the player can't reach the stream.ts");
+        return;
+    };
+    let _ = conn.set_read_timeout(Some(Duration::from_secs(1)));
+    if conn.write_all(format!("GET {path} HTTP/1.1\r\nHost: {host}\r\n\r\n").as_bytes()).is_err() {
+        return;
+    }
+    let mut buf = vec![0u8; 64 * 1024];
+    let mut total = 0usize;
+    while !stop.load(Ordering::SeqCst) {
+        match conn.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => {
+                if total == 0 {
+                    let status = String::from_utf8_lossy(&buf[..n]).lines().next().unwrap_or("").to_string();
+                    log::info!("sim: the player reads the stream.ts: {status}");
+                }
+                total += n;
+            }
+            Err(e) if matches!(e.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut) => {}
+            Err(_) => break,
+        }
+    }
+    log::info!("sim: the player let go of the stream.ts after {} KB", total / 1024);
 }
 
 impl PlayerEngine for SimEngine {
@@ -203,7 +262,9 @@ impl PlayerEngine for SimEngine {
         s.wait_until = None;
         s.ended = false;
         s.events.clear();
-        s.source = Some(req);
+        s.source = Some(req.clone());
+        drop(s);
+        self.read_stream(Some(&req));
     }
 
     fn play(&mut self) {
@@ -277,6 +338,8 @@ impl PlayerEngine for SimEngine {
         s.open = false;
         s.playing = false;
         s.events.clear();
+        drop(s);
+        self.read_stream(None);
     }
 
     fn events(&mut self) -> Vec<EngineEvent> {

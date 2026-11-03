@@ -109,11 +109,17 @@ fn message(server_id: &str, address: &str, challenge: &str) -> Vec<u8> {
 
 /// `n` random bytes from the system.
 pub fn random_bytes(n: usize) -> Vec<u8> {
-    let mut bytes = vec![0u8; n];
     // Without the system's randomness, a challenge of zeros: the proof is
     // still the server's, only its freshness is weaker.
-    let _ = ring::rand::SecureRandom::fill(&ring::rand::SystemRandom::new(), &mut bytes);
-    bytes
+    secure_random(n).unwrap_or_else(|| vec![0u8; n])
+}
+
+/// `n` random bytes from the system's secure source; none when it gives none, for a secret
+/// that mustn't fall back to anything guessable.
+pub fn secure_random(n: usize) -> Option<Vec<u8>> {
+    let mut bytes = vec![0u8; n];
+    ring::rand::SecureRandom::fill(&ring::rand::SystemRandom::new(), &mut bytes).ok()?;
+    Some(bytes)
 }
 
 /// Asks the server at `issuer` to prove it holds `proof`'s key. Fails with

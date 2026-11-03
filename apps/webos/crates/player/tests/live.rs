@@ -3,19 +3,24 @@
 //! guide of the rows in view.
 
 use std::collections::HashMap;
+use std::io::{Cursor, Read, Write};
+use std::net::TcpStream;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use pley_base::Waker;
 use pley_core::api::LiveBrowse;
-use pley_core::http::Method;
+use pley_core::http::{Method, Streamed};
+use pley_core::media::MediaKind;
 use pley_core::model::*;
 use pley_core::task::Tasks;
-use pley_core::{ApiError, CapsReport};
+use pley_core::{ApiError, Cancel, CapsReport};
 use pley_player::Reporter;
 use pley_player::env::PlayerEnv;
-use pley_player::live::{Category, ChannelPages, GuideStore, LivePhase, LiveSession, TroubleKind, holders};
+use pley_player::live::{
+    Category, ChannelPages, GuideStore, LivePhase, LiveSession, TroubleKind, holders, plays_as_sent,
+};
 use pley_player::server::{PlayerServer, SubtitleAnswer};
 use pley_player::sim::{SIM_LOAD_MS, SimClock, SimEngine, SimHandle};
 
@@ -46,7 +51,14 @@ struct LiveFake {
     hold: Mutex<Option<Option<LiveWatching>>>,
     held: Condvar,
     total: i64,
+    /// What the plan of every session says.
+    plan: Mutex<Option<LivePlan>>,
+    /// Each stream.ts read: `stream {channel} {client}`.
+    streams: Mutex<Vec<String>>,
 }
+
+/// What the pretend server's stream.ts sends.
+const STREAM_BYTES: &[u8] = b"\x47 MPEG-TS as the provider sends it";
 
 impl LiveFake {
     fn new() -> Arc<LiveFake> {
@@ -62,7 +74,17 @@ impl LiveFake {
             hold: Mutex::new(None),
             held: Condvar::new(),
             total,
+            plan: Mutex::new(None),
+            streams: Mutex::default(),
         })
+    }
+
+    fn set_plan(&self, plan: LivePlan) {
+        *self.plan.lock().unwrap() = Some(plan);
+    }
+
+    fn streams(&self) -> Vec<String> {
+        self.streams.lock().unwrap().clone()
     }
 
     fn answer(&self, f: impl Fn(i64, usize) -> Result<LiveWatching, ApiError> + Send + Sync + 'static) {
@@ -192,10 +214,14 @@ impl PlayerServer for LiveFake {
             }),
         }
     }
+    fn live_stream(&self, channel: i64, client_id: &str, _: Cancel) -> Result<Streamed, ApiError> {
+        self.streams.lock().unwrap().push(format!("stream {channel} {client_id}"));
+        Ok(Streamed { status: 200, headers: Vec::new(), body: Box::new(Cursor::new(STREAM_BYTES.to_vec())) })
+    }
     fn live_plan(&self, session: &str) -> Result<Option<LivePlan>, ApiError> {
         match self.ended.lock().unwrap().get(session) {
             Some(why) => Err(ApiError::SessionStopped { message: Some(why.clone()) }),
-            None => Ok(None),
+            None => Ok(self.plan.lock().unwrap().clone()),
         }
     }
     fn leave_channel(&self, session: &str) -> Result<(), ApiError> {
@@ -569,6 +595,150 @@ fn tells_the_server_at_once_when_the_player_closes_and_drops_a_watch_that_answer
     }
     assert_eq!(fake.asked(), ["watch 1 webos-tv", "leave late"]);
     assert!(w.sim.loads().is_empty());
+}
+
+// ---- the channel's stream.ts
+
+fn plan(video: &str, audio: &str, audio_codec: &str) -> LivePlan {
+    LivePlan {
+        video_codec: Some("h264".into()),
+        audio_codec: Some(audio_codec.into()),
+        video: video.into(),
+        audio: audio.into(),
+        ..LivePlan::default()
+    }
+}
+
+/// What the TV's player gets at `url`: the status line and the body; nothing where nothing listens.
+fn fetch(url: &str) -> (String, Vec<u8>) {
+    let rest = url.strip_prefix("http://").unwrap();
+    let (host, path) = rest.split_at(rest.find('/').unwrap());
+    let Ok(mut conn) = TcpStream::connect(host) else { return (String::new(), Vec::new()) };
+    conn.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    let _ = conn.write_all(format!("GET {path} HTTP/1.1\r\nHost: {host}\r\n\r\n").as_bytes());
+    let mut all = Vec::new();
+    let _ = conn.read_to_end(&mut all);
+    let end = all.windows(4).position(|w| w == b"\r\n\r\n").map_or(all.len(), |p| p + 4);
+    let status = String::from_utf8_lossy(&all[..end]).lines().next().unwrap_or("").to_string();
+    (status, all[end..].to_vec())
+}
+
+#[test]
+fn a_plan_sent_as_it_is_or_with_sound_the_tv_decodes_plays_from_stream_ts() {
+    for (video, audio, codec, direct) in [
+        ("copy", "copy", "aac", true),
+        ("copy", "none", "", true),
+        ("none", "copy", "aac", true),
+        ("copy", "aac", "ac3", true),
+        ("copy", "aac", "eac3", true),
+        ("copy", "aac", "mp2", true),
+        ("copy", "aac", "dts", false),
+        ("copy", "aac", "truehd", false),
+        ("h264_vaapi", "copy", "aac", false),
+    ] {
+        assert_eq!(plays_as_sent(&plan(video, audio, codec)), direct, "{video} {audio} {codec}");
+    }
+}
+
+#[test]
+fn plays_the_channel_s_stream_ts_from_the_tv_s_loopback_address_when_the_plan_sends_it_as_it_is() {
+    let fake = LiveFake::new();
+    fake.set_plan(plan("copy", "copy", "aac"));
+    let mut w = Live::new(fake);
+    w.c.tune(channel(1));
+    w.settle();
+    // No playlist waited for: the stream.ts plays from its first keyframe.
+    assert_eq!(w.fake.asked(), ["watch 1 webos-tv"]);
+    let load = w.sim.loads()[0].clone();
+    assert_eq!(load.kind, MediaKind::LiveTs);
+    assert!(load.url.starts_with("http://127.0.0.1:") && load.url.ends_with("/stream.ts"), "{}", load.url);
+    assert!(w.c.direct());
+    // The TV's player reads there what the app reads with the token, under this TV's stream id.
+    assert_eq!(fetch(&load.url), ("HTTP/1.1 200 OK".to_string(), STREAM_BYTES.to_vec()));
+    assert!(w.fake.streams().iter().all(|s| s == "stream 1 webos-tv-stream"));
+    w.first_frame();
+    assert_eq!(w.c.state().phase, LivePhase::Playing);
+    // Leaving closes its address.
+    w.c.close();
+    assert_ne!(fetch(&load.url).0, "HTTP/1.1 200 OK");
+}
+
+#[test]
+fn plays_the_hls_when_the_server_converts_the_channel_and_lets_its_stream_ts_go() {
+    let fake = LiveFake::new();
+    fake.set_plan(plan("copy", "aac", "dts"));
+    let mut w = Live::new(fake);
+    w.c.tune(channel(1));
+    w.settle();
+    assert_eq!(w.fake.asked(), ["watch 1 webos-tv", "GET /api/live/media/pley_mk_1/index.m3u8"]);
+    assert_eq!(w.sim.loads()[0].kind, MediaKind::LiveHls);
+    assert!(!w.c.direct());
+}
+
+#[test]
+fn a_stream_ts_that_fails_before_it_plays_is_watched_as_hls_at_once() {
+    let fake = LiveFake::new();
+    fake.set_plan(plan("copy", "copy", "aac"));
+    let mut w = Live::new(fake);
+    w.c.tune(channel(1));
+    w.settle();
+    w.sim.fail(2, "no such format");
+    w.settle();
+    let loads = w.sim.loads();
+    assert_eq!(loads.iter().map(|l| l.kind).collect::<Vec<_>>(), [MediaKind::LiveTs, MediaKind::LiveHls]);
+    assert_eq!(w.fake.watches().len(), 2);
+    assert!(!w.c.direct());
+    assert_eq!(w.c.state().phase, LivePhase::Tuning);
+}
+
+#[test]
+fn a_stream_ts_that_doesn_t_start_in_10_s_is_watched_as_hls() {
+    let fake = LiveFake::new();
+    fake.set_plan(plan("copy", "copy", "aac"));
+    let mut w = Live::new(fake);
+    w.sim.set_load_ms(60_000);
+    w.c.tune(channel(1));
+    w.settle();
+    w.advance(9_900);
+    assert_eq!(w.sim.loads().len(), 1);
+    w.advance(200);
+    assert_eq!(w.sim.loads().last().map(|l| l.kind), Some(MediaKind::LiveHls));
+}
+
+#[test]
+fn a_stream_ts_that_breaks_off_asks_the_server_first_then_watches_the_hls() {
+    let fake = LiveFake::new();
+    fake.set_plan(plan("copy", "copy", "aac"));
+    let mut w = Live::new(fake);
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    // A stall of a stream.ts asks nothing: its HLS session, unread, would say watching ended.
+    w.sim.wait(true);
+    w.settle();
+    w.fake.end("s1", "Watching moved to Films on another device.");
+    w.advance(5_000);
+    assert_eq!(w.c.state().phase, LivePhase::Buffering);
+    w.sim.wait(false);
+    w.settle();
+    // Broken off: the server says watching ended there.
+    w.sim.fail(2, "the stream broke off");
+    w.settle();
+    let t = w.c.state().trouble.clone().unwrap();
+    assert_eq!((t.kind, t.message.as_str()), (TroubleKind::Stopped, "Watching moved to Films on another device."));
+    assert_eq!(w.fake.watches().len(), 1);
+
+    // It didn't end there: the HLS.
+    let fake = LiveFake::new();
+    fake.set_plan(plan("copy", "copy", "aac"));
+    let mut w = Live::new(fake);
+    w.c.tune(channel(1));
+    w.settle();
+    w.first_frame();
+    w.sim.fail(2, "the stream broke off");
+    w.settle();
+    assert_eq!(w.sim.loads().last().map(|l| l.kind), Some(MediaKind::LiveHls));
+    assert_eq!(w.fake.watches().len(), 2);
 }
 
 // ---- a category's channels

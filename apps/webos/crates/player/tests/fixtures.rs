@@ -1,7 +1,10 @@
 //! The player against pley-fixtures' pretend Pley server, through pley-core's
 //! real `Api`: keyed addresses, reports and session ends, subtitles that come
-//! whole on a second asking, Up Next, and Live TV's busy connections.
+//! whole on a second asking, Up Next, and Live TV's stream.ts, its HLS and
+//! busy connections.
 
+use std::io::{Read, Write};
+use std::net::TcpStream;
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -154,8 +157,32 @@ fn the_next_episode_plays_after_the_credits_countdown() {
     assert!(run.sim.loads().len() >= 2);
 }
 
+/// The first `n` bytes the TV's player reads at `url` (plain HTTP), past the answer's head.
+fn read_from(url: &str, n: usize) -> (String, Vec<u8>) {
+    let rest = url.strip_prefix("http://").unwrap();
+    let (host, path) = rest.split_at(rest.find('/').unwrap());
+    let mut conn = TcpStream::connect(host).unwrap();
+    conn.set_read_timeout(Some(Duration::from_secs(20))).unwrap();
+    conn.write_all(format!("GET {path} HTTP/1.1\r\nHost: {host}\r\n\r\n").as_bytes()).unwrap();
+    let mut all = Vec::new();
+    let mut buf = [0u8; 4096];
+    loop {
+        let end = all.windows(4).position(|w| w == b"\r\n\r\n").map(|p| p + 4);
+        if end.is_some_and(|e| all.len() >= e + n) {
+            break;
+        }
+        match conn.read(&mut buf) {
+            Ok(0) | Err(_) => break,
+            Ok(k) => all.extend_from_slice(&buf[..k]),
+        }
+    }
+    let end = all.windows(4).position(|w| w == b"\r\n\r\n").map_or(all.len(), |p| p + 4);
+    let status = String::from_utf8_lossy(&all[..end]).lines().next().unwrap_or("").to_string();
+    (status, all[end..].iter().copied().take(n).collect())
+}
+
 #[test]
-fn live_tv_plays_a_keyed_channel_and_takes_over_a_busy_connection() {
+fn live_tv_plays_the_stream_ts_through_the_relay_then_its_keyed_hls_and_takes_over_a_busy_connection() {
     let server = FixtureServer::start();
     let env = env(&server);
     let channel = env.server.live_channel(ids::LIVE_CHANNEL).expect("the channel");
@@ -175,15 +202,35 @@ fn live_tv_plays_a_keyed_channel_and_takes_over_a_busy_connection() {
         }
         live.tick(now);
     };
+    live.tune(channel.clone());
+    settle(&mut live, now);
+    // The fixtures' plan copies the channel: its stream.ts plays, handed on from the loopback
+    // address, read upstream with the token.
+    let load = sim.loads().first().cloned().expect("the channel plays");
+    assert_eq!(load.kind, MediaKind::LiveTs);
+    assert!(load.url.starts_with("http://127.0.0.1:"), "{}", load.url);
+    let (status, bytes) = read_from(&load.url, 188);
+    assert_eq!(status, "HTTP/1.1 200 OK");
+    assert_eq!(bytes.first(), Some(&0x47), "an MPEG-TS packet's sync byte");
+    now += SIM_LOAD_MS;
+    clock.set(now);
+    settle(&mut live, now);
+    assert_eq!(live.state().phase, LivePhase::Playing);
+    assert!(live.direct());
+
+    // Failing before it plays, the channel's keyed HLS.
     live.tune(channel);
     settle(&mut live, now);
-    let load = sim.loads().first().cloned().expect("the channel plays");
+    sim.fail(2, "the pipeline refused it");
+    settle(&mut live, now);
+    let load = sim.loads().last().cloned().expect("the channel plays");
     assert_eq!(load.kind, MediaKind::LiveHls);
     assert!(load.url.contains("/api/live/media/"), "{}", load.url);
     now += SIM_LOAD_MS;
     clock.set(now);
     settle(&mut live, now);
     assert_eq!(live.state().phase, LivePhase::Playing);
+    let before = sim.loads().len();
 
     let busy = env.server.live_channel(ids::LIVE_CONFLICT_CHANNEL).expect("the busy channel");
     live.tune(busy);
@@ -194,6 +241,6 @@ fn live_tv_plays_a_keyed_channel_and_takes_over_a_busy_connection() {
     live.take_over(take);
     settle(&mut live, now);
     assert_eq!(live.state().phase, LivePhase::Tuning);
-    assert_eq!(sim.loads().len(), 2);
+    assert_eq!(sim.loads().len(), before + 1);
     live.close();
 }

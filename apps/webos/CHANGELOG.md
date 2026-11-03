@@ -20,6 +20,10 @@ describes how they are made.
 - The player's Info says the TV's network speed under How it plays,
   beside the server's Speed, as in the Samsung app: a video that stalls
   while the server keeps up is on a network that can't carry it.
+- Live TV plays a channel from its own MPEG-TS stream, as the Samsung app
+  does, when the server sends it as it is or with sound the TV decodes
+  (AC-3, E-AC-3, MP2): it starts sooner than the server's HLS, which
+  plays it otherwise and whenever the stream fails.
 
 ### Changed
 

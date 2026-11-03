@@ -20,6 +20,7 @@ use crate::http::{
     ApiError, Authorized, Http, Method, NetError, Request, Response, TokenSource, encode_component, with_query,
 };
 use crate::model::*;
+use crate::task::Cancel;
 
 /// The widths the server resizes pictures to: a width asked for is rounded
 /// up to one of these (`apps/server/src/images.rs`).
@@ -34,6 +35,9 @@ pub fn image_bucket(width_px: u32) -> u32 {
 pub const PLAY_TIMEOUT: Duration = Duration::from_secs(60);
 /// How long tuning a Live TV channel may take: the server waits for the provider.
 pub const WATCH_TIMEOUT: Duration = Duration::from_secs(45);
+/// The longest a channel's `stream.ts` goes without a byte: the server answers once it has
+/// tuned (up to [`WATCH_TIMEOUT`]), then the provider's MPEG-TS comes without pause.
+pub const LIVE_STREAM_READ_TIMEOUT: Duration = Duration::from_secs(45);
 /// How long a picture may take.
 pub const PICTURE_TIMEOUT: Duration = Duration::from_secs(30);
 /// The largest picture taken.
@@ -615,6 +619,29 @@ impl Api {
             if favorite { Method::Put } else { Method::Delete },
             &id_path("/api/live/channels/{id}/favorite", channel),
         )
+    }
+
+    /// A channel's MPEG-TS as the provider sends it (`GET …/stream.ts`), read under `client_id`
+    /// (this TV's id with `-stream` after it, so the HLS session beside it stays) for as long as
+    /// it runs: the answer once its headers are in, its body read as it comes, until `cancel`.
+    /// It takes the token, which goes, as every request's, only once the server has proved
+    /// itself at its address. Uncompressed: a live stream isn't held back to be packed.
+    pub fn live_stream(
+        &self,
+        channel: i64,
+        client_id: &str,
+        cancel: Cancel,
+    ) -> Result<crate::http::Streamed, ApiError> {
+        let path = with_query(
+            &id_path("/api/live/channels/{id}/stream.ts", channel),
+            &[("client_id", Some(client_id.to_string()))],
+        );
+        let req = Request::new(Method::Get, self.url(&path))
+            .header("Accept", "video/mp2t, */*")
+            .header("Accept-Encoding", "identity")
+            .streaming(LIVE_STREAM_READ_TIMEOUT)
+            .cancel(Some(cancel));
+        self.open(req)
     }
 
     /// Starts watching a channel (45 s: the server tunes it). Every connection

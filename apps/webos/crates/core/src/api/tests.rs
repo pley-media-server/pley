@@ -212,3 +212,30 @@ fn up_next_and_on_deck_may_be_none() {
     assert_eq!(api.next(5).unwrap(), None);
     assert_eq!(api.on_deck(5).unwrap(), None);
 }
+
+#[test]
+fn a_channel_s_stream_ts_is_read_with_the_token_under_its_own_client_id() {
+    let (api, fake) = api(|r| {
+        assert!(r.url.contains("/stream.ts"));
+        Ok(Response { status: 200, headers: vec![("Content-Type".into(), "video/mp2t".into())], body: vec![0x47; 376] })
+    });
+    let mut answer = api.live_stream(7, "webos-1-stream", Cancel::new()).unwrap();
+    let mut body = Vec::new();
+    answer.body.read_to_end(&mut body).unwrap();
+    assert_eq!(body.len(), 376);
+    let req = &fake.requests()[0];
+    assert_eq!(req.url, "http://192.168.1.20:7539/api/live/channels/7/stream.ts?client_id=webos-1-stream");
+    assert_eq!(token(req), Some("Bearer pley_at_x"));
+    assert_eq!(req.header_value("Accept-Encoding"), Some("identity"));
+    // Read for as long as it runs: no limit on the whole, one on each wait.
+    assert_eq!((req.timeout, req.read_timeout), (None, Some(LIVE_STREAM_READ_TIMEOUT)));
+}
+
+#[test]
+fn a_refused_stream_ts_is_the_server_s_sentence() {
+    let (api, _) =
+        api(|_| Ok(Response::json(409, &json!({"code": "conflict", "message": "every connection is in use"}))));
+    let e = api.live_stream(7, "webos-1-stream", Cancel::new()).unwrap_err();
+    assert!(e.is(409));
+    assert_eq!(e.to_string(), "every connection is in use");
+}
