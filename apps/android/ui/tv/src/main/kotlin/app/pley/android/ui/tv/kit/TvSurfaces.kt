@@ -231,9 +231,11 @@ class BackdropPrefetcher internal constructor(
     private var heldFocused: ArtworkImage? = null
     private var heldBeside: List<ArtworkImage?>? = null
     private val released: () -> Unit = {
+        val focused = heldFocused
         val beside = heldBeside
+        heldFocused = null
         heldBeside = null
-        if (beside != null) prefetch(heldFocused, beside)
+        if (beside != null) prefetch(focused, beside)
     }
 
     /**
