@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- The app may be cast to, under the computer's name: the profile's other
+  devices send it a movie or an episode, which its player opens, then
+  pause, seek and stop it and see what it plays. It casts to them too, as
+  the web app does. Needs a server from the same release.
+
 ## [0.1.2] - 2026-11-02
 
 ### Security

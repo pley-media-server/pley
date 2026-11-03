@@ -3,12 +3,14 @@ import { QueryClientProvider, type InfiniteData, type QueryClient } from "@tanst
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connectionLost, eventsLive } from "@/lib/connection";
+import { makeItem } from "@/test/fixtures";
 import { apiError, mockApi, testQueryClient } from "@/test/render";
 import { makeDetail, makeRequest, makeRequestList, makeShowDetail, makeSummary, makeTitle } from "@/test/requests";
+import { castKeys, type CastTarget } from "./cast";
 import { LOST_AFTER_MS, onServerEvent, useServerEvents } from "./events";
 import { keys } from "./hooks";
 import { EVERY_REQUEST, requestKeys, type DiscoverPage, type DiscoverTitle } from "./requests";
-import type { Activity, Library, ServerEvent } from "./types";
+import type { Activity, CastState, Library, ServerEvent } from "./types";
 
 /** Stands in for the browser's EventSource; tests drive it. */
 class FakeEventSource {
@@ -221,6 +223,33 @@ describe("useServerEvents", () => {
     expect(invalidated(client, keys.watchlist)).toBe(true);
     expect(invalidated(client, keys.homeHubs)).toBe(true);
     expect(invalidated(client, keys.item(5))).toBe(true);
+  });
+
+  it("follows the devices to cast to, and what they play", () => {
+    const { client, source } = setup();
+    const tv: CastTarget = { id: "tv-1", name: "Living room TV", platform: "android_tv", state: null };
+    client.setQueryData<CastTarget[]>(castKeys.devices, [tv]);
+    const state: CastState = { item: makeItem({ id: 7 }), position_ms: 1_000, duration_ms: null, state: "playing", age_ms: 0 };
+
+    act(() => source().send({ type: "cast_state", device_id: "tv-1", state }));
+    expect(client.getQueryData<CastTarget[]>(castKeys.devices)?.[0]?.state).toEqual({ ...state, heard_at: Date.now() });
+    expect(invalidated(client, castKeys.devices)).toBe(false);
+
+    act(() => source().send({ type: "cast_devices_changed" }));
+    expect(invalidated(client, castKeys.devices)).toBe(true);
+  });
+
+  it("says, in the desktop app, that it may be cast to", () => {
+    (window as unknown as { __PLEY_APP__?: string }).__PLEY_APP__ = "desktop";
+    try {
+      const { source } = setup();
+      const url = new URL(source().url, "http://pley.test");
+      expect(url.pathname).toBe("/api/events");
+      expect(url.searchParams.get("cast_platform")).toBe("desktop");
+      expect(url.searchParams.get("cast_device")).toMatch(/^[0-9a-f]{32}$/);
+    } finally {
+      delete (window as unknown as { __PLEY_APP__?: string }).__PLEY_APP__;
+    }
   });
 
   it("refreshes Home and the items when watch state changed, after a moment", () => {

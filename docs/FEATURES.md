@@ -44,6 +44,26 @@ What Pley does, in full. The [README](../README.md) has the short version.
 - Resume, Up Next, Skip Intro and Skip Credits (from chapters, and by
   comparing the audio of episodes), seek-bar previews and chapter pictures.
 
+## Casting
+
+- A profile's devices play on one another
+  ([API.md](API.md#casting-to-another-device)). In the browser and the
+  desktop app, the Cast button in the player, and beside Play on a movie's
+  or an episode's page, lists the profile's other devices that may be cast
+  to, each with what it plays now. The device picked plays the title with
+  its own quality and tracks: from the player, from where it was, and the
+  player closes; from a title's page, where the profile left off. Picking
+  a device that already plays something opens its remote instead.
+- The remote shows what the device plays and where, with play and pause,
+  back 10 s, on 30 s, Stop, and Play here, which stops the device and plays
+  on from there. It says so when the device doesn't answer within 15 s.
+  While the device last cast to plays something, a bar at the bottom of the
+  pages shows it and opens its remote.
+- The desktop app may be cast to while it is open, under the computer's
+  name: it plays what it is sent, and the devices that cast to it pause,
+  seek and stop its video player and see what it plays. A browser tab may
+  not, as every tab open would play.
+
 ## Live TV
 
 - IPTV channels from M3U playlists and Xtream Codes accounts, with their

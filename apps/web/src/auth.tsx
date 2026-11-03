@@ -5,6 +5,7 @@ import { useMe, useServer } from "@/api/hooks";
 import { useServerEvents } from "@/api/events";
 import type { User } from "@/api/types";
 import { AudioPlayerProvider } from "@/audio/AudioPlayer";
+import { CastProvider } from "@/cast/CastProvider";
 import { Logo } from "@/components/Logo";
 import { RequestNotices } from "@/components/RequestNotices";
 import { Button, EmptyState, Spinner } from "@/components/ui";
@@ -84,7 +85,10 @@ export function RequireAuth() {
   return (
     <AuthContext.Provider value={me.data}>
       <AudioPlayerProvider>
-        <Outlet />
+        {/* Each profile's own: its devices, and what was cast from here. */}
+        <CastProvider key={me.data.id}>
+          <Outlet />
+        </CastProvider>
         {/* Out of the pages, so news heard during a video waits for it to stop; each profile's own, so what one
             heard or held back isn't told to the next. */}
         <RequestNotices key={me.data.id} />

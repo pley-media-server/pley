@@ -16,6 +16,11 @@ describes how they are made.
   from there and sees what it plays. The server lists the devices that
   may be cast to while they are connected, and passes the commands on
   ([API.md](../../docs/API.md#casting-to-another-device)).
+- The web app casts: the Cast button in the player, and beside Play on a
+  movie's or an episode's page, sends it to another of the profile's
+  devices, from where the player was. A remote then pauses, seeks and
+  stops it, or plays it on here, and a bar at the bottom of the pages
+  shows what that device plays.
 - A Jellyfin-compatible API, for Jellyfin's apps and others built on its
   API: they sign in with Pley's accounts, browse the libraries, play files
   as they are or as HLS from Pley's transcoder, with subtitles and Skip

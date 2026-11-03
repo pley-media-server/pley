@@ -1,11 +1,15 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { Route, Routes } from "react-router";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useServerEvents } from "@/api/events";
-import type { ItemDetail, PlaybackInfo, ServerEvent } from "@/api/types";
+import type { CastDevice, ItemDetail, PlaybackInfo, ServerEvent } from "@/api/types";
+import { CastProvider } from "@/cast/CastProvider";
+import { castSelf } from "@/cast/device";
+import { itemUrl } from "@/lib/urls";
 import { makeItem, makeStream } from "@/test/fixtures";
 import { pgsMks } from "@/test/pictures";
-import { mockApi, renderWithProviders, testUser, type FakeRequest } from "@/test/render";
+import { LocationDisplay, mockApi, renderWithProviders, testUser, type FakeRequest } from "@/test/render";
 import { forgetNetwork } from "./network";
 import { VideoPlayer, startSize } from "./VideoPlayer";
 
@@ -257,7 +261,9 @@ class FakeEventSource {
   onopen: (() => void) | null = null;
   onmessage: ((msg: { data: string }) => void) | null = null;
   onerror: (() => void) | null = null;
-  constructor() {
+  readonly url: string;
+  constructor(url: string) {
+    this.url = url;
     FakeEventSource.last = this;
   }
   close() {
@@ -908,5 +914,75 @@ describe("VideoPlayer finding subtitles", () => {
     // Gone from the menu, which stays open, and turned off.
     expect(screen.queryByRole("menuitemradio", { name: /English/ })).not.toBeInTheDocument();
     expect(screen.getByRole("menuitemradio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
+  });
+});
+
+describe("VideoPlayer casting", () => {
+  const tv: CastDevice = { id: "tv-1", name: "Living room TV", platform: "android_tv", state: null };
+
+  it("sends what it plays to the device picked, from where it is, and steps aside", async () => {
+    const user = userEvent.setup();
+    const requests = serve([session("s1")], {
+      "DELETE /api/playback/s1": () => undefined,
+      "GET /api/cast/devices": () => [tv],
+      "POST /api/cast/devices/tv-1/play": () => undefined,
+    });
+    renderWithProviders(
+      <CastProvider>
+        <Routes>
+          <Route path="/play/:id" element={<VideoPlayer item={detail()} startMs={754_000} fileId={null} audio={null} sub={null} />} />
+          <Route path="*" element={<LocationDisplay />} />
+        </Routes>
+      </CastProvider>,
+      { route: "/play/x" },
+    );
+    await waitFor(() => expect(hlsInstances[0]?.calls).toContain("attachMedia"));
+    await user.click(await screen.findByRole("button", { name: "Play on another device" }));
+    await user.click(within(await screen.findByRole("dialog", { name: "Play on" })).getByRole("button", { name: /Living room TV/ }));
+
+    // The player leaves as its Back does, saying where it stopped.
+    expect(await screen.findByTestId("location")).toHaveTextContent(itemUrl(7));
+    const play = requests.find((r) => r.path === "/api/cast/devices/tv-1/play");
+    expect(play?.body).toEqual({ item_id: 7, file_id: 3, position_ms: 754_000 });
+    await waitFor(() =>
+      expect(requests.some((r) => r.path === "/api/items/7/progress" && (r.body as { state: string }).state === "stopped")).toBe(true),
+    );
+    expect(await screen.findByText("Waiting for Living room TV…")).toBeInTheDocument();
+  });
+
+  describe("in the desktop app", () => {
+    beforeEach(() => {
+      vi.stubGlobal("EventSource", FakeEventSource);
+      (window as unknown as { __PLEY_APP__?: string }).__PLEY_APP__ = "desktop";
+    });
+    afterEach(() => {
+      delete (window as unknown as { __PLEY_APP__?: string }).__PLEY_APP__;
+    });
+
+    it("is steered by the devices that cast to it, and says what it plays", async () => {
+      const requests = serve([session("s1")], { "DELETE /api/playback/s1": () => undefined });
+      const self = castSelf();
+      if (!self) throw new Error("not a device to cast to");
+      const { container, unmount } = renderWithProviders(
+        <CastProvider>
+          <PlayerWithEvents />
+        </CastProvider>,
+      );
+      const video = container.querySelector("video");
+      if (!video) throw new Error("no video element");
+      await waitFor(() => expect(hlsInstances[0]?.calls).toContain("attachMedia"));
+      expect(FakeEventSource.last?.url).toContain(`cast_device=${self.id}`);
+
+      media.pause.mockClear();
+      act(() => FakeEventSource.last?.send({ type: "cast_control", device_id: self.id, action: "pause", position_ms: null }));
+      expect(media.pause).toHaveBeenCalledTimes(1);
+      act(() => FakeEventSource.last?.send({ type: "cast_control", device_id: self.id, action: "seek", position_ms: 90_000 }));
+      expect(video.currentTime).toBe(90);
+
+      unmount();
+      const reports = () => requests.filter((r) => r.path === `/api/cast/devices/${self.id}/state`).map((r) => r.body);
+      await waitFor(() => expect(reports().at(-1)).toEqual({ item_id: null }));
+      expect(reports()[0]).toEqual({ item_id: 7, position_ms: 0, duration_ms: 6_000_000, state: "buffering" });
+    });
   });
 });

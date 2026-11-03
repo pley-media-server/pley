@@ -730,7 +730,37 @@ export type ServerEvent =
   /** Managers: a request couldn't be sent to Radarr or Sonarr, and waits for one of them. */
   | { type: "request_failed"; request_id: Id; title: string; kind: TitleKindName; reason: string | null; retry_at: Timestamp | null }
   /** Requests were turned on or off, their limits or the TMDB key changed, or this account's access did. */
-  | { type: "requests_settings_changed" };
+  | { type: "requests_settings_changed" }
+  /** A device the profile may cast to came, went or was renamed: fetch the list again. */
+  | { type: "cast_devices_changed" }
+  /** What a cast device plays now (`null`: nothing). */
+  | { type: "cast_state"; device_id: string; state: CastState | null }
+  /** To this device's stream alone, when it may be cast to: play this (`position_ms` `null`: where the profile left off). */
+  | { type: "cast_play"; device_id: string; item_id: Id; file_id: Id | null; position_ms: number | null }
+  /** To this device's stream alone: steer its player (`position_ms`: where to seek to). */
+  | { type: "cast_control"; device_id: string; action: CastAction; position_ms: number | null };
+
+/** The kinds of device that may be cast to (docs/API.md, "Casting to another device"). */
+export type CastPlatform = "web" | "desktop" | "android" | "android_tv" | "kodi" | "roku" | "samsung" | "lg";
+export type CastAction = "pause" | "resume" | "seek" | "stop";
+
+/** What a cast device plays, as it last said. */
+export interface CastState {
+  item: ItemSummary;
+  position_ms: number;
+  duration_ms: number | null;
+  state: "playing" | "paused" | "buffering";
+  /** How long ago it said so (ms): a playing position has moved on since. */
+  age_ms: number;
+}
+
+/** One of the profile's devices that may be cast to. */
+export interface CastDevice {
+  id: string;
+  name: string;
+  platform: CastPlatform;
+  state: CastState | null;
+}
 
 /** A request's kind of title. */
 type TitleKindName = "movie" | "show";

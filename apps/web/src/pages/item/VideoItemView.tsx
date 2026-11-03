@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Play, RotateCcw } from "lucide-react";
 import { keys } from "@/api/hooks";
 import type { ItemDetail, MediaFile } from "@/api/types";
+import { CastButton } from "@/cast/CastButton";
 import { PartOfCollections } from "@/components/lists/PartOfCollections";
 import { MissingKeyNotice } from "@/components/MetadataNotice";
 import { StarRating } from "@/components/StarRating";
@@ -199,6 +200,10 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
               >
                 <span className="hidden sm:inline">From start</span>
               </Button>
+            ) : null}
+            {/* Another device starts where the profile left off, with the version picked here. */}
+            {item.files.length ? (
+              <CastButton request={() => ({ item, fileId: item.files.length > 1 ? file?.id : undefined })} />
             ) : null}
             {item.kind === "movie" ? <MyListButton item={item} /> : null}
             <WatchedButton item={item} />

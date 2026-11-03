@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Navigate, useNavigate, useParams, useSearchParams } from "react-router";
+import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { keys, useItem } from "@/api/hooks";
 import type { Id } from "@/api/types";
+import { castPlayKey } from "@/cast/receiver";
 import { decodeId, idParam } from "@/lib/ids";
 import { androidPlayer } from "@/lib/shell";
 import { itemUrl } from "@/lib/urls";
@@ -46,6 +47,8 @@ export function PlayerPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  // A title sent by cast plays afresh, also the one playing now.
+  const castPlay = castPlayKey(useLocation().state);
   const itemId = idParam(id);
   const item = useItem(Number.isFinite(itemId) ? itemId : null);
   // Playing through a playlist or collection (`?queue=&qi=`).
@@ -110,7 +113,7 @@ export function PlayerPage() {
 
   return (
     <VideoPlayer
-      key={`${data.id}:${queue?.index ?? ""}`}
+      key={`${data.id}:${queue?.index ?? ""}:${castPlay ?? ""}`}
       item={data}
       startMs={startMs}
       fileId={fileId}

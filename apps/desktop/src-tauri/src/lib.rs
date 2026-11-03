@@ -30,8 +30,30 @@ use url::Url;
 
 /// Where the web app sends people who want another server.
 const SWITCH_SERVER: &str = "/__app/servers";
-/// Tells the web app it runs in this app (src/lib/shell.ts over there).
-const INIT_SCRIPT: &str = "window.__PLEY_APP__ = 'desktop';";
+/// Tells the web app it runs in this app (src/lib/shell.ts over there), and
+/// what the computer is called: the name the profile's other devices see as
+/// they cast to it (src/cast/device.ts).
+fn init_script(computer: Option<&str>) -> String {
+    let name = serde_json::to_string(computer.unwrap_or_default()).unwrap_or_else(|_| "\"\"".to_owned());
+    format!("window.__PLEY_APP__ = 'desktop'; window.__PLEY_DEVICE_NAME__ = {name};")
+}
+
+/// The computer's name as the system gives it, if it does.
+fn computer_name() -> Option<String> {
+    #[cfg(windows)]
+    let name = std::env::var("COMPUTERNAME").ok();
+    #[cfg(target_os = "macos")]
+    let name = std::process::Command::new("scutil")
+        .args(["--get", "ComputerName"])
+        .output()
+        .ok()
+        .filter(|out| out.status.success())
+        .and_then(|out| String::from_utf8(out.stdout).ok());
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let name =
+        std::fs::read_to_string("/proc/sys/kernel/hostname").or_else(|_| std::fs::read_to_string("/etc/hostname")).ok();
+    name.map(|n| n.trim().to_owned()).filter(|n| !n.is_empty())
+}
 
 /// Where the window is.
 #[derive(Debug, Default)]
@@ -266,7 +288,7 @@ pub fn run() {
                 .title("Pley")
                 .inner_size(1280.0, 800.0)
                 .min_inner_size(720.0, 480.0)
-                .initialization_script(INIT_SCRIPT)
+                .initialization_script(init_script(computer_name().as_deref()))
                 .on_navigation(move |url| {
                     let decision = navigation(url, &mut handle.state::<Pages>().0.lock().unwrap());
                     match decision {
@@ -394,5 +416,14 @@ mod tests {
             }
         }
         assert_eq!(places.server.as_ref().map(Url::as_str), Some("http://192.168.1.20:7539/"));
+    }
+
+    #[test]
+    fn the_pages_hear_the_computers_name_as_a_string() {
+        assert_eq!(
+            init_script(Some(r#"Den "PC" \ 2"#)),
+            r#"window.__PLEY_APP__ = 'desktop'; window.__PLEY_DEVICE_NAME__ = "Den \"PC\" \\ 2";"#
+        );
+        assert_eq!(init_script(None), r#"window.__PLEY_APP__ = 'desktop'; window.__PLEY_DEVICE_NAME__ = "";"#);
     }
 }

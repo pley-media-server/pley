@@ -35,6 +35,10 @@ import type {
 } from "@/api/types";
 import { useOptionalAudioPlayer } from "@/audio/AudioPlayer";
 import { useAuth } from "@/auth";
+import { CastButton } from "@/cast/CastButton";
+import { useCast, type CastRequest } from "@/cast/context";
+import { castSelf } from "@/cast/device";
+import { useCastPlayer } from "@/cast/receiver";
 import { Slider } from "@/components/Slider";
 import { useToast } from "@/components/Toast";
 import { canPlayNativeHls, videoCaps } from "@/lib/caps";
@@ -1535,6 +1539,26 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
   };
   const seekBy = (delta: number) => seekTo((videoRef.current?.currentTime ?? current) + delta);
 
+  // Casting: from here, the device picked plays on from where this player
+  // is, and this one steps aside as Back does; to here (the desktop app),
+  // other devices steer this player and hear what it plays.
+  const cast = useCast();
+  const [castReceiver] = useState(castSelf);
+  const castRequest = (): CastRequest => ({ item, fileId: file?.id ?? null, position: currentMs, onSent: goBack });
+  useCastPlayer(castReceiver, {
+    itemId: item.id,
+    video: videoRef,
+    position: () => ({ position_ms: currentMs(), duration_ms: duration > 0 ? Math.round(duration * 1000) : undefined }),
+    controls: {
+      pause: () => videoRef.current?.pause(),
+      resume: () => {
+        if (videoRef.current?.paused) togglePlay();
+      },
+      seek: (ms) => seekTo(ms / 1000),
+      stop: goBack,
+    },
+  });
+
   const changeVolume = (delta: number) => {
     const next = Math.max(0, Math.min(1, (muted ? 0 : volume) + delta));
     setVolume(next);
@@ -1697,6 +1721,8 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      // The keys are the casting dialog's while it is open.
+      if (cast?.open) return;
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
@@ -2041,6 +2067,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
               onSeek={seekTo}
             />
           ) : null}
+          <CastButton request={castRequest} player />
           <SettingsPopover
             open={settingsOpen}
             setOpen={setSettingsOpen}

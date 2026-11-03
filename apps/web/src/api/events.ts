@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { castSelf, eventsUrl } from "@/cast/device";
 import { connectionLost, eventsLive, serverAnswers, setConnectionLost, setEventsLive } from "@/lib/connection";
+import { castKeys, patchCastState } from "./cast";
 import { isApiError } from "./client";
 import { keys } from "./hooks";
 import { liveKeys } from "./livetv";
@@ -117,6 +119,8 @@ function refreshRequests(qc: QueryClient, changes: RequestChange[]) {
  * Keeps one `EventSource('/api/events')` open while logged in (`userId`)
  * and turns server events into React Query cache updates/invalidations.
  * Another profile gets a stream of its own: the events are the account's.
+ * A device that may be cast to (the desktop app) says so as it opens it,
+ * and is listed for casting while it stays open.
  */
 export function useServerEvents(userId: Id | null) {
   const qc = useQueryClient();
@@ -168,6 +172,7 @@ export function useServerEvents(userId: Id | null) {
       void qc.invalidateQueries({ queryKey: ["history"] });
       void qc.invalidateQueries({ queryKey: keys.watchlist });
       void qc.invalidateQueries({ queryKey: liveKeys.all });
+      void qc.invalidateQueries({ queryKey: castKeys.all });
       // Requests: all but TMDB's rows, whose badges say so when next shown.
       void qc.invalidateQueries({ queryKey: requestKeys.all, predicate: (q) => !isTmdbList(q.queryKey) });
       void qc.invalidateQueries({ queryKey: requestKeys.all, predicate: (q) => isTmdbList(q.queryKey), refetchType: "none" });
@@ -363,13 +368,19 @@ export function useServerEvents(userId: Id | null) {
         case "requests_settings_changed":
           requestsSettingsChanged();
           break;
+        case "cast_devices_changed":
+          void qc.invalidateQueries({ queryKey: castKeys.devices });
+          break;
+        case "cast_state":
+          patchCastState(qc, ev.device_id, ev.state);
+          break;
       }
       for (const listener of listeners) listener(ev);
     };
 
     const connect = () => {
       if (closed) return;
-      es = new EventSource("/api/events");
+      es = new EventSource(eventsUrl(castSelf()));
       es.onopen = () => {
         failures = 0;
         back();

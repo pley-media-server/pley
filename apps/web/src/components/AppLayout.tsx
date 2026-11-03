@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { invalidateWatchState } from "@/api/hooks";
 import { AudioPlayerBar } from "@/audio/AudioPlayerBar";
 import { useAudioPlayer } from "@/audio/AudioPlayer";
+import { CastBar, useCastBar } from "@/cast/CastBar";
 import { cn } from "@/lib/cn";
 import { APP_RESUMED } from "@/lib/shell";
 import { ConnectionBanner } from "./ConnectionBanner";
@@ -16,6 +17,7 @@ export function AppLayout() {
   const [drawer, setDrawer] = useState(false);
   const closeDrawer = useCallback(() => setDrawer(false), []);
   const audio = useAudioPlayer();
+  const casting = !!useCastBar();
   const qc = useQueryClient();
 
   // The Android app says so when its own player closes: progress and watched marks changed.
@@ -31,7 +33,7 @@ export function AppLayout() {
       <div className="flex min-h-screen flex-col lg:pl-60">
         <TopBar onMenu={() => setDrawer(true)} />
         <ConnectionBanner />
-        <main className={cn("flex-1", audio.current && "pb-24")}>
+        <main className={cn("flex-1", audio.current && casting ? "pb-40" : audio.current ? "pb-24" : casting && "pb-16")}>
           <ListMenuProvider>
             <Suspense fallback={<PageSpinner />}>
               <Outlet />
@@ -40,6 +42,7 @@ export function AppLayout() {
         </main>
       </div>
       {audio.current ? <AudioPlayerBar /> : null}
+      <CastBar raised={!!audio.current} />
       <ScrollRestoration />
     </div>
   );
