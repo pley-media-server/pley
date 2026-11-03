@@ -270,6 +270,36 @@ async fn collection_items_move_and_what_pley_lacks_says_so() {
     assert_eq!(w.app.plex_json(&manage, &play).await["size"], json!(0), "reading is anyone's");
 }
 
+#[tokio::test]
+async fn collections_describe_their_searches() {
+    let w = world().await;
+    let made = w.collection("Made By Kometa", &[w.alien]).await;
+    w.collection("Kept By Hand", &[w.brazil]).await;
+    let section = format!("/library/sections/{}/all", w.movies);
+    let labelled = format!("{section}?type=18&id={made}&label[0].tag.tag=Kometa");
+    assert_eq!(w.send(Method::PUT, &labelled).await.status, StatusCode::OK);
+
+    // As python-plexapi loads a section's filters.
+    let meta = format!(
+        "/library/sections/{}/collections?includeMeta=1&includeAdvanced=1&X-Plex-Container-Start=0&X-Plex-Container-Size=0",
+        w.movies
+    );
+    let listed = w.app.plex_json(&meta, &w.admin).await;
+    assert_eq!(listed["size"], json!(0));
+    let kind = &listed["Meta"][0]["Type"][0];
+    assert_eq!((&kind["type"], &kind["key"]), (&json!("collection"), &json!(format!("{section}?type=18"))));
+    assert_eq!(kind["Filter"][0]["key"], json!(format!("/library/sections/{}/label?type=18", w.movies)));
+    let sorts: Vec<&str> = kind["Sort"].as_array().unwrap().iter().map(|s| s["key"].as_str().unwrap()).collect();
+    assert_eq!(sorts, ["titleSort", "addedAt", "updatedAt"]);
+    let fields: Vec<&str> = kind["Field"].as_array().unwrap().iter().map(|f| f["key"].as_str().unwrap()).collect();
+    assert_eq!(fields, ["collection.title", "collection.label"]);
+
+    // A search validated against it, as python-plexapi sends it.
+    let validated =
+        format!("{section}?includeGuids=1&sort=collection.titleSort%3Adesc&type=18&collection.label=Kometa");
+    assert_eq!(w.titles(&validated).await, ["Made By Kometa"]);
+}
+
 /// The value of setting `id` in `node`'s preferences.
 fn preference(node: &Value, id: &str) -> Option<i64> {
     let settings = node["Preferences"]["Setting"].as_array()?;

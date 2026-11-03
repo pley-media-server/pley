@@ -451,8 +451,11 @@ filtered by `title` (as strings are) and `label` (`=`, `!=`), with or
 without the `collection.` prefix, sorted by `titleSort`, `addedAt` or
 `updatedAt`, and cut by `limit`. Any other filter answers `400`, never the
 whole list: tools such as Kometa find the collections they made by label.
-A section's `label` choices name its collections' labels too, and
-`/library/sections/{id}/label?type=18` names only those.
+With `includeMeta=1`, `/library/sections/{id}/collections` describes them
+in a `Meta` element of the `collection` type, which `python-plexapi`
+validates collection searches against. A section's `label` choices name
+its collections' labels too, and `/library/sections/{id}/label?type=18`
+names only those.
 
 ### Tested
 

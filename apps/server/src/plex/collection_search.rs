@@ -8,7 +8,8 @@
 
 use std::collections::HashMap;
 
-use super::{Params, PlexError, PlexResult};
+use super::lists::COLLECTION_TYPE;
+use super::{Node, Params, PlexError, PlexResult};
 use crate::collections::CollectionDto;
 
 /// Values one filter may name.
@@ -180,6 +181,40 @@ impl Filter {
             }
         }
     }
+}
+
+/// The `Meta` of a section's collection listings (`includeMeta=1`): the
+/// filter, sorts and fields [`Search`] applies, which python-plexapi
+/// validates collection searches against.
+pub fn meta(library_id: i64) -> Node {
+    let mut collections = Node::new("Type")
+        .attr("key", format!("/library/sections/{library_id}/all?type={COLLECTION_TYPE}"))
+        .attr("type", "collection")
+        .attr("title", "Collections")
+        .attr("active", false)
+        .child(
+            Node::new("Filter")
+                .attr("filter", "label")
+                .attr("filterType", "string")
+                .attr("key", format!("/library/sections/{library_id}/label?type={COLLECTION_TYPE}"))
+                .attr("title", "Labels")
+                .attr("type", "filter"),
+        );
+    for (key, title, direction) in
+        [("titleSort", "Title", "asc"), ("addedAt", "Date Added", "desc"), ("updatedAt", "Date Updated", "desc")]
+    {
+        collections.push(
+            Node::new("Sort")
+                .attr("defaultDirection", direction)
+                .attr("descKey", format!("{key}:desc"))
+                .attr("key", key)
+                .attr("title", title),
+        );
+    }
+    for (key, kind, title) in [("collection.title", "string", "Title"), ("collection.label", "tag", "Labels")] {
+        collections.push(Node::new("Field").attr("key", key).attr("title", title).attr("type", kind));
+    }
+    Node::new("Meta").child(collections)
 }
 
 fn parse_sort(sort: &str) -> PlexResult<(SortKey, bool)> {

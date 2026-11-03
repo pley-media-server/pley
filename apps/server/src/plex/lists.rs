@@ -117,9 +117,13 @@ pub async fn section_collections(
         .iter()
         .map(|c| collection_node(c, &lib, labels.get(&c.id).map(Vec::as_slice).unwrap_or_default()))
         .collect();
-    Ok(list_container(Some(&lib), &info, nodes, total, &page)
+    let mut mc = list_container(Some(&lib), &info, nodes, total, &page)
         .attr("title2", "All Collections")
-        .attr("viewGroup", "secondary"))
+        .attr("viewGroup", "secondary");
+    if params.flag("includeMeta") {
+        mc.push(super::collection_search::meta(lib.id));
+    }
+    Ok(mc)
 }
 
 /// Labels of the collections of `lib` the user sees (filter choices).
