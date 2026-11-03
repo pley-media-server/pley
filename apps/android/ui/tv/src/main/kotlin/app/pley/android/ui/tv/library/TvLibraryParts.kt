@@ -52,6 +52,8 @@ import app.pley.android.screens.library.LibraryViewModel
 import app.pley.android.screens.library.TileLook
 import app.pley.android.screens.library.TileRow
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.item.PANEL_HEADING
+import app.pley.android.ui.tv.item.PANEL_ROW
 import app.pley.android.ui.tv.item.tileActions
 import app.pley.android.ui.tv.kit.FocusMemory
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
@@ -388,10 +390,6 @@ internal fun PanelList(title: String, chosen: FocusRequester, content: LazyListS
         LazyColumn(Modifier.fillMaxWidth().weight(1f), state = list, verticalArrangement = Arrangement.spacedBy(2.dp), content = content)
     }
 }
-
-/** The content types of a panel's list: its rows and its headings. */
-private const val PANEL_ROW = "row"
-private const val PANEL_HEADING = "heading"
 
 /** Where the Recommended tab's rows begin, and their focused row's header line. */
 private val RowsTop = 80.dp

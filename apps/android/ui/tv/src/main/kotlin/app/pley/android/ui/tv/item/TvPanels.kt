@@ -268,7 +268,7 @@ private const val STARS = 5
 
 /** The content types of a panel's list, so a row scrolled in reuses one scrolled out. */
 internal const val PANEL_TITLE = "title"
-private const val PANEL_HEADING = "heading"
+internal const val PANEL_HEADING = "heading"
 internal const val PANEL_ROW = "row"
 
 internal const val TV_PANEL = "pley.tv.item.panel"

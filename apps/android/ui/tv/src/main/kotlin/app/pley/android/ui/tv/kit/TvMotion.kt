@@ -39,10 +39,10 @@ import kotlinx.coroutines.launch
  */
 internal object TvMotion {
     /** NUI's EaseOut, a cubic: fast, then slowing to rest. */
-    val EaseOut: Easing = Easing { val left = 1f - it; 1f - left * left * left }
+    val EaseOut: Easing = PleyMotion.EaseOut
 
     /** NUI's EaseIn, a cubic: slow, then fast. */
-    val EaseIn: Easing = Easing { it * it * it }
+    val EaseIn: Easing = PleyMotion.EaseIn
 
     /** A focus look coming in. */
     val FocusIn: FiniteAnimationSpec<Float> = tween(PleyMotion.FOCUS_MS, easing = EaseOut)
