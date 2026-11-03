@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.lazy.LazyListState
@@ -748,8 +749,10 @@ private fun ProgramPanel(
             Spacer(Modifier.width(12.dp))
             BasicText(listOfNotNull(channel.number, channel.name).joinToString("  "), style = PleyType.Tv.Label.copy(color = PleyColors.Muted), maxLines = 1)
         }
-        // Measured after the buttons: they keep their height however long the programme's text.
-        Column(Modifier.weight(1f).fillMaxWidth()) {
+        // Measured after the buttons: they keep their height however long the programme's text. Cut at
+        // its foot: a picture, a long title and badges can leave the description less than a line,
+        // which would otherwise draw over the buttons.
+        Column(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
             if (program != null) ProgramText(program, origin, now, clock)
         }
         Spacer(Modifier.height(12.dp))
