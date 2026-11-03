@@ -355,6 +355,20 @@ adb -s <device> shell am instrument -w -e class app.pley.android.benchmark.TvSta
 On an emulator, add `-e androidx.benchmark.suppressErrors EMULATOR`. Traces
 are in `/storage/emulated/0/Android/data/app.pley.android.benchmark/cache`.
 
+The Baseline and Startup Profiles come from `BaselineProfileGenerator`'s
+journeys against the demo server: a cold start, then on a TV, with the
+D-pad, signing in, Who's watching?, Home (a tile's actions, the rows), a
+show's page (its episodes, OK held on one, its rows, the cast, a person),
+search, a library's grid, Collections and a collection, Playlists and a
+playlist, Settings (a choice's panel, the Libraries page), the rail and the
+player; on a phone, by touch, Home, a show's page and its cast, the player,
+a library's grid, search, a playlist and Me's Settings. Each journey runs
+on its own kind of device and is skipped on the other, so generate with a
+TV and a phone (or their emulators, API 33 or later) attached. Each step
+waits for the screen it leads to, and a journey that goes astray fails
+there, saying where. The phone signs in through the browser: on a new
+device, open the browser once first, past its welcome pages.
+
 ## Releases
 
 Versions, version codes and the release steps are in
