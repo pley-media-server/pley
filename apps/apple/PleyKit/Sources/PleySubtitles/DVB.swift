@@ -249,7 +249,8 @@ public final class DVBDecoder: PictureDecoder {
         var map24 = [0x0, 0x7, 0x8, 0xF]
         var map28 = [0x00, 0x77, 0x88, 0xFF]
         var map48 = (0..<16).map { $0 * 0x11 }
-        while at < data.count {
+        // Lines past the region's bottom draw nothing: the rest isn't read.
+        while at < data.count && y < region.height {
             let type = Int(data[at])
             at += 1
             switch type {
@@ -342,6 +343,7 @@ public final class DVBDecoder: PictureDecoder {
         var page: Page?
         var regions: [Int: Region] = [:]
         var cluts: [Int: [[UInt8]]] = [:]
+        var draws = 0
         for i in from...index {
             for seg in segs(i) {
                 let b = seg.body
@@ -437,7 +439,8 @@ public final class DVBDecoder: PictureDecoder {
                     let bottom = bottomLength > 0
                         ? Array(b[bottomStart..<min(b.count, bottomStart + bottomLength)]) : top
                     for region in regions.values {
-                        for o in region.objects where o.id == id {
+                        for o in region.objects where o.id == id && draws < Pictures.maxDraws {
+                            draws += 1
                             Self.drawField(top, into: region, ox: o.x, oy: o.y, first: 0)
                             Self.drawField(bottom, into: region, ox: o.x, oy: o.y, first: 1)
                         }

@@ -96,12 +96,18 @@ public enum Pictures {
     static let maxSegments = 512
 
     /// Samples a decode reads back to its epoch's start or acquisition
-    /// point, at most: real tracks have one every few samples.
-    static let maxLookBack = 128
+    /// point, at most: real tracks have one every few samples, and a long
+    /// animated epoch (karaoke) a few hundred.
+    static let maxLookBack = 512
 
-    /// Parsed samples kept for the next decodes, at most: a crafted track's
-    /// parsed samples would take many times its size.
-    static let maxParsed = 256
+    /// Parsed samples kept for the next decodes, at most: more than one
+    /// look-back, which would otherwise parse again each time; a crafted
+    /// track's parsed samples would take many times its size.
+    static let maxParsed = 1_024
+
+    /// DVB object draws in one decode, at most: a page draws a few. Each
+    /// walks the object's data, on the main actor.
+    static let maxDraws = 256
 
     /// Samples read from a track's file, at most: a film's has a few thousand.
     static let maxSamples = 100_000

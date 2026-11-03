@@ -200,7 +200,13 @@ public enum MatroskaPictureTrack {
                     }
                 }
                 if el.id == ID.contentCompression, track != nil {
-                    if compAlgo == 3 { track?.stripped = compSettings } else { track?.compressed = true }
+                    // Header stripping takes a few bytes off each frame; more is a
+                    // crafted file's, which would grow every sample by it.
+                    if compAlgo == 3 && (compSettings?.count ?? 0) <= 64 {
+                        track?.stripped = compSettings
+                    } else {
+                        track?.compressed = true
+                    }
                 }
                 if el.id == ID.trackEntry, let done = track {
                     tracks.append(done)
