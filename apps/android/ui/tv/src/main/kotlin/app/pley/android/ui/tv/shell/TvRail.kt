@@ -95,7 +95,6 @@ import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvRailFocus
 import app.pley.android.ui.tv.requests.rememberRequestTexts
-import kotlin.math.sign
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -249,7 +248,7 @@ internal fun TvRail(
     val open = rail.hasFocus
     val opening = rememberRailOpening(open)
     rail.scope = rememberCoroutineScope()
-    val travel = remember { RailTravel() }
+    val focus = remember { RailFocus() }
     val offlineSaid = stringResource(R.string.tv_shell_offline)
     Box(
         Modifier
@@ -306,13 +305,13 @@ internal fun TvRail(
                 modifier = Modifier
                     .focusRequester(rail.requester(PROFILE_ITEM))
                     .focusProperties { down = rail.requester(items.firstOrNull()?.id ?: SettingsItem.id) }
-                    .onFocusChanged { if (it.isFocused) travel.at = RailTravel.AVATAR }
+                    .onFocusChanged { if (it.isFocused) focus.at = RailFocus.NO_ENTRY }
                     .semantics { if (offline) stateDescription = offlineSaid },
             ) { ink ->
                 BasicText(profile?.name.orEmpty(), style = PleyType.Tv.Label.copy(color = ink, lineHeight = 17.sp), maxLines = 1)
             }
             Spacer(Modifier.height(AvatarGap))
-            RailEntries(items, rail, open, opening, travel, onSelect, Modifier.weight(1f))
+            RailEntries(items, rail, open, opening, focus, onSelect, Modifier.weight(1f))
             Spacer(Modifier.height(ItemGap))
             RailEntry(
                 SettingsItem,
@@ -321,31 +320,30 @@ internal fun TvRail(
                 opening,
                 onSelect,
                 up = items.lastOrNull()?.id ?: PROFILE_ITEM,
-                onFocused = { travel.at = items.size },
+                onFocused = { focus.at = RailFocus.NO_ENTRY },
             )
         }
     }
 }
 
 /**
- * Where focus was in the rail last, so the entries know which way it
- * travels: [AVATAR], an entry's index, or the entries' count for Settings;
- * `null` while it is outside the rail.
+ * Where focus is in the rail: an entry's index, or [NO_ENTRY] on the
+ * avatar or Settings; `null` while it is outside the rail.
  */
-private class RailTravel {
+private class RailFocus {
     var at: Int? = null
 
     companion object {
-        const val AVATAR = -1
+        const val NO_ENTRY = -1
     }
 }
 
 /**
  * The entries between the avatar and Settings, scrolled by [railScroll]
  * as focus moves through them, over a row's glide (at once with reduced
- * motion). While focus is outside the rail, the page's entry is kept in
- * view instead, so focus coming back finds it there; rebuilt entries and
- * a new size keep the one that counts in view too. Entries scrolled past
+ * motion). While focus is outside the rail, the page's entry is placed by
+ * the same rule, so opening the rail on it moves nothing; rebuilt entries
+ * and a new size place the one that counts by it too. Entries scrolled past
  * either end are cut at the gaps beside the avatar and Settings, never
  * drawn over them; across, nothing is cut, so a pill's growth and its
  * opening width show whole.
@@ -356,7 +354,7 @@ private fun RailEntries(
     rail: RailState,
     open: Boolean,
     opening: Animatable<Float, AnimationVector1D>,
-    travel: RailTravel,
+    focus: RailFocus,
     onSelect: (RailItem) -> Unit,
     modifier: Modifier,
 ) {
@@ -366,8 +364,8 @@ private fun RailEntries(
     // How far up the entries are moved, in dp.
     val scroll = remember { Animatable(0f) }
     var viewport by remember { mutableFloatStateOf(0f) }
-    fun show(index: Int, way: Int) {
-        val target = railScroll(scroll.targetValue, index, items.size, way, viewport)
+    fun show(index: Int) {
+        val target = railScroll(scroll.targetValue, index, items.size, viewport)
         if (target == scroll.targetValue) return
         scope.launch {
             if (reduced) scroll.snapTo(target) else scroll.animateTo(target, tween(PleyMotion.FOCUS_MS, easing = PleyMotion.EaseOut))
@@ -375,14 +373,14 @@ private fun RailEntries(
     }
     val current = rail.current
     LaunchedEffect(items, viewport, current, open) {
-        if (!open) travel.at = null
-        // The focused entry; the first beside the avatar, the last beside Settings; else the page's.
-        val index = when (val at = travel.at) {
+        if (!open) focus.at = null
+        // The focused entry, else the page's; on the avatar or Settings, none.
+        val index = when (val at = focus.at) {
             null -> items.indexOfFirst { it.id == current }
-            RailTravel.AVATAR -> 0
+            RailFocus.NO_ENTRY -> RailFocus.NO_ENTRY
             else -> minOf(at, items.lastIndex)
         }
-        show(index, way = 0)
+        show(index)
     }
     Box(
         modifier
@@ -412,9 +410,8 @@ private fun RailEntries(
                     up = items.getOrNull(i - 1)?.id ?: PROFILE_ITEM,
                     down = items.getOrNull(i + 1)?.id ?: SettingsItem.id,
                     onFocused = {
-                        val from = travel.at
-                        travel.at = i
-                        show(i, way = if (from == null) 0 else (i - from).sign)
+                        focus.at = i
+                        show(i)
                     },
                 )
             }
@@ -424,28 +421,27 @@ private fun RailEntries(
 
 /**
  * How far up, in dp, the entries between the avatar and Settings are
- * moved to show entry [focused] of [count] in a [viewport] dp tall, from
- * [scroll]: no further than keeps it wholly in view and, while focus
- * travels [way] (1 down, -1 up, 0 when it comes back to the rail), the
- * next entry that way too, where both fit. Clamped at the ends: the first
- * entry at the top (y = 67), the last ending at the bottom (y = 469, a gap
- * above Settings). An index that isn't an entry's only clamps.
+ * moved with entry [focused] of [count] focused, in a [viewport] dp tall:
+ * by whole entries, so none is ever cut in half at either end. Going down,
+ * focus moves until it is the fourth entry shown ([RAIL_PIVOT]), then stays
+ * there while the entries move under it an entry a press, until the last
+ * ones are all in view and focus goes on to the last; going up is the same
+ * backwards. Where an entry shows depends on it alone, never on the way
+ * focus came, as the TV's lists keep their focused row about a third of
+ * the way down ([TvScrolling.root][app.pley.android.ui.tv.kit.TvScrolling.root]).
+ * Clamped at the ends: the first entry at the top (y = 67); at the other,
+ * the last nine whole, the last ending at y = 459, above Settings. An
+ * index that isn't an entry's (the avatar, Settings) keeps [scroll],
+ * within the ends.
  */
-internal fun railScroll(scroll: Float, focused: Int, count: Int, way: Int, viewport: Float): Float {
+internal fun railScroll(scroll: Float, focused: Int, count: Int, viewport: Float): Float {
     if (viewport <= 0f) return scroll
     val pitch = EntryHeight.value + ItemGap.value
-    val end = (count * pitch - ItemGap.value - viewport).coerceAtLeast(0f)
+    // Whole entries in the view, the last one's gap aside: nine in the 402 dp between the avatar and Settings.
+    val fits = ((viewport + ItemGap.value) / pitch).toInt()
+    val end = (count - fits).coerceAtLeast(0) * pitch
     if (focused !in 0 until count) return scroll.coerceIn(0f, end)
-    // Moved as little as shows entries first to last; the later call wins, so the focused entry always shows.
-    fun Float.showing(first: Int, last: Int): Float {
-        var at = this
-        val bottom = last * pitch + EntryHeight.value
-        if (bottom > at + viewport) at = bottom - viewport
-        if (first * pitch < at) at = first * pitch
-        return at
-    }
-    val next = (focused + way).coerceIn(0, count - 1)
-    return scroll.showing(minOf(focused, next), maxOf(focused, next)).showing(focused, focused).coerceIn(0f, end)
+    return ((focused - RAIL_PIVOT) * pitch).coerceIn(0f, end)
 }
 
 @Composable
@@ -721,6 +717,9 @@ private val AvatarSize = 32.dp
  */
 private val EntryHeight = 40.dp
 private val ItemGap = 4.dp
+
+/** The entries shown above the focused one while the entries scroll under it ([railScroll]). */
+private const val RAIL_PIVOT = 3
 
 /** The number's 18 dp pill, ringed 2 dp, its corner 9 right of the icon's and 10 above it. */
 private val CountHeight = 18.dp

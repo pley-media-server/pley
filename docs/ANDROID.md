@@ -88,9 +88,13 @@ heard it for that profile, the start asks "Who's watching?".
   all), Playlists, Collections when there is no **Libraries**, Now Playing
   and the USB drive, each where it applies. Nothing makes way for
   another: entries are 40 dp tall on a 44 dp pitch, nine fit, and more
-  scroll between the avatar and Settings, which stay put. Moving focus
-  keeps the focused entry in view with the next one the way it goes, and
-  focus coming back to the rail finds its entry in view.
+  scroll between the avatar and Settings, which stay put. Going down,
+  focus moves until it is the fourth entry shown, then stays there while
+  the entries move under it a whole entry a press, until the last ones
+  show and focus goes on to the last; going up is the same backwards. An
+  entry shows in the same place whichever way focus came, as in the app's
+  lists, and none is ever cut in half. The closed rail shows the page's
+  entry where focus on it would, so opening the rail moves nothing.
 - **The player**: OK with the controls hidden shows them on the scrubber,
   as Up does (Down shows them on Play/Pause), and OK there plays and
   pauses. It seeks as YouTube's TV app does: Left and Right show the

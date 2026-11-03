@@ -53,7 +53,8 @@ describes how they are made.
 - On TVs, the rail lists up to six libraries before Libraries, and no
   entry leaves it to make room for another: its entries are a little
   smaller, and scroll between the avatar and Settings when they don't all
-  fit.
+  fit, keeping the focused entry fourth from the top, as the app's lists
+  keep theirs.
 - Search shows every title, person and Live TV channel the server finds,
   up to 200 of each, where it stopped at 60 titles and 12 people and
   channels.
