@@ -1,4 +1,15 @@
-import { ycbcrToRgb, type PictureDecoder, type PictureFrame, type SubtitleBitmap } from "./pictures";
+import {
+  FrameCache,
+  MAX_EPOCH,
+  MAX_PIXELS,
+  MAX_SEGMENTS,
+  MAX_SIDE,
+  MAX_WORK,
+  ycbcrToRgb,
+  type PictureDecoder,
+  type PictureFrame,
+  type SubtitleBitmap,
+} from "./pictures";
 
 /**
  * Blu-ray subtitles (HDMV PGS, `S_HDMV/PGS`): each sample is one display
@@ -14,6 +25,18 @@ const PCS = 0x16;
 const WDS = 0x17;
 const END = 0x80;
 
+/** The objects a composition places at most: Blu-ray's two, as FFmpeg reads them. */
+const MAX_PLACED = 2;
+
+/**
+ * What reading a byte of a display set costs against MAX_WORK, next to
+ * filling a pixel: reading it, and its objects' run-lengths later, take
+ * about 4 times as long. A segment costs 512 besides, a few hundred
+ * nanoseconds to read and keep.
+ */
+const READ_COST = 4;
+const SEGMENT_COST = 512;
+
 interface Composition {
   width: number;
   height: number;
@@ -26,37 +49,56 @@ interface Composition {
 interface ObjectData {
   width: number;
   height: number;
-  rle: Uint8Array;
+  /** Its run-length data, in the parts it came in. */
+  parts: Uint8Array[];
 }
 
 interface DisplaySet {
+  /** The segments read. */
+  segments: number;
   pcs: Composition | null;
-  palettes: { id: number; entries: { index: number; y: number; cr: number; cb: number; a: number }[] }[];
+  /** Each palette's entries as they come, 5 bytes each (index, Y, Cr, Cb, alpha), one for each index at most. */
+  palettes: { id: number; entries: Uint8Array }[];
   objects: { id: number; first: boolean; last: boolean; width: number; height: number; data: Uint8Array }[];
 }
 
-export function parseDisplaySet(data: Uint8Array): DisplaySet {
-  const set: DisplaySet = { pcs: null, palettes: [], objects: [] };
+/** Calls `each` with the type and body of a display set's segments, MAX_SEGMENTS at most, up to its end. */
+function eachSegment(data: Uint8Array, each: (type: number, start: number, end: number) => void): void {
   let at = 0;
-  // Some muxers keep the "PG" header of the .sup format: 2 magic bytes, PTS and DTS.
-  const hasHeader = () => data[at] === 0x50 && data[at + 1] === 0x47;
-  while (at + 3 <= data.length) {
-    if (hasHeader()) at += 10;
-    const type = data[at]!;
-    const size = (data[at + 1]! << 8) | data[at + 2]!;
-    const body = data.subarray(at + 3, Math.min(data.length, at + 3 + size));
-    at += 3 + size;
+  for (let n = 0; n < MAX_SEGMENTS && at + 3 <= data.length; n++) {
+    // Some muxers keep the "PG" header of the .sup format: 2 magic bytes, PTS and DTS.
+    if (data[at] === 0x50 && data[at + 1] === 0x47) at += 10;
+    const type = data[at] ?? 0;
+    const size = ((data[at + 1] ?? 0) << 8) | (data[at + 2] ?? 0);
+    const start = at + 3;
+    at = start + size;
+    each(type, start, Math.min(data.length, at));
+    if (type === END) return;
+  }
+}
+
+/** The state of a display set's composition, read without the rest of it. */
+function stateOf(data: Uint8Array): number {
+  let state = 0;
+  eachSegment(data, (type, start, end) => {
+    if (type === PCS) state = end - start >= 11 ? data[start + 7]! : 0;
+  });
+  return state;
+}
+
+export function parseDisplaySet(data: Uint8Array): DisplaySet {
+  const set: DisplaySet = { segments: 0, pcs: null, palettes: [], objects: [] };
+  eachSegment(data, (type, start, end) => {
+    set.segments++;
+    const body = data.subarray(start, end);
     switch (type) {
       case PCS:
         set.pcs = readPcs(body);
         break;
       case PDS: {
         if (body.length < 2) break;
-        const entries = [];
-        for (let i = 2; i + 5 <= body.length; i += 5) {
-          entries.push({ index: body[i]!, y: body[i + 1]!, cr: body[i + 2]!, cb: body[i + 3]!, a: body[i + 4]! });
-        }
-        set.palettes.push({ id: body[0]!, entries });
+        const entries = Math.min(Math.floor((body.length - 2) / 5), 256);
+        set.palettes.push({ id: body[0]!, entries: body.subarray(2, 2 + entries * 5) });
         break;
       }
       case ODS: {
@@ -80,8 +122,7 @@ export function parseDisplaySet(data: Uint8Array): DisplaySet {
       default:
         break;
     }
-    if (type === END) break;
-  }
+  });
   return set;
 }
 
@@ -91,12 +132,13 @@ function readPcs(b: Uint8Array): Composition | null {
   const height = (b[2]! << 8) | b[3]!;
   const state = b[7]!;
   const paletteId = b[9]!;
-  const count = b[10]!;
+  const count = Math.min(b[10]!, MAX_PLACED);
   const objects: Composition["objects"] = [];
   let at = 11;
   for (let i = 0; i < count && at + 8 <= b.length; i++) {
     const id = (b[at]! << 8) | b[at + 1]!;
-    const cropped = (b[at + 3]! & 0x40) !== 0;
+    // 0x80 says a crop follows; 0x40 is forced.
+    const cropped = (b[at + 3]! & 0x80) !== 0;
     const x = (b[at + 4]! << 8) | b[at + 5]!;
     const y = (b[at + 6]! << 8) | b[at + 7]!;
     at += 8;
@@ -149,21 +191,10 @@ export function decodeRle(rle: Uint8Array, width: number, height: number): Uint8
 
 export class PgsDecoder implements PictureDecoder {
   private readonly samples: Uint8Array[];
-  private readonly sets: (DisplaySet | null)[];
-  private readonly cache = new Map<number, PictureFrame | null>();
+  private readonly cache = new FrameCache();
 
   constructor(samples: Uint8Array[]) {
     this.samples = samples;
-    this.sets = new Array<DisplaySet | null>(samples.length).fill(null);
-  }
-
-  private set(index: number): DisplaySet {
-    let s = this.sets[index];
-    if (!s) {
-      s = parseDisplaySet(this.samples[index]!);
-      this.sets[index] = s;
-    }
-    return s;
   }
 
   ownDurationMs(): number | null {
@@ -171,34 +202,40 @@ export class PgsDecoder implements PictureDecoder {
   }
 
   decode(index: number): PictureFrame | null {
-    if (this.cache.has(index)) return this.cache.get(index)!;
-    const frame = this.compose(index);
-    // A few frames around the playhead are enough: seeking decodes again.
-    if (this.cache.size > 24) this.cache.delete(this.cache.keys().next().value!);
-    this.cache.set(index, frame);
-    return frame;
+    return this.cache.get(index, (i) => this.compose(i));
   }
 
+  /** Display sets are read again for each frame decoded, rather than kept: a crafted track's would take many times its size. */
   private compose(index: number): PictureFrame | null {
-    const pcs = this.set(index).pcs;
+    const current = parseDisplaySet(this.samples[index]!);
+    const pcs = current.pcs;
     if (!pcs) return null;
     if (!pcs.objects.length) return { planeWidth: pcs.width, planeHeight: pcs.height, bitmaps: [] };
     // Palettes and objects as they stand at `index`: from the last epoch start or acquisition point.
     let from = index;
-    while (from > 0) {
-      const state = this.set(from).pcs?.state ?? 0;
-      if (state & 0xc0) break;
-      from--;
-    }
-    const palettes = new Map<number, Map<number, { y: number; cr: number; cb: number; a: number }>>();
+    while (from > 0 && index - from < MAX_EPOCH && !(stateOf(this.samples[from]!) & 0xc0)) from--;
+    // Each palette's entries by index: whether set, then Y, Cr, Cb and alpha.
+    const palettes = new Map<number, Uint8Array>();
     const objects = new Map<number, ObjectData>();
-    const pending = new Map<number, { width: number; height: number; parts: Uint8Array[] }>();
+    const pending = new Map<number, ObjectData>();
+    // A frame that would take more than that isn't decoded: what it leaves
+    // out could be any of what it shows.
+    let work = MAX_WORK;
     for (let i = from; i <= index; i++) {
-      const s = this.set(i);
+      const data = this.samples[i]!;
+      work -= (1 + data.length) * READ_COST;
+      if (work < 0) return null;
+      const s = i === index ? current : parseDisplaySet(data);
+      work -= s.segments * SEGMENT_COST;
+      if (work < 0) return null;
       for (const p of s.palettes) {
         let palette = palettes.get(p.id);
-        if (!palette) palettes.set(p.id, (palette = new Map()));
-        for (const e of p.entries) palette.set(e.index, e);
+        if (!palette) palettes.set(p.id, (palette = new Uint8Array(256 * 5)));
+        for (let e = 0; e + 5 <= p.entries.length; e += 5) {
+          const at = p.entries[e]! * 5;
+          palette[at] = 1;
+          for (let k = 1; k < 5; k++) palette[at + k] = p.entries[e + k]!;
+        }
       }
       for (const o of s.objects) {
         if (o.first) pending.set(o.id, { width: o.width, height: o.height, parts: [] });
@@ -206,7 +243,7 @@ export class PgsDecoder implements PictureDecoder {
         if (!part) continue;
         part.parts.push(o.data);
         if (o.last) {
-          objects.set(o.id, { width: part.width, height: part.height, rle: join(part.parts) });
+          objects.set(o.id, part);
           pending.delete(o.id);
         }
       }
@@ -215,18 +252,27 @@ export class PgsDecoder implements PictureDecoder {
     if (!palette) return null;
     const hd = pcs.height > 576;
     const rgba = new Uint8ClampedArray(256 * 4);
-    palette.forEach((e, i) => {
-      const [r, g, b] = ycbcrToRgb(e.y, e.cb, e.cr, hd);
+    for (let i = 0; i < 256; i++) {
+      const at = i * 5;
+      if (!palette[at]) continue;
+      const [r, g, b] = ycbcrToRgb(palette[at + 1]!, palette[at + 3]!, palette[at + 2]!, hd);
       rgba[i * 4] = r;
       rgba[i * 4 + 1] = g;
       rgba[i * 4 + 2] = b;
-      rgba[i * 4 + 3] = e.a;
-    });
+      rgba[i * 4 + 3] = palette[at + 4]!;
+    }
     const bitmaps: SubtitleBitmap[] = [];
+    // Each placement is a picture of its own, the same object's too: together, no more than a frame's pixels.
+    let pixelsLeft = MAX_PIXELS;
+    const decoded = new Map<number, Uint8Array>();
     for (const placed of pcs.objects) {
       const object = objects.get(placed.id);
-      if (!object || !object.width || !object.height) continue;
-      const indexes = decodeRle(object.rle, object.width, object.height);
+      if (!object || !object.width || !object.height || object.width > MAX_SIDE || object.height > MAX_SIDE) continue;
+      pixelsLeft -= object.width * object.height;
+      if (pixelsLeft < 0) break;
+      // An object placed twice is decoded once.
+      let indexes = decoded.get(placed.id);
+      if (!indexes) decoded.set(placed.id, (indexes = decodeRle(join(object.parts), object.width, object.height)));
       const crop = placed.crop ?? { x: 0, y: 0, w: object.width, h: object.height };
       const w = Math.max(0, Math.min(crop.w, object.width - crop.x));
       const h = Math.max(0, Math.min(crop.h, object.height - crop.y));
