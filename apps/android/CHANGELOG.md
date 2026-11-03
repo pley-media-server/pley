@@ -8,6 +8,17 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Requests on Android TV and Fire TV, as on the Samsung and LG apps: the
+  rail's Discover after Home (Your requests where the profile may not
+  ask, Requests for administrators) with the number that waits there, in
+  red while a request couldn't be sent; Discover's hero, rows and See all
+  grids; a title's page with Which seasons? in a side panel; and the
+  requests, with their tabs, the administrators' filters and a side panel
+  of what may be done to each. What became ready to watch pops up at the
+  bottom right once the remote rests, with Open and Close.
+
 ### Fixed
 
 - Discover's hero is the first title of the next row when the trending

@@ -3,17 +3,21 @@ package app.pley.android.ui.tv.shell
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import app.pley.android.auth.AuthEvent
+import app.pley.android.data.RequestNotice
+import app.pley.android.data.RequestsRepository
 import app.pley.android.data.SessionState
 import app.pley.android.data.valueOrNull
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.model.Library
 import app.pley.android.screens.ScreensGraph
+import app.pley.android.screens.requests.RequestsEntry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.emptyFlow
@@ -67,6 +71,18 @@ interface TvShellSource {
     /** Each time the server's events connect: it answers again (the offline mark goes). */
     val serverAnswered: Flow<Unit> get() = emptyFlow()
 
+    /** The rail's way into requests (Discover, or the requests) and its number; none while unknown. */
+    val requests: Flow<RequestsEntry> get() = flowOf(RequestsEntry.None)
+
+    /**
+     * News of this profile's requests to pop up, oldest first: on a TV, what
+     * became ready to watch, each with its title's poster.
+     */
+    val notices: Flow<List<TvNotice>> get() = flowOf(emptyList())
+
+    /** [notice] is on screen: off the queue, so newer news can't push it out. */
+    fun dismiss(notice: RequestNotice) = Unit
+
     companion object {
         /**
          * The app's: the startup read's server and tokens ([startup]),
@@ -85,6 +101,10 @@ interface TvShellSource {
         ): TvShellSource = GraphShellSource(graph, startup, householdSize)
     }
 }
+
+/** News of a request to pop up: [notice], and its title's poster on the server. */
+@Immutable
+data class TvNotice(val notice: RequestNotice, val poster: ArtworkImage? = null)
 
 /** The rail's avatar: the profile's name, colour and picture. */
 @Immutable
@@ -171,6 +191,21 @@ private class GraphShellSource(
     override val liveTv: Flow<Boolean> = offMain { graph.data.liveTv.summary() }.map { it.valueOrNull?.available == true }.distinctUntilChanged()
 
     override val serverAnswered: Flow<Unit> = offMain { graph.data.liveUpdates.answered }
+
+    // Requests are followed from just after the first frame: reading them starts their events, catching up and polling.
+    override val requests: Flow<RequestsEntry> = offMain { started().state }.map(RequestsEntry::of).distinctUntilChanged()
+
+    override val notices: Flow<List<TvNotice>> = combine(offMain { started().notices }, offMain { graph.data.servers.active }) { notices, origin ->
+        notices.map { notice ->
+            val poster = (notice as? RequestNotice.Ready)?.posterUrl
+            TvNotice(notice, origin?.let { ArtworkImage.of(poster, it) })
+        }
+    }.flowOn(Dispatchers.Default)
+
+    // Made by then: the notice was read from it.
+    override fun dismiss(notice: RequestNotice) = graph.data.requests.dismiss(notice)
+
+    private fun started(): RequestsRepository = graph.data.requests.also { it.start() }
 
     /** [upstream], made and collected on Default: the graph is never made on the main thread for it. */
     private fun <T> offMain(upstream: () -> Flow<T>): Flow<T> = flow { emitAll(upstream()) }.flowOn(Dispatchers.Default)

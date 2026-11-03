@@ -322,6 +322,7 @@ fun TvSidePanel(
 ) {
     val reduced = reducedMotion()
     BackHandler(enabled = visible, onBack = onDismiss)
+    OverlayShowing(visible)
     Box(Modifier.fillMaxSize()) {
         AnimatedVisibility(visible, enter = fadeIn(tween(if (reduced) 0 else PleyMotion.OVERLAY_MS)), exit = fadeOut(tween(if (reduced) 0 else PleyMotion.OVERLAY_MS))) {
             Box(Modifier.fillMaxSize().background(PleyColors.Scrim))

@@ -59,13 +59,16 @@ import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.account.accountEntries
 import app.pley.android.ui.tv.home.homeEntries
 import app.pley.android.ui.tv.item.itemEntries
 import app.pley.android.ui.tv.kit.KeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
+import app.pley.android.ui.tv.kit.LocalTvOverlays
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
+import app.pley.android.ui.tv.kit.TvOverlays
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvScrolling
 import app.pley.android.ui.tv.kit.initialFocus
@@ -148,10 +151,18 @@ private fun TvShell(
         withFrameNanos { }
         source.liveTv.collect { value = it }
     }
-    val items = remember(libraries, music, liveTv) { railItems(libraries, nowPlaying = music, liveTv = liveTv) }
+    // Requests too: reading them starts their events and news.
+    val requests by produceState(RequestsEntry.None, source) {
+        withFrameNanos { }
+        source.requests.collect { value = it }
+    }
+    val items = remember(libraries, music, liveTv, requests) {
+        railItems(libraries, nowPlaying = music, liveTv = liveTv, requests = requestsItem(requests))
+    }
     val content = remember { FocusRequester() }
     val rail = remember { RailState(content) }
     val offline = remember { TvOfflineState() }
+    val overlays = remember { TvOverlays() }
     val navigator = remember(backStack) { TvNavigator(backStack, rail, onExit) }
     val root = navigator.root ?: start
     rail.current = railCurrent(root, items + SettingsItem)
@@ -223,6 +234,7 @@ private fun TvShell(
                 LocalTvNavigator provides navigator,
                 LocalTvRailFocus provides rail.takeIf { it.shown },
                 LocalTvOffline provides offline,
+                LocalTvOverlays provides overlays,
             ) {
                 NavDisplay(
                     backStack = backStack,
@@ -251,6 +263,10 @@ private fun TvShell(
             }
             // Signing in and choosing a profile say for themselves when the server can't be reached.
             if (rail.shown) TvOfflineNotice(offline)
+            // Requests' news, once nothing else holds focus; not on the requests, which show it.
+            if (rail.shown && backStack.lastOrNull() !is PleyKey.Requests) {
+                TvRequestNotices(source, content, free = { !rail.hasFocus && !overlays.any }, onOpen = navigator::open)
+            }
         }
     }
 }

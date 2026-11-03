@@ -86,6 +86,20 @@ class KeyRepeatGateTest {
     }
 
     @Test
+    fun quietCountsFromTheLastKeyPressedOfAnyKind() {
+        gate.admit(down())
+        now += 700
+        assertEquals(700L, gate.quietFor())
+        gate.admit(down(NativeKeyEvent.KEYCODE_DPAD_CENTER))
+        now += 100
+        assertEquals(100L, gate.quietFor())
+        // Letting a key go isn't pressing one.
+        gate.admit(up(NativeKeyEvent.KEYCODE_DPAD_CENTER))
+        now += 50
+        assertEquals(150L, gate.quietFor())
+    }
+
+    @Test
     fun awaitRestWaitsForTheLastMovePlus400Ms() = runTest {
         val clock = testScheduler
         val gate = KeyRepeatGate { clock.currentTime }

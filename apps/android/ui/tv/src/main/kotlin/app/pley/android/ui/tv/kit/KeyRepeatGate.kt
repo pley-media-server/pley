@@ -45,11 +45,15 @@ class KeyRepeatGate(private val clock: () -> Long = SystemClock::uptimeMillis) {
     /** When a direction key last went down or repeated: a hold whose key-up never came ends on its own. */
     private var lastKey = Long.MIN_VALUE / 2
 
+    /** When any key last went down: what pops up waits for the remote to rest ([quietFor]). */
+    private var lastPress = Long.MIN_VALUE / 2
+
     /**
      * Whether [event] goes through: true lets it move focus, false drops
      * it. Only direction keys are gated; everything else passes.
      */
     fun admit(event: KeyEvent): Boolean {
+        if (event.type == KeyEventType.KeyDown) lastPress = clock()
         if (event.key !in DIRECTIONS) return true
         val now = clock()
         return when (event.type) {
@@ -78,6 +82,9 @@ class KeyRepeatGate(private val clock: () -> Long = SystemClock::uptimeMillis) {
             else -> true
         }
     }
+
+    /** How long it is, in milliseconds, since a key went down, any key. */
+    fun quietFor(): Long = clock() - lastPress
 
     /** Whether focus has rested: no key held, and nothing moved for [REST_MS]. */
     fun rested(): Boolean {

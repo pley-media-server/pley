@@ -48,6 +48,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.icon.PleyMark
 import app.pley.android.screens.onboarding.OnboardingSource
+import app.pley.android.ui.tv.kit.OverlayShowing
 import io.nayuki.qrcodegen.QrCode
 import kotlinx.coroutines.delay
 import kotlin.math.floor
@@ -167,6 +168,7 @@ internal fun TvDialog(
     buttons: @Composable () -> Unit,
 ) {
     BackHandler(onBack = onDismiss)
+    OverlayShowing()
     val view = LocalView.current
     // Once the dialog's buttons are gone from the focus tree, after this frame.
     DisposableEffect(returnTo) { onDispose { returnTo?.let { r -> view.post { runCatching { r.requestFocus() } } } } }
