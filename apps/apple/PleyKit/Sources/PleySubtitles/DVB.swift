@@ -56,6 +56,7 @@ public final class DVBDecoder: PictureDecoder {
     private let samples: [[UInt8]]
     private var parsed: [[Segment]?]
     private var parsedCount = 0
+    private var parsedBytes = 0
     private var cache = FrameCache()
 
     public init(samples: [[UInt8]]) {
@@ -304,12 +305,14 @@ public final class DVBDecoder: PictureDecoder {
     private func segs(_ index: Int) -> [Segment] {
         if let s = parsed[index] { return s }
         let s = Self.segments(samples[index])
-        if parsedCount >= Pictures.maxParsed {
+        if parsedCount >= Pictures.maxParsed || parsedBytes + samples[index].count > Pictures.maxParsedBytes {
             parsed = Array(repeating: nil, count: parsed.count)
             parsedCount = 0
+            parsedBytes = 0
         }
         parsed[index] = s
         parsedCount += 1
+        parsedBytes += samples[index].count
         return s
     }
 
@@ -334,9 +337,11 @@ public final class DVBDecoder: PictureDecoder {
 
     private func render(_ index: Int) -> PictureFrame? {
         var from = index
-        while from > 0, index - from < Pictures.maxLookBack {
+        var walked = samples[index].count
+        while from > 0, index - from < Pictures.maxLookBack, walked < Pictures.maxLookBackBytes {
             if let page = page(from), page.state != 0 { break }
             from -= 1
+            walked += samples[from].count
         }
         var width = 720
         var height = 576

@@ -100,10 +100,17 @@ public enum Pictures {
     /// animated epoch (karaoke) a few hundred.
     static let maxLookBack = 512
 
+    /// The bytes of the samples a decode reads back, at most: real samples
+    /// are tens of KB, and parsing runs on the main actor.
+    static let maxLookBackBytes = 16 << 20
+
     /// Parsed samples kept for the next decodes, at most: more than one
-    /// look-back, which would otherwise parse again each time; a crafted
-    /// track's parsed samples would take many times its size.
+    /// look-back, which would otherwise parse again each time.
     static let maxParsed = 1_024
+
+    /// The bytes of the parsed samples kept, at most: a parsed sample holds
+    /// about its own size again.
+    static let maxParsedBytes = 64 << 20
 
     /// DVB object draws in one decode, at most: a page draws a few. Each
     /// walks the object's data, on the main actor.

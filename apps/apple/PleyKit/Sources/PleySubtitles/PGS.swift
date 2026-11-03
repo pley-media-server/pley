@@ -68,6 +68,7 @@ public final class PGSDecoder: PictureDecoder {
     private let samples: [[UInt8]]
     private var sets: [DisplaySet?]
     private var parsedCount = 0
+    private var parsedBytes = 0
     private var cache = FrameCache()
 
     public init(samples: [[UInt8]]) {
@@ -200,12 +201,14 @@ public final class PGSDecoder: PictureDecoder {
     private func set(_ index: Int) -> DisplaySet {
         if let s = sets[index] { return s }
         let s = Self.parseDisplaySet(samples[index])
-        if parsedCount >= Pictures.maxParsed {
+        if parsedCount >= Pictures.maxParsed || parsedBytes + samples[index].count > Pictures.maxParsedBytes {
             sets = Array(repeating: nil, count: sets.count)
             parsedCount = 0
+            parsedBytes = 0
         }
         sets[index] = s
         parsedCount += 1
+        parsedBytes += samples[index].count
         return s
     }
 
@@ -214,9 +217,11 @@ public final class PGSDecoder: PictureDecoder {
         if pcs.objects.isEmpty { return PictureFrame(planeWidth: pcs.width, planeHeight: pcs.height, bitmaps: []) }
         // Palettes and objects as they stand at `index`: from the last epoch start or acquisition point.
         var from = index
-        while from > 0, index - from < Pictures.maxLookBack {
+        var walked = samples[index].count
+        while from > 0, index - from < Pictures.maxLookBack, walked < Pictures.maxLookBackBytes {
             if (set(from).pcs?.state ?? 0) & 0xC0 != 0 { break }
             from -= 1
+            walked += samples[from].count
         }
         var palettes: [Int: [Int: PaletteEntry]] = [:]
         var objects: [Int: (width: Int, height: Int, rle: [UInt8])] = [:]
