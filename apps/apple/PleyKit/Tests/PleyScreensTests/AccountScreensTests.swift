@@ -366,6 +366,20 @@ private func searches(_ server: FixtureServer) -> [String] {
         await app.closePlayer()
     }
 
+    @Test func thePlayersSubtitleStyleIsKeptAndShowsInSettings() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let settings = freshSettings()
+        let app = try await signedIn(server, settings: settings)
+        let model = SettingsModel(app: app, offersCellular: false)
+        server.addPlayable(FixtureServer.Playable(itemId: 41, fileId: 410, title: "Two Audio", durationMs: 90_000))
+        let player = try #require(await app.play(PlayRequest(itemId: 41)))
+        player.setSubtitleStyle(.size, SubtitleSize.p125.rawValue)
+        #expect(settings.subtitles.size == .p125)
+        #expect(await eventually { model.subtitles.size == .p125 })
+        await app.closePlayer()
+    }
+
     @Test func alwaysStartAsIsPerServerAndOffersTheHousehold() async throws {
         let server = try await fixture()
         defer { server.stop() }

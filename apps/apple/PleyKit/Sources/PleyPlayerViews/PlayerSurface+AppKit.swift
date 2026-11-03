@@ -253,7 +253,8 @@ public final class ActionMenuSource: NSObject, NSMenuDelegate {
 /// The Mac's player menus, shared by the action menu and the menu bar's Playback menu.
 public enum PlayerMenus {
     /// Quality (the one playing checked), Audio (when there is a choice),
-    /// Subtitles and their sync (when the file has some), Chapters and Details.
+    /// Subtitles and their sync (when the file has some), their style
+    /// (while text subtitles show), Speed, Sleep Timer, Chapters and Details.
     @MainActor
     public static func actionMenu(_ state: PlayerState, controller: PlaybackController?,
                                   findSubtitles: (@MainActor () -> Void)? = nil) -> NSMenu {
@@ -296,6 +297,7 @@ public enum PlayerMenus {
             }
             menu.addItem(subtitles)
             if state.canSyncSubtitles { menu.addItem(syncMenu(state, controller: controller)) }
+            if let style = styleMenu(state, controller: controller) { menu.addItem(style) }
         }
         menu.addItem(speedMenu(state, controller: controller))
         menu.addItem(sleepMenu(state, controller: controller))
@@ -352,6 +354,25 @@ public enum PlayerMenus {
             },
             reset,
         ])
+    }
+
+    /// Subtitle Style: Size, Background, Font and Position, as in Settings,
+    /// the choices in use checked; `nil` unless text subtitles show.
+    @MainActor
+    public static func styleMenu(_ state: PlayerState, controller: PlaybackController?) -> NSMenuItem? {
+        let menus = state.subtitleStyleMenus
+        guard !menus.isEmpty else { return nil }
+        return submenu("Subtitle Style", menus.map { menu in
+            let item = submenu(menu.title, menu.choices.map { choice in
+                let item = ClosureMenuItem(title: choice.label) { [weak controller] in
+                    controller?.setSubtitleStyle(menu.kind, choice.id)
+                }
+                item.state = choice.selected ? .on : .off
+                return item
+            })
+            item.subtitle = menu.summary
+            return item
+        })
     }
 
     /// Speed, 0.5× to 2×, the one playing checked.

@@ -43,6 +43,8 @@ public struct PlaybackEnvironment {
     /// The downloads of this server and profile (iPhone, iPad and Mac): a
     /// title downloaded plays from this device; `nil` on Apple TV.
     public var local: (any LocalMedia)?
+    /// The subtitle style, which the player's Subtitle style menu changes.
+    public var subtitleStyle: any SubtitleStyleMemory
 
     public init(api: PleyAPI, caps: DeviceCaps, clientId: String, reporter: SessionReporter, late: LateReports?,
                 quality: any QualityMemory = MemoryQuality(), ceiling: any CeilingMemory = MemoryCeiling(),
@@ -51,9 +53,10 @@ public struct PlaybackEnvironment {
                 warmer: (any StreamWarmer)? = nil, networkTiming: NetworkStart.Timing = NetworkStart.Timing(),
                 subtitleOffsets: any SubtitleOffsets = MemorySubtitleOffsets(), profileId: Int? = nil,
                 pictureFolder: URL? = nil, autoplayNext: Bool = true, followsScreen: Bool = Self.screensChange,
-                local: (any LocalMedia)? = nil) {
+                local: (any LocalMedia)? = nil, subtitleStyle: any SubtitleStyleMemory = MemorySubtitleStyle()) {
         self.api = api
         self.local = local
+        self.subtitleStyle = subtitleStyle
         self.autoplayNext = autoplayNext
         self.followsScreen = followsScreen
         self.caps = caps
@@ -304,6 +307,7 @@ public final class PlaybackController: ObservableObject {
                                    timing: environment.networkTiming)
         self.network = network
         auto = AutoQuality(memory: environment.ceiling, onCeiling: { network.report($0) })
+        state.subtitleStyle = environment.subtitleStyle.subtitles
     }
 
     /// How many speed tests this playback ran (for the end-to-end check).
@@ -554,6 +558,16 @@ public final class PlaybackController: ObservableObject {
         speed = next
         state.speed = next
         engine?.setRate(Float(next))
+    }
+
+    /// The subtitle style's `kind` set to its choice `id`, kept for every
+    /// video (Settings' Subtitles shows it), and shown at once.
+    public func setSubtitleStyle(_ kind: SubtitleStyleMenu.Kind, _ id: String) {
+        guard let menu = SubtitleStyleMenu.all(state.subtitleStyle).first(where: { $0.kind == kind }) else { return }
+        let next = menu.choosing(id, in: state.subtitleStyle)
+        guard next != state.subtitleStyle else { return }
+        env.subtitleStyle.subtitles = next
+        state.subtitleStyle = next
     }
 
     /// The sleep timer: off, after some minutes, or at the end of this
@@ -1371,6 +1385,7 @@ public final class PlaybackController: ObservableObject {
         state.subtitleOffsetMs = 0
         state.canSyncSubtitles = false
         state.subtitlesBurnedIn = false
+        state.textSubtitles = false
         state.subtitle = nil
         state.canFindSubtitles = false
         // Speed is this title's: the next one plays at 1×.
@@ -1461,6 +1476,8 @@ public final class PlaybackController: ObservableObject {
         // Text moves always; pictures when drawn here, not burned into the video.
         let syncable = subtitle.map { !PlaybackPlan.isPicture($0) || info?.burnSubtitles != true } ?? false
         if state.canSyncSubtitles != syncable { state.canSyncSubtitles = syncable }
+        let text = subtitle.map { !PlaybackPlan.isPicture($0) } ?? false
+        if state.textSubtitles != text { state.textSubtitles = text }
     }
 
     /// Shows the subtitles chosen as the session plays them: text from the

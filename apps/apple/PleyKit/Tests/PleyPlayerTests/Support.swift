@@ -148,7 +148,8 @@ struct Rig {
     init(server: FixtureServer, request: PlayRequest, quality: any QualityMemory = MemoryQuality(),
          ceiling: any CeilingMemory = MemoryCeiling(), warmer: (any StreamWarmer)? = nil,
          offsets: any SubtitleOffsets = MemorySubtitleOffsets(), autoplayNext: Bool = true,
-         caps: DeviceCaps? = nil, followsScreen: Bool = false, local: (any LocalMedia)? = nil) throws {
+         caps: DeviceCaps? = nil, followsScreen: Bool = false, local: (any LocalMedia)? = nil,
+         subtitleStyle: any SubtitleStyleMemory = MemorySubtitleStyle()) throws {
         self.server = server
         folder = FileManager.default.temporaryDirectory.appendingPathComponent("pley-late-\(UUID().uuidString)")
         late = LateReports(origin: server.origin, profileId: 2, directory: folder, clock: clock)
@@ -158,7 +159,8 @@ struct Rig {
                                       late: late, quality: quality, ceiling: ceiling, clock: clock,
                                       engines: { engine }, warmer: warmer, subtitleOffsets: offsets, profileId: 2,
                                       pictureFolder: folder.appendingPathComponent("pictures"),
-                                      autoplayNext: autoplayNext, followsScreen: followsScreen, local: local)
+                                      autoplayNext: autoplayNext, followsScreen: followsScreen, local: local,
+                                      subtitleStyle: subtitleStyle)
         controller = PlaybackController(request: request, environment: env)
     }
 

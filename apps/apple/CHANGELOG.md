@@ -53,8 +53,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   next episode, chapters, and an audio track choice the server remembers
   for the whole show.
 - Subtitles, text and picture (PGS, VobSub, DVB) alike, drawn over the
-  video in your caption style, with a sync control; picture subtitles
-  never force a conversion. Find Subtitles… in the player searches online
+  video in your caption style, with a sync control, and text subtitles'
+  style in the player's menu too; picture subtitles never force a
+  conversion. Find Subtitles… in the player searches online
   through your server and adds the subtitles you choose, which show at
   once.
 - Playback speed from 0.5× to 2×, and a sleep timer for videos with Keep

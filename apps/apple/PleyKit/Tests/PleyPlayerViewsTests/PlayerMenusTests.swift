@@ -1,6 +1,7 @@
 // The menus are UIKit's: these run on the iOS and tvOS simulators
 // (`xcodebuild test -scheme PleyKit-Package`), and are empty on the Mac.
 #if os(iOS) || os(tvOS)
+import PleyData
 import PleyPlayer
 @testable import PleyPlayerViews
 import Testing
@@ -92,6 +93,26 @@ import UIKit
         #expect(PlayerMenus.findSubtitles(state, PlayerMenus.Actions()) == nil)
     }
 
+    @Test func theStyleIsInSubtitlesWhileTextSubtitlesShow() throws {
+        var state = PlayerState()
+        state.subtitles = [MenuChoice(id: MenuChoice.off, label: "Off"), MenuChoice(id: "2", label: "English",
+                                                                                     selected: true)]
+        state.subtitleStyle = SubtitleOverrides(size: .p125)
+        let actions = PlayerMenus.Actions()
+        // Pictures, or Off: no style.
+        #expect(PlayerMenus.subtitleStyle(state, actions) == nil)
+        state.textSubtitles = true
+        let style = try #require(PlayerMenus.subtitleStyle(state, actions))
+        #expect((PlayerMenus.subtitles(state, actions).children.last as? UIMenu)?.title == "Subtitle style")
+        let menus = style.children.compactMap { $0 as? UIMenu }
+        #expect(menus.map(\.title) == ["Size", "Background", "Font", "Position"])
+        #expect(menus.map(\.subtitle) == ["125 %", "System", "System", "Bottom"])
+        let sizes = try #require(menus.first?.children as? [UIAction])
+        #expect(sizes.filter { $0.image != nil }.map(\.title) == ["125 %"])
+        let position = try #require(menus.last?.children as? [UIAction])
+        #expect(position.map(\.title) == ["Bottom", "Raised 5 %", "Raised 10 %", "Raised 15 %"])
+    }
+
     #if os(iOS)
     @Test func theOptionsMenuHoldsEverySection() {
         var state = PlayerState()
@@ -102,6 +123,11 @@ import UIKit
         let menu = PlayerMenus.options(state, PlayerMenus.Actions())
         let titles = menu.children.compactMap { ($0 as? UIMenu)?.title }
         #expect(titles == ["Quality", "Audio", "Subtitles", "Speed", "Sleep Timer", "Chapters", "Details"])
+        // Text subtitles add their style after them.
+        state.textSubtitles = true
+        let styled = PlayerMenus.options(state, PlayerMenus.Actions()).children.compactMap { ($0 as? UIMenu)?.title }
+        #expect(styled == ["Quality", "Audio", "Subtitles", "Subtitle style", "Speed", "Sleep Timer", "Chapters",
+                           "Details"])
         let quality = menu.children.first as? UIMenu
         #expect(quality?.options.contains(.displayInline) == true)
         #expect((quality?.children as? [UIAction])?.allSatisfy { $0.subtitle != nil && $0.state == .off } == true)

@@ -324,6 +324,18 @@ struct PlaybackCommands: Commands {
                     .disabled(player?.state.subtitleOffsetMs == 0)
             }
             .disabled(!(player?.state.canSyncSubtitles ?? false))
+            Menu("Subtitle Style") {
+                ForEach(player?.state.subtitleStyleMenus ?? []) { menu in
+                    Menu(menu.summary.map { "\(menu.title) (\($0))" } ?? menu.title) {
+                        ForEach(menu.choices) { choice in
+                            Toggle(choice.label, isOn: Binding(get: { choice.selected }, set: { _ in
+                                player?.setSubtitleStyle(menu.kind, choice.id)
+                            }))
+                        }
+                    }
+                }
+            }
+            .disabled(player?.state.subtitleStyleMenus.isEmpty ?? true)
             Menu("Speed (\(player?.state.speedLabel ?? "1×"))") {
                 ForEach(player?.state.speeds ?? []) { choice in
                     Toggle(choice.label, isOn: Binding(get: { choice.selected }, set: { _ in
