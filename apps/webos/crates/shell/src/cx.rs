@@ -151,6 +151,13 @@ impl<'a> AppCx<'a> {
         crate::players::local_player_env(self.state, file, root)
     }
 
+    /// The report queue every player shares. A page that shows where videos stopped on the TV
+    /// waits for it on a task thread ([`pley_player::Reporter::flush`]), so a player just closed
+    /// has kept its last position.
+    pub fn reporter(&mut self) -> pley_player::Reporter {
+        self.state.players_mut().reporter()
+    }
+
     /// This TV's id for playbacks and Live TV (`webos-…`).
     pub fn install_id(&self) -> &str {
         self.state.install_id()

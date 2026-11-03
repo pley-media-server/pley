@@ -18,7 +18,9 @@
 //! - Live TV with a guide, keyed live HLS, sessions, plans and a connection
 //!   limit that answers `409`;
 //! - server events (SSE) and pictures it draws itself (JPEG, PNG with
-//!   transparency for channel logos).
+//!   transparency for channel logos);
+//! - and, apart from the server, a pretend USB drive of videos that are heads
+//!   only, for the simulator's `--drive fixtures` ([`write_sample_drive`]).
 //!
 //! ```no_run
 //! let server = pley_fixtures::FixtureServer::start();
@@ -29,6 +31,7 @@
 
 mod browse;
 mod catalog;
+mod drive;
 mod events;
 mod extra;
 mod household;
@@ -59,6 +62,7 @@ use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+pub use drive::write_sample_drive;
 pub use events::ServerEvent;
 pub use requests::titles as request_titles;
 

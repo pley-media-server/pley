@@ -26,3 +26,7 @@ pley-player = { path = "../player" }
 pley-fixtures = { path = "../fixtures", optional = true }
 pley-webos = { path = "../webos", optional = true }
 log = { version = "0.4.29", features = ["std"] }
+
+[target.'cfg(unix)'.dependencies]
+# statvfs for how full the simulator's drive is, with the values of the platform's own headers.
+libc = "0.2.191"

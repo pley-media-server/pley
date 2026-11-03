@@ -14,6 +14,7 @@
 mod listing;
 
 use std::path::PathBuf;
+use std::time::Duration;
 
 use pley_base::{Point, Rect, TextOpts};
 use pley_core::Promise;
@@ -35,6 +36,8 @@ const WIDTH: f32 = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
 /// A message's place under the list's top: under the ".." line when there is one.
 const MESSAGE_BELOW_UP: f32 = pley_kit::track::ICON_LINE_MIN + 24.0;
 const MESSAGE_ALONE: f32 = 40.0;
+/// How long a reading waits for a player just closed to keep where its video stopped.
+const REPORTS_WAIT: Duration = Duration::from_secs(2);
 
 /// The screen of `route` when it is one of this crate's pages: a folder of the drive.
 pub fn screen(route: &Route, _cx: &mut AppCx) -> Option<Box<dyn Screen>> {
@@ -85,12 +88,16 @@ impl StorageScreen {
         self.listing.as_ref().is_some_and(|l| !l.lines.is_empty())
     }
 
-    /// Reads the folder again on the task pool.
+    /// Reads the folder again on the task pool, once the players' last reports are kept.
     fn read(&mut self, cx: &mut AppCx) {
         let device = cx.device().clone();
         let store = cx.store().clone();
+        let reports = cx.reporter();
         let path = self.path.clone();
-        self.reading = Some(cx.tasks().spawn(move || list(device.as_ref(), &store, path.as_deref())));
+        self.reading = Some(cx.tasks().spawn(move || {
+            reports.flush(REPORTS_WAIT);
+            list(device.as_ref(), &store, path.as_deref())
+        }));
     }
 
     /// Takes the reading once it is in: the lines change in place, focus staying on the line it

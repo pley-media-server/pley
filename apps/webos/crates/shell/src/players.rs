@@ -91,6 +91,11 @@ impl Players {
         }
     }
 
+    /// The report queue, for what reads the reports back.
+    pub(crate) fn reporter(&self) -> Reporter {
+        self.reporter.clone()
+    }
+
     /// Waits up to `timeout` for the reports queued so far to go out (on leaving the app).
     pub(crate) fn flush(&self, timeout: std::time::Duration) -> bool {
         self.reporter.flush(timeout)

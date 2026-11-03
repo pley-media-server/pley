@@ -1217,6 +1217,7 @@ dependencies = [
 name = "pley-host"
 version = "0.0.0"
 dependencies = [
+ "libc",
  "log",
  "pley-base",
  "pley-core",
@@ -1298,6 +1299,7 @@ version = "0.0.0"
 dependencies = [
  "flate2",
  "pley-core",
+ "pley-fixtures",
  "pley-player",
  "pley-subs",
 ]

@@ -206,14 +206,14 @@ fn cluster(time_ms: i64, block: &[u8]) -> Vec<u8> {
     element(0x1F43B675, &payload)
 }
 
-fn element(id: u32, payload: &[u8]) -> Vec<u8> {
+pub(crate) fn element(id: u32, payload: &[u8]) -> Vec<u8> {
     let mut out = ebml_id(id);
     out.extend(ebml_size(payload.len() as u64));
     out.extend_from_slice(payload);
     out
 }
 
-fn uint(id: u32, value: u64) -> Vec<u8> {
+pub(crate) fn uint(id: u32, value: u64) -> Vec<u8> {
     let mut bytes = 1;
     while bytes < 8 && value >> (8 * bytes) != 0 {
         bytes += 1;
@@ -222,11 +222,11 @@ fn uint(id: u32, value: u64) -> Vec<u8> {
     element(id, &data)
 }
 
-fn float(id: u32, value: f64) -> Vec<u8> {
+pub(crate) fn float(id: u32, value: f64) -> Vec<u8> {
     element(id, &value.to_bits().to_be_bytes())
 }
 
-fn string(id: u32, value: &str) -> Vec<u8> {
+pub(crate) fn string(id: u32, value: &str) -> Vec<u8> {
     element(id, value.as_bytes())
 }
 

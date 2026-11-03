@@ -175,7 +175,8 @@ fn first_pages(state: &AppState, asked: Option<&str>) -> Result<(Route, Option<R
     Ok(if route.is_rail_page() || start != Route::Home { (route, None) } else { (start, Some(route)) })
 }
 
-/// Runs `app` on `platform` until it is left or closed.
+/// Runs `app` on `platform` until it is left or closed. `plug` plugs the drive in or pulls it out
+/// for the script's `drive:in` and `drive:out` (the simulator's drive; nothing on the TV).
 #[allow(clippy::too_many_arguments)]
 pub fn run(
     app: &App,
@@ -186,6 +187,7 @@ pub fn run(
     args: &Args,
     started: f64,
     left: Arc<AtomicBool>,
+    plug: &dyn Fn(bool),
 ) -> Result<(), String> {
     let waker = platform.waker();
     let tier = args.tier.unwrap_or_else(|| device.tier());
@@ -281,6 +283,10 @@ pub fn run(
         }
         if let Some(s) = script.as_mut() {
             input.extend(s.take(now));
+            if let Some(on) = s.take_drive() {
+                log::info!("the drive is {}", if on { "plugged in" } else { "pulled out" });
+                plug(on);
+            }
             if s.done() && script_done_at.is_none() {
                 script_done_at = Some(now);
             }

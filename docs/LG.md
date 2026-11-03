@@ -448,9 +448,10 @@ but keeps time, seeks, changes speed, waits and ends as the TV's does.
 | `--server <url>` | Use this Pley server |
 | `--fixtures` | Start the fake server (`crates/fixtures`) and sign in to it with a code, as a TV does |
 | `--data <dir>` | Keep the app's data here (by default `pley-lg-sim` in the temporary folder, or a new folder each run with `--fixtures`); the log is `logs/pley.log` in it |
+| `--drive <dir>` | A folder of the computer's stands in for a USB drive plugged into the TV; `--drive fixtures` makes a sample drive in the data folder (`crates/fixtures`: films that are heads only, with tracks, chapters, HDR10+, Dolby Vision profile 7, a subtitle file, a folder and what a drive holds that is never listed) |
 | `--size <w>x<h>` | The window's size (1280x720; `1920x1080` for the TV's) |
-| `--route <route>` | Open a page: `home`, `item:12`, `library:3`, `search:<query>`, `settings:about`… |
-| `--keys "<script>"` | Keys to press once the first page shows: `up down left right ok back menu info play pause playpause stop ff rew next prev chup chdown red green yellow blue`, digits, `hold:<key>:<ms>` (held, repeating as the remote does), `wait:<ms>`, `text:<chars>`, `point:<x>,<y>` (dp), `click` |
+| `--route <route>` | Open a page: `home`, `item:12`, `library:3`, `search:<query>`, `settings:about`, `storage` (the drive's top) or `storage:<folder>`… |
+| `--keys "<script>"` | Keys to press once the first page shows: `up down left right ok back menu info play pause playpause stop ff rew next prev chup chdown red green yellow blue`, digits, `hold:<key>:<ms>` (held, repeating as the remote does), `wait:<ms>`, `text:<chars>`, `point:<x>,<y>` (dp), `click`, and `drive:out` and `drive:in` (the drive pulled out and plugged in again) |
 | `--screenshot <file>` | After the keys, write the frame as PNG and leave |
 | `--tier low\|mid\|high` | Act as a TV of that tier |
 | `--reduced-motion` | As Settings' Reduce motion |

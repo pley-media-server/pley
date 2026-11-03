@@ -13,3 +13,7 @@ pley-player = { path = "../player" }
 pley-subs = { path = "../subs" }
 # Subtitle blocks a muxer compressed with zlib; already here for pley-core, and pure Rust.
 flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
+
+[dev-dependencies]
+# The simulator's sample drive, read as the TV reads a drive.
+pley-fixtures = { path = "../fixtures" }

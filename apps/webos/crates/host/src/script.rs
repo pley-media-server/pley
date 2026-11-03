@@ -1,5 +1,6 @@
 //! The simulator's `--keys` script: keys, waits, typed text and the pointer, played once the
-//! first page shows, as a person with a remote would.
+//! first page shows, as a person with a remote would; and the USB drive pulled out and plugged
+//! in again.
 
 use pley_base::{Key, KeyEvent, Point, PointerEvent};
 use pley_ui::InputEvent;
@@ -26,6 +27,8 @@ pub enum Step {
     Point(Point),
     /// Clicks where the pointer is.
     Click,
+    /// Plugs the drive in (`drive:in`) or pulls it out (`drive:out`).
+    Drive(bool),
 }
 
 /// The key named `name` (`ok`, `back`, `chup`, `7`…).
@@ -90,6 +93,13 @@ pub fn parse(script: &str) -> Result<Vec<Step>, String> {
             if w == "click" {
                 return Ok(Step::Click);
             }
+            if let Some(how) = w.strip_prefix("drive:") {
+                return match how {
+                    "in" => Ok(Step::Drive(true)),
+                    "out" => Ok(Step::Drive(false)),
+                    _ => Err(format!("bad drive: {w} (drive:in or drive:out)")),
+                };
+            }
             key(&w.to_ascii_lowercase()).map(Step::Key).ok_or_else(|| format!("unknown key: {w}"))
         })
         .collect()
@@ -106,12 +116,14 @@ pub struct Player {
     held: Option<Key>,
     /// A key held down and repeating, released at the time given.
     repeating: Option<(Key, f64)>,
+    /// The drive plugged in (`true`) or pulled out, not yet done.
+    drive: Option<bool>,
 }
 
 impl Player {
     /// Plays `steps` from `start`.
     pub fn new(steps: Vec<Step>, start: f64) -> Player {
-        Player { steps, next: 0, at: start, held: None, repeating: None }
+        Player { steps, next: 0, at: start, held: None, repeating: None, drive: None }
     }
 
     /// Starts playing at `t` (when it hasn't started yet).
@@ -124,6 +136,11 @@ impl Player {
     /// Whether every step was played.
     pub fn done(&self) -> bool {
         self.held.is_none() && self.repeating.is_none() && self.next >= self.steps.len()
+    }
+
+    /// The drive plugged in (`Some(true)`) or pulled out since this was last asked.
+    pub fn take_drive(&mut self) -> Option<bool> {
+        self.drive.take()
     }
 
     /// When it next has something to do.
@@ -185,6 +202,11 @@ impl Player {
                     self.at = now + GAP;
                     break;
                 }
+                Step::Drive(on) => {
+                    self.drive = Some(on);
+                    self.at = now + GAP;
+                    break;
+                }
             }
         }
         out
@@ -217,6 +239,18 @@ mod tests {
         assert_eq!(parse("hold:down:2000").unwrap(), [Step::Hold(Key::Down, 2.0)]);
         assert!(parse("hold:down").is_err());
         assert!(parse("hold:jump:100").is_err());
+        assert_eq!(parse("drive:out drive:in").unwrap(), [Step::Drive(false), Step::Drive(true)]);
+        assert!(parse("drive:sideways").is_err());
+    }
+
+    #[test]
+    fn the_drive_comes_and_goes_between_keys() {
+        let mut p = Player::new(parse("drive:out down").unwrap(), 0.0);
+        assert!(p.take(0.0).is_empty());
+        assert_eq!(p.take_drive(), Some(false));
+        assert_eq!(p.take_drive(), None);
+        assert!(p.take(0.01).is_empty());
+        assert!(matches!(p.take(GAP)[..], [InputEvent::Key(KeyEvent { key: Key::Down, pressed: true, .. })]));
     }
 
     #[test]

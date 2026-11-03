@@ -1,15 +1,18 @@
 //! The simulator's TV and the fake server: a [`Device`] over pley-core's fake TV that leaves the
-//! window when the app leaves, and `--fixtures`' sign-in through the device code, as a TV does.
+//! window when the app leaves, with a folder for a USB drive (`--drive`), and `--fixtures`'
+//! sign-in through the device code, as a TV does.
 
 use std::net::Ipv4Addr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 
 use pley_base::{Tier, Waker};
 use pley_core::auth::{DeviceSignIn, LinkEnd, LinkState, Tokens};
-use pley_core::{Api, Cancel, CapsOverrides, CapsReport, Device, DeviceEvent, DeviceInfo, FakeDevice, Http};
+use pley_core::{
+    Api, Cancel, CapsOverrides, CapsReport, Device, DeviceEvent, DeviceInfo, Drive, DriveSpace, FakeDevice, Http,
+};
 use pley_core::{PlayerEngine, Store};
 use pley_fixtures::{FixtureServer, Options};
 use pley_player::{SimClock, SimEngine};
@@ -22,6 +25,8 @@ pub struct SimDevice {
     tier: Tier,
     left: Arc<AtomicBool>,
     waker: Mutex<Option<Waker>>,
+    /// The folder that stands in for a USB drive (`--drive`).
+    drive: Mutex<Option<PathBuf>>,
 }
 
 impl SimDevice {
@@ -32,12 +37,36 @@ impl SimDevice {
         let inner =
             FakeDevice::in_dir(root, || Box::new(SimEngine::new(SimClock::system()).0) as Box<dyn PlayerEngine>);
         let tier = tier.unwrap_or_else(|| inner.tier());
-        SimDevice { inner, version, tier, left: Arc::new(AtomicBool::new(false)), waker: Mutex::new(None) }
+        SimDevice {
+            inner,
+            version,
+            tier,
+            left: Arc::new(AtomicBool::new(false)),
+            waker: Mutex::new(None),
+            drive: Mutex::new(None),
+        }
     }
 
     /// Wakes `waker` when the app leaves.
     pub fn set_waker(&self, waker: Waker) {
         *self.waker.lock().unwrap_or_else(|e| e.into_inner()) = Some(waker);
+    }
+
+    /// Makes `dir` the USB drive, plugged in.
+    pub fn set_drive_folder(&self, dir: PathBuf) {
+        *self.drive.lock().unwrap_or_else(|e| e.into_inner()) = Some(dir);
+        self.plug(true);
+    }
+
+    /// Plugs the drive in or pulls it out (the script's `drive:in` and `drive:out`); nothing
+    /// without `--drive`.
+    pub fn plug(&self, on: bool) {
+        let dir = self.drive.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let Some(root) = dir else { return };
+        self.inner.set_drive(on.then_some(Drive { root, hidden: false }));
+        if let Some(w) = self.waker.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
+            w.wake();
+        }
     }
 
     /// Set once the app leaves.
@@ -101,6 +130,39 @@ impl Device for SimDevice {
     fn subscribe(&self, tx: Sender<DeviceEvent>) {
         self.inner.subscribe(tx)
     }
+
+    fn drive(&self) -> Option<Drive> {
+        self.inner.drive()
+    }
+
+    /// The folder's file system's, as the TV says of a drive (none on Windows: the caption stays
+    /// empty).
+    fn drive_space(&self, root: &Path) -> Option<DriveSpace> {
+        self.drive().filter(|d| d.root == root)?;
+        space(root)
+    }
+}
+
+#[cfg(unix)]
+fn space(dir: &Path) -> Option<DriveSpace> {
+    use std::os::unix::ffi::OsStrExt;
+    let path = std::ffi::CString::new(dir.as_os_str().as_bytes()).ok()?;
+    // SAFETY: a zeroed statvfs is a valid output buffer for statvfs(3).
+    let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
+    // SAFETY: a NUL-terminated path and a valid buffer.
+    if unsafe { libc::statvfs(path.as_ptr(), &mut stat) } != 0 {
+        return None;
+    }
+    let unit = stat.f_frsize as u64;
+    Some(DriveSpace {
+        free: (stat.f_bavail as u64).saturating_mul(unit),
+        total: (stat.f_blocks as u64).saturating_mul(unit),
+    })
+}
+
+#[cfg(not(unix))]
+fn space(_dir: &Path) -> Option<DriveSpace> {
+    None
 }
 
 /// Starts the fake server and signs in to it as a TV does: a device code, approved at once by the

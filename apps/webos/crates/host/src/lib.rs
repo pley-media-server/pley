@@ -67,7 +67,7 @@ mod desktop {
     use pley_platform::desktop::{DesktopOptions, DesktopPlatform};
 
     use crate::App;
-    use crate::args::Args;
+    use crate::args::{Args, DriveArg};
     use crate::sim::{SimDevice, sign_in_to_fixtures};
     use crate::{logger, run};
 
@@ -81,7 +81,21 @@ mod desktop {
         };
         logger::init(Some(&root.join("logs")), args.verbose);
         log::info!("Pley for LG TV {} (simulator), data in {}", app.version, root.display());
+        let drive = match &args.drive {
+            Some(DriveArg::Folder(dir)) if dir.is_dir() => Some(dir.clone()),
+            Some(DriveArg::Folder(dir)) => return Err(format!("--drive: {} isn't a folder", dir.display())),
+            Some(DriveArg::Fixtures) => {
+                let dir = root.join("drive");
+                pley_fixtures::write_sample_drive(&dir).map_err(|e| format!("the sample drive wasn't made: {e}"))?;
+                Some(dir)
+            }
+            None => None,
+        };
         let device = Arc::new(SimDevice::new(root, args.tier, app.version));
+        if let Some(dir) = drive {
+            log::info!("the drive is {}", dir.display());
+            device.set_drive_folder(dir);
+        }
         let info = device.info();
         let store = open_store(device.data_dir().join("store"), info.data_durable)?;
         let http = Http::network(&info.user_agent);
@@ -96,7 +110,8 @@ mod desktop {
         log::debug!("window open");
         device.set_waker(platform.waker());
         let left = device.left();
-        run::run(app, platform, device, store, http, args, started, left)
+        let plugged = device.clone();
+        run::run(app, platform, device, store, http, args, started, left, &move |on| plugged.plug(on))
     }
 
     fn open_store(dir: PathBuf, durable: bool) -> Result<Store, String> {

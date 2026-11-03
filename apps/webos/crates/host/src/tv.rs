@@ -32,5 +32,5 @@ pub fn main(app: &App, args: &Args, started: f64) -> Result<(), String> {
         .map_err(|e| format!("the data folder can't be used: {e}"))?;
     let http = Http::network(&info.user_agent);
     // The TV leaves the app itself (Back on the first page asks it to); the loop ends on SDL's quit.
-    run::run(app, platform, device, store, http, args, started, Arc::new(AtomicBool::new(false)))
+    run::run(app, platform, device, store, http, args, started, Arc::new(AtomicBool::new(false)), &|_| {})
 }

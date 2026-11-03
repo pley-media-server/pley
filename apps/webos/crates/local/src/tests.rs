@@ -747,6 +747,46 @@ fn a_tracks_blocks_go_to_the_reader_without_a_copy_kept_while_reading() {
 }
 
 #[test]
+fn the_simulators_sample_drive_reads_as_its_files_say() {
+    let dir = scratch_dir("local-sample-drive");
+    pley_fixtures::write_sample_drive(&dir).unwrap();
+    let names: Vec<_> = folder::list(&dir).unwrap().into_iter().map(|e| e.name).collect();
+    assert_eq!(names, ["Season 1", "Alita HDR10+.mkv", "Dolby Vision P7.mkv", "Mad Max.mkv", "Toy Story.mp4"]);
+    let episodes: Vec<_> = folder::list(&dir.join("Season 1")).unwrap().into_iter().map(|e| e.name).collect();
+    assert_eq!(episodes, ["Episode 1.mkv", "Episode 2.mkv", "Episode 10.mkv"]);
+
+    let file = FileReader::open(&dir.join("Mad Max.mkv")).unwrap();
+    let facts = crate::facts(&file).expect("Mad Max's head");
+    assert_eq!(facts.duration_ms, Some(7_380_000));
+    let kinds: Vec<_> = facts.streams.iter().map(|s| (s.kind, s.codec.as_str())).collect();
+    assert_eq!(
+        kinds,
+        [
+            (StreamKind::Video, "hevc"),
+            (StreamKind::Audio, "truehd"),
+            (StreamKind::Audio, "ac3"),
+            (StreamKind::Audio, "aac"),
+            (StreamKind::Subtitle, "subrip"),
+        ]
+    );
+    assert_eq!(facts.streams[0].hdr10plus, Some(true));
+    assert_eq!(facts.chapters.len(), 2);
+    let text = facts.tracks.iter().find(|t| t.codec_id == "S_TEXT/UTF8").unwrap();
+    let blocks = cues::read_all(&file, &facts, text, &AtomicBool::new(false));
+    let words: Vec<_> = blocks.iter().map(|b| (b.start_ms, String::from_utf8_lossy(&b.data).into_owned())).collect();
+    assert_eq!(words, [(1_500, "Witness me!".to_string()), (601_000, "Oh, what a day!".to_string())]);
+    assert_eq!(folder::sidecars_beside(&dir.join("Mad Max.mkv")).len(), 1);
+
+    let p7 = crate::facts(&FileReader::open(&dir.join("Dolby Vision P7.mkv")).unwrap()).unwrap();
+    assert_eq!((p7.streams[0].dv_profile, p7.streams[0].dv_bl_compat), (Some(7), Some(6)));
+    let alita = crate::facts(&FileReader::open(&dir.join("Alita HDR10+.mkv")).unwrap()).unwrap();
+    assert_eq!(alita.streams[0].hdr10plus, Some(true));
+    let toy = crate::facts(&FileReader::open(&dir.join("Toy Story.mp4")).unwrap()).unwrap();
+    assert_eq!((toy.duration_ms, toy.chapters.len()), (Some(4_860_000), 2));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn a_files_address_names_each_part_encoded() {
     let path = Path::new("/tmp/usb/sda/sda1/Films #1/Amélie (2001).mkv");
     assert_eq!(LocalServer::file_url(path), "file:///tmp/usb/sda/sda1/Films%20%231/Am%C3%A9lie%20(2001).mkv");

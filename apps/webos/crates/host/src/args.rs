@@ -5,6 +5,15 @@ use std::path::PathBuf;
 
 use pley_base::Tier;
 
+/// What stands in for a USB drive plugged into the TV (`--drive`).
+#[derive(Clone, Debug, PartialEq)]
+pub enum DriveArg {
+    /// A folder of the computer's.
+    Folder(PathBuf),
+    /// The sample drive pley-fixtures makes in the data folder.
+    Fixtures,
+}
+
 /// What the command line asked for.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Args {
@@ -14,6 +23,8 @@ pub struct Args {
     pub fixtures: bool,
     /// `--data <dir>`: where the app keeps its data (a folder under the temporary folder by default).
     pub data: Option<PathBuf>,
+    /// `--drive <dir>|fixtures`: a USB drive plugged into the TV.
+    pub drive: Option<DriveArg>,
     /// `--size 1920x1080`: the window's size in pixels (1280×720 by default).
     pub size: Option<(u32, u32)>,
     /// `--keys "<script>"`: keys and waits to play once the first page shows.
@@ -39,13 +50,16 @@ pley: Pley for LG TV (the simulator on a computer)
   --server <url>         use this Pley server
   --fixtures             start the fake server and sign in to it
   --data <dir>           keep the app's data here
+  --drive <dir>          a folder stands in for a USB drive plugged into the TV; `fixtures`
+                         makes a sample one in the data folder
   --size <w>x<h>         the window's size (1280x720)
   --keys \"<script>\"      keys to press once the first page shows: up down left right ok back menu
                          info play pause playpause stop ff rew next prev chup chdown red green
                          yellow blue 0-9, hold:<key>:<ms>, wait:<ms>, text:<chars>,
-                         point:<x>,<y> (dp), click
+                         point:<x>,<y> (dp), click, drive:out, drive:in
   --screenshot <file>    after the keys, write the frame as PNG and leave
-  --route <route>        open a page: home, item:12, library:3, search:<query>, settings:about…
+  --route <route>        open a page: home, item:12, library:3, search:<query>, settings:about,
+                         storage[:<folder>]…
   --reduced-motion       as Settings' Reduce motion
   --tier low|mid|high    act as a TV of that tier
   --stats                print the time to the first frame and the frame times on leaving
@@ -66,6 +80,12 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Args>, Str
             "--server" => out.server = Some(value("--server")?),
             "--fixtures" => out.fixtures = true,
             "--data" => out.data = Some(PathBuf::from(value("--data")?)),
+            "--drive" => {
+                out.drive = Some(match value("--drive")?.as_str() {
+                    "fixtures" => DriveArg::Fixtures,
+                    dir => DriveArg::Folder(PathBuf::from(dir)),
+                })
+            }
             "--size" => out.size = Some(size(&value("--size")?)?),
             "--keys" => out.keys = Some(value("--keys")?),
             "--screenshot" => out.screenshot = Some(PathBuf::from(value("--screenshot")?)),
@@ -124,6 +144,8 @@ mod tests {
             "item:12",
             "--reduced-motion",
             "--stats",
+            "--drive",
+            "fixtures",
         ])
         .unwrap()
         .unwrap();
@@ -133,6 +155,9 @@ mod tests {
         assert_eq!(a.screenshot, Some(PathBuf::from("shot.png")));
         assert_eq!(a.tier, Some(Tier::Low));
         assert_eq!(a.route.as_deref(), Some("item:12"));
+        assert_eq!(a.drive, Some(DriveArg::Fixtures));
+        let folder = parse_all(&["--drive", "D:/Films"]).unwrap().unwrap();
+        assert_eq!(folder.drive, Some(DriveArg::Folder(PathBuf::from("D:/Films"))));
     }
 
     #[test]
@@ -140,6 +165,7 @@ mod tests {
         assert!(parse_all(&["--size", "big"]).is_err());
         assert!(parse_all(&["--tier", "ultra"]).is_err());
         assert!(parse_all(&["--server"]).is_err());
+        assert!(parse_all(&["--drive"]).is_err());
         assert!(parse_all(&["--nope"]).is_err());
         assert_eq!(parse_all(&["--help"]), Ok(None));
         // webOS's launch parameters are not options.
