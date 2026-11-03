@@ -19,6 +19,13 @@ import PleyNetwork
 /// lasts, and is otherwise asked for again from the partial file's length.
 /// A lost network or server makes the download wait; an error the server
 /// gives fails it until it is tried again.
+///
+/// A piece carries the token, so it goes only once the server has proved
+/// itself (docs/API.md, "Telling servers apart"), and so does a piece that
+/// goes on from its resume data. Another network, or the app starting again
+/// with a piece in flight, stops the piece where it is until the server
+/// proves itself again: the system would otherwise carry the request on
+/// over whatever network comes next.
 @MainActor
 final class DownloadRunner {
     struct Timing: Sendable {
@@ -55,7 +62,7 @@ final class DownloadRunner {
     private var shownAt: [String: Date] = [:]
 
     init(store: DownloadStore, transfer: any TransferSession, gate: NetworkGate, settings: AppSettings,
-         timing: Timing = Timing(), clock: @escaping () -> Date = { Date() }) {
+         timing: Timing = Timing(), clock: @escaping () -> Date = { Date() }, networks: NetworkChanges = .shared) {
         self.store = store
         self.transfer = transfer
         self.gate = gate
@@ -68,6 +75,10 @@ final class DownloadRunner {
         }
         gate.onChange { [weak self] in
             Task { @MainActor in self?.pump() }
+        }
+        // Called on whichever queue saw the change: the runner hears of it on the main actor.
+        networks.onChange { @Sendable [weak self] in
+            Task { @MainActor in self?.networkChanged() }
         }
     }
 
@@ -84,8 +95,17 @@ final class DownloadRunner {
         store.settle(running: running)
         if let carried = store.all.first(where: { running.contains($0.key) && $0.state == .downloading }) {
             active = carried.key
+            // The network may have changed while the app wasn't running.
+            transfer.suspend(key: carried.key)
         }
         pump()
+    }
+
+    /// The device may be on another network: the piece in flight stops
+    /// until the server proves itself there.
+    private func networkChanged() {
+        guard let key = active, let r = store.get(key), r.state == .downloading, r.piece != nil else { return }
+        transfer.suspend(key: key)
     }
 
     // MARK: The queue
@@ -415,6 +435,16 @@ final class DownloadRunner {
             let mobile = settings.downloadOnMobileData
             if let data = f.resumeData, DownloadPlanner.resumes(tokenExpires: piece.tokenExpires, now: clock()),
                gate.allows(mobile: mobile) {
+                // The resumed request carries the token it began with: only to a server proved on this network.
+                guard let scope, r.belongs(to: (scope.origin, scope.profileId)), let tokens = scope.tokens else {
+                    return lost(key)
+                }
+                do {
+                    try await tokens.proveServer()
+                } catch {
+                    return failed(key, error)
+                }
+                guard active == key, store.get(key)?.piece != nil else { return }
                 transfer.resume(data, key: key)
                 return
             }

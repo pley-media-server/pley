@@ -276,7 +276,8 @@ struct DownloadButton: View {
     }
 }
 
-/// "Showing what Pley had saved. Reconnecting…", above the signed-in app
+/// "Showing what Pley had saved. Reconnecting…" (after "Another device
+/// answers there." when that is why), above the signed-in app
 /// while the server can't be reached; Try again asks it at once.
 struct OfflineBanner: View {
     @ObservedObject var app: AppModel
@@ -285,7 +286,7 @@ struct OfflineBanner: View {
         if app.offline {
             HStack(spacing: 10) {
                 Image(systemName: "wifi.slash").accessibilityHidden(true)
-                Text(DownloadWords.offline)
+                Text(app.offlineMessage)
                     .font(.subheadline)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
@@ -299,7 +300,7 @@ struct OfflineBanner: View {
             .background(.regularMaterial)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("offline.banner")
-            .task { announce(DownloadWords.offline) }
+            .task(id: app.offlineMessage) { announce(app.offlineMessage) }
         }
     }
 }

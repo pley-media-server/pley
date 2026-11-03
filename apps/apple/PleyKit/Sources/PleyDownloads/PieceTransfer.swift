@@ -40,6 +40,9 @@ public protocol TransferSession: AnyObject, Sendable {
     /// Goes on from where a failed piece stopped.
     func resume(_ data: Data, key: String)
     func cancel(key: String)
+    /// Stops `key`'s piece where it is: it ends as a failure with its
+    /// resume data, to go on once the server has proved itself again.
+    func suspend(key: String)
     /// The downloads with a piece in flight (after the app starts again).
     func running() async -> Set<String>
 }
@@ -65,6 +68,9 @@ public final class PieceTransfer: NSObject, TransferSession, URLSessionDownloadD
     private struct PieceState {
         var file: URL?
         var privateRoute = true
+        /// Stopped by `suspend`: it ends as a failure, not a cancellation.
+        var suspended = false
+        var resumeData: Data?
     }
 
     private let tasks = OSAllocatedUnfairLock<[Int: PieceState]>(initialState: [:])
@@ -113,6 +119,19 @@ public final class PieceTransfer: NSObject, TransferSession, URLSessionDownloadD
     public func cancel(key: String) {
         session.getAllTasks { tasks in
             for task in tasks where task.taskDescription == key { task.cancel() }
+        }
+    }
+
+    public func suspend(key: String) {
+        session.getAllTasks { [weak self] tasks in
+            for case let task as URLSessionDownloadTask in tasks where task.taskDescription == key {
+                let id = task.taskIdentifier
+                self?.tasks.withLock { $0[id, default: PieceState()].suspended = true }
+                task.cancel { [weak self] data in
+                    // Kept for the end, unless it came already (then the error carried it).
+                    self?.tasks.withLock { if $0[id] != nil { $0[id]?.resumeData = data } }
+                }
+            }
         }
     }
 
@@ -168,11 +187,13 @@ public final class PieceTransfer: NSObject, TransferSession, URLSessionDownloadD
         let nsError = error as NSError?
         let cancelled = nsError?.domain == NSURLErrorDomain && nsError?.code == NSURLErrorCancelled
         // Only what the system calls the transfer failing is one; an answer is judged by its status.
-        let failure: String? = error == nil ? nil : "\(nsError?.domain ?? "") \(nsError?.code ?? 0)"
+        var failure: String? = error == nil ? nil : "\(nsError?.domain ?? "") \(nsError?.code ?? 0)"
+        if kept.suspended && cancelled { failure = "suspended" }
+        let resumeData = nsError?.userInfo[NSURLSessionDownloadTaskResumeData] as? Data ?? kept.resumeData
         continuation.yield(.finished(Finished(
             key: key, file: error == nil ? kept.file : nil, status: response?.statusCode ?? 0, headers: headers,
-            failure: failure, resumeData: nsError?.userInfo[NSURLSessionDownloadTaskResumeData] as? Data,
-            privateRoute: kept.privateRoute, cancelled: cancelled)))
+            failure: failure, resumeData: resumeData, privateRoute: kept.privateRoute,
+            cancelled: cancelled && !kept.suspended)))
         if error != nil, let file = kept.file { try? FileManager.default.removeItem(at: file) }
     }
 

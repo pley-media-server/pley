@@ -36,6 +36,11 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Pley, hover and right-click. On Apple TV, a row puts the focus back on
   the tile you left it on.
 - Sign out of a server, or forget it.
+- Your token goes only to the server you signed in to: before it goes, the
+  server proves it holds your sign-in's key, again after half an hour, on
+  another network, or when the server didn't answer. When another device
+  answers at its address, Pley shows what it saved and says "Another device
+  answers there."
 - Play movies and episodes: Play or Resume on an item's page, the system
   player on each device (its own window on the Mac, with keyboard
   shortcuts), and each file sent as this device plays it best, in HDR and

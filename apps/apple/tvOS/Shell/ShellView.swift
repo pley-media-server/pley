@@ -169,7 +169,8 @@ struct ScreenView: View {
     }
 }
 
-/// "Showing what Pley had saved. Reconnecting…", at the foot of the screen
+/// "Showing what Pley had saved. Reconnecting…" (after "Another device
+/// answers there." when that is why), at the foot of the screen
 /// while the server can't be reached. It takes no focus: the app tries the
 /// server again by itself.
 private struct OfflineBanner: View {
@@ -177,14 +178,14 @@ private struct OfflineBanner: View {
 
     var body: some View {
         if app.offline {
-            Label(DownloadWords.offline, systemImage: "wifi.slash")
+            Label(app.offlineMessage, systemImage: "wifi.slash")
                 .font(.callout)
                 .padding(.horizontal, 32)
                 .padding(.vertical, 16)
                 .background(.regularMaterial, in: Capsule())
                 .padding(.bottom, 40)
                 .accessibilityIdentifier("offline.banner")
-                .task { AccessibilityNotification.Announcement(DownloadWords.offline).post() }
+                .task(id: app.offlineMessage) { AccessibilityNotification.Announcement(app.offlineMessage).post() }
         }
     }
 }

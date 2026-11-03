@@ -40,6 +40,14 @@ public enum AuthEvent: Sendable, Equatable {
 /// - The new refresh token is saved before the new access token is used.
 /// - `invalid_grant` on a refresh, or a token refused moments after the
 ///   refresh that gave it, ends the sign-in (`events` says so).
+/// - No token leaves before the server at the issuer proves it holds this
+///   sign-in's key (docs/API.md, "Telling servers apart"): for the access
+///   token, a proof made within the half hour on this network, unless a
+///   request there got no answer since; for a refresh, a profile switch
+///   and a sign-out, one made then. What can't prove itself is out of
+///   reach: `PleyError.unreachable(PleyError.anotherDevice)`. A sign-in
+///   kept before servers had keys has nothing to check, as on Android, and
+///   takes the key its next refresh brings.
 public actor Tokens: TokenProvider {
     /// Access tokens are refreshed when they end within this.
     public static let refreshAhead: TimeInterval = 60
@@ -60,13 +68,24 @@ public actor Tokens: TokenProvider {
     private var running: Task<Void, any Error>?
     /// The access token the last refresh or switch gave, and when.
     private var lastIssued: (token: String, at: Date)?
+    private let networks: NetworkChanges
+    /// The challenges' random bytes.
+    private let random: @Sendable (Int) -> Data
+    /// When, on which network (`networks`' count) and with which key the
+    /// server last proved itself.
+    private var provedAt: (at: Date, network: Int, proof: ServerProof)?
+    /// The proof being made; others wait for it, then look again.
+    private var proving: Task<Void, any Error>?
 
     public init(issuer: String, store: any TokenStore, endpoints: EndpointClient,
-                clock: @escaping @Sendable () -> Date = { Date() }) {
+                clock: @escaping @Sendable () -> Date = { Date() }, networks: NetworkChanges = .shared,
+                random: @escaping @Sendable (Int) -> Data = ServerProofs.randomBytes) {
         self.issuer = issuer
         self.store = store
         self.endpoints = endpoints
         self.clock = clock
+        self.networks = networks
+        self.random = random
         (events, continuation) = AsyncStream.makeStream(of: AuthEvent.self, bufferingPolicy: .bufferingNewest(16))
     }
 
@@ -81,9 +100,15 @@ public actor Tokens: TokenProvider {
 
     public func accessToken() async throws -> String {
         guard let tokens = try await store.load(issuer: issuer) else { throw PleyError.signedOut }
-        if tokens.accessUsable(at: clock()) { return tokens.accessToken }
+        if tokens.accessUsable(at: clock()) {
+            try await proved(tokens)
+            return tokens.accessToken
+        }
+        // The refresh waits for a proof of its own: one before it would be wasted.
         try await refresh(after: tokens.accessToken)
         guard let fresh = try await store.load(issuer: issuer) else { throw PleyError.signedOut }
+        // Given by another caller's refresh, maybe on another network since.
+        try await proved(fresh)
         return fresh.accessToken
     }
 
@@ -93,11 +118,28 @@ public actor Tokens: TokenProvider {
     public func accessToken(lasting: TimeInterval) async throws -> (token: String, expires: Date) {
         guard let tokens = try await store.load(issuer: issuer) else { throw PleyError.signedOut }
         if tokens.accessExpiresAt.timeIntervalSince(clock()) > max(lasting, Self.refreshAhead) {
+            try await proved(tokens)
             return (tokens.accessToken, tokens.accessExpiresAt)
         }
         try await refresh(after: tokens.accessToken)
         guard let fresh = try await store.load(issuer: issuer) else { throw PleyError.signedOut }
+        try await proved(fresh)
         return (fresh.accessToken, fresh.accessExpiresAt)
+    }
+
+    /// Returns once the server at the issuer has proved itself as the
+    /// access token needs (within the half hour, on this network), asking
+    /// for a proof when it hasn't: before something sends a token it got
+    /// earlier, such as a download's piece going on from where it stopped.
+    public func proveServer() async throws {
+        guard let tokens = try await store.load(issuer: issuer) else { throw PleyError.signedOut }
+        try await proved(tokens)
+    }
+
+    /// A request to the server got no answer: the device may be on another
+    /// network, so the next token waits for a new proof.
+    public func doubt() async {
+        provedAt = nil
     }
 
     public func refresh(after refused: String) async throws {
@@ -135,14 +177,21 @@ public actor Tokens: TokenProvider {
     }
 
     /// Ends this app's sign-in on the server (RFC 7009), then forgets the
-    /// tokens, whatever the server answered.
+    /// tokens, whatever the server answered. A server that can't prove
+    /// itself now gets no token: the person can sign the app out in the web
+    /// app's Account → Apps.
     public func signOut() async {
         while let running { _ = try? await running.value }
         if let tokens = try? await store.load(issuer: issuer) {
-            await Revocation.revoke(tokens, endpoints: endpoints)
+            if await Revocation.proves(tokens, endpoints: endpoints, random: random) {
+                await Revocation.revoke(tokens, endpoints: endpoints)
+            } else {
+                Log.auth.info("signed out on this device only: the server didn't prove itself")
+            }
         }
         try? await store.delete(issuer: issuer)
         lastIssued = nil
+        provedAt = nil
     }
 
     // MARK: Inside
@@ -163,6 +212,8 @@ public actor Tokens: TokenProvider {
             await end(.ended)
             throw PleyError.signedOut
         }
+        // The refresh token goes only to a server that proves itself now.
+        try await proved(tokens, now: true)
         let data: Data
         do {
             data = try await endpoints.postForm(url, [("grant_type", "refresh_token"), ("refresh_token", refresh),
@@ -187,6 +238,8 @@ public actor Tokens: TokenProvider {
         var form = [("grant_type", AppClient.switchProfileGrant), ("client_id", tokens.clientID),
                     ("refresh_token", refresh), ("profile", String(profile))]
         if let pin { form.append(("pin", pin)) }
+        // The refresh token and the PIN go only to a server that proves itself now.
+        try await proved(tokens, now: true)
         let data: Data
         do {
             data = try await endpoints.postForm(url, form, onLeak: { [weak self] in await self?.connectionLeaked() })
@@ -213,10 +266,55 @@ public actor Tokens: TokenProvider {
         lastIssued = (fresh.accessToken, clock())
     }
 
+    /// Returns once the server at the issuer has proved it holds `tokens`'
+    /// key: within the half hour, on this network and since the last
+    /// request that got no answer; with `now`, made now (a refresh token or
+    /// a PIN). One proof at a time: a caller that finds one under way waits
+    /// for it, then looks again, as the network may have changed meanwhile.
+    /// A sign-in without a key has nothing to check.
+    private func proved(_ tokens: StoredTokens, now: Bool = false) async throws {
+        guard let proof = tokens.proof else { return }
+        if now { provedAt = nil }
+        while !recentlyProved(proof) {
+            if let proving {
+                _ = try? await proving.value
+                continue
+            }
+            let network = networks.current
+            let (issuer, endpoints, random) = (issuer, endpoints, random)
+            // The task notes its end on the actor before its value is
+            // ready, so whoever waited for it finds the proof, or none, kept.
+            let task = Task {
+                do {
+                    try await ServerProofs.prove(proof, issuer: issuer, endpoints: endpoints, random: random)
+                    self.proofEnded(proof, network: network, proved: true)
+                } catch {
+                    self.proofEnded(proof, network: network, proved: false)
+                    throw error
+                }
+            }
+            proving = task
+            try await task.value
+        }
+    }
+
+    private func proofEnded(_ proof: ServerProof, network: Int, proved: Bool) {
+        proving = nil
+        if proved { provedAt = (clock(), network, proof) }
+    }
+
+    /// A clock set back makes an age below zero: proved again.
+    private func recentlyProved(_ proof: ServerProof) -> Bool {
+        guard let provedAt, provedAt.proof == proof, provedAt.network == networks.current else { return false }
+        let age = clock().timeIntervalSince(provedAt.at)
+        return age >= 0 && age < ServerProofs.lasting
+    }
+
     /// Forgets the tokens and says why: the screens show sign-in.
     private func end(_ reason: SignOutReason) async {
         try? await store.delete(issuer: issuer)
         lastIssued = nil
+        provedAt = nil
         continuation.yield(.signedOut(issuer: issuer, reason: reason))
     }
 

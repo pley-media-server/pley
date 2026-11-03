@@ -106,10 +106,12 @@ public actor SessionManager {
     }
 
     /// The server answered again after `openSaved`: what it is and where it
-    /// signs in are read now. Throws when it still can't be reached.
+    /// signs in are read now. Throws when it still can't be reached, or
+    /// when what answers can't prove it is the server signed in to.
     public func reconnected() async throws {
         guard let origin, let api else { throw PleyError.signedOut }
         let info = try await api.server()
+        try await tokens?.proveServer()
         serverInfo = info
         if metadata == nil { metadata = try? await ServerMetadata.fetch(origin, endpoints: endpoints) }
     }

@@ -153,9 +153,13 @@ public enum DownloadQuality: String, CaseIterable, Hashable, Sendable {
 }
 
 /// An access token for a download's piece: one that lasts `lasting`
-/// seconds more, and when it ends.
+/// seconds more, and when it ends. Either returns only once the server has
+/// proved itself (docs/API.md, "Telling servers apart").
 public protocol DownloadTokens: Sendable {
     func accessToken(lasting: TimeInterval) async throws -> (token: String, expires: Date)
+    /// Returns once the server has proved itself as an access token needs:
+    /// before a piece goes on from its resume data with the token it began with.
+    func proveServer() async throws
 }
 
 extension Tokens: DownloadTokens {}

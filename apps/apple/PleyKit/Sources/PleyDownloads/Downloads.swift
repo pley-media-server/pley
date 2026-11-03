@@ -33,10 +33,11 @@ public final class Downloads: DownloadsService {
     /// their own; the app's are `live()`.
     init(root: URL, transfer: any TransferSession, gate: NetworkGate, settings: AppSettings,
          timing: DownloadRunner.Timing = DownloadRunner.Timing(), clock: @escaping () -> Date = { Date() },
-         freeSpace: @escaping @Sendable (URL) -> Int64 = DownloadStore.systemFreeSpace) {
+         freeSpace: @escaping @Sendable (URL) -> Int64 = DownloadStore.systemFreeSpace,
+         networks: NetworkChanges = .shared) {
         store = DownloadStore(root: root, freeSpace: freeSpace)
         runner = DownloadRunner(store: store, transfer: transfer, gate: gate, settings: settings, timing: timing,
-                                clock: clock)
+                                clock: clock, networks: networks)
         self.settings = settings
         self.clock = clock
         store.onChange = { [weak self] in self?.storeChanged() }

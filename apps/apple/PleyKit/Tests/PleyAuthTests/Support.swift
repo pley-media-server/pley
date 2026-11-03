@@ -39,6 +39,21 @@ func signedIn(_ server: FixtureServer, store: any TokenStore, client: AppClient 
     return tokens
 }
 
+/// Tokens the fixture gave with their grant's proof key, kept as a sign-in
+/// at a server with proofs would keep them.
+func provedSignIn(_ server: FixtureServer, store: any TokenStore, client: AppClient = .tvos,
+                  expiresIn: TimeInterval = 3600, now: Date = Date()) async throws -> FixtureServer.Tokens {
+    let tokens = server.issueTokens()
+    let key = FixtureServer.proofKey(grant: tokens.grant)
+    try await store.save(StoredTokens(
+        issuer: server.origin, clientID: client.clientID, tokenEndpoint: server.origin + "/api/oauth/token",
+        revocationEndpoint: server.origin + "/api/oauth/revoke", accessToken: tokens.accessToken,
+        accessExpiresAt: now.addingTimeInterval(expiresIn), refreshToken: tokens.refreshToken,
+        scope: FixtureServer.allScopes,
+        proof: ServerProof(serverId: FixtureServer.serverId, proofId: key.id, proofKey: key.key)))
+    return tokens
+}
+
 /// An API client for the fixture with `tokens`.
 func api(_ server: FixtureServer, _ tokens: Tokens) -> PleyAPI {
     PleyAPI(client: APIClient(origin: server.origin, tokens: tokens, transport: transport()))

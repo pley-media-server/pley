@@ -136,6 +136,27 @@ extension PleyError {
     }
 
     static let unknownHost = "that address isn't known on this network"
+
+    /// What answers at the server's address can't prove it is the server
+    /// signed in to (docs/API.md, "Telling servers apart"): as out of reach
+    /// as a server that doesn't answer, said in its own words.
+    public static let anotherDevice = "another device answers there"
+
+    /// Whether this is `anotherDevice`'s error.
+    public var isAnotherDevice: Bool {
+        if case .unreachable(let why) = self { return why == Self.anotherDevice }
+        return false
+    }
+
+    /// Whether the request got no answer: the device may be on another
+    /// network, so the server proves itself again before the next token.
+    public var noAnswer: Bool {
+        switch self {
+        case .offline, .timedOut, .localNetworkBlocked: true
+        case .unreachable: !isAnotherDevice
+        default: false
+        }
+    }
     static let connectionFailed = "the connection to the server failed"
 
     /// Whether the system refused the connection because the app may not

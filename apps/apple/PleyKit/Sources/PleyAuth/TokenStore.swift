@@ -16,10 +16,13 @@ public struct StoredTokens: Codable, Sendable, Hashable, CustomStringConvertible
     public var scope: String
     /// When a refresh or a profile switch gave `accessToken`; `nil` for a sign-in.
     public var issuedByRefreshAt: Date?
+    /// The server's id and this sign-in's proof key, the first a token
+    /// answer gave it; `nil` for a sign-in made before servers had them.
+    public var proof: ServerProof?
 
     public init(issuer: String, clientID: String, tokenEndpoint: String, revocationEndpoint: String,
                 accessToken: String, accessExpiresAt: Date, refreshToken: String?, scope: String,
-                issuedByRefreshAt: Date? = nil) {
+                issuedByRefreshAt: Date? = nil, proof: ServerProof? = nil) {
         self.issuer = issuer
         self.clientID = clientID
         self.tokenEndpoint = tokenEndpoint
@@ -29,6 +32,27 @@ public struct StoredTokens: Codable, Sendable, Hashable, CustomStringConvertible
         self.refreshToken = refreshToken
         self.scope = scope
         self.issuedByRefreshAt = issuedByRefreshAt
+        self.proof = proof
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case issuer, clientID, tokenEndpoint, revocationEndpoint, accessToken, accessExpiresAt, refreshToken, scope,
+             issuedByRefreshAt, proof
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        issuer = try c.decode(String.self, forKey: .issuer)
+        clientID = try c.decode(String.self, forKey: .clientID)
+        tokenEndpoint = try c.decode(String.self, forKey: .tokenEndpoint)
+        revocationEndpoint = try c.decode(String.self, forKey: .revocationEndpoint)
+        accessToken = try c.decode(String.self, forKey: .accessToken)
+        accessExpiresAt = try c.decode(Date.self, forKey: .accessExpiresAt)
+        refreshToken = try c.decodeIfPresent(String.self, forKey: .refreshToken)
+        scope = try c.decode(String.self, forKey: .scope)
+        issuedByRefreshAt = try c.decodeIfPresent(Date.self, forKey: .issuedByRefreshAt)
+        // Kept before servers had proofs, or written wrong: none, as on Android.
+        proof = try? c.decodeIfPresent(ServerProof.self, forKey: .proof)
     }
 
     /// The scopes, one word each.
@@ -41,7 +65,7 @@ public struct StoredTokens: Codable, Sendable, Hashable, CustomStringConvertible
 
     public var description: String {
         "StoredTokens(issuer: \(issuer), scope: \(scope), expires: \(accessExpiresAt), "
-            + "refreshToken: \(refreshToken == nil ? "none" : "hidden"))"
+            + "refreshToken: \(refreshToken == nil ? "none" : "hidden"), proof: \(proof.map { "\($0)" } ?? "none"))"
     }
 
     public var debugDescription: String { description }

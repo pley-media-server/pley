@@ -634,7 +634,8 @@ address. A server without it is too old for the app.
   refuses it codes.
 
 A token answer that allows more than the app asked for is revoked at once
-and refused. Signing in again to a server ends the sign-in it replaces.
+and refused. Signing in again to a server ends the sign-in it replaces,
+when the server proves it holds that sign-in's key (below).
 
 Tokens are kept in the Keychain, one item per server (service
 `app.pley.apple.signin`), readable after the first unlock and on this
@@ -654,8 +655,61 @@ signed out, and shown sign-in again, when:
 - a request with a token reached an address that isn't private over plain
   http ([Plain HTTP and HTTPS](#plain-http-and-https)).
 
-Signing out revokes the sign-in on the server (best effort) and deletes
-the tokens.
+Signing out revokes the sign-in on the server (best effort, and only
+where the server proves itself) and deletes the tokens.
+
+### Telling servers apart
+
+An address the app saved can later lead to another device: on another
+network, or after the router hands it out again. Before a token goes to
+the server's address, the server there proves it is the one signed in to
+([API.md](API.md#telling-servers-apart)). The app keeps the server's id
+and this sign-in's key from its first token answer, with the tokens in the
+Keychain, and never takes another for that sign-in: a refresh or a
+profile switch whose answer brings a different key keeps the first. A key
+written wrong (a `proof_id` that isn't digits, a key that isn't 32 bytes
+in base64url) counts as none.
+
+To check, the app asks `GET /api/server?challenge=…&proof_id=…` with 16
+random bytes in base64url, follows no redirect, and compares the answer's
+`id`, and its `proof` against its own HMAC-SHA256 under the key, in
+constant time. The proof covers the address the app asked at.
+
+- **The access token** waits for a proof made within the half hour on
+  this network. Any change of the network's path (`NWPathMonitor`: joining
+  or leaving a Wi-Fi or Ethernet network, another gateway) asks for a new
+  one, and so does a request to the server that got no answer.
+- **A refresh, a profile switch's PIN and a sign-out** each wait for a
+  proof made then. A sign-out whose server can't prove itself deletes the
+  tokens on the device only: the person can end the sign-in in the web
+  app's Account → Apps.
+- **Downloads** carry the access token in each piece's request, so a piece
+  waits for a proof as any request does. A piece that goes on from where
+  it stopped (its resume data holds the token it began with) waits for one
+  too. When the network changes while a piece is under way, or the app
+  starts again with one under way, the piece is stopped where it is and
+  goes on after a proof: the system would otherwise carry it on over
+  whatever network comes next. While the app is suspended or closed, the
+  system goes on with a piece it started without the app knowing that the
+  network changed.
+- **Players' keyed addresses** carry a key of their own, not the token
+  ([API.md](API.md#keyed-urls)): it opens one playback session's media and
+  comes from a play request that went after a proof, so the players' media
+  requests need none of their own. A keyed request the app makes itself
+  (a stream's playlists asked ahead of the player) that gets no answer asks
+  for a new proof all the same.
+- **Top Shelf** holds no sign-in: it shows what the app saved, and the app
+  fetches its pictures with the token, after a proof.
+
+A wrong `id` or `proof`, a redirect, a `403` or any other answer means
+another device answers there: no token goes, the app shows what it saved
+and the banner says "Another device answers there. Showing what Pley had
+saved. Reconnecting…", and tries again as it does for a server out of
+reach. A `5xx` is the server, or a proxy before it, out of reach for now.
+
+A sign-in kept before servers gave keys has nothing to check: its tokens
+go as before, as on Android, until a refresh brings the sign-in's key,
+which is kept from then on.
 
 ## Profiles
 
@@ -1618,8 +1672,8 @@ PleyKit's modules, each depending only on those before it:
 | `PleyShelf` | Apple TV's Top Shelf, for the app and its extension, on Foundation and CryptoKit only: the row (`ShelfSnapshot`), its files in the app group's container (`ShelfStore`) and the signed links (`ShelfLink`) |
 | `PleyModel` | The server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read; the caps report the apps send; the words shown for codecs, tracks, versions and times (`Words`, the Android app's) |
 | `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, Bonjour (browsing, TXT records, resolving), logging |
-| `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), downloads to a file resumed with `Range`, the typed API calls (browsing in `PleyAPI+Browse`, with ETags; collections and playlists in `PleyAPI+Lists`; search, history and track defaults in `PleyAPI+Account`; Live TV in `PleyAPI+Live`; downloads in `PleyAPI+Downloads`; subtitle search in `PleyAPI+Subtitles`), and the server's events (`EventStream`, `EventParser`) |
-| `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the scope guard and profile switching |
+| `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), downloads to a file resumed with `Range`, the typed API calls (browsing in `PleyAPI+Browse`, with ETags; collections and playlists in `PleyAPI+Lists`; search, history and track defaults in `PleyAPI+Account`; Live TV in `PleyAPI+Live`; downloads in `PleyAPI+Downloads`; subtitle search in `PleyAPI+Subtitles`), and the server's events (`EventStream`, `EventParser`), and the network's changes that ask for new proofs (`NetworkChanges`) |
+| `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the server's proofs before a token goes (`ServerProof`), the scope guard and profile switching |
 | `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, Live TV's lists, guide and favourites (`LiveTvRepository`), the server's events gathered into changes and scans (`ServerEvents`), the app's settings (`AppSettings`, under `pley.settings.` in UserDefaults: quality, Up Next, subtitle style, grid size, private sign-in, Always start as, the household last seen, the profile used last, recent searches, the downloads' quality and mobile data), the screens saved for offline (`SnapshotStore`), what the screens and the player take from downloads (`DownloadsService`, `LocalMedia`), and pictures (`ImageLoader`) |
 | `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
 | `PleySubtitles` | Subtitles the app draws: the WebVTT reader, text cues by time, the subtitle sync and its offsets, the server's tracks read with `X-Pley-Complete`, and a port of `packages/picture-subtitles` (the Matroska reader, the PGS, VobSub and DVB decoders, and the pictures by time) |
@@ -1627,7 +1681,7 @@ PleyKit's modules, each depending only on those before it:
 | `PleyDownloads` | Downloads (iPhone, iPad and Mac): `Downloads` (the screens' `DownloadsService` and the player's `LocalMedia`), `DownloadStore` (the folders and `index.json`), `DownloadPlanner` (the rules), `DownloadRunner` (one download at a time, conversions, pieces), `PieceTransfer` (the background `URLSession`) and `NetworkGate` (Wi-Fi or mobile data, from `NWPathMonitor`) |
 | `PleyPlayerViews` | The system's player around the controller on each platform (`PlayerSurface`: AVPlayerViewController on iPhone, iPad and Apple TV, AVPlayerView on the Mac), its menus (Quality, Audio, Subtitles and their sync, Find Subtitles…, Speed, Sleep Timer, Chapters, Details), Picture in Picture's keeper (`PictureInPictureKeeper`), Live TV's video (`LiveVideoSurface`, an `AVPlayerLayer`), the subtitles drawn over the video in the system's caption style with the app's overrides (`SubtitleLayer`, `CaptionStyle`), Apple TV's contextual actions and chapter markers, and the AirPlay button (`RoutePicker`) |
 | `PleyScreens` | What the screens show and do, shared by both apps without any views: what fills the window (`AppModel.root`), the signed-in sections and their navigation, sheet and toast, and what the Mac's View menu and Reload act on (`ShellModel`), what Play (⌘↩) plays (`PlayTarget`), the servers, signing in (with the QR code, from Core Image), profiles, Home and its tiles (`Tile`, the Android app's rules), a title's actions (`ItemActions`, `ItemActionsModel`), the libraries and their order (`LibrariesModel`), a library's page (`LibraryModel`, `LibraryParams` with the web's query, `LibraryGrid`, `AlphaIndex`), Me, a title's page (`ItemPage`, the Android app's `itemPage`, and `ItemModel`), a person's page (`PersonModel`), music's pages (`ArtistModel`, `AlbumModel`), Now Playing's words (`NowPlayingModel`), Live TV (`LiveTvModel`, `LivePlayerModel`, `ChannelPaging`, and `LiveTvRules` and `GuideLayout`, the Android app's rules), Find Subtitles… (`SubtitleSearchModel`), collections (`CollectionsModel`, `CollectionModel`), playlists (`PlaylistsModel`, `PlaylistModel`, `AddToPlaylistModel`, `NewPlaylistModel`), smart filters in words (`SmartFilter`, the Android app's), search (`SearchModel`), Me's track defaults (`MeModel`), Downloads (`DownloadsModel`), History (`HistoryModel`), Settings, Diagnostics and About (`SettingsModel`, `DiagnosticsModel`, `AboutModel`), Apple TV's start (`StartGate`) and its Top Shelf row (`TopShelfWriter`), as `ObservableObject`s; `AppModel` also owns the one playback at a time, music, the system's Now Playing, the device's caps, the session reports and the reports kept for later, one set per server and profile |
-| `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens, playback sessions with keyed media, libraries with watch marks, My List and orders that change, collections and playlists, Live TV's lineup and guide, music to play, downloads and conversions, subtitle search, an event stream the tests push to, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
+| `PleyTesting` | What the tests share: the fixtures, a fixture server (real HTTP on 127.0.0.1, with a household, the sign-in endpoints, tokens and the server's proofs, playback sessions with keyed media, libraries with watch marks, My List and orders that change, collections and playlists, Live TV's lineup and guide, music to play, downloads and conversions, subtitle search, an event stream the tests push to, and a journal of the requests it got), small MP4 files made at test time with AVAssetWriter, and the administrator's side of the end-to-end checks |
 | `pley-apple-check` | A command-line tool, on the Mac only, that signs in to a real server ([A server to test against](#a-server-to-test-against)), or prints this Mac's caps report (`--print-caps`) |
 | `pley-apple-play` | A command-line tool, on the Mac only, that plays a real server's test media through the player ([A server to test against](#a-server-to-test-against)) |
 

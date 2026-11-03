@@ -14,15 +14,22 @@ private final class FixtureTokens: DownloadTokens, @unchecked Sendable {
     private let server: FixtureServer
     private let lock = NSLock()
     private var asked = 0
+    private var proved = 0
     var expiresIn: TimeInterval = 3600
 
     init(server: FixtureServer) { self.server = server }
 
     var count: Int { lock.withLock { asked } }
+    /// The proofs asked for before a piece went on from its resume data.
+    var proofs: Int { lock.withLock { proved } }
 
     func accessToken(lasting: TimeInterval) async throws -> (token: String, expires: Date) {
         lock.withLock { asked += 1 }
         return (server.issueTokens().accessToken, Date().addingTimeInterval(lock.withLock { expiresIn }))
+    }
+
+    func proveServer() async throws {
+        lock.withLock { proved += 1 }
     }
 }
 
@@ -37,6 +44,7 @@ private final class Harness {
     let root: URL
     let settings: AppSettings
     let gate = NetworkGate()
+    let networks = NetworkChanges()
     let transfer: PieceTransfer
     let downloads: Downloads
     let tokens: FixtureTokens
@@ -59,7 +67,7 @@ private final class Harness {
         timing.backoffSeconds = 0.05
         timing.spaceMargin = 0
         downloads = Downloads(root: root, transfer: transfer, gate: gate, settings: settings, timing: timing,
-                              freeSpace: { _ in free })
+                              freeSpace: { _ in free }, networks: networks)
         downloads.signedIn(DownloadScope(origin: server.origin, profileId: 2, api: api, tokens: tokens,
                                          caps: { ClientCaps(containers: ["mp4", "mov"]) }))
     }
@@ -210,6 +218,25 @@ private func movie(_ server: FixtureServer, bytes: Int = 4_500, container: Strin
         // The subtitles came partial: they are asked for again.
         let asked = server.journal.filter { $0.path == "/api/files/610/subtitles/2.vtt" }.count
         #expect(asked >= 2)
+    }
+
+    @Test func anotherNetworkStopsThePieceUntilTheServerProvesItself() async throws {
+        let server = try await started()
+        let h = Harness(server: server, pieceBytes: 3_000)
+        defer { h.close() }
+        let original = movie(server)
+        server.delay(path: "/api/files/610/stream", ms: 400)
+        try await h.downloads.download([61])
+        let end = Date().addingTimeInterval(5)
+        while server.downloadRanges.isEmpty && Date() < end { try await Task.sleep(for: .milliseconds(10)) }
+        h.networks.changed()
+        #expect(await h.waitFor(61, .done))
+        #expect(try Data(contentsOf: try #require(h.downloads.local?.file(610)).url) == original)
+        // The piece in flight stopped: it went on from its resume data after a
+        // proof, or was asked for again with a fresh token (whose proof the
+        // tokens make), never on by itself.
+        #expect(server.downloadRanges.count == 3)
+        #expect(h.tokens.count + h.tokens.proofs == 3)
     }
 
     @Test func aConvertedDownloadWaitsForTheServerThenFetchesItsFile() async throws {

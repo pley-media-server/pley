@@ -24,4 +24,13 @@ public protocol TokenProvider: Sendable {
     /// A request with the token reached an address that isn't private over
     /// plain http: the sign-in ends on the device.
     func connectionLeaked() async
+
+    /// A request to the server got no answer: the device may be on another
+    /// network, so the next token waits until the server proves itself again.
+    func doubt() async
+}
+
+extension TokenProvider {
+    /// Tokens without proofs have nothing to doubt.
+    public func doubt() async {}
 }

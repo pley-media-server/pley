@@ -67,6 +67,9 @@ public enum DownloadWords {
     public static let keep = "Keep them"
     /// The offline banner.
     public static let offline = "Showing what Pley had saved. Reconnecting…"
+    /// The offline banner when what answers at the server's address can't
+    /// prove it is the server (docs/API.md, "Telling servers apart").
+    public static let anotherDevice = "Another device answers there. " + offline
 
     /// "1.2 GB on this device · 20 GB free".
     public static func storage(_ storage: DownloadStorage) -> String {

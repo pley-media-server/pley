@@ -24,10 +24,15 @@ enum TokenAnswer {
 }
 
 extension TokenResponse {
-    /// The answer as it is kept.
+    /// The answer as it is kept, in place of `base`. A refresh or a profile
+    /// switch is the same sign-in, whose key never changes: `base`'s proof
+    /// stays whatever the answer says, and an answer brings one only to a
+    /// sign-in without.
     func stored(like base: StoredTokens, now: Date, byRefresh: Bool) -> StoredTokens {
-        stored(issuer: base.issuer, clientID: base.clientID, tokenEndpoint: base.tokenEndpoint,
-               revocationEndpoint: base.revocationEndpoint, now: now, byRefresh: byRefresh)
+        var fresh = stored(issuer: base.issuer, clientID: base.clientID, tokenEndpoint: base.tokenEndpoint,
+                           revocationEndpoint: base.revocationEndpoint, now: now, byRefresh: byRefresh)
+        fresh.proof = base.proof ?? fresh.proof
+        return fresh
     }
 
     func stored(issuer: String, clientID: String, tokenEndpoint: String, revocationEndpoint: String, now: Date,
@@ -35,12 +40,26 @@ extension TokenResponse {
         StoredTokens(issuer: issuer, clientID: clientID, tokenEndpoint: tokenEndpoint,
                      revocationEndpoint: revocationEndpoint, accessToken: accessToken,
                      accessExpiresAt: now.addingTimeInterval(TimeInterval(expiresIn ?? TokenAnswer.defaultExpiresIn)),
-                     refreshToken: refreshToken, scope: scope ?? "", issuedByRefreshAt: byRefresh ? now : nil)
+                     refreshToken: refreshToken, scope: scope ?? "", issuedByRefreshAt: byRefresh ? now : nil,
+                     proof: ServerProof(self))
     }
 }
 
 /// Ending a sign-in on its server (RFC 7009).
 enum Revocation {
+    /// Whether the server at `tokens`' issuer proves now that it holds their
+    /// key; true for a sign-in without one, which has nothing to check.
+    static func proves(_ tokens: StoredTokens, endpoints: EndpointClient,
+                       random: @Sendable (Int) -> Data) async -> Bool {
+        guard let proof = tokens.proof else { return true }
+        do {
+            try await ServerProofs.prove(proof, issuer: tokens.issuer, endpoints: endpoints, random: random)
+            return true
+        } catch {
+            return false
+        }
+    }
+
     /// Ends the grant of `tokens` on its server: with the refresh token,
     /// which ends the whole grant, else the access token. Best effort: when
     /// it fails the person can still sign the app out in the web app's
@@ -82,14 +101,21 @@ enum ScopeGuard {
 
 /// Keeps the tokens of a sign-in that just finished (in the browser, or a
 /// TV's code), after the scope guard. The sign-in they replace on that
-/// server (signing in again) is ended.
+/// server (signing in again) is ended, but only where the server proves it
+/// holds that sign-in's key: a device that got the app to sign in again at
+/// the server's address doesn't receive the old refresh token.
 func keepNewSignIn(_ answer: TokenResponse, asked: String, fresh: StoredTokens, store: any TokenStore,
-                   endpoints: EndpointClient) async throws -> StoredTokens {
+                   endpoints: EndpointClient,
+                   random: @escaping @Sendable (Int) -> Data = ServerProofs.randomBytes) async throws -> StoredTokens {
     try await ScopeGuard.check(answer, asked: asked, fresh: fresh, endpoints: endpoints)
     let previous = try? await store.load(issuer: fresh.issuer)
     try await store.save(fresh)
     if let previous, previous.refreshToken != fresh.refreshToken || previous.accessToken != fresh.accessToken {
-        await Revocation.revoke(previous, endpoints: endpoints)
+        if await Revocation.proves(previous, endpoints: endpoints, random: random) {
+            await Revocation.revoke(previous, endpoints: endpoints)
+        } else {
+            Log.auth.info("the sign-in replaced wasn't ended: its server didn't prove itself")
+        }
     }
     return fresh
 }

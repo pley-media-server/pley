@@ -41,6 +41,8 @@ public final class FixtureServer: Sendable {
     public struct Tokens: Sendable, Hashable, CustomStringConvertible {
         public let accessToken: String
         public let refreshToken: String
+        /// The grant they belong to: `proofKey(grant:)` is its key.
+        public let grant: Int
         public var description: String { "FixtureServer.Tokens(hidden)" }
     }
 
@@ -213,6 +215,7 @@ public final class FixtureServer: Sendable {
         var live = Live()
         var subtitleSearch = SubtitleSearch()
         var conversions = Conversions()
+        var proofs = Proofs()
     }
 
     /// What the fixture says of the client's network (`/api/playback/network`).
@@ -665,7 +668,7 @@ public final class FixtureServer: Sendable {
         let get = request.method == "GET"
         switch path {
         case "/api/server" where get:
-            return fixture("server/info.json")
+            return serverInfo(s, request)
         case "/.well-known/oauth-authorization-server" where get:
             return json(200, metadata(issuer: s.issuerOverride ?? s.origin, origin: s.origin))
         case "/api/auth/me" where get:
@@ -998,7 +1001,7 @@ public final class FixtureServer: Sendable {
             }
             s.refreshTokens[presented]?.used = true
             let tokens = issue(&s, profile: refresh.profile, scope: refresh.scope, grant: refresh.grant)
-            return tokenAnswer(s, tokens, scope: refresh.scope)
+            return tokenAnswer(s, tokens, scope: refresh.scope, grant: refresh.grant, later: true)
         case "authorization_code":
             return exchange(&s, form)
         case deviceCodeGrant:
@@ -1048,7 +1051,7 @@ public final class FixtureServer: Sendable {
         let grant = s.nextGrant
         s.nextGrant += 1
         let tokens = issue(&s, profile: 2, scope: waiting.scope, grant: grant)
-        return tokenAnswer(s, tokens, scope: waiting.scope)
+        return tokenAnswer(s, tokens, scope: waiting.scope, grant: grant)
     }
 
     /// `POST /api/oauth/device`: a code for a TV. The Mac's app doesn't sign in this way.
@@ -1091,7 +1094,7 @@ public final class FixtureServer: Sendable {
         let grant = s.nextGrant
         s.nextGrant += 1
         let tokens = issue(&s, profile: 2, scope: device.scope, grant: grant)
-        return tokenAnswer(s, tokens, scope: device.scope)
+        return tokenAnswer(s, tokens, scope: device.scope, grant: grant)
     }
 
     /// Pley's switch-profile grant, with the server's reasons. A refusal spends nothing.
@@ -1131,7 +1134,7 @@ public final class FixtureServer: Sendable {
         s.refreshTokens[presented]?.used = true
         for (token, access) in s.accessTokens where access.grant == refresh.grant { s.accessTokens[token]?.valid = false }
         let tokens = issue(&s, profile: id, scope: refresh.scope, grant: refresh.grant)
-        return tokenAnswer(s, tokens, scope: refresh.scope)
+        return tokenAnswer(s, tokens, scope: refresh.scope, grant: refresh.grant, later: true)
     }
 
     private static func switchRefused(_ reason: String, _ description: String) -> Answer {
@@ -1157,17 +1160,20 @@ public final class FixtureServer: Sendable {
         let refresh = "pley_rt_\(n)_\(random)"
         s.accessTokens[access] = Access(id: n, profile: profile, scope: scope, grant: grant)
         s.refreshTokens[refresh] = Refresh(profile: profile, scope: scope, grant: grant)
-        return Tokens(accessToken: access, refreshToken: refresh)
+        return Tokens(accessToken: access, refreshToken: refresh, grant: grant)
     }
 
     private static func end(_ s: inout State, token: String) {
         if let grant = s.accessTokens[token]?.grant ?? s.refreshTokens[token]?.grant { s.endedGrants.insert(grant) }
     }
 
-    private static func tokenAnswer(_ s: State, _ tokens: Tokens, scope: String) -> Answer {
-        json(200, ["access_token": tokens.accessToken, "token_type": "Bearer", "expires_in": 3600,
-                   "refresh_token": tokens.refreshToken, "scope": s.widerScope ? scope + " admin" : scope],
-             headers: ["Cache-Control": "no-store", "Pragma": "no-cache"])
+    private static func tokenAnswer(_ s: State, _ tokens: Tokens, scope: String, grant: Int,
+                                    later: Bool = false) -> Answer {
+        let answer: [String: Any] = ["access_token": tokens.accessToken, "token_type": "Bearer", "expires_in": 3600,
+                                     "refresh_token": tokens.refreshToken,
+                                     "scope": s.widerScope ? scope + " admin" : scope]
+        return json(200, answer.merging(proofFields(s, grant: grant, later: later)) { mine, _ in mine },
+                    headers: ["Cache-Control": "no-store", "Pragma": "no-cache"])
     }
 
     private static func oauthError(_ error: String, _ description: String, status: Int = 400) -> Answer {

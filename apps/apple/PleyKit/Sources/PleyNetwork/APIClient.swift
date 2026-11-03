@@ -13,7 +13,9 @@ public struct NoContent: Decodable, Sendable, Equatable {
 /// redirects are followed only within that origin.
 ///
 /// On a `401` with `error="invalid_token"`, the tokens are refreshed once
-/// and the request tried again; a second refusal means signed out.
+/// and the request tried again; a second refusal means signed out. A
+/// request with the token that gets no answer has the tokens doubt the
+/// server: the next one waits until it proves itself again.
 public actor APIClient {
     public nonisolated let origin: String
     private let tokens: (any TokenProvider)?
@@ -172,9 +174,10 @@ public actor APIClient {
         } else {
             firstOpened = nil
         }
-        let first = try await transport.streamData(request, redirects: .api(issuer: issuer),
-                                                   onLeak: { await tokens.connectionLeaked() },
-                                                   opened: firstOpened, read: read)
+        let first = try await doubting(tokens) {
+            try await transport.streamData(request, redirects: .api(issuer: issuer),
+                                           onLeak: { await tokens.connectionLeaked() }, opened: firstOpened, read: read)
+        }
         guard first.status == 401, first.header("WWW-Authenticate").map(BearerChallenge.isInvalidToken) ?? false else {
             return first
         }
@@ -182,9 +185,10 @@ public actor APIClient {
         try await tokens.refresh(after: sent)
         let fresh = try await tokens.accessToken()
         request.setValue("Bearer \(fresh)", forHTTPHeaderField: "Authorization")
-        let second = try await transport.streamData(request, redirects: .api(issuer: issuer),
-                                                    onLeak: { await tokens.connectionLeaked() }, opened: opened,
-                                                    read: read)
+        let second = try await doubting(tokens) {
+            try await transport.streamData(request, redirects: .api(issuer: issuer),
+                                           onLeak: { await tokens.connectionLeaked() }, opened: opened, read: read)
+        }
         if second.status == 401 { throw PleyError.signedOut }
         return second
     }
@@ -199,7 +203,8 @@ public actor APIClient {
         }
         var request = URLRequest(url: url)
         request.setValue("*/*", forHTTPHeaderField: "Accept")
-        let response = try await transport.perform(request, redirects: .api(issuer: origin), maxBytes: maxBytes)
+        let response = try await doubted { try await transport.perform(request, redirects: .api(issuer: origin),
+                                                                        maxBytes: maxBytes) }
         try check(response)
         return response.body
     }
@@ -209,7 +214,16 @@ public actor APIClient {
         guard Addresses.origin(url) == Addresses.origin(origin) else {
             throw PleyError.unreachable("that isn't an address on the server")
         }
-        try check(try await transport.stream(URLRequest(url: url), redirects: .api(issuer: origin), read: read))
+        try check(try await doubted {
+            try await transport.stream(URLRequest(url: url), redirects: .api(issuer: origin), read: read)
+        })
+    }
+
+    /// `send()`'s answer for a keyed address, which carries no token; when
+    /// it gets none, the tokens doubt the server all the same.
+    private func doubted<T>(_ send: () async throws -> T) async throws -> T {
+        guard let tokens else { return try await send() }
+        return try await doubting(tokens, send)
     }
 
     /// `path` (with any query of its own, `/api/users/2/avatar?v=1`) on
@@ -287,8 +301,20 @@ public actor APIClient {
                       maxBytes: Int) async throws -> HTTPResponse {
         var request = request
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        return try await transport.perform(request, redirects: .api(issuer: issuer), maxBytes: maxBytes,
-                                           onLeak: { await tokens.connectionLeaked() })
+        return try await doubting(tokens) {
+            try await transport.perform(request, redirects: .api(issuer: issuer), maxBytes: maxBytes,
+                                        onLeak: { await tokens.connectionLeaked() })
+        }
+    }
+
+    /// `send()`'s answer; when it gets none, `tokens` doubt the server first.
+    private func doubting<T>(_ tokens: any TokenProvider, _ send: () async throws -> T) async throws -> T {
+        do {
+            return try await send()
+        } catch let error as PleyError where error.noAnswer {
+            await tokens.doubt()
+            throw error
+        }
     }
 
     private func invalidToken(_ response: HTTPResponse) -> Bool {

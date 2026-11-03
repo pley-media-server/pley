@@ -892,7 +892,7 @@ to every port of a host, so opening a server without a key on the host of
 one with a key deletes them first.
 
 Every app checks proofs: the Samsung (web and native), LG, Android,
-Kodi, Roku and desktop apps.
+Kodi, Roku, desktop and Apple (iPhone, iPad, Mac and Apple TV) apps.
 
 ### Signing in
 

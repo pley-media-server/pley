@@ -116,6 +116,9 @@ public final class AppModel: ObservableObject, SnapshotCache {
     /// The server can't be reached: the screens show what was saved of
     /// them, the banner says so, and the app tries again (`reconnect`).
     @Published public private(set) var offline = false
+    /// What the offline banner says: why the server is out of reach, when
+    /// another device answers at its address.
+    @Published public private(set) var offlineMessage = DownloadWords.offline
 
     public let session: SessionManager
     public let servers: ServerRepository
@@ -270,6 +273,8 @@ public final class AppModel: ObservableObject, SnapshotCache {
     /// the settings and the connection's gate.
     public static func live(downloads: ((AppSettings, ConnectionGate) -> any DownloadsService)? = nil) -> AppModel {
         let transport = HTTPTransport(userAgent: UserAgent.current)
+        // Another network has every server prove itself again before its next token.
+        NetworkChanges.shared.follow()
         let servers = ServerRepository()
         let session = SessionManager(transport: transport, servers: servers)
         let discovery = LocalServers(transport: transport)
@@ -312,7 +317,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
             }
         } catch {
             // Out of reach: what was saved shows, while the app tries again.
-            if LateReports.unreachable(error), await startOffline(last) { return }
+            if LateReports.unreachable(error), await startOffline(last, error) { return }
             downloads.signedIn(nil)
             root = .servers
             notice = "\(last.name): \(describe(error))"
@@ -344,7 +349,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
 
     /// Starts on `last` without the server, as the profile used last, from
     /// its saved screens: when a sign-in is kept and its profile was saved.
-    private func startOffline(_ last: SavedServer) async -> Bool {
+    private func startOffline(_ last: SavedServer, _ error: any Error) async -> Bool {
         guard let snapshots, let profileId = settings.lastProfile(origin: last.origin),
               let data = await snapshots.read(origin: last.origin, profileId: profileId, key: SnapshotKeys.me),
               let saved = try? PleyJSON.decoder.decode(User.self, from: data),
@@ -355,7 +360,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         homeVersion += 1
         signingIn = []
         root = .signedIn
-        wentOffline()
+        wentOffline(error)
         loadLibraries()
         loadLiveTv()
         await scopeDownloads()
@@ -912,7 +917,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
                 }
                 return fresh
             } catch where LateReports.unreachable(error) {
-                wentOffline()
+                wentOffline(error)
                 guard let saved = await saved(T.self, key, origin: origin, profileId: profileId) else { throw error }
                 return saved
             }
@@ -931,11 +936,12 @@ public final class AppModel: ObservableObject, SnapshotCache {
         return try? PleyJSON.decoder.decode(T.self, from: data)
     }
 
-    /// The server couldn't be reached: the banner shows, and the app tries
-    /// again after 2, 5, 15 and 30 s, then every minute, and whenever the
-    /// network changes.
-    public func wentOffline() {
+    /// The server couldn't be reached (`error`, when known): the banner
+    /// shows, and the app tries again after 2, 5, 15 and 30 s, then every
+    /// minute, and whenever the network changes.
+    public func wentOffline(_ error: (any Error)? = nil) {
         guard user != nil else { return }
+        if let error { saidOffline(error) }
         if !offline { offline = true }
         guard reconnectTask == nil else { return }
         let monitor = NWPathMonitor()
@@ -971,17 +977,25 @@ public final class AppModel: ObservableObject, SnapshotCache {
     public func reconnect() async -> Bool {
         guard offline, user != nil else { return !offline }
         let session = session
-        let answered = await withTaskGroup(of: Bool.self) { group in
-            group.addTask { (try? await session.reconnected()) != nil }
+        let outcome = await withTaskGroup(of: (any Error)??.self) { group in
+            group.addTask {
+                do {
+                    try await session.reconnected()
+                    return .some(nil)
+                } catch {
+                    return .some(error)
+                }
+            }
             group.addTask {
                 try? await Task.sleep(for: Self.reconnectWait)
-                return false
+                return nil
             }
-            let first = await group.next() ?? false
+            let first = await group.next() ?? nil
             group.cancelAll()
             return first
         }
-        guard answered, offline, let user else { return false }
+        if case .some(.some(let error)) = outcome, offline { saidOffline(error) }
+        guard case .some(.none) = outcome, offline, let user else { return false }
         stopReconnecting()
         offline = false
         if let api = await session.api, let fresh = try? await api.me() { self.user = fresh }
@@ -995,6 +1009,12 @@ public final class AppModel: ObservableObject, SnapshotCache {
         homeVersion += 1
         note(ServerChange(home: true, libraries: true, watchlist: true, everything: true))
         return true
+    }
+
+    /// The banner says why when another device answers at the server's address.
+    private func saidOffline(_ error: any Error) {
+        let message = (error as? PleyError)?.isAnotherDevice == true ? DownloadWords.anotherDevice : DownloadWords.offline
+        if offlineMessage != message { offlineMessage = message }
     }
 
     /// No longer taken for out of reach: the server or the sign-in changed,

@@ -50,6 +50,15 @@ public struct EndpointClient: Sendable {
         throw PleyError.unreadable(status: response.status)
     }
 
+    /// GETs `url` (a server's proof) and returns the answer whatever its
+    /// status, a redirect included: none is followed, as a proof counts
+    /// only from the address asked. Plain http follows Pley's rule.
+    public func answer(_ url: URL) async throws -> HTTPResponse {
+        var request = URLRequest(url: url)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        return try await transport.perform(request, redirects: .endpoints, maxBytes: BodyLimit.small)
+    }
+
     /// `application/x-www-form-urlencoded`, every character but RFC 3986's
     /// unreserved ones percent-encoded.
     public static func encode(_ form: [(String, String)]) -> String {
