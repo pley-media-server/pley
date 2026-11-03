@@ -22,9 +22,7 @@ describes how they are made.
   drive was pulled out while the TV showed Home says so and leaves.
   Subtitle files saved as UTF-16 or UTF-32 ("Unicode"), or in Windows'
   Western code page with its curly quotes and euro, read right, and a link
-  that leads off the drive isn't listed, played or read. When the rail has
-  no room left for the drive (Discover, Live TV and Now Playing there too),
-  Playlists moves to the Libraries page, after the libraries.
+  that leads off the drive isn't listed, played or read.
 - The player's Info says the TV's network speed under How it plays,
   beside the server's Speed, as in the Samsung app: a video that stalls
   while the server keeps up is on a network that can't carry it.
@@ -128,6 +126,11 @@ describes how they are made.
 - The posters of a library's grid wear their quality badges ("4K", "DV",
   "HDR10") when it is filtered by resolution or dynamic range, as when it
   is sorted by bitrate; otherwise posters carry none.
+- The rail's entries are smaller and it lists up to six libraries before
+  Libraries takes over. Nothing leaves the rail to make room any more:
+  when its entries don't fit, they scroll between the avatar and
+  Settings, which stay in place, keeping the entry after the focused one
+  in sight.
 
 ### Removed
 

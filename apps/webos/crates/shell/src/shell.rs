@@ -400,8 +400,7 @@ impl Shell {
         let entry = &mut self.stack[top];
         let group = Group::free().edge(Dir::Left, Edge::Out);
         let modal = {
-            let rail = rail_shown.then_some(&self.entries);
-            let mut cx = AppCx::new(state, &mut self.requests, now).with_rail(rail);
+            let mut cx = AppCx::new(state, &mut self.requests, now);
             ui.group(entry.group_id(), group, |ui| entry.screen.ui(ui, &mut cx));
             entry.screen.modal()
         };

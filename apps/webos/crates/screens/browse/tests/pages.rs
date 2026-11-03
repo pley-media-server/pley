@@ -52,15 +52,16 @@ impl BackgroundSession for Queued {
 }
 
 #[test]
-fn audio_guidance_names_playlists_as_it_opens_also_from_the_libraries_page() {
+fn audio_guidance_names_playlists_as_it_opens_with_the_rail_full() {
     let mut app = TestApp::start();
     let rail_has = |a: &TestApp, id: &str| a.shell.rail_entries().has(id);
     assert!(app.until(|a| rail_has(a, "discover") && rail_has(a, "live-tv")), "no Discover or Live TV");
-    // Now Playing and a drive as well: Playlists leaves the rail for the Libraries page, whose
-    // entry the rail marks, but the page still says its own name.
+    // Now Playing and a drive as well: Playlists keeps its place in the rail, and the page says
+    // its name.
     app.state.music = Some(Box::new(Queued));
     app.device.set_drive(Some(Drive { root: std::env::temp_dir(), hidden: false }));
-    assert!(app.until(|a| !rail_has(a, "playlists")), "Playlists kept its place in the rail");
+    assert!(app.until(|a| rail_has(a, "storage") && rail_has(a, "now-playing")), "no drive or Now Playing");
+    assert!(rail_has(&app, "playlists"), "Playlists left the rail");
     app.ui.set_speaking(true);
     app.open(Route::Playlists);
     let words = app.ui.take_speech().unwrap_or_default();

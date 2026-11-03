@@ -1,5 +1,4 @@
-//! The libraries list against the fake server: its cards, opening a library, sorting them, and
-//! Playlists' card while the rail has no room for it.
+//! The libraries list against the fake server: its cards, opening a library and sorting them.
 
 mod common;
 
@@ -157,56 +156,37 @@ impl BackgroundSession for Queued {
 }
 
 #[test]
-fn playlists_follows_the_libraries_while_the_rail_has_no_room_for_it() {
+fn the_rail_keeps_every_entry_and_this_page_lists_libraries_alone() {
     let mut app = TestApp::start();
     let rail_has = |a: &TestApp, id: &str| a.shell.rail_entries().has(id);
-    // Alex's rail has Discover and Live TV, its libraries under Libraries, and Playlists.
+    // Alex's rail has Discover and Live TV, each library, Playlists and Collections.
     assert!(app.until(|a| rail_has(a, "discover") && rail_has(a, "live-tv")), "no Discover or Live TV");
-    assert!(app.until(|a| rail_has(a, "libraries")), "no Libraries");
-    // The rail's Libraries: no card for Playlists while the rail has it.
-    app.shell.navigate(NavCommand::Reset(Route::Libraries { sort: false }), &mut app.state, &mut app.ui);
-    assert!(app.until(|a| a.shows("Music") && a.focused() == Some(card(a, ids::MOVIES))), "no cards");
-    assert!(rail_has(&app, "playlists"));
-    assert!(!app.shows("Playlists"));
-    let playlists = LibrariesScreen::playlists_id(app.page());
-
-    // Now Playing and a drive as well: no library is left to make way, and Playlists leaves the
-    // rail for this page, after the libraries.
+    assert!(app.until(|a| rail_has(a, "library:3")), "not every library has an entry");
+    // Now Playing and a drive as well: nothing makes way for them, the rail scrolls instead.
     app.state.music = Some(Box::new(Queued));
     app.device.set_drive(Some(Drive { root: std::env::temp_dir(), hidden: false }));
-    assert!(app.until(|a| !rail_has(a, "playlists")), "Playlists kept its place in the rail");
-    assert!(rail_has(&app, "now-playing") && rail_has(&app, "storage"));
-    assert!(app.until(|a| a.shows("Playlists")), "no card for Playlists");
-    assert_eq!(app.shell.rail_entries().top.len(), pley_shell::MAX_ITEMS);
-    // Audio Guidance reads its name, as it reads a library's.
-    app.ui.set_speaking(true);
-    app.advance(0.1);
-    app.ui.take_speech();
-    app.press(Key::Down);
-    assert_eq!(app.focused(), Some(playlists));
-    assert_eq!(app.ui.take_speech().as_deref(), Some("Playlists"));
-
-    // OK opens Playlists, under the rail's Libraries; Back comes back to its card.
-    app.press(Key::Ok);
-    assert_eq!(app.shell.routes(), [&Route::Libraries { sort: false }, &Route::Playlists]);
-    let current = || current_entry(app.shell.routes().first().copied(), app.shell.rail_entries());
-    assert_eq!(current().as_deref(), Some("libraries"));
-    app.press(Key::Back);
-    assert_eq!(app.route(), Some(&Route::Libraries { sort: false }));
-    assert_eq!(app.focused(), Some(playlists));
-
-    // While sorting the libraries, it stays out of the way.
-    app.press(Key::Up);
-    app.press(Key::Up);
-    assert_eq!(app.focused(), Some(app.id(&["header", "sort"])));
-    app.press(Key::Ok);
-    assert!(app.until(|a| a.shows("Sort libraries") && a.shows("Done")), "sorting didn't start");
-    assert!(!app.shows("Playlists"));
-    app.press(Key::Back);
-    assert!(app.until(|a| a.shows("Playlists")), "the card didn't come back after sorting");
-
-    // The drive pulled out: Playlists is back in the rail, and its card goes.
-    app.device.set_drive(None);
-    assert!(app.until(|a| rail_has(a, "playlists")), "Playlists didn't come back to the rail");
+    assert!(app.until(|a| rail_has(a, "now-playing") && rail_has(a, "storage")), "no Now Playing or drive");
+    let entries: Vec<&str> = app.shell.rail_entries().top.iter().map(|e| e.id.as_str()).collect();
+    assert_eq!(
+        entries,
+        [
+            "search",
+            "home",
+            "discover",
+            "live-tv",
+            "library:1",
+            "library:2",
+            "library:3",
+            "playlists",
+            "collections",
+            "now-playing",
+            "storage"
+        ]
+    );
+    let playlists = current_entry(Some(&Route::Playlists), app.shell.rail_entries());
+    assert_eq!(playlists.as_deref(), Some("playlists"));
+    // The Libraries page lists the libraries and nothing else.
+    app.shell.navigate(NavCommand::Reset(Route::Libraries { sort: false }), &mut app.state, &mut app.ui);
+    assert!(app.until(|a| a.shows("Music") && a.focused() == Some(card(a, ids::MOVIES))), "no cards");
     assert!(!app.shows("Playlists"));
 }
