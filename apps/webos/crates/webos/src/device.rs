@@ -10,7 +10,7 @@
 
 use std::net::{IpAddr, Ipv4Addr, UdpSocket};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::time::{Duration, Instant};
@@ -23,7 +23,7 @@ use serde_json::{Value, json};
 use crate::caps::{tier_of, webos_caps};
 use crate::data::{self, DataDir};
 use crate::facts::{WebosFacts, read_sources};
-use crate::luna::{Luna, Subscription};
+use crate::luna::{Answer, Luna, Subscription};
 use crate::ums::{UmsConfig, UmsEngine};
 use crate::{APP_ID, sdl};
 
@@ -32,6 +32,10 @@ use crate::{APP_ID, sdl};
 const FACTS_WAIT: Duration = Duration::from_secs(2);
 /// How long a subscription's first answer may take.
 const SUBSCRIBE_TIMEOUT: Duration = Duration::from_secs(5);
+/// The first wait before the network's news is subscribed to again after it
+/// stopped, doubled each time up to the last.
+const NETWORK_RETRY: Duration = Duration::from_secs(5);
+const NETWORK_RETRY_MOST: Duration = Duration::from_secs(300);
 /// How long showing the TV's Home may take before the app hides itself instead.
 const HOME_TIMEOUT: Duration = Duration::from_secs(1);
 /// Back pressed again within this long doesn't ask the TV twice.
@@ -61,6 +65,10 @@ struct Inner {
     network: Mutex<Option<(bool, Option<Ipv4Addr>)>>,
     /// The network the TV is on, as [`network_identity`] reads it.
     joined: Mutex<Option<Value>>,
+    /// The connection manager's subscription, made again when it stops.
+    network_watch: Mutex<Option<Subscription>>,
+    /// Times in a row the network's news stopped without an answer.
+    network_failures: AtomicU32,
     drive: Mutex<Option<Drive>>,
     awake: AtomicBool,
     subscribers: Mutex<Vec<Sender<DeviceEvent>>>,
@@ -107,6 +115,8 @@ impl WebosDevice {
                 screen_reader: AtomicBool::new(false),
                 network: Mutex::new(None),
                 joined: Mutex::new(None),
+                network_watch: Mutex::new(None),
+                network_failures: AtomicU32::new(0),
                 drive: Mutex::new(None),
                 awake: AtomicBool::new(false),
                 subscribers: Mutex::new(Vec::new()),
@@ -198,34 +208,8 @@ impl WebosDevice {
                 }
             },
         );
-        let weak: Weak<Inner> = Arc::downgrade(&self.inner);
-        let network = luna.subscribe(
-            "luna://com.webos.service.connectionmanager/getStatus",
-            &json!({}),
-            SUBSCRIBE_TIMEOUT,
-            move |answer| {
-                let (Ok(v), Some(inner)) = (answer, weak.upgrade()) else { return };
-                // Joining or leaving a network, or another one under the same
-                // address, makes the server prove itself again before its
-                // next token (pley_core::auth::proof). The first answer is the
-                // network the app started on: nothing changed yet.
-                let identity = network_identity(&v);
-                let mut joined = inner.joined.lock().unwrap_or_else(|e| e.into_inner());
-                if joined.as_ref().is_some_and(|before| *before != identity) {
-                    pley_core::auth::network_may_have_changed();
-                }
-                *joined = Some(identity);
-                drop(joined);
-                let status = network_status(&v);
-                let mut last = inner.network.lock().unwrap_or_else(|e| e.into_inner());
-                if *last != Some(status) {
-                    *last = Some(status);
-                    drop(last);
-                    inner.send(DeviceEvent::Network { connected: status.0, ipv4: status.1 });
-                }
-            },
-        );
-        self.inner.subscriptions.lock().unwrap_or_else(|e| e.into_inner()).extend([guidance, network]);
+        self.inner.subscriptions.lock().unwrap_or_else(|e| e.into_inner()).push(guidance);
+        watch_network(&self.inner);
     }
 
     /// Follows the drive plugged in, telling subscribers when it changes.
@@ -279,10 +263,75 @@ impl WebosDevice {
     }
 }
 
+/// Subscribes to the connection manager's news. A subscription whose first
+/// answer is late, or that the service refuses or ends, is made again after a
+/// wait: without it a change of network would never have the server prove
+/// itself again.
+fn watch_network(inner: &Arc<Inner>) {
+    let Some(luna) = inner.luna.clone() else { return };
+    let weak: Weak<Inner> = Arc::downgrade(inner);
+    let again = luna.clone();
+    let watch = luna.subscribe(
+        "luna://com.webos.service.connectionmanager/getStatus",
+        &json!({}),
+        SUBSCRIBE_TIMEOUT,
+        move |answer| {
+            let Some(inner) = weak.upgrade() else { return };
+            if let Some(wait) = inner.network_answer(answer) {
+                let weak = Arc::downgrade(&inner);
+                again.after(wait, move || {
+                    if let Some(inner) = weak.upgrade() {
+                        watch_network(&inner);
+                    }
+                });
+            }
+        },
+    );
+    // The one before, if any, is cancelled.
+    *inner.network_watch.lock().unwrap_or_else(|e| e.into_inner()) = Some(watch);
+}
+
 impl Inner {
     fn send(&self, event: DeviceEvent) {
         self.subscribers.lock().unwrap_or_else(|e| e.into_inner()).retain(|tx| tx.send(event.clone()).is_ok());
         self.waker.wake();
+    }
+
+    /// Takes the connection manager's answer; when the news stopped, the wait
+    /// before subscribing again (5 s, doubling to 5 min).
+    fn network_answer(&self, answer: Answer) -> Option<Duration> {
+        let v = match answer {
+            Ok(v) => v,
+            Err(why) => {
+                let failures = self.network_failures.fetch_add(1, Ordering::SeqCst).saturating_add(1);
+                let wait = (1..failures.min(16)).fold(NETWORK_RETRY, |w, _| (w * 2).min(NETWORK_RETRY_MOST));
+                crate::log::line(&format!(
+                    "device: the network's news stopped ({why}); asked again in {} s",
+                    wait.as_secs()
+                ));
+                return Some(wait);
+            }
+        };
+        self.network_failures.store(0, Ordering::SeqCst);
+        // Joining or leaving a network, or another one under the same
+        // address, makes the server prove itself again before its next token
+        // (pley_core::auth::proof). The first answer is the network the app
+        // started on: nothing changed yet.
+        let identity = network_identity(&v);
+        let mut joined = self.joined.lock().unwrap_or_else(|e| e.into_inner());
+        if joined.as_ref().is_some_and(|before| *before != identity) {
+            pley_core::auth::network_may_have_changed();
+        }
+        *joined = Some(identity);
+        drop(joined);
+        let status = network_status(&v);
+        let mut last = self.network.lock().unwrap_or_else(|e| e.into_inner());
+        if *last != Some(status) {
+            *last = Some(status);
+            drop(last);
+            self.send(DeviceEvent::Network { connected: status.0, ipv4: status.1 });
+        }
+        None
     }
 }
 
@@ -559,6 +608,31 @@ mod tests {
         assert_eq!(network_identity(&home), network_identity(&offline));
         assert_ne!(network_identity(&home), network_identity(&next_door));
         assert_ne!(network_identity(&home), network_identity(&wired));
+    }
+
+    #[test]
+    fn the_networks_news_is_asked_for_again_after_it_stops_waiting_longer_each_time() {
+        use crate::luna::LunaError;
+        let (device, _) = tv();
+        let (tx, rx) = std::sync::mpsc::channel();
+        device.subscribe(tx);
+        let inner = &device.inner;
+        let waits: Vec<u64> = [LunaError::Timeout, LunaError::Unreadable, LunaError::Timeout, LunaError::Timeout]
+            .into_iter()
+            .map(|e| inner.network_answer(Err(e)).unwrap().as_secs())
+            .collect();
+        assert_eq!(waits, [5, 10, 20, 40]);
+        for _ in 0..20 {
+            assert!(inner.network_answer(Err(LunaError::Timeout)).unwrap() <= Duration::from_secs(300));
+        }
+        // An answer is news as ever, and the next stop waits the least again.
+        let wifi = json!({ "wifi": { "state": "connected", "ipAddress": "192.168.1.23" } });
+        assert_eq!(inner.network_answer(Ok(wifi)), None);
+        assert_eq!(
+            rx.try_recv().unwrap(),
+            DeviceEvent::Network { connected: true, ipv4: Some(Ipv4Addr::new(192, 168, 1, 23)) }
+        );
+        assert_eq!(inner.network_answer(Err(LunaError::Timeout)), Some(Duration::from_secs(5)));
     }
 
     #[test]
