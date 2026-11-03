@@ -415,6 +415,8 @@ function libraryItemsQuery(id: Id, q: LibraryItemsQuery, enabled: boolean) {
           watched: q.watched,
           genre: q.genre,
           year: q.year,
+          resolution: q.resolution,
+          dynamic_range: q.dynamic_range,
           offset: q.offset,
           limit: q.limit ?? DEFAULT_ITEMS_LIMIT,
         })}`,

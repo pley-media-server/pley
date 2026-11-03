@@ -7,6 +7,9 @@ describe("smart filters", () => {
       "genre=Science+Fiction&unwatched=1&sort=year%3Adesc",
     );
     expect(smartFilterOf({ sort: "title", order: "asc", watched: true, year: 1999 })).toBe("year=1999&unwatched=0&sort=titleSort");
+    expect(smartFilterOf({ sort: "bitrate", order: "desc", year: 2020, resolution: "4k", dynamic_range: "dolby_vision", watched: false })).toBe(
+      "year=2020&resolution=4k&dynamicRange=dolby_vision&unwatched=1&sort=mediaBitrate%3Adesc",
+    );
   });
 
   it("are described in words", () => {
@@ -21,6 +24,9 @@ describe("smart filters", () => {
       "Recently added first",
       "At most 20",
     ]);
-    expect(describeSmartFilter("resolution=4k")).toEqual(["resolution: 4k"]);
+    expect(describeSmartFilter("resolution=4k&dynamicRange=hdr")).toEqual(["4K", "HDR"]);
+    expect(describeSmartFilter("resolution=1080&dynamicRange=hdr10plus")).toEqual(["1080p", "HDR10+"]);
+    expect(describeSmartFilter("resolution=8k")).toEqual(["Resolution: 8k"]);
+    expect(describeSmartFilter("videoCodec=hevc")).toEqual(["videoCodec: hevc"]);
   });
 });

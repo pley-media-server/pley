@@ -1,4 +1,4 @@
-import type { DynamicRange, ItemSummary, MediaFile, MediaStream, MediaSummary, TranscodeInfo } from "@/api/types";
+import type { DynamicRange, ItemSummary, MediaFile, MediaStream, MediaSummary, RangeFilter, Resolution, TranscodeInfo } from "@/api/types";
 import { languageName } from "./languages";
 
 /** 6720000 → "1h 52m", 2700000 → "45m", 29000 → "29s" (rounded to whole minutes from 30s up). */
@@ -54,6 +54,29 @@ export function mediaBadges(media: MediaSummary | null | undefined): string[] {
     resolutionLabel(media.width, media.height) === "4K" ? "4K" : null,
     media.dynamic_range ? (range[media.dynamic_range] ?? null) : null,
   ].filter((b): b is string => !!b);
+}
+
+/** What the library filters by resolution call each one. */
+export const RESOLUTION_LABELS: Record<Resolution, string> = { "4k": "4K", "1080": "1080p", "720": "720p", sd: "SD" };
+
+/** What the library filters by dynamic range call each one. */
+export const RANGE_FILTER_LABELS: Record<RangeFilter, string> = {
+  hdr: "HDR",
+  dolby_vision: "Dolby Vision",
+  hdr10plus: "HDR10+",
+  hdr10: "HDR10",
+  hlg: "HLG",
+  sdr: "SDR",
+};
+
+/** `value` if it's a resolution a library filters by (an address may hold anything). */
+export function resolutionOf(value: string | null | undefined): Resolution | undefined {
+  return value && Object.hasOwn(RESOLUTION_LABELS, value) ? (value as Resolution) : undefined;
+}
+
+/** `value` if it's a dynamic range a library filters by. */
+export function rangeFilterOf(value: string | null | undefined): RangeFilter | undefined {
+  return value && Object.hasOwn(RANGE_FILTER_LABELS, value) ? (value as RangeFilter) : undefined;
 }
 
 /** The line under a title's poster: `"42 Mbps · 23.4 GB"`. */

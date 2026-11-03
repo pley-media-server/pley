@@ -64,6 +64,10 @@ describes how they are made.
 
 - Search finds as many people and Live TV channels as titles, up to 200 of
   each, where it stopped at 12 people and 12 channels.
+- Library posters on the web carry their quality badges ("4K", "DV",
+  "HDR10") only when the library is sorted by bitrate or filtered by
+  resolution or dynamic range: on every poster they mostly said the same
+  thing.
 - Updating the Windows service no longer takes minutes on a large library:
   Setup no longer sets the permissions of every file in the data
   folder again when the folder is set up already.
