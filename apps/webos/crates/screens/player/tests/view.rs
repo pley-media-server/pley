@@ -784,6 +784,25 @@ fn info_slides_out_as_it_was() {
 }
 
 #[test]
+fn info_says_the_tvs_network_speed_beside_the_servers() {
+    let mut pl = Player::new(Fake::movie());
+    let speed = DetailRow { label: "Speed".into(), value: "2.5× real time · 36 s ready".into() };
+    pl.p.state.details = Some(details(vec![speed]));
+    pl.p.stats.network_bps = Some(120_000_000);
+    pl.open_row_at(Btn::Info);
+    pl.press(Key::Ok);
+    pl.wait(0.4);
+    let texts = pl.texts();
+    let at = |t: &str| texts.iter().position(|x| x == t);
+    assert!(at("Speed") < at("TV network speed") && at("TV network speed") < at("Quality"), "{texts:?}");
+    assert!(texts.contains(&"120 Mbps".to_string()));
+    // Not known (no /proc/net/dev in the TV's jail, the simulator): no row.
+    pl.p.stats.network_bps = None;
+    pl.wait(0.1);
+    assert!(!pl.texts().contains(&"TV network speed".to_string()));
+}
+
+#[test]
 fn the_readout_has_one_bitrate_line() {
     let mut pl = Player::new(Fake::movie());
     let rows = vec![

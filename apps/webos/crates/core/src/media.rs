@@ -154,6 +154,9 @@ pub struct EngineStats {
     /// Frame counts, when the engine can tell (LG's pipeline can't).
     pub dropped_frames: Option<u64>,
     pub total_frames: Option<u64>,
+    /// How fast the TV's whole network receives, in bits per second: the fastest second of the
+    /// last ten, where the engine doesn't say how fast its own downloads go. None while unknown.
+    pub network_bps: Option<u64>,
     /// Anything else worth a line: label, value.
     pub extra: Vec<(String, String)>,
 }

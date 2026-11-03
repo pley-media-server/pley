@@ -17,6 +17,9 @@ describes how they are made.
   The page's title is the drive's make and model when it says them, the
   line under it the folder's path ("/Films/2019"), and an empty page says
   so in the middle under an icon, with the rail closed.
+- The player's Info says the TV's network speed under How it plays,
+  beside the server's Speed, as in the Samsung app: a video that stalls
+  while the server keeps up is on a network that can't carry it.
 
 ### Changed
 

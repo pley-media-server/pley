@@ -19,6 +19,7 @@ pub mod facts;
 pub mod launch;
 pub mod log;
 pub mod luna;
+pub mod net;
 pub mod sdl;
 pub mod ums;
 

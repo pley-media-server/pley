@@ -373,6 +373,9 @@ pub fn draw(ui: &mut Ui, list: Id, area: Rect, rows: &[Row], state: &mut ListSta
     answer
 }
 
+/// How fast the TV's network receives, in Info's How it plays; the server's row is Speed.
+pub const NETWORK_ROW: &str = "TV network speed";
+
 /// Info's sections (`readoutSections`): how it plays, the file, its video and audio, the
 /// subtitles, and what this TV says.
 pub fn info_sections(s: &PlayerState, stats: &EngineStats) -> Vec<FactBlock> {
@@ -388,6 +391,11 @@ pub fn info_sections(s: &PlayerState, stats: &EngineStats) -> Vec<FactBlock> {
         how.push(fact("Why", why.clone()));
     }
     how.extend(d.rows.iter().map(|r| fact(&r.label, r.value.clone())));
+    // Beside the server's Speed: a server keeping up whose video stalls is a network that can't
+    // carry it (the Samsung app's row; Android's Network is ExoPlayer's own estimate).
+    if let Some(bps) = stats.network_bps.filter(|b| *b > 0) {
+        how.push(fact(NETWORK_ROW, format_bitrate(Some(i64::try_from(bps).unwrap_or(i64::MAX)))));
+    }
     how.push(fact("Quality", s.quality.clone()));
     out.push(FactBlock { title: "How it plays".into(), facts: how });
     if let Some(file) = &d.file

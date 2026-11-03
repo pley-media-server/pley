@@ -163,6 +163,13 @@ as the TV's menus do.
   language.
 - **Speed:** 0.5× to 2×, with the sound, through the pipeline's play
   rate.
+- **Info** says, under How it plays, the server's Speed and beside it
+  the TV's network speed: the fastest second of the last 10 s of what the
+  TV's network interfaces received (`/proc/net/dev`, read at most once a
+  second while Info shows), as in the Samsung app, since LG's pipeline
+  doesn't say how fast its own downloads go. A stalling video whose server
+  keeps up has a network that can't carry it. Where the jail hides the
+  file, the row isn't shown.
 
 ### Quality
 

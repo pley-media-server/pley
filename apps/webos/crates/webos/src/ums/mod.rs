@@ -29,6 +29,7 @@ use serde_json::{Value, json};
 use crate::data::write_atomic;
 use crate::facts::CodecTable;
 use crate::luna::{Luna, LunaError, Subscription};
+use crate::net::{self, TvNetwork};
 use crate::sdl::ExportedWindow;
 use acb::Acb;
 use machine::{Action, Config, Failure, Input, Machine, Method, PlaneKind};
@@ -67,6 +68,10 @@ pub struct UmsEngine {
     acb: Option<&'static Mutex<Acb>>,
     memory_file: PathBuf,
     events: Vec<EngineEvent>,
+    /// The TV's network speed for Info, which the pipeline doesn't give; `stats` reads it.
+    network: Mutex<TvNetwork>,
+    /// What the network's readings are timed by.
+    started: Instant,
 }
 
 impl UmsEngine {
@@ -99,6 +104,8 @@ impl UmsEngine {
             acb,
             memory_file,
             events: Vec::new(),
+            network: Mutex::new(TvNetwork::new(net::PROC_NET_DEV)),
+            started: Instant::now(),
         }
     }
 
@@ -329,7 +336,9 @@ impl PlayerEngine for UmsEngine {
     }
 
     fn stats(&self) -> EngineStats {
-        self.machine.stats()
+        let at = self.started.elapsed().as_millis() as u64;
+        let network_bps = self.network.lock().unwrap_or_else(|e| e.into_inner()).bps(at);
+        EngineStats { network_bps, ..self.machine.stats() }
     }
 }
 
