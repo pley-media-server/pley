@@ -1098,6 +1098,7 @@ apps allowed `profiles` move to another profile of the household. Send
 | `invalid_grant`, `"reason": "browser"` | it can see more than the app's profile and has no PIN: sign in to the app again and pick it in the browser (apps never see passwords) |
 | `invalid_grant`, `"reason": "not_allowed"` | not a household profile, disabled, or can see more with neither PIN nor password |
 | `invalid_grant` | the refresh token doesn't work, as for a refresh (a spent one ends the grant) |
+| `503 temporarily_unavailable` | Pley is too busy to check the PIN now: nothing is counted, try again |
 
 **`POST /api/oauth/revoke`** (RFC 7009): `token` and `client_id`
 (`invalid_request` without them; `token_type_hint` is ignored).

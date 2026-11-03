@@ -120,6 +120,11 @@ describes how they are made.
 - A password or PIN checked while the server is out of memory gets "Pley
   is busy checking passwords: try again in a moment" rather than "wrong",
   and no longer counts towards locking the account or the PIN.
+- A sign-in with an unknown username takes as long as one with a real
+  username even after the server was once too busy to prepare for it, so
+  its timing no longer tells which usernames exist. A new password or PIN
+  made while the server is out of memory, and a PIN an app checks while
+  it is busy, are told "busy, try again" rather than failing.
 - A picture sent to a collection or playlist through the Plex-compatible
   API no longer lands on the movie or show that had the same number:
   collections and playlists have keys of their own there. An episode's

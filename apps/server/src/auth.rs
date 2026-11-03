@@ -176,26 +176,43 @@ async fn hashing<T: Send + 'static>(work: impl FnOnce() -> T + Send + 'static) -
 }
 
 pub async fn hash_password(password: String) -> Result<String, AppError> {
-    hashing(move || {
-        Argon2::default()
-            .hash_password(password.as_bytes())
-            .map(|h: PasswordHash| h.to_string())
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("hashing password: {e}")))
+    hashing(move || hashed(Argon2::default().hash_password(password.as_bytes()).map(|h| h.to_string()))).await?
+}
+
+/// A hash Argon2 made, or why not. Without the memory it works in, pley is
+/// busy, as for a check ([`matched`]).
+fn hashed(made: argon2::password_hash::Result<String>) -> Result<String, AppError> {
+    made.map_err(|e| match e {
+        argon2::password_hash::Error::OutOfMemory => {
+            tracing::warn!("out of memory hashing a password or PIN: answered that Pley is busy");
+            busy_hashing()
+        }
+        e => AppError::Internal(anyhow::anyhow!("hashing password: {e}")),
     })
-    .await?
 }
 
 /// A real Argon2 hash of a random password, made once: checking a login for
-/// an unknown user against it costs the same as checking a real one.
-pub async fn dummy_password_hash() -> String {
+/// an unknown user against it costs the same as checking a real one. When
+/// it can't be made yet (pley busy, or out of memory), the sign-in is told
+/// so, as a known user's would be, and the next one tries again: an empty
+/// hash kept instead would answer unknown users at once, and their timing
+/// would tell which usernames exist.
+pub async fn dummy_password_hash() -> Result<String, AppError> {
     static HASH: tokio::sync::OnceCell<String> = tokio::sync::OnceCell::const_new();
-    HASH.get_or_init(|| async {
+    kept(&HASH, async {
         let mut secret = [0u8; 16];
         getrandom::fill(&mut secret).expect("the system's random numbers");
-        hash_password(hex::encode(secret)).await.unwrap_or_default()
+        hash_password(hex::encode(secret)).await
     })
     .await
-    .clone()
+}
+
+/// What `cell` holds, made by `make` the first time it works.
+async fn kept(
+    cell: &tokio::sync::OnceCell<String>,
+    make: impl std::future::Future<Output = Result<String, AppError>>,
+) -> Result<String, AppError> {
+    cell.get_or_try_init(|| make).await.cloned()
 }
 
 /// Whether `password` matches `hash` (never for the markers of accounts
@@ -1465,6 +1482,19 @@ mod tests {
         assert!(matches!(matched(Ok(())), Ok(true)));
         assert!(matches!(matched(Err(Error::PasswordInvalid)), Ok(false)));
         assert!(matches!(matched(Err(Error::OutOfMemory)), Err(AppError::Unavailable(_))));
+        // Making a hash too: busy, not an error of pley's.
+        assert!(matches!(hashed(Err(Error::OutOfMemory)), Err(AppError::Unavailable(_))));
+        assert!(matches!(hashed(Err(Error::Algorithm)), Err(AppError::Internal(_))));
+    }
+
+    #[tokio::test]
+    async fn a_dummy_hash_that_couldnt_be_made_is_made_next_time() {
+        let cell = tokio::sync::OnceCell::new();
+        assert!(matches!(kept(&cell, async { Err(busy_hashing()) }).await, Err(AppError::Unavailable(_))));
+        assert!(cell.get().is_none(), "nothing kept, an empty hash least of all");
+        assert_eq!(kept(&cell, async { Ok("$argon2id$made".to_owned()) }).await.unwrap(), "$argon2id$made");
+        assert_eq!(kept(&cell, async { Err(busy_hashing()) }).await.unwrap(), "$argon2id$made", "kept once made");
+        assert!(dummy_password_hash().await.unwrap().starts_with("$argon2id$"));
     }
 
     #[test]
