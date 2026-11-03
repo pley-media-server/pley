@@ -194,7 +194,7 @@ export function CompatibilityTokensCard() {
           </Button>
         )}
       </div>
-      <p className="mb-4 text-sm text-muted">For apps and tools that use the Plex- or Jellyfin-compatible API.</p>
+      <p className="mb-4 text-sm text-muted">Plex or Jellyfin compatible</p>
       {made ? <NewToken made={made} onDone={() => setMade(null)} /> : null}
       {making ? (
         <NewTokenForm
