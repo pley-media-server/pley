@@ -382,7 +382,7 @@ class Plugin(asking.Asking):
         tmdb_query = requests.search_text(query)
         may_ask = bool(tmdb_query) and requests.may_ask(self.requests_summary(ask=False))
         tmdb = asking.Searching(self.client(asking.FOUND_WAIT), tmdb_query, self.path) if may_ask else None
-        found = client.get("/api/search", q=query, limit=100, summaries=1)
+        found = client.get("/api/search", q=query, limit=api.SEARCH_LIMIT, summaries=1)
         items = found.get("items", [])
         channels = found.get("channels") or []
         alone = not items and not channels

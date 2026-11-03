@@ -2600,7 +2600,7 @@ class Search(Screen):
             if asks:
                 self.look_on_tmdb()
             try:
-                answer = self.session.get("/api/search", q=self.query, limit=100, summaries=1)
+                answer = self.session.get("/api/search", q=self.query, limit=api.SEARCH_LIMIT, summaries=1)
             except api.ApiError:
                 # The page stays as it was: the Discover row's titles aren't put under it.
                 self.asked += 1

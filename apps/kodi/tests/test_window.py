@@ -1105,7 +1105,8 @@ class WindowTest(unittest.TestCase):
         page.search("saltwind")
         # The libraries' rows at once; TMDB is looked at beside them, never waited for.
         self.assertEqual([row["key"] for row in page.rows.rows], [window.T("movies")])
-        self.assertEqual(asked_of, [("/api/search", {"q": "saltwind", "limit": 100, "summaries": 1})])
+        # Every title, person and channel the server finds, up to 200 of each.
+        self.assertEqual(asked_of, [("/api/search", {"q": "saltwind", "limit": 200, "summaries": 1})])
         work, then, _ = later.pop()
         then(work())
         self.assertEqual(asked_of[-1], ("/api/discover/search", {"q": "saltwind", "missing": 1}))
@@ -1177,6 +1178,22 @@ class WindowTest(unittest.TestCase):
         # The titles' rows, then Live TV's and people's, then Discover.
         self.assertEqual([row["key"] for row in page.rows.rows][-3:], ["channels", "people", "tmdb"])
         self.assertEqual(win.made[L.slot_list(L.SEARCH_ROWS, 6, "poster")].items[0].label, "Saltwind 2")
+
+    def test_search_rows_hold_everything_found(self):
+        win = FakeWindow()
+        requests_off(self)
+        movies = [{"id": n, "kind": "movie", "title": "Harbor %d" % n, "user_state": {}} for n in range(150)]
+        people = [{"id": n, "name": "Harbor Person %d" % n} for n in range(30)]
+        channels = [{"id": n, "source_id": 1, "name": "Harbor %d" % n, "number": str(n), "logo": None, "favorite": False, "has_guide": False, "now": None, "next": None}
+                    for n in range(20)]
+        win.session.get = lambda path, **query: {"items": movies, "people": people, "channels": channels}
+        page = window.Search(win)
+        win.show(page)
+        page.search("harbor")
+        # A row a group, each with all of its results, nothing cut at 12.
+        self.assertEqual([(row["key"], len(row["items"])) for row in page.rows.rows], [(window.T("movies"), 150), ("channels", 20), ("people", 30)])
+        self.assertEqual(len(win.made[L.slot_list(L.SEARCH_ROWS, 2, "person")].items), 30)
+        self.assertEqual(len(win.made[L.slot_list(L.SEARCH_ROWS, 1, "channel")].items), 20)
 
     def test_search_when_the_libraries_have_nothing(self):
         win = FakeWindow()

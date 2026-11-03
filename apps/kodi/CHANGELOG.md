@@ -24,6 +24,9 @@ describes how they are made.
 
 - Search shows movies, shows and episodes first, then music, then Live
   TV, then people, the closest matches first in each.
+- Search finds up to 200 titles, people and Live TV channels each, where
+  it stopped at 100 titles, 12 people and 12 channels. People and
+  channels past 12 need a server from the same release.
 - The rail's entries are smaller, as on the other TV apps, and it lists
   five libraries (four beside Live TV) instead of three before Libraries
   takes Collections' place.

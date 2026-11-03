@@ -92,6 +92,9 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
   left on is kept; its sort and filters start afresh each time it opens.
 - **Library order** is the profile's, saved for all its devices: Sort
   libraries in the profile's menu, or a library's menu key.
+- **Search** asks the server for up to 200 titles, 200 people and 200
+  Live TV channels, and shows a row for each kind holding all it found.
+  Kodi's lists show every title and channel found.
 - **Kodi's lists:** Settings → Screens → "Kodi's lists, in this skin's
   views" shows the add-on as folders in the skin's own views. Skin widgets
   and favourites always get these folders.
