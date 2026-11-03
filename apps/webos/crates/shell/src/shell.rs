@@ -384,8 +384,12 @@ impl Shell {
             self.rail.close();
         }
 
-        // The remote's media keys go to the music on every page but a player's (`App.cs`'s
-        // MediaKeys), before the page draws, so it shows the track they lead to.
+        // The remote's media keys the page answers itself (Live TV's guide), then the rest to the
+        // music on every page but a player's (`App.cs`'s MediaKeys), before the page draws, so it
+        // shows the track they lead to.
+        if self.stack[top].screen.media_keys(ui) {
+            ui.request_repaint();
+        }
         if self.chrome() != Chrome::Video
             && let Some(m) = state.music.as_mut()
             && m.media_keys(ui)

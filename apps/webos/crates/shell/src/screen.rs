@@ -81,6 +81,13 @@ pub trait Screen {
         false
     }
 
+    /// The remote's media keys the page answers itself now, taken before the music hears them
+    /// (Live TV's focused guide moves two hours with ◀◀ and ▶▶, Previous and Next, as Android's
+    /// does while music plays); whether it took any.
+    fn media_keys(&mut self, _ui: &mut Ui) -> bool {
+        false
+    }
+
     /// The page's name, which Audio Guidance reads when the page opens ("Settings", a title's
     /// name), before what has focus.
     fn title(&self) -> Option<String> {

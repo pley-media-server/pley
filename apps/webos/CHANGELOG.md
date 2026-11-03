@@ -155,6 +155,8 @@ describes how they are made.
   played or read for subtitles.
 - A USB drive's video whose drive was pulled out while the TV showed Home
   says so and leaves when Pley shows again, rather than an empty player.
+- In Live TV's guide, ◀◀ and ▶▶, Previous and Next move it two hours while
+  music plays too, rather than skipping the music's track.
 
 ### Security
 

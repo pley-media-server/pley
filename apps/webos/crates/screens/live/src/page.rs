@@ -461,6 +461,10 @@ fn write_saved(cx: &AppCx, key: String, page: LiveChannelPage) {
 }
 
 impl Screen for LiveTvScreen {
+    fn media_keys(&mut self, ui: &mut Ui) -> bool {
+        self.view == View::Guide && self.guide.media_keys(ui)
+    }
+
     fn ui(&mut self, ui: &mut Ui, cx: &mut AppCx) {
         let hours24 = *self.hours24.get_or_insert_with(|| cx.device().clock_24h());
         let clock = Clock::read(hours24);

@@ -246,7 +246,9 @@ and goes with `live_channels_changed`. On LG:
   watching didn't end there. Where the app can't listen on the loopback
   address, every channel plays its HLS.
 - **The guide:** ◀◀ and ▶▶, Previous and Next, move it two hours back
-  or on, a press at a time, as in the Android TV app.
+  or on, a press at a time, as in the Android TV app. While the guide has
+  focus these keys are its own even when music plays; elsewhere on the
+  page they go to the music.
 - **The player:** Up and Down, CH+ and CH−, Next and Previous change
   channel within the category; digits tune a number. OK, the menu or the
   guide key opens the channel list beside the picture, which moves aside

@@ -3,12 +3,15 @@
 
 mod common;
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use common::TestApp;
 use pley_base::{Key, KeyEvent};
 use pley_core::Store;
 use pley_core::model::LiveCategory;
 use pley_fixtures::ids;
-use pley_shell::Route;
+use pley_shell::{BackgroundSession, Route};
 use pley_ui::InputEvent;
 
 /// The app on Live TV, its guide drawn and focused.
@@ -213,6 +216,50 @@ fn rewind_and_fast_forward_previous_and_next_move_the_guide_two_hours() {
         app.press(back);
         assert!(on_now(&app), "{back:?} didn't come back to now");
     }
+}
+
+/// Music with a queue: it takes the media keys it hears, as the music player does.
+struct Music(Arc<AtomicU32>);
+
+impl BackgroundSession for Music {
+    fn queued(&self) -> bool {
+        true
+    }
+    fn tick(&mut self, _now: f64) -> Option<f64> {
+        None
+    }
+    fn pause(&mut self) {}
+    fn media_keys(&mut self, ui: &mut pley_ui::Ui) -> bool {
+        let mut took = false;
+        for key in [Key::Next, Key::Previous, Key::FastForward, Key::Rewind] {
+            if ui.take_key(key) {
+                self.0.fetch_add(1, Ordering::SeqCst);
+                took = true;
+            }
+        }
+        took
+    }
+    fn end(&mut self) {}
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
+#[test]
+fn the_guides_two_hour_keys_win_over_the_music_while_it_has_focus() {
+    let mut app = live();
+    let skips = Arc::new(AtomicU32::new(0));
+    app.state.music = Some(Box::new(Music(skips.clone())));
+    let on_now = |a: &TestApp| a.list.texts().any(|t| t.contains(" left"));
+    app.press(Key::Next);
+    assert!(!on_now(&app), "Next didn't move the guide on");
+    app.press(Key::Rewind);
+    assert!(on_now(&app), "◀◀ didn't come back to now");
+    assert_eq!(skips.load(Ordering::SeqCst), 0, "the music skipped as well");
+    // Away from the guide, they are the music's.
+    to_categories(&mut app);
+    app.press(Key::Next);
+    assert_eq!(skips.load(Ordering::SeqCst), 1);
 }
 
 #[test]

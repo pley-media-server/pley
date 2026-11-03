@@ -288,6 +288,25 @@ impl Guide {
         true
     }
 
+    /// ◀◀ and ▶▶, Previous and Next while the guide had focus: two hours back or on, a press at a
+    /// time (held, they would run through the two days in a second, `TvGuide.kt`). Taken, so the
+    /// music doesn't skip a track as well; whether any was.
+    pub fn media_keys(&mut self, ui: &mut Ui) -> bool {
+        if !self.focused {
+            return false;
+        }
+        let mut took = false;
+        for (key, by) in
+            [(Key::Rewind, -JUMP_S), (Key::Previous, -JUMP_S), (Key::FastForward, JUMP_S), (Key::Next, JUMP_S)]
+        {
+            if ui.take_key(key) {
+                self.cursor.jump(by, self.start);
+                took = true;
+            }
+        }
+        took
+    }
+
     /// The rows' area within the guide's `area`.
     pub fn rows_rect(area: Rect) -> Rect {
         let top = area.y + INFO_H + RULER_H;
@@ -316,6 +335,9 @@ impl Guide {
         let channel = data.pages.at(self.cursor.row as i64).cloned();
         let programs = |c: Option<&LiveChannel>| c.and_then(|c| data.programs.programs(c.id));
         if r.focused {
+            if self.media_keys(ui) {
+                ui.request_repaint();
+            }
             for k in ui.keys().to_vec() {
                 if !k.pressed {
                     if k.key == Key::Info
@@ -351,10 +373,6 @@ impl Guide {
                     Key::ChannelDown if !k.repeat => {
                         self.cursor.row = (self.cursor.row + PAGE).min(total.saturating_sub(1));
                     }
-                    // Two hours back or on, a press at a time: held, they would run through the
-                    // two days in a second (`TvGuide.kt`).
-                    Key::Rewind | Key::Previous if !k.repeat => self.cursor.jump(-JUMP_S, self.start),
-                    Key::FastForward | Key::Next if !k.repeat => self.cursor.jump(JUMP_S, self.start),
                     _ => continue,
                 }
                 ui.request_repaint();
