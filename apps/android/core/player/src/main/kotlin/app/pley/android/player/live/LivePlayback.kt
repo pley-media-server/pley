@@ -162,7 +162,8 @@ data class LiveState(
  *   `stream.ts` has none of its own) stops it at once and says why, the
  *   same as the `410` that follows; nothing tunes it again by itself;
  * - [stop] lets the session and the engine go (the screen went to the
- *   background), [resume] tunes the channel again, [close] ends it all.
+ *   background), [resume] tunes the channel again unless the server
+ *   stopped it, [close] ends it all.
  *
  * Made and used on the main thread: [scope] is the screen's.
  */
@@ -383,7 +384,7 @@ class LivePlayback(
         }
     }
 
-    /** Back in front: the channel left in [stop] plays again, from the live edge. */
+    /** Back in front: the channel left in [stop] plays again, from the live edge; one the server stopped stays stopped. */
     fun resume() {
         if (state.value.phase == LivePhase.Idle) retry()
     }
@@ -391,7 +392,8 @@ class LivePlayback(
     /**
      * Lets the session and the engine go, keeping which channel it was:
      * the screen is in the background. Nothing plays and no connection is
-     * held until [resume].
+     * held until [resume]. A channel the server stopped keeps saying so:
+     * it doesn't tune again by itself, only by Watch again ([retry]).
      */
     fun stop() {
         tuning?.cancel()
@@ -404,7 +406,11 @@ class LivePlayback(
             it.release()
         }
         mutableEngine.value = null
-        mutableState.update { LiveState(channelId = it.channelId) }
+        mutableState.update {
+            val phase = it.phase
+            val stopped = phase is LivePhase.Failed && phase.trouble.kind == LiveTrouble.Kind.Stopped
+            LiveState(channelId = it.channelId, phase = if (stopped) phase else LivePhase.Idle)
+        }
     }
 
     /** Ends watching for good. */

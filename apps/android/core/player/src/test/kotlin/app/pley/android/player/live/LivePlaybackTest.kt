@@ -428,6 +428,35 @@ class LivePlaybackTest {
     }
 
     @Test
+    fun `a connection taken over stays stopped through the background, until watch again`() {
+        playback.tune(1)
+        settle()
+        engine().player.ready()
+        settle()
+        val why = "Sam is watching Film Four now, on the connection this channel used."
+        events.tryEmit(ServerEvent.LiveTakenOver("stream-session", 1, why))
+        settle()
+        val stopped = playback.state.value.phase
+
+        // The screen saver, the lock screen or Home, then back.
+        playback.stop()
+        settle()
+        assertTrue(engine().released)
+        assertNull(playback.engine.value)
+        playback.resume()
+        settle()
+        assertEquals(stopped, playback.state.value.phase)
+        assertEquals(LiveTrouble(LiveTrouble.Kind.Stopped, why), (playback.state.value.phase as LivePhase.Failed).trouble)
+        assertEquals(listOf("watch 1 android-1"), live.sent)
+
+        // Watch again tunes it again.
+        playback.retry()
+        settle()
+        assertEquals(2, live.sent.count { it.startsWith("watch 1") })
+        assertEquals(LivePhase.Tuning, playback.state.value.phase)
+    }
+
+    @Test
     fun `a closed playback tunes nothing more`() {
         playback.tune(1)
         settle()
