@@ -488,7 +488,7 @@ mod tests {
 
     #[tokio::test]
     async fn tokens_are_prefixed_and_stored_hashed() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = database(dir.path()).await;
         let limited = asked("A tool", Some("activity"), &["10.0.0.0/24".into()]).unwrap();
         let (token, row, dropped) = create(&db, 1, &limited).await.unwrap();
@@ -512,7 +512,7 @@ mod tests {
 
     #[tokio::test]
     async fn tokens_are_listed_ended_and_capped() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = database(dir.path()).await;
         let (_, oldest, _) = create(&db, 1, &tool("play")).await.unwrap();
         let (used, used_row, _) = create(&db, 1, &tool("play")).await.unwrap();

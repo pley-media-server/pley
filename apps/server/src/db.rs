@@ -107,7 +107,7 @@ mod tests {
 
     #[tokio::test]
     async fn databases_are_backed_up_before_an_upgrade_and_only_then() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let path = dir.path().join("pley.db");
         let backups = dir.path().join("backups");
         // A database made by an older version: every migration but the last.
@@ -171,7 +171,7 @@ mod tests {
 
     #[tokio::test]
     async fn single_sign_on_leaves_nothing_behind_after_an_upgrade() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let path = dir.path().join("pley.db");
         // A version with single sign-on: an account it made, linked to an
         // identity at the provider, and its settings with the client secret.
@@ -235,7 +235,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_apps_sign_ins_move_with_their_client_ids() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let path = dir.path().join("pley.db");
         let pool = database_before(35, &path).await;
         sqlx::query("INSERT INTO users (id, username, password_hash, created_at) VALUES (1, 'ann', '!', 0)")

@@ -1361,7 +1361,7 @@ mod tests {
 
     #[tokio::test]
     async fn old_bif_indexes_go_once() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
         for sql in [
             "INSERT INTO libraries (id, name, kind, paths, created_at) VALUES (1, 'Movies', 'movies', '[]', 0)",

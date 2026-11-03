@@ -5,6 +5,8 @@
 //! answers name are stored beforehand, as if downloaded by an earlier
 //! refresh.
 
+mod common;
+
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -167,7 +169,7 @@ impl TestApp {
     }
 
     async fn with_endpoints(endpoints: Endpoints) -> Self {
-        let data = tempfile::tempdir().unwrap();
+        let data = common::tempdir();
         let mut config = Config::for_data_dir(data.path());
         config.transcoder_path = Some(data.path().join("no-transcoder-in-tests"));
         config.metadata_endpoints = Some(endpoints);

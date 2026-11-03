@@ -34,7 +34,7 @@ struct Reply {
 
 impl TestApp {
     async fn new() -> Self {
-        let data = tempfile::tempdir().unwrap();
+        let data = common::tempdir();
         let mut config = Config::for_data_dir(data.path());
         config.transcoder_path = Some(data.path().join("no-transcoder-in-tests"));
         let state = AppState::init(config).await.unwrap();

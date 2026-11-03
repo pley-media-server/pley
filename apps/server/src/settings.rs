@@ -872,7 +872,7 @@ mod tests {
     use super::*;
 
     async fn store() -> (tempfile::TempDir, Db, SettingsStore) {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
         let store = SettingsStore::load(&db).await.unwrap();
         (dir, db, store)

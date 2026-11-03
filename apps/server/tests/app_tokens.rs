@@ -847,7 +847,7 @@ async fn the_apps_tables_come_with_an_upgrade() {
     use sqlx::sqlite::{SqliteConnectOptions, SqlitePool};
 
     // A database of the version before apps: every migration below 0023.
-    let dir = tempfile::tempdir().unwrap();
+    let dir = common::tempdir();
     let older = dir.path().join("older");
     std::fs::create_dir(&older).unwrap();
     for file in std::fs::read_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/migrations")).unwrap().flatten() {

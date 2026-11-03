@@ -168,7 +168,7 @@ mod tests {
 
     #[tokio::test]
     async fn backups_are_checked_copies() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
         sqlx::query("INSERT INTO settings (key, value) VALUES ('probe', '1')").execute(&db.write).await.unwrap();
         let backups = Backups::new(db, dir.path());
@@ -186,7 +186,7 @@ mod tests {
 
     #[tokio::test]
     async fn only_the_newest_backups_are_kept() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
         let backups = Backups::new(db, dir.path());
         let folder = dir.path().join("backups");
@@ -231,7 +231,7 @@ mod tests {
 
     #[tokio::test]
     async fn health_is_unknown_until_checked() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
         let backups = Backups::new(db, dir.path());
         assert_eq!((backups.health().ok, backups.health().checked_at), (None, None));

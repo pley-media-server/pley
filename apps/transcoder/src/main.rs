@@ -34,6 +34,8 @@ mod probe;
 #[cfg(test)]
 mod remux_tests;
 mod share;
+#[cfg(test)]
+mod testing;
 mod trickplay;
 mod tsedit;
 mod util;

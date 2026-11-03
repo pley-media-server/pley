@@ -1600,7 +1600,7 @@ mod tests {
 
     #[tokio::test]
     async fn sessions_carry_the_users_restrictions() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (_db, auth) = service_with_user(dir.path()).await;
         let token = auth.create_session(1, Some("agent"), Some("10.0.0.2")).await.unwrap();
         let user = auth.validate(&token).await.unwrap();
@@ -1626,7 +1626,7 @@ mod tests {
 
     #[tokio::test]
     async fn expired_and_disabled_sessions_stop_working() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (db, auth) = service_with_user(dir.path()).await;
         let expired = auth.create_session(1, None, None).await.unwrap();
         sqlx::query("UPDATE sessions SET expires_at = ? WHERE token_hash = ?")
@@ -1659,7 +1659,7 @@ mod tests {
 
     #[tokio::test]
     async fn sessions_in_use_are_extended() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (db, auth) = service_with_user(dir.path()).await;
         let token = auth.create_session(1, None, None).await.unwrap();
         let stale = now() - TOUCH_INTERVAL_SECS - 60;
@@ -1701,7 +1701,7 @@ mod tests {
 
     #[tokio::test]
     async fn app_tokens_act_without_administrator_rights() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (_db, auth) = service_with_user(dir.path()).await;
         let admin = app_of(&auth, 2, 2).await;
         let user = auth.validate_app(&admin.access_token).await.unwrap();
@@ -1723,7 +1723,7 @@ mod tests {
 
     #[tokio::test]
     async fn disabled_users_and_approvers_stop_their_apps() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (db, auth) = service_with_user(dir.path()).await;
         // The kid's profile, allowed by the administrator.
         let issued = app_of(&auth, 1, 2).await;
@@ -1746,7 +1746,7 @@ mod tests {
 
     #[tokio::test]
     async fn forgetting_reaches_cached_app_tokens() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (db, auth) = service_with_user(dir.path()).await;
         let disable = |id: i64, off: bool| {
             let db = db.clone();
@@ -1804,7 +1804,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_forget_during_an_app_tokens_lookup_keeps_it_out_of_the_cache() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (db, auth) = service_with_user(dir.path()).await;
         let issued = app_of(&auth, 1, 1).await;
         let gate = Arc::new(Gate::default());
@@ -1824,7 +1824,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_sign_out_during_a_sessions_lookup_keeps_it_out_of_the_cache() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (_db, auth) = service_with_user(dir.path()).await;
         let session = auth.create_session(1, None, None).await.unwrap();
         let gate = Arc::new(Gate::default());
@@ -1856,7 +1856,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_forget_between_the_check_and_the_insert_still_wins() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (_db, auth) = service_with_user(dir.path()).await;
         let issued = app_of(&auth, 1, 1).await;
         let grant_id = issued.grant_id;
@@ -1867,7 +1867,7 @@ mod tests {
 
     #[tokio::test]
     async fn session_validation_never_accepts_app_tokens() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (db, auth) = service_with_user(dir.path()).await;
         let issued = app_of(&auth, 1, 1).await;
         // Even a session stored under the same hash.
@@ -1895,7 +1895,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_new_session_never_gets_a_token_that_looks_like_an_apps() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (_db, auth) = service_with_user(dir.path()).await;
         let mut draws = ["pley_at_x", "pley_rt_y", "pleyfine"].into_iter().map(str::to_owned);
         let token = auth.create_session_drawing(|| draws.next().unwrap(), 1, None, None).await.unwrap();
@@ -1918,7 +1918,7 @@ mod tests {
     #[tokio::test]
     async fn compatibility_tokens_are_never_administrators_and_check_each_scope() {
         use compatibility::Scope::{Activity, Manage, Play};
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (_db, auth) = service_with_user(dir.path()).await;
 
         let play = auth.validate_compatibility(&compatibility_token(&auth, 2).await, None).await.unwrap();
@@ -1958,7 +1958,7 @@ mod tests {
 
     #[tokio::test]
     async fn compatibility_tokens_work_only_from_their_origins() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (db, auth) = service_with_user(dir.path()).await;
         let from = |ip: &str| UsedFrom { ip: Some(ip.into()), user_agent: None };
         let token = limited_token(&auth, 1, "play", &["10.0.0.0/24"]).await;
@@ -1994,7 +1994,7 @@ mod tests {
 
     #[tokio::test]
     async fn compatibility_tokens_end_and_stop_working() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (db, auth) = service_with_user(dir.path()).await;
         let token = compatibility_token(&auth, 1).await;
         let other = compatibility_token(&auth, 2).await;
@@ -2049,7 +2049,7 @@ mod tests {
 
     #[tokio::test]
     async fn compatibility_tokens_in_use_are_extended_and_say_where_from() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (db, auth) = service_with_user(dir.path()).await;
         let token = compatibility_token(&auth, 1).await;
         let row = || {
@@ -2096,7 +2096,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_revocation_during_a_compatibility_tokens_lookup_keeps_it_out_of_the_cache() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (_db, auth) = service_with_user(dir.path()).await;
         let token = compatibility_token(&auth, 1).await;
         let gate = Arc::new(Gate::default());

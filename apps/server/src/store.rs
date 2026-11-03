@@ -831,7 +831,7 @@ mod tests {
 
     #[tokio::test]
     async fn same_picture_is_stored_once() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
         let store = Store::new(db, &dir.path().join("metadata"), &dir.path().join("media"), &dir.path().join("cache"));
         let a = store.put(b"\xff\xd8\xff\xe0 picture", "jpg").await.unwrap();
@@ -850,7 +850,7 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn a_picture_swapped_for_a_link_to_another_file_is_no_picture() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let store = store_in(dir.path()).await;
         let secret = dir.path().join("secret.key");
         std::fs::write(&secret, b"secret").unwrap();
@@ -873,7 +873,7 @@ mod tests {
 
     #[tokio::test]
     async fn clean_up_spares_what_is_used_and_what_is_new() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let store = store_in(dir.path()).await;
         let used = store.put(b"\xff\xd8\xff\xe0 used", "jpg").await.unwrap();
         let unused = store.put(b"\xff\xd8\xff\xe0 unused", "jpg").await.unwrap();
@@ -938,7 +938,7 @@ mod tests {
 
     #[tokio::test]
     async fn pictures_used_again_stay_until_their_reference_is_saved() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let store = store_in(dir.path()).await;
         let (poster, photo, unused) =
             (b"\xff\xd8\xff\xe0 poster", b"\xff\xd8\xff\xe0 photo", b"\xff\xd8\xff\xe0 unused");
@@ -975,7 +975,7 @@ mod tests {
     async fn what_is_handed_out_during_a_clean_up_stays() {
         // The steps of clean_older_than(0), with a refresh and a file moved
         // back between its snapshot of references and its sweeps.
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let store = store_in(dir.path()).await;
         let bytes = b"\xff\xd8\xff\xe0 poster";
         let blob = store.put(bytes, "jpg").await.unwrap();
@@ -1008,7 +1008,7 @@ mod tests {
 
     #[tokio::test]
     async fn downloads_are_forgotten_after_the_grace_period_only() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let store = store_in(dir.path()).await;
         let fresh = store.put(b"\xff\xd8\xff\xe0 fresh", "jpg").await.unwrap();
         let old = store.put(b"\xff\xd8\xff\xe0 old", "jpg").await.unwrap();
@@ -1036,7 +1036,7 @@ mod tests {
 
     #[tokio::test]
     async fn old_cache_files_go() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let store = store_in(dir.path()).await;
         let cache = dir.path().join("cache");
         let files = [
@@ -1081,7 +1081,7 @@ mod tests {
 
     #[tokio::test]
     async fn downloads_are_reused_and_only_from_image_hosts() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let store = store_in(dir.path()).await;
         let blob = store.put(b"\x89PNG\r\n\x1a\n known", "png").await.unwrap();
         let url = "https://image.tmdb.org/t/p/original/known.png";
@@ -1119,7 +1119,7 @@ mod tests {
 
     #[tokio::test]
     async fn unreadable_files_get_an_empty_fingerprint_and_are_retried_when_they_change() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let store = store_in(dir.path()).await;
         let readable = dir.path().join("a.mkv");
         std::fs::write(&readable, vec![1u8; 100]).unwrap();
@@ -1186,7 +1186,7 @@ mod tests {
 
     #[tokio::test]
     async fn fingerprinting_gives_up_when_saving_fails() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let store = pending_files(dir.path(), 300).await;
         // Saving fails, as on a full disk; the trigger counts the attempts.
         for sql in [
@@ -1209,7 +1209,7 @@ mod tests {
 
     #[tokio::test]
     async fn fingerprinting_moves_past_files_it_cannot_save() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let store = pending_files(dir.path(), 4).await;
         // One update fails, one changes nothing: neither stops the others.
         for sql in [

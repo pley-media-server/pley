@@ -91,7 +91,7 @@ mod tests {
 
     #[tokio::test]
     async fn labels_are_added_once_and_removed_whatever_their_case() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
         sqlx::query("INSERT INTO libraries (id, name, kind, paths, created_at) VALUES (1, 'M', 'movies', '[]', 0)")
             .execute(&db.write)

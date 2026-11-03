@@ -16,6 +16,10 @@ use tower::ServiceExt;
 
 use pley::{AppState, Config};
 
+#[path = "../../src/testing.rs"]
+mod testing;
+pub use testing::tempdir;
+
 /// The client_id of pley's Android app.
 pub const ANDROID_APP: &str = "https://pley-media-server.github.io/pley/oauth/android.json";
 /// The client_id of pley's desktop app.
@@ -77,7 +81,7 @@ impl TestApp {
 
     /// A pley whose configuration `adjust` may change (a transcoder URL, …).
     pub async fn with_config(adjust: impl FnOnce(&mut Config)) -> Self {
-        let data = tempfile::tempdir().unwrap();
+        let data = tempdir();
         let mut config = Config::for_data_dir(data.path());
         config.transcoder_path = Some(data.path().join("no-transcoder-in-tests"));
         adjust(&mut config);

@@ -68,7 +68,7 @@ async fn stopped(server: JoinHandle<anyhow::Result<()>>) -> anyhow::Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn more_addresses_are_served_and_one_taken_is_tried_until_free() {
-    let data = tempfile::tempdir().unwrap();
+    let data = common::tempdir();
     let mut config = config(data.path());
     let second = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap();
     // Like an adapter's address that comes after pley (Wi-Fi, a VPN).
@@ -106,7 +106,7 @@ fn free_port() -> u16 {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn where_pley_listens_changes_while_it_runs() {
-    let data = tempfile::tempdir().unwrap();
+    let data = common::tempdir();
     let mut config = config(data.path());
     config.extra_bind_retry = Duration::from_millis(100);
     let (first, ctx, server) = start(config).await;
@@ -175,7 +175,7 @@ async fn where_pley_listens_changes_while_it_runs() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn one_server_per_data_directory() {
-    let data = tempfile::tempdir().unwrap();
+    let data = common::tempdir();
     let (_, ctx, server) = start(config(data.path())).await;
 
     // A second copy gives up at once, before it opens the database.
@@ -202,7 +202,7 @@ async fn one_server_per_data_directory() {
 #[tokio::test]
 async fn a_taken_port_stops_the_start_before_the_database_is_opened() {
     let taken = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let data = tempfile::tempdir().unwrap();
+    let data = common::tempdir();
     let mut config = config(data.path());
     config.bind = taken.local_addr().unwrap();
     let message = format!("{:#}", pley::run(config).await.expect_err("the port is taken"));
@@ -232,14 +232,14 @@ async fn failed_start(data: &std::path::Path, args: &[&str]) -> (std::process::E
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn why_the_server_could_not_start_is_in_its_log() {
     // The port is taken.
-    let data = tempfile::tempdir().unwrap();
+    let data = common::tempdir();
     let (status, stderr, log) = failed_start(data.path(), &[]).await;
     assert!(!status.success());
     assert!(log.contains("ERROR Pley could not start: cannot listen on 127.0.0.1:"), "{log}");
     assert_eq!(stderr.matches("cannot listen on").count(), 1, "on the console once: {stderr}");
 
     // Another pley uses the data directory (here, this process).
-    let busy = tempfile::tempdir().unwrap();
+    let busy = common::tempdir();
     let (_, ctx, server) = start(config(busy.path())).await;
     let (status, _, log) = failed_start(busy.path(), &[]).await;
     assert!(!status.success());
@@ -249,7 +249,7 @@ async fn why_the_server_could_not_start_is_in_its_log() {
     stopped(server).await.unwrap();
 
     // pley.toml can't be read: the log of the data directory it is in.
-    let broken = tempfile::tempdir().unwrap();
+    let broken = common::tempdir();
     std::fs::write(broken.path().join("pley.toml"), "bindd = \"8080\"\n").unwrap();
     let (status, _, log) = failed_start(broken.path(), &[]).await;
     assert!(!status.success());
@@ -258,13 +258,13 @@ async fn why_the_server_could_not_start_is_in_its_log() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_second_pley_stops_when_one_answers_on_its_port() {
-    let data = tempfile::tempdir().unwrap();
+    let data = common::tempdir();
     let (addr, ctx, server) = start(config(data.path())).await;
     let port = addr.rsplit(':').next().unwrap();
 
     // Another data directory, and 0.0.0.0, which Windows would let it listen
     // on next to the first's 127.0.0.1: the two would share the port.
-    let other = tempfile::tempdir().unwrap();
+    let other = common::tempdir();
     let run = pley_exe()
         .args(["--no-tray", "--jellyfin-bind", "off", "--bind"])
         .arg(format!("0.0.0.0:{port}"))
@@ -284,7 +284,7 @@ async fn a_second_pley_stops_when_one_answers_on_its_port() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reset_password_works_next_to_a_running_server() {
-    let data = tempfile::tempdir().unwrap();
+    let data = common::tempdir();
     let (addr, ctx, server) = start(config(data.path())).await;
 
     let run =
@@ -330,7 +330,7 @@ async fn the_event_stream_ends_when_the_server_stops() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_tray_quit_stops_its_server() {
-    let data = tempfile::tempdir().unwrap();
+    let data = common::tempdir();
     let (addr, ctx, server) = start(config(data.path())).await;
     let http = reqwest::Client::builder().no_proxy().build().unwrap();
     let health = http.get(format!("http://{addr}/api/health")).send().await.unwrap();
@@ -344,7 +344,7 @@ async fn the_tray_quit_stops_its_server() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn requests_in_progress_get_a_grace_period_and_no_more() {
-    let data = tempfile::tempdir().unwrap();
+    let data = common::tempdir();
     let mut config = config(data.path());
     config.shutdown_grace = Duration::from_millis(500);
     let (addr, ctx, server) = start(config).await;

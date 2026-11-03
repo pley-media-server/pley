@@ -2214,7 +2214,7 @@ mod tests {
 
     #[tokio::test]
     async fn filters_and_sorts_in_sql_list_what_the_in_memory_path_lists() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = listing_fixture(dir.path()).await;
         let guid = own_guid("movie", 3);
         let show_guid = own_guid("show", 3);
@@ -2453,7 +2453,7 @@ mod tests {
 
     #[tokio::test]
     async fn pages_and_totals_in_sql_match_the_in_memory_path() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = listing_fixture(dir.path()).await;
         let pages = [(0, None), (0, Some(0)), (0, Some(3)), (2, Some(3)), (3, Some(100)), (11, Some(5)), (50, Some(5))];
         for user in [1, 2] {

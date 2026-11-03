@@ -883,7 +883,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_secret_shown_signing_in_is_shown_again_to_its_id_until_it_is_used_or_dropped() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let two_step = with_bob(dir.path()).await;
         let first = two_step.pending_or_begin(7, None, "bob", "Den").unwrap();
         assert!(first.uri.contains("Pley:bob%40Den"), "{}", first.uri);
@@ -910,7 +910,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_right_code_takes_its_secret_once_and_wrong_ones_drop_it() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let two_step = with_bob(dir.path()).await;
         let shown = two_step.begin(7, "bob", "pley", false).unwrap();
         assert!(shown.uri.contains("Pley:bob?"), "no server name for a server called pley: {}", shown.uri);
@@ -940,7 +940,7 @@ mod tests {
 
     #[tokio::test]
     async fn moving_it_to_another_app_keeps_it_on_and_renews_the_recovery_codes() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let two_step = with_bob(dir.path()).await;
         let first = base32_decode(&two_step.begin(7, "bob", "pley", false).unwrap().secret).unwrap();
         let on = two_step.finish(7, &code_at(&first, now())).await.unwrap();
@@ -964,7 +964,7 @@ mod tests {
 
     #[tokio::test]
     async fn secrets_are_sealed_for_their_account_with_the_key_in_the_data_folder() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
         let two_step = TwoStep::new(db.clone(), dir.path());
         let key = std::fs::read_to_string(dir.path().join(KEY_FILE)).unwrap();

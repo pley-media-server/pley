@@ -5,6 +5,8 @@
 //! server of the process sees it first. Other start and stop tests are in
 //! `tests/lifecycle.rs`.
 
+mod common;
+
 use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
@@ -12,7 +14,7 @@ use serde_json::{Value, json};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn request_shutdown_ends_the_event_stream() {
-    let data = tempfile::tempdir().unwrap();
+    let data = common::tempdir();
     let mut config = pley::Config::for_data_dir(data.path());
     config.transcoder_path = Some(data.path().join("no-transcoder-in-tests"));
     // Far longer than the test waits: stopping in time means the stream

@@ -126,7 +126,7 @@ mod tests {
 
     #[tokio::test]
     async fn backfill_fills_missing_ages_only() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
         sqlx::query(
             "INSERT INTO libraries (id, name, kind, paths, created_at) VALUES (1, 'Movies', 'movies', '[]', 0)",

@@ -125,7 +125,7 @@ mod tests {
     /// listed in: by name.
     #[tokio::test]
     async fn libraries_keep_their_order_through_the_upgrade() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let path = dir.path().join("pley.db");
         // A database made by a version that listed libraries by name.
         let older = dir.path().join("older");

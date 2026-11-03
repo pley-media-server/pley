@@ -2,6 +2,8 @@
 //! directory. No transcoder is started, so scanned files stay unprobed (the
 //! server must still list, browse, search and direct-play them).
 
+mod common;
+
 use std::time::Duration;
 
 use axum::Router;
@@ -29,7 +31,7 @@ struct Reply {
 
 impl TestApp {
     async fn new() -> Self {
-        let data = tempfile::tempdir().unwrap();
+        let data = common::tempdir();
         let mut config = Config::for_data_dir(data.path());
         config.transcoder_path = Some(data.path().join("no-transcoder-in-tests"));
         let state = AppState::init(config).await.unwrap();

@@ -76,6 +76,13 @@ Then follow [First start](CONFIGURATION.md#first-start).
 | `scripts/build.ps1` (or `build.sh`) | Builds the server's release archive locally |
 | `scripts/build-spk.sh` | Builds the Synology package from the static Linux archive ([deploy/synology](../deploy/synology/README.md)) |
 
+Rust tests that open a database, start a server or run FFmpeg make their
+temporary folders with `testing::tempdir()` (`common::tempdir()` in the
+server's integration tests), not `tempfile::tempdir()`. On Windows those
+files are still open when a test's `TempDir` is dropped, so its folder would
+stay behind in the temporary folder; these are removed once the test's
+thread ends.
+
 The Android app builds with the Android SDK and JDK 17 or newer (on Windows,
 Android Studio's: `JAVA_HOME=C:\Program Files\Android\Android Studio\jbr`).
 In `apps/android`:

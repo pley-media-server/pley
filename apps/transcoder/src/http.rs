@@ -701,7 +701,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_conversions_file_comes_whole_or_from_where_a_download_stopped() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let addr = serve(dir.path(), None).await;
         let id = "0123456789abcdef0123456789abcdef";
         std::fs::create_dir_all(dir.path().join("conversions")).unwrap();
@@ -737,7 +737,7 @@ mod tests {
 
     #[tokio::test]
     async fn conversions_need_ffmpeg_and_their_input() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let addr = serve(dir.path(), None).await;
         let input = dir.path().join("movie.mkv");
         std::fs::write(&input, b"x").unwrap();
@@ -748,7 +748,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_token_guards_everything_but_health() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let addr = serve(dir.path(), Some("s3cret")).await;
         let health = request(addr, "GET", "/health", None, None).await;
         assert_eq!((health.status, health.body.as_str()), (200, "ok"));
@@ -774,7 +774,7 @@ mod tests {
 
     #[tokio::test]
     async fn without_a_token_only_requests_to_this_computer_are_answered() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let addr = serve(dir.path(), None).await;
         let at_addr = addr.to_string();
         for host in ["localhost", "LocalHost:7540", "127.0.0.1", at_addr.as_str(), "[::1]", "[::1]:7540"] {
@@ -803,7 +803,7 @@ mod tests {
         assert_eq!((health.status, health.body.as_str()), (200, "ok"), "nothing to read there");
 
         // With a token, the token decides: other machines use its name.
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let addr = serve(dir.path(), Some("s3cret")).await;
         let headers = [("Host", "nas.lan:7540"), ("Authorization", "Bearer s3cret")];
         assert_eq!(request_with(addr, "GET", "/v1/info", &headers, None).await.status, 200);
@@ -821,7 +821,7 @@ mod tests {
 
     #[tokio::test]
     async fn status_and_metrics() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let addr = serve(dir.path(), None).await;
         let status = request(addr, "GET", "/v1/status", None, None).await;
         assert_eq!(status.status, 200, "no token configured: open");
@@ -841,7 +841,7 @@ mod tests {
 
     #[tokio::test]
     async fn unknown_jobs_are_reported_as_gone() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let addr = serve(dir.path(), None).await;
         for (method, path) in [
             ("GET", "/v1/jobs/nope"),
@@ -858,7 +858,7 @@ mod tests {
 
     #[tokio::test]
     async fn missing_files_and_bad_names_are_plain_not_found() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let addr = serve(dir.path(), None).await;
         let missing = serde_json::json!({"path": dir.path().join("missing.mkv")}).to_string();
         for path in ["/v1/probe", "/v1/keyframes", "/v1/trickplay", "/v1/prefetch"] {
@@ -876,7 +876,7 @@ mod tests {
 
     #[tokio::test]
     async fn preview_sheets_go_once_all_have_been_fetched() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let addr = serve(dir.path(), None).await;
         let id = "0123abcd-2000-320-v1";
         let set = dir.path().join("trickplay").join(id);
@@ -912,7 +912,7 @@ mod tests {
 
     #[tokio::test]
     async fn prefetches_say_what_they_read() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let addr = serve(dir.path(), None).await;
         let input = dir.path().join("clip.ts");
         std::fs::write(&input, vec![0x47u8; 3 << 20]).unwrap();
@@ -927,7 +927,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_hold_keeps_background_work_waiting() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let addr = serve(dir.path(), None).await;
         let input = dir.path().join("clip.ts");
         std::fs::write(&input, vec![0x47u8; 1 << 20]).unwrap();
@@ -941,7 +941,7 @@ mod tests {
 
     #[tokio::test]
     async fn jobs_need_a_working_ffmpeg() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let addr = serve(dir.path(), None).await;
         let input = dir.path().join("movie.mkv");
         std::fs::write(&input, b"not really a movie").unwrap();
@@ -990,7 +990,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn fmp4_jobs_serve_mp4_and_only_their_own_names() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let Some((addr, input)) = serve_ffmpeg(dir.path()).await else { return };
         let job = |format: &str| {
             serde_json::json!({

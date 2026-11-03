@@ -2326,7 +2326,7 @@ mod tests {
 
     #[tokio::test]
     async fn quick_runs_hold_up_no_pass() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let extractor = Arc::new(extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), false)));
         let (name, _) = movie_in(&extractor, dir.path(), &unplaced_movie());
         // Every quick FFmpeg run taken (thumbnails, cover art, subtitle
@@ -2353,14 +2353,14 @@ mod tests {
     async fn passes_that_ran_out_of_time_arent_run_again() {
         // A pass that fails is run again for the track asked for alone:
         // another track may be what FFmpeg couldn't convert...
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let extractor = Arc::new(extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), false)));
         let (name, _) = movie_in(&extractor, dir.path(), &unplaced_movie());
         assert!(matches!(extractor.subtitle(&name, Some(2)).await, Err(ApiError::Failed(_))));
         assert_eq!(ffmpeg_runs(dir.path()), [vec![2, 4], vec![2]]);
         // ...but not one that ran out of time: reading the file again would
         // take as long.
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let mut slow = extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), true));
         slow.pass_time = |_| Duration::from_secs(2);
         let slow = Arc::new(slow);
@@ -2371,7 +2371,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_failed_pass_is_told_rather_than_run_again() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let extractor = Arc::new(extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), false)));
         let (name, key) = movie_in(&extractor, dir.path(), &unplaced_movie());
         let wait = Duration::from_millis(100);
@@ -2445,7 +2445,7 @@ mod tests {
 
     #[tokio::test]
     async fn picture_tracks_ffmpeg_copies_come_as_far_as_they_are_written() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let mut extractor = extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), true));
         extractor.header_wait = Duration::from_millis(500);
         let extractor = Arc::new(extractor);
@@ -2640,7 +2640,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_pictures_around_the_player_stay_while_ffmpeg_copies_a_track_whose_cues_fail_past_them() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let extractor = Arc::new(extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), true)));
         let mut file = matroska::tests::pictures_every_second(600);
         // A cue well after them points at the video's block: the read fails
@@ -2807,7 +2807,7 @@ mod tests {
 
     #[tokio::test]
     async fn no_seek_is_read_through_cues_that_fail_around_the_player() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let mut extractor = extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), true));
         extractor.header_wait = Duration::from_millis(500);
         let extractor = Arc::new(extractor);
@@ -2829,7 +2829,7 @@ mod tests {
 
     #[tokio::test]
     async fn reads_at_seeks_go_on_while_ffmpeg_copies_a_track_whose_cues_fail_past_the_player() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let extractor = Arc::new(extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), true)));
         let mut file = matroska::tests::pictures_every_second(600);
         file.extra_cues.push((5, 500, 0, 0));
@@ -3139,7 +3139,7 @@ mod tests {
 
     #[tokio::test]
     async fn picture_copies_by_ffmpeg_wait_for_playbacks_starting() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let background = Background::new();
         let mut extractor = extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), false));
         extractor.background = Some(background.clone());
@@ -3161,7 +3161,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_failed_picture_copy_is_told_rather_than_run_again() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let extractor = Arc::new(extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), false)));
         let (name, key) = movie_in(&extractor, dir.path(), &unplaced_movie());
         let wait = Duration::from_millis(100);
@@ -3184,7 +3184,7 @@ mod tests {
 
     #[tokio::test]
     async fn passes_keep_their_outputs_from_being_pruned() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let mut extractor = extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), true));
         extractor.keep_fresh = Duration::from_millis(50);
         let extractor = Arc::new(extractor);

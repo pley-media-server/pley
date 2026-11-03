@@ -133,5 +133,5 @@ default = ["tray"]
 tray = ["dep:open", "dep:tray-icon", "dep:objc2", "dep:objc2-app-kit", "dep:objc2-foundation", "dep:ksni"]
 
 [dev-dependencies]
-tempfile = "3"
+tempfile = "3.20"
 tokio-tungstenite = "0.30"

@@ -1937,7 +1937,7 @@ mod tests {
 
     #[tokio::test]
     async fn progress_keeps_resume_points_and_counts_each_play_once() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = db_with_movies(dir.path(), 1).await;
         let duration = 100_000;
 
@@ -1967,7 +1967,7 @@ mod tests {
 
     #[tokio::test]
     async fn progress_without_a_duration_never_completes() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = db_with_movies(dir.path(), 1).await;
         assert!(!report(&db, 1, 7_200_000, 0, None).await.counted);
         assert_eq!(state_of(&db, 1).await, ((7_200_000, false, 0), 0));
@@ -1978,7 +1978,7 @@ mod tests {
 
     #[tokio::test]
     async fn marking_watched_by_hand_is_not_a_play() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = db_with_movies(dir.path(), 2).await;
         report(&db, 1, 30_000, 100_000, None).await;
         mark(&db, 1, true).await;
@@ -2001,7 +2001,7 @@ mod tests {
 
     #[tokio::test]
     async fn library_pages_filter_sort_and_count() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = db_with_movies(dir.path(), 4).await;
         for (id, year, genres, rating) in [
             (1, Some(1999), r#"["Horror","Drama"]"#, Some(7.0)),

@@ -2657,7 +2657,7 @@ mod tests {
 
     #[tokio::test]
     async fn folders_of_jobs_never_made_go() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let (made, unmade) = (dir.path().join("made"), dir.path().join("unmade"));
         for job in [&made, &unmade] {
             std::fs::create_dir(job).unwrap();
@@ -2735,7 +2735,7 @@ mod tests {
 
     #[test]
     fn a_throttled_process_pauses_far_ahead_of_the_player() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let mut job = job(dir.path(), (0..=500).map(|i| i * 2_000).collect());
         job.plan.segment_seconds = 2.0;
         let (_exit_tx, exited) = watch::channel(false);
@@ -2796,7 +2796,7 @@ mod tests {
 
     #[test]
     fn seeks_just_past_a_throttled_process_restart_it() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let mut job = job(dir.path(), (0..=100).map(|i| i * 2_000).collect());
         job.plan.segment_seconds = 2.0;
         job.plan.throttle = true;
@@ -2951,7 +2951,7 @@ mod tests {
     #[tokio::test]
     async fn implausible_durations_from_the_server_are_probed_again() {
         use pley_transcoder_api::{AudioRequest, MediaStream, StreamKind};
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let input = dir.path().join("song.flac");
         std::fs::write(&input, b"not really audio").unwrap();
         let jobs = manager(dir.path());
@@ -2995,7 +2995,7 @@ mod tests {
             eprintln!("ffmpeg not found: skipped");
             return;
         }
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let input = dir.path().join("clip.mkv");
         let made = std::process::Command::new("ffmpeg")
             .args(["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i"])
@@ -3063,7 +3063,7 @@ mod tests {
             eprintln!("ffmpeg not found: skipped");
             return;
         }
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let input = dir.path().join("clip.mkv");
         let made = std::process::Command::new("ffmpeg")
             .args(["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i"])
@@ -3200,7 +3200,7 @@ mod tests {
     #[tokio::test]
     async fn a_new_bitrate_remakes_what_the_player_has_not_fetched() {
         use pley_transcoder_api::VideoRequest;
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let Some((_, jobs)) = with_ffmpeg(dir.path(), "320x240") else { return };
         // Noise, so that the bitrate asked for is what limits the encoder.
         let input = dir.path().join("noisy.mkv");
@@ -3254,7 +3254,7 @@ mod tests {
     #[tokio::test]
     async fn variants_are_laid_out_alike_and_made_one_at_a_time() {
         use pley_transcoder_api::{VariantRequest, VideoRequest};
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let Some((input, jobs)) = with_ffmpeg(dir.path(), "1280x720") else { return };
         let variant =
             |w, h, kbps| VariantRequest { max_width: Some(w), max_height: Some(h), max_bitrate_kbps: Some(kbps) };
@@ -3315,7 +3315,7 @@ mod tests {
 
     #[tokio::test]
     async fn hardware_failing_jobs_have_the_encoders_tested_again() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let jobs = manager(dir.path());
         let cache = dir.path().join("capabilities.json");
         std::fs::write(&cache, "{}").unwrap();
@@ -3329,7 +3329,7 @@ mod tests {
 
     #[test]
     fn only_a_hardware_process_failing_before_its_first_segment_hands_over() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let job = job(dir.path(), vec![0, 4_000, 8_000, 12_000]);
         let (metrics, tail) = (Metrics::default(), Mutex::new(VecDeque::new()));
         let exits = |hardware: bool, start: u32, next: u32, killed: bool| {
@@ -3345,7 +3345,7 @@ mod tests {
 
     #[test]
     fn playlists_list_every_segment_with_its_length() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let job = job(dir.path(), vec![0, 4_000, 8_400, 10_500]);
         assert_eq!(
             job.playlist(),
@@ -3357,7 +3357,7 @@ mod tests {
 
     #[test]
     fn segments_become_ready_once() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let job = job(dir.path(), vec![0, 4_000, 8_000, 12_000]);
         job.mark_ready(1, Place::Disk);
         job.mark_ready(1, Place::Disk);
@@ -3376,7 +3376,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_request_going_away_wakes_the_others() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let job = job(dir.path(), vec![0, 4_000, 8_000]);
         let first = Waiting::register(&job, 0);
         // Another request, held back while the first waits.
@@ -3401,7 +3401,7 @@ mod tests {
                 *self.at_wake.lock() = Some(self.next.load(Relaxed));
             }
         }
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let job = job(dir.path(), vec![0, 4_000, 8_000]);
         let next = Arc::new(AtomicU32::new(0));
         let seen = Arc::new(Seen { next: next.clone(), at_wake: Mutex::new(None) });
@@ -3415,7 +3415,7 @@ mod tests {
 
     #[test]
     fn requests_count_as_waiting_while_they_wait() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let job = job(dir.path(), vec![0, 4_000, 8_000]);
         let first = Waiting::register(&job, 1);
         let second = Waiting::register(&job, 1);
@@ -3440,7 +3440,7 @@ mod tests {
 
     #[test]
     fn process_exits_decide_the_job_state() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let job = job(dir.path(), vec![0, 4_000, 8_000]);
         let metrics = Metrics::default();
         let tail = Mutex::new(VecDeque::new());
@@ -3467,7 +3467,7 @@ mod tests {
 
     #[test]
     fn a_process_stopped_long_ago_leaves_the_running_one_be() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let job = job(dir.path(), vec![0, 4_000, 8_000]);
         let (metrics, tail) = (Metrics::default(), Mutex::new(VecDeque::new()));
         {
@@ -3488,7 +3488,7 @@ mod tests {
 
     #[test]
     fn progress_lines_update_the_running_process() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let job = job(dir.path(), vec![0, 4_000]);
         let block = |pairs: &[(&str, &str)]| -> HashMap<String, String> {
             pairs.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect()
@@ -3529,7 +3529,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_gpu_that_cant_decode_is_said_so() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let job = Arc::new(job(dir.path(), vec![0, 4_000]));
         let tail = Arc::new(Mutex::new(VecDeque::new()));
         let pace = Arc::new(Mutex::new(Pace::default()));
@@ -3549,7 +3549,7 @@ mod tests {
     #[test]
     fn a_gpu_that_cant_decode_shows_the_cpu_decoding() {
         use pley_transcoder_api::{EncoderInfo, GpuPipeline, HwAccel, MediaStream, StreamKind, VideoRequest};
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let nvenc = EncoderInfo {
             name: "h264_nvenc".into(),
             codec: VideoCodec::H264,
@@ -3590,7 +3590,7 @@ mod tests {
 
     #[test]
     fn segment_counted_limits_keep_their_length_in_time() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let mut job = job(dir.path(), vec![0, 4_000, 8_000]);
         assert_eq!((job.segments_in(LOOKAHEAD), job.segments_in(KEEP_BEHIND)), (3, 90));
         job.plan.segment_seconds = 2.0;
@@ -3603,7 +3603,7 @@ mod tests {
 
     #[test]
     fn segments_far_behind_the_playhead_are_deleted() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let job = job(dir.path(), (0..=200).map(|i| i * 4_000).collect());
         for n in [0, 10, 59, 60, 100, 150] {
             std::fs::write(job.segment_path(n), b"ts").unwrap();
@@ -3664,7 +3664,7 @@ mod tests {
 
     #[test]
     fn segments_go_to_memory_while_it_has_room() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let store = store(dir.path(), roomy());
         let big = job_in_memory(dir.path(), "big", &store, 3 * GIB);
         let other = job_in_memory(dir.path(), "other", &store, 2 * GIB);
@@ -3692,7 +3692,7 @@ mod tests {
 
     #[test]
     fn segments_in_memory_keep_a_minute_behind_and_three_ahead() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let store = store(dir.path(), roomy());
         let job = job_in_memory(dir.path(), "job", &store, GIB);
         // 4 s segments: 15 in a minute, 45 in three, 90 in six (on disk).
@@ -3718,7 +3718,7 @@ mod tests {
 
     #[test]
     fn a_segment_half_made_in_memory_goes() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let store = store(dir.path(), roomy());
         let job = job_in_memory(dir.path(), "job", &store, GIB);
         make(&job, 7, Place::Memory, 100);
@@ -3732,7 +3732,7 @@ mod tests {
     #[tokio::test]
     async fn throttled_jobs_asking_for_memory_get_a_folder_in_ram() {
         use pley_transcoder_api::{AudioRequest, MediaStream, StreamKind, TranscodeOptions};
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let input = dir.path().join("song.flac");
         std::fs::write(&input, b"not really audio").unwrap();
         let ff = Ffmpeg {
@@ -3774,7 +3774,7 @@ mod tests {
 
     #[tokio::test]
     async fn memory_running_short_moves_the_job_taking_most_to_disk() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let room = roomy();
         let store = store(dir.path(), room.clone());
         let mgr = manager(dir.path());
@@ -3806,7 +3806,7 @@ mod tests {
 
     #[test]
     fn fmp4_playlists_name_their_init_and_segments() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let mut job = job(dir.path(), vec![0, 4_000, 8_400, 10_500]);
         job.plan.segment_format = SegmentFormat::Fmp4;
         assert_eq!(
@@ -3824,7 +3824,7 @@ mod tests {
 
     #[test]
     fn an_fmp4_part_half_made_in_memory_goes() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let store = store(dir.path(), roomy());
         let mut job = job_in_memory(dir.path(), "job", &store, GIB);
         job.plan.segment_format = SegmentFormat::Fmp4;
@@ -3932,7 +3932,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn fmp4_jobs_serve_an_init_and_segments_that_play_after_it() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let Some((input, jobs)) = with_sound(dir.path()) else { return };
         let created = jobs.create(fmp4_request(&input, VideoMode::Transcode)).await.unwrap();
         assert_eq!((created.segment_format, created.segment_count), (SegmentFormat::Fmp4, 15));
@@ -3991,7 +3991,7 @@ mod tests {
     /// sound, converted from a little before the seek point (and primed
     /// anew), starts within a frame or two of the first process's.
     async fn fmp4_restarts_go_on_where_the_first_process_was(mode: VideoMode) {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let Some((input, jobs)) = with_sound(dir.path()) else { return };
         let created = jobs.create(fmp4_request(&input, mode)).await.unwrap();
         assert_eq!(created.video.as_ref().map(|v| v.mode), Some(mode));
@@ -4058,7 +4058,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn a_process_writing_another_init_fails_and_the_first_stays() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let Some((input, jobs)) = with_sound(dir.path()) else { return };
         let created = jobs.create(fmp4_request(&input, VideoMode::Transcode)).await.unwrap();
         let job = jobs.get(&created.id).unwrap();
@@ -4135,7 +4135,7 @@ mod tests {
 
     #[tokio::test]
     async fn fmp4_bitrates_stay_as_they_began() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let jobs = manager(dir.path());
         let mut fmp4 = job(dir.path(), vec![0, 4_000, 8_000]);
         fmp4.plan.segment_format = SegmentFormat::Fmp4;
@@ -4150,7 +4150,7 @@ mod tests {
     /// a process that is slow (a stand-in for the real one, stopped): what
     /// `adapt` does with it.
     async fn adapted(format: SegmentFormat) -> (Option<usize>, Option<usize>) {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let Some((input, jobs)) = with_sound(dir.path()) else { return (None, None) };
         let mut req = fmp4_request(&input, VideoMode::Transcode);
         req.segment_format = format;
@@ -4215,7 +4215,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn fmp4_renditions_each_have_their_init() {
         use pley_transcoder_api::VariantRequest;
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let Some((input, jobs)) = with_sound(dir.path()) else { return };
         let variant =
             |w, h, kbps| VariantRequest { max_width: Some(w), max_height: Some(h), max_bitrate_kbps: Some(kbps) };
@@ -4266,7 +4266,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn fmp4_segments_in_memory_are_made_there() {
         use pley_transcoder_api::{EncoderInfo, HwAccel};
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let Some((input, _)) = with_sound(dir.path()) else { return };
         // Throttled, as jobs keeping their segments in memory are.
         let x264 = EncoderInfo {
@@ -4310,7 +4310,7 @@ mod tests {
     /// at 0, 2 and 4 s, for a job of three 2 s segments.
     #[tokio::test]
     async fn fragments_go_in_their_segments_and_outside_the_window_are_left_out() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         if with_ffmpeg(dir.path(), "320x180").is_none() {
             return;
         }

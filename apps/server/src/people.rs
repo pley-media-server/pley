@@ -690,7 +690,7 @@ mod tests {
 
     #[tokio::test]
     async fn people_are_kept_per_provider_id() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testing::tempdir();
         let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
         sqlx::query("INSERT INTO libraries (id, name, kind, created_at) VALUES (1, 'TV', 'shows', 0)")
             .execute(&db.write)
