@@ -124,6 +124,9 @@ describes how they are made.
 - While the player shows an error, the media keys other than Stop do
   nothing, as in the Android TV and Samsung apps, rather than seeking,
   changing a track or playing the next episode under it.
+- The Play/Pause key no longer makes a seek that waits for OK at once, as
+  in the Android TV and Samsung apps: it only plays or pauses, and the
+  seek lands by itself. OK still makes it at once.
 
 ## [0.1.3] - 2026-11-02
 

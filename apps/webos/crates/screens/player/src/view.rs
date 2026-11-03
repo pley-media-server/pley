@@ -645,7 +645,7 @@ impl PlayerView {
         // would seek, change a track or play the next episode under it.
         for e in keys.iter().filter(|e| e.pressed && !e.repeat && (!error || e.key == Key::Stop)) {
             match e.key {
-                Key::PlayPause => self.play_pause(p, now),
+                Key::PlayPause => self.toggle(p),
                 Key::Play => p.play(),
                 Key::Pause => {
                     p.pause();
@@ -756,8 +756,8 @@ impl PlayerView {
         ui.request_repaint();
     }
 
-    /// Play/Pause (`playPause`): OK after a seek plays on from there; otherwise it pauses (showing
-    /// the controls on the scrubber) or plays.
+    /// OK on the video or the scrubber, and the Play/Pause button: after a seek it plays on from
+    /// there; otherwise it pauses or plays ([`PlayerView::toggle`]).
     fn play_pause(&mut self, p: &mut dyn Playback, now: i64) {
         if self.confirm(p, now) {
             if !p.wants_to_play() {
@@ -765,6 +765,13 @@ impl PlayerView {
             }
             return;
         }
+        self.toggle(p);
+    }
+
+    /// The Play/Pause key (`playPause` in `TvPlayerScreen.kt`, the Samsung app's `PlayPause`):
+    /// pauses (showing the controls on the scrubber) or plays. A seek waiting for OK stays on its
+    /// way and lands by itself.
+    fn toggle(&mut self, p: &mut dyn Playback) {
         if p.wants_to_play() {
             p.pause();
             let s = p.state();

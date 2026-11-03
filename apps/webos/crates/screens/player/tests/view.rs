@@ -174,6 +174,20 @@ fn left_and_right_wait_for_ok_5_s_at_most_and_ok_plays_on() {
 }
 
 #[test]
+fn the_play_pause_key_leaves_a_coming_seek_on_its_way() {
+    let mut pl = Player::new(Fake::movie());
+    pl.press(Key::Right);
+    // The key pauses; only OK makes the seek at once.
+    pl.press(Key::PlayPause);
+    assert_eq!(pl.p.calls, [Call::Pause]);
+    pl.press(Key::PlayPause);
+    assert_eq!(pl.p.calls, [Call::Pause, Call::Play]);
+    // The seek lands by itself 5 s after the last arrow.
+    pl.wait(5.0);
+    assert_eq!(pl.p.calls, [Call::Pause, Call::Play, Call::Seek(70_000)]);
+}
+
+#[test]
 fn ok_while_a_seek_is_coming_makes_it_at_once() {
     let mut pl = Player::new(Fake::movie());
     pl.press(Key::Left);
