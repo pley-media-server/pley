@@ -18,6 +18,8 @@ describes how they are made.
   only from adapters on the local network. Windows Firewall's rule for
   Pley already lets it through (UDP 5353), and the Synology package offers
   DSM's firewall a **Pley (Bonjour)** rule for it.
+- The web app answers at `http://pley.local:7539` on the local network,
+  when no other device there has that name.
 - A Jellyfin-compatible API, for Jellyfin's apps and others built on its
   API: they sign in with Pley's accounts, browse the libraries, play files
   as they are or as HLS from Pley's transcoder, with subtitles and Skip

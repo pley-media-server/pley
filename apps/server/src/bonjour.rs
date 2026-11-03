@@ -6,19 +6,31 @@
 //! same switch, goes out only from the web addresses' adapters on the local
 //! network, follows renames, and says goodbye when the server stops.
 //!
+//! The web app is announced too, as `_http._tcp` on the host name
+//! `pley.local`, so a browser opens `http://pley.local:7539`. That name is
+//! one for the whole network: when another device has it, the responder
+//! would take `pley-2.local` instead, so the web app's announcement goes
+//! and the server is reached by its own name, `pley-<id>.local`, which the
+//! apps' announcement always uses.
+//!
 //! The responder is mdns-sd's, which shares UDP port 5353 with the system's
 //! own (mDNSResponder, Avahi, Windows').
 
 use std::net::IpAddr;
 use std::time::Duration;
 
-use mdns_sd::{IfKind, IfPredicate, ServiceDaemon, ServiceInfo};
+use mdns_sd::{DaemonEvent, IfKind, IfPredicate, ServiceDaemon, ServiceInfo};
+use tokio::sync::mpsc;
 
 use crate::network::Listen;
 use crate::state::AppState;
 
 /// The service type apps browse for.
 pub const SERVICE_TYPE: &str = "_pley._tcp.local.";
+/// The web app's service type, which browsers and Bonjour tools list.
+const WEB_SERVICE_TYPE: &str = "_http._tcp.local.";
+/// The web app's host name, while no other device on the network has it.
+const WEB_HOST_NAME: &str = "pley.local.";
 /// A DNS label's length at most, which an instance name is.
 const MAX_LABEL: usize = 63;
 /// A TXT string's length at most, `name=` included.
@@ -112,6 +124,14 @@ struct Announcer {
     plan: Plan,
     /// The name announced and the service's full name, once announced.
     announced: Option<(String, String)>,
+    /// The web app's service's full name, while it is announced.
+    web: Option<String>,
+    /// Another device has `pley.local`: the web app isn't announced again
+    /// until the responder starts afresh.
+    web_host_taken: bool,
+    /// The host names the responder had to change because another device
+    /// had them.
+    renamed: mpsc::UnboundedReceiver<String>,
 }
 
 impl Announcer {
@@ -123,7 +143,23 @@ impl Announcer {
         daemon.disable_interface(IfKind::All)?;
         daemon
             .enable_interface(IfKind::Predicate(IfPredicate::new(move |intf| announced_on(&addresses, intf.ip()))))?;
-        Ok(Self { daemon, plan, announced: None })
+        // The responder's events come on a channel that blocks; a thread
+        // passes its renames on, and ends when the responder stops.
+        let events = daemon.monitor()?;
+        let (renames, renamed) = mpsc::unbounded_channel();
+        std::thread::Builder::new()
+            .name("bonjour-events".into())
+            .spawn(move || {
+                while let Ok(event) = events.recv() {
+                    if let DaemonEvent::NameChange(change) = event
+                        && renames.send(change.original).is_err()
+                    {
+                        break;
+                    }
+                }
+            })
+            .map_err(|err| mdns_sd::Error::Msg(format!("no thread for its events: {err}")))?;
+        Ok(Self { daemon, plan, announced: None, web: None, web_host_taken: false, renamed })
     }
 
     /// Announces the server as `name`, unless it already is.
@@ -158,14 +194,65 @@ impl Announcer {
             }
             Err(err) => tracing::warn!("Bonjour can't announce Pley: {err}"),
         }
+        self.announce_web(name);
+    }
+
+    /// Announces the web app on `pley.local` as `name`, unless another
+    /// device has that host name.
+    fn announce_web(&mut self, name: &str) {
+        if self.web_host_taken {
+            return;
+        }
+        let info = match ServiceInfo::new(
+            WEB_SERVICE_TYPE,
+            &instance_name(name),
+            WEB_HOST_NAME,
+            (),
+            self.plan.port,
+            &[("path", "/")][..],
+        ) {
+            Ok(info) => info.enable_addr_auto(),
+            Err(err) => {
+                tracing::debug!("Bonjour can't announce the web app: {err}");
+                return;
+            }
+        };
+        let fullname = info.get_fullname().to_owned();
+        if let Some(old) = self.web.take().filter(|old| *old != fullname) {
+            let _ = self.daemon.unregister(&old);
+        }
+        match self.daemon.register(info) {
+            Ok(()) => self.web = Some(fullname),
+            Err(err) => tracing::debug!("Bonjour can't announce the web app: {err}"),
+        }
+    }
+
+    /// Takes in a host name the responder changed: `pley.local` taken by
+    /// another device withdraws the web app's announcement, rather than
+    /// have it answer as `pley-2.local`.
+    fn renamed(&mut self, original: &str) {
+        if !web_host_taken_by(original) || self.web_host_taken {
+            return;
+        }
+        self.web_host_taken = true;
+        if let Some(web) = self.web.take() {
+            let _ = self.daemon.unregister(&web);
+        }
+        tracing::info!("another device on the network is pley.local; Pley's web app is announced by its own name");
     }
 
     /// Says goodbye, and stops the responder.
     async fn stop(self) {
-        let goodbye = self.announced.and_then(|(_, fullname)| self.daemon.unregister(&fullname).ok());
+        let goodbyes: Vec<_> = self
+            .announced
+            .map(|(_, fullname)| fullname)
+            .into_iter()
+            .chain(self.web)
+            .filter_map(|fullname| self.daemon.unregister(&fullname).ok())
+            .collect();
         let daemon = self.daemon;
         let _ = tokio::task::spawn_blocking(move || {
-            if let Some(goodbye) = goodbye {
+            for goodbye in goodbyes {
                 let _ = goodbye.recv_timeout(GOODBYE_WAIT);
             }
             if let Ok(stopped) = daemon.shutdown() {
@@ -201,12 +288,31 @@ pub async fn run(state: AppState) {
         tokio::select! {
             changed = applied.changed() => if changed.is_err() { break },
             changed = settings.changed() => if changed.is_err() { break },
+            Some(original) = renamed(&mut announcer) => {
+                if let Some(announcer) = &mut announcer {
+                    announcer.renamed(&original);
+                }
+            }
             () = state.stopping.cancelled() => break,
         }
     }
     if let Some(announcer) = announcer {
         announcer.stop().await;
     }
+}
+
+/// The next host name `announcer`'s responder changed; never, without one.
+async fn renamed(announcer: &mut Option<Announcer>) -> Option<String> {
+    match announcer {
+        Some(announcer) => announcer.renamed.recv().await,
+        None => std::future::pending().await,
+    }
+}
+
+/// Whether the responder changing `original` means another device has
+/// `pley.local`. Names compare without case, as DNS's do.
+fn web_host_taken_by(original: &str) -> bool {
+    original.eq_ignore_ascii_case(WEB_HOST_NAME)
 }
 
 #[cfg(test)]
@@ -270,6 +376,30 @@ mod tests {
         assert_eq!(info.get_property_val_str("name"), Some("Living room"));
         assert_eq!(info.get_fullname(), "Living room._pley._tcp.local.");
         assert_eq!(host_name(id), "pley-0123456789ab.local.");
+    }
+
+    #[test]
+    fn the_web_app_is_announced_on_pley_local() {
+        let info = ServiceInfo::new(
+            WEB_SERVICE_TYPE,
+            &instance_name("Living room"),
+            WEB_HOST_NAME,
+            (),
+            7539,
+            &[("path", "/")][..],
+        )
+        .unwrap();
+        assert_eq!(info.get_fullname(), "Living room._http._tcp.local.");
+        assert_eq!(info.get_hostname(), "pley.local.");
+        assert_eq!(info.get_property_val_str("path"), Some("/"));
+    }
+
+    #[test]
+    fn only_pley_local_taken_withdraws_the_web_app() {
+        assert!(web_host_taken_by("pley.local."));
+        assert!(web_host_taken_by("Pley.Local."), "DNS names compare without case");
+        assert!(!web_host_taken_by("pley-0123456789ab.local."), "the server's own name");
+        assert!(!web_host_taken_by("Living room._http._tcp.local."), "an instance name, renamed with (2)");
     }
 
     #[test]

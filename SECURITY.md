@@ -278,7 +278,9 @@ other apps (`pley_ct_…`), never a session's
   web port. The name and version are on its public endpoint too; the id is
   a random identifier that says nothing about the computer or its users.
   Bonjour tells them to every device on the local network unasked, and its
-  host name (`pley-` and the id's start) shows part of the id.
+  host name (`pley-` and the id's start) shows part of the id. The web
+  app's announcement (`_http._tcp`, on `pley.local`) tells the same name
+  and port, and nothing more.
 - The UDP answer goes only to addresses on the local network, at most 100
   a second. The Bonjour announcement goes out only from adapters with
   addresses on the local network, never to the internet.

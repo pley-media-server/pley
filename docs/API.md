@@ -767,6 +767,12 @@ announce or answer, so either way an app confirms a server it found
 through its public endpoint (`GET /api/server`, [Public endpoints](#public-endpoints))
 and its sign-in endpoints before it trusts it.
 
+The web app is announced as well, as `_http._tcp` with the same instance
+name, on the host name `pley.local`, so a browser on the local network
+opens it at `http://pley.local:7539`. If another device already answers
+to `pley.local`, the server withdraws that announcement and is reached
+by its own host name (`pley-` and the id's start, `.local`) instead.
+
 Administrators turn both off in Settings → Network (`discovery`) or with
 `--no-discovery` (`PLEY_NO_DISCOVERY`).
 
