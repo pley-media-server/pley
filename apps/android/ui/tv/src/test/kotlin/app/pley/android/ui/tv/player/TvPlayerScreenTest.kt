@@ -14,6 +14,7 @@ import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -22,6 +23,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performKeyPress
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.pressKey
 import app.pley.android.model.Marker
 import app.pley.android.model.MarkerKind
@@ -37,6 +40,7 @@ import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepState
 import app.pley.android.testing.player.engine.FakePlayerEngine
 import app.pley.android.testing.player.session.FakePlaybackController
+import app.pley.android.ui.tv.kit.KeyRepeatGate
 import app.pley.android.ui.tv.theme.TvTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -149,7 +153,7 @@ class TvPlayerScreenTest {
     }
 
     @Test
-    fun `Left shows the controls on the scrubber with the preview, and seeks 5 s after the last press`() {
+    fun `Left shows the controls on the scrubber with the preview, and seeks 5 s after the last press, the controls going with it`() {
         val controller = playing()
         show(controller)
         press(Key.DirectionLeft, times = 3)
@@ -160,11 +164,13 @@ class TvPlayerScreenTest {
         compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + 100)
         compose.waitForIdle()
         assertTrue("it waits for OK", controller.calls("seekTo").isEmpty())
+        compose.onNodeWithTag(TAG_SCRUBBER).assertExists()
         compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS)
         compose.waitForIdle()
         assertEquals(listOf(570_000L), controller.calls("seekTo").map { it.args.single() })
         compose.onNodeWithTag(TAG_PREVIEW).assertDoesNotExist()
-        compose.onNodeWithTag(TAG_SCRUBBER).assertExists()
+        // 5 s after the last key, as the seek lands, rather than 5 s after it.
+        compose.onNodeWithTag(TAG_SCRUBBER).assertDoesNotExist()
     }
 
     @Test
@@ -177,17 +183,61 @@ class TvPlayerScreenTest {
         assertEquals(listOf("seekTo"), controller.calls.map { it.name })
         assertEquals(610_000L, controller.calls("seekTo").single().args.single())
         // A seek made a moment ago is confirmed, not paused.
-        press(Key.DirectionRight)
-        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
+        focusedOn(TAG_SCRUBBER)
+        press(Key.MediaFastForward)
+        compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + 100)
         compose.waitForIdle()
         press(Key.DirectionCenter)
         assertEquals(listOf("seekTo", "seekTo"), controller.calls.map { it.name })
         // Long after the seek, Centre pauses again.
-        press(Key.DirectionRight)
-        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + TvSeeker.CONFIRM_MS + 100)
+        press(Key.MediaFastForward)
+        compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + TvSeeker.CONFIRM_MS + 100)
         compose.waitForIdle()
+        focusedOn(TAG_SCRUBBER)
         press(Key.DirectionCenter)
         assertEquals("pause", controller.calls.last().name)
+    }
+
+    @Test
+    fun `with the controls hidden after a seek, Centre shows them rather than pausing`() {
+        val controller = playing()
+        show(controller)
+        press(Key.DirectionRight)
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_SCRUBBER).assertDoesNotExist()
+        press(Key.DirectionCenter)
+        focusedOn(TAG_SCRUBBER)
+        assertEquals(listOf("seekTo"), controller.calls.map { it.name })
+    }
+
+    @Test
+    fun `the Play-Pause button and the media key play and pause with a seek waiting, which still goes there`() {
+        val controller = playing()
+        show(controller)
+        press(Key.DirectionRight, times = 3)
+        press(Key.DirectionDown)
+        focusedOn(TAG_PLAY_PAUSE)
+        press(Key.DirectionCenter)
+        assertEquals(listOf("pause"), controller.calls.map { it.name })
+        controller.update { it.copy(phase = PlayerPhase.Paused) }
+        compose.waitForIdle()
+        press(Key.MediaPlayPause)
+        assertEquals(listOf("pause", "play"), controller.calls.map { it.name })
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
+        compose.waitForIdle()
+        assertEquals(listOf(630_000L), controller.calls("seekTo").map { it.args.single() })
+    }
+
+    @Test
+    fun `Play-Pause does nothing while the playback starts`() {
+        val controller = playing { it.copy(phase = PlayerPhase.Preparing) }
+        show(controller)
+        press(Key.MediaPlayPause)
+        press(Key.DirectionUp)
+        focusedOn(TAG_SCRUBBER)
+        press(Key.DirectionCenter)
+        assertTrue(controller.calls.none { it.name == "play" || it.name == "pause" })
     }
 
     @Test
@@ -248,6 +298,19 @@ class TvPlayerScreenTest {
         compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
         compose.waitForIdle()
         assertEquals("the seeks waiting went", 2, controller.calls("seekTo").size)
+    }
+
+    @Test
+    fun `a screen reader's seek on the scrubber takes the place of a seek waiting`() {
+        val controller = playing()
+        show(controller)
+        press(Key.DirectionRight)
+        compose.onNodeWithTag(TAG_SCRUBBER).performSemanticsAction(SemanticsActions.SetProgress) { it(0.5f) }
+        compose.waitForIdle()
+        assertEquals(listOf(1_800_000L), controller.calls("seekTo").map { it.args.single() })
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
+        compose.waitForIdle()
+        assertEquals(1, controller.calls("seekTo").size)
     }
 
     @Test
@@ -415,6 +478,33 @@ class TvPlayerScreenTest {
         // The last card ends at the safe edge, 912, rather than the row running on past it.
         press(Key.DirectionRight, times = 6)
         assertEquals(960f - 48f - 240f, left("Part 10"), 0.5f)
+    }
+
+    @Test
+    fun `a held Right moves the cards at the held-key pace, and their pictures wait until it comes up`() {
+        val parts = (0 until 10).map { ChapterMark("Part ${it + 1}", it * 360_000L, (it + 1) * 360_000L, null) }
+        val asked = mutableListOf<Long>()
+        val controller = playing { it.copy(chapters = parts, positionMs = 0, hasThumbnails = true) }
+        controller.thumbnails = { at ->
+            asked += at
+            null
+        }
+        show(controller)
+        press(Key.DirectionRight)
+        press(Key.DirectionUp)
+        focusedOn(TAG_CHAPTER_STRIP)
+        val start = SystemClock.uptimeMillis()
+        send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, 0, start)
+        compose.onNodeWithTag(TAG_CHAPTER_STRIP).assert(hasContentDescription("Part 2", substring = true))
+        asked.clear()
+        // Eight repeats, two to each held move: four moves.
+        val gap = (KeyRepeatGate.MOVE_INTERVAL_MS + 1) / 2
+        for (i in 1..8) send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, i, start + 400 + (i - 1) * gap)
+        compose.onNodeWithTag(TAG_CHAPTER_STRIP).assert(hasContentDescription("Part 6", substring = true))
+        assertTrue("no previews while held: $asked", asked.isEmpty())
+        send(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, 0, start + 400 + 8 * gap)
+        assertTrue("the previews are asked for where it came up", asked.isNotEmpty())
+        compose.onNodeWithTag(TAG_CHAPTER_STRIP).assert(hasContentDescription("Part 6", substring = true))
     }
 
     @Test
@@ -700,11 +790,7 @@ class TvPlayerScreenTest {
         compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + 100)
         compose.waitForIdle()
         assertEquals(listOf(630_000L), controller.calls("seekTo").map { it.args.single() })
-        // Play/Pause straight after fast forward plays on from there; later, it pauses.
-        press(Key.MediaPlayPause)
-        assertEquals("seekTo", controller.calls.last().name)
-        compose.mainClock.advanceTimeBy(TvSeeker.CONFIRM_MS)
-        compose.waitForIdle()
+        // Play/Pause plays or pauses, even straight after a seek: only OK confirms one.
         press(Key.MediaPlayPause)
         assertEquals("pause", controller.calls.last().name)
         // Next on an episode plays the next one; Previous goes to the chapter's start.
@@ -797,7 +883,8 @@ class TvPlayerScreenTest {
         compose.mainClock.autoAdvance = false
         compose.runOnUiThread { engine.player.renderFirstFrame() }
         compose.waitForIdle()
-        compose.mainClock.advanceTimeBy(50)
+        // Well under the 200 ms fade, with room for the frames the picture's state takes to arrive.
+        compose.mainClock.advanceTimeBy(100)
         compose.onNodeWithTag(TAG_VIDEO_SHUTTER).assertDoesNotExist()
     }
 

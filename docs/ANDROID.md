@@ -71,10 +71,12 @@ heard it for that profile, the start asks "Who's watching?".
   controls and move where it goes, 10 s a press (held, faster the longer
   it's held), and it goes there on OK, or by itself 5 s after the last
   key; Back lets it go. Fast forward and rewind (30 s) and the control
-  row's 10 s skips go without OK, 400 ms after the last press. OK within
-  two seconds of a seek plays on from there; later, OK pauses. Up while a
-  seek waits, or the Chapters button, shows the chapters as a row of
-  cards over the scrubber, on the one it was going to: Left and Right go
+  row's 10 s skips go without OK, 400 ms after the last press. OK on the
+  scrubber within two seconds of a seek plays on from there; later, it
+  pauses. Play/Pause, the button or the remote's key, plays and pauses,
+  and a seek waiting still goes. Up while a seek waits shows the chapters
+  as a row of cards over the scrubber, on the one it was going to; the
+  Chapters button shows them on the one playing. Left and Right go
   through them, OK goes to one, Down or Back closes them.
 - **Fire TV** runs the same APK and TV screens. The app spots it by the
   `amazon.hardware.fire_tv` feature and follows Amazon's player guidelines

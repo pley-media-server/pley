@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -72,6 +73,7 @@ import app.pley.android.player.ChapterMark
 import app.pley.android.player.PlaybackController
 import app.pley.android.player.PlayerUiState
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.kit.KeyRepeatGate
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 
@@ -93,7 +95,8 @@ import kotlinx.coroutines.flow.filterNotNull
  * keep the focused card at the gutter, or the last at the right safe edge.
  * A card's picture is the chapter's own, else (or when that doesn't load)
  * the server's seek preview a moment into it, both letterboxed on black,
- * as the video is. The row is one focus target that keeps its keys, so
+ * as the video is. A held key moves a card at the held-key pace of rows
+ * ([CardHold]), the row jumping to it, and pictures wait until it's let go. The row is one focus target that keeps its keys, so
  * only the two cards whose look changes recompose as focus moves.
  */
 @Composable
@@ -106,13 +109,15 @@ internal fun BoxScope.TvChapterStrip(state: State<PlayerUiState>, ui: TvPlayerUi
     val list = rememberLazyListState(initialFirstVisibleItemIndex = Snapshot.withoutReadObservation { ui.chapter ?: 0 })
     val reduced = reducedMotion()
     val pitch = with(LocalDensity.current) { CARD_WIDTH.roundToPx() + CARD_GAP.roundToPx() }
+    val hold = remember { CardHold() }
     // The row follows focus: every card is as wide, so the scroll to a card is its index times their pitch.
+    // While a key is held it goes there at once: a slide begun at every move would never land.
     LaunchedEffect(list, pitch, reduced) {
         snapshotFlow { ui.chapter }.filterNotNull().collectLatest { i ->
             val by = (i * pitch - (list.firstVisibleItemIndex * pitch + list.firstVisibleItemScrollOffset)).toFloat()
             when {
                 by == 0f -> Unit
-                reduced -> list.scrollBy(by)
+                reduced || hold.held -> list.scrollBy(by)
                 else -> list.animateScrollBy(by, tween(PleyMotion.FOCUS_MS, easing = EaseOut))
             }
         }
@@ -144,7 +149,11 @@ internal fun BoxScope.TvChapterStrip(state: State<PlayerUiState>, ui: TvPlayerUi
                 when (native.keyCode) {
                     AndroidKeyEvent.KEYCODE_DPAD_LEFT, AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> {
                         val by = if (native.keyCode == AndroidKeyEvent.KEYCODE_DPAD_LEFT) -1 else 1
-                        if (down && at != null) ui.focusChapter((at + by).coerceIn(0, (chapters.size - 1).coerceAtLeast(0)))
+                        when {
+                            !down -> hold.release()
+                            hold.admit(native.repeatCount, native.eventTime) && at != null ->
+                                ui.focusChapter((at + by).coerceIn(0, (chapters.size - 1).coerceAtLeast(0)))
+                        }
                         true
                     }
                     AndroidKeyEvent.KEYCODE_DPAD_DOWN -> {
@@ -181,7 +190,7 @@ internal fun BoxScope.TvChapterStrip(state: State<PlayerUiState>, ui: TvPlayerUi
         ) {
             itemsIndexed(chapters, key = { i, c -> "${c.startMs}-$i" }, contentType = { _, _ -> "chapter" }) { i, chapter ->
                 val focused by remember(i) { derivedStateOf { ui.chapter == i } }
-                ChapterCard(chapter, i, focused, hasThumbs, ui, controller)
+                ChapterCard(chapter, i, focused, hasThumbs, ui, hold, controller)
             }
         }
     }
@@ -189,9 +198,17 @@ internal fun BoxScope.TvChapterStrip(state: State<PlayerUiState>, ui: TvPlayerUi
 
 /** A chapter's card: its picture, its name, and when it starts. */
 @Composable
-private fun ChapterCard(chapter: ChapterMark, index: Int, focused: Boolean, hasThumbs: Boolean, ui: TvPlayerUi, controller: PlaybackController) {
+private fun ChapterCard(
+    chapter: ChapterMark,
+    index: Int,
+    focused: Boolean,
+    hasThumbs: Boolean,
+    ui: TvPlayerUi,
+    hold: CardHold,
+    controller: PlaybackController,
+) {
     Column(Modifier.width(CARD_WIDTH)) {
-        ChapterPicture(chapter, focused, hasThumbs, ui, controller)
+        ChapterPicture(chapter, focused, hasThumbs, ui, hold, controller)
         Spacer(Modifier.height(CARD_TEXT_GAP))
         BasicText(
             chapter.name ?: stringResource(R.string.tv_player_chapter, index + 1),
@@ -208,10 +225,18 @@ private fun ChapterCard(chapter: ChapterMark, index: Int, focused: Boolean, hasT
  * it doesn't load) the server's preview a moment ([PREVIEW_STEP_MS]) into
  * the chapter. A preview that hasn't come (the previews not ready yet, a
  * sheet that didn't load) is asked for again once they are, and as focus
- * moves.
+ * moves; not while a key is held, which would ask for a sheet for every
+ * card passed, but where it comes up.
  */
 @Composable
-private fun ChapterPicture(chapter: ChapterMark, focused: Boolean, hasThumbs: Boolean, ui: TvPlayerUi, controller: PlaybackController) {
+private fun ChapterPicture(
+    chapter: ChapterMark,
+    focused: Boolean,
+    hasThumbs: Boolean,
+    ui: TvPlayerUi,
+    hold: CardHold,
+    controller: PlaybackController,
+) {
     val own = remember(chapter.imageUrl) { chapter.imageUrl?.let { ArtworkImage(listOf(it), maxWidth = PREVIEW_IMAGE_WIDTH) } }
     val load = remember(own) { ArtworkLoad() }
     val fromPreview = own == null || load.failed
@@ -219,8 +244,8 @@ private fun ChapterPicture(chapter: ChapterMark, focused: Boolean, hasThumbs: Bo
     if (fromPreview && hasThumbs) {
         val at = chapter.startMs / PREVIEW_STEP_MS * PREVIEW_STEP_MS + PREVIEW_STEP_MS
         LaunchedEffect(at) {
-            snapshotFlow { ui.chapter }.collect {
-                if (frame == null) controller.thumbnail(at)?.let { frame = it.asImageBitmap() }
+            snapshotFlow { ui.chapter to hold.held }.collect { (_, held) ->
+                if (!held && frame == null) controller.thumbnail(at)?.let { frame = it.asImageBitmap() }
             }
         }
     }
@@ -251,6 +276,39 @@ private fun DrawScope.drawCardRing() {
         cornerRadius = CornerRadius(PleyShape.TileTvRadius.toPx() + half),
         style = Stroke(stroke),
     )
+}
+
+/**
+ * A held Left or Right on the cards. The remote repeats a held key every
+ * 50 ms or so, and the player has no window-wide [KeyRepeatGate]: the
+ * cards move at most once every [KeyRepeatGate.MOVE_INTERVAL_MS], as rows
+ * do, and while one is [held] the row jumps rather than slides and the
+ * pictures wait.
+ */
+@Stable
+private class CardHold {
+    var held: Boolean by mutableStateOf(false)
+        private set
+
+    private var lastMove = 0L
+
+    /** Whether a Left or Right going down ([repeatCount], at [eventTime], ms) moves a card. */
+    fun admit(repeatCount: Int, eventTime: Long): Boolean {
+        if (repeatCount == 0) {
+            held = false
+            lastMove = eventTime
+            return true
+        }
+        held = true
+        if (eventTime - lastMove < KeyRepeatGate.MOVE_INTERVAL_MS) return false
+        lastMove = eventTime
+        return true
+    }
+
+    /** The key came up. */
+    fun release() {
+        held = false
+    }
 }
 
 /** The cards are the seek preview's width, so a seek going to the chapters changes only what shows. */

@@ -247,6 +247,8 @@ internal fun BoxScope.TvScrubber(
                     val d = state.value.durationMs.coerceAtLeast(1)
                     progressBarRangeInfo = ProgressBarRangeInfo((elapsed * 1000f / d).coerceIn(0f, 1f), 0f..1f)
                     setProgress { fraction ->
+                        // A seek of its own, as Previous and Next are: one waiting for OK gives way to it.
+                        seeker.cancel()
                         controller.seekTo((fraction * d).toLong())
                         true
                     }
@@ -353,7 +355,9 @@ internal fun BoxScope.TvSeekPreview(state: State<PlayerUiState>, seeker: TvSeeke
     val picture by produceState<ImageBitmap?>(null, bucket, hasThumbs) {
         if (hasThumbs) controller.thumbnail(bucket)?.let { value = it.asImageBitmap() }
     }
-    val chapterImage = chapter?.imageUrl?.takeIf { !hasThumbs }?.let { ArtworkImage(listOf(it), maxWidth = PREVIEW_IMAGE_WIDTH) }
+    // Kept across the key repeats that move the target within the chapter.
+    val chapterUrl = chapter?.imageUrl?.takeIf { !hasThumbs }
+    val chapterImage = remember(chapterUrl) { chapterUrl?.let { ArtworkImage(listOf(it), maxWidth = PREVIEW_IMAGE_WIDTH) } }
     val chapterLoad = remember(chapterImage) { ArtworkLoad() }
     val showsPicture = hasThumbs || chapterImage != null
     Column(

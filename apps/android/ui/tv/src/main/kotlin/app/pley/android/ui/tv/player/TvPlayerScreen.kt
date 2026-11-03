@@ -18,6 +18,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,6 +45,7 @@ import app.pley.android.player.subtitles.ScreenCaptions
 import app.pley.android.ui.tv.R
 import app.pley.android.player.R as PlayerR
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -61,9 +63,12 @@ import kotlinx.coroutines.launch
  * - **Seeking** ([TvSeeker]), as YouTube's TV app does: Left and Right
  *   move where it goes, 10 s a press (held: scrub), and it goes there on
  *   OK, or by itself 5 s after the last key; fast forward, rewind and the
- *   row's skips go 400 ms after the last press. Centre during or just
- *   after a seek confirms it and plays on ([TvSeeker.confirm]). Another
- *   seek (Previous, Next, Skip) takes the place of one waiting.
+ *   row's skips go 400 ms after the last press. Centre on the scrubber
+ *   during or just after a seek confirms it and plays on
+ *   ([TvSeeker.confirm]), as Centre with the controls hidden does while
+ *   one is on its way. Play/Pause, the button or the media key, only
+ *   plays or pauses: a seek waiting still goes. Another seek (Previous,
+ *   Next, Skip) takes the place of one waiting.
  * - **Controls shown.** Focus moves as usual; they hide after 5 s without
  *   a key unless paused, a seek waits, or in a panel or the chapters'
  *   cards. Up on the scrubber while a seek waits, or the Chapters button,
@@ -132,27 +137,39 @@ internal fun TvPlayerScreen(
 
     // ---------------------------------------------------------------- what the keys do
 
+    /**
+     * Play/Pause, the button and the media key: plays or pauses, and a
+     * seek waiting stays on its way. Nothing while the playback starts or
+     * the TV changes its refresh rate.
+     */
     fun playPause() {
-        if (seeker.confirm()) {
-            // OK after Left or Right goes there, playing: paused, it plays from there.
-            if (!state.value.phase.wantsToPlay()) controller.play()
-            return
-        }
+        if (state.value.phase == PlayerPhase.Preparing || switching) return
         if (state.value.phase.wantsToPlay()) {
             controller.pause()
             if (!ui.controls) ui.showControls(PlayerFocus.Scrubber)
         } else {
             controller.play()
+            // Playing again, the controls go after a while.
+            if (ui.controls) ui.touch()
         }
     }
 
     /**
-     * OK with the controls hidden: a seek on its way (fast forward, rewind)
-     * goes there now, playing; else the controls show on the scrubber, where
-     * OK plays and pauses. Never a pause out of sight of the controls.
+     * OK on the scrubber, or with the controls hidden: during or just after
+     * a seek it goes there, playing (paused, it plays from there); else, on
+     * the scrubber, it plays or pauses, and with the controls hidden they
+     * show on the scrubber. Never a pause out of sight of the controls.
      */
     fun ok() {
-        if (seeker.target != null) playPause() else ui.showControls(PlayerFocus.Scrubber)
+        if (!ui.controls && seeker.target == null) {
+            ui.showControls(PlayerFocus.Scrubber)
+            return
+        }
+        if (seeker.confirm()) {
+            if (!state.value.phase.wantsToPlay()) controller.play()
+            return
+        }
+        playPause()
     }
 
     fun focusFor(focus: ControlFocus): PlayerFocus = when (focus) {
@@ -280,7 +297,6 @@ internal fun TvPlayerScreen(
                 // Let go, a scrub waits for OK where it got to.
                 else -> seeker.release()
             }
-            PlayerKey.PlayPause -> if (first && !busy) playPause()
             else -> if (first) act(key)
         }
         return true
@@ -400,9 +416,11 @@ internal fun TvPlayerScreen(
         }
     }
     // The controls hide after 5 s without a key, unless paused, a seek waits, or in a panel or the chapters' cards.
-    LaunchedEffect(ui.controls, ui.panel, ui.input, playing, previewing, chaptersOpen) {
-        if (ui.controls && ui.panel == null && playing && !previewing && !chaptersOpen) {
+    // A seek waiting keeps them until it lands, 5 s after the last key too: they go with it, not 5 s later.
+    LaunchedEffect(ui.controls, ui.panel, ui.input, playing, chaptersOpen) {
+        if (ui.controls && ui.panel == null && playing && !chaptersOpen) {
             delay(TvPlayerUi.HIDE_AFTER_MS)
+            snapshotFlow { seeker.target == null }.first { it }
             ui.hideControls(if (skipShown) PlayerFocus.Skip else PlayerFocus.Video)
         }
     }

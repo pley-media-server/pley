@@ -167,12 +167,6 @@ internal fun BoxScope.TvSleepNotice(state: State<PlayerUiState>, visible: Boolea
     secondsLeft?.let { last = it }
     val resources = LocalResources.current
     val countStyle = PleyType.Tv.Label.copy(color = PleyColors.Fg)
-    val measurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    val countWidth = remember(resources, measurer, density) {
-        val widest = SleepTexts.notice(resources, (SleepTimer.NOTICE_MS / 1_000).toInt())
-        with(density) { measurer.measure(widest, countStyle, maxLines = 1).size.width.toDp() }
-    }
     AnimatedVisibility(
         visible = visible,
         modifier = Modifier
@@ -181,6 +175,13 @@ internal fun BoxScope.TvSleepNotice(state: State<PlayerUiState>, visible: Boolea
         enter = fadeIn(tween(NOTICE_FADE_MS)),
         exit = fadeOut(tween(NOTICE_FADE_MS)),
     ) {
+        // Measured as the notice shows: most playbacks never have one.
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val countWidth = remember(resources, measurer, density) {
+            val widest = SleepTexts.notice(resources, (SleepTimer.NOTICE_MS / 1_000).toInt())
+            with(density) { measurer.measure(widest, countStyle, maxLines = 1).size.width.toDp() }
+        }
         Row(
             Modifier
                 .background(PleyColors.Surface3, PleyShape.Control)
