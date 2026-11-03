@@ -201,6 +201,42 @@ class LivePlaybackTest {
     }
 
     @Test
+    fun `a stream ts refused before the watch answers waits for the watch, asking for the channel once`() {
+        val message = "The one connection of Test Provider is in use, watching Film Four."
+        live.watchFails = ApiException(409, "conflict", message)
+        live.watchTakesMs = 500
+        playback.tune(1)
+        settle()
+        val busy = HttpDataSource.InvalidResponseCodeException(409, "Conflict", null, emptyMap(), DataSpec.Builder().setUri("http://x").build(), ByteArray(0))
+        engine().player.fail(PlaybackException("busy", busy, PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS))
+        settle()
+        assertEquals(LivePhase.Tuning, playback.state.value.phase)
+        scheduler.advanceTimeBy(600)
+        settle()
+        // The watch's own answer says why: the channel was asked for once.
+        assertEquals(listOf("watch 1 android-1"), live.sent)
+        val failed = playback.state.value.phase as LivePhase.Failed
+        assertEquals(LiveTrouble.Kind.Busy, failed.trouble.kind)
+        assertEquals(message, failed.trouble.message)
+    }
+
+    @Test
+    fun `a stream ts that fails before the watch answers plays the HLS of that watch`() {
+        live.plan = Fixtures.decode<LivePlan>("live/plan.json")
+        live.watchTakesMs = 500
+        playback.tune(1)
+        settle()
+        engine().player.fail(PlaybackException("no", null, PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED))
+        settle()
+        scheduler.advanceTimeBy(600)
+        settle()
+        assertEquals(listOf("watch 1 android-1"), live.sent)
+        val hls = engine().prepared.last()
+        assertTrue(hls.source.hls && hls.source.url.endsWith("/api/live/sessions/live-1/index.m3u8") && hls.playWhenReady)
+        assertEquals(LivePhase.Tuning, playback.state.value.phase)
+    }
+
+    @Test
     fun `stream ts is read as the channel is asked for, and after the answer when a connection is taken over`() {
         live.watchFails = ApiException(409, "conflict", "In use.")
         playback.tune(1)

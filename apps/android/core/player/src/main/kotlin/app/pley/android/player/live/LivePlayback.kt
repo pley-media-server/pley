@@ -185,6 +185,9 @@ class LivePlayback(
     /** `stream.ts` is read, not yet played: the plan hasn't said the channel is sent as it is. */
     private var holding = false
 
+    /** `stream.ts` failed while the tune still waited for the watch or its plan: the tune goes on to the HLS. */
+    private var streamFailed = false
+
     /** A stall under way, said once it has lasted [STALL_SHOWN_MS]. */
     private var stall: Job? = null
 
@@ -203,6 +206,7 @@ class LivePlayback(
         stall?.cancel()
         direct = false
         holding = false
+        streamFailed = false
         letSessionGo()
         mutableEngine.value?.player?.let {
             it.stop()
@@ -231,7 +235,7 @@ class LivePlayback(
             session = watching.sessionId
             val hls = EngineSource(url = watching.url, hls = true, live = true)
             if (allowDirect && takeOver != null) stream = readStream(channelId)
-            if (stream == null) {
+            if (stream == null || streamFailed) {
                 direct = false
                 engine().prepare(hls, startMs = 0, playWhenReady = true)
                 return@launch
@@ -239,7 +243,7 @@ class LivePlayback(
             val engine = engine()
             val plan = quietly { live.plan(watching.sessionId) }
             holding = false
-            if (plan != null && playsAsSent(plan, caps())) {
+            if (!streamFailed && plan != null && playsAsSent(plan, caps())) {
                 engine.player.play()
                 if (engine.player.playbackState == Player.STATE_READY) playing()
             } else {
@@ -420,6 +424,13 @@ class LivePlayback(
             if (direct && channelId != null) {
                 if (state.value.phase is LivePhase.Playing) {
                     brokeOff(channelId)
+                } else if (tuning?.isActive == true) {
+                    // Failed before the watch or its plan answered (a busy channel's 409, a 404): the tune
+                    // goes on, to the HLS with the session it gets or to why watching failed, rather than
+                    // asking for the channel a second time.
+                    streamFailed = true
+                    direct = false
+                    holding = false
                 } else {
                     // stream.ts didn't play (its codecs, the connection): watched again, as HLS.
                     direct = false
