@@ -24,6 +24,7 @@ import app.pley.android.model.CollectionSort
 import app.pley.android.model.ConversionInfo
 import app.pley.android.model.CreditRole
 import app.pley.android.model.DynamicRange
+import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.EntryIds
 import app.pley.android.model.ExtraType
 import app.pley.android.model.Health
@@ -63,6 +64,7 @@ import app.pley.android.model.ProfileNeeds
 import app.pley.android.model.ProgressReport
 import app.pley.android.model.ProgressState
 import app.pley.android.model.RatingRequest
+import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.ScanPhase
 import app.pley.android.model.SearchResults
 import app.pley.android.model.ServerEvent
@@ -360,9 +362,24 @@ class FixturesTest {
 
     @Test
     fun listingsAndRows() {
-        assertEquals(412, Fixtures.decode<ItemsPage>("libraries/items.json").total)
+        val listing = Fixtures.decode<ItemsPage>("libraries/items.json")
+        assertEquals(412, listing.total)
+        // Every listing carries what the files are like, whatever its sort.
+        assertTrue(listing.items.all { it.media?.dynamicRange != null })
         val byBitrate = Fixtures.decode<ItemsPage>("libraries/items_by_bitrate.json")
         assertTrue(byBitrate.items.all { it.media?.bitrate != null })
+        val filters = Fixtures.decode<LibraryFilters>("libraries/filters.json")
+        assertEquals(listOf(ResolutionFilter.Uhd, ResolutionFilter.FullHd), filters.resolutionChoices)
+        assertEquals(
+            listOf(DynamicRangeFilter.Hdr, DynamicRangeFilter.DolbyVision, DynamicRangeFilter.Hdr10, DynamicRangeFilter.Sdr),
+            filters.dynamicRangeChoices,
+        )
+        // An older server's answer has neither, and a token this app doesn't know is left out.
+        assertEquals(LibraryFilters(listOf("Drama"), listOf(1999)), PleyJson.decodeFromString(LibraryFilters.serializer(), """{"genres":["Drama"],"years":[1999]}"""))
+        assertEquals(
+            listOf(ResolutionFilter.Sd),
+            PleyJson.decodeFromString(LibraryFilters.serializer(), """{"resolutions":["8k","sd"]}""").resolutionChoices,
+        )
         val home = Fixtures.decode<Hubs>("hubs/home.json").hubs
         assertNull(home.first().libraryId)
         assertEquals("continue_watching", home.first().key)

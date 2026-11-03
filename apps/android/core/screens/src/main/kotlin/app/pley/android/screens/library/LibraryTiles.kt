@@ -8,7 +8,7 @@ import java.util.IdentityHashMap
 
 /** How an item is drawn in a grid or row: the interfaces' tile kinds, as far as a screen needs to say. */
 enum class TileLook {
-    /** Movies and shows, 2:3. */
+    /** Movies and shows, 2:3, with no quality badges whatever the item carries. */
     Poster,
 
     /** Continue Watching, 16:9 stills. */
@@ -17,7 +17,10 @@ enum class TileLook {
     /** Music, 1:1. */
     Square,
 
-    /** A poster that says what the files are like ("4K", "DV", "HEVC"; "42 Mbps · 23.4 GB"): sorted by bitrate. */
+    /** A poster with its quality badges ("4K", "DV"): a library grid filtered by resolution or dynamic range. */
+    Badged,
+
+    /** A poster that says what the files are like ("4K", "DV"; "42 Mbps · 23.4 GB"): sorted by bitrate. */
     Bitrate,
 }
 

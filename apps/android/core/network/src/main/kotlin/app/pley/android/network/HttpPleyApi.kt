@@ -29,10 +29,12 @@ import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemIds
 import app.pley.android.model.ItemList
 import app.pley.android.model.ItemsPage
+import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryFilters
 import app.pley.android.model.LibraryIds
 import app.pley.android.model.LibrarySort
+import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveChannelPage
@@ -154,6 +156,8 @@ class HttpPleyApi(
         watched: Boolean?,
         genre: String?,
         year: Int?,
+        resolution: ResolutionFilter?,
+        dynamicRange: DynamicRangeFilter?,
         offset: Int,
         limit: Int?,
     ): ItemsPage = get(
@@ -165,6 +169,8 @@ class HttpPleyApi(
             "watched" to watched?.toString(),
             "genre" to genre,
             "year" to year?.toString(),
+            "resolution" to resolution?.wire,
+            "dynamic_range" to dynamicRange?.wire,
             "offset" to offset.toString(),
             "limit" to limit?.toString(),
         ),

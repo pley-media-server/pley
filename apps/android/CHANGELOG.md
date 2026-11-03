@@ -40,9 +40,17 @@ describes how they are made.
   that the drive may have been pulled out. An empty folder or no drive
   says so under an icon, with focus on the page, so the rail closes over
   it. The page asks for leave to read the drive as it opens.
+- Movie and show libraries filter by resolution (4K, 1080p, 720p, SD) and
+  dynamic range (HDR, Dolby Vision, HDR10+, HDR10, HLG, SDR) where they
+  have more than one: chips beside Genre and Year on phones, rows of the
+  Filter panel on TVs with a chip for the one chosen. Clear filters clears
+  them, Save as… keeps them, and the library opens with them next time.
 
 ### Changed
 
+- Library posters carry their quality badges ("4K", "DV") while filtered
+  by resolution or dynamic range, as they do sorted by bitrate, and
+  nowhere else.
 - On phones, the first scrolls after an install or an update are smoother:
   the app comes compiled ahead for the phone's screens too, not only the
   TV's.

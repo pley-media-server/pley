@@ -17,9 +17,11 @@ import app.pley.android.model.SubtitleResult
 import app.pley.android.model.EntryIds
 import app.pley.android.model.ImageKind
 import app.pley.android.model.ItemIds
+import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.LibraryIds
 import app.pley.android.model.LibrarySort
 import app.pley.android.model.LiveCategory
+import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.NewPlaylist
 import app.pley.android.model.PlaybackRequest
 import app.pley.android.model.PlaylistPatch
@@ -127,6 +129,13 @@ class HttpPleyApiTest {
                 "GET /api/libraries/1/items?sort=added&order=desc&watched=false&genre=Science%20Fiction&year=2016&offset=200&limit=1000",
             ) {
                 libraryItems(1, LibrarySort.Added, SortOrder.Descending, watched = false, genre = "Science Fiction", year = 2016, offset = 200, limit = 1000)
+            },
+            Golden(
+                "libraryItems (resolution and dynamic range)",
+                json("libraries/items.json"),
+                "GET /api/libraries/1/items?sort=bitrate&resolution=4k&dynamic_range=dolby_vision&offset=0",
+            ) {
+                libraryItems(1, LibrarySort.Bitrate, resolution = ResolutionFilter.Uhd, dynamicRange = DynamicRangeFilter.DolbyVision)
             },
             Golden("libraryFilters", json("libraries/filters.json"), "GET /api/libraries/1/filters") { libraryFilters(1) },
             Golden("libraryHubs", json("libraries/hubs.json"), "GET /api/libraries/1/hubs") { libraryHubs(1) },

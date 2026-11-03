@@ -27,10 +27,12 @@ import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemIds
 import app.pley.android.model.ItemList
 import app.pley.android.model.ItemsPage
+import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryFilters
 import app.pley.android.model.LibraryIds
 import app.pley.android.model.LibrarySort
+import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.LiveCategory
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveChannelPage
@@ -146,8 +148,9 @@ interface PleyApi {
     /**
      * GET /api/libraries/{id}/items: a page of the library's top-level
      * items. [order] `null` is the server's default for [sort]; [watched]
-     * true matches shows whose every episode is watched. Without [limit],
-     * every item from [offset].
+     * true matches shows whose every episode is watched; [resolution] and
+     * [dynamicRange] match a title's best file (a show's best episode).
+     * Without [limit], every item from [offset].
      */
     suspend fun libraryItems(
         libraryId: Long,
@@ -156,11 +159,13 @@ interface PleyApi {
         watched: Boolean? = null,
         genre: String? = null,
         year: Int? = null,
+        resolution: ResolutionFilter? = null,
+        dynamicRange: DynamicRangeFilter? = null,
         offset: Int = 0,
         limit: Int? = null,
     ): ItemsPage
 
-    /** GET /api/libraries/{id}/filters: the genres and years to filter [libraryItems] by. */
+    /** GET /api/libraries/{id}/filters: the genres, years, resolutions and dynamic ranges to filter [libraryItems] by. */
     suspend fun libraryFilters(libraryId: Long): LibraryFilters
 
     /** GET /api/libraries/{id}/hubs: the library's rows (continue watching, recently added and released, top rated). */

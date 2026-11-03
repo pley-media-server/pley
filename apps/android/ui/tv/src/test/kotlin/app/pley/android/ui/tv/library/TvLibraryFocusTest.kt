@@ -9,6 +9,8 @@ import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.navigation3.runtime.NavKey
 import androidx.test.core.app.ApplicationProvider
 import app.pley.android.common.TestTags
 import app.pley.android.data.LibraryItems
@@ -18,21 +20,29 @@ import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
+import app.pley.android.model.LibraryFilters
 import app.pley.android.model.LibraryKind
+import app.pley.android.screens.LibraryTab
+import app.pley.android.screens.PleyKey
 import app.pley.android.testing.screens.onboarding.FakeOnboardingSource
 import app.pley.android.ui.tv.item.TV_TILE_ACTIONS
 import app.pley.android.ui.tv.kit.press
 import app.pley.android.ui.tv.onboarding.LocalOnboardingSource
+import app.pley.android.ui.tv.shell.LocalTvNavigator
 import app.pley.android.ui.tv.shell.RailProfile
+import app.pley.android.ui.tv.shell.RailState
 import app.pley.android.ui.tv.shell.StartFacts
 import app.pley.android.ui.tv.shell.TvApp
+import app.pley.android.ui.tv.shell.TvNavigator
 import app.pley.android.ui.tv.shell.TvShellSource
 import app.pley.android.ui.tv.shell.TvTestApplication
 import app.pley.android.ui.tv.shell.TvTestGraph
+import app.pley.android.ui.tv.theme.TvTheme
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -195,6 +205,50 @@ class TvLibraryFocusTest {
         waitUntil { exists(hasTestTag("${TestTags.TV_RAIL}.library:1") and isFocused()) }
         compose.press(Key.DirectionRight)
         assertEquals(title(n), focusedTitle())
+    }
+
+    /** The focused element's words: a chip's label. */
+    private fun focusedText(): String = compose.onAllNodes(isFocused()).fetchSemanticsNodes().firstOrNull()
+        ?.config?.getOrElse(SemanticsProperties.Text) { emptyList() }?.joinToString().orEmpty()
+
+    private fun focusedBounds() = compose.onAllNodes(isFocused()).fetchSemanticsNodes().single().boundsInRoot
+
+    @Test
+    fun chipsThatDontAllFitGoToTheirEndAndBackWithFocus() {
+        graph.sources.libraryList.value = Loadable.Ready(listOf(movies), fresh = true)
+        graph.listing.value = Loadable.Ready(LibraryItems(total = items.size, items = items), fresh = true)
+        graph.filters.value = Loadable.Ready(
+            LibraryFilters(listOf("Science Fiction & Fantasy"), listOf(2001), listOf("4k", "1080"), listOf("hdr", "dolby_vision", "sdr")),
+            fresh = true,
+        )
+        // Every filter chosen, a long genre among them: the chips and the count are wider than the page.
+        val view = "watched=false&genre=Science+Fiction+%26+Fantasy&year=2001&resolution=4k&dynamic_range=dolby_vision"
+        val key = PleyKey.Library(1, LibraryTab.Library, view)
+        val navigator = TvNavigator(mutableListOf<NavKey>(key), RailState()) {}
+        compose.setContent {
+            TvTheme(reducedMotion = true) {
+                CompositionLocalProvider(LocalTvNavigator provides navigator) { TvLibraryScreen(key) }
+            }
+        }
+        waitUntil { focusedTitle() == title(1) }
+        val density = compose.activity.resources.displayMetrics.density
+        val gutter = 96f * density
+        val safeEdge = (960f - 48f) * density
+        // A chip's focus growth reaches a few dp past its place.
+        val growth = 4f * density
+        compose.press(Key.DirectionUp)
+        assertEquals("Title", focusedText())
+        assertTrue(focusedBounds().left >= gutter - growth)
+        var guard = 0
+        while (focusedText() != "Dolby Vision" && guard++ < 8) compose.press(Key.DirectionRight)
+        assertEquals("Dolby Vision", focusedText())
+        assertTrue("${focusedBounds()}", focusedBounds().right <= safeEdge + growth)
+        // At its end, the count shows too, short of the safe edge.
+        val count = compose.onNodeWithText("of 120 movies", substring = true).fetchSemanticsNode().boundsInRoot
+        assertTrue("$count", count.right <= safeEdge + 1f)
+        compose.press(Key.DirectionLeft, 6)
+        assertEquals("Title", focusedText())
+        assertTrue("${focusedBounds()}", focusedBounds().left >= gutter - growth)
     }
 
     private companion object {

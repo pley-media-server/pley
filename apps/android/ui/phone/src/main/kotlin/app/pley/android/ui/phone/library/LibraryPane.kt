@@ -66,7 +66,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * The Library tab (design spec §4.2): a toolbar of chips that stays put
- * (sort, the watched filters, genre, year, then Clear filters and Save as…
+ * (sort, the watched filters, genre, year, resolution and dynamic range
+ * where the library has them to choose, then Clear filters and Save as…
  * while filtered), and under it the grid of every title, sized from the
  * listing's total so the scroll bar is right from the first frame. Cells
  * not loaded yet are skeletons in the same shape. On the right edge, a
@@ -177,6 +178,26 @@ private fun Toolbar(state: LibraryUiState<ArtworkTileModel>, vm: LibraryViewMode
                             label = params.year?.toString() ?: stringResource(R.string.library_year),
                             selected = params.year != null,
                             onClick = { onSheet(LibrarySheet.Year) },
+                            dropdown = true,
+                        )
+                    }
+                }
+                if (state.resolutions.isNotEmpty()) {
+                    item(key = "resolution") {
+                        PleyChip(
+                            label = params.resolution?.label ?: stringResource(R.string.library_resolution),
+                            selected = params.resolution != null,
+                            onClick = { onSheet(LibrarySheet.Resolution) },
+                            dropdown = true,
+                        )
+                    }
+                }
+                if (state.dynamicRanges.isNotEmpty()) {
+                    item(key = "dynamic_range") {
+                        PleyChip(
+                            label = params.dynamicRange?.label ?: stringResource(R.string.library_dynamic_range),
+                            selected = params.dynamicRange != null,
+                            onClick = { onSheet(LibrarySheet.DynamicRange) },
                             dropdown = true,
                         )
                     }
@@ -326,7 +347,7 @@ private const val FAST_SCROLL_FROM = 60
 private const val SKELETON = "skeleton"
 
 /** The sheets the toolbar opens. */
-internal enum class LibrarySheet { Sort, Genre, Year }
+internal enum class LibrarySheet { Sort, Genre, Year, Resolution, DynamicRange }
 
 /** [GridDensity]'s label. */
 internal fun densityLabel(density: GridDensity): Int = when (density) {

@@ -240,6 +240,8 @@ internal class LibraryListing(
         watched = query.unwatched?.not(),
         genre = query.genre,
         year = query.year,
+        resolution = query.resolution,
+        dynamicRange = query.dynamicRange,
         offset = offset,
         limit = limit,
     )

@@ -57,7 +57,9 @@ class FakeLibraryItems : LibraryItemsRepository {
     val listings = MutableStateFlow<Map<LibraryQuery, Loadable<LibraryItems>>>(emptyMap())
     val asked = mutableListOf<LibraryQuery>()
     val showings = mutableListOf<Pair<LibraryQuery, Int>>()
-    var filters = MutableStateFlow<Loadable<LibraryFilters>>(Loadable.Ready(LibraryFilters(listOf("Comedy", "Drama"), listOf(2024, 1999)), true))
+    var filters = MutableStateFlow<Loadable<LibraryFilters>>(
+        Loadable.Ready(LibraryFilters(listOf("Comedy", "Drama"), listOf(2024, 1999), listOf("4k", "1080"), listOf("hdr", "dolby_vision", "hdr10", "sdr")), true),
+    )
 
     fun set(query: LibraryQuery, items: LibraryItems) = listings.update { it + (query to Loadable.Ready(items, fresh = true)) }
 

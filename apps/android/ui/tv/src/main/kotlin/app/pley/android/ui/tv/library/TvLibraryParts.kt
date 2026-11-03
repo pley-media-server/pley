@@ -232,14 +232,16 @@ private fun SkeletonRows() {
 }
 
 /** The side panels the chips open. */
-internal enum class TvPanel { Sort, Filter, Genre, Year }
+internal enum class TvPanel { Sort, Filter, Genre, Year, Resolution, DynamicRange }
 
 /**
  * The side panel (design spec §2.7) of the chip pressed: the sorts and
- * the order; the filters (which titles to show, genre, year, Clear
- * filters, Save as…); or the genres or years. The choice in force has the
- * check and the focus. A choice applies at once; picking a sort, order,
- * genre or year closes the panel, and Back closes it too.
+ * the order; the filters (which titles to show, genre, year, resolution
+ * and dynamic range where the library has them to choose, Clear filters,
+ * Save as…); or the genres, years, resolutions or dynamic ranges. The
+ * choice in force has the check and the focus. A choice applies at once;
+ * picking a sort, order, genre, year, resolution or dynamic range closes
+ * the panel, and Back closes it too.
  */
 @Composable
 internal fun TvLibraryPanel(
@@ -307,6 +309,26 @@ internal fun TvLibraryPanel(
                             onClick = { onPanel(TvPanel.Year) },
                         )
                     }
+                    if (state.resolutions.isNotEmpty()) {
+                        item(key = "resolution", contentType = PANEL_ROW) {
+                            PanelRow(
+                                stringResource(R.string.tv_library_resolution),
+                                value = params.resolution?.label ?: stringResource(R.string.tv_library_all_resolutions),
+                                opens = true,
+                                onClick = { onPanel(TvPanel.Resolution) },
+                            )
+                        }
+                    }
+                    if (state.dynamicRanges.isNotEmpty()) {
+                        item(key = "dynamic_range", contentType = PANEL_ROW) {
+                            PanelRow(
+                                stringResource(R.string.tv_library_dynamic_range),
+                                value = params.dynamicRange?.label ?: stringResource(R.string.tv_library_all_dynamic_ranges),
+                                opens = true,
+                                onClick = { onPanel(TvPanel.DynamicRange) },
+                            )
+                        }
+                    }
                 }
                 if (params.filtered) {
                     item(key = "clear", contentType = PANEL_ROW) {
@@ -362,6 +384,47 @@ internal fun TvLibraryPanel(
                     val on = year == params.year
                     PanelRow(year.toString(), checked = on, onClick = {
                         vm.year(year)
+                        close()
+                    }, modifier = Modifier.chosenIf(on))
+                }
+            }
+            // The one chosen is always listed (LibraryUiState.resolutions), so it has the focus.
+            TvPanel.Resolution -> PanelList(stringResource(R.string.tv_library_resolution), chosen) {
+                item(key = "all", contentType = PANEL_ROW) {
+                    PanelRow(
+                        stringResource(R.string.tv_library_all_resolutions),
+                        checked = params.resolution == null,
+                        onClick = {
+                            vm.resolution(null)
+                            close()
+                        },
+                        modifier = Modifier.chosenIf(params.resolution == null),
+                    )
+                }
+                items(state.resolutions, key = { "r/${it.wire}" }, contentType = { PANEL_ROW }) { resolution ->
+                    val on = resolution == params.resolution
+                    PanelRow(resolution.label, checked = on, onClick = {
+                        vm.resolution(resolution)
+                        close()
+                    }, modifier = Modifier.chosenIf(on))
+                }
+            }
+            TvPanel.DynamicRange -> PanelList(stringResource(R.string.tv_library_dynamic_range), chosen) {
+                item(key = "all", contentType = PANEL_ROW) {
+                    PanelRow(
+                        stringResource(R.string.tv_library_all_dynamic_ranges),
+                        checked = params.dynamicRange == null,
+                        onClick = {
+                            vm.dynamicRange(null)
+                            close()
+                        },
+                        modifier = Modifier.chosenIf(params.dynamicRange == null),
+                    )
+                }
+                items(state.dynamicRanges, key = { "d/${it.wire}" }, contentType = { PANEL_ROW }) { range ->
+                    val on = range == params.dynamicRange
+                    PanelRow(range.label, checked = on, onClick = {
+                        vm.dynamicRange(range)
                         close()
                     }, modifier = Modifier.chosenIf(on))
                 }

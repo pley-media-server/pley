@@ -33,7 +33,8 @@ internal class PhoneTiles(private val resources: Resources) : TileFactory<Artwor
     override fun item(item: ItemSummary, look: TileLook, origin: String): ArtworkTileModel = when (look) {
         TileLook.Landscape -> ArtworkTileModel.of(item, TileKind.Landscape, origin)
         TileLook.Square -> ArtworkTileModel.of(item, TileKind.Square, origin)
-        TileLook.Poster -> ArtworkTileModel.of(item, TileKind.Poster, origin).copy(badges = mediaBadges(item.media))
+        TileLook.Poster -> ArtworkTileModel.of(item, TileKind.Poster, origin)
+        TileLook.Badged -> ArtworkTileModel.of(item, TileKind.Poster, origin).copy(badges = mediaBadges(item.media))
         TileLook.Bitrate -> ArtworkTileModel.of(item, TileKind.Poster, origin).let { model ->
             val line = mediaLine(item.media)
             model.copy(

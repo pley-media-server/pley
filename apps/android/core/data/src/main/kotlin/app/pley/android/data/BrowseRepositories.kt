@@ -2,6 +2,7 @@ package app.pley.android.data
 
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.CollectionSummary
+import app.pley.android.model.DynamicRangeFilter
 import app.pley.android.model.HistoryPage
 import app.pley.android.model.Hubs
 import app.pley.android.model.ItemDetail
@@ -10,6 +11,7 @@ import app.pley.android.model.Library
 import app.pley.android.model.LibraryFilters
 import app.pley.android.model.LibrarySort
 import app.pley.android.model.PersonDetail
+import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.SearchResults
 import app.pley.android.model.SortOrder
 import kotlinx.coroutines.flow.Flow
@@ -48,6 +50,8 @@ data class LibraryQuery(
     val unwatched: Boolean? = null,
     val genre: String? = null,
     val year: Int? = null,
+    val resolution: ResolutionFilter? = null,
+    val dynamicRange: DynamicRangeFilter? = null,
 )
 
 /**

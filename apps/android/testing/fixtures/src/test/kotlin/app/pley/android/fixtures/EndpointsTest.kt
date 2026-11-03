@@ -64,7 +64,8 @@ class EndpointsTest {
                 assertEquals(library.itemCount, page.total)
                 assertEquals(minOf(50, library.itemCount - 10), page.items.size)
                 assertTrue(page.items.all { it.backdropUrl == null && it.thumbUrl == null })
-                assertEquals(sort == LibrarySort.Bitrate, page.items.all { it.media != null })
+                // What the files are like, whatever the sort.
+                assertTrue(page.items.all { it.media != null })
             }
             app.read("/api/libraries/${library.id}/filters", LibraryFilters.serializer())
             assertTrue(app.read("/api/libraries/${library.id}/hubs", Hubs.serializer()).hubs.isNotEmpty())
@@ -76,6 +77,29 @@ class EndpointsTest {
         val comedies = app.read("/api/libraries/1/items?genre=Comedy&year=1999&watched=false", ItemsPage.serializer())
         assertTrue(comedies.items.all { it.year == 1999 && !it.userState.watched })
         assertEquals(400, app.get("/api/libraries/1/items?sort=colour").code)
+    }
+
+    @Test
+    fun listingsFilterByResolutionAndDynamicRange() = withServer { server ->
+        val app = Client(server, server.accessToken())
+        val filters = app.read("/api/libraries/1/filters", LibraryFilters.serializer())
+        assertEquals(listOf("4k", "1080"), filters.resolutions)
+        assertEquals(listOf("hdr", "dolby_vision", "hdr10plus", "hdr10", "sdr"), filters.dynamicRanges)
+        fun count(query: String) = app.read("/api/libraries/1/items?$query&limit=0", ItemsPage.serializer()).total
+        // Each title is of one resolution and one range.
+        assertEquals(1_500, filters.resolutions.sumOf { count("resolution=$it") })
+        assertEquals(1_500, count("dynamic_range=hdr") + count("dynamic_range=sdr"))
+        val uhd = app.read("/api/libraries/1/items?resolution=4k&dynamic_range=dolby_vision", ItemsPage.serializer())
+        assertTrue(uhd.items.isNotEmpty())
+        assertTrue(uhd.items.all { it.media?.height == 2160 && it.media?.dynamicRange == DynamicRange.DolbyVision })
+        assertTrue(count("dynamic_range=hdr") > count("dynamic_range=hdr10"))
+        // A value the server doesn't know is refused; none is no filter.
+        assertEquals(400, app.get("/api/libraries/1/items?resolution=8k").code)
+        assertEquals(400, app.get("/api/libraries/1/items?dynamic_range=hdr12").code)
+        assertEquals(1_500, count("resolution=&dynamic_range="))
+        // Music has neither.
+        val music = app.read("/api/libraries/3/filters", LibraryFilters.serializer())
+        assertTrue(music.resolutions.isEmpty() && music.dynamicRanges.isEmpty())
     }
 
     @Test

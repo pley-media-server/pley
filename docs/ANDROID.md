@@ -157,6 +157,27 @@ heard it for that profile, the start asks "Who's watching?".
   this screen doesn't show Dolby Vision)"). Their Decoded line names what
   the decoder makes: HEVC and HDR10 for a base layer.
 
+### Libraries
+
+A library's Library tab sorts and filters its grid as the web app does:
+watched or not, genre, year and, in movie and show libraries, resolution
+(4K, 1080p, 720p, SD) and dynamic range (HDR, Dolby Vision, HDR10+,
+HDR10, HLG, SDR) where the library has titles of more than one. A title
+counts by its best file, a show by its best episode.
+
+- **Phones**: each filter is a chip over the grid that opens its sheet.
+- **TVs**: Genre and Year are chips and rows of the Filter panel;
+  Resolution and Dynamic range are rows of the Filter panel after Year,
+  with a chip ("4K", "Dolby Vision") while one is chosen. Chips that don't
+  all fit scroll with focus.
+- Clear filters clears them all, Save as… keeps them in the smart playlist
+  (`resolution=4k&dynamicRange=hdr`), and a library opens as it was left,
+  filters included; a stored value the server wouldn't take is dropped.
+- Posters carry their quality badges ("4K", "DV", "HDR10") only while the
+  grid is sorted by bitrate or filtered by resolution or dynamic range;
+  sorted by bitrate, each also shows its bitrate and size. Recommended
+  rows, collections, playlists, search and Home show none.
+
 ### Audio and subtitles
 
 Unless you pick a track, the server picks the audio in the profile's
