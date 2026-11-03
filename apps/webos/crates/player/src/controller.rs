@@ -18,6 +18,10 @@
 //!   and buffer growth) and in-place bitrate changes.
 //! - **Markers, Up Next, the sleep timer, speed, Playback details**, and a
 //!   session the server stopped: it says so and plays no more.
+//! - **A video on a drive** ([`PlayerServer::local`](crate::server::PlayerServer::local)):
+//!   played as it is with no server behind it, so nothing is converted or
+//!   asked of a server, a 12 s stall fails at once, audio always switches in
+//!   place, and picture subtitles come as they are read out of the file.
 //!
 //! Nothing here blocks: server calls run on the task pool and come back
 //! through promises that [`PlaybackController::tick`] collects; time comes
@@ -41,7 +45,7 @@ use pley_core::model::{
 };
 use pley_core::task::{Cancel, Promise};
 use pley_core::{ApiError, CapsReport};
-use pley_subs::{Fetch, PictureAnswer, Presenter, Shown, TrackKind, Trouble, clamp_offset};
+use pley_subs::{Fetch, PictureAnswer, PictureTrack, Presenter, Shown, TrackKind, Trouble, clamp_offset};
 
 use crate::autoquality::{AutoOptions, AutoQuality, AutoStep, FIRST_MINUTE_MS, LiveStream, Remembered};
 use crate::details::{self, DetailsInput, PlaybackDetails};
@@ -107,6 +111,11 @@ pub const OUTAGE_ASK_MS: u64 = 5_000;
 pub const OUTAGE_MOVED_MS: i64 = 1_000;
 /// A chapter picture stands in for a seek preview at this width (240 dp × 2).
 pub const CHAPTER_PICTURE_PX: u32 = 480;
+/// A video on a drive's picture subtitles still being read out of it are
+/// asked for again after 1 s, then twice as long each time, 4 s at most.
+pub const LOCAL_PICTURES_FIRST_MS: u64 = 1_000;
+/// See [`LOCAL_PICTURES_FIRST_MS`].
+pub const LOCAL_PICTURES_MOST_MS: u64 = 4_000;
 
 /// Where the player is.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -253,6 +262,9 @@ pub struct PlayerState {
     /// It moves to a session made ready beside the last one: the ring waits longer (2.5 s).
     pub switching: bool,
     pub search: SubtitleSearch,
+    /// Find subtitles is offered: a server searches for them and adds them
+    /// (none does for a video on a drive).
+    pub can_find_subtitles: bool,
 }
 
 impl Default for PlayerState {
@@ -290,6 +302,7 @@ impl Default for PlayerState {
             stalls: 0,
             switching: false,
             search: SubtitleSearch::Idle,
+            can_find_subtitles: true,
         }
     }
 }
@@ -444,6 +457,7 @@ enum Done {
     Trickplay { file_id: i64, result: Result<TrickplayInfo, ApiError> },
     Details { result: Result<SessionStatus, ApiError> },
     Subtitle { fetch: Fetch, result: Result<crate::server::SubtitleAnswer, ApiError> },
+    Pictures { fetch: Fetch, result: Result<(PictureTrack, bool), ApiError> },
     Found { search: u64, result: Result<Vec<SubtitleResult>, ApiError> },
     Added { result: Result<SubtitleTrack, ApiError> },
 }
@@ -559,11 +573,21 @@ impl PlaybackController {
     /// clock: the first picture is timed from it). Nothing happens before [`PlaybackController::start`].
     pub fn new(request: PlayRequest, env: PlayerEnv, engine: Box<dyn PlayerEngine>, now: i64) -> PlaybackController {
         let speeds = env.speeds.clone();
+        let local = env.server.local();
+        let mut presenter = Presenter::new();
+        if local {
+            presenter.set_picture_retry(LOCAL_PICTURES_FIRST_MS, LOCAL_PICTURES_MOST_MS);
+        }
         PlaybackController {
             env,
             engine,
             view: EngineView::default(),
-            state: PlayerState { item_id: request.item_id, speeds, ..PlayerState::default() },
+            state: PlayerState {
+                item_id: request.item_id,
+                speeds,
+                can_find_subtitles: !local,
+                ..PlayerState::default()
+            },
             clock: PlayerClock::default(),
             version: 0,
             current: request,
@@ -602,7 +626,7 @@ impl PlaybackController {
             recovery: Recovery::default(),
             struggle: StruggleMeter::default(),
             credits: CreditsGate::default(),
-            presenter: Presenter::new(),
+            presenter,
             sleep: SleepTimer::default(),
             last_advance_at: now,
             last_advance_pos: -1,
@@ -858,7 +882,7 @@ impl PlaybackController {
     /// Asks the server's memory of networks for Automatic's start; none for a quality picked.
     fn network_start(&mut self, g: u64) {
         let remembered = self.env.quality.remembered();
-        let auto = choose_quality(remembered.as_deref(), &presets()).id == AUTO_ID;
+        let auto = choose_quality(remembered.as_deref(), &presets()).id == AUTO_ID && !self.local();
         match self.env.network.clone().filter(|_| auto) {
             Some(network) => self.spawn(move || Done::Known { g, known: network.start() }),
             None => {
@@ -903,7 +927,12 @@ impl PlaybackController {
         self.audio = initial_audio(chosen.as_ref(), req.audio_index);
         self.audio_picked = self.audio.is_some();
         self.subtitle = initial_subtitle(chosen.as_ref(), req.subtitle_index);
-        self.quality = choose_quality(self.env.quality.remembered().as_deref(), &qualities_for(chosen.as_ref()));
+        // Nothing converts a file on a drive: it plays as it is, without Automatic.
+        self.quality = if self.local() {
+            Quality::original()
+        } else {
+            choose_quality(self.env.quality.remembered().as_deref(), &qualities_for(chosen.as_ref()))
+        };
         self.title_played_ms = 0;
         self.moving_at = None;
         self.current = req;
@@ -956,7 +985,8 @@ impl PlaybackController {
         self.clock.duration_ms = duration;
         self.changed();
         self.publish_choices();
-        let file_id = self.file.as_ref().map(|f| f.id);
+        // Only a server makes seek previews.
+        let file_id = self.file.as_ref().map(|f| f.id).filter(|_| !self.local());
         self.trickplay_at = None;
         if let Some(id) = file_id {
             self.trickplay_started = self.now;
@@ -1015,6 +1045,13 @@ impl PlaybackController {
         matches!(self.state.phase, Phase::Error { .. })
     }
 
+    /// A video on a drive (the Samsung app's `IPlayerSource.Local`): it plays
+    /// as it is, and what only a server does (converting, seek previews, the
+    /// next episode, finding subtitles) isn't there.
+    fn local(&self) -> bool {
+        self.env.server.local()
+    }
+
     /// The quality that plays: Automatic's of the moment, or the one chosen.
     fn playing_preset(&self) -> Quality {
         match &self.auto {
@@ -1047,7 +1084,9 @@ impl PlaybackController {
         }
         let playing = self.playing_preset();
         let original = playing.id == ORIGINAL_ID;
-        if original && self.guard_mode.is_none() {
+        // A file on a drive has no server to remux it: it plays as it is, and
+        // the screen gets what Playback details says.
+        if original && self.guard_mode.is_none() && !self.local() {
             self.guard_mode = dv_container_mode(Some(&chosen), self.caps.as_ref(), self.dv_containers.as_deref());
         }
         let mode = if original {
@@ -1085,6 +1124,7 @@ impl PlaybackController {
         let generation = self.generation.clone();
         let (client_id, keyed) = (self.env.client_id.clone(), self.env.keyed_urls);
         let caps = self.caps.clone();
+        let local = self.local();
         let mut asked = asked;
         self.spawn(move || {
             Cancel::new().scope(|| {
@@ -1114,7 +1154,10 @@ impl PlaybackController {
                         discard(&info);
                         return Err(Opening::Stale);
                     }
-                    let guard = dv_retry_mode(&info, Some(&asked.choices.file), caps.as_ref());
+                    // Played as it is, a drive's profile 7 shows its HDR10 base layer, where
+                    // asking again would only be refused (Samsung's bc8dbab1).
+                    let guard =
+                        if local { None } else { dv_retry_mode(&info, Some(&asked.choices.file), caps.as_ref()) };
                     if let Some(mode) = guard {
                         discard(&info);
                         asked.choices.mode = mode;
@@ -1189,7 +1232,8 @@ impl PlaybackController {
             self.guard_mode = Some(mode);
         }
         let info = opened.info;
-        if self.env.keyed_urls && !is_keyed(&info.url) {
+        // A file on a drive plays at its own address.
+        if self.env.keyed_urls && !self.local() && !is_keyed(&info.url) {
             self.discard(&info);
             self.preparing = None;
             self.fail(details::TOO_OLD, false, None);
@@ -1394,7 +1438,7 @@ impl PlaybackController {
         let Some(tracks) = self.view.tracks.clone() else { return };
         self.audio_pending = None;
         let default = self.audio.as_ref().is_none_or(|a| a.default);
-        if let Some(target) = match_track(&tracks, ordinal, language.as_deref())
+        if let Some(target) = self.track_for(&tracks, ordinal, language.as_deref())
             && self.engine.select_audio(target)
             && !default
         {
@@ -1406,13 +1450,21 @@ impl PlaybackController {
     /// Switches the file's `ordinal`-th audio track in place; false when the engine can't.
     fn switch_audio(&mut self, ordinal: usize, language: Option<&str>) -> bool {
         match self.view.tracks.clone() {
-            Some(tracks) => match match_track(&tracks, ordinal, language) {
+            Some(tracks) => match self.track_for(&tracks, ordinal, language) {
                 Some(target) => self.engine.select_audio(target),
                 None => false,
             },
             // The engine hasn't listed its tracks: by the file's order.
             None => self.engine.select_audio(ordinal),
         }
+    }
+
+    /// The engine's track for the file's `ordinal`-th audio track ([`match_track`]). A file on a
+    /// drive is read in the player's own order and its languages may be written another way
+    /// ("jpn" and "ja"): where they don't agree, its track goes by the file's order.
+    fn track_for(&self, tracks: &[AudioTrack], ordinal: usize, language: Option<&str>) -> Option<usize> {
+        let matched = match_track(tracks, ordinal, language);
+        if self.local() { matched.or_else(|| tracks.get(ordinal).map(|t| t.ordinal)) } else { matched }
     }
 
     /// An audio track switched in place: the frames it drops aren't counted, and counting starts afresh after.
@@ -1424,6 +1476,11 @@ impl PlaybackController {
     /// The server can't make the `.mks` (an older server or transcoder): picture subtitles are burned in from now on.
     fn pictures_failed(&mut self) {
         if self.closed || self.stopped {
+            return;
+        }
+        // A file on a drive has no server to burn them in.
+        if self.local() {
+            self.notice(details::SUBTITLES_FAILED);
             return;
         }
         self.pictures_unavailable = true;
@@ -1550,8 +1607,11 @@ impl PlaybackController {
             self.stop_by_server(message.as_deref(), true);
             return;
         }
-        // The TV's player can't say why a request failed: the session's own answer tells a stop from the rest.
-        if matches!(error, EngineError::Http { .. } | EngineError::Network { .. } | EngineError::Playlist { .. }) {
+        // The TV's player can't say why a request failed: the session's own answer tells a stop
+        // from the rest. A file on a drive has no session to ask about.
+        if !self.local()
+            && matches!(error, EngineError::Http { .. } | EngineError::Network { .. } | EngineError::Playlist { .. })
+        {
             if let Some(o) = &mut self.outage {
                 // Reconnecting already: the engine gave up too, so a new session starts once the server answers.
                 o.engine_failed = true;
@@ -1640,6 +1700,10 @@ impl PlaybackController {
                 }
                 let at = self.live_position();
                 self.restart(at, false);
+            }
+            RecoveryAction::CheckServer if self.local() => {
+                let action = self.recovery.after_server_check(None, starving);
+                self.act(action, starving);
             }
             RecoveryAction::CheckServer => {
                 if let Some(session) = self.info.as_ref().map(|i| i.session_id.clone()) {
@@ -1793,6 +1857,11 @@ impl PlaybackController {
             self.last_advance_pos = pos;
         } else if now - self.last_advance_at >= STALL_MS {
             self.last_advance_at = now;
+            // A file on a drive waits for no server, and the same file again would stand still again.
+            if self.local() {
+                self.fail(details::LOCAL_STUCK, true, None);
+                return;
+            }
             let ahead = self.view.buffered_end.map_or(0, |e| e - self.engine.position_ms() as i64);
             let starving = status == EngineStatus::Buffering && ahead < STARVING_MS;
             if let Some(session) = self.info.as_ref().map(|i| i.session_id.clone()) {
@@ -1995,6 +2064,13 @@ impl PlaybackController {
             position_ms.max(0)
         };
         self.hide_up_next();
+        if self.local() {
+            // A drive's subtitles still being read out of the file: what is read so far, at once.
+            self.presenter.sought();
+            if let Some((_, at)) = &mut self.subtitle_fetch {
+                *at = self.now;
+            }
+        }
         if self.ended || self.info.is_none() || self.session_ended {
             self.last_position_ms = target;
             self.clock.position_ms = target;
@@ -2031,12 +2107,15 @@ impl PlaybackController {
         self.publish_choices();
         let Some(info) = &self.info else { return };
         let ordinal = audio_streams(self.file.as_ref()).iter().position(|s| s.index == index).unwrap_or(0);
-        if !info.hls
-            && audio_plays_here(Some(&chosen), self.caps.as_ref())
-            && self.switch_audio(ordinal, chosen.language.as_deref())
-        {
-            self.quiet_frames();
-            return;
+        if !info.hls && audio_plays_here(Some(&chosen), self.caps.as_ref()) {
+            if self.switch_audio(ordinal, chosen.language.as_deref()) {
+                self.quiet_frames();
+                return;
+            }
+            // A new session would load the same file on a drive again and switch nothing.
+            if self.local() {
+                return;
+            }
         }
         let at = self.live_position();
         self.restart(at, true);
@@ -2723,6 +2802,12 @@ impl PlaybackController {
                 let url = fetch.url.to_string();
                 let timeout = Duration::from_millis(fetch.kind.timeout_ms());
                 self.spawn(move || {
+                    // A file on a drive hands its picture tracks over as they are.
+                    if fetch.kind == TrackKind::Pictures
+                        && let Some(result) = server.picture_track(&url, timeout)
+                    {
+                        return Done::Pictures { fetch, result };
+                    }
                     let result = server.subtitles(&url, fetch.kind.accept(), fetch.range_from, timeout);
                     Done::Subtitle { fetch, result }
                 });
@@ -2754,6 +2839,21 @@ impl PlaybackController {
                 }
             },
         };
+        self.subtitle_trouble(trouble);
+    }
+
+    /// A picture track handed over as it is, and whether it is whole.
+    fn on_pictures(&mut self, fetch: Fetch, result: Result<(PictureTrack, bool), ApiError>) {
+        let trouble = match result {
+            Err(e) => self.presenter.fetch_failed(fetch.id, e.status()),
+            Ok((track, complete)) => {
+                self.presenter.pictures_arrived(fetch.id, PictureAnswer::Track(track), complete).err()
+            }
+        };
+        self.subtitle_trouble(trouble);
+    }
+
+    fn subtitle_trouble(&mut self, trouble: Option<Trouble>) {
         match trouble {
             Some(Trouble::Failed) => self.notice(details::SUBTITLES_FAILED),
             Some(Trouble::PicturesUnavailable) => self.pictures_failed(),
@@ -2848,6 +2948,7 @@ impl PlaybackController {
                 self.details_at = Some(self.now + DETAILS_MS);
             }
             Done::Subtitle { fetch, result } => self.on_subtitle(fetch, result),
+            Done::Pictures { fetch, result } => self.on_pictures(fetch, result),
             Done::Found { search, result } => {
                 if search != self.searches {
                     return;
@@ -2935,8 +3036,10 @@ impl PlaybackController {
                 playing.label.clone()
             }
         });
+        // Nothing converts a file on a drive: no Quality to choose.
         let qualities = qualities_for(file)
             .into_iter()
+            .filter(|_| !self.local())
             .map(|p| QualityChoice {
                 id: p.id,
                 hint: if p.id == AUTO_ID {

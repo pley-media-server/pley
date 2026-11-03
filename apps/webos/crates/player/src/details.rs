@@ -68,6 +68,9 @@ pub const OFFLINE_TITLE: &str = "Can't reach your server";
 pub const OFFLINE_BODY: &str = "Check that the server is on and that this device is on its network.";
 /// A server that can't give keyed addresses.
 pub const TOO_OLD: &str = "This server is too old to play on this TV: update it.";
+/// A video on a drive whose picture stood still 12 s: the same file again would too.
+pub const LOCAL_STUCK: &str =
+    "This TV doesn't play this file: its picture never started. With no server to convert it, try another copy.";
 
 /// "Subtitles added: French (SRT)".
 pub fn subtitles_added(label: &str) -> String {

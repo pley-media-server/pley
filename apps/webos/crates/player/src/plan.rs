@@ -220,6 +220,7 @@ pub fn mime_type_of(container: Option<&str>) -> Option<&'static str> {
         "webm" => Some("video/webm"),
         "avi" => Some("video/x-msvideo"),
         "ts" | "m2ts" | "mpegts" => Some("video/mp2t"),
+        "mpeg" | "mpg" => Some("video/mpeg"),
         _ => None,
     }
 }
@@ -308,6 +309,7 @@ mod tests {
     fn mime_types() {
         assert_eq!(mime_type_of(Some("MKV")), Some("video/x-matroska"));
         assert_eq!(mime_type_of(Some("m2ts")), Some("video/mp2t"));
+        assert_eq!(mime_type_of(Some("mpeg")), Some("video/mpeg"));
         assert_eq!(mime_type_of(Some("wmv")), None);
         assert_eq!(mime_type_of(None), None);
     }

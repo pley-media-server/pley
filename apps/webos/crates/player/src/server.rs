@@ -14,6 +14,7 @@ use pley_core::model::{
     WatchRequest,
 };
 use pley_core::{Api, ApiError};
+use pley_subs::PictureTrack;
 
 /// A subtitle file's answer: its bytes, the status (206 for a range), and whether it is whole (`X-Pley-Complete`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -82,6 +83,19 @@ pub trait PlayerServer: Send + Sync {
     fn live_browse(&self, b: &LiveBrowse) -> Result<LiveChannelPage, ApiError>;
     fn live_guide(&self, from: i64, to: i64, ids: &[i64]) -> Result<LiveGuide, ApiError>;
     fn set_live_favorite(&self, channel: i64, favorite: bool) -> Result<(), ApiError>;
+
+    /// A video on a drive plugged into the TV, with no server behind it:
+    /// it plays as it is, and nothing converts it (the player's local mode).
+    fn local(&self) -> bool {
+        false
+    }
+
+    /// A picture subtitle track at `url` (a `.mks` address) handed over as
+    /// it is, with whether it is whole; none: `subtitles` fetches its `.mks`.
+    fn picture_track(&self, url: &str, timeout: Duration) -> Option<Result<(PictureTrack, bool), ApiError>> {
+        let _ = (url, timeout);
+        None
+    }
 }
 
 /// The bytes a `Content-Range: bytes 100-199/200` starts at.

@@ -252,6 +252,10 @@ pub struct Fake {
     hold_heads: AtomicBool,
     released: Mutex<u32>,
     release: Condvar,
+    /// A video on a drive: no server converts it (`409 local_file`).
+    local: AtomicBool,
+    /// What only a server answers, asked: `status`, `trickplay`, `next`.
+    questions: Mutex<Vec<String>>,
 }
 
 impl Fake {
@@ -290,6 +294,8 @@ impl Fake {
             hold_heads: AtomicBool::new(false),
             released: Mutex::new(0),
             release: Condvar::new(),
+            local: AtomicBool::new(false),
+            questions: Mutex::default(),
         })
     }
 
@@ -378,6 +384,20 @@ impl Fake {
         *self.next_item.lock().unwrap() = next;
     }
 
+    /// Plays as a video on a drive does: as it is, nothing converted.
+    pub fn set_local(&self) {
+        self.local.store(true, Ordering::SeqCst);
+    }
+
+    /// What only a server answers that was asked, in order.
+    pub fn questions(&self) -> Vec<String> {
+        self.questions.lock().unwrap().clone()
+    }
+
+    fn question(&self, what: &str) {
+        self.questions.lock().unwrap().push(what.to_string());
+    }
+
     pub fn on_add(&self, f: impl Fn(&str) -> SubtitleTrack + Send + Sync + 'static) {
         *self.on_add.lock().unwrap() = Some(Box::new(f));
     }
@@ -423,6 +443,7 @@ impl PlayerServer for Fake {
     }
 
     fn next(&self, _id: i64) -> Result<Option<ItemSummary>, ApiError> {
+        self.question("next");
         Ok(self.next_item.lock().unwrap().clone())
     }
 
@@ -444,6 +465,9 @@ impl PlayerServer for Fake {
             if self.busy.load(Ordering::SeqCst) && req.keep_previous {
                 return Err(refused(503, "unavailable", "no transcode free"));
             }
+            if self.local.load(Ordering::SeqCst) && matches!(req.mode, PlaybackMode::Remux | PlaybackMode::Transcode) {
+                return Err(refused(409, "local_file", "nothing converts it"));
+            }
             Ok((self.answer)(req))
         })
     }
@@ -459,6 +483,7 @@ impl PlayerServer for Fake {
     }
 
     fn session_status(&self, _session: &str, _timeout: Duration) -> Result<SessionStatus, ApiError> {
+        self.question("status");
         self.answered(|| Ok(SessionStatus { session_id: "s1".into(), method: PlaybackMethod::Direct, transcode: None }))
     }
 
@@ -523,6 +548,7 @@ impl PlayerServer for Fake {
     }
 
     fn trickplay(&self, _file_id: i64) -> Result<TrickplayInfo, ApiError> {
+        self.question("trickplay");
         Err(refused(404, "not_found", "not ready"))
     }
 
@@ -583,6 +609,10 @@ impl PlayerServer for Fake {
 
     fn set_live_favorite(&self, _channel: i64, _favorite: bool) -> Result<(), ApiError> {
         Ok(())
+    }
+
+    fn local(&self) -> bool {
+        self.local.load(Ordering::SeqCst)
     }
 }
 
