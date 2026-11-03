@@ -199,6 +199,9 @@ describes how they are made.
 
 ### Fixed
 
+- On Android TV, the rail's grey panel fades into the dark under its
+  entries over the last of its slide closed, where it went at once at the
+  end.
 - On TVs, Back from a title or from a tile's actions, and Right from the
   rail, land on the library grid's tile focus left, in its first row too,
   the grid as it was, where they went to the first tile or to the Sort

@@ -229,7 +229,8 @@ class RailState(private val content: FocusRequester = FocusRequester()) : TvRail
  * eased out as the Samsung app's rail is ([PleyMotion.EaseOut]), the
  * panel widens from 72 to 272 dp with its edge, the pills from 56 to 256,
  * and the labels fade in as they slide 24 dp into place; leaving, the
- * same back, the labels fading where they are. With
+ * same back, the labels fading where they are, and the panel fading over
+ * its last 15 % into the dark under the closed entries. With
  * reduced motion (Settings' or the system's) it opens and closes in place,
  * and an entry's scale changes at once. What moves is drawn, in the rail's
  * own layer: the rail is laid out open or closed as focus comes and goes,
@@ -261,7 +262,9 @@ internal fun TvRail(
                 if (shown <= 0f) return@drawBehind
                 // Past the rail's bounds while it closes: it is laid out closed by then.
                 val panel = lerp(PleyTv.RailCollapsed.toPx(), PleyTv.RailExpanded.toPx(), shown)
-                drawRect(PleyColors.Surface.copy(alpha = 0.96f), size = Size(panel, size.height))
+                // It slides at full strength and fades over the last of the way: closed, it meets the page's fade under the entries.
+                val strength = (shown / RAIL_FADE).coerceAtMost(1f)
+                drawRect(PleyColors.Surface.copy(alpha = 0.96f * strength), size = Size(panel, size.height))
                 // A stretched picture rather than a gradient shader (GradientBitmaps): cheaper on TV GPUs.
                 drawStretched(RailEdge, Offset(panel, 0f), Size(RailShadow.toPx(), size.height), alpha = shown)
             },
@@ -743,6 +746,9 @@ private val LeadingSize = 24.dp
 
 /** The open rail's soft right edge. */
 private val RailShadow = 64.dp
+
+/** The last of the panel's way, as a part of it, over which it fades into the closed rail's dark: 30 dp. */
+private const val RAIL_FADE = 0.15f
 
 /** Frames a key from nowhere waits before it takes focus to the page: past a row's own handing on ([RailState.enter]). */
 private const val SETTLE_FRAMES = 3
