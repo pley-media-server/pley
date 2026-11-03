@@ -433,7 +433,12 @@ fn a_season_says_its_state_or_what_it_holds() {
     let mut declined = season(1, SeasonState::Missing);
     declined.declined = true;
     assert_eq!(line(declined), "Declined");
-    assert_eq!(line(season(1, SeasonState::Partial)), "Partly in library");
+    let mut partly = season(1, SeasonState::Partial);
+    (partly.in_library, partly.episodes) = (4, 10);
+    assert_eq!(line(partly.clone()), "4 of 10 episodes in library");
+    // TMDB counting fewer episodes than the library has.
+    partly.episodes = 3;
+    assert_eq!(line(partly), "4 of 4 episodes in library");
     let mut one = season(1, SeasonState::Missing);
     one.episodes = 1;
     assert_eq!(line(one), "1 episode");

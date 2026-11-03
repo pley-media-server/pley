@@ -110,6 +110,9 @@ describes how they are made.
   asked for yet" with where to find titles, "Nothing needs you" in Needs
   attention, "No requests match" for a status or a filter. A Discover
   search with no results says "Nothing on TMDB matches" it.
+- A season partly in the library says how much of it is, "4 of 10
+  episodes in library", as in the Android TV app, under its name on a
+  Discover title's page.
 
 ### Removed
 

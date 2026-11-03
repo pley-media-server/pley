@@ -556,8 +556,8 @@ pub fn picker_button(n: i64) -> String {
     }
 }
 
-/// A season's line under its name: its state ("In library", "Requested", "Declined"…), else what
-/// it holds.
+/// A season's line under its name: its state ("In library", "4 of 10 episodes in library",
+/// "Requested", "Declined"…; Android's `RequestTexts.seasonState`), else what it holds.
 pub fn season_line(s: &DiscoverSeason, time: TvTime) -> String {
     match s.state {
         SeasonState::Library => return "In library".into(),
@@ -568,7 +568,7 @@ pub fn season_line(s: &DiscoverSeason, time: TvTime) -> String {
         return "Declined".into();
     }
     match s.state {
-        SeasonState::Partial => "Partly in library".into(),
+        SeasonState::Partial => format!("{} of {} episodes in library", s.in_library, s.episodes.max(s.in_library)),
         SeasonState::Unaired => match s.air_date.as_deref().filter(|d| !d.is_empty()) {
             Some(date) => format!("Airs {}", iso_day(date, time)),
             None => "Not aired yet".into(),
