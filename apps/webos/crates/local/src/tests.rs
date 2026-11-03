@@ -4,11 +4,15 @@
 
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
+use std::time::Duration;
 
-use pley_core::Store;
 use pley_core::device::scratch_dir;
 use pley_core::format::{is_atmos, stream_range};
-use pley_core::model::{DynamicRange, StreamKind};
+use pley_core::model::{
+    DynamicRange, PlaybackInfo, PlaybackMethod, PlaybackMode, PlaybackRequest, ProgressReport, StreamKind,
+};
+use pley_core::{ApiError, Store};
+use pley_player::server::PlayerServer;
 use pley_subs::parse_vtt;
 
 use super::*;
@@ -618,4 +622,108 @@ fn the_resume_id_survives_a_new_mount_letter() {
     assert_ne!(id(one, "/tmp/usb/sda/sda1", 42), id(one, "/tmp/usb/sda/sda1", 43));
     assert_ne!(resume::file_id(Path::new("Films/Mad Max.mkv"), 42), resume::file_id(Path::new("Mad Max.mkv"), 42));
     assert!((0..=0x3fff_ffff_ffff_ffff).contains(&resume::file_id(Path::new("Films/Mad Max.mkv"), 42)));
+}
+
+// ---- the player's server
+
+fn lg() -> pley_core::CapsReport {
+    pley_core::device::lg_2022_caps(&pley_core::CapsOverrides::default())
+}
+
+fn server_for(dir: &Path, name: &str, bytes: Vec<u8>, store: &Store) -> LocalServer {
+    let film = dir.join(name);
+    std::fs::write(&film, bytes).unwrap();
+    LocalServer::new(film, dir.to_path_buf(), store.clone(), std::sync::Arc::new(|| Some(lg())))
+}
+
+fn play(server: &LocalServer, mode: PlaybackMode) -> Result<PlaybackInfo, ApiError> {
+    server.play(&PlaybackRequest { item_id: server::ITEM_ID, mode, caps: lg().caps, ..PlaybackRequest::default() })
+}
+
+const SECOND: Duration = Duration::from_secs(1);
+
+#[test]
+fn a_film_on_a_drive_plays_as_it_is_with_its_subtitle_files_and_a_track_the_tv_decodes() {
+    let dir = scratch_dir("local-film");
+    let store = Store::open(scratch_dir("local-film-store")).unwrap();
+    std::fs::write(dir.join("Mad Max.en.srt"), "1\n00:00:01,000 --> 00:00:02,000\nWitness me\n").unwrap();
+    let server = server_for(&dir, "Mad Max.mkv", film(false, false), &store);
+    let detail = server.item(server::ITEM_ID).unwrap();
+    assert_eq!((detail.id, detail.title.as_str()), (server::ITEM_ID, "Mad Max"));
+    let file = &detail.files[0];
+    // The subtitle in the file has no Cues to read it through: the file beside it shows, after
+    // the file's own streams, numbered as the server numbers files beside the media.
+    use StreamKind::*;
+    assert_eq!(file.streams.iter().map(|s| s.kind).collect::<Vec<_>>(), [Video, Audio, Audio, Audio, Subtitle]);
+    let srt = &file.streams[4];
+    assert_eq!((srt.codec.as_str(), srt.language.as_deref(), srt.index), ("subrip", Some("en"), 1000));
+    assert_eq!((file.chapters.len(), file.container.as_deref()), (2, Some("mkv")));
+
+    let info = play(&server, PlaybackMode::Auto).unwrap();
+    assert_eq!(
+        (info.session_id.as_str(), info.method, info.url.as_str(), info.hls),
+        ("local", PlaybackMethod::Direct, &*dir.join("Mad Max.mkv").to_string_lossy(), false)
+    );
+    // TrueHD is the default, but this TV doesn't decode it: the AC-3 beside it plays.
+    assert_eq!(info.audio_index, Some(2));
+    assert_eq!(info.video_range, None);
+    let url = info.subtitles[0].url.clone().unwrap();
+    assert_eq!(info.subtitles.len(), 1);
+    assert_eq!(url, dir.join("Mad Max.en.srt").to_string_lossy());
+    let text = server.subtitles(&url, "text/vtt", None, SECOND).unwrap();
+    assert!(text.complete);
+    assert_eq!(parse_vtt(&String::from_utf8_lossy(&text.body))[0].plain_text(), "Witness me");
+    // The TV's player opens it at its address, each part encoded.
+    let address = server.url(&info.url);
+    assert!(address.starts_with("file:///") && address.ends_with("/Mad%20Max.mkv"), "{address}");
+
+    // Nothing converts it.
+    for mode in [PlaybackMode::Remux, PlaybackMode::Transcode] {
+        let refused = play(&server, mode).unwrap_err();
+        assert_eq!((refused.status(), refused.to_string()), (Some(409), server::NOTHING_CONVERTS.to_string()));
+    }
+    // Only what it gave is read.
+    std::fs::write(dir.join("notes.srt"), "1\n00:00:01,000 --> 00:00:02,000\nNo\n").unwrap();
+    assert!(server.subtitles(&dir.join("notes.srt").to_string_lossy(), "text/vtt", None, SECOND).is_err());
+    assert!(server.subtitles("embedded:4", "text/vtt", None, SECOND).is_err());
+    assert!(server.picture_track("/api/files/7/subtitles/4.mks", SECOND).unwrap().is_err());
+
+    // Where it stopped is kept, for the next time it plays.
+    let report =
+        |position_ms| ProgressReport { position_ms, duration_ms: Some(7_380_000), ..ProgressReport::default() };
+    server.progress(server::ITEM_ID, &report(600_000)).unwrap();
+    let again = LocalServer::new(dir.join("Mad Max.mkv"), dir.clone(), store.clone(), std::sync::Arc::new(|| None));
+    assert_eq!(again.item(server::ITEM_ID).unwrap().user_state.position_ms, 600_000);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_files_own_subtitle_tracks_are_read_out_of_it_for_the_player() {
+    let dir = scratch_dir("local-tracks");
+    let store = Store::open(scratch_dir("local-tracks-store")).unwrap();
+    let text = server_for(&dir, "Text.mkv", subtitled("S_TEXT/UTF8", None, vec![]), &store);
+    let info = play(&text, PlaybackMode::Auto).unwrap();
+    assert_eq!(info.subtitles[0].url.as_deref(), Some("embedded:0"));
+    let answer = text.subtitles("embedded:0", "text/vtt", None, SECOND).unwrap();
+    assert!(answer.complete);
+    let cues: Vec<_> = parse_vtt(&String::from_utf8_lossy(&answer.body)).iter().map(|c| c.plain_text()).collect();
+    assert_eq!(cues, ["Hello", "There"]);
+    // A text track is never handed over as pictures.
+    assert!(text.picture_track("/api/files/7/subtitles/0.mks", SECOND).unwrap().is_err());
+
+    let pictures = server_for(&dir, "Pictures.mkv", subtitled("S_HDMV/PGS", Some(vec![0x16, 0, 0]), vec![]), &store);
+    let info = play(&pictures, PlaybackMode::Auto).unwrap();
+    assert_eq!((info.subtitles[0].url.as_deref(), info.subtitles[0].text_based), (None, false));
+    let (track, complete) = pictures.picture_track("/api/files/7/subtitles/0.mks", SECOND).unwrap().unwrap();
+    assert!(complete);
+    assert_eq!(track.codec_id, "S_HDMV/PGS");
+    assert_eq!(track.samples.iter().map(|s| s.time_ms).collect::<Vec<_>>(), [1_500, 10_000]);
+    assert_eq!(track.samples[0].data(), [0x16, 0, 0]);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_files_address_names_each_part_encoded() {
+    let path = Path::new("/tmp/usb/sda/sda1/Films #1/Amélie (2001).mkv");
+    assert_eq!(LocalServer::file_url(path), "file:///tmp/usb/sda/sda1/Films%20%231/Am%C3%A9lie%20(2001).mkv");
 }

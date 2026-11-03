@@ -9,8 +9,7 @@ publish = false
 
 [dependencies]
 pley-core = { path = "../core" }
+pley-player = { path = "../player" }
+pley-subs = { path = "../subs" }
 # Subtitle blocks a muxer compressed with zlib; already here for pley-core, and pure Rust.
 flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
-
-[dev-dependencies]
-pley-subs = { path = "../subs" }

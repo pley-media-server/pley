@@ -4,6 +4,8 @@
 //! server has probed (Matroska in [`matroska`], MP4 in [`mp4`], the first
 //! HEVC frames in [`hevc`]), the file's own subtitle tracks read through its
 //! Cues ([`cues`]), and where each video stopped, kept on the TV ([`resume`]).
+//! The player plays such a video through [`LocalServer`], which answers it
+//! as a server would for direct play ([`server`]).
 //!
 //! A file on a drive is untrusted input: every read and allocation here is
 //! bounded, and a malformed file reads as less, never as a panic. Nothing
@@ -17,6 +19,7 @@ pub mod matroska;
 pub mod mp4;
 pub mod reader;
 pub mod resume;
+pub mod server;
 
 pub use cues::SubtitleBlock;
 pub use folder::{Entry, Sidecar};
@@ -24,6 +27,7 @@ pub use hevc::HevcMarks;
 pub use matroska::MatroskaTrack;
 pub use reader::{FileReader, ReadAt};
 pub use resume::Kept;
+pub use server::LocalServer;
 
 use pley_core::model::{Chapter, MediaStream};
 

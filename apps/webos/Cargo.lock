@@ -1297,6 +1297,7 @@ version = "0.0.0"
 dependencies = [
  "flate2",
  "pley-core",
+ "pley-player",
  "pley-subs",
 ]
 
@@ -1348,6 +1349,7 @@ dependencies = [
  "pley-base",
  "pley-core",
  "pley-fixtures",
+ "pley-local",
  "pley-subs",
  "serde",
  "serde_json",
