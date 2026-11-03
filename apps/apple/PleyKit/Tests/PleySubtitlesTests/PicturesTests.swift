@@ -256,6 +256,25 @@ struct PicturesTests {
         #expect(DVBDecoder.segments(dvb).count == Pictures.maxSegments)
     }
 
+    @Test func aDvbDecodeStopsWhenItsWorkIsDone() throws {
+        // A 3000×2000 region filled 100 times over, then the region the page
+        // shows: the work runs out first, so it never comes.
+        let page = Self.dvbSegment(0x10, [5, 2 << 2] + [1, 0] + u16(0) + u16(0))
+        let big: [UInt8] = u16(3000) + u16(2000)
+        let refill = Self.dvbSegment(0x11, [0, 0x08] + big + [2 << 2, 0, 0, 0])
+        let small: [UInt8] = u16(2) + u16(2)
+        let shown = Self.dvbSegment(0x11, [1, 0x08] + small + [2 << 2, 0, 0, 1 << 4])
+        let clut = Self.dvbSegment(0x12, [0, 0, 1, 0x40 | 0x01, 81, 240, 90, 0])
+        var set: [UInt8] = [0x20, 0x00] + page
+        for _ in 0..<100 { set += refill }
+        set += shown + clut + Self.dvbSegment(0x80, []) + [0xFF]
+        let frame = try #require(DVBDecoder(samples: [set]).decode(0))
+        #expect(frame.bitmaps.isEmpty)
+        // Without the refills, the page shows its region.
+        let plain: [UInt8] = [0x20, 0x00] + page + shown + clut + Self.dvbSegment(0x80, []) + [0xFF]
+        #expect(try #require(DVBDecoder(samples: [plain]).decode(0)).bitmaps.count == 1)
+    }
+
     @Test func dvbDrawsObjectsIntoRegionsPlacedByThePage() throws {
         let decoder = DVBDecoder(samples: [Self.dvbDisplaySet()])
         let frame = try #require(decoder.decode(0))

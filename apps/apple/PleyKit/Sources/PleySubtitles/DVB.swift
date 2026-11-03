@@ -353,6 +353,8 @@ public final class DVBDecoder: PictureDecoder {
         pass: for i in from...index {
             for seg in segs(i) {
                 let b = seg.body
+                work += 8 * (6 + b.count)
+                if work > Pictures.maxWork { break pass }
                 switch seg.type {
                 case Self.display:
                     if b.count >= 5 {

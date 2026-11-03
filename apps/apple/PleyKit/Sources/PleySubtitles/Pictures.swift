@@ -117,8 +117,9 @@ public enum Pictures {
     static let maxDraws = 256
 
     /// The work one DVB decode does, at most, on the main actor: each pixel
-    /// of a region made or filled, and 32 for each byte of pixel codes drawn
-    /// (walking codes costs far more than filling). Eight 4K screens.
+    /// of a region made or filled, 32 for each byte of pixel codes drawn
+    /// (walking codes costs far more than filling) and 8 for each byte of a
+    /// segment read. Eight 4K screens.
     static let maxWork = 8 * maxPixels
 
     /// Samples read from a track's file, at most: a film's has a few thousand.
