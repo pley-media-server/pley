@@ -116,6 +116,8 @@ public final class EventParser: @unchecked Sendable {
     private let state = OSAllocatedUnfairLock(initialState: State())
     private let event: @Sendable (ServerEvent) -> Void
     private let maxLine: Int
+    /// An event's `data:` lines at most: Pley's events have one.
+    static let maxEventLines = 256
 
     public init(maxLine: Int = EventStream.maxLine, event: @escaping @Sendable (ServerEvent) -> Void) {
         self.maxLine = maxLine
@@ -173,6 +175,8 @@ public final class EventParser: @unchecked Sendable {
         guard line[..<colon].elementsEqual("data".utf8) else { return nil }
         var value = colon < line.endIndex ? line[line.index(after: colon)...] : Data()[...]
         if value.first == UInt8(ascii: " ") { value = value.dropFirst() }
+        // An event is a few hundred bytes: one that never ends isn't kept.
+        guard data.count < Self.maxEventLines else { return nil }
         data.append(Data(value))
         return nil
     }

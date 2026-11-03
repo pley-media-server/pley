@@ -67,6 +67,13 @@ struct TextSubtitlesTests {
         #expect(WebVTT.parse("").isEmpty)
         #expect(WebVTT.time("1:02:03.4") == 3_723_400)
         #expect(WebVTT.time("00:61.000") == nil)
+        // From a file anyone can add: nothing reads past its parts, nothing
+        // overflows.
+        #expect(WebVTT.time("00:.") == nil)
+        #expect(WebVTT.time("00:01.") == 1_000)
+        #expect(WebVTT.time("99999999999999999:00.000") == nil)
+        #expect(WebVTT.time("99999:59:59.999") == 99_999 * 3_600_000 + 3_599_999)
+        #expect(WebVTT.parse("WEBVTT\n\n00:. --> 00:01.000\nboom\n").isEmpty)
     }
 
     @Test func findsTheCuesShowingAndWhenThatChanges() {

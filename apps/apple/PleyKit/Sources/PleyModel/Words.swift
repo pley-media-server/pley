@@ -353,7 +353,8 @@ public enum Words {
     /// Episodes of a show or season not watched yet; 0 for other kinds.
     public static func unwatchedCount(_ item: ItemSummary) -> Int {
         guard let leaves = item.leafCount else { return 0 }
-        return max(0, leaves - (item.viewedLeafCount ?? 0))
+        let (left, overflow) = leaves.subtractingReportingOverflow(item.viewedLeafCount ?? 0)
+        return overflow ? 0 : max(0, left)
     }
 
     /// What VoiceOver says for a tile, its label and its state apart:

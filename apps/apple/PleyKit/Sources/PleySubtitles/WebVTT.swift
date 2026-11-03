@@ -45,14 +45,19 @@ public enum WebVTT {
         return TextCue(startMs: startMs, endMs: endMs, text: styled, top: top)
     }
 
+    /// A cue time's hours or minutes at most: 100,000 is over eleven years
+    /// of hours, and keeps the sum far from overflowing.
+    static let maxField = 100_000
+
     /// `hh:mm:ss.ttt` or `mm:ss.ttt` in ms.
     static func time(_ text: String) -> Int? {
         let parts = text.split(separator: ":")
         guard (2...3).contains(parts.count), let last = parts.last else { return nil }
-        let seconds = last.split(separator: ".", maxSplits: 1)
-        guard let s = Int(seconds[0]), s < 60 else { return nil }
+        let seconds = last.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false)
+        guard let first = seconds.first, let s = Int(first), s < 60 else { return nil }
         var ms = 0
-        if seconds.count == 2 {
+        // "00:01." reads as it did: no fraction.
+        if seconds.count == 2, !seconds[1].isEmpty {
             let digits = seconds[1].prefix(3)
             guard let fraction = Int(digits), digits.allSatisfy(\.isNumber) else { return nil }
             ms = fraction * [100, 10, 1][digits.count - 1]
@@ -60,7 +65,8 @@ public enum WebVTT {
         var total = s * 1000 + ms
         var unit = 60_000
         for part in parts.dropLast().reversed() {
-            guard let value = Int(part), value >= 0 else { return nil }
+            // Hours or minutes this large are no cue's, and would overflow.
+            guard let value = Int(part), (0...Self.maxField).contains(value) else { return nil }
             total += value * unit
             unit *= 60
         }

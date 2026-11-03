@@ -113,7 +113,8 @@ public enum MatroskaPictureTrack {
         guard let subtitle else { throw MatroskaError(description: "no track") }
         if subtitle.compressed { throw MatroskaError(description: "compressed subtitle frames") }
         let scale = Double(reader.scaleNs) / 1_000_000
-        let ms = { (ticks: Int) in Int((Double(ticks) * scale).rounded()) }
+        // A time beyond Int's range (a crafted duration) is cut to it.
+        let ms = { (ticks: Int) in Int(exactly: (Double(ticks) * scale).rounded()) ?? (ticks < 0 ? 0 : Int.max) }
         var samples: [PictureSample] = []
         for b in reader.raw where b.block.track == subtitle.number {
             let data = subtitle.stripped.map { $0 + b.block.data } ?? b.block.data
@@ -128,6 +129,8 @@ public enum MatroskaPictureTrack {
 
     /// The walk through the file's elements, and what it found.
     private struct Walker {
+        /// Master elements nested at most: far more than a `.mks` has.
+        static let maxDepth = 16
         let bytes: [UInt8]
         var scaleNs = 1_000_000
         var tracks: [Track] = []
@@ -138,6 +141,8 @@ public enum MatroskaPictureTrack {
         var clusterTime = 0
         var groupBlock: Block?
         var groupDuration: Int?
+        /// Master elements open around the one read: a `.mks` nests a few.
+        var depth = 0
 
         init(bytes: [UInt8]) { self.bytes = bytes }
 
@@ -167,7 +172,10 @@ public enum MatroskaPictureTrack {
                 }
                 var next = el.size.map { el.dataStart + $0 } ?? end
                 if masters.contains(el.id) {
+                    guard depth < Self.maxDepth else { return end }
+                    depth += 1
                     let stopped = walk(el.dataStart, dataEnd, unknownSize: el.size == nil && el.id != ID.segment)
+                    depth -= 1
                     if el.size == nil { next = stopped }
                 } else {
                     let body = Array(bytes[min(el.dataStart, dataEnd)..<dataEnd])
@@ -214,7 +222,7 @@ public enum MatroskaPictureTrack {
         // Laced subtitle frames don't occur in practice: the first frame's bytes are kept as they are.
         if lacing != 0 { start += 1 }
         let data = start <= body.count ? Array(body[start...]) : []
-        return Block(track: v.value, time: clusterTime + signed, data: data)
+        return Block(track: v.value, time: clusterTime.addingReportingOverflow(signed).partialValue, data: data)
     }
 
     private static func element(_ bytes: [UInt8], at: Int, end: Int) -> Element? {
