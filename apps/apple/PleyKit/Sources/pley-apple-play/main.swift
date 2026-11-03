@@ -83,8 +83,11 @@ func signIn(_ origin: String, page: AdminPage, transport: HTTPTransport) async t
     }
     let (allowStatus, _) = try await page.send("POST", "/api/oauth/requests/\(id)", json: ["allow": true])
     try check(allowStatus == 200, "allowing the app failed (HTTP \(allowStatus))")
-    _ = try await signIn.waitForApproval(code)
+    let stored = try await signIn.waitForApproval(code)
+    try check(stored.proof != nil, "the token answer has no proof key")
     let tokens = Tokens(issuer: metadata.issuer, store: store, endpoints: endpoints)
+    // Every token below, the downloads' pieces too, goes only after this server proves itself.
+    try await tokens.proveServer()
     return (PleyAPI(client: APIClient(origin: origin, tokens: tokens, transport: transport)), tokens)
 }
 
@@ -713,7 +716,7 @@ func run() async throws {
     }
 
     let (api, tokens) = try await signIn(origin, page: page, transport: transport)
-    say("signed in as the app")
+    say("signed in as the app; the server proved itself with the sign-in's key")
     let caps = DeviceCaps()
     let snapshot = await caps.warmUp()
     let hdr = snapshot.report.hdrTypes?.contains(.hdr10) ?? false

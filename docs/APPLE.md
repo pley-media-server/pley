@@ -1708,9 +1708,13 @@ iPhone:
 1. It checks the server and its metadata, and asks for a code.
 2. It allows the code as the administrator, through the consent page's
    endpoints (`/api/oauth/device/verify`, then `/api/oauth/requests/{id}`).
-3. It collects the tokens, then fetches `/api/auth/me` (with the app's four
-   scopes and no administrator rights), the household and Home.
-4. It refreshes once, and checks that `/api/me/apps` names the grant
+3. It collects the tokens, with the server's id and the sign-in's proof
+   key, has the server prove itself with that key, and checks that a proof
+   under another key is refused ("another device answers there") with no
+   token sent. It then fetches `/api/auth/me` (with the app's four scopes
+   and no administrator rights), the household and Home.
+4. It refreshes once, checks the proof key stayed the sign-in's first, and
+   checks that `/api/me/apps` names the grant
    ("Pley for Apple TV", device `tvOS 18.2; Apple TV`).
 5. It signs out, and checks that the old token gets `401`.
 
@@ -1727,7 +1731,8 @@ It builds the server and its transcoder, makes the test media with FFmpeg
 it once and keep it), and starts a disposable server as above, its
 transcoder working in the same temporary folder. `pley-apple-play` makes
 the Movies, Shows and Music libraries, signs in with a code as the app
-does, and plays each file through `PlaybackController` and AVPlayer with this Mac's
+does (the server proving itself with the sign-in's key before any token
+goes), and plays each file through `PlaybackController` and AVPlayer with this Mac's
 caps report, decoding without a window. It checks, through the server's
 activity, the session's status and the item:
 

@@ -25,6 +25,13 @@ struct CheckFailure: Error, CustomStringConvertible {
     init(_ description: String) { self.description = description }
 }
 
+extension Optional {
+    func orThrow(_ what: String) throws -> Wrapped {
+        guard let self else { throw CheckFailure(what) }
+        return self
+    }
+}
+
 func say(_ line: String) {
     print(line)
 }
@@ -106,11 +113,27 @@ func run() async throws {
     try check(allowStatus == 200 && allowed["done"] as? Bool == true, "allowing failed (HTTP \(allowStatus))")
     say("allowed on the consent page, which named the device \(shownDevice ?? "")")
 
-    // 4. The app's tokens.
+    // 4. The app's tokens, with the server's id and this sign-in's proof key.
     let stored = try await signIn.waitForApproval(code)
     let tokens = Tokens(issuer: metadata.issuer, store: store, endpoints: endpoints)
     let api = PleyAPI(client: APIClient(origin: origin, tokens: tokens, transport: http))
     say("signed in, scope \(stored.scope)")
+    let proof = try stored.proof.orThrow("the token answer has no proof key")
+    try await tokens.proveServer()
+    say("the server proved itself at \(origin) with this sign-in's key")
+    // A key the server didn't give: what answers can't prove it, and no token goes.
+    var other = stored
+    other.proof = ServerProof(serverId: proof.serverId, proofId: proof.proofId,
+                              proofKey: Data(repeating: 7, count: 32).base64EncodedString()
+                                  .replacingOccurrences(of: "=", with: ""))
+    let otherStore = MemoryTokenStore()
+    try await otherStore.save(other)
+    do {
+        _ = try await Tokens(issuer: metadata.issuer, store: otherStore, endpoints: endpoints).accessToken()
+        throw CheckFailure("a token went with a proof under another key")
+    } catch let error as PleyError where error.isAnotherDevice {
+        say("a proof under another key is refused: \(error.userMessage)")
+    }
 
     // 5. Who, the household and Home.
     let me = try await api.me()
@@ -125,8 +148,9 @@ func run() async throws {
     try await tokens.refresh(after: before?.accessToken ?? "")
     let after = try await store.load(issuer: metadata.issuer)
     try check(after?.refreshToken != nil && after?.refreshToken != before?.refreshToken, "the refresh gave no new pair")
+    try check(after?.proof == proof, "the refresh changed the sign-in's proof key")
     try check(try await api.me().id == me.id, "me changed after the refresh")
-    say("refreshed once")
+    say("refreshed once, after a proof made then; the proof key is the sign-in's first")
 
     // 7. The server names the grant by the app's device.
     let (appsStatus, appsData) = try await page.raw("GET", "/api/me/apps")
