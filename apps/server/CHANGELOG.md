@@ -63,7 +63,8 @@ describes how they are made.
 ### Changed
 
 - Search finds as many people and Live TV channels as titles, up to 200 of
-  each, where it stopped at 12 people and 12 channels.
+  each, where it stopped at 12 people and 12 channels. The web app shows
+  two rows of each group of results and **Show all** for the rest.
 - Library posters on the web carry their quality badges ("4K", "DV",
   "HDR10") only when the library is sorted by bitrate or filtered by
   resolution or dynamic range: on every poster they mostly said the same
