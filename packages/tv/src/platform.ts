@@ -31,11 +31,11 @@ export interface FoundServer {
 
 /** What the TV reports of itself, for Diagnostics and the capabilities. */
 export interface DeviceFacts {
-  /** "Samsung", "LG". */
+  /** "Samsung". */
   maker: string;
-  /** "QN65S95CAFXZA", "OLED65C3PUA". */
+  /** "QN65S95CAFXZA". */
   model: string;
-  /** "Tizen 7.0", "webOS 23". */
+  /** "Tizen 7.0". */
   os: string;
   firmware: string | null;
   /** The model year when the TV says it; else from its system version. */
@@ -75,7 +75,7 @@ export interface Platform {
   keepAwake(on: boolean): void;
   /** Closes the app (Back on the rail). */
   exit(): void;
-  /** Asks "Exit pley?" first: Samsung's rule for Back on the first screen. */
+  /** Asks "Exit Pley?" first: Samsung's rule for Back on the first screen. */
   asksBeforeExit?: boolean;
   /** Tells the app when the TV hides or shows it (Home key, another app, standby). */
   onVisibility(listener: (visible: boolean) => void): void;
