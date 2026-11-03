@@ -110,7 +110,13 @@ describes how they are made.
 
 - A password or PIN checked while the server is out of memory gets "Pley
   is busy checking passwords: try again in a moment" rather than "wrong",
-  and no longer counts towards locking the account or the PIN.
+  and no longer counts towards locking the account or the PIN. A password
+  or PIN set then gets the same answer rather than an error, and an app
+  switching profiles is told to try again (`503 temporarily_unavailable`)
+  rather than that the server failed.
+- A sign-in with a username that doesn't exist takes as long as one with a
+  real username, also after the server was too busy for the first such
+  sign-in since it started.
 - A picture sent to a collection or playlist through the Plex-compatible
   API no longer lands on the movie or show that had the same number:
   collections and playlists have keys of their own there. An episode's

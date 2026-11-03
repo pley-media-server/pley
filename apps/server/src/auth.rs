@@ -176,26 +176,34 @@ async fn hashing<T: Send + 'static>(work: impl FnOnce() -> T + Send + 'static) -
 }
 
 pub async fn hash_password(password: String) -> Result<String, AppError> {
-    hashing(move || {
-        Argon2::default()
-            .hash_password(password.as_bytes())
-            .map(|h: PasswordHash| h.to_string())
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("hashing password: {e}")))
-    })
-    .await?
+    hashing(move || Argon2::default().hash_password(password.as_bytes()).map(|h: PasswordHash| h.to_string()))
+        .await?
+        .map_err(unhashed)
+}
+
+/// Why Argon2 couldn't hash a password: without the memory it works in,
+/// pley is busy, as for a check ([`matched`]); anything else is a fault.
+fn unhashed(err: argon2::password_hash::Error) -> AppError {
+    match err {
+        argon2::password_hash::Error::OutOfMemory => out_of_memory(),
+        err => AppError::Internal(anyhow::anyhow!("hashing password: {err}")),
+    }
 }
 
 /// A real Argon2 hash of a random password, made once: checking a login for
-/// an unknown user against it costs the same as checking a real one.
-pub async fn dummy_password_hash() -> String {
+/// an unknown user against it costs the same as checking a real one. One
+/// pley is too busy to make answers busy, as a real user's check would, and
+/// is made on a later login: never kept empty, which would refuse unknown
+/// users at once.
+pub async fn dummy_password_hash() -> Result<String, AppError> {
     static HASH: tokio::sync::OnceCell<String> = tokio::sync::OnceCell::const_new();
-    HASH.get_or_init(|| async {
+    HASH.get_or_try_init(|| async {
         let mut secret = [0u8; 16];
         getrandom::fill(&mut secret).expect("the system's random numbers");
-        hash_password(hex::encode(secret)).await.unwrap_or_default()
+        hash_password(hex::encode(secret)).await
     })
     .await
-    .clone()
+    .cloned()
 }
 
 /// Whether `password` matches `hash` (never for the markers of accounts
@@ -216,12 +224,15 @@ pub async fn verify_password(password: String, hash: String) -> Result<bool, App
 fn matched(check: argon2::password_hash::Result<()>) -> Result<bool, AppError> {
     match check {
         Ok(()) => Ok(true),
-        Err(argon2::password_hash::Error::OutOfMemory) => {
-            tracing::warn!("out of memory checking a password or PIN: answered that Pley is busy");
-            Err(busy_hashing())
-        }
+        Err(argon2::password_hash::Error::OutOfMemory) => Err(out_of_memory()),
         Err(_) => Ok(false),
     }
+}
+
+/// The answer to an Argon2 hash or check the system hadn't the memory for.
+fn out_of_memory() -> AppError {
+    tracing::warn!("out of memory hashing or checking a password or PIN: answered that Pley is busy");
+    busy_hashing()
 }
 
 pub fn new_token() -> String {
@@ -1465,6 +1476,16 @@ mod tests {
         assert!(matches!(matched(Ok(())), Ok(true)));
         assert!(matches!(matched(Err(Error::PasswordInvalid)), Ok(false)));
         assert!(matches!(matched(Err(Error::OutOfMemory)), Err(AppError::Unavailable(_))));
+        assert!(matches!(unhashed(Error::OutOfMemory), AppError::Unavailable(_)));
+        assert!(matches!(unhashed(Error::Crypto), AppError::Internal(_)));
+    }
+
+    #[tokio::test]
+    async fn unknown_users_are_checked_against_a_real_hash() {
+        let hash = dummy_password_hash().await.unwrap();
+        assert!(PasswordHash::new(&hash).is_ok(), "{hash:?}");
+        assert_eq!(dummy_password_hash().await.unwrap(), hash, "made once");
+        assert!(!verify_password("hunter22".into(), hash).await.unwrap());
     }
 
     #[test]

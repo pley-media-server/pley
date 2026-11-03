@@ -69,6 +69,10 @@ protect your server.
   so a flood of sign-ins can't exhaust memory. When the table of counts
   fills, counts that block nobody give way: lockouts stay and everyone else
   signs in.
+- A password or PIN Pley couldn't check, because it waited 10 seconds for
+  its turn or the server was out of memory, is answered with "busy, try
+  again" (`503`) and counts as no failure. A username that doesn't exist
+  is answered the same way then, as it is checked against a real hash too.
 - A PIN stops working after 100 wrong tries in a row, until it is set again.
 - A new password signs the account out on every other device.
 - `pley reset-password <username>` asks for the new password, or reads it
