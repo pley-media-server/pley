@@ -46,6 +46,21 @@ pub fn focus_progress(ui: &mut Ui, id: Id, focused: bool) -> f32 {
     ui.animate(id.with("kit.focus"), target, motion)
 }
 
+/// How far focus has come on the tile `id`: as [`focus_progress`], but under a held key each change
+/// runs evenly over a little more than the time to the next move ([`Motion::GLIDE`]), so focus
+/// glides from tile to tile rather than popping in and out (the Samsung app's `TileView`). Losing
+/// focus still snaps on Low-tier TVs.
+pub fn tile_focus_progress(ui: &mut Ui, id: Id, focused: bool) -> f32 {
+    if !ui.holding() {
+        return focus_progress(ui, id, focused);
+    }
+    let (target, motion) = if focused { (1.0, Motion::GLIDE) } else { (0.0, HELD_UNFOCUS) };
+    ui.animate(id.with("kit.focus"), target, motion)
+}
+
+/// A tile losing focus under a held key.
+const HELD_UNFOCUS: Motion = Motion { low_snaps: true, ..Motion::GLIDE };
+
 /// How far OK (or the pointer's button) has pressed `id`, 100 ms each way.
 pub fn press_progress(ui: &mut Ui, id: Id, pressed: bool) -> f32 {
     ui.animate(id.with("kit.press"), if pressed { 1.0 } else { 0.0 }, Motion::PRESS)

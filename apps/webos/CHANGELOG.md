@@ -73,10 +73,11 @@ describes how they are made.
   22 times a second at an even pace, rather than every other one of the
   TV's uneven repeats.
 - Under a held arrow key, rows, pages, lists and poster grids glide
-  smoothly from tile to tile instead of jumping. A row slides under one
-  still ring at its start, as in the Samsung app, and so do the rows of a
-  library, Collections, playlists and a collection's page; the pictures
-  load once the key is let go.
+  smoothly from tile to tile instead of jumping, and each tile grows and
+  shrinks with focus at the same pace rather than popping. A row slides
+  under one still ring at its start, as in the Samsung app, and so do the
+  rows of a library, Collections, playlists and a collection's page; the
+  pictures load once the key is let go.
 - A held arrow key stops at the end of a list instead of leaving it, as in
   the Samsung app: a held Left no longer opens the rail (a press does), and
   a held Up or Right stays in a library's grid, the Collections tab and

@@ -39,6 +39,30 @@ fn a_focused_tile_grows_to_1_08_inside_its_ring() {
 }
 
 #[test]
+fn under_a_held_key_a_tiles_focus_glides_from_tile_to_tile() {
+    let mut screen = |ui: &mut Ui| {
+        let column = ui.id("column");
+        ui.group(column, pley_ui::Group::column(), |ui| {
+            for i in 0..30u64 {
+                Tile::new(TileKind::Poster, "T").show(ui, column.with(i), Point::new(96.0, 20.0 + i as f32 * 220.0));
+            }
+        });
+    };
+    let mut h = Harness::new();
+    h.idle(&mut screen);
+    let mut frames = h.run(&[Step::Down(Key::Down), Step::Wait(0.4)], &mut screen);
+    for _ in 0..8 {
+        frames.extend(h.run(&[Step::Repeat(Key::Down), Step::Wait(0.05)], &mut screen));
+    }
+    // Once the hold is under way, each tile grows as focus comes and shrinks as it goes, evenly
+    // into the next move, rather than popping to 1.08 and back.
+    let held: Vec<_> = frames.iter().filter(|f| f.time >= 0.25).collect();
+    let between = |s: f32| s > 1.001 && s < 1.079;
+    let gliding = held.iter().filter(|f| scales(&f.list).iter().any(|&(s, _)| between(s))).count();
+    assert!(gliding * 2 > held.len(), "{gliding} of {}", held.len());
+}
+
+#[test]
 fn ok_held_on_a_tile_shrinks_it_to_1_04() {
     let mut screen = |ui: &mut Ui| poster(ui, Tile::new(TileKind::Poster, "Arrival"));
     let mut h = Harness::new();

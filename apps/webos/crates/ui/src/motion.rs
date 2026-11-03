@@ -125,8 +125,10 @@ impl Motion {
     pub const IMAGE_FADE: Motion = Motion { low_snaps: true, ..Motion::new(0.150, Easing::LINEAR) };
     /// A row, page or grid following focus under a held key: evenly over a little more than the
     /// time between held moves ([`KeyGate::GLIDE`]), so each glide runs into the next and the
-    /// content slides on without a pause (the Samsung app's `Scrolling.Glide`). Snaps with Reduce
-    /// motion.
+    /// content slides on without a pause (the Samsung app's `Scrolling.Glide`); a tile's focus
+    /// follows it the same way. Snaps with Reduce motion. It runs on every tier, Low-tier TVs too,
+    /// as the Samsung app's glide does on every TV: snapping there would make a held key jump from
+    /// row to row, the stutter the glide is for.
     pub const GLIDE: Motion = Motion { held: true, ..Motion::new(KeyGate::GLIDE as f32, Easing::LINEAR) };
 
     /// A motion that snaps with Reduce motion on and animates on every tier.

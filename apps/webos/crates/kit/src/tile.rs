@@ -2,8 +2,8 @@
 //! the kind's size holding the picture (or its placeholder until the picture covers it), the
 //! overlays on the art, and a caption 14 dp under it. Focused, the well grows to 1.08 about its
 //! centre with a 3 dp AccentBright ring 4.5 dp outside the grown edge, one progress value driving
-//! both (150 ms in, 120 ms out; held keys snap; Low-tier TVs animate only the focused tile); while
-//! OK is held it shrinks to 1.04. The caption stays outside the growth, its title bold when
+//! both (150 ms in, 120 ms out; under a held key evenly from move to move, as the Samsung app's
+//! tiles do; Low-tier TVs animate only the focused tile); while OK is held it shrinks to 1.04. The caption stays outside the growth, its title bold when
 //! focused. No glow.
 
 use pley_base::{Color, Icon, ImageRequest, ImageState, Point, Priority, Rect, Size, TextOpts, TextStyle, Weight};
@@ -11,7 +11,7 @@ use pley_ui::theme::{self, focus, radius};
 use pley_ui::{FocusOpts, Id, ImageOpts, Motion, Response, Shown, Ui};
 
 use crate::badge::{BADGE_HEIGHT, Badge, BadgeStyle};
-use crate::look::{focus_progress, free_line, register, spoken, text_mid};
+use crate::look::{focus_progress, free_line, register, spoken, text_mid, tile_focus_progress};
 
 /// The kinds of tile (`TileKind.kt`, `TileStyle.Tv`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -392,7 +392,7 @@ pub struct TileLook {
 /// The look of the tile `id` of `kind` that answered `r`: the focus progress, and the scale it
 /// gives with the press (`TileFocusLook` in `TvTile.kt`).
 pub fn tile_look(ui: &mut Ui, id: Id, kind: TileKind, r: &Response) -> TileLook {
-    let p = focus_progress(ui, id, r.focused);
+    let p = tile_focus_progress(ui, id, r.focused);
     let pressed = focus::TILE_PRESSED_SCALE / focus::TILE_SCALE;
     let press = ui.animate(id.with("kit.press"), if r.pressed { pressed } else { 1.0 }, Motion::PRESS);
     TileLook { progress: p, scale: (1.0 + (kind.focus_scale() - 1.0) * p) * press }

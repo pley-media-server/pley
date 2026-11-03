@@ -95,13 +95,14 @@ differs on LG:
   45 ms on the app's own clock, as in the Samsung app: sooner and more
   evenly than the TV's repeats, which only say the key is still down.
   Rows, pages, lists and grids glide evenly under it, each move running
-  into the next, while tiles snap to their focus. A row slides under one
-  ring that stays still at its start, the tiles keeping their resting
-  look, and near its end, where tiles stop coming to the start, focus
-  steps across them. In a grid of posters (a library, Collections,
-  playlists, a collection's page) one ring stays still on the focused
-  line while the rows slide under it. The pictures of what goes by load
-  once the key is let go. With Reduce motion everything steps. Backdrops
+  into the next, and a tile grows and shrinks with focus at the same
+  pace, on every TV, Low-tier ones too, as in the Samsung app. A row
+  slides under one ring that stays still at its start, the tiles keeping
+  their resting look, and near its end, where tiles stop coming to the
+  start, focus steps across them. In a grid of posters (a library,
+  Collections, playlists, a collection's page) one ring stays still on
+  the focused line while the rows slide under it. The pictures of what
+  goes by load once the key is let go. With Reduce motion everything steps. Backdrops
   and details follow focus once it has rested 400 ms.
 - **A held arrow stops at the end of a list**, where a press goes on, as
   in the Samsung app: a held Left stops at the start of a row, list or

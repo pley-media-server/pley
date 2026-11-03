@@ -55,8 +55,8 @@ fn a_held_key_snaps_animations() {
 }
 
 /// Holds Right along a row of 40 for a second, the TV repeating from 400 ms, with a scroll 100 a
-/// tile following focus; every frame's scroll.
-fn held_scroll(reduced: bool) -> Vec<f32> {
+/// tile following focus, on a TV of `tier`; every frame's scroll.
+fn held_scroll(reduced: bool, tier: Tier) -> Vec<f32> {
     let values = RefCell::new(Vec::new());
     let mut screen = |ui: &mut Ui| {
         row(ui, "a", 210.0, 0..40, Group::row());
@@ -66,6 +66,7 @@ fn held_scroll(reduced: bool) -> Vec<f32> {
     };
     let mut h = Harness::new();
     h.state.set_reduced_motion(reduced);
+    h.state.set_tier(tier);
     h.idle(&mut screen);
     h.step(Step::Down(Key::Right), &mut screen);
     h.wait(0.4, &mut screen);
@@ -78,15 +79,17 @@ fn held_scroll(reduced: bool) -> Vec<f32> {
 
 #[test]
 fn a_held_key_glides_a_scroll_from_move_to_move() {
-    let v = held_scroll(false);
-    assert!(v.windows(2).all(|w| w[1] >= w[0]));
     // Glides overlap: once the hold is under way, every frame shows the scroll on its way, never
-    // resting on a tile.
-    let gliding = &v[v.len() / 2..];
-    assert!(gliding.iter().all(|x| x % 100.0 > 0.5), "{gliding:?}");
-    assert!(*v.last().unwrap() > 1500.0);
+    // resting on a tile. Low-tier TVs glide too, as the Samsung app does on every TV.
+    for tier in [Tier::High, Tier::Low] {
+        let v = held_scroll(false, tier);
+        assert!(v.windows(2).all(|w| w[1] >= w[0]));
+        let gliding = &v[v.len() / 2..];
+        assert!(gliding.iter().all(|x| x % 100.0 > 0.5), "{tier:?}: {gliding:?}");
+        assert!(*v.last().unwrap() > 1500.0);
+    }
     // Reduce motion: each move lands at once.
-    let v = held_scroll(true);
+    let v = held_scroll(true, Tier::High);
     assert!(v.iter().all(|x| x % 100.0 == 0.0), "{v:?}");
     assert!(*v.last().unwrap() > 1500.0);
 }

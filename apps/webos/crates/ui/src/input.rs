@@ -48,8 +48,9 @@ pub const WHEEL_STEP: f64 = 0.100;
 /// press moves focus once. Held for 180 ms, focus moves on the app's own clock
 /// ([`KeyGate::tick`]) at a flat pace, one move every 45 ms: sooner and more evenly than the TV's
 /// repeats, which begin after about 400 ms, come unevenly, and here only say the key is still
-/// down. While a key is held, rows, pages and grids glide evenly over a little more than the time
-/// between moves ([`KeyGate::GLIDE`]), so each glide runs into the next; everything else snaps.
+/// down. While a key is held, rows, pages, grids and a tile's focus glide evenly over a little
+/// more than the time between moves ([`KeyGate::GLIDE`]), so each glide runs into the next;
+/// everything else snaps.
 /// Focus has rested once 400 ms passed with no direction key held and no move. A key whose
 /// key-up was lost counts as let go 500 ms after its last event.
 ///
@@ -167,7 +168,7 @@ impl KeyGate {
     }
 
     /// The wheel stepped focus at `now`; `run` says the notch came soon after the one before, so
-    /// the wheel holds as a key would (rows glide, tiles snap) until it rests.
+    /// the wheel holds as a key would (rows and focus glide) until it rests.
     pub fn wheeled(&mut self, run: bool, now: f64) {
         self.last_move = now;
         if run {

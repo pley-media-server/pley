@@ -1189,8 +1189,8 @@ impl<'a> Ui<'a> {
         self.text_input |= on;
     }
 
-    /// Whether a direction key is held: tiles and rings snap instead of animating, and scrolls
-    /// glide ([`Ui::scroll`]).
+    /// Whether a direction key is held: animations snap, except that scrolls ([`Ui::scroll`]) and
+    /// a tile's focus glide evenly from move to move ([`Motion::GLIDE`]).
     pub fn holding(&mut self) -> bool {
         let h = self.st.gate.holding(self.st.time);
         self.want_gate |= h;
