@@ -72,6 +72,9 @@ pub fn guide_start(now: i64) -> i64 {
     slot(now) - SLOT
 }
 
+/// How far Rewind and Fast forward, Previous and Next move the guide (`GuideCursor.JUMP_S`).
+pub const JUMP_S: i64 = 2 * 3600;
+
 /// The grid's left edge for `now`: the half hour before the one it is in, never before the guide.
 pub fn left_for(now: i64, start: i64) -> i64 {
     (slot(now) - SLOT).max(start)
@@ -158,6 +161,18 @@ impl Cursor {
         let to = at(programs, target).map_or(slot(target), |p| p.start.max(slot(target)));
         self.move_to(to, start);
         false
+    }
+
+    /// Rewind and Fast forward, Previous and Next (`GuideCursor.jump`): the grid moves `by` seconds
+    /// back or on, and the cursor with it, within the guide; at its ends, nothing.
+    pub fn jump(&mut self, by: i64, start: i64) {
+        let end = start + GUIDE_SPAN;
+        let edge = (self.left + by).min(start.max(end - VIEW_S)).max(start);
+        if edge == self.left {
+            return;
+        }
+        self.left = edge;
+        self.time = (self.time + by).min(edge + VIEW_S - 1).max(edge);
     }
 
     /// Right: the programme after, or the next half hour; never past the guide's end.
@@ -336,6 +351,10 @@ impl Guide {
                     Key::ChannelDown if !k.repeat => {
                         self.cursor.row = (self.cursor.row + PAGE).min(total.saturating_sub(1));
                     }
+                    // Two hours back or on, a press at a time: held, they would run through the
+                    // two days in a second (`TvGuide.kt`).
+                    Key::Rewind | Key::Previous if !k.repeat => self.cursor.jump(-JUMP_S, self.start),
+                    Key::FastForward | Key::Next if !k.repeat => self.cursor.jump(JUMP_S, self.start),
                     _ => continue,
                 }
                 ui.request_repaint();
@@ -791,6 +810,28 @@ mod tests {
         assert!(!c.away_from_now(programs, NOW, start));
         // A channel without a guide: once at now, Back leaves.
         assert!(!c.away_from_now(None, NOW, start));
+    }
+
+    #[test]
+    fn a_jump_moves_the_grid_and_the_cursor_two_hours_within_the_guide() {
+        let start = guide_start(NOW);
+        let mut c = Cursor::new(NOW, start);
+        // At the guide's start, back does nothing.
+        c.jump(-JUMP_S, start);
+        assert_eq!(c, Cursor::new(NOW, start));
+        c.jump(JUMP_S, start);
+        assert_eq!((c.time, c.left), (NOW + JUMP_S, start + JUMP_S));
+        c.jump(-JUMP_S, start);
+        assert_eq!((c.time, c.left), (NOW, start));
+        // On to the end: the grid stops where its view ends with the guide, the cursor in view.
+        for _ in 0..30 {
+            c.jump(JUMP_S, start);
+        }
+        assert_eq!(c.left, start + GUIDE_SPAN - VIEW_S);
+        assert!(c.time >= c.left && c.time < c.left + VIEW_S, "{c:?}");
+        let end = c;
+        c.jump(JUMP_S, start);
+        assert_eq!(c, end, "nothing past the end");
     }
 
     #[test]

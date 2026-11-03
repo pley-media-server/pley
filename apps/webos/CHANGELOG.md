@@ -24,6 +24,8 @@ describes how they are made.
   does, when the server sends it as it is or with sound the TV decodes
   (AC-3, E-AC-3, MP2): it starts sooner than the server's HLS, which
   plays it otherwise and whenever the stream fails.
+- In Live TV's guide, ◀◀ and ▶▶, Previous and Next, move it two hours
+  back or on, as in the Android TV app.
 
 ### Changed
 

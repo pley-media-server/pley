@@ -191,6 +191,20 @@ fn back_away_from_now_comes_back_to_now_before_leaving() {
 }
 
 #[test]
+fn rewind_and_fast_forward_previous_and_next_move_the_guide_two_hours() {
+    let mut app = live();
+    let on_now = |a: &TestApp| a.list.texts().any(|t| t.contains(" left"));
+    assert!(on_now(&app));
+    for (on, back) in [(Key::FastForward, Key::Rewind), (Key::Next, Key::Previous)] {
+        app.press(on);
+        assert!(!on_now(&app), "{on:?} didn't move the guide on");
+        assert_eq!(app.route(), Some(&Route::LiveTv));
+        app.press(back);
+        assert!(on_now(&app), "{back:?} didn't come back to now");
+    }
+}
+
+#[test]
 fn a_held_left_stops_at_the_guides_start() {
     let mut app = live();
     let guide = app.id(&["guide"]);

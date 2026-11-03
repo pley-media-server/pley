@@ -240,6 +240,8 @@ and goes with `live_channels_changed`. On LG:
   at once; one that breaks off later does once the server has said
   watching didn't end there. Where the app can't listen on the loopback
   address, every channel plays its HLS.
+- **The guide:** ◀◀ and ▶▶, Previous and Next, move it two hours back
+  or on, a press at a time, as in the Android TV app.
 - **The player:** Up and Down, CH+ and CH− change channel within the
   category; digits tune a number. OK, the menu or the guide key opens the
   channel list beside the picture, which moves aside to make room; holding
