@@ -296,7 +296,9 @@ private fun viewLabel(view: RequestView): Int = when (view) {
 private fun Filters(state: RequestsUiState, vm: RequestsViewModel, kind: FocusRequester, person: FocusRequester, onPeople: () -> Unit) {
     val rail = LocalTvRailFocus.current
     val filter = state.filter
-    val field = rememberTextFieldState(vm.titleQuery.value)
+    // What was typed before, for a field made again (the page coming back).
+    val typed by vm.titleQuery.collectAsStateWithLifecycle()
+    val field = rememberTextFieldState(typed)
     LaunchedEffect(field, vm) { snapshotFlow { field.text.toString() }.collect(vm::onTitleChange) }
     val name = (state.list as? RequestListState.Ready)?.people?.firstOrNull { it.id == filter.userId }?.name
     Row(
