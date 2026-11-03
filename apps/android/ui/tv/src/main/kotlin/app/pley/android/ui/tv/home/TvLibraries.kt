@@ -43,6 +43,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -89,17 +90,21 @@ import app.pley.android.ui.tv.kit.rememberedFocus
 import app.pley.android.ui.tv.playlists.TvPanelRow
 import app.pley.android.ui.tv.playlists.TvPanelTitle
 import app.pley.android.ui.tv.shell.LocalTvNavigator
+import app.pley.android.ui.tv.shell.LocalTvRailItems
 import app.pley.android.ui.tv.shell.ReportOffline
 import app.pley.android.ui.tv.shell.failedBody
 import app.pley.android.ui.tv.shell.failedTitle
+import app.pley.android.ui.tv.shell.playlistsOnLibrariesPage
 import kotlinx.coroutines.launch
 
 /**
  * Every library (design spec §2.1): the rail shows the first three, and
  * "Libraries" opens this page. The page title, then a card per library in
  * the server's order: its kind's icon, its name, how much it holds, and
- * "Scanning…" while the server scans it. Initial focus on the first card,
- * or on the one opened last when coming back.
+ * "Scanning…" while the server scans it. After them, while the rail has
+ * no room for Playlists ([playlistsOnLibrariesPage]), a card like theirs
+ * opens Playlists. Initial focus on the first card, or on the one opened
+ * last when coming back.
  *
  * The profile may put them in its own order (with two or more): Sort, by
  * the title, or Move in a card's actions (holding Select). While sorting,
@@ -111,6 +116,7 @@ import kotlinx.coroutines.launch
 internal fun TvLibrariesScreen(vm: LibrariesViewModel = viewModel(factory = LibrariesViewModel.Factory)) {
     val state by vm.state.collectAsStateWithLifecycle()
     val navigator = LocalTvNavigator.current
+    val playlists = playlistsOnLibrariesPage(LocalTvRailItems.current)
     val resources = LocalResources.current
     val toasts = remember { TvToastState() }
     LaunchedEffect(vm) {
@@ -135,7 +141,7 @@ internal fun TvLibrariesScreen(vm: LibrariesViewModel = viewModel(factory = Libr
             is LibrariesState.Ready -> if (s.libraries.isEmpty()) {
                 TvHomeNotice(stringResource(R.string.tv_home_no_libraries), stringResource(R.string.tv_home_no_libraries_body))
             } else {
-                LibrariesGrid(s, vm, open = { navigator.open(PleyKey.Library(it)) })
+                LibrariesGrid(s, vm, playlists, open = navigator::open)
             }
         }
         TvToastHost(toasts)
@@ -143,7 +149,7 @@ internal fun TvLibrariesScreen(vm: LibrariesViewModel = viewModel(factory = Libr
 }
 
 @Composable
-private fun LibrariesGrid(state: LibrariesState.Ready, vm: LibrariesViewModel, open: (Long) -> Unit) {
+private fun LibrariesGrid(state: LibrariesState.Ready, vm: LibrariesViewModel, playlists: Boolean, open: (PleyKey) -> Unit) {
     val memory = rememberFocusMemory()
     val scope = rememberCoroutineScope()
     var sorting by remember { mutableStateOf(false) }
@@ -231,7 +237,7 @@ private fun LibrariesGrid(state: LibrariesState.Ready, vm: LibrariesViewModel, o
                         when {
                             moving != null -> Unit
                             inSort -> moving = id
-                            else -> open(id)
+                            else -> open(PleyKey.Library(id))
                         }
                     },
                     onLongClick = { if (moving == null) actionsFor = entry },
@@ -251,6 +257,12 @@ private fun LibrariesGrid(state: LibrariesState.Ready, vm: LibrariesViewModel, o
                         .rememberedFocus(memory, "library/$id", initial = index == 0),
                 )
             }
+            // Not while sorting, which moves the libraries alone.
+            if (playlists && !inSort) {
+                item(key = PLAYLISTS_KEY, contentType = "library") {
+                    PlaylistsCard(onClick = { open(PleyKey.Playlists) }, modifier = Modifier.rememberedFocus(memory, PLAYLISTS_KEY))
+                }
+            }
         }
     }
     if (inSort) SortHint(if (moving != null) R.string.tv_libraries_moving else R.string.tv_libraries_sorting)
@@ -267,7 +279,7 @@ private fun LibrariesGrid(state: LibrariesState.Ready, vm: LibrariesViewModel, o
                 sortable = state.sortable,
                 onOpen = {
                     actionsFor = null
-                    open(shown.library.id)
+                    open(PleyKey.Library(shown.library.id))
                 },
                 onMove = {
                     actionsFor = null
@@ -358,42 +370,77 @@ private fun LibraryCard(
                 pressedContentColor = PleyColors.Fg,
             )
         } else {
-            ClickableSurfaceDefaults.colors(
-                containerColor = PleyColors.Surface2,
-                contentColor = PleyColors.Fg,
-                focusedContainerColor = PleyColors.Accent,
-                focusedContentColor = PleyColors.OnAccent,
-                pressedContainerColor = PleyColors.AccentBright,
-                pressedContentColor = PleyColors.OnAccent,
-            )
+            cardColors()
         },
         // Lifted, it keeps its size: the ring is drawn around it as it is.
         scale = ClickableSurfaceDefaults.scale(focusedScale = if (moving) 1f else 1.05f, pressedScale = 1f),
     ) {
         val content = LocalContentColor.current
-        Row(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(PleyTv.ButtonHeight).drawBehind { drawRoundRect(content.copy(alpha = 0.12f), cornerRadius = CornerRadius(PleyShape.ControlRadius.toPx())) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(kindIcon(entry.library.kind), contentDescription = null, size = PleyTv.IconSize, tint = content)
-            }
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                BasicText(
-                    entry.library.name,
-                    style = PleyType.Tv.Title.copy(color = content),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+        val line = if (entry.scanning) "${entry.count} · ${stringResource(R.string.tv_libraries_scanning)}" else entry.count
+        CardBody(
+            kindIcon(entry.library.kind),
+            entry.library.name,
+            line,
+            grip = if (!sorting) null else if (moving) PleyColors.AccentBright else content.copy(alpha = 0.6f),
+        )
+    }
+}
+
+/** Playlists, after the libraries while the rail has no room for them: a library's card, with no line under the name. */
+@Composable
+private fun PlaylistsCard(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth().height(CardHeight).testTag(TV_LIBRARIES_PLAYLISTS),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(PleyShape.CardRadius)),
+        colors = cardColors(),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f, pressedScale = 1f),
+    ) {
+        CardBody(PleyIcons.ListMusic, stringResource(R.string.tv_playlists_title), line = null)
+    }
+}
+
+/** A card's colours: focused, the accent fill with [onAccent][PleyColors.OnAccent] content. */
+@Composable
+private fun cardColors() = ClickableSurfaceDefaults.colors(
+    containerColor = PleyColors.Surface2,
+    contentColor = PleyColors.Fg,
+    focusedContainerColor = PleyColors.Accent,
+    focusedContentColor = PleyColors.OnAccent,
+    pressedContainerColor = PleyColors.AccentBright,
+    pressedContentColor = PleyColors.OnAccent,
+)
+
+/**
+ * A card's inside, in its content colour: the icon on a tint, the name,
+ * the [line] under it, and while sorting a handle in [grip]'s colour.
+ */
+@Composable
+private fun CardBody(icon: PleyIcon, name: String, line: String?, grip: Color? = null) {
+    val content = LocalContentColor.current
+    Row(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier.size(PleyTv.ButtonHeight).drawBehind { drawRoundRect(content.copy(alpha = 0.12f), cornerRadius = CornerRadius(PleyShape.ControlRadius.toPx())) },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, size = PleyTv.IconSize, tint = content)
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            BasicText(
+                name,
+                style = PleyType.Tv.Title.copy(color = content),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (line != null) {
                 Spacer(Modifier.height(2.dp))
-                val line = if (entry.scanning) "${entry.count} · ${stringResource(R.string.tv_libraries_scanning)}" else entry.count
                 BasicText(line, style = PleyType.Tv.Caption.copy(color = content.copy(alpha = 0.75f)), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            if (sorting) {
-                Spacer(Modifier.width(12.dp))
-                Icon(PleyIcons.GripVertical, contentDescription = null, size = PleyTv.IconSize, tint = if (moving) PleyColors.AccentBright else content.copy(alpha = 0.6f))
-            }
+        }
+        if (grip != null) {
+            Spacer(Modifier.width(12.dp))
+            Icon(PleyIcons.GripVertical, contentDescription = null, size = PleyTv.IconSize, tint = grip)
         }
     }
 }
@@ -437,9 +484,13 @@ internal fun kindIcon(kind: LibraryKind): PleyIcon = when (kind) {
     LibraryKind.Unknown -> PleyIcons.Film
 }
 
-/** Sort, and a library's card (+ its id). */
+/** Sort, a library's card (+ its id), and Playlists' card. */
 internal const val TV_LIBRARIES_SORT = "tv_libraries_sort"
 internal const val TV_LIBRARY_CARD = "tv_library_card_"
+internal const val TV_LIBRARIES_PLAYLISTS = "tv_libraries_playlists"
+
+/** Playlists' card: its key in the grid and in the page's focus memory. */
+private const val PLAYLISTS_KEY = "playlists"
 
 private const val COLUMNS = 3
 private val CardHeight = 80.dp

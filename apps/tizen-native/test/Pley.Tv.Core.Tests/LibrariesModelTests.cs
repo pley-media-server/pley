@@ -166,6 +166,33 @@ public class LibrariesModelTests
     }
 
     [Fact]
+    public void The_page_lists_Playlists_only_while_the_rail_has_no_room_for_them()
+    {
+        var rail = new Signal<IReadOnlyList<RailItem>>(Rail.Items(data.Libraries.Value!));
+        var model = new LibrariesModel(data, scheduler, rail);
+        Assert.False(Ready(model).Playlists);
+        Assert.False(model.ListsPlaylists);
+        Assert.Null(model.SelectPlaylists());
+
+        // Playlists made way for another entry: the page lists them after the libraries, and OK opens them.
+        rail.Value = rail.Value.Where(i => i.Slot != RailSlot.Playlists).ToList();
+        Assert.True(Ready(model).Playlists);
+        Assert.Equal(new[] { "Movies", "Shows", "Music" }, Names(model));
+        Assert.True(model.ListsPlaylists);
+        Assert.Equal(new PageKey.Playlists(), model.SelectPlaylists());
+
+        // Sorting moves the libraries alone.
+        model.StartSorting();
+        Assert.False(model.ListsPlaylists);
+        Assert.Null(model.SelectPlaylists());
+        model.Done();
+        Assert.True(model.ListsPlaylists);
+
+        // Without the shell's rail, none.
+        Assert.False(Ready(Model()).Playlists);
+    }
+
+    [Fact]
     public void A_card_moved_down_onto_a_shorter_last_row_lands_at_its_end()
     {
         Assert.Equal(3, LibrariesRules.MoveTarget(1, LibrariesRules.Columns, 4));

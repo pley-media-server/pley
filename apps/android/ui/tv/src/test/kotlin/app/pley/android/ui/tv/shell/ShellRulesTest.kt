@@ -9,6 +9,7 @@ import app.pley.android.model.TitleKind
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.requests.RequestsEntry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -190,25 +191,38 @@ class ShellRulesTest {
     }
 
     @Test
-    fun withEveryExtraTheDriveTakesPlaylistsPlaceWhenNoLibraryCanMakeWay() {
+    fun withEveryExtraPlaylistsLeavesForTheLibrariesPageWhenNoLibraryCanMakeWay() {
         val discover = requestsItem(RequestsEntry(discover = true, requests = true))
+        val many = railItems(libraries(5), nowPlaying = true, liveTv = true, requests = discover, drive = true)
         assertEquals(
             "the libraries have all made way for Live TV, Discover and Now Playing: Playlists makes way for the drive",
             listOf("search", "home", "discover", "live-tv", "libraries", "now-playing", "drive"),
-            railItems(libraries(5), nowPlaying = true, liveTv = true, requests = discover, drive = true).map { it.id },
+            many.map { it.id },
         )
+        assertTrue("the Libraries page lists Playlists", playlistsOnLibrariesPage(many))
         assertEquals(
-            "\"Libraries\" in the one library's place would free nothing: Playlists makes way",
-            listOf("search", "home", "discover", "live-tv", "library:1", "now-playing", "drive"),
+            "the one library becomes Libraries, which lists it and Playlists",
+            listOf("search", "home", "discover", "live-tv", "libraries", "now-playing", "drive"),
             railItems(libraries(1), nowPlaying = true, liveTv = true, requests = discover, drive = true).map { it.id },
         )
+        assertFalse(playlistsOnLibrariesPage(railItems(libraries(5), nowPlaying = true, liveTv = true, requests = discover)))
         for (n in 0..8) {
             for (music in listOf(false, true)) {
                 for (live in listOf(false, true)) {
                     for (requests in listOf(null, discover)) {
-                        val items = railItems(libraries(n), music, live, requests, drive = true)
-                        assertTrue("$n libraries, music $music, live $live, requests ${requests != null}", items.size <= MAX_ITEMS)
-                        assertTrue(items.any { it.slot == RailSlot.Drive })
+                        for (drive in listOf(false, true)) {
+                            val case = "$n libraries, music $music, live $live, requests ${requests != null}, drive $drive"
+                            val items = railItems(libraries(n), music, live, requests, drive)
+                            assertTrue(case, items.size <= MAX_ITEMS)
+                            assertEquals(case, drive, items.any { it.slot == RailSlot.Drive })
+                            // Playlists in the rail, else on the Libraries page, which the rail leads to.
+                            val inRail = items.any { it.slot == RailSlot.Playlists }
+                            assertEquals(case, !inRail, playlistsOnLibrariesPage(items))
+                            assertTrue(case, inRail || items.any { it.slot == RailSlot.Libraries })
+                            // And every library, in the rail or on that page.
+                            val listed = items.any { it.slot == RailSlot.Libraries }
+                            assertTrue(case, listed || libraries(n).all { library -> items.any { it.key == PleyKey.Library(library.id) } })
+                        }
                     }
                 }
             }
@@ -228,9 +242,18 @@ class ShellRulesTest {
         assertEquals("library:2", railCurrent(PleyKey.Library(2), items))
         assertEquals("libraries", railCurrent(PleyKey.Library(5), items))
         assertEquals("libraries", railCurrent(PleyKey.Libraries, items))
+        assertEquals("playlists", railCurrent(PleyKey.Playlists, items))
         assertEquals("settings", railCurrent(PleyKey.Settings, items))
         assertEquals(PROFILE_ITEM, railCurrent(PleyKey.Profiles(), items))
         assertNull(railCurrent(PleyKey.Servers, items))
+    }
+
+    @Test
+    fun playlistsNotInTheRailAreUnderLibraries() {
+        val discover = requestsItem(RequestsEntry(discover = true))
+        val items = railItems(libraries(1), nowPlaying = true, liveTv = true, requests = discover, drive = true) + SettingsItem
+        assertEquals("libraries", railCurrent(PleyKey.Playlists, items))
+        assertEquals("the library it lists too", "libraries", railCurrent(PleyKey.Library(1), items))
     }
 
     @Test

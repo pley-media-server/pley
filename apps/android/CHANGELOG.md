@@ -27,17 +27,18 @@ describes how they are made.
   begins, the next episode too, while the player's controls are hidden
   and Playback details aren't over the video.
 - Android TV and Fire TV play videos from a USB drive, with no server: while
-  one is plugged in, the rail has USB drive after Now Playing (Playlists
-  makes way for it when no library can). Its page, titled with the drive's
-  make and model when it says them, gives the folder's path and lists the
-  drive's folders and videos, sorted as a person sorts names, with where
-  each video resumes, and a video plays in Pley's player with the subtitle
-  files beside it (UTF-8, UTF-16 or Latin-1), from where it stopped. A
-  video whose picture never starts says the TV doesn't play it; one that
-  played and then stands still, that the drive may have been pulled out.
-  An empty folder or no drive says so under an icon, with focus on the
-  page, so the rail closes over it. The page asks for leave to read the
-  drive as it opens.
+  one is plugged in, the rail has USB drive after Now Playing (when no
+  library can make way for it, Playlists moves to the Libraries page,
+  after the libraries, and a lone library becomes Libraries). Its page,
+  titled with the drive's make and model when it says them, gives the
+  folder's path and lists the drive's folders and videos, sorted as a
+  person sorts names, with where each video resumes, and a video plays in
+  Pley's player with the subtitle files beside it (UTF-8, UTF-16 or
+  Latin-1), from where it stopped. A video whose picture never starts
+  says the TV doesn't play it; one that played and then stands still,
+  that the drive may have been pulled out. An empty folder or no drive
+  says so under an icon, with focus on the page, so the rail closes over
+  it. The page asks for leave to read the drive as it opens.
 
 ### Changed
 

@@ -556,7 +556,8 @@ public abstract record LibrariesState
     /// <summary>The libraries in the server's order, with moves not saved yet; empty: "No libraries yet".</summary>
     /// <param name="Error">The server couldn't be asked again: the list is what was saved.</param>
     /// <param name="Sortable">They can be put in another order: there are two or more, and the sign-in may.</param>
-    public sealed record Ready(IReadOnlyList<LibraryEntry> Libraries, Exception? Error = null, bool Refreshing = false, bool Sortable = false) : LibrariesState;
+    /// <param name="Playlists">The rail has no entry for Playlists (<see cref="Rail.PlaylistsOnLibrariesPage"/>): the page lists them after the libraries.</param>
+    public sealed record Ready(IReadOnlyList<LibraryEntry> Libraries, Exception? Error = null, bool Refreshing = false, bool Sortable = false, bool Playlists = false) : LibrariesState;
 }
 
 /// <summary>Something the Libraries page tells the person once, as a toast.</summary>
@@ -579,9 +580,10 @@ public static class LibrariesRules
     /// The list from the libraries the app holds and the scans running, in <paramref name="order"/>
     /// (the libraries' ids, those it doesn't name after) while moves are made or saved.
     /// <paramref name="mayChange"/>: the sign-in may change the profile's choices, its libraries' order among them.
+    /// <paramref name="playlists"/>: the rail has no entry for Playlists.
     /// </summary>
     public static LibrariesState StateOf(IReadOnlyList<Library>? libraries, Exception? error, IReadOnlyList<ScanState> scans,
-        bool refreshing = false, IReadOnlyList<long>? order = null, bool mayChange = false)
+        bool refreshing = false, IReadOnlyList<long>? order = null, bool mayChange = false, bool playlists = false)
     {
         if (libraries == null) return error != null ? new LibrariesState.Failed(error) : new LibrariesState.Loading();
         var scanning = new HashSet<long>(scans.Select(s => s.LibraryId));
@@ -596,7 +598,8 @@ public static class LibrariesRules
             shown.Select(l => new LibraryEntry(l, LibraryText.LibraryCount(l), l.Scanning || scanning.Contains(l.Id))).ToList(),
             error,
             refreshing,
-            mayChange && libraries.Count > 1);
+            mayChange && libraries.Count > 1,
+            playlists);
     }
 
     /// <summary>Whether the sign-in may change the profile's choices: a profile's own, or an app allowed to play.</summary>
