@@ -6,8 +6,9 @@
 #
 # Settings come from .env (see .env.example); each has a default, so this file
 # also runs as it is. Hardware transcoding, a reverse proxy in Docker and the
-# Plex-compatible API on a port of its own are add-ons (compose.*.yaml, see
-# README.md); that API answers on Pley's port anyway.
+# Jellyfin-compatible API on a port of its own are add-ons (compose.*.yaml,
+# see README.md); that API can answer on Pley's port instead (Settings →
+# Network).
 #
 # The container is locked down: it runs as an ordinary user, with no Linux
 # capabilities, a read-only image and the media read-only, so the config

@@ -31,7 +31,7 @@ pub struct Entry {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Playlist {
     /// The guide the playlist names (`url-tvg`, `x-tvg-url`), the first
-    /// when it names several.
+    /// web address when it names several.
     pub guide_url: Option<String>,
     pub entries: Vec<Entry>,
 }
@@ -47,10 +47,13 @@ pub fn parse(text: &str) -> Playlist {
         }
         if let Some(header) = line.strip_prefix("#EXTM3U") {
             let attrs = attributes(header);
+            // A web address only: a path or a `file:` address would have the
+            // server open a file the provider chose, and on Windows a share
+            // on the provider's own computer, signing in to it.
             playlist.guide_url = ["url-tvg", "x-tvg-url", "tvg-url"]
                 .iter()
-                .find_map(|k| attr(&attrs, k))
-                .and_then(|urls| urls.split(',').map(str::trim).find(|u| !u.is_empty()).map(str::to_owned));
+                .filter_map(|k| attr(&attrs, k))
+                .find_map(|urls| urls.split(',').map(str::trim).find(|u| is_web_url(u)).map(str::to_owned));
         } else if let Some(info) = line.strip_prefix("#EXTINF:") {
             pending = Some(extinf(info));
         } else if let Some(group) = line.strip_prefix("#EXTGRP:") {
@@ -93,6 +96,11 @@ pub fn parse(text: &str) -> Playlist {
         }
     }
     playlist
+}
+
+/// Whether `url` is an http(s) address.
+fn is_web_url(url: &str) -> bool {
+    url::Url::parse(url).is_ok_and(|url| matches!(url.scheme(), "http" | "https"))
 }
 
 /// Whether `url` is a channel's stream: http(s), rtmp, rtsp or udp, and
@@ -199,6 +207,18 @@ mod tests {
         assert_eq!((plain.group.as_str(), plain.url.as_str()), ("News", "https://e.com/plain.m3u8"));
         assert_eq!(plain.user_agent.as_deref(), Some("Kodi"));
         assert_eq!(p.entries[2].name, "Nameless");
+    }
+
+    #[test]
+    fn the_guide_a_playlist_names_is_a_web_address() {
+        // Never a file of the provider's choosing, nor a share of its own.
+        for named in [r"/etc/passwd", r"file:///etc/passwd", r"//evil.example/s/g.xml", r"\\evil.example\s\g.xml"] {
+            assert_eq!(parse(&format!("#EXTM3U url-tvg=\"{named}\"\n")).guide_url, None, "{named}");
+        }
+        let p = parse("#EXTM3U x-tvg-url=\"file:///etc/passwd, https://e.com/g.xml\"\n");
+        assert_eq!(p.guide_url.as_deref(), Some("https://e.com/g.xml"));
+        let p = parse("#EXTM3U url-tvg=\"/etc/passwd\" x-tvg-url=\"https://e.com/g.xml\"\n");
+        assert_eq!(p.guide_url.as_deref(), Some("https://e.com/g.xml"), "another key's web address");
     }
 
     #[test]

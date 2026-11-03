@@ -1,0 +1,11 @@
+# Add-on: the Jellyfin-compatible API (docs/COMPATIBILITY.md) on Jellyfin's
+# own port, 8096, for apps that look for a server there. Without it the API
+# is off until it is turned on in Settings → Network, where it can answer on
+# Pley's port instead. Published like the web port: on this computer only
+# unless PLEY_JELLYFIN_LISTEN says otherwise.
+services:
+  pley:
+    environment:
+      PLEY_JELLYFIN_BIND: 0.0.0.0:8096
+    ports:
+      - "${PLEY_JELLYFIN_LISTEN:-127.0.0.1:8096}:8096"

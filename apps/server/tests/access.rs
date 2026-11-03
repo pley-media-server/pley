@@ -1,6 +1,6 @@
 //! Who sees what (docs/API.md, "Access rules"): a library a user may not open
 //! and titles above their age limit answer 404 on every endpoint of pley's
-//! API and of the Plex-compatible API, and never show up in lists, hubs,
+//! API and of the Jellyfin-compatible API, and never show up in lists, hubs,
 //! search or history.
 
 mod common;
@@ -8,7 +8,7 @@ mod common;
 use axum::http::{Method, StatusCode};
 use serde_json::{Value, json};
 
-use common::{TestApp, encode, plex_titles, titles};
+use common::{TestApp, encode, jf_names, titles};
 
 /// Movies, TV, music and a private library, rated, with a kid who may open
 /// the first three and watch titles up to 12 years.
@@ -81,25 +81,44 @@ fn item_requests(item: i64, file: i64) -> Vec<(Method, String, Option<Value>)> {
     ]
 }
 
-/// The same item and file through the Plex-compatible API.
-fn plex_requests(item: i64, file: i64) -> Vec<(Method, String)> {
-    let thumb = encode(&format!("/library/metadata/{item}/thumb/1"));
+/// The same item and file through the Jellyfin-compatible API, for the
+/// user `me` (their Jellyfin id) with `source`, the file as a media source
+/// listed to them.
+fn jellyfin_requests(item: &str, me: &str, source: &str) -> Vec<(Method, String, Option<Value>)> {
+    let report = || Some(json!({"ItemId": item, "PositionTicks": 600_000_000_i64}));
     vec![
-        (Method::GET, format!("/library/metadata/{item}")),
-        (Method::GET, format!("/library/metadata/{item}/children")),
-        (Method::GET, format!("/library/metadata/{item}/allLeaves")),
-        (Method::GET, format!("/library/metadata/{item}/extras")),
-        (Method::GET, format!("/library/metadata/{item}/thumb/1")),
-        (Method::GET, format!("/photo/:/transcode?url={thumb}&width=100")),
-        (Method::GET, format!("/library/parts/{file}/1/file.mkv")),
-        (Method::GET, format!("/library/parts/{file}/indexes/sd")),
-        (Method::GET, format!("/library/streams/{}", file * 10_000 + 1000)),
-        (Method::GET, format!("/:/timeline?ratingKey={item}&state=playing&time=1000&duration=100000")),
-        (Method::GET, format!("/:/scrobble?key={item}&identifier=com.plexapp.plugins.library")),
-        (Method::GET, format!("/:/unscrobble?key={item}&identifier=com.plexapp.plugins.library")),
-        (Method::GET, format!("/:/rate?key={item}&identifier=com.plexapp.plugins.library&rating=8")),
-        (Method::GET, format!("/video/:/transcode/universal/start.m3u8?path=%2Flibrary%2Fmetadata%2F{item}")),
-        (Method::GET, format!("/video/:/transcode/universal/decision?path=%2Flibrary%2Fmetadata%2F{item}")),
+        (Method::GET, format!("/Items/{item}"), None),
+        (Method::GET, format!("/Users/{me}/Items/{item}"), None),
+        (Method::GET, format!("/Items?ParentId={item}"), None),
+        (Method::GET, format!("/Items/{item}/Similar"), None),
+        (Method::GET, format!("/Items/{item}/SpecialFeatures"), None),
+        (Method::GET, format!("/Items/{item}/LocalTrailers"), None),
+        (Method::GET, format!("/Items/{item}/Ancestors"), None),
+        (Method::GET, format!("/Items/{item}/Images/Primary"), None),
+        (Method::GET, format!("/Items/{item}/Images/Backdrop/0"), None),
+        (Method::GET, format!("/Shows/{item}/Seasons"), None),
+        (Method::GET, format!("/Shows/{item}/Episodes"), None),
+        (Method::GET, format!("/Shows/NextUp?SeriesId={item}"), None),
+        (Method::GET, format!("/MediaSegments/{item}"), None),
+        (Method::GET, format!("/Items/{item}/PlaybackInfo"), None),
+        (Method::POST, format!("/Items/{item}/PlaybackInfo"), Some(json!({}))),
+        (Method::GET, format!("/Videos/{item}/stream?static=true"), None),
+        (Method::GET, format!("/Videos/{item}/stream.mkv?static=true&MediaSourceId={source}"), None),
+        (Method::GET, format!("/Videos/{item}/master.m3u8?MediaSourceId={source}"), None),
+        (Method::GET, format!("/Items/{item}/Download"), None),
+        (Method::GET, format!("/Videos/{item}/{source}/Subtitles/1000/Stream.vtt"), None),
+        (Method::GET, format!("/Videos/{item}/{source}/Subtitles/1000/0/Stream.srt"), None),
+        (Method::GET, format!("/UserItems/{item}/UserData"), None),
+        (Method::POST, format!("/UserItems/{item}/UserData"), Some(json!({"Played": true}))),
+        (Method::POST, format!("/UserPlayedItems/{item}"), None),
+        (Method::DELETE, format!("/UserPlayedItems/{item}"), None),
+        (Method::POST, format!("/Users/{me}/PlayedItems/{item}"), None),
+        (Method::POST, format!("/UserFavoriteItems/{item}"), None),
+        (Method::POST, format!("/UserItems/{item}/Rating?Likes=true"), None),
+        (Method::DELETE, format!("/UserItems/{item}/Rating"), None),
+        (Method::POST, "/Sessions/Playing".into(), report()),
+        (Method::POST, "/Sessions/Playing/Progress".into(), report()),
+        (Method::POST, "/Sessions/Playing/Stopped".into(), report()),
     ]
 }
 
@@ -110,10 +129,20 @@ async fn all_hidden(app: &TestApp, token: &str, item: i64, file: i64, title: &st
         assert_eq!(reply.status, StatusCode::NOT_FOUND, "{method} {uri}: {}", reply.text());
         assert!(!reply.mentions(title), "{method} {uri} leaks {title}");
     }
-    for (method, uri) in plex_requests(item, file) {
-        let reply = app.plex(method.clone(), &uri, token, &[]).await;
-        assert_eq!(reply.status, StatusCode::NOT_FOUND, "Plex {method} {uri}: {}", reply.text());
-        assert!(!reply.mentions(title), "Plex {method} {uri} leaks {title}");
+    let (id, me, source) = (app.jf_item(item), app.jf_user(token).await, app.jf_source(file, token).await);
+    for (method, uri, body) in jellyfin_requests(&id, &me, &source) {
+        let reply = app.jf(method.clone(), &uri, token, body).await;
+        assert_eq!(reply.status, StatusCode::NOT_FOUND, "Jellyfin {method} {uri}: {}", reply.text());
+        assert!(!reply.mentions(title), "Jellyfin {method} {uri} leaks {title}");
+    }
+    // Streams and subtitles are opened by their media source's id alone too.
+    for uri in [
+        format!("/Videos/{id}/stream?static=true&MediaSourceId={source}"),
+        format!("/Videos/{source}/stream?static=true"),
+        format!("/Videos/{id}/{source}/Subtitles/1000/Stream.vtt"),
+    ] {
+        let reply = app.jf(Method::GET, &uri, "", None).await;
+        assert_eq!(reply.status, StatusCode::NOT_FOUND, "Jellyfin {uri} without a token: {}", reply.text());
     }
 }
 
@@ -141,8 +170,11 @@ async fn titles_above_the_age_limit_answer_404_everywhere() {
     let file = app.file_of(family).await;
     assert_eq!(app.get(&format!("/api/items/{family}"), kid).await.status, StatusCode::OK);
     assert_eq!(app.get(&format!("/api/files/{file}/stream"), kid).await.status, StatusCode::OK);
-    let plex = app.plex(Method::GET, &format!("/library/parts/{file}/1/file.mkv"), kid, &[]).await;
-    assert_eq!(plex.status, StatusCode::OK);
+    let stream = format!("/Videos/{}/stream?static=true", app.jf_item(family));
+    assert_eq!(app.jf(Method::GET, &stream, kid, None).await.status, StatusCode::OK);
+    let source = app.jf_source(file, kid).await;
+    let without_token = format!("/Videos/{}/stream?static=true&MediaSourceId={source}", app.jf_item(family));
+    assert_eq!(app.jf(Method::GET, &without_token, "", None).await.status, StatusCode::OK);
     let rated = app.put(&format!("/api/items/{family}/rating"), kid, json!({"rating": 8})).await;
     assert_eq!(rated.status, StatusCode::NO_CONTENT);
 }
@@ -165,13 +197,17 @@ async fn seasons_and_episodes_go_by_their_show() {
     let admin_next = app.get(&format!("/api/items/{pilot}/next"), &w.admin).await;
     assert_eq!(admin_next.body["item"]["title"], json!("Second"));
 
-    // Search and the Plex episode listing leave them out too.
+    // Search and the Jellyfin episode listing leave them out too.
     assert_eq!(app.get("/api/search?q=pilot", kid).await.body["items"], json!([]));
     assert_eq!(titles(&app.get("/api/search?q=pilot", &w.admin).await.body["items"]), ["Pilot"]);
-    let episodes = app.plex_json(&format!("/library/sections/{}/all?type=4", w.tv), kid).await;
-    assert_eq!(plex_titles(&episodes), ["Hello"]);
-    let seasons = app.plex_json(&format!("/library/sections/{}/all?type=3", w.tv), kid).await;
-    assert_eq!(seasons["size"], json!(1));
+    let tv = app.jf_library(w.tv);
+    let episodes = app.jf_json(&format!("/Items?ParentId={tv}&IncludeItemTypes=Episode&Recursive=true"), kid).await;
+    assert_eq!(jf_names(&episodes), ["Hello"]);
+    let seasons = app.jf_json(&format!("/Items?ParentId={tv}&IncludeItemTypes=Season&Recursive=true"), kid).await;
+    assert_eq!(seasons["TotalRecordCount"], json!(1));
+    assert!(jf_names(&app.jf_json("/Items?SearchTerm=pilot&Recursive=true", kid).await).is_empty());
+    let hints = app.jf_json("/Search/Hints?SearchTerm=pilot", kid).await;
+    assert_eq!(hints["TotalRecordCount"], json!(0));
 
     // The kids' show is all there.
     let kids_show = shows["Kids Show"];
@@ -223,38 +259,43 @@ async fn a_library_the_user_may_not_open_does_not_exist_for_them() {
     assert!(!home.mentions("Secret") && !home.mentions("Private"), "{}", home.text());
     assert_eq!(app.get("/api/search?q=secret", kid).await.body["items"], json!([]));
 
-    // The Plex-compatible API: sections, lists, hubs and search.
-    let sections = app.plex_json("/library/sections", kid).await;
-    let keys: Vec<&str> =
-        sections["Directory"].as_array().unwrap().iter().map(|d| d["key"].as_str().unwrap()).collect();
-    assert_eq!(keys, [w.movies.to_string(), w.tv.to_string(), w.music.to_string()]);
-    for path in ["", "/all", "/recentlyAdded", "/onDeck", "/genre", "/firstCharacter", "/search?query=secret"] {
-        let reply = app.plex(Method::GET, &format!("/library/sections/{}{path}", w.private), kid, &[]).await;
-        assert_eq!(reply.status, StatusCode::NOT_FOUND, "/library/sections/{{private}}{path}");
-    }
-    let hubs = app.plex(Method::GET, &format!("/hubs/sections/{}", w.private), kid, &[]).await;
-    assert_eq!(hubs.status, StatusCode::NOT_FOUND);
+    // The Jellyfin-compatible API: views, listings, home rows and search.
+    assert_eq!(jf_names(&app.jf_json("/UserViews", kid).await), ["Movies", "TV", "Music"]);
+    assert_eq!(jf_names(&app.jf_json("/Items", kid).await), ["Movies", "TV", "Music"]);
+    let private = app.jf_library(w.private);
     for uri in [
-        "/library/all".to_owned(),
-        "/library/recentlyAdded".to_owned(),
-        "/library/onDeck".to_owned(),
-        "/hubs".to_owned(),
-        "/hubs/home/recentlyAdded".to_owned(),
-        "/hubs/search?query=secret".to_owned(),
-        "/search?query=secret".to_owned(),
-        format!("/library/metadata/{family},{secret}"),
+        format!("/Items/{private}"),
+        format!("/Items?ParentId={private}"),
+        format!("/Items?ParentId={private}&Recursive=true&IncludeItemTypes=Movie"),
+        format!("/Items/Filters?ParentId={private}"),
+        format!("/Items/Filters2?ParentId={private}"),
+        format!("/Genres?ParentId={private}"),
+        format!("/Items/Latest?ParentId={private}"),
     ] {
-        let reply = app.plex(Method::GET, &uri, kid, &[]).await;
-        assert_eq!(reply.status, StatusCode::OK, "{uri}");
+        let reply = app.jf(Method::GET, &uri, kid, None).await;
+        assert_eq!(reply.status, StatusCode::NOT_FOUND, "{uri}: {}", reply.text());
+    }
+    let (family, secret) = (app.jf_item(family), app.jf_item(secret));
+    for uri in [
+        "/Items?Recursive=true&IncludeItemTypes=Movie".to_owned(),
+        "/Items/Latest".to_owned(),
+        "/UserItems/Resume".to_owned(),
+        "/Shows/NextUp".to_owned(),
+        "/Items/Suggestions".to_owned(),
+        "/Items?SearchTerm=secret&Recursive=true".to_owned(),
+        "/Search/Hints?SearchTerm=secret".to_owned(),
+        "/Studios".to_owned(),
+        "/Persons?SearchTerm=secret".to_owned(),
+        format!("/Items?Ids={family},{secret}"),
+    ] {
+        let reply = app.jf(Method::GET, &uri, kid, None).await;
+        assert_eq!(reply.status, StatusCode::OK, "{uri}: {}", reply.text());
         assert!(!reply.mentions("Secret"), "{uri} leaks the private library");
     }
-    let both = app.plex_json(&format!("/library/metadata/{family},{secret}"), kid).await;
-    assert_eq!(plex_titles(&both), ["Family Film"]);
-    let providers = app.plex(Method::GET, "/media/providers", kid, &[]).await;
-    assert_eq!(providers.status, StatusCode::OK);
-    assert!(!providers.mentions("Private"), "/media/providers lists the private library: {}", providers.text());
+    let both = app.jf_json(&format!("/Items?Ids={family},{secret}"), kid).await;
+    assert_eq!(jf_names(&both), ["Family Film"]);
     // The administrator sees it everywhere.
-    assert!(app.plex(Method::GET, "/media/providers", &w.admin, &[]).await.mentions("Private"));
+    assert!(app.jf(Method::GET, "/UserViews", &w.admin, None).await.mentions("Private"));
 }
 
 #[tokio::test]
@@ -277,14 +318,15 @@ async fn titles_that_become_hidden_leave_continue_watching_and_history() {
         hubs["hubs"].as_array().unwrap().iter().find(|h| h["key"] == "continue_watching").map(|h| titles(&h["items"]))
     };
     assert_eq!(continuing(&app.get("/api/hubs/home", kid).await.body), Some(vec!["Family Film".to_owned()]));
-    assert_eq!(plex_titles(&app.plex_json("/library/onDeck", kid).await), ["Family Film"]);
+    assert_eq!(jf_names(&app.jf_json("/UserItems/Resume", kid).await), ["Family Film"]);
     assert_eq!(app.get("/api/history", kid).await.body["total"], json!(1));
+    let played = "/Items?Recursive=true&IncludeItemTypes=Episode&Filters=IsPlayed";
+    assert_eq!(jf_names(&app.jf_json(played, kid).await), ["Hello"]);
 
     // The film is re-rated R: it is gone from the kid's continue watching.
     app.set_rating("Family Film", Some("R")).await;
     assert_eq!(continuing(&app.get("/api/hubs/home", kid).await.body), None);
-    assert_eq!(app.plex_json("/library/onDeck", kid).await["size"], json!(0));
-    assert_eq!(app.plex_json("/hubs/continueWatching/items", kid).await["size"], json!(0));
+    assert_eq!(app.jf_json("/UserItems/Resume", kid).await["TotalRecordCount"], json!(0));
 
     // TV is taken away: the episode leaves the kid's history (and comes back with access).
     let patched =
@@ -292,7 +334,7 @@ async fn titles_that_become_hidden_leave_continue_watching_and_history() {
     assert_eq!(patched.status, StatusCode::OK, "{:?}", patched.body);
     let history = app.get("/api/history", kid).await;
     assert_eq!((history.body["total"].clone(), history.body["entries"].clone()), (json!(0), json!([])));
-    assert!(plex_titles(&app.plex_json("/status/sessions/history/all", kid).await).is_empty());
+    assert!(jf_names(&app.jf_json(played, kid).await).is_empty());
     // Administrators still see the play.
     let all = app.get("/api/history?all=1", &w.admin).await;
     assert_eq!(all.body["total"], json!(1));
@@ -338,13 +380,12 @@ async fn people_are_listed_only_through_titles_the_user_can_see() {
         .await
         .unwrap();
 
-    let actors = app.plex_json(&format!("/library/sections/{}/actor", w.movies), kid).await;
-    assert!(actors.get("Directory").is_none(), "only credited in a hidden title: {actors}");
-    let directors = app.plex_json(&format!("/library/sections/{}/director", w.movies), kid).await;
-    assert_eq!(titles(&directors["Directory"]), ["Dan Director"]);
-    // Administrators see everyone.
-    let actors = app.plex_json(&format!("/library/sections/{}/actor", w.movies), &w.admin).await;
-    assert_eq!(titles(&actors["Directory"]), ["Rachel Restricted"]);
+    // Jellyfin's people search, details and the titles of a person.
+    assert!(jf_names(&app.jf_json("/Persons?SearchTerm=rachel", kid).await).is_empty(), "only in a hidden title");
+    assert_eq!(jf_names(&app.jf_json("/Persons?SearchTerm=rachel", &w.admin).await), ["Rachel Restricted"]);
+    let family = app.jf_json(&format!("/Items/{}", app.jf_item(movies["Family Film"])), kid).await;
+    let people: Vec<&str> = family["People"].as_array().unwrap().iter().map(|p| p["Name"].as_str().unwrap()).collect();
+    assert_eq!(people, ["Dan Director"]);
     // pley's own search and pages agree, photos included.
     assert_eq!(app.get("/api/search?q=rachel", kid).await.body["people"], json!([]));
     let cast = &app.get(&format!("/api/items/{}", movies["Adult Film"]), &w.admin).await.body["cast"];
@@ -355,20 +396,26 @@ async fn people_are_listed_only_through_titles_the_user_can_see() {
     assert_eq!(app.get(&format!("/api/people/{rachel}/photo"), kid).await.status, StatusCode::NOT_FOUND);
     assert_eq!(app.get(&format!("/api/people/{rachel}/photo"), &w.admin).await.status, StatusCode::OK);
     assert_eq!(app.get(&format!("/api/people/{dan}/photo"), kid).await.status, StatusCode::OK);
+    let person = |id: i64| app.jf_ids().of(pley::jellyfin::ids::Kind::Person, id);
+    for uri in [format!("/Items/{}", person(rachel)), format!("/Items/{}/Images/Primary", person(rachel))] {
+        assert_eq!(app.jf(Method::GET, &uri, kid, None).await.status, StatusCode::NOT_FOUND, "{uri}");
+        assert_eq!(app.jf(Method::GET, &uri, &w.admin, None).await.status, StatusCode::OK, "{uri}");
+    }
+    let credited = format!("/Items?PersonIds={}&Recursive=true", person(rachel));
+    assert!(jf_names(&app.jf_json(&credited, kid).await).is_empty());
+    assert_eq!(jf_names(&app.jf_json(&credited, &w.admin).await), ["Adult Film"]);
+    let photo = format!("/Items/{}/Images/Primary", person(dan));
+    assert_eq!(app.jf(Method::GET, &photo, kid, None).await.status, StatusCode::OK);
 }
 
 #[tokio::test]
-async fn odd_plex_query_parameters_are_harmless() {
+async fn odd_jellyfin_query_parameters_are_harmless() {
     let w = world().await;
-    let uri = format!("/library/sections/{}/all?{}=1&type=1", w.movies, encode("abcdefé"));
-    let reply = w.app.plex(Method::GET, &uri, &w.kid, &[]).await;
+    let movies = w.app.jf_library(w.movies);
+    let uri = format!("/Items?ParentId={movies}&{}=1&IncludeItemTypes=Movie&Recursive=true", encode("abcdefé"));
+    let reply = w.app.jf(Method::GET, &uri, &w.kid, None).await;
     assert_eq!(reply.status, StatusCode::OK, "{}", reply.text());
-    assert_eq!(plex_titles(&reply.body["MediaContainer"]), ["Family Film"]);
-}
-
-/// Titles of the `Directory` nodes of a Plex filter list.
-fn directory_titles(container: &Value) -> Vec<String> {
-    container["Directory"].as_array().unwrap().iter().map(|d| d["title"].as_str().unwrap().to_owned()).collect()
+    assert_eq!(jf_names(&reply.body), ["Family Film"]);
 }
 
 #[tokio::test]
@@ -410,16 +457,20 @@ async fn filter_choices_only_come_from_titles_the_user_can_see() {
         json!({"genres": ["Family", "Horror"], "years": [2020, 2019, 2015]})
     );
 
-    for (filter, kid_sees, admin_sees) in [
-        ("genre", vec!["Family"], vec!["Family", "Horror"]),
-        ("year", vec!["2019"], vec!["2020", "2019", "2015"]),
-        ("contentRating", vec!["PG"], vec!["PG", "R"]),
-        ("studio", vec!["Day Studio"], vec!["Day Studio", "Night Studio"]),
-    ] {
-        let uri = format!("/library/sections/{}/{filter}", w.movies);
-        assert_eq!(directory_titles(&app.plex_json(&uri, kid).await), kid_sees, "{filter}");
-        assert_eq!(directory_titles(&app.plex_json(&uri, &w.admin).await), admin_sees, "{filter}");
-    }
+    let movies = app.jf_library(w.movies);
+    let filters = format!("/Items/Filters?ParentId={movies}");
+    let theirs = app.jf_json(&filters, kid).await;
+    assert_eq!((theirs["Genres"].clone(), theirs["Years"].clone()), (json!(["Family"]), json!([2019])));
+    let all = app.jf_json(&filters, &w.admin).await;
+    assert_eq!((all["Genres"].clone(), all["Years"].clone()), (json!(["Family", "Horror"]), json!([2020, 2019, 2015])));
+    let names = |list: &Value| -> Vec<String> {
+        list.as_array().unwrap().iter().map(|g| g["Name"].as_str().unwrap().to_owned()).collect()
+    };
+    let filters2 = format!("/Items/Filters2?ParentId={movies}");
+    assert_eq!(names(&app.jf_json(&filters2, kid).await["Genres"]), ["Family"]);
+    assert_eq!(jf_names(&app.jf_json(&format!("/Genres?ParentId={movies}"), kid).await), ["Family"]);
+    assert_eq!(jf_names(&app.jf_json("/Studios", kid).await), ["Day Studio"]);
+    assert_eq!(jf_names(&app.jf_json("/Studios", &w.admin).await), ["Day Studio", "Night Studio"]);
 }
 
 #[tokio::test]
@@ -444,22 +495,48 @@ async fn the_strictest_rating_of_an_episode_and_its_show_counts() {
 }
 
 #[tokio::test]
-async fn the_plex_api_does_not_accept_the_web_cookie() {
+async fn the_jellyfin_api_takes_only_tokens_for_other_apps() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
-    let status = |header: (&'static str, String)| {
-        let request = axum::http::Request::builder()
-            .uri("/library/sections")
-            .header(header.0, header.1)
-            .body(axum::body::Body::empty())
-            .unwrap();
-        async { tower::ServiceExt::oneshot(app.plex.clone(), request).await.unwrap().status() }
+    let status = |uri: &'static str, header: Option<(&'static str, String)>| {
+        let mut request = axum::http::Request::builder().uri(uri);
+        if let Some((name, value)) = header {
+            request = request.header(name, value);
+        }
+        let request = request.body(axum::body::Body::empty()).unwrap();
+        async { tower::ServiceExt::oneshot(app.jellyfin.clone(), request).await.unwrap().status() }
     };
-    // Browsers send pley's cookie to the Plex port too, where several GET
-    // requests change things: it must not sign anyone in there.
-    assert_eq!(status(("cookie", format!("pley_token={admin}"))).await, StatusCode::UNAUTHORIZED);
-    assert_eq!(status(("x-plex-token", admin.clone())).await, StatusCode::OK);
-    assert_eq!(status(("authorization", format!("Bearer {admin}"))).await, StatusCode::OK);
+    // Browsers send pley's cookie to the Jellyfin port too: it must not sign
+    // anyone in there, whatever token it holds. Nor do Pley's own tokens.
+    let token = app.compatibility_token(&admin, "play").await;
+    for refused in [
+        ("cookie", format!("pley_token={admin}")),
+        ("cookie", format!("pley_token={token}")),
+        ("x-emby-token", admin.clone()),
+        ("authorization", format!("Bearer {token}")),
+        ("authorization", format!(r#"MediaBrowser Client="x", Token="{admin}""#)),
+    ] {
+        assert_eq!(status("/Users/Me", Some(refused.clone())).await, StatusCode::UNAUTHORIZED, "{refused:?}");
+    }
+    assert_eq!(status("/Users/Me", None).await, StatusCode::UNAUTHORIZED);
+    for taken in [
+        ("x-emby-token", token.clone()),
+        ("x-mediabrowser-token", token.clone()),
+        (
+            "authorization",
+            format!(r#"MediaBrowser Client="x", Device="y", DeviceId="z", Version="1", Token="{token}""#),
+        ),
+        ("x-emby-authorization", format!(r#"Emby Client="x", Token="{token}""#)),
+    ] {
+        assert_eq!(status("/Users/Me", Some(taken.clone())).await, StatusCode::OK, "{taken:?}");
+    }
+    let mut request = axum::http::Request::builder().uri(format!("/Users/Me?api_key={token}"));
+    request = request.header("user-agent", "test");
+    let reply = tower::ServiceExt::oneshot(app.jellyfin.clone(), request.body(axum::body::Body::empty()).unwrap());
+    assert_eq!(reply.await.unwrap().status(), StatusCode::OK);
+    // What anyone may read before signing in.
+    assert_eq!(status("/System/Info/Public", None).await, StatusCode::OK);
+    assert_eq!(status("/System/Info", None).await, StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]

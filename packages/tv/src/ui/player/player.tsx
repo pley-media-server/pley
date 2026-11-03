@@ -459,10 +459,6 @@ function PlayerView(p: { controller: PlaybackController; host: { current: HTMLDi
   };
 
   const target = seeker.target;
-  const step = (dir: 1 | -1) => {
-    const { positionMs, durationMs } = clockNow();
-    seeker.press(dir, STEP_MS, positionMs, durationMs);
-  };
   const engineStats = () => c.engine?.stats() ?? null;
   const readoutShown = settings.playbackDetails && !controls && !panel && !s.upNext && !error;
   return (
@@ -503,9 +499,7 @@ function PlayerView(p: { controller: PlaybackController; host: { current: HTMLDi
           </div>
           <div class="row-centre">
             {hasPrevNext && <PlayerButton fid="previous" icon="skip-back" iconSize={24} label="Previous" onSelect={() => media("previous")} />}
-            <PlayerButton fid="back10" icon="rotate-ccw" skipSeconds={STEP_MS / 1000} label="Back 10 seconds" onSelect={() => step(-1)} />
             <PlayerButton fid="playpause" icon={playing ? "pause" : "play"} label={playing ? "Pause" : "Play"} big onSelect={playPause} />
-            <PlayerButton fid="fwd10" icon="rotate-cw" skipSeconds={STEP_MS / 1000} label="Forward 10 seconds" onSelect={() => step(1)} />
             {hasPrevNext && <PlayerButton fid="next" icon="skip-forward" iconSize={24} label="Next" onSelect={() => media("next")} />}
           </div>
           <div class="row-right">
@@ -591,21 +585,13 @@ function PlayerView(p: { controller: PlaybackController; host: { current: HTMLDi
 /**
  * A button of the control row (the Android TV app's PlayerRoundButton): 36 px
  * with a 20 px glyph (Play/Pause 44 and 26; the transport's 24), the glyph
- * alone until focused, its label 8 under it while focused. `skipSeconds`
- * draws the turning arrow with its number inside.
+ * alone until focused, its label 8 under it while focused.
  */
-export function PlayerButton(p: { fid: string; icon: IconName; label: string; big?: boolean; iconSize?: number; skipSeconds?: number; onSelect: () => void }) {
+export function PlayerButton(p: { fid: string; icon: IconName; label: string; big?: boolean; iconSize?: number; onSelect: () => void }) {
   return (
     <div class={`pbtn-box${p.big ? " big" : ""}`}>
       <F class={`pbtn${p.big ? " big" : ""}`} fid={p.fid} label={p.label} onSelect={p.onSelect}>
-        {p.skipSeconds ? (
-          <span class="skip-glyph" aria-hidden="true">
-            <Icon name={p.icon} size={24} />
-            <span>{p.skipSeconds}</span>
-          </span>
-        ) : (
-          <Icon name={p.icon} size={p.big ? 26 : p.iconSize ?? 20} />
-        )}
+        <Icon name={p.icon} size={p.big ? 26 : p.iconSize ?? 20} />
       </F>
       <div class="pbtn-label t-caption" aria-hidden="true">
         {p.label}

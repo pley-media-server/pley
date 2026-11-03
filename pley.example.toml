@@ -8,17 +8,16 @@
 # separated by commas, listen on chosen networks only: Pley must be able to
 # listen on the first as it starts, and tries the others until it can (a
 # Wi-Fi or VPN address may come later). The web app's Settings → Network
-# changes bind, plex_bind and discovery here, and keeps the other lines.
+# changes bind, jellyfin_bind and discovery here, and keeps the other lines.
 # bind = "0.0.0.0:7539"
 # bind = "127.0.0.1:7539, 192.168.1.10:7539, 100.64.0.7:7539"
 
-# Plex-compatible API for Plex tools (docs/COMPATIBILITY.md). "web" (the default)
-# answers on Pley's own port, telling its clients' requests from browsers'.
-# "off" disables it. Addresses give it a port of its own instead; if the
-# port is taken (a real Plex server), Pley logs a warning and runs without it.
-# Several addresses, as with bind.
-# plex_bind = "web"
-# plex_bind = "0.0.0.0:32400"
+# Jellyfin-compatible API, for Jellyfin's apps and others that use its API
+# (docs/COMPATIBILITY.md). "off" (the default) turns it off. "web" answers on
+# Pley's own port, telling its apps' requests from browsers'. Addresses give
+# it a port of its own instead (Jellyfin's is 8096), several as with bind.
+# jellyfin_bind = "web"
+# jellyfin_bind = "0.0.0.0:8096"
 
 # Answer the Pley apps looking for servers on the local network (UDP, on the
 # web port). Servers bound to 127.0.0.1 never answer.

@@ -3468,6 +3468,7 @@ mod tests {
             all_libraries: true,
             max_age,
             app: None,
+            compatibility: None,
         };
         assert!(!restricted(&user(None), None));
         assert!(restricted(&user(Some(13)), None), "unrated");

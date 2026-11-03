@@ -110,11 +110,10 @@ interface SearchTiles<T : Any> {
 
 /**
  * The groups results come in, in the order they show (the web's
- * SearchPage): people first, then each kind of item. [look] is how its
- * items are drawn; people are circles.
+ * SearchPage): each kind of item, then people (the Live TV channels found
+ * go between them). [look] is how its items are drawn; people are circles.
  */
 enum class SearchGroupKind(val look: TileLook, internal val kind: ItemKind?) {
-    People(TileLook.Poster, null),
     Movies(TileLook.Poster, ItemKind.Movie),
     Shows(TileLook.Poster, ItemKind.Show),
     Seasons(TileLook.Poster, ItemKind.Season),
@@ -122,6 +121,7 @@ enum class SearchGroupKind(val look: TileLook, internal val kind: ItemKind?) {
     Artists(TileLook.Square, ItemKind.Artist),
     Albums(TileLook.Square, ItemKind.Album),
     Tracks(TileLook.Square, ItemKind.Track),
+    People(TileLook.Poster, null),
 }
 
 /** One group of results: its [tiles], [ids] beside them. */
@@ -143,7 +143,8 @@ sealed interface SearchResultsState<out T : Any> {
 
     /**
      * Results for [query], grouped, with the Live TV [channels] found (shown
-     * after people, as on the web; their logos are on [origin]). While
+     * after the titles and before people, as on the web; their logos are on
+     * [origin]). While
      * [loading], a newer query's answer is on its way and these stay until
      * it comes.
      */
@@ -176,8 +177,9 @@ data class SearchUiState<T : Any>(
  * What is typed is asked for once typing has paused 250 ms, and only the
  * latest query's answer counts: a newer one replaces a request still on
  * its way. The results already shown stay while the next ones load.
- * Results come in groups: People, Live TV, Movies, Shows, Seasons,
- * Episodes, Artists, Albums, Tracks, each with its count. A query is kept among the
+ * Results come in groups: Movies, Shows, Seasons, Episodes, Artists,
+ * Albums, Tracks, Live TV, People, each with its count, the server's
+ * closest matches first in each. A query is kept among the
  * profile's last 10 searches when it is submitted or one of its results
  * is opened.
  */
@@ -415,18 +417,18 @@ class SearchViewModel<T : Any>(
         const val TMDB_PAGES = 3
 
         /**
-         * [results] in their groups and the groups' order (people, movies,
-         * shows, seasons, episodes, artists, albums, tracks), each keeping
+         * [results] in their groups and the groups' order (movies, shows,
+         * seasons, episodes, artists, albums, tracks, people), each keeping
          * the server's order of relevance; empty groups left out. Items of
          * other kinds (extras) aren't shown, as on the web.
          */
         fun searchGroups(results: SearchResults): List<Pair<SearchGroupKind, List<Any>>> = buildList {
-            if (results.people.isNotEmpty()) add(SearchGroupKind.People to results.people)
             val byKind = results.items.groupBy { it.kind }
             for (kind in SearchGroupKind.entries) {
                 val items = kind.kind?.let(byKind::get).orEmpty()
                 if (items.isNotEmpty()) add(kind to items)
             }
+            if (results.people.isNotEmpty()) add(SearchGroupKind.People to results.people)
         }
 
         /** Where a result opens: artists and albums their music pages, a track its album, the rest their item page. */

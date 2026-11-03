@@ -8,6 +8,21 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Search shows movies, shows and episodes first, then music, then Live
+  TV, then people, the closest matches first in each.
+
+## [0.1.3] - 2026-11-02
+
+### Changed
+
+- PGS subtitles are drawn by the app over the video instead of being burned
+  in by the server, so a file with them plays as it is and keeps its HDR,
+  and subtitle sync moves them without the video stopping. A server too old
+  to make their pictures still burns them in, and so does every server for
+  VobSub and DVB.
+
 ### Fixed
 
 - Settings' Always start as no longer starts the Roku as a profile with a
@@ -15,6 +30,22 @@ describes how they are made.
   shows the other profiles. While the Roku doesn't know whether the
   profile it was left on has a PIN, as at the first start after this
   update, the start asks "Who's watching?".
+
+### Security
+
+- Before the token goes to the server's address, the server proves it is
+  the one the Roku signed in to, at that address: the access token, which
+  the player and the pictures use too, waits for a proof made on this
+  network within the half hour, the refresh token and a profile's PIN for
+  one made then. Another device at the address on another network gets
+  nothing, nor does one passing the challenge on to the server from
+  elsewhere; the Roku says "Another device answers there." One that takes
+  the address on the Roku's own network may get an access token (an
+  hour's) within the half hour, never the refresh token. A sign-in from
+  before starts checking within the hour, as its token is renewed.
+- Changing servers no longer lets the event stream connect to the server
+  chosen with the token of the one before, before either proved anything:
+  that token is withdrawn before the address changes.
 
 ## [0.1.2] - 2026-11-02
 
@@ -198,7 +229,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-02...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-02.2...HEAD
+[0.1.3]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2
 [0.1.2]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02
 [0.1.1]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-01
 [0.1.0]: https://github.com/pley-media-server/pley/tree/94985f768f39f4a230060cb47af9498ee8779ddf

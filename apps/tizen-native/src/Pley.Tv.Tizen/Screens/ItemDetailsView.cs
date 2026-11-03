@@ -12,23 +12,36 @@ namespace Pley.Tv.Tizen.Screens;
 /// Details at the end of an item page (design spec §4.3; the Android app's TvDetails and
 /// TvMediaInfo): who made it and the facts on a card, a row per version (the one that plays
 /// ticked; OK chooses another), and Media info, closed until OK opens it: each file and every
-/// stream in full, in two columns of blocks. Down reads on through the text: the card and each
-/// file take a focus that shows nothing, and the section moves up to show it.
+/// stream in full, in two columns of blocks. Down reads on through the text as Android TV's readOn
+/// does: past the last row, each Down moves the section up a step (160 dp) until its end is the safe
+/// area above the screen's bottom, each step a focus that shows nothing, which Up takes back.
+///
+/// As on Android TV, nothing of it is drawn above the rows' header line (less 12 dp), so the page's
+/// info block stays clear; a focused row moves it up only as far as keeps that row inside the safe
+/// area, never above the line. Reading on, the info block steps aside (<see cref="Reading"/>) and
+/// the text has the screen from the safe area down.
 /// </summary>
 sealed class ItemDetailsView : View
 {
     /// <summary>Details end well inside the safe area: long lines are easier to read narrower.</summary>
     const float End = 200, LabelWidth = 160, RowHeight = 44, BlockWidth = 300, BlockGap = 24, BlockLabel = 104;
-    /// <summary>Room left above what reading on brings up, under the section's line.</summary>
-    const float ReadRoom = 40;
+    /// <summary>What shows above the rows' header line: nothing within 12 dp of it, the safe area's top while reading on.</summary>
+    const float Clearance = 12, ReadingAbove = PleyTv.FocusedRowHeaderY - PleyTv.SafeVertical;
+    /// <summary>A step of reading on: a few lines of text, about a third of the screen.</summary>
+    const float ReadStep = 160;
 
     readonly ItemPage page;
     readonly Action<long> chooseVersion;
+    /// <summary>Draws nothing above the line: it starts that far above the section and clips what it holds.</summary>
+    readonly View window = new View { ClippingMode = ClippingModeType.ClipToBoundingBox };
     readonly View inner = new View();
     readonly float width = PleyTv.CanvasWidth - PleyTv.Gutter - End;
     Animation? move;
+    /// <summary>How far above the section the window reaches (dp), and how far up the section has moved.</summary>
+    float above = Clearance, shift;
+    bool reading;
     bool open;
-    float mediaTop;
+    float mediaTop, toggleTop, toggleHeight;
     readonly List<View> mediaViews = new List<View>();
     readonly List<FocusItem> mediaItems = new List<FocusItem>();
     FocusItem? toggle;
@@ -39,17 +52,25 @@ sealed class ItemDetailsView : View
         this.page = page;
         this.chooseVersion = chooseVersion;
         Group = new FocusGroup(Axis.Column, "details");
-        Add(inner);
+        window.PositionY = -Ui.Dp(above);
+        inner.PositionY = Ui.Dp(above);
+        window.Add(inner);
+        Add(window);
         Build();
     }
 
     public FocusGroup Group { get; }
 
+    /// <summary>Reading on through the text (true) or back on a row or out of the section: the page's info block steps aside while true.</summary>
+    public event Action<bool>? Reading;
+
     void Build()
     {
         var details = page.Details;
         float y = 0;
+        // At the gutter, as the cards and rows are: at 0 the rail covered it.
         var header = Text.Label(ItemText.Details, PleyType.Section, PleyColors.Fg, width: width);
+        header.PositionX = Ui.Dp(PleyTv.Gutter);
         inner.Add(header);
         y += PleyType.Section.Line + PleyTv.HeaderToTiles;
 
@@ -59,17 +80,21 @@ sealed class ItemDetailsView : View
             var card = FactsCard(facts);
             card.PositionY = Ui.Dp(y);
             inner.Add(card);
-            var cardTop = y;
             y += card.SizeHeight / Ui.Scale;
-            // Nothing else to focus: the card takes a focus that shows nothing, so Down reaches it.
-            if (details.Versions.Count == 0 && page.MediaInfo.Count == 0) Reader(cardTop);
+            // Nothing else to focus: the card takes a focus that shows nothing, so Down reaches it,
+            // and reading on steps through what doesn't fit.
+            if (details.Versions.Count == 0 && page.MediaInfo.Count == 0)
+            {
+                Reader(0, reads: false);
+                Readers(0, y);
+            }
         }
 
         if (details.Versions.Count > 0)
         {
             y += 20;
             var title = Text.Label(ItemText.Versions, PleyType.Title, PleyColors.Fg, width: width);
-            title.PositionY = Ui.Dp(y);
+            title.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(y));
             inner.Add(title);
             y += PleyType.Title.Line + 8;
             foreach (var version in details.Versions)
@@ -79,7 +104,7 @@ sealed class ItemDetailsView : View
                 row.PositionY = Ui.Dp(y);
                 inner.Add(row);
                 Group.Add(row.Item);
-                Reveal(row.Item, y);
+                Reveal(row.Item, y, RowHeight);
                 y += RowHeight + 2;
             }
         }
@@ -91,13 +116,15 @@ sealed class ItemDetailsView : View
             row.PositionY = Ui.Dp(y);
             inner.Add(row);
             Group.Add(row.Item);
-            Reveal(row.Item, y);
+            Reveal(row.Item, y, row.SizeHeight / Ui.Scale);
+            toggleTop = y;
+            toggleHeight = row.SizeHeight / Ui.Scale;
             toggle = row.Item;
             chevron = row.Icon;
             y += row.SizeHeight / Ui.Scale + 8;
             mediaTop = y;
         }
-        Size = new Size(Ui.Dp(PleyTv.CanvasWidth), Ui.Dp(y));
+        Sized(y);
     }
 
     /// <summary>Media info opens and closes: each file's card and its blocks under the row.</summary>
@@ -118,34 +145,92 @@ sealed class ItemDetailsView : View
                 card.PositionY = Ui.Dp(y);
                 inner.Add(card);
                 mediaViews.Add(card);
-                mediaItems.Add(Reader(y));
                 y += card.SizeHeight / Ui.Scale + 12;
             }
+            mediaItems.AddRange(Readers(RowShift(toggleTop, toggleHeight), y));
         }
-        Size = new Size(Ui.Dp(PleyTv.CanvasWidth), Ui.Dp(y));
+        Sized(y);
     }
 
-    /// <summary>A focus that shows nothing, for reading on: the section moves up to show what is at <paramref name="top"/>.</summary>
-    FocusItem Reader(float top)
+    /// <summary>The section is <paramref name="height"/> dp tall: the window holds it and what shows above it.</summary>
+    void Sized(float height)
     {
-        var item = new FocusItem("read" + top);
+        Size = new Size(Ui.Dp(PleyTv.CanvasWidth), Ui.Dp(height));
+        window.Size = new Size(Ui.Dp(PleyTv.CanvasWidth), Ui.Dp(height + above));
+    }
+
+    /// <summary>
+    /// The steps of reading on from <paramref name="from"/> (dp moved up) through a section
+    /// <paramref name="end"/> dp tall: 160 dp each, the last as far as brings its end to the safe
+    /// area above the screen's bottom.
+    /// </summary>
+    List<FocusItem> Readers(float from, float end)
+    {
+        var most = Math.Max(0, PleyTv.FocusedRowHeaderY + end - (PleyTv.CanvasHeight - PleyTv.SafeVertical));
+        var steps = new List<FocusItem>();
+        for (var at = from; at < most - 0.5f;)
+        {
+            at = Math.Min(at + ReadStep, most);
+            steps.Add(Reader(at, reads: true));
+        }
+        return steps;
+    }
+
+    /// <summary>A focus that shows nothing: the section moved up <paramref name="shift"/> dp, the info block aside while it <paramref name="reads"/> on.</summary>
+    FocusItem Reader(float shift, bool reads)
+    {
+        var item = new FocusItem("read" + shift);
         Group.Add(item);
-        Reveal(item, top);
+        item.FocusChanged += on =>
+        {
+            if (on && !Disposed) Move(shift, reads);
+        };
         return item;
     }
 
-    /// <summary>Focus at <paramref name="top"/> in the section: it moves up so that much is in view, back down for the first rows.</summary>
-    void Reveal(FocusItem item, float top)
+    /// <summary>
+    /// How far a focused row <paramref name="height"/> dp tall at <paramref name="top"/> moves the
+    /// section up: only while that row would end below the safe area, never so far that its top goes
+    /// above the line (Android TV's ItemPageSpec.details).
+    /// </summary>
+    static float RowShift(float top, float height) =>
+        Math.Min(top, Math.Max(0, PleyTv.FocusedRowHeaderY + top + height - (PleyTv.CanvasHeight - PleyTv.SafeVertical)));
+
+    /// <summary>A row <paramref name="height"/> dp tall at <paramref name="top"/> has focus: the section moves as <see cref="RowShift"/> says.</summary>
+    void Reveal(FocusItem item, float top, float height)
     {
         item.FocusChanged += on =>
         {
-            if (!on || Disposed) return;
-            var shift = Math.Max(0, top - ReadRoom - 120);
-            move?.Stop();
-            move = new Animation(PleyMotion.FocusMs) { DefaultAlphaFunction = new AlphaFunction(AlphaFunction.BuiltinFunctions.EaseOut) };
-            move.AnimateTo(inner, "PositionY", -Ui.Dp(shift));
-            move.Play();
+            if (on && !Disposed) Move(RowShift(top, height), reads: false);
         };
+    }
+
+    /// <summary>
+    /// Focus goes up out of the section: it comes back down to where it starts, under the row
+    /// above, which it would otherwise cover.
+    /// </summary>
+    public void Rest()
+    {
+        if (!Disposed) Move(0, reads: false);
+    }
+
+    void Move(float dp, bool reads)
+    {
+        if (reads != reading)
+        {
+            reading = reads;
+            // The window reaches up to the safe area while reading on; the section stays where it is.
+            above = reads ? ReadingAbove : Clearance;
+            window.PositionY = -Ui.Dp(above);
+            window.SizeHeight = SizeHeight + Ui.Dp(above);
+            inner.PositionY = Ui.Dp(above - shift);
+            Reading?.Invoke(reads);
+        }
+        shift = dp;
+        move?.Stop();
+        move = new Animation(PleyMotion.FocusMs) { DefaultAlphaFunction = new AlphaFunction(AlphaFunction.BuiltinFunctions.EaseOut) };
+        move.AnimateTo(inner, "PositionY", Ui.Dp(above - dp));
+        move.Play();
     }
 
     /// <summary>The facts on a Surface2 card at 60 %: muted labels in a 160 dp column, values beside them, two lines at most.</summary>

@@ -1,5 +1,5 @@
 //! Taking titles out of Continue Watching, and My List (the watchlist):
-//! pley's API and the Plex-compatible one (docs/API.md, "Continue Watching"
+//! pley's API and the Jellyfin-compatible one (docs/API.md, "Continue Watching"
 //! and "My List").
 
 mod common;
@@ -7,7 +7,7 @@ mod common;
 use axum::http::{Method, StatusCode};
 use serde_json::{Value, json};
 
-use common::{TestApp, plex_titles, titles};
+use common::{TestApp, jf_names, titles};
 
 /// Movies and a show of three episodes, rated, and a kid who may watch
 /// titles up to 12 years.
@@ -81,8 +81,8 @@ async fn titles_taken_out_of_continue_watching_come_back_when_played() {
     assert_eq!(home().await, ["Brazil", "Second"]);
     let library = app.get(&format!("/api/libraries/{}/hubs", w.movies), admin).await;
     assert_eq!(hub(&library.body, &format!("continue_watching:{}", w.movies)), ["Brazil"]);
-    assert_eq!(plex_titles(&app.plex_json("/library/onDeck", admin).await), ["Brazil", "Second"]);
-    assert_eq!(plex_titles(&app.plex_json("/hubs/continueWatching/items", admin).await), ["Brazil", "Second"]);
+    assert_eq!(jf_names(&app.jf_json("/UserItems/Resume", admin).await), ["Brazil"]);
+    assert_eq!(jf_names(&app.jf_json("/Shows/NextUp", admin).await), ["Second"]);
     let state = &app.get(&format!("/api/items/{alien}"), admin).await.body["user_state"];
     assert_eq!((state["position_ms"].clone(), state["watched"].clone()), (json!(50_000), json!(false)));
 
@@ -91,6 +91,7 @@ async fn titles_taken_out_of_continue_watching_come_back_when_played() {
     assert_eq!(home().await, ["Brazil"]);
     let tv = app.get(&format!("/api/libraries/{}/hubs", w.tv), admin).await;
     assert!(hub(&tv.body, &format!("continue_watching:{}", w.tv)).is_empty());
+    assert!(jf_names(&app.jf_json("/Shows/NextUp", admin).await).is_empty());
 
     // Playing again brings them back as they would have been.
     next_second().await;
@@ -100,17 +101,12 @@ async fn titles_taken_out_of_continue_watching_come_back_when_played() {
     progress(app, admin, second, 30_000).await;
     assert_eq!(home().await, ["Second", "Alien", "Brazil"]);
 
-    // The Plex route does the same (an episode in progress takes its show
-    // out); marking an episode watched by hand counts as playing it.
-    let remove = format!("/actions/removeFromContinueWatching?ratingKey={second}");
-    assert_eq!(app.plex(Method::PUT, &remove, admin, &[]).await.status, StatusCode::OK);
+    // An episode in progress takes its show out; marking an episode watched
+    // by hand counts as playing it.
+    assert_eq!(app.delete(&format!("/api/continue-watching/{second}"), admin).await.status, StatusCode::NO_CONTENT);
     assert_eq!(home().await, ["Alien", "Brazil"]);
     assert_eq!(app.post(&format!("/api/items/{third}/watched"), admin, json!({})).await.status, StatusCode::NO_CONTENT);
     assert!(home().await.contains(&"Second".to_owned()));
-    let unknown = app.plex(Method::PUT, "/actions/removeFromContinueWatching?ratingKey=999999", admin, &[]).await;
-    assert_eq!(unknown.status, StatusCode::NOT_FOUND);
-    let missing = app.plex(Method::PUT, "/actions/removeFromContinueWatching", admin, &[]).await;
-    assert_eq!(missing.status, StatusCode::BAD_REQUEST);
 
     // Only the user's own Continue Watching changes; titles they can't see
     // answer 404.
@@ -214,9 +210,10 @@ async fn my_list_keeps_movies_until_watched_and_shows_until_removed() {
     app.put(&format!("/api/watchlist/{brazil}"), admin, json!({})).await;
     app.post(&format!("/api/items/{brazil}/watched"), admin, json!({})).await;
     assert_eq!(list().await, ["Show"]);
-    // So does one marked watched through the Plex API.
+    // So does one marked watched through the Jellyfin API.
     app.put(&format!("/api/watchlist/{alien}"), admin, json!({})).await;
-    app.plex(Method::GET, &format!("/:/scrobble?key={alien}&identifier=com.plexapp.plugins.library"), admin, &[]).await;
+    let played = app.jf(Method::POST, &format!("/UserPlayedItems/{}", app.jf_item(alien)), admin, None).await;
+    assert_eq!(played.status, StatusCode::OK, "{}", played.text());
     assert_eq!(list().await, ["Show"]);
 
     // Removed: gone, and Home's hub with it.

@@ -12,8 +12,8 @@ import kotlin.math.pow
  * as YouTube's TV app has them:
  * - **A press** moves the target 10 s. Presses in a row add up ("+30 s")
  *   and seek once, when they settle ([settle]): Left and Right wait for OK
- *   there, [WAIT_MS] at most after the last key, and fast forward, rewind
- *   and the control row's skips [SETTLE_MS] ([waitMs]). So a few quick
+ *   there, [WAIT_MS] at most after the last key, and fast forward and
+ *   rewind [SETTLE_MS] ([waitMs]). So a few quick
  *   presses don't start the server's conversion again for each.
  * - **A held key** scrubs: the target runs faster the longer the key is
  *   held, from [HOLD_START_RATE], doubling every [HOLD_DOUBLES_MS], the
@@ -65,7 +65,7 @@ internal class TvSeeker(
 
     /**
      * A press of Left ([direction] −1) or Right (+1), or a jump of [stepMs]
-     * (fast forward and rewind, the control row's skips), seeking [wait]
+     * (fast forward and rewind), seeking [wait]
      * after it unless another comes.
      */
     fun press(direction: Int, stepMs: Long = STEP_MS, wait: Long = WAIT_MS) {
@@ -173,7 +173,7 @@ internal class TvSeeker(
         /** A press of Left or Right. */
         const val STEP_MS = 10_000L
 
-        /** Fast forward, rewind and the control row's skips in a row seek once, this long after the last. */
+        /** Fast forward and rewind in a row seek once, this long after the last. */
         const val SETTLE_MS = 400L
 
         /** A seek with Left and Right waits for OK, and goes by itself this long after the last key. */

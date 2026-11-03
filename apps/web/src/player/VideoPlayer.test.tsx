@@ -533,7 +533,7 @@ describe("VideoPlayer picture subtitles", () => {
     await waitFor(() => expect(container.querySelector("video")?.getAttribute("src")).toBe("/api/files/3/stream"));
     expect(starts(requests)[0]?.subtitle_index).toBeNull();
     expect(starts(requests)[0]?.caps).toMatchObject({ picture_subtitles_sideload: true });
-    await waitFor(() => expect(requests.some((r) => r.path === "/api/files/3/subtitles/4.mks")).toBe(true));
+    await waitFor(() => expect(requests.some((r) => r.path.startsWith("/api/files/3/subtitles/4.mks"))).toBe(true));
     expect(screen.getByTestId("picture-subtitles")).toBeInTheDocument();
   });
 
@@ -545,14 +545,14 @@ describe("VideoPlayer picture subtitles", () => {
       "PUT /api/items/7/streams": () => undefined,
     });
     renderWithProviders(<VideoPlayer item={withPictures()} startMs={0} fileId={null} audio={null} sub={4} />);
-    await waitFor(() => expect(requests.some((r) => r.path === "/api/files/3/subtitles/4.mks")).toBe(true));
+    await waitFor(() => expect(requests.some((r) => r.path.startsWith("/api/files/3/subtitles/4.mks"))).toBe(true));
 
     await user.click(screen.getByRole("button", { name: "Playback settings" }));
     await user.click(screen.getByRole("button", { name: /^Subtitles/ }));
     expect(screen.getByRole("button", { name: "Show subtitles earlier" })).toBeInTheDocument();
     await user.click(screen.getByRole("menuitemradio", { name: /French/ }));
 
-    await waitFor(() => expect(requests.some((r) => r.path === "/api/files/3/subtitles/5.mks")).toBe(true));
+    await waitFor(() => expect(requests.some((r) => r.path.startsWith("/api/files/3/subtitles/5.mks"))).toBe(true));
     expect(starts(requests)).toHaveLength(1);
   });
 

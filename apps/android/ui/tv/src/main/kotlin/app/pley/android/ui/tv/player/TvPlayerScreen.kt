@@ -64,8 +64,8 @@ import kotlinx.coroutines.launch
  *   scrubber plays or pauses.
  * - **Seeking** ([TvSeeker]), as YouTube's TV app does: Left and Right
  *   move where it goes, 10 s a press (held: scrub), and it goes there on
- *   OK, or by itself 5 s after the last key; fast forward, rewind and the
- *   row's skips go 400 ms after the last press. Centre on the scrubber
+ *   OK, or by itself 5 s after the last key; fast forward and rewind go
+ *   400 ms after the last press. Centre on the scrubber
  *   during or just after a seek confirms it and plays on
  *   ([TvSeeker.confirm]), as Centre with the controls hidden does while
  *   one is on its way. Play/Pause, the button or the media key, only
@@ -520,9 +520,6 @@ internal fun TvPlayerScreen(
                 ui = ui,
                 alpha = controlsAlpha,
                 onPlayPause = ::playPause,
-                // As fast forward and rewind: they seek without waiting for OK.
-                onBack10 = { seeker.press(-1, wait = TvSeeker.SETTLE_MS) },
-                onForward10 = { seeker.press(1, wait = TvSeeker.SETTLE_MS) },
                 onPrevious = ::previous,
                 onNext = ::next,
                 onChapters = { openChapters(PlayerFocus.Chapters) },

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Player;
@@ -238,7 +239,7 @@ public class SubtitlePresenterTests
     static readonly byte[] Shown = PictureKit.PgsDisplaySet(0x80, true, rle: new[] { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0 });
     static readonly byte[] Cleared = PictureKit.PgsDisplaySet(0x00, false);
 
-    SubtitlePresenter WithPictures(Queue<Func<SubtitlePictures>> mks, List<string> unavailable) => new SubtitlePresenter(clock, url =>
+    SubtitlePresenter WithPictures(Queue<Func<SubtitlePictures>> mks, List<string> unavailable, bool local = false) => new SubtitlePresenter(clock, url =>
     {
         asked.Add(url);
         return Task.FromResult(answers.Dequeue()());
@@ -246,7 +247,47 @@ public class SubtitlePresenterTests
     {
         asked.Add(url);
         return Task.FromResult(mks.Dequeue()());
-    }, () => unavailable.Add("unavailable"));
+    }, () => unavailable.Add("unavailable"), local);
+
+    /// <summary>A presenter of the server's picture tracks whose asks are answered when the test says, in <paramref name="pending"/>.</summary>
+    SubtitlePresenter WithPending(List<TaskCompletionSource<SubtitlePictures>> pending) => new SubtitlePresenter(clock,
+        url => Task.FromException<SubtitleText>(new InvalidOperationException("no text")), () => position, () => offset, () => 1, () => failures++, url =>
+        {
+            asked.Add(url);
+            var answer = new TaskCompletionSource<SubtitlePictures>();
+            pending.Add(answer);
+            return answer.Task;
+        });
+
+    /// <summary>
+    /// Answers an ask here and now: under the test runner's synchronization context, what awaits the answer would go on
+    /// on the thread pool instead.
+    /// </summary>
+    static void Answer(TaskCompletionSource<SubtitlePictures> ask, SubtitlePictures answer)
+    {
+        var runner = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(null);
+        try
+        {
+            ask.SetResult(answer);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(runner);
+        }
+    }
+
+    static string AskedAt(long at) => $"http://pley/api/files/7/subtitles/4.mks?at={at}";
+
+    [Fact]
+    public void A_picture_track_is_asked_for_from_where_the_player_is_the_start_too()
+    {
+        Assert.Equal("/s.mks?at=5000", PlaybackPlan.PictureUrlAt("/s.mks", 5_000));
+        Assert.Equal("/s.mks?k=1&at=5000", PlaybackPlan.PictureUrlAt("/s.mks?k=1", 5_000));
+        // At the very start the server is told so too: it reads the pictures there first.
+        Assert.Equal("/s.mks?at=0", PlaybackPlan.PictureUrlAt("/s.mks", 0));
+        Assert.Equal("/s.mks?at=0", PlaybackPlan.PictureUrlAt("/s.mks", -1));
+    }
 
     [Fact]
     public void A_partial_picture_track_is_asked_for_every_3_s_until_whole()
@@ -264,14 +305,18 @@ public class SubtitlePresenterTests
         // Only the first picture so far: it shows until another comes.
         Assert.Equal(100, p.Picture.Value!.Bitmaps.Single().X);
         Assert.Empty(p.Shown.Value);
+        position = 4_500;
         clock.Advance(3_000);
         // The whole track: cleared at 3 s, shown again at 5 s.
         Assert.Null(p.Picture.Value);
         position = 5_000;
         p.Refresh();
         Assert.NotNull(p.Picture.Value);
+        // Whole: nothing more is asked.
         clock.Advance(30_000);
-        Assert.Equal(2, asked.Count);
+        // Each ask says where the player is then: the server copies the track out of its file from there first, and
+        // answers with the pictures around there until it is whole.
+        Assert.Equal(new[] { AskedAt(4_000), AskedAt(4_500) }, asked);
 
         // The same track again changes nothing; text in its place clears the picture.
         p.ShowPictures("http://pley/api/files/7/subtitles/4.mks");
@@ -285,22 +330,130 @@ public class SubtitlePresenterTests
     }
 
     [Fact]
-    public void A_partial_picture_track_is_asked_for_less_often_each_time_up_to_a_minute()
+    public void A_partial_picture_track_is_asked_for_less_often_each_time_up_to_15_s_from_where_the_player_is_then()
     {
-        // Deviation from Android, which asks every 3 s: each answer is the whole .mks so far, tens of MB.
+        // Deviation from Android, which asks every 3 s: a file whose Cues don't list the track is copied whole, and
+        // each answer is all of it so far, tens of MB for a film.
         var part = PictureKit.Mks("S_HDMV/PGS", new[] { new PictureKit.MksBlock(1000, Shown) });
         var mks = new Queue<Func<SubtitlePictures>>();
-        for (var i = 0; i < 8; i++) mks.Enqueue(() => new SubtitlePictures(part, Complete: false));
+        for (var i = 0; i < 10; i++) mks.Enqueue(() => new SubtitlePictures(part, Complete: false));
         var p = WithPictures(mks, new List<string>());
         p.ShowPictures("http://pley/api/files/7/subtitles/4.mks");
-        var times = new List<long>();
-        for (var t = 0; t < 200_000; t += 1_000)
+        for (var t = 1_000; t <= 120_000; t += 1_000)
         {
+            // The film plays on with the clock.
+            position = t;
             clock.Advance(1_000);
-            if (asked.Count > times.Count + 1) times.Add(t + 1_000);
         }
-        // 3, 6, 12, 24, 48 s apart, then a minute.
-        Assert.Equal(new long[] { 3_000, 9_000, 21_000, 45_000, 93_000, 153_000 }, times.Take(6));
+        // 3, 6, 12 s apart, then 15 s each time: the server answers from a read at a player elsewhere for 20 s past
+        // where it asked from, so each ask finds the read the last one started, the server's second included. Each
+        // ask says where the player is then, the start too.
+        Assert.Equal(new long[] { 0, 3_000, 9_000, 21_000, 36_000, 51_000, 66_000, 81_000, 96_000, 111_000 }.Select(AskedAt), asked);
+    }
+
+    [Fact]
+    public void The_next_ask_for_pictures_counts_from_the_last_ask_however_long_its_answer_waited()
+    {
+        // A read at a seek can hold an answer up to 12 s: the asks still go 15 s apart, so each finds the read the one
+        // before it started. An ask never follows an answer by less than 3 s.
+        var part = new SubtitlePictures(PictureKit.Mks("S_HDMV/PGS", new[] { new PictureKit.MksBlock(1000, Shown) }), Complete: false);
+        var pending = new List<TaskCompletionSource<SubtitlePictures>>();
+        var p = WithPending(pending);
+        var askedAt = new List<long> { 0 };
+        p.ShowPictures("http://pley/api/files/7/subtitles/4.mks");
+        for (var t = 1_000; t <= 80_000; t += 1_000)
+        {
+            position = t;
+            clock.Advance(1_000);
+            if (pending.Count > askedAt.Count) askedAt.Add(t);
+            // Each answer comes 8 s after its ask.
+            var due = askedAt.IndexOf(t - 8_000);
+            if (due >= 0) Answer(pending[due], part);
+        }
+        Assert.Equal(new long[] { 0, 11_000, 22_000, 34_000, 49_000, 64_000, 79_000 }, askedAt);
+        Assert.Equal(askedAt.Select(AskedAt), asked);
+    }
+
+    [Fact]
+    public void A_copy_of_the_whole_track_so_far_is_asked_for_every_24_s_at_most()
+    {
+        // Past 4 MB, an answer is the whole track as far as it is copied (its file's Cues don't list it): tens of MB
+        // for a film, and no read at a seek to spare.
+        var mks = PictureKit.Mks("S_HDMV/PGS", new[] { new PictureKit.MksBlock(1000, Shown) });
+        var copy = mks.Concat(new byte[SubtitlePresenter.CopyMinBytes]).ToArray();
+        var copies = new Queue<Func<SubtitlePictures>>();
+        for (var i = 0; i < 10; i++) copies.Enqueue(() => new SubtitlePictures(copy, Complete: false));
+        var p = WithPictures(copies, new List<string>());
+        p.ShowPictures("http://pley/api/files/7/subtitles/4.mks");
+        for (var t = 1_000; t <= 120_000; t += 1_000)
+        {
+            position = t;
+            clock.Advance(1_000);
+        }
+        Assert.NotNull(p.Picture.Value);
+        Assert.Equal(new long[] { 0, 3_000, 9_000, 21_000, 45_000, 69_000, 93_000, 117_000 }.Select(AskedAt), asked);
+    }
+
+    [Fact]
+    public void A_seek_asks_for_the_servers_partial_picture_track_again_at_once_from_there()
+    {
+        // A partial answer holds the pictures around where it was asked from: after a seek, those are for elsewhere.
+        static SubtitlePictures Track(bool complete, params PictureKit.MksBlock[] blocks) => new SubtitlePictures(PictureKit.Mks("S_HDMV/PGS", blocks), complete);
+        var near = new[] { new PictureKit.MksBlock(1000, Shown), new PictureKit.MksBlock(3000, Cleared) };
+        var there = new[] { new PictureKit.MksBlock(19_000, Shown) };
+        var pending = new List<TaskCompletionSource<SubtitlePictures>>();
+        var p = WithPending(pending);
+        p.ShowPictures("http://pley/api/files/7/subtitles/4.mks");
+        Answer(pending[0], Track(false, near));
+        position = 3_000;
+        clock.Advance(3_000);
+        Answer(pending[1], Track(false, near));
+        // The next ask would be 6 s on; sought to 20 s a second later, it is now, from there.
+        clock.Advance(1_000);
+        // Before the player says where it went.
+        p.Sought(20_000);
+        Assert.Equal(AskedAt(20_000), asked.Last());
+        // Sought back to 2 s before that answer came: asked again from there, and the answer for 20 s that comes
+        // after is dropped.
+        position = 2_000;
+        p.Sought(position);
+        Answer(pending[3], Track(false, near));
+        Answer(pending[2], Track(false, there));
+        p.Refresh();
+        Assert.NotNull(p.Picture.Value);
+        // The waits start again from 3 s, then 6 s; the one that was due 6 s after the second ask is gone.
+        clock.Advance(2_999);
+        Assert.Equal(4, asked.Count);
+        position = 5_000;
+        clock.Advance(1);
+        Answer(pending[4], Track(false, near));
+        clock.Advance(5_999);
+        Assert.Equal(5, asked.Count);
+        position = 11_000;
+        clock.Advance(1);
+        // Whole: nothing more is asked, a seek neither.
+        Answer(pending[5], Track(true, near.Concat(there).ToArray()));
+        clock.Advance(60_000);
+        position = 30_000;
+        p.Sought(position);
+        Assert.Equal(new long[] { 0, 3_000, 20_000, 2_000, 5_000, 11_000 }.Select(AskedAt), asked);
+        Assert.Equal(0, failures);
+    }
+
+    [Fact]
+    public void A_drives_picture_track_is_asked_for_at_its_own_address()
+    {
+        // Only the server's copy takes a place to start from: a file on a drive is read where the film goes.
+        var part = PictureKit.Mks("S_HDMV/PGS", new[] { new PictureKit.MksBlock(1000, Shown) });
+        var mks = new Queue<Func<SubtitlePictures>>();
+        for (var i = 0; i < 3; i++) mks.Enqueue(() => new SubtitlePictures(part, Complete: false));
+        var p = WithPictures(mks, new List<string>(), local: true);
+        position = 4_000;
+        p.ShowPictures("/api/files/7/subtitles/4.mks");
+        clock.Advance(1_000);
+        p.Sought(position);
+        Assert.Equal(3, asked.Count);
+        Assert.All(asked, url => Assert.Equal("/api/files/7/subtitles/4.mks", url));
     }
 
     [Fact]
@@ -428,6 +581,9 @@ public class ReadoutTests
         Assert.Equal("Direct play", s["How it plays"]["Playback"]);
         Assert.False(s["How it plays"].ContainsKey("Why"));
         Assert.Equal("Original", s["How it plays"]["Quality"]);
+        // Android TV's "Network" among this TV's stats is its player's own estimate. Tizen's player
+        // gives none, so here it is the TV's whole network, said so, beside the server's Speed.
+        Assert.Equal("120 Mbps", s["How it plays"]["TV network speed"]);
         Assert.Equal("MKV", s["File"]["Container"]);
         Assert.Equal("62 Mbps", s["File"]["Overall bitrate"]);
         Assert.Equal("HEVC", s["Video"]["Codec"]);
@@ -443,7 +599,7 @@ public class ReadoutTests
         Assert.Equal("hvc1.2.4.L153.B0", tv["Codec string"]);
         Assert.Equal("10 of 1000", tv["Dropped frames"]);
         Assert.Equal("45 s", tv["Buffered ahead"]);
-        Assert.Equal("120 Mbps", tv["Network"]);
+        Assert.False(tv.ContainsKey("Network"));
         Assert.Equal("2", tv["Stalls"]);
         Assert.Equal("830 ms", tv["First frame"]);
     }

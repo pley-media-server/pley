@@ -1205,7 +1205,8 @@ export function useResources(pollMs = 2_000) {
 export function useFs(path: string | null, enabled = true) {
   return useQuery({
     queryKey: keys.fs(path),
-    queryFn: () => api.get<FsListing>(`/api/fs${qs({ path })}`),
+    // A POST: over plain HTTP the server can't tell another site's GET from its own page's.
+    queryFn: () => api.post<FsListing>("/api/fs", { path }),
     enabled,
     staleTime: 5_000,
     retry: false,

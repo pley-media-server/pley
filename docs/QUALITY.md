@@ -267,9 +267,9 @@ sizes ("size 2 of 4").
 
 - A quality is converted at its bitrate, less 192 kbps for the sound.
 - It never goes above half again the file's own bitrate, nor above the
-  highest quality of its lines (what an app of the compatibility API asking
-  for far more gets). A file with fewer bits still gets the lowest quality
-  of its lines.
+  highest quality of its lines (what an app of the Jellyfin-compatible API
+  asking for far more gets). A file with fewer bits still gets the lowest
+  quality of its lines.
 - The response's `auto_quality` is what the server would choose for the
   file, and `adaptive` says whether the stream comes in several sizes.
 - `GET /api/playback/network` reads the network memory,

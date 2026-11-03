@@ -30,7 +30,7 @@ mimetypes.inited = True
 import http.server  # noqa: E402
 
 from . import api
-from .auth import SignedOut, Tokens
+from .auth import NotYourServer, SignedOut, Tokens
 
 # What passes from Kodi to the server, and back.
 REQUEST_HEADERS = ("range", "if-range", "if-none-match", "if-modified-since", "content-type", "accept")
@@ -319,19 +319,18 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         upstream = None
         try:
             try:
-                token = proxy.tokens.access()
-                server = proxy.tokens.server()
+                server, token = proxy.tokens.session()
                 upstream = _Upstream(proxy, server)
                 response = upstream.send(self.command, rest, body, headers, token)
                 if response.status == 401:
                     upstream.close()
-                    token = proxy.tokens.refreshed(token)
+                    token = proxy.tokens.refreshed(token, server)
                     upstream = _Upstream(proxy, server)
                     response = upstream.send(self.command, rest, body, headers, token)
             except SignedOut:
                 return self.answer(401, {"code": "signed_out", "message": "Pley is signed out"})
             except (api.ApiError, OSError, http.client.HTTPException) as e:
-                return self.answer(502, {"code": "unreachable", "message": str(e)})
+                return self.answer(502, unanswered(proxy.tokens, e))
             if network is not None:
                 return self.relay_network(response, network)
             self.relay(response, rest)
@@ -363,10 +362,10 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return self.answer(401, {"code": "signed_out", "message": "Pley is signed out"})
         except api.ApiError as e:
             if e.status == 0:
-                return self.answer(502, {"code": "unreachable", "message": e.message})
+                return self.answer(502, unanswered(self.proxy.tokens, e))
             return self.answer(400 if e.status < 500 else 502, {"code": e.code, "message": e.message})
         except (OSError, http.client.HTTPException) as e:
-            return self.answer(502, {"code": "unreachable", "message": str(e)})
+            return self.answer(502, unanswered(self.proxy.tokens, e))
         return self.answer(200, {"switched": True})
 
     def location(self, location):
@@ -476,6 +475,17 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             # stopping: the connection ends, and Kodi asks again from where
             # it got to.
             self.close_connection = True
+
+
+def unanswered(tokens: Tokens, error: Exception) -> dict:
+    """The proxy's answer, as {code, message}, when the server didn't
+    answer (or another device did). Kodi may be on another network now: the
+    server proves itself again before the next token goes."""
+    if isinstance(error, NotYourServer):
+        return {"code": error.code, "message": error.message}
+    if not isinstance(error, api.ApiError) or error.status == 0:
+        tokens.doubt()
+    return {"code": "unreachable", "message": error.message if isinstance(error, api.ApiError) else str(error)}
 
 
 def is_object(data: bytes) -> bool:

@@ -30,6 +30,19 @@ pub async fn photo(
     if !people::is_visible(&state.db, user.id, id).await? {
         return Err(AppError::not_found("no photo"));
     }
+    let width = query.get("w").and_then(|w| w.parse::<u32>().ok()).filter(|w| *w > 0);
+    photo_of(&state, id, width, query.contains_key("v"), &headers).await
+}
+
+/// A person's photo at `width`, for a caller that checked it may be seen;
+/// `versioned`: asked for at an address that changes with the photo.
+pub(crate) async fn photo_of(
+    state: &AppState,
+    id: i64,
+    width: Option<u32>,
+    versioned: bool,
+    headers: &HeaderMap,
+) -> ApiResult<Response> {
     let photo: Option<Option<String>> =
         sqlx::query_scalar("SELECT photo_url FROM people WHERE id = ?").bind(id).fetch_optional(&state.db.read).await?;
     let Some(remote) = photo.flatten() else { return Err(AppError::not_found("no photo")) };
@@ -37,7 +50,6 @@ pub async fn photo(
         tracing::debug!("photo of person {id}: {err:#}");
         AppError::not_found("no photo")
     })?;
-    let width = query.get("w").and_then(|w| w.parse::<u32>().ok()).filter(|w| *w > 0);
     let image = state.images.load(&path, width).await?;
     if headers.get(header::IF_NONE_MATCH).and_then(|v| v.to_str().ok()) == Some(image.etag.as_str()) {
         return Ok(StatusCode::NOT_MODIFIED.into_response());
@@ -45,7 +57,7 @@ pub async fn photo(
     let mut out = HeaderMap::new();
     out.insert(header::CONTENT_TYPE, HeaderValue::from_static(image.content_type));
     // Versioned URLs (`?v=<photo>`) change whenever the photo does.
-    let cache = if query.contains_key("v") { "private, max-age=31536000, immutable" } else { "private, max-age=300" };
+    let cache = if versioned { "private, max-age=31536000, immutable" } else { "private, max-age=300" };
     out.insert(header::CACHE_CONTROL, HeaderValue::from_static(cache));
     if let Ok(etag) = HeaderValue::from_str(&image.etag) {
         out.insert(header::ETAG, etag);

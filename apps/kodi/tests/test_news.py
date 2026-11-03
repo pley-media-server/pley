@@ -88,12 +88,12 @@ class NewsTest(unittest.TestCase):
         self.turn(30, stream_open=True)
         self.assertEqual(self.reads(), 1)
         self.server.answers["/api/requests/summary"] = (200, dict(ON, unseen=1))
-        self.server.answers[CATCH_UP] = (200, {"total": 1, "requests": [ready(42, "Heat", 2000)]})
+        self.server.answers[CATCH_UP] = (200, {"total": 1, "requests": [ready(42, "Saltwind", 2000)]})
         self.turn(31, stream_open=True)
         self.assertEqual(self.reads(), 2, "the stream open, though no event came")
         self.assertEqual(json.loads(kodi.get_property(requests.SUMMARY)), dict(ON, unseen=1))
         self.turn(stream_open=True)
-        self.assertEqual(xbmcgui.notified, [("Pley", "“Heat” is ready to watch.")], "the news from before Kodi started")
+        self.assertEqual(xbmcgui.notified, [("Pley", "“Saltwind” is ready to watch.")], "the news from before Kodi started")
         self.turn(120, stream_open=True)
         self.assertEqual(self.reads(), 2)
 
@@ -103,10 +103,10 @@ class NewsTest(unittest.TestCase):
         self.turn(stream_open=True)
         self.turn(61, stream_open=True)
         self.assertEqual((self.reads(), self.server.asked.count(("GET", CATCH_UP))), (2, 2))
-        self.server.answers[CATCH_UP] = (200, {"total": 1, "requests": [ready(42, "Heat", 2000)]})
+        self.server.answers[CATCH_UP] = (200, {"total": 1, "requests": [ready(42, "Saltwind", 2000)]})
         self.turn(61, stream_open=True)
         self.turn(stream_open=True)
-        self.assertEqual(xbmcgui.notified, [("Pley", "“Heat” is ready to watch.")])
+        self.assertEqual(xbmcgui.notified, [("Pley", "“Saltwind” is ready to watch.")])
         self.turn(120, stream_open=True)
         self.assertEqual(self.server.asked.count(("GET", CATCH_UP)), 3)
 
@@ -131,15 +131,15 @@ class NewsTest(unittest.TestCase):
 
     def test_ready_to_watch_is_said_with_its_poster(self):
         self.turn(stream_open=True)
-        self.news.heard({"type": "request_available", "request_id": 42, "title": "Heat", "kind": "movie", "tmdb_id": 949, "item_id": 7,
+        self.news.heard({"type": "request_available", "request_id": 42, "title": "Saltwind", "kind": "movie", "tmdb_id": 949, "item_id": 7,
                          "poster_url": "/api/discover/images/poster/h.jpg", "seasons": None, "complete": True})
         while self.jobs:
             self.jobs.pop(0)()
-        self.assertEqual(self.news.waiting, [("“Heat” is ready to watch.", BASE + "/api/discover/images/poster/h.jpg?w=185")])
+        self.assertEqual(self.news.waiting, [("“Saltwind” is ready to watch.", BASE + "/api/discover/images/poster/h.jpg?w=185")])
         self.turn(stream_open=True)
-        self.assertEqual(xbmcgui.notified, [("Pley", "“Heat” is ready to watch.")])
+        self.assertEqual(xbmcgui.notified, [("Pley", "“Saltwind” is ready to watch.")])
         self.assertEqual(news.announced(news.ANNOUNCED + SERVER + "|1"), ["42"], "never again as news from before")
-        self.news.heard({"type": "request_available", "request_id": 43, "title": "Ronin", "kind": "movie", "item_id": None})
+        self.news.heard({"type": "request_available", "request_id": 43, "title": "Low Orbit", "kind": "movie", "item_id": None})
         self.assertEqual(self.jobs, [], "nothing for a library this account can't open")
 
     def test_nothing_shows_over_playing_video(self):
@@ -154,12 +154,12 @@ class NewsTest(unittest.TestCase):
         self.assertEqual([message for _, message in xbmcgui.notified], ["Notice 1", "Notice 2", "Notice 3"], "the last three")
 
     def test_news_from_before_is_said_once(self):
-        declined = dict(ready(43, "Ronin", 1900), stage="declined", item_id=None)
+        declined = dict(ready(43, "Low Orbit", 1900), stage="declined", item_id=None)
         self.server.answers["/api/requests/summary"] = (200, dict(ON, unseen=2))
-        self.server.answers[CATCH_UP] = (200, {"total": 2, "requests": [ready(42, "Heat", 2000), declined]})
+        self.server.answers[CATCH_UP] = (200, {"total": 2, "requests": [ready(42, "Saltwind", 2000), declined]})
         self.turn()
         self.turn()
-        self.assertEqual(xbmcgui.notified, [("Pley", "“Heat” is ready to watch.")], "a TV pops up ready ones only")
+        self.assertEqual(xbmcgui.notified, [("Pley", "“Saltwind” is ready to watch.")], "a TV pops up ready ones only")
         # Kodi started again.
         self.news = self.started()
         self.turn()
@@ -175,7 +175,7 @@ class NewsTest(unittest.TestCase):
             self.turn()
             self.turn()
 
-        show = ready(42, "Dark", 2000, kind="show", stage="partial", seasons=[1, 2, 3], available_seasons=[1])
+        show = ready(42, "Driftline", 2000, kind="show", stage="partial", seasons=[1, 2, 3], available_seasons=[1])
         kodi_starts(show)
         # Followed, unfollowed, matched again: it moves, and has nothing new.
         kodi_starts(dict(show, updated_at=2500))
@@ -183,21 +183,21 @@ class NewsTest(unittest.TestCase):
         kodi_starts(dict(show, stage="available", available_seasons=[1, 2, 3], updated_at=4000))
         kodi_starts(dict(show, stage="available", available_seasons=[1, 2, 3], updated_at=4500))
         self.assertEqual([message for _, message in xbmcgui.notified], [
-            "Season 1 of “Dark” is ready to watch.", "Season 2 of “Dark” is ready to watch.", "“Dark” is ready to watch."])
+            "Season 1 of “Driftline” is ready to watch.", "Season 2 of “Driftline” is ready to watch.", "“Driftline” is ready to watch."])
 
     def test_what_an_event_said_isnt_said_again_as_kodi_starts(self):
         self.turn(stream_open=True)
-        self.news.heard({"type": "request_available", "request_id": 42, "title": "Dark", "kind": "show", "item_id": 7, "seasons": [1],
+        self.news.heard({"type": "request_available", "request_id": 42, "title": "Driftline", "kind": "show", "item_id": 7, "seasons": [1],
                          "complete": False})
         self.turn(stream_open=True)
         self.turn(stream_open=True)
         self.server.answers["/api/requests/summary"] = (200, dict(ON, unseen=1))
         self.server.answers[CATCH_UP] = (200, {"total": 1, "requests": [
-            ready(42, "Dark", 2500, kind="show", stage="partial", seasons=[1, 2], available_seasons=[1])]})
+            ready(42, "Driftline", 2500, kind="show", stage="partial", seasons=[1, 2], available_seasons=[1])]})
         self.news = self.started()
         self.turn()
         self.turn()
-        self.assertEqual(xbmcgui.notified, [("Pley", "Season 1 of “Dark” is ready to watch.")])
+        self.assertEqual(xbmcgui.notified, [("Pley", "Season 1 of “Driftline” is ready to watch.")])
 
     def test_what_was_announced_is_kept_to_the_last_few_hundred(self):
         key = news.ANNOUNCED + SERVER + "|1"
@@ -210,7 +210,7 @@ class NewsTest(unittest.TestCase):
 
     def test_news_of_several_says_how_many(self):
         self.server.answers["/api/requests/summary"] = (200, dict(ON, unseen=2))
-        self.server.answers[CATCH_UP] = (200, {"total": 2, "requests": [ready(42, "Heat", 2000), ready(44, "Ronin", 1990)]})
+        self.server.answers[CATCH_UP] = (200, {"total": 2, "requests": [ready(42, "Saltwind", 2000), ready(44, "Low Orbit", 1990)]})
         self.turn()
         self.turn()
         self.assertEqual(xbmcgui.notified, [("Pley", "2 of your requests have news")])
@@ -294,19 +294,19 @@ class NewsTest(unittest.TestCase):
 
     def test_someone_elses_sign_in_has_their_own_news(self):
         self.server.answers["/api/requests/summary"] = (200, dict(ON, unseen=1))
-        self.server.answers[CATCH_UP] = (200, {"total": 1, "requests": [ready(42, "Heat", 2000)]})
+        self.server.answers[CATCH_UP] = (200, {"total": 1, "requests": [ready(42, "Saltwind", 2000)]})
         self.turn(stream_open=True)
         self.turn(stream_open=True)
-        self.assertEqual(xbmcgui.notified, [("Pley", "“Heat” is ready to watch.")])
+        self.assertEqual(xbmcgui.notified, [("Pley", "“Saltwind” is ready to watch.")])
         # Ann's ready-to-watch, heard just before Bo signed in with a code on
         # the same server, isn't said to him.
-        self.news.heard({"type": "request_available", "request_id": 43, "title": "Ronin", "kind": "movie", "item_id": 8})
+        self.news.heard({"type": "request_available", "request_id": 43, "title": "Low Orbit", "kind": "movie", "item_id": 8})
         self.server.answers["/api/auth/me"] = (200, {"id": 2, "name": "Bo"})
-        self.server.answers[CATCH_UP] = (200, {"total": 1, "requests": [ready(50, "Up", 1000)]})
+        self.server.answers[CATCH_UP] = (200, {"total": 1, "requests": [ready(50, "Halcyon", 1000)]})
         self.who = (SERVER, None, "b")
         self.turn(stream_open=True)
         self.turn(stream_open=True)
-        self.assertEqual([message for _, message in xbmcgui.notified], ["“Heat” is ready to watch.", "“Up” is ready to watch."],
+        self.assertEqual([message for _, message in xbmcgui.notified], ["“Saltwind” is ready to watch.", "“Halcyon” is ready to watch."],
                          "his news from before, under his own account")
         self.assertTrue(kodi.remembered(news.ANNOUNCED + SERVER + "|2"))
 

@@ -197,8 +197,8 @@ class SearchViewModelTest {
         val groups = (vm.results() as SearchResultsState.Ready).groups
         assertEquals(
             listOf(
-                SearchGroupKind.People, SearchGroupKind.Movies, SearchGroupKind.Shows, SearchGroupKind.Seasons,
-                SearchGroupKind.Episodes, SearchGroupKind.Artists, SearchGroupKind.Albums, SearchGroupKind.Tracks,
+                SearchGroupKind.Movies, SearchGroupKind.Shows, SearchGroupKind.Seasons, SearchGroupKind.Episodes,
+                SearchGroupKind.Artists, SearchGroupKind.Albums, SearchGroupKind.Tracks, SearchGroupKind.People,
             ),
             groups.map { it.kind },
         )
@@ -208,7 +208,7 @@ class SearchViewModelTest {
         assertEquals(listOf(3L, 6L), movies.ids)
         assertEquals(TileLook.Landscape, groups.first { it.kind == SearchGroupKind.Episodes }.tiles.single().look)
         assertEquals(TileLook.Square, groups.first { it.kind == SearchGroupKind.Albums }.tiles.single().look)
-        assertEquals("person http://pley", groups.first().tiles.single().subtitle)
+        assertEquals("person http://pley", groups.last().tiles.single().subtitle)
         // Opening: a person's page, a track's album, an album's page, the rest their item page.
         assertEquals(PleyKey.Person(70), vm.open(SearchGroupKind.People, 70))
         assertEquals(PleyKey.Album(40), vm.open(SearchGroupKind.Tracks, 1))

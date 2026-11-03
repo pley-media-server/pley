@@ -3,8 +3,8 @@
 ' were opened, kept on the Roku for each server and profile; OK searches
 ' one again (and moves it to the top), Clear forgets them.
 ' What the libraries have (GET /api/search) comes in rows by kind, as on
-' the other apps (lib/Search.brs): People, Live TV (cards; OK watches the
-' channel), Movies, Shows, Seasons, Episodes, Artists, Albums, Tracks.
+' the other apps (lib/Search.brs): Movies, Shows, Seasons, Episodes,
+' Artists, Albums, Tracks, Live TV (cards; OK watches the channel), People.
 ' Where the person may ask for titles (the scene's summary), Discover (GET
 ' /api/discover/search?missing=1), asked at the same time and never waited
 ' for, comes after them, ending with See all: all of TMDB's results for

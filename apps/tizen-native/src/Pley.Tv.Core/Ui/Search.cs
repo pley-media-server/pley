@@ -7,16 +7,18 @@ using System.Threading;
 using System.Threading.Tasks;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Auth;
+using Pley.Tv.Core.Live;
 
 namespace Pley.Tv.Core.Ui;
 
 /// <summary>
 /// The groups results come in, in the order they show (the web's SearchPage; the Android app's
-/// SearchGroupKind): people first, then each kind of item.
+/// SearchGroupKind): each kind of item, then people. Live TV's channels aren't a group of
+/// tiles: they come beside the groups (<see cref="SearchResultsState.Ready.Channels"/>), in a row
+/// before People.
 /// </summary>
 public enum SearchGroupKind
 {
-    People,
     Movies,
     Shows,
     Seasons,
@@ -24,6 +26,7 @@ public enum SearchGroupKind
     Artists,
     Albums,
     Tracks,
+    People,
 }
 
 /// <summary>One group of results: its tiles, and the ids beside them.</summary>
@@ -47,8 +50,12 @@ public abstract record SearchResultsState
     /// <summary>The first answer for <paramref name="Query"/> is on its way, with nothing earlier to keep showing.</summary>
     public sealed record Loading(string Query) : SearchResultsState;
 
-    /// <summary>Results for <paramref name="Query"/>, grouped. While <paramref name="Refreshing"/>, a newer query's answer is on its way and these stay until it comes.</summary>
-    public sealed record Ready(string Query, IReadOnlyList<SearchGroup> Groups, bool Refreshing) : SearchResultsState;
+    /// <summary>
+    /// Results for <paramref name="Query"/>, grouped, with the Live TV <paramref name="Channels"/>
+    /// found (shown after the titles, before People, as on the web). While <paramref name="Refreshing"/>, a newer
+    /// query's answer is on its way and these stay until it comes.
+    /// </summary>
+    public sealed record Ready(string Query, IReadOnlyList<SearchGroup> Groups, IReadOnlyList<LiveChannel> Channels, bool Refreshing) : SearchResultsState;
 
     /// <summary>No results for "north".</summary>
     public sealed record Empty(string Query) : SearchResultsState;
@@ -139,6 +146,21 @@ public static class SearchRules
     /// <summary>Recent searches kept per profile.</summary>
     public const int RecentMax = 10;
 
+    /// <summary>How often what's on a channel found is looked at again.</summary>
+    public const long NowTickMs = 30_000;
+
+    /// <summary>
+    /// Where the Live TV row goes among <paramref name="groups"/>' rows: after the titles and
+    /// before People, as on the web and Android TV, so last when there are no people.
+    /// </summary>
+    public static int ChannelsAt(IReadOnlyList<SearchGroup> groups) => groups.Count(g => g.Kind != SearchGroupKind.People);
+
+    /// <summary>
+    /// Watching a channel found: the live player changes channel among every channel, as a
+    /// search in Live TV does.
+    /// </summary>
+    public static LiveWatch Watch(LiveChannel channel) => new LiveWatch(channel.Id, new LiveCategory.All().Key, channel);
+
     /// <summary>The item kind each group holds; people have none.</summary>
     static string? KindOf(SearchGroupKind group) => group switch
     {
@@ -162,15 +184,13 @@ public static class SearchRules
     };
 
     /// <summary>
-    /// <paramref name="answer"/> in its groups and the groups' order (people, movies, shows,
-    /// seasons, episodes, artists, albums, tracks), each keeping the server's order of relevance;
+    /// <paramref name="answer"/> in its groups and the groups' order (movies, shows, seasons,
+    /// episodes, artists, albums, tracks, people), each keeping the server's order of relevance;
     /// empty groups left out. Items of other kinds (extras) aren't shown, as on the web.
     /// </summary>
     public static IReadOnlyList<SearchGroup> Groups(SearchAnswer answer, string origin)
     {
         var groups = new List<SearchGroup>();
-        var people = answer.People ?? Array.Empty<PersonSummary>();
-        if (people.Count > 0) groups.Add(new SearchGroup(SearchGroupKind.People, people.Select(p => PersonTile(p, origin)).ToList(), people.Select(p => p.Id).ToList()));
         foreach (SearchGroupKind group in Enum.GetValues(typeof(SearchGroupKind)))
         {
             if (KindOf(group) is not { } kind) continue;
@@ -179,6 +199,8 @@ public static class SearchRules
             var tileKind = TileKindOf(group);
             groups.Add(new SearchGroup(group, items.Select(i => TileModel.Of(i, tileKind, origin)).ToList(), items.Select(i => i.Id).ToList()));
         }
+        var people = answer.People ?? Array.Empty<PersonSummary>();
+        if (people.Count > 0) groups.Add(new SearchGroup(SearchGroupKind.People, people.Select(p => PersonTile(p, origin)).ToList(), people.Select(p => p.Id).ToList()));
         return groups;
     }
 
@@ -215,9 +237,10 @@ public static class SearchRules
 /// Search (apps/web/src/pages/SearchPage.tsx; the Android app's SearchViewModel, as the TV uses
 /// it). What is typed is asked for once typing has paused 250 ms, and only the latest query's
 /// answer counts: a newer one gives up a request still on its way. The results already shown
-/// stay while the next ones load. Results come in groups: People, Movies, Shows, Seasons,
-/// Episodes, Artists, Albums, Tracks. A query is kept among the profile's last 10 searches when
-/// it is submitted or one of its results is opened.
+/// stay while the next ones load. Results come in groups: Movies, Shows, Seasons, Episodes,
+/// Artists, Albums, Tracks, Live TV, People, the server's closest matches first in each; a
+/// channel found plays at once. A query is kept among the profile's last 10 searches when it is
+/// submitted or one of its results is opened.
 ///
 /// The TV types with the system's keyboard over the field: the screen hands each change of the
 /// field's text to <see cref="Type"/>, and the keyboard's Search key to <see cref="Submit"/>.
@@ -234,7 +257,10 @@ public sealed class SearchModel : IDisposable
     /// <summary>The last answer, which asking for its query again shows at once.</summary>
     (string Query, SearchAnswer Answer)? last;
     /// <summary>The results shown, by id, for opening them.</summary>
-    (string Query, Dictionary<long, ItemSummary> Items, HashSet<long> People) shown = ("", new Dictionary<long, ItemSummary>(), new HashSet<long>());
+    (string Query, Dictionary<long, ItemSummary> Items, HashSet<long> People, Dictionary<long, LiveChannel> Channels) shown =
+        ("", new Dictionary<long, ItemSummary>(), new HashSet<long>(), new Dictionary<long, LiveChannel>());
+    /// <summary>Moves <see cref="Now"/> on while channels are shown.</summary>
+    IDisposable? ticker;
     bool gone;
 
     /// <param name="query">What the field starts with (<see cref="PageKey.Search.Query"/>).</param>
@@ -242,11 +268,18 @@ public sealed class SearchModel : IDisposable
     {
         this.source = source;
         this.scheduler = scheduler;
+        Now = new Signal<long>(scheduler.Now / 1000);
         State = new Signal<SearchState>(new SearchState(query, source.Recent(), new SearchResultsState.Idle()));
         Type(query);
     }
 
     public Signal<SearchState> State { get; }
+
+    /// <summary>The time (unix seconds) the channels found show what's on at, and how far it is.</summary>
+    public Signal<long> Now { get; }
+
+    /// <summary>The server's origin: the channels' logos are on it.</summary>
+    public string Origin => source.Origin;
 
     /// <summary>The field changed: <paramref name="text"/> as it shows it.</summary>
     public void Type(string text)
@@ -310,11 +343,26 @@ public sealed class SearchModel : IDisposable
         return key;
     }
 
+    /// <summary>
+    /// What watching the Live TV channel <paramref name="id"/> found opens (null when it isn't
+    /// among the results): the live player on it, changing channel among every channel. The query
+    /// is kept among the recent searches.
+    /// </summary>
+    public LiveWatch? Watch(long id)
+    {
+        var now = shown;
+        if (!now.Channels.TryGetValue(id, out var channel)) return null;
+        Remember(now.Query);
+        return SearchRules.Watch(channel);
+    }
+
     public void Dispose()
     {
         gone = true;
         timer?.Dispose();
         timer = null;
+        ticker?.Dispose();
+        ticker = null;
         Drop();
     }
 
@@ -365,13 +413,41 @@ public sealed class SearchModel : IDisposable
     void Answered(string q, SearchAnswer answer)
     {
         var groups = SearchRules.Groups(answer, source.Origin);
+        var channels = answer.Channels ?? Array.Empty<LiveChannel>();
         var items = new Dictionary<long, ItemSummary>();
         foreach (var item in answer.Items) items[item.Id] = item;
-        shown = (q, items, new HashSet<long>((answer.People ?? Array.Empty<PersonSummary>()).Select(p => p.Id)));
-        Results(groups.Count == 0 ? new SearchResultsState.Empty(q) : new SearchResultsState.Ready(q, groups, false));
+        var found = new Dictionary<long, LiveChannel>();
+        foreach (var channel in channels) found[channel.Id] = channel;
+        shown = (q, items, new HashSet<long>((answer.People ?? Array.Empty<PersonSummary>()).Select(p => p.Id)), found);
+        // Channels alone are results: not "No results".
+        Results(groups.Count == 0 && channels.Count == 0 ? new SearchResultsState.Empty(q) : new SearchResultsState.Ready(q, groups, channels, false));
     }
 
-    void Results(SearchResultsState results) => State.Value = State.Value with { Results = results };
+    void Results(SearchResultsState results)
+    {
+        // What's on a channel found moves on while it shows; nothing ticks otherwise.
+        if (results is SearchResultsState.Ready { Channels.Count: > 0 })
+        {
+            Now.Value = scheduler.Now / 1000;
+            if (ticker == null) Tick();
+        }
+        else
+        {
+            ticker?.Dispose();
+            ticker = null;
+        }
+        State.Value = State.Value with { Results = results };
+    }
+
+    void Tick()
+    {
+        ticker = scheduler.After(SearchRules.NowTickMs, () =>
+        {
+            if (gone) return;
+            Now.Value = scheduler.Now / 1000;
+            Tick();
+        });
+    }
 }
 
 /// <summary>What the TV's search says (the Android app's strings_tv_search.xml).</summary>
@@ -381,14 +457,15 @@ public static class SearchText
     public const string Recent = "Recent searches";
     public const string RecentClear = "Clear";
     public const string EmptyTitle = "Search your libraries";
-    // Android's sentence names Live TV channels too; this app's search doesn't find them yet.
-    public const string EmptyBody = "Find movies, shows, episodes, people, artists, albums and tracks. Press OK on the field to type, or use your keyboard's microphone.";
+    public const string EmptyBody = "Find movies, shows, episodes, people, artists, albums, tracks and Live TV channels. Press OK on the field to type, or use your keyboard's microphone.";
     public const string NoneBody = "Try a different spelling or fewer words.";
     public const string Failed = "Search failed";
     public const string Retry = "Retry";
     public const string Searching = "Searching…";
 
     public const string People = "People";
+    /// <summary>The channels' row, after the titles and before People.</summary>
+    public const string LiveTv = "Live TV";
     public const string Movies = "Movies";
     public const string Shows = "Shows";
     public const string Seasons = "Seasons";

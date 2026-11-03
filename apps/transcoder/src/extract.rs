@@ -15,7 +15,7 @@ use std::time::{Duration, Instant, SystemTime};
 use futures::future::{BoxFuture, FutureExt, Shared};
 use parking_lot::Mutex;
 use pley_transcoder_api::{MediaInfo, MediaStream, StreamKind, ThumbnailRequest, Tonemapper};
-use tokio::sync::Semaphore;
+use tokio::sync::{Semaphore, watch};
 
 use crate::background::Background;
 use crate::error::{ApiError, ApiResult};
@@ -35,9 +35,18 @@ pub struct Extractor {
     subs_dir: PathBuf,
     /// Quick FFmpeg runs: thumbnails, cover art, subtitle files.
     limiter: Semaphore,
-    /// Text tracks read through the Cues at once (each with threads of its
-    /// own): a read holds its permit until it is over.
+    /// Tracks read through the Cues at once (each with threads of its own):
+    /// a text track's read holds its turn until it is over, a picture
+    /// track's lets it go whenever it waits.
     cue_reads: Arc<Semaphore>,
+    /// Reads at players elsewhere at once ([`Extractor::seek`]): apart from
+    /// `cue_reads`, so that none waits for a track's read.
+    seek_reads: Arc<Semaphore>,
+    /// Reads at players elsewhere in a picture track under way
+    /// ([`Extractor::seek`]): the rest of tracks' reads waits for them, as
+    /// they read the same disks. Those on other disks wait too, for the
+    /// second or so such a read takes.
+    seeking: Arc<watch::Sender<usize>>,
     /// FFmpeg passes over whole files for their text tracks, which take
     /// hours for a big file on a slow share: apart from the quick runs, so
     /// they never hold those up.
@@ -67,8 +76,12 @@ pub struct Extractor {
     /// How long a first answer for a picture track waits for FFmpeg to have
     /// written its header.
     header_wait: Duration,
-    /// Playbacks starting, which picture tracks wait for: they read the same
-    /// disk or share.
+    /// How long an answer for a player elsewhere waits for the read there
+    /// ([`SEEK_WAIT`]).
+    seek_wait: Duration,
+    /// Playbacks starting, which picture tracks wait for (they read the same
+    /// disk or share), and the background work subtitles a player waits for
+    /// hold while they are read through the Cues.
     background: Option<Arc<Background>>,
 }
 
@@ -85,6 +98,13 @@ const FAILED_PASSES_KEPT: usize = 1_000;
 /// written its header (the extraction may wait for a playback starting,
 /// FFmpeg for a sleeping disk), before it is a Matroska file with no block.
 const HEADER_WAIT: Duration = Duration::from_secs(30);
+/// How long an answer for a player elsewhere waits for the read there
+/// ([`Extractor::seek`]): as long as such a read may take
+/// ([`SEEK_READ_TIME`]), and a moment for the one before it. The pictures
+/// the track's read has meanwhile are those around where it started, not
+/// where this player is, and players that replace what they have with each
+/// answer would lose the pictures they had there.
+const SEEK_WAIT: Duration = Duration::from_secs(12);
 /// How often an answer for a picture track looks at how far it has come.
 const PICTURE_LOOK_EVERY: Duration = Duration::from_millis(100);
 
@@ -109,6 +129,8 @@ impl Extractor {
             subs_dir,
             limiter: Semaphore::new(concurrency.max(1)),
             cue_reads: Arc::new(Semaphore::new(concurrency.max(1))),
+            seek_reads: Arc::new(Semaphore::new(concurrency.max(1))),
+            seeking: Arc::new(watch::Sender::new(0)),
             passes: Semaphore::new(PASSES),
             extractions: Mutex::default(),
             pictures: Mutex::default(),
@@ -119,11 +141,13 @@ impl Extractor {
             keep_fresh: KEEP_FRESH,
             pass_time: whole_file_timeout,
             header_wait: HEADER_WAIT,
+            seek_wait: SEEK_WAIT,
             background: None,
         }
     }
 
-    /// Picture tracks are extracted once no playback is starting.
+    /// Picture tracks are extracted once no playback is starting, and reads
+    /// through the Cues a player waits for hold background work.
     pub fn with_background(mut self, background: Arc<Background>) -> Self {
         self.background = Some(background);
         self
@@ -233,7 +257,10 @@ impl Extractor {
         if let Some(bytes) = cached_mks(&target).await {
             return Ok(bytes);
         }
-        self.picture_extraction(&path, &track, stream).result.await.map_err(|err| err.again())?;
+        self.picture_extraction(&path, &track, stream, PictureStart::default())
+            .result
+            .await
+            .map_err(|err| err.again())?;
         Ok(tokio::fs::read(&target).await?)
     }
 
@@ -246,20 +273,34 @@ impl Extractor {
     /// track lines up with the playback position.
     ///
     /// The track's extraction (started now, unless it is under way) runs on
-    /// its own, past this request, once no playback is starting. A Matroska
-    /// file whose Cues list the track's blocks is read in seconds, and the
-    /// track comes whole. Otherwise FFmpeg copies it out, reading the whole
-    /// file (minutes for a big one on a network share): meanwhile the
-    /// answer is the Matroska FFmpeg has written so far, up to its last
-    /// whole cluster, and players ask again for the rest. A first answer
-    /// waits for FFmpeg to have written the track's header (the Matroska
-    /// with no block, after [`HEADER_WAIT`]): every answer is a file
-    /// players read.
+    /// its own, past this request. A Matroska file whose Cues list the
+    /// track's blocks is read through them: those around where the player is
+    /// (`start`) first, at once, answered with as soon as they are written;
+    /// the rest once no playback is starting (a minute or so for a remux on
+    /// a network share). Otherwise FFmpeg copies it out once no playback is
+    /// starting, reading the whole file (minutes for a big one on a network
+    /// share). Meanwhile the answer is those blocks (until FFmpeg's copy
+    /// comes past them, when a read through the Cues failed), or else the
+    /// Matroska FFmpeg has written so far, up to its last whole cluster, and
+    /// players ask again for the rest. A first answer waits for the track's
+    /// header to be written (the Matroska with no block, after
+    /// [`HEADER_WAIT`]): every answer is a file players read.
+    ///
+    /// A player that says where it is (`start`), away from where the read
+    /// through the Cues started, is answered with the blocks around there:
+    /// those the read has, when it has them all, else a read of them at once
+    /// beside it, waited for as long as such a read takes ([`SEEK_WAIT`]),
+    /// or until the track's read has them. With `rest` (a player that
+    /// reads the track once), the answer waits `wait` for the whole track,
+    /// then is everything read through the Cues so far rather than the
+    /// blocks around where the read started.
     pub async fn subtitle_matroska_so_far(
         self: &Arc<Self>,
         path: &str,
         stream: Option<i64>,
         wait: Duration,
+        start: PictureStart,
+        rest: bool,
     ) -> ApiResult<(Vec<u8>, bool)> {
         let path = existing(path)?;
         let track = picture_track_name(&path, stream)?;
@@ -267,9 +308,28 @@ impl Extractor {
         if let Some(bytes) = cached_mks(&target).await {
             return Ok((bytes, true));
         }
-        let done = self.picture_extraction(&path, &track, stream).result;
+        let extraction = self.picture_extraction(&path, &track, stream, start.clone());
+        let at_ms = start.from_ms;
+        let mut seek = None;
+        if let Some(index) = stream
+            && start.asked
+            && !near(extraction.from_ms, AROUND_START, start.from_ms)
+        {
+            // The same answer for the same place: a read there first (once
+            // it is over) unless it went over its time, else what the
+            // track's read has, else a read.
+            let latest = extraction.seek.lock().clone().filter(|seek| seek.answers(start.from_ms));
+            if latest.is_some() {
+                seek = latest;
+            } else if let Some(bytes) = extraction.so_far.lock().around(start.from_ms) {
+                return Ok((bytes, false));
+            } else {
+                seek = self.seek(&extraction, &path, &track, index, start);
+            }
+        }
+        let (done, first) = (extraction.result.clone(), extraction.first.clone());
         tokio::pin!(done);
-        let part = self.subs_dir.join(format!("{track}.mks.part"));
+        let (window, part) = (self.subs_dir.join(window_name(&track)), self.subs_dir.join(format!("{track}.mks.part")));
         let started = Instant::now();
         loop {
             tokio::select! {
@@ -279,9 +339,40 @@ impl Extractor {
                 }
                 () = tokio::time::sleep(PICTURE_LOOK_EVERY) => {}
             }
-            if started.elapsed() >= wait
-                && let Some(so_far) = readable_mks(&part).await
-            {
+            match seek.as_ref().map(|seek| seek.read.peek().cloned()) {
+                Some(Some(Some(bytes))) => return Ok((bytes.to_vec(), false)),
+                // Nothing read there (it can't be, it went over its budget,
+                // or a later one left it out): what the track's read has
+                // there, else what it has.
+                Some(Some(None)) => {
+                    seek = None;
+                    if let Some(bytes) = extraction.so_far.lock().around(at_ms) {
+                        return Ok((bytes, false));
+                    }
+                }
+                // Read there as long as such a read takes ([`SEEK_WAIT`]),
+                // unless the track's read comes past there meanwhile.
+                Some(None) if started.elapsed() < self.seek_wait.min(self.header_wait) => {
+                    if let Some(bytes) = extraction.so_far.lock().around(at_ms) {
+                        return Ok((bytes, false));
+                    }
+                    continue;
+                }
+                _ => {}
+            }
+            let ready = started.elapsed() >= wait || (!rest && first.load(Ordering::Acquire));
+            if ready && rest {
+                if let Some(so_far) = so_far_bytes(&extraction.so_far).await {
+                    return Ok((so_far, false));
+                }
+                // All of it is being written whole: it comes in a moment.
+                if extraction.so_far.lock().writing && started.elapsed() < self.header_wait {
+                    continue;
+                }
+            }
+            // What the player wants first is there: no need to wait for more.
+            let window_until_ms = extraction.from_ms.saturating_add(PICTURES_AFTER_MS);
+            if ready && let Some(so_far) = picture_track_so_far(&window, &part, window_until_ms).await {
                 return Ok((so_far, false));
             }
             if started.elapsed() >= self.header_wait {
@@ -292,26 +383,36 @@ impl Extractor {
     }
 
     /// The extraction of picture track `track` under way, or one started
-    /// now. It runs on its own, to the cache: requests waiting for it may go
-    /// away. A track whose pass over the file failed lately has that failure
-    /// for an answer.
-    fn picture_extraction(self: &Arc<Self>, path: &Path, track: &str, stream: Option<i64>) -> PictureExtraction {
+    /// now (from `start`, see [`Extractor::subtitle_matroska_so_far`]). It
+    /// runs on its own, to the cache: requests waiting for it may go away. A
+    /// track whose pass over the file failed lately has that failure for an
+    /// answer.
+    fn picture_extraction(
+        self: &Arc<Self>,
+        path: &Path,
+        track: &str,
+        stream: Option<i64>,
+        start: PictureStart,
+    ) -> PictureExtraction {
         let mut extractions = self.pictures.lock();
         if let Some(running) = extractions.get(track) {
             return running.clone();
         }
         let failed_key = format!("{track}.mks");
+        let from_ms = start.from_ms;
+        let read = PictureRead::default();
         if let Some(err) = self.failed_pass(&failed_key) {
             let failed = async move { Err(err) };
-            return PictureExtraction { id: u64::MAX, result: failed.boxed().shared() };
+            return PictureExtraction::new(u64::MAX, from_ms, failed.boxed().shared(), read);
         }
         Metrics::inc(&self.metrics.subtitle_extractions);
         let id = self.next_extraction.fetch_add(1, Ordering::Relaxed);
-        let (this, path, entry) = (self.clone(), path.to_owned(), track.to_owned());
+        let (this, path, entry, reading) = (self.clone(), path.to_owned(), track.to_owned(), read.clone());
         let task = tokio::spawn(async move {
             let _over = ForgetPictures { extractor: this.clone(), track: entry.clone(), id };
             let mut by_ffmpeg = false;
-            let result = this.extract_pictures(&path, &entry, stream, &mut by_ffmpeg).await.map_err(Arc::new);
+            let result =
+                this.extract_pictures(&path, &entry, stream, start, &reading, &mut by_ffmpeg).await.map_err(Arc::new);
             if let Err(err) = &result
                 && by_ffmpeg
             {
@@ -320,31 +421,112 @@ impl Extractor {
             result
         });
         let result = async move { task.await.unwrap_or_else(|err| Err(Arc::new(ApiError::Internal(err.into())))) };
-        let extraction = PictureExtraction { id, result: result.boxed().shared() };
+        let extraction = PictureExtraction::new(id, from_ms, result.boxed().shared(), read);
         extractions.insert(track.to_owned(), extraction.clone());
         extraction
     }
 
+    /// The blocks of picture track `index` around where a player is
+    /// (`start`), read through the Cues beside the track's read
+    /// (`extraction`): `None` when the track isn't read through its Cues.
+    /// One is read at a time: a later one waits for it, and one a later one
+    /// replaces meanwhile isn't read.
+    fn seek(
+        &self,
+        extraction: &PictureExtraction,
+        path: &Path,
+        track: &str,
+        index: i64,
+        start: PictureStart,
+    ) -> Option<Seek> {
+        if self.unreadable.lock().iter().any(|t| t == track) {
+            return None;
+        }
+        let mut latest = extraction.seek.lock();
+        let (prober, seek_reads, path) = (self.prober.clone(), self.seek_reads.clone(), path.to_owned());
+        let (seeking, seeks, background) = (self.seeking.clone(), extraction.seeks.clone(), self.background.clone());
+        let before = latest.as_ref().map(|seek| seek.read.clone());
+        let this_one = seeks.fetch_add(1, Ordering::Relaxed) + 1;
+        let (at_ms, asked, path_name) = (start.from_ms, Instant::now(), path.display().to_string());
+        let ran_out = Arc::new(AtomicBool::new(false));
+        let over_time = ran_out.clone();
+        let read = async move {
+            if let Some(before) = before {
+                before.await;
+            }
+            if seeks.load(Ordering::Relaxed) != this_one {
+                return None;
+            }
+            let media = match start.media {
+                Some(media) => media,
+                None => prober.probe(&path).await.ok()?,
+            };
+            if !is_matroska(&media) {
+                return None;
+            }
+            let permit = seek_reads.acquire_owned().await.ok()?;
+            if seeks.load(Ordering::Relaxed) != this_one {
+                return None;
+            }
+            let _seeking = Seeking::new(seeking);
+            // A player waits for these: background work makes way.
+            let _reading = background.as_ref().map(|background| background.subtitles());
+            let read = tokio::task::spawn_blocking(move || {
+                let _permit = permit;
+                window_through_cues(&path, &media, index, at_ms)
+            })
+            .await
+            .ok()?;
+            match read {
+                Ok(window) => {
+                    let took = asked.elapsed().as_millis();
+                    tracing::debug!("picture subtitles of {path_name} at {at_ms} ms read in {took} ms");
+                    Some(Arc::new(window))
+                }
+                Err(reason) => {
+                    tracing::debug!("picture subtitles of {path_name} at {at_ms} ms not read: {reason}");
+                    over_time.store(reason == matroska::TOOK_TOO_LONG, Ordering::Relaxed);
+                    None
+                }
+            }
+        }
+        .boxed()
+        .shared();
+        // Read on its own: a player that goes away asks again.
+        tokio::spawn(read.clone());
+        let seek = Seek { at_ms, read, ran_out };
+        *latest = Some(seek.clone());
+        Some(seek)
+    }
+
     /// Picture track `track` copied into `{track}.mks` in the cache: through
-    /// the Cues of a Matroska file that lists its blocks, else by FFmpeg
-    /// (`by_ffmpeg` is set then). Waits for playbacks starting first: they
-    /// read the same disk or share.
+    /// the Cues of a Matroska file that lists its blocks (from around
+    /// `start` first, into `read` as it goes), else by FFmpeg (`by_ffmpeg` is
+    /// set then). What isn't wanted at once waits for playbacks starting:
+    /// they read the same disk or share.
     async fn extract_pictures(
         &self,
         path: &Path,
         track: &str,
         stream: Option<i64>,
+        start: PictureStart,
+        read: &PictureRead,
         by_ffmpeg: &mut bool,
     ) -> ApiResult<()> {
-        if let Some(background) = &self.background {
-            background.wait_for_starts().await;
-        }
         let target = self.subs_dir.join(format!("{track}.mks"));
         if cached_mks(&target).await.is_some() {
             return Ok(());
         }
+        // What an earlier run left (the transcoder stopped): not this one's.
+        let window = self.subs_dir.join(window_name(track));
+        for left in [&window, &self.subs_dir.join(format!("{track}.mks.part"))] {
+            let _ = tokio::fs::remove_file(left).await;
+        }
         if let Some(index) = stream {
-            let media = self.prober.probe(path).await.map_err(|e| ApiError::Failed(format!("probe failed: {e:#}")))?;
+            let media = match start.media {
+                Some(media) => media,
+                None => self.prober.probe(path).await.map_err(|e| ApiError::Failed(format!("probe failed: {e:#}")))?,
+            };
             let picture = media
                 .streams
                 .iter()
@@ -352,46 +534,105 @@ impl Extractor {
             if !picture {
                 return Err(ApiError::BadRequest(format!("stream {index} is not a picture subtitle track")));
             }
-            if self.pictures_through_cues(path, track, &media, index, &target).await? {
+            if self.pictures_through_cues(path, track, &media, index, start.from_ms, read, &target).await? {
                 return Ok(());
             }
         }
+        if let Some(background) = &self.background {
+            background.wait_for_starts().await;
+        }
         *by_ffmpeg = true;
-        self.pictures_through_ffmpeg(path, track, stream, &target).await
+        let copied = self.pictures_through_ffmpeg(path, track, stream, &target).await;
+        // A window a failed read through the Cues left stood in till now.
+        let _ = tokio::fs::remove_file(&window).await;
+        copied
     }
 
-    /// Picture track `index` of a Matroska file read through its Cues and
-    /// written to `target`: whether the file allowed it (else FFmpeg has to
-    /// read it).
+    /// Picture track `index` of a Matroska file read through its Cues (from
+    /// around `from_ms` first, written whole to its window, then `first`
+    /// set; each stretch into `so_far` as it is read) and written to
+    /// `target`: whether the file allowed it (else FFmpeg has to read it).
+    #[allow(clippy::too_many_arguments)]
     async fn pictures_through_cues(
         &self,
         path: &Path,
         track: &str,
         media: &Arc<MediaInfo>,
         index: i64,
+        from_ms: i64,
+        read: &PictureRead,
         target: &Path,
     ) -> ApiResult<bool> {
-        let matroska = media.format_name.as_deref().is_some_and(|names| names.split(',').any(|n| n == "matroska"));
-        if !matroska || self.unreadable.lock().iter().any(|t| t == track) {
+        if !is_matroska(media) || self.unreadable.lock().iter().any(|t| t == track) {
             return Ok(false);
         }
-        let permit = self.cue_reads.clone().acquire_owned().await.map_err(|e| ApiError::Internal(e.into()))?;
-        let (file, media, target) = (path.to_owned(), media.clone(), target.to_owned());
+        let cue_reads = self.cue_reads.clone();
+        let permit = cue_reads.clone().acquire_owned().await.map_err(|e| ApiError::Internal(e.into()))?;
+        // A player waits for these: background work makes way.
+        let reading = self.background.as_ref().map(|background| background.subtitles());
+        let window = self.subs_dir.join(window_name(track));
+        let (file, media, target, first) = (path.to_owned(), media.clone(), target.to_owned(), read.first.clone());
+        let (so_far, around_read) = (read.so_far.clone(), read.first.clone());
+        let (background, runtime, seeking) =
+            (self.background.clone(), tokio::runtime::Handle::current(), self.seeking.clone());
         let read = tokio::task::spawn_blocking(move || {
-            let _permit = permit;
-            write_through_cues(&file, &media, index, &target)
+            // Its turn let go of whenever it waits, and taken again after:
+            // another track's first blocks, and text tracks, needn't wait for
+            // this one's rest (minutes for a remux on a busy NAS).
+            let permit = Mutex::new(Some(permit));
+            // What a player waits for, which may read the same disks: a
+            // playback starting, the pictures at a player's seek.
+            let busy = || *seeking.borrow() > 0 || background.as_ref().is_some_and(|b| b.starting());
+            // Its turn let go of until that is over and the turn comes back:
+            // one that starts while it waits for the turn goes first too, the
+            // turn given back. How long it waited.
+            let wait = || {
+                let started = Instant::now();
+                drop(permit.lock().take());
+                let mut seeking = seeking.subscribe();
+                runtime.block_on(async {
+                    loop {
+                        if let Some(background) = &background {
+                            background.wait_for_starts().await;
+                        }
+                        let _ = seeking.wait_for(|reads| *reads == 0).await;
+                        let turn = cue_reads.clone().acquire_owned().await.ok();
+                        if !busy() {
+                            *permit.lock() = turn;
+                            break;
+                        }
+                    }
+                });
+                started.elapsed()
+            };
+            let first_written = || {
+                first.store(true, Ordering::Release);
+                wait()
+            };
+            // Read by read too, within a stretch.
+            let gate = Mutex::new(());
+            let aside = |budget: &matroska::Budget| step_aside(&gate, busy, wait, budget);
+            write_through_cues(&file, &media, index, from_ms, &so_far, &window, &target, first_written, wait, &aside)
         })
         .await
         .unwrap_or_else(|e| Err(format!("the read through the cues failed: {e}")));
+        drop(reading);
         match read {
             Ok(()) => Ok(true),
             Err(reason) => {
-                tracing::debug!("picture subtitles of {} copied by ffmpeg: {reason}", path.display());
-                let mut unreadable = self.unreadable.lock();
-                if unreadable.len() == UNREADABLE_KEPT {
-                    unreadable.pop_front();
+                // It starts a pass over the whole file: minutes for a big one
+                // on a network share.
+                tracing::info!("picture subtitles of {} are copied by ffmpeg: {reason}", path.display());
+                // A read that got the blocks around the player read through
+                // these Cues (a busy disk most often runs it out of time):
+                // reads at seeks go on while FFmpeg copies the track.
+                if !around_read.load(Ordering::Acquire) {
+                    let mut unreadable = self.unreadable.lock();
+                    if unreadable.len() == UNREADABLE_KEPT {
+                        unreadable.pop_front();
+                    }
+                    unreadable.push_back(track.to_owned());
                 }
-                unreadable.push_back(track.to_owned());
                 Ok(false)
             }
         }
@@ -426,9 +667,10 @@ impl Extractor {
             .args(["-fs", &(MAX_EXTRACTED + 1).to_string()])
             .arg(input_arg(&part));
         let _permit = self.passes.acquire().await.map_err(|e| ApiError::Internal(e.into()))?;
-        let result =
-            kept_fresh(run_capture(cmd, (self.pass_time)(path)), self.keep_fresh, || mark_written(&[part.as_path()]))
-                .await;
+        // A window a failed read through the Cues left is served meanwhile.
+        let window = self.subs_dir.join(window_name(track));
+        let written = || mark_written(&[part.as_path(), window.as_path()]);
+        let result = kept_fresh(run_capture(cmd, (self.pass_time)(path)), self.keep_fresh, written).await;
         let result = match result {
             Ok(_) => match tokio::fs::metadata(&part).await {
                 Ok(made) if made.len() > MAX_EXTRACTED => {
@@ -660,6 +902,8 @@ impl Extractor {
             return Ok(None);
         }
         let permit = self.cue_reads.clone().acquire_owned().await.map_err(|e| ApiError::Internal(e.into()))?;
+        // A player waits for these: background work makes way.
+        let reading = self.background.as_ref().map(|background| background.subtitles());
         let (file, media, target) = (path.to_owned(), media.clone(), self.subs_dir.join(format!("{track}.vtt")));
         let read = tokio::task::spawn_blocking(move || {
             let _permit = permit;
@@ -667,6 +911,7 @@ impl Extractor {
         })
         .await
         .unwrap_or_else(|e| Err(format!("the read through the cues failed: {e}")));
+        drop(reading);
         match read {
             Ok(text) => Ok(Some(text)),
             Err(reason) => {
@@ -852,11 +1097,180 @@ impl Extraction {
     }
 }
 
+/// Where a picture track's copy starts: where the player is (ms of the
+/// track's time; the blocks around it come first), and the file's media
+/// information when the caller has it (no probe then, while a playback
+/// starts).
+#[derive(Clone, Default)]
+pub struct PictureStart {
+    pub from_ms: i64,
+    pub media: Option<Arc<MediaInfo>>,
+    /// Whether the player said where it is.
+    pub asked: bool,
+}
+
+impl PictureStart {
+    /// From `from_ms`, with `media` when it says how long the file is and
+    /// when it starts (as a job's media must).
+    pub fn new(from_ms: Option<i64>, media: Option<MediaInfo>) -> Self {
+        let media = media.filter(|m| {
+            m.duration_ms.is_some_and(|d| d > 0 && d <= MAX_DURATION_MS)
+                && m.start_ms.is_some()
+                && !m.streams.is_empty()
+        });
+        Self { from_ms: from_ms.unwrap_or(0), media: media.map(Arc::new), asked: from_ms.is_some() }
+    }
+}
+
 /// A picture track's extraction under way, and which one it is.
 #[derive(Clone)]
 struct PictureExtraction {
     id: u64,
+    /// Where its read through the Cues starts (ms of the track's time).
+    from_ms: i64,
     result: Shared<BoxFuture<'static, Result<(), Arc<ApiError>>>>,
+    /// Set once the blocks from where the player is are written (read
+    /// through the Cues): an answer needn't wait any longer.
+    first: Arc<AtomicBool>,
+    /// The track read through the Cues so far.
+    so_far: Arc<Mutex<SoFar>>,
+    /// The latest read at a player elsewhere...
+    seek: Arc<Mutex<Option<Seek>>>,
+    /// ...and how many there have been.
+    seeks: Arc<AtomicU64>,
+}
+
+/// What an extraction's read through the Cues shares with its answers.
+#[derive(Clone, Default)]
+struct PictureRead {
+    first: Arc<AtomicBool>,
+    so_far: Arc<Mutex<SoFar>>,
+}
+
+impl PictureExtraction {
+    fn new(
+        id: u64,
+        from_ms: i64,
+        result: Shared<BoxFuture<'static, Result<(), Arc<ApiError>>>>,
+        read: PictureRead,
+    ) -> Self {
+        let PictureRead { first, so_far } = read;
+        Self { id, from_ms, result, first, so_far, seek: Arc::default(), seeks: Arc::default() }
+    }
+}
+
+/// A picture track as read through the Cues so far: its codec and header,
+/// the blocks of the stretches read (each stretch in order of time), and
+/// the spans of the track's time whose blocks are all read.
+#[derive(Default)]
+struct SoFar {
+    track: Option<(&'static str, Vec<u8>)>,
+    blocks: Vec<mks::Block>,
+    /// Apart from one another, from and until (ms).
+    spans: Vec<(i64, i64)>,
+    /// Its blocks are taken out to be written to the track's file: whole in
+    /// a moment, unless that fails.
+    writing: bool,
+}
+
+impl SoFar {
+    /// Takes in a stretch read.
+    fn add(&mut self, stretch: Stretch) {
+        self.track.get_or_insert((stretch.codec, stretch.header));
+        self.blocks.extend(stretch.blocks);
+        // Stretches read one after the other make one span.
+        let Some((mut from, mut until)) = stretch.span else { return };
+        self.spans.retain(|&(a, b)| {
+            let apart = b < from || a > until;
+            if !apart {
+                (from, until) = (from.min(a), until.max(b));
+            }
+            apart
+        });
+        self.spans.push((from, until));
+    }
+
+    /// The blocks around a player at `at_ms` ([`AROUND_SEEK`]) as a
+    /// Matroska file, when they are all read.
+    fn around(&self, at_ms: i64) -> Option<Vec<u8>> {
+        let (codec, header) = self.track.as_ref()?;
+        let (from, until) = (at_ms.saturating_sub(AROUND_SEEK.0), at_ms.saturating_add(AROUND_SEEK.1));
+        self.spans.iter().find(|&&(a, b)| a <= from && until <= b)?;
+        let mut blocks: Vec<mks::Block> =
+            self.blocks.iter().filter(|b| (from..until).contains(&b.time_ms)).cloned().collect();
+        blocks.sort_by_key(|b| b.time_ms);
+        Some(mks::to_bytes(codec, header, &blocks))
+    }
+
+    /// A copy of what is read so far: the track's codec and header, and
+    /// the blocks.
+    fn copy(&self) -> Option<(&'static str, Vec<u8>, Vec<mks::Block>)> {
+        let (codec, header) = self.track.clone()?;
+        Some((codec, header, self.blocks.clone()))
+    }
+}
+
+/// What a read through the Cues has read so far ([`SoFar`]), in order of
+/// time, as a Matroska file; `None` before its first stretch is. Copied
+/// under the lock, made off the async workers: it is tens of megabytes for
+/// a Blu-ray's track.
+async fn so_far_bytes(so_far: &Mutex<SoFar>) -> Option<Vec<u8>> {
+    let (codec, header, mut blocks) = so_far.lock().copy()?;
+    tokio::task::spawn_blocking(move || {
+        blocks.sort_by_key(|b| b.time_ms);
+        mks::to_bytes(codec, &header, &blocks)
+    })
+    .await
+    .ok()
+}
+
+/// A read at a player elsewhere under way, counted in
+/// [`Extractor::seeking`] while it lasts.
+struct Seeking(Arc<watch::Sender<usize>>);
+
+impl Seeking {
+    fn new(reads: Arc<watch::Sender<usize>>) -> Self {
+        reads.send_modify(|n| *n += 1);
+        Self(reads)
+    }
+}
+
+impl Drop for Seeking {
+    fn drop(&mut self) {
+        self.0.send_modify(|n| *n -= 1);
+    }
+}
+
+/// The blocks of a picture track around where a player is, read beside the
+/// track's read ([`Extractor::seek`]).
+#[derive(Clone)]
+struct Seek {
+    /// Where the player is (ms of the track's time).
+    at_ms: i64,
+    /// The blocks as a Matroska file once read; `None` when they couldn't be.
+    read: Shared<BoxFuture<'static, Option<Arc<Vec<u8>>>>>,
+    /// Set when the read went over its time ([`matroska::TOOK_TOO_LONG`]).
+    ran_out: Arc<AtomicBool>,
+}
+
+impl Seek {
+    /// Whether this read is the answer for a player at `at_ms`: near it,
+    /// unless it went over its time. The disk was busy then, and the
+    /// player's next ask reads there again. One that got nothing otherwise
+    /// would get nothing again (the blocks there can't be read through the
+    /// Cues, or are more than its budget), and stays the answer.
+    fn answers(&self, at_ms: i64) -> bool {
+        near(self.at_ms, AROUND_SEEK, at_ms) && !self.ran_out.load(Ordering::Relaxed)
+    }
+}
+
+/// Whether a player at `at_ms` has what it needs in the blocks read around
+/// `from_ms` (`around`: that long before it and after it): what shows
+/// there, and a while more, as it asks again every few seconds.
+fn near(from_ms: i64, (before, after): (i64, i64), at_ms: i64) -> bool {
+    let first = from_ms.saturating_sub(before / 2);
+    let last = from_ms.saturating_add(after / 2);
+    (first..=last).contains(&at_ms)
 }
 
 /// [`Forget`] for a picture track.
@@ -897,13 +1311,37 @@ async fn cached_mks(path: &Path) -> Option<Vec<u8>> {
     Some(bytes)
 }
 
-/// The Matroska FFmpeg is writing at `part`, as far as it can be read
-/// ([`mks::readable`]); `None` before its header is there.
-async fn readable_mks(part: &Path) -> Option<Vec<u8>> {
+/// The Matroska FFmpeg is writing at `part`, as far as it can be read, and
+/// how far into the track's time that goes ([`mks::readable_to`]); `None`
+/// before its header is there.
+async fn readable_mks(part: &Path) -> Option<(Vec<u8>, Option<i64>)> {
     let mut bytes = tokio::fs::read(part).await.ok()?;
-    let end = mks::readable(&bytes)?;
+    let (end, until_ms) = mks::readable_to(&bytes)?;
     bytes.truncate(end);
-    Some(bytes)
+    Some((bytes, until_ms))
+}
+
+/// Where the blocks of picture track `track` around where the player is are
+/// kept while the rest is read ([`write_through_cues`]): a temporary.
+fn window_name(track: &str) -> String {
+    format!("{track}.window.part")
+}
+
+/// What players are given of a picture track that isn't whole yet: the
+/// blocks around where the player is (written whole at `window`, those
+/// before `window_until_ms`), else what FFmpeg has written of it at `part`.
+/// While FFmpeg copies the track after a read through the Cues failed, the
+/// window stays until FFmpeg's copy has come past it: players keep the
+/// pictures they were given, then have those after them as FFmpeg goes on.
+async fn picture_track_so_far(window: &Path, part: &Path, window_until_ms: i64) -> Option<Vec<u8>> {
+    let window = match tokio::fs::read(window).await {
+        Ok(bytes) if mks::readable(&bytes) == Some(bytes.len()) => bytes,
+        _ => return readable_mks(part).await.map(|(bytes, _)| bytes),
+    };
+    match readable_mks(part).await {
+        Some((bytes, Some(until_ms))) if until_ms >= window_until_ms => Some(bytes),
+        _ => Some(window),
+    }
 }
 
 /// The most a picture track read through the Cues keeps in memory (see
@@ -912,38 +1350,220 @@ async fn readable_mks(part: &Path) -> Option<Vec<u8>> {
 /// FFmpeg, which copies it a packet at a time.
 const PICTURE_READ_BYTES: u64 = 192 << 20;
 
+/// How long reading a picture track through the Cues of a file of `bytes`
+/// may take: as long as FFmpeg, which reads the whole file instead, would
+/// take at a gigabit network's pace (100 MB/s), a minute at least. A
+/// Blu-ray's track takes thousands of reads, each a seek on a disk: a minute
+/// or so on a busy NAS, where FFmpeg would take a quarter of an hour over a
+/// remux.
+fn picture_read_time(bytes: u64) -> Duration {
+    CUE_READ_TIME.max(Duration::from_secs(bytes / 100_000_000))
+}
+
+/// How long reading a picture track through the Cues of the file at `path`
+/// may take: see [`picture_read_time`].
+fn picture_read_timeout(path: &Path) -> Duration {
+    picture_read_time(std::fs::metadata(path).map(|m| m.len()).unwrap_or(0))
+}
+
+/// The picture subtitles read through the Cues first: from this long before
+/// where the player is (what shows there may have started a while before)
+/// to this long after it (the rest comes after; each block more is a read,
+/// which is what the first answer waits for).
+const PICTURES_BEFORE_MS: i64 = 30_000;
+const PICTURES_AFTER_MS: i64 = 2 * 60_000;
+/// The blocks read around where a playback starts: see the two above.
+const AROUND_START: (i64, i64) = (PICTURES_BEFORE_MS, PICTURES_AFTER_MS);
+/// The blocks read around a player elsewhere, beside the track's read
+/// ([`Extractor::seek`]): fewer, so they come sooner; the player asks again
+/// as it plays on.
+const AROUND_SEEK: (i64, i64) = (10_000, 40_000);
+
+/// A reader of a track's rest steps aside while `busy`: the first to pass
+/// `gate` waits that out (`wait` says how long) and gives the read's
+/// `budget` that time, while the others wait for it, then go on. One that
+/// comes while a wait is under way waits for it too, `busy` or not: the turn
+/// may not be back yet.
+fn step_aside(gate: &Mutex<()>, busy: impl Fn() -> bool, wait: impl FnOnce() -> Duration, budget: &matroska::Budget) {
+    if !busy() && !gate.is_locked() {
+        return;
+    }
+    let _gate = gate.lock();
+    if busy() {
+        budget.extend(wait());
+    }
+}
+
 /// Picture track `index` of a Matroska file, read through its Cues as FFmpeg
-/// would have copied it (its times as [`as_webvtt`] takes them), written to
-/// `target` (to a temporary file beside it, then renamed); an error says why
-/// FFmpeg has to read the file instead. Blocking.
-fn write_through_cues(path: &Path, media: &MediaInfo, index: i64, target: &Path) -> Result<(), String> {
+/// would have copied it (its times as [`as_webvtt`] takes them) and written
+/// to `target` (to a temporary file beside it, then renamed); an error says
+/// why FFmpeg has to read the file instead. The blocks around `from_ms` are
+/// read first, at once, and written to `window` the same way, unless they
+/// are all of it; then `first_written` hears so, holds the rest up as
+/// `between` does, and says how long it waited. Each stretch read is in
+/// `so_far` from then on; after each but the last, `between` holds the next
+/// up while playbacks start, reads at players elsewhere go on and other
+/// reads take the turn, and says how long it waited. Within those stretches,
+/// `step_aside` holds the readers up before each block while playbacks start
+/// or reads at players elsewhere go on (one of them letting the turn go
+/// meanwhile), and gives the budget that time. Blocking.
+#[allow(clippy::too_many_arguments)]
+fn write_through_cues(
+    path: &Path,
+    media: &MediaInfo,
+    index: i64,
+    from_ms: i64,
+    so_far: &Mutex<SoFar>,
+    window: &Path,
+    target: &Path,
+    first_written: impl FnOnce() -> Duration,
+    mut between: impl FnMut() -> Duration,
+    step_aside: matroska::StepAside,
+) -> Result<(), String> {
     let started = Instant::now();
-    let budget = matroska::Budget::new(PICTURE_READ_BYTES, CUE_READ_TIME);
-    let found = matroska::picture_tracks(path, media, &[index], &budget)?;
-    let (tick_ns, whole_ms, reads, bytes_read) = (found.tick_ns, found.whole_ms, found.reads, found.bytes_read);
-    let track = found.tracks.into_iter().next().ok_or("no track read")?;
-    let mut blocks: Vec<mks::Block> = Vec::with_capacity(track.blocks.len());
-    for block in track.blocks {
-        let (time_ms, duration_ms) = ffmpeg_times(tick_ns, whole_ms, media, block.time, block.duration)
-            .ok_or_else(|| format!("stream {index} has a block at a time out of range"))?;
+    let budget = matroska::Budget::new(PICTURE_READ_BYTES, picture_read_timeout(path));
+    let mut first_written = Some(first_written);
+    let (mut reads, mut bytes_read, mut first_ms) = (0, 0, None);
+    let around = (from_ms.saturating_sub(PICTURES_BEFORE_MS), from_ms.saturating_add(PICTURES_AFTER_MS));
+    let read = matroska::picture_tracks(path, media, &[index], &budget, around, step_aside, |found| {
+        let (reads_now, bytes_now, more) = (found.reads, found.bytes_read, found.more);
+        let stretch = stretch_of(found, media, index)?;
+        (reads, bytes_read) = (reads + reads_now, bytes_read + bytes_now);
+        let mut so_far = so_far.lock();
+        so_far.add(stretch);
+        if more && let Some(first_written) = first_written.take() {
+            first_ms = Some(started.elapsed().as_millis());
+            // Written outside the lock, which answers take.
+            let (codec, header, blocks) = so_far.copy().ok_or("no track read")?;
+            drop(so_far);
+            write_mks(window, codec, &header, &blocks)?;
+            // Time spent waiting isn't time spent reading.
+            budget.extend(first_written());
+        } else if more {
+            drop(so_far);
+            budget.extend(between());
+        }
+        Ok(())
+    });
+    // Taken out of the lock (answers meanwhile wait for the file), and let
+    // go of once written.
+    let writing = SoFar { writing: true, ..SoFar::default() };
+    let SoFar { track, mut blocks, .. } = std::mem::replace(&mut *so_far.lock(), writing);
+    // Around the player first, then after, then before.
+    blocks.sort_by_key(|b| b.time_ms);
+    let written = read.and_then(|()| {
+        let (codec, header) = track.as_ref().ok_or("no track read")?;
+        write_mks(target, codec, header, &blocks)
+    });
+    if let Err(reason) = written {
+        // A window players were given stays theirs until FFmpeg's copy comes
+        // past it; what was read stands in only where there was none.
+        if first_ms.is_none()
+            && let Some((codec, header)) = &track
+        {
+            let _ = write_mks(window, codec, header, &blocks);
+        }
+        so_far.lock().writing = false;
+        return Err(reason);
+    }
+    let _ = std::fs::remove_file(window);
+    tracing::debug!(
+        "picture subtitles of {} read through the cues in {} ms, those from {} s in {} ms ({} blocks, {reads} \
+         reads, {} KB)",
+        path.display(),
+        started.elapsed().as_millis(),
+        around.0.max(0) / 1000,
+        first_ms.unwrap_or_else(|| started.elapsed().as_millis()),
+        blocks.len(),
+        bytes_read / 1024
+    );
+    Ok(())
+}
+
+/// A stretch of a picture track read through the Cues: the track's codec
+/// and header, the stretch's blocks as FFmpeg times them, in order, and the
+/// span of the track's time (ms, from and until) whose blocks they are all
+/// of.
+struct Stretch {
+    codec: &'static str,
+    header: Vec<u8>,
+    blocks: Vec<mks::Block>,
+    /// `None` when it can't be told.
+    span: Option<(i64, i64)>,
+}
+
+/// The stretch of picture track `index` (the one asked for) read through
+/// the Cues.
+fn stretch_of(found: matroska::PictureTracks, media: &MediaInfo, index: i64) -> Result<Stretch, String> {
+    let out_of_range = || format!("stream {index} has a block at a time out of range");
+    let (tick_ns, whole_ms) = (found.tick_ns, found.whole_ms);
+    let ms = |ticks: u64| match i64::try_from(ticks) {
+        Ok(ticks) => ffmpeg_times(tick_ns, whole_ms, media, ticks, 0).map(|(ms, _)| ms),
+        Err(_) => Some(i64::MAX),
+    };
+    // From the start of the file: from the start of the track, whenever the
+    // file starts.
+    let span = found.span.and_then(|(from, until)| {
+        let from = if from == 0 { Some(i64::MIN) } else { ms(from) };
+        Some((from?, ms(until)?))
+    });
+    let stretch = found.tracks.into_iter().next().ok_or("no track read")?;
+    let mut blocks: Vec<mks::Block> = Vec::with_capacity(stretch.blocks.len());
+    for block in stretch.blocks {
+        let (time_ms, duration_ms) =
+            ffmpeg_times(tick_ns, whole_ms, media, block.time, block.duration).ok_or_else(out_of_range)?;
         if time_ms < 0 || blocks.last().is_some_and(|b| b.time_ms > time_ms) {
             return Err(format!("stream {index} has blocks before the start or out of order"));
         }
         blocks.push(mks::Block { time_ms, duration_ms, data: block.data });
     }
+    Ok(Stretch { codec: stretch.codec, header: stretch.header, blocks, span })
+}
+
+/// What a read of the blocks around a player elsewhere may keep in memory
+/// (see [`matroska::Budget`]), the Cues it finds them by included, and how
+/// long it may take: a minute or so of a track, read in about a second.
+const SEEK_READ_BYTES: u64 = 32 << 20;
+const SEEK_READ_TIME: Duration = Duration::from_secs(10);
+
+/// Whether FFmpeg took the file of `media` for Matroska (or WebM): only
+/// those are read through their Cues.
+fn is_matroska(media: &MediaInfo) -> bool {
+    media.format_name.as_deref().is_some_and(|names| names.split(',').any(|n| n == "matroska"))
+}
+
+/// What a read of the blocks around a player stops with once it has them.
+const WINDOW_READ: &str = "the pictures around the player are read";
+
+/// The blocks of picture track `index` of a Matroska file around `at_ms`
+/// ([`AROUND_SEEK`]), read through its Cues within a budget of their own
+/// ([`SEEK_READ_BYTES`]), as a Matroska file of their own. Blocking.
+fn window_through_cues(path: &Path, media: &MediaInfo, index: i64, at_ms: i64) -> Result<Vec<u8>, String> {
+    let around = (at_ms.saturating_sub(AROUND_SEEK.0), at_ms.saturating_add(AROUND_SEEK.1));
+    let budget = matroska::Budget::new(SEEK_READ_BYTES, SEEK_READ_TIME);
+    let mut window = None;
+    // Only the first stretch is read: nothing to step aside for.
+    let read = matroska::picture_tracks(path, media, &[index], &budget, around, &|_| {}, |found| {
+        let stretch = stretch_of(found, media, index)?;
+        window = Some(mks::to_bytes(stretch.codec, &stretch.header, &stretch.blocks));
+        Err(WINDOW_READ.into())
+    });
+    match (read, window) {
+        (_, Some(window)) => Ok(window),
+        (Err(reason), None) => Err(reason),
+        (Ok(()), None) => Err("no track read".into()),
+    }
+}
+
+/// A picture track (`codec`, its `header`, its `blocks` in order of time)
+/// written whole to `target`: to a temporary file beside it, then renamed.
+fn write_mks(target: &Path, codec: &str, header: &[u8], blocks: &[mks::Block]) -> Result<(), String> {
     let tmp = target.with_file_name(format!(".{}.mks.tmp", uuid::Uuid::new_v4().simple()));
-    let written = mks::write(&tmp, track.codec, &track.header, &blocks).and_then(|()| std::fs::rename(&tmp, target));
+    let written = mks::write(&tmp, codec, header, blocks).and_then(|()| std::fs::rename(&tmp, target));
     if let Err(err) = written {
         let _ = std::fs::remove_file(&tmp);
         return Err(format!("the track couldn't be written: {err}"));
     }
-    tracing::debug!(
-        "picture subtitles of {} read through the cues in {} ms ({} blocks, {reads} reads, {} KB)",
-        path.display(),
-        started.elapsed().as_millis(),
-        blocks.len(),
-        bytes_read / 1024
-    );
     Ok(())
 }
 
@@ -1803,7 +2423,8 @@ mod tests {
         let wait = Duration::from_secs(10);
         // The first answer is the whole track, read through the Cues, so the
         // player stops asking...
-        let (bytes, complete) = extractor.subtitle_matroska_so_far(&name, Some(3), wait).await.unwrap();
+        let (bytes, complete) =
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, PictureStart::default(), false).await.unwrap();
         assert!(complete);
         assert_eq!(mks::readable(&bytes), Some(bytes.len()));
         assert!(bytes.windows(10).any(|w| w == b"S_HDMV/PGS"));
@@ -1812,10 +2433,13 @@ mod tests {
         let cached = dir.path().join("subtitles").join(format!("{key}_3.mks"));
         assert_eq!(std::fs::read(&cached).unwrap(), bytes);
         assert_eq!(extractor.subtitle_matroska(&name, Some(3)).await.unwrap(), bytes);
-        assert_eq!(extractor.subtitle_matroska_so_far(&name, Some(3), wait).await.unwrap(), (bytes, true));
+        assert_eq!(
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, PictureStart::default(), false).await.unwrap(),
+            (bytes, true)
+        );
         assert_eq!(extractions(&extractor), 1);
         // Text isn't pictures.
-        let text = extractor.subtitle_matroska_so_far(&name, Some(2), wait).await;
+        let text = extractor.subtitle_matroska_so_far(&name, Some(2), wait, PictureStart::default(), false).await;
         assert!(matches!(text, Err(ApiError::BadRequest(_))), "{text:?}");
     }
 
@@ -1830,7 +2454,8 @@ mod tests {
         // FFmpeg reads the file (its Cues don't place the blocks): before it
         // has written the track's header, a Matroska file with the track and
         // no block...
-        let (bytes, complete) = extractor.subtitle_matroska_so_far(&name, Some(3), wait).await.unwrap();
+        let (bytes, complete) =
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, PictureStart::default(), false).await.unwrap();
         assert_eq!((bytes, complete), (mks::header_only("S_HDMV/PGS"), false));
         eventually(|| !ffmpeg_runs(dir.path()).is_empty()).await;
         let log = std::fs::read_to_string(dir.path().join("ffmpeg.log")).unwrap();
@@ -1838,33 +2463,700 @@ mod tests {
         // ...then what it has written, up to its last whole cluster.
         let (written, second) = mks_being_written(dir.path(), 5);
         std::fs::write(dir.path().join("subtitles").join(format!("{key}_3.mks.part")), &written).unwrap();
-        let (bytes, complete) = extractor.subtitle_matroska_so_far(&name, Some(3), wait).await.unwrap();
+        let (bytes, complete) =
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, PictureStart::default(), false).await.unwrap();
         assert_eq!((bytes.as_slice(), complete), (&written[..second], false));
         assert_eq!(ffmpeg_runs(dir.path()).len(), 1, "one copy for every request");
         assert_eq!(extractions(&extractor), 1);
     }
 
     #[tokio::test]
-    async fn picture_tracks_wait_for_playbacks_starting() {
+    async fn picture_tracks_come_from_where_the_player_is_and_the_rest_waits_for_playbacks_starting() {
         let dir = tempfile::tempdir().unwrap();
         let background = Background::new();
         let mut extractor = extractor_with(dir.path(), dir.path().join("no-ffmpeg"));
         extractor.background = Some(background.clone());
+        let extractor = Arc::new(extractor);
+        let (name, key) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(80));
+        // A first answer that would wait this long for the whole track...
+        let wait = Duration::from_secs(20);
+        // ...comes as soon as the pictures around where the player is (from
+        // half a minute before it) are written, while a playback starts...
+        let starting = background.start();
+        let asked = Instant::now();
+        let start = PictureStart { from_ms: 50_000, media: None, asked: true };
+        let (bytes, complete) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, start, false).await.unwrap();
+        assert!(!complete && asked.elapsed() < Duration::from_secs(10));
+        assert_eq!(picture_seconds(&bytes), (20..80).collect::<Vec<u8>>());
+        // ...the rest once it has started, as the player asks again: whole,
+        // in order of time.
+        drop(starting);
+        let cached = dir.path().join("subtitles").join(format!("{key}_3.mks"));
+        eventually(|| cached.exists()).await;
+        let (bytes, complete) =
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, PictureStart::default(), false).await.unwrap();
+        assert!(complete);
+        let seconds: Vec<u8> = bytes.windows(4).filter(|w| w[..3] == [0x80, 0x16, 0]).map(|w| w[3]).collect();
+        assert_eq!(seconds, (0..80).collect::<Vec<u8>>());
+        assert_eq!(extractions(&extractor), 1);
+        assert!(!dir.path().join("subtitles").join(window_name(&format!("{key}_3"))).exists());
+    }
+
+    #[tokio::test]
+    async fn players_elsewhere_have_the_pictures_there_read_at_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let background = Background::new();
+        let mut extractor = extractor_with(dir.path(), dir.path().join("no-ffmpeg"));
+        extractor.background = Some(background.clone());
+        let extractor = Arc::new(extractor);
+        let (name, key) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(250));
+        let wait = Duration::from_secs(20);
+        let at = |from_ms: i64| PictureStart { from_ms, media: None, asked: true };
+        // A playback starts 10 s in: the pictures around there, the rest
+        // held up while it starts...
+        let starting = background.start();
+        let (bytes, complete) =
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(10_000), false).await.unwrap();
+        assert!(!complete);
+        assert_eq!(picture_seconds(&bytes), (0..130).collect::<Vec<u8>>());
+        // ...a player at 1:25 has those the read has there, without another
+        // read...
+        let read_there = extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(85_000), false).await.unwrap();
+        assert_eq!(picture_seconds(&read_there.0), (75..125).collect::<Vec<u8>>());
+        let seek = || extractor.pictures.lock().get(&format!("{key}_3")).map(|e| e.seek.lock().is_some());
+        assert_eq!(seek(), Some(false));
+        // ...and a player that goes to 3:20 has the pictures there at once,
+        // read beside it; a moment later, the same ones.
+        let asked = Instant::now();
+        let (there, complete) =
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(200_000), false).await.unwrap();
+        assert!(!complete && asked.elapsed() < Duration::from_secs(10));
+        assert_eq!(picture_seconds(&there), (190..240).collect::<Vec<u8>>());
+        let again = extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(205_000), false).await.unwrap();
+        assert_eq!(again, (there, false));
+        assert_eq!(seek(), Some(true));
+        // Back near where the read started: what it read there.
+        let back = extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(15_000), false).await.unwrap();
+        assert_eq!(back, (bytes, false));
+        // The whole track once the playback has started, from the same read.
+        drop(starting);
+        let cached = dir.path().join("subtitles").join(format!("{key}_3.mks"));
+        eventually(|| cached.exists()).await;
+        assert_eq!(extractions(&extractor), 1);
+    }
+
+    #[tokio::test]
+    async fn what_is_read_so_far_comes_in_order_of_time() {
+        let stretch = |seconds: std::ops::Range<u8>, span: (i64, i64)| Stretch {
+            codec: "S_HDMV/PGS",
+            header: Vec::new(),
+            blocks: seconds
+                .map(|n| mks::Block { time_ms: i64::from(n) * 1_000, duration_ms: 0, data: vec![0x16, 0, n] })
+                .collect(),
+            span: Some(span),
+        };
+        let so_far = Mutex::new(SoFar::default());
+        assert_eq!(so_far_bytes(&so_far).await, None, "nothing read yet");
+        // Around the player, then after, then before.
+        so_far.lock().add(stretch(40..44, (39_001, 44_000)));
+        so_far.lock().add(stretch(44..60, (43_001, i64::MAX)));
+        so_far.lock().add(stretch(0..2, (0, 2_000)));
+        assert_eq!(so_far.lock().spans, [(39_001, i64::MAX), (0, 2_000)]);
+        let bytes = so_far_bytes(&so_far).await.unwrap();
+        let in_order: Vec<u8> = bytes.windows(4).filter(|w| w[..3] == [0x80, 0x16, 0]).map(|w| w[3]).collect();
+        assert_eq!(in_order, [0, 1].into_iter().chain(40..60).collect::<Vec<u8>>());
+        // The pictures around a player where all of them are read; none where
+        // some may not be.
+        assert_eq!(picture_seconds(&so_far.lock().around(50_000).unwrap()), (40..60).collect::<Vec<u8>>());
+        assert_eq!(so_far.lock().around(20_000), None);
+        assert_eq!(so_far.lock().around(5_000), None);
+    }
+
+    #[test]
+    fn players_near_where_a_read_started_have_what_they_need() {
+        let near_start = |from_ms, at_ms| near(from_ms, AROUND_START, at_ms);
+        assert!(near_start(60_000, 60_000) && near_start(60_000, 45_000) && near_start(60_000, 120_000));
+        assert!(!near_start(60_000, 44_999), "what shows there may have started before the read's");
+        assert!(!near_start(60_000, 120_001), "too little ahead of the player");
+        assert!(near_start(0, -5) && !near_start(i64::MAX, 0));
+        assert!(near(60_000, AROUND_SEEK, 80_000) && !near(60_000, AROUND_SEEK, 80_001));
+    }
+
+    /// A read at a seek at `at_ms` as [`Extractor::seek`] leaves one: run as
+    /// far as it goes on its own, and `ran_out` when it went over its time.
+    fn seek_read(at_ms: i64, read: BoxFuture<'static, Option<Arc<Vec<u8>>>>, ran_out: bool) -> Seek {
+        let read = read.shared();
+        let _ = read.clone().now_or_never();
+        Seek { at_ms, read, ran_out: Arc::new(AtomicBool::new(ran_out)) }
+    }
+
+    #[test]
+    fn a_read_at_a_seek_answers_players_near_it_unless_it_went_over_its_time() {
+        let got_pictures = seek_read(200_000, futures::future::ready(Some(Arc::new(vec![0x16]))).boxed(), false);
+        let under_way = seek_read(200_000, futures::future::pending().boxed(), false);
+        let got_nothing = seek_read(200_000, futures::future::ready(None).boxed(), false);
+        let over_time = seek_read(200_000, futures::future::ready(None).boxed(), true);
+        // Near where it read, one that has the pictures there, is still
+        // reading them, or can't have them answers; one that went over its
+        // time doesn't, so the next ask reads there again...
+        assert!(got_pictures.answers(205_000) && under_way.answers(205_000) && got_nothing.answers(205_000));
+        assert!(!over_time.answers(205_000));
+        // ...and away from there, none does.
+        assert!([got_pictures, under_way, got_nothing, over_time].iter().all(|seek| !seek.answers(100_000)));
+    }
+
+    #[tokio::test]
+    async fn a_player_near_a_read_at_a_seek_that_went_over_its_time_has_it_read_again() {
+        let dir = tempfile::tempdir().unwrap();
+        let extractor = extractor_without_ffmpeg(dir.path());
+        let (name, key) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(600));
+        let at = |from_ms: i64| PictureStart { from_ms, media: None, asked: true };
+        let wait = Duration::from_secs(20);
+        // The track's read holds up after the pictures around the player.
+        let _seeking = Seeking::new(extractor.seeking.clone());
+        extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(0), false).await.unwrap();
+        let extraction = extractor.pictures.lock().get(&format!("{key}_3")).cloned().unwrap();
+        let latest = || extraction.seek.lock().as_ref().map(|seek| seek.at_ms);
+        // A read at 3:20 that got nothing, the blocks there unreadable: a
+        // player near it has that answer, and nothing more is read...
+        *extraction.seek.lock() = Some(seek_read(200_000, futures::future::ready(None).boxed(), false));
+        extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(205_000), false).await.unwrap();
+        assert_eq!(latest(), Some(200_000));
+        // ...while one that went over its time, the disk busy, is read again.
+        *extraction.seek.lock() = Some(seek_read(200_000, futures::future::ready(None).boxed(), true));
+        let (there, _) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(205_000), false).await.unwrap();
+        assert_eq!(latest(), Some(205_000));
+        assert_eq!(picture_seconds(&there), (195..245).collect::<Vec<u8>>());
+    }
+
+    /// The seconds of the pictures in a Matroska file of the track of
+    /// [`matroska::tests::pictures_every_second`], in order: each picture's
+    /// data (after its block's flags) ends in its second.
+    fn picture_seconds(bytes: &[u8]) -> Vec<u8> {
+        let mut found: Vec<u8> = bytes.windows(4).filter(|w| w[..3] == [0x80, 0x16, 0]).map(|w| w[3]).collect();
+        found.sort_unstable();
+        found
+    }
+
+    #[tokio::test]
+    async fn the_pictures_around_the_player_stay_while_ffmpeg_copies_a_track_whose_cues_fail_past_them() {
+        let dir = tempfile::tempdir().unwrap();
+        let extractor = Arc::new(extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), true)));
+        let mut file = matroska::tests::pictures_every_second(600);
+        // A cue well after them points at the video's block: the read fails
+        // there, after a stretch past them.
+        file.extra_cues.push((5, 500, 0, 0));
+        let (name, key) = movie_in(&extractor, dir.path(), &file);
+        let start = PictureStart { from_ms: 50_000, media: None, asked: true };
+        let wait = Duration::from_secs(20);
+        let (around, complete) =
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, start.clone(), false).await.unwrap();
+        assert!(!complete);
+        assert_eq!(picture_seconds(&around), (20..170).collect::<Vec<u8>>());
+        // Neither what FFmpeg writes meanwhile nor more of what was read: the
+        // pictures the player was given stay until the track is whole.
+        eventually(|| !ffmpeg_runs(dir.path()).is_empty()).await;
+        let (written, _) = mks_being_written(dir.path(), 5);
+        std::fs::write(dir.path().join("subtitles").join(format!("{key}_3.mks.part")), &written).unwrap();
+        let again = extractor.subtitle_matroska_so_far(&name, Some(3), wait, start.clone(), false).await.unwrap();
+        assert_eq!(again, (around, false));
+        // What was read is in that file, not in memory any more.
+        let so_far = extractor.pictures.lock().get(&format!("{key}_3")).map(|e| e.so_far.clone()).unwrap();
+        assert!(so_far.lock().track.is_none() && so_far.lock().blocks.is_empty() && !so_far.lock().writing);
+        // Once FFmpeg's copy has come past them (2:50), what it has written:
+        // the pictures after them as it goes on.
+        let past: Vec<mks::Block> =
+            (0..200).map(|n| mks::Block { time_ms: n * 1_000, duration_ms: 0, data: vec![0x16, 0, n as u8] }).collect();
+        let part = dir.path().join("subtitles").join(format!("{key}_3.mks.part"));
+        mks::write(&part, "S_HDMV/PGS", &[], &past).unwrap();
+        let later = extractor.subtitle_matroska_so_far(&name, Some(3), wait, start, false).await.unwrap();
+        assert_eq!(later, (std::fs::read(&part).unwrap(), false));
+    }
+
+    #[test]
+    fn the_readers_of_a_tracks_rest_step_aside_together_one_of_them_waiting() {
+        use std::sync::atomic::{AtomicBool, AtomicUsize};
+        let (gate, busy, turn_back) = (Mutex::new(()), AtomicBool::new(true), AtomicBool::new(false));
+        let (entered, waits, gone_on) = (AtomicUsize::new(0), AtomicUsize::new(0), AtomicUsize::new(0));
+        // No time of its own: only the wait given to it lets it read on.
+        let budget = matroska::Budget::new(u64::MAX, Duration::ZERO);
+        // The one that waits has the turn back once a seek is over and the
+        // turn comes.
+        let wait = || {
+            waits.fetch_add(1, Ordering::Relaxed);
+            while !turn_back.load(Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            Duration::from_secs(60)
+        };
+        let gone_on_early = std::thread::scope(|scope| {
+            for _ in 0..8 {
+                scope.spawn(|| {
+                    entered.fetch_add(1, Ordering::Relaxed);
+                    step_aside(&gate, || busy.load(Ordering::Relaxed), wait, &budget);
+                    assert!(budget.check().is_ok(), "the read has the time it waited before any goes on");
+                    gone_on.fetch_add(1, Ordering::Relaxed);
+                });
+            }
+            while entered.load(Ordering::Relaxed) < 8 {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            std::thread::sleep(Duration::from_millis(100));
+            // The seek is over, the turn not back yet: one that comes now
+            // waits for it too.
+            busy.store(false, Ordering::Relaxed);
+            scope.spawn(|| {
+                step_aside(&gate, || busy.load(Ordering::Relaxed), || unreachable!(), &budget);
+                gone_on.fetch_add(1, Ordering::Relaxed);
+            });
+            std::thread::sleep(Duration::from_millis(100));
+            let early = gone_on.load(Ordering::Relaxed);
+            turn_back.store(true, Ordering::Relaxed);
+            early
+        });
+        assert_eq!(gone_on_early, 0, "none goes on before the turn is back");
+        assert_eq!((waits.into_inner(), gone_on.into_inner()), (1, 9), "one of them waits");
+        // Nothing to step aside for: they go on at once.
+        step_aside(&gate, || false, || unreachable!(), &budget);
+    }
+
+    #[tokio::test]
+    async fn the_rest_of_a_track_holds_while_a_playback_starts() {
+        let dir = tempfile::tempdir().unwrap();
+        let background = Background::new();
+        let mut extractor = extractor_with(dir.path(), dir.path().join("no-ffmpeg"));
+        extractor.background = Some(background.clone());
+        let extractor = Arc::new(extractor);
+        let (name, key) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(1_000));
+        // A seek holds the rest up after the pictures around the player, a
+        // playback starts meanwhile, and the rest waits for that too once the
+        // seek is over.
+        let seek = Seeking::new(extractor.seeking.clone());
+        let start = PictureStart { from_ms: 0, media: None, asked: true };
+        let wait = Duration::from_secs(20);
+        let (around, complete) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, start, false).await.unwrap();
+        assert!(!complete);
+        let starting = background.start();
+        drop(seek);
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        let so_far = extractor.pictures.lock().get(&format!("{key}_3")).map(|e| e.so_far.clone()).unwrap();
+        assert_eq!(so_far.lock().blocks.len(), picture_seconds(&around).len());
+        drop(starting);
+        let whole = dir.path().join("subtitles").join(format!("{key}_3.mks"));
+        eventually(|| whole.exists()).await;
+    }
+
+    #[tokio::test]
+    async fn the_rest_of_a_track_lets_its_turn_go_while_it_waits() {
+        let dir = tempfile::tempdir().unwrap();
+        // One turn for reads through the Cues.
+        let extractor = extractor_without_ffmpeg(dir.path());
+        let (name, key) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(1_000));
+        // A read at a seek under way holds the track's rest up after the
+        // pictures around the player, as it does between stretches: it lets
+        // its turn go while it waits. (With nothing to wait for, it takes its
+        // turn again at once, behind the reads that asked for it meanwhile:
+        // a test file's rest is read too quickly to tell that from keeping
+        // it.)
+        let seeking = Seeking::new(extractor.seeking.clone());
+        let start = PictureStart { from_ms: 0, media: None, asked: true };
+        let wait = Duration::from_secs(20);
+        let (_, complete) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, start, false).await.unwrap();
+        assert!(!complete);
+        // A text track read through the Cues meanwhile has the turn.
+        let asked = Instant::now();
+        let (_, complete) = extractor.subtitle_so_far(&name, 2, Duration::from_secs(5)).await.unwrap();
+        assert!(complete && asked.elapsed() < Duration::from_secs(5), "{:?}", asked.elapsed());
+        // The rest goes on once the read at the seek is over.
+        drop(seeking);
+        let whole = dir.path().join("subtitles").join(format!("{key}_3.mks"));
+        eventually(|| whole.exists()).await;
+    }
+
+    #[tokio::test]
+    async fn the_rest_of_a_track_lets_seeks_go_first_those_that_start_while_it_waits_for_its_turn_too() {
+        let dir = tempfile::tempdir().unwrap();
+        // One turn for reads through the Cues.
+        let extractor = extractor_without_ffmpeg(dir.path());
+        let (name, key) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(1_000));
+        let first_seek = Seeking::new(extractor.seeking.clone());
+        let start = PictureStart { from_ms: 0, media: None, asked: true };
+        let wait = Duration::from_secs(20);
+        let (around, complete) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, start, false).await.unwrap();
+        assert!(!complete);
+        // The rest reads nothing past the pictures around the player while
+        // the seek goes on, and another read takes the turn it lets go of.
+        let turn = extractor.cue_reads.clone().acquire_owned().await.unwrap();
+        let so_far = extractor.pictures.lock().get(&format!("{key}_3")).map(|e| e.so_far.clone()).unwrap();
+        let read = picture_seconds(&around).len();
+        assert_eq!(so_far.lock().blocks.len(), read);
+        // Once the seek is over, the rest waits for that turn. A seek that
+        // starts meanwhile goes first all the same: the rest gives the turn
+        // back, and reads nothing more while that one lasts.
+        drop(first_seek);
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        let second_seek = Seeking::new(extractor.seeking.clone());
+        drop(turn);
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        assert_eq!(so_far.lock().blocks.len(), read);
+        assert_eq!(extractor.cue_reads.available_permits(), 1, "its turn given back");
+        drop(second_seek);
+        let whole = dir.path().join("subtitles").join(format!("{key}_3.mks"));
+        eventually(|| whole.exists()).await;
+    }
+
+    #[tokio::test]
+    async fn no_seek_is_read_through_cues_that_fail_around_the_player() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut extractor = extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), true));
+        extractor.header_wait = Duration::from_millis(500);
+        let extractor = Arc::new(extractor);
+        let mut file = matroska::tests::pictures_every_second(600);
+        // A cue among those around the player points at the video's block.
+        file.extra_cues.push((5, 60, 0, 0));
+        let (name, key) = movie_in(&extractor, dir.path(), &file);
+        let at = |from_ms: i64| PictureStart { from_ms, media: None, asked: true };
+        let wait = Duration::from_millis(100);
+        extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(50_000), false).await.unwrap();
+        eventually(|| !ffmpeg_runs(dir.path()).is_empty()).await;
+        assert!(extractor.unreadable.lock().contains(&format!("{key}_3")));
+        // A seek has what FFmpeg has copied, nothing read through those Cues.
+        let (there, complete) =
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(200_000), false).await.unwrap();
+        assert!(!complete);
+        assert_eq!(picture_seconds(&there), Vec::<u8>::new());
+    }
+
+    #[tokio::test]
+    async fn reads_at_seeks_go_on_while_ffmpeg_copies_a_track_whose_cues_fail_past_the_player() {
+        let dir = tempfile::tempdir().unwrap();
+        let extractor = Arc::new(extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), true)));
+        let mut file = matroska::tests::pictures_every_second(600);
+        file.extra_cues.push((5, 500, 0, 0));
+        let (name, _) = movie_in(&extractor, dir.path(), &file);
+        let at = |from_ms: i64| PictureStart { from_ms, media: None, asked: true };
+        let wait = Duration::from_secs(20);
+        let (around, _) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(50_000), false).await.unwrap();
+        assert_eq!(picture_seconds(&around), (20..170).collect::<Vec<u8>>());
+        eventually(|| !ffmpeg_runs(dir.path()).is_empty()).await;
+        // The Cues gave the pictures around the player: a seek while FFmpeg
+        // reads the file has those there, read through them at once.
+        let (there, complete) =
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(200_000), false).await.unwrap();
+        assert!(!complete);
+        assert_eq!(picture_seconds(&there), (190..240).collect::<Vec<u8>>());
+    }
+
+    #[tokio::test]
+    async fn reads_at_seeks_wait_for_no_track_read_and_hold_an_answer_while_they_may_take() {
+        let dir = tempfile::tempdir().unwrap();
+        let background = Background::new();
+        let mut extractor = extractor_with(dir.path(), dir.path().join("no-ffmpeg"));
+        extractor.background = Some(background.clone());
+        let seek_wait = Duration::from_millis(500);
+        extractor.seek_wait = seek_wait;
+        let extractor = Arc::new(extractor);
+        let (name, _) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(250));
+        let at = |from_ms: i64| PictureStart { from_ms, media: None, asked: true };
+        let _starting = background.start();
+        let wait = Duration::from_secs(20);
+        let (window, _) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(10_000), false).await.unwrap();
+        // Every read through the Cues under way, as many as there may be: a
+        // player at 3:20 has the pictures there all the same.
+        let reads = extractor.cue_reads.available_permits() as u32;
+        let _reads = extractor.cue_reads.clone().acquire_many_owned(reads).await.unwrap();
+        let (there, _) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(200_000), false).await.unwrap();
+        assert_eq!(picture_seconds(&there), (190..240).collect::<Vec<u8>>());
+        // A read at a seek that can't start yet holds an answer up for as long
+        // as such a read may take, as what the track's read has is elsewhere:
+        // then that, and what is there when the player asks again.
+        let seeks = extractor.seek_reads.available_permits() as u32;
+        let held = extractor.seek_reads.clone().acquire_many_owned(seeks).await.unwrap();
+        let short = Duration::from_millis(100);
+        let asked = Instant::now();
+        let meanwhile = extractor.subtitle_matroska_so_far(&name, Some(3), short, at(100_000), false).await.unwrap();
+        assert!(asked.elapsed() >= seek_wait && asked.elapsed() < Duration::from_secs(5), "{:?}", asked.elapsed());
+        assert_eq!(meanwhile, (window, false));
+        drop(held);
+        let (later, _) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(100_000), false).await.unwrap();
+        assert_eq!(picture_seconds(&later), (90..140).collect::<Vec<u8>>());
+    }
+
+    #[tokio::test]
+    async fn players_that_read_a_track_once_wait_while_all_that_is_read_is_written() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut extractor = extractor_with(dir.path(), dir.path().join("no-ffmpeg"));
+        extractor.header_wait = Duration::from_secs(5);
+        let extractor = Arc::new(extractor);
+        let (name, key) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(10));
+        // A read through the Cues that has taken its blocks out to write them.
+        let (done, written) = tokio::sync::oneshot::channel::<()>();
+        let result = async move { written.await.map_err(|e| Arc::new(ApiError::Internal(e.into()))) };
+        let read = PictureRead::default();
+        read.so_far.lock().writing = true;
+        let extraction = PictureExtraction::new(7, 0, result.boxed().shared(), read);
+        extractor.pictures.lock().insert(format!("{key}_3"), extraction);
+        let once = Duration::from_millis(100);
+        let asking = {
+            let (extractor, name) = (extractor.clone(), name.clone());
+            tokio::spawn(async move {
+                extractor.subtitle_matroska_so_far(&name, Some(3), once, PictureStart::default(), true).await
+            })
+        };
+        // Past its wait, it waits for the file rather than taking what it
+        // finds meanwhile...
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        assert!(!asking.is_finished());
+        // ...and has it whole.
+        let blocks = [mks::Block { time_ms: 1_000, duration_ms: 0, data: vec![0x16, 0, 1] }];
+        let target = dir.path().join("subtitles").join(format!("{key}_3.mks"));
+        mks::write(&target, "S_HDMV/PGS", &[], &blocks).unwrap();
+        done.send(()).unwrap();
+        let (bytes, complete) = asking.await.unwrap().unwrap();
+        assert!(complete);
+        assert_eq!(bytes, std::fs::read(&target).unwrap());
+    }
+
+    #[tokio::test]
+    async fn reads_at_seeks_go_one_at_a_time_and_a_replaced_one_is_left_out() {
+        let dir = tempfile::tempdir().unwrap();
+        let background = Background::new();
+        let mut extractor = extractor_with(dir.path(), dir.path().join("no-ffmpeg"));
+        extractor.background = Some(background.clone());
+        let extractor = Arc::new(extractor);
+        let (name, _) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(250));
+        let wait = Duration::from_secs(20);
+        let at = |from_ms: i64| PictureStart { from_ms, media: None, asked: true };
+        let _starting = background.start();
+        let (window, _) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(10_000), false).await.unwrap();
+        // Reads at seeks wait for their turn: seeks to 3:20, 2:40 and 2:00
+        // meanwhile, the last of which replaces the others.
+        let turn = extractor.seek_reads.clone().acquire_owned().await.unwrap();
+        let mut seeks = Vec::new();
+        for seconds in [200, 160, 120] {
+            let (extractor, name) = (extractor.clone(), name.clone());
+            seeks.push(tokio::spawn(async move {
+                extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(seconds * 1_000), false).await.unwrap()
+            }));
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        drop(turn);
+        let mut answers = Vec::new();
+        for seek in seeks {
+            answers.push(seek.await.unwrap().0);
+        }
+        // Those replaced have what the track's read has; the last, what is
+        // there.
+        assert_eq!((&answers[0], &answers[1]), (&window, &window));
+        assert_eq!(picture_seconds(&answers[2]), (110..160).collect::<Vec<u8>>());
+    }
+
+    /// A stand-in for the copy of picture track 3 of `key`, read through the
+    /// Cues from 10 s in: what it has read goes in what this gives back, and
+    /// it isn't over while the sender is kept.
+    fn copy_under_way(extractor: &Extractor, key: &str) -> (Arc<Mutex<SoFar>>, tokio::sync::oneshot::Sender<()>) {
+        let (unfinished, never) = tokio::sync::oneshot::channel::<()>();
+        let result = async move { never.await.map_err(|e| Arc::new(ApiError::Internal(e.into()))) };
+        let read = PictureRead::default();
+        let so_far = read.so_far.clone();
+        extractor
+            .pictures
+            .lock()
+            .insert(format!("{key}_3"), PictureExtraction::new(7, 10_000, result.boxed().shared(), read));
+        (so_far, unfinished)
+    }
+
+    /// The pictures of [`matroska::tests::pictures_every_second`]'s track at
+    /// `seconds`, read through the Cues from `from_ms` to the end.
+    fn read_through(seconds: std::ops::Range<u8>, from_ms: i64) -> Stretch {
+        let blocks =
+            seconds.map(|n| mks::Block { time_ms: i64::from(n) * 1_000, duration_ms: 0, data: vec![0x16, 0, n] });
+        Stretch { codec: "S_HDMV/PGS", header: Vec::new(), blocks: blocks.collect(), span: Some((from_ms, i64::MAX)) }
+    }
+
+    #[tokio::test]
+    async fn an_answer_held_for_a_read_at_a_seek_comes_once_the_copy_has_the_pictures_there() {
+        let dir = tempfile::tempdir().unwrap();
+        let extractor = Arc::new(extractor_with(dir.path(), dir.path().join("no-ffmpeg")));
+        let (name, key) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(250));
+        let (so_far, _unfinished) = copy_under_way(&extractor, &key);
+        // A read at 3:20 that can't start yet holds the answer...
+        let seeks = extractor.seek_reads.available_permits() as u32;
+        let _held = extractor.seek_reads.clone().acquire_many_owned(seeks).await.unwrap();
+        let asking = {
+            let (extractor, name) = (extractor.clone(), name.clone());
+            let at = PictureStart { from_ms: 200_000, media: None, asked: true };
+            let wait = Duration::from_millis(100);
+            tokio::spawn(async move { extractor.subtitle_matroska_so_far(&name, Some(3), wait, at, false).await })
+        };
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        assert!(!asking.is_finished());
+        // ...until the copy comes past there: what it has there, at once.
+        let came = Instant::now();
+        so_far.lock().add(read_through(130..250, 129_001));
+        let (bytes, complete) = asking.await.unwrap().unwrap();
+        assert!(!complete && came.elapsed() < Duration::from_secs(2), "{:?}", came.elapsed());
+        assert_eq!(picture_seconds(&bytes), (190..240).collect::<Vec<u8>>());
+    }
+
+    #[tokio::test]
+    async fn a_read_at_a_seek_that_gets_nothing_leaves_the_answer_to_what_the_copy_has_there() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut extractor = extractor_with(dir.path(), dir.path().join("no-ffmpeg"));
         extractor.header_wait = Duration::from_millis(300);
         let extractor = Arc::new(extractor);
-        let (name, _) = movie_in(&extractor, dir.path(), &matroska::tests::movie());
+        let (name, key) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(250));
+        let (so_far, _unfinished) = copy_under_way(&extractor, &key);
+        // Taken for another kind of file than Matroska, nothing is read at
+        // 3:20, and the copy has nothing there yet: a header alone.
+        let mp4 = Arc::new(MediaInfo { format_name: Some("mov,mp4,m4a,3gp,3g2,mj2".into()), ..Default::default() });
+        let at = |from_ms: i64| PictureStart { from_ms, media: Some(mp4.clone()), asked: true };
         let wait = Duration::from_millis(100);
-        // While a playback starts, the track isn't read (the playback reads
-        // the same disk)...
-        let starting = background.start();
-        let (bytes, complete) = extractor.subtitle_matroska_so_far(&name, Some(3), wait).await.unwrap();
-        assert_eq!((bytes, complete), (mks::header_only("S_HDMV/PGS"), false));
-        // ...then it is, from the extraction started then.
-        drop(starting);
+        let (first, _) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(200_000), false).await.unwrap();
+        assert!(picture_seconds(&first).is_empty());
+        // Once the copy has the pictures there, an ask near that read has
+        // them, though the read is still the one there.
+        so_far.lock().add(read_through(130..250, 129_001));
         let (bytes, complete) =
-            extractor.subtitle_matroska_so_far(&name, Some(3), Duration::from_secs(10)).await.unwrap();
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(205_000), false).await.unwrap();
+        assert!(!complete);
+        assert_eq!(picture_seconds(&bytes), (195..245).collect::<Vec<u8>>());
+    }
+
+    #[tokio::test]
+    async fn reads_a_player_waits_for_hold_background_work() {
+        let dir = tempfile::tempdir().unwrap();
+        let background = Background::new();
+        let mut extractor = extractor_with(dir.path(), dir.path().join("no-ffmpeg"));
+        extractor.background = Some(background.clone());
+        let extractor = Arc::new(extractor);
+        let (name, key) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(250));
+        let at = |from_ms: i64| PictureStart { from_ms, media: None, asked: true };
+        let wait = Duration::from_secs(20);
+        assert!(!background.held());
+        // A track read through its Cues holds seek previews and the like
+        // until a moment after it...
+        extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(10_000), false).await.unwrap();
+        let cached = dir.path().join("subtitles").join(format!("{key}_3.mks"));
+        eventually(|| cached.exists()).await;
+        assert!(background.held());
+        eventually(|| !background.held()).await;
+        // ...and so does a read at a seek, beside a copy under way.
+        std::fs::remove_file(&cached).unwrap();
+        let (_so_far, _unfinished) = copy_under_way(&extractor, &key);
+        let (there, _) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, at(200_000), false).await.unwrap();
+        assert_eq!(picture_seconds(&there), (190..240).collect::<Vec<u8>>());
+        assert!(background.held());
+        eventually(|| !background.held()).await;
+    }
+
+    #[tokio::test]
+    async fn a_text_track_read_through_the_cues_holds_background_work() {
+        let dir = tempfile::tempdir().unwrap();
+        let background = Background::new();
+        let mut extractor = extractor_with(dir.path(), dir.path().join("no-ffmpeg"));
+        extractor.background = Some(background.clone());
+        let extractor = Arc::new(extractor);
+        let (name, _) = movie_in(&extractor, dir.path(), &matroska::tests::movie());
+        assert!(!background.held());
+        // A player's text track, read through the Cues, holds seek previews
+        // and the like until a moment after it.
+        let (_, complete) = extractor.subtitle_so_far(&name, 2, Duration::from_secs(10)).await.unwrap();
+        assert!(complete);
+        assert!(background.held());
+        eventually(|| !background.held()).await;
+    }
+
+    #[test]
+    fn spans_start_with_the_track_and_are_none_when_they_cant_be_told() {
+        let stretch = |span, whole_ms| {
+            let found = matroska::PictureTracks {
+                tick_ns: 1_000_000,
+                whole_ms,
+                tracks: vec![matroska::SubtitleTrack {
+                    stream_index: 3,
+                    codec: "S_HDMV/PGS",
+                    header: Vec::new(),
+                    blocks: Vec::new(),
+                }],
+                reads: 0,
+                bytes_read: 0,
+                more: true,
+                span,
+            };
+            let media = MediaInfo { start_ms: Some(1_000), ..Default::default() };
+            stretch_of(found, &media, 3).unwrap().span
+        };
+        // From the file's start: from the track's, whenever the file starts.
+        assert_eq!(stretch(Some((0, 5_000)), true), Some((i64::MIN, 4_000)));
+        assert_eq!(stretch(Some((2_001, u64::MAX)), true), Some((1_001, i64::MAX)));
+        assert_eq!(stretch(None, true), None);
+        // Times FFmpeg's can't be told from: no span, and no error.
+        assert_eq!(stretch(Some((2_001, 5_000)), false), None);
+    }
+
+    #[tokio::test]
+    async fn players_that_read_a_track_once_have_all_that_is_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let background = Background::new();
+        let mut extractor = extractor_with(dir.path(), dir.path().join("no-ffmpeg"));
+        extractor.background = Some(background.clone());
+        let extractor = Arc::new(extractor);
+        let (name, _) = movie_in(&extractor, dir.path(), &matroska::tests::pictures_every_second(250));
+        let wait = Duration::from_secs(20);
+        let _starting = background.start();
+        let start = PictureStart { from_ms: 10_000, media: None, asked: true };
+        let (around, _) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, start, false).await.unwrap();
+        // A player that reads it once, and says nothing of where it is: after
+        // a wait for all of it, what the read has so far, the same pictures
+        // while it waits for the playback to start.
+        let once = Duration::from_millis(300);
+        let asked = Instant::now();
+        let (all, complete) =
+            extractor.subtitle_matroska_so_far(&name, Some(3), once, PictureStart::default(), true).await.unwrap();
+        assert!(!complete && asked.elapsed() >= once);
+        assert_eq!(picture_seconds(&all), picture_seconds(&around));
+    }
+
+    #[tokio::test]
+    async fn picture_tracks_need_no_probe_with_the_callers_media() {
+        let dir = tempfile::tempdir().unwrap();
+        let extractor = extractor_without_ffmpeg(dir.path());
+        let name = matroska::tests::movie().write(dir.path()).to_string_lossy().into_owned();
+        let wait = Duration::from_secs(10);
+        // No ffprobe here: without the media, no copy...
+        assert!(
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, PictureStart::default(), false).await.is_err()
+        );
+        // ...with it, the track read through the Cues.
+        let media = MediaInfo { duration_ms: Some(10_000), start_ms: Some(0), ..matroska::tests::movie_media() };
+        let start = PictureStart::new(Some(0), Some(media.clone()));
+        let (bytes, complete) = extractor.subtitle_matroska_so_far(&name, Some(3), wait, start, false).await.unwrap();
         assert!(complete && bytes.windows(10).any(|w| w == b"S_HDMV/PGS"));
-        assert_eq!(extractions(&extractor), 1);
+        // Media that doesn't say when the file starts is no use.
+        assert!(PictureStart::new(None, Some(MediaInfo { start_ms: None, ..media })).media.is_none());
+    }
+
+    #[tokio::test]
+    async fn picture_copies_by_ffmpeg_wait_for_playbacks_starting() {
+        let dir = tempfile::tempdir().unwrap();
+        let background = Background::new();
+        let mut extractor = extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), false));
+        extractor.background = Some(background.clone());
+        extractor.header_wait = Duration::from_millis(300);
+        let extractor = Arc::new(extractor);
+        let (name, _) = movie_in(&extractor, dir.path(), &unplaced_movie());
+        // While a playback starts, FFmpeg doesn't read the file (the
+        // playback reads the same disk)...
+        let starting = background.start();
+        let wait = Duration::from_millis(100);
+        let (bytes, complete) =
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, PictureStart::default(), false).await.unwrap();
+        assert_eq!((bytes, complete), (mks::header_only("S_HDMV/PGS"), false));
+        assert!(ffmpeg_runs(dir.path()).is_empty());
+        // ...then it does.
+        drop(starting);
+        eventually(|| !ffmpeg_runs(dir.path()).is_empty()).await;
     }
 
     #[tokio::test]
@@ -1873,7 +3165,10 @@ mod tests {
         let extractor = Arc::new(extractor_with(dir.path(), stand_in_ffmpeg(dir.path(), false)));
         let (name, key) = movie_in(&extractor, dir.path(), &unplaced_movie());
         let wait = Duration::from_millis(100);
-        assert!(matches!(extractor.subtitle_matroska_so_far(&name, Some(3), wait).await, Err(ApiError::Failed(_))));
+        assert!(matches!(
+            extractor.subtitle_matroska_so_far(&name, Some(3), wait, PictureStart::default(), false).await,
+            Err(ApiError::Failed(_))
+        ));
         for _ in 0..3 {
             assert!(matches!(extractor.subtitle_matroska(&name, Some(3)).await, Err(ApiError::Failed(_))));
         }
@@ -1998,7 +3293,15 @@ mod tests {
         let track =
             matroska::SubtitleTrack { stream_index: 2, codec: webvtt::TextCodec::Subrip, header: Vec::new(), blocks };
         let whole_ms = tick_ns.is_multiple_of(1_000_000);
-        matroska::TextTracks { tick_ns, whole_ms, tracks: vec![track], reads: 0, bytes_read: 0 }
+        matroska::TextTracks {
+            tick_ns,
+            whole_ms,
+            tracks: vec![track],
+            reads: 0,
+            bytes_read: 0,
+            more: false,
+            span: None,
+        }
     }
 
     /// Cue times are FFmpeg's: the file's start time taken off, block times
@@ -2073,6 +3376,12 @@ mod tests {
         assert_eq!(whole_file_timeout(&dir.path().join("missing.mkv")), Duration::from_secs(20 * 60));
         assert_eq!(pass_timeout(5_000_000_000), Duration::from_secs(20 * 60));
         assert_eq!(pass_timeout(77_098_924_052), Duration::from_secs(7_709), "a 77 GB 4K remux: over 2 hours");
+        // A picture track's read through the Cues: a minute, or as long as
+        // FFmpeg would take at 100 MB/s.
+        assert_eq!(picture_read_timeout(&small), Duration::from_secs(60));
+        assert_eq!(picture_read_timeout(&dir.path().join("missing.mkv")), Duration::from_secs(60));
+        assert_eq!(picture_read_time(1_100_000_000), Duration::from_secs(60), "an episode");
+        assert_eq!(picture_read_time(81_700_000_000), Duration::from_secs(817), "a remux: over 13 minutes");
     }
 
     #[test]

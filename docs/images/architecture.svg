@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 530" width="1000" height="530" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" width="1000" height="560" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img" aria-labelledby="title desc">
   <title id="title">Pley's architecture</title>
-  <desc id="desc">Pley's apps talk to the Pley server over HTTP. The server starts and talks to the transcoder over HTTP and JSON; the transcoder runs FFmpeg, on the GPU where there is one. The server reads metadata sources and IPTV providers, and scans the media folders, which the transcoder reads too.</desc>
+  <desc id="desc">Pley's apps, and Jellyfin's, talk to the Pley server over HTTP. The server starts and talks to the transcoder over HTTP and JSON; the transcoder runs FFmpeg, on the GPU where there is one. The server reads metadata sources and IPTV providers, sends requests to Radarr and Sonarr, and scans the media folders, which the transcoder reads too.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0 0 L10 5 L0 10 z" fill="#38bdf8"/>
@@ -18,7 +18,7 @@
     </style>
   </defs>
 
-  <rect width="1000" height="530" rx="18" fill="#0b1220"/>
+  <rect width="1000" height="560" rx="18" fill="#0b1220"/>
 
   <!-- Apps -->
   <rect class="panel" x="24" y="56" width="230" height="324" rx="12"/>
@@ -30,19 +30,21 @@
     <rect class="pill" x="38" y="216" width="202" height="28" rx="7"/><text class="t" x="50" y="235">Kodi</text>
     <rect class="pill" x="38" y="254" width="202" height="28" rx="7"/><text class="t" x="50" y="273">Roku</text>
     <rect class="pill" x="38" y="292" width="202" height="28" rx="7"/><text class="t" x="50" y="311">Samsung TV · LG TV</text>
-    <rect class="pill" x="38" y="330" width="202" height="28" rx="7"/><text class="t" x="50" y="349">Tautulli · Kometa</text>
+    <rect class="pill" x="38" y="330" width="202" height="28" rx="7"/><text class="t" x="50" y="349">Jellyfin's apps</text>
   </g>
 
   <!-- Server -->
   <rect class="accent" x="314" y="56" width="310" height="324" rx="12"/>
   <text class="h" x="330" y="84">pley</text>
   <text class="sub" x="330" y="104">the server · Rust</text>
-  <text class="t" x="330" y="136">Libraries, scanned as folders change</text>
-  <text class="t" x="330" y="164">Metadata for movies, shows and music</text>
-  <text class="t" x="330" y="192">Accounts, profiles, app sign-in</text>
-  <text class="t" x="330" y="220">Playback sessions, Automatic quality</text>
-  <text class="t" x="330" y="248">Live TV: IPTV channels and guide</text>
-  <text class="t" x="330" y="276">Web app, HTTP API, compatibility API</text>
+  <text class="t" x="330" y="132">Libraries, scanned as folders change</text>
+  <text class="t" x="330" y="157">Metadata for movies, shows and music</text>
+  <text class="t" x="330" y="182">Accounts, profiles, app sign-in</text>
+  <text class="t" x="330" y="207">Playback sessions, Automatic quality</text>
+  <text class="t" x="330" y="232">Live TV: IPTV channels and guide</text>
+  <text class="t" x="330" y="257">Requests, sent to Radarr and Sonarr</text>
+  <text class="t" x="330" y="282">Web app, HTTP API</text>
+  <text class="t" x="330" y="307">Jellyfin-compatible API</text>
   <rect class="pill" x="328" y="328" width="282" height="34" rx="8"/>
   <text class="t" x="342" y="350">SQLite database</text>
   <text class="s" x="452" y="350">one file, backed up daily</text>
@@ -64,6 +66,11 @@
   <text class="s" x="700" y="366">VideoToolbox, or the CPU</text>
 
   <!-- Sources -->
+  <rect class="panel" x="24" y="430" width="230" height="76" rx="12"/>
+  <text class="t" x="40" y="454" font-weight="700">Radarr · Sonarr</text>
+  <text class="s" x="40" y="474">Fetch the movies and shows</text>
+  <text class="s" x="40" y="492">people ask for</text>
+
   <rect class="panel" x="314" y="430" width="150" height="76" rx="12"/>
   <text class="t" x="328" y="454" font-weight="700">Metadata sources</text>
   <text class="s" x="328" y="474">TMDB · TheTVDB</text>
@@ -91,6 +98,9 @@
   <line class="line" x1="830" y1="262" x2="830" y2="297" marker-end="url(#arrow)"/>
   <text class="lbl" x="840" y="284">runs</text>
 
+  <path class="line" d="M311 345 H284 V452 H257" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <text class="lbl" x="278" y="412" text-anchor="end">requests</text>
+
   <line class="line" x1="389" y1="428" x2="389" y2="383" marker-end="url(#arrow)"/>
   <line class="line" x1="549" y1="428" x2="549" y2="383" marker-end="url(#arrow)"/>
 
@@ -101,6 +111,5 @@
   <text class="lbl" x="648" y="408" text-anchor="end">scans</text>
 
   <!-- Note -->
-  <text class="s" x="24" y="454">Apps play a file as it is when they can,</text>
-  <text class="s" x="24" y="472">and the transcoder's HLS when they can't.</text>
+  <text class="s" x="24" y="538">Apps play a file as it is when they can, and the transcoder's HLS when they can't.</text>
 </svg>

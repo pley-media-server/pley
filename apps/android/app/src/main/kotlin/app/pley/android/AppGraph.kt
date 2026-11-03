@@ -48,7 +48,8 @@ class AppGraph(private val app: Application) : ScreensGraph {
         OkHttp.initialize(app)
         HttpRoot.create(userAgent)
     }
-    override val auth: AuthGraph by lazy { AuthGraph.create(app, root, userAgent) }
+    // Signing in and the servers' proofs go where the rest goes, the home network's way.
+    override val auth: AuthGraph by lazy { AuthGraph.create(app, NetworkGraph.homeRouted(app, root), userAgent) }
     override val network: NetworkGraph by lazy { NetworkGraph.create(app, root, auth, device, app.cacheDir) }
     override val data: DataGraph by lazy { DataGraph.create(app, network, auth, device) }
     override val caps: CapsGraph by lazy { CapsGraph.create(app, device) }

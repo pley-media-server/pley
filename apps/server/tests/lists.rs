@@ -1,5 +1,7 @@
-//! Collections and playlists through pley's API and the Plex-compatible one,
+//! Collections and playlists through pley's API and the Jellyfin-compatible one,
 //! in-process against a temporary data directory like tests/api.rs.
+
+mod common;
 
 use std::collections::HashMap;
 use std::time::Duration;
@@ -10,15 +12,17 @@ use axum::http::{HeaderMap, Method, Request, StatusCode, header};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
+use common::jf_names;
 use pley::collections::TmdbCollection;
 use pley::{AppState, Config};
 
 struct TestApp {
     api: Router,
-    plex: pley::plex::Service,
+    jellyfin: pley::jellyfin::Service,
     state: AppState,
     media: tempfile::TempDir,
     _data: tempfile::TempDir,
+    jellyfin_tokens: common::JellyfinTokens,
 }
 
 struct Reply {
@@ -35,8 +39,15 @@ impl TestApp {
         config.transcoder_path = Some(data.path().join("no-transcoder-in-tests"));
         let state = AppState::init(config).await.unwrap();
         let api = pley::api::router(state.clone());
-        let plex = pley::plex::service(state.clone());
-        Self { api, plex, state, media: tempfile::tempdir().unwrap(), _data: data }
+        let jellyfin = pley::jellyfin::service(state.clone());
+        Self {
+            api,
+            jellyfin,
+            state,
+            media: tempfile::tempdir().unwrap(),
+            _data: data,
+            jellyfin_tokens: Default::default(),
+        }
     }
 
     fn media_file(&self, rel: &str) {
@@ -86,22 +97,26 @@ impl TestApp {
         self.call(Method::DELETE, uri, Some(token), None).await
     }
 
-    /// The Plex API, asking for JSON.
-    async fn plex(&self, method: Method, uri: &str, token: &str) -> Reply {
-        let req = Request::builder()
-            .method(method)
-            .uri(uri)
-            .header("x-plex-token", token)
-            .header(header::ACCEPT, "application/json")
-            .body(Body::empty())
-            .unwrap();
-        Self::reply(self.plex.clone().oneshot(req).await.unwrap()).await
+    /// The Jellyfin API, with a token for other apps for a session's (see
+    /// `common::JellyfinTokens`), or none for `""`.
+    async fn jf(&self, method: Method, uri: &str, token: &str) -> Reply {
+        let mut req = Request::builder().method(method).uri(uri);
+        if !token.is_empty() {
+            req = req.header("x-emby-token", self.jellyfin_tokens.get(&self.state, &self.api, token).await);
+        }
+        Self::reply(self.jellyfin.clone().oneshot(req.body(Body::empty()).unwrap()).await.unwrap()).await
     }
 
-    async fn plex_json(&self, uri: &str, token: &str) -> Value {
-        let reply = self.plex(Method::GET, uri, token).await;
+    async fn jf_json(&self, uri: &str, token: &str) -> Value {
+        let reply = self.jf(Method::GET, uri, token).await;
         assert_eq!(reply.status, StatusCode::OK, "{uri}: {}", reply.text);
-        reply.body["MediaContainer"].clone()
+        reply.body
+    }
+
+    /// The Jellyfin id of a `kind`'s `number`.
+    fn jf_id(&self, kind: pley::jellyfin::ids::Kind, number: i64) -> String {
+        let key = std::fs::read_to_string(self.state.config.data_dir.join("secret.key")).unwrap();
+        pley::jellyfin::ids::Ids::new(&hex::decode(key.trim()).unwrap()).of(kind, number)
     }
 
     async fn setup_admin(&self) -> String {
@@ -199,23 +214,6 @@ fn entry_titles(entries: &Value) -> Vec<String> {
 
 fn entry_ids(entries: &Value) -> Vec<i64> {
     entries.as_array().unwrap().iter().map(|e| e["entry_id"].as_i64().unwrap()).collect()
-}
-
-fn plex_titles(container: &Value) -> Vec<String> {
-    container["Metadata"]
-        .as_array()
-        .map(|items| items.iter().map(|m| m["title"].as_str().unwrap().to_owned()).collect())
-        .unwrap_or_default()
-}
-
-fn encode(value: &str) -> String {
-    value
-        .bytes()
-        .map(|b| match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (b as char).to_string(),
-            _ => format!("%{b:02X}"),
-        })
-        .collect()
 }
 
 #[tokio::test]
@@ -393,13 +391,30 @@ async fn hidden_items_stay_hidden_in_collections_and_playlists() {
     // The artwork fallback never points at the hidden film.
     let poster = app.get(&format!("/api/collections/{mixed}/images/poster"), &kid).await;
     assert_eq!(poster.headers[header::LOCATION], format!("/api/items/{family}/images/poster").as_str());
-    // The Plex API applies the same rules.
-    let sections = app.plex_json(&format!("/library/sections/{movies}/collections"), &kid).await;
-    assert_eq!(plex_titles(&sections), vec!["Mixed"]);
-    let children = app.plex_json(&format!("/library/collections/{mixed}/children"), &kid).await;
-    assert_eq!(plex_titles(&children), vec!["Family Film"]);
-    let hidden = app.plex(Method::GET, &format!("/library/collections/{grown_ups}/children"), &kid).await;
-    assert_eq!(hidden.status, StatusCode::NOT_FOUND);
+    // The Jellyfin API applies the same rules.
+    use pley::jellyfin::ids::Kind;
+    let library = app.jf_id(Kind::Library, movies);
+    let boxsets = app.jf_json(&format!("/Items?ParentId={library}&IncludeItemTypes=BoxSet"), &kid).await;
+    assert_eq!(jf_names(&boxsets), vec!["Mixed"]);
+    let mixed_id = app.jf_id(Kind::Collection, mixed);
+    let children = app.jf_json(&format!("/Items?ParentId={mixed_id}"), &kid).await;
+    assert_eq!(jf_names(&children), vec!["Family Film"]);
+    let grown_ups_id = app.jf_id(Kind::Collection, grown_ups);
+    for uri in [format!("/Items?ParentId={grown_ups_id}"), format!("/Items/{grown_ups_id}")] {
+        assert_eq!(app.jf(Method::GET, &uri, &kid).await.status, StatusCode::NOT_FOUND, "{uri}");
+    }
+    // Its picture, loaded without a token, is chosen as the kid would: by
+    // the kid's tag, never the hidden film's; another's tag or none, nothing.
+    let tag = boxsets["Items"][0]["ImageTags"]["Primary"].as_str().unwrap().to_owned();
+    let picture = |tag: String, token: &'static str| {
+        let (app, uri) = (&app, format!("/Items/{mixed_id}/Images/Primary?tag={tag}"));
+        async move { app.jf(Method::GET, &uri, token).await.status }
+    };
+    assert_eq!(picture(tag.clone(), "").await, StatusCode::NOT_FOUND, "the family film has no poster");
+    let forged = format!("{}{}", &tag[..tag.len() - 1], if tag.ends_with('0') { '1' } else { '0' });
+    assert_eq!(picture(forged, "").await, StatusCode::NOT_FOUND);
+    let grown_ups_picture = app.jf(Method::GET, &format!("/Items/{grown_ups_id}/Images/Primary?tag={tag}"), "").await;
+    assert_eq!(grown_ups_picture.status, StatusCode::NOT_FOUND, "a collection with nothing the kid may see");
 
     // Hidden items can't be put in a playlist (the kind comes from the first
     // visible one)...
@@ -417,8 +432,8 @@ async fn hidden_items_stay_hidden_in_collections_and_playlists() {
     assert!(!detail.text.contains("Family Film"));
     let listed = app.get("/api/playlists", &kid).await;
     assert_eq!(listed.body["playlists"][0]["item_count"], json!(1));
-    let items = app.plex_json(&format!("/playlists/{playlist}/items"), &kid).await;
-    assert_eq!(plex_titles(&items), vec!["Cartoon"]);
+    let items = app.jf_json(&format!("/Playlists/{}/Items", app.jf_id(Kind::Playlist, playlist)), &kid).await;
+    assert_eq!(jf_names(&items), vec!["Cartoon"]);
     // The collection now has nothing the kid may see.
     assert_eq!(app.get(&format!("/api/collections/{mixed}"), &kid).await.status, StatusCode::NOT_FOUND);
     assert_eq!(app.collections(movies, &kid).await, json!([]));
@@ -558,11 +573,14 @@ async fn playlists_expand_reorder_and_keep_to_one_kind() {
 }
 
 #[tokio::test]
-async fn plex_api_lists_collections_and_edits_playlists() {
+async fn the_jellyfin_api_lists_collections_and_playlists_with_their_pictures() {
+    use pley::jellyfin::ids::Kind;
+
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
     app.media_file("movies/Alpha (2001)/Alpha (2001).mkv");
     app.media_file("movies/Alpha (2001)/poster.jpg");
+    std::fs::write(app.media.path().join("movies/Alpha (2001)/poster.jpg"), tiny_jpeg()).unwrap();
     app.media_file("movies/Beta (2002).mkv");
     let movies = app.library(&admin, "Movies", "movies", "movies").await;
     let m = app.ids(movies, &admin).await;
@@ -573,65 +591,43 @@ async fn plex_api_lists_collections_and_edits_playlists() {
             json!({"title": "Pair", "item_ids": [m["Beta"], m["Alpha"]]}),
         )
         .await;
-    let c = created.body["id"].as_i64().unwrap();
+    let c = app.jf_id(Kind::Collection, created.body["id"].as_i64().unwrap());
 
-    // Collections, listed both ways Plex clients ask for them.
-    let section = app.plex_json(&format!("/library/sections/{movies}/collections"), &admin).await;
-    let node = &section["Metadata"][0];
-    assert_eq!(node["type"], json!("collection"));
-    assert_eq!(node["subtype"], json!("movie"));
-    assert_eq!(node["childCount"], json!(2));
-    assert_eq!(node["key"], json!(format!("/library/collections/{c}/children")));
-    let typed = app.plex_json(&format!("/library/sections/{movies}/all?type=18"), &admin).await;
-    assert_eq!(plex_titles(&typed), vec!["Pair"]);
-    let children = app.plex_json(&format!("/library/collections/{c}/children"), &admin).await;
-    assert_eq!(plex_titles(&children), vec!["Alpha", "Beta"]);
-    assert_eq!(
-        app.plex_json(&format!("/library/collections/{c}"), &admin).await["Metadata"][0]["title"],
-        json!("Pair")
-    );
-    // Artwork comes from the first item.
-    let thumb = app.plex(Method::GET, &format!("/library/collections/{c}/thumb/1"), &admin).await;
-    assert_eq!(thumb.status, StatusCode::OK, "{}", thumb.text);
-    let transcoded = app
-        .plex(
-            Method::GET,
-            &format!("/photo/:/transcode?url={}", encode(&format!("/library/collections/{c}/thumb/1"))),
-            &admin,
-        )
-        .await;
-    assert_eq!(transcoded.status, StatusCode::OK);
+    // Collections, as BoxSets of their library, and their titles.
+    let library = app.jf_id(Kind::Library, movies);
+    let listed = app.jf_json(&format!("/Items?ParentId={library}&IncludeItemTypes=BoxSet"), &admin).await;
+    let node = &listed["Items"][0];
+    assert_eq!((&node["Name"], &node["Type"], &node["Id"]), (&json!("Pair"), &json!("BoxSet"), &json!(c)));
+    assert_eq!((&node["IsFolder"], &node["ChildCount"]), (&json!(true), &json!(2)));
+    assert_eq!(jf_names(&app.jf_json(&format!("/Items?ParentId={c}"), &admin).await), vec!["Alpha", "Beta"]);
+    assert_eq!(app.jf_json(&format!("/Items/{c}"), &admin).await["Name"], json!("Pair"));
+    // Its picture comes from its first title with one, without a token.
+    let tag = node["ImageTags"]["Primary"].as_str().unwrap();
+    let picture = app.jf(Method::GET, &format!("/Items/{c}/Images/Primary?tag={tag}&maxWidth=100"), "").await;
+    assert_eq!(picture.status, StatusCode::OK, "{}", picture.text);
+    assert_eq!(picture.headers[header::CONTENT_TYPE], "image/jpeg");
+    let untagged = app.jf(Method::GET, &format!("/Items/{c}/Images/Primary"), "").await;
+    assert_eq!(untagged.status, StatusCode::NOT_FOUND, "whose eyes to choose by isn't known");
+    let with_token = app.jf(Method::GET, &format!("/Items/{c}/Images/Primary"), &admin).await;
+    assert_eq!(with_token.status, StatusCode::OK);
 
-    // Playlists: create from a uri, list, move, remove, rename, delete.
-    let uri = encode(&format!("server://x/com.plexapp.plugins.library/library/metadata/{},{}", m["Alpha"], m["Beta"]));
-    let created = app.plex(Method::POST, &format!("/playlists?type=video&title=Mix&smart=0&uri={uri}"), &admin).await;
-    assert_eq!(created.status, StatusCode::OK, "{}", created.text);
-    let playlist = created.body["MediaContainer"]["Metadata"][0].clone();
-    assert_eq!(playlist["type"], json!("playlist"));
-    assert_eq!(playlist["playlistType"], json!("video"));
-    assert_eq!(playlist["leafCount"], json!(2));
-    let id = playlist["ratingKey"].as_str().unwrap().to_owned();
-    assert_eq!(plex_titles(&app.plex_json("/playlists?playlistType=video", &admin).await), vec!["Mix"]);
-    assert_eq!(app.plex_json("/playlists?playlistType=audio", &admin).await["size"], json!(0));
+    // Playlists, by their kind.
+    let made = app.post("/api/playlists", &admin, json!({"title": "Mix", "item_ids": [m["Alpha"], m["Beta"]]})).await;
+    assert_eq!(made.status, StatusCode::CREATED, "{:?}", made.body);
+    let id = app.jf_id(Kind::Playlist, made.body["id"].as_i64().unwrap());
+    let playlists = app.jf_json("/Items?IncludeItemTypes=Playlist&Recursive=true", &admin).await;
+    assert_eq!(jf_names(&playlists), vec!["Mix"]);
+    assert_eq!((&playlists["Items"][0]["Type"], &playlists["Items"][0]["ChildCount"]), (&json!("Playlist"), &json!(2)));
+    assert_eq!(jf_names(&app.jf_json(&format!("/Playlists/{id}/Items"), &admin).await), vec!["Alpha", "Beta"]);
+    assert_eq!(app.delete(&format!("/api/playlists/{}", made.body["id"]), &admin).await.status, StatusCode::NO_CONTENT);
+    assert_eq!(app.jf(Method::GET, &format!("/Playlists/{id}/Items"), &admin).await.status, StatusCode::NOT_FOUND);
+}
 
-    let items = app.plex_json(&format!("/playlists/{id}/items"), &admin).await;
-    assert_eq!(plex_titles(&items), vec!["Alpha", "Beta"]);
-    let beta = items["Metadata"][1]["playlistItemID"].as_i64().unwrap();
-    let moved = app.plex(Method::PUT, &format!("/playlists/{id}/items/{beta}/move"), &admin).await;
-    assert_eq!(moved.status, StatusCode::OK, "{}", moved.text);
-    assert_eq!(plex_titles(&app.plex_json(&format!("/playlists/{id}/items"), &admin).await), vec!["Beta", "Alpha"]);
-    let api_view = app.get(&format!("/api/playlists/{id}"), &admin).await;
-    assert_eq!(entry_titles(&api_view.body["entries"]), vec!["Beta", "Alpha"]);
-
-    let removed = app.plex(Method::DELETE, &format!("/playlists/{id}/items/{beta}"), &admin).await;
-    assert_eq!(removed.body["MediaContainer"]["Metadata"][0]["leafCount"], json!(1));
-    let renamed = app.plex(Method::PUT, &format!("/playlists/{id}?title=Solo"), &admin).await;
-    assert_eq!(renamed.body["MediaContainer"]["Metadata"][0]["title"], json!("Solo"));
-    let added = app.plex(Method::PUT, &format!("/playlists/{id}/items?uri={uri}"), &admin).await;
-    assert_eq!(added.body["MediaContainer"]["leafCountAdded"], json!(2));
-    let composite = app.plex(Method::GET, &format!("/playlists/{id}/composite/1"), &admin).await;
-    assert_eq!(composite.status, StatusCode::OK);
-
-    assert_eq!(app.plex(Method::DELETE, &format!("/playlists/{id}"), &admin).await.status, StatusCode::OK);
-    assert_eq!(app.plex(Method::GET, &format!("/playlists/{id}"), &admin).await.status, StatusCode::NOT_FOUND);
+/// The smallest JPEG Pley's image code reads: one white pixel.
+fn tiny_jpeg() -> Vec<u8> {
+    let mut out = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new(&mut out)
+        .encode(&[255, 255, 255], 1, 1, image::ExtendedColorType::Rgb8)
+        .unwrap();
+    out
 }

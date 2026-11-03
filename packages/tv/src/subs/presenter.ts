@@ -1,5 +1,6 @@
 import { ApiError, type Api } from "../api/client";
 import { Cancel } from "../net/transport";
+import { pictureUrlAt } from "../player/plan";
 import { readPictureTrack } from "pley-picture-subtitles/mks";
 import { PictureSubtitles } from "pley-picture-subtitles/picture-track";
 import type { PictureFrame } from "pley-picture-subtitles/pictures";
@@ -70,7 +71,7 @@ export class SubtitlePresenter {
     this.fetchText(url);
   }
 
-  /** Shows the server's .mks of a picture track at `url`. */
+  /** Shows the server's .mks of a picture track at `url`, asked for from where the player is. */
   showPictures(url: string): void {
     if (this.track?.kind === "pictures" && this.track.url === url) {
       this.refresh();
@@ -78,6 +79,21 @@ export class SubtitlePresenter {
     }
     this.reset({ kind: "pictures", url });
     this.fetchPictures(url);
+  }
+
+  /**
+   * The position jumped to `atMs` (the player may not say so yet): a picture track still being read is asked for
+   * again at once, from there.
+   */
+  sought(atMs: number): void {
+    const track = this.track;
+    if (track?.kind === "pictures" && (this.retry !== null || this.cancel !== null)) {
+      this.cancel?.cancel();
+      if (this.retry !== null) clearTimeout(this.retry);
+      this.retry = null;
+      this.fetchPictures(track.url, atMs);
+    }
+    this.refresh();
   }
 
   hide(): void {
@@ -146,14 +162,19 @@ export class SubtitlePresenter {
       });
   }
 
-  private fetchPictures(url: string): void {
+  /**
+   * The track at `url`, asked for from where the player is (`atMs`, else now): while the server reads the track, it
+   * answers with the pictures around there.
+   */
+  private fetchPictures(url: string, atMs = this.hooks.position()): void {
     const cancel = new Cancel();
     this.cancel = cancel;
-    // The server reads the whole file to make it the first time: minutes for a big one on a network share.
+    // An older server reads the whole file to make it the first time: minutes for a big one on a network share.
     this.api
-      .send(url, { responseType: "arraybuffer", headers: { Accept: "video/x-matroska" }, cancel, timeoutMs: 15 * 60_000 })
+      .send(pictureUrlAt(url, atMs), { responseType: "arraybuffer", headers: { Accept: "video/x-matroska" }, cancel, timeoutMs: 15 * 60_000 })
       .then((res) => {
         if (cancel.cancelled || this.track?.url !== url) return;
+        this.cancel = null;
         const subs = PictureSubtitles.of(readPictureTrack(res.body as ArrayBuffer));
         if (!subs) {
           this.hooks.onPicturesUnavailable();
@@ -163,13 +184,14 @@ export class SubtitlePresenter {
         this.refresh();
         if ((res.header(COMPLETE_HEADER) ?? "").trim() === "0") {
           this.retry = setTimeout(() => {
-            this.cancel = null;
+            this.retry = null;
             this.fetchPictures(url);
           }, PARTIAL_RETRY_MS);
         }
       })
       .catch((e: unknown) => {
         if (cancel.cancelled || this.track?.url !== url) return;
+        this.cancel = null;
         if (e instanceof ApiError && (e.status === 404 || e.status === 503)) this.hooks.onPicturesUnavailable();
         else this.hooks.onFailed();
       });

@@ -28,6 +28,8 @@ sealed class Input
         this.tree = tree;
         this.gate = gate;
         window.KeyEvent += (s, e) => OnKey(e.Key.KeyPressedName, e.Key.State == Key.StateType.Down);
+        // A profiling build also takes keys from the listener on the developer's computer.
+        Profile.Keys(OnKey);
         hold.Tick += (s, e) =>
         {
             var direction = gate.Tick();

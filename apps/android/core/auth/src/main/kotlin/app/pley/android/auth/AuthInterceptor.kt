@@ -100,6 +100,24 @@ class AuthInterceptor(private val tokens: Tokens) : Interceptor {
 }
 
 /**
+ * A request to the server that gets no answer (no network, nothing at the
+ * address, no answer in time): the device may be on another network now,
+ * so what answers there next proves it is the server before a token goes
+ * ([Tokens.doubtServer]). An application interceptor: a connection that
+ * fails never reaches the network interceptors.
+ */
+class DoubtWhenUnanswered(private val tokens: Tokens) : Interceptor {
+    private val issuer = tokens.issuer.toHttpUrlOrNull()
+
+    override fun intercept(chain: Interceptor.Chain): Response = try {
+        chain.proceed(chain.request())
+    } catch (e: IOException) {
+        if (onServer(chain.request().url, issuer) && !chain.call().isCanceled()) tokens.doubtServer()
+        throw e
+    }
+}
+
+/**
  * Whether [url] is on the server whose address is [issuer]: the same
  * scheme, host and port, as OkHttp parsed both (a second parser could read
  * the same address otherwise).
@@ -181,12 +199,14 @@ object AuthHttp {
 
     /**
      * For the server's API, images and streams: [tokens] on its own
-     * address only, a refresh on an expired token, redirects within a
-     * scheme but never from https down to http.
+     * address only, once the server there has proved itself, a refresh on
+     * an expired token, redirects within a scheme but never from https
+     * down to http.
      */
     fun api(base: OkHttpClient, tokens: Tokens): OkHttpClient = base.newBuilder()
         .followRedirects(true)
         .followSslRedirects(false)
+        .addInterceptor(DoubtWhenUnanswered(tokens))
         .addNetworkInterceptor(AuthInterceptor(tokens))
         .authenticator(TokenAuthenticator(tokens))
         .build()

@@ -116,11 +116,11 @@ class TvPlayerScreenTest {
 
     private fun focusedOn(tag: String) = compose.onNodeWithTag(tag, useUnmergedTree = true).assertIsFocused()
 
-    /** Down shows the controls on Play/Pause; Right goes on past Forward 10 and Next to Subtitles (then Audio, Info). */
+    /** Down shows the controls on Play/Pause; Right goes on past Next to Subtitles (then Audio, Info). */
     private fun toSubtitles() {
         press(Key.DirectionDown)
         focusedOn(TAG_PLAY_PAUSE)
-        press(Key.DirectionRight, times = 3)
+        press(Key.DirectionRight, times = 2)
         focusedOn(TAG_SUBTITLES)
     }
 
@@ -314,21 +314,6 @@ class TvPlayerScreenTest {
     }
 
     @Test
-    fun `the row's Forward 10 seeks 400 ms after the last press, without OK`() {
-        val controller = playing()
-        show(controller)
-        press(Key.DirectionUp)
-        press(Key.DirectionDown)
-        focusedOn(TAG_PLAY_PAUSE)
-        press(Key.DirectionRight)
-        press(Key.DirectionCenter, times = 2)
-        assertTrue(controller.calls("seekTo").isEmpty())
-        compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + 100)
-        compose.waitForIdle()
-        assertEquals(listOf(620_000L), controller.calls("seekTo").map { it.args.single() })
-    }
-
-    @Test
     fun `the title shows for 4 s as each item begins, the next episode too`() {
         val controller = playing()
         show(controller)
@@ -417,9 +402,9 @@ class TvPlayerScreenTest {
     fun `the Chapters button opens the cards on the chapter playing, and Down or Back closes them onto it`() {
         val controller = playing()
         show(controller)
-        // Play/Pause, Back 10, Previous, then Speed, Sleep timer and Chapters at the left.
+        // Play/Pause, Previous, then Speed, Sleep timer and Chapters at the left.
         press(Key.DirectionDown)
-        press(Key.DirectionLeft, times = 5)
+        press(Key.DirectionLeft, times = 4)
         val button = tagOf(PlayerFocus.Chapters)
         focusedOn(button)
         press(Key.DirectionCenter)
@@ -447,7 +432,7 @@ class TvPlayerScreenTest {
         val controller = playing()
         show(controller)
         press(Key.DirectionDown)
-        press(Key.DirectionLeft, times = 5)
+        press(Key.DirectionLeft, times = 4)
         val button = tagOf(PlayerFocus.Chapters)
         press(Key.DirectionCenter)
         focusedOn(TAG_CHAPTER_STRIP)

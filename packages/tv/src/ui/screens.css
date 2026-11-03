@@ -1128,9 +1128,6 @@ html.avplay .engine-host { background: transparent; }
 .pbtn.big { width: 44px; height: 44px; }
 .pbtn[data-focused] { background: var(--accent); color: var(--on-accent); transform: scale(1.08); transition: transform 150ms var(--focus-ease); }
 .pbtn[data-pressed] { background: var(--accent-bright); }
-/* −10 s and +10 s: the turning arrow with the number inside, 0.36 of the icon. */
-.skip-glyph { position: relative; width: 24px; height: 24px; }
-.skip-glyph > span { position: absolute; left: 0; top: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 8.64px; line-height: 1; font-weight: 700; letter-spacing: -0.02em; }
 .pbtn-label {
   position: absolute;
   left: 50%;

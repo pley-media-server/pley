@@ -5,7 +5,7 @@ import time
 import unittest
 
 import support  # noqa: F401
-from pley import events, kodi
+from pley import auth, events, kodi
 from pley.events import Events, Refresher, events_of
 from pley.proxy import hard_close
 from test_service import KodiPlayer
@@ -80,6 +80,12 @@ class Tokens:
         self.at = server
         self.profile = None
         self.token = "at-1"
+        self.doubts = 0
+        # (server, token) signed in to while a refused token is renewed.
+        self.chosen_meanwhile = None
+
+    def doubt(self):
+        self.doubts += 1
 
     def server(self):
         return self.at
@@ -87,10 +93,16 @@ class Tokens:
     def identity(self):
         return (self.at, self.profile) if self.at else None
 
-    def access(self):
-        return self.token
+    def session(self):
+        if not self.at:
+            raise auth.SignedOut()
+        return self.at, self.token
 
-    def refreshed(self, stale):
+    def refreshed(self, stale, server):
+        if self.chosen_meanwhile:
+            (self.at, self.token), self.chosen_meanwhile = self.chosen_meanwhile, None
+        if server != self.at:
+            raise auth.SignedOut()
         self.token = "at-%d" % (int(stale.split("-")[1]) + 1)
         return self.token
 
@@ -186,6 +198,18 @@ class EventsTest(unittest.TestCase):
         tokens.at = second.url
         self.assertTrue(wait_for(lambda: self.heard), "the second server's events")
         self.assertEqual(len(first.requests), 1)
+
+    def test_a_server_left_meanwhile_never_gets_the_new_ones_token(self):
+        # Another server was chosen while the first held its answer, then
+        # refused the token: the first isn't asked again, with the second's.
+        first = self.server([(401, [], False)])
+        second = self.server([(200, [{"type": "from_the_second"}], True)])
+        tokens = Tokens(first.url)
+        tokens.chosen_meanwhile = (second.url, "at-9")
+        self.listen(tokens)
+        self.assertTrue(wait_for(lambda: self.heard), "the second server's events")
+        self.assertEqual(len(first.requests), 1)
+        self.assertIn("Authorization: Bearer at-9", second.requests[0])
 
     def test_another_profile_is_listened_to_as_itself(self):
         # Switched profiles: the stream opened as the profile before goes.

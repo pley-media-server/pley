@@ -82,17 +82,20 @@ class Events:
     def run(self) -> None:
         tries = 0
         while not self.stopping.is_set():
-            server = self.tokens.server()
-            if not server:
+            if not self.tokens.server():
                 # Signed out: the plugin may sign in again.
                 self.stopping.wait(5)
                 continue
             began = time.monotonic()
             try:
-                self.listen(server)
+                self.listen()
             except auth.SignedOut:
+                # Signed out, or in to another server: listened to next.
                 continue
             except Exception as e:  # noqa: BLE001 - whatever broke it, it is tried again
+                if isinstance(e, OSError) or (isinstance(e, api.ApiError) and e.status == 0):
+                    # Nothing answered: the server proves itself again before the next token.
+                    self.tokens.doubt()
                 if tries == 0 and not self.stopping.is_set():
                     kodi.log("event stream: %s" % e)
             if time.monotonic() - began >= HELD:
@@ -100,13 +103,13 @@ class Events:
             self.stopping.wait(self.retry[min(tries, len(self.retry) - 1)])
             tries += 1
 
-    def listen(self, server: str) -> None:
+    def listen(self) -> None:
         """One connection, until the stream ends (the token expired, the
         server stopped) or another sign-in, server or profile takes over:
         then its next line (the server's comment every 15 seconds at the
         latest) ends it, unread."""
         who = self.tokens.identity()
-        token = self.tokens.access()
+        server, token = self.tokens.session()
         for attempt in range(2):
             conn = api.connect(server, self.read_timeout)
             try:
@@ -122,7 +125,7 @@ class Events:
                 conn.request("GET", "/api/events", headers=headers)
                 answer = conn.getresponse()
                 if answer.status == 401 and not attempt:
-                    token = self.tokens.refreshed(token)
+                    token = self.tokens.refreshed(token, server)
                     continue
                 if answer.status != 200:
                     raise api.ApiError(answer.status, "events", "the server answered %d" % answer.status)

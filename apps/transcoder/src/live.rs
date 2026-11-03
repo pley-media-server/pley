@@ -107,9 +107,10 @@ pub enum LiveFile {
 }
 
 impl LiveManager {
+    /// Channels in `dir`, the work folder's `live`, made empty and kept to
+    /// this account at start-up (main.rs `prepare_work_dir`): not emptied
+    /// and made again here, which would give it the default permissions.
     pub fn new(ff: Arc<Ffmpeg>, slots: Arc<Slots>, dir: PathBuf) -> Arc<Self> {
-        let _ = std::fs::remove_dir_all(&dir);
-        let _ = std::fs::create_dir_all(&dir);
         Arc::new(Self { ff, slots, dir, channels: Mutex::new(HashMap::new()), closed: AtomicBool::new(false) })
     }
 
@@ -122,7 +123,11 @@ impl LiveManager {
         }
         let id = uuid::Uuid::new_v4().simple().to_string();
         let dir = self.dir.join(&id);
-        std::fs::create_dir_all(&dir)?;
+        // `live` as it was made at start-up, even if something took it away
+        // since (a clean-up of the folder it is in), then a new folder in
+        // it: none another account made, nor a link.
+        crate::own_folder(&self.dir)?;
+        std::fs::create_dir(&dir)?;
         let live = Arc::new(Live {
             id: id.clone(),
             request,

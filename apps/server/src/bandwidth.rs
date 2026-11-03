@@ -125,8 +125,7 @@ impl Bandwidth {
     }
 
     fn with_secret(db: Db, secret: &[u8]) -> Self {
-        let derived = hmac::sign(&hmac::Key::new(hmac::HMAC_SHA256, secret), b"pley playback networks");
-        Self { db, key: hmac::Key::new(hmac::HMAC_SHA256, derived.as_ref()), tests: Arc::default() }
+        Self { db, key: crate::two_step::derived_key(secret, b"pley playback networks"), tests: Arc::default() }
     }
 
     /// The network a request from `ip` came from ([`network_id`]).

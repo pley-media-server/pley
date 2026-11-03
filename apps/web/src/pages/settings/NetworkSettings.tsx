@@ -33,12 +33,13 @@ const NETWORK_KIND: Record<NonNullable<NetworkAdapter["network"]>["kind"], strin
 
 const LISTENER: Record<ListenerKind, string> = {
   web: "Pley",
-  plex: "Plex-compatible API",
+  jellyfin: "Jellyfin-compatible API",
   discovery: "Discovery (UDP)",
 };
 
 const DEFAULT_PORT = 7539;
-const PLEX_PORT = 32400;
+/** Jellyfin's own, which its apps try first. */
+const JELLYFIN_PORT = 8096;
 
 /** What the page edits; {@link choiceOf} turns it into addresses. */
 interface Form {
@@ -46,10 +47,10 @@ interface Form {
   /** The networks' addresses, for "networks". */
   ips: string[];
   port: number;
-  plex: boolean;
+  jellyfin: boolean;
   /** On pley's port rather than one of its own. */
-  plexOnWeb: boolean;
-  plexPort: number;
+  jellyfinOnWeb: boolean;
+  jellyfinPort: number;
   discovery: boolean;
 }
 
@@ -65,15 +66,15 @@ const isAny = (ip: string) => ip === "0.0.0.0" || ip === "::";
 
 function formOf(choice: ListenChoice): Form {
   const web = choice.web.map(splitAddress);
-  const plex = choice.plex.map(splitAddress);
+  const jellyfin = choice.jellyfin.map(splitAddress);
   const mode: Mode = web.some((a) => isAny(a.ip)) ? "all" : web.every((a) => isLoopback(a.ip)) ? "local" : "networks";
   return {
     mode,
     ips: web.filter((a) => !isLoopback(a.ip) && !isAny(a.ip)).map((a) => a.ip),
     port: web[0]?.port ?? DEFAULT_PORT,
-    plex: plex.length > 0 || choice.plex_on_web,
-    plexOnWeb: plex.length === 0,
-    plexPort: plex[0]?.port ?? PLEX_PORT,
+    jellyfin: jellyfin.length > 0 || choice.jellyfin_on_web,
+    jellyfinOnWeb: jellyfin.length === 0,
+    jellyfinPort: jellyfin[0]?.port ?? JELLYFIN_PORT,
     discovery: choice.discovery,
   };
 }
@@ -83,20 +84,30 @@ function choiceOf(form: Form, network: Network): ListenChoice {
   const ips = form.mode === "all" ? ["0.0.0.0"] : form.mode === "local" ? ["127.0.0.1"] : ["127.0.0.1", ...form.ips];
   return {
     web: network.fixed.web ? network.web : ips.map((ip) => joinAddress(ip, form.port)),
-    plex: network.fixed.plex ? network.plex : form.plex && !form.plexOnWeb ? ips.map((ip) => joinAddress(ip, form.plexPort)) : [],
-    plex_on_web: network.fixed.plex ? network.plex_on_web : form.plex && form.plexOnWeb,
+    jellyfin: network.fixed.jellyfin
+      ? network.jellyfin
+      : form.jellyfin && !form.jellyfinOnWeb
+        ? ips.map((ip) => joinAddress(ip, form.jellyfinPort))
+        : [],
+    jellyfin_on_web: network.fixed.jellyfin ? network.jellyfin_on_web : form.jellyfin && form.jellyfinOnWeb,
     discovery: network.fixed.discovery ? network.discovery : form.discovery,
   };
 }
 
 const sameChoice = (a: ListenChoice, b: ListenChoice) =>
-  a.discovery === b.discovery && a.plex_on_web === b.plex_on_web && a.web.join() === b.web.join() && a.plex.join() === b.plex.join();
+  a.discovery === b.discovery &&
+  a.jellyfin_on_web === b.jellyfin_on_web &&
+  a.web.join() === b.web.join() &&
+  a.jellyfin.join() === b.jellyfin.join();
 
 /** Why `form` can't be saved, if it can't. */
 function problemOf(form: Form): string | null {
   const port = (p: number) => Number.isInteger(p) && p >= 1 && p <= 65535;
   if (!port(form.port)) return "The port is a number from 1 to 65535.";
-  if (form.plex && !form.plexOnWeb && form.plexPort === form.port) return "Pley and the Plex-compatible API need ports of their own.";
+  if (form.jellyfin && !form.jellyfinOnWeb) {
+    if (!port(form.jellyfinPort)) return "The Jellyfin-compatible API's port is a number from 1 to 65535.";
+    if (form.jellyfinPort === form.port) return "Choose another port for the Jellyfin-compatible API, or Pley's port.";
+  }
   if (form.mode === "networks" && form.ips.length === 0) return "Choose a network, or Only this computer.";
   return null;
 }
@@ -235,7 +246,7 @@ export function NetworkSettings() {
   // The form starts from where pley listens, and again when that changes
   // (not when only how its listeners are does).
   const [form, setForm] = useState<Form | null>(() => (data ? formOf(data) : null));
-  useOnChange(data ? JSON.stringify([data.web, data.plex, data.plex_on_web, data.discovery]) : "", () => {
+  useOnChange(data ? JSON.stringify([data.web, data.jellyfin, data.jellyfin_on_web, data.discovery]) : "", () => {
     if (data) setForm(formOf(data));
   });
 
@@ -262,7 +273,7 @@ export function NetworkSettings() {
   const lost = dirty && !moved && stillServes(data.web, next.web, href) === false;
   // pley.toml lists addresses this page doesn't show as they are.
   const unusual = !sameChoice(saved, data);
-  const fixedAll = data.fixed.web && data.fixed.plex && data.fixed.discovery;
+  const fixedAll = data.fixed.web && data.fixed.jellyfin && data.fixed.discovery;
 
   const onSave = () => {
     if (problem) return;
@@ -347,39 +358,60 @@ export function NetworkSettings() {
 
       <Card className="space-y-5">
         <Row
-          label="Plex-compatible API"
+          label="Jellyfin-compatible API"
           hint={
-            data.fixed.plex
-              ? "Set by --plex-bind or PLEY_PLEX_BIND, on the command line or in the environment."
-              : form.plexOnWeb
-                ? "For Plex apps and tools, on Pley's own port and addresses (through your reverse proxy too): Pley tells their requests from browsers'."
-                : `For Plex apps and tools, on port ${form.plexPort}, where Pley listens. A Plex server on this computer keeps its port.`
+            data.fixed.jellyfin
+              ? "Set by --jellyfin-bind or PLEY_JELLYFIN_BIND, on the command line or in the environment."
+              : !form.jellyfin
+                ? "For Jellyfin's apps, Infuse and other apps that use Jellyfin's API. They sign in with Pley accounts."
+                : form.jellyfinOnWeb
+                  ? "On Pley's address, through your reverse proxy too: apps connect to the address you use for Pley."
+                  : "On a port of its own, at the addresses above."
           }
         >
-          <Toggle checked={form.plex} disabled={data.fixed.plex} onChange={(v) => set({ plex: v })} label="Plex-compatible API" />
+          <Toggle
+            checked={form.jellyfin}
+            disabled={data.fixed.jellyfin}
+            onChange={(v) => set({ jellyfin: v })}
+            label="Jellyfin-compatible API"
+          />
         </Row>
-        {form.plex ? (
-          <div className="grid grid-cols-2 gap-1 rounded-md bg-surface-2 p-1 text-sm" role="radiogroup" aria-label="Plex-compatible API's port">
+        {form.jellyfin ? (
+          <div className="grid grid-cols-2 gap-1 rounded-md bg-surface-2 p-1 text-sm" role="radiogroup" aria-label="Jellyfin-compatible API's port">
             {[
               { onWeb: true, label: `On Pley's port (${Number.isNaN(form.port) ? DEFAULT_PORT : form.port})` },
-              { onWeb: false, label: `On port ${form.plexPort}` },
+              { onWeb: false, label: "On a port of its own" },
             ].map((o) => (
               <button
                 key={o.label}
                 type="button"
                 role="radio"
-                aria-checked={form.plexOnWeb === o.onWeb}
-                disabled={data.fixed.plex}
-                onClick={() => set({ plexOnWeb: o.onWeb })}
+                aria-checked={form.jellyfinOnWeb === o.onWeb}
+                disabled={data.fixed.jellyfin}
+                onClick={() => set({ jellyfinOnWeb: o.onWeb })}
                 className={cn(
                   "h-8 rounded font-medium transition-colors disabled:opacity-60",
-                  form.plexOnWeb === o.onWeb ? "bg-surface-3 text-fg shadow-sm" : "text-muted hover:text-fg",
+                  form.jellyfinOnWeb === o.onWeb ? "bg-surface-3 text-fg shadow-sm" : "text-muted hover:text-fg",
                 )}
               >
                 {o.label}
               </button>
             ))}
           </div>
+        ) : null}
+        {form.jellyfin && !form.jellyfinOnWeb ? (
+          <Row label="Jellyfin port" htmlFor="network-jellyfin-port" hint={`Jellyfin's own is ${JELLYFIN_PORT}.`}>
+            <TextInput
+              id="network-jellyfin-port"
+              type="number"
+              min={1}
+              max={65535}
+              value={Number.isNaN(form.jellyfinPort) ? "" : form.jellyfinPort}
+              disabled={data.fixed.jellyfin}
+              onChange={(e) => set({ jellyfinPort: Number.parseInt(e.target.value, 10) })}
+              className="w-28"
+            />
+          </Row>
         ) : null}
         <Row
           label="Found by the Pley apps"
@@ -408,10 +440,10 @@ export function NetworkSettings() {
           <p className="mt-0.5 text-sm text-muted">Pley retries addresses it can't listen on yet every 30 seconds.</p>
         </div>
         <ul className="space-y-1.5 text-sm">
-          {data.plex_on_web ? (
+          {data.jellyfin_on_web ? (
             <li className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <CircleCheck className="size-3.5 shrink-0 text-success" />
-              <span className="text-muted">{LISTENER.plex}, on Pley's port</span>
+              <span className="text-muted">{LISTENER.jellyfin}, on Pley's port</span>
             </li>
           ) : null}
           {data.listeners.map((l) => (
@@ -427,7 +459,7 @@ export function NetworkSettings() {
 
       {unusual && !fixedAll ? (
         <Note icon={<Info className="size-3.5" />}>
-          Pley listens on {[...data.web, ...data.plex].join(", ")}, which this page shows as near as it can: saving replaces them.
+          Pley listens on {[...data.web, ...data.jellyfin].join(", ")}, which this page shows as near as it can: saving replaces them.
         </Note>
       ) : null}
 

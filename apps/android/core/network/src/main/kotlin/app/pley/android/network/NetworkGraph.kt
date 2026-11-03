@@ -53,6 +53,17 @@ interface NetworkGraph {
 
     companion object {
         /**
+         * [root] reaching home addresses through the home network when
+         * mobile data is the default ([LocalRoute]), as every client of a
+         * server does: for signing in and the server's proofs, which go to
+         * the same addresses as the rest.
+         */
+        fun homeRouted(context: Context, root: OkHttpClient): OkHttpClient {
+            val route = LocalRoute(AndroidLanNetworks(context.applicationContext)::bypass)
+            return root.newBuilder().apply { route.applyTo(this) }.build()
+        }
+
+        /**
          * The app's network parts over [root] (HttpRoot.create), with the
          * tokens of [auth]. HTTP caches go under [cacheDir]/http.
          */
@@ -133,6 +144,7 @@ internal class HttpNetworkGraph(
             .protocols(listOf(Protocol.HTTP_1_1))
             .followRedirects(true)
             .followSslRedirects(false)
+            .addInterceptor(auth.unanswered)
             .addNetworkInterceptor(auth)
             .authenticator(auth)
             .build()

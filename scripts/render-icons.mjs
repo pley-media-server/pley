@@ -16,7 +16,7 @@
 //                                           for the window, the taskbar and Alt-Tab
 //   apps/desktop/src-tauri/icons/icon.icns  on Apple's grid (an 824 plate in 1024,
 //                                           a soft shadow), as macOS draws its apps
-//   apps/tizen/assets/icon.png              Samsung's 512×423, full bleed, as a
+//   apps/tizen/assets/icon.png              Samsung's, 512 square, full bleed, as a
 //                                           24-bit RGB PNG at 72 dpi (Samsung's spec),
 //                                           marked WEB in blue: the web app beside the native one
 //   apps/tizen-native/src/Pley.Tv.Tizen/shared/res/icon.png
@@ -90,8 +90,8 @@ function onTile(width, height, s, x, y) {
  * which of Pley's Samsung apps it is, told apart on a TV that has more than one.
  */
 function labelled(width, height, label, fill, ink) {
-  const band = Math.round(height * 0.26);
-  const s = 360 / 64;
+  const band = Math.round(height * 0.22);
+  const s = 330 / 64;
   // The mark (40 × 33 of the logo's 64, about its centre) centred in what the band leaves.
   const x = width / 2 - 32 * s;
   const y = (height - band) / 2 - 32 * s;
@@ -322,14 +322,14 @@ try {
     ]),
   );
 
-  // Samsung's 512×423: the mark where a 360 px logo centred in it puts it, the tile's colour to the edges.
+  // Samsung's, square as the TV's menu draws its other apps: a 380 px logo centred, the tile's colour to the edges.
   // The native app's plain; the web app's and a native profiling build's marked, as all three may be
   // on one TV.
   const tizen = join(root, "apps/tizen/assets");
-  writeFileSync(join(tizen, "icon.png"), rgb72(await r.png(labelled(512, 423, "WEB", "#0284c7", "#ffffff"), 512, 423)));
+  writeFileSync(join(tizen, "icon.png"), rgb72(await r.png(labelled(512, 512, "WEB", "#0284c7", "#ffffff"), 512, 512)));
   const native = join(root, "apps/tizen-native/src/Pley.Tv.Tizen");
-  writeFileSync(join(native, "shared/res/icon.png"), rgb72(await r.png(onTile(512, 423, 360 / 64, 76, 31.5), 512, 423)));
-  writeFileSync(join(native, "icon-debug.png"), rgb72(await r.png(labelled(512, 423, "DEBUG", "#facc15", "#0a1622"), 512, 423)));
+  writeFileSync(join(native, "shared/res/icon.png"), rgb72(await r.png(onTile(512, 512, 380 / 64, 66, 66), 512, 512)));
+  writeFileSync(join(native, "icon-debug.png"), rgb72(await r.png(labelled(512, 512, "DEBUG", "#facc15", "#0a1622"), 512, 512)));
 
   // LG's: the logo at full size without its rounded corners, on the colour appinfo.json's iconColor
   // gives the TV's tile; and the launch picture with the mark's middle (32, 32 of the logo's 64)

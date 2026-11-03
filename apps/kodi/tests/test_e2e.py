@@ -70,7 +70,7 @@ class EndToEndTest(unittest.TestCase):
         cls.process = subprocess.Popen(
             [
                 PLEY_BIN, "--data-dir", os.path.join(cls.dir, "data"), "--bind", "127.0.0.1:%d" % port,
-                "--plex-bind", "off", "--no-tray", "--no-discovery",
+                "--no-tray", "--no-discovery",
                 "--ffmpeg", os.path.join(FFMPEG_DIR, "ffmpeg" + EXE),
                 "--ffprobe", os.path.join(FFMPEG_DIR, "ffprobe" + EXE),
             ],

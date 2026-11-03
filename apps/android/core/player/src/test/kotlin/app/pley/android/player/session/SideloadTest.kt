@@ -16,7 +16,10 @@ import app.pley.android.player.subtitles.SampleStore
 import app.pley.android.testing.caps.TestDevices
 import app.pley.android.testing.caps.capsOf
 import java.io.File
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -31,15 +34,32 @@ import org.robolectric.RobolectricTestRunner
 class SideloadTest {
     private val dir = File(System.getProperty("java.io.tmpdir"), "pley-sideload-${System.nanoTime()}").apply { mkdirs() }
 
-    /** The .mks asked for, by address; each answer is the fixtures' PGS, a cue every 6 s from 0.5 s. */
+    /**
+     * The .mks asked for, by address; each answer is the fixtures' PGS, a
+     * cue every 6 s from 0.5 s past where it was asked from (`at`), as the
+     * server answers with the pictures around there first.
+     */
     private val asked = mutableListOf<String>()
+
+    /** Whether the server's copy of the track is whole: until it is, each answer says to ask again (`X-Pley-Complete: 0`). */
+    private var whole = true
+
+    /** While set, the next answer waits for it (the server still reading), whatever becomes of its ask meanwhile. */
+    private var held: CompletableDeferred<Unit>? = null
+
     private val pictures = PictureSource { fileId, index, url ->
         asked += url
-        val mks = File(dir, "$fileId-$index-${asked.size}.mks")
-        mks.writeBytes(PgsMks.build((0 until 4).map { n -> Triple(n * 6_000L + 500, n * 6_000L + 4_500, "PGS ${n + 1}") }, 30_000, "fre"))
-        PictureLoad(PictureTrack.read(mks, SampleStore(File(dir, "$fileId-$index-${asked.size}.samples")), Dispatchers.Unconfined), complete = true)
+        val n = asked.size
+        val from = atOf(url)
+        held?.let { gate -> withContext(NonCancellable) { gate.await() } }
+        val mks = File(dir, "$fileId-$index-$n.mks")
+        mks.writeBytes(PgsMks.build((0 until 4).map { i -> Triple(from + i * 6_000L + 500, from + i * 6_000L + 4_500, "PGS ${i + 1}") }, from + 30_000, "fre"))
+        PictureLoad(PictureTrack.read(mks, SampleStore(File(dir, "$fileId-$index-$n.samples")), Dispatchers.Unconfined), complete = whole)
     }
     private val h = SessionHarness(caps = capsOf(TestDevices.sdrPhone), pictures = pictures)
+
+    /** Where an ask for the .mks says the player is. */
+    private fun atOf(url: String): Long = url.substringAfter("at=").toLong()
 
     @After
     fun close() {
@@ -66,7 +86,8 @@ class SideloadTest {
         // Nothing to burn in: the session plays on.
         assertEquals(1, h.playbackRequests().size)
         assertNull(h.playbackRequests().single().subtitleIndex)
-        assertTrue(asked.single().endsWith("/api/files/${file.id}/subtitles/${picture.index}.mks"))
+        // From the start, and it says so (`at=0`).
+        assertTrue(asked.single(), asked.single().endsWith("/api/files/${file.id}/subtitles/${picture.index}.mks?at=0"))
         assertTrue(c.state.value.subtitleSync)
         h.advance(1_000)
         assertTrue(c.cues.value.single().bitmap != null)
@@ -118,6 +139,70 @@ class SideloadTest {
     }
 
     @Test
+    fun `pictures are asked for from where the player is, so the server copies them out of the file from there first`() {
+        val movie = Catalogue.movieWithTracks(h.api)
+        val file = movie.files.first()
+        val picture = file.streams.first { it.kind == StreamKind.Subtitle && it.textBased == false }
+        h.play(PlayRequest(movie.id, startMs = 600_000, subtitleIndex = picture.index.toLong()))
+        assertTrue(asked.single(), asked.single().endsWith("/api/files/${file.id}/subtitles/${picture.index}.mks?at=600000"))
+    }
+
+    @Test
+    fun `a track not yet whole is asked for again every 3 s, each time from where the player is then`() {
+        whole = false
+        val movie = Catalogue.movieWithTracks(h.api)
+        val picture = movie.files.first().streams.first { it.kind == StreamKind.Subtitle && it.textBased == false }
+        val c = h.play(PlayRequest(movie.id, fromStart = true, subtitleIndex = picture.index.toLong()))
+        h.engine.ready()
+        h.advance(6_000)
+        assertEquals(listOf(0L, 3_000L, 6_000L), asked.map(::atOf))
+        // Paused, it asks from where it stands.
+        c.pause()
+        h.advance(6_000)
+        assertEquals(listOf(0L, 3_000L, 6_000L, 6_000L, 6_000L), asked.map(::atOf))
+    }
+
+    @Test
+    fun `a seek asks again at once from where it goes, and the answer for where it was doesn't replace it`() {
+        whole = false
+        val movie = Catalogue.movieWithTracks(h.api)
+        val file = movie.files.first()
+        val picture = file.streams.first { it.kind == StreamKind.Subtitle && it.textBased == false }
+        // The server is still reading around the start when the player goes to 10 min.
+        val first = CompletableDeferred<Unit>().also { held = it }
+        val c = h.play(PlayRequest(movie.id, fromStart = true, subtitleIndex = picture.index.toLong()))
+        h.engine.ready()
+        held = null
+        c.seekTo(600_000)
+        h.settle()
+        assertEquals(listOf(0L, 600_000L), asked.map(::atOf))
+        // The answer for the start comes after the one for 10 min: it is let go of, and those for 10 min show.
+        first.complete(Unit)
+        h.settle()
+        assertFalse(File(dir, "${file.id}-${picture.index}-1.samples").exists())
+        h.advance(1_000)
+        assertEquals(1, c.cues.value.size)
+        // The next ask is 3 s on, from there.
+        h.advance(2_000)
+        assertEquals(listOf(0L, 600_000L, 603_000L), asked.map(::atOf))
+    }
+
+    @Test
+    fun `once the track is whole nothing more is asked, after a seek neither`() {
+        whole = false
+        val movie = Catalogue.movieWithTracks(h.api)
+        val picture = movie.files.first().streams.first { it.kind == StreamKind.Subtitle && it.textBased == false }
+        val c = h.play(PlayRequest(movie.id, fromStart = true, subtitleIndex = picture.index.toLong()))
+        h.engine.ready()
+        // The answer 3 s on is whole.
+        whole = true
+        h.advance(33_000)
+        c.seekTo(600_000)
+        h.advance(10_000)
+        assertEquals(listOf(0L, 3_000L), asked.map(::atOf))
+    }
+
+    @Test
     fun `a server without the mks burns the pictures in instead`() {
         // An older server: no .mks route.
         val older = SessionHarness(
@@ -166,6 +251,10 @@ class SideloadPlanTest {
         assertFalse(PlaybackPlan.sideloadsPictures(noSideload))
         assertFalse(PlaybackPlan.sideloadsPictures(null))
         assertEquals("/api/files/7/subtitles/2.mks", PlaybackPlan.pictureSubtitlesPath(7, 2))
+        // The start too: without `at` the server doesn't know where the player is.
+        assertEquals("/s.mks?at=0", PlaybackPlan.pictureUrlAt("/s.mks", 0))
+        assertEquals("/s.mks?at=5000", PlaybackPlan.pictureUrlAt("/s.mks", 5_000))
+        assertEquals("/s.mks?k=1&at=5000", PlaybackPlan.pictureUrlAt("/s.mks?k=1", 5_000))
     }
 
     @Test

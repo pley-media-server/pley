@@ -263,9 +263,14 @@ pub async fn stream(
     user: AuthUser,
     Path(id): Path<i64>,
     Query(query): Query<HashMap<String, String>>,
+    parts: axum::http::request::Parts,
 ) -> ApiResult<Response> {
     let client_id = query.get("client_id").cloned();
-    let take_over = query.get("take_over").and_then(|t| t.parse().ok());
+    // Taking another channel's connection ends what others watch: not for a
+    // GET the browser's cookie signs in, which over plain HTTP may be
+    // another site's link or picture (pley's own page asks with POST …/watch).
+    let take_over =
+        query.get("take_over").and_then(|t| t.parse().ok()).filter(|_| !crate::auth::signed_in_by_cookie(&parts));
     let (watching, _) = start_watching(&state, &user, id, client_id, ViewerKind::Stream, false, take_over).await?;
     let body = state.live.tuners.stream(&watching.session_id, &user)?;
     Response::builder()

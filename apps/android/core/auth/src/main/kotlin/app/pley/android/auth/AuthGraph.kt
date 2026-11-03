@@ -51,6 +51,7 @@ interface AuthGraph {
          */
         fun create(context: Context, root: OkHttpClient, userAgent: String): AuthGraph {
             Auth.use(root, userAgent)
+            ServerProofs.followNetworks(context.applicationContext)
             return AppAuthGraph(context.applicationContext)
         }
     }

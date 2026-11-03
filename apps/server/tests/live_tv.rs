@@ -499,6 +499,41 @@ async fn a_connection_in_use_is_taken_over_by_its_watcher_or_an_administrator() 
 }
 
 #[tokio::test]
+async fn a_link_signed_in_by_the_cookie_takes_no_connection_over() {
+    let (base, _) = provider().await;
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let (bob, _) = app.user(&admin, "bob", json!({})).await;
+    let url = format!("{base}/list.m3u");
+    app.post("/api/live/sources", &admin, json!({"name": "P", "kind": "m3u", "url": url, "max_connections": 1})).await;
+    wait_until_read(&app, &admin).await;
+    let channels = app.get("/api/live/channels", &bob).await.body;
+    let (one, two) = (channels[0]["id"].as_i64().unwrap(), channels[1]["id"].as_i64().unwrap());
+    let bobs = app.post(&format!("/api/live/channels/{one}/watch"), &bob, json!({"client_id": "tv"})).await;
+    assert_eq!(bobs.status, StatusCode::OK);
+
+    // Over plain HTTP, another site's link to Two's stream asking for One's
+    // connection is a GET like any: with the administrator's cookie, it
+    // takes nothing.
+    let stream = format!("/api/live/channels/{two}/stream.ts?client_id=pc&take_over={one}");
+    let req = Request::builder()
+        .uri(&stream)
+        .header(header::COOKIE, format!("{}={admin}", pley::auth::COOKIE_NAME))
+        .body(Body::empty())
+        .unwrap();
+    let resp = app.api.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::CONFLICT, "Bob keeps the connection");
+    drop(resp);
+    // A player sending its token asks on purpose.
+    let req = Request::builder()
+        .uri(&stream)
+        .header(header::AUTHORIZATION, format!("Bearer {admin}"))
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(app.api.clone().oneshot(req).await.unwrap().status(), StatusCode::OK);
+}
+
+#[tokio::test]
 async fn channels_that_dont_play_and_divider_rows_are_left_out() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());

@@ -1,5 +1,5 @@
 import { atHome, origin } from "../auth/addresses";
-import { SignedOutError, type Tokens } from "../auth/tokens";
+import { NOT_YOUR_SERVER, SignedOutError, type Tokens } from "../auth/tokens";
 import { Cancel, NetworkError, TIMED_OUT, withQuery, type HttpRequest, type HttpResponse, type Transport } from "../net/transport";
 import type {
   Collection,
@@ -124,6 +124,7 @@ function pleyAnswer(e: ApiError): boolean {
 
 /** Why the server answered nothing, as the Android app says it: "Nothing answers there." or "No answer in time." */
 export function unreachableReason(e: unknown): string {
+  if (e instanceof NetworkError && e.message === NOT_YOUR_SERVER) return "Another device answers there.";
   return e instanceof NetworkError && e.message === TIMED_OUT ? "No answer in time." : "Nothing answers there.";
 }
 
@@ -208,17 +209,24 @@ export class Api {
 
   /** The raw answer of an authenticated request; errors as [ApiError]. */
   async send(path: string, opts: CallOptions = {}): Promise<HttpResponse> {
-    const token = await this.tokens.accessToken();
-    if (!token) throw new SignedOutError();
-    let res = await this.once(path, opts, token);
-    if (res.status === 401 && invalidToken(res) && this.ownServer(path)) {
-      // Refused just after a refresh: the server no longer takes this sign-in.
-      if (await this.tokens.refusedAfterRefresh(token)) throw new SignedOutError();
-      const fresh = await this.tokens.refresh(token);
-      res = await this.once(path, opts, fresh);
+    try {
+      const token = await this.tokens.accessToken();
+      if (!token) throw new SignedOutError();
+      let res = await this.once(path, opts, token);
+      if (res.status === 401 && invalidToken(res) && this.ownServer(path)) {
+        // Refused just after a refresh: the server no longer takes this sign-in.
+        if (await this.tokens.refusedAfterRefresh(token)) throw new SignedOutError();
+        const fresh = await this.tokens.refresh(token);
+        res = await this.once(path, opts, fresh);
+      }
+      if (res.status >= 200 && res.status < 300) return res;
+      throw toError(res);
+    } catch (e) {
+      // Out of reach, the TV may be on another network now: what answers
+      // at this address next proves it is the server before a token goes.
+      if (e instanceof NetworkError && !e.cancelled) this.tokens.doubtServer();
+      throw e;
     }
-    if (res.status >= 200 && res.status < 300) return res;
-    throw toError(res);
   }
 
   /**

@@ -39,7 +39,10 @@ public static class SessionText
     public const string RowEncoder = "Encoder";
     public const string RowHdr = "Shown as";
     public const string RowSubtitles = "Subtitles";
+    /// <summary>How fast the server makes the stream, as every app calls it.</summary>
     public const string RowSpeed = "Speed";
+    /// <summary>How fast the TV's whole network receives, which Tizen's player doesn't say of its own downloads.</summary>
+    public const string RowNetwork = "TV network speed";
     public const string BurnedIn = "Burned in";
     public const string SpeedPassthrough = "Not while the sound goes to your receiver as it is: it plays at its own speed";
     public const string ErrorUnplayable = "This video can't be played on this device.";

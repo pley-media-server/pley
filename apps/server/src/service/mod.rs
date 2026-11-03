@@ -35,7 +35,7 @@ const SERVICE_TIMEOUT: Duration = Duration::from_secs(60);
 #[derive(Debug, Subcommand)]
 pub enum ServiceCommand {
     /// Install the service, or update it, and start it. The options given
-    /// before `service` (--data-dir, --bind, --plex-bind, --ffmpeg, --ffprobe)
+    /// before `service` (--data-dir, --bind, --jellyfin-bind, --ffmpeg, --ffprobe)
     /// are saved in pley.toml in its data folder (default: %ProgramData%\pley)
     Install(InstallArgs),
     /// Stop and remove the service. Its data folder stays
@@ -94,6 +94,9 @@ pub struct InstallArgs {
     /// Let the service write wherever its account may and keep all of its privileges
     #[arg(long)]
     pub unrestricted: bool,
+    /// Set the owner and permissions of every file in the data folder, even when the folder is set up already
+    #[arg(long)]
+    pub reset_permissions: bool,
     /// Whether to answer the Pley apps looking for servers on the local network
     #[arg(long, value_name = "true|false")]
     pub discovery: Option<bool>,
@@ -258,9 +261,11 @@ fn install(cli: &Cli, args: &InstallArgs) -> anyhow::Result<()> {
         allowed.push((steps.run(format!("look up {account}"), || accounts::sid(account))?, "F"));
     }
     steps.run(format!("let only {} into {}", allowed_in(&args.grant), data_dir.display()), || {
-        accounts::protect_folder(&data_dir, &allowed)?;
-        // Nothing was slipped in on the way (icacls follows junctions).
-        check_data_dir(&data_dir)
+        if accounts::protect_folder(&data_dir, &allowed, args.reset_permissions)? {
+            // Nothing was slipped in on the way (icacls follows junctions).
+            check_data_dir(&data_dir)?;
+        }
+        Ok(())
     })?;
     if let Some(from) = &args.copy_data_from {
         steps.run(format!("copy the data in {} into {}", from.display(), data_dir.display()), || {
@@ -574,6 +579,58 @@ mod tests {
             assert!(err.contains("not to the administrators"), "{err}");
         }
         assert!(check_owner(&dir.path().join("new")).is_ok(), "a folder still to make");
+    }
+
+    #[test]
+    fn a_folder_protected_for_the_same_accounts_is_left_as_it_is() {
+        let is_protected = |current: &str, allowed: &[(String, &str)]| {
+            let wanted = accounts::canonical(&accounts::protected_sddl(allowed).unwrap()).unwrap();
+            accounts::same_security(current, &wanted)
+        };
+        let service = accounts::service_sid("pley");
+        let me = "S-1-5-21-1-2-3-1001".to_owned();
+        let allowed = [(service.clone(), "M"), (me.clone(), "F")];
+        // As Windows reads one an earlier install protected (entries in any order).
+        let protected =
+            format!("O:BAD:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;{me})(A;OICI;0x1301bf;;;{service})");
+        assert!(is_protected(&protected, &allowed));
+        let reordered =
+            format!("O:BAD:PAI(A;OICI;0x1301bf;;;{service})(A;OICI;FA;;;{me})(A;OICI;FA;;;BA)(A;OICI;FA;;;SY)");
+        assert!(is_protected(&reordered, &allowed));
+
+        // Owned by someone else, inheriting, open to one more, or for other accounts: every file again.
+        assert!(!is_protected(&protected.replace("O:BA", &format!("O:{me}")), &allowed));
+        assert!(!is_protected(&protected.replace("D:PAI", "D:AI"), &allowed));
+        assert!(!is_protected(&format!("{protected}(A;OICI;0x1200a9;;;BU)"), &allowed));
+        assert!(!is_protected(&protected, &[(service.clone(), "M")]));
+        assert!(!is_protected(&protected, &[(service.clone(), "F"), (me.clone(), "F")]));
+        // A new folder, made private before any of this.
+        assert!(!is_protected("O:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)", &allowed));
+        // Access icacls' M and F don't name: every file again.
+        assert!(accounts::protected_sddl(&[(service.clone(), "RX")]).is_none());
+
+        // An account given twice has its last grant, as icacls leaves it.
+        let twice = [(me.clone(), "M"), (me.clone(), "F")];
+        assert!(is_protected(&format!("O:BAD:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;{me})"), &twice));
+        // Windows writes some accounts by a name of its own (BU for the
+        // Users group, LA for the built-in Administrator).
+        let read = "O:BAD:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;BU)";
+        assert!(is_protected(read, &[("S-1-5-32-545".to_owned(), "F")]));
+    }
+
+    #[test]
+    #[ignore = "needs an elevated shell: run with --ignored as an administrator"]
+    fn a_protected_folder_reads_back_as_protected() {
+        let parent = tempfile::tempdir().unwrap();
+        let dir = parent.path().join("data");
+        accounts::create_private_folder(&dir).unwrap();
+        std::fs::write(dir.join("pley.db"), b"").unwrap();
+        let me = accounts::sid(&std::env::var("USERNAME").unwrap()).unwrap();
+        let allowed = [(accounts::service_sid("pley"), "M"), (me, "F")];
+        assert!(accounts::protect_folder(&dir, &allowed, false).unwrap(), "a new folder: every file");
+        assert!(!accounts::protect_folder(&dir, &allowed, false).unwrap(), "the same accounts: left as it is");
+        assert!(accounts::protect_folder(&dir, &allowed[..1], false).unwrap(), "other accounts: every file");
+        assert!(accounts::protect_folder(&dir, &allowed[..1], true).unwrap(), "asked for: every file");
     }
 
     #[test]

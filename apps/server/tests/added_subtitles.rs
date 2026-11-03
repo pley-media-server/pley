@@ -265,13 +265,15 @@ async fn uploaded_subtitles_are_kept_in_the_data_folder_and_listed_as_the_files_
     assert!(matches!(too_big.status, StatusCode::BAD_REQUEST | StatusCode::PAYLOAD_TOO_LARGE), "{}", too_big.status);
     assert_eq!(listed(app, admin, joker).await.len(), 2);
 
-    // The Plex-compatible API lists them and serves them as they are.
-    let stream = app.plex(Method::GET, &format!("/library/streams/{}", file * 10_000 + 9000), admin, &[]).await;
-    assert_eq!(stream.status, StatusCode::OK);
-    assert!(stream.text().contains("Café"), "{}", stream.text());
-    let meta = app.plex_json(&format!("/library/metadata/{joker}"), admin).await;
-    let parts = meta.to_string();
-    assert!(parts.contains(&format!("/library/streams/{}", file * 10_000 + 9001)), "{parts}");
+    // The Jellyfin-compatible API lists them and serves them, as WebVTT or SubRip.
+    let (item, source) = (app.jf_item(joker), app.jf_source(file, admin).await);
+    for name in ["Stream.vtt", "Stream.srt"] {
+        let stream = app.jf(Method::GET, &format!("/Videos/{item}/{source}/Subtitles/9000/{name}"), "", None).await;
+        assert_eq!(stream.status, StatusCode::OK, "{name}");
+        assert!(stream.text().contains("Café"), "{}", stream.text());
+    }
+    let meta = app.jf_json(&format!("/Items/{item}"), admin).await.to_string();
+    assert!(meta.contains(&format!("/Videos/{item}/{source}/Subtitles/9001/Stream.")), "{meta}");
 }
 
 #[tokio::test]
@@ -404,7 +406,8 @@ async fn subtitles_are_found_on_opensubtitles_and_added() {
     let (_, _, _, authorization) = &w.mock.requested("POST /os/download")[0];
     assert_eq!(authorization, "Bearer jwt-1");
     assert_eq!(w.mock.requested("POST /os/login").len(), 1);
-    let stream = app.plex(Method::GET, &format!("/library/streams/{}", file * 10_000 + 9000), admin, &[]).await;
+    let (item, source) = (app.jf_item(joker), app.jf_source(file, admin).await);
+    let stream = app.jf(Method::GET, &format!("/Videos/{item}/{source}/Subtitles/9000/Stream.vtt"), admin, None).await;
     assert!(stream.text().contains("Garçon!"), "{}", stream.text());
 
     // An SDH ASS, as ASS; the token is used again.

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -17,12 +18,17 @@ namespace Pley.Tv.Tizen.Kit;
 /// A profiling build's marks (docs/TV_PLATFORMS.md, "Profiling"): what happened when, how long
 /// the UI thread was held and by what, the frame rate, memory, and the marks before a crash,
 /// each a line to the address the build was made with. A build made without one has none of
-/// this: every call here is left out when it's compiled, its arguments with it.
+/// this: every call here is left out when it's compiled, its arguments with it, and so is all
+/// the code behind them.
 /// </summary>
 static class Profile
 {
-    /// <summary>A point in time for <see cref="Took"/>; cheap enough to stay in any build.</summary>
+    /// <summary>A point in time for <see cref="Took"/>; 0 in a build without profiling, which never reads the clock for it.</summary>
+#if PROFILE
     public static long Start() => Stopwatch.GetTimestamp();
+#else
+    public static long Start() => 0;
+#endif
 
     /// <summary>Marks how long it has been since <paramref name="start"/> (<see cref="Start"/>).</summary>
     [Conditional("PROFILE")]
@@ -65,6 +71,11 @@ static class Profile
     [Conditional("PROFILE")]
     public static void End() => Run.End();
 
+    /// <summary>Keys the listener sends go to <paramref name="onKey"/>, as the remote's: the app is driven from the computer.</summary>
+    [Conditional("PROFILE")]
+    public static void Keys(Action<string, bool> onKey) => Run.Keys(onKey);
+
+#if PROFILE
     /// <summary>All the profiling's state, only ever touched in a profiling build.</summary>
     static class Run
     {
@@ -177,6 +188,107 @@ static class Profile
             // Held here: NUI calls it from native code, which doesn't keep it from being collected.
             counter = new Counter(window);
             window.AddFrameUpdateCallback(counter);
+            Commands(window, dataDir);
+        }
+
+        static Timer? asking, pressing;
+        static Capture? capture;
+        static bool asked;
+        static Action<string, bool>? press;
+        static readonly Queue<string> Pressed = new Queue<string>();
+        static readonly string Tv = TvModel();
+
+        static string TvModel() =>
+            global::Tizen.System.Information.TryGetValue("http://tizen.org/system/model_name", out string model) ? model : "";
+
+        public static void Keys(Action<string, bool> onKey) => press = onKey;
+
+        /// <summary>
+        /// What the listener asks for (scripts/metrics.mjs): every second the app asks, and "shot"
+        /// has it capture its window (its views; the video is on a plane of its own and comes out
+        /// black) and post the PNG to the listener's /shot; "keys Down Down OK" presses those keys.
+        /// </summary>
+        static void Commands(Window window, string dataDir)
+        {
+            if (Address == null) return;
+            var root = Address.TrimEnd('/');
+            asking = new Timer(1000);
+            asking.Tick += (_, _) =>
+            {
+                if (!asked) _ = Ask(window, dataDir, root);
+                return true;
+            };
+            asking.Start();
+        }
+
+        static async Task Ask(Window window, string dataDir, string root)
+        {
+            asked = true;
+            try
+            {
+                // Back on the UI thread after the await: NUI's synchronization context.
+                var wanted = (await Http.GetStringAsync($"{root}/command?tv={Uri.EscapeDataString(Tv)}")).Trim();
+                if (wanted == "shot") Shoot(window, dataDir, root);
+                else if (wanted.StartsWith("keys ", StringComparison.Ordinal)) Press(wanted.Substring(5).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+            }
+            catch (Exception)
+            {
+                // No listener: nothing asked.
+            }
+            finally
+            {
+                asked = false;
+            }
+        }
+
+        /// <summary>The remote's keys by their names (Up, Down, Left, Right, OK, Back, Menu, or a key's own name), 300 ms apart: a page a key opens has a moment to come in before the next.</summary>
+        static void Press(IEnumerable<string> keys)
+        {
+            foreach (var key in keys)
+                Pressed.Enqueue(key switch { "OK" => "Return", "Back" => "XF86Back", "Menu" => "XF86Menu", _ => key });
+            if (pressing == null)
+            {
+                pressing = new Timer(300);
+                pressing.Tick += (_, _) =>
+                {
+                    if (Pressed.Count == 0) return false;
+                    var key = Pressed.Dequeue();
+                    Mark($"key: {key}");
+                    press?.Invoke(key, true);
+                    press?.Invoke(key, false);
+                    return Pressed.Count > 0;
+                };
+            }
+            if (!pressing.IsRunning()) pressing.Start();
+        }
+
+        static void Shoot(Window window, string dataDir, string root)
+        {
+            var file = Path.Combine(dataDir, "shot.png");
+            // The last one is let go now that it's done: disposed in its own Finished, NUI was still in it.
+            capture?.Dispose();
+            capture = new Capture();
+            capture.Finished += (_, e) =>
+            {
+                var ok = e.Success;
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        if (!ok) throw new IOException("the capture failed");
+                        using var body = new ByteArrayContent(File.ReadAllBytes(file));
+                        using var shot = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+                        await shot.PostAsync($"{root}/shot?tv={Uri.EscapeDataString(Tv)}", body);
+                    }
+                    catch (Exception error)
+                    {
+                        Mark($"screenshot: {error.GetType().Name} {error.Message}");
+                    }
+                });
+            };
+            var size = window.WindowSize;
+            capture.Start(window.GetDefaultLayer(), new Size(size.Width, size.Height), file, Color.Black);
+            Mark($"screenshot: {size.Width}x{size.Height} asked");
         }
 
         public static void End()
@@ -477,4 +589,21 @@ done
             }
         }
     }
+#else
+    /// <summary>
+    /// A build without profiling has none of it: the calls above are left out where they're made,
+    /// and these, all they name, do nothing.
+    /// </summary>
+    static class Run
+    {
+        public static double Ms(long start) => 0;
+        public static void Mark(string what) { }
+        public static void Picture(double ms) { }
+        public static void Begin(Window window, string dataDir) { }
+        public static void End() { }
+        public static void Enter(string what) { }
+        public static void Leave() { }
+        public static void Keys(Action<string, bool> onKey) { }
+    }
+#endif
 }

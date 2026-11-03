@@ -3,18 +3,20 @@
 ' searches kept on the Roku.
 
 ' The rows results come in, in order: [{ key, title }]; key is a title's
-' kind, "person" or "channel" (Live TV).
+' kind, "channel" (Live TV) or "person". The libraries' titles come first,
+' then Live TV, then people; the server puts the closest matches first in
+' each.
 function searchGroups() as object
     return [
-        { key: "person", title: "People" },
-        { key: "channel", title: "Live TV" },
         { key: "movie", title: "Movies" },
         { key: "show", title: "Shows" },
         { key: "season", title: "Seasons" },
         { key: "episode", title: "Episodes" },
         { key: "artist", title: "Artists" },
         { key: "album", title: "Albums" },
-        { key: "track", title: "Tracks" }
+        { key: "track", title: "Tracks" },
+        { key: "channel", title: "Live TV" },
+        { key: "person", title: "People" }
     ]
 end function
 

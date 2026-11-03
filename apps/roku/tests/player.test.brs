@@ -48,19 +48,23 @@ sub test_player_asks_for_picture_subtitles_to_be_drawn()
             { index: 0, kind: "video", codec: "h264" },
             { index: 3, kind: "subtitle", codec: "subrip", text_based: true },
             { index: 4, kind: "subtitle", codec: "hdmv_pgs_subtitle", text_based: false },
-            { index: 5, kind: "subtitle", codec: "dvd_subtitle" }
+            { index: 5, kind: "subtitle", codec: "dvd_subtitle" },
+            { index: 6, kind: "subtitle", codec: "dvd_subtitle", text_based: false }
         ]
     }
-    tkEqual(playerBurnIndex(file), 4)
+    tkEqual(playerBurnIndex(file, []), 4, "PGS the app doesn't draw")
+    tkEqual(playerBurnIndex(file, picCodecs()), -1, "PGS the app draws itself")
+    file.selected_subtitle = 6
+    tkEqual(playerBurnIndex(file, picCodecs()), 6, "VobSub, which the app doesn't draw")
     file.selected_subtitle = 3
-    tkEqual(playerBurnIndex(file), -1, "text: the Video node shows it")
+    tkEqual(playerBurnIndex(file, []), -1, "text: the Video node shows it")
     file.selected_subtitle = 5
-    tkEqual(playerBurnIndex(file), -1, "not said to be a picture")
+    tkEqual(playerBurnIndex(file, []), -1, "not said to be a picture")
     file.selected_subtitle = invalid
-    tkEqual(playerBurnIndex(file), -1, "none picked")
+    tkEqual(playerBurnIndex(file, []), -1, "none picked")
     file.selected_subtitle = 9
-    tkEqual(playerBurnIndex(file), -1, "no such stream")
-    tkEqual(playerBurnIndex(invalid), -1)
+    tkEqual(playerBurnIndex(file, []), -1, "no such stream")
+    tkEqual(playerBurnIndex(invalid, []), -1)
 end sub
 
 sub test_player_reads_the_sessions_status()

@@ -97,7 +97,27 @@ sealed class TizenMediaEngine : IVideoEngine
 
     public FrameCounts? FrameCounts() => null;
 
-    public long? BandwidthKbps() => null;
+    public long? BandwidthKbps() => Network() is long bps ? bps / 1000 : null;
+
+    readonly NetworkMeter network = new NetworkMeter();
+
+    /// <summary>
+    /// The TV's network speed (<see cref="NetworkMeter"/>), read as it's asked for: the Info panel
+    /// asks once a second while it shows, and nothing reads it otherwise. Tizen's player doesn't
+    /// say how fast its downloads go.
+    /// </summary>
+    long? Network()
+    {
+        try
+        {
+            if (NetworkMeter.Received(System.IO.File.ReadAllText("/proc/net/dev")) is long bytes) network.Add(Environment.TickCount64, bytes);
+        }
+        catch (Exception)
+        {
+            // Not readable on this TV: not known.
+        }
+        return network.Bps;
+    }
 
     public void Prepare(EngineSource source, bool play)
     {
@@ -509,7 +529,8 @@ sealed class TizenMediaEngine : IVideoEngine
     {
         var p = player;
         if (p == null || !prepared) return null;
-        if (stats != null && statsFor == generation) return stats;
+        // The streams are read once; the network each time.
+        if (stats != null && statsFor == generation) return stats with { Bandwidth = Network() };
         Profile.Enter("player: its streams (Info)");
         int? width = null, height = null, bitrate = null, audioBitrate = null, channels = null;
         double? fps = null;
@@ -561,7 +582,7 @@ sealed class TizenMediaEngine : IVideoEngine
             stats = read;
             statsFor = generation;
         }
-        return read;
+        return read with { Bandwidth = Network() };
     }
 
     void StartPlayer(int mine)

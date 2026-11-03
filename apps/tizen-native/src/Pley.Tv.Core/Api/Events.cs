@@ -256,6 +256,8 @@ public sealed class EventStream
         if (running != mine) return;
         running = null;
         if (stopped) return;
+        // Nothing answered, or the stream broke off: the server proves itself again before the next token.
+        if (end.Status == 0) tokens.DoubtServer();
         if (end.Status == 401 && !refreshed && Api.InvalidToken(end.Challenge))
         {
             string? fresh;

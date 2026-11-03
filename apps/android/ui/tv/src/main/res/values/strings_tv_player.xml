@@ -3,8 +3,6 @@
     <!-- The control row (design spec §2.7). -->
     <string name="tv_player_play">Play</string>
     <string name="tv_player_pause">Pause</string>
-    <string name="tv_player_back_10">Back 10 seconds</string>
-    <string name="tv_player_forward_10">Forward 10 seconds</string>
     <string name="tv_player_previous">Previous</string>
     <string name="tv_player_next">Next</string>
     <string name="tv_player_subtitles">Subtitles</string>

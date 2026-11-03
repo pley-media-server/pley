@@ -2,7 +2,7 @@
 //! "Version 2"), as the native Android app sends them: the Dolby Vision and
 //! HDR table per device, decoder limits, audio passed through to receivers,
 //! surround audio converted to E-AC-3 5.1, and version 1 players (the web
-//! app, Plex clients) deciding as before.
+//! app, Jellyfin's apps' HLS streams) deciding as before.
 //!
 //! The reports in `fixtures/caps` are the Android app's own snapshots
 //! (apps/android/core/caps/src/test/resources/snapshots on the
@@ -138,9 +138,9 @@ fn chrome() -> Value {
     })
 }
 
-/// What pley's Plex API asks for from the universal transcoder
-/// (apps/server/src/plex/playback.rs, `hls_caps`).
-fn plex() -> Value {
+/// What the Jellyfin-compatible API's HLS streams ask for
+/// (apps/server/src/jellyfin/playback.rs, `master`).
+fn jellyfin_hls() -> Value {
     json!({"containers": [], "video_codecs": ["h264"], "audio_codecs": ["aac", "mp3"]})
 }
 
@@ -714,8 +714,9 @@ fn version_1_players_decide_as_before() {
     // `hdr`, as before version 2.
     assert_eq!(play(fixture("fire_tv_stick_lite_v1"), &source("P7")).method, Method::Direct);
 
-    // Plex clients: H.264 and AAC, everything else converted to stereo AAC.
-    let mut req = request(plex());
+    // Jellyfin's apps' HLS streams: H.264 and AAC, everything else converted
+    // to stereo AAC.
+    let mut req = request(jellyfin_hls());
     req.mode = pley::playback::PlaybackMode::Remux;
     let mut h264 = source("SDR");
     (h264.streams[0].codec, h264.streams[0].profile) = ("h264".into(), Some("High".into()));

@@ -16,7 +16,7 @@ Read the doc for the part you touch; they say how things work and why.
 | Transcoder and its protocol | [docs/TRANSCODER.md](docs/TRANSCODER.md) |
 | Quality, Automatic, playback decisions | [docs/QUALITY.md](docs/QUALITY.md) |
 | Data folder, caches, backups | [docs/STORAGE.md](docs/STORAGE.md) |
-| Compatibility API (Tautulli, Kometa) | [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) |
+| Jellyfin-compatible API, tokens for other apps | [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) |
 | Android, Kodi, Roku, Samsung and LG apps | [docs/ANDROID.md](docs/ANDROID.md), [docs/KODI.md](docs/KODI.md), [docs/ROKU.md](docs/ROKU.md), [docs/TV_PLATFORMS.md](docs/TV_PLATFORMS.md) |
 | Docker, Unraid, Windows, services | [deploy/README.md](deploy/README.md) |
 | Licences and dependencies | [LICENSING.md](LICENSING.md) |
@@ -130,19 +130,37 @@ They go in `docs/QUESTIONS.md` or `docs/*.local.md`, which git ignores.
 ## Branches and pull requests
 
 - A branch is `<kind>/<topic>`: the kind is `fix`, `feature`,
-  `optimization`, `experiment` or `deployment`, and the topic is a few
-  words in snake_case saying what it's for, as in
-  `fix/server_address_input`. Not a generated name like `claude/…`;
+  `optimization`, `experiment` or `deployment`, and the topic is a few words
+  in snake_case saying what it's for, as in `fix/server_address_input`.
   `release/` is the release workflow's.
+- Never push a branch a tool named, such as `claude/…` or `worktree-…`:
+  branch lists, pull requests and merge commits show the name, and it says
+  what the change is for. A session or worktree that starts on one renames
+  it with `git branch -m <kind>/<topic>` before it pushes.
 - A pull request's title is written like a commit subject, and kept short:
   `android, samsung, lg: Enter an address opens the keyboard`. A change to
   every app says `apps:`.
 - Its description is short and plain: why and what changed in a sentence
   or two, then what a reviewer should know, by app or area, then what was
   checked and what wasn't.
-- Write it as a person would: no bold labels, no tables or headings for a
-  few lines, no review history, no "Generated with …" line. Don't repeat
-  the diff or the docs; point to the doc.
+- A change people can see shows it, in a table under the description: a
+  row per change, the screen before it and after it (N/A before something
+  new), taken on the same screen through the same steps.
+  [DEVELOPMENT.md](docs/DEVELOPMENT.md#screenshots-for-a-pull-request)
+  says how for each app.
+  - Each screenshot marks where to look with a red box and an arrow
+    (`scripts/mark-screenshot.mjs`), and has a caption of a few words
+    under it in `<sub>`.
+  - A detail a few pixels wide (an edge, a border, a badge) is shown
+    zoomed in, pixel for pixel, until it's plain without the caption.
+  - Screenshots are attached with `gh pr create --attach`, never
+    committed.
+  - The description, pictures and all, is shown to whoever asked for the
+    change before it's posted.
+- Write it as a person would: no bold labels, no headings, no tables for
+  a few lines (the screenshots' table aside), no review history, no
+  "Generated with …" line. Don't repeat the diff or the docs; point to
+  the doc.
 
 ## Platform notes
 

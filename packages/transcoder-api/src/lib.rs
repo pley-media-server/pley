@@ -1423,6 +1423,22 @@ pub struct SubtitleRequest {
     /// [`Capabilities::subtitle_matroska_partial`]).
     #[serde(default)]
     pub partial: bool,
+    /// For a picture track's Matroska: where the player is (ms, the track's
+    /// time). A track read through the Cues comes from around there first.
+    /// Taken by the request that starts the copy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_ms: Option<i64>,
+    /// For a picture track's Matroska: media information the caller already
+    /// has (skips a probe while a playback starts). Ignored when it does not
+    /// contain a duration and a start time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub media: Option<MediaInfo>,
+    /// For a picture track's Matroska, with `partial`, for a player that
+    /// reads the track once (Kodi's `.sup`): what a read through the Cues
+    /// has read so far, from around `from_ms` on, rather than only the
+    /// blocks around `from_ms`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub rest: bool,
 }
 
 /// Header of a `partial` subtitles answer: `1` when the track is complete.

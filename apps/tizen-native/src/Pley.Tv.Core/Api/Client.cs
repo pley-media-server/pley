@@ -99,7 +99,8 @@ public sealed record PlaylistDetail : Playlist
 {
     public IReadOnlyList<PlaylistEntry> Entries { get; init; } = new PlaylistEntry[0];
 }
-public sealed record SearchAnswer(IReadOnlyList<ItemSummary> Items, IReadOnlyList<PersonSummary>? People);
+/// <summary>Live TV's <see cref="Channels"/> (up to 12) by name, number or what's on, for those it's open to; none from a server without it.</summary>
+public sealed record SearchAnswer(IReadOnlyList<ItemSummary> Items, IReadOnlyList<PersonSummary>? People, IReadOnlyList<LiveChannel>? Channels = null);
 public sealed record CollectionRef(long Id, string Title);
 public sealed record ItemCollectionsAnswer(IReadOnlyList<CollectionRef> Collections);
 public sealed record AddedAnswer(long Added);
@@ -168,17 +169,32 @@ public sealed class Api
     public async Task<HttpResponse> Send(string path, string method = "GET", object? body = null, IEnumerable<KeyValuePair<string, object?>>? query = null,
         CancellationToken cancel = default, int? timeoutMs = null, ResponseType responseType = ResponseType.Json, Action<long>? onProgress = null, string? accept = null)
     {
-        var token = await tokens.AccessToken().ConfigureAwait(false) ?? throw new SignedOutException();
-        var res = await Once(path, method, body, query, cancel, timeoutMs, responseType, onProgress, token, accept).ConfigureAwait(false);
-        if (res.Status == 401 && OwnServer(path) && InvalidToken(res.Header("WWW-Authenticate")))
+        HttpResponse res;
+        try
         {
-            var fresh = await Refreshed(token).ConfigureAwait(false);
-            // Once: a 401 after a refresh is the answer.
-            if (fresh != null) res = await Once(path, method, body, query, cancel, timeoutMs, responseType, onProgress, fresh, accept).ConfigureAwait(false);
+            var token = await tokens.AccessToken().ConfigureAwait(false) ?? throw new SignedOutException();
+            res = await Once(path, method, body, query, cancel, timeoutMs, responseType, onProgress, token, accept).ConfigureAwait(false);
+            if (res.Status == 401 && OwnServer(path) && InvalidToken(res.Header("WWW-Authenticate")))
+            {
+                var fresh = await Refreshed(token).ConfigureAwait(false);
+                // Once: a 401 after a refresh is the answer.
+                if (fresh != null) res = await Once(path, method, body, query, cancel, timeoutMs, responseType, onProgress, fresh, accept).ConfigureAwait(false);
+            }
+        }
+        catch (NetworkException e) when (!e.Cancelled && OwnServer(path))
+        {
+            Unanswered();
+            throw;
         }
         if (res.Status >= 200 && res.Status < 300) return res;
         throw ToError(res);
     }
+
+    /// <summary>
+    /// A request to the server got no answer: the TV may be on another network now, so what
+    /// answers at the address next proves it is the server before a token goes.
+    /// </summary>
+    void Unanswered() => tokens.DoubtServer();
 
     /// <summary>
     /// GET <paramref name="path"/> with the token, its body read as it comes for as long as it lasts
@@ -187,16 +203,25 @@ public sealed class Api
     /// </summary>
     public async Task<StreamResponse> Open(string path, CancellationToken cancel = default, string accept = "*/*", int? timeoutMs = null)
     {
-        var token = await tokens.AccessToken().ConfigureAwait(false) ?? throw new SignedOutException();
-        var res = await OpenOnce(path, token, cancel, accept, timeoutMs).ConfigureAwait(false);
-        if (res.Status == 401 && OwnServer(path) && InvalidToken(res.Header("WWW-Authenticate")))
+        StreamResponse res;
+        try
         {
-            var fresh = await Refreshed(token).ConfigureAwait(false);
-            if (fresh != null)
+            var token = await tokens.AccessToken().ConfigureAwait(false) ?? throw new SignedOutException();
+            res = await OpenOnce(path, token, cancel, accept, timeoutMs).ConfigureAwait(false);
+            if (res.Status == 401 && OwnServer(path) && InvalidToken(res.Header("WWW-Authenticate")))
             {
-                res.Dispose();
-                res = await OpenOnce(path, fresh, cancel, accept, timeoutMs).ConfigureAwait(false);
+                var fresh = await Refreshed(token).ConfigureAwait(false);
+                if (fresh != null)
+                {
+                    res.Dispose();
+                    res = await OpenOnce(path, fresh, cancel, accept, timeoutMs).ConfigureAwait(false);
+                }
             }
+        }
+        catch (NetworkException e) when (!e.Cancelled && OwnServer(path))
+        {
+            Unanswered();
+            throw;
         }
         if (res.Status >= 200 && res.Status < 300) return res;
         using (res)

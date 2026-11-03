@@ -278,7 +278,7 @@ export interface HistoryUser {
 export interface HistoryEntry {
   id: Id;
   viewed_at: Timestamp;
-  /** "Chrome on Windows", a Plex client's name. */
+  /** "Chrome on Windows", a Jellyfin app's device. */
   device?: string;
   user: HistoryUser;
   item: ItemSummary;
@@ -962,15 +962,15 @@ export interface TranscoderStatus {
 export interface ListenChoice {
   /** The web app and its API. */
   web: string[];
-  /** The Plex-compatible API on addresses of its own (port 32400): none when off or on pley's port. */
-  plex: string[];
-  /** The Plex-compatible API answers on pley's own port, to its clients. */
-  plex_on_web: boolean;
+  /** The Jellyfin-compatible API on addresses of its own (port 8096): none when off or on pley's port. */
+  jellyfin: string[];
+  /** The Jellyfin-compatible API answers on pley's own port, to its apps. */
+  jellyfin_on_web: boolean;
   /** Whether the pley apps on the networks find the server. */
   discovery: boolean;
 }
 
-export type ListenerKind = "web" | "plex" | "discovery";
+export type ListenerKind = "web" | "jellyfin" | "discovery";
 
 export interface NetworkListener {
   kind: ListenerKind;
@@ -994,7 +994,7 @@ export interface NetworkAdapter {
 
 export interface NetworkSettings extends ListenChoice {
   /** What the command line or the environment sets: it can't change here. */
-  fixed: { web: boolean; plex: boolean; discovery: boolean };
+  fixed: { web: boolean; jellyfin: boolean; discovery: boolean };
   listeners: NetworkListener[];
   adapters: NetworkAdapter[];
   /** Where a change is saved. */

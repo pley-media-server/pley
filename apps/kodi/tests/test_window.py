@@ -15,10 +15,10 @@ EPISODE = {
     "title": "Glasshouse",
     "index": 5,
     "parent_index": 2,
-    "grandparent_title": "Severance",
+    "grandparent_title": "Driftline",
     "duration_ms": 56 * 60_000,
     "year": 2025,
-    "summary": "Mark gets a lead.",
+    "summary": "Ida gets a lead.",
     "user_state": {"position_ms": 30 * 60_000, "watched": False},
 }
 
@@ -205,11 +205,11 @@ class WindowTest(unittest.TestCase):
 
     def test_what_a_hero_says_of_an_episode(self):
         info = window.about(EPISODE)
-        self.assertEqual(info["title"], "Severance")
+        self.assertEqual(info["title"], "Driftline")
         self.assertEqual(info["context"], "S2 · E5 · Glasshouse")
         self.assertEqual(info["left"], "26 min left")
         self.assertTrue(info["progress"])
-        self.assertEqual(info["summary"], "Mark gets a lead.")
+        self.assertEqual(info["summary"], "Ida gets a lead.")
 
     def test_the_metadata_line(self):
         detail = {"id": 31, "content_rating": "TV-MA", "files": [{"width": 1920, "height": 1080, "streams": []}]}
@@ -822,7 +822,7 @@ class WindowTest(unittest.TestCase):
     def test_rows_fill_and_place(self):
         win = FakeWindow()
         rows = window.Rows(win, L.HOME_ROWS, L.HOME_SLOTS, ("poster", "landscape", "square"))
-        movie = {"id": 5, "kind": "movie", "title": "Heat", "user_state": {}}
+        movie = {"id": 5, "kind": "movie", "title": "Saltwind", "user_state": {}}
         rows.fill([
             {"key": "continue_watching", "title": "Continue Watching", "shape": "landscape", "items": [EPISODE]},
             {"key": "recently_added:1", "title": "Recently Added", "shape": "poster", "items": [movie], "see_all": 1},
@@ -891,14 +891,14 @@ class WindowTest(unittest.TestCase):
 
         win.session.get = get
         page = window.Item(win, 7)
-        page.detail = {"id": 7, "kind": "show", "title": "Breaking Bad"}
+        page.detail = {"id": 7, "kind": "show", "title": "Low Orbit"}
         keep_summary(self, ASKS)
         page.ask_about()
         self.assertEqual(asked_of, ["/api/items/7/request"])
         # More's Request more seasons: the plugin's picker, over the window.
         del window.xbmc.builtins[:]
         dict(page.more_actions())[window.T("request_more_seasons")]()
-        self.assertEqual(window.xbmc.builtins, ["RunPlugin(plugin://plugin.video.pley/?route=more_seasons&id=7&title=Breaking+Bad)"])
+        self.assertEqual(window.xbmc.builtins, ["RunPlugin(plugin://plugin.video.pley/?route=more_seasons&id=7&title=Low+Orbit)"])
         # Nothing more to ask for: no entry.
         found = dict(found, askable=[])
         page.ask_about()
@@ -909,7 +909,7 @@ class WindowTest(unittest.TestCase):
         page.ask_about()
         self.assertNotIn(window.T("request_more_seasons"), dict(page.more_actions()))
         keep_summary(self, ASKS)
-        page.detail = {"id": 8, "kind": "movie", "title": "Heat"}
+        page.detail = {"id": 8, "kind": "movie", "title": "Saltwind"}
         page.ask_about()
         self.assertEqual(len(asked_of), 2)
 
@@ -917,36 +917,36 @@ class WindowTest(unittest.TestCase):
         win = FakeWindow()
         later = []
         win.later = lambda work, then, failed=None: later.append((work, then, failed))
-        heat = {"id": 5, "kind": "movie", "title": "Heat", "user_state": {}}
+        movie = {"id": 5, "kind": "movie", "title": "Saltwind", "user_state": {}}
         tmdb = {"results": [
-            {"kind": "movie", "tmdb_id": 949, "title": "Heat 2", "year": 2027, "poster_url": "/api/discover/images/poster/h2.jpg", "status": "none"},
-            {"kind": "show", "tmdb_id": 1, "title": "Heatwave", "year": None, "poster_url": None, "status": "requested"},
-            {"kind": "show", "tmdb_id": 2, "title": "Heat Island", "year": 2019, "poster_url": None, "status": "partial", "item_id": 70},
+            {"kind": "movie", "tmdb_id": 949, "title": "Saltwind 2", "year": 2027, "poster_url": "/api/discover/images/poster/h2.jpg", "status": "none"},
+            {"kind": "show", "tmdb_id": 1, "title": "Overgrowth", "year": None, "poster_url": None, "status": "requested"},
+            {"kind": "show", "tmdb_id": 2, "title": "Parallel Coast", "year": 2019, "poster_url": None, "status": "partial", "item_id": 70},
         ]}
         asked_of = []
 
         def get(path, **query):
             asked_of.append((path, query))
-            return {"items": [heat], "people": []} if path == "/api/search" else tmdb
+            return {"items": [movie], "people": []} if path == "/api/search" else tmdb
 
         win.session.get = get
         keep_summary(self, ASKS)
         page = window.Search(win)
         win.show(page)
-        page.search("heat")
+        page.search("saltwind")
         # The libraries' rows at once; TMDB is looked at beside them, never waited for.
         self.assertEqual([row["key"] for row in page.rows.rows], [window.T("movies")])
-        self.assertEqual(asked_of, [("/api/search", {"q": "heat", "limit": 100, "summaries": 1})])
+        self.assertEqual(asked_of, [("/api/search", {"q": "saltwind", "limit": 100, "summaries": 1})])
         work, then, _ = later.pop()
         then(work())
-        self.assertEqual(asked_of[-1], ("/api/discover/search", {"q": "heat", "missing": 1}))
+        self.assertEqual(asked_of[-1], ("/api/discover/search", {"q": "saltwind", "missing": 1}))
         self.assertEqual([row["title"] for row in page.rows.rows], [window.T("movies"), window.T("discover")])
         row = L.slot_list(L.SEARCH_ROWS, 1, "poster")
         shown = win.made[row].items
         self.assertEqual([(li.label, li.label2) for li in shown], [
-            ("Heat 2", "2027 · " + window.T("movie")),
-            ("Heatwave", "[COLOR %s]%s[/COLOR]" % (window.requests.BLUE, window.T("requested"))),
-            ("Heat Island", "[COLOR %s]%s[/COLOR]" % (window.requests.GREEN, window.T("partly_in_library"))),
+            ("Saltwind 2", "2027 · " + window.T("movie")),
+            ("Overgrowth", "[COLOR %s]%s[/COLOR]" % (window.requests.BLUE, window.T("requested"))),
+            ("Parallel Coast", "[COLOR %s]%s[/COLOR]" % (window.requests.GREEN, window.T("partly_in_library"))),
             # See all, opening Discover's results for the words.
             (window.T("see_all"), ""),
         ])
@@ -970,7 +970,7 @@ class WindowTest(unittest.TestCase):
         win.leave_for = left.append
         win.made[row].selectItem(3)
         page.click(row)
-        self.assertEqual((left, win.listing), (["listing"], "plugin://plugin.video.pley/?route=discover_search&q=heat"))
+        self.assertEqual((left, win.listing), (["listing"], "plugin://plugin.video.pley/?route=discover_search&q=saltwind"))
         # Shown again (a title was asked for): the row stays until its titles come, focus
         # on the tile it was on.
         win.setFocusId(row)
@@ -990,34 +990,35 @@ class WindowTest(unittest.TestCase):
         later = []
         win.later = lambda work, then, failed=None: later.append((work, then, failed))
         kinds = ("movie", "show", "episode", "album")
-        radio = {"id": 4, "source_id": 1, "name": "Radio Heat", "number": "104", "group": "Radio", "logo": None, "favorite": False,
+        radio = {"id": 4, "source_id": 1, "name": "Radio Jazz", "number": "104", "group": "Radio", "logo": None, "favorite": False,
                  "has_guide": False, "now": None, "next": None}
         answers = {
-            "/api/search": {"items": [{"id": n, "kind": kind, "title": "Heat", "user_state": {}} for n, kind in enumerate(kinds, 1)],
-                            "people": [{"id": 9, "name": "Heather"}], "channels": [radio]},
-            "/api/discover/search": {"results": [{"kind": "movie", "tmdb_id": 949, "title": "Heat 2", "status": "none"}]},
+            "/api/search": {"items": [{"id": n, "kind": kind, "title": "Saltwind", "user_state": {}} for n, kind in enumerate(kinds, 1)],
+                            "people": [{"id": 9, "name": "Lena Okafor"}], "channels": [radio]},
+            "/api/discover/search": {"results": [{"kind": "movie", "tmdb_id": 949, "title": "Saltwind 2", "status": "none"}]},
         }
         win.session.get = lambda path, **query: answers[path]
         keep_summary(self, ASKS)
         page = window.Search(win)
         win.show(page)
-        page.search("heat")
+        page.search("saltwind")
         self.assertEqual(len(page.rows.rows), 6, "a row of each kind the libraries have")
         work, then, _ = later.pop()
         then(work())
-        self.assertEqual([row["key"] for row in page.rows.rows][-1], "tmdb")
-        self.assertEqual(win.made[L.slot_list(L.SEARCH_ROWS, 6, "poster")].items[0].label, "Heat 2")
+        # The titles' rows, then Live TV's and people's, then Discover.
+        self.assertEqual([row["key"] for row in page.rows.rows][-3:], ["channels", "people", "tmdb"])
+        self.assertEqual(win.made[L.slot_list(L.SEARCH_ROWS, 6, "poster")].items[0].label, "Saltwind 2")
 
     def test_search_when_the_libraries_have_nothing(self):
         win = FakeWindow()
         later = []
         win.later = lambda work, then, failed=None: later.append((work, then, failed))
-        answers = {"/api/search": {"items": [], "people": []}, "/api/discover/search": {"results": [{"kind": "movie", "tmdb_id": 9, "title": "Zorro", "status": "none"}]}}
+        answers = {"/api/search": {"items": [], "people": []}, "/api/discover/search": {"results": [{"kind": "movie", "tmdb_id": 9, "title": "Halcyon", "status": "none"}]}}
         win.session.get = lambda path, **query: answers[path]
         keep_summary(self, ASKS)
         page = window.Search(win)
         win.show(page)
-        page.search("zorro")
+        page.search("halcyon")
         self.assertEqual(win.made[L.SEARCH_EMPTY_TITLE].label, window.T("nothing_in_libraries"))
         work, then, _ = later.pop()
         then(work())
@@ -1028,7 +1029,7 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(win.made[L.slot(L.SEARCH_ROWS, 0)].position, (0, 320))
         self.assertEqual(win.made[L.SEARCH_EMPTY_TITLE].label, window.T("nothing_in_libraries"))
         # An older search's titles come too late.
-        page.search("zorro returns")
+        page.search("halcyon returns")
         older = later.pop()
         page.search("mask")
         older[1](older[0]())
@@ -1060,16 +1061,16 @@ class WindowTest(unittest.TestCase):
                 return {"items": [], "people": []}
             if refusal:
                 raise refusal[0]
-            return {"results": [{"kind": "movie", "tmdb_id": 9, "title": "Zorro", "status": "none"}]}
+            return {"results": [{"kind": "movie", "tmdb_id": 9, "title": "Halcyon", "status": "none"}]}
 
         win.session.get = get
         keep_summary(self, ASKS)
         page = window.Search(win)
         win.show(page)
-        page.search("  zorro " + "x" * 300)
+        page.search("  halcyon " + "x" * 300)
         work, then, _ = later.pop()
         then(work())
-        self.assertEqual(asked_of[-1], ("/api/discover/search", {"q": ("zorro " + "x" * 300)[:200], "missing": 1}), "as the server takes them")
+        self.assertEqual(asked_of[-1], ("/api/discover/search", {"q": ("halcyon " + "x" * 300)[:200], "missing": 1}), "as the server takes them")
         # The row says why, under "Nothing in your libraries matches", with Try again.
         down = "%s · [COLOR %s]%s[/COLOR]" % (window.T("discover"), L.DANGER_TEXT, window.T("tmdb_down"))
         self.assertEqual([row["title"] for row in page.rows.rows], [down])
@@ -1082,10 +1083,10 @@ class WindowTest(unittest.TestCase):
         work, then, _ = later.pop()
         then(work())
         self.assertEqual([row_["title"] for row_ in page.rows.rows], [window.T("discover")])
-        self.assertEqual([li.label for li in win.made[row].items], ["Zorro", window.T("see_all")])
+        self.assertEqual([li.label for li in win.made[row].items], ["Halcyon", window.T("see_all")])
         # A key TMDB refuses: trying again won't help, See all's page says what to do.
         refusal.append(window.api.ApiError(503, "tmdb_key", "401", {"setup": True, "retry": False}))
-        page.search("zorro")
+        page.search("halcyon")
         work, then, _ = later.pop()
         then(work())
         self.assertEqual(page.rows.rows[0]["title"], "%s · [COLOR %s]%s[/COLOR]" % (window.T("discover"), L.DANGER_TEXT, window.T("tmdb_key")))
@@ -1093,7 +1094,7 @@ class WindowTest(unittest.TestCase):
         left = []
         win.leave_for = left.append
         page.click(row)
-        self.assertEqual((left, win.listing), (["listing"], "plugin://plugin.video.pley/?route=discover_search&q=zorro"))
+        self.assertEqual((left, win.listing), (["listing"], "plugin://plugin.video.pley/?route=discover_search&q=halcyon"))
         # No answer at all (the service away): the libraries' rows alone.
         page.search("mask")
         later.pop()[2]()

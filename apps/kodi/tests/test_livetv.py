@@ -32,11 +32,11 @@ NEWS = {
     "favorite": False, "has_guide": True,
     "now": program(1, NOW - 900, NOW + 2700, "Morning Briefing", subtitle="Part 7", description="Everything you need to know.",
                    categories=["News"], season=1, episode=7, is_live=True, image="/api/live/channels/1/programs/1/image"),
-    "next": program(1, NOW + 2700, NOW + 5400, "World at One"),
+    "next": program(1, NOW + 2700, NOW + 5400, "Midday Bulletin"),
 }
 SPORT = {
     "id": 2, "source_id": 1, "name": "Sport 1080i", "number": "102", "group": "Sport", "logo": None, "favorite": True,
-    "has_guide": True, "now": program(2, NOW - 900, NOW + 2700, "Match of the Day"), "next": None,
+    "has_guide": True, "now": program(2, NOW - 900, NOW + 2700, "Weekend Highlights"), "next": None,
 }
 RADIO = {"id": 4, "source_id": 1, "name": "Radio Jazz", "number": "104", "group": "Radio", "logo": None, "favorite": False,
          "has_guide": False, "now": None, "next": None}
@@ -149,7 +149,7 @@ class WhatsOnTest(unittest.TestCase):
         text = livetv.plot(NEWS, NOW)
         self.assertTrue(text.startswith("[B]%s – %s[/B]  45 min left · S1 · E7 · Live" % (clock(NOW - 900), clock(NOW + 2700))), text)
         self.assertIn("Everything you need to know.", text)
-        self.assertIn("[B]Next[/B]  %s  World at One" % clock(NOW + 2700), text)
+        self.assertIn("[B]Next[/B]  %s  Midday Bulletin" % clock(NOW + 2700), text)
         self.assertEqual(livetv.plot(RADIO, NOW), "No guide")
         self.assertEqual(livetv.plot(dict(RADIO, has_guide=True), NOW), "Nothing in the guide now")
 
@@ -370,7 +370,7 @@ class RoutesTest(unittest.TestCase):
         self.assertEqual(on[2].label, "On now  Morning Briefing: Part 7")
         self.assertEqual((on[1], on[3]), ("plugin://plugin.video.pley/?route=live_play&id=1", False))
         # "Today", or "Tomorrow" run in the hour before midnight.
-        self.assertEqual(later[2].label, "%s %s  World at One" % (livetv.day(NOW + 2700, NOW), clock(NOW + 2700)))
+        self.assertEqual(later[2].label, "%s %s  Midday Bulletin" % (livetv.day(NOW + 2700, NOW), clock(NOW + 2700)))
         self.assertNotIn("IsPlayable", later[2].properties)
         self.assertEqual(more[2].label, "Later")
         self.assertIn("from=%d" % (NOW + 5400), more[1])
@@ -508,7 +508,7 @@ class LiveScreenTest(unittest.TestCase):
         self.assertEqual(news.label2, "Morning Briefing: Part 7")
         self.assertEqual(news.properties["when"].split(" · ")[1], "45 min left")
         self.assertEqual(news.properties["airs"], "Today · %s – %s · S1 · E7 · Live" % (clock(NOW - 900), clock(NOW + 2700)))
-        self.assertEqual(news.properties["next"], "%s  World at One" % clock(NOW + 2700))
+        self.assertEqual(news.properties["next"], "%s  Midday Bulletin" % clock(NOW + 2700))
         self.assertTrue(news.properties["picture"].endswith("/image?w=640"))
         # How far into it: the progress bar, as a tile's.
         self.assertEqual(news.video.values["setResumePoint"][1], 3600.0)
@@ -604,10 +604,10 @@ class LiveScreenTest(unittest.TestCase):
         with test_window.Dialogs(picks=[1, -1]) as asked:
             self.screen.info(L.LIVE_LIST)
         labels, preselect = asked.shown[0]
-        upcoming = "%s %s  ·  World at One" % (livetv.day(NOW + 2700, NOW), clock(NOW + 2700))
+        upcoming = "%s %s  ·  Midday Bulletin" % (livetv.day(NOW + 2700, NOW), clock(NOW + 2700))
         self.assertEqual(labels, ["On now  ·  Morning Briefing: Part 7", upcoming, "Later"])
         self.assertEqual(asked.shown[1][1], 1)
-        self.assertEqual(asked.asked[0][0], "World at One")
+        self.assertEqual(asked.asked[0][0], "Midday Bulletin")
         self.assertIn("101 Pley News HD", asked.asked[0][1])
         guides = [q for p, q in self.asked if p == "/api/live/guide"]
         self.assertEqual(guides, [{"from": NOW, "to": NOW + 6 * HOUR, "ids": 1}])
@@ -658,7 +658,7 @@ class LiveScreenTest(unittest.TestCase):
         row = screen.rows.rows[-1]
         self.assertEqual((row["title"], row["shape"]), ("Live TV", "channel"))
         tiles = self.win.made[L.slot_list(L.SEARCH_ROWS, 0, "channel")].items
-        self.assertEqual([(t.label, t.label2) for t in tiles], [("101 Pley News HD", "Morning Briefing: Part 7"), ("102 Sport 1080i", "Match of the Day")])
+        self.assertEqual([(t.label, t.label2) for t in tiles], [("101 Pley News HD", "Morning Briefing: Part 7"), ("102 Sport 1080i", "Weekend Highlights")])
         self.assertEqual(tiles[0].art["tile"], self.win.session.base + "/api/live/channels/1/logo?w=320")
         # Chosen, it plays, the others found queued.
         list_id = L.slot_list(L.SEARCH_ROWS, 0, "channel")

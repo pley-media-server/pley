@@ -8,8 +8,6 @@
     <!-- The centre. -->
     <string name="player_play">Play</string>
     <string name="player_pause">Pause</string>
-    <string name="player_back_10">Back 10 seconds</string>
-    <string name="player_forward_10">Forward 10 seconds</string>
     <string name="player_loading">Loading</string>
     <string name="player_reconnecting">Reconnecting…</string>
     <!-- A run of double-taps: "+20 s", "−10 s". -->

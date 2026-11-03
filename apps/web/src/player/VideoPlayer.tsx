@@ -11,8 +11,6 @@ import {
   Minimize,
   Pause,
   Play,
-  RotateCcw,
-  RotateCw,
   ServerOff,
   SkipForward,
   TriangleAlert,
@@ -403,9 +401,15 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
    * burned into the video, as before, only when the server can't make such
    * files: from then on, for every picture track.
    */
-  const pictureHooks = useRef<PictureTrackHooks>({ unavailable: () => undefined, failed: () => undefined });
+  const pictureHooks = useRef<PictureTrackHooks>({
+    unavailable: () => undefined,
+    failed: () => undefined,
+    position: () => Math.round(positionRef.current * 1000),
+  });
   const pictureChosen = selectedSub && selectedSub.text_based === false ? selectedSub : null;
   const pictures = usePictureTrack(pictureChosen && file ? picturePath(file.id, pictureChosen.index) : null, pictureHooks);
+  // A track still being read is asked for again from where the player went.
+  const picturesSought = useEffectEvent(() => pictures.sought());
   const burnIndex = pictureChosen && pictures.unavailable ? pictureChosen.index : null;
   const drawnPictureIndex = pictureChosen && !pictures.unavailable ? pictureChosen.index : null;
   const shownTextIndex = selectedSub && selectedSub.text_based !== false ? selectedSub.index : null;
@@ -1255,6 +1259,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
       if (!sessionRef.current || !mediaShown.current) return;
       positionRef.current = v.currentTime;
       report(v.paused ? "paused" : "playing");
+      picturesSought();
     };
     const onEnded = () => {
       stopWaiting();
@@ -1451,8 +1456,9 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
     prepareNext.current = true;
   });
   const picturesFailed = useEffectEvent(() => toast.error("These subtitles couldn't be loaded."));
+  const picturesFrom = useEffectEvent(() => currentMs());
   useEffect(() => {
-    pictureHooks.current = { unavailable: picturesUnavailable, failed: picturesFailed };
+    pictureHooks.current = { unavailable: picturesUnavailable, failed: picturesFailed, position: picturesFrom };
   }, []);
 
 
@@ -1949,24 +1955,6 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
             className="flex size-11 items-center justify-center rounded-full transition hover:bg-white/15"
           >
             {playing ? <Pause className="size-6 fill-current" /> : <Play className="ml-0.5 size-6 fill-current" />}
-          </button>
-          <button
-            type="button"
-            aria-label="Back 10 seconds"
-            title="Back 10 s (←)"
-            onClick={() => seekBy(-10)}
-            className="flex size-10 items-center justify-center rounded-full transition hover:bg-white/15"
-          >
-            <RotateCcw className="size-5" />
-          </button>
-          <button
-            type="button"
-            aria-label="Forward 30 seconds"
-            title="Forward 30 s"
-            onClick={() => seekBy(30)}
-            className="flex size-10 items-center justify-center rounded-full transition hover:bg-white/15"
-          >
-            <RotateCw className="size-5" />
           </button>
           {/* A phone's own buttons set the volume: the row keeps its room for the rest. */}
           <div className="group/vol hidden items-center sm:flex">

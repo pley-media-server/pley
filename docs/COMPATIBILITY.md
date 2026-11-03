@@ -1,305 +1,246 @@
-# Compatibility API
+# Jellyfin-compatible API
 
-Besides [its own API](API.md), Pley speaks a widely used media-server API,
-so tools written for it work with Pley: scripts using
-[`python-plexapi`](https://github.com/pushingkarmaorg/python-plexapi) and
-tools built on the same API (Tautulli, Kometa, direct-play clients). This
-page is for people pointing such a tool at Pley, and for anyone extending
-the API. It uses the same libraries, users, watch state and playback
-sessions as Pley's own API, so changes made through either show up in both.
-
-The base URL is Pley's own address, `http://pley.local:7539` or
-`https://media.example.com` (no `/api`), unless the API has a port of its
-own ([Enabling and port](#enabling-and-port)). Every endpoint but
-`/identity` needs a Pley session token, sent as `X-Plex-Token`
-([Authentication](#authentication)).
+Besides [its own API](API.md), Pley can speak Jellyfin's API, so that
+Jellyfin's apps and other apps built on that API browse and play Pley's
+libraries with Pley's accounts. It is off until an administrator turns it
+on. It uses the same libraries, users, watch state and playback sessions as
+Pley's own API, so what is watched in one shows up in the other. This page
+is for people pointing such an app at Pley, and for anyone extending the
+API.
 
 ## Contents
 
-- [Enabling and port](#enabling-and-port)
-- [Authentication](#authentication)
-- [Formats](#formats)
+- [Turning it on](#turning-it-on)
+- [Signing in](#signing-in)
+- [Ids, streams and pictures](#ids-streams-and-pictures)
+- [Playing](#playing)
 - [Mapping](#mapping)
 - [Endpoints](#endpoints)
-- [Editing](#editing)
-- [Searching and filtering](#searching-and-filtering)
 - [Tested](#tested)
 - [Not supported](#not-supported)
 
-## Enabling and port
+## Turning it on
 
-By default the API answers on Pley's own port (7539), wherever Pley does,
-including behind a reverse proxy's HTTPS. Requests are told apart like
-this:
+**Settings → Network → Jellyfin-compatible API** turns it on:
 
-- A request with this API's headers (`X-Plex-Token`,
-  `X-Plex-Client-Identifier`, …) or `X-Plex-Token` in its query belongs to
-  this API: its clients send them, browsers never do.
-- So does a path only this API has (`/identity`, `/library/sections/…`,
-  `/:/timeline`, a stream's `/video/:/transcode/…` segments, which players
-  fetch without the headers).
-- Everything else (`/`, `/search`, `/library` and `/playlists` among them)
-  is the web app's. `/api/…` and `/.well-known/…` are always Pley's own.
+- **On Pley's port**: the API answers on Pley's own address, behind a
+  reverse proxy's HTTPS too. Apps connect to the address the web app has,
+  such as `https://media.example.com`.
+- **On a port of its own**: the API listens on that port of the addresses
+  Pley listens on. Jellyfin's own is 8096, which some apps try first.
 
-Responses are never pages: they carry `Content-Security-Policy:
-default-src 'none'` (with `sandbox` on Pley's port), `X-Frame-Options:
-DENY`, `X-Content-Type-Options: nosniff`, `X-Plex-Protocol: 1.0`,
-`Access-Control-Allow-Origin: *` and `Cache-Control: no-cache` unless set
-otherwise. On Pley's port, paths both answer vary with `X-Plex-Token` and
-`X-Plex-Client-Identifier` for caches.
-
-Settings → Network turns the API off or gives it a port of its own:
+The same is set elsewhere as:
 
 | Where | Setting |
 |---|---|
-| Command line | `--plex-bind web` (the default), `--plex-bind 0.0.0.0:32400` (several addresses separated by commas) or `--plex-bind off` |
-| Environment | `PLEY_PLEX_BIND` |
-| `pley.toml` | `plex_bind = "web"` |
+| Command line | `--jellyfin-bind off` (the default), `--jellyfin-bind web` (Pley's port), or addresses of its own such as `--jellyfin-bind 0.0.0.0:8096` (several separated by commas) |
+| Environment | `PLEY_JELLYFIN_BIND` |
+| `pley.toml` | `jellyfin_bind = "web"` |
 
-A port of its own suits tools that expect port 32400. If that port is taken
-(by another media server on the same machine, say), Pley logs a warning,
-runs without it, and retries every 30 seconds; Settings → Network shows why
-it isn't listening.
+Set on the command line or in the environment, it can't be changed in
+Settings → Network. A port that is taken is retried every 30 seconds, and
+Settings → Network shows why Pley isn't listening there. Docker's
+`compose.jellyfin.yaml` add-on publishes port 8096
+([deploy/docker](../deploy/docker/README.md)).
 
-## Authentication
+On Pley's port, requests are told apart like this:
 
-Use a Pley session token as the API's token. Get one by signing in:
+- A path only Jellyfin's API has (`/Items`, `/Users`, `/Videos`, `/Audio`,
+  `/Shows`, `/System`, `/Sessions`, `/UserViews`, `/Socket`, and every other
+  family of its API, those Pley doesn't answer too) goes to it, whatever the
+  request carries: players fetch streams and pictures without a header, and
+  a path Pley doesn't answer gets Jellyfin's `404`, not a page.
+- A path both have (`/Library`, `/Playlists`, `/Search`) goes to it only
+  with a Jellyfin app's `Authorization: MediaBrowser …` header or token,
+  which browsers asking for the web app never send. Those answers vary with
+  `Authorization`, `X-Emby-Authorization`, `X-Emby-Token` and
+  `X-MediaBrowser-Token` for caches.
+- Everything else, `/api/…` included, is Pley's own.
 
-```sh
-curl -s -X POST http://localhost:7539/api/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"alice","password":"…"}'
-# {"user":{…},"token":"<token>"}
-```
+Paths and query parameters are read in any case (`/Items` and `/items`,
+`ParentId` and `parentId`), and lists repeated or joined by commas. Answers
+are never pages: they carry `Content-Security-Policy: default-src 'none';
+frame-ancestors 'none'; sandbox`, `X-Frame-Options: DENY` and
+`X-Content-Type-Options: nosniff`, and errors are plain text. The API
+needs the server's `secret.key` ([STORAGE.md](STORAGE.md)), from which its
+ids are made: without one it can use, it answers `503`.
 
-An account with two-step sign-in adds `"code"`, a code from its
-authenticator app. When the server requires two-step sign-in, a tool's
-account uses it too: requiring it signs the account out, so sign in as it
-on the web once to set it up, then ask for a new token with a code.
+The server tells apps it is `Jellyfin Server` 12.4.0, with its name and an
+id of its own (`/System/Info/Public`): apps check the version, and some
+take no server older than 10.11 or 12.
 
-Accepted:
+Older versions had a Plex-compatible API instead. It is gone:
+`--plex-bind`, `PLEY_PLEX_BIND` and `plex_bind` are read and ignored, with a
+warning in the log, and Settings → Network's next change takes
+`plex_bind` out of `pley.toml`.
 
-- this API's way: the `X-Plex-Token` header or query parameter;
-- Pley's way: `Authorization: Bearer`, `X-Pley-Token` or `?token=`.
+## Signing in
 
-Refused (`401`):
+An app signs in with a Pley account's name and password
+(`POST /Users/AuthenticateByName` with `Username` and `Pw`). The answer's
+`AccessToken` is a token for other apps (`pley_ct_…`), named after the app
+and its device as its `Authorization` header gives them ("Findroid on
+Phone"). No session of Pley's is made.
 
-- the web app's `pley_token` cookie: browsers send it to this port too, and
-  some of this API's endpoints change things on a GET;
-- tokens starting `pley_`: those of apps signed in on Pley's own page
-  (`pley_at_…`, `pley_rt_…`) and the keyed addresses of their playback.
+Signing in goes through the checks of Pley's own sign-in: attempt limits
+per name and address, and disabled accounts (`403`). An account with
+two-step sign-in can't sign in this way (`401`), nor one without it while
+the server requires it: an app has nowhere to type the code. Quick Connect
+isn't offered. The body must be JSON (`400` otherwise), as Jellyfin's is:
+another site's page could send text without asking the server first, and
+lock an account out with wrong passwords.
 
-```python
-from plexapi.server import PlexServer
-server = PlexServer('http://localhost:7539', '<token>')
-for movie in server.library.section('Movies').search(unwatched=True):
-    print(movie.title, movie.media[0].videoResolution)
-```
+Apps send the token as Jellyfin's apps do:
 
-Each user sees their own watch state, Continue Watching and sessions, and
-only what Pley's [access rules](API.md#access-rules) let them see.
-Administrators also see every user's sessions and history, and alone may
-refresh libraries and items, stop sessions, edit metadata and make or change
-collections (others get `403`).
+- `Authorization: MediaBrowser Client="…", Device="…", DeviceId="…",
+  Version="…", Token="…"` (also written `Emby`, and sent as
+  `X-Emby-Authorization`);
+- `X-Emby-Token` or `X-MediaBrowser-Token`;
+- `api_key` or `ApiKey` in the query.
 
-## Formats
+Refused (`401`): Pley's session tokens, tokens of apps signed in on Pley's
+own page (`pley_at_…`), and the web app's `pley_token` cookie, which
+browsers send to this port too. A token for other apps opens nothing of
+Pley's own API (`/api/…`).
 
-Responses are XML `MediaContainer`s. With `Accept: application/json` they
-are JSON in the same layout (`{"MediaContainer": {"Metadata": […]}}`).
-Paging works through `X-Plex-Container-Start` and `X-Plex-Container-Size`,
-as headers or query parameters; containers report `size`, `totalSize` and
-`offset`. Paths may use `/:/` segments and trailing slashes as clients send
-them.
+A token sees what Pley's [access rules](API.md#access-rules) let its
+account see, with the account's own watch state, and never acts as an
+administrator: `Policy.IsAdministrator` is `false` for everyone, and nothing
+administers through this API. `/Users` lists the caller alone and
+`/Users/Public` no one, so no names are shown before signing in; a user id
+in a path (`/Users/{id}/Items`) must be the caller's (`404` otherwise).
+
+### Tokens for other apps
+
+Account → Tokens for other apps lists each app signed in, with its device
+and last use, and revokes it. **New token** makes one by hand, for an app
+or script that takes a token: name it after the app, and copy it into the
+app, as Pley shows it once.
+
+A token ends when:
+
+- it is revoked in Account, or the app signs out (`POST /Sessions/Logout`,
+  or `POST /api/auth/logout` with the token);
+- it goes 90 days unused;
+- the account's password changes (its owner's change, an administrator's
+  or `pley reset-password`), it is signed out everywhere, or it is deleted.
+
+It doesn't work while the account is disabled, and works again once the
+account is enabled. Requiring two-step sign-in ends the tokens of every
+account that doesn't use it, as it signs those accounts out everywhere.
+
+## Ids, streams and pictures
+
+Ids are 32 lowercase hexadecimal characters, as Jellyfin writes them, and
+are read with dashes or in capitals too. They are keyed with the server's
+`secret.key`: an id can't be guessed or made up, and another server's ids
+name nothing here. They stay the same while `secret.key` does; with a new
+one, apps sign in again.
+
+Many players open streams, subtitles and pictures without a token:
+
+- **Media sources.** A file's id as a media source (64 hexadecimal
+  characters, `MediaSourceId`) stands for the sign-in it was listed to:
+  `/Videos/{id}/stream?MediaSourceId=…` and the subtitles' `DeliveryUrl`
+  open with it alone, while that sign-in works, for what its user may see.
+  Each sign-in is given its own.
+- **HLS.** A stream's playlists and segments are reached by its session's
+  id (128 random bits), for streams started through this API, while the
+  token that started them works: not once the session ends, the token is
+  revoked or ends, or the account is disabled.
+- **Pictures.** `/Items/{id}/Images/{type}` answers without a token for an
+  id it was given; with a token, only for what its user may see. A
+  collection's picture, its own or its first title's, is chosen by whose
+  list the collection was in: its `ImageTags` say whose, so that a title
+  someone may not see never shows through it.
+
+Files are shown by their names alone (`Path: "/Film (2020).mkv"`), never
+where the server keeps them.
+
+## Playing
+
+`/Items/{id}/PlaybackInfo` decides as Pley's own players are decided for
+([QUALITY.md](QUALITY.md)). A device profile's `DirectPlayProfiles` are
+read as the device's capabilities; an app that sends none (players built on
+mpv or ExoPlayer) plays the files as they are. What plays as it is gets
+`SupportsDirectPlay`; the rest gets a `TranscodingUrl`, an HLS stream from
+Pley's transcoder (`/Videos/{id}/master.m3u8`): the video copied when its
+codec is one the request names (`VideoCodec`, H.264 or HEVC), converted to
+H.264 otherwise, and the sound made AAC. `MaxStreamingBitrate`,
+`MaxHeight`/`MaxWidth`, `StartTimeTicks`, `AudioStreamIndex` and a picture
+subtitle (`SubtitleStreamIndex` with `SubtitleMethod=Encode`), burned in,
+apply. Opened again with the same settings, as players do to probe it, it is
+the same stream. `DELETE /Videos/ActiveEncodings?DeviceId=…` ends a device's
+streams.
+
+Files play with ranges at `/Videos/{id}/stream`, `/Audio/{id}/stream` or
+`/Audio/{id}/universal`, and `/Items/{id}/Download` hands one over as it is.
+Text subtitles, embedded or beside the file or added in Pley, are served as
+WebVTT or SubRip at their `DeliveryUrl`.
+
+A player's reports (`/Sessions/Playing`, `/Progress`, `/Stopped`) keep the
+resume point and the watched state by Pley's rules, and show as playback on
+Pley's Dashboard, by the device's `DeviceId`. Playback stopped from Pley
+tells the device's socket (`Playstate` `Stop`), and its reports don't start
+it again until it stops. `/MediaSegments/{id}` gives the intro and credits
+Pley found as `Intro` and `Outro`, for Skip buttons.
+
+The socket (`/socket`) asks to be kept alive every 60 seconds, and tells of
+changes to the libraries the user may open (`LibraryChanged`), to the
+user's watch state (`UserDataChanged`), and playback stopped from Pley. It
+checks the token again every 30 seconds and closes once it ends.
 
 ## Mapping
 
-- **IDs.** `ratingKey` is the Pley item id and `librarySectionID` the library
-  id. Media and parts use the media file id. Stream ids are
-  `file id × 10000 + stream index`.
-- **Order.** Sections, and the home hubs of each, come in the user's library
-  order in Pley (Settings → Libraries), else the administrators' order; new
-  ones come last.
-- **Types.** Movies and episodes are `Video` elements, shows, seasons,
-  artists and albums are `Directory` elements, and tracks are `Track`
-  elements, with the API's `type` values.
-- **GUIDs.** Every item gets a `plex://<type>/<id>` guid. With
-  `includeGuids=1`, and always in details, `Guid` children carry the ids
-  metadata found, in the API's usual form: `imdb://`, `tmdb://` (movies and
-  shows), `tvdb://` (shows) and `mbid://` (artists and albums). The `guid`
-  filter finds items by any of them.
-- **Editions.** Movies whose versions are tagged with an edition
-  (`{edition-Director's Cut}` in the file or folder name) carry the default
-  version's `editionTitle`.
-- **Watch state.** `viewCount` is the play count of watched items and 0 once
-  an item is marked unplayed. `viewOffset` is the resume position.
-  `/:/progress` and `/:/timeline` count as Pley's own progress reports (90 %
-  marks watched); `/:/scrobble` and `/:/unscrobble` mark watched and
-  unwatched.
-- **Sessions.** A client that reports `/:/timeline` while playing becomes a
-  Pley playback session. It is listed in `/status/sessions` (with `User`,
-  `Player` and `Session`, plus `TranscodeSession` for HLS) and in Pley's
-  dashboard.
-- **Notifications.** `/:/websockets/notifications` (token as `X-Plex-Token`
-  query parameter or header) streams JSON `NotificationContainer`s:
-  - `playing`: a session starts, pauses, resumes or stops, and every 10 s
-    while its position moves (`PlaySessionStateNotification` with the
-    `sessionKey` of `/status/sessions`);
-  - `timeline`: an item was added, first with `state` 0 and `metadataState`
-    `created`, then `state` 5 (what Tautulli's recently-added notifications
-    wait for);
-  - `activity`: library scans;
-  - `status` (`LIBRARY_UPDATE`): a scan ended.
-
-  Each user hears about their own sessions (administrators about all) and
-  the libraries they may open. The token is checked every 10 s and the
-  socket closes once it is revoked.
-- **Streaming.**
-  - `/library/parts/{id}/{version}/file.ext` serves the file with range
-    requests (direct play; `?download=1` adds an attachment header).
-  - `/video/:/transcode/universal/start.m3u8` (or `start`; `/audio/…` for
-    tracks) starts a Pley HLS session: remuxed when the video can be copied,
-    transcoded otherwise (`directStream=0` forces transcoding). It honors
-    `offset`, `maxVideoBitrate`, `videoResolution`, `audioStreamID` and
-    burned-in `subtitleStreamID`. Without `audioStreamID`, Pley picks the
-    track as for its own players
-    ([API.md](API.md#the-audio-track)).
-  - The master playlist points at `session/<id>/base/index.m3u8`. Session
-    URLs need no token: the 128-bit session id is the credential. They stop
-    working (`404`) when the account is disabled, and while the server
-    requires two-step sign-in of an account that doesn't use it.
-- **Preview thumbnails and chapters.** Parts of files with seek previews have
-  `indexes="sd"`; the BIF index is cut from Pley's previews. Details list the
-  first version's `Chapter`s, with a `thumb` once the file has previews.
-- **Markers.** With `includeMarkers=1`, details list the intro and credits
-  Pley found in the first version as `Marker`s (`type`, `startTimeOffset`,
-  `endTimeOffset` in ms; credits are `final`), for Skip Intro and Skip
-  Credits in clients.
-- **Cast and crew.** Details carry `Role` (with the part as `role`),
-  `Director`, `Writer` and `Producer` tags. Their `id` is the Pley person id
-  and `thumb` the TMDB photo.
-- **Artwork.** `thumb` and `art` attributes point at
-  `/library/metadata/{id}/thumb/{version}` and `/art/{version}`.
-  `/photo/:/transcode?url=…&width=…` resizes them through Pley's image cache.
+| Pley | Jellyfin |
+|---|---|
+| Library | View (`CollectionFolder`, `CollectionType` `movies`, `tvshows` or `music`) |
+| Movie, show, season, episode | `Movie`, `Series`, `Season`, `Episode` |
+| Artist, album, track | `MusicArtist`, `MusicAlbum`, `Audio` |
+| A title's versions | its `MediaSources`, named by their edition |
+| Trailers, bonus material | `LocalTrailers`, `SpecialFeatures` |
+| Collection | `BoxSet` |
+| Playlist | `Playlist` |
+| My List | Favorites: movies and shows (`400` for anything else) |
+| Rating | `Likes`: a like is 10 of Pley's 10 points, a dislike 2 |
+| Continue Watching | `Resume` (in progress) and `NextUp` (next episodes), with titles taken out of Continue Watching left out |
+| Cast and crew | `People`, and `Person` items |
 
 ## Endpoints
 
-`GET` unless a method is given.
-
 | Area | Endpoints |
 |---|---|
-| Server | `/`, `/identity`, `/servers`, `/accounts`, `/myplex/account`, `/system`, `/prefs`, `/:/prefs` (`PUT` is accepted and changes nothing), `/media/providers`, `/:/websockets/notifications`; `/clients`, `/devices`, `/activities`, `/butler` and `/updater/status` answer empty containers |
-| Sections | `/library`, `/library/sections`, `/library/sections/{id}`, `…/all`, `…/albums`, `…/recentlyAdded`, `…/onDeck`, `…/search`, `…/firstCharacter`, `…/collections`, `…/{genre,year,decade,contentRating,studio,actor,director,writer,producer,label}` (filter choices), `…/refresh` and `/library/sections/all/refresh` (administrators); `…/emptyTrash` and `…/analyze` are accepted and change nothing |
-| Items | `/library/metadata/{id}` (comma-separated ids allowed), `…/extras` (trailers and other bonus material as `clip`s with the API's `extraType` and `subtype`), `…/children`, `…/allLeaves`, `…/grandchildren`, `…/related` ("More Like This" hub), `…/similar` (the same items), `…/thumb[/{version}]`, `…/art[/{version}]`, `…/refresh` (administrators) |
-| Lists | `/library/all`, `/library/onDeck`, `/library/recentlyAdded`, `/hubs`, `/hubs/sections/{id}`, `/hubs/continueWatching/items`, `/hubs/sections/{id}/continueWatching/items`, `/hubs/home/recentlyAdded`, `/hubs/search`, `/search`, `PUT /actions/removeFromContinueWatching?ratingKey=` (the movie, or the episode's show, leaves the user's Continue Watching until it is played again, as `DELETE /api/continue-watching/{id}`) |
-| Collections | `/library/sections/{id}/collections` (also `…/all?type=18`), `/library/collections/{id}`, `…/children`, `…/{thumb,art,composite}[/{version}]`; changes under [Editing](#editing) |
-| Playlists | `GET`/`POST /playlists` (`?type=&title=&uri=…/library/metadata/1,2`, or `smart=1&uri=…/library/sections/{id}/all?…` for a smart playlist of that listing; `?smart=0\|1` filters the list), `GET`/`PUT` (`?title=`)/`DELETE /playlists/{id}`, `GET`/`PUT /playlists/{id}/items` (`?uri=`), `DELETE /playlists/{id}/items/{playlistItemID}`, `PUT …/{playlistItemID}/move?after=`, `/playlists/{id}/composite/{version}` |
-| Previews | `/library/parts/{id}/indexes/sd` (BIF), `/library/parts/{id}/indexes/sd/{offset}` (the frame at `offset` ms), `/library/media/{id}/chapterImages/{n}` |
-| Playback | `/library/parts/…`, `/library/streams/{id}` (subtitles), `/:/timeline`, `/:/progress`, `/:/scrobble`, `/:/unscrobble`, `/:/rate?key=&rating=` (the user's rating, 0-10; negative clears it), `/status/sessions`, `/status/sessions/terminate?sessionId=&reason=` (administrators: stops the session whose `Session` `id` it is, `reason` as the message its player shows, as `DELETE /api/sessions/{id}`; that client's reports don't start it again), `/transcode/sessions`, `/{video,audio}/:/transcode/universal/{start.m3u8,start,decision,stop,ping,session/…}` |
-| Play queues | `POST /playQueues` (`uri=` items, a container, a section listing or a playlist, or `playlistID=`; `key=` the item to start with; `shuffle=1`; `continuous=1` plays the rest of an episode's show after it), `GET`/`PUT /playQueues/{id}` (`uri=`/`playlistID=` adds, `next=1` right after the playing item), `DELETE /playQueues/{id}/items[/{playQueueItemID}]`, `PUT …/items/{playQueueItemID}/move?after=`, `PUT /playQueues/{id}/shuffle`, `…/unshuffle`; kept in memory for a day, for the user who made them |
-| History | `/status/sessions/history/all` (`accountID`, `librarySectionID`, `metadataItemID`, `viewedAt>=`; administrators see every account, others their own), `DELETE /status/sessions/history/{id}` |
-| Images | `/photo/:/transcode` |
-
-## Editing
-
-Administrators edit metadata the way `python-plexapi` (and so Kometa) does:
-
-- `PUT /library/sections/{id}/all?type=1&id=1,2&title.value=…&title.locked=1`,
-  or `PUT /library/metadata/{id}?…`, for `title`, `titleSort`,
-  `originalTitle`, `year`, `summary`, `tagline`, `studio`, `contentRating`
-  and `originallyAvailableAt`. Edited fields are kept through refreshes
-  (Pley's locked fields, listed in details as `Field` elements with
-  `locked="1"`); `field.locked=1` alone keeps the current value,
-  `field.locked=0` gives the field back to the metadata agent, and a value
-  sent with `field.locked=0` is written but not kept.
-- Tags: `genre[0].tag.tag=Horror` adds a genre, `genre[].tag.tag-=Horror,Drama`
-  removes (each name percent-encoded once more, as `python-plexapi` sends
-  them). The same for `label`, which details list as `Label` and the
-  `label` filter and `/library/sections/{id}/label` find, and for
-  `collection`: the item joins or leaves the collection of that name in its
-  library, which is made when missing. Details list it as `Collection`.
-- Posters and backgrounds: `POST /library/metadata/{id}/posters` (or
-  `/arts`) with the picture as the body (25 MB at most, re-encoded), or
-  `?url=` and `PUT /library/metadata/{id}/poster?url=` (or `/art`) with a
-  TMDB image. Other URLs are refused: the server doesn't fetch arbitrary
-  addresses.
-- Collections: their title, sort title (kept as set, and listed as
-  `titleSort`) and summary through their section (`type=18&id=…`, as
-  `python-plexapi` edits them), their poster and background through
-  `POST /library/collections/{id}/posters` (or `/arts`).
-- `POST /library/collections?type=1&title=…&sectionId=…&smart=0&uri=server://…/library/metadata/1,2`
-  makes a collection of those items; with `smart=1` and
-  `uri=server://…/library/sections/{id}/all?genre=…` a smart collection,
-  filled by that listing (any filter and sort of `…/all`), as each user may
-  see it. Collections report `smart` and, for smart ones, the listing as
-  `content`. `PUT /library/collections/{id}/items?uri=…` adds items (or
-  gives a smart collection a new listing), `DELETE …/items/{item}` removes
-  one and `DELETE /library/collections/{id}` deletes the collection.
-
-## Searching and filtering
-
-`/library/sections/{id}/all` accepts `type` (1 movie, 2 show, 3 season, 4
-episode, 8 artist, 9 album, 10 track), `sort` (`titleSort`, `addedAt`,
-`originallyAvailableAt`, `year`, `rating`, `audienceRating`, `lastViewedAt`,
-`viewCount`, `duration`, `index`, `id`, `updatedAt`; with `:desc`, several
-comma-separated), `limit` and the API's filters with their operators:
-
-- strings (`title`, `studio`): contains, `!=` does not contain, `==` is,
-  `!==` is not, `<=` begins with, `>=` ends with;
-- numbers (`year`, `decade`, `viewCount`, `duration`, `rating`, `index`,
-  `id`): is, `!=`, `>>=`, `<<=`;
-- tags (`genre`, `label`, `contentRating`), booleans (`unwatched`,
-  `inProgress`), dates (`addedAt`, `lastViewedAt`, `originallyAvailableAt`,
-  as unix time or relative like `-30d`) and `guid`;
-- people (`actor`, `director`, `writer`, `producer`): a person id (the tag
-  `id`, also listed by `/library/sections/{id}/actor` and the like) or a
-  name; `!=` excludes.
-
-Filters on ancestors work (`artist.id=5` on albums, `show.title=…` on
-episodes). With `includeMeta=1` the response describes these filters, sorts
-and fields in a `Meta` element; `python-plexapi` validates searches against
-it. Pley's smart collections and smart playlists use the same query string
-([API.md](API.md#collections)).
+| Server | `GET /System/Info/Public`, `/System/Info`, `/System/Ping`, `/System/Endpoint`, `/Branding/Configuration`, `/Branding/Css`, `/QuickConnect/Enabled` (`false`; `/QuickConnect/Initiate` and `/Connect` answer `401`), `/Playback/BitrateTest` (`size` random bytes for a speed test, at most 100 MB) |
+| Users | `POST /Users/AuthenticateByName`, `GET /Users/Me`, `/Users`, `/Users/Public`, `/Users/{id}`, `/Users/{id}/Images/Primary`, `/UserImage?userId=`, `POST /Sessions/Logout`, `/Sessions/Capabilities[/Full]`, `GET|POST /DisplayPreferences/{id}` |
+| Browsing | `GET /UserViews`, `/Items` (by `ParentId`, `Ids`, `SearchTerm`, `PersonIds`, `ArtistIds`; `IncludeItemTypes`, `Recursive`, `Filters`, `Genres`, `Years`, `OfficialRatings`, `Tags`, `Studios`, `NameStartsWith`, `SortBy`, `SortOrder`, `StartIndex`, `Limit`), `/Items/{id}`, `/Items/Latest`, `/Items/Suggestions`, `/UserItems/Resume`, `/Shows/NextUp`, `/Shows/Upcoming` (none), `/Shows/{id}/Seasons`, `/Shows/{id}/Episodes`, `/Items/{id}/Similar`, `/LocalTrailers`, `/SpecialFeatures`, `/Ancestors`, `/Items/Filters`, `/Items/Filters2`, `/Genres`, `/MusicGenres`, `/Artists`, `/Artists/AlbumArtists`, `/Studios`, `/Years`, `/Tags` (none), `/Persons?SearchTerm=`, `/Search/Hints`, `/Playlists/{id}/Items`, and the `/Users/{id}/…` forms of these |
+| Pictures | `GET|HEAD /Items/{id}/Images/{type}[/0]` (`Primary`, `Backdrop`, `Thumb`; `maxWidth`, `fillWidth`, `width`, `tag`) |
+| Watch state | `POST|DELETE /UserPlayedItems/{id}`, `/UserFavoriteItems/{id}`, `/UserItems/{id}/Rating`; `GET|POST /UserItems/{id}/UserData`, and the `/Users/{id}/…` forms |
+| Playback | `GET|POST /Items/{id}/PlaybackInfo`, `/Videos/{id}/stream[.{container}]`, `/Audio/{id}/stream`, `/Audio/{id}/universal`, `/Items/{id}/Download`, `/Videos/{id}/master.m3u8`, `/Audio/{id}/master.m3u8`, `/Videos/{id}/{source}/Subtitles/{index}[/{ticks}]/Stream.{vtt|srt}`, `DELETE /Videos/ActiveEncodings`, `/MediaSegments/{id}` |
+| Reports | `POST /Sessions/Playing`, `/Sessions/Playing/Progress`, `/Sessions/Playing/Stopped`, `/Sessions/Playing/Ping`; `GET /Sessions` (none listed) |
+| Socket | `GET /socket` |
 
 ## Tested
 
-With `python-plexapi` 4.18 the following work against the test media:
+Run against Pley with the API on Pley's port and on a port of its own:
 
-- connecting, the library and its sections, `all()`, `get()`, `search()` with
-  title, `unwatched`, year, sort and paging, `recentlyAdded()`,
-  `listSorts()` and `listFilterChoices()`;
-- item details: media, parts, streams, guids, genres, `reload()`;
-- shows (`seasons()`, `episodes()`, `episode(season=, episode=)`, `onDeck()`),
-  music (`albums()`, `tracks()`, `album()`, `artist()`);
-- `markPlayed()` and `markUnplayed()`, `updateProgress()`, `updateTimeline()`;
-- `server.search()`, `library.search()`, `onDeck()`, hubs, `continueWatching()`;
-- `systemAccounts()`, `account()`, `clients()`, `playlists()`, `history()`,
-  `totalDuration` and `totalStorage`;
-- `getStreamURL()` with the playlist and segments it leads to, direct-play
-  range requests, `sessions()` and `transcodeSessions()`;
-- a non-administrator only sees their own sessions and accounts and cannot
-  refresh libraries;
-- `editTitle()`, `editSummary()` and their `locked` argument, `fields`,
-  `addGenre()`/`removeGenre()`, `addLabel()`/`removeLabel()`,
-  `search(label=…)`, `listFilterChoices('label')`, `addCollection()`,
-  `collections()` and `uploadPoster()`;
-- collections' `editSummary()`, `editSortTitle()`, `uploadPoster()`,
-  `createCollection()` (also `smart=True`), `filters()`, `updateFilters()`,
-  `removeItems()` and `delete()`; `createPlaylist(smart=True)`;
-- play queues: `PlayQueue.create()` (from items, a section listing or a
-  playlist, with `continuous`), `get()`, `addItem(playNext=True)`,
-  `moveItem()`, `removeItem()` and `clear()`.
+- the server's tests (`apps/server/tests/jellyfin.rs` and the access,
+  token, playback and watch-state tests that go through this API);
+- Jellyfin for Android TV, Findroid on Android, JellyCon in Kodi 21 and
+  Plezy on Windows: signing in, browsing, playing, resuming and the watch
+  state they report;
+- Jellyfin's Kotlin SDK, whose models every answer was read into.
 
 ## Not supported
 
-- The vendor's cloud service: its sign-in, server claiming, sharing and
-  remote access, and the apps that depend on it to find servers.
-- Collections' order and mode are set in Pley, not through this API.
-- Editing episodes' and seasons' artwork from URLs other than TMDB images
-  (upload the file instead), and per-item preferences (`/prefs`).
-- Filters on descendants (`episode.title` on shows) and on `resolution`,
-  `hdr`, audio or subtitle language: ignored, so they don't narrow results.
-- Player remote control, photos and live TV.
-- Notifications about transcodes (`transcodeSession.*`), deleted items and
-  reachability.
-- Per-client capability profiles: universal transcode streams are H.264/AAC
-  HLS.
+- Quick Connect, and so signing in from an app with an account that uses
+  two-step sign-in.
+- Administration: the dashboard, users, libraries, plugins, scheduled
+  tasks, logs and activity.
+- Live TV, SyncPlay, remote control of other sessions (`/Sessions` lists
+  none), and finding the server on the network (UDP 7359): apps are given
+  its address.
+- Making or changing playlists and collections, and editing metadata.
+- Lyrics, seek previews (trickplay), instant mixes, theme songs and
+  videos, and intros before a title.
+- Downloads converted for a device: `/Items/{id}/Download` hands over the
+  file as it is.

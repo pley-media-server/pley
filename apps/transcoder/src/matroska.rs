@@ -4,16 +4,19 @@
 //!
 //! - the keyframe times of the video (written by mkvmerge and FFmpeg), for
 //!   segmenting remuxed video;
-//! - the text subtitle tracks. mkvmerge and FFmpeg list every subtitle block
-//!   in the Cues, with its place in its cluster: only those blocks are read,
-//!   a few hundred kilobytes, where extracting the tracks with FFmpeg reads
-//!   the whole file (minutes for a big film on a network share).
+//! - the subtitle tracks, text and pictures. mkvmerge and FFmpeg list every
+//!   subtitle block in the Cues, with its place in its cluster: only those
+//!   blocks are read, a few hundred kilobytes (tens of megabytes for a
+//!   Blu-ray's pictures), where extracting the tracks with FFmpeg reads the
+//!   whole file (minutes for a big film on a network share). Pictures come
+//!   from around where the player is first.
 //!
 //! Only the segment's metadata elements are read otherwise (seek head, info,
 //! tracks, cues, tags), so this takes milliseconds to a second.
 
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::ops::Range;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
@@ -381,17 +384,33 @@ fn font(entry: &[u8]) -> Option<Font> {
 /// then, a packet at a time, in a process of its own.
 pub struct Budget {
     bytes: AtomicU64,
-    deadline: Instant,
+    started: Instant,
+    /// The time it may take, in milliseconds from `started`.
+    time_ms: AtomicU64,
 }
+
+/// The error of a read through the Cues past its time: a busy disk most
+/// often, which another read may find less busy.
+pub const TOOK_TOO_LONG: &str = "reading through the cues took too long";
 
 impl Budget {
     pub fn new(bytes: u64, time: Duration) -> Self {
-        Self { bytes: AtomicU64::new(bytes), deadline: Instant::now() + time }
+        Self { bytes: AtomicU64::new(bytes), started: Instant::now(), time_ms: AtomicU64::new(time.as_millis() as u64) }
     }
 
     /// Whether the read has time left.
     pub fn check(&self) -> Result<(), String> {
-        if Instant::now() > self.deadline { Err("reading through the cues took too long".into()) } else { Ok(()) }
+        if self.started.elapsed().as_millis() as u64 > self.time_ms.load(Ordering::Relaxed) {
+            Err(TOOK_TOO_LONG.into())
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Gives the read `time` more, for time spent waiting rather than
+    /// reading.
+    pub fn extend(&self, time: Duration) {
+        self.time_ms.fetch_add(time.as_millis() as u64, Ordering::Relaxed);
     }
 
     /// Takes `bytes` of memory out of the budget; once it runs out, nothing
@@ -428,6 +447,13 @@ pub struct SubtitleTracks<C> {
     /// What reading the blocks took: reads, and bytes (the Cues aside).
     pub reads: usize,
     pub bytes_read: u64,
+    /// Whether more stretches of blocks come after these (see
+    /// [`picture_tracks`]).
+    pub more: bool,
+    /// The span of the file's time (ticks, from and until) whose blocks
+    /// these are all of, when the Cues tell it: their times are the blocks'
+    /// own.
+    pub span: Option<(u64, u64)>,
 }
 
 #[derive(Debug)]
@@ -665,43 +691,75 @@ impl<'a> Track<'a> {
 /// Cues say, it uses something not supported here, or it needs more than the
 /// budget.
 pub fn text_tracks(path: &Path, media: &MediaInfo, wanted: &[i64], budget: &Budget) -> Result<TextTracks, String> {
-    subtitle_tracks(
-        path,
-        media,
-        wanted,
-        budget,
-        Kind { codec: text_codec, name: "text", webm: |c| c == TextCodec::Webvtt },
-    )
+    let kind = Kind { codec: text_codec, name: "text", webm: |c| c == TextCodec::Webvtt, block_read: TEXT_BLOCK_READ };
+    let mut whole = None;
+    subtitle_tracks(path, media, wanted, budget, kind, Order::WHOLE, &|_| {}, |tracks| {
+        whole = Some(tracks);
+        Ok(())
+    })?;
+    whole.ok_or_else(|| "no track read".into())
 }
 
+/// Holds a reader of a read through the Cues up before a block while what a
+/// player waits for goes on, and gives the read's budget the time it held
+/// the read up: once for readers held up together, before any of them goes
+/// on.
+pub type StepAside<'a> = &'a (dyn Fn(&Budget) + Sync);
+
 /// The picture subtitle streams `wanted` of a Matroska file, read through
-/// its Cues within `budget`, as [`text_tracks`] reads text: their blocks
-/// as they are, compression undone.
+/// its Cues within `budget`, as [`text_tracks`] reads text (their blocks as
+/// they are, compression undone), and handed to `got` in stretches: first
+/// the blocks from `from_ms` to `until_ms` (the file's time, as FFmpeg takes
+/// it), then those after, then those before. Each stretch's blocks are in
+/// the order of the file; an error `got` returns ends the read. The readers
+/// of the stretches after the first wait for `step_aside` before each block.
 pub fn picture_tracks(
     path: &Path,
     media: &MediaInfo,
     wanted: &[i64],
     budget: &Budget,
-) -> Result<PictureTracks, String> {
-    subtitle_tracks(path, media, wanted, budget, Kind { codec: picture_codec, name: "pictures", webm: |_| false })
+    (from_ms, until_ms): (i64, i64),
+    step_aside: StepAside,
+    got: impl FnMut(PictureTracks) -> Result<(), String>,
+) -> Result<(), String> {
+    let kind = Kind { codec: picture_codec, name: "pictures", webm: |_| false, block_read: PICTURE_BLOCK_READ };
+    subtitle_tracks(path, media, wanted, budget, kind, Order { from_ms, until_ms }, step_aside, got)
+}
+
+/// The blocks a read through the Cues hands over first: those from
+/// `from_ms` to `until_ms` of the file's time (as FFmpeg takes it).
+#[derive(Clone, Copy)]
+struct Order {
+    from_ms: i64,
+    until_ms: i64,
+}
+
+impl Order {
+    /// Every block at once.
+    const WHOLE: Order = Order { from_ms: 0, until_ms: i64::MAX };
 }
 
 /// The subtitle tracks a read through the Cues takes: their codec (`None`
-/// for a track of another kind), the kind's name, and whether a codec's
-/// blocks are laid out as WebM's WebVTT.
+/// for a track of another kind), the kind's name, whether a codec's blocks
+/// are laid out as WebM's WebVTT, and how much to read around a block.
 struct Kind<C> {
     codec: fn(&[u8]) -> Option<C>,
     name: &'static str,
     webm: fn(C) -> bool,
+    block_read: usize,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn subtitle_tracks<C: Copy>(
     path: &Path,
     media: &MediaInfo,
     wanted: &[i64],
     budget: &Budget,
     kind: Kind<C>,
-) -> Result<SubtitleTracks<C>, String> {
+    order: Order,
+    step_aside: StepAside,
+    mut got: impl FnMut(SubtitleTracks<C>) -> Result<(), String>,
+) -> Result<(), String> {
     let mut file = BufReader::with_capacity(64 * 1024, File::open(path).map_err(|e| e.to_string())?);
     // mkvmerge and FFmpeg list the Cues in the seek head, or put them before
     // the clusters: another file's aren't looked for cluster by cluster,
@@ -786,53 +844,8 @@ fn subtitle_tracks<C: Copy>(
         }
     }
 
-    // In the order of the file, as FFmpeg reads them.
-    entries.sort_by_key(|e| (e.cluster, e.relative));
-    entries.dedup_by_key(|e| (e.cluster, e.relative));
-    entries.shrink_to_fit();
-    let read = read_blocks(path, layout.segment, &entries, budget)?;
-    let mut listed = vec![0; text.len()];
-    for entry in &entries {
-        listed[slot(entry.track)] += 1;
-    }
-    drop(entries);
-    let mut blocks: Vec<Vec<TextBlock>> = listed.into_iter().map(Vec::with_capacity).collect();
-    for ReadBlock { cue_track, cluster_time, block, .. } in in_file_order(read.by_reader) {
-        budget.check()?;
-        if block.track != cue_track {
-            return Err("a cue points at another track's block".into());
-        }
-        let slot = slot(cue_track);
-        let (_, codec, track) = &text[slot];
-        if block.flags & 0x06 != 0 {
-            return Err("laced subtitle blocks aren't supported".into());
-        }
-        let cluster_time = i64::try_from(cluster_time).map_err(|_| "a cluster's timestamp is out of range")?;
-        let time = cluster_time.checked_add(block.timecode as i64).ok_or("a block's timestamp is out of range")?;
-        // FFmpeg gives a block before the start of time no timestamp, and
-        // drops it.
-        if time < 0 {
-            continue;
-        }
-        let mut data = block.data;
-        if let Some(encoding) = track.encodings.first().filter(|e| e.scope & 1 != 0) {
-            data = encoding.decode(&data, budget)?;
-        }
-        if (kind.webm)(*codec) {
-            data = webm_cue_text(&data).ok_or("a WebVTT block isn't laid out as WebM's")?.to_vec();
-        }
-        if data.is_empty() {
-            continue;
-        }
-        let duration = match block.duration {
-            Some(d) if d > 0 => d,
-            _ => track.default_duration / tick_ns,
-        };
-        blocks[slot].push(TextBlock { time, duration, data });
-    }
-
-    let mut tracks = Vec::with_capacity(text.len());
-    for ((index, codec, track), blocks) in text.into_iter().zip(blocks) {
+    let mut headers = Vec::with_capacity(text.len());
+    for (_, _, track) in &text {
         budget.spend(track.codec_private.len() as u64)?;
         let mut header = track.codec_private.to_vec();
         if let Some(encoding) = track.encodings.first().filter(|e| e.scope & 2 != 0 && !header.is_empty()) {
@@ -843,10 +856,134 @@ fn subtitle_tracks<C: Copy>(
                 Err(refused) => return Err(refused.into()),
             };
         }
-        tracks.push(SubtitleTrack { stream_index: index, codec, header, blocks });
+        headers.push(header);
     }
     let whole_ms = tick_ns % 1_000_000 == 0 && !streams.iter().any(|t| t.scaled);
-    Ok(SubtitleTracks { tick_ns, whole_ms, tracks, reads: read.reads, bytes_read: read.bytes })
+
+    // In the order of the file, as FFmpeg reads them.
+    entries.sort_by_key(|e| (e.cluster, e.relative));
+    entries.dedup_by_key(|e| (e.cluster, e.relative));
+    entries.shrink_to_fit();
+    let clusters = clusters_of(layout.segment, &entries)?;
+    let window = (ticks_from(order.from_ms, media, tick_ns), ticks_from(order.until_ms, media, tick_ns));
+    let mut guess = true;
+    // Whether the cues' times have been the blocks' own so far: the spans
+    // stretches hold all the blocks of are told by them.
+    let mut timed = true;
+    let stretches = stretches(&clusters, window);
+    let last = stretches.len() - 1;
+    // The first is what a player waits for.
+    let at_once = |_: &Budget| {};
+    for (n, stretch) in stretches.into_iter().enumerate() {
+        budget.check()?;
+        let aside: StepAside = if n == 0 { &at_once } else { step_aside };
+        let read = read_blocks(path, &clusters, stretch.clone(), kind.block_read, &mut guess, budget, aside)?;
+        let mut blocks: Vec<Vec<TextBlock>> = text.iter().map(|_| Vec::new()).collect();
+        let cues = clusters[stretch.clone()].iter().flat_map(|(_, entries)| entries.iter());
+        for (ReadBlock { cue_track, cluster_time, block, .. }, cue) in in_file_order(read.by_reader).zip(cues) {
+            budget.check()?;
+            if block.track != cue_track {
+                return Err("a cue points at another track's block".into());
+            }
+            let slot = slot(cue_track);
+            let (_, codec, track) = &text[slot];
+            if block.flags & 0x06 != 0 {
+                return Err("laced subtitle blocks aren't supported".into());
+            }
+            let cluster_time = i64::try_from(cluster_time).map_err(|_| "a cluster's timestamp is out of range")?;
+            let time = cluster_time.checked_add(block.timecode as i64).ok_or("a block's timestamp is out of range")?;
+            timed &= u64::try_from(time).ok() == Some(cue.time);
+            // FFmpeg gives a block before the start of time no timestamp, and
+            // drops it.
+            if time < 0 {
+                continue;
+            }
+            let mut data = block.data;
+            if let Some(encoding) = track.encodings.first().filter(|e| e.scope & 1 != 0) {
+                data = encoding.decode(&data, budget)?;
+            }
+            if (kind.webm)(*codec) {
+                data = webm_cue_text(&data).ok_or("a WebVTT block isn't laid out as WebM's")?.to_vec();
+            }
+            if data.is_empty() {
+                continue;
+            }
+            let duration = match block.duration {
+                Some(d) if d > 0 => d,
+                _ => track.default_duration / tick_ns,
+            };
+            blocks[slot].push(TextBlock { time, duration, data });
+        }
+        let tracks = text
+            .iter()
+            .zip(&headers)
+            .zip(blocks)
+            .map(|((&(stream_index, codec, _), header), blocks)| SubtitleTrack {
+                stream_index,
+                codec,
+                header: header.clone(),
+                blocks,
+            })
+            .collect();
+        let span = timed.then(|| span(&clusters, &stretch));
+        let (reads, bytes_read, more) = (read.reads, read.bytes, n < last);
+        got(SubtitleTracks { tick_ns, whole_ms, tracks, reads, bytes_read, more, span })?;
+    }
+    Ok(())
+}
+
+/// The clusters the entries (sorted by position) are in: where each starts
+/// in the file, and its entries.
+fn clusters_of(segment: u64, entries: &[CueEntry]) -> Result<Vec<Cluster<'_>>, String> {
+    let same_cluster = |a: &CueEntry, b: &CueEntry| a.cluster == b.cluster;
+    let mut clusters = Vec::with_capacity(entries.chunk_by(same_cluster).count());
+    for cluster in entries.chunk_by(same_cluster) {
+        let at = segment.checked_add(cluster[0].cluster).ok_or("a cue points past the end of the file")?;
+        clusters.push((at, cluster));
+    }
+    Ok(clusters)
+}
+
+/// `ms` of the file's time, as FFmpeg takes it (its start taken off), in
+/// the file's ticks of `tick_ns`: 0 for its start or before.
+fn ticks_from(ms: i64, media: &MediaInfo, tick_ns: u64) -> u64 {
+    if ms <= 0 {
+        return 0;
+    }
+    let ms = ms.saturating_add(media.start_ms.unwrap_or(0)).max(0) as u128;
+    u64::try_from(ms * 1_000_000 / u128::from(tick_ns.max(1))).unwrap_or(u64::MAX)
+}
+
+/// The span of the file's time (ticks) whose blocks the clusters `stretch`
+/// hold all of: from past the last block before them to the first after
+/// them (blocks come in order of time).
+fn span(clusters: &[Cluster], stretch: &Range<usize>) -> (u64, u64) {
+    let last_before = stretch.start.checked_sub(1).and_then(|c| clusters[c].1.iter().map(|e| e.time).max());
+    let first_after = clusters.get(stretch.end).and_then(|(_, entries)| entries.iter().map(|e| e.time).min());
+    (last_before.map_or(0, |time| time.saturating_add(1)), first_after.unwrap_or(u64::MAX))
+}
+
+/// How many clusters a stretch after or before the blocks around the
+/// player has at most: each is handed over once read, so a player that
+/// reads a track once is given what is read by then.
+const STRETCH_CLUSTERS: usize = 256;
+
+/// The stretches of `clusters` (in the order of the file) a read hands over
+/// one after the other: those with blocks from `from` to `until` (ticks),
+/// even when there are none, then those after, then those before, a few
+/// hundred clusters at a time.
+fn stretches(clusters: &[Cluster], (from, until): (u64, u64)) -> Vec<Range<usize>> {
+    let first_from = |time: u64| {
+        clusters.iter().position(|(_, entries)| entries.iter().any(|e| e.time >= time)).unwrap_or(clusters.len())
+    };
+    let start = first_from(from);
+    let end = first_from(until).max(start);
+    let pieces = |stretch: Range<usize>| {
+        let last = stretch.end;
+        stretch.step_by(STRETCH_CLUSTERS).map(move |at| at..(at + STRETCH_CLUSTERS).min(last))
+    };
+    let after = [end..clusters.len(), 0..start].into_iter().flat_map(pieces);
+    std::iter::once(start..end).chain(after).collect()
 }
 
 /// Blocks are read by this many threads at once, each with a handle of its
@@ -860,7 +997,7 @@ const CHECK_EVERY: usize = 16;
 
 /// A block read for a cue.
 struct ReadBlock {
-    /// Its cluster's place in the list of clusters read.
+    /// Its cluster's place in the stretch of clusters read.
     cluster: usize,
     /// The track the cue is for.
     cue_track: u64,
@@ -902,11 +1039,25 @@ impl From<&str> for ReadError {
     }
 }
 
-/// The blocks `entries` (sorted by position) point at, their memory taken
-/// out of `budget`.
-fn read_blocks(path: &Path, segment: u64, entries: &[CueEntry], budget: &Budget) -> Result<ReadBlocks, String> {
-    match read_blocks_with(path, segment, entries, true, budget) {
-        Err(ReadError::Guessed) => read_blocks_with(path, segment, entries, false, budget),
+/// The blocks the entries of the clusters `stretch` of `clusters` (sorted
+/// by position) point at, `block_read` bytes read around each, their memory
+/// taken out of `budget`, each once `step_aside` lets its reader go on.
+/// `guess` says whether cluster heads may be skipped: once a stretch finds
+/// this file's are needed, it is unset for the next ones.
+fn read_blocks(
+    path: &Path,
+    clusters: &[Cluster],
+    stretch: Range<usize>,
+    block_read: usize,
+    guess: &mut bool,
+    budget: &Budget,
+    step_aside: StepAside,
+) -> Result<ReadBlocks, String> {
+    match read_blocks_with(path, clusters, stretch.clone(), block_read, *guess, budget, step_aside) {
+        Err(ReadError::Guessed) => {
+            *guess = false;
+            read_blocks_with(path, clusters, stretch, block_read, false, budget, step_aside)
+        }
         other => other,
     }
     .map_err(|e| match e {
@@ -926,20 +1077,17 @@ type ReaderBlocks = (Vec<ReadBlock>, usize, u64);
 /// readers move through the file side by side.
 fn read_blocks_with(
     path: &Path,
-    segment: u64,
-    entries: &[CueEntry],
+    clusters: &[Cluster],
+    stretch: Range<usize>,
+    block_read: usize,
     guess: bool,
     budget: &Budget,
+    step_aside: StepAside,
 ) -> Result<ReadBlocks, ReadError> {
-    let same_cluster = |a: &CueEntry, b: &CueEntry| a.cluster == b.cluster;
-    let mut clusters: Vec<Cluster> = Vec::with_capacity(entries.chunk_by(same_cluster).count());
-    for cluster in entries.chunk_by(same_cluster) {
-        let at = segment.checked_add(cluster[0].cluster).ok_or("a cue points past the end of the file")?;
-        clusters.push((at, cluster));
-    }
-    let readers = READERS.min(clusters.len());
+    let readers = READERS.min(stretch.len());
     let (failed, kept) = (AtomicBool::new(false), AtomicU64::new(0));
-    let shared = Readers { path, clusters: &clusters, guess, budget, failed: &failed, kept: &kept };
+    let shared =
+        Readers { path, clusters, stretch, block_read, guess, budget, step_aside, failed: &failed, kept: &kept };
     let results: Vec<Result<ReaderBlocks, ReadError>> = std::thread::scope(|scope| {
         let shared = &shared;
         let workers: Vec<_> = (0..readers)
@@ -1007,9 +1155,13 @@ fn in_file_order(by_reader: Vec<Vec<ReadBlock>>) -> impl Iterator<Item = ReadBlo
 /// What the readers of [`read_blocks_with`] share.
 struct Readers<'a> {
     path: &'a Path,
+    /// Every cluster of the read, and those of this stretch.
     clusters: &'a [Cluster<'a>],
+    stretch: Range<usize>,
+    block_read: usize,
     guess: bool,
     budget: &'a Budget,
+    step_aside: StepAside<'a>,
     /// Set by a reader that fails: the others stop.
     failed: &'a AtomicBool,
     /// The memory taken by the blocks read so far.
@@ -1017,21 +1169,30 @@ struct Readers<'a> {
 }
 
 impl Readers<'_> {
-    /// The blocks of every `step`th cluster from the `first` on, checked to
-    /// be where blocks can be: each inside its cluster (before the next one
-    /// starts) and after the one before it, as a file's blocks are.
+    /// The blocks of every `step`th cluster of the stretch from the `first`
+    /// on, checked to be where blocks can be: each inside its cluster
+    /// (before the next one starts) and after the one before it, as a
+    /// file's blocks are.
     fn read(&self, first: usize, step: usize) -> Result<ReaderBlocks, ReadError> {
         let file = File::open(self.path).map_err(|e| ReadError::Failed(e.to_string()))?;
-        let mut reader = Window::new(file);
+        let mut reader = Window::new(file, self.block_read);
+        let mine = || self.stretch.clone().skip(first).step_by(step);
         // A block for each entry, or none at all: room for them all at once.
-        let mut out = Vec::with_capacity(self.clusters.iter().skip(first).step_by(step).map(|(_, c)| c.len()).sum());
-        for (k, (n, &(at, cluster))) in self.clusters.iter().enumerate().skip(first).step_by(step).enumerate() {
+        let mut out = Vec::with_capacity(mine().map(|n| self.clusters[n].1.len()).sum());
+        for (k, n) in mine().enumerate() {
+            let (at, cluster) = self.clusters[n];
             let next = self.clusters.get(n + 1).map(|&(next, _)| next);
             let checked = !self.guess || k % CHECK_EVERY == 0;
             let mut head = None;
             let mut end = at;
             for entry in cluster {
-                if self.failed.load(Ordering::Relaxed) {
+                // A stretch another reader failed doesn't wait to stop.
+                let stopped = || self.failed.load(Ordering::Relaxed);
+                if stopped() {
+                    return Err(ReadError::Stopped);
+                }
+                (self.step_aside)(self.budget);
+                if stopped() {
                     return Err(ReadError::Stopped);
                 }
                 self.budget.check().map_err(ReadError::Failed)?;
@@ -1085,7 +1246,12 @@ impl Readers<'_> {
                 let size = block.data.len() as u64;
                 self.budget.spend(size).map_err(ReadError::Failed)?;
                 self.kept.fetch_add(size, Ordering::Relaxed);
-                out.push(ReadBlock { cluster: n, cue_track: entry.track, cluster_time: time, block });
+                out.push(ReadBlock {
+                    cluster: n - self.stretch.start,
+                    cue_track: entry.track,
+                    cluster_time: time,
+                    block,
+                });
             }
         }
         Ok((out, reader.reads, reader.bytes_read))
@@ -1237,42 +1403,56 @@ struct RawBlock {
     len: u64,
 }
 
-/// Reads small parts of a file, keeping the last read for the parts near it:
-/// the subtitle blocks of every track for a given moment sit next to each
-/// other.
+/// Reads small parts of a file, keeping the last read for the parts near it
+/// (the subtitle blocks of every track for a given moment sit next to each
+/// other): the last of a cluster's head, and apart from it the last around a
+/// block, which a head read after a guess that failed leaves be.
 struct Window<R> {
     inner: R,
-    start: u64,
-    data: Vec<u8>,
+    /// How much to read around a block.
+    block_read: usize,
+    /// Where each read kept starts, and its bytes: a head's, then a block's.
+    kept: [(u64, Vec<u8>); 2],
     reads: usize,
     bytes_read: u64,
 }
 
-/// How much to read for a cluster's head, and around a block.
+/// How much to read for a cluster's head, and around a block: a line of text
+/// takes under a kilobyte, a Blu-ray's PGS picture up to tens of kilobytes.
+/// On a disk a read costs a seek more than its bytes, so a picture takes one
+/// read; over a slow link to a share the bytes count, so text reads less.
 const HEAD_READ: usize = 64;
-const BLOCK_READ: usize = 16 * 1024;
+const TEXT_BLOCK_READ: usize = 16 * 1024;
+const PICTURE_BLOCK_READ: usize = 64 * 1024;
 
 impl<R: Read + Seek> Window<R> {
-    fn new(inner: R) -> Self {
-        Self { inner, start: 0, data: Vec::new(), reads: 0, bytes_read: 0 }
+    fn new(inner: R, block_read: usize) -> Self {
+        Self { inner, block_read, kept: Default::default(), reads: 0, bytes_read: 0 }
     }
 
     /// `len` bytes at `pos` (fewer at the end of the file), reading at least
     /// `ahead` when they aren't in memory.
     fn get(&mut self, pos: u64, len: usize, ahead: usize) -> Option<&[u8]> {
         let end = pos.checked_add(len as u64)?;
-        if pos < self.start || end > self.start + self.data.len() as u64 {
-            self.inner.seek(SeekFrom::Start(pos)).ok()?;
-            // Room for this read alone: a big block's isn't kept for the
-            // small ones after it.
-            let size = len.max(ahead);
-            (self.start, self.data) = (pos, Vec::with_capacity(size));
-            (&mut self.inner).take(size as u64).read_to_end(&mut self.data).ok()?;
-            self.reads += 1;
-            self.bytes_read += self.data.len() as u64;
-        }
-        let from = usize::try_from(pos - self.start).ok()?;
-        Some(&self.data[from..(from + len).min(self.data.len())])
+        let holds = |(start, data): &(u64, Vec<u8>)| pos >= *start && end <= start + data.len() as u64;
+        let slot = match self.kept.iter().position(holds) {
+            Some(slot) => slot,
+            None => {
+                self.inner.seek(SeekFrom::Start(pos)).ok()?;
+                // Room for this read alone: a big block's isn't kept for the
+                // small ones after it.
+                let size = len.max(ahead);
+                let slot = usize::from(ahead > HEAD_READ);
+                self.kept[slot] = (pos, Vec::with_capacity(size));
+                (&mut self.inner).take(size as u64).read_to_end(&mut self.kept[slot].1).ok()?;
+                self.reads += 1;
+                self.bytes_read += self.kept[slot].1.len() as u64;
+                slot
+            }
+        };
+        let (start, data) = &self.kept[slot];
+        let from = usize::try_from(pos - start).ok()?;
+        Some(&data[from..(from + len).min(data.len())])
     }
 
     /// Where the data of the cluster at `pos` starts, its timestamp, and
@@ -1310,15 +1490,20 @@ impl<R: Read + Seek> Window<R> {
     /// head: a cluster's id and size take 5 to 12 bytes, so the block starts
     /// at one of 8 places, and only one of them can hold a BlockGroup of the
     /// entry's track that lasts as long as the cue says and is filled
-    /// exactly by its elements. With the block's position; `None` when that
-    /// isn't certain (no duration in the cue, a SimpleBlock, two fits).
+    /// exactly by its elements, or, for a cue without a duration (mkvmerge
+    /// writes none for PGS), a whole SimpleBlock of the entry's track. With
+    /// the block's position; `None` when that isn't certain (two fits, a
+    /// block longer than a read).
     fn guess_block(&mut self, cluster: u64, entry: &CueEntry) -> Option<(u64, RawBlock)> {
-        let duration = entry.duration?;
         let earliest = cluster.checked_add(5)?.checked_add(entry.relative?)?;
-        let bytes = self.get(earliest, 7 + BLOCK_READ, BLOCK_READ)?.to_vec();
+        let bytes = self.get(earliest, 7 + self.block_read, self.block_read)?.to_vec();
+        let block_at = |bytes: &[u8]| match entry.duration {
+            Some(duration) => block_group_at(bytes, entry.track, duration),
+            None => simple_block_at(bytes, entry.track),
+        };
         let mut found = None;
         for shift in 0..bytes.len().min(8) {
-            if let Some(block) = block_group_at(&bytes[shift..], entry.track, duration) {
+            if let Some(block) = block_at(&bytes[shift..]) {
                 if found.is_some() {
                     return None;
                 }
@@ -1332,7 +1517,7 @@ impl<R: Read + Seek> Window<R> {
     /// The block element at `pos`, if it's no bigger than a subtitle can be.
     fn block(&mut self, pos: u64) -> Result<RawBlock, ReadError> {
         const NO_BLOCK: &str = "a cue points at no block";
-        let head = self.get(pos, 12, BLOCK_READ).ok_or(NO_BLOCK)?.to_vec();
+        let head = self.get(pos, 12, self.block_read).ok_or(NO_BLOCK)?.to_vec();
         let mut cursor = std::io::Cursor::new(head.as_slice());
         let (id, size) = element_header(&mut cursor).ok_or(NO_BLOCK)?;
         if size == UNKNOWN_SIZE {
@@ -1342,7 +1527,7 @@ impl<R: Read + Seek> Window<R> {
             return Err("a block is too big for a subtitle".into());
         }
         let len = cursor.position() + size;
-        let payload = self.get(pos + cursor.position(), size as usize, BLOCK_READ).ok_or(NO_BLOCK)?;
+        let payload = self.get(pos + cursor.position(), size as usize, self.block_read).ok_or(NO_BLOCK)?;
         if payload.len() as u64 != size {
             return Err(NO_BLOCK.into());
         }
@@ -1387,6 +1572,36 @@ fn block_group_at(bytes: &[u8], track: u64, duration: u64) -> Option<RawBlock> {
         return None;
     }
     let block = parse_block(block?, length, (start + payload.len()) as u64)?;
+    (block.track == track && block.flags & 0x06 == 0).then_some(block)
+}
+
+/// A whole SimpleBlock of `track`, not laced, at the start of `bytes`, with
+/// what can come after a block after it, unless `bytes` end first.
+fn simple_block_at(bytes: &[u8], track: u64) -> Option<RawBlock> {
+    let mut cursor = std::io::Cursor::new(bytes);
+    let (id, size) = element_header(&mut cursor)?;
+    if id != SIMPLE_BLOCK || size == UNKNOWN_SIZE || size > MAX_BLOCK {
+        return None;
+    }
+    let start = cursor.position() as usize;
+    let end = start.checked_add(usize::try_from(size).ok()?)?;
+    let payload = bytes.get(start..end)?;
+    // Another block, void, a checksum, the next cluster, or what comes after
+    // the clusters (mkvpropedit moves an element that grows to the end): a
+    // few bytes of something else that look like a block rarely have one of
+    // those after them.
+    const AFTER_A_BLOCK: [u32; 12] =
+        [SIMPLE_BLOCK, BLOCK_GROUP, 0xEC, 0xBF, CLUSTER, CUES, TAGS, ATTACHMENTS, 0x1043_A770, SEEK_HEAD, INFO, TRACKS];
+    let after = &bytes[end..];
+    if let Some(&first) = after.first()
+        && after.len() > first.leading_zeros() as usize
+    {
+        let (next, _) = vint(&mut &after[..], true)?;
+        if !u32::try_from(next).is_ok_and(|next| AFTER_A_BLOCK.contains(&next)) {
+            return None;
+        }
+    }
+    let block = parse_block(payload, None, (start + payload.len()) as u64)?;
     (block.track == track && block.flags & 0x06 == 0).then_some(block)
 }
 
@@ -1791,6 +2006,8 @@ pub(crate) mod tests {
         pub(crate) clusters: Vec<(u64, Vec<TestBlock>)>,
         /// Leave out the blocks' places in their clusters.
         pub(crate) no_relative: bool,
+        /// Leave out the blocks' durations (as some muxers do).
+        no_durations: bool,
         /// Where the file says its Cues are.
         cues_listed: Listed,
         /// Clusters with sizes as short as fit (else 8 bytes, as mkvmerge's
@@ -1805,7 +2022,7 @@ pub(crate) mod tests {
         /// More cues: `(track, cluster, block, offset)` point `offset` bytes
         /// into the element of block `block` of cluster `cluster` (places in
         /// the lists), claiming a block of `track` is there.
-        extra_cues: Vec<(u64, usize, usize, u64)>,
+        pub(crate) extra_cues: Vec<(u64, usize, usize, u64)>,
         /// The flags byte of every block (`0x80`: a keyframe).
         block_flags: u8,
         tags: Vec<u8>,
@@ -1818,6 +2035,7 @@ pub(crate) mod tests {
                 tracks,
                 clusters,
                 no_relative: false,
+                no_durations: false,
                 cues_listed: Listed::InSeekHead,
                 short_clusters: false,
                 cue_time_offset: 0,
@@ -1871,7 +2089,7 @@ pub(crate) mod tests {
                 if !self.no_relative {
                     positions.push(uint_el(&[0xF0], relative));
                 }
-                if let Some(duration) = duration {
+                if let Some(duration) = duration.filter(|_| !self.no_durations) {
                     positions.push(uint_el(&[0xB2], duration));
                 }
                 el(&[0xBB], &[uint_el(&[0xB3], time), el(&[0xB7], &positions.concat())].concat())
@@ -2016,15 +2234,161 @@ pub(crate) mod tests {
         let mut media = movie_media();
         media.streams.push(stream(5, StreamKind::Subtitle, "dvd_subtitle"));
 
-        let found = picture_tracks(&path, &media, &[3, 5], &plenty()).unwrap();
+        let [found] =
+            picture_stretches(&path, &media, &[3, 5], (0, i64::MAX)).unwrap().try_into().expect("one stretch");
         let [pgs, vobsub] = found.tracks.as_slice() else { panic!("two tracks") };
         assert_eq!((pgs.stream_index, pgs.codec), (3, "S_HDMV/PGS"));
         assert_eq!(pgs.blocks, [TextBlock { time: 1_000, duration: 0, data: vec![0x16, 0, 0] }]);
         assert_eq!((vobsub.codec, vobsub.header.as_slice()), ("S_VOBSUB", b"palette: 000000".as_slice()));
         assert_eq!(vobsub.blocks, [TextBlock { time: 5_300, duration: 2_000, data: b"vobsub picture".to_vec() }]);
         // Text isn't pictures, nor pictures text.
-        assert!(picture_tracks(&path, &media, &[2], &plenty()).unwrap_err().contains("isn't pictures"));
+        assert!(picture_stretches(&path, &media, &[2], (0, i64::MAX)).unwrap_err().contains("isn't pictures"));
         assert!(text_tracks(&path, &media, &[3], &plenty()).unwrap_err().contains("isn't text"));
+    }
+
+    /// Every stretch [`picture_tracks`] hands over, read from `window` on.
+    fn picture_stretches(
+        path: &Path,
+        media: &MediaInfo,
+        wanted: &[i64],
+        window: (i64, i64),
+    ) -> Result<Vec<PictureTracks>, String> {
+        let mut stretches = Vec::new();
+        picture_tracks(path, media, wanted, &plenty(), window, &|_| {}, |found| {
+            stretches.push(found);
+            Ok(())
+        })?;
+        Ok(stretches)
+    }
+
+    #[test]
+    fn stretches_tell_what_they_hold_all_of_when_the_cues_tell_the_blocks_times() {
+        let dir = tempfile::tempdir().unwrap();
+        let spans = |file: &TestFile| -> Vec<Option<(u64, u64)>> {
+            let path = file.write(dir.path());
+            picture_stretches(&path, &movie_media(), &[3], (40_000, 50_000)).unwrap().iter().map(|s| s.span).collect()
+        };
+        let mut file = pictures_every_second(80);
+        assert_eq!(spans(&file), [Some((39_001, 50_000)), Some((49_001, u64::MAX)), Some((0, 40_000))]);
+        // Cues whose times aren't the blocks' own (read at their cluster's
+        // head) tell none.
+        file.cue_time_offset = 3;
+        assert_eq!(spans(&file), [None, None, None]);
+    }
+
+    /// The synthetic film with a PGS picture every second for `seconds`,
+    /// each a cluster of its own with some video.
+    pub(crate) fn pictures_every_second(seconds: u64) -> TestFile {
+        let mut file = movie();
+        file.clusters = (0..seconds)
+            .map(|n| (n * 1_000, vec![(1, 0, None, vec![0; 40]), (5, 0, None, vec![0x16, 0, n as u8])]))
+            .collect();
+        file
+    }
+
+    #[test]
+    fn the_rest_of_a_picture_track_steps_aside_before_each_block() {
+        use parking_lot::Mutex;
+        use std::sync::atomic::AtomicUsize;
+        let dir = tempfile::tempdir().unwrap();
+        let path = pictures_every_second(600).write(dir.path());
+        // Asked before each block but those around the player (0:40 to
+        // 0:50), and the time it holds the readers up isn't the read's: here
+        // more than the read may take.
+        let asked = AtomicUsize::new(0);
+        let slow = |budget: &Budget| {
+            asked.fetch_add(1, Ordering::Relaxed);
+            std::thread::sleep(Duration::from_millis(10));
+            budget.extend(Duration::from_millis(10));
+        };
+        let budget = Budget::new(64 << 20, Duration::from_millis(200));
+        let mut blocks = 0;
+        picture_tracks(&path, &movie_media(), &[3], &budget, (40_000, 50_000), &slow, |found| {
+            blocks += found.tracks[0].blocks.len();
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!((blocks, asked.load(Ordering::Relaxed)), (600, 590));
+
+        // Held aside, the readers read nothing more till they are let go.
+        let held = AtomicBool::new(true);
+        let aside = |_: &Budget| {
+            while held.load(Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        };
+        let stretches = Mutex::new(Vec::new());
+        let while_held = std::thread::scope(|scope| {
+            let read = scope.spawn(|| {
+                picture_tracks(&path, &movie_media(), &[3], &plenty(), (40_000, 50_000), &aside, |found| {
+                    stretches.lock().push(found.tracks[0].blocks.len());
+                    Ok(())
+                })
+            });
+            while stretches.lock().is_empty() {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            std::thread::sleep(Duration::from_millis(200));
+            let while_held = stretches.lock().clone();
+            held.store(false, Ordering::Relaxed);
+            read.join().unwrap().unwrap();
+            while_held
+        });
+        assert_eq!(while_held, [10], "those around the player alone");
+        assert_eq!(stretches.lock().iter().sum::<usize>(), 600);
+    }
+
+    #[test]
+    fn picture_tracks_come_from_where_the_player_is_first() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = pictures_every_second(80).write(dir.path());
+        let seconds = |window: (i64, i64)| -> Vec<(Vec<i64>, bool)> {
+            let stretches = picture_stretches(&path, &movie_media(), &[3], window).unwrap();
+            let seconds = |s: &PictureTracks| s.tracks[0].blocks.iter().map(|b| b.time / 1_000).collect();
+            stretches.iter().map(|s| (seconds(s), s.more)).collect()
+        };
+        let span = |seconds: Range<i64>, more: bool| (seconds.collect::<Vec<_>>(), more);
+        // Those around where the player is, then those after, then those
+        // before.
+        assert_eq!(seconds((40_000, 50_000)), [span(40..50, true), span(50..80, true), span(0..40, false)]);
+        // A window from the start, or one that takes it all: in one go.
+        assert_eq!(seconds((0, 90_000)), [span(0..80, false)]);
+        // None there: an empty window first all the same.
+        assert_eq!(seconds((90_000, 95_000)), [span(0..0, true), span(0..80, false)]);
+        // What takes them can stop the read.
+        let stopped = picture_tracks(&path, &movie_media(), &[3], &plenty(), (0, 1), &|_| {}, |_| Err("enough".into()));
+        assert_eq!(stopped.unwrap_err(), "enough");
+    }
+
+    #[test]
+    fn stretches_start_with_those_around_the_player() {
+        let entries: Vec<CueEntry> = (0..100)
+            .map(|n| CueEntry { time: n * 1_000, track: 5, cluster: n * 10, relative: Some(0), duration: None })
+            .collect();
+        let clusters = clusters_of(0, &entries).unwrap();
+        assert_eq!(stretches(&clusters, (40_000, 45_500)), [40..46, 46..100, 0..40]);
+        assert_eq!(stretches(&clusters, (90_000, 200_000)), [90..100, 0..90]);
+        // All at once, as text is read; and an empty track is handed over too.
+        let (all, none) = (stretches(&clusters, (0, u64::MAX)), stretches(&[], (0, 1)));
+        assert_eq!((all.len(), all[0].clone(), none.len(), none[0].clone()), (1, 0..100, 1, 0..0));
+        // A long track's after and before, a few hundred clusters at a time.
+        let entries: Vec<CueEntry> = (0..1_000)
+            .map(|n| CueEntry { time: n * 1_000, track: 5, cluster: n * 10, relative: Some(0), duration: None })
+            .collect();
+        let clusters = clusters_of(0, &entries).unwrap();
+        assert_eq!(
+            stretches(&clusters, (300_000, 310_000)),
+            [300..310, 310..566, 566..822, 822..1000, 0..256, 256..300]
+        );
+        assert_eq!(stretches(&clusters, (0, u64::MAX)), vec![0..1000]);
+        // What each holds all of: an empty one too.
+        assert_eq!(span(&clusters, &(300..310)), (299_001, 310_000));
+        assert_eq!((span(&clusters, &(0..256)), span(&clusters, &(822..1000))), ((0, 256_000), (821_001, u64::MAX)));
+        assert_eq!(span(&clusters, &(5..5)), (4_001, 5_000));
+        // The file's start time is the track's 0.
+        let media = MediaInfo { start_ms: Some(1_000), ..Default::default() };
+        assert_eq!((ticks_from(500, &media, 1_000_000), ticks_from(0, &media, 1_000_000)), (1_500, 0));
+        assert_eq!(ticks_from(500, &MediaInfo::default(), 100_000), 5_000);
     }
 
     #[test]
@@ -2288,9 +2652,9 @@ pub(crate) mod tests {
         let path = file.write(dir.path());
         let found = text_tracks(&path, &media, &[1], &budget(least)).unwrap();
         assert!(found.reads >= 800, "every head read: {}", found.reads);
-        // Out of time.
+        // Out of time: an error of its own, which reads at seeks try again.
         let late = Budget::new(u64::MAX, Duration::ZERO);
-        assert!(text_tracks(&path, &media, &[1], &late).unwrap_err().contains("too long"));
+        assert_eq!(text_tracks(&path, &media, &[1], &late).unwrap_err(), TOOK_TOO_LONG);
     }
 
     #[test]
@@ -2411,6 +2775,9 @@ pub(crate) mod tests {
         let expected: Vec<(i64, u64, String)> = (0..400).map(|i| (i * 1_000 + 100, 500, format!("Line {i}"))).collect();
         assert_eq!(lines(&found), expected);
         assert!(found.reads < 500, "one read a block, and a head now and then: {}", found.reads);
+        // Small ones, 16 KB (a guess a few bytes more): over a slow link to a
+        // share the bytes count.
+        assert!(found.bytes_read < found.reads as u64 * 20 * 1024, "{} bytes", found.bytes_read);
 
         // Cue times that aren't the blocks' are caught: every head is read.
         let mut file = long_film();
@@ -2419,6 +2786,80 @@ pub(crate) mod tests {
         let found = text_tracks(&path, &long_film_media(), &[1], &plenty()).unwrap();
         assert_eq!(lines(&found), expected, "the blocks' own times");
         assert!(found.reads >= 800, "{}", found.reads);
+
+        // Cued without durations, BlockGroups can't be guessed: a head and the
+        // block each, read at the guess and kept past the head's read.
+        let mut file = long_film();
+        file.no_durations = true;
+        let found = text_tracks(&file.write(dir.path()), &long_film_media(), &[1], &plenty()).unwrap();
+        assert_eq!(lines(&found), expected);
+        assert!(found.reads <= 800, "{}", found.reads);
+    }
+
+    #[test]
+    fn pictures_are_found_without_their_cluster_heads() {
+        let dir = tempfile::tempdir().unwrap();
+        // PGS in SimpleBlocks, cued without durations (as mkvmerge writes
+        // them), one in three bigger than a small read, in clusters of video
+        // of three sizes.
+        let film = || {
+            let mut file = long_film();
+            file.tracks[1] = TestTrack::new(2, 17, "S_HDMV/PGS");
+            for (i, (_, blocks)) in file.clusters.iter_mut().enumerate() {
+                let size = [3, 2_000, 40_000][i % 3];
+                blocks[1] = (2, 100, None, [vec![0x16, 0, 0], vec![i as u8; size]].concat());
+            }
+            file
+        };
+        let media = MediaInfo {
+            streams: vec![stream(0, StreamKind::Video, "h264"), stream(1, StreamKind::Subtitle, "hdmv_pgs_subtitle")],
+            ..Default::default()
+        };
+        let read = |file: &TestFile| {
+            let path = file.write(dir.path());
+            let mut found = Vec::new();
+            picture_tracks(&path, &media, &[1], &plenty(), (0, i64::MAX), &|_| {}, |stretch| {
+                found.push(stretch);
+                Ok(())
+            })
+            .unwrap();
+            let [found]: [PictureTracks; 1] = found.try_into().expect("one stretch");
+            found
+        };
+        let found = read(&film());
+        let times: Vec<i64> = found.tracks[0].blocks.iter().map(|b| b.time).collect();
+        assert_eq!(times, (0..400).map(|i| i * 1_000 + 100).collect::<Vec<_>>());
+        assert_eq!(found.tracks[0].blocks[2].data.len(), 3 + 40_000);
+        assert!(found.reads < 500, "one read a picture, and a head now and then: {}", found.reads);
+
+        // Cue times that aren't the blocks' are caught: every head is read.
+        let mut file = film();
+        file.cue_time_offset = 1;
+        let found = read(&file);
+        assert_eq!(found.tracks[0].blocks.iter().map(|b| b.time).collect::<Vec<_>>(), times, "the blocks' own times");
+        // A head and its picture, but for the smallest clusters, whose head
+        // read holds their picture.
+        assert!(found.reads > 600, "{}", found.reads);
+    }
+
+    #[test]
+    fn simple_blocks_are_told_from_chance() {
+        let simple =
+            |track: u8, flags: u8| el_short(&[0xA3], &[vec![0x80 | track, 0x00, 0x64, flags], vec![0x16; 4]].concat());
+        let block = simple_block_at(&simple(2, 0x80), 2).unwrap();
+        assert_eq!((block.track, block.timecode, block.data.as_slice()), (2, 100, [0x16; 4].as_slice()));
+        assert!(simple_block_at(&simple(3, 0x80), 2).is_none(), "another track");
+        assert!(simple_block_at(&simple(2, 0x82), 2).is_none(), "laced");
+        assert!(simple_block_at(&simple(2, 0x80)[1..], 2).is_none(), "off by one");
+        let mut cut = simple(2, 0x80);
+        cut.pop();
+        assert!(simple_block_at(&cut, 2).is_none(), "cut short");
+        // What comes after it, as far as the bytes go.
+        let then = |after: &[u8]| simple_block_at(&[simple(2, 0x80), after.to_vec()].concat(), 2).is_some();
+        assert!(then(&simple(3, 0x80)) && then(&[0x1F, 0x43, 0xB6, 0x75, 0x01, 0xFF]), "a block, the next cluster");
+        assert!(then(&[0x16, 0x54, 0xAE, 0x6B, 0x80]), "the tracks, moved past the clusters");
+        assert!(then(&[0x1F, 0x43]), "the bytes end first");
+        assert!(!then(&[0x86, 0x81, 0x00]) && !then(&[0x00, 0, 0, 0, 0, 0, 0, 0, 0]), "something else");
     }
 
     #[test]

@@ -12,6 +12,16 @@ describes how they are made.
 
 - The token goes only to the server's own origin, never to an address
   elsewhere that the server hands out.
+- Before the token goes to the server's address, the server proves it is
+  the one the TV signed in to, at that address: the access token waits for
+  a proof made on this network within the half hour, the refresh token and
+  a profile's PIN for one made then. Another device at the address on
+  another network gets nothing, nor does one passing the challenge on to
+  the server from elsewhere; the TV says "Another device answers there."
+  One that takes the address on the TV's own network may get an access
+  token (an hour's) within the half hour, never the refresh token. A
+  sign-in from before starts checking within the hour, as its token is
+  renewed.
 
 ### Added
 
@@ -48,6 +58,12 @@ describes how they are made.
 
 ### Changed
 
+- The app's icon is square, as the TV's menu draws the other apps, where
+  it was wider than the rest.
+- Picture subtitles (PGS, VobSub, DVB) show within a few seconds of a
+  playback starting or a seek, where they could take up to a minute: the
+  TV tells the server where it plays, and the server reads those around it
+  first.
 - "Enter an address" opens the TV's keyboard at once, on an empty field,
   in place of the number pad, so a server's name or a whole https address
   is as easy to type as an IP. The remote's digit keys still type once the
@@ -62,6 +78,13 @@ describes how they are made.
 - A library's posters show 4K and the dynamic range (DV, HDR10) whatever
   the sort, where they showed only when sorted by bitrate, and no longer a
   lower resolution (1080p, 720p).
+- Search shows movies, shows and episodes first, then music, then Live
+  TV, then people, the closest matches first in each.
+
+### Removed
+
+- The player's Back 10 seconds and Forward 10 seconds buttons. Left and
+  Right still seek.
 
 ### Fixed
 

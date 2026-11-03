@@ -541,7 +541,24 @@ async fn download<R: Runtime>(
         fail(app, downloads, d.id, "This server's address isn't valid.");
         return true;
     };
-    let cookie = cookies(app, &server);
+    let proofs = app.state::<crate::proofs::Proofs>();
+    let cookie = match crate::proofs::session(&server, &proofs, cookies(app, &server)).await {
+        Ok(cookie) => cookie,
+        Err(crate::proofs::Refused::Unreachable(_)) => {
+            wait_for_server(app, downloads, d.id, "The server didn't answer.".to_owned());
+            return false;
+        }
+        Err(refused @ (crate::proofs::Refused::NotYours | crate::proofs::Refused::Misnamed(_))) => {
+            let why = match refused {
+                crate::proofs::Refused::Misnamed(_) => {
+                    "The server names itself otherwise here: check the proxy in front of it."
+                }
+                _ => "Another device answers at this server's address.",
+            };
+            wait_for_server(app, downloads, d.id, why.to_owned());
+            return false;
+        }
+    };
     // The file to fetch: on a Mac, the one QuickTime plays.
     let url = if cfg!(target_os = "macos") && d.item_id.is_some() {
         match for_quicktime(app, downloads, client, &server, cookie.as_deref(), d).await {
@@ -549,6 +566,7 @@ async fn download<R: Runtime>(
             // Being made: looked at again in a while.
             Ok(None) => return true,
             Err(Problem::Network(why)) => {
+                proofs.doubt(&server);
                 wait_for_server(app, downloads, d.id, why);
                 return false;
             }
@@ -609,6 +627,7 @@ async fn download<R: Runtime>(
             true
         }
         Err(Problem::Network(why)) => {
+            proofs.doubt(&server);
             wait_for_server(app, downloads, d.id, why);
             false
         }
@@ -1000,8 +1019,11 @@ pub fn remove_download(app: AppHandle, id: u64) {
             let Ok(url) = Url::parse(&d.server).and_then(|s| s.join(&format!("/api/conversions/{conversion}"))) else {
                 return;
             };
-            let mut request = reqwest::Client::new().delete(url.clone());
-            if let Some(cookie) = cookies(&app, &url) {
+            let client = reqwest::Client::new();
+            let proofs = app.state::<crate::proofs::Proofs>();
+            let Ok(cookie) = crate::proofs::session(&url, &proofs, cookies(&app, &url)).await else { return };
+            let mut request = client.delete(url.clone());
+            if let Some(cookie) = cookie {
                 request = request.header(reqwest::header::COOKIE, cookie);
             }
             let _ = tokio::time::timeout(ANSWER_TIMEOUT, request.send()).await;

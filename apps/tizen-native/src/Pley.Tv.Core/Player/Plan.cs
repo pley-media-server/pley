@@ -127,6 +127,13 @@ public static class PlaybackPlan
     /// <summary>Where the server's .mks of picture subtitles <paramref name="index"/> of <paramref name="fileId"/> is.</summary>
     public static string PictureSubtitlesPath(long fileId, int index) => $"/api/files/{fileId}/subtitles/{index}.mks";
 
+    /// <summary>
+    /// <paramref name="url"/> asked for from where the player is (<paramref name="atMs"/> of the file), 0 at the
+    /// start too: a track the server hasn't copied out of its file yet comes from there first, and is answered with
+    /// the pictures around there until it is whole.
+    /// </summary>
+    public static string PictureUrlAt(string url, long atMs) => $"{url}{(url.Contains('?') ? "&" : "?")}at={Math.Max(0, atMs)}";
+
     /// <summary>Where the server's WebVTT of a text track is, when the session doesn't name it.</summary>
     public static string TextSubtitlesPath(long fileId, int index) => $"/api/files/{fileId}/subtitles/{index}.vtt";
 

@@ -1,12 +1,12 @@
 //! Smart collections: filled by a library filter (Plex's syntax), through
-//! pley's API and the Plex-compatible one, as each user may see them.
+//! pley's API and the Jellyfin-compatible one, as each user may see them.
 
 mod common;
 
 use axum::http::{Method, StatusCode};
 use serde_json::{Value, json};
 
-use common::{TestApp, plex_titles, titles};
+use common::{TestApp, jf_names, titles};
 
 struct World {
     app: TestApp,
@@ -95,48 +95,56 @@ async fn smart_collections_fill_themselves() {
 }
 
 #[tokio::test]
-async fn smart_collections_through_the_plex_api() {
+async fn smart_collections_through_the_jellyfin_api() {
     let w = world().await;
-    let (app, admin, movies) = (&w.app, w.admin.as_str(), w.movies);
-    // As python-plexapi builds it: the section listing as a server:// uri.
-    let uri = format!("server://m/com.plexapp.plugins.library/library/sections/{movies}/all?type=1&genre=Comedy");
-    let create =
-        format!("/library/collections?type=1&title=Comedies&smart=1&sectionId={movies}&uri={}", common::encode(&uri));
-    let created = app.plex(Method::POST, &create, admin, &[]).await;
-    assert_eq!(created.status, StatusCode::OK, "{}", created.text());
-    let collection = &created.body["MediaContainer"]["Metadata"][0];
-    assert_eq!((&collection["smart"], &collection["title"]), (&json!(true), &json!("Comedies")));
-    assert_eq!(collection["content"], json!(format!("/library/sections/{movies}/all?type=1&genre=Comedy")));
-    let id = collection["ratingKey"].as_str().unwrap().to_owned();
-    let children = app.plex_json(&format!("/library/collections/{id}/children"), admin).await;
-    assert_eq!(plex_titles(&children), ["Airplane", "Brazil"]);
-
-    // A new filter (python-plexapi's updateFilters).
-    let horror = format!("server://m/com.plexapp.plugins.library/library/sections/{movies}/all?type=1&genre=Horror");
-    let update = format!("/library/collections/{id}/items?uri={}", common::encode(&horror));
-    assert_eq!(app.plex(Method::PUT, &update, admin, &[]).await.status, StatusCode::OK);
-    let children = app.plex_json(&format!("/library/collections/{id}/children"), admin).await;
-    assert_eq!(plex_titles(&children), ["Alien"]);
-
-    // A plain collection from items, then the smart one deleted.
-    let ids = app.ids(movies, admin).await;
-    let items = format!("server://m/com.plexapp.plugins.library/library/metadata/{},{}", ids["Alien"], ids["Brazil"]);
-    let plain =
-        format!("/library/collections?type=1&title=Pair&smart=0&sectionId={movies}&uri={}", common::encode(&items));
-    let created = app.plex(Method::POST, &plain, admin, &[]).await;
-    assert_eq!(created.status, StatusCode::OK, "{}", created.text());
-    assert_eq!(created.body["MediaContainer"]["Metadata"][0]["childCount"], json!(2));
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let created = app
+        .post(
+            &format!("/api/libraries/{}/collections", w.movies),
+            admin,
+            json!({"title": "Sci-fi", "smart_filter": "genre=Science%20Fiction&sort=year"}),
+        )
+        .await;
+    assert_eq!(created.status, StatusCode::CREATED, "{:?}", created.body);
+    let movies = app.jf_library(w.movies);
+    let listed = app.jf_json(&format!("/Items?ParentId={movies}&IncludeItemTypes=BoxSet"), admin).await;
+    assert_eq!(jf_names(&listed), ["Sci-fi"]);
+    let collection = &listed["Items"][0];
+    assert_eq!((&collection["Type"], &collection["ChildCount"]), (&json!("BoxSet"), &json!(3)));
+    let id = collection["Id"].as_str().unwrap();
+    let items = app.jf_json(&format!("/Items?ParentId={id}"), admin).await;
+    assert_eq!(jf_names(&items), ["2001 A Space Odyssey", "Alien", "Brazil"], "in the filter's order");
+    // Each viewer sees what they may.
+    let (kid, _) = app.user(admin, "kid", json!({"max_age": 12})).await;
+    assert_eq!(app.jf_json(&format!("/Items/{id}"), &kid).await["ChildCount"], json!(2));
     assert_eq!(
-        app.plex(Method::DELETE, &format!("/library/collections/{id}"), admin, &[]).await.status,
-        StatusCode::OK
+        jf_names(&app.jf_json(&format!("/Items?ParentId={id}"), &kid).await),
+        ["2001 A Space Odyssey", "Brazil"]
     );
-    let left = app.plex_json(&format!("/library/sections/{movies}/collections"), admin).await;
-    let names: Vec<&str> = left["Metadata"].as_array().unwrap().iter().map(|c| c["title"].as_str().unwrap()).collect();
-    assert_eq!(names, ["Pair"]);
+}
 
-    // Only administrators make collections.
-    let (kid, _) = app.user(admin, "kid", json!({})).await;
-    assert_eq!(app.plex(Method::POST, &create, &kid, &[]).await.status, StatusCode::FORBIDDEN);
+#[tokio::test]
+async fn smart_playlists_through_the_jellyfin_api() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let created = app
+        .post(
+            "/api/playlists",
+            admin,
+            json!({"title": "Scary", "smart_filter": "genre=Horror", "library_id": w.movies}),
+        )
+        .await;
+    assert_eq!(created.status, StatusCode::CREATED, "{:?}", created.body);
+    let listed = app.jf_json("/Items?IncludeItemTypes=Playlist&Recursive=true", admin).await;
+    assert_eq!(jf_names(&listed), ["Scary"]);
+    let id = listed["Items"][0]["Id"].as_str().unwrap();
+    assert_eq!(jf_names(&app.jf_json(&format!("/Playlists/{id}/Items"), admin).await), ["Alien"]);
+    assert_eq!(jf_names(&app.jf_json(&format!("/Items?ParentId={id}"), admin).await), ["Alien"]);
+    // Someone else's playlist stays theirs.
+    let (bob, _) = app.user(admin, "bob", json!({})).await;
+    assert!(jf_names(&app.jf_json("/Items?IncludeItemTypes=Playlist&Recursive=true", &bob).await).is_empty());
+    let theirs = app.jf(Method::GET, &format!("/Playlists/{id}/Items"), &bob, None).await;
+    assert_eq!(theirs.status, StatusCode::NOT_FOUND);
 }
 
 fn entry_titles(playlist: &Value) -> Vec<String> {
@@ -181,29 +189,4 @@ async fn smart_playlists_play_what_their_filter_finds() {
     let kinds: Vec<&str> =
         shows.body["entries"].as_array().unwrap().iter().map(|e| e["item"]["kind"].as_str().unwrap()).collect();
     assert_eq!(kinds, ["episode", "episode"]);
-}
-
-#[tokio::test]
-async fn smart_playlists_through_the_plex_api() {
-    let w = world().await;
-    let (app, admin, movies) = (&w.app, w.admin.as_str(), w.movies);
-    let uri = format!("server://m/com.plexapp.plugins.library/library/sections/{movies}/all?type=1&genre=Horror");
-    let create = format!("/playlists?type=video&title=Scary&smart=1&uri={}", common::encode(&uri));
-    let created = app.plex(Method::POST, &create, admin, &[]).await;
-    assert_eq!(created.status, StatusCode::OK, "{}", created.text());
-    let playlist = &created.body["MediaContainer"]["Metadata"][0];
-    assert_eq!(
-        (&playlist["smart"], &playlist["content"]),
-        (&json!(true), &json!(format!("/library/sections/{movies}/all?type=1&genre=Horror")))
-    );
-    let id = playlist["ratingKey"].as_str().unwrap().to_owned();
-    assert_eq!(plex_titles(&app.plex_json(&format!("/playlists/{id}/items"), admin).await), ["Alien"]);
-
-    let comedy = format!("server://m/com.plexapp.plugins.library/library/sections/{movies}/all?type=1&genre=Comedy");
-    let update = format!("/playlists/{id}/items?uri={}", common::encode(&comedy));
-    assert_eq!(app.plex(Method::PUT, &update, admin, &[]).await.status, StatusCode::OK);
-    assert_eq!(plex_titles(&app.plex_json(&format!("/playlists/{id}/items"), admin).await).len(), 2);
-    let smart = app.plex_json("/playlists?smart=1", admin).await;
-    assert_eq!(smart["size"], json!(1));
-    assert_eq!(app.plex_json("/playlists?smart=0", admin).await["size"], json!(0));
 }

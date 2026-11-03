@@ -61,7 +61,7 @@ pub struct NewPlaylist {
     kind: Option<String>,
     #[serde(default)]
     item_ids: Vec<i64>,
-    /// A smart playlist: a listing of `library_id` in the Plex API's filter
+    /// A smart playlist: a listing of `library_id` in Plex's filter
     /// syntax (`genre=Comedy&unwatched=1&sort=year:desc`) whose items it plays.
     #[serde(default)]
     smart_filter: Option<String>,
@@ -83,7 +83,7 @@ async fn smart_filter_of(
         .find(|l| l.id == library_id)
         .ok_or_else(|| AppError::not_found(format!("library {library_id} not found")))?;
     let filter = filter.trim().trim_start_matches('?');
-    if filter.len() > 2000 || !crate::plex::valid_smart_filter(&lib, filter) {
+    if filter.len() > 2000 || !crate::listing::valid_smart_filter(&lib, filter) {
         return Err(AppError::bad_request("smart_filter must be a library filter such as genre=Comedy&unwatched=1"));
     }
     Ok((lib, filter.to_owned()))

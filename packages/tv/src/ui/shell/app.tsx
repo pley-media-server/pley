@@ -1,6 +1,7 @@
 import { useSignal, useSignalEffect } from "@preact/signals";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "preact/hooks";
 import type { AppState } from "../../state";
+import { networkMayHaveChanged } from "../../auth/tokens";
 import { UiContext, type Ui } from "../context";
 import { FocusManager } from "../focus";
 import { ImageLoader } from "../images";
@@ -193,9 +194,12 @@ export function App(p: ShellProps) {
   }, [api]);
   useEffect(() => {
     state.platform.onVisibility((visible) => {
+      // Back from the TV's other apps or standby, maybe on another network.
+      if (visible) networkMayHaveChanged();
       state.visible.value = visible;
       state.listen(visible);
     });
+    window.addEventListener("online", networkMayHaveChanged);
   }, []);
   useEffect(() => {
     state.listen(state.visible.value);

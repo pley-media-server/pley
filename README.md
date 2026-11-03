@@ -4,7 +4,14 @@
 
 <p align="center">A self-hosted media server for movies, shows, music and live TV.</p>
 
-<p align="center"><sub>Pley is still in testing: expect rough edges, and keep backups of your data.</sub></p>
+<p align="center">
+<a href="https://github.com/pley-media-server/pley/releases/latest"><img src="https://img.shields.io/github/v/release/pley-media-server/pley?display_name=release&label=release" alt="Latest release"></a>
+<a href="https://github.com/pley-media-server/pley/pkgs/container/pley"><img src="https://img.shields.io/badge/docker-ghcr.io-2496ED?logo=docker&logoColor=white" alt="Docker image"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-F0B27A" alt="License: AGPL-3.0"></a>
+</p>
+
+> [!WARNING]
+> Pley is still in testing: expect rough edges, and keep backups of your data.
 
 ![Pley's Home in the web app](docs/images/web-home.jpg)
 
@@ -22,12 +29,14 @@
 ## Apps
 
 Web, Windows, macOS, Linux, [Android](docs/ANDROID.md), [Kodi](docs/KODI.md),
-[Roku](docs/ROKU.md), [Samsung TV and LG TV](docs/TV_PLATFORMS.md).
+[Roku](docs/ROKU.md), [Samsung TV and LG TV](docs/TV_PLATFORMS.md). Jellyfin's
+apps work too, through the [Jellyfin-compatible API](docs/COMPATIBILITY.md).
 
 ## Install
 
 - [Docker](deploy/docker/README.md)
 - [Unraid](deploy/unraid/README.md)
+- [Synology](deploy/synology/README.md)
 - [Windows](deploy/windows/README.md)
 - [Linux and macOS](deploy/README.md)
 
@@ -35,7 +44,7 @@ Then [first start](docs/CONFIGURATION.md#first-start).
 
 ## Architecture
 
-![Architecture](docs/images/architecture.svg)
+![Pley's architecture: the apps talk to the server, which runs the transcoder, reads metadata sources and IPTV providers, sends requests to Radarr and Sonarr, and scans your media folders](docs/images/architecture.svg)
 
 ## Docs
 
@@ -44,7 +53,7 @@ Then [first start](docs/CONFIGURATION.md#first-start).
 [Quality](docs/QUALITY.md) ·
 [Storage](docs/STORAGE.md) ·
 [API](docs/API.md) ·
-[Compatibility API](docs/COMPATIBILITY.md) ·
+[Jellyfin-compatible API](docs/COMPATIBILITY.md) ·
 [Transcoder](docs/TRANSCODER.md) ·
 [Development](docs/DEVELOPMENT.md) ·
 [Releasing](docs/RELEASING.md) ·

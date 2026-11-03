@@ -3,21 +3,39 @@
 package app.pley.android.player.subtitles
 
 import androidx.media3.common.text.Cue
+import app.pley.android.fixtures.PgsMks
 import app.pley.android.network.SubtitleText
+import java.io.File
 import java.io.IOException
+import java.util.Collections
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
+import okhttp3.OkHttpClient
+import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/** WebVTT through Media3's parser, the cue index, and partial tracks asked for again and merged. */
+/**
+ * WebVTT through Media3's parser, the cue index, partial tracks asked for
+ * again and merged, and picture tracks dropped on their way let go of.
+ */
 @RunWith(RobolectricTestRunner::class)
 class SubtitlesTest {
     private val vtt = """
@@ -133,5 +151,47 @@ class SubtitlesTest {
         assertEquals(1, errors.size)
         subtitles.hide()
         assertNull(subtitles.showing)
+    }
+
+    @Test
+    fun `a picture track read after its ask was dropped lets go of its samples`() {
+        val dir = File(System.getProperty("java.io.tmpdir"), "pley-pictures-${System.nanoTime()}")
+        val server = MockWebServer()
+        server.enqueue(MockResponse.Builder().body(Buffer().write(PgsMks.build(listOf(Triple(500L, 4_500L, "PGS 1")), 10_000, "eng"))).build())
+        server.start()
+        val client = OkHttpClient()
+        val scheduler = TestCoroutineScheduler()
+        val scope = CoroutineScope(StandardTestDispatcher(scheduler) + SupervisorJob())
+        // What goes to the reading thread waits here until the test runs it.
+        val reads = Collections.synchronizedList(mutableListOf<Runnable>())
+        val io = object : CoroutineDispatcher() {
+            override fun dispatch(context: CoroutineContext, block: Runnable) {
+                reads += block
+            }
+        }
+        val source = OkHttpPictureSource({ client }, dir, io, Dispatchers.Unconfined)
+        try {
+            val job = scope.launch { source.load(7, 2, server.url("/api/files/7/subtitles/2.mks?at=0").toString()) }
+            // The client first, then the answer comes and waits to be read.
+            scheduler.runCurrent()
+            reads.removeAt(0).run()
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+            while (reads.isEmpty()) {
+                if (System.nanoTime() > deadline) fail("the .mks didn't come in 10 s")
+                Thread.sleep(2)
+                scheduler.runCurrent()
+            }
+            // Dropped (a seek) while it is read: it is read to the end, and closed.
+            job.cancel()
+            reads.removeAt(0).run()
+            scheduler.runCurrent()
+            assertTrue(job.isCompleted)
+            assertEquals(emptyList<String>(), dir.list().orEmpty().filter { it.endsWith(".samples") })
+        } finally {
+            scope.cancel()
+            server.close()
+            client.dispatcher.executorService.shutdown()
+            dir.deleteRecursively()
+        }
     }
 }

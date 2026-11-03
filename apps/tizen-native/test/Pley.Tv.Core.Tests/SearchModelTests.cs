@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Pley.Tv.Core.Api;
+using Pley.Tv.Core.Live;
 using Pley.Tv.Core.Ui;
 using Xunit;
 using static Pley.Tv.Core.Tests.PagesKit;
@@ -96,8 +97,8 @@ public class SearchModelTests
         Assert.Equal(
             new[]
             {
-                SearchGroupKind.People, SearchGroupKind.Movies, SearchGroupKind.Shows, SearchGroupKind.Seasons,
-                SearchGroupKind.Episodes, SearchGroupKind.Artists, SearchGroupKind.Albums, SearchGroupKind.Tracks,
+                SearchGroupKind.Movies, SearchGroupKind.Shows, SearchGroupKind.Seasons, SearchGroupKind.Episodes,
+                SearchGroupKind.Artists, SearchGroupKind.Albums, SearchGroupKind.Tracks, SearchGroupKind.People,
             },
             groups.Select(g => g.Kind));
         var movies = groups.First(g => g.Kind == SearchGroupKind.Movies);
@@ -108,7 +109,7 @@ public class SearchModelTests
         Assert.Equal(TileKind.Landscape, groups.First(g => g.Kind == SearchGroupKind.Episodes).TileKind);
         Assert.Equal(TileKind.Square, groups.First(g => g.Kind == SearchGroupKind.Albums).TileKind);
         Assert.Equal(TileKind.Poster, movies.TileKind);
-        var person = groups.First();
+        var person = groups.Last();
         Assert.Equal(TileKind.Person, person.TileKind);
         Assert.Equal(new[] { "http://pley/api/people/70/photo" }, person.Tiles.Single().Images);
         // Opening: a person's page, a track's album, an album's page, the rest their item page.
@@ -203,6 +204,71 @@ public class SearchModelTests
         var model = Model();
         Assert.False(model.State.Value.HasBelow);
         Assert.Equal(SearchText.EmptyTitle, SearchText.Message(model.State.Value)!.Title);
+    }
+
+    [Fact]
+    public void Channels_found_come_with_the_results_and_play_among_every_channel()
+    {
+        var model = Model("sport");
+        var channel = new LiveChannel { Id = 7, Name = "Sport 1", Number = "101", Logo = "/logo.png" };
+        search.Answer("sport").SetResult(new SearchAnswer(Array.Empty<ItemSummary>(), Array.Empty<PersonSummary>(), new[] { channel }));
+        scheduler.Advance(300);
+        // Channels alone are results: not "No results".
+        var ready = Assert.IsType<SearchResultsState.Ready>(model.State.Value.Results);
+        Assert.Empty(ready.Groups);
+        Assert.Equal(new[] { channel }, ready.Channels);
+        Assert.Null(SearchText.Message(model.State.Value));
+        Assert.True(model.State.Value.HasBelow);
+        Assert.Equal(Origin, model.Origin);
+        Assert.Equal(new LiveWatch(7, "all", channel), model.Watch(7));
+        Assert.Equal("sport", model.State.Value.Recent.First());
+        Assert.Null(model.Watch(8));
+    }
+
+    [Fact]
+    public void A_server_without_live_tv_sends_no_channels()
+    {
+        var model = Model("sport");
+        search.Answer("sport").SetResult(new SearchAnswer(Array.Empty<ItemSummary>(), null));
+        scheduler.Advance(300);
+        Assert.Equal(new SearchResultsState.Empty("sport"), model.State.Value.Results);
+        Assert.Null(model.Watch(7));
+        Assert.Empty(scheduler.Pending);
+    }
+
+    [Fact]
+    public void Live_tvs_row_comes_after_the_titles_and_before_people()
+    {
+        var person = new PersonSummary { Id = 70, Name = "Lena North" };
+        var channels = new[] { new LiveChannel { Id = 7, Name = "North Sport" } };
+        var withPeople = SearchRules.Groups(new SearchAnswer(new[] { Item(1, "movie", "Northern Lights") }, new[] { person }, channels), Origin);
+        Assert.Equal(1, SearchRules.ChannelsAt(withPeople));
+        Assert.Equal(SearchGroupKind.People, withPeople[1].Kind);
+        var withoutPeople = SearchRules.Groups(new SearchAnswer(new[] { Item(1, "movie", "Northern Lights") }, null, channels), Origin);
+        Assert.Equal(1, SearchRules.ChannelsAt(withoutPeople));
+        var onlyPeople = SearchRules.Groups(new SearchAnswer(Array.Empty<ItemSummary>(), new[] { person }, channels), Origin);
+        Assert.Equal(0, SearchRules.ChannelsAt(onlyPeople));
+        Assert.Equal(0, SearchRules.ChannelsAt(Array.Empty<SearchGroup>()));
+        Assert.Equal("Live TV", SearchText.LiveTv);
+        Assert.Contains("Live TV channels", SearchText.EmptyBody);
+    }
+
+    [Fact]
+    public void Whats_on_a_channel_found_moves_on_every_30_seconds_while_it_shows()
+    {
+        var model = Model("sport");
+        search.Answer("sport").SetResult(new SearchAnswer(Array.Empty<ItemSummary>(), null, new[] { new LiveChannel { Id = 7, Name = "Sport 1" } }));
+        scheduler.Advance(300);
+        var shown = model.Now.Value;
+        Assert.Equal(scheduler.Now / 1000, shown);
+        scheduler.Advance(SearchRules.NowTickMs);
+        Assert.Equal(shown + 30, model.Now.Value);
+        // Results without channels stop it.
+        model.Type("north");
+        search.Answer("north").SetResult(Answer(Item(1, "movie")));
+        scheduler.Advance(300);
+        Assert.IsType<SearchResultsState.Ready>(model.State.Value.Results);
+        Assert.Empty(scheduler.Pending);
     }
 
     [Fact]

@@ -63,6 +63,19 @@ public class ServersTests
         Assert.IsType<ConnectProblem.NotPley>(e.Problem);
     }
 
+    [Theory]
+    [InlineData(@"{""name"":""Home"",""version"":""0.1.0"",""two_step_required"":true}", true)]
+    [InlineData(@"{""name"":""Home"",""version"":""0.1.0"",""two_step_required"":false}", false)]
+    // A server from before it says nothing of it; an odd value is off, never a server that isn't Pley.
+    [InlineData(@"{""name"":""Home"",""version"":""0.1.0""}", false)]
+    [InlineData(@"{""name"":""Home"",""version"":""0.1.0"",""two_step_required"":""yes""}", false)]
+    [InlineData(@"{""name"":""Home"",""version"":""0.1.0"",""two_step_required"":1}", false)]
+    public async Task Reads_whether_the_server_requires_two_step_sign_in(string body, bool required)
+    {
+        var server = new FakeServer().On("GET", "http://nas:7539/api/server", 200, body);
+        Assert.Equal(required, (await Servers.Probe(server.Transport, "http://nas:7539"))!.TwoStepRequired);
+    }
+
     [Fact]
     public async Task Takes_any_success_and_names_a_server_without_a_name_by_its_address()
     {

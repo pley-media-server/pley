@@ -34,7 +34,7 @@ async fn servers_tell_apps_on_the_network_where_they_are() {
     assert_eq!(answer["port"], 7539);
     assert_eq!(answer["version"], env!("CARGO_PKG_VERSION"));
     let id = answer["id"].as_str().unwrap().to_owned();
-    assert_eq!(id.len(), 40, "the Plex machine id: {id}");
+    assert_eq!(id.len(), 40, "the server's id: {id}");
     assert_eq!(ask(addr, pley::discovery::REQUEST).await.unwrap()["id"], id.as_str(), "the same id every time");
     assert_eq!(ask(addr, b"hello").await, None, "anything else goes unanswered");
 

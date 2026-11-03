@@ -143,6 +143,8 @@ end sub
 
 sub later()
     close()
+    ' The scene has the API task see whether the server still answers.
+    if m.top.token <> "" then m.top.failed = m.top.token
     m.failures = m.failures + 1
     m.connectAt = m.clock.TotalMilliseconds() + evRetryMs(m.failures)
 end sub

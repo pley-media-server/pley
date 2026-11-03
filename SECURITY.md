@@ -25,12 +25,12 @@ protect your server.
   one-time code Pley prints in its log (the tray icon's "Open Pley" fills it
   in).
 - **Keep what doesn't need to be public off the internet:** a transcoder on
-  another computer, and the compatibility API's own port (such as 32400) if
-  you gave it one.
-- **Limit the compatibility API.** By default it answers on Pley's port, to
-  its clients only, with a token. Give the tools that use it an account of
-  their own rather than an administrator's, and turn it off
-  (`plex_bind = "off"`) if no tool needs it.
+  another computer, and the Jellyfin-compatible API's own port (such as
+  8096) if you gave it one: on Pley's port it is behind your reverse proxy's
+  HTTPS like the rest.
+- **Leave the Jellyfin-compatible API off unless an app needs it.** It is
+  off by default; **Account → Tokens for other apps** shows each app signed
+  in through it, and revokes it.
 - **Mount media read-only**, run Pley as an unprivileged user, and don't let
   untrusted people write to library folders. The Docker setup does the first
   two and more: a read-only image, no capabilities, the port on 127.0.0.1
@@ -89,9 +89,10 @@ protect your server.
   the same page, so they take the code as well.
 - **Required of everyone** (`require_two_step`): only an administrator who
   uses it can turn it on, so nobody locks themselves out. Everyone with a
-  password and without it is signed out everywhere, browsers and apps; no
-  session or app token of an account without it works while it is
-  required, checked on every request and refresh. Each sets it up at their
+  password and without it is signed out everywhere, browsers, apps and
+  tools; no session, app token or token for other apps of an account
+  without it works while it is required, checked on every request and
+  refresh. Each sets it up at their
   next sign-in, after the password, before any session exists; a PIN never
   sets it up. It can't be turned off then, only moved to another app.
 - Until someone sets it up, their password alone lets whoever has it set it
@@ -113,7 +114,9 @@ protect your server.
   back to Pley's account (after a change of PUID and PGID, say), restore
   it from a backup of the data folder, or delete it for Pley to make a new
   one (authenticator apps set up before then stop working; recovery codes
-  still sign in).
+  still sign in; apps say another device answers at the server's address
+  until they sign in again, as its proofs change, and the desktop app until
+  the server is forgotten and connected again).
 
 ### Sessions
 
@@ -124,8 +127,13 @@ protect your server.
   page (`Sec-Fetch-Site`, or `Origin`), since a page on another port of the
   same host is the same site to the browser.
 - Other sites' pages can't make the API fetch anything with the cookie
-  (links, pictures); only the address bar and bookmarks can. A `?token=` in
-  their address changes nothing, since the cookie is what would sign them in.
+  (links, pictures) where the browser says which page asked
+  (`Sec-Fetch-Site`: over HTTPS, and to `localhost`); only the address bar
+  and bookmarks can. Over plain HTTP to another address browsers don't say
+  it, so a GET there does no more than read and play: the folder browser,
+  which opens whatever folder it is given, is a POST, whose `Origin` says.
+  A `?token=` in their address changes nothing, since the cookie is what
+  would sign them in.
 - The devices and apps lists show the address a request came from as the
   rate limits count it, which nobody on the internet can choose.
 - Administrators change their own password, PIN and two-step sign-in in
@@ -133,7 +141,7 @@ protect your server.
   list.
 - A session that is signed out, or whose account is disabled or changed,
   stops working at once, even one being checked at that moment. Its event
-  streams end too.
+  streams end within 30 seconds, when they check it again.
 - Switching from a restricted profile to one that can see more (an
   administrator, a higher age limit, other libraries) takes that profile's
   PIN, or its password (and code).
@@ -151,8 +159,8 @@ Apps sign in on Pley's own page with OAuth 2.1.
 - People are asked every time, Pley's own apps included, on a page that
   shows the app's address first and can't be framed.
 - Apps never get administrator rights. Every route they may use is listed
-  with the scope it needs, anything else is refused, and the compatibility
-  API refuses their tokens.
+  with the scope it needs, anything else is refused, and the
+  Jellyfin-compatible API refuses their tokens.
 - Apps, and people who aren't administrators, don't see library folders or
   file paths on either API (only a file's name), the transcoder's error
   messages included.
@@ -168,6 +176,68 @@ Apps sign in on Pley's own page with OAuth 2.1.
   with the account's sign-ins.
 - App sign-in works over plain HTTP at home, as passwords do. Beyond the home
   network it needs HTTPS, like the rest of Pley.
+- Each sign-in gets a key of its own, derived from `secret.key`, with which
+  the server proves it is the server an app signed in to before the app
+  sends its token to an address (every app). Another device at that
+  address can't, nor can another app's key. The proof covers
+  the address it was asked at; the server makes none for a plain-http
+  address to a client on the internet, none for an https address but
+  through a proxy on the home network, and none for a page other than
+  Pley's TV apps, so neither a device elsewhere nor a website's page open
+  at home can pass a challenge on for it. One that reaches the server from
+  the home network itself, or through a proxy that hides where clients
+  come from, could, as could a page in an LG TV's own browser, and a
+  network that gives a plain-http name another device's address; an https
+  address is checked by its certificate too, and its proxy must pass on
+  only the server's own names, or the server proves itself under a name
+  someone else may hold now.
+  Refresh tokens and PINs wait for a proof made then; an access token may
+  use one made within the half hour on the same network. The desktop app,
+  which uses the web app's session, asks for a key of its own with that
+  session; the server's pages in its window send the session themselves,
+  and leave a plain-http server within a second of the computer's way to
+  it changing, or of its waking from sleep.
+
+### Apps using the Jellyfin-compatible API
+
+Jellyfin's apps, and other apps and scripts built on its API, use tokens for
+other apps (`pley_ct_…`), never a session's
+([COMPATIBILITY.md](docs/COMPATIBILITY.md)).
+
+- The API is off until an administrator turns it on. On Pley's port, only
+  paths it alone has, or requests carrying a Jellyfin app's header or token,
+  reach it; `/api/…` never does. Its answers are never pages (a sandboxing
+  `Content-Security-Policy`, `nosniff`, no framing).
+- An app gets a token by signing in with an account's password, which goes
+  through the checks of Pley's own sign-in (attempt limits, disabled
+  accounts) and makes no session. An account with two-step sign-in can't
+  sign in this way, nor one without it while the server requires it: the
+  API has no second step. People can also make one on the account page,
+  which shows it once. Tokens are random 256-bit values, stored hashed.
+- Tokens work on this API only, from Jellyfin's headers or `api_key`, never
+  from the cookie. Pley's own API refuses them wherever they are sent, and
+  this API refuses sessions' and apps' tokens.
+- A token sees what its account may see, for that account alone, and never
+  acts as an administrator: nothing administers through this API. It lists
+  no one but its user (`/Users/Public` is empty), and a user id in a path
+  must be its own.
+- Ids are keyed with the server's `secret.key` (an HMAC), so they can't be
+  guessed and another server's mean nothing. Players open streams,
+  subtitles and pictures without a token: a media source's id stands for
+  the sign-in it was listed to and works only while that sign-in does, for
+  what its user may see; HLS sessions started through this API are reached
+  by their 128-bit id while the token that started them works; a picture
+  answers for an id someone was given, and with a
+  token only for what its user may see. Files are shown by their names,
+  never where the server keeps them.
+- A token ends when it is revoked, after 90 days unused, and with the
+  account's other sign-ins: a new password, **Sign out everywhere**,
+  `pley reset-password` and deleting the account. It doesn't work while the
+  account is disabled, nor while two-step sign-in is required of an account
+  that doesn't use it. A revoked token stops working at once, even one being
+  checked at that moment.
+- An account keeps 100 tokens at most; making another ends the least
+  recently used.
 
 ### TVs signing in
 
@@ -206,8 +276,23 @@ Apps sign in on Pley's own page with OAuth 2.1.
 - A symbolic link in a library is followed only to a file of the same kind
   (a video to a video, a picture to a picture). This is checked when the
   library is scanned and again whenever the file is used: played,
-  transcoded, downloaded, or its pictures or subtitles served. A link named
-  like a film can't hand out other files.
+  transcoded, downloaded, or its pictures or subtitles served. A symbolic
+  link named like a film can't hand out other files.
+- A hard link is the file itself, which no check can tell from any other:
+  where the system lets an account link a file it can't read (macOS, Linux
+  without `fs.protected_hardlinks`), one that can write in a library folder
+  could link Pley's database there under a film's name. Hard links don't
+  cross volumes, so keep the data folder on one that such accounts can't
+  write in.
+- What Pley sends of a library's files itself (a file played as it is, a
+  picture, a subtitle file) is opened first, checked as the file opened,
+  and sent from that file, so a link swapped in after the check is never
+  read.
+- A file the transcoder reads (a transcode, a download, a frame grab, a
+  cover, subtitles, seek previews) is checked just before it is asked to.
+  The transcoder opens it by its name, so a link swapped in at that moment
+  could still be read, but only as video, audio or subtitles, the only
+  formats its FFmpeg opens: never a database or a key.
 - The data folder (database, backups, log, settings) is kept to Pley's
   account: mode 0700 on Unix. On Windows, a folder every account could use
   (one on `D:\`, say) is limited to Pley's account, SYSTEM and the
@@ -227,6 +312,10 @@ Apps sign in on Pley's own page with OAuth 2.1.
   and MP4 sample tables can't take more memory than a real one's.
 - Pictures come only from the metadata services' hosts over HTTPS,
   redirects included, and are read up to 25 MB whatever their headers say.
+  Live TV's channel logos and programme pictures are the exception: they
+  come from wherever the provider's lists say, plain HTTP included, as its
+  streams do, up to 1 MB for a logo and 4 MB for a picture, and are kept
+  only when they are JPEG, PNG, WebP or GIF.
 - A profile picture is decoded only up to 4096 pixels.
 - Subtitles from OpenSubtitles come over HTTPS only, never redirected to
   plain HTTP.
@@ -240,7 +329,14 @@ Apps sign in on Pley's own page with OAuth 2.1.
   a token of at least 16 characters, since it reads whatever files it can
   open.
 - It keeps its work folder private, on Windows too, including the folders it
-  makes in one chosen elsewhere (segments, converted downloads, its caches).
+  makes in one chosen elsewhere (segments, live channels' too, converted
+  downloads, its caches). In a work folder other accounts may write in, a
+  link or a junction in place of one of those is taken away at start rather
+  than followed, segments' folders are checked again before each use, and
+  the caches' clean-up never prunes one that becomes a link later. A
+  folder's permissions are set on the folder opened, once it is known to be
+  the one there, so a link put back meanwhile is refused and what it leads
+  to keeps its own.
 - Segments kept in memory go in a folder of `/dev/shm` that it makes itself,
   private to its account. If another account took that name first, it
   refuses it and the segments go to disk.

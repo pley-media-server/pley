@@ -218,12 +218,14 @@ pub async fn update_user(
         // Sign the user out everywhere else, and every app using the account
         // or allowed by it (an administrator's own included), with the
         // sign-ins of apps in progress: codes not exchanged yet, and TVs
-        // allowed that haven't asked for their answer yet.
+        // allowed that haven't asked for their answer yet. Their tokens for
+        // other apps end too.
         if id != admin.id {
             sqlx::query("DELETE FROM sessions WHERE user_id = ?").bind(id).execute(&state.db.write).await?;
         }
         state.oauth.forget_user(id);
         state.auth.end_apps(id).await?;
+        state.auth.end_compatibility_tokens(id).await?;
     }
     if let Some(name) = body.display_name {
         let name = name.map(|n| n.trim().to_owned()).filter(|n| !n.is_empty());

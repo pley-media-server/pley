@@ -2,8 +2,9 @@
 //! Seek-bar preview thumbnails ("trickplay"): one small frame every few
 //! seconds, tiled into JPEG sprite sheets. Only keyframes are decoded, but
 //! the whole file is read, so a set takes as long as its disk or share takes
-//! to give it (paused while a playback starts or a transcode runs, see
-//! [`crate::background`]); HDR and Dolby Vision are tone-mapped so previews
+//! to give it (paused while a playback starts, a transcode runs or a
+//! player's subtitles are read, see [`crate::background`]); HDR and Dolby
+//! Vision are tone-mapped so previews
 //! look like the transcoded picture. Results are cached per file version
 //! until every sheet has been fetched (the server keeps its own copy), or for
 //! a day (see `cache.rs`).

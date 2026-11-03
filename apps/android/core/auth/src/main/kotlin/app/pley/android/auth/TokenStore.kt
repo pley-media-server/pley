@@ -119,6 +119,8 @@ data class StoredTokens(
     val refreshToken: String?,
     /** What the server allowed, as it wrote it ("library play …"). */
     val scope: String,
+    /** The server's id and this sign-in's proof key; absent from servers before them. */
+    val proof: ServerProof? = null,
 ) {
     /** The access token is used until a minute before it ends. */
     fun accessUsable(now: Long): Boolean = now < accessExpiresAt - REUSE_MARGIN_MS
@@ -133,6 +135,9 @@ data class StoredTokens(
         .put("access_expires_at", accessExpiresAt)
         .put("refresh_token", refreshToken ?: JSONObject.NULL)
         .put("scope", scope)
+        .apply {
+            if (proof != null) put("server_id", proof.serverId).put("proof_id", proof.proofId).put("proof_key", proof.proofKey)
+        }
 
     // Never print the tokens.
     override fun toString(): String = "StoredTokens(issuer=$issuer, scope=$scope)"
@@ -148,6 +153,7 @@ data class StoredTokens(
             accessExpiresAt = o.getLong("access_expires_at"),
             refreshToken = if (o.isNull("refresh_token")) null else o.getString("refresh_token"),
             scope = o.optString("scope"),
+            proof = ServerProof.of(o),
         )
     }
 }

@@ -208,6 +208,12 @@ export function SearchPage() {
         </h1>
         {search.isFetching ? <Spinner className="size-4" /> : null}
       </div>
+      {/* The libraries' titles, then Live TV, then people (the server puts the closest first in each). */}
+      {GROUPS.map(({ kind, title }) => {
+        const items = results.filter((r) => r.kind === kind);
+        return items.length ? <ResultGroup key={kind} title={title} items={items} /> : null;
+      })}
+      {channels.length ? <ChannelResults channels={channels} /> : null}
       {people.length ? (
         <section>
           <SectionTitle>
@@ -220,11 +226,6 @@ export function SearchPage() {
           </div>
         </section>
       ) : null}
-      {channels.length ? <ChannelResults channels={channels} /> : null}
-      {GROUPS.map(({ kind, title }) => {
-        const items = results.filter((r) => r.kind === kind);
-        return items.length ? <ResultGroup key={kind} title={title} items={items} /> : null;
-      })}
       {tmdb()}
     </div>
   );
