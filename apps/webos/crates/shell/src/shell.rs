@@ -8,6 +8,7 @@
 //! Pley?" first, as the Samsung app does (`Kit/Shell.cs`); up to webOS 5 the TV's Home shows.
 
 use pley_base::{ImageRequest, Key};
+use pley_core::model::{Library, RequestSummary};
 use pley_kit::{Dialog, DialogButton};
 use pley_ui::{Dir, Edge, Group, Id, InputEvent, PageMemory, Ui, UiState};
 
@@ -63,6 +64,40 @@ struct PagePanel {
     overlay: Box<dyn Overlay>,
 }
 
+/// What the rail's entries are made from.
+struct EntriesFrom<L = Vec<Library>, R = Option<RequestSummary>> {
+    libraries: L,
+    queued: bool,
+    live: bool,
+    requests: R,
+    drive: bool,
+}
+
+/// The same, borrowed from the app's state for a frame.
+type EntriesNow<'a> = EntriesFrom<&'a [Library], Option<&'a RequestSummary>>;
+
+impl EntriesFrom {
+    fn is(&self, now: &EntriesNow) -> bool {
+        self.libraries == now.libraries
+            && self.queued == now.queued
+            && self.live == now.live
+            && self.requests.as_ref() == now.requests
+            && self.drive == now.drive
+    }
+}
+
+impl EntriesNow<'_> {
+    fn kept(&self) -> EntriesFrom {
+        EntriesFrom {
+            libraries: self.libraries.to_vec(),
+            queued: self.queued,
+            live: self.live,
+            requests: self.requests.cloned(),
+            drive: self.drive,
+        }
+    }
+}
+
 /// The shell: the back stack and everything drawn around the page on top.
 pub struct Shell {
     registry: Registry,
@@ -89,6 +124,8 @@ pub struct Shell {
     /// It was answered Exit: the app ends.
     quit: bool,
     entries: RailEntries,
+    /// What [`Shell::entries`] were made from: they are made again only when it changes.
+    entries_from: Option<EntriesFrom>,
     /// The server was asked for who is watching, the libraries and Home, after the first frame.
     asked: bool,
 }
@@ -115,6 +152,7 @@ impl Shell {
             exit_asked: false,
             quit: false,
             entries: rail_entries(&[], false, false, None, false),
+            entries_from: None,
             asked: false,
         }
     }
@@ -283,13 +321,21 @@ impl Shell {
         let Some(top) = self.stack.len().checked_sub(1) else { return };
         let rail_shown = self.rail_shown(state);
         if rail_shown {
-            let libraries = state.libraries().unwrap_or(&[]);
-            let queued = state.music.as_ref().is_some_and(|m| m.queued());
-            let requests = crate::rail::requests_entry(state.request_summary());
-            // The drive's entry shows only while the app can read it: a drive the jail hides
-            // has nothing to open.
-            let drive = state.device().drive().is_some_and(|d| d.readable());
-            self.entries = rail_entries(libraries, queued, state.live_available(), requests, drive);
+            let from = EntriesFrom {
+                libraries: state.libraries().unwrap_or(&[]),
+                queued: state.music.as_ref().is_some_and(|m| m.queued()),
+                live: state.live_available(),
+                requests: state.request_summary(),
+                // The drive's entry shows only while the app can read it: a drive the jail hides
+                // has nothing to open.
+                drive: state.device().drive().is_some_and(|d| d.readable()),
+            };
+            // Made again only when what they show changed, not every frame the rail is drawn.
+            if self.entries_from.as_ref().is_none_or(|e| !e.is(&from)) {
+                let requests = crate::rail::requests_entry(from.requests);
+                self.entries = rail_entries(from.libraries, from.queued, from.live, requests, from.drive);
+                self.entries_from = Some(from.kept());
+            }
         } else if self.rail.is_open() {
             self.rail.close();
         }

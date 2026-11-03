@@ -8,6 +8,7 @@ use std::rc::Rc;
 
 use common::{TestApp, device, fixtures, http, registry, sign_in, store};
 use pley_base::{Key, KeyEvent};
+use pley_core::device::Drive;
 use pley_shell::{NavCommand, PLACEHOLDER_TEXT, Rail, Registry, Route};
 use pley_ui::InputEvent;
 
@@ -205,6 +206,25 @@ fn left_at_the_page_s_edge_opens_the_rail_and_right_comes_back() {
     app.press(Key::Menu);
     app.press(Key::Left);
     assert!(!app.shell.rail_open());
+}
+
+#[test]
+fn the_rails_usb_drive_comes_and_goes_with_the_drive() {
+    let server = fixtures();
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    let mut app = TestApp::new(device.clone(), store, http, registry(&heard(), &[]));
+    let has = |app: &TestApp| app.shell.rail_entries().top.iter().any(|e| e.id == "storage");
+    app.advance(0.1);
+    assert!(!has(&app));
+    let root = std::env::temp_dir();
+    device.set_drive(Some(Drive { root: root.clone(), hidden: false }));
+    app.advance(0.1);
+    assert!(has(&app), "no entry for the drive plugged in");
+    device.set_drive(Some(Drive { root, hidden: true }));
+    app.advance(0.1);
+    assert!(!has(&app), "a drive the jail hides has an entry");
 }
 
 #[test]
