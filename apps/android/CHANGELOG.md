@@ -33,6 +33,8 @@ describes how they are made.
   where focus was left behind the panel.
 - Pictures seen before come back at once when a page shows them again:
   no title in their place while they load, and no fade.
+- With Reduce motion on (or the system's Remove animations), pictures
+  appear without fading in, as the setting says they will.
 - On Android TV and Fire TV, Reduce motion (in Settings, or the system's
   Remove animations) stills the rail too: it opens and closes in place.
 - On Android TV and Fire TV, Up, Down or Right pressed while nothing on

@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pley.android.designsystem.PleyColors
+import app.pley.android.designsystem.reducedMotion
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
@@ -121,9 +122,10 @@ private fun SuccessResult.fadeMillis(): Int =
  * box's width. Until then, and when none does, the title's gradient
  * ([Placeholder]) with [title] centred on it in [titleStyle] (none for
  * backdrops: leave [titleStyle] null); a picture that has loaded before
- * comes back without it, and without fading in. Nothing here recomposes
- * when the picture arrives: the placeholder is drawn behind it, in the
- * draw phase. [load] tells whoever passes it when the picture is in.
+ * comes back without it, and without fading in, as none does with reduced
+ * motion. Nothing here recomposes when the picture arrives: the
+ * placeholder is drawn behind it, in the draw phase. [load] tells whoever
+ * passes it when the picture is in.
  */
 @Composable
 fun Artwork(
@@ -151,10 +153,13 @@ internal fun ArtworkBox(
         if (image != null && !image.isEmpty) {
             val loader = LocalArtworkImageLoader.current ?: SingletonImageLoader.get(LocalPlatformContext.current)
             load.known = remember(image, loader) { loader.shownArtwork?.has(image) == true }
+            // Reduced motion: no fading either, things change in place.
+            val reduced = reducedMotion()
+            val model = remember(image, reduced) { if (reduced && image.fade) image.copy(fade = false) else image }
             val scope = rememberCoroutineScope()
             val onState = remember(load, scope) { { state: AsyncImagePainter.State -> load.onState(state, scope) } }
             AsyncImage(
-                model = image,
+                model = model,
                 contentDescription = null,
                 imageLoader = loader,
                 modifier = Modifier.matchParentSize(),

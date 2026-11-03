@@ -19,6 +19,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.core.app.ApplicationProvider
 import app.pley.android.common.Tier
+import app.pley.android.designsystem.LocalReducedMotion
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.image.ArtworkInterceptor
@@ -30,11 +31,15 @@ import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.UserState
 import coil3.ImageLoader
+import coil3.intercept.Interceptor
 import coil3.network.HttpException
 import coil3.network.NetworkResponse
 import coil3.request.ErrorResult
+import coil3.request.ImageRequest
+import coil3.request.transitionFactory
 import coil3.test.FakeImage
 import coil3.test.FakeImageLoaderEngine
+import coil3.transition.CrossfadeTransition
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import org.junit.After
@@ -136,6 +141,32 @@ class ArtworkTileTest {
         // No title's gradient while it comes back: the well, as under the picture.
         assertNear(PleyColors.Surface2, pixel("tile", 14, 14))
         assertEquals(0, textLines(compose.onNodeWithTag("tile").captureToImage().toPixelMap()))
+    }
+
+    @Test
+    fun withReducedMotionAPictureDoesntFadeIn() {
+        val model = model(id = 7, title = "Stillwater")
+        val asked = mutableListOf<ImageRequest>()
+        val engine = FakeImageLoaderEngine.Builder().default(FakeImage(width = 216, height = 324, color = red)).build()
+        // Where pictures fade (not T0), what the loader asks for after choosing the address.
+        val loader = ImageLoader.Builder(context)
+            .components {
+                add(ArtworkInterceptor(ArtworkPolicy(Tier.T1, 1920)))
+                add(Interceptor { chain -> chain.proceed().also { asked += chain.request } })
+                add(engine)
+            }
+            .memoryCache(null)
+            .diskCache(null)
+            .coroutineContext(Dispatchers.Unconfined)
+            .build()
+        compose.setContent {
+            CompositionLocalProvider(LocalArtworkImageLoader provides loader, LocalReducedMotion provides true) {
+                ArtworkTile(model, TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("tile"))
+            }
+        }
+        compose.waitForIdle()
+        assertTrue(asked.isNotEmpty())
+        assertTrue(asked.none { it.transitionFactory is CrossfadeTransition.Factory })
     }
 
     @Test
