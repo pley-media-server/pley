@@ -101,6 +101,9 @@ fn a_drives_picture_track_waiting_to_be_read_again_is_read_at_once_after_a_seek(
     w.c.seek_to(600_000);
     w.settle();
     assert_eq!(asks(&w), 4, "not 3 s later");
+    // And the waits start over, as in the Samsung app.
+    w.advance(1_000);
+    assert_eq!(asks(&w), 5);
     assert!(w.fake.subtitle_asks().iter().all(|a| a.ends_with("/subtitles/3.mks")), "{:?}", w.fake.subtitle_asks());
 }
 

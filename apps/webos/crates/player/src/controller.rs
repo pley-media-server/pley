@@ -2131,6 +2131,7 @@ impl PlaybackController {
             && let Some((_, at)) = &mut self.subtitle_fetch
         {
             *at = self.now;
+            self.presenter.drive_ask_went_at_once();
         }
         if self.ended || self.info.is_none() || self.session_ended {
             self.last_position_ms = target;

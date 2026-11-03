@@ -210,15 +210,17 @@ impl Presenter {
     /// again. The server's picture track that isn't whole is asked for at
     /// once from there, the answer on its way for the old place dropped and
     /// the waits starting over; its text waits for its next ask. A drive's
-    /// track still being read is asked for again at once, so what was read
-    /// meanwhile shows where it landed.
+    /// track still being read and waiting to be asked for again is asked for
+    /// at once, so what was read meanwhile shows where it landed, and its
+    /// waits start over; an ask in flight is left to come back, its waits as
+    /// they were (the Samsung app's `Subtitles.Sought`).
     pub fn sought(&mut self, at_ms: u64) {
         self.valid = None;
         let Some(t) = &mut self.track else { return };
         if self.drive_retry.is_some() {
-            self.picture_wait = 0;
             if let Loading::Due { after_ms, .. } = &mut t.loading {
                 *after_ms = 0;
+                self.picture_wait = 0;
             }
         } else if t.kind == TrackKind::Pictures && matches!(t.loading, Loading::Due { .. } | Loading::InFlight(_)) {
             self.picture_wait = 0;
@@ -293,6 +295,15 @@ impl Presenter {
         self.track = Some(Track { kind, url: url.into(), source, loading: Loading::Due { at_ms: None, after_ms: 0 } });
         self.set_shown(Vec::new(), Vec::new());
         self.valid = None;
+    }
+
+    /// A drive's ask that its owner held for its wait went at once (a seek):
+    /// the waits after it start over, as for one [`Presenter::sought`] finds
+    /// waiting here.
+    pub fn drive_ask_went_at_once(&mut self) {
+        if self.drive_retry.is_some() {
+            self.picture_wait = 0;
+        }
     }
 
     /// The request to make now for the track shown, if one is due; it is
@@ -628,6 +639,29 @@ mod tests {
         p.sought(90_000);
         let f = p.next_fetch().unwrap();
         assert_eq!((f.at_ms, f.after_ms), (None, 0));
+        p.pictures_arrived(f.id, pgs(vec![first.clone()]), false, 0).unwrap();
+        assert_eq!(p.next_fetch().unwrap().after_ms, 1_000);
+    }
+
+    #[test]
+    fn a_drives_ask_in_flight_at_a_seek_keeps_its_waits() {
+        let first = PictureSample::new(1000, None, white_set());
+        let mut p = Presenter::new();
+        p.set_drive_retry(1_000, 4_000);
+        p.show_pictures("/api/files/7/subtitles/3.mks");
+        let mut f = p.next_fetch().unwrap();
+        for _ in 0..2 {
+            p.pictures_arrived(f.id, pgs(vec![first.clone()]), false, 0).unwrap();
+            f = p.next_fetch().unwrap();
+        }
+        assert_eq!(f.after_ms, 2_000);
+        // Sought while it is asked for: its answer is still the one wanted, and the waits go on.
+        p.sought(90_000);
+        p.pictures_arrived(f.id, pgs(vec![first.clone()]), false, 0).unwrap();
+        let f = p.next_fetch().unwrap();
+        assert_eq!(f.after_ms, 4_000);
+        // Held by its owner for that wait, then sent at once by a seek: they start over.
+        p.drive_ask_went_at_once();
         p.pictures_arrived(f.id, pgs(vec![first.clone()]), false, 0).unwrap();
         assert_eq!(p.next_fetch().unwrap().after_ms, 1_000);
     }
