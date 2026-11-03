@@ -1343,8 +1343,11 @@ Reconnecting…", with Try again. A server that stops answering while the
 app is open does the same. The app tries the server again after 2, 5, 15
 and 30 seconds, then every minute, and at once when the network changes
 or the app comes back to the front; once it answers, the banner goes and
-every screen reads the server again. Apple TV saves screens and starts
-offline the same way.
+every screen reads the server again. Apple TV saves screens the same
+way, and starts offline only where it would open Home without asking
+(one profile, or Always start as naming the profile used last): "Who's
+watching?" and a profile's PIN need the server, so otherwise it shows the
+servers with why.
 
 ## Top Shelf
 

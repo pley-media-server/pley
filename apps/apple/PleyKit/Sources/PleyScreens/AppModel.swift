@@ -349,8 +349,12 @@ public final class AppModel: ObservableObject, SnapshotCache {
 
     /// Starts on `last` without the server, as the profile used last, from
     /// its saved screens: when a sign-in is kept and its profile was saved.
+    /// Apple TV's start gate needs the server, which checks a profile's PIN,
+    /// so the app starts offline only where the gate would open Home.
     private func startOffline(_ last: SavedServer, _ error: any Error) async -> Bool {
         guard let snapshots, let profileId = settings.lastProfile(origin: last.origin),
+              StartGate.decide(tv: tv, household: settings.household(origin: last.origin).map(\.id),
+                               alwaysStartAs: settings.alwaysStartAs(origin: last.origin), current: profileId) == .home,
               let data = await snapshots.read(origin: last.origin, profileId: profileId, key: SnapshotKeys.me),
               let saved = try? PleyJSON.decoder.decode(User.self, from: data),
               await session.openSaved(origin: last.origin, id: last.id)

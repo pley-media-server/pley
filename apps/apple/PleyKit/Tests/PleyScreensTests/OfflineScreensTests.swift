@@ -98,6 +98,47 @@ private func snapshotFolder() -> URL {
         #expect(app.notice?.hasPrefix("Gone: ") == true)
     }
 
+    @Test func appleTVStartsOfflineOnlyWhereItWouldOpenHome() async throws {
+        let server = try await fixture()
+        let folder = snapshotFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = MemoryTokenStore()
+        try await keepSignIn(server, in: store)
+        let saved = [SavedServer(origin: server.origin, name: "Living Room", lastUsed: Date())]
+        let settings = freshSettings()
+        let snapshots = SnapshotStore(root: folder)
+        // The first start knows no household: Home, whose profile is saved.
+        let first = app(store, servers: saved, settings: settings, tv: true, snapshots: snapshots)
+        await first.start()
+        try #require(first.root == .signedIn)
+        await ProfilesModel(app: first).load()
+        let origin = try #require(first.server?.origin)
+        for _ in 0..<200 {
+            if await snapshots.read(origin: origin, profileId: 2, key: SnapshotKeys.me) != nil { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        server.stop()
+
+        // Several profiles: "Who's watching?" and a PIN need the server.
+        let gated = app(store, servers: saved, settings: settings, tv: true, snapshots: snapshots)
+        await gated.start()
+        #expect(gated.root == .servers && !gated.offline && gated.user == nil)
+        #expect(gated.notice?.hasPrefix("Living Room: ") == true)
+
+        // "Always start as" another profile: the switch needs the server too.
+        settings.setAlwaysStartAs(4, origin: origin)
+        let other = app(store, servers: saved, settings: settings, tv: true, snapshots: snapshots)
+        await other.start()
+        #expect(other.root == .servers && other.user == nil)
+
+        // "Always start as" the profile saved: Home, as online.
+        settings.setAlwaysStartAs(2, origin: origin)
+        let always = app(store, servers: saved, settings: settings, tv: true, snapshots: snapshots)
+        await always.start()
+        #expect(always.root == .signedIn && always.offline && always.user?.id == 2)
+        await always.signOut()
+    }
+
     @Test func aScreenShowsWhatWasSavedWhenTheServerGoesAndTheAppReconnects() async throws {
         let server = try await fixture()
         defer { server.stop() }
