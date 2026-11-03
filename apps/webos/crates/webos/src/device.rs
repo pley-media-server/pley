@@ -312,14 +312,15 @@ impl Inner {
                 return Some(wait);
             }
         };
-        self.network_failures.store(0, Ordering::SeqCst);
+        let after_stop = self.network_failures.swap(0, Ordering::SeqCst) > 0;
         // Joining or leaving a network, or another one under the same
         // address, makes the server prove itself again before its next token
         // (pley_core::auth::proof). The first answer is the network the app
-        // started on: nothing changed yet.
+        // started on, nothing changed yet, unless the news stopped before it
+        // came: the TV may have moved meanwhile.
         let identity = network_identity(&v);
         let mut joined = self.joined.lock().unwrap_or_else(|e| e.into_inner());
-        if joined.as_ref().is_some_and(|before| *before != identity) {
+        if joined.as_ref().map_or(after_stop, |before| *before != identity) {
             pley_core::auth::network_may_have_changed();
         }
         *joined = Some(identity);
@@ -633,6 +634,19 @@ mod tests {
             DeviceEvent::Network { connected: true, ipv4: Some(Ipv4Addr::new(192, 168, 1, 23)) }
         );
         assert_eq!(inner.network_answer(Err(LunaError::Timeout)), Some(Duration::from_secs(5)));
+    }
+
+    #[test]
+    fn a_network_first_heard_of_after_the_news_stopped_counts_as_a_change() {
+        use crate::luna::LunaError;
+        let (device, _) = tv();
+        let inner = &device.inner;
+        // The first watch never answered, and the TV may have moved before the next one did.
+        assert!(inner.network_answer(Err(LunaError::Timeout)).is_some());
+        let before = pley_core::auth::proof::network();
+        let wifi = json!({ "wifi": { "state": "connected", "ipAddress": "192.168.1.23", "ssid": "Home" } });
+        assert_eq!(inner.network_answer(Ok(wifi)), None);
+        assert!(pley_core::auth::proof::network() > before, "the server isn't asked to prove itself again");
     }
 
     #[test]
