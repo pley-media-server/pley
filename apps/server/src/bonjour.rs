@@ -414,7 +414,7 @@ impl Responder {
         self.announce_on(&self.links.clone(), true).await;
         if !self.host_checked {
             self.host_checked = true;
-            if self.taken(&self.host).await {
+            if self.taken(&self.host, mdns::TYPE_A).await {
                 let generated = host_name(&generated_host(&self.id));
                 tracing::warn!(
                     "another device on the network is {}: Bonjour gives Pley's addresses as {} instead",
@@ -428,7 +428,7 @@ impl Responder {
         let instance = loop {
             let instance = instance_name(name, n);
             let service: Name = std::iter::once(instance.clone()).chain(labels(&SERVICE)).collect();
-            if n >= 9 || !self.taken(&service).await {
+            if n >= 9 || !self.taken(&service, mdns::TYPE_SRV).await {
                 break instance;
             }
             n += 1;
@@ -446,14 +446,18 @@ impl Responder {
     }
 
     /// Whether another device answers for `name`, an instance or a host (a
-    /// probe, RFC 6762 §8.1). What is heard meanwhile is otherwise dropped:
-    /// browsers ask again.
-    async fn taken(&self, name: &Name) -> bool {
-        let query = mdns::write_query(name, mdns::TYPE_ANY);
+    /// probe, RFC 6762 §8.1). It asks for any record, as the RFC has it, and
+    /// for `kind` too (SRV, A), which some responders answer when they don't
+    /// answer "any" for a name. What is heard meanwhile is otherwise
+    /// dropped: browsers ask again.
+    async fn taken(&self, name: &Name, kind: u16) -> bool {
+        let queries = [mdns::write_query(name, mdns::TYPE_ANY), mdns::write_query(name, kind)];
         let mut buf = vec![0; MAX_PACKET];
         for _ in 0..3 {
             for link in &self.links {
-                self.send(link, &query, SocketAddrV4::new(GROUP, PORT).into()).await;
+                for query in &queries {
+                    self.send(link, query, SocketAddrV4::new(GROUP, PORT).into()).await;
+                }
             }
             let until = Instant::now() + PROBE_WAIT;
             while let Ok(Ok((n, SocketAddr::V4(from)))) =
