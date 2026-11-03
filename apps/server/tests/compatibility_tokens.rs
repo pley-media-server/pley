@@ -323,6 +323,16 @@ async fn each_scope_sees_and_changes_what_it_allows() {
     assert_eq!(w.delete_bobs_play(&manage).await, StatusCode::OK);
     assert_eq!(count(&app.plex_json("/status/sessions/history/all", &activity).await), 1);
 
+    // A collection emptied is still listed to the token that may fill it.
+    let listed = format!("/library/sections/{}/collections", w.movies);
+    let mine = app.plex_json(&listed, &manage).await["Metadata"][0]["ratingKey"].clone();
+    let mine = mine.as_str().map(str::to_owned).unwrap_or_else(|| mine.to_string());
+    let emptied =
+        app.plex(Method::DELETE, &format!("/library/collections/{mine}/items/{}", w.film), &manage, &[]).await;
+    assert_eq!(emptied.status, StatusCode::OK, "{}", emptied.text());
+    assert_eq!(count(&app.plex_json(&listed, &manage).await), 1);
+    assert_eq!(count(&app.plex_json(&listed, &activity).await), 0, "seeing isn't managing");
+
     // On the Jellyfin-compatible API, none of them administers.
     let policy = &app.jf_raw(Method::GET, "/Users/Me", &[("x-emby-token", &activity)], None).await.body["Policy"];
     assert_eq!(policy["IsAdministrator"], json!(false));
@@ -387,15 +397,21 @@ async fn no_token_administers_accounts() {
         assert_ne!(plex_header.status, StatusCode::CREATED, "{method} {uri}");
         assert_ne!(plex_header.status, StatusCode::NO_CONTENT, "{method} {uri}");
     }
-    // The Plex-compatible API lists accounts to it, and changes none.
+    // The Plex-compatible API lists accounts to it, and changes none of
+    // them, nor sharing, nor the server's settings.
+    assert_eq!(app.plex_json("/accounts", &every).await["size"], json!(2));
     for (method, uri) in [
         (Method::PUT, format!("/accounts/{}", w.bob_id)),
         (Method::DELETE, format!("/accounts/{}", w.bob_id)),
         (Method::POST, "/accounts".to_owned()),
+        (Method::PUT, "/myplex/account".to_owned()),
+        (Method::POST, "/home/users".to_owned()),
+        (Method::POST, "/api/v2/home/users".to_owned()),
+        (Method::POST, "/api/v2/shared_servers".to_owned()),
         (Method::PUT, "/:/prefs?FriendlyName=Taken".to_owned()),
     ] {
         let reply = app.plex(method.clone(), &uri, &every, &[]).await;
-        assert!(reply.status.is_client_error() || reply.status == StatusCode::OK, "{method} {uri}: {}", reply.status);
+        assert!(reply.status.is_client_error(), "{method} {uri}: {}", reply.status);
     }
     let (name, admin, disabled): (String, bool, bool) =
         sqlx::query_as("SELECT username, is_admin, disabled FROM users WHERE id = ?")

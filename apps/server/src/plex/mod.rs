@@ -241,7 +241,7 @@ fn router(state: AppState, info: Arc<PlexInfo>) -> Router {
         .route("/playlists/{id}/composite/{version}", get(lists::composite))
         .route("/updater/status", get(server::empty))
         .route("/prefs", get(server::prefs))
-        .route("/_/prefs", get(server::prefs).put(server::accepted))
+        .route("/_/prefs", get(server::prefs).put(server::settings_refused))
         .route("/media/providers", get(server::media_providers))
         .route("/library", get(library::root))
         .route("/library/sections", get(library::sections))
@@ -489,9 +489,10 @@ fn html_escape(value: &str) -> String {
 /// The caller, authenticated by a compatibility token (see
 /// [`crate::auth::compatibility`]) in `X-Plex-Token` (header or query), or
 /// in `Authorization: Bearer`, `X-Pley-Token` or `?token=` as pley's own
-/// tokens go. Its rights are what the token's scopes allow: an
-/// administrator's view (everyone's sessions and history, file paths) only
-/// with `activity`, and changes only through [`PlexAdmin`].
+/// tokens go. Its rights are what the token's scopes allow, each checked by
+/// name: everyone's sessions, history and accounts, and file paths, only
+/// with `activity` ([`sees_everyone`]), and changes only through
+/// [`PlexAdmin`]. A token is never an administrator (`is_admin` is false).
 ///
 /// Never by a session's token: those are for pley's own apps, with every
 /// right the account has. Never by the web UI's cookie either: browsers send
@@ -522,16 +523,30 @@ impl FromRequestParts<AppState> for PlexUser {
             }
         };
         if let Some(Viewer(admin)) = parts.extensions.get::<Viewer>() {
-            let _ = admin.set(user.is_admin);
+            let _ = admin.set(sees_everyone(&user));
         }
         Ok(PlexUser(user))
     }
 }
 
+/// Whether the caller sees everyone's sessions, history and accounts, and
+/// where files are: a token with `activity`, on an account that is an
+/// administrator now. Seeing, never changing.
+pub(crate) fn sees_everyone(user: &AuthUser) -> bool {
+    user.compatibility_allows(compatibility::Scope::Activity)
+}
+
+/// The caller as collections are listed to it: with `manage`, those still
+/// empty too, which it may fill (as administrators see them in Pley).
+pub(crate) fn collections_viewer(user: &AuthUser) -> AuthUser {
+    AuthUser { is_admin: user.compatibility_allows(compatibility::Scope::Manage), ..user.clone() }
+}
+
 /// Changes only administrators make (library and item refreshes, edits,
 /// collections, stopping others' sessions): a compatibility token with
-/// `manage`, on an account that is an administrator. The handler acts with
-/// an administrator's rights for that change.
+/// `manage`, on an account that is an administrator; `activity` or `play`
+/// alone get `403`. The handler acts with an administrator's rights for
+/// that change, none of which administers accounts or the server.
 pub struct PlexAdmin(pub AuthUser);
 
 impl FromRequestParts<AppState> for PlexAdmin {

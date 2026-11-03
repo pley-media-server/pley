@@ -29,8 +29,9 @@ describes how they are made.
   A token does only what it was allowed: watching and, for an
   administrator's, seeing everyone's activity (for activity monitors such
   as Tautulli) or managing libraries (for library tools such as Kometa:
-  refreshes, edits, collections). Neither is ever managing accounts, and
-  both go with the administrator's role, at once. A token can be limited
+  refreshes, edits, collections). Neither makes the token an administrator
+  or lets it manage accounts or the server's settings, and both go with the
+  administrator's role, at once. A token can be limited
   to the addresses or networks it is used from, or the home network; from
   elsewhere it is refused, and so are the streams it started.
 
@@ -54,6 +55,7 @@ describes how they are made.
   (Tautulli needs "See everyone's activity", Kometa that and "Manage
   libraries") and put it where the tool had the old one
   ([COMPATIBILITY.md](../../docs/COMPATIBILITY.md#moving-from-session-tokens)).
+  `PUT /:/prefs` answers `403` where it accepted and ignored the change.
 - The Plex-compatible API's stream addresses, which players fetch without a
   token, work only for streams started with a token for other apps, while
   that token works; a web-player's playback can't be opened through them.

@@ -72,7 +72,8 @@ async fn server_endpoints() {
     let prefs = app.plex_json("/:/prefs", &admin).await;
     let friendly = prefs["Setting"].as_array().unwrap().iter().find(|s| s["id"] == "FriendlyName").unwrap().clone();
     assert_eq!(friendly["value"], json!("Den"));
-    assert_eq!(app.plex(Method::PUT, "/:/prefs?FriendlyName=x", &admin, &[]).await.status, StatusCode::OK);
+    // No token changes the server's settings, whatever its scopes.
+    assert_eq!(app.plex(Method::PUT, "/:/prefs?FriendlyName=x", &admin, &[]).await.status, StatusCode::FORBIDDEN);
     assert_eq!(app.get("/api/settings", &admin).await.body["server_name"], json!("Den"), "Plex can't change settings");
 
     // Accounts: administrators see everyone, others themselves.

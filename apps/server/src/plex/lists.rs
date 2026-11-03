@@ -67,7 +67,7 @@ pub async fn section_collections(
     page: Page,
 ) -> PlexResult<Node> {
     let (lib, _) = library_for(&state, &user, &id).await?;
-    let (rows, total) = page.apply(collections::list(&state.db, &user, lib.id).await?);
+    let (rows, total) = page.apply(collections::list(&state.db, &super::collections_viewer(&user), lib.id).await?);
     let nodes = rows.iter().map(|c| collection_node(c, &lib)).collect();
     Ok(list_container(Some(&lib), &info, nodes, total, &page)
         .attr("title2", "All Collections")
@@ -79,7 +79,8 @@ async fn collection_for(
     user: &AuthUser,
     id: i64,
 ) -> PlexResult<(CollectionDto, Vec<ItemRow>, LibraryRow, Vec<LibraryRow>)> {
-    let (collection, items) = collections::get(&state.db, user, id).await?.ok_or(PlexError::NotFound)?;
+    let (collection, items) =
+        collections::get(&state.db, &super::collections_viewer(user), id).await?.ok_or(PlexError::NotFound)?;
     let libraries = visible_libraries(state, user).await?;
     let lib = libraries.iter().find(|l| l.id == collection.library_id).cloned().ok_or(PlexError::NotFound)?;
     Ok((collection, items, lib, libraries))
@@ -134,7 +135,7 @@ async fn collection_artwork(
         "art" => ("backdrop", "art"),
         _ => return Err(PlexError::NotFound),
     };
-    match collections::artwork(&state.db, &state.store, &user, id, kind).await? {
+    match collections::artwork(&state.db, &state.store, &super::collections_viewer(&user), id, kind).await? {
         Some(Ok(path)) => {
             Ok(crate::api::collections::serve_file(&state, &path, width, version.is_some(), &headers).await?)
         }

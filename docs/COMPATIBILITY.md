@@ -81,13 +81,14 @@ may be used from, and where and with what it was last used, and revokes it.
 |---|---|---|
 | `play` | Watch | Every token has it. Browsing what the account may open, playing, its own watch state, ratings, sessions, history, playlists and play queues, and notifications about its own sessions and the libraries it may open. |
 | `activity` | See everyone's activity | Every account's sessions, history and accounts, notifications about everyone's sessions, and where files are, as activity monitors such as Tautulli need. It changes nothing. |
-| `manage` | Manage libraries | Refreshing libraries and items, editing metadata, artwork and collections, stopping anyone's session and deleting anyone's history, as library tools such as Kometa need. It shows no one else's sessions or history, nor where files are or collections still empty: Kometa needs `activity` too. |
+| `manage` | Manage libraries | Refreshing libraries and items, editing metadata, artwork and collections (those still empty listed too), stopping anyone's session and deleting anyone's history, as library tools such as Kometa need. It shows no one else's sessions or history, nor where files are: a tool that reads them, as Kometa does, needs `activity` too. |
 
-No scope administers accounts: no token makes, changes or deletes a user,
-changes who may open what, or changes how anyone signs in or the server's
-settings. A token sees only what Pley's [access
-rules](API.md#access-rules) let its account see, with the account's own
-watch state and Continue Watching.
+A token is never an administrator: each scope allows what it says, checked
+by name where it applies. No scope administers accounts: no token makes,
+changes or deletes a user, changes who may open what, or changes how anyone
+signs in or the server's settings (`PUT /:/prefs` answers `403`). A token
+sees only what Pley's [access rules](API.md#access-rules) let its account
+see, with the account's own watch state and Continue Watching.
 
 Only administrators make tokens with `activity` or `manage` (others get
 `403`). Those scopes are checked against the account at every request: an
@@ -158,8 +159,8 @@ tool over:
 1. In Pley, open Account → Tokens for other apps → New token, name the
    token after the tool, and allow what it needs: an activity monitor such
    as Tautulli, See everyone's activity; a library tool such as Kometa,
-   both See everyone's activity and Manage libraries (it reads where files
-   are, and finds collections still empty); a player, Watch alone. Limit
+   Manage libraries, and See everyone's activity too if it reads where files
+   are, as Kometa does; a player, Watch alone. Limit
    it to the address the tool runs at.
 2. Put the new token where the tool kept the old one (for Kometa, `token`
    under `plex` in its `config.yml`).
@@ -179,6 +180,19 @@ server = PlexServer('http://localhost:7539', '<token>')
 for movie in server.library.section('Movies').search(unwatched=True):
     print(movie.title, movie.media[0].videoResolution)
 ```
+
+### Which tools work
+
+A tool works when it takes a server's address and a token, as these do:
+Kometa, `python-plexapi` scripts, poster and artwork tools, refresh
+triggers in the manner of Autoscan (a refresh's `?path=` is ignored: the
+whole library is scanned again), and Maintainerr's collections. Tautulli
+works in part: with a token entered by hand, and without the user list it
+reads from plex.tv.
+
+Tools that reach a server only through a plex.tv sign-in don't, as Pley has
+no plex.tv account: Overseerr, Ombi, Sonarr's and Radarr's Plex connection,
+PlexTraktSync and Plex Auto Languages among them.
 
 ### On Pley's port
 
@@ -288,7 +302,7 @@ them.
 
 | Area | Endpoints |
 |---|---|
-| Server | `/`, `/identity`, `/servers`, `/accounts` (listed, never changed), `/myplex/account`, `/system`, `/prefs`, `/:/prefs` (`PUT` is accepted and changes nothing), `/media/providers`, `/:/websockets/notifications`; `/clients`, `/devices`, `/activities`, `/butler` and `/updater/status` answer empty containers |
+| Server | `/`, `/identity`, `/servers`, `/accounts` (listed, never changed), `/myplex/account`, `/system`, `/prefs`, `/:/prefs` (`PUT` answers `403`: no token changes the server's settings), `/media/providers`, `/:/websockets/notifications`; `/clients`, `/devices`, `/activities`, `/butler` and `/updater/status` answer empty containers |
 | Sections | `/library`, `/library/sections`, `/library/sections/{id}`, `…/all`, `…/albums`, `…/recentlyAdded`, `…/onDeck`, `…/search`, `…/firstCharacter`, `…/collections`, `…/{genre,year,decade,contentRating,studio,actor,director,writer,producer,label}` (filter choices), `…/refresh` and `/library/sections/all/refresh` (`manage`); `…/emptyTrash` and `…/analyze` are accepted and change nothing |
 | Items | `/library/metadata/{id}` (comma-separated ids allowed), `…/extras` (trailers and other bonus material as `clip`s with the API's `extraType` and `subtype`), `…/children`, `…/allLeaves`, `…/grandchildren`, `…/related` ("More Like This" hub), `…/similar` (the same items), `…/thumb[/{version}]`, `…/art[/{version}]`, `…/refresh` (`manage`) |
 | Lists | `/library/all`, `/library/onDeck`, `/library/recentlyAdded`, `/hubs`, `/hubs/sections/{id}`, `/hubs/continueWatching/items`, `/hubs/sections/{id}/continueWatching/items`, `/hubs/home/recentlyAdded`, `/hubs/search`, `/search`, `PUT /actions/removeFromContinueWatching?ratingKey=` (the movie, or the episode's show, leaves the user's Continue Watching until it is played again, as `DELETE /api/continue-watching/{id}`) |

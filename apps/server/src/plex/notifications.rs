@@ -154,8 +154,8 @@ impl Listener {
                     else {
                         break;
                     };
-                    let rights = (user.is_admin, user.all_libraries, user.max_age);
-                    if rights != (self.user.is_admin, self.user.all_libraries, self.user.max_age) {
+                    let rights = (super::sees_everyone(&user), user.all_libraries, user.max_age);
+                    if rights != (super::sees_everyone(&self.user), self.user.all_libraries, self.user.max_age) {
                         self.user = user;
                         if let Err(err) = self.load_libraries().await {
                             tracing::debug!("notification socket: {err}");
@@ -241,7 +241,8 @@ impl Listener {
     /// moved on since the last look, and `stopped` for those that ended.
     fn sessions_changed(&mut self) -> Vec<Value> {
         let live = self.state.sessions.active();
-        let mine: Vec<_> = live.iter().filter(|s| self.user.is_admin || s.user_id == self.user.id).collect();
+        let everyone = super::sees_everyone(&self.user);
+        let mine: Vec<_> = live.iter().filter(|s| everyone || s.user_id == self.user.id).collect();
         let mut notes = Vec::new();
         for session in &mine {
             let play = session.play.lock().clone();

@@ -116,7 +116,7 @@ struct UserRow {
 /// `/accounts`: pley users (an administrator's token with `activity` sees
 /// everyone).
 pub async fn accounts(State(state): State<AppState>, PlexUser(user): PlexUser) -> PlexResult<Node> {
-    let users: Vec<UserRow> = if user.is_admin {
+    let users: Vec<UserRow> = if super::sees_everyone(&user) {
         sqlx::query_as("SELECT id, username FROM users ORDER BY id").fetch_all(&state.db.read).await?
     } else {
         vec![UserRow { id: user.id, username: user.username.clone() }]
@@ -195,6 +195,12 @@ pub async fn empty(PlexUser(_user): PlexUser) -> Node {
 /// Accepted requests for features pley doesn't have (ratings, trash, …).
 pub async fn accepted(PlexUser(_user): PlexUser) -> StatusCode {
     StatusCode::OK
+}
+
+/// `PUT /:/prefs`: the server's settings, which no token changes, whatever
+/// its scopes: they are an administrator's, in Pley.
+pub async fn settings_refused(PlexUser(_user): PlexUser) -> PlexError {
+    PlexError::Forbidden
 }
 
 /// `/prefs`: the few server preferences that map onto pley settings.
@@ -287,7 +293,7 @@ pub async fn history(
 ) -> PlexResult<Node> {
     let account = params.parse::<i64>("accountID");
     let filter = history::Filter {
-        user_id: if user.is_admin { account } else { Some(user.id) },
+        user_id: if super::sees_everyone(&user) { account } else { Some(user.id) },
         item_id: params.parse::<i64>("metadataItemID"),
         library_id: params.parse::<i64>("librarySectionID"),
         // `viewedAt>=…` arrives as the key `viewedAt>`.

@@ -793,11 +793,11 @@ impl AuthService {
         }
     }
 
-    /// The user of a compatibility token, with what its scopes allow:
-    /// administrator rights for seeing (everyone's sessions, history and
-    /// accounts) only with `activity`, on an administrator's account;
-    /// changes go by [`AuthUser::compatibility_allows`], and none of them
-    /// administers accounts. Every library and no age limit for an
+    /// The user of a compatibility token, never as an administrator: what
+    /// its scopes allow beyond `play` (seeing everyone's activity, managing
+    /// libraries) goes by [`AuthUser::compatibility_allows`], where each
+    /// applies, and none of it administers accounts. Every library and no
+    /// age limit for an
     /// administrator's role, the account's limits otherwise. Not for an
     /// expired token, a disabled account, or one with a password alone while
     /// the server requires two-step sign-in; not from where its origins
@@ -890,7 +890,9 @@ impl AuthService {
         let user = AuthUser {
             id: row.user_id,
             username: row.username.clone(),
-            is_admin: row.role_admin && scopes.contains(compatibility::Scope::Activity),
+            // Never an administrator: what a scope allows is checked by
+            // name where it applies ([`AuthUser::compatibility_allows`]).
+            is_admin: false,
             account_admin: row.role_admin,
             all_libraries: row.all_libraries || row.role_admin,
             max_age: if row.role_admin { None } else { row.max_age },
@@ -1914,7 +1916,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn compatibility_tokens_act_as_administrators_only_to_see_with_activity() {
+    async fn compatibility_tokens_are_never_administrators_and_check_each_scope() {
         use compatibility::Scope::{Activity, Manage, Play};
         let dir = tempfile::tempdir().unwrap();
         let (_db, auth) = service_with_user(dir.path()).await;
@@ -1926,13 +1928,14 @@ mod tests {
         assert!(play.compatibility_allows(Play));
         assert!(!play.compatibility_allows(Activity) && !play.compatibility_allows(Manage));
 
+        // Each scope is checked by name; none makes the token an administrator.
         let activity = auth.validate_compatibility(&limited_token(&auth, 2, "activity", &[]).await, None).await;
         let activity = activity.unwrap();
-        assert!(activity.is_admin && activity.compatibility_allows(Activity));
+        assert!(!activity.is_admin && activity.compatibility_allows(Activity));
         assert!(!activity.compatibility_allows(Manage), "seeing isn't changing");
         let manage = auth.validate_compatibility(&limited_token(&auth, 2, "manage", &[]).await, None).await.unwrap();
-        assert!(!manage.is_admin, "changing isn't seeing everyone's");
-        assert!(manage.compatibility_allows(Manage));
+        assert!(!manage.is_admin && manage.compatibility_allows(Manage));
+        assert!(!manage.compatibility_allows(Activity), "changing isn't seeing everyone's");
 
         // Someone else's limits stay theirs, and rights stored with a token
         // are checked against the role at use.

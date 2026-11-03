@@ -225,8 +225,9 @@ other apps (`pley_ct_…`), never with a session's
   (seeing every account's sessions, history and accounts, and where files
   are) and `manage` (refreshes, edits, collections, stopping anyone's
   playback) only for an administrator, checked at every request, so a role
-  taken away takes them at once. No scope administers accounts, sign-in or
-  the server's settings, and the Jellyfin-compatible API takes every token
+  taken away takes them at once. Each is checked by name where it applies:
+  no token is ever an administrator. No scope administers accounts, sign-in
+  or the server's settings, and the Jellyfin-compatible API takes every token
   for what `play` allows: it lists no one but the caller, and a user id in
   a path must be its own.
 - A token may be limited to addresses and networks (or the home network).
