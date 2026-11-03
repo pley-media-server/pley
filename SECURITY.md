@@ -64,9 +64,10 @@ protect your server.
   address, and 50 from all addresses, so someone guessing elsewhere doesn't
   lock the owner out.
 - PINs, and the current password when changing it, are limited to 5 failures
-  every 15 minutes per account. A check Pley couldn't run (too busy, or out
-  of memory) answers that it is busy and counts toward neither these limits
-  nor the PIN's lock.
+  every 15 minutes per account.
+- A password or PIN check Pley couldn't run (too busy, or out of memory)
+  answers that it is busy, and counts toward none of these limits nor a
+  PIN's lock.
 - An unknown username costs a sign-in as much as a real one: it is checked
   against a real hash, and while that hash can't be made the sign-in is told
   Pley is busy, as a real user's would be.
