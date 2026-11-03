@@ -18,7 +18,7 @@ libraries. Until then, anyone with the code can claim the server.
 ## What Pley needs
 
 - **One port, TCP 7539**, for the web app, the apps and the
-  [Jellyfin-compatible API](../docs/COMPATIBILITY.md).
+  [Plex- and Jellyfin-compatible APIs](../docs/COMPATIBILITY.md).
 - **A data folder** for the database, artwork and caches. Change it with
   `--data-dir` or `PLEY_DATA_DIR`; back it up
   ([docs/STORAGE.md](../docs/STORAGE.md)).
@@ -142,7 +142,9 @@ containers and SSH sessions never show it; `--no-tray` turns it off.
 
 ## Firewall and remote access
 
-- **TCP 7539** is the only port that must be reachable. The
+- **TCP 7539** is the only port that must be reachable. The Plex-compatible
+  API answers there too, unless you give it a port of its own (Plex's is
+  32400; `--plex-bind 0.0.0.0:32400`, or **Settings → Network**). The
   Jellyfin-compatible API is off until you turn it on in **Settings →
   Network**, where it answers on this port or one of its own (Jellyfin's is
   8096; `--jellyfin-bind 0.0.0.0:8096` on the command line).

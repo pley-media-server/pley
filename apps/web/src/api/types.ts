@@ -966,6 +966,10 @@ export interface ListenChoice {
   jellyfin: string[];
   /** The Jellyfin-compatible API answers on pley's own port, to its apps. */
   jellyfin_on_web: boolean;
+  /** The Plex-compatible API on addresses of its own (port 32400): none when off or on pley's port. */
+  plex: string[];
+  /** The Plex-compatible API answers on pley's own port, to its apps and tools (the default). */
+  plex_on_web: boolean;
   /** Whether the pley apps on the networks find the server (UDP). */
   discovery: boolean;
   /** Whether pley announces itself by Bonjour, for Apple's apps. */
@@ -974,7 +978,7 @@ export interface ListenChoice {
   bonjour_adapters: string[];
 }
 
-export type ListenerKind = "web" | "jellyfin" | "discovery";
+export type ListenerKind = "web" | "jellyfin" | "plex" | "discovery";
 
 export interface NetworkListener {
   kind: ListenerKind;
@@ -998,7 +1002,7 @@ export interface NetworkAdapter {
 
 export interface NetworkSettings extends ListenChoice {
   /** What the command line or the environment sets: it can't change here. */
-  fixed: { web: boolean; jellyfin: boolean; discovery: boolean; bonjour: boolean };
+  fixed: { web: boolean; jellyfin: boolean; plex: boolean; discovery: boolean; bonjour: boolean };
   listeners: NetworkListener[];
   adapters: NetworkAdapter[];
   /** Where a change is saved. */

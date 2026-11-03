@@ -45,6 +45,8 @@ pub struct Inner {
     pub watcher: Arc<LibraryWatcher>,
     pub images: Images,
     pub sessions: Arc<Sessions>,
+    /// The `sessionKey`s Plex tools know the sessions by.
+    pub(crate) plex_session_keys: crate::plex::SessionKeys,
     /// When library work runs (see [`crate::schedule`]).
     pub schedule: Arc<Scheduler>,
     pub markers: Arc<MarkerService>,
@@ -190,6 +192,7 @@ impl AppState {
                 resources,
                 auth,
                 sessions,
+                plex_session_keys: Default::default(),
                 schedule,
                 markers,
                 trickplay,

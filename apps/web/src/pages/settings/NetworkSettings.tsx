@@ -34,12 +34,53 @@ const NETWORK_KIND: Record<NonNullable<NetworkAdapter["network"]>["kind"], strin
 const LISTENER: Record<ListenerKind, string> = {
   web: "Pley",
   jellyfin: "Jellyfin-compatible API",
+  plex: "Plex-compatible API",
   discovery: "Discovery (UDP)",
 };
 
 const DEFAULT_PORT = 7539;
 /** Jellyfin's own, which its apps try first. */
 const JELLYFIN_PORT = 8096;
+/** Plex's own, which its tools expect. */
+const PLEX_PORT = 32400;
+
+type Api = "jellyfin" | "plex";
+
+/** The APIs for other apps, in the page's order. */
+const APIS: {
+  api: Api;
+  name: string;
+  portLabel: string;
+  portHint: string;
+  /** What it is for. */
+  hint: string;
+  fixed: string;
+}[] = [
+  {
+    api: "jellyfin",
+    name: LISTENER.jellyfin,
+    portLabel: "Jellyfin port",
+    portHint: `Jellyfin's own is ${JELLYFIN_PORT}.`,
+    hint: "For Jellyfin apps such as Infuse.",
+    fixed: "Set by --jellyfin-bind or PLEY_JELLYFIN_BIND.",
+  },
+  {
+    api: "plex",
+    name: LISTENER.plex,
+    portLabel: "Plex port",
+    portHint: `Plex's own is ${PLEX_PORT}.`,
+    hint: "For tools such as Kometa and Tautulli.",
+    fixed: "Set by --plex-bind or PLEY_PLEX_BIND.",
+  },
+];
+
+/** Whether an API for other apps is on, and where. */
+interface ApiForm {
+  on: boolean;
+  /** On pley's port rather than one of its own. */
+  onWeb: boolean;
+  port: number;
+}
 
 /** What the page edits; {@link choiceOf} turns it into addresses. */
 interface Form {
@@ -47,10 +88,8 @@ interface Form {
   /** The networks' addresses, for "networks". */
   ips: string[];
   port: number;
-  jellyfin: boolean;
-  /** On pley's port rather than one of its own. */
-  jellyfinOnWeb: boolean;
-  jellyfinPort: number;
+  jellyfin: ApiForm;
+  plex: ApiForm;
   discovery: boolean;
   bonjour: boolean;
   /** The adapters Bonjour announces from: every one when empty. */
@@ -67,17 +106,21 @@ const joinAddress = (ip: string, port: number) => (ip.includes(":") ? `[${ip}]:$
 const isLoopback = (ip: string) => ip.startsWith("127.") || ip === "::1";
 const isAny = (ip: string) => ip === "0.0.0.0" || ip === "::";
 
+/** An API's form from its addresses of its own and whether it answers on pley's port. */
+function apiFormOf(addresses: string[], onWeb: boolean, port: number): ApiForm {
+  const own = addresses.map(splitAddress);
+  return { on: own.length > 0 || onWeb, onWeb: own.length === 0, port: own[0]?.port ?? port };
+}
+
 function formOf(choice: ListenChoice): Form {
   const web = choice.web.map(splitAddress);
-  const jellyfin = choice.jellyfin.map(splitAddress);
   const mode: Mode = web.some((a) => isAny(a.ip)) ? "all" : web.every((a) => isLoopback(a.ip)) ? "local" : "networks";
   return {
     mode,
     ips: web.filter((a) => !isLoopback(a.ip) && !isAny(a.ip)).map((a) => a.ip),
     port: web[0]?.port ?? DEFAULT_PORT,
-    jellyfin: jellyfin.length > 0 || choice.jellyfin_on_web,
-    jellyfinOnWeb: jellyfin.length === 0,
-    jellyfinPort: jellyfin[0]?.port ?? JELLYFIN_PORT,
+    jellyfin: apiFormOf(choice.jellyfin, choice.jellyfin_on_web, JELLYFIN_PORT),
+    plex: apiFormOf(choice.plex, choice.plex_on_web, PLEX_PORT),
     discovery: choice.discovery,
     bonjour: choice.bonjour,
     bonjourAdapters: choice.bonjour_adapters,
@@ -87,14 +130,14 @@ function formOf(choice: ListenChoice): Form {
 /** The addresses `form` stands for, but what the command line or the environment sets. */
 function choiceOf(form: Form, network: Network): ListenChoice {
   const ips = form.mode === "all" ? ["0.0.0.0"] : form.mode === "local" ? ["127.0.0.1"] : ["127.0.0.1", ...form.ips];
+  const own = (api: ApiForm) => (api.on && !api.onWeb ? ips.map((ip) => joinAddress(ip, api.port)) : []);
+  // Both APIs, always: the server takes one left out for off.
   return {
     web: network.fixed.web ? network.web : ips.map((ip) => joinAddress(ip, form.port)),
-    jellyfin: network.fixed.jellyfin
-      ? network.jellyfin
-      : form.jellyfin && !form.jellyfinOnWeb
-        ? ips.map((ip) => joinAddress(ip, form.jellyfinPort))
-        : [],
-    jellyfin_on_web: network.fixed.jellyfin ? network.jellyfin_on_web : form.jellyfin && form.jellyfinOnWeb,
+    jellyfin: network.fixed.jellyfin ? network.jellyfin : own(form.jellyfin),
+    jellyfin_on_web: network.fixed.jellyfin ? network.jellyfin_on_web : form.jellyfin.on && form.jellyfin.onWeb,
+    plex: network.fixed.plex ? network.plex : own(form.plex),
+    plex_on_web: network.fixed.plex ? network.plex_on_web : form.plex.on && form.plex.onWeb,
     discovery: network.fixed.discovery ? network.discovery : form.discovery,
     bonjour: network.fixed.bonjour ? network.bonjour : form.bonjour,
     bonjour_adapters: [...form.bonjourAdapters].sort(),
@@ -106,16 +149,24 @@ const sameChoice = (a: ListenChoice, b: ListenChoice) =>
   a.bonjour === b.bonjour &&
   a.bonjour_adapters.join("\n") === b.bonjour_adapters.join("\n") &&
   a.jellyfin_on_web === b.jellyfin_on_web &&
+  a.plex_on_web === b.plex_on_web &&
   a.web.join() === b.web.join() &&
-  a.jellyfin.join() === b.jellyfin.join();
+  a.jellyfin.join() === b.jellyfin.join() &&
+  a.plex.join() === b.plex.join();
 
 /** Why `form` can't be saved, if it can't. */
 function problemOf(form: Form): string | null {
   const port = (p: number) => Number.isInteger(p) && p >= 1 && p <= 65535;
   if (!port(form.port)) return "The port is a number from 1 to 65535.";
-  if (form.jellyfin && !form.jellyfinOnWeb) {
-    if (!port(form.jellyfinPort)) return "The Jellyfin-compatible API's port is a number from 1 to 65535.";
-    if (form.jellyfinPort === form.port) return "Choose another port for the Jellyfin-compatible API, or Pley's port.";
+  for (const { api, name } of APIS) {
+    const { on, onWeb, port: own } = form[api];
+    if (!on || onWeb) continue;
+    if (!port(own)) return `The ${name}'s port is a number from 1 to 65535.`;
+    if (own === form.port) return `Choose another port for the ${name}, or Pley's port.`;
+  }
+  const { jellyfin, plex } = form;
+  if (jellyfin.on && !jellyfin.onWeb && plex.on && !plex.onWeb && jellyfin.port === plex.port) {
+    return "The Jellyfin-compatible and Plex-compatible APIs can't share a port.";
   }
   if (form.mode === "networks" && form.ips.length === 0) return "Choose a network, or Only this computer.";
   return null;
@@ -297,6 +348,71 @@ function BonjourAdapters({
   );
 }
 
+/** An API for other apps: off, on pley's port, or on a port of its own. */
+function ApiChoice({
+  api,
+  value,
+  fixed,
+  webPort,
+  onChange,
+}: {
+  api: (typeof APIS)[number];
+  value: ApiForm;
+  fixed: boolean;
+  webPort: number;
+  onChange: (value: ApiForm) => void;
+}) {
+  const set = (patch: Partial<ApiForm>) => onChange({ ...value, ...patch });
+  const portId = `network-${api.api}-port`;
+  return (
+    <>
+      <Row
+        label={api.name}
+        hint={fixed ? api.fixed : api.hint}
+      >
+        <Toggle checked={value.on} disabled={fixed} onChange={(v) => set({ on: v })} label={api.name} />
+      </Row>
+      {value.on ? (
+        <div className="grid grid-cols-2 gap-1 rounded-md bg-surface-2 p-1 text-sm" role="radiogroup" aria-label={`${api.name}'s port`}>
+          {[
+            { onWeb: true, label: `On Pley's port (${Number.isNaN(webPort) ? DEFAULT_PORT : webPort})` },
+            { onWeb: false, label: "On a port of its own" },
+          ].map((o) => (
+            <button
+              key={o.label}
+              type="button"
+              role="radio"
+              aria-checked={value.onWeb === o.onWeb}
+              disabled={fixed}
+              onClick={() => set({ onWeb: o.onWeb })}
+              className={cn(
+                "h-8 rounded font-medium transition-colors disabled:opacity-60",
+                value.onWeb === o.onWeb ? "bg-surface-3 text-fg shadow-sm" : "text-muted hover:text-fg",
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {value.on && !value.onWeb ? (
+        <Row label={api.portLabel} htmlFor={portId} hint={api.portHint}>
+          <TextInput
+            id={portId}
+            type="number"
+            min={1}
+            max={65535}
+            value={Number.isNaN(value.port) ? "" : value.port}
+            disabled={fixed}
+            onChange={(e) => set({ port: Number.parseInt(e.target.value, 10) })}
+            className="w-28"
+          />
+        </Row>
+      ) : null}
+    </>
+  );
+}
+
 export function NetworkSettings() {
   useDocumentTitle("Network settings");
   const network = useNetwork();
@@ -306,10 +422,17 @@ export function NetworkSettings() {
   // The form starts from where pley listens, and again when that changes
   // (not when only how its listeners are does).
   const [form, setForm] = useState<Form | null>(() => (data ? formOf(data) : null));
-  const shown = data
-    ? JSON.stringify([data.web, data.jellyfin, data.jellyfin_on_web, data.discovery, data.bonjour, data.bonjour_adapters])
-    : "";
-  useOnChange(shown, () => {
+  const where = data && [
+    data.web,
+    data.jellyfin,
+    data.jellyfin_on_web,
+    data.plex,
+    data.plex_on_web,
+    data.discovery,
+    data.bonjour,
+    data.bonjour_adapters,
+  ];
+  useOnChange(where ? JSON.stringify(where) : "", () => {
     if (data) setForm(formOf(data));
   });
 
@@ -336,7 +459,8 @@ export function NetworkSettings() {
   const lost = dirty && !moved && stillServes(data.web, next.web, href) === false;
   // pley.toml lists addresses this page doesn't show as they are.
   const unusual = !sameChoice(saved, data);
-  const fixedAll = data.fixed.web && data.fixed.jellyfin && data.fixed.discovery && data.fixed.bonjour;
+  const fixedAll =
+    data.fixed.web && data.fixed.jellyfin && data.fixed.plex && data.fixed.discovery && data.fixed.bonjour;
 
   const onSave = () => {
     if (problem) return;
@@ -420,62 +544,16 @@ export function NetworkSettings() {
       </Card>
 
       <Card className="space-y-5">
-        <Row
-          label="Jellyfin-compatible API"
-          hint={
-            data.fixed.jellyfin
-              ? "Set by --jellyfin-bind or PLEY_JELLYFIN_BIND, on the command line or in the environment."
-              : !form.jellyfin
-                ? "For Jellyfin's apps, Infuse and other apps that use Jellyfin's API. They sign in with Pley accounts."
-                : form.jellyfinOnWeb
-                  ? "On Pley's address, through your reverse proxy too: apps connect to the address you use for Pley."
-                  : "On a port of its own, at the addresses above."
-          }
-        >
-          <Toggle
-            checked={form.jellyfin}
-            disabled={data.fixed.jellyfin}
-            onChange={(v) => set({ jellyfin: v })}
-            label="Jellyfin-compatible API"
+        {APIS.map((api) => (
+          <ApiChoice
+            key={api.api}
+            api={api}
+            value={form[api.api]}
+            fixed={data.fixed[api.api]}
+            webPort={form.port}
+            onChange={(value) => set({ [api.api]: value })}
           />
-        </Row>
-        {form.jellyfin ? (
-          <div className="grid grid-cols-2 gap-1 rounded-md bg-surface-2 p-1 text-sm" role="radiogroup" aria-label="Jellyfin-compatible API's port">
-            {[
-              { onWeb: true, label: `On Pley's port (${Number.isNaN(form.port) ? DEFAULT_PORT : form.port})` },
-              { onWeb: false, label: "On a port of its own" },
-            ].map((o) => (
-              <button
-                key={o.label}
-                type="button"
-                role="radio"
-                aria-checked={form.jellyfinOnWeb === o.onWeb}
-                disabled={data.fixed.jellyfin}
-                onClick={() => set({ jellyfinOnWeb: o.onWeb })}
-                className={cn(
-                  "h-8 rounded font-medium transition-colors disabled:opacity-60",
-                  form.jellyfinOnWeb === o.onWeb ? "bg-surface-3 text-fg shadow-sm" : "text-muted hover:text-fg",
-                )}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        {form.jellyfin && !form.jellyfinOnWeb ? (
-          <Row label="Jellyfin port" htmlFor="network-jellyfin-port" hint={`Jellyfin's own is ${JELLYFIN_PORT}.`}>
-            <TextInput
-              id="network-jellyfin-port"
-              type="number"
-              min={1}
-              max={65535}
-              value={Number.isNaN(form.jellyfinPort) ? "" : form.jellyfinPort}
-              disabled={data.fixed.jellyfin}
-              onChange={(e) => set({ jellyfinPort: Number.parseInt(e.target.value, 10) })}
-              className="w-28"
-            />
-          </Row>
-        ) : null}
+        ))}
         <Row
           label="Found by the Pley apps"
           hint={
@@ -539,12 +617,12 @@ export function NetworkSettings() {
           <p className="mt-0.5 text-sm text-muted">Pley retries addresses it can't listen on yet every 30 seconds.</p>
         </div>
         <ul className="space-y-1.5 text-sm">
-          {data.jellyfin_on_web ? (
-            <li className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          {APIS.filter(({ api }) => data[`${api}_on_web` as const]).map(({ api }) => (
+            <li key={api} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <CircleCheck className="size-3.5 shrink-0 text-success" />
-              <span className="text-muted">{LISTENER.jellyfin}, on Pley's port</span>
+              <span className="text-muted">{LISTENER[api]}, on Pley's port</span>
             </li>
-          ) : null}
+          ))}
           {data.listeners.map((l) => (
             <li key={`${l.kind} ${l.address}`} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               {l.error ? <CircleAlert className="size-3.5 shrink-0 text-danger" /> : <CircleCheck className="size-3.5 shrink-0 text-success" />}
@@ -558,7 +636,8 @@ export function NetworkSettings() {
 
       {unusual && !fixedAll ? (
         <Note icon={<Info className="size-3.5" />}>
-          Pley listens on {[...data.web, ...data.jellyfin].join(", ")}, which this page shows as near as it can: saving replaces them.
+          Pley listens on {[...data.web, ...data.jellyfin, ...data.plex].join(", ")}, which this page shows as near as it can: saving replaces
+          them.
         </Note>
       ) : null}
 

@@ -35,14 +35,23 @@ describes how they are made.
   Intro, and keep watch state, favorites (My List) and ratings with Pley's.
   It is off until turned on in Settings → Network, on Pley's port or one of
   its own (Jellyfin's is 8096; `--jellyfin-bind`, and `compose.jellyfin.yaml`
-  for Docker). Each sign-in gets a token of its own, which works on that API
-  only, never on Pley's own, and never as an administrator; accounts with
-  two-step sign-in can't sign in from these apps yet
-  ([COMPATIBILITY.md](../../docs/COMPATIBILITY.md)).
-- Account has Tokens for other apps: each app signed in through the
-  Jellyfin-compatible API, with its device and last use, to revoke, and
-  tokens made by hand for apps or scripts that take one, shown once to
-  copy.
+  for Docker). Each sign-in gets a token of its own, which works on the
+  compatibility APIs only, never on Pley's own, and never as an
+  administrator; accounts with two-step sign-in can't sign in from these
+  apps yet ([COMPATIBILITY.md](../../docs/COMPATIBILITY.md)). It shares
+  Pley's port with the Plex-compatible API: a request that names itself
+  Plex's goes to that one.
+- Account has Tokens for other apps: one for each tool or player that uses
+  the Plex- or Jellyfin-compatible API, made there and shown once to copy,
+  or by a Jellyfin app signing in, with its device and last use, to revoke.
+  A token does only what it was allowed: watching and, for an
+  administrator's, seeing everyone's activity (for activity monitors such
+  as Tautulli) or managing libraries (for library tools such as Kometa:
+  refreshes, edits, collections). Neither makes the token an administrator
+  or lets it manage accounts or the server's settings, and both go with the
+  administrator's role, at once. A token can be limited
+  to the addresses or networks it is used from, or the home network; from
+  elsewhere it is refused, and so are the streams it started.
 
 ### Changed
 
@@ -57,18 +66,56 @@ describes how they are made.
   it, then the rest.
 - The web app's search shows movies, shows and episodes first, then
   music, then Live TV, then people.
+- The Plex-compatible API no longer takes Pley's session tokens, which
+  opened all of Pley's own API too, administration included: Tautulli,
+  Kometa, players and scripts that use one get `401` until they have a token
+  for other apps. Make one for each in Account → Tokens for other apps
+  (Tautulli needs "See everyone's activity", Kometa that and "Manage
+  libraries") and put it where the tool had the old one
+  ([COMPATIBILITY.md](../../docs/COMPATIBILITY.md#moving-from-session-tokens)).
+  `PUT /:/prefs` answers `403` where it accepted and ignored the change.
+- The Plex-compatible API's stream addresses, which players fetch without a
+  token, work only for streams started with a token for other apps, while
+  that token works; a web-player's playback can't be opened through them.
+- The Plex-compatible API's filters take the operators and groups Kometa
+  writes (`title%3D=`, `year%3E=`, `push=1` … `or=1` … `pop=1`), and numbers
+  and dates take at least (`>=`) and at most (`<=`). A filter Pley can't
+  apply (on `resolution`, `hdr`, audio language, an episode's fields under
+  a show, and the like) answers `400` where it was ignored, which let a
+  tool's change reach the whole library; a smart collection or playlist
+  isn't made of one.
+- Pictures chosen by address, through the Plex-compatible API or the
+  artwork picker, may come from fanart.tv, ThePosterDB and GitHub's raw
+  files (where Kometa's own images are) as well as TMDB, TheTVDB, TVmaze and
+  the Cover Art Archive, and are re-encoded as uploads are. Other addresses
+  are still refused.
+- Through the Plex-compatible API, collections keep labels and are
+  found by title and label; their order (`collectionSort`) and an item's
+  place in it can be changed; items and collections list their pictures;
+  and a playlist's title can be changed. Edits Pley can't keep (critic and
+  audience ratings, cast and crew, countries, editions, collection modes,
+  logos, theme music) answer `400` where they answered `200` and kept
+  nothing.
 
 ### Removed
 
-- The Plex-compatible API, and with it Tautulli, Kometa, `python-plexapi`
-  scripts and Plex players on Pley. `--plex-bind`, `PLEY_PLEX_BIND` and
-  `plex_bind` are read and ignored, with a warning in the log; Settings →
-  Network's next change takes `plex_bind` out of `pley.toml`. The Windows
-  installer no longer asks about it, and Docker's `compose.plex.yaml` is
-  `compose.jellyfin.yaml`. Smart collections' `guid` filter no longer takes
-  `plex://` guids.
 - The web player's Back 10 seconds and Forward 30 seconds buttons. Left
   and Right (or J and L) still seek 10 s.
+
+### Fixed
+
+- A picture sent to a collection or playlist through the Plex-compatible
+  API no longer lands on the movie or show that had the same number:
+  collections and playlists have keys of their own there. An episode's
+  poster sent there becomes its still, the picture apps show.
+- An uploaded poster keeps Kometa's overlay mark, so Kometa doesn't take a
+  poster it drew on for an original and draw on it again.
+- Kometa connects to the Plex-compatible API with a token that may manage
+  libraries: library sections say so (`allowSync`), and a library's
+  settings answer, with none to change.
+- Tautulli no longer takes Pley for a server that is down when nothing has
+  happened for 15 seconds: the Plex-compatible API's notifications send
+  pings, as Plex's server does.
 
 ## [0.1.4] - 2026-11-02
 

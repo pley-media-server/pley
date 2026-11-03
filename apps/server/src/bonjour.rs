@@ -589,6 +589,8 @@ mod tests {
     fn listen(web: &[&str], bonjour: bool) -> Listen {
         Listen {
             web: web.iter().map(|a| a.parse().unwrap()).collect(),
+            plex: Vec::new(),
+            plex_on_web: true,
             jellyfin: Vec::new(),
             jellyfin_on_web: true,
             discovery: true,
