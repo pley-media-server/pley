@@ -25,9 +25,12 @@ import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -55,6 +58,7 @@ import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.designsystem.tile.TileStyle
 import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.designsystem.tile.skeleton
+import app.pley.android.model.DiscoverTitle
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.LiveChannel
 import app.pley.android.screens.PleyKey
@@ -67,6 +71,7 @@ import app.pley.android.screens.search.SearchResultsState
 import app.pley.android.screens.search.SearchTiles
 import app.pley.android.screens.search.SearchUiState
 import app.pley.android.screens.search.SearchViewModel
+import app.pley.android.screens.search.TmdbSection
 import app.pley.android.ui.tv.R
 
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
@@ -93,7 +98,8 @@ import kotlinx.coroutines.delay
  * searches as chips. While typing (250 ms after the last key), the
  * results as rows, grouped (People, Live TV, Movies, Shows, Seasons,
  * Episodes, Artists, Albums, Tracks), the first header at y = 96; a
- * channel found plays at once. Down from the
+ * channel found plays at once. After them, for a profile that may ask,
+ * Discover: what TMDB has that no library does. Down from the
  * field goes into the rows, Up from the first row back to it; Left goes
  * to the rail.
  */
@@ -101,9 +107,10 @@ import kotlinx.coroutines.delay
 internal fun TvSearchScreen(key: PleyKey.Search) {
     val resources = LocalResources.current
     val vm: SearchViewModel<ArtworkTileModel> = viewModel {
-        SearchViewModel(key.query, SearchDeps.of(screensGraph()), tvSearchTiles(TvTiles(resources)))
+        SearchViewModel(key.query, SearchDeps.of(screensGraph(), tmdbShown = TMDB_TITLES), tvSearchTiles(TvTiles(resources)))
     }
     val state by vm.state.collectAsStateWithLifecycle()
+    val tmdb by vm.tmdb.collectAsStateWithLifecycle()
     val field = rememberTextFieldState(key.query)
     LaunchedEffect(field, vm) {
         snapshotFlow { field.text.toString() }.collect(vm::onQueryChange)
@@ -122,6 +129,10 @@ internal fun TvSearchScreen(key: PleyKey.Search) {
         onActions = { id -> navigator.open(PleyKey.ItemActions(id)) },
         onRetry = vm::retry,
         onWatch = vm::watch,
+        tmdb = tmdb,
+        onTmdbRetry = vm::retryTmdb,
+        onTmdbOpen = { navigator.open(PleyKey.DiscoverTitle(it.kind, it.tmdbId)) },
+        onTmdbAll = { navigator.open(PleyKey.DiscoverResults(it)) },
     )
 }
 
@@ -152,14 +163,35 @@ internal fun TvSearchContent(
     onActions: (Long) -> Unit,
     onRetry: () -> Unit = {},
     onWatch: (LiveChannel) -> Unit = {},
+    tmdb: TmdbSection = TmdbSection.Hidden,
+    onTmdbRetry: () -> Unit = {},
+    onTmdbOpen: (DiscoverTitle) -> Unit = {},
+    onTmdbAll: (String) -> Unit = {},
 ) {
     val rail = LocalTvRailFocus.current
     val memory = rememberFocusMemory()
     val fieldFocus = remember { FocusRequester() }
     // What Down from the field goes to: the chips or the rows (the field is wide; nearest would be a guess).
     val below = remember { FocusRequester() }
+    val tmdbBelow = tmdb is TmdbSection.Ready || (tmdb as? TmdbSection.Failed)?.problem?.retry == true
     val hasBelow = (state.results is SearchResultsState.Ready) || (state.results is SearchResultsState.Failed) ||
-        (state.results == SearchResultsState.Idle && state.recent.isNotEmpty())
+        (state.results == SearchResultsState.Idle && state.recent.isNotEmpty()) ||
+        (state.results is SearchResultsState.Empty && tmdbBelow)
+    // Retry on the Discover row: focus waits on the field, then goes to what came in the row's place.
+    val tmdbFocus = remember { FocusRequester() }
+    var retriedFrom by remember(state.query) { mutableStateOf<TmdbSection?>(null) }
+    LaunchedEffect(tmdb, retriedFrom) {
+        val from = retriedFrom ?: return@LaunchedEffect
+        if (tmdb == from || tmdb is TmdbSection.Loading) return@LaunchedEffect
+        retriedFrom = null
+        withFrameNanos { }
+        runCatching { tmdbFocus.requestFocus() }
+    }
+    val retryTmdb = {
+        runCatching { fieldFocus.requestFocus() }
+        retriedFrom = tmdb
+        onTmdbRetry()
+    }
     Box(Modifier.fillMaxSize().testTag(TV_SEARCH)) {
         when (val results = state.results) {
             SearchResultsState.Idle -> Recent(
@@ -176,10 +208,22 @@ internal fun TvSearchContent(
                 },
             )
             is SearchResultsState.Loading -> Skeletons()
-            is SearchResultsState.Empty -> Notice(
-                stringResource(R.string.tv_search_none_title, results.query),
-                stringResource(R.string.tv_search_none_body),
-            )
+            is SearchResultsState.Empty -> if (tmdb == TmdbSection.Hidden) {
+                Notice(
+                    stringResource(R.string.tv_search_none_title, results.query),
+                    stringResource(R.string.tv_search_none_body),
+                )
+            } else {
+                // The libraries have nothing: the line saying so, and Discover's row under it, where it stays.
+                NothingInLibraries(Modifier.padding(top = ResultsTop))
+                TvRowColumn(
+                    modifier = Modifier.fillMaxSize().focusRequester(below).testTag(TV_SEARCH_RESULTS),
+                    contentPadding = PaddingValues(top = OnlyTmdbTop, bottom = ResultsBottomRoom),
+                    headerY = OnlyTmdbTop,
+                ) {
+                    tmdbRow(tmdb, memory, tmdbFocus, retryTmdb, onTmdbOpen, onTmdbAll)
+                }
+            }
             is SearchResultsState.Failed -> Notice(
                 failedTitle(results.error, stringResource(R.string.tv_search_failed)),
                 failedBody(results.error),
@@ -215,6 +259,7 @@ internal fun TvSearchContent(
                     if (results.groups.all { it.kind == SearchGroupKind.People } && results.channels.isNotEmpty()) {
                         channelRow(results, memory, onWatch)
                     }
+                    if (tmdb != TmdbSection.Hidden) tmdbRow(tmdb, memory, tmdbFocus, retryTmdb, onTmdbOpen, onTmdbAll)
                 }
             }
         }
@@ -414,6 +459,12 @@ private val ResultsBottomRoom = PleyTv.CanvasHeight - ResultsTop -
 
 /** Where "No results" sits. */
 private val NoticeTop = 120.dp
+
+/** Discover's row when the libraries found nothing: under the line saying so. */
+private val OnlyTmdbTop = ResultsTop + NothingHeight + PleyTv.RowGap
+
+/** How many of TMDB's titles the Discover row shows, as on the Samsung and LG apps; See all has the rest. */
+private const val TMDB_TITLES = 20
 
 private val FieldWidth = 520.dp
 

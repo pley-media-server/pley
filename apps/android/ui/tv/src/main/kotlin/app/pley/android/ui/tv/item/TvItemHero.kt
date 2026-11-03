@@ -44,20 +44,24 @@ import app.pley.android.model.ItemKind
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.item.ItemPage
 import app.pley.android.screens.item.PrimaryAction
+import app.pley.android.screens.R as ScreensR
+import app.pley.android.screens.requests.ItemRequestState
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.FocusMemory
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvRoundButton
 import app.pley.android.ui.tv.kit.rememberedFocus
+import app.pley.android.ui.tv.requests.TvItemRequestLine
 
 /**
  * The top of the TV item page (design spec §4.3, mockup tv-movie), in the
  * 464 dp text column at x = 96: the title (the show's, for an episode or
  * season) bottom-aligned in the logo's 72 dp box, an episode's context
- * line, the metadata line, genres, three lines of summary (More shows it
+ * line, the metadata line (and under it a movie's or show's [request],
+ * its stage), genres, three lines of summary (More shows it
  * all when it runs longer), the credits, then the buttons: Resume or
- * Play, From start, Watched, Audio and subtitles, My List, Add to
- * playlist, More.
+ * Play, From start, Request more seasons (a show with seasons to ask
+ * for), Watched, Audio and subtitles, My List, Add to playlist, More.
  * Focus starts on Resume or Play; holding Select on it opens the item's
  * actions. Down from the buttons goes to [down] (the episode to watch).
  */
@@ -72,6 +76,7 @@ internal fun TvHero(
     onTracks: () -> Unit,
     onMore: () -> Unit,
     onPrimaryActions: () -> Unit,
+    request: ItemRequestState? = null,
 ) {
     val places = remember { HeroPlaces() }
     Column(
@@ -90,6 +95,12 @@ internal fun TvHero(
         }
         Spacer(Modifier.height(12.dp))
         TvMetaLine(page.meta)
+        request?.let { state ->
+            state.request?.let { asked ->
+                Spacer(Modifier.height(10.dp))
+                TvItemRequestLine(asked, state.manage)
+            }
+        }
         // How far a resumed title was played: "1h 33m left", as on Home.
         page.primary.timeLeft.takeIf { page.primary.kind == PrimaryAction.Kind.Resume && it.isNotEmpty() }?.let { left ->
             Spacer(Modifier.height(8.dp))
@@ -109,7 +120,7 @@ internal fun TvHero(
             BasicText(credits, style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
         }
         Spacer(Modifier.height(22.dp))
-        HeroButtonsRow(page, memory, buttons, down, actions, places, focus, onTracks, onMore, onPrimaryActions)
+        HeroButtonsRow(page, memory, buttons, down, actions, places, focus, onTracks, onMore, onPrimaryActions, request)
     }
 }
 
@@ -181,6 +192,7 @@ private fun HeroButtonsRow(
     onTracks: () -> Unit,
     onMore: () -> Unit,
     onPrimaryActions: () -> Unit,
+    request: ItemRequestState?,
 ) {
     val primary = page.primary
     val unavailable = primary.kind == PrimaryAction.Kind.Unavailable
@@ -210,6 +222,15 @@ private fun HeroButtonsRow(
                 icon = PleyIcons.RotateCcw,
                 onClick = { actions.model.play(fromStart = true) },
                 modifier = Modifier.rememberedFocus(memory, "fromStart"),
+            )
+        }
+        // The title's Discover page, its season picker open.
+        if (request != null && request.more) {
+            TvRoundButton(
+                label = stringResource(ScreensR.string.requests_more_seasons),
+                icon = PleyIcons.Plus,
+                onClick = { actions.open(request.picker) },
+                modifier = Modifier.rememberedFocus(memory, "requestMore"),
             )
         }
         TvRoundButton(

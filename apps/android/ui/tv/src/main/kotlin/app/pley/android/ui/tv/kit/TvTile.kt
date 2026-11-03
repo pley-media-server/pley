@@ -47,6 +47,7 @@ import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.icon.Icon
+import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.designsystem.tile.ArtworkTile
@@ -100,7 +101,8 @@ fun TvTile(
 /**
  * The last tile of a row that has more (design spec §2.4): a well of the
  * row's tile size with an arrow and "See all", focused like any tile so
- * Right stays meaningful at the row's end.
+ * Right stays meaningful at the row's end. A grid that reads on when
+ * asked ends in one too, with its own [icon] (Show more, Retry).
  */
 @Composable
 fun TvSeeAllTile(
@@ -109,6 +111,7 @@ fun TvSeeAllTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     focusModifier: Modifier = Modifier,
+    icon: PleyIcon = PleyIcons.ArrowRight,
 ) {
     TvTileFrame(kind, onClick, null, modifier, focusModifier, caption = { }) {
         Column(
@@ -119,7 +122,7 @@ fun TvSeeAllTile(
             verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Icon(PleyIcons.ArrowRight, contentDescription = null, size = 32.dp, tint = PleyColors.Fg)
+            Icon(icon, contentDescription = null, size = 32.dp, tint = PleyColors.Fg)
             BasicText(label, style = PleyType.Tv.Label.copy(color = PleyColors.Fg, textAlign = TextAlign.Center))
         }
     }

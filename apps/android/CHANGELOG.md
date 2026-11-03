@@ -10,6 +10,19 @@ describes how they are made.
 
 ### Added
 
+- Requests on Android TV and Fire TV, as on the Samsung and LG apps: the
+  rail's Discover after Home (Your requests where the profile may not
+  ask, Requests for administrators) with the number that waits there, in
+  red while a request couldn't be sent; Discover's hero, rows and See all
+  grids; a title's page with Which seasons? in a side panel; and the
+  requests, with their tabs, the administrators' filters and a side panel
+  of what may be done to each. What became ready to watch pops up at the
+  bottom right once the remote rests, with Open and Close.
+- On Android TV and Fire TV, Search shows Discover after the libraries'
+  results, up to 20 of TMDB's titles the libraries lack, and a library's
+  movie or show from a request shows its stage, with Request more seasons
+  for a show missing some.
+- On Android TV and Fire TV, Settings → About credits TMDB.
 - On TVs, the title shows at the top for a few seconds as each item
   begins, the next episode too, while the player's controls are hidden
   and Playback details aren't over the video.
@@ -43,6 +56,9 @@ describes how they are made.
 
 ### Fixed
 
+- Discover's hero is the first title of the next row when the trending
+  row has nothing the profile may ask for, where it stayed a grey
+  placeholder.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was

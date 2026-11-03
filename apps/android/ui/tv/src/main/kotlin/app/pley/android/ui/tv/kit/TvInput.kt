@@ -84,6 +84,7 @@ fun TvTextField(
     }
 
     BackHandler(enabled = editing) { stop() }
+    OverlayShowing(editing)
     val view = LocalView.current
     LaunchedEffect(editing) {
         if (editing) {

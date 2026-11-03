@@ -202,7 +202,9 @@ Sonarr fetch what is approved. On phones and tablets:
   badge, in a grid under "Results for “dune”", read page by page; Back
   goes back to Search. Words past the server's 200 characters are cut to
   them.
-- **Discover**: a hero for the first trending title with its main action;
+- **Discover**: a hero for the first trending title with its main action
+  (when trending has nothing the profile may ask for, every row is read
+  at once and the hero is the first title of the next one with any);
   rows (Trending this week, Popular movies, Popular shows, Coming to
   cinemas, Popular anime), each read as it comes into view and page by
   page; the person's requests. It has no search of its own.
@@ -223,13 +225,51 @@ Sonarr fetch what is approved. On phones and tablets:
   requests and ones that couldn't be sent) shows as a toast with Open
   while the app is open, never over the player; what came while it was
   closed is told at the next start.
-- **Signed in before requests**: Discover offers Sign in again, which asks
-  for the `requests` and `approvals` scopes the server now lists.
-- The summary follows the event stream; without it, the app reads the
-  summary every minute in the foreground and an open list every 30 s.
-  Download progress sends no events: a list, a title's page, a library
-  title or Discover's requests showing a download are read again every
-  10 s while they show.
+
+On Android TV and Fire TV, as on the Samsung and LG apps:
+
+- **Way in**: the rail's entry after Home, Discover where the profile may
+  ask, else Your requests (Requests for administrators), with the number
+  that waits there beside its icon, in red while a request couldn't be
+  sent.
+- **Discover**: the hero's main action and Details; TMDB's rows, each read
+  as focus comes near, whose See all opens the whole list in a grid that
+  reads five pages at most at a time and then offers Show more, as an age
+  limit can leave page after page empty; the profile's requests, and the
+  way to them at the top with their number. Back from the rows goes to
+  the hero.
+- **A title's page**: the one main action, Requested and Following
+  focusable as every TV button is; Which seasons? is a side panel, opened
+  from Request more seasons or a season's poster at that season.
+- **Requests**: tabs with their numbers, the administrators' filters
+  (movies or shows, Asked by, a title's words) and a card per request. OK
+  on a card opens a side panel: Open where a library has it, the server's
+  actions in its order, and Details. Withdraw, Remove and Delete ask first
+  in the panel; Decline with a reason… takes the words on the TV's
+  keyboard. Approve is plain: the server's settings choose the quality
+  profile and folder.
+- **Search's Discover row**, after the libraries' results: up to 20 of
+  TMDB's titles that no library has, with See all; with nothing in the
+  libraries, the line saying so above it. When TMDB can't be searched,
+  the row says why, with Retry where trying again may help.
+- **A library title** from a request shows its stage under its facts,
+  with the download's progress, and a show with seasons left to ask for
+  offers Request more seasons beside its play button.
+- **News**: only what became ready to watch pops up, at the bottom right
+  with the title's poster, Open and Close, once the remote has rested for
+  1.5 s and nothing else holds focus (the open rail, a panel, a dialog,
+  the keyboard); never over the player or on the requests. It takes focus
+  and gives it back, and goes by itself after 10 s untouched. The rest
+  shows as the rail's number and in the lists.
+
+On either, an app signed in before requests offers Sign in again on
+Discover (a TV shows a new code to link), which asks for the `requests`
+and `approvals` scopes the server now lists, and Settings → About credits
+TMDB, as its terms ask. The summary follows the event stream; without
+it, the app reads the summary every minute in the foreground and an open
+list every 30 s. Download progress sends no events: a list, a title's
+page, a library title or Discover's requests showing a download are read
+again every 10 s while they show.
 
 ### Offline and downloads
 
@@ -406,9 +446,6 @@ base64 -w0 pley-release.keystore   # the ANDROID_KEYSTORE_BASE64 secret
 ## Known limits
 
 - Downloads are on phones and tablets only; TVs stream everything.
-- Requests are on phones and tablets only: Android TV and Fire TV have no
-  Discover, no requests and none of their news, and their code sign-in
-  doesn't ask for the `requests` and `approvals` scopes.
 - No Watch Next row on phones or Fire TV.
 - Live TV has no picture in picture, and the TV's display mode isn't
   matched for live channels.

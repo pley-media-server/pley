@@ -193,6 +193,8 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
     val sections = remember { SectionFocus() }
     val backdrop = remember(page.item, page.origin, tier) { ArtworkCandidates.backdrop(page.item, page.origin, tier) }
     val actions = remember(model, navigator) { TvPageActions(model, navigator) }
+    // What requests say of a movie or show: asked once the page has drawn.
+    val request by model.request.collectAsStateWithLifecycle()
 
     Box(Modifier.fillMaxSize()) {
         TvBackdrop(backdrop, page.context?.showTitle ?: page.title, scrim = BackdropScrim.Item)
@@ -208,6 +210,7 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
                     onTracks = { panel = Panel.Tracks },
                     onMore = { panel = Panel.More },
                     onPrimaryActions = { panel = Panel.Actions(page.item, buttons.play) },
+                    request = request,
                 )
             }
             page.seasons?.let { seasons ->

@@ -5,6 +5,7 @@ import app.pley.android.data.RequestChange
 import app.pley.android.data.RequestsRepository
 import app.pley.android.data.SearchRepository
 import app.pley.android.model.DiscoverPage
+import app.pley.android.model.DiscoverTitle
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.LiveChannel
@@ -100,9 +101,13 @@ class SearchViewModelTest {
         }
     }
 
-    private fun TestScope.viewModel(initial: String = "", requests: RequestsRepository = RequestsRepository.None): SearchViewModel<FakeTile> {
+    private fun TestScope.viewModel(
+        initial: String = "",
+        requests: RequestsRepository = RequestsRepository.None,
+        tmdbShown: Int = SearchViewModel.TMDB_SHOWN,
+    ): SearchViewModel<FakeTile> {
         val tiles = SearchTiles.of(FakeTiles) { person, origin -> FakeTile(person.id, person.name, TileLook.Poster, "person $origin") }
-        val vm = SearchViewModel(initial, SearchDeps(search, MutableStateFlow("http://pley"), dispatcher, launcher, requests), tiles)
+        val vm = SearchViewModel(initial, SearchDeps(search, MutableStateFlow("http://pley"), dispatcher, launcher, requests, tmdbShown), tiles)
         backgroundScope.launch { vm.state.collect {} }
         backgroundScope.launch { vm.tmdb.collect {} }
         return vm
@@ -334,6 +339,26 @@ class SearchViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf(1, 2), asked)
         assertEquals(trending.results.map { it.tmdbId }, (vm.tmdb.value as TmdbSection.Ready).titles.map { it.tmdbId })
+    }
+
+    @Test
+    fun onTmdbShowsAsManyTitlesAsItsRowHolds() = runTest(dispatcher) {
+        val requests = FakeRequests(summary)
+        val asked = mutableListOf<Int>()
+        requests.searches = { _, page, _ ->
+            asked += page
+            DiscoverPage(page, 10, (1..8).map { DiscoverTitle(TitleKind.Movie, page * 100L + it, "Robot $page.$it") })
+        }
+        // A phone's twelve; a TV's twenty, from three pages at most.
+        val phone = viewModel("robot", requests)
+        advanceUntilIdle()
+        assertEquals(12, (phone.tmdb.value as TmdbSection.Ready).titles.size)
+        assertEquals(listOf(1, 2), asked)
+        asked.clear()
+        val tv = viewModel("robot", requests, tmdbShown = 20)
+        advanceUntilIdle()
+        assertEquals(20, (tv.tmdb.value as TmdbSection.Ready).titles.size)
+        assertEquals(listOf(1, 2, 3), asked)
     }
 
     @Test

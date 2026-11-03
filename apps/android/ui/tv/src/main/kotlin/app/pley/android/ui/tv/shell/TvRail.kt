@@ -2,19 +2,27 @@ package app.pley.android.ui.tv.shell
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +46,8 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
@@ -60,8 +70,11 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.GradientBitmaps
 import app.pley.android.designsystem.image.drawStretched
+import app.pley.android.screens.R as ScreensR
+import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvRailFocus
+import app.pley.android.ui.tv.requests.rememberRequestTexts
 
 /**
  * The rail's focus, for the shell and for content leaving on the left:
@@ -237,10 +250,21 @@ internal fun NavigationDrawerScope.TvRail(
 private fun NavigationDrawerScope.RailEntry(item: RailItem, rail: RailState, onSelect: (RailItem) -> Unit) {
     val selected = rail.current == item.id
     val open = hasFocus
+    val interactions = remember { MutableInteractionSource() }
     NavigationDrawerItem(
         selected = selected,
         onClick = { onSelect(item) },
-        leadingContent = { Icon(item.icon, contentDescription = null, size = PleyTv.IconSize, tint = LocalContentColor.current) },
+        leadingContent = {
+            Box {
+                Icon(item.icon, contentDescription = null, size = PleyTv.IconSize, tint = LocalContentColor.current)
+                val requests = item.requests
+                if (requests != null && requests.badge > 0) {
+                    val focused by interactions.collectIsFocusedAsState()
+                    RailCount(requests, focused)
+                }
+            }
+        },
+        interactionSource = interactions,
         modifier = Modifier
             .focusRequester(rail.requester(item.id))
             .testTag("${TestTags.TV_RAIL}.${item.id}")
@@ -259,6 +283,8 @@ private fun NavigationDrawerScope.RailEntry(item: RailItem, rail: RailState, onS
 private fun label(item: RailItem): String = when (item.slot) {
     RailSlot.Search -> stringResource(R.string.tv_shell_rail_search)
     RailSlot.Home -> stringResource(R.string.tv_shell_rail_home)
+    RailSlot.Discover -> stringResource(ScreensR.string.requests_discover)
+    RailSlot.Requests -> stringResource(if (item.requests?.manage == true) ScreensR.string.requests_manage else ScreensR.string.requests_yours)
     RailSlot.LiveTv -> stringResource(R.string.tv_shell_rail_live_tv)
     RailSlot.Library -> item.name.orEmpty()
     RailSlot.Libraries -> stringResource(R.string.tv_shell_rail_libraries)
@@ -266,6 +292,45 @@ private fun label(item: RailItem): String = when (item.slot) {
     RailSlot.Collections -> stringResource(R.string.tv_shell_rail_collections)
     RailSlot.NowPlaying -> stringResource(R.string.tv_shell_rail_now_playing)
     RailSlot.Settings -> stringResource(R.string.tv_shell_rail_settings)
+}
+
+/**
+ * The number on the way into requests ([RequestsEntry.badge]), as the
+ * Samsung and LG apps draw it: astride the icon's upper right, ringed in
+ * the page's colour, "99+" past 99; in the accent (its ink while the entry
+ * has focus), or the danger colour while failed requests wait for a
+ * manager. Screen readers hear it in words.
+ */
+@Composable
+private fun BoxScope.RailCount(entry: RequestsEntry, focused: Boolean) {
+    val texts = rememberRequestTexts()
+    val said = remember(entry, texts) { texts.count(entry) }
+    val fill = when {
+        entry.alarm -> PleyColors.Danger
+        focused -> PleyColors.OnAccent
+        else -> PleyColors.Accent
+    }
+    val ink = when {
+        entry.alarm -> PleyColors.Bg
+        focused -> PleyColors.AccentBright
+        else -> PleyColors.OnAccent
+    }
+    Box(
+        Modifier
+            .align(Alignment.TopStart)
+            .offset(x = CountX, y = CountY)
+            .wrapContentSize(Alignment.TopStart, unbounded = true)
+            .background(PleyColors.Bg, PleyShape.Circle)
+            .padding(CountRing)
+            .heightIn(min = CountHeight)
+            .widthIn(min = CountHeight)
+            .background(fill, PleyShape.Circle)
+            .padding(horizontal = 5.dp)
+            .clearAndSetSemantics { contentDescription = said },
+        contentAlignment = Alignment.Center,
+    ) {
+        BasicText(if (entry.badge > MAX_COUNT) "$MAX_COUNT+" else entry.badge.toString(), style = PleyType.Tv.Badge.copy(color = ink), maxLines = 1)
+    }
 }
 
 /** The profile's 32 dp circle: its picture, or its initial on its colour; marked while [offline]. */
@@ -361,6 +426,15 @@ private val AvatarSize = 32.dp
 
 /** 48 dp entries on a 56 dp pitch. */
 private val ItemGap = 8.dp
+
+/** The number's 18 dp pill, ringed 2 dp, its corner 9 right of the icon's and 10 above it. */
+private val CountHeight = 18.dp
+private val CountRing = 2.dp
+private val CountX = 9.dp
+private val CountY = (-10).dp
+
+/** What the number counts to before it says "99+". */
+private const val MAX_COUNT = 99
 
 /** The open rail's soft right edge. */
 private val RailShadow = 64.dp

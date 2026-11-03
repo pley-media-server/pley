@@ -103,6 +103,7 @@ internal class TvGridFocus {
  * - Right from the last column calls [onRight] (the jump control).
  * - Pictures load about a row ahead; [badge] puts a count on a tile's
  *   top right (collections).
+ * - [footer] adds cells after the [total] (a grid's Show more).
  */
 @Composable
 internal fun TvPosterGrid(
@@ -125,6 +126,7 @@ internal fun TvPosterGrid(
     header: (LazyGridScope.() -> Unit)? = null,
     badge: ((Int) -> String?)? = null,
     onRight: (() -> Boolean)? = null,
+    footer: (LazyGridScope.() -> Unit)? = null,
 ) {
     val density = LocalDensity.current
     val gate = LocalKeyRepeatGate.current
@@ -207,6 +209,7 @@ internal fun TvPosterGrid(
                         .rememberedFocus(memory, "$memoryPrefix/${tile?.id ?: "cell$position"}", initial = initialFocus && position == 0),
                 )
             }
+            footer?.invoke(this)
         }
     }
 }

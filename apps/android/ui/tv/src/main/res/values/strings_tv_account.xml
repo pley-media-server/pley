@@ -133,6 +133,7 @@
     <string name="tv_settings_open_diagnostics_value">What this TV decodes and shows, and why</string>
     <string name="tv_settings_version">Version</string>
     <string name="tv_settings_licences">Open-source licences</string>
+    <string name="tv_settings_credits">Credits</string>
     <string name="tv_diagnostics_title">Diagnostics</string>
     <string name="tv_diagnostics_device">This TV</string>
     <string name="tv_diagnostics_app">App</string>

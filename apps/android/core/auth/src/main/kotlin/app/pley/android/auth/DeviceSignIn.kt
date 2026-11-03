@@ -77,12 +77,8 @@ sealed interface DevicePoll {
  * has none. Only viewer tokens come of it, whoever approves.
  */
 interface DeviceSignIn {
-    /**
-     * Asks [server] for a code to show; with [requests], for the scopes of
-     * requests too where the server lists them (a phone: a TV has no
-     * requests, and the page approving its code shouldn't offer them).
-     */
-    suspend fun start(server: String, requests: Boolean = true): DeviceCode
+    /** Asks [server] for a code to show. */
+    suspend fun start(server: String): DeviceCode
 
     /**
      * Asks whether [code] was approved, every interval while collected
@@ -108,13 +104,13 @@ class DeviceGrant(
     private val tokensOf: (String) -> Tokens,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : DeviceSignIn {
-    override suspend fun start(server: String, requests: Boolean): DeviceCode {
+    override suspend fun start(server: String): DeviceCode {
         val home = Addresses.origin(server) ?: throw AuthException("that isn't a server address")
         Transport.checkAddress(home)
         val metadata = ServerMetadata.fetch(http, home)
         val endpoint = metadata.deviceAuthorizationEndpoint?.takeIf { metadata.signsInWithCodes }
             ?: throw AuthException(NO_CODES)
-        val scope = SignIn.scopeFor(metadata, requests)
+        val scope = SignIn.scopeFor(metadata)
         val answer = TokenEndpoint.post(http, endpoint, listOf("client_id" to CLIENT_ID, "scope" to scope))
         return parse(answer, home, metadata, scope, clock())
     }
