@@ -299,6 +299,29 @@ async fn pictures_are_listed_as_python_plexapi_reads_them() {
 }
 
 #[tokio::test]
+async fn kometas_overlay_mark_is_kept_through_uploads() {
+    use image::ImageEncoder;
+    let w = world().await;
+    let jpeg = |marked: bool| {
+        let mut out = Vec::new();
+        let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 80);
+        if marked {
+            encoder.set_exif_metadata(pley::images::overlay_exif()).unwrap();
+        }
+        encoder.encode_image(&image::RgbImage::from_pixel(40, 60, image::Rgb([8, 8, 8]))).unwrap();
+        out
+    };
+    for (id, marked) in [(w.alien, true), (w.brazil, false)] {
+        let posters = format!("/library/metadata/{id}/posters");
+        assert_eq!(w.app.plex_upload(Method::POST, &posters, &w.admin, jpeg(marked)).await.status, StatusCode::OK);
+        // What Kometa downloads to check a poster before it draws on it.
+        let shown = w.app.plex(Method::GET, &format!("/library/metadata/{id}/thumb"), &w.admin, &[]).await;
+        assert_eq!(shown.status, StatusCode::OK);
+        assert_eq!(pley::images::has_overlay_mark(&shown.bytes), marked);
+    }
+}
+
+#[tokio::test]
 async fn an_episodes_poster_is_its_still() {
     let w = world().await;
     w.app.media_file("tv/Taxi (1978)/Season 01/Taxi - S01E01 - Pilot.mkv", 1024);

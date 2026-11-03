@@ -361,10 +361,11 @@ does:
   applied: the critic and audience ratings (Pley shows TMDB's), cast and
   crew, countries and other tags, added dates and editions.
 - Posters and backgrounds: `POST /library/metadata/{id}/posters` (or
-  `/arts`) with the picture as the body (25 MB at most, re-encoded), or
-  `?url=` and `PUT /library/metadata/{id}/poster?url=` (or `/art`) with a
-  picture's HTTPS address on one of the hosts Pley takes pictures from:
-  TMDB, TheTVDB, TVmaze, the Cover Art Archive, fanart.tv
+  `/arts`) with the picture as the body (25 MB at most, re-encoded without
+  the file's metadata but Kometa's overlay mark, so Kometa still knows a
+  poster it drew on), or `?url=` and `PUT /library/metadata/{id}/poster?url=`
+  (or `/art`) with a picture's HTTPS address on one of the hosts Pley takes
+  pictures from: TMDB, TheTVDB, TVmaze, the Cover Art Archive, fanart.tv
   (`assets.fanart.tv`), ThePosterDB and GitHub's raw files
   (`raw.githubusercontent.com`, where Kometa's own images are). Other
   addresses are refused (`400`): the server doesn't fetch arbitrary ones,

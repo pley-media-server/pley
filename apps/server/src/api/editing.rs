@@ -187,13 +187,16 @@ pub async fn upload_artwork(
 }
 
 /// Stores an uploaded picture, re-encoded as JPEG: only real pictures get
-/// stored, and huge ones are scaled down. Returns its reference.
+/// stored, and huge ones are scaled down. None of the file's metadata is
+/// kept but Kometa's overlay mark, which tells it a poster already has its
+/// overlay. Returns its reference.
 pub(crate) async fn store_picture(state: &AppState, body: Bytes) -> ApiResult<String> {
     if body.is_empty() || body.len() > UPLOAD_MAX_BYTES {
         return Err(AppError::bad_request("pictures must be smaller than 25 MB"));
     }
     let _decoding = crate::images::UPLOAD_DECODES.acquire().await.map_err(|e| AppError::Internal(e.into()))?;
     let jpeg = tokio::task::spawn_blocking(move || -> Result<Vec<u8>, AppError> {
+        use image::ImageEncoder;
         let img =
             crate::images::decode(&body).map_err(|_| AppError::bad_request("that file is not a supported picture"))?;
         let img = if img.width() > 3840 || img.height() > 3840 {
@@ -202,7 +205,13 @@ pub(crate) async fn store_picture(state: &AppState, body: Bytes) -> ApiResult<St
             img
         };
         let mut out = Vec::new();
-        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 92)
+        let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 92);
+        if crate::images::has_overlay_mark(&body) {
+            encoder
+                .set_exif_metadata(crate::images::overlay_exif())
+                .map_err(|e| AppError::Internal(anyhow::anyhow!("marking picture: {e}")))?;
+        }
+        encoder
             .encode_image(&img.to_rgb8())
             .map_err(|e| AppError::Internal(anyhow::anyhow!("encoding picture: {e}")))?;
         Ok(out)
