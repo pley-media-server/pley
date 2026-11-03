@@ -3,19 +3,22 @@
 //! edge stays at x 96, except that a row whose tiles all end before x 912 never moves and the last
 //! tile never comes further left than its end padding allows (48 + a tile's width), so focus walks
 //! right near the end. The slide takes 220 ms, and under a held key glides evenly from move to move;
-//! the pointer moves the row only as far as brings a cut-off tile in whole.
+//! the pointer moves the row only as far as brings a cut-off tile in whole. A held Left or Right
+//! slides the row under one still ring at its start, the tiles keeping their resting look, until
+//! the key is let go; near the end, where tiles stop coming to the start, focus steps across them
+//! (the Samsung app's `RowView`).
 //!
 //! The row is one focus group that comes back to its last tile, entered from above or below at the
 //! nearest tile; Left at its start leaves the page (the shell opens the rail), Right at its end
 //! stops. Only the tiles on screen and one either side are drawn; the pictures of the next 1.5
-//! screens are asked for ahead.
+//! screens are asked for ahead, and while a key is held the pictures wait until it is let go.
 
 use pley_base::{Point, Priority, Rect};
 use pley_ui::theme;
 use pley_ui::{Dir, Edge, FocusOpts, Group, Id, Response, Ui, nudge};
 
 use crate::look::{SCROLL, register};
-use crate::tile::{SlotMode, TileKind, TileSlot};
+use crate::tile::{SlotMode, TileKind, TileLook, TileSlot, ring};
 
 /// What a row keeps between frames: owned by the screen, so a page drawn again opens where it was.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -28,6 +31,11 @@ pub struct RowState {
     drawn: (usize, usize),
     shown: f32,
     started: bool,
+    /// Focus was in the row last frame.
+    had_focus: bool,
+    /// A held key has moved focus along the row with its tile at the start: the row slides under
+    /// one still ring.
+    quiet: bool,
 }
 
 impl RowState {
@@ -163,6 +171,7 @@ impl<'a> Row<'a> {
         // Which tile has focus, among those drawn last frame (and a few around them, in case the
         // list changed under it).
         let mut focused_now = false;
+        let index_before = state.index;
         if let Some(f) = ui.focused().filter(|_| ui.focused_in(id).is_some())
             && let Some(i) = find_key(state.drawn, len, |i| id.with(key(i)) == f)
         {
@@ -170,6 +179,17 @@ impl<'a> Row<'a> {
             focused_now = true;
         }
         state.index = state.index.min(len - 1);
+        // A held Left or Right: the row slides under a still ring at its start until the key is let
+        // go (the focused tile growing in at each step while the row lagged behind it shook the
+        // ring). Where tiles stop coming to the start, focus steps across them as it is.
+        let holding = ui.holding();
+        let at_start = (self.offset_for(state.index, len) - state.index as f32 * pitch).abs() < 0.5;
+        if !holding || !focused_now {
+            state.quiet = false;
+        } else if state.had_focus && state.index != index_before {
+            state.quiet = at_start;
+        }
+        state.had_focus = focused_now;
         let lo = self.x + state.index as f32 * pitch;
         if !state.started {
             state.offset = self.offset_for(state.index, len);
@@ -192,7 +212,11 @@ impl<'a> Row<'a> {
         let d0 = first.saturating_sub(1).min(state.index.saturating_sub(1));
         let d1 = (past + 1).max(state.index + 2).min(len);
         let per_screen = (theme::CANVAS_W / pitch).ceil() as usize;
-        let ahead = (d1 + (per_screen as f32 * 1.5).ceil() as usize).min(len);
+        // Under a held key nothing is fetched ahead, and the tiles on screen ask for their pictures
+        // behind everything else: where focus lands loads once the key is let go.
+        let ahead = if holding { d1 } else { (d1 + (per_screen as f32 * 1.5).ceil() as usize).min(len) };
+        let (on_screen, near) =
+            if holding { (Priority::Prefetch, Priority::Prefetch) } else { (Priority::Visible, Priority::Near) };
         state.drawn = (d0, d1);
         out.visible = (first, past);
 
@@ -205,7 +229,7 @@ impl<'a> Row<'a> {
                 let tile_id = id.with(key(i));
                 let rect = Rect::new(self.x + i as f32 * pitch - shown, y, size.w, size.h);
                 let response = register(ui, tile_id, rect, opts);
-                let priority = if i >= first && i < past { Priority::Visible } else { Priority::Near };
+                let priority = if i >= first && i < past { on_screen } else { near };
                 slots.push(TileSlot {
                     index: i,
                     id: tile_id,
@@ -217,17 +241,28 @@ impl<'a> Row<'a> {
                 });
             }
         });
+        let quiet = state.quiet;
         let mut focused_slot = None;
         for slot in &slots {
             note(&mut out, slot.index, &slot.response);
-            if slot.response.focused {
+            if slot.response.focused && !quiet {
                 focused_slot = Some(*slot);
-                continue;
+            } else if slot.response.focused {
+                // At rest under the still ring.
+                let response = Response { focused: false, gained: false, ..slot.response };
+                draw(ui, &TileSlot { response, ..*slot });
+            } else {
+                draw(ui, slot);
             }
-            draw(ui, slot);
         }
         if let Some(slot) = focused_slot {
             draw(ui, &slot);
+        }
+        if quiet {
+            // The ring where the focused tile is heading: the row's start.
+            let x = self.x + state.index as f32 * pitch - state.offset;
+            let rest = TileLook { progress: 1.0, scale: 1.0 };
+            ring(ui, Rect::new(x, y, size.w, size.h), self.kind, &rest);
         }
         for i in d1..ahead {
             let tile_id = id.with(key(i));

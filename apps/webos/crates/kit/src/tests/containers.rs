@@ -118,27 +118,71 @@ fn a_row_draws_only_what_is_near_the_screen_and_asks_ahead_for_pictures() {
 }
 
 #[test]
-fn a_held_key_glides_the_row_from_tile_to_tile() {
+fn a_held_key_glides_the_row_from_tile_to_tile_under_one_still_ring() {
     let cell = OneRow::new(60);
     let shown = RefCell::new(Vec::new());
+    let slots = RefCell::new(Vec::new());
     let mut inner = one_row(&cell);
     let mut screen = |ui: &mut Ui| {
         inner(ui);
-        shown.borrow_mut().push(cell.borrow().state.shown_offset());
+        let c = cell.borrow();
+        shown.borrow_mut().push(c.state.shown_offset());
+        slots.borrow_mut().push(c.drawn.iter().map(|s| (s.mode, s.priority)).collect::<Vec<_>>());
     };
     let mut h = Harness::new();
     h.idle(&mut screen);
-    hold(&mut h, Key::Right, &mut screen);
+    shown.borrow_mut().clear();
+    slots.borrow_mut().clear();
+    let frames = hold(&mut h, Key::Right, &mut screen);
     // Each move glides evenly into the next: never more than half a tile a frame, and once under
     // way never resting on a tile.
     let v = shown.borrow().clone();
     assert!(v.windows(2).all(|w| w[1] >= w[0] && w[1] - w[0] < 61.0), "{v:?}");
     assert!(v[v.len() / 2..].iter().all(|x| x % 122.0 > 0.5), "{v:?}");
-    assert!(focused_slot(&cell).index >= 18);
-    // Let go, the last glide lands with the focused tile at the gutter.
+    assert!(cell.borrow().state.index >= 18);
+    // Meanwhile one ring stays still at the gutter over the tiles at rest, and the pictures wait:
+    // nothing is fetched ahead, and the tiles on screen ask behind everything else.
+    let held: Vec<_> = frames.iter().filter(|f| f.time >= 0.25).collect();
+    assert!(held.len() > 30);
+    let ring = rings(&held[0].list);
+    assert_eq!(ring.len(), 1);
+    assert!(close(ring[0].x, 96.0 - theme::focus::RING_OFFSET), "{ring:?}");
+    for f in &held {
+        assert_eq!(rings(&f.list), ring, "at {}", f.time);
+    }
+    assert!(super::scales(&held.last().unwrap().list).is_empty(), "a tile grew under the ring");
+    let late = slots.borrow().len() - held.len();
+    for frame in &slots.borrow()[late..] {
+        assert!(frame.iter().all(|&(mode, priority)| mode == SlotMode::Draw && priority == Priority::Prefetch));
+    }
+    // Let go, the last glide lands with the focused tile at the gutter, grown into its own ring,
+    // and the pictures load.
+    h.step(Step::Up(Key::Right), &mut screen);
+    let f = settle(&mut h, &mut screen);
+    assert_eq!(focused_slot(&cell).rect.x, 96.0);
+    let rings = rings(&f.list);
+    assert_eq!(rings.len(), 1);
+    assert!(rings[0].w > ring[0].w);
+    assert!(cell.borrow().drawn.iter().any(|s| s.priority == Priority::Visible));
+    assert!(cell.borrow().drawn.iter().any(|s| s.mode == SlotMode::Prefetch));
+}
+
+#[test]
+fn a_held_key_steps_focus_across_a_rows_last_tiles() {
+    let cell = OneRow::new(12);
+    let mut screen = one_row(&cell);
+    let mut h = Harness::new();
+    h.idle(&mut screen);
+    let frames = hold(&mut h, Key::Right, &mut screen);
+    // The tiles stop coming to the gutter: the ring goes with focus across the last of them.
+    let last = frames.last().unwrap();
+    let ring = rings(&last.list);
+    assert_eq!(ring.len(), 1);
+    assert!(ring[0].x > 96.0 + 122.0, "{ring:?}");
+    assert_eq!(focused_slot(&cell).index, 11);
     h.step(Step::Up(Key::Right), &mut screen);
     settle(&mut h, &mut screen);
-    assert_eq!(focused_slot(&cell).rect.x, 96.0);
+    assert!(close(focused_slot(&cell).rect.right(), 960.0 - 48.0 - 108.0));
 }
 
 #[test]
