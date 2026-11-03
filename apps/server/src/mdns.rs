@@ -69,9 +69,9 @@ pub fn read(packet: &[u8]) -> Option<Packet> {
     let header = packet.get(..12)?;
     let word = |at: usize| u16::from_be_bytes([header[at], header[at + 1]]);
     let (id, flags) = (word(0), word(2));
-    // Opcode 0 (a standard query) only, and responses with a response code
-    // of 0 (RFC 6762 §18.11).
-    if flags & 0x7800 != 0 || (flags & 0x8000 != 0 && flags & 0x000F != 0) {
+    // Opcode 0 (a standard query) and a response code of 0 only (RFC 6762
+    // §18.3 and §18.11).
+    if flags & 0x7800 != 0 || flags & 0x000F != 0 {
         return None;
     }
     let questions = usize::from(word(4));

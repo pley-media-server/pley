@@ -5,7 +5,8 @@
 //! answer's fields in its TXT records, and tells nothing more. It has a
 //! switch of its own (Settings → Network, `--no-bonjour`; `--no-discovery`
 //! turns it off too), goes out only from the IPv4 adapters on the local
-//! network that the web app listens on, or those of them chosen (a server
+//! network that the web app listens on (100.64.0.0/10's only when chosen),
+//! or those of them chosen (a server
 //! on a VPN, a container or virtual machine network or a guest Wi-Fi as
 //! well need not be announced there), follows renames, and says goodbye
 //! when the server stops.
@@ -50,9 +51,6 @@ const MAX_TXT: usize = 255;
 /// A server name's length at most, as Settings take it (the default, the
 /// computer's name, isn't checked there).
 const MAX_NAME_CHARS: usize = 64;
-/// The largest packet read: mDNS's (RFC 6762 §17), and more than any query
-/// Pley answers.
-const MAX_PACKET: usize = 9000;
 /// What a read takes: any UDP datagram, so none is too big to read (Windows
 /// fails the read of one larger than the buffer).
 const READ_BUFFER: usize = 65_536;
@@ -117,7 +115,7 @@ fn announced_on(plan: &Plan, adapter: &str, ip: IpAddr) -> bool {
 
 /// Whether `ip` is in 100.64.0.0/10 (RFC 6598).
 fn shared_address(ip: IpAddr) -> bool {
-    matches!(ip, IpAddr::V4(v4) if v4.octets()[0] == 100 && v4.octets()[1] & 0xC0 == 64)
+    matches!(ip, IpAddr::V4(v4) if crate::setup::is_shared_address(v4))
 }
 
 /// Whether `name` may be a network adapter's: not blank, bounded, and
@@ -357,7 +355,9 @@ impl Responder {
         // Only the groups this socket joined, on the adapters chosen; Linux
         // otherwise also delivers those other programs joined elsewhere.
         #[cfg(target_os = "linux")]
-        socket.set_multicast_all_v4(false)?;
+        if let Err(err) = socket.set_multicast_all_v4(false) {
+            tracing::debug!("Bonjour hears other programs' groups too: {err}");
+        }
         socket.set_nonblocking(true)?;
         let socket = UdpSocket::from_std(socket.into())?;
         let chosen = !plan.host.is_empty();
@@ -456,14 +456,17 @@ impl Responder {
             return;
         }
         if self.links.is_empty() {
-            self.announced = Some((name.to_owned(), instance_name(name, 1)));
-            self.probed = false;
+            // A name claimed on a network stays, so that the rename, once
+            // a network comes, says goodbye to it.
+            if !self.probed {
+                self.announced = Some((name.to_owned(), instance_name(name, 1)));
+            }
             return;
         }
         let old = if self.probed { self.announced.as_ref().map(|(_, label)| label.clone()) } else { None };
         if !self.host_checked {
             self.host_checked = true;
-            if self.taken(&self.host, mdns::TYPE_A).await {
+            if self.taken(&self.host, mdns::TYPE_A, &self.links).await {
                 let generated = host_name(&generated_host(&self.id));
                 tracing::warn!(
                     "another device on the network is {}: Bonjour gives Pley's addresses as {} instead",
@@ -482,7 +485,7 @@ impl Responder {
                 break instance;
             }
             let service: Name = std::iter::once(instance.clone()).chain(labels(&SERVICE)).collect();
-            if n >= 9 || !self.taken(&service, mdns::TYPE_SRV).await {
+            if n >= 9 || !self.taken(&service, mdns::TYPE_SRV, &self.links).await {
                 break instance;
             }
             n += 1;
@@ -510,24 +513,33 @@ impl Responder {
     /// for `kind` too (SRV, A), which some responders answer when they don't
     /// answer "any" for a name. What is heard meanwhile is otherwise
     /// dropped: browsers ask again.
-    async fn taken(&self, name: &Name, kind: u16) -> bool {
+    async fn taken(&self, name: &Name, kind: u16, links: &[Link]) -> bool {
         let queries = [mdns::write_query(name, mdns::TYPE_ANY), mdns::write_query(name, kind)];
-        let mut buf = vec![0; MAX_PACKET];
+        let mut buf = vec![0; READ_BUFFER];
         for _ in 0..3 {
-            for link in &self.links {
+            for link in links {
                 for query in &queries {
                     self.send(link, query, SocketAddrV4::new(GROUP, PORT).into()).await;
                 }
             }
             let until = Instant::now() + PROBE_WAIT;
-            while let Ok(Ok((n, SocketAddr::V4(from)))) =
-                tokio::time::timeout_at(until, self.socket.recv_from(&mut buf)).await
-            {
-                if self.link(*from.ip()).is_some()
-                    && let Some(Packet::Response(names)) = mdns::read(&buf[..n])
-                    && names.iter().any(|answered| mdns::same(answered, name))
-                {
-                    return true;
+            let mut errors = 0;
+            // The deadline is checked each time round: a flood that never
+            // leaves the socket empty would otherwise keep the wait going.
+            while Instant::now() < until && errors < 10 {
+                match tokio::time::timeout_at(until, self.socket.recv_from(&mut buf)).await {
+                    Err(_) => break,
+                    // Windows' report of an unreachable earlier destination: read on.
+                    Ok(Err(_)) => errors += 1,
+                    Ok(Ok((n, SocketAddr::V4(from)))) => {
+                        if self.link(*from.ip()).is_some()
+                            && let Some(Packet::Response(names)) = mdns::read(&buf[..n])
+                            && names.iter().any(|answered| mdns::same(answered, name))
+                        {
+                            return true;
+                        }
+                    }
+                    Ok(Ok(_)) => {}
                 }
             }
         }
@@ -560,11 +572,16 @@ impl Responder {
             }
             return;
         }
-        let (unicast, multicast): (Vec<Question>, Vec<Question>) =
+        let (unicast, mut multicast): (Vec<Question>, Vec<Question>) =
             query.questions.into_iter().partition(|question| question.unicast);
         let (found, extra) = answers(&records, &unicast);
-        if !found.is_empty() && self.may_unicast() {
-            self.send(&link, &mdns::write(&found, &extra, None), from.into()).await;
+        if !found.is_empty() {
+            if self.may_unicast() {
+                self.send(&link, &mdns::write(&found, &extra, None), from.into()).await;
+            } else {
+                // Past the cap, they are answered as multicast questions are.
+                multicast.extend(unicast);
+            }
         }
         // Once a second at most per question on each link.
         let now = Instant::now();
@@ -611,12 +628,38 @@ impl Responder {
                 self.announce(&name).await;
             }
         } else if !new.is_empty() {
-            self.announce_on(&new, false).await;
-            self.again = Some(Instant::now() + ANNOUNCE_AGAIN);
+            self.join(new).await;
         }
         if had > 0 && self.links.is_empty() {
             tracing::debug!("Bonjour has no network to announce Pley on now");
         }
+    }
+
+    /// Claims the names on networks that came after they were claimed:
+    /// asked for there first, and, when another device there has one,
+    /// given up everywhere and claimed again (the host name for the
+    /// generated one, the instance for the next free one).
+    async fn join(&mut self, new: Vec<Link>) {
+        let Some((name, instance)) = self.announced.clone() else { return };
+        let service: Name = std::iter::once(instance).chain(labels(&SERVICE)).collect();
+        let generated = host_name(&generated_host(&self.id));
+        let host_taken = self.host != generated && self.taken(&self.host, mdns::TYPE_A, &new).await;
+        if !host_taken && !self.taken(&service, mdns::TYPE_SRV, &new).await {
+            self.announce_on(&new, false).await;
+            self.again = Some(Instant::now() + ANNOUNCE_AGAIN);
+            return;
+        }
+        self.announce_on(&self.links.clone(), true).await;
+        if host_taken {
+            tracing::warn!(
+                "another device on the network is {}: Bonjour gives Pley's addresses as {} instead",
+                self.host.join("."),
+                generated.join(".")
+            );
+            self.host = generated;
+        }
+        self.probed = false;
+        self.announce(&name).await;
     }
 
     /// Announces a second time, once.

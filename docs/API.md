@@ -777,7 +777,8 @@ The SRV record names the host, `pley-` and the id's start, `.local`, or
 the host name an administrator chose (`bonjour_host_name`), and its A
 record the server's IPv4 address on the network that asked. A chosen host
 name is probed for first: when another device answers for it, the
-server goes by the generated one, and says so in its log. The
+server goes by the generated one, and says so in its log; a network that
+comes later is asked too, before the names are claimed there. The
 announcement goes out from the IPv4 adapters with the web addresses that
 are on the local network: private and link-local addresses, or only
 those of them an administrator chooses (`bonjour_adapters`), so a
@@ -3763,7 +3764,7 @@ interface Network {
   discovery: boolean;     // answer Pley's apps on the networks (never on loopback addresses)
   bonjour: boolean;       // announce Pley by Bonjour (off when a change leaves it out)
   bonjour_adapters: string[]; // the adapters it is announced on, by name: [] = every one
-                          // Pley listens on; 32 at most
+                          // Pley listens on but 100.64.0.0/10's; 32 at most
   bonjour_host_name: string; // the host name before .local, one DNS label (letters, digits,
                           // hyphens; "Media.local" is kept as "media"): "" = bonjour_host_default
   bonjour_host_default: string; // read only: pley- and the server id's start

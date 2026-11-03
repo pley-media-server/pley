@@ -334,7 +334,7 @@ function BonjourAdapters({
     <div role="group" aria-label="Announced on" className="space-y-0.5 rounded-md border border-border p-1.5">
       <Choice id="bonjour-every-adapter" checked={chosen.length === 0} disabled={disabled} onChange={() => onChange([])}>
         <span className="font-medium">Every network Pley listens on</span>
-        <span className="block text-xs text-subtle">Those that come later too.</span>
+        <span className="block text-xs text-subtle">Those that come later too. 100.64.x.x ones (Tailscale) only when chosen.</span>
       </Choice>
       {names.map((name, i) => {
         const adapter = adapters.find((a) => a.name === name);
@@ -592,7 +592,7 @@ export function NetworkSettings() {
 
       <Card className="space-y-4">
         <Row
-          label="Found by Apple's devices"
+          label="Found by Apple's devices (Bonjour)"
           hint={
             data.fixed.bonjour
               ? "Turned off by --no-bonjour, --no-discovery, PLEY_NO_BONJOUR or PLEY_NO_DISCOVERY."

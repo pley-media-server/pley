@@ -477,8 +477,8 @@ impl Cli {
 
 /// `pley save-config`: the options given (on the command line or in the
 /// environment) written into the config file `path`, whose other lines and
-/// comments stay. `discovery` overrides `--no-discovery`. `--no-bonjour`
-/// saves Bonjour off.
+/// comments stay. `discovery` overrides `--no-discovery`. `--no-bonjour`,
+/// or `--no-discovery` given by hand, saves Bonjour off.
 pub fn save_config(cli: &Cli, path: &Path, discovery: Option<bool>) -> anyhow::Result<()> {
     let mut values: Vec<(&str, toml::Value)> = Vec::new();
     if let Some(bind) = &cli.bind {
@@ -502,8 +502,9 @@ pub fn save_config(cli: &Cli, path: &Path, discovery: Option<bool>) -> anyhow::R
         values.push(("discovery", discovery.into()));
     }
     // Bonjour is off unless turned on in Settings → Network, which Setup's
-    // discovery checkbox, saved again on every update, leaves alone.
-    if cli.no_bonjour {
+    // discovery checkbox (`discovery`), saved again on every update, leaves
+    // alone; `--no-discovery` itself means no Bonjour either.
+    if cli.no_bonjour || (discovery.is_none() && cli.no_discovery) {
         values.push(("bonjour", false.into()));
     }
     write_keys(path, &values)
@@ -830,6 +831,11 @@ mod tests {
         std::fs::write(&file, "bonjour = true\n").unwrap();
         save_config(&cli(dir.path()), &file, Some(false)).unwrap();
         assert_eq!(std::fs::read_to_string(&file).unwrap(), "bonjour = true\ndiscovery = false\n");
+        // `pley --no-discovery save-config` by hand saves both off.
+        let mut args = cli(dir.path());
+        args.no_discovery = true;
+        save_config(&args, &file, None).unwrap();
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "bonjour = false\ndiscovery = false\n");
     }
 
     #[test]
