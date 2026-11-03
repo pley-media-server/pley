@@ -80,7 +80,8 @@ import kotlinx.coroutines.launch
  * [onExit] leaves the player for where playing started; [now] is the wall
  * clock, for the clock and "Ends at". [captionLook] is Settings →
  * Subtitles, which the Subtitles panel changes with [onSubtitleStyle]; [showDetails] (Settings → Playback details) keeps the compact
- * readout over the video while nothing else shows.
+ * readout over the video while nothing else shows, in the title's place:
+ * the title doesn't show as items begin.
  */
 @Composable
 internal fun TvPlayerScreen(
@@ -480,7 +481,8 @@ internal fun TvPlayerScreen(
         VideoSurface(player, Modifier.fillMaxSize(), reveal = PleyMotion.overlay(reduced)) { handoff }
         // Under the subtitles, which the scrim mustn't dim.
         Box(Modifier.fillMaxSize().controlScrims(controlsAlpha))
-        TvTitleBanner(state, ui)
+        // Playback details have the top left while they show over the video: the title gives way to them.
+        if (!showDetails) TvTitleBanner(state, ui)
         PlayerSubtitles(controller, player, captionLook, lifted = ui.controls)
         // Holds focus while the controls are hidden: the keys arrive through it.
         Box(Modifier.fillMaxSize().videoFocus(ui, enabled = !ui.controls, label = videoLabel))

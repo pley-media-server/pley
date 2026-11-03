@@ -11,7 +11,8 @@ describes how they are made.
 ### Added
 
 - On TVs, the title shows at the top for a few seconds as each item
-  begins, the next episode too, while the player's controls are hidden.
+  begins, the next episode too, while the player's controls are hidden
+  and Playback details aren't over the video.
 
 ### Changed
 

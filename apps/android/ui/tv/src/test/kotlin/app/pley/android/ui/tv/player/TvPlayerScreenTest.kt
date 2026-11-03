@@ -496,6 +496,19 @@ class TvPlayerScreenTest {
     }
 
     @Test
+    fun `the title gives Playback details its place as an item begins`() {
+        val controller = playing { it.copy(details = FakePlaybackController.everything().details) }
+        compose.setContent {
+            TvTheme {
+                TvPlayerScreen(controller, onExit = { exits++ }, showDetails = true, now = { 0L })
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_DETAILS).assertExists()
+        compose.onNodeWithTag(TAG_TITLE_BANNER).assertDoesNotExist()
+    }
+
+    @Test
     fun `the Subtitles panel sets their size and background, and stays open`() {
         val controller = playing()
         val chosen = mutableListOf<CaptionLook>()
