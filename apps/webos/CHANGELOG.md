@@ -148,6 +148,9 @@ describes how they are made.
   among its words.
 - A server that keeps refusing the sign-in's events, or a proxy asking for
   its own login, no longer has Pley refresh the sign-in over and over.
+- A Live TV channel that plays as HLS lets go of its stream.ts at once, as
+  in the Samsung app, so the provider's connection isn't held for up to 45
+  s.
 
 ### Security
 

@@ -55,6 +55,10 @@ struct LiveFake {
     plan: Mutex<Option<LivePlan>>,
     /// Each stream.ts read: `stream {channel} {client}`.
     streams: Mutex<Vec<String>>,
+    /// What lets each stream.ts read go.
+    stream_cancels: Mutex<Vec<Cancel>>,
+    /// The stream.ts reads still open as each playlist was asked for.
+    open_at_playlist: Mutex<Vec<usize>>,
 }
 
 /// What the pretend server's stream.ts sends.
@@ -76,6 +80,8 @@ impl LiveFake {
             total,
             plan: Mutex::new(None),
             streams: Mutex::default(),
+            stream_cancels: Mutex::default(),
+            open_at_playlist: Mutex::default(),
         })
     }
 
@@ -164,6 +170,8 @@ impl PlayerServer for LiveFake {
     fn media(&self, method: Method, url: &str, _: Duration) -> Result<String, ApiError> {
         let m = if method == Method::Head { "HEAD" } else { "GET" };
         self.log(format!("{m} {}", url.replace("http://tv.test", "")));
+        let open = self.stream_cancels.lock().unwrap().iter().filter(|c| !c.is_cancelled()).count();
+        self.open_at_playlist.lock().unwrap().push(open);
         Ok("#EXTM3U".into())
     }
     fn network(&self, _: &str, _: Duration) -> Result<NetworkAnswer, ApiError> {
@@ -214,11 +222,17 @@ impl PlayerServer for LiveFake {
             }),
         }
     }
-    fn live_stream(&self, channel: i64, client_id: &str, _: Cancel) -> Result<Streamed, ApiError> {
+    fn live_stream(&self, channel: i64, client_id: &str, cancel: Cancel) -> Result<Streamed, ApiError> {
+        self.stream_cancels.lock().unwrap().push(cancel);
         self.streams.lock().unwrap().push(format!("stream {channel} {client_id}"));
         Ok(Streamed { status: 200, headers: Vec::new(), body: Box::new(Cursor::new(STREAM_BYTES.to_vec())) })
     }
     fn live_plan(&self, session: &str) -> Result<Option<LivePlan>, ApiError> {
+        // The plan comes once the stream.ts read beside it was asked for (it is, at once).
+        let until = Instant::now() + Duration::from_secs(2);
+        while self.streams.lock().unwrap().is_empty() && Instant::now() < until {
+            thread::sleep(Duration::from_millis(1));
+        }
         match self.ended.lock().unwrap().get(session) {
             Some(why) => Err(ApiError::SessionStopped { message: Some(why.clone()) }),
             None => Ok(self.plan.lock().unwrap().clone()),
@@ -673,6 +687,9 @@ fn plays_the_hls_when_the_server_converts_the_channel_and_lets_its_stream_ts_go(
     assert_eq!(w.fake.asked(), ["watch 1 webos-tv", "GET /api/live/media/pley_mk_1/index.m3u8"]);
     assert_eq!(w.sim.loads()[0].kind, MediaKind::LiveHls);
     assert!(!w.c.direct());
+    // As the Samsung app's: let go as soon as the plan says, not once the playlist has come.
+    assert_eq!(w.fake.streams(), ["stream 1 webos-tv-stream"]);
+    assert_eq!(*w.fake.open_at_playlist.lock().unwrap(), [0]);
 }
 
 #[test]

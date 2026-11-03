@@ -2,9 +2,9 @@
 //! `Net/StreamRelay.cs`): LG's pipeline takes an address and no request headers, and Pley takes
 //! an app's token only in the Authorization header (SECURITY.md), so the app reads the stream
 //! with it and hands it on as it comes. Only on the TV's loopback address, under a path of 128
-//! random bits that lasts until the next [`StreamRelay::serve`] or [`StreamRelay::stop`], and
-//! for one stream at a time: serving another, or stopping, ends the connections of the one
-//! before.
+//! random bits that lasts until the next [`StreamRelay::serve`], [`StreamRelay::stop`] or
+//! [`Served::end`], and for one stream at a time: serving another, or stopping, ends the
+//! connections of the one before.
 //!
 //! What it takes from a player is bounded: a request's head of 8 KiB at most, all of it sent
 //! within 5 s, four players at once. Nothing it logs carries the path, which stands in for the
@@ -88,14 +88,25 @@ impl StreamRelay {
         Ok(StreamRelay { shared, addr })
     }
 
-    /// Hands on what `open` reads, in place of what was handed on, to each player that asks:
-    /// its address, `http://127.0.0.1:{port}/relay/{random}/stream.ts`. It is opened at once
-    /// for the first player; its data waits in the connection until that player reads it. None
-    /// when the system gives no randomness to make the path of.
-    pub fn serve(&self, open: Opener) -> Option<String> {
+    /// Hands on what `open` reads, in place of what was handed on, to each player that asks,
+    /// at `http://127.0.0.1:{port}/relay/{random}/stream.ts`. It is opened at once for the
+    /// first player; its data waits in the connection until that player reads it. None when
+    /// the system gives no randomness to make the path of.
+    pub fn serve(&self, open: Opener) -> Option<Served> {
+        self.serve_while(open, || true)
+    }
+
+    /// The same, unless `still` says no as it would be served. It is asked with what is served
+    /// held, so a [`StreamRelay::stop`] or a serve made after `still` turned false is never
+    /// replaced by this one, and one made before ends it.
+    pub fn serve_while(&self, open: Opener, still: impl FnOnce() -> bool) -> Option<Served> {
         let bytes = pley_core::auth::proof::secure_random(16)?;
         let path = format!("/relay/{}/stream.ts", hex(&bytes));
         let cancel = Cancel::new();
+        let mut serving = lock(&self.shared.serving);
+        if !still() {
+            return None;
+        }
         let (tx, rx) = mpsc::sync_channel(1);
         let (early_open, early_cancel) = (open.clone(), cancel.clone());
         // Not opened early when no thread can be had: the player's GET opens it then.
@@ -107,9 +118,11 @@ impl StreamRelay {
             })
             .ok()
             .map(|_| rx);
-        let before = lock(&self.shared.serving).replace(Serving { path: path.clone(), open, early, cancel });
+        let before = serving.replace(Serving { path: path.clone(), open, early, cancel: cancel.clone() });
+        drop(serving);
         end(before);
-        Some(format!("http://{}{path}", self.addr))
+        let url = format!("http://{}{path}", self.addr);
+        Some(Served { url, path, cancel, shared: self.shared.clone() })
     }
 
     /// Hands on nothing more: the address served goes, and its connections with it.
@@ -126,6 +139,32 @@ impl StreamRelay {
     /// Players connected now (tests).
     pub fn players(&self) -> usize {
         self.shared.players.load(Ordering::SeqCst)
+    }
+}
+
+/// One address the relay serves.
+pub struct Served {
+    url: String,
+    path: String,
+    cancel: Cancel,
+    shared: Arc<Shared>,
+}
+
+impl Served {
+    /// Where the TV's player reads it.
+    pub fn url(&self) -> &str {
+        &self.url
+    }
+
+    /// Hands it on no more: its address goes, its reading upstream and its players' connections
+    /// close. Whatever was served after it stays.
+    pub fn end(&self) {
+        let mine = {
+            let mut serving = lock(&self.shared.serving);
+            if serving.as_ref().is_some_and(|s| s.path == self.path) { serving.take() } else { None }
+        };
+        end(mine);
+        self.cancel.cancel();
     }
 }
 
@@ -343,10 +382,14 @@ mod tests {
         }
     }
 
+    fn served(relay: &StreamRelay, open: Opener) -> String {
+        relay.serve(open).unwrap().url().to_string()
+    }
+
     #[test]
     fn a_player_gets_the_stream_on_loopback_as_it_comes_under_its_random_path_only() {
         let relay = StreamRelay::new().unwrap();
-        let url = relay.serve(opener(bytes())).unwrap();
+        let url = served(&relay, opener(bytes()));
         let rest = url.strip_prefix("http://127.0.0.1:").unwrap();
         let (port, path) = rest.split_once('/').unwrap();
         assert!(port.parse::<u16>().is_ok());
@@ -365,12 +408,13 @@ mod tests {
         let relay = StreamRelay::new().unwrap();
         let opens = Arc::new(AtomicU32::new(0));
         let counted = opens.clone();
-        let url = relay
-            .serve(Arc::new(move |_: &Cancel| {
+        let url = served(
+            &relay,
+            Arc::new(move |_: &Cancel| {
                 counted.fetch_add(1, Ordering::SeqCst);
                 Ok(Streamed { status: 200, headers: Vec::new(), body: Box::new(Cursor::new(vec![7u8])) })
-            }))
-            .unwrap();
+            }),
+        );
         // Before any player asks: the server answers while the player starts.
         until(|| opens.load(Ordering::SeqCst) > 0);
         assert_eq!(opens.load(Ordering::SeqCst), 1);
@@ -383,14 +427,42 @@ mod tests {
     #[test]
     fn serving_another_or_stopping_ends_the_address_before() {
         let relay = StreamRelay::new().unwrap();
-        let first = relay.serve(opener(bytes())).unwrap();
-        let second = relay.serve(opener(vec![1, 2, 3])).unwrap();
+        let first = served(&relay, opener(bytes()));
+        let second = served(&relay, opener(vec![1, 2, 3]));
         assert_ne!(first, second);
         assert_eq!(get(&first).0, "HTTP/1.1 404 Not Found");
         assert_eq!(get(&second).2, [1, 2, 3]);
         relay.stop();
         assert!(!relay.serving());
         assert_eq!(get(&second).0, "HTTP/1.1 404 Not Found");
+    }
+
+    #[test]
+    fn ending_one_address_leaves_the_one_served_after_it() {
+        let relay = StreamRelay::new().unwrap();
+        let first = relay.serve(opener(vec![1])).unwrap();
+        let second = relay.serve(opener(vec![2])).unwrap();
+        first.end();
+        assert_eq!(get(second.url()).2, [2]);
+        second.end();
+        assert!(!relay.serving());
+        assert_eq!(get(second.url()).0, "HTTP/1.1 404 Not Found");
+    }
+
+    #[test]
+    fn a_serve_no_longer_wanted_replaces_nothing() {
+        let relay = StreamRelay::new().unwrap();
+        let now = relay.serve(opener(vec![3])).unwrap();
+        let opens = Arc::new(AtomicU32::new(0));
+        let counted = opens.clone();
+        let late: Opener = Arc::new(move |_: &Cancel| {
+            counted.fetch_add(1, Ordering::SeqCst);
+            Err(ApiError::Net(pley_core::NetError::Cancelled))
+        });
+        assert!(relay.serve_while(late, || false).is_none());
+        assert_eq!(get(now.url()).2, [3]);
+        std::thread::sleep(Duration::from_millis(50));
+        assert_eq!(opens.load(Ordering::SeqCst), 0, "nothing opened upstream for it");
     }
 
     #[test]
@@ -430,7 +502,7 @@ mod tests {
         let relay = StreamRelay::new().unwrap();
         let endless: Opener =
             Arc::new(|_: &Cancel| Ok(Streamed { status: 200, headers: Vec::new(), body: Box::new(Endless) }));
-        let url = relay.serve(endless).unwrap();
+        let url = served(&relay, endless);
         let reader = std::thread::spawn(move || get(&url));
         until(|| relay.players() > 0);
         std::thread::sleep(Duration::from_millis(50));
@@ -448,14 +520,14 @@ mod tests {
         let refused: Opener = Arc::new(|_: &Cancel| {
             Err(ApiError::SessionStopped { message: Some("this channel isn't being watched any more".into()) })
         });
-        let url = relay.serve(refused).unwrap();
+        let url = served(&relay, refused);
         assert_eq!(get(&url).0, "HTTP/1.1 502 Bad Gateway");
     }
 
     #[test]
     fn what_a_player_sends_is_bounded_and_only_get_and_head_are_answered() {
         let relay = StreamRelay::new().unwrap();
-        let url = relay.serve(opener(vec![9])).unwrap();
+        let url = served(&relay, opener(vec![9]));
         let path = url[url.find("/relay/").unwrap()..].to_string();
         let (status, head, body) = ask(&url, &format!("HEAD {path} HTTP/1.1\r\n\r\n"));
         assert_eq!(status, "HTTP/1.1 200 OK");

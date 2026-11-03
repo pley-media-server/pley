@@ -427,7 +427,17 @@ impl LiveSession {
             }
             let playlist = server.url(&watching.url);
             if take_over.is_some() {
-                stream = relay.as_ref().and_then(|r| r.serve(opener));
+                // Only while this is still the tune: a tune or a stop since has the relay to itself.
+                let current = || generation.load(Ordering::SeqCst) == g;
+                stream = relay.as_ref().and_then(|r| r.serve_while(opener, current));
+                if !current() {
+                    if let Some(s) = &stream {
+                        s.end();
+                    }
+                    // Its session is left as the answer comes.
+                    let result = Err(trouble_of(&cancelled(), &channel.name));
+                    return Done::Tuned { g, session, channel: None, result };
+                }
             }
             if let Some(stream) = stream {
                 match server.live_plan(&watching.session_id) {
@@ -439,7 +449,8 @@ impl LiveSession {
                             plan.audio,
                             plan.audio_codec.as_deref().unwrap_or("?")
                         );
-                        return Done::Tuned { g, session, channel: named, result: Ok(Source::Ts(stream)) };
+                        let url = stream.url().to_string();
+                        return Done::Tuned { g, session, channel: named, result: Ok(Source::Ts(url)) };
                     }
                     Ok(Some(plan)) => log::info!(
                         "live: the channel plays its HLS: the server makes it into video {}, audio {}",
@@ -449,6 +460,9 @@ impl LiveSession {
                     Ok(None) => log::info!("live: the channel plays its HLS: its plan isn't known in time"),
                     Err(e) => log::info!("live: the channel plays its HLS: no plan ({})", e.problem()),
                 }
+                // As the Samsung app's: the stream.ts read beside it lets the provider's
+                // connection go now, not once the HLS has come.
+                stream.end();
             }
             // The channel's first segments, before the player asks: a TV's player gives up sooner than the server takes to tune.
             let result = match server.media(Method::Get, &playlist, Duration::from_millis(PLAYLIST_WAIT_MS)) {
