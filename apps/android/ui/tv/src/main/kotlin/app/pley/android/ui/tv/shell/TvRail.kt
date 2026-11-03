@@ -259,6 +259,8 @@ private fun NavigationDrawerScope.RailEntry(item: RailItem, rail: RailState, onS
     val selected = rail.current == item.id
     val open = hasFocus
     val interactions = remember { MutableInteractionSource() }
+    // Collected from the start, so a number that comes while the entry has focus is drawn as focused.
+    val focused by interactions.collectIsFocusedAsState()
     NavigationDrawerItem(
         selected = selected,
         onClick = { onSelect(item) },
@@ -266,10 +268,7 @@ private fun NavigationDrawerScope.RailEntry(item: RailItem, rail: RailState, onS
             Box {
                 Icon(item.icon, contentDescription = null, size = PleyTv.IconSize, tint = LocalContentColor.current)
                 val requests = item.requests
-                if (requests != null && requests.badge > 0) {
-                    val focused by interactions.collectIsFocusedAsState()
-                    RailCount(requests, focused)
-                }
+                if (requests != null && requests.badge > 0) RailCount(requests, focused)
             }
         },
         interactionSource = interactions,
