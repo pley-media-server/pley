@@ -19,7 +19,7 @@ import androidx.media3.session.MediaSessionService
  *
  * Only the app itself, the system (its media controls, the notification,
  * Bluetooth and the lock screen) and Media3's notification controller may
- * connect: no other app drives pley's music. A remote's Stop key pauses
+ * connect: no other app drives Pley's music. A remote's Stop key pauses
  * the music ([StopKey]).
  */
 @OptIn(markerClass = [UnstableApi::class])

@@ -64,7 +64,7 @@ internal fun timeLeft(program: LiveProgram, now: Long): String {
  * [text] cut at a word to a little more than the guide's two lines over
  * the grid hold, ended with "…" (Samsung's): a text is laid out whole
  * before its last line is ended with "…", and a provider's description can
- * run to pages, which held each move along a row 20 to 40 ms on a TV.
+ * run to pages, which held up each move along a row on a TV.
  */
 internal fun shortened(text: String, chars: Int = DESCRIPTION_CHARS): String {
     if (text.length <= chars) return text

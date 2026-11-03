@@ -121,7 +121,7 @@ fun TvApp(
         val gate = remember { KeyRepeatGate() }
         val root = remember { TvScrolling.root() }
         CompositionLocalProvider(LocalKeyRepeatGate provides gate, LocalArtworkHold provides gate, LocalBringIntoViewSpec provides root) {
-            // No background: the window's is pley's (one full-screen fill, not two). Test tags are
+            // No background: the window's is Pley's (one full-screen fill, not two). Test tags are
             // resource ids as well, which the benchmarks' journeys find things by (TestTags).
             Box(Modifier.fillMaxSize().keyRepeatGate(gate).semantics { testTagsAsResourceId = true }.testTag(TestTags.TV_ROOT)) {
                 // Known already (read as the activity started), the first screen is in the first frame.
