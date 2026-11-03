@@ -176,6 +176,9 @@ pub struct Config {
     /// The setup names older versions' Plex-compatible API (`plex_bind`),
     /// which is ignored: said once in the log.
     pub plex_bind_ignored: bool,
+    /// What Pley left out of `pley.toml` as it read it, said once in the log
+    /// (which starts after the file is read).
+    pub file_warnings: Vec<String>,
     pub data_dir: PathBuf,
     /// Work directory handed to the managed transcoder (segments, caches):
     /// the one chosen, or [`Config::default_transcode_dir`] when it can't
@@ -255,7 +258,8 @@ impl Config {
             _ => Vec::new(),
         };
         let plex_bind_ignored = cli.plex_bind.is_some() || file.plex_bind.is_some();
-        let bonjour_adapters = bonjour_adapters(file.bonjour_adapters.unwrap_or_default());
+        let mut file_warnings = Vec::new();
+        let bonjour_adapters = bonjour_adapters(file.bonjour_adapters.unwrap_or_default(), &mut file_warnings);
         let transcode_dir = cli
             .transcode_dir
             .clone()
@@ -270,6 +274,7 @@ impl Config {
             jellyfin_extra_binds: jellyfin_binds.iter().skip(1).copied().collect(),
             jellyfin_on_web,
             plex_bind_ignored,
+            file_warnings,
             ffmpeg: cli.ffmpeg.clone().or(file.ffmpeg).unwrap_or_else(|| PathBuf::from("ffmpeg")),
             ffprobe: cli.ffprobe.clone().or(file.ffprobe).unwrap_or_else(|| PathBuf::from("ffprobe")),
             web_dir: cli.web_dir.clone().or(file.web_dir),
@@ -311,6 +316,7 @@ impl Config {
             jellyfin_extra_binds: Vec::new(),
             jellyfin_on_web: false,
             plex_bind_ignored: false,
+            file_warnings: Vec::new(),
             data_dir: data_dir.to_path_buf(),
             transcode_dir: data_dir.join("transcode"),
             transcode_dir_problem: None,
@@ -401,16 +407,16 @@ impl Config {
 
 /// The Bonjour adapters `pley.toml` lists, as Settings → Network saves
 /// them: trimmed, sorted, each once, 32 at most. One written by hand that no
-/// adapter could have (blank, control characters) is left out with a
-/// warning rather than stop Pley from starting.
-fn bonjour_adapters(listed: Vec<String>) -> Vec<String> {
+/// adapter could have (blank, control characters) is left out, and said in
+/// `warnings`, rather than stop Pley from starting.
+fn bonjour_adapters(listed: Vec<String>, warnings: &mut Vec<String>) -> Vec<String> {
     let mut adapters: Vec<String> = listed
         .into_iter()
         .map(|name| name.trim().to_owned())
         .filter(|name| {
             let ok = crate::bonjour::adapter_name_ok(name);
             if !ok {
-                tracing::warn!("pley.toml: bonjour_adapters: {name:?} isn't a network adapter's name, and is left out");
+                warnings.push(format!("bonjour_adapters: {name:?} isn't a network adapter's name, and is left out"));
             }
             ok
         })
@@ -418,7 +424,7 @@ fn bonjour_adapters(listed: Vec<String>) -> Vec<String> {
     adapters.sort();
     adapters.dedup();
     if adapters.len() > crate::network::MAX_ADDRESSES {
-        tracing::warn!("pley.toml: bonjour_adapters: {} at most, the rest left out", crate::network::MAX_ADDRESSES);
+        warnings.push(format!("bonjour_adapters: {} at most, the rest left out", crate::network::MAX_ADDRESSES));
         adapters.truncate(crate::network::MAX_ADDRESSES);
     }
     adapters
@@ -759,7 +765,9 @@ mod tests {
         // a reason to stop, each is kept once, and 32 at most.
         std::fs::write(&file, "bonjour_adapters = [\" Wi-Fi \", \"\", \"eth\\u0007\", \"Ethernet\", \"Wi-Fi\"]\n")
             .unwrap();
-        assert_eq!(Config::load(&cli(dir.path())).unwrap().bonjour_adapters, ["Ethernet", "Wi-Fi"]);
+        let config = Config::load(&cli(dir.path())).unwrap();
+        assert_eq!(config.bonjour_adapters, ["Ethernet", "Wi-Fi"]);
+        assert_eq!(config.file_warnings.len(), 2, "{:?}", config.file_warnings);
         let many: Vec<String> = (0..40).map(|i| format!("\"eth{i:02}\"")).collect();
         std::fs::write(&file, format!("bonjour_adapters = [{}]\n", many.join(", "))).unwrap();
         assert_eq!(Config::load(&cli(dir.path())).unwrap().bonjour_adapters.len(), 32);

@@ -237,6 +237,9 @@ pub async fn run_with_tray(config: Config, tray: Option<desktop::TrayLauncher>) 
     if state.network.jellyfin_on_web() {
         tracing::info!("the Jellyfin-compatible API answers on Pley's port, to its clients");
     }
+    for warning in &state.config.file_warnings {
+        tracing::warn!("pley.toml: {warning}");
+    }
     if state.config.plex_bind_ignored {
         tracing::warn!(
             "plex_bind is no longer read: the Plex-compatible API is gone (the Jellyfin-compatible one is \
