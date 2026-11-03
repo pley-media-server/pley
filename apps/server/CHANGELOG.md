@@ -11,6 +11,18 @@ describes how they are made.
 
 ### Added
 
+- The server can announce itself on the local network by Bonjour
+  (`_pley._tcp`), with its id, name and version, so Apple's devices find it
+  without its address. It is off until turned on in Settings → Network
+  (`bonjour = true`; `--no-bonjour` keeps it off, as `--no-discovery`
+  does), which also chooses the networks it is announced on, for a
+  server that is also on a VPN, a container network or a guest Wi-Fi, and
+  the host name its addresses go by (`pley-` and the server id's start
+  unless another is chosen). It follows a rename, and goes out only from
+  adapters on the local network, answering only the devices there.
+  Windows Firewall's rule for Pley
+  already lets it through (UDP 5353), and the Synology package offers
+  DSM's firewall a **Pley (Bonjour)** rule for it.
 - Apple's devices can stream HEVC, HDR and Dolby Vision as they are: a
   player that asks for fMP4 segments first gets its streams in fMP4 rather
   than MPEG-TS, with VP9 and AV1 copied too where it decodes them. Other
@@ -96,6 +108,16 @@ describes how they are made.
 
 ### Fixed
 
+- Blu-ray subtitles that show two pictures at once, the first one forced,
+  show both in the web app, and a picture the disc crops shows cropped.
+- A password or PIN checked while the server is out of memory gets "Pley
+  is busy checking passwords: try again in a moment" rather than "wrong",
+  and no longer counts towards locking the account or the PIN.
+- A sign-in with an unknown username takes as long as one with a real
+  username even after the server was once too busy to prepare for it, so
+  its timing no longer tells which usernames exist. A new password or PIN
+  made while the server is out of memory, and a PIN an app checks while
+  it is busy, are told "busy, try again" rather than failing.
 - A picture sent to a collection or playlist through the Plex-compatible
   API no longer lands on the movie or show that had the same number:
   collections and playlists have keys of their own there. An episode's
@@ -108,6 +130,18 @@ describes how they are made.
 - Tautulli no longer takes Pley for a server that is down when nothing has
   happened for 15 seconds: the Plex-compatible API's notifications send
   pings, as Plex's server does.
+
+### Security
+
+- A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer keep
+  the web app busy: decoding one moment of them stops after a set amount
+  of work, far more than real subtitles take, and that moment isn't shown.
+- A crafted file's picture subtitles can no longer run the web app out of
+  memory: a track is read up to 100,000 samples and 512 MiB, a moment's
+  pictures are a 4K screen's pixels at most (2 pictures for PGS, 32 for
+  DVB), and the frames kept decoded hold 128 MiB besides the one showing,
+  their pictures ready to draw as much again. Real subtitles show as
+  before.
 
 ## [0.1.4] - 2026-11-02
 
