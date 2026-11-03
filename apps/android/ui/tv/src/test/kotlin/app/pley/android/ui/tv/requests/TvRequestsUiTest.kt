@@ -1,8 +1,13 @@
 package app.pley.android.ui.tv.requests
 
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
@@ -20,6 +25,7 @@ import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.Tier
 import app.pley.android.model.Decline
 import app.pley.android.model.RequestQuery
+import app.pley.android.model.RequestScope
 import app.pley.android.model.RequestSummary
 import app.pley.android.model.TitleKind
 import app.pley.android.screens.PleyKey
@@ -39,7 +45,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.time.Duration
 
 /**
  * The requests with the remote, as the Samsung and LG apps have them
@@ -58,11 +66,17 @@ class TvRequestsUiTest {
     private val stack = mutableStateListOf<NavKey>(PleyKey.Home, PleyKey.Requests)
     private val navigator = TvNavigator(stack, RailState()) {}
 
+    /** Whether the page shows: off while a title opened from it would, its state saved as the back stack saves it. */
+    private var showing by mutableStateOf(true)
+
     private fun show(requests: FakeRequests) {
         val vm = RequestsViewModel(RequestsDeps(requests, MutableStateFlow(SERVER), MutableStateFlow(true)))
         compose.setContent {
             TvTheme(Tier.T2, reducedMotion = true) {
-                CompositionLocalProvider(LocalTvNavigator provides navigator) { TvRequestsScreen(vm) }
+                val saved = rememberSaveableStateHolder()
+                CompositionLocalProvider(LocalTvNavigator provides navigator) {
+                    if (showing) saved.SaveableStateProvider(PleyKey.Requests.toString()) { TvRequestsScreen(vm) }
+                }
             }
         }
         compose.waitForIdle()
@@ -108,6 +122,56 @@ class TvRequestsUiTest {
     }
 
     @Test
+    fun aCardWithdrawnFromFurtherDownHandsFocusToTheOneInItsPlace() {
+        val requests = FakeRequests()
+        show(requests)
+        waitFor("The Substance")
+        compose.press(Key.DirectionDown, 4)
+        compose.onNodeWithTag(TV_REQUESTS_CARD + 44).assertIsFocused()
+        compose.press(Key.Enter)
+        compose.onNodeWithTag(TV_REQUEST_ROW + "Withdraw").assertIsFocused()
+        compose.press(Key.Enter)
+        compose.press(Key.DirectionDown)
+        // The server answers before the panel has given focus back: the card is gone by then.
+        compose.press(Key.Enter)
+        compose.waitUntil(WAIT_MS) { compose.onAllNodes(hasContentDescription("The Substance", substring = true)).fetchSemanticsNodes().isEmpty() }
+        compose.waitForIdle()
+        assertEquals(listOf<Any?>(44L), requests.api.calls("deleteRequest").map { it.args.single() })
+        compose.onNodeWithTag(TV_REQUESTS_CARD + 42).assertIsFocused()
+    }
+
+    @Test
+    fun backFromATitleOpenedOnACardLandsOnThatCard() {
+        show(FakeRequests())
+        waitFor("Arrival")
+        compose.press(Key.DirectionDown, 3)
+        compose.press(Key.Enter)
+        // Arrival is in a library: Open first.
+        compose.onNodeWithTag(TV_REQUEST_ROW + "open").assertIsFocused()
+        compose.press(Key.Enter)
+        assertEquals(PleyKey.Item(101), stack.last())
+        showing = false
+        compose.waitForIdle()
+        showing = true
+        waitFor("Arrival")
+        compose.onNodeWithTag(TV_REQUESTS_CARD + 45).assertIsFocused()
+    }
+
+    @Test
+    fun signInAgainForApprovalsGivesFocusBackToItsButton() {
+        show(FakeRequests(Fixtures.decode<RequestSummary>("requests/summary.json").copy(signInAgain = RequestScope.Approvals)))
+        waitFor("Inside Out 2")
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionDown)
+        compose.onNodeWithTag(TV_REQUESTS_SIGN_IN).assertIsFocused()
+        compose.press(Key.Enter)
+        waitFor("Sign in again?")
+        back()
+        compose.onNodeWithText("Sign in again?").assertDoesNotExist()
+        compose.onNodeWithTag(TV_REQUESTS_SIGN_IN).assertIsFocused()
+    }
+
+    @Test
     fun detailsOpensTheTitlesPage() {
         show(FakeRequests())
         waitFor("Inside Out 2")
@@ -132,6 +196,34 @@ class TvRequestsUiTest {
         compose.press(Key.Enter)
         compose.waitUntil(WAIT_MS) { (requests.api.calls("requests").last().args.single() as RequestQuery).kind == TitleKind.Movie }
         compose.onNodeWithText("Movies").assertExists()
+        // The list made again doesn't take focus from the chip.
+        waitFor("The Substance")
+        compose.onNodeWithTag(TV_REQUESTS_KIND).assertIsFocused()
+    }
+
+    @Test
+    fun aManagerTypesATitleWhileTheListFollowsIt() {
+        val requests = FakeRequests(Fixtures.decode<RequestSummary>("requests/summary_manager.json"))
+        show(requests)
+        waitFor("The Substance")
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight, 2)
+        compose.onNodeWithTag(TV_REQUESTS_TITLE).assertIsFocused()
+        // Select opens the keyboard on the field.
+        compose.press(Key.Enter)
+        val words = hasSetTextAction() and hasImeAction(ImeAction.Search)
+        compose.onNode(words).assertIsFocused()
+        compose.onNode(words).performTextInput("sub")
+        typingPauses()
+        compose.waitUntil(WAIT_MS) { (requests.api.calls("requests").last().args.single() as RequestQuery).q == "sub" }
+        compose.waitForIdle()
+        // The list read again; the keyboard is still on the field, which keeps what was typed.
+        compose.onNode(words).assertIsFocused()
+        compose.onNode(words).performTextInput("stance")
+        typingPauses()
+        compose.waitUntil(WAIT_MS) { (requests.api.calls("requests").last().args.single() as RequestQuery).q == "substance" }
+        compose.waitForIdle()
+        compose.onNode(words).assertIsFocused()
     }
 
     @Test
@@ -154,6 +246,14 @@ class TvRequestsUiTest {
         compose.press(Key.Enter)
         compose.waitUntil(WAIT_MS) { requests.api.calls("declineRequest").isNotEmpty() }
         assertEquals(listOf<Any?>(44L, Decline("Not for us")), requests.api.calls("declineRequest").single().args)
+    }
+
+    /** The title filter applies once typing pauses, on the main looper's clock. */
+    private fun typingPauses() {
+        // The words reach the view model first, then its pause runs out.
+        compose.waitForIdle()
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(RequestsViewModel.TYPING_MS + 100))
+        compose.waitForIdle()
     }
 
     private companion object {

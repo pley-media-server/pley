@@ -74,7 +74,8 @@ private sealed interface Step {
  * asks first, in the panel, Cancel first; a reason is typed on the TV's
  * keyboard, which opens at once and whose Done goes on to Decline. Back
  * from a question goes back to the actions; from the actions it closes
- * the panel, focus back on the card ([returnTo]).
+ * the panel, focus back on the card ([returnTo]; `null` when the card went
+ * meanwhile and focus has gone to the one in its place).
  */
 @Composable
 internal fun TvRequestPanel(
@@ -85,7 +86,7 @@ internal fun TvRequestPanel(
     onAction: (MediaRequest, CardAction, String?) -> Unit,
     onOpen: (PleyKey) -> Unit,
     onClose: () -> Unit,
-    returnTo: (Long) -> FocusRequester,
+    returnTo: (Long) -> FocusRequester?,
 ) {
     var last by remember { mutableStateOf(request) }
     if (request != null) last = request
@@ -101,7 +102,7 @@ internal fun TvRequestPanel(
             wasOpen = false
             withFrameNanos { }
             withFrameNanos { }
-            shown?.let { runCatching { returnTo(it.id).requestFocus() } }
+            shown?.let { returnTo(it.id) }?.let { runCatching { it.requestFocus() } }
         }
     }
     TvSidePanel(visible = request != null, onDismiss = onClose, modifier = Modifier.testTag(TV_REQUEST_PANEL)) {
