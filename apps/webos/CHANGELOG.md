@@ -16,7 +16,9 @@ describes how they are made.
   its own tracks, chapters and subtitles and the subtitle files beside it.
   The page's title is the drive's make and model when it says them, the
   line under it the folder's path ("/Films/2019"), and an empty page says
-  so in the middle under an icon, with the rail closed.
+  so in the middle under an icon, with the rail closed. A video that can
+  no longer be read, the drive pulled out, says so with Try again, as the
+  Android app does.
 - The player's Info says the TV's network speed under How it plays,
   beside the server's Speed, as in the Samsung app: a video that stalls
   while the server keeps up is on a network that can't carry it.
@@ -62,7 +64,8 @@ describes how they are made.
   (5 s at most) before seeking, which Back cancels. A held key scrubs
   smoothly faster the longer it is held, and waits for OK when let go.
 - As each title or episode begins playing, its name shows at the top of
-  the picture for a few seconds.
+  the picture for a few seconds, clear of Playback details when they are
+  on, as in the Android TV app.
 - Chapters show as a row of cards over the scrubber, each with its picture,
   name and start, in place of the Chapters panel: the Chapters button opens
   them, and so does Up while a seek waits for OK.
@@ -85,10 +88,8 @@ describes how they are made.
 - The rail opens as in the Samsung app: its panel widens out of the closed
   rail as it fades in, and the labels slide in beside the icons.
 - Picture subtitles (PGS, VobSub, DVB) show within a few seconds of a
-  playback starting or a seek, as in the Samsung app: the TV tells the
-  server where it plays at every ask, a seek asks at once from where it
-  went, and a track still being read is asked for less often as it goes
-  on (3 s, doubling to 15 s; 24 s for a large one).
+  playback starting or a seek, as in the Samsung app, and keep coming as
+  the server reads the rest of the track.
 - Search shows movies, shows and episodes first, then music, then Live
   TV, then people, as the other apps do.
 - A tile's actions (OK held, or the menu key) open in a side panel over
@@ -142,15 +143,20 @@ describes how they are made.
 - The Play/Pause key no longer makes a seek that waits for OK at once, as
   in the Android TV and Samsung apps: it only plays or pauses, and the
   seek lands by itself. OK still makes it at once.
-- A video on a USB drive that can no longer be read, the drive pulled
-  out, says "This video can't be read. The drive may have been pulled
-  out." with Try again, as the Android app does, rather than that the
-  server can't be reached.
-- With Playback details on, the title shown as a video begins no longer
-  covers them at the top left, as in the Android TV app.
 - On a Live TV channel with sound only, the logo, "Sound only" and what's
   on rise above the bar at the foot while it shows, rather than sitting
   among its words.
+
+### Security
+
+- The native app sends its token to the server's address only once the
+  server has proved there that it is the one the TV signed in to, as the
+  web app did: the access token waits for a proof made on this network
+  within the half hour, the refresh token, a profile's PIN and signing out
+  for one made then. Coming back to the app, the TV's connection changing
+  and a request that gets no answer ask for a new one. Another device at
+  the address gets nothing, and the TV says "Another device answers
+  there."
 
 ## [0.1.3] - 2026-11-02
 
@@ -180,17 +186,6 @@ describes how they are made.
   token (an hour's) within the half hour, never the refresh token. A
   sign-in from before starts checking within the hour, as its token is
   renewed.
-
-### Security
-
-- The native app sends its token to the server's address only once the
-  server has proved there that it is the one the TV signed in to, as the
-  web app did: the access token waits for a proof made on this network
-  within the half hour, the refresh token, a profile's PIN and signing out
-  for one made then. Coming back to the app, the TV's connection changing
-  and a request that gets no answer ask for a new one. Another device at
-  the address gets nothing, and the TV says "Another device answers
-  there."
 
 ## [0.1.2] - 2026-11-02
 
@@ -231,7 +226,6 @@ describes how they are made.
   Request more seasons for a show missing some.
 - Signing in with a code says when the server requires two-step sign-in:
   the phone that approves the code sets it up for whoever hasn't.
-
 
 ### Changed
 
