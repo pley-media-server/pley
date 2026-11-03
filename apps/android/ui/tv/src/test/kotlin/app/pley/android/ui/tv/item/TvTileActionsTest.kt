@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
@@ -11,6 +12,9 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
 import androidx.test.core.app.ApplicationProvider
 import app.pley.android.common.TestTags
 import app.pley.android.data.Loadable
@@ -38,6 +42,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLooper
 
 /**
  * A tile's actions on TV, in the app's frame (D-pad rule 6): Menu on a
@@ -45,6 +50,7 @@ import org.robolectric.annotation.Config
  * Back closes them with focus back on the tile; a choice runs, with focus
  * back on it too; actions that can't load say why, and no panel opens.
  */
+@OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-land-television-xhdpi", application = TvTestApplication::class)
 class TvTileActionsTest {
@@ -66,7 +72,7 @@ class TvTileActionsTest {
     private val panel = hasAnyAncestor(hasTestTag(TV_TILE_ACTIONS))
 
     /** Home, with every tile's details in, and focus on the first Continue Watching tile ("Half Loop"). */
-    private fun home() {
+    private fun home(reduced: Boolean = true) {
         val hubs: Hubs = Fixtures.decode("hubs/home.json")
         sources.home.value = Loadable.Ready(hubs, fresh = true)
         // The actions are worked out from the items' details.
@@ -83,7 +89,7 @@ class TvTileActionsTest {
         val onboarding = FakeOnboardingSource().apply { active.value = "http://s" }
         compose.setContent {
             CompositionLocalProvider(LocalOnboardingSource provides onboarding) {
-                TvApp(Source(), onExit = {}, reducedMotion = true)
+                TvApp(Source(), onExit = {}, reducedMotion = reduced)
             }
         }
         waitUntil { compose.onAllNodes(isFocused()).fetchSemanticsNodes().isNotEmpty() }
@@ -119,6 +125,24 @@ class TvTileActionsTest {
 
         // Back closes them, and focus is on the tile again.
         back()
+        waitUntil { !exists(hasTestTag(TV_TILE_ACTIONS)) }
+        assertTrue(focusedDescription(), focusedDescription().startsWith(HALF_LOOP))
+    }
+
+    @Test
+    fun backAsThePanelComesInLeavesFocusOnTheTile() {
+        home(reduced = false)
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { pressKey(Key.Menu) }
+        // The frame the panel comes in, before it takes focus: Back closes it as it slides in.
+        var frames = 0
+        while (!exists(hasTestTag(TV_TILE_ACTIONS)) && frames++ < 300) {
+            compose.mainClock.advanceTimeByFrame()
+            ShadowLooper.idleMainLooper()
+        }
+        assertTrue("the panel came", exists(hasTestTag(TV_TILE_ACTIONS)))
+        back()
+        compose.mainClock.autoAdvance = true
         waitUntil { !exists(hasTestTag(TV_TILE_ACTIONS)) }
         assertTrue(focusedDescription(), focusedDescription().startsWith(HALF_LOOP))
     }

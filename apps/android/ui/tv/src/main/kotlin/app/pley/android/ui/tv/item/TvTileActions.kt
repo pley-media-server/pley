@@ -79,13 +79,23 @@ internal class TvTileActionsState(private val page: FocusRequester, private val 
         request = TileActionsRequest(itemId, continueWatching, top())
     }
 
+    /** Whether the panel took focus from the page ([leavePage]). */
+    private var left = false
+
     /** The panel takes focus: which element of the page had it is kept. */
     internal fun leavePage() {
+        left = true
         runCatching { page.saveFocusedChild() }
     }
 
-    /** The panel closes: focus goes back to where it was on the page, or to its first element. */
+    /**
+     * The panel closes: focus goes back to where it was on the page, or to
+     * its first element. Closed before it took focus (Back as it slid in),
+     * the page still has it, where it was.
+     */
     internal fun backToPage() {
+        if (!left) return
+        left = false
         runCatching { if (!page.restoreFocusedChild()) page.requestFocus() }
     }
 }
@@ -172,6 +182,8 @@ private fun TileActions(request: TileActionsRequest, page: Any?, state: TvTileAc
             // Once the panel is placed, as the item page's panels do; where focus was on the page is kept first.
             withFrameNanos { }
             withFrameNanos { }
+            // Back within those frames closed it: focus stays on the page, not in a panel going away.
+            if (phase != Phase.Shown) return@LaunchedEffect
             state.leavePage()
             list.focusRow(first)
         }

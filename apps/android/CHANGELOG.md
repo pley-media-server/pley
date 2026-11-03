@@ -257,6 +257,8 @@ describes how they are made.
 - On Android TV and Fire TV, Search's Live TV channels move as the other
   rows do: the channel focused glides to the row's left edge, and a held
   Left or Right slides the row under a still ring, as on Samsung TVs.
+- On TVs, Back pressed as a tile's actions slide in leaves focus on the
+  tile, where it could leave nothing focused.
 
 ### Removed
 
