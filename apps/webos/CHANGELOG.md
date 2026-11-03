@@ -131,6 +131,8 @@ describes how they are made.
   out, says "This video can't be read. The drive may have been pulled
   out." with Try again, as the Android app does, rather than that the
   server can't be reached.
+- With Playback details on, the title shown as a video begins no longer
+  covers them at the top left, as in the Android TV app.
 
 ## [0.1.3] - 2026-11-02
 

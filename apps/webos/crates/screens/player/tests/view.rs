@@ -25,8 +25,11 @@ struct Player {
 
 impl Player {
     fn new(p: Fake) -> Player {
-        let mut player =
-            Player { h: Harness::new(), view: PlayerView::new(), p, settings: Settings::default(), outs: Vec::new() };
+        Player::with(p, Settings::default())
+    }
+
+    fn with(p: Fake, settings: Settings) -> Player {
+        let mut player = Player { h: Harness::new(), view: PlayerView::new(), p, settings, outs: Vec::new() };
         player.idle();
         player
     }
@@ -906,6 +909,15 @@ fn the_title_shows_for_4_s_as_each_item_begins_unless_the_controls_show() {
     pl.wait(0.5);
     assert!(!pl.view.controls());
     assert!(!pl.texts().iter().any(|t| t == "Next Show"), "the banner came back after the controls");
+}
+
+#[test]
+fn the_title_makes_way_for_playback_details() {
+    let settings = Settings { playback_details: true, ..Settings::default() };
+    let mut pl = Player::with(Fake::episode(), settings);
+    pl.wait(0.5);
+    let texts = pl.texts();
+    assert!(!texts.iter().any(|t| t == "Fixture Show"), "the banner shows over the details: {texts:?}");
 }
 
 #[test]

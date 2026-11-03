@@ -889,7 +889,9 @@ impl PlayerView {
         let fade = ui.animate(ids.fade, if self.controls { 1.0 } else { 0.0 }, Motion::OVERLAY);
 
         controls::scrim(ui, fade);
-        let banner = !self.controls && !error && !card && ms(ui.time()) < self.banner_until;
+        // Playback details take the top left while they show (`TvPlayerScreen.kt`).
+        let banner =
+            !self.controls && !error && !card && !env.settings.playback_details && ms(ui.time()) < self.banner_until;
         let banner_fade = ui.animate(ids.fade.with("banner"), if banner { 1.0 } else { 0.0 }, Motion::OVERLAY);
         if banner_fade > 0.0 {
             let line = text::episode_line(s.subtitle.as_deref());
