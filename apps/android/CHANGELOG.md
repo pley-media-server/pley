@@ -13,6 +13,11 @@ describes how they are made.
 - On Android TV and Fire TV, a held direction key starts moving after
   180 ms rather than half a second, and moves about 22 times a second at
   an even pace, as on the native Samsung app.
+- On Android TV and Fire TV, a held Left or Right slides a row on evenly
+  under a ring that stays still, its tiles at rest, rather than jumping a
+  tile at a time; focus lands on the tile under the ring when the key
+  comes up, as on the native Samsung app. A season's episodes move as
+  every other row does, and a press moves a row over 150 ms, eased out.
 
 ### Fixed
 

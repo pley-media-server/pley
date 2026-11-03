@@ -21,14 +21,20 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.ui.tv.theme.TvTheme
+import kotlin.math.ceil
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,10 +42,13 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * D-pad rules 2 and 3 on a page of rows, with key events: up and down
+ * D-pad rules 2 to 5 on a page of rows, with key events: up and down
  * between rows, Left from a row's first tile into the rail, Right stopping
- * at the end, and each row coming back to the tile it had.
+ * at the end, each row coming back to the tile it had, a press moving the
+ * row over 150 ms, and a held key sliding it under a still ring, on the
+ * gate's clock, to land on the tile under the ring when the key comes up.
  */
+@OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
 class TvRowFocusTest {
@@ -58,14 +67,19 @@ class TvRowFocusTest {
         }
     }
 
-    private lateinit var list: LazyListState
+    /** On the test's clock. The test sends no repeats, as the system would: none is waited for. */
+    private val gate = KeyRepeatGate(firstRepeatMs = 60_000) { compose.mainClock.currentTime }
 
-    private fun page(withHero: Boolean = false) {
+    private lateinit var list: LazyListState
+    private lateinit var rowA: LazyListState
+
+    private fun page(withHero: Boolean = false, reduced: Boolean? = null) {
         compose.setContent {
             list = rememberLazyListState()
-            TvTheme {
-                CompositionLocalProvider(LocalTvRailFocus provides rail) {
-                    Row(Modifier.fillMaxSize()) {
+            rowA = rememberTvRowState()
+            TvTheme(reducedMotion = reduced) {
+                CompositionLocalProvider(LocalTvRailFocus provides rail, LocalKeyRepeatGate provides gate) {
+                    Row(Modifier.fillMaxSize().keyRepeatGate(gate)) {
                         Box(
                             Modifier
                                 .size(56.dp)
@@ -96,7 +110,9 @@ class TvRowFocusTest {
                                     }
                                 }
                             }
-                            item("a") { TvRow("a", "Row A", tiles("A", 8), TileKind.Landscape, onOpen = {}, initialFocus = !withHero) }
+                            item("a") {
+                                TvRow("a", "Row A", tiles("A", 20), TileKind.Landscape, onOpen = {}, initialFocus = !withHero, state = rowA)
+                            }
                             item("b") { TvRow("b", "Row B", tiles("B", 8, from = 100), TileKind.Poster, onOpen = {}) }
                         }
                     }
@@ -105,6 +121,17 @@ class TvRowFocusTest {
         }
         compose.waitForIdle()
     }
+
+    /** Row A's tiles' pitch: a landscape tile and its gap, in pixels. */
+    private val pitch: Float
+        get() = with(compose.density) { (TileKind.Landscape.tvWidth.roundToPx() + TileKind.Landscape.tvGap.roundToPx()).toFloat() }
+
+    /** How far row A has scrolled, in pixels: its tiles all have the one width. */
+    private fun scrolledA(): Float = rowA.firstVisibleItemIndex * pitch + rowA.firstVisibleItemScrollOffset
+
+    private fun keyDown(key: Key) = compose.onRoot().performKeyInput { keyDown(key) }
+
+    private fun keyUp(key: Key) = compose.onRoot().performKeyInput { keyUp(key) }
 
     @Test
     fun theFirstTileTakesFocusFirst() {
@@ -135,8 +162,8 @@ class TvRowFocusTest {
         page()
         compose.press(Key.DirectionRight, times = 3)
         compose.focused().assertContentDescriptionEquals("A 4")
-        compose.press(Key.DirectionRight, times = 10)
-        compose.focused().assertContentDescriptionEquals("A 8")
+        compose.press(Key.DirectionRight, times = 20)
+        compose.focused().assertContentDescriptionEquals("A 20")
     }
 
     @Test
@@ -174,5 +201,85 @@ class TvRowFocusTest {
         compose.press(Key.DirectionDown)
         compose.focused().assertContentDescriptionEquals("B 103")
     }
-}
 
+    @Test
+    fun aPressMovesTheRowOver150MsEasedOut() {
+        page()
+        compose.press(Key.DirectionRight, times = 3)
+        assertEquals(3 * pitch, scrolledA(), 1f)
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+        // Eased out: well over half the way a third of the way through.
+        compose.mainClock.advanceTimeBy(80)
+        val partway = scrolledA() - 3 * pitch
+        assertTrue("$partway of $pitch", partway > pitch / 2 && partway < pitch)
+        compose.mainClock.advanceTimeBy(128)
+        assertEquals(4 * pitch, scrolledA(), 1f)
+        compose.focused().assertContentDescriptionEquals("A 5")
+    }
+
+    @Test
+    fun aHeldKeySlidesTheRowEvenlyWhileFocusWaits() {
+        page()
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionRight)
+        // The press moves to A 2; from 180 ms the row slides on by itself, a tile every 45 ms.
+        compose.mainClock.advanceTimeBy(304)
+        compose.focused().assertContentDescriptionEquals("A 2")
+        val early = scrolledA()
+        assertTrue("$early", early > 2 * pitch)
+        compose.mainClock.advanceTimeBy(96)
+        assertEquals(96f / KeyRepeatGate.MOVE_INTERVAL_MS * pitch, scrolledA() - early, pitch / 10)
+        compose.focused().assertContentDescriptionEquals("A 2")
+        keyUp(Key.DirectionRight)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+    }
+
+    @Test
+    fun aSlideLandsOnTheTileUnderTheRingAndSettlesThere() {
+        page()
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionRight)
+        compose.mainClock.advanceTimeBy(400)
+        val under = scrolledA() / pitch
+        keyUp(Key.DirectionRight)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        // Moving right, the tile under the ring rounded up: the row only ever settles forward.
+        val landed = ceil(under - 0.01f).toInt()
+        compose.focused().assertContentDescriptionEquals("A ${landed + 1}")
+        assertEquals(landed * pitch, scrolledA(), 1f)
+        // And from there the keys go on as ever.
+        compose.press(Key.DirectionRight)
+        compose.focused().assertContentDescriptionEquals("A ${landed + 2}")
+    }
+
+    @Test
+    fun nearTheRowsEndAHeldKeyStepsOnToTheLastTile() {
+        page()
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionRight)
+        // The slide reaches the row's end, where the tiles stop coming to the gutter; focus steps on from there.
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.focused().assertContentDescriptionEquals("A 20")
+        keyUp(Key.DirectionRight)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.focused().assertContentDescriptionEquals("A 20")
+    }
+
+    @Test
+    fun withReducedMotionAHeldKeyStepsATileAtATime() {
+        page(reduced = true)
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionRight)
+        // The press, then a move every 45 ms from 180 ms: five more by 400 ms, each in place.
+        compose.mainClock.advanceTimeBy(400)
+        keyUp(Key.DirectionRight)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.focused().assertContentDescriptionEquals("A 7")
+        assertEquals(6 * pitch, scrolledA(), 1f)
+    }
+}

@@ -68,9 +68,17 @@ heard it for that profile, the start asks "Who's watching?".
   there; later, OK pauses.
 - A direction key held for 180 ms moves focus by itself, every 45 ms
   (about 22 a second), on the app's own clock: the system's repeats start
-  later and come unevenly, so the app drops them. A tile's focus look
-  changes evenly from one tile to the next meanwhile, and backdrops and
-  info blocks wait until focus has rested 400 ms.
+  later and come unevenly, so the app drops them. A held Left or Right
+  slides a row on at that pace, a tile every 45 ms, under a ring that
+  stays still at the row's left edge, the tiles keeping their resting
+  look; when the key comes up, focus lands on the tile under the ring (or
+  the next one the way the row was going) and the row settles there. Near
+  a row's end, where tiles no longer reach that edge, focus steps across
+  them instead. A press moves a row over 150 ms, eased out. Elsewhere a
+  tile's focus look changes evenly from one tile to the next, and
+  backdrops and info blocks wait until focus has rested 400 ms. With
+  Reduce motion a held key steps focus a tile at a time and nothing
+  slides.
 - **Fire TV** runs the same APK and TV screens. The app spots it by the
   `amazon.hardware.fire_tv` feature and follows Amazon's player guidelines
   (asynchronous decoder queueing, surround from Fire OS's audio setting,

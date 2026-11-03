@@ -53,6 +53,7 @@ import app.pley.android.ui.tv.kit.TvRowColumn
 import app.pley.android.ui.tv.kit.rememberBackdropPrefetcher
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberRested
+import app.pley.android.ui.tv.kit.rememberTvRowState
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 import app.pley.android.ui.tv.shell.ReportOffline
 import app.pley.android.ui.tv.shell.failedBody
@@ -180,7 +181,7 @@ private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: Hom
             }
             model.rows.forEach { row ->
                 item(row.key, contentType = row.kind) {
-                    val rowState = rememberLazyListState()
+                    val rowState = rememberTvRowState()
                     val images = remember(row.tiles) { row.tiles.map { it.image } }
                     rememberImagePrefetcher(
                         state = rowState,

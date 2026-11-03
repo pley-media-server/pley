@@ -39,13 +39,15 @@ import kotlinx.coroutines.launch
  * (about 22 a second): sooner and more evenly than the system's repeats,
  * which begin after half a second, come unevenly and only say the key is
  * still down, so the gate drops them. While a key is held ([holding]):
+ * - a row slides on under a ring that stays still, and lands where the
+ *   key comes up ([TvRow]);
  * - tiles change their focus look evenly over [GLIDE_MS] instead of easing;
  * - backdrops and details wait until focus has rested [REST_MS]
  *   ([awaitRest], [rememberRested]).
  *
  * A hold ends when its key comes up, another key goes down, or no sign of
  * the key comes for [LOST_KEY_UP_MS] (the window lost the key-up):
- * [awaitRelease] returns then.
+ * [onRelease] and [awaitRelease] say so.
  *
  * One per window, at the root ([keyRepeatGate]), which runs its clock.
  * [clock] is the uptime in milliseconds and [firstRepeatMs] how long the
@@ -84,6 +86,9 @@ class KeyRepeatGate(
     /** Completed when the hold ends. */
     @Volatile
     private var released: CompletableDeferred<Unit>? = null
+
+    /** What runs as the hold ends ([onRelease]). */
+    private val releases = ArrayList<() -> Unit>(2)
 
     /** Whether a direction key is down, held or not yet: [tick] is worth calling. */
     val down: Boolean get() = press != null
@@ -193,6 +198,15 @@ class KeyRepeatGate(
         released?.await()
     }
 
+    /**
+     * Runs [action] once, as the hold ends: in the key event that ends it,
+     * before that event goes on, so another key's press moves focus from
+     * where a slide landed. At once when no key is held.
+     */
+    fun onRelease(action: () -> Unit) {
+        if (!holding) action() else if (action !in releases) releases += action
+    }
+
     private fun startHold(now: Long) {
         holding = true
         // The first held move is due at once.
@@ -206,6 +220,12 @@ class KeyRepeatGate(
         lastMove = now
         released?.complete(Unit)
         released = null
+        if (releases.isNotEmpty()) {
+            // A copy: what runs may ask again.
+            val run = releases.toTypedArray()
+            releases.clear()
+            run.forEach { it() }
+        }
     }
 
     /**
