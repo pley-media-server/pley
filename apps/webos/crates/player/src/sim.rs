@@ -83,6 +83,8 @@ struct Sim {
     switched: Vec<usize>,
     frames: Option<(u64, u64)>,
     rect: Option<Rect>,
+    /// Times the network's speed was asked for.
+    network_asks: usize,
 }
 
 impl Sim {
@@ -184,6 +186,7 @@ impl SimEngine {
             switched: Vec::new(),
             frames: None,
             rect: None,
+            network_asks: 0,
         }));
         (SimEngine { sim: sim.clone(), clock: clock.clone(), reading: None }, SimHandle { sim, clock })
     }
@@ -373,6 +376,11 @@ impl PlayerEngine for SimEngine {
             ..EngineStats::default()
         }
     }
+
+    fn network_bps(&self) -> Option<u64> {
+        self.sim().network_asks += 1;
+        None
+    }
 }
 
 impl SimHandle {
@@ -430,6 +438,11 @@ impl SimHandle {
     /// Its dropped and total frames (none: it can't tell, as LG's pipeline).
     pub fn set_frames(&self, frames: Option<(u64, u64)>) {
         self.sim().frames = frames;
+    }
+
+    /// Times the network's speed was asked for (LG's reads a file each time, at most once a second).
+    pub fn network_asks(&self) -> usize {
+        self.sim().network_asks
     }
 
     /// Waits for data (`true`) until told otherwise, or plays on (`false`).

@@ -444,6 +444,16 @@ fn dropped_frames_arent_counted_as_a_track_switch_drops_them() {
     assert_eq!(&w.fake.modes()[..2], [PlaybackMode::Auto, PlaybackMode::Transcode]);
 }
 
+#[test]
+fn the_tvs_network_speed_is_read_for_info_alone_not_all_through_playback() {
+    let mut w = counting();
+    w.drop_frames(10, 0);
+    // The frames are sampled every 2 s; LG's network speed reads a file, so they leave it.
+    assert_eq!(w.sim.network_asks(), 0);
+    let _ = w.c.engine_stats();
+    assert_eq!(w.sim.network_asks(), 1);
+}
+
 // ---- stalls (Info's count)
 
 #[test]

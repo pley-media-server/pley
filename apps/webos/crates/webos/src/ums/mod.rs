@@ -68,7 +68,7 @@ pub struct UmsEngine {
     acb: Option<&'static Mutex<Acb>>,
     memory_file: PathBuf,
     events: Vec<EngineEvent>,
-    /// The TV's network speed for Info, which the pipeline doesn't give; `stats` reads it.
+    /// The TV's network speed for Info, which the pipeline doesn't give; `network_bps` reads it.
     network: Mutex<TvNetwork>,
     /// What the network's readings are timed by.
     started: Instant,
@@ -336,9 +336,12 @@ impl PlayerEngine for UmsEngine {
     }
 
     fn stats(&self) -> EngineStats {
+        self.machine.stats()
+    }
+
+    fn network_bps(&self) -> Option<u64> {
         let at = self.started.elapsed().as_millis() as u64;
-        let network_bps = self.network.lock().unwrap_or_else(|e| e.into_inner()).bps(at);
-        EngineStats { network_bps, ..self.machine.stats() }
+        self.network.lock().unwrap_or_else(|e| e.into_inner()).bps(at)
     }
 }
 

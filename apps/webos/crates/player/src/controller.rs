@@ -731,9 +731,9 @@ impl PlaybackController {
         self.presenter.shown()
     }
 
-    /// What the engine says of itself, for Info.
+    /// What the engine says of itself, and the TV's network speed, for Info and the readout.
     pub fn engine_stats(&self) -> EngineStats {
-        self.engine.stats()
+        EngineStats { network_bps: self.engine.network_bps(), ..self.engine.stats() }
     }
 
     /// Whether the player means to play (play/pause shows the other).

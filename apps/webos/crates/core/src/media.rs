@@ -155,7 +155,8 @@ pub struct EngineStats {
     pub dropped_frames: Option<u64>,
     pub total_frames: Option<u64>,
     /// How fast the TV's whole network receives, in bits per second: the fastest second of the
-    /// last ten, where the engine doesn't say how fast its own downloads go. None while unknown.
+    /// last ten, where the engine doesn't say how fast its own downloads go. None while unknown,
+    /// and from [`PlayerEngine::stats`]: [`PlayerEngine::network_bps`] says it.
     pub network_bps: Option<u64>,
     /// Anything else worth a line: label, value.
     pub extra: Vec<(String, String)>,
@@ -184,8 +185,14 @@ pub trait PlayerEngine: Send {
     fn events(&mut self) -> Vec<EngineEvent>;
     /// Where playing is, in ms of the file's time.
     fn position_ms(&self) -> u64;
-    /// What Playback details shows.
+    /// What Playback details shows, but the network's speed.
     fn stats(&self) -> EngineStats;
+    /// How fast the TV's whole network receives ([`EngineStats::network_bps`]), for Info and the
+    /// readout alone: it may read a file, so what runs all through playback never asks. None
+    /// where it can't tell.
+    fn network_bps(&self) -> Option<u64> {
+        None
+    }
 }
 
 /// An engine that plays nothing and says nothing, recording what it was
