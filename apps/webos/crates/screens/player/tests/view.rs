@@ -911,6 +911,41 @@ fn the_title_shows_for_4_s_as_each_item_begins_unless_the_controls_show() {
     assert!(!pl.texts().iter().any(|t| t == "Next Show"), "the banner came back after the controls");
 }
 
+/// How opaque the black over the video is, if any.
+fn black(frame: &Frame) -> Option<u8> {
+    frame.list.cmds.iter().find_map(|c| match c {
+        Cmd::Fill { rect, color, .. }
+            if rect.w >= 960.0 && rect.h >= 540.0 && (color.r, color.g, color.b) == (0, 0, 0) =>
+        {
+            Some(color.a)
+        }
+        _ => None,
+    })
+}
+
+#[test]
+fn the_first_picture_fades_in_from_black_at_once_with_reduce_motion() {
+    let mut pl = Player::new(Fake::movie());
+    assert_eq!(black(&pl.idle()), Some(255), "no black before the first picture");
+    pl.p.state.first_frame_ms = Some(900);
+    pl.idle();
+    pl.wait(0.1);
+    let half = black(&pl.idle()).expect("the picture was there at once");
+    assert!(half > 0 && half < 255, "{half}");
+    pl.wait(0.2);
+    assert_eq!(black(&pl.idle()), None, "still black after 200 ms");
+    // A new stream: black until its picture, which fades in again.
+    pl.p.state.first_frame_ms = None;
+    assert_eq!(black(&pl.idle()), Some(255));
+    pl.p.state.first_frame_ms = Some(400);
+    assert!(black(&pl.idle()).is_some_and(|a| a > 0));
+
+    let mut reduced = Player::new(Fake::movie());
+    reduced.h.state.set_reduced_motion(true);
+    reduced.p.state.first_frame_ms = Some(900);
+    assert_eq!(black(&reduced.idle()), None, "Reduce motion: the picture at once");
+}
+
 #[test]
 fn the_title_makes_way_for_playback_details() {
     let settings = Settings { playback_details: true, ..Settings::default() };

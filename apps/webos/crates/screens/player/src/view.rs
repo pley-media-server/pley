@@ -257,6 +257,10 @@ pub struct PlayerView {
     last_seconds: i64,
     last_card: Option<UpNextCard>,
     previews: Previews,
+    /// Whether the stream's first picture was there last frame, and how many have come: each
+    /// fades in from black.
+    pictured: bool,
+    pictures: u64,
 }
 
 impl Default for PlayerView {
@@ -310,6 +314,8 @@ impl PlayerView {
             last_seconds: 0,
             last_card: None,
             previews: Previews::none(),
+            pictured: false,
+            pictures: 0,
         }
     }
 
@@ -878,6 +884,25 @@ impl PlayerView {
 
     // ---------------------------------------------------------------- drawing
 
+    /// Black until a stream's first picture, which fades in over 200 ms as the controls do, at
+    /// once with Reduce motion (`TvPlayerScreen.kt`'s `VideoSurface` reveal, the Samsung app's
+    /// player): the window is transparent where the video shows, so the black is a fill over it.
+    fn reveal(&mut self, ui: &mut Ui, s: &PlayerState, full: Rect, ids: &Ids) {
+        let pictured = s.first_frame_ms.is_some();
+        if pictured && !self.pictured {
+            self.pictures += 1;
+        }
+        self.pictured = pictured;
+        let shown = if pictured {
+            ui.animate_from(ids.fade.with("picture").with(self.pictures), 0.0, 1.0, Motion::OVERLAY)
+        } else {
+            0.0
+        };
+        if shown < 1.0 {
+            ui.fill(full, Color::BLACK.alpha(1.0 - shown), 0.0);
+        }
+    }
+
     fn draw(&mut self, ui: &mut Ui, p: &dyn Playback, env: &FrameEnv, ids: &Ids) -> Vec<Act> {
         let mut acts = Vec::new();
         let s = p.state();
@@ -888,6 +913,7 @@ impl PlayerView {
         let full = Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H);
         let fade = ui.animate(ids.fade, if self.controls { 1.0 } else { 0.0 }, Motion::OVERLAY);
 
+        self.reveal(ui, s, full, ids);
         controls::scrim(ui, fade);
         // Playback details take the top left while they show (`TvPlayerScreen.kt`).
         let banner =

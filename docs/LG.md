@@ -113,15 +113,16 @@ differs on LG:
   Left and Right show them and step 10 s, and a held key scrubs faster
   the longer it is held (from 20×, doubling every 1.5 s, up to a whole
   video in 10 s). The seek waits for OK, going by itself 5 s after the
-  last key (the Play/Pause key only plays or pauses), and Back lets it go. ◀◀ and ▶▶ (30 s) seek 400 ms after the
-  last press. The control row has no Back 10 or Forward 10, as in the
-  Android TV app: Left and Right seek. Up on the scrubber
-  while a seek waits, or the Chapters button, opens the chapters as a row
-  of cards over it: Left and Right go through them, OK goes to one, Down
-  or Back closes them. As each item
+  last key (the Play/Pause key only plays or pauses), and Back lets it
+  go. ◀◀ and ▶▶ (30 s) seek 400 ms after the last press. The control row
+  has no Back 10 or Forward 10, as in the Android TV app: Left and Right
+  seek. Up on the scrubber while a seek waits, or the Chapters button,
+  opens the chapters as a row of cards over it: Left and Right go
+  through them, OK goes to one, Down or Back closes them. As each item
   begins playing, its title shows at the top for 4 s, unless Playback
-  details show there (Settings → Playback). While an error
-  shows, Stop is the only media key that acts.
+  details show there (Settings → Playback). Each stream's first picture
+  fades in from black over 200 ms, at once with Reduce motion. While an
+  error shows, Stop is the only media key that acts.
 - **Typing** uses the app's own keyboard and pads (a search, a server's
   address, a PIN); the TV's keyboard doesn't open.
 - **On webOS 4**, Home opens as a ribbon over the app, which keeps
