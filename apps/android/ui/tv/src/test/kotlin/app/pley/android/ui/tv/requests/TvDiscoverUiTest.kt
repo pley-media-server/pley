@@ -15,10 +15,13 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.Tier
+import app.pley.android.model.DiscoverDetail
 import app.pley.android.model.DiscoverList
 import app.pley.android.model.DiscoverPage
 import app.pley.android.model.NewRequest
+import app.pley.android.model.RequestList
 import app.pley.android.model.TitleKind
+import app.pley.android.model.TitleStatus
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.requests.DiscoverResultsViewModel
 import app.pley.android.screens.requests.DiscoverSource
@@ -99,6 +102,40 @@ class TvDiscoverUiTest {
         compose.focused().assert(hasContentDescription("Severance", substring = true))
         back()
         compose.focused().assert(hasText("Request"))
+    }
+
+    @Test
+    fun theHerosRequestMoreSeasonsOpensWhichSeasons() {
+        // Severance: some of it in a library, more seasons to ask for.
+        val partly = trending.results.first { it.tmdbId == 95396L }
+        requests.pages = { _, page -> DiscoverPage(page, 1, listOf(partly)) }
+        show { TvDiscoverScreen(DiscoverViewModel(deps())) }
+        waitFor("Request more seasons")
+        compose.focused().assert(hasText("Open"))
+        compose.press(Key.DirectionRight)
+        compose.focused().assert(hasText("Request more seasons"))
+        compose.press(Key.Enter)
+        assertEquals(PleyKey.DiscoverTitle(TitleKind.Show, 95396, pick = true), stack.last())
+    }
+
+    @Test
+    fun theHerosStopFollowingLetsGoAndFocusStaysOnItsButtons() {
+        val movie: DiscoverDetail = Fixtures.decode("discover/movie.json")
+        val followed = Fixtures.decode<RequestList>("requests/list.json").requests.first { it.id == 47L }.copy(kind = TitleKind.Movie, tmdbId = 1184918)
+        requests.api.answer("discoverTitle", movie.copy(tmdbId = 1184918, status = TitleStatus.Requested, requestId = 47, watching = true, requests = listOf(followed)))
+        show { TvDiscoverScreen(DiscoverViewModel(deps())) }
+        waitFor("Following")
+        compose.focused().assert(hasText("Following"))
+        compose.press(Key.DirectionRight)
+        compose.focused().assert(hasText("Stop following") or hasContentDescription("Stop following"))
+        // The server lets go; read again, the title says Tell me too.
+        requests.api.answer("discoverTitle", movie.copy(tmdbId = 1184918, status = TitleStatus.Requested, requestId = null, requests = emptyList()))
+        compose.press(Key.Enter)
+        compose.waitUntil(WAIT_MS) { requests.api.calls("unwatchRequest").isNotEmpty() }
+        assertEquals(listOf<Any?>(47L), requests.api.calls("unwatchRequest").single().args)
+        compose.runOnUiThread { requests.refreshTitle(TitleKind.Movie, 1184918) }
+        waitFor("Tell me too")
+        compose.focused().assert(hasText("Tell me too"))
     }
 
     @Test

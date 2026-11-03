@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -82,6 +83,7 @@ import app.pley.android.screens.requests.DiscoverHero
 import app.pley.android.screens.requests.DiscoverRow
 import app.pley.android.screens.requests.DiscoverUiState
 import app.pley.android.screens.requests.DiscoverViewModel
+import app.pley.android.screens.requests.MainAction
 import app.pley.android.screens.requests.RequestTexts
 import app.pley.android.screens.requests.RequestsDeps
 import app.pley.android.screens.requests.RequestsEntry
@@ -183,6 +185,9 @@ private fun DiscoverRows(state: DiscoverUiState, hero: DiscoverHero, texts: Requ
     var focused by remember { mutableStateOf<Focused?>(null) }
     val rested = rememberRested(focused)
     val backdrops = rememberBackdropPrefetcher()
+    var signIn by remember { mutableStateOf(false) }
+    // Stop following pressed: its button goes with the request, and focus goes to the main one, which stays.
+    var unfollowing by remember { mutableStateOf(false) }
     val heroAlpha by animateFloatAsState(if (inRows) 0f else 1f, PleyMotion.reveal(), label = "hero")
     val origin = state.origin
     val about = if (inRows) rested else null
@@ -224,7 +229,19 @@ private fun DiscoverRows(state: DiscoverUiState, hero: DiscoverHero, texts: Requ
                     group = heroGroup,
                     main = heroMain,
                     onFocused = { inRows = false },
-                    onAction = vm::heroAction,
+                    handlers = remember(vm) {
+                        TvTitleHandlers(
+                            request = vm::heroAction,
+                            more = vm::heroMore,
+                            tellMeToo = vm::heroTellMeToo,
+                            stopFollowing = {
+                                unfollowing = true
+                                vm.heroStopFollowing()
+                            },
+                            open = { vm.heroAction() },
+                            signInAgain = { signIn = true },
+                        )
+                    },
                     onDetails = { navigator.open(PleyKey.DiscoverTitle(hero.title.kind, hero.title.tmdbId)) },
                     modifier = Modifier.graphicsLayer { alpha = heroAlpha },
                 )
@@ -267,6 +284,15 @@ private fun DiscoverRows(state: DiscoverUiState, hero: DiscoverHero, texts: Requ
             item(CREDIT_KEY, contentType = CREDIT_KEY) { TvTmdbCredit() }
         }
         RequestsChip(state, hidden = inRows, hero = heroGroup, onFocus = { inRows = false })
+        // Over the whole page, not in the hero's place in the list.
+        if (signIn) TvSignInAgainDialog(state.origin, onDismiss = { signIn = false }, returnTo = heroMain)
+    }
+    LaunchedEffect(hero.action) {
+        if (!unfollowing || hero.action is MainAction.Following) return@LaunchedEffect
+        unfollowing = false
+        withFrameNanos { }
+        // Unless focus went on to the rows meanwhile: Compose has put it wherever it chose.
+        if (!inRows) runCatching { heroMain.requestFocus() }
     }
 }
 
@@ -274,7 +300,9 @@ private fun DiscoverRows(state: DiscoverUiState, hero: DiscoverHero, texts: Requ
  * The hero (discover.tsx's DiscoverHero): the title's two lines ending at
  * y = 172 whatever their number, clear of the way to the requests above;
  * its facts; a line of overview; the main action (its first line of
- * words over it) and Details, which opens the title's page.
+ * words over it) and Details, which opens the title's page. Request more
+ * seasons opens the page with Which seasons?; Tell me too and Stop
+ * following act here, as on the page.
  */
 @Composable
 private fun Hero(
@@ -285,7 +313,7 @@ private fun Hero(
     group: FocusRequester,
     main: FocusRequester,
     onFocused: () -> Unit,
-    onAction: () -> Unit,
+    handlers: TvTitleHandlers,
     onDetails: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -297,17 +325,6 @@ private fun Hero(
         }
     }
     val title = hero.title
-    var signIn by remember { mutableStateOf(false) }
-    val handlers = remember(onAction) {
-        TvTitleHandlers(
-            request = onAction,
-            more = onAction,
-            tellMeToo = onAction,
-            stopFollowing = onAction,
-            open = { onAction() },
-            signInAgain = { signIn = true },
-        )
-    }
     Column(
         modifier
             .height(HeroHeight)
@@ -364,7 +381,6 @@ private fun Hero(
             )
         }
     }
-    if (signIn) TvSignInAgainDialog(state.origin, onDismiss = { signIn = false }, returnTo = main)
 }
 
 /** One of TMDB's rows: posters with their badges, then See all; near its end, the next page. */

@@ -265,6 +265,44 @@ class DiscoverViewModelTest {
     }
 
     @Test
+    fun theHerosOtherButtonsDoWhatTheySay() = runTest(dispatcher) {
+        // Partly in a library: Request more seasons, beside Open, opens Which seasons?.
+        val requests = FakeRequests()
+        val partly = trending.results.first { it.tmdbId == 95396L }
+        requests.pages = { _, page -> DiscoverPage(page, 1, listOf(partly)) }
+        val vm = viewModel(requests)
+        val events = mutableListOf<RequestEvent>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.events.collect { events += it } }
+        settle()
+        assertEquals(MainAction.Partial(201, Ask.Yes), vm.state.value.hero?.action)
+        vm.heroMore()
+        settle()
+        assertEquals(RequestEvent.Open(PleyKey.DiscoverTitle(TitleKind.Show, 95396, pick = true)), events.single())
+
+        // Someone else asked for it: Tell me too follows their request here.
+        val movie: DiscoverDetail = Fixtures.decode("discover/movie.json")
+        val asked = FakeRequests()
+        asked.api.answer("discoverTitle", movie.copy(tmdbId = 1184918, status = TitleStatus.Requested, requestId = null, requests = emptyList()))
+        val other = viewModel(asked)
+        settle()
+        assertEquals(MainAction.TellMeToo(Ask.Yes), other.state.value.hero?.action)
+        other.heroTellMeToo()
+        settle()
+        assertEquals(NewRequest(TitleKind.Movie, 1184918), asked.api.calls("ask").single().args.single())
+
+        // Followed: Stop following lets go of the request followed.
+        val followed = Fixtures.decode<RequestList>("requests/list.json").requests.first { it.id == 47L }.copy(kind = TitleKind.Movie, tmdbId = 1184918)
+        val following = FakeRequests()
+        following.api.answer("discoverTitle", movie.copy(tmdbId = 1184918, status = TitleStatus.Requested, requestId = 47, watching = true, requests = listOf(followed)))
+        val third = viewModel(following)
+        settle()
+        assertEquals(MainAction.Following(followed), third.state.value.hero?.action)
+        third.heroStopFollowing()
+        settle()
+        assertEquals(listOf<Any?>(47L), following.api.calls("unwatchRequest").single().args)
+    }
+
+    @Test
     fun theHerosAskWaitsForTheOneOnItsWay() = runTest(dispatcher) {
         val requests = FakeRequests()
         val vm = viewModel(requests)

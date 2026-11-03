@@ -46,8 +46,12 @@ import kotlinx.coroutines.launch
 /** One of Discover's rows: its titles as read so far. */
 data class DiscoverRow(val list: DiscoverList, val pages: Pages)
 
-/** Discover's top: the first title of its rows (trending's, unless it has none for this account), with its main action. */
-data class DiscoverHero(val title: DiscoverTitle, val action: MainAction)
+/**
+ * Discover's top: the first title of its rows (trending's, unless it has
+ * none for this account), with its main action, and its page once read
+ * ([detail]: the seasons Tell me too follows).
+ */
+data class DiscoverHero(val title: DiscoverTitle, val action: MainAction, val detail: DiscoverDetail? = null)
 
 /** Discover's page. */
 data class DiscoverUiState(
@@ -132,9 +136,8 @@ class DiscoverViewModel(private val deps: RequestsDeps) : ViewModel() {
         val trending = rowList.first().pages
         val problem = RequestProblem.of(gate) ?: trending.problem.takeIf { trending.titles.isEmpty() }
         val hero = heroOf(rowList)?.let { title ->
-            val action = detail?.takeIf { it.kind == title.kind && it.tmdbId == title.tmdbId }?.let { mainAction(it, gate) }
-                ?: titleAction(title, gate, allowance)
-            DiscoverHero(title, action)
+            val page = detail?.takeIf { it.kind == title.kind && it.tmdbId == title.tmdbId }
+            DiscoverHero(title, page?.let { mainAction(it, gate) } ?: titleAction(title, gate, allowance), page)
         }
         return DiscoverUiState(
             gate = gate,
@@ -283,6 +286,41 @@ class DiscoverViewModel(private val deps: RequestsDeps) : ViewModel() {
     }
 
     // ---------------------------------------------------------------- the hero's action
+
+    /** The hero's Request more seasons, beside Open: the show's page, with Which seasons? open. */
+    fun heroMore() {
+        val title = state.value.hero?.title ?: return
+        send(RequestEvent.Open(PleyKey.DiscoverTitle(title.kind, title.tmdbId, pick = true)))
+    }
+
+    /**
+     * The hero's Tell me too: following what others asked for, here, as
+     * the title's page does; a show whose page isn't read yet (which says
+     * the seasons asked for) opens it instead.
+     */
+    fun heroTellMeToo() {
+        val hero = state.value.hero ?: return
+        val title = hero.title
+        val detail = hero.detail
+        when {
+            detail != null -> ask(tellMeToo(detail), title.title)
+            title.kind == TitleKind.Movie -> ask(NewRequest(TitleKind.Movie, title.tmdbId), title.title)
+            else -> send(RequestEvent.Open(PleyKey.DiscoverTitle(title.kind, title.tmdbId)))
+        }
+    }
+
+    /** The hero's Stop following: the request this account follows for it, as the title's page does. */
+    fun heroStopFollowing() {
+        val request = (state.value.hero?.action as? MainAction.Following)?.request ?: return
+        if (!asking.compareAndSet(false, true)) return
+        viewModelScope.launch {
+            try {
+                attempt({ eventChannel.send(RequestEvent.Failed(it)) }) { requests.perform(request, CardAction.StopFollowing) }
+            } finally {
+                asking.value = false
+            }
+        }
+    }
 
     /**
      * The hero's main action was pressed: a movie is asked for here; a
