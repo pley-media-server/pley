@@ -82,6 +82,22 @@ fn a_picture_that_played_then_stood_still_12_s_says_the_drive_may_be_out() {
 }
 
 #[test]
+fn a_file_that_played_and_then_never_starts_again_says_the_drive_may_be_out() {
+    let mut w = on_drive(file(), &[]);
+    w.start();
+    w.open();
+    w.advance(2_000);
+    // The drive goes bad: the pipeline fails, the file starts again, and its picture never comes.
+    w.sim.set_load_ms(60_000);
+    w.sim.fail(2, "read error");
+    w.advance(100);
+    assert_eq!(w.fake.modes(), [PlaybackMode::Auto, PlaybackMode::Auto]);
+    w.advance(12_500);
+    let unreadable = Phase::Error { message: DRIVE_UNREADABLE.into(), can_retry: true, title: None };
+    assert_eq!(w.c.state().phase, unreadable);
+}
+
+#[test]
 fn a_drives_picture_track_waiting_to_be_read_again_is_read_at_once_after_a_seek() {
     let mut w = on_drive(file(), &[]);
     w.start();
