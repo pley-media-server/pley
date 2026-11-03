@@ -154,6 +154,38 @@ class TvLibraryFocusTest {
         assertEquals(top, again, 1f)
     }
 
+    private fun backFromATitleInTheFirstRow(beforehand: () -> Unit) {
+        library()
+        beforehand()
+        val n = moveTo(rows = 0, right = 1)
+        compose.press(Key.DirectionCenter)
+        waitUntil { !exists(hasTestTag(TestTags.LIBRARY_GRID)) }
+        back()
+        waitUntil { exists(hasTestTag(TestTags.LIBRARY_GRID)) && exists(isFocused()) }
+        assertEquals(title(n), focusedTitle())
+    }
+
+    @Test
+    fun backFromATitleInTheFirstRowLandsOnItsTile() = backFromATitleInTheFirstRow {}
+
+    @Test
+    fun backFromATitleInTheFirstRowLandsOnItsTileAfterTheChips() = backFromATitleInTheFirstRow {
+        // Up to the chips and down again, as a filter is chosen.
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionDown)
+        assertEquals(title(1), focusedTitle())
+    }
+
+    @Test
+    fun rightFromTheRailLandsOnAFirstRowTileFocusLeft() {
+        library()
+        val n = moveTo(rows = 0, right = 1)
+        back()
+        waitUntil { exists(hasTestTag("${TestTags.TV_RAIL}.library:1") and isFocused()) }
+        compose.press(Key.DirectionRight)
+        assertEquals(title(n), focusedTitle())
+    }
+
     @Test
     fun rightFromTheRailLandsOnTheTileFocusLeft() {
         library()

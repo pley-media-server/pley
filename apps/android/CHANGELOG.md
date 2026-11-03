@@ -179,8 +179,9 @@ describes how they are made.
   library can make way in the rail, the drive takes Playlists' place, and
   with a single library the rail no longer runs past its seven entries.
 - On TVs, Back from a title or from a tile's actions, and Right from the
-  rail, land on the library grid's tile focus left, the grid as it was,
-  where they went to the first tile or to the Sort chip.
+  rail, land on the library grid's tile focus left, in its first row too,
+  the grid as it was, where they went to the first tile or to the Sort
+  chip.
 - On TVs, a held Up in a library grid keeps its column and its focus, as
   a held Down does, where it could jump to the end of the row above, end
   on another column or leave no tile focused.

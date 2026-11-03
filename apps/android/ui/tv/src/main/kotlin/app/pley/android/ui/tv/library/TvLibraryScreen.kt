@@ -107,6 +107,9 @@ private fun TvLibraryPage(state: LibraryUiState<ArtworkTileModel>, vm: LibraryVi
     // Down from the tabs enters the tab's content (the header sits apart from it on screen).
     val contentFocus = remember { FocusRequester() }
     var returnTo by remember { mutableStateOf<TvPanel?>(null) }
+    // The grids' focus, kept here while the page is covered: Back to the page lands on the tile it had.
+    val libraryGrid = remember { TvGridFocus() }
+    val collectionsGrid = remember { TvGridFocus() }
     LaunchedEffect(panel) {
         val chip = returnTo
         if (panel == null && chip != null) {
@@ -123,7 +126,7 @@ private fun TvLibraryPage(state: LibraryUiState<ArtworkTileModel>, vm: LibraryVi
     var switched by rememberSaveable { mutableStateOf(false) }
     val openedOn = state.openedOn
     val tab = state.params.tab
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().backToGrid(memory, mapOf("grid/" to libraryGrid, "collections/" to collectionsGrid))) {
         when {
             state.missing -> TvMessage(
                 title = stringResource(R.string.tv_library_missing_title),
@@ -140,9 +143,9 @@ private fun TvLibraryPage(state: LibraryUiState<ArtworkTileModel>, vm: LibraryVi
             else -> tabs.SaveableStateProvider(tab) {
                 val initial = !switched && tab == openedOn
                 when (tab) {
-                    LibraryTab.Library -> TvLibraryTab(state, vm, memory, skeleton, initial, chips, tabFocus, contentFocus, onPanel = openPanel)
+                    LibraryTab.Library -> TvLibraryTab(state, vm, memory, skeleton, initial, libraryGrid, chips, tabFocus, contentFocus, onPanel = openPanel)
                     LibraryTab.Recommended -> TvRecommendedTab(state, vm, memory, initial, tabFocus, Modifier.focusRequester(contentFocus).upTo(tabFocus))
-                    LibraryTab.Collections -> TvCollectionsTab(state, vm, memory, skeleton, initial, tabFocus, contentFocus)
+                    LibraryTab.Collections -> TvCollectionsTab(state, vm, memory, skeleton, initial, collectionsGrid, tabFocus, contentFocus)
                 }
             }
         }
@@ -213,6 +216,7 @@ private fun TvLibraryTab(
     memory: FocusMemory,
     skeleton: SkeletonState,
     initial: Boolean,
+    focus: TvGridFocus,
     chips: Map<TvPanel, FocusRequester>,
     tabFocus: FocusRequester,
     contentFocus: FocusRequester,
@@ -224,7 +228,6 @@ private fun TvLibraryTab(
     val params = state.params
     val music = state.kind == LibraryKind.Music
     val cells = state.grid.cells.valueOrNull
-    val focus = remember { TvGridFocus() }
     val grid = rememberTvGridState()
     val jump = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
@@ -387,6 +390,7 @@ private fun TvCollectionsTab(
     memory: FocusMemory,
     skeleton: SkeletonState,
     initial: Boolean,
+    focus: TvGridFocus,
     tabFocus: FocusRequester,
     contentFocus: FocusRequester,
 ) {
@@ -432,6 +436,7 @@ private fun TvCollectionsTab(
                     memory = memory,
                     memoryPrefix = "collections",
                     skeleton = skeleton,
+                    focus = focus,
                     initialFocus = initial,
                     badge = { list?.getOrNull(it)?.count?.toString() },
                     modifier = Modifier.fillMaxSize().focusRequester(contentFocus).upTo(tabFocus),
@@ -452,6 +457,26 @@ internal fun Modifier.upTo(target: FocusRequester): Modifier = focusProperties {
         if (requestedFocusDirection == FocusDirection.Up) {
             cancelFocusChange()
             runCatching { target.requestFocus() }
+        }
+    }
+}.focusGroup()
+
+/**
+ * Focus coming back to the page (Back from a title, Right from the rail)
+ * lands on the tile it left when that was one of [grids]' (by its key's
+ * prefix in [memory]), as the Samsung app's grid comes back to its last
+ * child. The page's own restore stops at the grid's focus group, which
+ * keeps no child of its own, and the page's first element took it: the
+ * Title chip, above a grid at its top.
+ */
+private fun Modifier.backToGrid(memory: FocusMemory, grids: Map<String, TvGridFocus>): Modifier = focusProperties {
+    onEnter = {
+        val key = memory.key
+        val grid = grids.entries.firstOrNull { key != null && key.startsWith(it.key) }?.value
+        val at = grid?.focused ?: -1
+        if (requestedFocusDirection == FocusDirection.Enter && at >= 0 && grid?.slots?.has(at) == true) {
+            cancelFocusChange()
+            grid.focus(at)
         }
     }
 }.focusGroup()
