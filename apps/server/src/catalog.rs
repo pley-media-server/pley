@@ -175,6 +175,8 @@ pub struct ItemSummary {
 
 /// A title's best file (a show's files on average), for library listings:
 /// what the posters' badges say, and the line under them sorted by bitrate.
+/// Filtered by resolution or dynamic range, the version that matches: a
+/// film's Dolby Vision file, not its higher-bitrate HDR10 one.
 #[derive(Debug, Clone, PartialEq, Serialize, FromRow)]
 pub struct MediaSummary {
     /// Bits per second.
@@ -188,8 +190,13 @@ pub struct MediaSummary {
     pub dynamic_range: Option<String>,
 }
 
-/// The media summaries of `items` (one listing page), by item id.
-pub async fn media_summaries(db: &Db, items: &[ItemSummary]) -> sqlx::Result<HashMap<i64, MediaSummary>> {
+/// The media summaries of `items` (one listing page), by item id: of the
+/// `files` that match, where a title has any.
+pub async fn media_summaries(
+    db: &Db,
+    items: &[ItemSummary],
+    files: FileFilter,
+) -> sqlx::Result<HashMap<i64, MediaSummary>> {
     let ids = |shows: bool| {
         serde_json::to_string(&items.iter().filter(|i| (i.kind == "show") == shows).map(|i| i.id).collect::<Vec<_>>())
             .unwrap_or_else(|_| "[]".into())
@@ -200,30 +207,67 @@ pub async fn media_summaries(db: &Db, items: &[ItemSummary]) -> sqlx::Result<Has
         #[sqlx(flatten)]
         media: MediaSummary,
     }
-    // The file with the highest bitrate of each title comes first.
-    let files: Vec<Row> = sqlx::query_as(
+    let matching = files.sql();
+    // The file with the highest bitrate of each title comes first, of those
+    // that match when some do.
+    let movies: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT f.item_id, f.bitrate, f.size, f.width, f.height, f.video_codec, f.dynamic_range
          FROM media_files f WHERE f.item_id IN (SELECT value FROM json_each(?))
-         ORDER BY f.item_id, f.bitrate IS NULL, f.bitrate DESC",
-    )
+         ORDER BY f.item_id, {}f.bitrate IS NULL, f.bitrate DESC",
+        // A constant there would name a column.
+        matching.as_deref().map(|m| format!("({m}) DESC, ")).unwrap_or_default(),
+    )))
     .bind(ids(false))
     .fetch_all(&db.read)
     .await?;
-    // A show's best range, as its resolution is its best episode's.
-    let shows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
-        "SELECT e.grandparent_id AS item_id, CAST(AVG(f.bitrate) AS INTEGER) AS bitrate, SUM(f.size) AS size,
-                MAX(f.width) AS width, MAX(f.height) AS height, NULL AS video_codec, {RANGE_OF_FILES} AS dynamic_range
-         FROM items e JOIN media_files f ON f.item_id = e.id
-         WHERE e.grandparent_id IN (SELECT value FROM json_each(?)) GROUP BY e.grandparent_id"
-    )))
-    .bind(ids(true))
-    .fetch_all(&db.read)
-    .await?;
+    // A show's best range, as its resolution is its best episode's: of the
+    // episodes that match, then (for shows with none) of all of them.
+    let shows = |matching: Option<&str>| {
+        let query = format!(
+            "SELECT e.grandparent_id AS item_id, CAST(AVG(f.bitrate) AS INTEGER) AS bitrate, SUM(f.size) AS size,
+                    MAX(f.width) AS width, MAX(f.height) AS height, NULL AS video_codec,
+                    {RANGE_OF_FILES} AS dynamic_range
+             FROM items e JOIN media_files f ON f.item_id = e.id
+             WHERE e.grandparent_id IN (SELECT value FROM json_each(?)) AND ({})
+             GROUP BY e.grandparent_id",
+            matching.unwrap_or("1"),
+        );
+        let ids = ids(true);
+        async move { sqlx::query_as::<_, Row>(sqlx::AssertSqlSafe(query)).bind(ids).fetch_all(&db.read).await }
+    };
+    let matching_shows = if matching.is_some() { shows(matching.as_deref()).await? } else { Vec::new() };
     let mut out = HashMap::new();
-    for row in files.into_iter().chain(shows) {
+    for row in movies.into_iter().chain(matching_shows).chain(shows(None).await?) {
         out.entry(row.item_id).or_insert(row.media);
     }
     Ok(out)
+}
+
+/// The files a filtered listing describes and sorts by: those of its
+/// resolutions and dynamic ranges (any, where one is empty).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FileFilter {
+    pub resolutions: &'static [&'static str],
+    pub dynamic_ranges: &'static [&'static str],
+}
+
+impl FileFilter {
+    /// Whether file `f` matches, as SQL; `None` when every file does. Only
+    /// the catalog's own tokens are written into it.
+    fn sql(&self) -> Option<String> {
+        let list = |values: &[&str], known: &[&str]| {
+            values.iter().filter(|v| known.contains(v)).map(|v| format!("'{v}'")).collect::<Vec<_>>().join(", ")
+        };
+        let mut tests = Vec::new();
+        if !self.resolutions.is_empty() {
+            let resolution = resolution_case("f.width", "f.height");
+            tests.push(format!("COALESCE({resolution} IN ({}), 0)", list(self.resolutions, &RESOLUTIONS)));
+        }
+        if !self.dynamic_ranges.is_empty() {
+            tests.push(format!("COALESCE(f.dynamic_range IN ({}), 0)", list(self.dynamic_ranges, &DYNAMIC_RANGES)));
+        }
+        (!tests.is_empty()).then(|| tests.join(" AND "))
+    }
 }
 
 /// The resolutions a library can be filtered by, best first: a title's is
@@ -258,13 +302,16 @@ pub fn dynamic_ranges_named(value: &str) -> &'static [&'static str] {
     DYNAMIC_RANGES.iter().position(|r| *r == value).map_or(&[], |i| &DYNAMIC_RANGES[i..=i])
 }
 
-/// The best resolution of the files `f` (as an aggregate), with the same
-/// lines as the posters' "4K": a width or a height is enough, for films
-/// cropped wider than 16:9.
-const RESOLUTION_OF_FILES: &str = "CASE WHEN MAX(f.width) >= 3800 OR MAX(f.height) >= 2100 THEN '4k'
-    WHEN MAX(f.width) >= 1800 OR MAX(f.height) >= 1000 THEN '1080'
-    WHEN MAX(f.width) >= 1200 OR MAX(f.height) >= 700 THEN '720'
-    WHEN MAX(f.width) > 0 OR MAX(f.height) > 0 THEN 'sd' END";
+/// The resolution of a `width` and `height`, with the same lines as the
+/// posters' "4K": either is enough, for films cropped wider than 16:9.
+fn resolution_case(width: &str, height: &str) -> String {
+    format!(
+        "(CASE WHEN {width} >= 3800 OR {height} >= 2100 THEN '4k'
+            WHEN {width} >= 1800 OR {height} >= 1000 THEN '1080'
+            WHEN {width} >= 1200 OR {height} >= 700 THEN '720'
+            WHEN {width} > 0 OR {height} > 0 THEN 'sd' END)"
+    )
+}
 
 /// The best dynamic range of the files `f` (as an aggregate), in the order
 /// of [`DYNAMIC_RANGES`].
@@ -285,9 +332,29 @@ fn of_title_files(aggregate: &str) -> String {
     )
 }
 
+/// The ids of the titles of `kind` in library `library_id` whose files,
+/// taken together, pass `having` (an aggregate over the files `f`): one
+/// pass over the library's files, where a subquery per title would read
+/// a large library's thousands of titles one by one.
+fn titles_whose_files(kind: &str, library_id: i64, having: &str) -> String {
+    if kind == "show" {
+        format!(
+            "SELECT e.grandparent_id FROM media_files f JOIN items e ON e.id = f.item_id
+             WHERE f.library_id = {library_id} AND e.grandparent_id IS NOT NULL
+             GROUP BY e.grandparent_id HAVING {having}"
+        )
+    } else {
+        format!(
+            "SELECT f.item_id FROM media_files f WHERE f.library_id = {library_id}
+             GROUP BY f.item_id HAVING {having}"
+        )
+    }
+}
+
 /// Title `i`'s resolution, one of [`RESOLUTIONS`] (NULL without a video file).
 pub(crate) fn title_resolution_sql() -> String {
-    of_title_files(RESOLUTION_OF_FILES)
+    // The best of the files: either line crossed by one of them.
+    of_title_files(&resolution_case("MAX(f.width)", "MAX(f.height)"))
 }
 
 /// Title `i`'s dynamic range, one of [`DYNAMIC_RANGES`] (NULL without a video file).
@@ -623,7 +690,8 @@ pub enum SortKey {
     Duration,
     LastPlayed,
     UserRating,
-    /// The best file's bitrate (a show's: its episodes' on average).
+    /// The best file's bitrate (a show's: its episodes' on average), of
+    /// the files a filter's version is made of.
     Bitrate,
 }
 
@@ -644,9 +712,23 @@ impl SortKey {
     }
 
     /// The sort expression for items of `kind`, and whether it can be NULL.
-    fn column(self, kind: &str) -> (&'static str, bool) {
+    /// Sorted by bitrate, a filtered listing reads the files that match, as
+    /// [`media_summaries`] does, so the order follows the bitrates shown.
+    fn column(self, kind: &str, files: FileFilter) -> (std::borrow::Cow<'static, str>, bool) {
         let show = kind == "show";
-        match self {
+        if let (SortKey::Bitrate, Some(matching)) = (self, files.sql()) {
+            let (aggregate, from) = if show {
+                ("AVG", "items e JOIN media_files f ON f.item_id = e.id WHERE e.grandparent_id = i.id")
+            } else {
+                ("MAX", "media_files f WHERE f.item_id = i.id")
+            };
+            let expr = format!(
+                "(SELECT CASE WHEN MAX({matching}) THEN {aggregate}(CASE WHEN {matching} THEN f.bitrate END)
+                         ELSE {aggregate}(f.bitrate) END FROM {from})"
+            );
+            return (expr.into(), true);
+        }
+        let (expr, nullable) = match self {
             SortKey::Title => ("i.sort_title", false),
             SortKey::Year => ("i.year", true),
             // Shows are "added" when their newest episode was.
@@ -668,16 +750,18 @@ impl SortKey {
                 true,
             ),
             SortKey::Bitrate => ("(SELECT MAX(f.bitrate) FROM media_files f WHERE f.item_id = i.id)", true),
-        }
+        };
+        (expr.into(), nullable)
     }
 
     /// `ORDER BY` clause: NULLs last in both directions, title as tiebreaker.
     /// Columns stay bare where possible so SQLite can walk an index instead
     /// of sorting the whole library: it already puts NULLs last going down,
     /// so only ascending sorts of nullable columns need telling.
-    fn order_by(self, kind: &str, descending: bool) -> String {
+    fn order_by(self, kind: &str, descending: bool, files: FileFilter) -> String {
         let dir = if descending { "DESC" } else { "ASC" };
-        match self.column(kind) {
+        let (col, nullable) = self.column(kind, files);
+        match (col.as_ref(), nullable) {
             ("i.sort_title", _) => format!("i.sort_title {dir}"),
             (col, false) => format!("{col} {dir}, i.sort_title ASC"),
             (col, true) if descending => format!("{col} DESC, i.sort_title ASC"),
@@ -704,6 +788,11 @@ pub struct LibraryQuery<'a> {
 }
 
 impl<'a> LibraryQuery<'a> {
+    /// The files its titles are described and sorted by.
+    pub fn files(&self) -> FileFilter {
+        FileFilter { resolutions: self.resolutions, dynamic_ranges: self.dynamic_ranges }
+    }
+
     /// Every item of `kind` in the library, by title.
     pub fn all(library_id: i64, kind: &'a str) -> Self {
         LibraryQuery {
@@ -746,15 +835,18 @@ pub async fn library_items(db: &Db, user_id: i64, q: &LibraryQuery<'_>) -> sqlx:
     }
     let json = |values: &[&str]| serde_json::to_string(values).unwrap_or_else(|_| "[]".into());
     if !q.resolutions.is_empty() {
-        filter.push_str(&format!(" AND {} IN (SELECT value FROM json_each(?))", title_resolution_sql()));
+        let best = resolution_case("MAX(f.width)", "MAX(f.height)");
+        let having = format!("{best} IN (SELECT value FROM json_each(?))");
+        filter.push_str(&format!(" AND i.id IN ({})", titles_whose_files(q.kind, q.library_id, &having)));
     }
     if !q.dynamic_ranges.is_empty() {
-        filter.push_str(&format!(" AND {} IN (SELECT value FROM json_each(?))", title_range_sql()));
+        let having = format!("{RANGE_OF_FILES} IN (SELECT value FROM json_each(?))");
+        filter.push_str(&format!(" AND i.id IN ({})", titles_whose_files(q.kind, q.library_id, &having)));
     }
     let limit = q.limit.unwrap_or(i64::MAX).max(0);
     let sql = format!(
         "{SUMMARY_SELECT} WHERE {VISIBLE}{filter} ORDER BY {} LIMIT ? OFFSET ?",
-        q.sort.order_by(q.kind, q.descending)
+        q.sort.order_by(q.kind, q.descending, q.files())
     );
     macro_rules! bind_filter {
         ($query:expr) => {{
@@ -782,9 +874,10 @@ pub async fn library_items(db: &Db, user_id: i64, q: &LibraryQuery<'_>) -> sqlx:
         .bind(q.offset.max(0))
         .fetch_all(&db.read)
         .await?;
-    // Counting is only needed when the page may not hold everything.
-    let total = if q.offset == 0 && (rows.len() as i64) < limit {
-        rows.len() as i64
+    // Counting is only needed when the page may not end the list: a short
+    // page does, unless it's empty and past the end.
+    let total = if (rows.len() as i64) < limit && (q.offset == 0 || !rows.is_empty()) {
+        q.offset.max(0) + rows.len() as i64
     } else {
         let count = format!(
             "{} SELECT COUNT(*) FROM items i LEFT JOIN items p ON p.id = i.parent_id
@@ -843,7 +936,7 @@ pub struct MediaFilters {
 }
 
 /// The values of a filter worth offering: those of `order` that titles
-/// have, when they have two or more (one would keep every title).
+/// have, when they have two or more (one leaves nothing to choose).
 fn offered(found: &HashSet<String>, order: &[&'static str]) -> Vec<&'static str> {
     let values: Vec<&'static str> = order.iter().copied().filter(|v| found.contains(*v)).collect();
     if values.len() > 1 { values } else { Vec::new() }
@@ -855,10 +948,21 @@ pub async fn media_filters(db: &Db, user_id: i64, library_id: i64, kind: &str) -
     if !matches!(kind, "movie" | "show") {
         return Ok(MediaFilters::default());
     }
+    // Each title's best, in one pass over the library's files (a show's
+    // through its episodes), then those the user may see.
+    let (title, join) = if kind == "show" {
+        ("e.grandparent_id", "JOIN items e ON e.id = f.item_id AND e.grandparent_id IS NOT NULL")
+    } else {
+        ("f.item_id", "")
+    };
+    let best = resolution_case("MAX(f.width)", "MAX(f.height)");
     let found: Vec<(Option<String>, Option<String>)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
-        "{ME_CTE} SELECT DISTINCT {}, {} FROM {VISIBLE_ITEMS} WHERE {VISIBLE} AND i.library_id = ? AND i.kind = ?",
-        title_resolution_sql(),
-        title_range_sql(),
+        "{ME_CTE}, titles AS (
+             SELECT {title} AS id, {best} AS resolution, {RANGE_OF_FILES} AS dynamic_range
+             FROM media_files f {join} WHERE f.library_id = ? GROUP BY {title})
+         SELECT DISTINCT t.resolution, t.dynamic_range FROM titles t JOIN items i ON i.id = t.id
+             LEFT JOIN items p ON p.id = i.parent_id LEFT JOIN items gp ON gp.id = i.grandparent_id
+         WHERE i.kind = ? AND {VISIBLE}"
     )))
     .bind(user_id)
     .bind(library_id)

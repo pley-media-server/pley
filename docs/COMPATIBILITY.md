@@ -499,9 +499,12 @@ a field Pley doesn't read (`hdr`, `dovi`, `audioLanguage`,
 
 `resolution` is a title's best file's (a show's best episode's): `4k`,
 `1080` (up to 1440p), `720`, or `sd` for anything smaller (Plex's `576` and
-`480` are SD). Pley also reads `dynamicRange`, a title's best: `hdr` (any
-but SDR), `dolby_vision`, `hdr10plus`, `hdr10`, `hlg` or `sdr`; its apps
-save these two in smart collections and playlists.
+`480` are SD). A movie section's `Meta` lists it, with its choices at
+`/library/sections/{id}/resolution`, so Kometa's movie collections by
+resolution work; for shows Kometa asks for `episode.resolution`, a filter on
+descendants. Pley also reads `dynamicRange`, a title's best: `hdr` (any but
+SDR), `dolby_vision`, `hdr10plus`, `hdr10`, `hlg` or `sdr`; its apps save
+these two in smart collections and playlists.
 
 With `includeMeta=1` the response describes these filters, sorts and fields
 in a `Meta` element; `python-plexapi` validates searches against it. Pley's

@@ -1238,10 +1238,49 @@ async fn libraries_filter_by_resolution_and_dynamic_range() {
     assert_eq!(filters["resolutions"], json!(["4k", "1080", "sd"]));
     assert_eq!(filters["dynamic_ranges"], json!(["hdr", "dolby_vision", "hdr10", "sdr"]));
 
-    // A show is its best episode.
+    // Filtered, a title is described and sorted by the version that
+    // matches: Alien's 4K HDR10 file, not its higher-bitrate 1080p one.
+    for (name, bitrate) in [("Alien (1979).mkv", 40_000_000), ("Final Cut}.mkv", 20_000_000), ("Brazil", 30_000_000)] {
+        sqlx::query("UPDATE media_files SET bitrate = ? WHERE path LIKE '%' || ? || '%'")
+            .bind(bitrate)
+            .bind(name)
+            .execute(&app.state.db.write)
+            .await
+            .unwrap();
+    }
+    let media = |reply: &Value, title: &str| {
+        let items = reply["items"].as_array().unwrap();
+        items.iter().find(|i| i["title"] == title).map(|i| i["media"].clone()).unwrap()
+    };
+    let all = app.get(&format!("/api/libraries/{movies}/items?sort=bitrate"), &admin).await.body;
+    assert_eq!(titles(&all["items"])[..2], ["Alien", "Brazil"]);
+    assert_eq!(
+        (media(&all, "Alien")["height"].clone(), media(&all, "Alien")["dynamic_range"].clone()),
+        (json!(1080), json!("sdr"))
+    );
+    for (filter, found) in [
+        ("resolution=4k", vec!["Brazil", "Alien"]),
+        ("dynamic_range=hdr", vec!["Brazil", "Alien"]),
+        ("dynamic_range=hdr10", vec!["Alien"]),
+    ] {
+        let reply = app.get(&format!("/api/libraries/{movies}/items?sort=bitrate&{filter}"), &admin).await.body;
+        assert_eq!(titles(&reply["items"]), found, "{filter}: by the matching version's bitrate");
+        let alien = media(&reply, "Alien");
+        assert_eq!(
+            (alien["height"].clone(), alien["dynamic_range"].clone()),
+            (json!(2160), json!("hdr10")),
+            "{filter}"
+        );
+        assert_eq!(alien["bitrate"], json!(20_000_000), "{filter}");
+    }
+
+    // A show is its best episode, and filtered, its episodes that match.
     let reply = app.get(&format!("/api/libraries/{shows}/items?resolution=4k"), &admin).await;
     assert_eq!(titles(&reply.body["items"]), ["Lost"]);
     assert_eq!(reply.body["items"][0]["media"]["dynamic_range"], "dolby_vision");
+    assert_eq!(reply.body["items"][0]["media"]["size"], json!(2048), "the 4K episode alone");
+    let reply = app.get(&format!("/api/libraries/{shows}/items"), &admin).await;
+    assert_eq!(media(&reply.body, "Lost")["size"], json!(4096), "every episode");
     let filters = app.get(&format!("/api/libraries/{shows}/filters"), &admin).await.body;
     assert_eq!(filters["resolutions"], json!([]), "Heroes has no probed file: only Lost's 4K");
     assert_eq!(filters["dynamic_ranges"], json!([]), "one value keeps everything");

@@ -412,7 +412,7 @@ pub async fn items(
         .map(|r| catalog::ItemSummary { backdrop_url: None, thumb_url: None, ..r.to_summary_with(summaries) })
         .collect();
     // The posters say what the files are like.
-    let mut media = catalog::media_summaries(&state.db, &items).await?;
+    let mut media = catalog::media_summaries(&state.db, &items, q.files()).await?;
     for item in &mut items {
         item.media = media.remove(&item.id);
     }

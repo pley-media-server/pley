@@ -1486,11 +1486,14 @@ open only some libraries see those, in that order.
 Items leave out `backdrop_url` and `thumb_url` (grids show posters), and
 carry `media`. The apps show its badges ("4K", "DV", "HDR10") on posters
 sorted by `bitrate` or filtered by `resolution` or `dynamic_range`, and
-its bitrate and size under them sorted by `bitrate`.
+its bitrate and size under them sorted by `bitrate`. Filtered by either,
+`media` describes the version that matches (a film's Dolby Vision file
+rather than its higher-bitrate HDR10 one; a show's matching episodes), and
+`sort=bitrate` orders by that version's bitrate.
 
 `GET /api/libraries/{id}/filters` lists `resolutions` and `dynamic_ranges`
 best first, only those the titles have and only when they have two or
-more (one would keep every title); `dynamic_ranges` starts with `hdr` when
+more (one leaves nothing to choose); `dynamic_ranges` starts with `hdr` when
 the titles have SDR and two kinds of HDR. Music has neither.
 
 Answers to `/items` carry an `ETag` and
