@@ -234,11 +234,12 @@ behind it.
   toolbar; on Apple TV, the system's keyboard). What is typed is searched
   0.25 s after the last key (`GET /api/search`: the 40 best titles and up to 12 people), and only
   the latest search's answer shows. The results come in rows by kind, each
-  with its count: People, Movies, Shows, Seasons, Episodes, Artists,
-  Albums and Tracks, in the shape of Home's tiles (people round, with
-  their initials when they have no photo), then Live TV's channels (up
-  to 12, by name, number or what's on), which open the live player in All
-  channels.
+  with its count, titles first, as in every app: Movies, Shows, Seasons,
+  Episodes, Artists, Albums and Tracks, in the shape of Home's tiles,
+  then Live TV's channels (up to 12, by name, number or what's on), which
+  open the live player in All channels, then People (round, with their
+  initials when they have no photo). Each row keeps the server's order,
+  closest match first.
   Choosing a result opens its page. With nothing typed, the profile's
   **recent searches** show, newest first: the last 10 searched or opened,
   kept on the device for each server and profile, each searched again
