@@ -774,9 +774,10 @@ impl PlayerView {
         self.toggle(p);
     }
 
-    /// The Play/Pause key (`playPause` in `TvPlayerScreen.kt`, the Samsung app's `PlayPause`):
-    /// pauses (showing the controls on the scrubber) or plays. A seek waiting for OK stays on its
-    /// way and lands by itself.
+    /// The Play/Pause key (the Samsung app's `PlayerScreen.PlayPause`): pauses (showing the
+    /// controls on the scrubber) or plays. A seek waiting for OK stays on its way and lands by
+    /// itself. Android's key (`playPause` in `TvPlayerScreen.kt`) confirms the seek first, as OK
+    /// does here ([`PlayerView::play_pause`]).
     fn toggle(&mut self, p: &mut dyn Playback) {
         if p.wants_to_play() {
             p.pause();

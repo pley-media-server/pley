@@ -180,13 +180,16 @@ fn left_and_right_wait_for_ok_5_s_at_most_and_ok_plays_on() {
 fn the_play_pause_key_leaves_a_coming_seek_on_its_way() {
     let mut pl = Player::new(Fake::movie());
     pl.press(Key::Right);
+    pl.wait(2.0);
     // The key pauses; only OK makes the seek at once.
     pl.press(Key::PlayPause);
     assert_eq!(pl.p.calls, [Call::Pause]);
     pl.press(Key::PlayPause);
     assert_eq!(pl.p.calls, [Call::Pause, Call::Play]);
-    // The seek lands by itself 5 s after the last arrow.
-    pl.wait(5.0);
+    // The seek lands by itself 5 s after the last arrow: the Play/Pause presses don't put it off.
+    pl.wait(2.8);
+    assert_eq!(pl.p.calls, [Call::Pause, Call::Play]);
+    pl.wait(0.4);
     assert_eq!(pl.p.calls, [Call::Pause, Call::Play, Call::Seek(70_000)]);
 }
 
@@ -926,7 +929,7 @@ fn black(frame: &Frame) -> Option<u8> {
 #[test]
 fn the_first_picture_fades_in_from_black_at_once_with_reduce_motion() {
     let mut pl = Player::new(Fake::movie());
-    assert_eq!(black(&pl.idle()), Some(255), "no black before the first picture");
+    assert_eq!(black(&pl.idle()), Some(255), "the video wasn't covered in black before its first picture");
     pl.p.state.first_frame_ms = Some(900);
     pl.idle();
     pl.wait(0.1);
