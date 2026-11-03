@@ -3,6 +3,7 @@ package app.pley.android.ui.tv.search
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.getBoundsInRoot
@@ -11,6 +12,9 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
 import app.pley.android.common.Tier
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.model.LiveChannel
@@ -22,6 +26,8 @@ import app.pley.android.ui.tv.kit.focused
 import app.pley.android.ui.tv.kit.press
 import app.pley.android.ui.tv.theme.TvTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -44,9 +50,9 @@ class TvSearchTest {
     private val chosen = mutableListOf<String>()
     private val watched = mutableListOf<Long>()
 
-    private fun show(state: SearchUiState<ArtworkTileModel>) {
+    private fun show(state: SearchUiState<ArtworkTileModel>, reduced: Boolean = true) {
         compose.setContent {
-            TvTheme(Tier.T2, reducedMotion = true) {
+            TvTheme(Tier.T2, reducedMotion = reduced) {
                 TvSearchContent(
                     state = state,
                     field = TextFieldState(state.query),
@@ -129,6 +135,33 @@ class TvSearchTest {
         compose.press(Key.DirectionRight, times = 7)
         compose.press(Key.DirectionLeft)
         assertEquals(912f, compose.onNodeWithText("Clear").getBoundsInRoot().right.value, 1f)
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun recentChipsGlideOver150MsEasedOutWhenTheyMove() {
+        show(SearchUiState("", List(12) { "a longer search $it" }, SearchResultsState.Idle), reduced = false)
+        compose.press(Key.DirectionDown)
+        val first = compose.onNodeWithText("a longer search 0")
+        val start = first.getBoundsInRoot().left.value
+        compose.mainClock.autoAdvance = false
+        // Right until a chip would pass the edge: that press moves the row as rows move, over
+        // 150 ms eased out, so over several frames, each moving it less than the one before.
+        for (chip in 1..12) {
+            compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+            var at = start - first.getBoundsInRoot().left.value
+            val steps = mutableListOf<Float>()
+            repeat(20) {
+                compose.mainClock.advanceTimeByFrame()
+                val now = start - first.getBoundsInRoot().left.value
+                if (now != at) steps += now - at
+                at = now
+            }
+            if (steps.isEmpty()) continue
+            assertTrue("$steps at chip $chip", steps.size >= 5 && steps.zipWithNext().all { (a, b) -> b <= a + 0.5f })
+            return
+        }
+        fail("The chips never moved")
     }
 
     @Test

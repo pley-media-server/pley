@@ -88,7 +88,7 @@ heard it for that profile, the start asks "Who's watching?".
   Reduce motion a held key steps focus a tile or a row at a time and
   nothing slides.
   Search's recent searches move only when the next chip would pass the
-  gutter or the safe area's edge.
+  gutter or the safe area's edge, and then glide as a row does.
 - A held key never leaves its row or grid: a held Left stops at a row's
   first tile, and a held Right or Up at a library grid's edge. The rail,
   the A to Z jump and the chips above the grid take a press of their own.

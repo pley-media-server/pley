@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -30,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +39,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
@@ -53,6 +56,7 @@ import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.reducedMotion
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.SkeletonTile
 import app.pley.android.designsystem.tile.TileKind
@@ -73,13 +77,16 @@ import app.pley.android.screens.search.SearchUiState
 import app.pley.android.screens.search.SearchViewModel
 import app.pley.android.ui.tv.R
 
+import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvRow
 import app.pley.android.ui.tv.kit.TvRowColumn
 import app.pley.android.ui.tv.kit.TvScrolling
 import app.pley.android.ui.tv.kit.TvTextButton
+import app.pley.android.ui.tv.kit.WithinMotion
 import app.pley.android.ui.tv.kit.initialFocus
+import app.pley.android.ui.tv.kit.keptWithin
 import app.pley.android.ui.tv.kit.railFade
 import app.pley.android.ui.tv.kit.railOnLeftStopOnRight
 import app.pley.android.ui.tv.kit.rememberFocusMemory
@@ -316,8 +323,14 @@ private fun Recent(recent: List<String>, focus: FocusRequester, onRecent: (Strin
     }
     val rail = LocalTvRailFocus.current
     val density = LocalDensity.current
-    // The chips move only when one would pass the gutter or the safe area's edge.
-    val within = remember(density) { TvScrolling.within(density) }
+    val chips = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    // The chips move only when one would pass the gutter or the safe area's edge, as rows glide.
+    val motion = remember(chips, scope) { WithinMotion(chips, scope) }
+    motion.start = with(density) { PleyTv.Gutter.toPx() }
+    motion.end = with(density) { TvSafeArea.Horizontal.toPx() }
+    motion.gate = LocalKeyRepeatGate.current
+    motion.reduced = reducedMotion()
     Column(Modifier.fillMaxWidth().padding(top = ResultsTop).testTag(TV_SEARCH_RECENT)) {
         BasicText(
             stringResource(R.string.tv_search_recent),
@@ -325,18 +338,25 @@ private fun Recent(recent: List<String>, focus: FocusRequester, onRecent: (Strin
             modifier = Modifier.padding(start = PleyTv.Gutter).semantics { heading() },
         )
         Spacer(Modifier.height(16.dp))
-        CompositionLocalProvider(LocalBringIntoViewSpec provides within) {
+        CompositionLocalProvider(LocalBringIntoViewSpec provides TvScrolling.itself) {
             LazyRow(
-                modifier = Modifier.fillMaxWidth().railFade().focusRequester(focus).railOnLeftStopOnRight(rail).focusGroup(),
+                state = chips,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .railFade()
+                    .focusRequester(focus)
+                    .railOnLeftStopOnRight(rail)
+                    .focusGroup()
+                    .onPlaced { motion.row = it },
                 contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeArea.Horizontal, top = 6.dp, bottom = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 items(recent, key = { it }, contentType = { "recent" }) { q ->
-                    TvChip(label = q, onClick = { onRecent(q) }, icon = PleyIcons.History, modifier = Modifier.widthIn(max = 320.dp))
+                    TvChip(label = q, onClick = { onRecent(q) }, icon = PleyIcons.History, modifier = Modifier.widthIn(max = 320.dp).keptWithin(motion))
                 }
                 item(key = "pley.clear", contentType = "clear") {
-                    TvTextButton(stringResource(R.string.tv_search_recent_clear), onClick = onClear)
+                    TvTextButton(stringResource(R.string.tv_search_recent_clear), onClick = onClear, modifier = Modifier.keptWithin(motion))
                 }
             }
         }

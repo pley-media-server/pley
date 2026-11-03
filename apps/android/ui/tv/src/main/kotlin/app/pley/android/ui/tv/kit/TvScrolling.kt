@@ -8,7 +8,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyTv
-import app.pley.android.designsystem.TvSafeArea
 
 /**
  * Where scrolling puts what has focus (D-pad rule 4, with the design
@@ -23,8 +22,6 @@ import app.pley.android.designsystem.TvSafeArea
  *   as on Plex and Google TV ([TvRow]).
  * - [page] around a page of rows: the focused tile's top where its row's
  *   header lands at y = 172, just under the info block.
- * - [within] a row of chips: nothing moves while the focused chip shows
- *   between the gutter and the safe area's edge.
  *
  * Each only says where; a scroll that can't go that far stops at the end.
  */
@@ -38,16 +35,6 @@ object TvScrolling {
      * Compose's own scrolling to the focused element leaves it be.
      */
     val itself: BringIntoViewSpec = ItselfSpec
-
-    /**
-     * Leaves the focused element where it is while it shows between
-     * [start] from the leading edge and [end] from the trailing one, and
-     * otherwise brings it just inside: recent searches' chips, as the
-     * native Samsung app moves them, only when one would pass the gutter
-     * or the safe area's edge.
-     */
-    fun within(density: Density, start: Dp = PleyTv.Gutter, end: Dp = TvSafeArea.Horizontal): BringIntoViewSpec =
-        with(density) { WithinSpec(start.toPx(), end.toPx()) }
 
     /** Whether every tile of [state]'s row fits on screen unscrolled, short of [endRoom]; null before its first layout. */
     fun fits(state: LazyListState, endRoom: Float): Boolean? {
@@ -96,19 +83,6 @@ object TvScrolling {
     @Stable
     private object ItselfSpec : BringIntoViewSpec {
         override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
-    }
-
-    @Stable
-    private class WithinSpec(private val start: Float, private val end: Float) : BringIntoViewSpec {
-        override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
-            val room = containerSize - end
-            return when {
-                offset < start -> offset - start
-                // Past the edge: its end just inside it, unless it is too wide to fit, when its start.
-                offset + size > room -> minOf(offset + size - room, offset - start)
-                else -> 0f
-            }
-        }
     }
 
     @Stable

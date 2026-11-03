@@ -15,8 +15,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusEventModifierNode
 import androidx.compose.ui.focus.FocusRequesterModifierNode
+import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.requestFocus
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.requireLayoutCoordinates
@@ -181,6 +184,65 @@ internal class TileQuiet {
 
 /** The quiet of the row or grid a tile is in; none outside them. */
 internal val LocalTileQuiet = staticCompositionLocalOf<TileQuiet?> { null }
+
+/**
+ * How a row of chips moves (recent searches), as the native Samsung app's
+ * SearchScreen moves them: not while the focused chip shows between
+ * [start] from the row's leading edge and [end] from its trailing one;
+ * past them, just far enough, as the kit moves rows ([TvGlide]). The row
+ * provides [TvScrolling.itself], tells where it is laid out ([row]), and
+ * each chip carries [keptWithin].
+ */
+@Stable
+internal class WithinMotion(state: ScrollableState, scope: CoroutineScope) {
+    private val glide = TvGlide(state, scope)
+    var row: LayoutCoordinates? = null
+    var start = 0f
+    var end = 0f
+    var gate: KeyRepeatGate? = null
+    var reduced = false
+
+    /** The chip laid out at [chip] took focus. */
+    fun focused(chip: LayoutCoordinates) {
+        val row = row ?: return
+        if (!row.isAttached || !chip.isAttached) return
+        val left = row.localPositionOf(chip, Offset.Zero).x
+        val right = left + chip.size.width
+        val room = row.size.width - end
+        val by = when {
+            left < start -> left - start
+            // Past the edge: its end just inside it, unless it is too wide to fit, when its start.
+            right > room -> minOf(right - room, left - start)
+            else -> return
+        }
+        glide.move(by, gate?.holding == true, reduced)
+    }
+}
+
+/** This chip keeps within its row as [motion] says, when it takes focus. */
+internal fun Modifier.keptWithin(motion: WithinMotion): Modifier = this then KeptWithinElement(motion)
+
+private data class KeptWithinElement(val motion: WithinMotion) : ModifierNodeElement<KeptWithinNode>() {
+    override fun create() = KeptWithinNode(motion)
+
+    override fun update(node: KeptWithinNode) {
+        node.motion = motion
+    }
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "keptWithin"
+    }
+}
+
+private class KeptWithinNode(var motion: WithinMotion) : Modifier.Node(), FocusEventModifierNode {
+    private var hadFocus = false
+
+    override fun onFocusEvent(focusState: FocusState) {
+        if (focusState.hasFocus == hadFocus) return
+        hadFocus = focusState.hasFocus
+        if (hadFocus) motion.focused(requireLayoutCoordinates())
+    }
+}
 
 /**
  * A lazy row's or grid's focusable cells by position, while they are
