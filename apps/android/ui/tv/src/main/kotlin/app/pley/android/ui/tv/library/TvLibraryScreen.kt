@@ -59,6 +59,7 @@ import app.pley.android.screens.library.LibraryViewModel
 import app.pley.android.screens.library.TileLook
 import app.pley.android.screens.screensGraph
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.item.tileActions
 import app.pley.android.ui.tv.kit.FocusMemory
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberedFocus
@@ -218,6 +219,7 @@ private fun TvLibraryTab(
     onPanel: (TvPanel) -> Unit,
 ) {
     val navigator = LocalTvNavigator.current
+    val actions = tileActions()
     val resources = LocalResources.current
     val params = state.params
     val music = state.kind == LibraryKind.Music
@@ -343,7 +345,7 @@ private fun TvLibraryTab(
                             val at = cells?.positionOf(tile.id) ?: -1
                             val near = cells?.let { c -> listOf(c.idAt(at + 1), c.idAt(at - 1)).firstOrNull { at >= 0 && it >= 0 } }
                             memory.mayLeave("grid/${tile.id}", near?.let { "grid/$it" })
-                            navigator.open(PleyKey.ItemActions(tile.id))
+                            actions.open(tile.id, continueWatching = false)
                         },
                         memory = memory,
                         memoryPrefix = "grid",

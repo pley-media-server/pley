@@ -47,12 +47,12 @@ import app.pley.android.model.HubKeys
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.SortOrder
 import app.pley.android.screens.LibraryTab
-import app.pley.android.screens.PleyKey
 import app.pley.android.screens.library.LibraryUiState
 import app.pley.android.screens.library.LibraryViewModel
 import app.pley.android.screens.library.TileLook
 import app.pley.android.screens.library.TileRow
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.item.tileActions
 import app.pley.android.ui.tv.kit.FocusMemory
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.SeeAll
@@ -125,6 +125,7 @@ internal fun TvRecommendedTab(
     modifier: Modifier = Modifier,
 ) {
     val navigator = LocalTvNavigator.current
+    val actions = tileActions()
     val recommended = state.recommended
     val rows = recommended.valueOrNull
     when {
@@ -166,7 +167,7 @@ internal fun TvRecommendedTab(
                             } else {
                                 { tile ->
                                     memory.mayLeave("${row.key}/${tile.id}", standIn(rows, row.key, tile.id))
-                                    navigator.open(PleyKey.ItemActions(tile.id, continueWatching = HubKeys.isContinueWatching(row.key)))
+                                    actions.open(tile.id, continueWatching = HubKeys.isContinueWatching(row.key))
                                 }
                             },
                             memory = memory,

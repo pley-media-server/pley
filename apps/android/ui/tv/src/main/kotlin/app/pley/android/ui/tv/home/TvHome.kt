@@ -38,13 +38,13 @@ import app.pley.android.designsystem.image.rememberImagePrefetcher
 import app.pley.android.model.HubKeys
 import app.pley.android.model.ItemSummary
 import app.pley.android.screens.Navigator
-import app.pley.android.screens.PleyKey
 import app.pley.android.screens.home.HomeInfo
 import app.pley.android.screens.home.HomeMessage
 import app.pley.android.screens.home.HomeState
 import app.pley.android.screens.home.HomeViewModel
 import app.pley.android.screens.home.pageOf
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.item.tileActions
 import app.pley.android.ui.tv.kit.BackdropScrim
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.SeeAll
@@ -142,6 +142,7 @@ private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: Hom
     val tier = LocalTvTier.current
     val density = LocalDensity.current
     val rail = LocalTvRailFocus.current
+    val actions = tileActions()
     val scope = rememberCoroutineScope()
     val memory = rememberFocusMemory()
     val resume = remember { FocusRequester() }
@@ -218,7 +219,7 @@ private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: Hom
                         onOpen = { tile -> row.itemOf(tile)?.let { navigator.open(pageOf(it)) } },
                         onActions = { tile ->
                             memory.mayLeave("${row.key}/${tile.id}", current.standIn(row.key, tile.id))
-                            navigator.open(PleyKey.ItemActions(tile.id, continueWatching = HubKeys.isContinueWatching(row.key)))
+                            actions.open(tile.id, continueWatching = HubKeys.isContinueWatching(row.key))
                         },
                         onFocus = { tile ->
                             inRows = true

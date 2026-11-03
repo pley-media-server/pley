@@ -236,8 +236,9 @@ private fun LazyListScope.itemActionsList(panel: Panel.Actions, actions: TvPageA
     }
 }
 
+/** An action's label and icon, as the panels list it. */
 @Composable
-private fun actionLook(action: ItemAction): Pair<String, PleyIcon> = when (action) {
+internal fun actionLook(action: ItemAction): Pair<String, PleyIcon> = when (action) {
     ItemAction.Play -> stringResource(R.string.tv_item_action_play) to PleyIcons.Play
     ItemAction.Resume -> stringResource(R.string.tv_item_action_resume) to PleyIcons.Play
     ItemAction.FromStart -> stringResource(R.string.tv_item_action_from_start) to PleyIcons.RotateCcw
@@ -253,7 +254,7 @@ private fun actionLook(action: ItemAction): Pair<String, PleyIcon> = when (actio
 }
 
 @Composable
-private fun PanelTitle(text: String) {
+internal fun PanelTitle(text: String) {
     BasicText(
         text,
         style = PleyType.Tv.Title.copy(color = PleyColors.Fg),
@@ -266,8 +267,8 @@ private fun PanelTitle(text: String) {
 private const val STARS = 5
 
 /** The content types of a panel's list, so a row scrolled in reuses one scrolled out. */
-private const val PANEL_TITLE = "title"
+internal const val PANEL_TITLE = "title"
 private const val PANEL_HEADING = "heading"
-private const val PANEL_ROW = "row"
+internal const val PANEL_ROW = "row"
 
 internal const val TV_PANEL = "pley.tv.item.panel"

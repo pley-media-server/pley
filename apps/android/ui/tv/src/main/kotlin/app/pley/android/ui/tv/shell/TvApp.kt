@@ -59,6 +59,9 @@ import app.pley.android.screens.PleyKey
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.account.accountEntries
 import app.pley.android.ui.tv.home.homeEntries
+import app.pley.android.ui.tv.item.LocalTvTileActions
+import app.pley.android.ui.tv.item.TvTileActionsPanel
+import app.pley.android.ui.tv.item.TvTileActionsState
 import app.pley.android.ui.tv.item.itemEntries
 import app.pley.android.ui.tv.kit.KeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
@@ -149,6 +152,7 @@ private fun TvShell(
     val rail = remember { RailState(content) }
     val offline = remember { TvOfflineState() }
     val navigator = remember(backStack) { TvNavigator(backStack, rail, onExit) }
+    val tileActions = remember(backStack) { TvTileActionsState(content) { backStack.lastOrNull() } }
     val root = navigator.root ?: start
     rail.current = railCurrent(root, items + SettingsItem)
     // Signing in and choosing a profile are full screen.
@@ -207,6 +211,7 @@ private fun TvShell(
                 LocalTvNavigator provides navigator,
                 LocalTvRailFocus provides rail.takeIf { it.shown },
                 LocalTvOffline provides offline,
+                LocalTvTileActions provides tileActions,
             ) {
                 NavDisplay(
                     backStack = backStack,
@@ -235,6 +240,8 @@ private fun TvShell(
             // Signing in and choosing a profile say for themselves when the server can't be reached.
             if (rail.shown) TvOfflineNotice(offline)
         }
+        // A tile's actions, over the page they were asked on.
+        TvTileActionsPanel(tileActions, page = backStack.lastOrNull(), navigator = navigator)
         if (rail.shown) {
             TvRail(
                 items = items,

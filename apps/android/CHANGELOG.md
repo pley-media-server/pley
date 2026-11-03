@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- On Android TV and Fire TV, a title's actions (holding Select, or Menu)
+  open in a panel over Home, a library, search, a collection or a
+  person's page, as they do on an item's page, rather than on a page of
+  their own: the page stays as it was, and focus comes back to the title.
+
 ### Fixed
 
 - Home's rows are no longer drawn again when the server has nothing new
