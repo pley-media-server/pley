@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { Library, LibraryKind, RequestSummary } from "../../src/api/types";
 import { currentEntry, RAIL_ENTRY, RAIL_FIRST, RAIL_GAP, RAIL_SETTINGS, railEntries, railScroll, requestsEntry } from "../../src/ui/shell/rail";
@@ -84,14 +87,47 @@ describe("the rail, as the shared fixture has it", () => {
     }
   });
 
-  it("geometry: entries 40 tall and 4 apart from y 67, nine of them above Settings at y 473", () => {
-    expect([RAIL_ENTRY, RAIL_GAP, RAIL_FIRST, RAIL_SETTINGS]).toEqual([40, 4, 67, 473]);
-    // Settings 27 from the foot of the 540 canvas.
-    expect(540 - RAIL_SETTINGS - RAIL_ENTRY).toBe(27);
-    const fits = (n: number) => RAIL_FIRST + n * (RAIL_ENTRY + RAIL_GAP) <= RAIL_SETTINGS;
+  it("geometry: theme.css lays entries out 40 tall and 44 apart from y 67, under the avatar, nine of them above Settings at y 473", () => {
+    const canvas = px(css("#app").height);
+    const items = css(".rail-items");
+    const view = css(".rail-view");
+    const entry = px(css(".rail-item").height);
+    const gap = px(css(".rail-scroll > .rail-item")["margin-bottom"]);
+    const avatar = px(css(".rail-item.avatar").height);
+    const viewPadTop = px(view.padding?.split(" ")[0]);
+    expect([entry, entry + gap, avatar]).toEqual([40, 44, 48]);
+    // The view starts at the avatar's foot, its first entry 4 below; it ends where Settings, last in the column, starts.
+    expect(px(view.top)).toBe(avatar);
+    const first = px(items.top) + avatar + viewPadTop;
+    const settings = canvas - px(items.bottom) - entry;
+    expect([first, settings, canvas - px(items.bottom) - px(view.bottom)]).toEqual([67, 473, 473]);
+    // What railScroll reckons with is what the stylesheet draws.
+    expect([RAIL_ENTRY, RAIL_GAP, RAIL_FIRST, RAIL_SETTINGS]).toEqual([entry, gap, first, settings]);
+    const fits = (n: number) => first + n * (entry + gap) <= settings;
     expect([fits(9), fits(10)]).toEqual([true, false]);
   });
 });
+
+/** theme.css's declarations for `selector`, from every rule that names it (alone or in a list). */
+function css(selector: string): Record<string, string | undefined> {
+  const text = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../src/ui/theme.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const out: Record<string, string> = {};
+  for (const m of text.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!m[1]!.split(",").some((s) => s.trim() === selector)) continue;
+    for (const d of m[2]!.split(";")) {
+      const at = d.indexOf(":");
+      if (at > 0) out[d.slice(0, at).trim()] = d.slice(at + 1).trim();
+    }
+  }
+  return out;
+}
+
+/** "40px" → 40; anything else fails the test. */
+function px(v: string | undefined): number {
+  const m = /^(-?\d+(?:\.\d+)?)px$/.exec(v ?? "");
+  if (!m) throw new Error(`not a length in px: ${v}`);
+  return Number(m[1]);
+}
 
 describe("the rail's way to requests", () => {
   const summary = (over: Partial<RequestSummary> = {}): RequestSummary => ({

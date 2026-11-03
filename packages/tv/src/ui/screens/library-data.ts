@@ -45,6 +45,15 @@ export function qualityChoices(f: LibraryFilters | null | undefined): { resoluti
   };
 }
 
+/**
+ * A filter's list with the value chosen in it: one the server no longer
+ * offers (kept from before, the library changed) comes last, so it shows
+ * checked and focused and can be changed, as on the web and Roku.
+ */
+export function withChosen<T extends string>(offered: T[], chosen: T | null): T[] {
+  return chosen && offered.indexOf(chosen) < 0 ? offered.concat([chosen]) : offered;
+}
+
 /** How a library is listed: sort, order and filters (the web's query string). */
 export interface LibraryParams {
   sort: LibrarySort;

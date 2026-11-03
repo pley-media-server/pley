@@ -44,6 +44,7 @@ import {
   smartFilterOf,
   SORT_LABELS,
   sortsFor,
+  withChosen,
   type DynamicRangeFilter,
   type LibraryParams,
   type Resolution,
@@ -244,12 +245,15 @@ function LibraryGridTab(p: { entry: Entry; library: Library; asked?: LibrarySort
 
   const closePanel = () => {
     setPanel(null);
-    // Back to the chip that opened the first panel of the sequence.
+    // Back to the chip that opened the first panel of the sequence, or to Filter when that chip went with its
+    // value (Resolution or Dynamic range cleared from its own), as on Android: left on the chip that went, focus
+    // would be nowhere, and the next key would go to the tabs.
     const fid = panelOpener.current;
     panelOpener.current = null;
     if (fid) {
       setTimeout(() => {
-        const el = chipsRef.current?.querySelector<HTMLElement>(`[data-fid="${fid}"]`);
+        const chips = chipsRef.current;
+        const el = chips?.querySelector<HTMLElement>(`[data-fid="${fid}"]`) ?? chips?.querySelector<HTMLElement>('[data-fid="chip/filter"]');
         if (el) ui.focus.focus(el);
       }, 0);
     }
@@ -462,7 +466,7 @@ function LibraryGridTab(p: { entry: Entry; library: Library; asked?: LibrarySort
         <ChoicePanel
           title="Resolution"
           all="All resolutions"
-          choices={resolutions}
+          choices={withChosen(resolutions, params.resolution)}
           labelOf={(r) => resolutionLabel(r) ?? r}
           current={params.resolution}
           onClose={closePanel}
@@ -476,7 +480,7 @@ function LibraryGridTab(p: { entry: Entry; library: Library; asked?: LibrarySort
         <ChoicePanel
           title="Dynamic range"
           all="All dynamic ranges"
-          choices={dynamicRanges}
+          choices={withChosen(dynamicRanges, params.dynamicRange)}
           labelOf={(d) => dynamicRangeLabel(d) ?? d}
           current={params.dynamicRange}
           onClose={closePanel}

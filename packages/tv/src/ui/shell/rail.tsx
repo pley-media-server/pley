@@ -267,9 +267,12 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
   );
 
   // Entries made again (Now Playing came, a library went): the focused one stays in view, the scroll within its ends.
+  // Its place is noted again, as one above it may have gone: the next move's way is read from where it is now, so a
+  // move still shows the entry beyond the one it reaches.
   useLayoutEffect(() => {
     const el = ui.focus.current;
     const at = el ? placeOf(el) : null;
+    lastAt.current = at;
     setScroll((s) => railScroll(s, at ?? -1, top.length, null));
   }, [top.length]);
 

@@ -45,7 +45,15 @@ function setup(entries: RailEntries) {
     for (let i = 0; i < times; i++) act(() => void focus.move(dir));
   };
   const focused = () => focus.current?.getAttribute("aria-label") ?? focus.current?.textContent ?? null;
-  return { focus, api: () => api!, draw, scroll, move, focused };
+  /** Whether the entry is drawn where it was laid out: neither it nor anything between it and the rail is moved. */
+  const still = (label: string) => {
+    const rail = root!.querySelector<HTMLElement>(".rail")!;
+    let el: HTMLElement | null = root!.querySelector<HTMLElement>(`[aria-label="${label}"]`);
+    if (!el) throw new Error(`no entry ${label}`);
+    for (; el && el !== rail; el = el.parentElement) if (el.style.transform) return false;
+    return true;
+  };
+  return { focus, api: () => api!, draw, scroll, move, focused, still };
 }
 
 afterEach(() => {
@@ -73,6 +81,8 @@ describe("the rail's entries", () => {
     t.move("down");
     expect(t.focused()).toBe("Settings");
     expect(t.scroll()).toBe(122);
+    // Scrolled: the entries moved, the avatar and Settings where they were.
+    expect([t.still("Home"), t.still("Switch profile"), t.still("Settings")]).toEqual([false, true, true]);
     t.move("up");
     expect(t.focused()).toBe("Now Playing");
     t.move("up", 9);
@@ -84,6 +94,23 @@ describe("the rail's entries", () => {
     t.move("up");
     expect(t.focused()).toBe("Switch profile");
     expect(t.scroll()).toBe(0);
+    expect([t.still("Home"), t.still("Switch profile"), t.still("Settings")]).toEqual([true, true, true]);
+  });
+
+  it("show the next one coming on the move after one above the focused entry went", () => {
+    const t = setup(railEntries(libraries(8), true, true));
+    // The rail opened on Library 6 (its page's): it alone brought into view, Libraries after it cut off.
+    const sixth = root!.querySelector<HTMLElement>('[data-rail="library:6"]')!.closest<HTMLElement>("[data-f]")!;
+    act(() => void t.focus.focus(sixth));
+    expect(t.scroll()).toBe(0);
+    // Live TV goes (the server's channels reloaded): Library 6 moves up a place.
+    t.draw(railEntries(libraries(8), true, false));
+    expect(t.focused()).toBe("Library 6");
+    expect(t.scroll()).toBe(0);
+    // Down to Libraries brings Playlists after it into view, as any move down does.
+    t.move("down");
+    expect(t.focused()).toBe("Libraries");
+    expect(t.scroll()).toBe(34);
   });
 
   it("keep the focused entry in view when they change, and the scroll within their ends", () => {

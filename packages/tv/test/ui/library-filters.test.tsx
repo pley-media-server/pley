@@ -8,6 +8,7 @@ import { AppState } from "../../src/state";
 import { UiContext, type Ui } from "../../src/ui/context";
 import { FocusManager } from "../../src/ui/focus";
 import { Input } from "../../src/ui/input";
+import type { Key } from "../../src/ui/keys";
 import { AppContext } from "../../src/ui/screens/common";
 import { LibraryScreen } from "../../src/ui/screens/library";
 import { ParamsStore } from "../../src/ui/screens/library-data";
@@ -24,7 +25,7 @@ function memoryStore(): KeyValue {
   };
 }
 
-const MOVIES = { id: 1, name: "Movies", kind: "movies", item_count: 2, scanning: false } as Library;
+const MOVIES = { id: 1, name: "Movies", kind: "movies", item_count: 3, scanning: false } as Library;
 const SERVER = "http://pley.test";
 
 const item = (id: number): ItemSummary =>
@@ -48,9 +49,11 @@ function setup(filters: LibraryFilters, store: KeyValue = memoryStore()) {
   const asked: Record<string, unknown>[] = [];
   const api = {
     server: SERVER,
+    // The whole library unfiltered; two of its three titles for any filter.
     libraryItems: (_id: number, q: Record<string, unknown>) => {
       asked.push(q);
-      return Promise.resolve({ total: 2, items: [item(1), item(2)] });
+      const filtered = ["watched", "genre", "year", "resolution", "dynamic_range"].some((k) => q[k] !== undefined);
+      return Promise.resolve(filtered ? { total: 2, items: [item(1), item(2)] } : { total: 3, items: [item(1), item(2), item(3)] });
     },
     libraryFilters: () => Promise.resolve(filters),
     libraryHubs: () => Promise.resolve({ hubs: [] }),
@@ -113,7 +116,24 @@ function setup(filters: LibraryFilters, store: KeyValue = memoryStore()) {
     return found;
   };
   const badges = () => Array.from(root!.querySelectorAll(".tile-badge")).map((b) => b.textContent);
-  return { asked, settle, press, chip, rows, row, badges, store, opened };
+  /** The count after the chips. */
+  const count = () => root!.querySelector(".chips-count")?.textContent ?? null;
+  /** What has focus: a chip's id, a panel row's label; null when nothing on the page has it. */
+  const focused = () => {
+    const el = focus.current;
+    if (!el || !el.isConnected) return null;
+    return el.getAttribute("data-fid") ?? el.getAttribute("aria-label");
+  };
+  /** Whether a panel's row has the check of the choice in force. */
+  const checked = (label: string) => !!row(label).querySelector(".check");
+  /** A key pressed and let go where focus is. */
+  const key = (k: Key) => {
+    act(() => input.dispatch(k, "down", false));
+    act(() => input.dispatch(k, "up", false));
+  };
+  /** A closed panel gives focus back a moment after it goes. */
+  const later = () => act(() => void vi.advanceTimersByTime(20));
+  return { asked, settle, press, chip, rows, row, badges, count, focused, checked, key, later, store, opened };
 }
 
 beforeEach(() => {
@@ -134,6 +154,7 @@ describe("a library's resolution and dynamic range", () => {
     const t = setup(QUALITY);
     await t.settle();
     expect(t.chip("chip/resolution")).toBeNull();
+    expect(t.count()).toBe("3 movies");
     t.press(t.chip("chip/filter")!);
     expect(t.rows()).toEqual(["All", "Unwatched", "Watched", "Genre", "Year", "Resolution", "Dynamic range"]);
     expect(t.row("Resolution").textContent).toContain("All resolutions");
@@ -142,6 +163,8 @@ describe("a library's resolution and dynamic range", () => {
     t.press(t.row("4K"));
     await t.settle();
     expect(t.asked.at(-1)).toMatchObject({ resolution: "4k", dynamic_range: undefined });
+    // How many of the library's titles are left.
+    expect(t.count()).toBe("2 of 3 movies");
     // A chip while chosen, saying it; it opens the list again.
     expect(t.chip("chip/resolution")!.textContent).toBe("4K");
     t.press(t.chip("chip/resolution")!);
@@ -149,6 +172,7 @@ describe("a library's resolution and dynamic range", () => {
     t.press(t.row("All resolutions"));
     await t.settle();
     expect(t.chip("chip/resolution")).toBeNull();
+    expect(t.count()).toBe("3 movies");
 
     t.press(t.chip("chip/filter")!);
     t.press(t.row("Dynamic range"));
@@ -157,6 +181,7 @@ describe("a library's resolution and dynamic range", () => {
     await t.settle();
     expect(t.asked.at(-1)).toMatchObject({ resolution: undefined, dynamic_range: "dolby_vision" });
     expect(t.chip("chip/dynamicRange")!.textContent).toBe("Dolby Vision");
+    expect(t.count()).toBe("2 of 3 movies");
     // Kept with the library's view.
     expect(new ParamsStore(t.store, SERVER, 1).get(1, "movies").dynamicRange).toBe("dolby_vision");
   });
@@ -169,6 +194,7 @@ describe("a library's resolution and dynamic range", () => {
     expect(t.asked[0]).toMatchObject({ genre: "Drama", resolution: "4k", dynamic_range: "hdr" });
     expect(t.chip("chip/resolution")!.textContent).toBe("4K");
     expect(t.chip("chip/dynamicRange")!.textContent).toBe("Any HDR");
+    expect(t.count()).toBe("2 of 3 movies");
     t.press(t.chip("chip/filter")!);
     expect(t.rows().slice(-2)).toEqual(["Clear filters", "Save as…"]);
     t.press(t.row("Save as…"));
@@ -179,6 +205,67 @@ describe("a library's resolution and dynamic range", () => {
     expect(t.asked.at(-1)).toMatchObject({ genre: undefined, resolution: undefined, dynamic_range: undefined });
     expect(t.chip("chip/resolution")).toBeNull();
     expect(t.chip("chip/dynamicRange")).toBeNull();
+    expect(t.count()).toBe("3 movies");
+  });
+
+  it("cleared from their own chip, which goes with them, leave focus on Filter", async () => {
+    const t = setup(QUALITY);
+    await t.settle();
+    t.press(t.chip("chip/filter")!);
+    t.press(t.row("Resolution"));
+    t.press(t.row("4K"));
+    await t.settle();
+    t.later();
+    // Back from the chip's list: the chip again.
+    t.press(t.chip("chip/resolution")!);
+    expect(t.focused()).toBe("4K");
+    t.key("back");
+    t.later();
+    expect(t.focused()).toBe("chip/resolution");
+    t.press(t.chip("chip/resolution")!);
+    t.press(t.row("All resolutions"));
+    await t.settle();
+    t.later();
+    expect(t.chip("chip/resolution")).toBeNull();
+    expect(t.focused()).toBe("chip/filter");
+    // The next key goes on along the chips, not to the tabs above.
+    t.key("right");
+    expect(t.focused()).toBe("chip/unwatched");
+
+    t.press(t.chip("chip/filter")!);
+    t.press(t.row("Dynamic range"));
+    t.press(t.row("SDR"));
+    await t.settle();
+    t.press(t.chip("chip/dynamicRange")!);
+    t.press(t.row("All dynamic ranges"));
+    await t.settle();
+    t.later();
+    expect(t.chip("chip/dynamicRange")).toBeNull();
+    expect(t.focused()).toBe("chip/filter");
+  });
+
+  it("keep one chosen that the server no longer offers in its list, checked and focused", async () => {
+    const store = memoryStore();
+    new ParamsStore(store, SERVER, 1).set(1, { sort: "title", order: "asc", watched: null, genre: null, year: null, resolution: "sd", dynamicRange: "hlg" });
+    const t = setup({ genres: [], years: [], resolutions: [], dynamic_ranges: ["hdr", "sdr"] }, store);
+    await t.settle();
+    t.press(t.chip("chip/resolution")!);
+    expect(t.rows()).toEqual(["All resolutions", "SD"]);
+    expect(t.checked("SD")).toBe(true);
+    expect(t.focused()).toBe("SD");
+    // OK keeps it, and the panel goes, focus back on its chip.
+    t.key("ok");
+    await t.settle();
+    t.later();
+    expect(t.rows()).toEqual([]);
+    expect(t.asked.at(-1)).toMatchObject({ resolution: "sd", dynamic_range: "hlg" });
+    expect(t.focused()).toBe("chip/resolution");
+    // After those the server offers; through the Filter panel too.
+    t.press(t.chip("chip/filter")!);
+    t.press(t.row("Dynamic range"));
+    expect(t.rows()).toEqual(["All dynamic ranges", "Any HDR", "SDR", "HLG"]);
+    expect(t.checked("HLG")).toBe(true);
+    expect(t.focused()).toBe("HLG");
   });
 
   it("aren't offered where the server lists none, unless one is chosen", async () => {
@@ -211,7 +298,7 @@ describe("the posters' quality badges", () => {
     new ParamsStore(store, SERVER, 1).set(1, { sort: "bitrate", order: "desc", watched: null, genre: null, year: null, resolution: null, dynamicRange: null });
     const byBitrate = setup(QUALITY, store);
     await byBitrate.settle();
-    expect(byBitrate.badges()).toEqual(["4K", "DV", "4K", "DV"]);
+    expect(byBitrate.badges()).toEqual(["4K", "DV", "4K", "DV", "4K", "DV"]);
 
     const filtered = memoryStore();
     new ParamsStore(filtered, SERVER, 1).set(1, { sort: "title", order: "asc", watched: false, genre: "Drama", year: 1999, resolution: null, dynamicRange: null });
