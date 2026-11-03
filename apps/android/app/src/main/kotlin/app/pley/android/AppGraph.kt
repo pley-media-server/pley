@@ -2,6 +2,9 @@ package app.pley.android
 
 import android.app.Application
 import android.os.Build
+import androidx.annotation.OptIn
+import androidx.media3.common.util.Log as Media3Log
+import androidx.media3.common.util.UnstableApi
 import app.pley.android.auth.AuthGraph
 import app.pley.android.caps.CapsDecision
 import app.pley.android.caps.CapsGraph
@@ -49,7 +52,10 @@ class AppGraph(private val app: Application) : ScreensGraph {
     override val network: NetworkGraph by lazy { NetworkGraph.create(app, root, auth, device, app.cacheDir) }
     override val data: DataGraph by lazy { DataGraph.create(app, network, auth, device) }
     override val caps: CapsGraph by lazy { CapsGraph.create(app, device) }
-    override val player: PlayerGraph by lazy { PlayerGraph.create(app, data, network, caps, device, local = { localMedia }, drives = { drives }) }
+    override val player: PlayerGraph by lazy {
+        quietPlayerLogs()
+        PlayerGraph.create(app, data, network, caps, device, local = { localMedia }, drives = { drives })
+    }
 
     /**
      * Phones and tablets only: TVs stay where the server is, and download
@@ -108,5 +114,15 @@ class AppGraph(private val app: Application) : ScreensGraph {
         } else {
             null
         }
+    }
+
+    /**
+     * Release builds log Media3's errors by their message alone: the causes
+     * under them name what was being read, such as a video on a USB drive
+     * by its file's name, which stays out of the device's log.
+     */
+    @OptIn(markerClass = [UnstableApi::class])
+    private fun quietPlayerLogs() {
+        if (!BuildConfig.DEBUG) Media3Log.setLogStackTraces(false)
     }
 }
