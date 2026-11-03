@@ -131,10 +131,15 @@ export const UNITS = {
   },
   lg: {
     title: "Pley for LG TV",
-    about: "the LG TV app (webOS), built with packages/tv",
+    about: "the LG TV app (webOS), a native app in Rust",
     changelog: "apps/webos/CHANGELOG.md",
-    paths: ["apps/webos", "packages/tv", "packages/picture-subtitles"],
-    manifests: [json("apps/webos/package.json"), bunLock("apps/webos"), json("apps/webos/appinfo.json")],
+    paths: ["apps/webos"],
+    // appinfo.json is what the TV reads; pley-lg is the crate of the app's binary.
+    manifests: [
+      json("apps/webos/appinfo.json"),
+      cargoPackage("apps/webos/crates/app/Cargo.toml"),
+      cargoLock("apps/webos/Cargo.lock", "pley-lg"),
+    ],
   },
   kodi: {
     title: "Pley for Kodi",

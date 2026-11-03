@@ -59,7 +59,11 @@ public abstract record DevicePoll
 /// </summary>
 public sealed class DeviceSignIn
 {
-    /// <summary>Everything Pley's own TV apps may ask for (docs/API.md, "Scopes").</summary>
+    /// <summary>
+    /// What this app asks for (docs/API.md, "Scopes"). Pley's other TV apps also ask for
+    /// requests and approvals where the server lists them; this one has no requests yet, so it
+    /// asks for the rest.
+    /// </summary>
     public static readonly string[] AllScopes = { "library", "play", "playlists", "profiles" };
 
     /// <summary>RFC 8628 §3.2: without an interval, 5 seconds.</summary>

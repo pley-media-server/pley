@@ -1,0 +1,7 @@
+{
+  "containers": ["mkv", "mp4", "m4v", "mov", "webm", "ts", "avi"],
+  "video_codecs": ["h264", "hevc", "vp9", "av1"],
+  "audio_codecs": ["aac", "mp3", "opus", "vorbis", "flac", "ac3", "eac3"],
+  "hdr": true,
+  "dolby_vision": false
+}

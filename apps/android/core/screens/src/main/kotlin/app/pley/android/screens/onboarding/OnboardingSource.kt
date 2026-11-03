@@ -152,7 +152,7 @@ private class GraphOnboardingSource(private val graph: ScreensGraph, private val
     override val deviceSignIn: DeviceSignIn by lazy {
         val inner = graph.auth.deviceSignIn
         object : DeviceSignIn {
-            override suspend fun start(server: String, requests: Boolean): DeviceCode = withContext(Dispatchers.IO) { inner.start(server, requests) }
+            override suspend fun start(server: String): DeviceCode = withContext(Dispatchers.IO) { inner.start(server) }
 
             override fun poll(code: DeviceCode): Flow<DevicePoll> = inner.poll(code).flowOn(Dispatchers.IO)
         }

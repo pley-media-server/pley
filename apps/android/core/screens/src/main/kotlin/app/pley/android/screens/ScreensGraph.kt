@@ -7,6 +7,7 @@ import app.pley.android.caps.CapsGraph
 import app.pley.android.common.DeviceProfile
 import app.pley.android.data.DataGraph
 import app.pley.android.data.Downloads
+import app.pley.android.data.drive.Drives
 import app.pley.android.network.NetworkGraph
 import app.pley.android.player.PlayerGraph
 
@@ -26,6 +27,10 @@ interface ScreensGraph {
     /** Downloads for watching away from the server: phones and tablets; none on TVs and in tests. */
     val downloads: Downloads
         get() = Downloads.None
+
+    /** Drives plugged into the device, whose videos play without a server: TVs; none on phones and in tests. */
+    val drives: Drives
+        get() = Drives.None
 
     /**
      * Finding servers and checking addresses (discovery, the network

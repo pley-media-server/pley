@@ -1,5 +1,6 @@
 package app.pley.android.data
 
+import app.pley.android.common.DeviceProfile
 import app.pley.android.testing.data.TestData
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
@@ -10,10 +11,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 
-/** Signs in to the test's server, opens it, and lets the session read who it is. */
+/** Signs in to the test's server, opens it, and lets the session read who it is; on a phone unless [profile] says otherwise. */
 @OptIn(ExperimentalCoroutinesApi::class)
-internal suspend fun TestScope.signedIn(dir: File, scope: CoroutineScope = backgroundScope, prepare: TestData.() -> Unit = {}): TestData {
-    val data = TestData(this, dir, scope = scope)
+internal suspend fun TestScope.signedIn(
+    dir: File,
+    scope: CoroutineScope = backgroundScope,
+    profile: DeviceProfile = TestData.PHONE,
+    prepare: TestData.() -> Unit = {},
+): TestData {
+    val data = TestData(this, dir, profile = profile, scope = scope)
     data.prepare()
     data.signIn()
     data.useServer()

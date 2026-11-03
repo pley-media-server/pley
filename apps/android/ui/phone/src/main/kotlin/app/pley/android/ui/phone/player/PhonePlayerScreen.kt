@@ -3,6 +3,7 @@ package app.pley.android.ui.phone.player
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -24,6 +25,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -49,8 +51,13 @@ import app.pley.android.ui.phone.kit.ToastHost
 import app.pley.android.ui.phone.kit.ToastHostState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 
 /** What the player screen asks of its window: leaving, picture in picture, the volume and brightness. */
 interface PlayerHost : LevelControls {
@@ -112,6 +119,8 @@ fun PhonePlayerScreen(
     Box(
         modifier
             .fillMaxSize()
+            // A window of its own: UI Automator (the benchmarks' journeys) finds its tags as resource ids.
+            .semantics { testTagsAsResourceId = true }
             .background(Color.Black)
             .onSizeChanged {
                 widthPx = it.width
@@ -235,6 +244,15 @@ private fun PlayerEffects(state: PlayerScreenState, picture: PictureState, toast
     LaunchedEffect(state) {
         snapshotFlow { state.phase == PlayerPhase.Paused }.collect { paused -> if (paused && !state.locked) state.controlsVisible = true }
     }
+    // Each item after the first (the next episode, a queue's next) shows the controls as it begins to play,
+    // its title at the top as the first's was: the TV and the native Samsung app show the title then.
+    LaunchedEffect(state) {
+        snapshotFlow { state.itemId.takeIf { state.phase == PlayerPhase.Playing } }
+            .filterNotNull()
+            .distinctUntilChanged()
+            .drop(1)
+            .collect { if (!state.locked) state.showControls() }
+    }
     // The session's notices, as toasts.
     LaunchedEffect(state, toasts) {
         snapshotFlow { state.notice }.collect { notice ->
@@ -313,9 +331,11 @@ private fun Captions(state: PlayerScreenState, player: Player?, picture: Picture
  * The video on a SurfaceView (frames straight to the display: HDR and Dolby
  * Vision pass through), placed by [picture]: fitted, filled or zoomed, its
  * bottom kept on screen when subtitles are burned in. Black until the
- * first frame, except while [holding]: a stream made ready beside the one
- * that played takes over, and the last picture stays until its first.
- * Zooming lays it out again; nothing recomposes.
+ * first frame, which then fades in over 200 ms as on the native Samsung
+ * app (at once with reduced motion), except while [holding]: a stream made
+ * ready beside the one that played takes over, and the last picture stays
+ * until its first. Zooming lays it out again; nothing recomposes, and the
+ * fade only draws.
  */
 @OptIn(UnstableApi::class)
 @Composable
@@ -338,6 +358,8 @@ private fun VideoPicture(player: Player, picture: PictureState, holding: () -> B
                 },
             surfaceType = SURFACE_TYPE_SURFACE_VIEW,
         )
-        if (presentation.coverSurface && !holding()) Box(Modifier.fillMaxSize().background(Color.Black))
+        val covered = presentation.coverSurface && !holding()
+        val cover = animateFloatAsState(if (covered) 1f else 0f, if (covered) snap() else PleyMotion.overlay(reducedMotion()), label = "cover")
+        Box(Modifier.fillMaxSize().drawBehind { if (cover.value > 0f) drawRect(Color.Black, alpha = cover.value) })
     }
 }

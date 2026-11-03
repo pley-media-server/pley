@@ -1,5 +1,7 @@
 package app.pley.android.player.session
 
+import app.pley.android.model.Chapter
+import app.pley.android.model.DynamicRange
 import app.pley.android.model.MediaStream
 import app.pley.android.player.EngineSource
 import app.pley.android.player.PlayerEngine
@@ -55,18 +57,36 @@ sealed interface EngineError {
 data class EngineTrack(
     /** ISO 639 as the container says it; `null` when it doesn't. */
     val language: String?,
-    /** The sample MIME type ("audio/eac3"). */
+    /** The sample MIME type ("audio/eac3"); for text read as the media loads, its own ("application/x-subrip"). */
     val mimeType: String?,
     val channels: Int?,
     /** A decoder (or the passthrough output) takes it. */
     val supported: Boolean,
+    /** Its name in the file ("Commentary"); `null` without one. */
+    val label: String? = null,
+    /** The file flags it as its default, or (subtitles) as forced. */
+    val default: Boolean = false,
+    val forced: Boolean = false,
+    /** It plays, or shows, now. */
+    val selected: Boolean = false,
+    /** RFC 6381 ("dvhe.07.06", "hvc1.2.4.L153"); `null` when the container doesn't say. */
+    val codecs: String? = null,
+    /** A video's size and frame rate; 0 when unknown. */
+    val width: Int = 0,
+    val height: Int = 0,
+    val frameRate: Float = 0f,
+    /** A video's dynamic range, as its format says it; `null` for other tracks. */
+    val range: DynamicRange? = null,
+    val bitDepth: Int? = null,
 )
 
-/** The tracks of the media loaded, by kind. */
+/** The tracks of the media loaded, by kind, and its chapters. */
 data class EngineTracks(
     val video: List<EngineTrack> = emptyList(),
     val audio: List<EngineTrack> = emptyList(),
     val text: List<EngineTrack> = emptyList(),
+    /** The container's chapters (Matroska's, MP4's), by start; an end the file doesn't give is 0. */
+    val chapters: List<Chapter> = emptyList(),
 )
 
 /** Video frames shown and dropped since the media was loaded (Media3's DecoderCounters). */

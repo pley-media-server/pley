@@ -8,6 +8,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ApplicationProvider
+import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.LocalArtworkImageLoader
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.DiscoverPage
@@ -23,12 +26,20 @@ import app.pley.android.screens.search.TmdbSection
 import app.pley.android.testing.Fixtures
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.theme.PhoneTheme
+import coil3.ImageLoader
+import coil3.intercept.Interceptor
+import coil3.request.ErrorResult
+import coil3.request.ImageResult
+import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.util.Collections
 
 /**
  * The phone's search: the field up first, recent searches, the groups
@@ -64,10 +75,11 @@ class PhoneSearchUiTest {
         field: TextFieldState = TextFieldState(state.query),
         tmdb: TmdbSection = TmdbSection.Hidden,
         discover: Boolean = false,
+        pictures: ImageLoader? = null,
     ) {
         compose.setContent {
             PhoneTheme {
-                CompositionLocalProvider(LocalPhoneNavigator provides navigator) {
+                CompositionLocalProvider(LocalPhoneNavigator provides navigator, LocalArtworkImageLoader provides pictures) {
                     SearchContent(
                         state = state,
                         field = field,
@@ -87,6 +99,25 @@ class PhoneSearchUiTest {
     }
 
     private fun tile(id: Long, title: String) = ArtworkTileModel(id = id, title = title)
+
+    private fun poster(id: Long) = ArtworkImage(listOf("http://127.0.0.1:9/api/items/$id/images/poster"))
+
+    /** A loader that answers nothing, remembering what it was asked for. */
+    private fun recording(asked: MutableSet<Any>): ImageLoader = ImageLoader.Builder(ApplicationProvider.getApplicationContext())
+        .components {
+            add(
+                object : Interceptor {
+                    override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
+                        asked += chain.request.data
+                        return ErrorResult(null, chain.request, IllegalStateException("no pictures here"))
+                    }
+                },
+            )
+        }
+        .memoryCache(null)
+        .diskCache(null)
+        .coroutineContext(Dispatchers.Unconfined)
+        .build()
 
     @Test
     fun anEmptyFieldHasFocusAndOffersTheRecentSearches() {
@@ -118,6 +149,18 @@ class PhoneSearchUiTest {
         compose.onNodeWithText("Northern Lights", useUnmergedTree = true).performClick()
         compose.onNodeWithText("Lena Okafor", useUnmergedTree = true).performClick()
         assertEquals(listOf(PleyKey.Item(1), PleyKey.Person(70)), opened)
+    }
+
+    @Test
+    fun aGroupsRowAsksForThePicturesPastTheScreenBeforeTheyScrollIn() {
+        val asked = Collections.synchronizedSet(mutableSetOf<Any>())
+        val movies = (1L..20L).map { tile(it, "Movie $it").copy(image = poster(it)) }
+        val groups = listOf(SearchGroup(SearchGroupKind.Movies, movies, movies.map { it.id }))
+        show(SearchUiState("movie", emptyList(), SearchResultsState.Ready("movie", groups, loading = false)), pictures = recording(asked))
+        // Four posters show on a 412 dp phone, and about a screen more is composed: the tenth is
+        // only asked for ahead, as Home's rows ask; the last, far past the next screen and a half, isn't.
+        assertTrue("asked for ${asked.size} pictures", poster(10) in asked)
+        assertFalse(poster(20) in asked)
     }
 
     @Test

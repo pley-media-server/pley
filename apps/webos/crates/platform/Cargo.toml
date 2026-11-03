@@ -1,0 +1,29 @@
+[package]
+name = "pley-platform"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: the window, GL context and input of a platform, and the desktop simulator's"
+license = "AGPL-3.0-only"
+publish = false
+
+[features]
+# The simulator's window on Windows, macOS and Linux. The TV's build leaves it
+# out (`default-features = false`): its window comes from the firmware's SDL.
+default = ["desktop"]
+desktop = ["dep:winit", "dep:glutin", "dep:glutin-winit", "dep:raw-window-handle"]
+
+[dependencies]
+pley-base = { path = "../base" }
+glow = "0.18.0"
+# Wayland decorations without a title font, so the simulator pulls no font code.
+winit = { version = "0.30.13", optional = true, default-features = false, features = [
+    "rwh_06",
+    "x11",
+    "wayland",
+    "wayland-dlopen",
+    "wayland-csd-adwaita-notitle",
+] }
+glutin = { version = "0.32.3", optional = true }
+glutin-winit = { version = "0.5.0", optional = true }
+raw-window-handle = { version = "0.6.2", optional = true }

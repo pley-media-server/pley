@@ -68,6 +68,8 @@ describes how they are made.
   it, then the rest.
 - The web app's search shows movies, shows and episodes first, then
   music, then Live TV, then people.
+- The LG TV app's sign-ins are listed as "Pley for LG TV", with the TV's
+  webOS and model, now that the app names itself.
 - The Plex-compatible API no longer takes Pley's session tokens, which
   opened all of Pley's own API too, administration included: Tautulli,
   Kometa, players and scripts that use one get `401` until they have a token

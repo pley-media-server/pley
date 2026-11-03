@@ -56,13 +56,15 @@ class SessionReporter(scope: CoroutineScope) {
  * One session on the server (POST /api/playback): its progress reports and
  * its end. Video and music both play through one. Ending it reports
  * `stopped` at the last position, then deletes it (and any transcode); it
- * ends once.
+ * ends once. Reports give the item's length as [durationMs] says it: the
+ * server's, or for a file on a drive the player's, once it knows it.
  */
 class ServerPlaybackSession(
     private val api: PleyApi,
     val itemId: Long,
     val info: PlaybackInfo,
     private val reporter: SessionReporter,
+    private val durationMs: () -> Long? = { info.durationMs.takeIf { it > 0 } },
 ) {
     val id: String get() = info.sessionId
 
@@ -108,7 +110,7 @@ class ServerPlaybackSession(
 
     private fun report(positionMs: Long, state: ProgressState) = ProgressReport(
         positionMs = positionMs.coerceAtLeast(0),
-        durationMs = info.durationMs.takeIf { it > 0 },
+        durationMs = durationMs(),
         state = state,
         sessionId = id,
     )

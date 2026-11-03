@@ -7,6 +7,14 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -16,6 +24,10 @@ import app.pley.android.player.live.LivePhase
 import app.pley.android.player.live.LiveSessionPlayer
 import app.pley.android.screens.PleyGraphOwner
 import app.pley.android.screens.livetv.LivePlayerViewModel
+import app.pley.android.ui.tv.kit.KeyRepeatGate
+import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
+import app.pley.android.ui.tv.kit.TvScrolling
+import app.pley.android.ui.tv.kit.keyRepeatGate
 import app.pley.android.ui.tv.theme.TvTheme
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -41,7 +53,9 @@ class TvLivePlayerActivity : ComponentActivity() {
         val graph = (application as PleyGraphOwner).screensGraph
         setContent {
             TvTheme(tier = graph.device.tier) {
-                TvLivePlayerScreen(vm = vm, onExit = ::finish)
+                WindowRules {
+                    TvLivePlayerScreen(vm = vm, onExit = ::finish)
+                }
             }
         }
         lifecycleScope.launch {
@@ -90,6 +104,21 @@ class TvLivePlayerActivity : ComponentActivity() {
         if (on == screenOn) return
         screenOn = on
         if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    /**
+     * The D-pad rules of the app's own window ([app.pley.android.ui.tv.shell.TvApp]'s) in this
+     * one: a held key moves focus at the gate's pace, not on each of the remote's 20 repeats a
+     * second, and the channel list scrolls focus into view as the TV's lists do.
+     */
+    @OptIn(ExperimentalFoundationApi::class)
+    @Composable
+    private fun WindowRules(content: @Composable () -> Unit) {
+        val gate = remember { KeyRepeatGate() }
+        val scrolling = remember { TvScrolling.root() }
+        CompositionLocalProvider(LocalKeyRepeatGate provides gate, LocalBringIntoViewSpec provides scrolling) {
+            Box(Modifier.fillMaxSize().keyRepeatGate(gate)) { content() }
+        }
     }
 
     companion object {

@@ -97,7 +97,7 @@ the tags, so fetch them first (`git fetch --tags`).
 | `desktop` | The desktop app (Tauri) | `apps/desktop/package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` | `pley-desktop-<version>-<os>-<arch>` `.msi`, `-setup.exe`, `.dmg`, `.deb`, `.rpm`, `.AppImage` |
 | `android` | Phones, tablets, Android TV, Fire TV | `apps/android/app/build.gradle.kts` (`appVersion`) | `pley-android-<version>.apk`, `pley-android-<version>-play.aab` |
 | `samsung` | Samsung TVs (`apps/tizen`) | `apps/tizen/package.json`, `config.xml` | None: the package is signed with a Samsung certificate, by hand (`bun run --cwd apps/tizen package`) |
-| `lg` | LG TVs (`apps/webos`) | `apps/webos/package.json`, `appinfo.json` | `pley-lg-<version>.ipk` |
+| `lg` | LG TVs (`apps/webos`, a native app) | `apps/webos/appinfo.json`, `apps/webos/crates/app/Cargo.toml` (`pley-lg`) | `pley-lg-<version>.ipk` |
 | `kodi` | The Kodi add-on | `apps/kodi/plugin.video.pley/addon.xml` | `plugin.video.pley-<version>.zip` |
 | `roku` | The Roku app | `apps/roku/manifest` (major, minor, build), `apps/roku/package.json` | `pley-roku-<version>.zip` |
 
@@ -106,7 +106,9 @@ the tags, so fetch them first (`git fetch --tags`).
   version: they ship only inside the server's release files. The server and
   transcoder check compatibility with the protocol's `api_version`.
 - `packages/tv` and `packages/picture-subtitles` have no version: the apps
-  that use them build them in.
+  that use them build them in. Neither do the LG app's other crates: they
+  are built into its one binary.
+- webOS takes three numbers for a version, with no suffix.
 - Each unit's `CHANGELOG.md` is in its folder.
 - Builds show their commit beside the version, as "0.0.1 (1a2b3c4d5)"
   (`scripts/commit.mjs`, `PLEY_COMMIT`).
@@ -130,8 +132,9 @@ workflow's `on.paths` has the exact list.
 | Server | `apps/server`, `apps/transcoder`, `packages/transcoder-api`, `apps/web`, `deploy/{docker,windows,systemd,launchd}` (not their Markdown), `Cargo.*`, the root `package.json`, `LICENSING.md`, `docs/TRANSCODER.md`, the build, installer, license and source scripts |
 | Desktop | `apps/desktop`, the root `package.json` |
 | Android | `apps/android`, `scripts/check-android.ps1` |
-| Samsung TV, LG TV | `apps/tizen` or `apps/webos`, `packages/tv`, the root `package.json`, `scripts/commit.mjs` |
+| Samsung TV | `apps/tizen`, `packages/tv`, the root `package.json` and `bun.lock`, `scripts/commit.mjs` |
 | Samsung TV (native) | `apps/tizen-native`, `packages/tv/test/fixtures`, `scripts/check-nuget-licenses.mjs`, `scripts/commit.mjs`; it has no release unit yet |
+| LG TV | `apps/webos`, `deny.toml`, `rustfmt.toml`, `LICENSE`, `LICENSING.md`, the license and version scripts |
 | Kodi | `apps/kodi`, and the server's Rust code: its end-to-end test runs against a server built from the same commit |
 | Roku | `apps/roku`, the root `package.json` (Bun's version) |
 | Repository | `.github/workflows/`, the version and release scripts, any `CHANGELOG.md`, a unit's version (the first file in its "Version in") |
@@ -146,3 +149,11 @@ entries under Unreleased, passes.
 
 A CHANGELOG change alone runs only Repository. Prepare release and Audit
 (known vulnerabilities in the lock files) run only by hand.
+
+LG TV runs two jobs. One formats, lints and tests `apps/webos` on Linux
+(clippy also with the TV's code, the `tv` feature) and checks its
+licences. The other builds the TV binary with the webOS toolchain, pinned
+by address and SHA-256 and cached, then runs `cargo xtask check`, packs
+the .ipk and reads it back; it keeps the package (`lg-ipk`) and the binary
+before stripping (`lg-symbols`) as artifacts. A release adds the package
+as `pley-lg-<version>.ipk` ([LG.md](LG.md#releases)).

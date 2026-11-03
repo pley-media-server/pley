@@ -22,6 +22,7 @@ import java.util.Collections
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 
 /** Home's sources, every one a fake the test drives and reads. */
@@ -78,10 +79,11 @@ class TestHomeSources : HomeSources {
 
     override val items = object : ItemRepository {
         override fun detail(itemId: Long): Flow<Loadable<ItemDetail>> = this@TestHomeSources.detail(itemId)
-        override fun children(itemId: Long): Flow<Loadable<List<ItemSummary>>> = error("not on Home")
-        override fun onDeck(itemId: Long): Flow<Loadable<ItemSummary?>> = error("not on Home")
-        override fun related(itemId: Long): Flow<Loadable<List<ItemSummary>>> = error("not on Home")
-        override fun collectionsOf(itemId: Long): Flow<Loadable<List<CollectionSummary>>> = error("not on Home")
+        // An item's page opened in the frame: nothing more than its details.
+        override fun children(itemId: Long): Flow<Loadable<List<ItemSummary>>> = flowOf(Loadable.Ready(emptyList(), fresh = true))
+        override fun onDeck(itemId: Long): Flow<Loadable<ItemSummary?>> = flowOf(Loadable.Ready(null, fresh = true))
+        override fun related(itemId: Long): Flow<Loadable<List<ItemSummary>>> = flowOf(Loadable.Ready(emptyList(), fresh = true))
+        override fun collectionsOf(itemId: Long): Flow<Loadable<List<CollectionSummary>>> = flowOf(Loadable.Ready(emptyList(), fresh = true))
         override suspend fun next(itemId: Long): ItemSummary? = error("not on Home")
         override fun prefetch(itemId: Long) {
             prefetched += itemId

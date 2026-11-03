@@ -15,6 +15,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
@@ -45,6 +46,8 @@ import app.pley.android.ui.tv.item.MediaFact
 import app.pley.android.ui.tv.item.MediaFactText
 import app.pley.android.ui.tv.item.MediaFacts
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 
 /** The display's mode now, and the HDR types it takes in it (Display.HdrCapabilities.HDR_TYPE_*). */
@@ -65,6 +68,9 @@ internal data class ReadoutInput(
 /**
  * The playback's details, the engine's stats, the buffer and the display,
  * sampled once a second while shown: the readout never recomposes faster.
+ * Until the details come (they are asked for as it opens), it samples
+ * again as soon as they do, so "Asking the server…" shows only while a
+ * stream's live numbers are on their way, not for a second whatever comes.
  */
 @Composable
 internal fun rememberReadout(state: State<PlayerUiState>, engine: State<EngineState?>): State<ReadoutInput> {
@@ -79,7 +85,11 @@ internal fun rememberReadout(state: State<PlayerUiState>, engine: State<EngineSt
                 quality = s.quality,
                 display = displayNow(view),
             )
-            delay(READOUT_MS)
+            if (s.details == null) {
+                withTimeoutOrNull(READOUT_MS) { snapshotFlow { state.value.details }.first { it != null } }
+            } else {
+                delay(READOUT_MS)
+            }
         }
     }
 }

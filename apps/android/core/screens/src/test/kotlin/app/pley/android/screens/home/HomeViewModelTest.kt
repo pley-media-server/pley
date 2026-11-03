@@ -42,6 +42,7 @@ class HomeViewModelTest {
     private fun TestScope.home(): HomeViewModel = HomeViewModel(sources, dispatcher).also { vm ->
         // Something on screen keeps the state flowing.
         backgroundScope.launch { vm.state.collect { } }
+        backgroundScope.launch { vm.status.collect { } }
         backgroundScope.launch { vm.info.collect { } }
     }
 
@@ -49,9 +50,10 @@ class HomeViewModelTest {
     fun homeIsDrawnFromTheSnapshotWithoutTheNetwork() = runTest(dispatcher) {
         val vm = home()
         assertSame(HomeState.Loading, vm.state.value)
+        assertNull(vm.status.value)
         sources.home.value = Loadable.Ready(HOME, fresh = false)
         val saved = vm.state.value as HomeState.Ready
-        assertFalse(saved.fresh)
+        assertEquals(Loadable.Ready(Unit, fresh = false), vm.status.value)
         assertEquals(listOf("continue_watching", "recently_added:1", "recently_added:2", "recently_added:3"), saved.rows.map { it.key })
         assertEquals(GLASSHOUSE, saved.hero?.item)
         assertEquals(FakeHomeSources.ORIGIN, saved.origin)
@@ -60,8 +62,24 @@ class HomeViewModelTest {
         val offline = OfflineException(java.net.ConnectException("refused"))
         sources.home.value = Loadable.Failed(offline, HOME)
         val stale = vm.state.value as HomeState.Ready
-        assertSame(offline, stale.error)
+        assertEquals(Loadable.Failed(offline, Unit), vm.status.value)
         assertEquals(4, stale.rows.size)
+    }
+
+    @Test
+    fun theServerSayingWhatWasSavedRedrawsNothing() = runTest(dispatcher) {
+        val vm = home()
+        var shapings = 0
+        val shaped = vm.present { _: HomeState -> ++shapings }
+        backgroundScope.launch { shaped.collect { } }
+        sources.home.value = Loadable.Ready(HOME, fresh = false)
+        val saved = vm.state.value
+        val shaped0 = shapings
+        // Coming back to Home, the server is asked again and says the same: only the status moves.
+        sources.home.value = Loadable.Ready(HOME, fresh = true)
+        assertSame(saved, vm.state.value)
+        assertEquals(shaped0, shapings)
+        assertEquals(Loadable.Ready(Unit, fresh = true), vm.status.value)
     }
 
     @Test
@@ -75,9 +93,9 @@ class HomeViewModelTest {
         sources.detail(GLASSHOUSE.id).value = Loadable.Ready(detail, fresh = true)
         assertEquals("TV-14", (vm.state.value as HomeState.Ready).hero?.meta?.contentRating)
         // A fresh answer for the rows: the hero is never drawn without what was known of it.
-        sources.home.value = Loadable.Ready(HOME, fresh = true)
+        sources.home.value = Loadable.Ready(HOME.copy(hubs = HOME.hubs.reversed()), fresh = true)
         val ready = vm.state.value as HomeState.Ready
-        assertTrue(ready.fresh)
+        assertEquals(Loadable.Ready(Unit, fresh = true), vm.status.value)
         assertEquals("TV-14", ready.hero?.meta?.contentRating)
     }
 
@@ -181,7 +199,7 @@ class HomeViewModelTest {
         advanceUntilIdle()
         assertEquals(1, sources.hubRefreshes)
         assertEquals(1, sources.libraryRefreshes)
-        assertFalse((vm.state.value as HomeState.Ready).refreshing)
+        assertFalse(vm.refreshing.value)
     }
 
     @Test

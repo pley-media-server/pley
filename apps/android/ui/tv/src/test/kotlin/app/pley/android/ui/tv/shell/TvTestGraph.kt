@@ -11,7 +11,9 @@ import app.pley.android.data.AppSettings
 import app.pley.android.data.CollectionsRepository
 import app.pley.android.data.DataGraph
 import app.pley.android.data.HistoryRepository
+import app.pley.android.data.LibraryItems
 import app.pley.android.data.LibraryItemsRepository
+import app.pley.android.data.LibraryQuery
 import app.pley.android.data.LiveUpdates
 import app.pley.android.data.Loadable
 import app.pley.android.data.PeopleRepository
@@ -22,9 +24,13 @@ import app.pley.android.data.ServersRepository
 import app.pley.android.data.Session
 import app.pley.android.data.SessionRepository
 import app.pley.android.data.SessionState
+import app.pley.android.data.Settings
 import app.pley.android.data.SnapshotStore
 import app.pley.android.data.TrackDefaultsRepository
+import app.pley.android.model.CollectionDetail
+import app.pley.android.model.CollectionSummary
 import app.pley.android.model.Hubs
+import app.pley.android.model.LibraryFilters
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.Flow
 import app.pley.android.model.PlaylistKind
@@ -42,13 +48,17 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * The app's graph for the TV frame's tests: Home's data from the JSON
- * fixtures (Continue Watching starts with Severance's "Half Loop"), every
- * other part failing when asked, as the frame never asks for it.
+ * fixtures (Continue Watching starts with Severance's "Half Loop"), a
+ * library's listing from [listing], every other part failing when asked,
+ * as the frame never asks for it.
  */
 class TvTestGraph : ScreensGraph {
     val sources = TestHomeSources().apply {
         home.value = Loadable.Ready(Fixtures.decode<Hubs>("hubs/home.json"), fresh = false)
     }
+
+    /** Every library's listing, whatever its sort and filters. */
+    val listing = MutableStateFlow<Loadable<LibraryItems>>(Loadable.Loading)
 
     override val device = DeviceProfile(FormFactor.Tv, fireTv = false, tier = Tier.T2, model = "test", totalRamBytes = 4L shl 30, lowRam = false)
     override val auth: AuthGraph get() = unused("auth")
@@ -79,14 +89,21 @@ class TvTestGraph : ScreensGraph {
             override suspend fun clientId(): String = "android-test"
         }
         override val snapshots: SnapshotStore get() = unused("snapshots")
-        override val libraryItems: LibraryItemsRepository get() = unused("libraryItems")
+        override val libraryItems = object : LibraryItemsRepository {
+            override fun items(libraryId: Long, query: LibraryQuery): Flow<Loadable<LibraryItems>> = listing
+            override fun filters(libraryId: Long): Flow<Loadable<LibraryFilters>> = flowOf(Loadable.Ready(LibraryFilters(), fresh = true))
+        }
         // The Search tab: nothing searched yet, no recent searches.
         override val search = object : SearchRepository {
             override fun search(query: String): Flow<Loadable<SearchResults>> = flowOf(Loadable.Ready(SearchResults(), fresh = true))
             override val recent: Flow<List<String>> = flowOf(emptyList())
         }
         override val people: PeopleRepository get() = unused("people")
-        override val collections: CollectionsRepository get() = unused("collections")
+        // A library's Collections tab: none.
+        override val collections = object : CollectionsRepository {
+            override fun collections(libraryId: Long): Flow<Loadable<List<CollectionSummary>>> = flowOf(Loadable.Ready(emptyList(), fresh = true))
+            override fun collection(collectionId: Long): Flow<Loadable<CollectionDetail>> = flowOf(Loadable.Loading)
+        }
         // The Playlists tab: none yet.
         override val playlists = object : PlaylistsRepository {
             override fun playlists(): Flow<Loadable<List<PlaylistSummary>>> = flowOf(Loadable.Ready(emptyList(), fresh = true))
@@ -102,7 +119,10 @@ class TvTestGraph : ScreensGraph {
         override val history: HistoryRepository get() = unused("history")
         override val trackDefaults: TrackDefaultsRepository get() = unused("trackDefaults")
         override val watchlist: app.pley.android.data.WatchlistRepository get() = unused("watchlist")
-        override val settings: AppSettings get() = unused("settings")
+        override val settings = object : AppSettings {
+            override val settings: Flow<Settings> = MutableStateFlow(Settings())
+            override suspend fun update(change: (Settings) -> Settings) = Unit
+        }
     }
 
     private fun unused(what: String): Nothing = error("the TV frame's tests don't use $what")

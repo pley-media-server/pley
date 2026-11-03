@@ -12,6 +12,7 @@ import app.pley.android.model.ProgressReport
 import app.pley.android.model.ProgressState
 import app.pley.android.model.ServerEvent
 import app.pley.android.model.caps.ClientCaps
+import app.pley.android.network.ApiException
 import app.pley.android.network.OfflineException
 import app.pley.android.player.EngineSource
 import app.pley.android.player.MusicError
@@ -33,8 +34,8 @@ import org.junit.Test
 
 /**
  * The music queue against the server: sessions per track, the reports'
- * cadence, the hand-off from one track to the next, Previous, and what
- * happens when a track fails.
+ * cadence, the hand-off from one track to the next, Previous, what
+ * happens when a track fails, and a video taking over.
  */
 class MusicPlaybackTest {
     private val album = (1..3L).map { track(it) }
@@ -94,7 +95,7 @@ class MusicPlaybackTest {
     }
 
     @Test
-    fun progressGoesOutEveryTenSecondsWhilePlayingAndOnPause() = runTest {
+    fun progressGoesOutEveryTenSecondsWhilePlayingOnPauseAndEveryThirtyPaused() = runTest {
         val music = music()
         music.play(album)
         runCurrent()
@@ -111,11 +112,46 @@ class MusicPlaybackTest {
         assertEquals(ProgressState.Paused, reports().last().state)
         assertEquals(31_000, reports().last().positionMs)
 
-        // Paused: nothing more goes out.
+        // Paused: every 30 s, so the server keeps the session (it lets one go after 90 s unheard).
         val count = reports().size
-        advanceTimeBy(60_000)
+        advanceTimeBy(20_000)
         runCurrent()
         assertEquals(count, reports().size)
+        advanceTimeBy(10_000)
+        runCurrent()
+        assertEquals(count + 1, reports().size)
+        assertEquals(ProgressState.Paused, reports().last().state)
+        assertEquals(31_000, reports().last().positionMs)
+    }
+
+    @Test
+    fun aVideoEndsTheMusicsSessionAndPlayStartsANewOneWhereItWas() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 30_000
+        music.pauseForVideo()
+        settle()
+        assertEquals(1, api.calls("stopPlayback").size)
+        assertEquals(ProgressState.Stopped, reports().last().state)
+        assertEquals(30_000, reports().last().positionMs)
+        val now = music.nowPlaying.value!!
+        assertFalse(now.playing)
+        assertEquals(1L, now.itemId)
+
+        // Nothing keeps a session through the film.
+        val asked = api.calls.size
+        advanceTimeBy(600_000)
+        runCurrent()
+        assertEquals(asked, api.calls.size)
+
+        music.toggle()
+        settle()
+        assertEquals(listOf(1L, 1L), starts().map { it.itemId })
+        assertEquals(30_000L, starts().last().startMs)
+        assertEquals(30_000L, output.startPositions.last())
+        assertTrue(output.playWhenReady)
     }
 
     @Test
@@ -219,6 +255,53 @@ class MusicPlaybackTest {
         settle()
         assertEquals(4, starts().size)
         assertEquals(MusicError.Unplayable, music.nowPlaying.value?.error)
+    }
+
+    @Test
+    fun aFailureThePlayerCantNameAsksTheServer() = runTest {
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 15_000
+        // The session goes on: the track is at fault, asked for once more as a transcode.
+        output.fail(OutputError.Other)
+        settle()
+        assertEquals(1, api.calls("playbackStatus").size)
+        assertEquals(PlaybackMode.Transcode, starts().last().mode)
+        assertEquals(15_000L, starts().last().startMs)
+
+        // The server out of reach: a new session where it was, three times in a row, then it says so.
+        api.answer("startPlayback", transcodeInfo())
+        api.fail("playbackStatus", OfflineException(IOException("refused")))
+        repeat(MusicPlayback.MAX_RECREATES) {
+            output.fail(OutputError.Other)
+            settle()
+        }
+        assertEquals(5, starts().size)
+        assertNull(music.nowPlaying.value?.error)
+        output.fail(OutputError.Other)
+        settle()
+        assertEquals(5, starts().size)
+        assertEquals(MusicError.Offline, music.nowPlaying.value?.error)
+    }
+
+    @Test
+    fun aFailureThePlayerCantNameIsTheServersStopWhenItSaysSo() = runTest {
+        api.fail("playbackStatus", ApiException(410, "session_stopped", "Stopped by Ann."))
+        val music = music()
+        music.play(album)
+        runCurrent()
+        output.startPlaying()
+        output.position = 8_000
+        output.fail(OutputError.Other)
+        settle()
+        assertEquals(MusicError.Stopped, music.nowPlaying.value?.error)
+        assertEquals(1, starts().size)
+        assertTrue(api.calls("stopPlayback").isEmpty())
+        // Where it was is kept, and nothing is deleted.
+        assertEquals(ProgressState.Stopped, reports().last().state)
+        assertEquals(8_000, reports().last().positionMs)
     }
 
     @Test
