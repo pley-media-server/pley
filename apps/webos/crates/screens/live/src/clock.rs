@@ -152,6 +152,8 @@ mod sys {
     }
 
     /// The zone's offset from UTC at `t`, in seconds.
+    // A `long` is 32 bits on the TV and 64 on a 64-bit host, where the conversion does nothing.
+    #[allow(clippy::useless_conversion)]
     pub fn offset(t: i64) -> Option<i64> {
         let t = c_long::try_from(t).ok()?;
         let mut tm = MaybeUninit::<Tm>::zeroed();
