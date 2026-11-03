@@ -652,10 +652,11 @@ The package is an `ar` archive (`debian-binary`, `control.tar.gz`,
 
 ## Releases
 
-The app is the `lg` unit in [RELEASING.md](RELEASING.md), tagged
-`lg-v<version>`. Its version is in `appinfo.json` (three numbers, as
-webOS requires) and in the `pley-lg` crate (`crates/app/Cargo.toml`, and
-`Cargo.lock`); `bun scripts/version.mjs set lg <version>` sets them all.
+The app is the `lg` unit in [RELEASING.md](RELEASING.md), released under
+the release's `release-<date>` tag. Its version is in `appinfo.json`
+(three numbers, as webOS requires) and in the `pley-lg` crate
+(`crates/app/Cargo.toml`, and `Cargo.lock`); `bun scripts/version.mjs set
+lg <version>` sets them all.
 The Release workflow runs `lg.yml` with `release: true` and attaches the
 package as `pley-lg-<version>.ipk`.
 

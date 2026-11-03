@@ -70,9 +70,7 @@ Then follow [First start](CONFIGURATION.md#first-start).
 | `bun run desktop` | Runs the desktop app (on Linux needs WebKitGTK: `libwebkit2gtk-4.1-dev`); `bun run --cwd apps/desktop build` makes its installers |
 | `bun run tv:check` | Type-checks and tests the Samsung app; `bun run tizen` packages it ([TV_PLATFORMS.md](TV_PLATFORMS.md)) |
 | `dotnet test apps/tizen-native/test/Pley.Tv.Core.Tests` | Tests the native Samsung app's logic; `bun run tizen-native` packages it ([TV_PLATFORMS.md](TV_PLATFORMS.md#the-native-samsung-app)) |
-| `bun run tv:check` | Type-checks and tests the Samsung app; `bun run tizen` packages it ([TV_PLATFORMS.md](TV_PLATFORMS.md)) |
 | `cargo test --workspace` in `apps/webos` | Tests the LG app; `cargo clippy --workspace --all-targets` and `cargo fmt --all` there lint and format it, `cargo run -- --fixtures` starts its simulator, and `cargo xtask` builds and packs it for the TV ([LG.md](LG.md#building-and-testing)) |
-
 | `bun install && bun run check` in `apps/roku` | Compiles, lints and tests the Roku app ([ROKU.md](ROKU.md)) |
 | `python -m unittest discover -s tests` in `apps/kodi` | Tests the Kodi add-on ([KODI.md](KODI.md)) |
 | `scripts/build.ps1` (or `build.sh`) | Builds the server's release archive locally |
