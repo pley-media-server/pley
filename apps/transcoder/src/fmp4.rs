@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LicenseRef-Restricted
+// SPDX-License-Identifier: AGPL-3.0-only
 //! FFmpeg's fragmented MP4 output (`-f mp4 -movflags +frag_keyframe+…` on
 //! a pipe), read box by box and taken apart: the initialization (`ftyp`
 //! and `moov`) and each movie fragment (`moof` and its `mdat`), with the
