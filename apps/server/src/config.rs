@@ -155,8 +155,8 @@ struct FileConfig {
     transcoder_token: Option<String>,
     transcoder_max_jobs: Option<u32>,
     discovery: Option<bool>,
-    /// Like `discovery` when left out, which turned Bonjour off before it had
-    /// a switch of its own.
+    /// Off when left out: Bonjour tells every device on the local network
+    /// about the server, so an administrator turns it on.
     bonjour: Option<bool>,
     bonjour_adapters: Option<Vec<String>>,
 }
@@ -300,7 +300,7 @@ impl Config {
             metadata_endpoints: Some(crate::providers::Endpoints::default()),
             shutdown_grace: SHUTDOWN_GRACE,
             discovery: !cli.no_discovery && file.discovery.unwrap_or(true),
-            bonjour: !cli.no_discovery && !cli.no_bonjour && file.bonjour.or(file.discovery).unwrap_or(true),
+            bonjour: !cli.no_discovery && !cli.no_bonjour && file.bonjour.unwrap_or(false),
             bonjour_adapters,
             event_recheck: EVENT_RECHECK,
             extra_bind_retry: EXTRA_BIND_RETRY,
@@ -755,16 +755,15 @@ mod tests {
     }
 
     #[test]
-    fn bonjour_has_a_switch_of_its_own_and_takes_after_discovery() {
+    fn bonjour_is_off_until_turned_on() {
         let dir = tempfile::tempdir().unwrap();
         let file = dir.path().join("pley.toml");
         let config = Config::load(&cli(dir.path())).unwrap();
-        assert!(config.bonjour && config.bonjour_adapters.is_empty());
+        assert!(!config.bonjour && config.discovery && config.bonjour_adapters.is_empty());
 
-        // A server with discovery turned off before Bonjour had a switch
-        // isn't announced either.
-        std::fs::write(&file, "discovery = false\n").unwrap();
-        assert!(!Config::load(&cli(dir.path())).unwrap().bonjour);
+        // A switch of its own, apart from discovery's.
+        std::fs::write(&file, "bonjour = true\n").unwrap();
+        assert!(Config::load(&cli(dir.path())).unwrap().bonjour);
         std::fs::write(&file, "discovery = false\nbonjour = true\n").unwrap();
         let config = Config::load(&cli(dir.path())).unwrap();
         assert!(config.bonjour && !config.discovery);

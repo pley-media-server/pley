@@ -760,8 +760,9 @@ datagram:
 renames, and `port` is the web port on the address the answer came from.
 Only senders on the local network get an answer, at most 100 a second.
 
-Servers also announce themselves by Bonjour (mDNS and DNS-SD), for apps
-that browse rather than broadcast (Apple's). The service type is
+Servers can also announce themselves by Bonjour (mDNS and DNS-SD), for
+apps that browse rather than broadcast (Apple's), once an administrator
+turns it on in Settings → Network (`bonjour`). The service type is
 `_pley._tcp`, its port the web port, and its instance name the server's
 name (at most 63 bytes). The TXT records carry the UDP answer's fields:
 
@@ -791,10 +792,10 @@ network can announce or answer, so either way an app confirms a server it
 found through its public endpoint (`GET /api/server`, [Public endpoints](#public-endpoints))
 and its sign-in endpoints before it trusts it.
 
-Administrators turn the UDP answer off in Settings → Network
-(`discovery`), Bonjour off there too (`bonjour`) or with `--no-bonjour`
-(`PLEY_NO_BONJOUR`), and both with `--no-discovery`
-(`PLEY_NO_DISCOVERY`).
+The UDP answer is on and Bonjour off unless an administrator changes
+them in Settings → Network (`discovery`, `bonjour`). `--no-bonjour`
+(`PLEY_NO_BONJOUR`) keeps Bonjour off, and `--no-discovery`
+(`PLEY_NO_DISCOVERY`) both.
 
 **Finding the sign-in endpoints.**
 `GET /.well-known/oauth-authorization-server` (RFC 8414) says where

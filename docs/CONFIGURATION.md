@@ -33,7 +33,7 @@ example, `--plex-bind` is also `PLEY_PLEX_BIND` and `plex_bind`.
 | `--log` | `info` | Log filter, e.g. `info,pley=debug`; also written to `logs/pley.log` |
 | `--no-tray` | | Never show the tray icon |
 | `--no-discovery` | | Don't answer apps looking for servers on the local network, nor announce Pley there by Bonjour |
-| `--no-bonjour` | | Don't announce Pley by Bonjour: Apple's apps need its address typed in, and the web app has no `.local` name |
+| `--no-bonjour` | | Keep Bonjour off, whatever Settings → Network says: Apple's apps need the server's address typed in |
 
 Everything else is set in the web app:
 
@@ -44,8 +44,9 @@ Everything else is set in the web app:
   Jellyfin-compatible APIs, discovery, Bonjour), changed while Pley runs and
   saved in `pley.toml`, unless `--bind`, `--plex-bind`, `--jellyfin-bind`,
   `--no-discovery` or `--no-bonjour` (or their `PLEY_*` variables) set it.
-  Bonjour has the networks it announces Pley on (`bonjour_adapters`, every
-  network Pley listens on unless some are chosen).
+  Bonjour is off until turned on there, and has the networks it announces
+  Pley on (`bonjour_adapters`, every network Pley listens on unless some
+  are chosen).
 - **Settings → Live TV**: IPTV sources, which channels show, and who may
   watch.
 - **Settings → Requests**: Discover and requests, their limits, and Radarr and

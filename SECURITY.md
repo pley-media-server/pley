@@ -295,8 +295,9 @@ other apps (`pley_ct_…`), never with a session's
   Bonjour (`_pley._tcp`). Both tell only the server's id, name, version and
   web port. The name and version are on its public endpoint too; the id is
   a random identifier that says nothing about the computer or its users.
-  Bonjour tells them to every device on the local network unasked, and its
-  host name (`pley-` and the id's start) shows part of the id.
+  Bonjour, once an administrator turns it on, tells them to every device
+  on the local network unasked, and its host name (`pley-` and the id's
+  start) shows part of the id.
 - The UDP answer goes only to addresses on the local network, at most 100
   a second. The Bonjour announcement goes out only from adapters with
   addresses on the local network, never to the internet, and from only
@@ -308,9 +309,10 @@ other apps (`pley_ct_…`), never with a session's
   address elsewhere gets nothing; multicasts an answer once a second at
   most on each network; reads what it hears within bounds; and keeps none
   of it, so no device can make it hold more.
-- Settings → Network turns either off. `--no-bonjour`
-  (`PLEY_NO_BONJOUR`) turns Bonjour off, and `--no-discovery`
-  (`PLEY_NO_DISCOVERY`) both; the Docker setup has them off.
+- Discovery is on and Bonjour off until Settings → Network changes them.
+  `--no-bonjour` (`PLEY_NO_BONJOUR`) keeps Bonjour off, and
+  `--no-discovery` (`PLEY_NO_DISCOVERY`) both; the Docker setup has them
+  off.
 
 ### Files
 

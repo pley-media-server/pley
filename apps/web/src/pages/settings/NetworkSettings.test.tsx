@@ -12,7 +12,7 @@ const NETWORK: Network = {
   plex: [],
   plex_on_web: true,
   discovery: true,
-  bonjour: true,
+  bonjour: false,
   bonjour_adapters: [],
   fixed: { web: false, jellyfin: false, plex: false, discovery: false, bonjour: false },
   listeners: [{ kind: "web", address: "127.0.0.1:7539", error: null }],
@@ -60,7 +60,7 @@ describe("NetworkSettings", () => {
         plex: [],
         plex_on_web: true,
         discovery: true,
-        bonjour: true,
+        bonjour: false,
         bonjour_adapters: [],
       }),
     );
@@ -88,7 +88,7 @@ describe("NetworkSettings", () => {
         plex: [],
         plex_on_web: true,
         discovery: true,
-        bonjour: true,
+        bonjour: false,
         bonjour_adapters: [],
       }),
     );
@@ -111,7 +111,7 @@ describe("NetworkSettings", () => {
         plex: [],
         plex_on_web: true,
         discovery: true,
-        bonjour: true,
+        bonjour: false,
         bonjour_adapters: [],
       }),
     );
@@ -128,7 +128,7 @@ describe("NetworkSettings", () => {
         plex: [],
         plex_on_web: true,
         discovery: true,
-        bonjour: true,
+        bonjour: false,
         bonjour_adapters: [],
       }),
     );
@@ -160,7 +160,7 @@ describe("NetworkSettings", () => {
         plex: ["0.0.0.0:32400"],
         plex_on_web: false,
         discovery: true,
-        bonjour: true,
+        bonjour: false,
         bonjour_adapters: [],
       }),
     );
@@ -185,7 +185,7 @@ describe("NetworkSettings", () => {
         plex: ["0.0.0.0:32400"],
         plex_on_web: false,
         discovery: true,
-        bonjour: true,
+        bonjour: false,
         bonjour_adapters: [],
       }),
     );
@@ -203,7 +203,7 @@ describe("NetworkSettings", () => {
         plex: [],
         plex_on_web: false,
         discovery: true,
-        bonjour: true,
+        bonjour: false,
         bonjour_adapters: [],
       }),
     );
@@ -242,7 +242,7 @@ describe("NetworkSettings", () => {
         plex: ["0.0.0.0:32400"],
         plex_on_web: false,
         discovery: true,
-        bonjour: true,
+        bonjour: false,
         bonjour_adapters: [],
       }),
     );
@@ -279,7 +279,10 @@ describe("NetworkSettings", () => {
       "PUT /api/network": (req) => ({ ...NETWORK, ...(req.body as ListenChoice) }),
     });
     renderWithProviders(<NetworkSettings />);
-    expect(await screen.findByRole("switch", { name: "Bonjour" })).toBeChecked();
+    // Off until turned on.
+    expect(await screen.findByRole("switch", { name: "Bonjour" })).not.toBeChecked();
+    expect(screen.queryByRole("group", { name: "Announced on" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("switch", { name: "Bonjour" }));
     expect(screen.getByRole("checkbox", { name: /Every network Pley listens on/ })).toBeChecked();
 
     // The home network only, not the Wi-Fi.
@@ -308,7 +311,12 @@ describe("NetworkSettings", () => {
 
   it("offers Bonjour only the networks Pley listens on", async () => {
     mockApi({
-      "GET /api/network": () => ({ ...NETWORK, web: ["127.0.0.1:7539", "192.168.1.10:7539"], bonjour_adapters: ["Wi-Fi"] }),
+      "GET /api/network": () => ({
+        ...NETWORK,
+        web: ["127.0.0.1:7539", "192.168.1.10:7539"],
+        bonjour: true,
+        bonjour_adapters: ["Wi-Fi"],
+      }),
     });
     renderWithProviders(<NetworkSettings />);
     const announced = within(await screen.findByRole("group", { name: "Announced on" }));

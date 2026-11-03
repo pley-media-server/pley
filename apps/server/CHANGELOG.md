@@ -11,11 +11,11 @@ describes how they are made.
 
 ### Added
 
-- The server announces itself on the local network by Bonjour
-  (`_pley._tcp`) too, with its id, name and version, so Apple's devices can
-  find it. Settings → Network turns it on and off (`--no-bonjour`, and
-  `--no-discovery` with the apps' broadcast; a server with discovery off
-  starts with it off) and chooses the networks it is announced on, for a
+- The server can announce itself on the local network by Bonjour
+  (`_pley._tcp`), with its id, name and version, so Apple's devices find it
+  without its address. It is off until turned on in Settings → Network
+  (`bonjour = true`; `--no-bonjour` keeps it off, as `--no-discovery`
+  does), which also chooses the networks it is announced on, for a
   server that is also on a VPN, a container network or a guest Wi-Fi. It
   follows a rename, and goes out only from adapters on the local network,
   answering only the devices there. Windows Firewall's rule for Pley

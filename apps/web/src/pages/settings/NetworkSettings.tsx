@@ -581,7 +581,7 @@ export function NetworkSettings() {
               ? "Turned off by --no-bonjour, --no-discovery, PLEY_NO_BONJOUR or PLEY_NO_DISCOVERY."
               : form.mode === "local"
                 ? "On networks only: devices can't reach this computer's own address."
-                : "Apple's devices find this server by Bonjour."
+                : "Off unless turned on. Apple's devices find this server by it; without it, they need its address."
           }
         >
           <Toggle
