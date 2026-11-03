@@ -239,8 +239,12 @@ connections are set up in the web app's Settings → Live TV
   id, so the server ends the channel watched before.
 - **Every connection in use (`409`):** the player lists each connection's
   channel and who holds it, with **Watch here instead** where the server
-  allows it (`can_take_over`). A connection taken from you shows the
-  server's `410` message.
+  allows it (`can_take_over`).
+- **A connection taken from you:** the server's `live_taken_over` event
+  for the channel stops the player at once, and it shows **Live TV
+  stopped** with the server's words (docs/API.md, "Taken over") and
+  **Watch again**; a `410` from the stream says the same. It doesn't tune
+  again by itself.
 
 On Android the player reads the channel's MPEG-TS (`stream.ts`) as it
 asks for the channel (`POST …/watch`), the server tuning for whichever

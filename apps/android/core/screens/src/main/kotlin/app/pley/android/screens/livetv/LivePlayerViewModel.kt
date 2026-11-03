@@ -316,7 +316,9 @@ class LivePlayerViewModel(
                 val deps = LivePlayerDeps(
                     live = graph.data.liveTv,
                     playback = { scope ->
-                        LivePlayback.create(app, graph.data.liveTv, graph.player.engines, graph.device, scope) { graph.caps.capabilities.snapshot.value }
+                        LivePlayback.create(app, graph.data.liveTv, graph.player.engines, graph.device, scope, graph.data.liveUpdates.events) {
+                            graph.caps.capabilities.snapshot.value
+                        }
                     },
                     origin = graph.data.servers.active,
                     views = graph.data.liveTvViews,

@@ -77,7 +77,8 @@
     <string name="tv_live_player_other_channels">Other channels</string>
     <string name="tv_live_player_back_to_guide">Back to the guide</string>
     <string name="tv_live_player_busy">All connections are in use</string>
-    <string name="tv_live_player_stopped">Watching stopped</string>
+    <string name="tv_live_player_stopped">Live TV stopped</string>
+    <string name="tv_live_player_watch_again">Watch again</string>
     <string name="tv_live_player_missing">This channel isn\'t here any more</string>
     <string name="tv_live_player_not_allowed">Live TV isn\'t open to this profile</string>
     <string name="tv_live_player_unavailable">%1$s isn\'t playing</string>

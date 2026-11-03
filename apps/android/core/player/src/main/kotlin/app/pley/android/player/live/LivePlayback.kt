@@ -18,6 +18,7 @@ import app.pley.android.model.ApiErrorBody
 import app.pley.android.model.BusyConnection
 import app.pley.android.model.LivePlan
 import app.pley.android.model.PleyJson
+import app.pley.android.model.ServerEvent
 import app.pley.android.network.ApiException
 import app.pley.android.network.OfflineException
 import app.pley.android.player.EngineSource
@@ -28,9 +29,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -39,14 +42,16 @@ import kotlinx.coroutines.launch
  * "Watching"), with its own sentence: a `409` names the channels holding
  * every connection of the source, and lists them ([connections]: who
  * watches each, and which may be taken over). A connection taken over
- * from this device is a `410` saying who took it, for what.
+ * from this device is told by the server's `live_taken_over` event, and
+ * by a `410` after it, saying why (who took it, for what, only within the
+ * home).
  */
 data class LiveTrouble(val kind: Kind, val message: String, val connections: List<BusyConnection> = emptyList()) {
     enum class Kind {
         /** `409`: every connection of the channel's source is in use. */
         Busy,
 
-        /** `410`: an administrator stopped the channel, or the provider ended it. */
+        /** `410` or `live_taken_over`: someone took the channel's connection, or the server stopped it. */
         Stopped,
 
         /** `404`: the channel was hidden or its source removed. */
@@ -152,6 +157,10 @@ data class LiveState(
  * - it is watched as it airs, as the web's: no pausing, no going back;
  * - a player failure tunes the channel again twice, after 1 s and 3 s
  *   (Samsung's), before it says why, unless the server said no ([RETRIES]);
+ * - someone taking the channel's connection over (the server's
+ *   `live_taken_over`, for the channel rather than the session:
+ *   `stream.ts` has none of its own) stops it at once and says why, the
+ *   same as the `410` that follows; nothing tunes it again by itself;
  * - [stop] lets the session and the engine go (the screen went to the
  *   background), [resume] tunes the channel again, [close] ends it all.
  *
@@ -163,6 +172,8 @@ class LivePlayback(
     private val engines: () -> PlayerEngine,
     private val clientId: () -> String,
     private val scope: CoroutineScope,
+    /** The server's events, to hear of the channel's connection being taken over. */
+    events: Flow<ServerEvent> = emptyFlow(),
     /** What this device plays, for the sound the server converts ([playsAsSent]); `null` until probed. */
     private val caps: () -> CapsSnapshot? = { null },
 ) {
@@ -193,6 +204,30 @@ class LivePlayback(
 
     /** The times the channel was tuned again after a player failure, since it was tuned or retried. */
     private var retries = 0
+
+    init {
+        scope.launch {
+            events.collect { event ->
+                if (event is ServerEvent.LiveTakenOver) takenOver(event.channelId, event.message)
+            }
+        }
+    }
+
+    /**
+     * Someone took [channelId]'s connection over: if it is what this device
+     * watches (or tunes), it stops now and says [message]. Watching ended
+     * at the server, so there is no session to let go, and the stream's end
+     * that follows is no break to tune again after.
+     */
+    private fun takenOver(channelId: Long, message: String) {
+        val now = state.value
+        if (closed || now.channelId != channelId || (now.phase != LivePhase.Playing && now.phase != LivePhase.Tuning)) return
+        tuning?.cancel()
+        session = null
+        direct = false
+        holding = false
+        fail(LiveTrouble(LiveTrouble.Kind.Stopped, asSentence(message)))
+    }
 
     /** Starts watching [channelId] in place of what played. */
     fun tune(channelId: Long) {
@@ -505,10 +540,11 @@ class LivePlayback(
             engines: PlayerEngine.Factory,
             profile: DeviceProfile,
             scope: CoroutineScope,
+            events: Flow<ServerEvent> = emptyFlow(),
             caps: () -> CapsSnapshot? = { null },
         ): LivePlayback {
             val app = context.applicationContext
-            return LivePlayback(live, { engines.create(app, profile, music = false) }, clientIdOf(app), scope, caps)
+            return LivePlayback(live, { engines.create(app, profile, music = false) }, clientIdOf(app), scope, events, caps)
         }
     }
 }

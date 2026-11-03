@@ -517,7 +517,10 @@ private fun TroubleCard(
             }
             Spacer(Modifier.height(20.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (onRetry != null) PrimaryButton(stringResource(R.string.live_player_retry), onClick = onRetry, icon = PleyIcons.RefreshCw)
+                if (onRetry != null) {
+                    val retry = if (trouble.kind == LiveTrouble.Kind.Stopped) R.string.live_player_watch_again else R.string.live_player_retry
+                    PrimaryButton(stringResource(retry), onClick = onRetry, icon = PleyIcons.RefreshCw)
+                }
                 TonalButton(stringResource(R.string.live_player_other_channels), onClick = onChannels, icon = PleyIcons.List)
             }
             PleyTextButton(stringResource(R.string.live_player_back_to_guide), onClick = onBack)

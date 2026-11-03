@@ -88,7 +88,8 @@
     </plurals>
     <string name="live_player_take_over">Watch here instead</string>
     <string name="live_player_none_to_take">A channel already being watched can be joined, or try again once one is stopped.</string>
-    <string name="live_player_stopped">Watching stopped</string>
+    <string name="live_player_stopped">Live TV stopped</string>
+    <string name="live_player_watch_again">Watch again</string>
     <string name="live_player_missing">This channel isn\'t here any more</string>
     <string name="live_player_not_allowed">Live TV isn\'t open to this profile</string>
     <string name="live_player_unavailable">%1$s isn\'t playing</string>

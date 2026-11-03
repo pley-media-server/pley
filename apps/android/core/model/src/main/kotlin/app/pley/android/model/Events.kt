@@ -166,6 +166,24 @@ sealed interface ServerEvent {
     }
 
     /**
+     * Someone took the connection of [channelId], watched by this profile,
+     * to watch another channel: every player of it stops and shows
+     * [message] (who took it only when both are in the home).
+     */
+    @Serializable
+    data class LiveTakenOver(
+        val sessionId: String,
+        val channelId: Long,
+        val message: String,
+    ) : ServerEvent {
+        override val type: String get() = TYPE
+
+        companion object {
+            const val TYPE = "live_taken_over"
+        }
+    }
+
+    /**
      * A request changed (its stage too): for its maker, its followers and
      * managers. All three `null` when many changed (another device looked
      * at its requests, an account was deleted).
@@ -293,6 +311,7 @@ sealed interface ServerEvent {
                 UserStateChanged.TYPE -> json.decodeFromJsonElement(UserStateChanged.serializer(), fields)
                 LiveChannelsChanged.TYPE -> LiveChannelsChanged
                 LiveTunersChanged.TYPE -> LiveTunersChanged
+                LiveTakenOver.TYPE -> json.decodeFromJsonElement(LiveTakenOver.serializer(), fields)
                 RequestsChanged.TYPE -> json.decodeFromJsonElement(RequestsChanged.serializer(), fields)
                 RequestAvailable.TYPE -> json.decodeFromJsonElement(RequestAvailable.serializer(), fields)
                 RequestDecided.TYPE -> json.decodeFromJsonElement(RequestDecided.serializer(), fields)
@@ -312,6 +331,7 @@ sealed interface ServerEvent {
                 is ScanFinished -> json.encodeToJsonElement(ScanFinished.serializer(), value).jsonObject
                 is LibraryChanged -> json.encodeToJsonElement(LibraryChanged.serializer(), value).jsonObject
                 is SessionStopped -> json.encodeToJsonElement(SessionStopped.serializer(), value).jsonObject
+                is LiveTakenOver -> json.encodeToJsonElement(LiveTakenOver.serializer(), value).jsonObject
                 is UserStateChanged -> json.encodeToJsonElement(UserStateChanged.serializer(), value).jsonObject
                 is RequestsChanged -> json.encodeToJsonElement(RequestsChanged.serializer(), value).jsonObject
                 is RequestAvailable -> json.encodeToJsonElement(RequestAvailable.serializer(), value).jsonObject

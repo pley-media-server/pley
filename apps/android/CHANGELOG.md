@@ -184,6 +184,10 @@ describes how they are made.
 
 ### Fixed
 
+- When someone takes the connection of the Live TV channel you watch, the
+  player stops at once and says why ("Live TV stopped", the person and
+  their channel only when you are both in the home), with Watch again,
+  where it played on until the stream ran out.
 - On TVs, Back from a title or from a tile's actions, and Right from the
   rail, land on the library grid's tile focus left, in its first row too,
   the grid as it was, where they went to the first tile or to the Sort

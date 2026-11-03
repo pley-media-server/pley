@@ -188,7 +188,8 @@ internal class ServerLiveUpdates(
             // Requests follow these themselves (RequestsRepository), from [events].
             is ServerEvent.RequestsChanged, is ServerEvent.RequestAvailable, is ServerEvent.RequestDecided,
             is ServerEvent.RequestCreated, is ServerEvent.RequestFailed, ServerEvent.RequestsSettingsChanged,
-            ServerEvent.SessionsChanged, is ServerEvent.SessionStopped, ServerEvent.LiveTunersChanged, is ServerEvent.Unknown -> Unit
+            ServerEvent.SessionsChanged, is ServerEvent.SessionStopped, ServerEvent.LiveTunersChanged, is ServerEvent.LiveTakenOver,
+            is ServerEvent.Unknown -> Unit
         }
     }
 

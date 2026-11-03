@@ -513,7 +513,7 @@ private fun Trouble(
             Row(Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(PleyTv.ButtonGap)) {
                 if (onRetry != null) {
                     TvPillButton(
-                        stringResource(R.string.tv_live_player_retry),
+                        stringResource(if (trouble.kind == LiveTrouble.Kind.Stopped) R.string.tv_live_player_watch_again else R.string.tv_live_player_retry),
                         onClick = onRetry,
                         icon = PleyIcons.RefreshCw,
                         modifier = if (firstToTake == null) Modifier.initialFocus() else Modifier,

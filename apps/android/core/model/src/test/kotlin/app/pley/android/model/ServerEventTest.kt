@@ -33,6 +33,12 @@ class ServerEventTest {
         assertEquals(ServerEvent.UserStateChanged(listOf(201), children = true), ServerEvent.parse("""{"type":"user_state_changed","item_ids":[201],"children":true}"""))
         assertEquals(ServerEvent.LiveChannelsChanged, ServerEvent.parse("""{"type":"live_channels_changed"}"""))
         assertEquals(ServerEvent.LiveTunersChanged, ServerEvent.parse("""{"type":"live_tuners_changed"}"""))
+        assertEquals(
+            ServerEvent.LiveTakenOver("s3", 7, "Someone else needed this channel's connection to watch another channel."),
+            ServerEvent.parse(
+                """{"type":"live_taken_over","session_id":"s3","channel_id":7,"message":"Someone else needed this channel's connection to watch another channel."}""",
+            ),
+        )
     }
 
     @Test
