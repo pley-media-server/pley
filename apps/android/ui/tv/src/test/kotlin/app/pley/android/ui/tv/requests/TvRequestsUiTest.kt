@@ -29,6 +29,7 @@ import app.pley.android.model.RequestScope
 import app.pley.android.model.RequestSummary
 import app.pley.android.model.TitleKind
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.requests.DECLINE_REASON_MAX
 import app.pley.android.screens.requests.RequestsDeps
 import app.pley.android.screens.requests.RequestsViewModel
 import app.pley.android.testing.Fixtures
@@ -246,6 +247,25 @@ class TvRequestsUiTest {
         compose.press(Key.Enter)
         compose.waitUntil(WAIT_MS) { requests.api.calls("declineRequest").isNotEmpty() }
         assertEquals(listOf<Any?>(44L, Decline("Not for us")), requests.api.calls("declineRequest").single().args)
+    }
+
+    /** A reason past the server's limit (pasted from a remote app, say) keeps its first characters, as on phones. */
+    @Test
+    fun aDeclineReasonPastTheServersLimitKeepsItsFirstCharacters() {
+        val requests = FakeRequests(Fixtures.decode<RequestSummary>("requests/summary_manager.json"))
+        show(requests)
+        waitFor("The Substance")
+        compose.press(Key.Enter)
+        compose.press(Key.DirectionDown, 2)
+        compose.press(Key.Enter)
+        waitFor("Decline “The Substance”?")
+        val reason = hasSetTextAction() and hasImeAction(ImeAction.Done)
+        compose.onNode(reason).performTextInput("a".repeat(DECLINE_REASON_MAX) + "bcdef")
+        compose.onNode(reason).performImeAction()
+        compose.waitForIdle()
+        compose.press(Key.Enter)
+        compose.waitUntil(WAIT_MS) { requests.api.calls("declineRequest").isNotEmpty() }
+        assertEquals(listOf<Any?>(44L, Decline("a".repeat(DECLINE_REASON_MAX))), requests.api.calls("declineRequest").single().args)
     }
 
     /** The title filter applies once typing pauses, on the main looper's clock. */

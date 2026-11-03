@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -68,6 +69,7 @@ fun TvTextField(
     onAction: () -> Unit = {},
     focusModifier: Modifier = Modifier,
     typeNow: Boolean = false,
+    inputTransformation: InputTransformation? = null,
 ) {
     var editing by remember { mutableStateOf(typeNow) }
     val outer = remember { MutableInteractionSource() }
@@ -144,6 +146,7 @@ fun TvTextField(
                 },
             textStyle = PleyType.Tv.Body.copy(color = PleyColors.Fg),
             cursorBrush = SolidColor(PleyColors.AccentBright),
+            inputTransformation = inputTransformation,
             lineLimits = TextFieldLineLimits.SingleLine,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
             onKeyboardAction = {

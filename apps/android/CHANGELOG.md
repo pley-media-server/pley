@@ -243,6 +243,9 @@ describes how they are made.
   count goes under 10 s, so Keep watching no longer moves under the finger.
 - On phones and tablets, seek previews that arrive while a finger rests on
   the seek bar show at once, rather than when the finger moves again.
+- On Android TV and Fire TV, a reason for declining a request keeps to
+  the server's 500 characters, as on phones, where a longer one wasn't
+  sent.
 
 ### Removed
 

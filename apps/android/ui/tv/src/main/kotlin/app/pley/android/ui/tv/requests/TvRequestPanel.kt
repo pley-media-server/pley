@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldBuffer
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -42,6 +44,7 @@ import app.pley.android.model.TitleKind
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.R as ScreensR
 import app.pley.android.screens.requests.CardAction
+import app.pley.android.screens.requests.DECLINE_REASON_MAX
 import app.pley.android.screens.requests.RequestTexts
 import app.pley.android.screens.requests.cardActions
 import app.pley.android.screens.requests.confirms
@@ -264,6 +267,7 @@ private fun ReasonField(first: FocusRequester, onDone: (String) -> Unit, onCance
                 },
                 focusModifier = Modifier.focusRequester(first),
                 typeNow = true,
+                inputTransformation = ReasonLength,
                 modifier = Modifier.width(288.dp),
             )
         }
@@ -275,6 +279,13 @@ private fun ReasonField(first: FocusRequester, onDone: (String) -> Unit, onCance
             modifier = Modifier.testTag(TV_REQUEST_ROW + "decline"),
         )
         TvPanelRow(stringResource(ScreensR.string.requests_cancel), onClick = onCancel, icon = PleyIcons.ArrowLeft)
+    }
+}
+
+/** A reason past [DECLINE_REASON_MAX] characters (pasted, or a remote app's) keeps its first ones. */
+private object ReasonLength : InputTransformation {
+    override fun TextFieldBuffer.transformInput() {
+        if (length > DECLINE_REASON_MAX) replace(DECLINE_REASON_MAX, length, "")
     }
 }
 

@@ -306,6 +306,9 @@ fun tellMeToo(detail: DiscoverDetail): NewRequest = when (detail.kind) {
 fun askAgain(request: MediaRequest): NewRequest =
     NewRequest(request.kind, request.tmdbId, request.seasons?.takeIf { request.kind == TitleKind.Show && it.isNotEmpty() })
 
+/** The longest reason a decline takes (the server's limit): a longer one, pasted say, keeps its first characters. */
+const val DECLINE_REASON_MAX = 500
+
 // ---------------------------------------------------------------- seasons
 
 /** Whether [season] may be asked for: missing, partly in a library or not aired, not declined, the title not restricted. */
