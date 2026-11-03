@@ -87,6 +87,38 @@ public static class Mks
     const long SubtitleTrack = 0x11;
 
     /// <summary>
+    /// The samples read of a track: a film's subtitles have a few thousand, a day's broadcast tens
+    /// of thousands. A crafted file of tiny blocks could hold millions, each kept as an object many
+    /// times its size.
+    /// </summary>
+    public const int MaxSamples = 100_000;
+
+    /// <summary>
+    /// A sample's bytes at most, and a track's: a display set is a few KiB to a MiB, and the server
+    /// extracts a track up to 512 MiB.
+    /// </summary>
+    public const int MaxSampleBytes = 16 << 20;
+    public const long MaxTrackBytes = 512L << 20;
+
+    /// <summary>A track's private data read: a VobSub index's header is a KiB or two.</summary>
+    const int MaxPrivateBytes = 64 << 10;
+
+    /// <summary>
+    /// The bytes stripped from every frame, at most (ContentCompAlgo 3): a few in practice. More is
+    /// taken for compression this reader can't undo, as each sample gets a copy.
+    /// </summary>
+    const int MaxStrippedBytes = 1024;
+
+    /// <summary>
+    /// How deep elements are read: the deepest this reader needs is 6 (a track's compression), and
+    /// a crafted file nesting thousands deep would run the stack out, which ends the app.
+    /// </summary>
+    const int MaxDepth = 8;
+
+    /// <summary>The tracks read: the server's files have one.</summary>
+    const int MaxTracks = 64;
+
+    /// <summary>
     /// Reads a <c>.mks</c> file, or as much of one as there is: a file cut short gives the samples
     /// before the cut. Throws <see cref="MatroskaException"/> for anything that isn't one.
     /// </summary>
@@ -118,6 +150,7 @@ public static class Mks
         long scaleNs = 1_000_000;
         readonly List<Track> tracks = new List<Track>();
         readonly List<RawBlock> raw = new List<RawBlock>();
+        long rawBytes;
         Track? track;
         long compAlgo;
         byte[]? compSettings;
@@ -132,7 +165,7 @@ public static class Mks
             var header = ElementAt(0, bytes.Length);
             if (header == null || header.Value.Id != Ebml) throw new MatroskaException("not a Matroska file");
             var segmentStart = header.Value.DataStart + (header.Value.Size ?? 0);
-            Walk(segmentStart, bytes.Length, false);
+            Walk(segmentStart, bytes.Length, false, 0);
 
             var subtitle = tracks.FirstOrDefault(t => t.Type == SubtitleTrack) ?? tracks.FirstOrDefault();
             if (subtitle == null) throw new MatroskaException("no track");
@@ -153,14 +186,25 @@ public static class Mks
             if (groupBlock != null)
             {
                 groupBlock.Duration = groupDuration;
-                raw.Add(groupBlock);
+                Keep(groupBlock);
             }
             groupBlock = null;
             groupDuration = null;
         }
 
-        /// <summary>Reads the elements from <paramref name="start"/> to <paramref name="end"/>; where it stopped (an unknown-size cluster ends at the next level-1 element).</summary>
-        long Walk(long start, long end, bool unknownSize)
+        /// <summary>Whether another block may be kept: checked before it is copied.</summary>
+        bool Room() => raw.Count < MaxSamples && rawBytes < MaxTrackBytes;
+
+        /// <summary>Keeps a block within the track's samples and bytes.</summary>
+        void Keep(RawBlock block)
+        {
+            if (raw.Count >= MaxSamples || rawBytes + block.Data.Length > MaxTrackBytes) return;
+            raw.Add(block);
+            rawBytes += block.Data.Length;
+        }
+
+        /// <summary>Reads the elements from <paramref name="start"/> to <paramref name="end"/>, <paramref name="depth"/> deep; where it stopped (an unknown-size cluster ends at the next level-1 element).</summary>
+        long Walk(long start, long end, bool unknownSize, int depth)
         {
             var at = start;
             while (at < end)
@@ -183,8 +227,11 @@ public static class Mks
                 var next = el.Size is long s ? el.DataStart + s : end;
                 if (Masters.Contains(el.Id))
                 {
-                    var stopped = Walk(el.DataStart, dataEnd, el.Size == null && el.Id != Segment);
-                    if (el.Size == null) next = stopped;
+                    if (depth < MaxDepth)
+                    {
+                        var stopped = Walk(el.DataStart, dataEnd, el.Size == null && el.Id != Segment, depth + 1);
+                        if (el.Size == null) next = stopped;
+                    }
                 }
                 else
                 {
@@ -206,7 +253,7 @@ public static class Mks
                             if (track != null) track.CodecId = Ascii(bytes, from, to);
                             break;
                         case CodecPrivate:
-                            if (track != null) track.CodecPrivate = PictureColors.Slice(bytes, from, to);
+                            if (track != null) track.CodecPrivate = PictureColors.Slice(bytes, from, Math.Min(to, (long)from + MaxPrivateBytes));
                             break;
                         case ContentCompAlgo:
                             compAlgo = Uint(bytes, from, to);
@@ -218,10 +265,10 @@ public static class Mks
                             clusterTime = Uint(bytes, from, to);
                             break;
                         case SimpleBlock:
-                            if (BlockOf(bytes, from, to, clusterTime) is RawBlock simple) raw.Add(simple);
+                            if (Room() && BlockOf(bytes, from, to, clusterTime) is RawBlock simple) Keep(simple);
                             break;
                         case Block:
-                            groupBlock = BlockOf(bytes, from, to, clusterTime);
+                            groupBlock = Room() ? BlockOf(bytes, from, to, clusterTime) : null;
                             break;
                         case BlockDuration:
                             groupDuration = Uint(bytes, from, to);
@@ -230,12 +277,12 @@ public static class Mks
                 }
                 if (el.Id == ContentCompression && track != null)
                 {
-                    if (compAlgo == 3) track.Stripped = compSettings;
+                    if (compAlgo == 3 && (compSettings?.Length ?? 0) <= MaxStrippedBytes) track.Stripped = compSettings;
                     else track.Compressed = true;
                 }
                 if (el.Id == TrackEntry && track != null)
                 {
-                    tracks.Add(track);
+                    if (tracks.Count < MaxTracks) tracks.Add(track);
                     track = null;
                 }
                 if (el.Id == BlockGroup) EndGroup();
@@ -275,6 +322,7 @@ public static class Mks
         var start = at + 3;
         // Laced subtitle frames don't occur in practice: keep the first frame's bytes as they are.
         if (lacing != 0) start = Math.Min(to, start + 1);
+        if (to - start > MaxSampleBytes) return null;
         return new RawBlock { Track = v.Value.Value, Time = clusterTime + signed, Data = PictureColors.Slice(bytes, start, to) };
     }
 
@@ -314,10 +362,11 @@ public static class Mks
         return value;
     }
 
+    /// <summary>A codec id: 64 characters are far more than any has.</summary>
     static string Ascii(byte[] bytes, int from, int to)
     {
         var s = new StringBuilder();
-        for (var i = from; i < to && bytes[i] != 0; i++) s.Append((char)bytes[i]);
+        for (var i = from; i < to && i - from < 64 && bytes[i] != 0; i++) s.Append((char)bytes[i]);
         return s.ToString();
     }
 

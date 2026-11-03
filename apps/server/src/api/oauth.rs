@@ -1258,6 +1258,13 @@ fn refused_switch(err: SwitchError) -> OAuthError {
             "browser",
             "this profile takes its password: sign in to the app again, and pick the profile in the browser".to_owned(),
         ),
+        // Too busy to check the PIN now (or without the memory to): try again.
+        SwitchError::Internal(AppError::Unavailable(busy)) => {
+            return OAuthError {
+                status: StatusCode::SERVICE_UNAVAILABLE,
+                ..OAuthError::new("temporarily_unavailable", busy)
+            };
+        }
         SwitchError::Internal(err) => return OAuthError::server_error(err),
     };
     OAuthError { reason: Some(reason), ..OAuthError::invalid_grant(description) }

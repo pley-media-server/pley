@@ -1,4 +1,4 @@
-import type { PictureDecoder, PictureFrame } from "./pictures";
+import { FrameCache, MAX_PIXELS, type PictureDecoder, type PictureFrame } from "./pictures";
 
 /**
  * DVD subtitles (VobSub, `S_VOBSUB`): each sample is one subpicture unit
@@ -16,13 +16,20 @@ export interface VobSubHeader {
   palette: [number, number, number][];
 }
 
+/** An SPU's bytes at most: its size is a 16-bit field. */
+const MAX_SPU_BYTES = 0xffff;
+
+/** The control sequences read of an SPU: a real one has two or three. */
+const MAX_SEQUENCES = 64;
+
 export function parseIdx(codecPrivate: Uint8Array | null): VobSubHeader {
-  const text = codecPrivate ? latin1(codecPrivate) : "";
+  // The header is a KiB or two; its palette, 16 colours.
+  const text = codecPrivate ? latin1(codecPrivate.subarray(0, 64 << 10)) : "";
   const size = /size:\s*(\d+)\s*x\s*(\d+)/i.exec(text);
   const palette: [number, number, number][] = [];
   const p = /palette:\s*([0-9a-f,\s]+)/i.exec(text);
   if (p) {
-    for (const hex of p[1]!.split(",")) {
+    for (const hex of p[1]!.split(",", 16)) {
       const v = parseInt(hex.trim(), 16);
       if (!isNaN(v)) palette.push([(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff]);
     }
@@ -53,11 +60,11 @@ export function parseSpu(data: Uint8Array): Spu | null {
   if (data.length < 4) return null;
   const size = (data[0]! << 8) | data[1]!;
   const ctrl = (data[2]! << 8) | data[3]!;
-  const end = Math.min(size || data.length, data.length);
+  const end = Math.min(size || MAX_SPU_BYTES, data.length);
   const spu: Spu = { x1: 0, y1: 0, x2: -1, y2: -1, colors: [0, 1, 2, 3], alpha: [0, 15, 15, 15], top: 0, bottom: 0, stopMs: null, startMs: 0 };
   let seq = ctrl;
   const seen = new Set<number>();
-  while (seq + 4 <= end && !seen.has(seq)) {
+  while (seq + 4 <= end && !seen.has(seq) && seen.size < MAX_SEQUENCES) {
     seen.add(seq);
     // Delays count in 1024 ticks of a 90 kHz clock.
     const delayMs = Math.round((((data[seq]! << 8) | data[seq + 1]!) * 1024) / 90);
@@ -154,7 +161,7 @@ export class VobSubDecoder implements PictureDecoder {
   private readonly samples: Uint8Array[];
   private readonly header: VobSubHeader;
   private readonly spus: (Spu | null | undefined)[];
-  private readonly cache = new Map<number, PictureFrame | null>();
+  private readonly cache = new FrameCache();
 
   constructor(samples: Uint8Array[], codecPrivate: Uint8Array | null) {
     this.samples = samples;
@@ -177,11 +184,7 @@ export class VobSubDecoder implements PictureDecoder {
   }
 
   decode(index: number): PictureFrame | null {
-    if (this.cache.has(index)) return this.cache.get(index)!;
-    const frame = this.render(index);
-    if (this.cache.size > 24) this.cache.delete(this.cache.keys().next().value!);
-    this.cache.set(index, frame);
-    return frame;
+    return this.cache.get(index, (i) => this.render(i));
   }
 
   private render(index: number): PictureFrame | null {
@@ -191,10 +194,12 @@ export class VobSubDecoder implements PictureDecoder {
     const width = spu.x2 - spu.x1 + 1;
     const height = spu.y2 - spu.y1 + 1;
     if (width <= 0 || height <= 0) return { ...plane, bitmaps: [] };
+    // Its corners allow 4096² pixels: more than a frame's isn't decoded.
+    if (width * height > MAX_PIXELS) return null;
     const data = this.samples[index]!;
     const size = (data[0]! << 8) | data[1]!;
     const ctrl = (data[2]! << 8) | data[3]!;
-    const end = Math.min(ctrl || size || data.length, data.length);
+    const end = Math.min(ctrl || size || MAX_SPU_BYTES, data.length);
     const pixels = new Uint8Array(width * height);
     decodeField(data, spu.top, end, width, height, 0, pixels);
     decodeField(data, spu.bottom, end, width, height, 1, pixels);
