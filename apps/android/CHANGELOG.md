@@ -43,6 +43,9 @@ describes how they are made.
   the native Samsung app's curves (150 ms eased out, 120 ms eased in), the
   tile a held key stops on takes its look the same way, and Up from Home's
   rows glides back to the hero over 150 ms rather than springing there.
+- On Android TV and Fire TV, an item page glides to its episodes and rows,
+  and back to its buttons, as Home does: over 150 ms, eased out, for a
+  press, and on without a stop under a held Up or Down.
 
 ### Fixed
 

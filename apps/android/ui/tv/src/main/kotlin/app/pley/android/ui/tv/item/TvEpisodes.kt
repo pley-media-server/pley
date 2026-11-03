@@ -239,5 +239,5 @@ private val TabHeight = 40.dp
 internal const val TV_SEASON_TABS = "pley.tv.item.seasons"
 
 /** The episode row's key: its tiles are remembered as "episode/<id>". */
-private const val EPISODE_ROW = "episode"
+internal const val EPISODE_ROW = "episode"
 internal const val TV_EPISODE_ROW = ROW_TAG + EPISODE_ROW

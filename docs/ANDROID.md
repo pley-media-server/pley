@@ -74,12 +74,13 @@ heard it for that profile, the start asks "Who's watching?".
   look; when the key comes up, focus lands on the tile under the ring (or
   the next one the way the row was going) and the row settles there. Near
   a row's end, where tiles no longer reach that edge, focus steps across
-  them instead. A held Up or Down glides a page of rows or a grid on a row
-  at each step, each glide a little longer than the step, so the page
-  never stops; in a grid the tiles keep their resting look under one ring
-  that stays still where focus is going, until the key comes up. A press
-  moves a row, a page or a grid over 150 ms, eased out, and so does Up
-  from Home's rows to its hero. A tile's focus look comes in over 150 ms,
+  them instead. A held Up or Down glides a page of rows (Home, an item
+  page, search) or a grid on a row at each step, each glide a little
+  longer than the step, so the page never stops; in a grid the tiles keep
+  their resting look under one ring that stays still where focus is
+  going, until the key comes up. A press moves a row, a page or a grid
+  over 150 ms, eased out, and so does Up from the rows of Home or an item
+  page to its top. A tile's focus look comes in over 150 ms,
   eased out, and goes over 120 ms, eased in, with the native Samsung app's
   curves; where a held key's slide or glide stops, the still ring goes at
   once and the tile's look comes in that way. Elsewhere under a held key a

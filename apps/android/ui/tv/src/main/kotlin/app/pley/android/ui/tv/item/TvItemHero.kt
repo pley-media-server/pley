@@ -49,6 +49,7 @@ import app.pley.android.ui.tv.kit.FocusMemory
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvRoundButton
 import app.pley.android.ui.tv.kit.rememberedFocus
+import app.pley.android.ui.tv.kit.tvRowColumnHero
 
 /**
  * The top of the TV item page (design spec §4.3, mockup tv-movie), in the
@@ -79,6 +80,7 @@ internal fun TvHero(
             .fillMaxWidth()
             .onPlaced { places.hero = it }
             .onFocusChanged { if (it.hasFocus) focus.area = Area.Hero }
+            .tvRowColumnHero()
             .padding(start = PleyTv.Gutter, end = TvSafeArea.Horizontal, top = HeroTop, bottom = 8.dp),
     ) {
         Box(Modifier.width(TextColumn).heightIn(min = TitleBox), contentAlignment = Alignment.BottomStart) {

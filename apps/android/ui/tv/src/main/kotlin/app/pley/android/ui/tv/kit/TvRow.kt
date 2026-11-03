@@ -466,17 +466,9 @@ fun TvRowColumn(
     content: LazyListScope.() -> Unit,
 ) {
     val density = LocalDensity.current
-    val scope = rememberCoroutineScope()
-    val holder = remember { TvRowColumnFocus() }
-    holder.state = state
-    holder.scope = scope
-    holder.glide = remember(state, scope) { TvGlide(state, scope) }
-    holder.gate = LocalKeyRepeatGate.current
-    holder.reduced = reducedMotion()
-    holder.hadFocus = holder.hasFocus
     val tileTop = headerY + PleyTv.RowHeaderHeight + PleyTv.HeaderToTiles
-    holder.tileTop = with(density) { tileTop.toPx() }
-    val spec = remember(density, tileTop, state, heroHeight, holder) { ColumnSpec(TvScrolling.page(density, tileTop, state, heroHeight), holder) }
+    val holder = rememberTvRowColumnFocus(state, with(density) { tileTop.toPx() })
+    val spec = remember(density, tileTop, state, heroHeight, holder) { holder.spec(TvScrolling.page(density, tileTop, state, heroHeight)) }
     CompositionLocalProvider(LocalBringIntoViewSpec provides spec, LocalTvRowColumn provides holder) {
         LazyColumn(
             state = state,
@@ -485,8 +477,7 @@ fun TvRowColumn(
             modifier = modifier
                 .railFade()
                 .clearAboveHeader(state, headerY, clearAbove)
-                .onFocusChanged { holder.hasFocus = it.hasFocus }
-                .onPlaced { holder.coordinates = it }
+                .tvRowColumnFocus(holder)
                 // Coming back from the rail: the row focus was in, then (its own restorer) the tile.
                 // focusRestorer here would pick by composition key, which lazy rows share.
                 .focusProperties {
@@ -514,6 +505,31 @@ fun rememberTvRowColumnState(): LazyListState =
 private val ColumnAhead = 300.dp
 
 /**
+ * How a lazy column of rows on [state] moves to its rows' tiles, which
+ * come to [tileTop] (pixels from its top): [TvRowColumn]'s, and the item
+ * page's, whose rows sit among sections of its own. The column provides
+ * it as [LocalTvRowColumn], carries [tvRowColumnFocus], and scrolls with
+ * [TvRowColumnFocus.spec].
+ */
+@Composable
+internal fun rememberTvRowColumnFocus(state: LazyListState, tileTop: Float): TvRowColumnFocus {
+    val scope = rememberCoroutineScope()
+    val holder = remember { TvRowColumnFocus() }
+    holder.state = state
+    holder.scope = scope
+    holder.glide = remember(state, scope) { TvGlide(state, scope) }
+    holder.gate = LocalKeyRepeatGate.current
+    holder.reduced = reducedMotion()
+    holder.hadFocus = holder.hasFocus
+    holder.tileTop = tileTop
+    return holder
+}
+
+/** Tells [column] whether focus is in this column and where it is laid out. */
+internal fun Modifier.tvRowColumnFocus(column: TvRowColumnFocus): Modifier =
+    onFocusChanged { column.hasFocus = it.hasFocus }.onPlaced { column.coordinates = it }
+
+/**
  * The page's own spec for what isn't a row; nothing for a row's tiles or
  * the hero, which the column moves to itself ([TvRowColumnFocus.follow],
  * [TvRowColumnFocus.heroFocused]).
@@ -528,7 +544,8 @@ private class ColumnSpec(private val page: BringIntoViewSpec, private val column
  * Marks a [TvRowColumn]'s hero, its first item: focus coming into it
  * takes the page back to its top as the page goes to a row, over 150 ms,
  * eased out, as the native Samsung app's page does, where Compose's own
- * scrolling would spring there. Nothing outside a [TvRowColumn].
+ * scrolling would spring there. Nothing outside a page of rows (a
+ * [TvRowColumn], the item page's column).
  */
 fun Modifier.tvRowColumnHero(): Modifier = this then TvRowColumnHeroElement
 
@@ -595,6 +612,9 @@ internal class TvRowColumnFocus {
     /** Where a focused tile's top comes, in pixels from the column's top: under its row's header at the line. */
     var tileTop = 0f
 
+    /** Where a row's focused tile comes instead of [tileTop], by the row's key: the item page's episodes, under their tabs. */
+    val tileTops = HashMap<Any, Float>()
+
     /** Where the column is laid out, for where its rows' tiles are. */
     var coordinates: LayoutCoordinates? = null
 
@@ -604,10 +624,14 @@ internal class TvRowColumnFocus {
     /** How the column moves, on [state]. */
     var glide: TvGlide? = null
 
+    /** [page] for what the column doesn't move to itself: nothing for a row's tile or the hero ([follow], [heroFocused]). */
+    fun spec(page: BringIntoViewSpec): BringIntoViewSpec = ColumnSpec(page, this)
+
     /**
      * A tile of row [rowKey] took focus, laid out at [tile]: the column
-     * brings the tile's top to [tileTop]. Within the row the column goes on
-     * as it was; a tile not laid out yet leaves it to Compose.
+     * brings the tile's top to [tileTop] (or the row's own, [tileTops]).
+     * Within the row the column goes on as it was; a tile not laid out yet
+     * leaves it to Compose.
      */
     fun follow(rowKey: Any, tile: LayoutCoordinates?) {
         val glide = glide
@@ -619,7 +643,7 @@ internal class TvRowColumnFocus {
         val same = following == rowKey
         following = rowKey
         if (same && glide.moving) return
-        glide.move(column.localPositionOf(tile, Offset.Zero).y - tileTop, gate?.holding == true, reduced)
+        glide.move(column.localPositionOf(tile, Offset.Zero).y - (tileTops[rowKey] ?: tileTop), gate?.holding == true, reduced)
     }
 
     /** Focus left row [rowKey]: what takes it next, if not a row's tile or the hero, Compose scrolls to. */
