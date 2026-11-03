@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use std::io::{Cursor, Read, Write};
 use std::net::TcpStream;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -59,6 +60,9 @@ struct LiveFake {
     stream_cancels: Mutex<Vec<Cancel>>,
     /// The stream.ts reads still open as each playlist was asked for.
     open_at_playlist: Mutex<Vec<usize>>,
+    /// Plans asked for, and whether they wait for the test.
+    plans: Mutex<usize>,
+    plans_held: AtomicBool,
 }
 
 /// What the pretend server's stream.ts sends.
@@ -82,6 +86,8 @@ impl LiveFake {
             streams: Mutex::default(),
             stream_cancels: Mutex::default(),
             open_at_playlist: Mutex::default(),
+            plans: Mutex::new(0),
+            plans_held: AtomicBool::new(false),
         })
     }
 
@@ -228,9 +234,13 @@ impl PlayerServer for LiveFake {
         Ok(Streamed { status: 200, headers: Vec::new(), body: Box::new(Cursor::new(STREAM_BYTES.to_vec())) })
     }
     fn live_plan(&self, session: &str) -> Result<Option<LivePlan>, ApiError> {
+        *self.plans.lock().unwrap() += 1;
         // The plan comes once the stream.ts read beside it was asked for (it is, at once).
         let until = Instant::now() + Duration::from_secs(2);
         while self.streams.lock().unwrap().is_empty() && Instant::now() < until {
+            thread::sleep(Duration::from_millis(1));
+        }
+        while self.plans_held.load(Ordering::SeqCst) {
             thread::sleep(Duration::from_millis(1));
         }
         match self.ended.lock().unwrap().get(session) {
@@ -608,6 +618,29 @@ fn tells_the_server_at_once_when_the_player_closes_and_drops_a_watch_that_answer
         thread::sleep(Duration::from_millis(1));
     }
     assert_eq!(fake.asked(), ["watch 1 webos-tv", "leave late"]);
+    assert!(w.sim.loads().is_empty());
+}
+
+#[test]
+fn a_session_the_watch_made_is_let_go_when_the_player_closes_before_it_plays() {
+    let fake = LiveFake::new();
+    fake.plans_held.store(true, Ordering::SeqCst);
+    let mut w = Live::new(fake.clone());
+    w.c.tune(channel(1));
+    // The watch answered, and the tune waits on the session's plan: the player closes.
+    let until = Instant::now() + Duration::from_secs(5);
+    while *fake.plans.lock().unwrap() == 0 {
+        assert!(Instant::now() < until);
+        thread::sleep(Duration::from_millis(1));
+    }
+    w.c.close();
+    fake.plans_held.store(false, Ordering::SeqCst);
+    while !fake.asked().contains(&"leave s1".to_string()) {
+        assert!(Instant::now() < until, "the session was never let go: {:?}", fake.asked());
+        thread::sleep(Duration::from_millis(1));
+    }
+    // Nor is its playlist asked for.
+    assert_eq!(fake.asked(), ["watch 1 webos-tv", "leave s1"]);
     assert!(w.sim.loads().is_empty());
 }
 

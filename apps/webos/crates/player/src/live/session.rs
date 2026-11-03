@@ -415,6 +415,19 @@ impl LiveSession {
             }
             let session = Some(watching.session_id.clone());
             let named = watching.channel.clone().map(Box::new);
+            let current = || generation.load(Ordering::SeqCst) == g;
+            // A player closed, hidden or tuned elsewhere since the watch drops this job unanswered,
+            // so the job lets its session go itself (a second leave, from an answer still taken in,
+            // does no harm).
+            let handed_on = |done: Done| {
+                if !current() {
+                    let (server, session) = (server.clone(), watching.session_id.clone());
+                    reporter.send(move || {
+                        let _ = server.leave_channel(&session);
+                    });
+                }
+                done
+            };
             // An older server's address needs the token, which the TV's player can't send.
             if !watching.url.contains("/api/live/media/") {
                 let older = Trouble::new(
@@ -423,20 +436,18 @@ impl LiveSession {
                     "This server can't send live channels to the TV's own player. Update Pley on the server, then try again.",
                     false,
                 );
-                return Done::Tuned { g, session, channel: named, result: Err(older) };
+                return handed_on(Done::Tuned { g, session, channel: named, result: Err(older) });
             }
             let playlist = server.url(&watching.url);
             if take_over.is_some() {
                 // Only while this is still the tune: a tune or a stop since has the relay to itself.
-                let current = || generation.load(Ordering::SeqCst) == g;
                 stream = relay.as_ref().and_then(|r| r.serve_while(opener, current));
                 if !current() {
                     if let Some(s) = &stream {
                         s.end();
                     }
-                    // Its session is left as the answer comes.
                     let result = Err(trouble_of(&cancelled(), &channel.name));
-                    return Done::Tuned { g, session, channel: None, result };
+                    return handed_on(Done::Tuned { g, session, channel: None, result });
                 }
             }
             if let Some(stream) = stream {
@@ -450,7 +461,7 @@ impl LiveSession {
                             plan.audio_codec.as_deref().unwrap_or("?")
                         );
                         let url = stream.url().to_string();
-                        return Done::Tuned { g, session, channel: named, result: Ok(Source::Ts(url)) };
+                        return handed_on(Done::Tuned { g, session, channel: named, result: Ok(Source::Ts(url)) });
                     }
                     Ok(Some(plan)) => log::info!(
                         "live: the channel plays its HLS: the server makes it into video {}, audio {}",
@@ -464,12 +475,17 @@ impl LiveSession {
                 // connection go now, not once the HLS has come.
                 stream.end();
             }
+            // Left since the watch answered: no playlist to wait on.
+            if !current() {
+                let result = Err(trouble_of(&cancelled(), &channel.name));
+                return handed_on(Done::Tuned { g, session, channel: None, result });
+            }
             // The channel's first segments, before the player asks: a TV's player gives up sooner than the server takes to tune.
             let result = match server.media(Method::Get, &playlist, Duration::from_millis(PLAYLIST_WAIT_MS)) {
                 Ok(_) => Ok(Source::Hls(playlist)),
                 Err(e) => Err(trouble_of(&e, &channel.name)),
             };
-            Done::Tuned { g, session, channel: named, result }
+            handed_on(Done::Tuned { g, session, channel: named, result })
         });
         self.jobs.push(job);
     }
