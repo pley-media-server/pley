@@ -9,6 +9,7 @@
 //! auth and playback code as pley's own API.
 
 mod edit;
+mod keys;
 mod library;
 mod lists;
 pub(crate) mod meta;

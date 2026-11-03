@@ -243,8 +243,12 @@ them.
 ### Mapping
 
 - **IDs.** `ratingKey` is the Pley item id and `librarySectionID` the library
-  id. Media and parts use the media file id. Stream ids are
-  `file id × 10000 + stream index`.
+  id. Collections and playlists have keys of their own, apart from items':
+  collection `n` is `1000000000 + n` and playlist `n` is `2000000000 + n`.
+  Clients address them as they address items, under
+  `/library/metadata/{key}`, and `/library/collections/{id}` and
+  `/playlists/{id}` take the plain ids too. Media and parts use the media
+  file id. Stream ids are `file id × 10000 + stream index`.
 - **Order.** Sections, and the home hubs of each, come in the user's library
   order in Pley (Settings → Libraries), else the administrators' order; new
   ones come last.
@@ -320,13 +324,13 @@ them.
 |---|---|
 | Server | `/`, `/identity`, `/servers`, `/accounts` (listed, never changed), `/myplex/account`, `/system`, `/prefs`, `/:/prefs` (`PUT` answers `403`: no token changes the server's settings), `/media/providers`, `/:/websockets/notifications`; `/clients`, `/devices`, `/activities`, `/butler` and `/updater/status` answer empty containers |
 | Sections | `/library`, `/library/sections` (`allowSync="1"` for a token with `manage`: Kometa takes a section without it for a read-only token), `/library/sections/{id}`, `…/all`, `…/albums`, `…/recentlyAdded`, `…/onDeck`, `…/search`, `…/firstCharacter`, `…/collections`, `…/{genre,year,decade,contentRating,studio,actor,director,writer,producer,label}` (filter choices), `…/prefs` (no settings; `PUT` answers `403`), `…/refresh` and `/library/sections/all/refresh` (`manage`); `…/emptyTrash` and `…/analyze` are accepted and change nothing |
-| Items | `/library/metadata/{id}` (comma-separated ids allowed), `…/extras` (trailers and other bonus material as `clip`s with the API's `extraType` and `subtype`), `…/children`, `…/allLeaves`, `…/grandchildren`, `…/related` ("More Like This" hub), `…/similar` (the same items), `…/thumb[/{version}]`, `…/art[/{version}]`, `…/refresh` (`manage`) |
+| Items | `/library/metadata/{id}` (comma-separated ids allowed; a collection's or playlist's key answers as `/library/collections/{key}` or `/playlists/{key}` does, and `…/children`, its pictures and `…/refresh` reach it too), `…/extras` (trailers and other bonus material as `clip`s with the API's `extraType` and `subtype`), `…/children`, `…/allLeaves`, `…/grandchildren`, `…/related` ("More Like This" hub), `…/similar` (the same items), `…/thumb[/{version}]`, `…/art[/{version}]`, `…/refresh` (`manage`) |
 | Lists | `/library/all`, `/library/onDeck`, `/library/recentlyAdded`, `/hubs`, `/hubs/sections/{id}`, `/hubs/continueWatching/items`, `/hubs/sections/{id}/continueWatching/items`, `/hubs/home/recentlyAdded`, `/hubs/search`, `/search`, `PUT /actions/removeFromContinueWatching?ratingKey=` (the movie, or the episode's show, leaves the user's Continue Watching until it is played again, as `DELETE /api/continue-watching/{id}`) |
 | Collections | `/library/sections/{id}/collections` (also `…/all?type=18`), `/library/collections/{id}`, `…/children`, `…/{thumb,art,composite}[/{version}]`; changes under [Editing](#editing) |
 | Playlists | `GET`/`POST /playlists` (`?type=&title=&uri=…/library/metadata/1,2`, or `smart=1&uri=…/library/sections/{id}/all?…` for a smart playlist of that listing; `?smart=0\|1` filters the list), `GET`/`PUT` (`?title=`)/`DELETE /playlists/{id}`, `GET`/`PUT /playlists/{id}/items` (`?uri=`), `DELETE /playlists/{id}/items/{playlistItemID}`, `PUT …/{playlistItemID}/move?after=`, `/playlists/{id}/composite/{version}` |
 | Previews | `/library/parts/{id}/indexes/sd` (BIF), `/library/parts/{id}/indexes/sd/{offset}` (the frame at `offset` ms), `/library/media/{id}/chapterImages/{n}` |
 | Playback | `/library/parts/…`, `/library/streams/{id}` (subtitles), `/:/timeline`, `/:/progress`, `/:/scrobble`, `/:/unscrobble`, `/:/rate?key=&rating=` (the user's rating, 0-10; negative clears it), `/status/sessions`, `/status/sessions/terminate?sessionId=&reason=` (`manage`: stops the session whose `Session` `id` it is, `reason` as the message its player shows, as `DELETE /api/sessions/{id}`; that client's reports don't start it again), `/transcode/sessions`, `/{video,audio}/:/transcode/universal/{start.m3u8,start,decision,stop,ping,session/…}` |
-| Play queues | `POST /playQueues` (`uri=` items, a container, a section listing or a playlist, or `playlistID=`; `key=` the item to start with; `shuffle=1`; `continuous=1` plays the rest of an episode's show after it), `GET`/`PUT /playQueues/{id}` (`uri=`/`playlistID=` adds, `next=1` right after the playing item), `DELETE /playQueues/{id}/items[/{playQueueItemID}]`, `PUT …/items/{playQueueItemID}/move?after=`, `PUT /playQueues/{id}/shuffle`, `…/unshuffle`; kept in memory for a day, for the user who made them |
+| Play queues | `POST /playQueues` (`uri=` items, a container, a section listing, a collection or a playlist, or `playlistID=`; `key=` the item to start with; `shuffle=1`; `continuous=1` plays the rest of an episode's show after it), `GET`/`PUT /playQueues/{id}` (`uri=`/`playlistID=` adds, `next=1` right after the playing item), `DELETE /playQueues/{id}/items[/{playQueueItemID}]`, `PUT …/items/{playQueueItemID}/move?after=`, `PUT /playQueues/{id}/shuffle`, `…/unshuffle`; kept in memory for a day, for the user who made them |
 | History | `/status/sessions/history/all` (`accountID`, `librarySectionID`, `metadataItemID`, `viewedAt>=`; `activity` sees every account, others their own), `DELETE /status/sessions/history/{id}` (anyone's with `manage`, others their own) |
 | Images | `/photo/:/transcode` |
 
@@ -357,11 +361,14 @@ does:
   (`assets.fanart.tv`), ThePosterDB and GitHub's raw files
   (`raw.githubusercontent.com`, where Kometa's own images are). Other
   addresses are refused (`400`): the server doesn't fetch arbitrary ones,
-  which could lead into its own network. Upload the file instead.
+  which could lead into its own network. Upload the file instead. A
+  collection's key sets the collection's; a playlist's answers `400`, as a
+  playlist shows its first entry's picture.
 - Collections: their title, sort title (kept as set, and listed as
   `titleSort`) and summary through their section (`type=18&id=…`, as
-  `python-plexapi` edits them), their poster and background through
-  `POST /library/collections/{id}/posters` (or `/arts`).
+  `python-plexapi` edits them) or `PUT /library/metadata/{key}`, their
+  poster and background through `POST /library/metadata/{key}/posters`
+  or `/library/collections/{key}/posters` (or `/arts`).
 - `POST /library/collections?type=1&title=…&sectionId=…&smart=0&uri=server://…/library/metadata/1,2`
   makes a collection of those items; with `smart=1` and
   `uri=server://…/library/sections/{id}/all?genre=…` a smart collection,

@@ -13,14 +13,17 @@
 //! - `POST /library/metadata/{id}/posters` (or `/arts`) with a picture as the
 //!   body sets the poster (or background); with `?url=`, and
 //!   `PUT /library/metadata/{id}/poster?url=` (or `/art`), a TMDB image;
-//! - collections (`type=18` edits through their section): title, sort title
-//!   and summary, and `POST /library/collections/{id}/posters` (or `/arts`).
+//! - collections (`type=18` edits through their section, or by their keys):
+//!   title, sort title and summary, and their pictures by their keys or
+//!   `POST /library/collections/{key}/posters` (or `/arts`).
 
 use axum::body::Bytes;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 
+use super::keys::{self, Key};
 use super::{Params, PlexAdmin, PlexError, PlexResult};
+use crate::auth::AuthUser;
 use crate::events::ServerEvent;
 use crate::state::AppState;
 use crate::{collections, labels, overrides};
@@ -123,24 +126,40 @@ pub async fn section(
     params: Params,
 ) -> PlexResult<StatusCode> {
     let section: i64 = section.parse().map_err(|_| PlexError::NotFound)?;
-    let ids: Vec<i64> = params.get("id").unwrap_or_default().split(',').filter_map(|i| i.trim().parse().ok()).collect();
+    let ids: Vec<i64> =
+        params.get("id").unwrap_or_default().split(',').filter_map(|i| i.trim().parse().ok()).take(500).collect();
     if ids.is_empty() {
         return Err(PlexError::BadRequest("edits name the items they change (`id`)".into()));
     }
     if params.get("type") == Some(COLLECTION_TYPE) {
-        return edit_collections(&state, section, &ids, &params).await;
+        // Collections' keys, or their ids as this API gave them before.
+        let ids = ids.into_iter().map(|key| keys::collection_id(key).ok_or(PlexError::NotFound));
+        let ids = ids.collect::<PlexResult<Vec<i64>>>()?;
+        return edit_collections(&state, Some(section), &ids, &params).await;
     }
     apply(&state, Some(section), &ids, &Edit::parse(&params)).await
 }
 
 /// Title, sort title and summary of collections, which python-plexapi edits
-/// through their section like items.
-async fn edit_collections(state: &AppState, section: i64, ids: &[i64], params: &Params) -> PlexResult<StatusCode> {
+/// through their section like items (`section`), or by their keys.
+async fn edit_collections(
+    state: &AppState,
+    section: Option<i64>,
+    ids: &[i64],
+    params: &Params,
+) -> PlexResult<StatusCode> {
     let value = |name: &str| params.get(&format!("{name}.value")).map(str::trim);
+    let mut libraries = Vec::new();
     for &id in ids {
-        if collections::library_of(&state.db, id).await? != Some(section) {
+        let library_id = collections::library_of(&state.db, id).await?.ok_or(PlexError::NotFound)?;
+        if section.is_some_and(|s| s != library_id) {
             return Err(PlexError::NotFound);
         }
+        if !libraries.contains(&library_id) {
+            libraries.push(library_id);
+        }
+    }
+    for &id in ids {
         let title = value("title").filter(|t| !t.is_empty());
         let summary = value("summary").map(|s| Some(s).filter(|s| !s.is_empty()));
         collections::update(&state.db, id, title, summary, None).await?;
@@ -153,22 +172,30 @@ async fn edit_collections(state: &AppState, section: i64, ids: &[i64], params: &
                 .await?;
         }
     }
-    state.events.send(ServerEvent::LibraryChanged { library_id: section });
+    for library_id in libraries {
+        state.events.send(ServerEvent::LibraryChanged { library_id });
+    }
     Ok(StatusCode::OK)
 }
 
-/// `PUT /library/metadata/{id}?…`
+/// `PUT /library/metadata/{keys}?…`: items, or collections by their keys.
 pub async fn item(
     State(state): State<AppState>,
     PlexAdmin(_admin): PlexAdmin,
     Path(ids): Path<String>,
     params: Params,
 ) -> PlexResult<StatusCode> {
-    let ids: Vec<i64> = ids.split(',').filter_map(|i| i.trim().parse().ok()).collect();
-    if ids.is_empty() {
-        return Err(PlexError::NotFound);
+    let keys: Vec<Key> = ids.split(',').filter_map(|i| i.trim().parse().ok()).take(500).map(Key::of).collect();
+    let items: Vec<i64> = keys.iter().filter_map(|k| if let Key::Item(id) = k { Some(*id) } else { None }).collect();
+    let collections: Vec<i64> =
+        keys.iter().filter_map(|k| if let Key::Collection(id) = k { Some(*id) } else { None }).collect();
+    match (items.len(), collections.len()) {
+        (0, 0) if keys.is_empty() => Err(PlexError::NotFound),
+        (0, 0) => Err(PlexError::BadRequest("playlists are edited at /playlists/{key}".into())),
+        (_, 0) if items.len() == keys.len() => apply(&state, None, &items, &Edit::parse(&params)).await,
+        (0, _) if collections.len() == keys.len() => edit_collections(&state, None, &collections, &params).await,
+        _ => Err(PlexError::BadRequest("items, collections and playlists are edited apart".into())),
     }
-    apply(&state, None, &ids, &Edit::parse(&params)).await
 }
 
 /// Applies `edit` to every item of `ids` (in `section` when given).
@@ -283,69 +310,94 @@ fn artwork_field(name: &str) -> Option<&'static str> {
     }
 }
 
-/// `POST /library/metadata/{id}/posters` (or `/arts`): the body as the
-/// picture, or `?url=` a TMDB image.
+/// What a picture goes onto: an item or a collection, and its library.
+/// Playlists show their first entry's picture and keep none of their own.
+async fn picture_target(state: &AppState, user: &AuthUser, key: i64) -> PlexResult<(Key, i64)> {
+    let target = Key::of(key);
+    let library_id = match target {
+        Key::Item(id) => sqlx::query_scalar("SELECT library_id FROM items WHERE id = ?")
+            .bind(id)
+            .fetch_optional(&state.db.read)
+            .await?
+            .ok_or(PlexError::NotFound)?,
+        Key::Collection(id) => collections::library_of(&state.db, id).await?.ok_or(PlexError::NotFound)?,
+        Key::Playlist(id) => {
+            crate::playlists::get_rows(&state.db, user, id).await?.ok_or(PlexError::NotFound)?;
+            return Err(PlexError::BadRequest(
+                "a playlist shows its first entry's picture: Pley keeps none of its own".into(),
+            ));
+        }
+    };
+    Ok((target, library_id))
+}
+
+/// `POST /library/metadata/{key}/posters` (or `/arts`): the body as the
+/// picture, or `?url=` a TMDB image, for an item or a collection.
 pub async fn upload_artwork(
     State(state): State<AppState>,
-    PlexAdmin(_admin): PlexAdmin,
-    Path((id, name)): Path<(i64, String)>,
+    PlexAdmin(admin): PlexAdmin,
+    Path((key, name)): Path<(i64, String)>,
     params: Params,
     body: Bytes,
 ) -> PlexResult<StatusCode> {
     let field = artwork_field(&name).filter(|_| name.ends_with('s')).ok_or(PlexError::NotFound)?;
+    let (target, library_id) = picture_target(&state, &admin, key).await?;
     let blob = match params.get("url").filter(|u| !u.is_empty()) {
         Some(url) => state.metadata.download_artwork(url).await.map_err(|e| PlexError::BadRequest(e.to_string()))?,
         None => crate::api::editing::store_picture(&state, body).await.map_err(PlexError::from)?,
     };
-    set_artwork_blob(&state, id, field, blob).await
+    set_artwork_blob(&state, target, library_id, field, blob).await
 }
 
-/// `PUT /library/metadata/{id}/poster?url=…` (or `/art`): a TMDB image.
+/// `PUT /library/metadata/{key}/poster?url=…` (or `/art`): a TMDB image.
 pub async fn choose_artwork(
     State(state): State<AppState>,
-    PlexAdmin(_admin): PlexAdmin,
-    Path((id, name)): Path<(i64, String)>,
+    PlexAdmin(admin): PlexAdmin,
+    Path((key, name)): Path<(i64, String)>,
     params: Params,
 ) -> PlexResult<StatusCode> {
     let field = artwork_field(&name).filter(|_| !name.ends_with('s')).ok_or(PlexError::NotFound)?;
     let url = params.get("url").filter(|u| !u.is_empty()).ok_or(PlexError::BadRequest("`url` is missing".into()))?;
+    let (target, library_id) = picture_target(&state, &admin, key).await?;
     let blob = state.metadata.download_artwork(url).await.map_err(|e| PlexError::BadRequest(e.to_string()))?;
-    set_artwork_blob(&state, id, field, blob).await
+    set_artwork_blob(&state, target, library_id, field, blob).await
 }
 
-/// `POST /library/collections/{id}/posters` (or `/arts`): a collection's
+/// `POST /library/collections/{key}/posters` (or `/arts`): a collection's
 /// picture, uploaded or (`?url=`) a TMDB image.
 pub async fn upload_collection_artwork(
-    State(state): State<AppState>,
-    PlexAdmin(_admin): PlexAdmin,
-    Path((id, name)): Path<(i64, String)>,
+    state: State<AppState>,
+    admin: PlexAdmin,
+    Path((key, name)): Path<(i64, String)>,
     params: Params,
     body: Bytes,
 ) -> PlexResult<StatusCode> {
-    let field = artwork_field(&name).filter(|_| name.ends_with('s')).ok_or(PlexError::NotFound)?;
-    let library_id = collections::library_of(&state.db, id).await?.ok_or(PlexError::NotFound)?;
-    let blob = match params.get("url").filter(|u| !u.is_empty()) {
-        Some(url) => state.metadata.download_artwork(url).await.map_err(|e| PlexError::BadRequest(e.to_string()))?,
-        None => crate::api::editing::store_picture(&state, body).await.map_err(PlexError::from)?,
-    };
-    // `field` is `poster` or `backdrop`, both columns of collections.
-    sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE collections SET {field} = ?, updated_at = ? WHERE id = ?")))
-        .bind(blob)
-        .bind(crate::util::now())
-        .bind(id)
-        .execute(&state.db.write)
-        .await?;
-    state.events.send(ServerEvent::LibraryChanged { library_id });
-    Ok(StatusCode::OK)
+    let id = super::lists::collection_path(key)?;
+    upload_artwork(state, admin, Path((keys::collection(id), name)), params, body).await
 }
 
-async fn set_artwork_blob(state: &AppState, id: i64, field: &str, blob: String) -> PlexResult<StatusCode> {
-    let library_id: i64 = sqlx::query_scalar("SELECT library_id FROM items WHERE id = ?")
-        .bind(id)
-        .fetch_optional(&state.db.read)
-        .await?
-        .ok_or(PlexError::NotFound)?;
-    overrides::set(&state.db, id, &[(field.to_owned(), Some(blob))]).await?;
+async fn set_artwork_blob(
+    state: &AppState,
+    target: Key,
+    library_id: i64,
+    field: &str,
+    blob: String,
+) -> PlexResult<StatusCode> {
+    match target {
+        Key::Item(id) => overrides::set(&state.db, id, &[(field.to_owned(), Some(blob))]).await?,
+        Key::Collection(id) => {
+            // `field` is `poster` or `backdrop`, both columns of collections.
+            sqlx::query(sqlx::AssertSqlSafe(format!(
+                "UPDATE collections SET {field} = ?, updated_at = ? WHERE id = ?"
+            )))
+            .bind(blob)
+            .bind(crate::util::now())
+            .bind(id)
+            .execute(&state.db.write)
+            .await?;
+        }
+        Key::Playlist(_) => return Err(PlexError::NotFound),
+    }
     state.events.send(ServerEvent::LibraryChanged { library_id });
     Ok(StatusCode::OK)
 }

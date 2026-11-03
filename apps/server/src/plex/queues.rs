@@ -1,8 +1,8 @@
 //! Play queues (`/playQueues`): what a Plex client plays, and next. A queue
 //! is made from items (`uri=…/library/metadata/1,2`), a container (a show
 //! or season plays its episodes, an album its tracks), a section listing
-//! (`…/library/sections/1/all?…`) or a playlist (`playlistID=`), optionally
-//! shuffled. With `continuous=1`, an episode is followed by the rest of its
+//! (`…/library/sections/1/all?…`), a collection or a playlist (`playlistID=`),
+//! optionally shuffled. With `continuous=1`, an episode is followed by the rest of its
 //! show. Queues live in memory, as clients make a new one for each playback:
 //! at most [`MAX_QUEUES`], each for a day after its last use, and only for the
 //! user who made it.
@@ -15,6 +15,7 @@ use std::time::{Duration, Instant};
 use axum::extract::{Path, State};
 use parking_lot::Mutex;
 
+use super::keys::{self, Key};
 use super::library::{base_container, item_nodes, listing_detail, visible_libraries};
 use super::meta::Sections;
 use super::{Node, Params, PlexError, PlexResult, PlexUser};
@@ -117,8 +118,7 @@ fn shuffle(entries: &mut [Entry], first: i64) {
 /// order: containers become their episodes or tracks.
 async fn resolve(state: &AppState, user: &AuthUser, params: &Params) -> PlexResult<Vec<ItemRow>> {
     if let Some(playlist) = params.parse::<i64>("playlistID") {
-        let (_, rows) = playlists::get_rows(&state.db, user, playlist).await?.ok_or(PlexError::NotFound)?;
-        return Ok(rows.into_iter().map(|(_, row)| row).collect());
+        return playlist_rows(state, user, keys::playlist_id(playlist).ok_or(PlexError::NotFound)?).await;
     }
     // python-plexapi encodes the path inside `library:///directory/…` once more.
     let uri = crate::util::percent_decode(params.get("uri").unwrap_or_default(), false);
@@ -132,19 +132,40 @@ async fn resolve(state: &AppState, user: &AuthUser, params: &Params) -> PlexResu
         let ids: Vec<i64> = found.iter().map(|r| r.id).collect();
         return Ok(playlists::expand(&state.db, user, &ids).await?);
     }
-    if let Some(start) = uri.find("/playlists/") {
-        let id = uri[start + "/playlists/".len()..]
-            .split(['/', '?'])
-            .next()
-            .and_then(|i| i.parse().ok())
-            .ok_or(PlexError::NotFound)?;
-        let (_, rows) = playlists::get_rows(&state.db, user, id).await?.ok_or(PlexError::NotFound)?;
-        return Ok(rows.into_iter().map(|(_, row)| row).collect());
+    let named = |prefix: &str| -> Option<PlexResult<i64>> {
+        let start = uri.find(prefix)? + prefix.len();
+        Some(uri[start..].split(['/', '?']).next().and_then(|i| i.parse().ok()).ok_or(PlexError::NotFound))
+    };
+    if let Some(key) = named("/playlists/") {
+        return playlist_rows(state, user, keys::playlist_id(key?).ok_or(PlexError::NotFound)?).await;
+    }
+    if let Some(key) = named("/library/collections/") {
+        return collection_rows(state, user, keys::collection_id(key?).ok_or(PlexError::NotFound)?).await;
     }
     let ids = super::lists::uri_items(&uri);
+    // A collection's or playlist's key, as python-plexapi names them.
+    match ids.iter().map(|id| Key::of(*id)).collect::<Vec<_>>()[..] {
+        [Key::Collection(id)] => return collection_rows(state, user, id).await,
+        [Key::Playlist(id)] => return playlist_rows(state, user, id).await,
+        _ => {}
+    }
     if ids.is_empty() {
         return Err(PlexError::BadRequest("uri names nothing to play".into()));
     }
+    Ok(playlists::expand(&state.db, user, &ids).await?)
+}
+
+/// A playlist's entries the user may see, in its order.
+async fn playlist_rows(state: &AppState, user: &AuthUser, id: i64) -> PlexResult<Vec<ItemRow>> {
+    let (_, rows) = playlists::get_rows(&state.db, user, id).await?.ok_or(PlexError::NotFound)?;
+    Ok(rows.into_iter().map(|(_, row)| row).collect())
+}
+
+/// What a collection holds, as the user may see it, in its order: shows
+/// become their episodes.
+async fn collection_rows(state: &AppState, user: &AuthUser, id: i64) -> PlexResult<Vec<ItemRow>> {
+    let (_, items) = crate::collections::get(&state.db, user, id).await?.ok_or(PlexError::NotFound)?;
+    let ids: Vec<i64> = items.iter().map(|r| r.id).collect();
     Ok(playlists::expand(&state.db, user, &ids).await?)
 }
 

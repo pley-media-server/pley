@@ -9,6 +9,7 @@ use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
 use axum::response::Response;
 
+use super::keys::Key;
 use super::meta::{self, Detail, Extras, Sections, kind_for_number, kinds_of, plex_type, section_type, type_number};
 use super::{Node, Page, Params, PlexAdmin, PlexError, PlexInfo, PlexResult, PlexUser};
 use crate::auth::AuthUser;
@@ -260,11 +261,24 @@ pub async fn refresh(
     Ok(Node::container().attr("size", 0))
 }
 
+/// `/library/metadata/{key}/refresh`: an item's metadata is fetched again.
+/// Collections and playlists have none to fetch: they answer once found.
 pub async fn refresh_item(
     State(state): State<AppState>,
     PlexAdmin(admin): PlexAdmin,
-    Path(id): Path<i64>,
+    Path(key): Path<i64>,
 ) -> PlexResult<Node> {
+    let id = match Key::of(key) {
+        Key::Item(id) => id,
+        Key::Collection(id) => {
+            super::lists::collection_for(&state, &admin, id).await?;
+            return Ok(Node::container().attr("size", 0));
+        }
+        Key::Playlist(id) => {
+            super::lists::playlist_container_of(&state, &admin, id).await?;
+            return Ok(Node::container().attr("size", 0));
+        }
+    };
     let row = catalog::item(&state.db, admin.id, id).await?.ok_or(PlexError::NotFound)?;
     if state.metadata.enabled() {
         let metadata = state.metadata.clone();
@@ -625,6 +639,8 @@ pub async fn first_character(
 
 // ------------------------------------------------------------------ metadata
 
+/// `/library/metadata/{keys}`: items, and the collections and playlists
+/// their keys name.
 pub async fn metadata(
     State(state): State<AppState>,
     PlexUser(user): PlexUser,
@@ -632,12 +648,24 @@ pub async fn metadata(
     Path(ids): Path<String>,
     params: Params,
 ) -> PlexResult<Node> {
-    let ids: Vec<i64> = ids.split(',').filter_map(|i| i.trim().parse().ok()).take(500).collect();
+    let keys: Vec<Key> = ids.split(',').filter_map(|i| i.trim().parse().ok()).take(500).map(Key::of).collect();
+    match keys[..] {
+        [Key::Collection(id)] => return super::lists::collection_details(&state, &user, &info, id).await,
+        [Key::Playlist(id)] => return super::lists::playlist_container_of(&state, &user, id).await,
+        _ => {}
+    }
+    let ids: Vec<i64> = keys.iter().filter_map(|k| if let Key::Item(id) = k { Some(*id) } else { None }).collect();
+    let (lists, list_library) = super::lists::list_nodes(&state, &user, &keys).await?;
     let rows = catalog::items_by_ids(&state.db, user.id, &ids).await?;
     let libraries = visible_libraries(&state, &user).await?;
     let rows: Vec<ItemRow> = rows.into_iter().filter(|r| libraries.iter().any(|l| l.id == r.library_id)).collect();
-    let Some(first) = rows.first() else { return Err(PlexError::NotFound) };
-    let lib = libraries.iter().find(|l| l.id == first.library_id);
+    if rows.is_empty() && lists.is_empty() {
+        return Err(PlexError::NotFound);
+    }
+    let lib = match rows.first() {
+        Some(first) => libraries.iter().find(|l| l.id == first.library_id),
+        None => list_library.as_ref(),
+    };
     let sections = Sections::new(&libraries);
     let detail = Detail { guids: true, full: true, media: true, markers: params.flag("includeMarkers") };
     let mut nodes = item_nodes(&state, &rows, &sections, detail).await?;
@@ -654,18 +682,26 @@ pub async fn metadata(
             }
         }
     }
+    nodes.extend(lists);
     let total = nodes.len();
     Ok(list_container(lib, &info, nodes, total, &Page::default()))
 }
 
+/// `/library/metadata/{key}/children`: a show's seasons, …, a collection's
+/// items or a playlist's entries.
 pub async fn children(
     State(state): State<AppState>,
     PlexUser(user): PlexUser,
     Extension(info): Extension<Arc<PlexInfo>>,
-    Path(id): Path<i64>,
+    Path(key): Path<i64>,
     params: Params,
     page: Page,
 ) -> PlexResult<Node> {
+    let id = match Key::of(key) {
+        Key::Item(id) => id,
+        Key::Collection(id) => return super::lists::collection_items(&state, &user, &info, id, &params, &page).await,
+        Key::Playlist(id) => return super::lists::playlist_items(&state, &user, id, &params, &page).await,
+    };
     let parent = catalog::item(&state.db, user.id, id).await?.ok_or(PlexError::NotFound)?;
     let libraries = visible_libraries(&state, &user).await?;
     let lib = libraries.iter().find(|l| l.id == parent.library_id).ok_or(PlexError::NotFound)?;
@@ -1172,24 +1208,45 @@ pub(super) async fn serve_image(
         .map_err(PlexError::from)
 }
 
+/// The picture of whatever `key` names: an item, a collection (its own, or
+/// its first item's) or a playlist (its first entry's).
+async fn serve_key_image(
+    state: AppState,
+    user: AuthUser,
+    key: i64,
+    image: &str,
+    version: Option<String>,
+    width: Option<u32>,
+    headers: HeaderMap,
+) -> PlexResult<Response> {
+    match Key::of(key) {
+        Key::Item(id) => serve_image(state, user, id, image, version, width, headers).await,
+        Key::Collection(id) => super::lists::collection_artwork(state, user, id, image, version, width, headers).await,
+        Key::Playlist(id) if matches!(image, "thumb" | "composite") => {
+            super::lists::playlist_artwork(state, user, id, width, headers).await
+        }
+        Key::Playlist(_) => Err(PlexError::NotFound),
+    }
+}
+
 pub async fn image(
     State(state): State<AppState>,
     PlexUser(user): PlexUser,
-    Path((id, image)): Path<(i64, String)>,
+    Path((key, image)): Path<(i64, String)>,
     params: Params,
     headers: HeaderMap,
 ) -> PlexResult<Response> {
-    serve_image(state, user, id, &image, None, params.parse("width"), headers).await
+    serve_key_image(state, user, key, &image, None, params.parse("width"), headers).await
 }
 
 pub async fn image_version(
     State(state): State<AppState>,
     PlexUser(user): PlexUser,
-    Path((id, image, version)): Path<(i64, String, String)>,
+    Path((key, image, version)): Path<(i64, String, String)>,
     params: Params,
     headers: HeaderMap,
 ) -> PlexResult<Response> {
-    serve_image(state, user, id, &image, Some(version), params.parse("width"), headers).await
+    serve_key_image(state, user, key, &image, Some(version), params.parse("width"), headers).await
 }
 
 /// `/photo/:/transcode?url=/library/metadata/1/thumb/123&width=300&height=450`
@@ -1210,11 +1267,11 @@ pub async fn photo_transcode(
     };
     let path = path.split(['?', '#']).next().unwrap_or_default();
     let mut segments = path.trim_start_matches("/library/metadata/").split('/');
-    let id: i64 = segments.next().and_then(|s| s.parse().ok()).ok_or(PlexError::NotFound)?;
+    let key: i64 = segments.next().and_then(|s| s.parse().ok()).ok_or(PlexError::NotFound)?;
     let image = segments.next().unwrap_or("thumb").to_owned();
     let version = segments.next().map(str::to_owned);
     let width = params.parse::<u32>("width").filter(|w| *w > 0);
-    serve_image(state, user, id, &image, version, width, headers).await
+    serve_key_image(state, user, key, &image, version, width, headers).await
 }
 
 #[cfg(test)]
