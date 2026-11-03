@@ -191,10 +191,12 @@ public enum MatroskaPictureTrack {
                     case ID.contentCompSettings: compSettings = body
                     case ID.timecode: clusterTime = uint(body)
                     case ID.simpleBlock:
-                        if raw.count < Pictures.maxSamples, let b = block(body, clusterTime: clusterTime) {
+                        if raw.count < Pictures.maxSamples, body.count <= Pictures.maxSampleBytes,
+                           let b = block(body, clusterTime: clusterTime) {
                             raw.append((b, nil))
                         }
-                    case ID.block: groupBlock = block(body, clusterTime: clusterTime)
+                    case ID.block:
+                        groupBlock = body.count <= Pictures.maxSampleBytes ? block(body, clusterTime: clusterTime) : nil
                     case ID.blockDuration: groupDuration = uint(body)
                     default: break
                     }

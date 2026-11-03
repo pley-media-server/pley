@@ -485,13 +485,13 @@ Pley for iPhone, iPad, Mac and Apple TV (in development).
   keeps a code from the real app's sheet for that sheet. Apple TV registers
   the scheme for its Top Shelf links, which the app signs and checks before
   opening one.
-- Picture subtitles (PGS, DVB, VobSub) decode at most a 4K screen's pixels
-  and 64 pictures (256 DVB object draws, and eight 4K screens of DVB
-  drawing and filling) for one moment, keep 128 MiB of
-  decoded frames and 1,024 parsed samples (64 MiB) per track, look back
-  16 MiB of samples for a decode, read 512 segments
-  of a sample and 100,000 samples of a track at most, so what a crafted
-  file makes the app hold, and work through, is bounded.
+- Picture subtitles (PGS, DVB, VobSub) are bounded in what a crafted file
+  makes the app hold and work through. One moment decodes a 4K screen's
+  pixels and 64 pictures at most, and a DVB decode eight 4K screens of
+  drawing and filling. A track keeps 128 MiB of decoded frames besides
+  the one showing, and 1,024 parsed samples (64 MiB); a decode looks back
+  16 MiB of samples. A sample is read for 512 segments and 16 MiB, a
+  track for 100,000 samples.
 
 ### TV apps, Kodi and Roku
 

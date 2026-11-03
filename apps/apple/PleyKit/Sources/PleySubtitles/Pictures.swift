@@ -122,6 +122,10 @@ public enum Pictures {
     /// segment read. Eight 4K screens.
     static let maxWork = 8 * maxPixels
 
+    /// A sample's bytes, at most: a PGS or DVB display set is 256 segments of
+    /// 64 KiB at most, a VobSub one 64 KiB.
+    static let maxSampleBytes = 16 << 20
+
     /// Samples read from a track's file, at most: a film's has a few thousand.
     static let maxSamples = 100_000
 }

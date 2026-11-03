@@ -43,7 +43,8 @@ public final class VobSubDecoder: PictureDecoder {
     }
 
     public static func parseIdx(_ codecPrivate: [UInt8]?) -> Header {
-        let text = String(decoding: codecPrivate ?? [], as: UTF8.self)
+        // A real .idx header is a few hundred bytes.
+        let text = String(decoding: (codecPrivate ?? []).prefix(64 << 10), as: UTF8.self)
         var width = 720
         var height = 576
         if let match = text.firstMatch(of: /(?i)size:\s*(\d+)\s*x\s*(\d+)/),
@@ -53,7 +54,7 @@ public final class VobSubDecoder: PictureDecoder {
         }
         var palette: [[UInt8]] = []
         if let match = text.firstMatch(of: /(?i)palette:\s*([0-9a-f,\s]+)/) {
-            for hex in match.1.split(separator: ",") {
+            for hex in match.1.split(separator: ",").prefix(16) {
                 if let v = Int(hex.trimmingCharacters(in: .whitespacesAndNewlines), radix: 16) {
                     palette.append([UInt8((v >> 16) & 0xFF), UInt8((v >> 8) & 0xFF), UInt8(v & 0xFF)])
                 }
@@ -69,11 +70,13 @@ public final class VobSubDecoder: PictureDecoder {
         guard data.count >= 4 else { return nil }
         let size = data.u16(0)
         let ctrl = data.u16(2)
-        let end = min(size == 0 ? data.count : size, data.count)
+        // An SPU's size is 16 bits; a real one has two or three control
+        // sequences, and each is read to the end at most.
+        let end = min(size == 0 ? data.count : size, data.count, 0xFFFF)
         var spu = SPU()
         var seq = ctrl
         var seen = Set<Int>()
-        while seq + 4 <= end, !seen.contains(seq) {
+        while seq + 4 <= end, !seen.contains(seq), seen.count < 16 {
             seen.insert(seq)
             // Delays count in 1024 ticks of a 90 kHz clock.
             let delayMs = Int((Double(data.u16(seq) * 1024) / 90).rounded())
