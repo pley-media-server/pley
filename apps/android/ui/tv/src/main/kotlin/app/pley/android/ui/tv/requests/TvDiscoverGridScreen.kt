@@ -13,12 +13,14 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.testTag
@@ -133,6 +135,17 @@ private fun TitleGrid(state: DiscoverResultsUiState, pages: Pages, texts: Reques
     val coming = !pages.settled
     val end = !coming && (pages.stopped || pages.problem != null)
     val count = if (coming) ((titles.size + 1 + columns - 1) / columns) * columns else titles.size
+    // Show more or Retry goes while the pages come: the well in its place takes focus, and keeps it as its title comes.
+    var refocus by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(refocus) {
+        val at = refocus
+        if (at < 0) return@LaunchedEffect
+        for (frame in 0 until REFOCUS_FRAMES) {
+            withFrameNanos { }
+            if (focus.focus(at)) break
+        }
+        refocus = -1
+    }
     // Two rows from the end: the next pages, until three rows more are in.
     val shown by rememberUpdatedState(titles.size)
     LaunchedEffect(focus, columns) {
@@ -163,7 +176,10 @@ private fun TitleGrid(state: DiscoverResultsUiState, pages: Pages, texts: Reques
                             kind = GridKind,
                             label = stringResource(if (retry) ScreensR.string.requests_retry else R.string.tv_requests_show_more),
                             icon = if (retry) PleyIcons.RefreshCw else PleyIcons.Plus,
-                            onClick = vm::showMore,
+                            onClick = {
+                                refocus = titles.size
+                                vm.showMore()
+                            },
                             focusModifier = Modifier.rememberedFocus(memory, "$GRID_MEMORY/$END_KEY", initial = titles.isEmpty()),
                             modifier = Modifier.testTag(TV_DISCOVER_GRID_MORE),
                         )
@@ -225,6 +241,9 @@ private val GridTop = 72.dp
 /** Beside a lone Show more, level with the middle of its well. */
 private val AsideTop = 68.dp
 private val AsideGap = 32.dp
+
+/** Frames the well in Show more's place is waited for. */
+private const val REFOCUS_FRAMES = 10
 
 private const val GRID_MEMORY = "grid"
 private const val END_KEY = "pley.grid.more"

@@ -195,6 +195,33 @@ class TvDiscoverUiTest {
     }
 
     @Test
+    fun showMoreAfterSomeTitlesKeepsFocusWhereItWas() {
+        val asked = mutableListOf<Int>()
+        // Two titles, then an age limit left nothing until page 6.
+        requests.searches = { _, page, _ ->
+            asked += page
+            val titles = when {
+                page == 1 -> trending.results.take(2)
+                page < 6 -> emptyList()
+                else -> trending.results.map { it.copy(tmdbId = it.tmdbId * 100 + page) }
+            }
+            DiscoverPage(page, 30, titles)
+        }
+        show { TvDiscoverGridScreen(DiscoverResultsViewModel(DiscoverSource.Words("robot"), deps(), 28, DiscoverResultsViewModel.TV_FILL)) }
+        waitFor("Show more")
+        compose.focused().assert(hasContentDescription("The Wild Robot", substring = true))
+        compose.press(Key.DirectionRight, 2)
+        compose.onNodeWithTag(TV_DISCOVER_GRID_MORE).assert(focusedWithin())
+        compose.press(Key.Enter)
+        compose.waitUntil(WAIT_MS) { asked.size >= 6 }
+        compose.waitForIdle()
+        // The well in Show more's place took focus, and its title kept it.
+        compose.focused().assert(hasContentDescription(trending.results.first().title, substring = true))
+        compose.press(Key.DirectionLeft)
+        compose.focused().assert(hasContentDescription(trending.results[1].title, substring = true))
+    }
+
+    @Test
     fun aMovieIsAskedForFromItsPage() {
         show { TvDiscoverTitleScreen(DiscoverTitleViewModel(PleyKey.DiscoverTitle(TitleKind.Movie, 1184918), deps())) }
         waitFor("Discover your true nature.")
