@@ -160,12 +160,17 @@ const HASHING_AT_ONCE: usize = 4;
 /// How long a password waits its turn before pley says it is busy.
 const HASHING_WAIT: Duration = Duration::from_secs(10);
 
+/// The answer to a password pley can't check now.
+fn busy_hashing() -> AppError {
+    AppError::Unavailable("Pley is busy checking passwords: try again in a moment".into())
+}
+
 /// Runs Argon2 `work` when its turn comes.
 async fn hashing<T: Send + 'static>(work: impl FnOnce() -> T + Send + 'static) -> Result<T, AppError> {
     static TURNS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(HASHING_AT_ONCE);
     let _turn = tokio::time::timeout(HASHING_WAIT, TURNS.acquire())
         .await
-        .map_err(|_| AppError::Unavailable("Pley is busy checking passwords: try again in a moment".into()))?
+        .map_err(|_| busy_hashing())?
         .map_err(|e| AppError::Internal(e.into()))?;
     tokio::task::spawn_blocking(work).await.map_err(|e| AppError::Internal(e.into()))
 }
@@ -194,13 +199,29 @@ pub async fn dummy_password_hash() -> String {
 }
 
 /// Whether `password` matches `hash` (never for the markers of accounts
-/// without a password); an error when pley is too busy to check.
+/// without a password); an error when pley is too busy to check, or hasn't
+/// the memory to ([`matched`]).
 pub async fn verify_password(password: String, hash: String) -> Result<bool, AppError> {
-    hashing(move || {
-        PasswordHash::new(&hash)
-            .is_ok_and(|parsed| Argon2::default().verify_password(password.as_bytes(), &parsed).is_ok())
+    hashing(move || match PasswordHash::new(&hash) {
+        Ok(parsed) => matched(Argon2::default().verify_password(password.as_bytes(), &parsed)),
+        Err(_) => Ok(false),
     })
-    .await
+    .await?
+}
+
+/// What an Argon2 check says of the password. Without the memory it works
+/// in (the system is out of it), it said nothing: that is pley being busy,
+/// never a wrong password, which would count towards locking the account
+/// or its PIN.
+fn matched(check: argon2::password_hash::Result<()>) -> Result<bool, AppError> {
+    match check {
+        Ok(()) => Ok(true),
+        Err(argon2::password_hash::Error::OutOfMemory) => {
+            tracing::warn!("out of memory checking a password or PIN: answered that Pley is busy");
+            Err(busy_hashing())
+        }
+        Err(_) => Ok(false),
+    }
 }
 
 pub fn new_token() -> String {
@@ -1436,6 +1457,14 @@ mod tests {
         let checks = (0..24).map(|_| verify_password("hunter22".into(), hash.clone()));
         let results = futures::future::join_all(checks).await;
         assert!(results.into_iter().all(|r| r.unwrap()));
+    }
+
+    #[test]
+    fn a_check_without_the_memory_for_it_is_no_wrong_password() {
+        use argon2::password_hash::Error;
+        assert!(matches!(matched(Ok(())), Ok(true)));
+        assert!(matches!(matched(Err(Error::PasswordInvalid)), Ok(false)));
+        assert!(matches!(matched(Err(Error::OutOfMemory)), Err(AppError::Unavailable(_))));
     }
 
     #[test]

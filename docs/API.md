@@ -134,7 +134,8 @@ Each endpoint table has a **Who** column:
   `Cross-Origin-Opener-Policy: same-origin` and a `Content-Security-Policy`
   that loads only Pley's own scripts and styles.
 - Password checks queue, a few at a time. One that has waited 10 seconds
-  answers `503`.
+  answers `503`, as does one the server hasn't the memory for: neither
+  counts as a wrong password or PIN.
 
 ### CORS for TV apps
 

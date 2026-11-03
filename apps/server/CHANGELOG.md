@@ -110,6 +110,9 @@ describes how they are made.
 
 - Blu-ray subtitles that show two pictures at once, the first one forced,
   show both in the web app, and a picture the disc crops shows cropped.
+- A password or PIN checked while the server is out of memory gets "Pley
+  is busy checking passwords: try again in a moment" rather than "wrong",
+  and no longer counts towards locking the account or the PIN.
 - A picture sent to a collection or playlist through the Plex-compatible
   API no longer lands on the movie or show that had the same number:
   collections and playlists have keys of their own there. An episode's
