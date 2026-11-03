@@ -641,7 +641,9 @@ impl PlayerView {
         if !keys.is_empty() {
             self.touch(now);
         }
-        for e in keys.iter().filter(|e| e.pressed && !e.repeat) {
+        // An error on screen: only Stop, which leaves (`TvPlayerScreen.kt`'s `onKey`). The others
+        // would seek, change a track or play the next episode under it.
+        for e in keys.iter().filter(|e| e.pressed && !e.repeat && (!error || e.key == Key::Stop)) {
             match e.key {
                 Key::PlayPause => self.play_pause(p, now),
                 Key::Play => p.play(),

@@ -119,7 +119,8 @@ differs on LG:
   while a seek waits, or the Chapters button, opens the chapters as a row
   of cards over it: Left and Right go through them, OK goes to one, Down
   or Back closes them. As each item
-  begins playing, its title shows at the top for 4 s.
+  begins playing, its title shows at the top for 4 s. While an error
+  shows, Stop is the only media key that acts.
 - **Typing** uses the app's own keyboard and pads (a search, a server's
   address, a PIN); the TV's keyboard doesn't open.
 - **On webOS 4**, Home opens as a ribbon over the app, which keeps

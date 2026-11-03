@@ -121,6 +121,9 @@ describes how they are made.
   the stream again, and on the track asked for.
 - In the player, Skip Intro and a click on the bar no longer come undone
   a few seconds later by a seek still waiting for OK.
+- While the player shows an error, the media keys other than Stop do
+  nothing, as in the Android TV and Samsung apps, rather than seeking,
+  changing a track or playing the next episode under it.
 
 ## [0.1.3] - 2026-11-02
 

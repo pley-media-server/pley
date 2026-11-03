@@ -393,6 +393,34 @@ fn an_error_offers_try_again_and_back_leaves() {
 }
 
 #[test]
+fn an_error_lets_only_stop_of_the_media_keys_act() {
+    let mut pl = Player::new(Fake::episode());
+    pl.p.state.phase =
+        Phase::Error { message: "The server couldn't read this file.".into(), can_retry: true, title: None };
+    pl.idle();
+    for key in [
+        Key::PlayPause,
+        Key::Play,
+        Key::Pause,
+        Key::FastForward,
+        Key::Rewind,
+        Key::Next,
+        Key::Previous,
+        Key::Subtitles,
+        Key::Audio,
+    ] {
+        pl.press(key);
+    }
+    pl.wait(0.5);
+    assert!(pl.p.calls.is_empty(), "{:?}", pl.p.calls);
+    assert_eq!(pl.view.toast_text(), None);
+    assert_eq!(pl.focus(), Some(Target::Error));
+    assert!(!pl.left());
+    pl.press(Key::Stop);
+    assert!(pl.left(), "Stop didn't leave");
+}
+
+#[test]
 fn the_end_and_a_stop_by_the_server_leave() {
     let mut pl = Player::new(Fake::movie());
     pl.p.state.phase = Phase::Ended;
