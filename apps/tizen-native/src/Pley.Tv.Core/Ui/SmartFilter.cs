@@ -45,6 +45,9 @@ public static class SmartFilter
         var parts = new List<(string Key, string Value)>();
         if (p.Genre != null) parts.Add(("genre", p.Genre));
         if (p.Year != null) parts.Add(("year", p.Year.Value.ToString(CultureInfo.InvariantCulture)));
+        // Plex's own field, and Pley's.
+        if (p.Resolution != null) parts.Add(("resolution", p.Resolution));
+        if (p.DynamicRange != null) parts.Add(("dynamicRange", p.DynamicRange));
         if (p.Watched != null) parts.Add(("unwatched", p.Watched.Value ? "0" : "1"));
         var field = PlexSort.TryGetValue(p.Sort, out var f) ? f : PlexSort[LibrarySort.Title];
         parts.Add(("sort", p.EffectiveOrder == SortOrder.Descending ? field + ":desc" : field));
@@ -73,6 +76,8 @@ public static class SmartFilter
                 case "year>>": words.Add($"After {value}"); break;
                 case "year<<": words.Add($"Before {value}"); break;
                 case "decade": words.Add($"The {value}s"); break;
+                case "resolution": words.Add(LibraryText.ResolutionLabel(value) ?? $"{key}: {value}"); break;
+                case "dynamicRange": words.Add(LibraryText.DynamicRangeLabel(value) ?? $"{key}: {value}"); break;
                 case "sort": words.Add(SortNote(value)); break;
                 case "limit": words.Add($"At most {value}"); break;
                 // Plumbing, not part of what is found.

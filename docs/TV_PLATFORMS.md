@@ -378,8 +378,9 @@ saying when the server requires two-step sign-in, which the approving
 phone sets up), Who's watching? with PINs, and
 Home: the hero, the server's rows and the rail, and item pages: the hero
 and its buttons, seasons and episodes, Extras, Cast and More Like This,
-and the side panels; library pages (the chips and panels, the grid with
-the A to Z jump, Recommended and Collections) and the Libraries page;
+and the side panels; library pages (the chips and panels, the filters by
+resolution and dynamic range among them, the grid with the A to Z jump,
+Recommended and Collections) and the Libraries page;
 search (the field and the TV's keyboard, results in rows, Live TV's
 channels in a row before People that play the one chosen, recent
 searches); people's pages (the photo, the name and a row per role); the

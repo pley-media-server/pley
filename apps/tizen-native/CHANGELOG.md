@@ -156,8 +156,15 @@ It has no releases yet: it is built and installed by hand
   past its edge, the unwatched count sits on the accent and the watched
   tick is an accent check, both with square corners.
 - A library's posters in the native app show 4K and the dynamic range (DV,
-  HDR10) whatever the sort, as the other apps do: no codec and no lower
-  resolution.
+  HDR10) when it is sorted by bitrate or filtered by resolution or dynamic
+  range, as the other apps do, and otherwise no quality badges: no codec
+  and no lower resolution.
+- Library pages in the native app filter movies and shows by resolution
+  (4K, 1080p, 720p, SD) and dynamic range (HDR, Dolby Vision, HDR10+,
+  HDR10, HLG, SDR), where the server offers more than one of them: in the
+  Filter panel after Year, with a chip saying the one chosen. Clear
+  filters and Save as… take them in, and the library opens with them as it
+  was left.
 - Live TV in the native app starts a channel in about 2 seconds, from its
   stream as the provider sends it, where it waited for the server's first
   segments before; channels with surround sound the TV decodes (AC3) play

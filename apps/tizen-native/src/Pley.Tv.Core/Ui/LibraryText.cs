@@ -19,6 +19,10 @@ public enum LibraryChipKind
     Genre,
     /// <summary>Opens the Year panel; says the year chosen.</summary>
     Year,
+    /// <summary>Opens the Resolution panel; says the resolution chosen, and shows only while one is.</summary>
+    Resolution,
+    /// <summary>Opens the Dynamic range panel; says the one chosen, and shows only while one is.</summary>
+    DynamicRange,
 }
 
 /// <summary>A chip (design spec §2.6): what it says, whether it is on (a check leads it then, in place of <see cref="Icon"/>), and its icon by Lucide's name.</summary>
@@ -31,6 +35,8 @@ public enum LibraryPanel
     Filter,
     Genre,
     Year,
+    Resolution,
+    DynamicRange,
 }
 
 /// <summary>A row of a library's side panel, and what its <see cref="LibraryPanelRow.Value"/> is.</summary>
@@ -47,6 +53,10 @@ public enum LibraryRowKind
     Genres,
     /// <summary>Opens the Year panel; <see cref="LibraryPanelRow.Detail"/> is the year chosen.</summary>
     Years,
+    /// <summary>Opens the Resolution panel; <see cref="LibraryPanelRow.Detail"/> is the resolution chosen.</summary>
+    Resolutions,
+    /// <summary>Opens the Dynamic range panel; <see cref="LibraryPanelRow.Detail"/> is the dynamic range chosen.</summary>
+    DynamicRanges,
     ClearFilters,
     /// <summary>"Save as…": the smart playlist page.</summary>
     SaveAs,
@@ -54,6 +64,10 @@ public enum LibraryRowKind
     Genre,
     /// <summary>A year's digits; null all of them.</summary>
     Year,
+    /// <summary>A resolution (<see cref="LibraryParams.Resolutions"/>); null all of them.</summary>
+    Resolution,
+    /// <summary>A dynamic range (<see cref="LibraryParams.DynamicRanges"/>); null all of them.</summary>
+    DynamicRange,
 }
 
 /// <summary>A row of a library's side panel (design spec §2.7): its label, the check on the choice in force, the value beside it, the chevron of a row that opens another list.</summary>
@@ -71,7 +85,7 @@ public abstract record PanelOutcome
     /// <summary>The choice applied; the panel closes, and focus goes back to the chip it was opened from.</summary>
     public sealed record Close : PanelOutcome;
 
-    /// <summary>The panel shows another list (Genre, Year).</summary>
+    /// <summary>The panel shows another list (Genre, Year, Resolution, Dynamic range).</summary>
     public sealed record Show(LibraryPanel Panel) : PanelOutcome;
 
     /// <summary>The panel closes and the page opens <paramref name="Key"/> ("Save as…").</summary>
@@ -157,6 +171,10 @@ public static class LibraryText
     public const string AllGenres = "All genres";
     public const string Year = "Year";
     public const string AllYears = "All years";
+    public const string Resolution = "Resolution";
+    public const string AllResolutions = "All resolutions";
+    public const string DynamicRange = "Dynamic range";
+    public const string AllDynamicRanges = "All dynamic ranges";
     public const string ClearFilters = "Clear filters";
     public const string SaveAs = "Save as…";
 
@@ -212,6 +230,28 @@ public static class LibraryText
         LibrarySort.LastPlayed => SortLastPlayed,
         LibrarySort.Bitrate => SortBitrate,
         _ => SortTitle,
+    };
+
+    /// <summary>A resolution's words ("4K", "1080p"); null for a value that isn't one of <see cref="LibraryParams.Resolutions"/>.</summary>
+    public static string? ResolutionLabel(string? resolution) => resolution switch
+    {
+        "4k" => "4K",
+        "1080" => "1080p",
+        "720" => "720p",
+        "sd" => "SD",
+        _ => null,
+    };
+
+    /// <summary>A dynamic range's words ("Dolby Vision", "HDR10+"); null for a value that isn't one of <see cref="LibraryParams.DynamicRanges"/>.</summary>
+    public static string? DynamicRangeLabel(string? range) => range switch
+    {
+        "hdr" => "HDR",
+        "dolby_vision" => "Dolby Vision",
+        "hdr10plus" => "HDR10+",
+        "hdr10" => "HDR10",
+        "hlg" => "HLG",
+        "sdr" => "SDR",
+        _ => null,
     };
 
     /// <summary>The noun a library of <paramref name="kind"/> counts: shows, artists, else movies.</summary>
@@ -272,7 +312,7 @@ public static class LibraryText
         return line.Length > 0 ? line : "Bitrate unknown";
     }
 
-    /// <summary>A listing's tile sorted by bitrate: 4K and the dynamic range ("4K", "DV"), no other resolution and no codec.</summary>
+    /// <summary>A grid's tile sorted by bitrate or filtered by quality: 4K and the dynamic range ("4K", "DV"), no other resolution and no codec.</summary>
     public static IReadOnlyList<string> MediaBadges(MediaSummary? media)
     {
         if (media == null) return Array.Empty<string>();
@@ -309,7 +349,9 @@ public static class LibraryText
 
     /// <summary>
     /// The chips over the grid: Sort (the sort, its icon the order); then, but for music, Filter,
-    /// Unwatched, and Genre and Year when the library has some or one is chosen.
+    /// Unwatched, and Genre and Year when the library has some or one is chosen. The row has no room
+    /// for two more: a resolution and a dynamic range are chosen in the Filter panel, and have a chip
+    /// only while chosen, saying it ("4K", "Dolby Vision").
     /// </summary>
     public static IReadOnlyList<LibraryChip> Chips(LibraryState state)
     {
@@ -324,6 +366,8 @@ public static class LibraryText
         if (state.Filters.Genres.Count > 0 || p.Genre != null) chips.Add(new LibraryChip(LibraryChipKind.Genre, p.Genre ?? Genre, Selected: p.Genre != null));
         if (state.Filters.Years.Count > 0 || p.Year != null)
             chips.Add(new LibraryChip(LibraryChipKind.Year, p.Year?.ToString(CultureInfo.InvariantCulture) ?? Year, Selected: p.Year != null));
+        if (ResolutionLabel(p.Resolution) is { } resolution) chips.Add(new LibraryChip(LibraryChipKind.Resolution, resolution, Selected: true));
+        if (DynamicRangeLabel(p.DynamicRange) is { } range) chips.Add(new LibraryChip(LibraryChipKind.DynamicRange, range, Selected: true));
         return chips;
     }
 
@@ -334,6 +378,8 @@ public static class LibraryText
         LibraryChipKind.Filter => LibraryPanel.Filter,
         LibraryChipKind.Genre => LibraryPanel.Genre,
         LibraryChipKind.Year => LibraryPanel.Year,
+        LibraryChipKind.Resolution => LibraryPanel.Resolution,
+        LibraryChipKind.DynamicRange => LibraryPanel.DynamicRange,
         _ => null,
     };
 
@@ -379,6 +425,11 @@ public static class LibraryText
                 {
                     Add(new LibraryPanelRow(LibraryRowKind.Genres, Genre, Detail: p.Genre ?? AllGenres, Opens: true));
                     Add(new LibraryPanelRow(LibraryRowKind.Years, Year, Detail: p.Year?.ToString(CultureInfo.InvariantCulture) ?? AllYears, Opens: true));
+                    // When the library has two or more to choose from, or one is chosen, to change or clear it.
+                    if (state.Filters.Resolutions.Count > 0 || p.Resolution != null)
+                        Add(new LibraryPanelRow(LibraryRowKind.Resolutions, Resolution, Detail: ResolutionLabel(p.Resolution) ?? AllResolutions, Opens: true));
+                    if (state.Filters.DynamicRanges.Count > 0 || p.DynamicRange != null)
+                        Add(new LibraryPanelRow(LibraryRowKind.DynamicRanges, DynamicRange, Detail: DynamicRangeLabel(p.DynamicRange) ?? AllDynamicRanges, Opens: true));
                 }
                 if (p.Filtered)
                 {
@@ -391,6 +442,18 @@ public static class LibraryText
                 Add(new LibraryPanelRow(LibraryRowKind.Genre, AllGenres, p.Genre == null), p.Genre == null);
                 foreach (var genre in state.Filters.Genres)
                     Add(new LibraryPanelRow(LibraryRowKind.Genre, genre, genre == p.Genre, genre), genre == p.Genre);
+                break;
+            case LibraryPanel.Resolution:
+                title = Resolution;
+                Add(new LibraryPanelRow(LibraryRowKind.Resolution, AllResolutions, p.Resolution == null), p.Resolution == null);
+                foreach (var resolution in state.Filters.Resolutions)
+                    Add(new LibraryPanelRow(LibraryRowKind.Resolution, ResolutionLabel(resolution) ?? resolution, resolution == p.Resolution, resolution), resolution == p.Resolution);
+                break;
+            case LibraryPanel.DynamicRange:
+                title = DynamicRange;
+                Add(new LibraryPanelRow(LibraryRowKind.DynamicRange, AllDynamicRanges, p.DynamicRange == null), p.DynamicRange == null);
+                foreach (var range in state.Filters.DynamicRanges)
+                    Add(new LibraryPanelRow(LibraryRowKind.DynamicRange, DynamicRangeLabel(range) ?? range, range == p.DynamicRange, range), range == p.DynamicRange);
                 break;
             default:
                 title = Year;
