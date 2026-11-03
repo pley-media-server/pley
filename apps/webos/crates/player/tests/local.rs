@@ -82,6 +82,29 @@ fn a_picture_that_played_then_stood_still_12_s_says_the_drive_may_be_out() {
 }
 
 #[test]
+fn a_drives_picture_track_waiting_to_be_read_again_is_read_at_once_after_a_seek() {
+    let mut w = on_drive(file(), &[]);
+    w.start();
+    w.open();
+    w.c.select_subtitle(Some(3));
+    w.settle();
+    let asks = |w: &World| w.fake.subtitle_asks().len();
+    assert_eq!(asks(&w), 1);
+    // Still being read out of the file: asked again 1 s after the answer, then 2 s, then 4 s.
+    w.advance(1_000);
+    assert_eq!(asks(&w), 2);
+    w.advance(2_000);
+    assert_eq!(asks(&w), 3);
+    w.advance(1_000);
+    assert_eq!(asks(&w), 3, "the next ask waits 4 s");
+    // A seek: the reading goes where the film went, so what it has is asked for now.
+    w.c.seek_to(600_000);
+    w.settle();
+    assert_eq!(asks(&w), 4, "not 3 s later");
+    assert!(w.fake.subtitle_asks().iter().all(|a| a.ends_with("/subtitles/3.mks")), "{:?}", w.fake.subtitle_asks());
+}
+
+#[test]
 fn an_engine_error_asks_no_server_and_says_nothing_converts_it() {
     let mut w = on_drive(file(), &[]);
     w.start();
