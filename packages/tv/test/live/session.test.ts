@@ -340,6 +340,38 @@ describe("a live channel taken over by another viewer", () => {
     expect(c.state.value.trouble).toMatchObject({ kind: "stopped", message: "Watching moved to Two on another device." });
   });
 
+  it("keeps the words of a stop that came first when a take-over's event comes after", async () => {
+    const { c, engine, ended, send } = setup();
+    c.tune(channel(1));
+    await vi.advanceTimersByTimeAsync(0);
+    engine.listener!.firstFrame();
+    ended.s1 = "The channel was stopped.";
+    engine.listener!.error({ kind: "network", detail: "the playlist went" });
+    await vi.advanceTimersByTimeAsync(0);
+    const shown = c.state.value;
+    expect(shown.trouble).toMatchObject({ kind: "stopped", message: "The channel was stopped." });
+    // Later, the same account's phone watches the channel and is taken over.
+    send(takenOver(1, "s7", "Watching moved to Two on another device."));
+    expect(c.state.value).toBe(shown);
+  });
+
+  it("keeps its card when the TV hides the app and shows it again, watching nothing until Watch again", async () => {
+    const { c, engine, asked, send } = setup();
+    c.tune(channel(1));
+    await vi.advanceTimersByTimeAsync(0);
+    engine.listener!.firstFrame();
+    send(takenOver(1, "s1", "Watching moved to Two on another device."));
+    const shown = c.state.value;
+    c.suspend();
+    c.resume();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(c.state.value).toBe(shown);
+    expect(watches(asked)).toHaveLength(1);
+    c.retry();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(watches(asked)).toHaveLength(2);
+  });
+
   it("isn't watched again when the event comes in the second before a failure's retry", async () => {
     const { c, engine, asked, send } = setup();
     c.tune(channel(1));

@@ -125,7 +125,8 @@ public sealed record LiveState(long? ChannelId = null, LivePhase? Phase = null, 
 ///   before the stream breaks off) stops it at once with the server's words; it isn't tuned again
 ///   by itself.
 /// - <see cref="Stop"/> lets the session and the player go (the app went to the background),
-///   <see cref="Resume"/> tunes the channel again, <see cref="Close"/> ends it all.
+///   <see cref="Resume"/> tunes the channel again (not one that stopped on the server: its card
+///   stays), <see cref="Close"/> ends it all.
 ///
 /// Made and used on the UI thread.
 /// </summary>
@@ -209,7 +210,10 @@ public sealed class LivePlayback
         if (State.Value.ChannelId is { } id) Start(id, takeOver);
     }
 
-    /// <summary>Back in front: the channel left in <see cref="Stop"/> plays again, from the live edge.</summary>
+    /// <summary>
+    /// Back in front: the channel left in <see cref="Stop"/> plays again, from the live edge,
+    /// unless it stopped on the server: its card stays until Watch again.
+    /// </summary>
     public void Resume()
     {
         if (State.Value.Is is LivePhase.Idle) Retry();
@@ -217,7 +221,8 @@ public sealed class LivePlayback
 
     /// <summary>
     /// Lets the session and the player go, keeping which channel it was: the app is in the
-    /// background. Nothing plays and no connection is held until <see cref="Resume"/>.
+    /// background. Nothing plays and no connection is held until <see cref="Resume"/>. A channel
+    /// that stopped on the server (taken over, say) keeps its card, as Android's.
     /// </summary>
     public void Stop()
     {
@@ -233,7 +238,8 @@ public sealed class LivePlayback
             engine.Release();
             engine = null;
         }
-        State.Value = new LiveState(State.Value.ChannelId);
+        var stopped = State.Value.Trouble is { Kind: LiveTroubleKind.Stopped };
+        State.Value = new LiveState(State.Value.ChannelId, stopped ? State.Value.Phase : null);
     }
 
     /// <summary>Ends watching for good: the server is told at once.</summary>
@@ -260,7 +266,8 @@ public sealed class LivePlayback
             case LivePhase.Idle:
                 return;
             case LivePhase.Failed failed:
-                if (failed.Trouble.Kind == LiveTroubleKind.Stopped && !string.IsNullOrWhiteSpace(message) && failed.Trouble != trouble)
+                // Only a card without the server's words takes these: another stop's words stay.
+                if (failed.Trouble.Kind == LiveTroubleKind.Stopped && failed.Trouble.Message == LiveText.StoppedBody && !string.IsNullOrWhiteSpace(message))
                     State.Value = State.Value with { Phase = new LivePhase.Failed(trouble) };
                 return;
         }

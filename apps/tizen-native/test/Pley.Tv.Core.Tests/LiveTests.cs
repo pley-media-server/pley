@@ -863,6 +863,21 @@ public class LivePlayerTests
     }
 
     [Fact]
+    public void A_take_over_leaves_the_words_of_a_stop_that_came_first()
+    {
+        var p = Playback();
+        p.Tune(1);
+        engines[0].Start();
+        live.Ended = "The channel was stopped.";
+        engines[0].Fail(new EngineError.Network("the playlist went"));
+        var shown = p.State.Value;
+        Assert.Equal(new LiveTrouble(LiveTroubleKind.Stopped, "The channel was stopped."), shown.Trouble);
+        // Later, the same account's phone watches the channel and is taken over.
+        live.TakeOver(1, "Watching moved to Sky on another device.");
+        Assert.Same(shown, p.State.Value);
+    }
+
+    [Fact]
     public void A_take_over_in_the_second_before_a_failures_retry_stops_it_there()
     {
         var p = Playback();
@@ -885,9 +900,10 @@ public class LivePlayerTests
         var p = Playback();
         p.Tune(1);
         engines[0].Start();
+        var ends = live.Sent.Count(s => s == "end stream");
         // The server tells first, then ends the stream.
         live.TakeOver(1, "Watching moved to Sky on another device.");
-        Assert.Contains("end stream", live.Sent);
+        Assert.Equal(ends + 1, live.Sent.Count(s => s == "end stream"));
         engines[0].Status(EngineStatus.Ended);
         engines[0].Fail(new EngineError.Network("the stream broke off"));
         scheduler.Advance(5_000);
@@ -907,6 +923,25 @@ public class LivePlayerTests
         Assert.IsType<LivePhase.Idle>(p.State.Value.Is);
         p.Resume();
         Assert.IsType<LivePhase.Tuning>(p.State.Value.Is);
+    }
+
+    [Fact]
+    public void A_take_overs_card_stays_through_the_background_and_nothing_is_tuned_until_watch_again()
+    {
+        var p = Playback();
+        p.Tune(1);
+        engines[0].Start();
+        live.TakeOver(1, "Watching moved to Sky on another device.");
+        var trouble = p.State.Value.Trouble;
+        p.Stop();
+        Assert.True(engines[0].Released);
+        p.Resume();
+        scheduler.Advance(10_000);
+        Assert.Same(trouble, p.State.Value.Trouble);
+        Assert.Single(live.Sent, s => s.StartsWith("watch", StringComparison.Ordinal));
+        Assert.Single(engines);
+        p.Retry();
+        Assert.Equal(2, live.Sent.Count(s => s.StartsWith("watch", StringComparison.Ordinal)));
     }
 
     [Fact]

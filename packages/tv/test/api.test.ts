@@ -140,6 +140,22 @@ describe("search", () => {
   });
 });
 
+describe("a live session", () => {
+  it("says why it ended in the server's own words", async () => {
+    const answers: Record<string, HttpResponse> = {
+      "/api/live/sessions/s1/plan": { status: 410, header: () => "application/json", body: { code: "session_stopped", message: "Watching moved to Sky on another device." } },
+      "/api/live/sessions/s2/plan": { status: 410, header: () => "application/json", body: { code: "session_stopped", message: null } },
+      "/api/live/sessions/s3/plan": { status: 200, header: () => "application/json", body: { video: "copy", audio: "copy" } },
+    };
+    const t = transport((req) => Promise.resolve(answers[req.url.replace(/^https?:\/\/[^/]+/, "")]!));
+    const api = new Api("https://pley.example.com", tokens, t.http);
+    expect(await api.whyLiveEnded("s1")).toBe("Watching moved to Sky on another device.");
+    // None: "", not a video's "stopped by the administrator".
+    expect(await api.whyLiveEnded("s2")).toBe("");
+    expect(await api.whyLiveEnded("s3")).toBeNull();
+  });
+});
+
 describe("no answer", () => {
   it("is a failed connection, a timeout or a gateway with nothing behind it, never a cancelled request", () => {
     expect(unreachable(new NetworkError("Can't reach the server"))).toBe(true);

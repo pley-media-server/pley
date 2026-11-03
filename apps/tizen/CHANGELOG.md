@@ -97,7 +97,9 @@ describes how they are made.
   TV, then people, the closest matches first in each.
 - A Live TV channel whose connection someone else takes over stops at
   once and says why, under "Live TV stopped", with Watch again, where it
-  said so only once its picture had stalled for 5 seconds.
+  said so only once its picture had stalled for 5 seconds. "Live TV
+  stopped" stays when the app is hidden and shown again, until Watch
+  again.
 - The rail's entries are smaller and list up to six libraries, where
   four or more went behind Libraries; nothing leaves the rail to make room
   for Live TV, Discover or Now Playing any more, and the entries scroll

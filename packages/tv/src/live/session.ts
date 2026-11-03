@@ -182,7 +182,8 @@ export class LiveController {
     if (e.channel_id !== st.channel.id) return;
     const trouble = stoppedTrouble(e.message);
     if (st.phase === "error") {
-      if (st.trouble?.kind === "stopped" && e.message && st.trouble.message !== trouble.message) this.patch({ trouble });
+      // Only a card without the server's words takes these: another stop's words stay.
+      if (st.trouble?.kind === "stopped" && e.message && st.trouble.message === stoppedTrouble(null).message) this.patch({ trouble });
       return;
     }
     // Its session is gone on the server: nothing to leave.
@@ -371,7 +372,10 @@ export class LiveController {
     this.patch({ phase: "error", trouble });
   }
 
-  /** The TV hid the app: watching ends on the server, to start again when it shows. */
+  /**
+   * The TV hid the app: watching ends on the server, to start again when it
+   * shows, unless it had stopped there (taken over, say).
+   */
   suspend(): void {
     this.generation++;
     this.cancel?.cancel();
@@ -380,11 +384,17 @@ export class LiveController {
     this.leave();
   }
 
-  /** The TV shows the app again: the channel from its live edge. */
+  /**
+   * The TV shows the app again: the channel from its live edge. One that
+   * stopped on the server keeps its card, and is watched again only with
+   * Watch again (as Android's).
+   */
   resume(): void {
     if (this.closed) return;
+    const st = this.state.value;
+    if (st.phase === "error" && st.trouble?.kind === "stopped") return;
     this.retries = 0;
-    void this.start(this.state.value.channel);
+    void this.start(st.channel);
   }
 
   /** The player goes: watching ends on the server at once. */

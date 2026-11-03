@@ -155,6 +155,8 @@ shows it after Home, remembered on the TV so it shows at launch. On this TV:
   playing stops the player at once, before its stream breaks off, so it
   isn't tuned again into a connection that is gone. The card says "Live TV
   stopped" with the server's words, and Watch again in place of Try again.
+  The card stays when the app is hidden and shown again; nothing is tuned
+  until Watch again.
 
 ### Requests
 
@@ -437,10 +439,14 @@ token and hands it on to the player as it comes, on the TV's loopback
 address under a random path that lasts one channel (`Net/StreamRelay.cs`).
 Live channels start once 0.5 s is buffered, 1.5 s after a stall, as on
 Android; films the same from a server at home, and 1 s and 2 s from
-elsewhere. Someone taking over the channel's connection (the server's
-`live_taken_over`) stops it at once, as on Android TV: the card says "Live
-TV stopped" with the server's words, Watch again first and focused. A film asks the server for its stream before its player
+elsewhere. A film asks the server for its stream before its player
 screen is made, which takes the UI thread half a second the first time.
+
+Someone taking over a channel's connection (the server's
+`live_taken_over`) stops it at once, as on Android TV: the card says "Live
+TV stopped" with the server's words, Watch again first and focused. The
+card stays when the app is hidden and shown again; nothing is tuned until
+Watch again.
 
 | | |
 |---|---|
