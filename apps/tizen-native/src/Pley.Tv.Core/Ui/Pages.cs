@@ -144,12 +144,6 @@ public static class Rail
     }
 
     /// <summary>
-    /// Whether the Libraries page lists Playlists after the libraries: while the rail has no entry for
-    /// them. <see cref="Items"/> always lists them, so this holds only for a rail made otherwise.
-    /// </summary>
-    public static bool PlaylistsOnLibrariesPage(IReadOnlyList<RailItem> items) => items.All(i => i.Slot != RailSlot.Playlists);
-
-    /// <summary>
     /// How far the entries are scrolled, in dp, once entry <paramref name="focused"/> of
     /// <paramref name="count"/> has focus, from <paramref name="scroll"/>: the entry wholly in view and,
     /// moving <paramref name="direction"/> (Down from above it or the avatar, Up from below or
@@ -175,14 +169,13 @@ public static class Rail
 
     /// <summary>
     /// Which entry is current for a back stack whose first page is <paramref name="root"/>: the
-    /// entry that opened it, "libraries" for a library or Playlists not in the rail, or null (Who's
-    /// watching?, sign-in).
+    /// entry that opened it, "libraries" for a library not in the rail, or null (Who's watching?,
+    /// sign-in).
     /// </summary>
     public static string? Current(PageKey root, IReadOnlyList<RailItem> items) => root switch
     {
         PageKey.Library l => items.FirstOrDefault(i => i.Key == new PageKey.Library(l.LibraryId))?.Id
             ?? items.FirstOrDefault(i => i.Slot == RailSlot.Libraries)?.Id,
-        PageKey.Playlists => (items.FirstOrDefault(i => i.Slot == RailSlot.Playlists) ?? items.FirstOrDefault(i => i.Slot == RailSlot.Libraries))?.Id,
         PageKey.Collections c => items.FirstOrDefault(i => i.Slot == RailSlot.Collections)?.Id
             ?? Current(new PageKey.Library(c.LibraryId), items),
         PageKey.Search => "search",

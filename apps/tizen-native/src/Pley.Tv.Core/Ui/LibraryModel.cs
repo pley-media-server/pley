@@ -819,30 +819,24 @@ public sealed class LibraryModel : IDisposable
 /// devices: a move shows at once, and is saved in the order moves were made. On TV, Sort (or
 /// Move in a card's actions) starts sorting: OK lifts a card, the arrows move it through the
 /// grid, OK drops it there and saves the order, Back puts it back; Done or Back ends sorting.
-///
-/// While the rail has no entry for Playlists, the page lists them after the libraries.
 /// </summary>
 public sealed class LibrariesModel : IDisposable
 {
     readonly ILibrariesSource source;
     readonly IScheduler scheduler;
-    readonly Signal<IReadOnlyList<RailItem>>? rail;
     readonly List<IDisposable> watches = new List<IDisposable>();
     /// <summary>The libraries' ids in the order shown while moves are made or saved; null: the server's.</summary>
     IReadOnlyList<long>? order;
     bool refreshing, gone;
 
-    /// <param name="rail">The rail's entries, from the shell: whether Playlists has one there.</param>
-    public LibrariesModel(ILibrariesSource source, IScheduler scheduler, Signal<IReadOnlyList<RailItem>>? rail = null)
+    public LibrariesModel(ILibrariesSource source, IScheduler scheduler)
     {
         this.source = source;
         this.scheduler = scheduler;
-        this.rail = rail;
         watches.Add(source.Libraries.Watch(_ => Compute()));
         watches.Add(source.LibrariesError.Watch(_ => Compute()));
         watches.Add(source.Scans.Watch(_ => Compute()));
         watches.Add(source.Me.Watch(_ => Compute()));
-        if (rail != null) watches.Add(rail.Watch(_ => Compute()));
     }
 
     public Signal<LibrariesState> State { get; } = new Signal<LibrariesState>(new LibrariesState.Loading());
@@ -857,12 +851,6 @@ public sealed class LibrariesModel : IDisposable
     public event Action<LibrariesEvent>? Told;
 
     bool Sortable => State.Value is LibrariesState.Ready { Sortable: true };
-
-    /// <summary>
-    /// The Playlists card after the libraries: while the rail has no entry for them, and not while
-    /// sorting, which moves the libraries alone.
-    /// </summary>
-    public bool ListsPlaylists => State.Value is LibrariesState.Ready { Playlists: true } && !Sorting.Value;
 
     /// <summary>Asks the server again (Retry).</summary>
     public void Refresh()
@@ -948,9 +936,6 @@ public sealed class LibrariesModel : IDisposable
         }
         return new PageKey.Library(libraryId);
     }
-
-    /// <summary>OK on the Playlists card: the Playlists page.</summary>
-    public PageKey? SelectPlaylists() => ListsPlaylists ? new PageKey.Playlists() : null;
 
     /// <summary>
     /// An arrow while a card is lifted: <paramref name="by"/> is ±1, or ±<see cref="LibrariesRules.Columns"/>
@@ -1047,7 +1032,7 @@ public sealed class LibrariesModel : IDisposable
     {
         if (gone) return;
         State.Value = LibrariesRules.StateOf(source.Libraries.Value, source.LibrariesError.Value, source.Scans.Value, refreshing, order,
-            LibrariesRules.MayChange(source.Me.Value), rail != null && Rail.PlaylistsOnLibrariesPage(rail.Value));
+            LibrariesRules.MayChange(source.Me.Value));
         // Nothing left to sort (a library went, or this sign-in may not): the page as it is.
         if (!Sortable)
         {

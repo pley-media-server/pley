@@ -12,8 +12,7 @@ namespace Pley.Tv.Tizen.Screens;
 /// <summary>
 /// Every library (design spec §2.1; the Android app's TvLibrariesScreen): the rail shows the first
 /// six, and "Libraries" opens this page. The title, then a card per library in three columns:
-/// its kind's icon, its name, how much it holds, "Scanning…" while the server scans it. After
-/// them, while the rail has no entry for Playlists, a card like theirs opens Playlists. The
+/// its kind's icon, its name, how much it holds, "Scanning…" while the server scans it. The
 /// profile may put them in its own order: Sort, or Move in a card's actions (holding OK). While
 /// sorting, OK lifts a card, the arrows move it, OK drops it there (and saves), Back puts it back.
 /// </summary>
@@ -137,8 +136,7 @@ sealed class LibrariesScreen : ShellPage
             for (var i = 0; i < ready.Libraries.Count; i++)
             {
                 var entry = ready.Libraries[i];
-                var card = new Card("library/" + entry.Library.Id, LibraryText.KindIcon(entry.Library.Kind), entry.Library.Name, LibraryText.CardLine(entry),
-                    width, sorting && sortable, moving == entry.Library.Id);
+                var card = new Card(entry, width, sorting && sortable, moving == entry.Library.Id);
                 card.Position = new Position(Ui.Dp(PleyTv.Gutter + i % Columns * (width + Gap)), Ui.Dp(i / Columns * (CardHeight + Gap)));
                 var id = entry.Library.Id;
                 var top = i / Columns * (CardHeight + Gap);
@@ -165,23 +163,6 @@ sealed class LibrariesScreen : ShellPage
                     if (by == 0) return false;
                     if (down) model.MoveLifted(by);
                     return true;
-                };
-                card.Item.FocusChanged += on =>
-                {
-                    if (on) Reveal(top);
-                };
-                cards.Add(card);
-                grid.Add(card.Item);
-            }
-            if (model.ListsPlaylists)
-            {
-                var at = ready.Libraries.Count;
-                var top = at / Columns * (CardHeight + Gap);
-                var card = new Card("playlists", "list-music", PlaylistText.PlaylistsTitle, null, width, sorting: false, moving: false);
-                card.Position = new Position(Ui.Dp(PleyTv.Gutter + at % Columns * (width + Gap)), Ui.Dp(top));
-                card.Item.Selected = () =>
-                {
-                    if (model.SelectPlaylists() is { } key) go(key);
                 };
                 card.Item.FocusChanged += on =>
                 {
@@ -293,9 +274,8 @@ sealed class LibrariesScreen : ShellPage
     }
 
     /// <summary>
-    /// One library, or Playlists with no line under its name: a Surface2 card; focused, the accent
-    /// fill with OnAccent content at 1.05. While sorting, a handle at its end; lifted, Surface3
-    /// with a ring around it, at its size.
+    /// One library: a Surface2 card; focused, the accent fill with OnAccent content at 1.05. While
+    /// sorting, a handle at its end; lifted, Surface3 with a ring around it, at its size.
     /// </summary>
     sealed class Card : View
     {
@@ -303,10 +283,10 @@ sealed class LibrariesScreen : ShellPage
         readonly View iconBox;
         readonly ImageView icon;
         readonly TextLabel name;
-        readonly TextLabel? line;
+        readonly TextLabel line;
         readonly ImageView? grip;
 
-        public Card(string focusName, string iconName, string title, string? caption, float width, bool sorting, bool moving)
+        public Card(LibraryEntry entry, float width, bool sorting, bool moving)
         {
             this.moving = moving;
             Size = new Size(Ui.Dp(width), Ui.Dp(CardHeight));
@@ -318,29 +298,26 @@ sealed class LibrariesScreen : ShellPage
                 BorderlineColor = PleyColors.AccentBright;
                 BorderlineOffset = -1;
             }
-            Item = new FocusItem(focusName);
+            Item = new FocusItem("library/" + entry.Library.Id);
             iconBox = new View
             {
                 Size = new Size(Ui.Dp(PleyTv.ButtonHeight), Ui.Dp(PleyTv.ButtonHeight)),
                 Position = new Position(Ui.Dp(18), Ui.Dp((CardHeight - PleyTv.ButtonHeight) / 2)),
                 CornerRadius = Ui.Dp(PleyShape.ControlRadius),
             };
-            icon = Icons.Icon(iconName, PleyTv.IconSize, PleyColors.Fg);
+            icon = Icons.Icon(LibraryText.KindIcon(entry.Library.Kind), PleyTv.IconSize, PleyColors.Fg);
             icon.Position = new Position(Ui.Dp((PleyTv.ButtonHeight - PleyTv.IconSize) / 2), Ui.Dp((PleyTv.ButtonHeight - PleyTv.IconSize) / 2));
             iconBox.Add(icon);
             Add(iconBox);
             var x = 18 + PleyTv.ButtonHeight + 14;
             var room = width - x - 18 - (sorting ? PleyTv.IconSize + 12 : 0);
-            var textTop = (CardHeight - PleyType.Title.Line - (caption != null ? 2 + PleyType.Caption.Line : 0)) / 2;
-            name = Text.Label(title, PleyType.Title, PleyColors.Fg, width: room);
+            var textTop = (CardHeight - PleyType.Title.Line - 2 - PleyType.Caption.Line) / 2;
+            name = Text.Label(entry.Library.Name, PleyType.Title, PleyColors.Fg, width: room);
             name.Position = new Position(Ui.Dp(x), Ui.Dp(textTop));
             Add(name);
-            if (caption != null)
-            {
-                line = Text.Label(caption, PleyType.Caption, PleyColors.Fg, width: room);
-                line.Position = new Position(Ui.Dp(x), Ui.Dp(textTop + PleyType.Title.Line + 2));
-                Add(line);
-            }
+            line = Text.Label(LibraryText.CardLine(entry), PleyType.Caption, PleyColors.Fg, width: room);
+            line.Position = new Position(Ui.Dp(x), Ui.Dp(textTop + PleyType.Title.Line + 2));
+            Add(line);
             if (sorting)
             {
                 grip = Icons.Icon("grip-vertical", PleyTv.IconSize, PleyColors.Fg);
@@ -360,7 +337,7 @@ sealed class LibrariesScreen : ShellPage
             BackgroundColor = moving ? PleyColors.Surface3 : accent ? PleyColors.Accent : PleyColors.Surface2;
             var ink = accent ? PleyColors.OnAccent : PleyColors.Fg;
             name.TextColor = ink;
-            if (line != null) line.TextColor = new Color(ink.R, ink.G, ink.B, 0.75f);
+            line.TextColor = new Color(ink.R, ink.G, ink.B, 0.75f);
             icon.Color = ink;
             iconBox.BackgroundColor = new Color(ink.R, ink.G, ink.B, 0.12f);
             if (grip != null) grip.Color = moving ? PleyColors.AccentBright : new Color(ink.R, ink.G, ink.B, 0.6f);

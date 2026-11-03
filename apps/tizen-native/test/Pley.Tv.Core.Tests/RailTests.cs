@@ -72,7 +72,6 @@ public class RailTests
                         Assert.True(live == items.Any(i => i.Slot == RailSlot.LiveTv), at);
                         Assert.True(storage == items.Any(i => i.Slot == RailSlot.Storage), at);
                         Assert.Contains(items, i => i.Slot == RailSlot.Playlists);
-                        Assert.False(Rail.PlaylistsOnLibrariesPage(items), at);
                         // Six libraries in the rail, and Libraries for more.
                         Assert.Equal(System.Math.Min(n, Rail.MaxLibraries), items.Count(i => i.Slot == RailSlot.Library));
                         Assert.True(n > Rail.MaxLibraries == items.Any(i => i.Slot == RailSlot.Libraries), at);
@@ -80,25 +79,19 @@ public class RailTests
                     }
     }
 
-    /// <summary>A rail of these ids: libraries, "Libraries" and Playlists as the rail makes them, anything else an entry of its own (Android's Discover).</summary>
-    static List<RailItem> RailOf(params string[] ids) => ids.Select(id => id switch
-    {
-        "libraries" => new RailItem(id, RailSlot.Libraries, new PageKey.Libraries()),
-        "playlists" => new RailItem(id, RailSlot.Playlists, new PageKey.Playlists()),
-        _ when id.StartsWith("library:") => new RailItem(id, RailSlot.Library, new PageKey.Library(long.Parse(id.Substring("library:".Length)))),
-        _ => new RailItem(id, RailSlot.Search, new PageKey.Search(id)),
-    }).ToList();
-
     [Fact]
-    public void Playlists_not_in_the_rail_are_under_Libraries()
+    public void A_rail_with_every_optional_entry_still_has_Playlists()
     {
-        // A rail made without Playlists, as the Libraries page still allows for.
-        var items = RailOf("search", "home", "libraries", "now-playing");
-        Assert.True(Rail.PlaylistsOnLibrariesPage(items));
-        Assert.Equal("libraries", Rail.Current(new PageKey.Playlists(), items));
-        Assert.Equal("libraries", Rail.Current(new PageKey.Library(1), items));
-        // Opened from the Libraries page, the stack starts there.
-        Assert.Equal("libraries", Rail.Current(new PageKey.Libraries(), items));
+        // Live TV, Now Playing and a USB drive, with six libraries: nothing makes way for them.
+        var full = Rail.Items(Libraries(6), nowPlaying: true, liveTv: true, storage: true);
+        Assert.Equal(new[] { "search", "home", "live-tv", "library:1", "library:2", "library:3", "library:4", "library:5", "library:6", "playlists", "collections", "now-playing", "storage" },
+            Ids(full));
+        Assert.Equal("playlists", Rail.Current(new PageKey.Playlists(), full));
+        // With one library or none, Playlists keeps its entry too: the rail is the way to it.
+        Assert.Equal(new[] { "search", "home", "live-tv", "library:1", "playlists", "collections", "now-playing", "storage" },
+            Ids(Rail.Items(Libraries(1), nowPlaying: true, liveTv: true, storage: true)));
+        Assert.Equal(new[] { "search", "home", "live-tv", "playlists", "now-playing", "storage" },
+            Ids(Rail.Items(new List<Library>(), nowPlaying: true, liveTv: true, storage: true)));
     }
 
     [Fact]
