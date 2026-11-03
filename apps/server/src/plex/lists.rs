@@ -11,6 +11,7 @@ use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::Response;
 
+use super::collection_search::Search;
 use super::keys::{self, Key};
 use super::library::{
     base_container, item_nodes, library_for, list_container, listing_detail, serve_image, visible_libraries,
@@ -20,6 +21,7 @@ use super::{Node, Page, Params, PlexAdmin, PlexError, PlexInfo, PlexResult, Plex
 use crate::auth::AuthUser;
 use crate::catalog::ItemRow;
 use crate::collections::{self, CollectionDto};
+use crate::labels;
 use crate::library::{LibraryKind, LibraryRow};
 use crate::playlists::{self, Kind, PlaylistDto};
 use crate::state::AppState;
@@ -39,7 +41,7 @@ fn playlist_path(key: i64) -> PlexResult<i64> {
 
 // ------------------------------------------------------------------ collections
 
-fn collection_node(c: &CollectionDto, lib: &LibraryRow) -> Node {
+fn collection_node(c: &CollectionDto, lib: &LibraryRow, labels: &[String]) -> Node {
     let subtype = if lib.kind() == LibraryKind::Shows { "show" } else { "movie" };
     let sort = match c.sort.as_str() {
         "title" => 1,
@@ -47,7 +49,7 @@ fn collection_node(c: &CollectionDto, lib: &LibraryRow) -> Node {
         _ => 0,
     };
     let key = keys::collection(c.id);
-    Node::item("Directory")
+    let mut node = Node::item("Directory")
         .attr("ratingKey", key.to_string())
         .attr("key", format!("/library/collections/{key}/children"))
         .attr("guid", format!("collection://{:024x}", c.id))
@@ -69,23 +71,51 @@ fn collection_node(c: &CollectionDto, lib: &LibraryRow) -> Node {
         // A smart collection's filter, which python-plexapi reads back.
         .opt("content", c.smart_filter.as_ref().map(|f| format!("/library/sections/{}/all?{f}", lib.id)))
         .attr("addedAt", c.created_at)
-        .attr("updatedAt", c.updated_at)
+        .attr("updatedAt", c.updated_at);
+    for label in labels {
+        node.push(Node::new("Label").attr("tag", label));
+    }
+    node
 }
 
-/// `/library/sections/{id}/collections`, also `/all?type=18`.
+/// The collection's labels, for [`collection_node`].
+async fn labels_of(state: &AppState, id: i64) -> PlexResult<Vec<String>> {
+    Ok(labels::for_collections(&state.db, &[id]).await?.remove(&id).unwrap_or_default())
+}
+
+/// `/library/sections/{id}/collections`, also `/all?type=18`, with the
+/// filters and sorts of [`Search`].
 pub async fn section_collections(
     State(state): State<AppState>,
     PlexUser(user): PlexUser,
     Extension(info): Extension<Arc<PlexInfo>>,
     Path(id): Path<String>,
+    params: Params,
     page: Page,
 ) -> PlexResult<Node> {
     let (lib, _) = library_for(&state, &user, &id).await?;
-    let (rows, total) = page.apply(collections::list(&state.db, &super::collections_viewer(&user), lib.id).await?);
-    let nodes = rows.iter().map(|c| collection_node(c, &lib)).collect();
+    let search = Search::parse(&params)?;
+    let all = collections::list(&state.db, &super::collections_viewer(&user), lib.id).await?;
+    let ids: Vec<i64> = all.iter().map(|c| c.id).collect();
+    let labels = labels::for_collections(&state.db, &ids).await?;
+    let (rows, total) = page.apply(search.apply(all, &labels));
+    let nodes = rows
+        .iter()
+        .map(|c| collection_node(c, &lib, labels.get(&c.id).map(Vec::as_slice).unwrap_or_default()))
+        .collect();
     Ok(list_container(Some(&lib), &info, nodes, total, &page)
         .attr("title2", "All Collections")
         .attr("viewGroup", "secondary"))
+}
+
+/// Labels of the collections of `lib` the user sees (filter choices).
+pub(super) async fn collection_labels(state: &AppState, user: &AuthUser, lib: &LibraryRow) -> PlexResult<Vec<String>> {
+    let all = collections::list(&state.db, &super::collections_viewer(user), lib.id).await?;
+    let ids: Vec<i64> = all.iter().map(|c| c.id).collect();
+    let mut found: Vec<String> = labels::for_collections(&state.db, &ids).await?.into_values().flatten().collect();
+    found.sort_by_key(|l| l.to_lowercase());
+    found.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+    Ok(found)
 }
 
 pub(super) async fn collection_for(
@@ -109,7 +139,8 @@ pub(super) async fn collection_details(
     id: i64,
 ) -> PlexResult<Node> {
     let (collection, _, lib, _) = collection_for(state, user, id).await?;
-    Ok(list_container(Some(&lib), info, vec![collection_node(&collection, &lib)], 1, &Page::default()))
+    let node = collection_node(&collection, &lib, &labels_of(state, id).await?);
+    Ok(list_container(Some(&lib), info, vec![node], 1, &Page::default()))
 }
 
 /// `/library/collections/{key}`
@@ -255,7 +286,7 @@ pub(super) async fn list_nodes(
         match *key {
             Key::Collection(id) => match collection_for(state, user, id).await {
                 Ok((collection, _, lib, _)) => {
-                    nodes.push(collection_node(&collection, &lib));
+                    nodes.push(collection_node(&collection, &lib, &labels_of(state, id).await?));
                     first.get_or_insert(lib);
                 }
                 Err(PlexError::NotFound) => {}
@@ -326,8 +357,7 @@ pub async fn create_collection(
         id
     };
     state.events.send(crate::events::ServerEvent::LibraryChanged { library_id: section });
-    let (collection, _, lib, _) = collection_for(&state, &admin, id).await?;
-    Ok(list_container(Some(&lib), &info, vec![collection_node(&collection, &lib)], 1, &Page::default()))
+    collection_details(&state, &admin, &info, id).await
 }
 
 /// `PUT /library/collections/{key}/items?uri=…`: a smart collection's new
@@ -353,8 +383,7 @@ pub async fn collection_add(
         collections::add_items(&state.db, id, library_id, &uri_items(uri)).await?;
     }
     state.events.send(crate::events::ServerEvent::LibraryChanged { library_id });
-    let (collection, _, lib, _) = collection_for(&state, &admin, id).await?;
-    Ok(list_container(Some(&lib), &info, vec![collection_node(&collection, &lib)], 1, &Page::default()))
+    collection_details(&state, &admin, &info, id).await
 }
 
 /// `DELETE /library/collections/{key}/items/{item}`

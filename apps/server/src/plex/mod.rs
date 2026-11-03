@@ -8,6 +8,7 @@
 //! with `Accept: application/json`. Everything goes through the same catalog,
 //! auth and playback code as pley's own API.
 
+mod collection_search;
 mod edit;
 mod keys;
 mod library;

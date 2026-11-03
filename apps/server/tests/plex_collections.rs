@@ -57,6 +57,20 @@ impl World {
     }
 }
 
+fn tags(node: &Value, element: &str) -> Vec<String> {
+    node[element]
+        .as_array()
+        .map(|t| t.iter().map(|t| t["tag"].as_str().unwrap().to_owned()).collect())
+        .unwrap_or_default()
+}
+
+fn directory_titles(container: &Value) -> Vec<String> {
+    container["Directory"]
+        .as_array()
+        .map(|d| d.iter().map(|d| d["title"].as_str().unwrap().to_owned()).collect())
+        .unwrap_or_default()
+}
+
 fn key(node: &Value) -> i64 {
     node["ratingKey"].as_str().unwrap().parse().unwrap()
 }
@@ -139,4 +153,54 @@ async fn collections_and_playlists_have_keys_of_their_own() {
     assert_eq!(upload.status, StatusCode::FORBIDDEN);
     let refresh = w.app.plex(Method::PUT, &format!("/library/metadata/{collection}/refresh"), &play, &[]).await;
     assert_eq!(refresh.status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn collections_keep_labels_and_are_found_by_them() {
+    let w = world().await;
+    let made = w.collection("Made By Kometa", &[w.alien]).await;
+    let other = w.collection("Kept By Hand", &[w.brazil]).await;
+    let section = format!("/library/sections/{}/all", w.movies);
+
+    // As python-plexapi's addLabel() sends it: the current labels and the new one.
+    let labelled = format!("{section}?type=18&id={made}&label[0].tag.tag=Kometa&label[1].tag.tag=Space&label.locked=1");
+    assert_eq!(w.send(Method::PUT, &labelled).await.status, StatusCode::OK);
+    assert_eq!(tags(&w.details(&format!("/library/collections/{made}")).await, "Label"), ["Kometa", "Space"]);
+    let listed = w.app.plex_json(&format!("{section}?type=18"), &w.admin).await;
+    let listed: Vec<Vec<String>> = listed["Metadata"].as_array().unwrap().iter().map(|c| tags(c, "Label")).collect();
+    assert_eq!(listed, [vec![], vec!["Kometa".to_owned(), "Space".to_owned()]], "Kept By Hand, then Made By Kometa");
+
+    // Found by label, as Kometa finds the collections it made.
+    let found = w.app.plex_json(&format!("{section}?type=18&label=kometa"), &w.admin).await;
+    assert_eq!(plex_titles(&found), ["Made By Kometa"]);
+    let found = w.app.plex_json(&format!("{section}?type=18&label!=Kometa"), &w.admin).await;
+    assert_eq!(plex_titles(&found), ["Kept By Hand"]);
+    let none = w.app.plex_json(&format!("{section}?type=18&label=Elsewhere"), &w.admin).await;
+    assert_eq!(none["size"], json!(0));
+    // And by title, as python-plexapi's collection() searches.
+    let found = w.app.plex_json(&format!("{section}?includeGuids=1&title=by%20hand&type=18"), &w.admin).await;
+    assert_eq!(plex_titles(&found), ["Kept By Hand"]);
+    let sorted = format!("/library/sections/{}/collections?sort=titleSort:desc", w.movies);
+    assert_eq!(plex_titles(&w.app.plex_json(&sorted, &w.admin).await), ["Made By Kometa", "Kept By Hand"]);
+    // A filter that can't be applied lists nothing.
+    for unknown in ["genre=Horror", "label%3E=Kometa", "push=1&label=Kometa&or=1&label=Space&pop=1"] {
+        let refused = w.send(Method::GET, &format!("{section}?type=18&{unknown}")).await;
+        assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{unknown}: {}", refused.text());
+    }
+
+    // The section's label choices name collections' labels too.
+    let choices = w.app.plex_json(&format!("/library/sections/{}/label?type=1", w.movies), &w.admin).await;
+    assert_eq!(directory_titles(&choices), ["Kometa", "Space"]);
+    let choices = w.app.plex_json(&format!("/library/sections/{}/label?type=18", w.movies), &w.admin).await;
+    assert_eq!(directory_titles(&choices), ["Kometa", "Space"]);
+    assert_eq!(choices["Directory"][0]["fastKey"], json!(format!("{section}?type=18&label=Kometa")));
+
+    // Removed as python-plexapi sends it, names percent-encoded once more.
+    let removed = format!("{section}?type=18&id={made}&label[].tag.tag-=Space&label.locked=1");
+    assert_eq!(w.send(Method::PUT, &removed).await.status, StatusCode::OK);
+    assert_eq!(tags(&w.details(&format!("/library/metadata/{made}")).await, "Label"), ["Kometa"]);
+    assert_eq!(tags(&w.details(&format!("/library/metadata/{other}")).await, "Label"), Vec::<String>::new());
+
+    let play = w.app.compatibility_token(&w.admin, "play").await;
+    assert_eq!(w.app.plex(Method::PUT, &labelled, &play, &[]).await.status, StatusCode::FORBIDDEN);
 }

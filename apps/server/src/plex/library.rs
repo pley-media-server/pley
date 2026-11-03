@@ -303,7 +303,15 @@ pub async fn all(
     page: Page,
 ) -> PlexResult<Node> {
     if params.get("type") == Some(super::lists::COLLECTION_TYPE) {
-        return super::lists::section_collections(State(state), PlexUser(user), Extension(info), Path(id), page).await;
+        return super::lists::section_collections(
+            State(state),
+            PlexUser(user),
+            Extension(info),
+            Path(id),
+            params,
+            page,
+        )
+        .await;
     }
     let (lib, libraries) = library_for(&state, &user, &id).await?;
     let kind = params.get("type").and_then(kind_for_number).unwrap_or(lib.kind().top_level_kind());
@@ -499,9 +507,13 @@ pub async fn filter_choices(
     params: Params,
 ) -> PlexResult<Node> {
     let (lib, _) = library_for(&state, &user, &id).await?;
+    let collections = params.get("type") == Some(super::lists::COLLECTION_TYPE);
     let kind = params.get("type").and_then(kind_for_number).unwrap_or(lib.kind().top_level_kind());
     let (genres, years) = catalog::library_filters(&state.db, user.id, lib.id, kind).await?;
     let values: Vec<String> = match filter.as_str() {
+        // Collections are filtered by their labels alone.
+        "label" if collections => super::lists::collection_labels(&state, &user, &lib).await?,
+        _ if collections => return Err(PlexError::NotFound),
         "genre" => genres,
         "year" => years.iter().map(i64::to_string).collect(),
         "decade" => {
@@ -549,7 +561,7 @@ pub async fn filter_choices(
             return Ok(mc);
         }
         "label" => {
-            sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+            let mut labels: Vec<String> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
                 "{ME_CTE} SELECT DISTINCT l.label FROM {VISIBLE_ITEMS} JOIN item_labels l ON l.item_id = i.id
                  WHERE {VISIBLE} AND i.library_id = ? AND i.kind = ? ORDER BY l.label"
             )))
@@ -557,7 +569,18 @@ pub async fn filter_choices(
             .bind(lib.id)
             .bind(kind)
             .fetch_all(&state.db.read)
-            .await?
+            .await?;
+            // A section's labels are its collections' too, as with Plex: Kometa
+            // looks a collection label up here before it lists `type=18` by it.
+            if kind == lib.kind().top_level_kind() {
+                for label in super::lists::collection_labels(&state, &user, &lib).await? {
+                    if !labels.iter().any(|l| l.eq_ignore_ascii_case(&label)) {
+                        labels.push(label);
+                    }
+                }
+                labels.sort_by_key(|l| l.to_lowercase());
+            }
+            labels
         }
         "contentRating" | "studio" => {
             let column = if filter == "studio" { "studio" } else { "content_rating" };
@@ -580,7 +603,7 @@ pub async fn filter_choices(
         .attr("librarySectionUUID", info.section_uuid(lib.id))
         .attr("title1", &lib.name)
         .attr("viewGroup", "secondary");
-    let n = type_number(kind);
+    let n = if collections { super::lists::COLLECTION_TYPE.to_owned() } else { type_number(kind).to_string() };
     for value in values {
         mc.push(
             Node::new("Directory")

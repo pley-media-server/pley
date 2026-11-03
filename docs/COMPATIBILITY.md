@@ -365,10 +365,11 @@ does:
   collection's key sets the collection's; a playlist's answers `400`, as a
   playlist shows its first entry's picture.
 - Collections: their title, sort title (kept as set, and listed as
-  `titleSort`) and summary through their section (`type=18&id=…`, as
-  `python-plexapi` edits them) or `PUT /library/metadata/{key}`, their
-  poster and background through `POST /library/metadata/{key}/posters`
-  or `/library/collections/{key}/posters` (or `/arts`).
+  `titleSort`), summary and labels (as items' labels, listed as `Label`)
+  through their section (`type=18&id=…`, as `python-plexapi` edits them)
+  or `PUT /library/metadata/{key}`, their poster and background through
+  `POST /library/metadata/{key}/posters` or
+  `/library/collections/{key}/posters` (or `/arts`).
 - `POST /library/collections?type=1&title=…&sectionId=…&smart=0&uri=server://…/library/metadata/1,2`
   makes a collection of those items; with `smart=1` and
   `uri=server://…/library/sections/{id}/all?genre=…` a smart collection,
@@ -421,6 +422,14 @@ a field Pley doesn't read (`resolution`, `hdr`, `dovi`, `audioLanguage`,
 `Meta` element; `python-plexapi` validates searches against it. Pley's
 smart collections and smart playlists use the same query string
 ([API.md](API.md#collections)).
+
+Collections (`type=18`, and `/library/sections/{id}/collections`) are
+filtered by `title` (as strings are) and `label` (`=`, `!=`), with or
+without the `collection.` prefix, sorted by `titleSort`, `addedAt` or
+`updatedAt`, and cut by `limit`. Any other filter answers `400`, never the
+whole list: tools such as Kometa find the collections they made by label.
+A section's `label` choices name its collections' labels too, and
+`/library/sections/{id}/label?type=18` names only those.
 
 ### Tested
 

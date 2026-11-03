@@ -14,8 +14,8 @@
 //!   body sets the poster (or background); with `?url=`, and
 //!   `PUT /library/metadata/{id}/poster?url=` (or `/art`), a TMDB image;
 //! - collections (`type=18` edits through their section, or by their keys):
-//!   title, sort title and summary, and their pictures by their keys or
-//!   `POST /library/collections/{key}/posters` (or `/arts`).
+//!   title, sort title, summary and labels, and their pictures by their keys
+//!   or `POST /library/collections/{key}/posters` (or `/arts`).
 
 use axum::body::Bytes;
 use axum::extract::{Path, State};
@@ -140,8 +140,9 @@ pub async fn section(
     apply(&state, Some(section), &ids, &Edit::parse(&params)).await
 }
 
-/// Title, sort title and summary of collections, which python-plexapi edits
-/// through their section like items (`section`), or by their keys.
+/// Title, sort title, summary and labels of collections, which
+/// python-plexapi edits through their section like items (`section`), or by
+/// their keys.
 async fn edit_collections(
     state: &AppState,
     section: Option<i64>,
@@ -159,10 +160,14 @@ async fn edit_collections(
             libraries.push(library_id);
         }
     }
+    let tags = Edit::parse(params).labels;
     for &id in ids {
         let title = value("title").filter(|t| !t.is_empty());
         let summary = value("summary").map(|s| Some(s).filter(|s| !s.is_empty()));
         collections::update(&state.db, id, title, summary, None).await?;
+        if !tags.add.is_empty() || !tags.remove.is_empty() {
+            labels::edit_collection(&state.db, id, &tags.add, &tags.remove).await?;
+        }
         // An explicit sort title (Kometa orders collections with them).
         if let Some(sort) = value("titleSort").filter(|s| !s.is_empty()) {
             sqlx::query("UPDATE collections SET sort_title = ?, edited = 1 WHERE id = ?")

@@ -1,5 +1,6 @@
-//! Labels on items (see migrations/0015_labels.sql): free-form tags, matched
-//! without regard to case. They are set through the Plex-compatible API.
+//! Labels on items (see migrations/0015_labels.sql) and on collections
+//! (0043_collection_labels.sql): free-form tags, matched without regard to
+//! case. They are set through the Plex-compatible API.
 
 use std::collections::HashMap;
 
@@ -8,12 +9,38 @@ use crate::db::Db;
 /// Longest label kept, in characters.
 const MAX_LEN: usize = 120;
 
+/// What labels are on: the table and its owner column.
+#[derive(Clone, Copy)]
+enum On {
+    Items,
+    Collections,
+}
+
+impl On {
+    fn table(self) -> (&'static str, &'static str) {
+        match self {
+            On::Items => ("item_labels", "item_id"),
+            On::Collections => ("collection_labels", "collection_id"),
+        }
+    }
+}
+
 /// The labels of `ids`, by item, sorted.
 pub async fn for_items(db: &Db, ids: &[i64]) -> sqlx::Result<HashMap<i64, Vec<String>>> {
+    labels_of(db, On::Items, ids).await
+}
+
+/// The labels of collections `ids`, by collection, sorted.
+pub async fn for_collections(db: &Db, ids: &[i64]) -> sqlx::Result<HashMap<i64, Vec<String>>> {
+    labels_of(db, On::Collections, ids).await
+}
+
+async fn labels_of(db: &Db, on: On, ids: &[i64]) -> sqlx::Result<HashMap<i64, Vec<String>>> {
+    let (table, owner) = on.table();
     let mut out: HashMap<i64, Vec<String>> = HashMap::new();
     for chunk in ids.chunks(500) {
         let sql = format!(
-            "SELECT item_id, label FROM item_labels WHERE item_id IN ({}) ORDER BY label",
+            "SELECT {owner}, label FROM {table} WHERE {owner} IN ({}) ORDER BY label",
             vec!["?"; chunk.len()].join(",")
         );
         let mut query = sqlx::query_as::<_, (i64, String)>(sqlx::AssertSqlSafe(sql.as_str()));
@@ -29,18 +56,28 @@ pub async fn for_items(db: &Db, ids: &[i64]) -> sqlx::Result<HashMap<i64, Vec<St
 
 /// Adds `add` and removes `remove` (names, whatever their case).
 pub async fn edit(db: &Db, item_id: i64, add: &[String], remove: &[String]) -> sqlx::Result<()> {
+    edit_labels(db, On::Items, item_id, add, remove).await
+}
+
+/// Adds `add` to collection `id` and removes `remove`, as [`edit`].
+pub async fn edit_collection(db: &Db, id: i64, add: &[String], remove: &[String]) -> sqlx::Result<()> {
+    edit_labels(db, On::Collections, id, add, remove).await
+}
+
+async fn edit_labels(db: &Db, on: On, owner_id: i64, add: &[String], remove: &[String]) -> sqlx::Result<()> {
+    let (table, owner) = on.table();
     let mut tx = db.write.begin().await?;
     for label in remove {
-        sqlx::query("DELETE FROM item_labels WHERE item_id = ? AND label = ?")
-            .bind(item_id)
+        sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE {owner} = ? AND label = ?")))
+            .bind(owner_id)
             .bind(label.trim())
             .execute(&mut *tx)
             .await?;
     }
     for label in add.iter().map(|l| l.trim()).filter(|l| !l.is_empty()) {
         let label: String = label.chars().take(MAX_LEN).collect();
-        sqlx::query("INSERT OR IGNORE INTO item_labels (item_id, label) VALUES (?, ?)")
-            .bind(item_id)
+        sqlx::query(sqlx::AssertSqlSafe(format!("INSERT OR IGNORE INTO {table} ({owner}, label) VALUES (?, ?)")))
+            .bind(owner_id)
             .bind(label)
             .execute(&mut *tx)
             .await?;
@@ -75,5 +112,19 @@ mod tests {
         assert_eq!(found[&2], ["Kids"]);
         edit(&db, 1, &[], &labels(&["OVERLAY"])).await.unwrap();
         assert_eq!(for_items(&db, &[1]).await.unwrap()[&1], ["4K"]);
+
+        // Collections keep theirs apart, even with an item's id.
+        sqlx::query(
+            "INSERT INTO collections (id, library_id, title, sort_title, created_at, updated_at)
+             VALUES (1, 1, 'Two', 'two', 0, 0)",
+        )
+        .execute(&db.write)
+        .await
+        .unwrap();
+        edit_collection(&db, 1, &labels(&["Kometa", "kometa"]), &[]).await.unwrap();
+        assert_eq!(for_collections(&db, &[1]).await.unwrap()[&1], ["Kometa"]);
+        assert_eq!(for_items(&db, &[1]).await.unwrap()[&1], ["4K"]);
+        edit_collection(&db, 1, &[], &labels(&["KOMETA"])).await.unwrap();
+        assert!(for_collections(&db, &[1]).await.unwrap().is_empty());
     }
 }
