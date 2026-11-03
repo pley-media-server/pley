@@ -596,7 +596,9 @@ fn range_problem(v: &MediaStream, caps: &Caps) -> Option<String> {
     }
     let label = v.dynamic_range_label();
     if range == DynamicRange::DolbyVision {
-        if caps.dolby_vision {
+        // A file that doesn't name its Dolby Vision gives the player its
+        // base layer.
+        if caps.dolby_vision && !v.dv_unnamed {
             return None;
         }
         if v.is_dolby_vision_only() {
@@ -667,8 +669,11 @@ const DV_BL_BLU_RAY: i64 = 6;
 /// a player listing 8 but not 7; and Dolby Vision + HDR10+ streams
 /// repackaged without their HDR10+ for a player that would decode them as
 /// Dolby Vision, never played as they are, unless it says it shows them
-/// ([`Caps::dolby_vision_hdr10plus`]; androidx/media#1895). Without a
-/// master playlist, those are repackaged as their base layer. A stream
+/// ([`Caps::dolby_vision_hdr10plus`]; androidx/media#1895). A stream whose
+/// file doesn't name its Dolby Vision ([`MediaStream::dv_unnamed`]) is
+/// repackaged for them to name it: as it is, its base layer would play.
+/// Without a master playlist, those are repackaged as their base layer
+/// (played as it is, for a file that doesn't name it). A stream
 /// whose file says a higher level than its decoder takes, though its size
 /// and frame rate need one it takes (a re-encode's 10 for 4K at 24 fps), is
 /// repackaged to keep Dolby Vision, named at the level it needs; a
@@ -759,6 +764,20 @@ fn video_v2(v: &MediaStream, caps: &Caps, converted: OutputRange, download: bool
                     if base.direct {
                         base.direct = false;
                         base.reasons.push(format!("{label} plays as {base_layer}."));
+                    }
+                    base
+                }
+                // A file that doesn't name its Dolby Vision gives the
+                // player its base layer as it is: repackaged, it's named.
+                Some(_) if level_ok && v.dv_unnamed => {
+                    if signal && !download {
+                        return VideoVerdict {
+                            direct: false,
+                            copy: true,
+                            dolby_vision: DolbyVisionMode::Signal,
+                            reasons: vec![format!("The file doesn't name its {}.", v.dolby_vision_label())],
+                            ..Default::default()
+                        };
                     }
                     base
                 }
@@ -899,7 +918,7 @@ pub fn video_range_shown(v: &MediaStream, caps: &Caps, delivery: Delivery) -> Op
             DynamicRange::Hdr10plus if !shows_hdr10plus => "HDR10 (this screen doesn't show HDR10+)".to_owned(),
             other => other.label().to_owned(),
         },
-        Delivery::Direct if decodes_dolby_vision(v, caps) => {
+        Delivery::Direct if decodes_dolby_vision(v, caps) && !v.dv_unnamed => {
             video_range_label(range, v.dv_profile, v.dv_bl_compat, v.dv_el, false)
         }
         Delivery::Copy { dolby_vision: DolbyVisionMode::To81, hdr10plus_stripped } => {
@@ -919,25 +938,32 @@ pub fn video_range_shown(v: &MediaStream, caps: &Caps, delivery: Delivery) -> Op
                 // insisted on gets here.
                 format!("{dolby_vision} not decoded (wrong colours)")
             } else {
-                format!("{} (Dolby Vision base layer, as {})", base_layer_name(v, caps), base_layer_why(v, caps))
+                let direct = delivery == Delivery::Direct;
+                format!(
+                    "{} (Dolby Vision base layer, as {})",
+                    base_layer_name(v, caps),
+                    base_layer_why(v, caps, direct)
+                )
             }
         }
     };
     Some(shown)
 }
 
-/// Why a Dolby Vision stream the player gets as it is, or copied, shows as
-/// its base layer: the screen, the player, or a remux that doesn't name its
-/// Dolby Vision (the player reads no master playlist, the transcoder writes
-/// none, or the stream isn't HEVC). A player that lists profiles but no
-/// Dolby Vision screen decodes it: its screen is what's missing. One that
-/// lists none is told neither: Kodi and Roku can't tell their screen from
-/// their decoders.
-fn base_layer_why(v: &MediaStream, caps: &Caps) -> String {
+/// Why a Dolby Vision stream the player gets as it is (`direct`), or
+/// copied, shows as its base layer: the screen, the player, a file that
+/// doesn't name its Dolby Vision, or a remux that doesn't (the player
+/// reads no master playlist, the transcoder writes none, or the stream
+/// isn't HEVC). A player that lists profiles but no Dolby Vision screen
+/// decodes it: its screen is what's missing. One that lists none is told
+/// neither: Kodi and Roku can't tell their screen from their decoders.
+fn base_layer_why(v: &MediaStream, caps: &Caps, direct: bool) -> String {
     let profile = v.dv_profile.unwrap_or(0);
     if decodes_dolby_vision(v, caps) {
         return if caps.is_v2() && v.hdr10plus == Some(true) && !caps.dolby_vision_hdr10plus {
             "Dolby Vision with HDR10+ doesn't play here".to_owned()
+        } else if v.dv_unnamed && direct {
+            "the file doesn't name Dolby Vision".to_owned()
         } else {
             "its remux doesn't name Dolby Vision".to_owned()
         };

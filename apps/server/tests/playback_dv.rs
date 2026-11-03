@@ -559,6 +559,87 @@ fn version_1_players_are_untouched() {
     assert_eq!(outcome(&play_in(hls, "mkv", &source("P8.1+"))), "T");
 }
 
+/// `source(row)` as a file that doesn't name its Dolby Vision: the probe
+/// found it in the frames, with no level.
+fn unnamed(row: &str) -> MediaInfo {
+    let mut info = source(row);
+    info.streams[0].dv_unnamed = true;
+    info.streams[0].dv_level = None;
+    info
+}
+
+/// A file that doesn't name its Dolby Vision gives a player its base layer
+/// as it is: one that would decode it as Dolby Vision gets it repackaged
+/// with Dolby Vision named instead. Others get what files that name it get,
+/// and without a master playlist it plays as it is (profile 5, with no
+/// base layer, converted).
+#[test]
+fn dolby_vision_the_file_doesnt_name_is_named_in_a_remux() {
+    let rows = ["P5", "P7", "P8.1", "P8.4", "P8.1+", "P7+"];
+    #[rustfmt::skip]
+    let table: [(&str, Value, [&str; 6]); 5] = [
+        //                                   P5      P7       8.1     8.4     8.1+ HDR10+     P7 + HDR10+
+        ("Fire TV Stick 4K Max", fire_tv_4k_max(), ["R+DV", "R+8.1", "R+DV", "R+DV", "R+DV-HDR10+", "R+8.1-HDR10+"]),
+        ("Shield",               shield(),         ["R+DV", "R+DV",  "R+DV", "R+DV", "R+DV-HDR10+", "R+DV-HDR10+"]),
+        ("Google TV Streamer",   google_tv_streamer(), ["T", "R",    "D",    "T",    "D",           "R"]),
+        ("Fire TV Stick Lite",   fire_tv_lite(),   ["T",    "R",     "D",    "D",    "D",           "R"]),
+        ("4K Max, no master playlist", without_master(fire_tv_4k_max()), ["T", "R", "D", "D", "R", "R"]),
+    ];
+    for (device, caps, expected) in table {
+        for (row, want) in rows.iter().zip(expected) {
+            let d = play_in(caps.clone(), "mkv", &unnamed(row));
+            assert_eq!(outcome(&d), want, "{device}, {row}: {:?}", d.reasons);
+        }
+    }
+    let reasons = |caps: Value, row: &str| play_in(caps, "mkv", &unnamed(row)).reasons;
+    assert_eq!(reasons(fire_tv_4k_max(), "P8.1"), ["The file doesn't name its Dolby Vision P8.1."]);
+    assert_eq!(reasons(fire_tv_4k_max(), "P7"), ["Dolby Vision P7 converted to P8.1."]);
+    assert_eq!(reasons(without_master(fire_tv_4k_max()), "P5"), ["Dolby Vision P5 converted to SDR."]);
+
+    // What the screen gets.
+    assert_eq!(screen_gets(fire_tv_4k_max(), "mkv", &unnamed("P8.1")), "Dolby Vision P8.1");
+    assert_eq!(screen_gets(shield(), "mkv", &unnamed("P7")), "Dolby Vision P7");
+    assert_eq!(
+        screen_gets(without_master(fire_tv_4k_max()), "mkv", &unnamed("P8.1")),
+        "HDR10 (Dolby Vision base layer, as the file doesn't name Dolby Vision)"
+    );
+
+    // A download is the file as it is: its base layer, profile 5 converted.
+    let download = |row: &str| {
+        let mut req = request(fire_tv_4k_max());
+        req.download = true;
+        let info = unnamed(row);
+        decide(&file("mkv"), Some(&info), &info.streams, &req).method
+    };
+    assert_eq!(download("P8.1"), Method::Direct);
+    assert_ne!(download("P5"), Method::Direct);
+}
+
+/// Version 1 players never get Dolby Vision named in a remux: one that
+/// decodes Dolby Vision plays the file as it is, as its base layer, and
+/// profile 5, which has none, converted.
+#[test]
+fn version_1_dolby_vision_the_file_doesnt_name() {
+    let safari = json!({
+        "containers": ["mp4", "m4v", "mov"],
+        "video_codecs": ["h264", "hevc"],
+        "audio_codecs": ["aac", "mp3", "ac3", "eac3"],
+        "hdr": true,
+        "dolby_vision": true
+    });
+    let d = play_in(safari.clone(), "mp4", &unnamed("P8.1"));
+    assert_eq!(outcome(&d), "D", "{:?}", d.reasons);
+    assert_eq!(
+        screen_gets(safari.clone(), "mp4", &unnamed("P8.1")),
+        "HDR10 (Dolby Vision base layer, as the file doesn't name Dolby Vision)"
+    );
+    let d = play_in(safari.clone(), "mp4", &unnamed("P5"));
+    assert_eq!(outcome(&d), "T");
+    assert_eq!(d.reasons, ["Dolby Vision P5 converted to SDR."]);
+    // Named by its file, profile 5 plays as it is there.
+    assert_eq!(outcome(&play_in(safari, "mp4", &source("P5"))), "D");
+}
+
 // ------------------------------------------------------------------ the stand-in
 
 const TOKEN: &str = "shared-secret";

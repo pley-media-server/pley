@@ -217,6 +217,15 @@ pub struct MediaStream {
     /// transcoder, or frames that couldn't be read).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dv_el: Option<DolbyVisionLayer>,
+    /// Dolby Vision found only in the frames (their RPUs): the file doesn't
+    /// name it, having no configuration record (some remuxes and older
+    /// muxers leave it out). A player given the file as it is decodes its
+    /// base layer; a remux names it. The profile is the one the RPUs
+    /// point to, the base layer's compatibility the one its transfer
+    /// says, and `dv_level` is unknown. Older probes took such a stream
+    /// for its base layer.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub dv_unnamed: bool,
     /// HDR10+ dynamic metadata (SMPTE ST 2094-40) in the video's first
     /// frames, looked for in Dolby Vision and PQ (HDR10) streams. `true` on
     /// a Dolby Vision stream is Dolby Vision + HDR10+, which some Dolby

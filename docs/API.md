@@ -390,8 +390,10 @@ interface MediaStream {
                                     // 6 = Blu-ray HDR10 (profile 7), 0 = none
   dv_el?: "fel" | "mel";            // profile 7's enhancement layer: full (picture data) or minimal;
                                     // absent: not known
+  dv_unnamed?: boolean;             // Dolby Vision found in the frames' RPUs, which the file doesn't name
+                                    // (no configuration record): played as it is, its base layer shows
   decode_order_times?: boolean;     // frames timed in decode order, not display order: the video is converted
-  dv_level?: number;                // Dolby Vision level
+  dv_level?: number;                // Dolby Vision level (absent with dv_unnamed)
   hdr10plus?: boolean;              // Dolby Vision and PQ streams: HDR10+ in the first frames (absent: not
                                     // looked for). On Dolby Vision, true means Dolby Vision + HDR10+
   // Clients name the dynamic range the same way everywhere: "Dolby Vision P8.1", "Dolby Vision P8.4",
@@ -465,7 +467,8 @@ interface PlaybackInfo {
                                     // "HDR10 (Dolby Vision base layer, as this screen doesn't show Dolby
                                     // Vision)", "HDR10+ (Dolby Vision base layer, as this player doesn't
                                     // decode profile 7)": the base layer plays for the screen, the
-                                    // player's profiles or level, a remux that doesn't name Dolby Vision,
+                                    // player's profiles or level, a file or remux that doesn't name Dolby
+                                    // Vision,
                                     // or HDR10+ in the stream; "as Dolby Vision isn't shown here" for a
                                     // player that lists no profiles (Kodi and Roku can't tell their
                                     // screen from their decoders);
@@ -2532,6 +2535,15 @@ become:
   Dolby Vision play these files normally. Files analyzed by an older server
   don't carry the flag until a forced scan of their library analyzes them
   again.
+- **Dolby Vision the file doesn't name** (`dv_unnamed: true`: no
+  configuration record, the RPUs found in the frames when the file is
+  analyzed): as it is, a player decodes its base layer. A player that would
+  decode it as Dolby Vision gets it repackaged with Dolby Vision named
+  ("The file doesn't name its Dolby Vision P8.1."), by the rules above
+  (profile 7 converted to 8.1, HDR10+ left out). Without a master playlist,
+  and for a download, it plays as it is, as its base layer; profile 5,
+  which has none, is converted. Files analyzed before the server looked for
+  it are analyzed again by the next scan of their library.
 - A server whose transcoder lacks `hls_master_playlist` in its capabilities
   decides as if no player read master playlists.
 

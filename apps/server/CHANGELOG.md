@@ -131,6 +131,13 @@ describes how they are made.
 
 ### Fixed
 
+- Dolby Vision files whose container doesn't say they are Dolby Vision
+  (some remuxes and older muxers leave that out) are found by what their
+  frames carry. They are labelled Dolby Vision P8.1, P7 FEL and so on
+  rather than HDR10 or HDR10+, and the next scan finds those already in a
+  library. Players that show Dolby Vision get them repackaged with Dolby
+  Vision named, since played as they are they would show the HDR10 base
+  layer.
 - Blu-ray subtitles that show two pictures at once, the first one forced,
   show both in the web app, and a picture the disc crops shows cropped.
 - A password or PIN checked while the server is out of memory gets "Pley

@@ -1143,18 +1143,33 @@ writes the same init:
 The sample entries are `hvc1` and `dvh1` rather than `hev1` and `dvhe`, as
 Apple's players want them.
 
-### HDR10+ and profile 7's enhancement layer
+### HDR10+, profile 7's enhancement layer and Dolby Vision in the frames
 
-The probe of a Dolby Vision or PQ stream decodes its first frames' side data
-and records:
+The probe of a Dolby Vision or PQ stream, and of any 10-bit HEVC stream,
+decodes its first frames' side data and records:
 
+- Dolby Vision the file doesn't name. A stream is Dolby Vision when its
+  container carries a Dolby Vision configuration record (`dvcC`/`dvvC` in
+  MP4, a `BlockAdditionMapping` in Matroska, a descriptor in MPEG-TS), which
+  some remuxes and older muxers leave out. FFmpeg reads the RPUs in the
+  frames all the same, so a 10-bit HEVC stream whose frames carry Dolby
+  Vision metadata becomes `dynamic_range: dolby_vision` with
+  `MediaStream.dv_unnamed`. Its profile is the one the RPUs point to, as
+  FFmpeg and `dovi_tool` guess it without a record (5, 7, 8, or 4). Its
+  base layer's compatibility id is 6 for profile 7, none for 5, and
+  otherwise what the transfer says (1 for PQ, 4 for HLG, 2 for SDR). Its
+  level is absent, so playlists and inits name the one its size and frame
+  rate need. A player given the file as it is decodes its base layer; a
+  remux names it like any other Dolby Vision
+  ([Dolby Vision in remuxes](#dolby-vision-in-remuxes)).
 - `MediaStream.hdr10plus`; a PQ stream with HDR10+ becomes
-  `dynamic_range: hdr10plus`.
+  `dynamic_range: hdr10plus`, and Dolby Vision found in the frames keeps
+  its base layer's HDR10+ (Dolby Vision + HDR10+).
 - For profile 7, `MediaStream.dv_el`: `mel` (minimal) when the enhancement
   layer's residual is zero in every component, else `fel` (full).
 
-Both are absent when the frames can't be read, and for other streams. The
-job's video plan repeats them (`dv_el`, `hdr10plus`).
+These are absent when the frames can't be read, and for other streams. The
+job's video plan repeats `dv_el` and `hdr10plus`.
 
 The probe of every video reads the same first frames' side data for closed
 captions (CEA-608/708, "ATSC A53 Part 4 Closed Captions") and records
