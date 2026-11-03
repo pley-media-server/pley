@@ -65,6 +65,23 @@ fn a_picture_that_never_starts_fails_after_12_s_with_what_to_do() {
 }
 
 #[test]
+fn a_picture_that_played_then_stood_still_12_s_says_the_drive_may_be_out() {
+    let mut w = on_drive(file(), &[]);
+    w.start();
+    w.open();
+    w.advance(2_000);
+    // The drive pulled out: the TV's player waits for data that never comes, saying nothing else.
+    w.sim.wait(true);
+    w.advance(11_500);
+    assert_eq!(w.c.state().phase, Phase::Buffering);
+    w.advance(1_000);
+    // It played: the file is one this TV plays, so not "try another copy".
+    let unreadable = Phase::Error { message: DRIVE_UNREADABLE.into(), can_retry: true, title: None };
+    assert_eq!(w.c.state().phase, unreadable);
+    assert!(w.fake.questions().is_empty(), "{:?}", w.fake.questions());
+}
+
+#[test]
 fn an_engine_error_asks_no_server_and_says_nothing_converts_it() {
     let mut w = on_drive(file(), &[]);
     w.start();

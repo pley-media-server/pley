@@ -1914,9 +1914,12 @@ impl PlaybackController {
             self.last_advance_pos = pos;
         } else if now - self.last_advance_at >= STALL_MS {
             self.last_advance_at = now;
-            // A file on a drive waits for no server, and the same file again would stand still again.
+            // A file on a drive waits for no server, and the same file again would stand still
+            // again: one whose picture never came isn't one this TV plays; one that played and
+            // then stood still can't be read any more (the drive pulled out).
             if self.local() {
-                self.fail(details::LOCAL_STUCK, true, None);
+                let why = if self.media_shown { details::DRIVE_UNREADABLE } else { details::LOCAL_STUCK };
+                self.fail(why, true, None);
                 return;
             }
             let ahead = self.view.buffered_end.map_or(0, |e| e - self.engine.position_ms() as i64);

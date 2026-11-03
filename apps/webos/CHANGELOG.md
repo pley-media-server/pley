@@ -157,6 +157,8 @@ describes how they are made.
   says so and leaves when Pley shows again, rather than an empty player.
 - In Live TV's guide, ◀◀ and ▶▶, Previous and Next move it two hours while
   music plays too, rather than skipping the music's track.
+- A USB drive's video that played and then stood still says the drive may
+  have been pulled out, not that the TV doesn't play the file.
 
 ### Security
 
