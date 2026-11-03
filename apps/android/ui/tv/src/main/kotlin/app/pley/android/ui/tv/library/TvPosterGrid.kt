@@ -198,6 +198,25 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
         return true
     }
 
+    /**
+     * [lead], worked out from what is laid out while it isn't known yet: the
+     * cell whose key is that of the position as many items back as a header
+     * has ([MAX_LEAD] at most). 0 until a cell is laid out.
+     */
+    fun leadNow(): Int {
+        if (lead >= 0) return lead
+        for (item in state.layoutInfo.visibleItemsInfo) {
+            for (back in 0..minOf(item.index, MAX_LEAD)) {
+                val position = item.index - back
+                if (position < total && keyAt(position) == item.key) {
+                    lead = back
+                    return back
+                }
+            }
+        }
+        return 0
+    }
+
     /** Whether the cell keyed [key] is laid out on the grid, not only composed off it. */
     private fun laidOut(key: Any): Boolean = state.layoutInfo.visibleItemsInfo.any { it.key == key }
 
@@ -321,7 +340,7 @@ internal fun TvPosterGrid(
     val spec = remember(density, contentTop, heroHeight, state, motion) {
         CellSpec(GridSpec(with(density) { contentTop.toPx() }, with(density) { heroHeight.toPx() }, state), motion)
     }
-    val images = remember(total, tileAt) { TvImages(total, tileAt) }
+    val images = remember(total, tileAt, motion) { TvImages(total, tileAt, motion::leadNow) }
     rememberImagePrefetcher(
         state = state,
         images = images,
@@ -465,12 +484,19 @@ private fun GridCell(
     }
 }
 
-/** A grid's pictures by position, for the prefetcher. */
-private class TvImages(private val total: Int, private val tileAt: (Int) -> ArtworkTileModel?) : AbstractList<ArtworkImage?>() {
-    override val size: Int get() = total
+/**
+ * A grid's pictures by the lazy grid's index, for the prefetcher: a
+ * header's items ([lead] of them) come before the cells, and have none.
+ */
+private class TvImages(private val total: Int, private val tileAt: (Int) -> ArtworkTileModel?, private val lead: () -> Int) :
+    AbstractList<ArtworkImage?>() {
+    override val size: Int get() = lead() + total
 
-    override fun get(index: Int): ArtworkImage? = tileAt(index)?.image
+    override fun get(index: Int): ArtworkImage? = (index - lead()).takeIf { it >= 0 }?.let(tileAt)?.image
 }
+
+/** The most items a grid's header has before its cells. */
+private const val MAX_LEAD = 4
 
 /**
  * Keeps the focused row's top [anchor] from the grid's top; while focus
