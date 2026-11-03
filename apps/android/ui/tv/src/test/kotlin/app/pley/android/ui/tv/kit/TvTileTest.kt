@@ -12,7 +12,10 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.ui.tv.theme.TvTheme
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -21,7 +24,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Tiles: Select opens, and holding Select or pressing Menu gives the actions (rule 6).
+ * Tiles: Select opens, and holding Select or pressing Menu gives the actions (rule 6);
+ * a quiet tile (a row sliding, a grid gliding under a held key) shows none of its focus
+ * look until the quiet ends.
  * Held direction keys are [TvRowFocusTest]'s.
  */
 @OptIn(ExperimentalTestApi::class)
@@ -89,5 +94,23 @@ class TvTileTest {
         compose.waitForIdle()
         assertEquals(listOf(1L), actions)
         assertTrue(opened.isEmpty())
+    }
+
+    @Test
+    fun aQuietTileShowsNoneOfItsFocusLookTillTheQuietEnds() = runTest {
+        val quiet = TileQuiet()
+        val look = TileFocusLook(this, gate, quiet).apply { reduced = true }
+        look.focus(true)
+        runCurrent()
+        assertEquals(1f, look.shown())
+        assertTrue(look.emphasized)
+        // Its row slides: no ring, no growth, a regular caption.
+        quiet.start()
+        assertEquals(0f, look.shown())
+        assertEquals(1f, look.scale())
+        assertFalse(look.emphasized)
+        quiet.end(reduced = true)
+        assertEquals(1f, look.shown())
+        assertTrue(look.emphasized)
     }
 }

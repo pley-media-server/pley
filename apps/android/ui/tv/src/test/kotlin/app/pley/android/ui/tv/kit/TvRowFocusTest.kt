@@ -24,6 +24,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
@@ -46,7 +47,9 @@ import org.robolectric.annotation.Config
  * between rows, Left from a row's first tile into the rail, Right stopping
  * at the end, each row coming back to the tile it had, a press moving the
  * row over 150 ms, and a held key sliding it under a still ring, on the
- * gate's clock, to land on the tile under the ring when the key comes up.
+ * gate's clock, to land on the tile under the ring when the key comes up;
+ * the page gliding to a row over 150 ms for a press, and on without a
+ * stop or a jump under a held Up or Down.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -122,12 +125,40 @@ class TvRowFocusTest {
         compose.waitForIdle()
     }
 
+    /** A page of twelve rows of posters, the first row's header at the line (y = 172). */
+    private fun rows(reduced: Boolean? = null) {
+        compose.setContent {
+            list = rememberLazyListState()
+            TvTheme(reducedMotion = reduced) {
+                CompositionLocalProvider(LocalTvRailFocus provides rail, LocalKeyRepeatGate provides gate) {
+                    Box(Modifier.fillMaxSize().keyRepeatGate(gate)) {
+                        TvRowColumn(state = list, contentPadding = PaddingValues(top = 172.dp, bottom = LastRowRoom), modifier = Modifier.fillMaxSize()) {
+                            repeat(12) { r ->
+                                item("r$r") { TvRow("r$r", "Row $r", tiles("R$r", 8, from = r * 100L + 1), TileKind.Poster, onOpen = {}, initialFocus = r == 0) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+    }
+
     /** Row A's tiles' pitch: a landscape tile and its gap, in pixels. */
     private val pitch: Float
         get() = with(compose.density) { (TileKind.Landscape.tvWidth.roundToPx() + TileKind.Landscape.tvGap.roundToPx()).toFloat() }
 
     /** How far row A has scrolled, in pixels: its tiles all have the one width. */
     private fun scrolledA(): Float = rowA.firstVisibleItemIndex * pitch + rowA.firstVisibleItemScrollOffset
+
+    /** From one row's top to the next's on the page of [rows], in pixels: they all have the one height. */
+    private fun rowPitch(): Float = list.layoutInfo.visibleItemsInfo.let { (it[1].offset - it[0].offset).toFloat() }
+
+    /** How far the page of [rows] has scrolled, in pixels. */
+    private fun scrolledPage(): Float = list.firstVisibleItemIndex * rowPitch() + list.firstVisibleItemScrollOffset
+
+    /** The focused tile's top, in dp from the screen's. */
+    private fun focusedTop(): Float = compose.focused().getBoundsInRoot().top.value
 
     private fun keyDown(key: Key) = compose.onRoot().performKeyInput { keyDown(key) }
 
@@ -281,5 +312,62 @@ class TvRowFocusTest {
         compose.waitForIdle()
         compose.focused().assertContentDescriptionEquals("A 7")
         assertEquals(6 * pitch, scrolledA(), 1f)
+    }
+
+    @Test
+    fun aPressGlidesThePageToTheNextRowOver150MsEasedOut() {
+        rows()
+        compose.focused().assertContentDescriptionEquals("R0 1")
+        val rowPitch = rowPitch()
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        // Eased out: well over half the way a third of the way through.
+        compose.mainClock.advanceTimeBy(80)
+        val partway = scrolledPage()
+        assertTrue("$partway of $rowPitch", partway > rowPitch / 2 && partway < rowPitch)
+        compose.mainClock.advanceTimeBy(128)
+        assertEquals(rowPitch, scrolledPage(), 1f)
+        // The row's header at the line, so its tiles' tops at 172 + 24 + 14.
+        compose.focused().assertContentDescriptionEquals("R1 101")
+        assertEquals(210f, focusedTop(), 1f)
+    }
+
+    @Test
+    fun aHeldDownGlidesThePageOnWithoutStoppingOrJumping() {
+        rows()
+        val rowPitch = rowPitch()
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionDown)
+        var last = scrolledPage()
+        // 25 frames, 400 ms: the press, then a step every 45 ms from 180 ms, each glide running into the next.
+        for (frame in 1..25) {
+            compose.mainClock.advanceTimeByFrame()
+            val moved = scrolledPage() - last
+            last += moved
+            assertTrue("frame $frame moved $moved of $rowPitch", moved < rowPitch / 2)
+            // Once the held steps have begun (192 ms, gliding from the frame after), every frame moves on.
+            if (frame > 13) assertTrue("frame $frame stood still", moved > 0f)
+        }
+        keyUp(Key.DirectionDown)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        // The press and five held steps: the sixth row, its tiles at the line.
+        compose.focused().assertContentDescriptionEquals("R6 601")
+        assertEquals(210f, focusedTop(), 1f)
+    }
+
+    @Test
+    fun withReducedMotionAHeldDownStepsThePageARowAtATime() {
+        rows(reduced = true)
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionDown)
+        compose.mainClock.advanceTimeBy(400)
+        // Each step's row is at the line by the next frame: nothing glides.
+        compose.focused().assertContentDescriptionEquals("R6 601")
+        assertEquals(210f, focusedTop(), 1f)
+        keyUp(Key.DirectionDown)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertEquals(210f, focusedTop(), 1f)
     }
 }

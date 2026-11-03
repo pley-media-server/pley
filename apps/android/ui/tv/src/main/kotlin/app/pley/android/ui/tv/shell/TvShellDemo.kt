@@ -211,7 +211,7 @@ private fun DemoHome() {
             heroHeight = HeroHeight,
             modifier = Modifier.fillMaxSize(),
         ) {
-            // At rest the first header sits at y = 432, under the hero; in the rows it moves up to 188.
+            // At rest the first header sits at y = 432, under the hero; in the rows it moves up to 172.
             item("hero") {
                 Hero(
                     DemoData.hero,

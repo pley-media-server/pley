@@ -74,11 +74,14 @@ heard it for that profile, the start asks "Who's watching?".
   look; when the key comes up, focus lands on the tile under the ring (or
   the next one the way the row was going) and the row settles there. Near
   a row's end, where tiles no longer reach that edge, focus steps across
-  them instead. A press moves a row over 150 ms, eased out. Elsewhere a
-  tile's focus look changes evenly from one tile to the next, and
-  backdrops and info blocks wait until focus has rested 400 ms. With
-  Reduce motion a held key steps focus a tile at a time and nothing
-  slides.
+  them instead. A held Up or Down glides a page of rows or a grid on a row
+  at each step, each glide a little longer than the step, so the page
+  never stops; in a grid the tiles keep their resting look under one ring
+  that stays still where focus is going, until the key comes up. A press
+  moves a row, a page or a grid over 150 ms, eased out. Elsewhere a tile's
+  focus look changes evenly from one tile to the next, and backdrops and
+  info blocks wait until focus has rested 400 ms. With Reduce motion a
+  held key steps focus a tile or a row at a time and nothing slides.
 - **Fire TV** runs the same APK and TV screens. The app spots it by the
   `amazon.hardware.fire_tv` feature and follows Amazon's player guidelines
   (asynchronous decoder queueing, surround from Fire OS's audio setting,

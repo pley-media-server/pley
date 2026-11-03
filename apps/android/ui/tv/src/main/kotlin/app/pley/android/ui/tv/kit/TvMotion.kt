@@ -1,13 +1,13 @@
 package app.pley.android.ui.tv.kit
 
-import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.ScrollableState
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -16,31 +16,106 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequesterModifierNode
 import androidx.compose.ui.focus.requestFocus
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.requireLayoutCoordinates
 import androidx.compose.ui.platform.InspectorInfo
 import app.pley.android.designsystem.PleyMotion
 import kotlin.math.abs
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 /**
  * How the TV's rows, pages of rows and grids move to what has focus
  * (design spec §2.4, D-pad rules 4 and 5), as the native Samsung app moves
  * them: over 150 ms, eased out, for a press; evenly over
- * [KeyRepeatGate.GLIDE_MS] for a held key's move, so each runs into the
- * next; at once with reduced motion. Compose's own scrolling to the
- * focused element keeps to no duration, so the kit moves these itself and
- * tells Compose to leave them be ([TvScrolling.itself]).
+ * [KeyRepeatGate.GLIDE_MS] for a held key's step; at once with reduced
+ * motion. Compose's own scrolling to the focused element keeps to no
+ * duration, so the kit moves these itself and tells Compose to leave them
+ * be ([TvScrolling.itself]). One per row, page or grid.
+ *
+ * Each move goes from where the last one has got to, in the same run of
+ * frames: a Compose animation started again would spend its first frame
+ * standing still, a stutter at every held step, where these run into each
+ * other as NUI's do on the native Samsung app.
  */
-internal object TvMotion {
-    /** A press's move. */
-    val Press: AnimationSpec<Float> = tween(PleyMotion.FOCUS_MS, easing = EaseOutCubic)
-}
+internal class TvGlide(private val state: ScrollableState, private val scope: CoroutineScope) {
+    private var distance = 0f
+    private var covered = 0f
+    private var elapsed = 0L
+    private var duration = 1L
+    private var easing: Easing = LinearEasing
+    private var then: (() -> Unit)? = null
 
-/** Scrolls [by] pixels as the kit moves: a [held] key's glide, a press's ease, or at once when [reduced]. */
-internal suspend fun ScrollableState.moveBy(by: Float, held: Boolean, reduced: Boolean) {
-    when {
-        abs(by) < 0.5f -> Unit
-        reduced -> scrollBy(by)
-        else -> animateScrollBy(by, if (held) KeyRepeatGate.glide() else TvMotion.Press)
+    /** Whether a move asked for is still to run its course. */
+    private var asked = false
+    private var job: Job? = null
+
+    /** Whether it is moving now. */
+    val moving: Boolean get() = asked && job?.isActive == true
+
+    /** Moves [by] pixels from where it is now: a [held] key's step or a press's, or at once when [reduced]. */
+    fun move(by: Float, held: Boolean, reduced: Boolean) {
+        when {
+            abs(by) < 0.5f -> stop()
+            reduced -> {
+                stop()
+                scope.launch { state.scrollBy(by) }
+            }
+            held -> start(by, KeyRepeatGate.GLIDE_MS, LinearEasing, null)
+            else -> start(by, PleyMotion.FOCUS_MS, EaseOutCubic, null)
+        }
+    }
+
+    /** Moves [by] pixels evenly over [ms] (a row's slide), then calls [then] unless another move took over. */
+    fun slide(by: Float, ms: Int, then: () -> Unit) = start(by, ms, LinearEasing, then)
+
+    /** Stops where it is. */
+    fun stop() {
+        asked = false
+        then = null
+        job?.cancel()
+        job = null
+    }
+
+    private fun start(by: Float, ms: Int, easing: Easing, then: (() -> Unit)?) {
+        distance = by
+        covered = 0f
+        elapsed = 0L
+        duration = ms * NANOS_PER_MS
+        this.easing = easing
+        this.then = then
+        asked = true
+        if (job?.isActive != true) job = scope.launch { run() }
+    }
+
+    private suspend fun run() {
+        state.scroll {
+            var last = -1L
+            while (asked) {
+                val now = withFrameNanos(FrameTime)
+                // The first frame counts as one: a move asked for in a frame shows in the next.
+                elapsed += if (last < 0) FRAME_NANOS else now - last
+                last = now
+                val fraction = if (elapsed >= duration) 1f else easing.transform(elapsed.toFloat() / duration)
+                val step = distance * fraction - covered
+                covered += step
+                val stopped = abs(scrollBy(step) - step) > 0.5f
+                if (fraction < 1f && !stopped) continue
+                // Done, or at the end: what follows may ask for another move, which goes on from here.
+                asked = false
+                val next = then
+                then = null
+                next?.invoke()
+            }
+        }
+    }
+
+    private companion object {
+        const val NANOS_PER_MS = 1_000_000L
+        const val FRAME_NANOS = 16_666_667L
+        val FrameTime: (Long) -> Long = { it }
     }
 }
 
@@ -86,14 +161,17 @@ internal val LocalTileQuiet = staticCompositionLocalOf<TileQuiet?> { null }
 /**
  * A lazy row's or grid's focusable cells by position, while they are
  * composed: how the kit puts focus on one it picked (where a slide lands,
- * a letter's first title). A node per cell, rather than a requester and an
- * effect.
+ * a letter's first title) and finds where one is (to bring it to its
+ * line). A node per cell, rather than a requester and an effect.
  */
 internal class FocusSlots {
     private val cells = HashMap<Int, FocusSlotNode>()
 
     /** Focuses the cell at [index], if it is composed; whether it took focus. */
     fun focus(index: Int): Boolean = cells[index]?.let { runCatching { it.requestFocus() }.getOrDefault(false) } == true
+
+    /** Where the cell at [index] is laid out, unscaled by its focus look; null when it isn't composed. */
+    fun coordinates(index: Int): LayoutCoordinates? = cells[index]?.takeIf { it.isAttached }?.requireLayoutCoordinates()
 
     internal fun attach(index: Int, node: FocusSlotNode) {
         cells[index] = node

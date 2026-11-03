@@ -18,6 +18,11 @@ describes how they are made.
   tile at a time; focus lands on the tile under the ring when the key
   comes up, as on the native Samsung app. A season's episodes move as
   every other row does, and a press moves a row over 150 ms, eased out.
+- On Android TV and Fire TV, a held Up or Down glides a page of rows or a
+  library grid on without stopping, rather than jumping a row at a time;
+  in a grid the posters stay at rest under one ring until the key comes
+  up. A press moves pages and grids over 150 ms, eased out, as on the
+  native Samsung app.
 
 ### Fixed
 
