@@ -659,13 +659,22 @@ impl PlayerView {
                         self.show(Target::Scrubber);
                     }
                 }
+                // A seek from the remote closes the chapter cards first: they show a chapter,
+                // and the picture would go elsewhere under them.
                 Key::FastForward | Key::Rewind => {
+                    self.close_chapters();
                     let dir = if e.key == Key::Rewind { -1 } else { 1 };
                     let c = p.clock();
                     self.seeker.press(now, dir, MEDIA_STEP_MS, SETTLE_MS, c.position_ms, c.duration_ms);
                 }
-                Key::Next => self.next(p),
-                Key::Previous => self.previous(p),
+                Key::Next => {
+                    self.close_chapters();
+                    self.next(p);
+                }
+                Key::Previous => {
+                    self.close_chapters();
+                    self.previous(p);
+                }
                 Key::Subtitles => self.toggle_subtitles(ui, p),
                 Key::Audio => self.open_audio(p),
                 Key::Stop => out.leave = true,

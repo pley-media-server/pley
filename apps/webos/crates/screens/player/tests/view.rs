@@ -983,6 +983,31 @@ fn up_while_a_seek_waits_opens_the_chapters_as_cards_and_ok_goes_to_one() {
 }
 
 #[test]
+fn a_seek_from_the_remote_closes_the_chapter_cards() {
+    let mut pl = Player::new(Fake::episode());
+    pl.press(Key::Down);
+    for _ in 0..8 {
+        if pl.focus() == Some(Target::Button(Btn::Chapters)) {
+            break;
+        }
+        pl.press(Key::Left);
+    }
+    pl.press(Key::Ok);
+    assert_eq!(pl.focus(), Some(Target::Chapters));
+    // Fast forward seeks, and the cards go, focus back on the button that opened them.
+    pl.press(Key::FastForward);
+    assert_eq!(pl.focus(), Some(Target::Button(Btn::Chapters)), "the cards stayed open over the seek");
+    pl.wait(0.5);
+    assert_eq!(pl.p.calls, [Call::Seek(90_000)]);
+    // Previous does the same from cards opened again.
+    pl.press(Key::Ok);
+    assert_eq!(pl.focus(), Some(Target::Chapters));
+    pl.press(Key::Previous);
+    assert_eq!(pl.focus(), Some(Target::Button(Btn::Chapters)), "the cards stayed open over Previous");
+    assert!(matches!(pl.p.calls.last(), Some(Call::Seek(_))), "{:?}", pl.p.calls);
+}
+
+#[test]
 fn the_chapters_button_opens_the_cards_and_down_or_back_closes_them() {
     let mut pl = Player::new(Fake::episode());
     pl.press(Key::Down);
