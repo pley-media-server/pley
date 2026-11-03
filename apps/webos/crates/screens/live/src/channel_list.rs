@@ -13,7 +13,7 @@ use pley_player::live::{Category, ChannelPages};
 use pley_player::{PlayerServer, now_ms};
 use pley_shell::{AppCx, Resource};
 use pley_ui::theme::{self, radius};
-use pley_ui::{Edge, Group, Id, Motion, Response, Ui};
+use pley_ui::{Dirs, Edge, Group, Id, Motion, Response, Ui};
 
 use crate::categories::{Column, ColumnView, Picked};
 use crate::draw::{Well, channel_tile, line_mid};
@@ -268,7 +268,7 @@ impl ChannelList {
             if std::mem::take(&mut self.focus_groups) || (ui.focused_in(column_id).is_none() && !r.focused) {
                 column.focus_shown(ui, column_id, &v);
             }
-            let shown = column.show(ui, column_id, view, &v, Edge::Pass);
+            let shown = column.show(ui, column_id, view, &v, Edge::Pass, Dirs::NONE);
             self.column = column;
             if shown.menu {
                 return Some(ListAction::Close);

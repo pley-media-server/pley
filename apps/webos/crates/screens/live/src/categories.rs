@@ -11,7 +11,7 @@ use pley_kit::{ListState, TextField};
 use pley_player::live::Category;
 use pley_player::live::data::{Region, category_name, group_sections};
 use pley_ui::theme::{self, radius};
-use pley_ui::{Edge, Id, Response, Ui};
+use pley_ui::{Dirs, Edge, Id, Response, Ui};
 
 use crate::draw::line_mid;
 
@@ -247,13 +247,22 @@ impl Column {
         ui.request_focus(id.with(at as u64));
     }
 
-    /// Draws the column in `view`; `up` is what Up past its first line does.
-    pub fn show(&mut self, ui: &mut Ui, id: Id, view: Rect, v: &ColumnView, up: Edge) -> ColumnResponse {
+    /// Draws the column in `view`; `up` is what Up past its first line does, and a held key stops
+    /// at the sides `held_stops` names.
+    pub fn show(
+        &mut self,
+        ui: &mut Ui,
+        id: Id,
+        view: Rect,
+        v: &ColumnView,
+        up: Edge,
+        held_stops: Dirs,
+    ) -> ColumnResponse {
         self.refresh(v);
         let lines = &self.lines;
         let mut out = ColumnResponse::default();
         let mut toggled: Option<String> = None;
-        let list = pley_kit::List::new(view).gap(GAP).edges(up, Edge::Pass);
+        let list = pley_kit::List::new(view).gap(GAP).edges(up, Edge::Pass).held_stop(held_stops);
         let r = list.show(
             ui,
             id,

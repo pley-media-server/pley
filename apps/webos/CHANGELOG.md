@@ -81,7 +81,7 @@ describes how they are made.
 - A held arrow key stops at the end of a list instead of leaving it, as in
   the Samsung app: a held Left no longer opens the rail (a press does), and
   a held Up or Right stays in a library's grid, the Collections tab and
-  Live TV's guide and cards. Down on a grid's last row stays.
+  Live TV's categories, guide and cards. Down on a grid's last row stays.
 - The rail opens as in the Samsung app: its panel widens out of the closed
   rail as it fades in, and the labels slide in beside the icons.
 - Picture subtitles (PGS, VobSub, DVB) show within a few seconds of a

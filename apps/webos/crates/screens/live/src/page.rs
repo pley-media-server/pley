@@ -18,7 +18,7 @@ use pley_player::live::{Category, ChannelPages, GuideStore};
 use pley_player::{PlayerServer, now_ms};
 use pley_shell::{AppCx, AppEvent, Chrome, Resource, Route, Screen};
 use pley_ui::theme::{self, radius};
-use pley_ui::{Dir, Edge, Group, Id, Ui};
+use pley_ui::{Dir, Dirs, Edge, Group, Id, Ui};
 
 use crate::cards::{CardAction, Cards};
 use crate::categories::{self, Column, ColumnView, Picked, Search};
@@ -534,7 +534,8 @@ impl Screen for LiveTvScreen {
         if std::mem::take(&mut self.to_category) {
             column.focus_shown(ui, column_id, &self.column_view());
         }
-        let picked = column.show(ui, column_id, column_rect, &self.column_view(), Edge::Pass).picked;
+        // A held Up stops at the search field; the tabs take a press of its own.
+        let picked = column.show(ui, column_id, column_rect, &self.column_view(), Edge::Pass, Dirs::UP).picked;
         self.column = column;
         match picked {
             Some(Picked::Category(c)) => {

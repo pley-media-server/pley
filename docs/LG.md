@@ -108,8 +108,8 @@ differs on LG:
   in the Samsung app: a held Left stops at the start of a row, list or
   grid and only a press opens the rail; in a library's grid a held Up or
   Right stays in the grid (a press reaches the chips or the A–Z jump), as
-  does a held Up at the top of the Collections tab and of Live TV's guide
-  and channel cards. Right at a row's end and Down on a grid's last row
+  does a held Up at the top of the Collections tab and of Live TV's
+  categories, guide and channel cards. Right at a row's end and Down on a grid's last row
   always stay.
 - **In the player** the keys follow the Samsung app's. With the controls
   hidden, OK and Up show them on the scrubber and Down on Play/Pause.

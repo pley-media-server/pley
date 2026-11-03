@@ -133,6 +133,17 @@ fn a_held_up_stops_at_the_top_row_and_a_press_reaches_the_tabs() {
 }
 
 #[test]
+fn a_held_up_stays_in_the_categories_and_a_press_reaches_the_tabs() {
+    let mut app = live();
+    to_categories(&mut app);
+    assert_eq!(app.focused(), Some(category_row(&app, 3)));
+    hold(&mut app, Key::Up);
+    assert_eq!(app.focused(), Some(category_row(&app, 0)), "a held Up left the categories");
+    app.press(Key::Up);
+    assert_eq!(app.focused(), Some(app.id(&["tabs", "guide"])));
+}
+
+#[test]
 fn ok_on_whats_on_now_watches_the_channel() {
     let mut app = live();
     app.press(Key::Ok);

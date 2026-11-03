@@ -437,12 +437,13 @@ pub struct List {
     gap: f32,
     up: Edge,
     down: Edge,
+    held_stops: Dirs,
 }
 
 impl List {
     /// A list in `view`, rows 2 dp apart.
     pub fn new(view: Rect) -> List {
-        List { view, gap: 2.0, up: Edge::Pass, down: Edge::Pass }
+        List { view, gap: 2.0, up: Edge::Pass, down: Edge::Pass, held_stops: Dirs::NONE }
     }
 
     /// The space between rows.
@@ -453,6 +454,11 @@ impl List {
     /// What Up past the first row and Down past the last do.
     pub fn edges(self, up: Edge, down: Edge) -> List {
         List { up, down, ..self }
+    }
+
+    /// Sides a held key stops at, where a press goes on out ([`Group::held_stop`]).
+    pub fn held_stop(self, dirs: Dirs) -> List {
+        List { held_stops: dirs, ..self }
     }
 
     /// Draws `len` rows: `height(ui, i)` says how tall row `i` is, `draw` draws it in its slot.
@@ -508,7 +514,10 @@ impl List {
         let d0 = first.saturating_sub(3).min(state.index.saturating_sub(3));
         let d1 = (past + 3).max(state.index + 4).min(len);
         state.drawn = (d0, d1);
-        let group = Group::column().edge(pley_ui::Dir::Up, self.up).edge(pley_ui::Dir::Down, self.down);
+        let group = Group::column()
+            .edge(pley_ui::Dir::Up, self.up)
+            .edge(pley_ui::Dir::Down, self.down)
+            .held_stop(self.held_stops);
         let view = self.view;
         let gap = self.gap;
         ui.clip(view, |ui| {
