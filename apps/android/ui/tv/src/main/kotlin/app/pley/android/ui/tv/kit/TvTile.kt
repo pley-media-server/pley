@@ -77,8 +77,10 @@ import kotlinx.coroutines.launch
  * outside the scaled layer, turns bold. Select opens; holding Select calls
  * [onLongClick], the item's actions (rule 6), which are also buttons on its
  * page; so does the remote's Menu key, the way Fire TV apps open them.
- * Under a held key the look changes evenly over the time between moves
- * (rule 5, [KeyRepeatGate.GLIDE_MS]).
+ * The look comes in over 150 ms, eased out, and goes over 120 ms, eased
+ * in, with the native Samsung app's curves ([TvMotion]); under a held key
+ * it changes evenly over the time between moves (rule 5,
+ * [KeyRepeatGate.GLIDE_MS]).
  *
  * [focusModifier] goes on the focusable itself: a FocusRequester,
  * [initialFocus] or [rememberedFocus].
@@ -212,14 +214,15 @@ internal class TileFocusLook(private val scope: CoroutineScope, private val gate
         if (on == focused) return
         focused = on
         val target = if (on) 1f else 0f
-        // T0 animates the focused tile only (design spec §6); a tile focus leaves while quiet
-        // has shown nothing of it. A held key's move changes the look evenly over the time to
-        // the next, so focus glides from tile to tile rather than pulsing.
-        val snap = reduced || (!on && (tier == Tier.T0 || quiet?.on == true))
+        // T0 animates the focused tile only (design spec §6). While quiet a tile shows none of
+        // its look, so it takes it at once, and the quiet's end brings it in. A held key's move
+        // changes the look evenly over the time to the next, so focus glides from tile to tile
+        // rather than pulsing; otherwise it eases as on the native Samsung app (TvMotion).
+        val snap = reduced || quiet?.on == true || (!on && tier == Tier.T0)
         val spec: FiniteAnimationSpec<Float> = when {
             gate.holding -> KeyRepeatGate.glide()
-            on -> PleyMotion.focus()
-            else -> PleyMotion.unfocus()
+            on -> TvMotion.FocusIn
+            else -> TvMotion.FocusOut
         }
         scope.launch {
             if (snap) {
@@ -313,14 +316,13 @@ internal fun ContentDrawScope.drawFocusRing(kind: TileKind, alpha: Float, scale:
  * [topLeft]: the one a row or grid draws still while its tiles are quiet
  * ([TileQuiet]). [stroke] is the ring's, made once rather than each frame.
  */
-internal fun DrawScope.drawStillRing(kind: TileKind, topLeft: Offset, alpha: Float, stroke: Stroke) {
-    if (alpha <= 0f) return
+internal fun DrawScope.drawStillRing(kind: TileKind, topLeft: Offset, stroke: Stroke) {
     val offset = PleyFocus.RingOffset.toPx()
     val width = kind.tvWidth.roundToPx().toFloat()
     val height = kind.tvHeight.roundToPx().toFloat()
     val radius = if (kind.round) minOf(width, height) / 2f + offset else PleyShape.TileTvRadius.toPx() + offset
     drawRoundRect(
-        color = PleyColors.AccentBright.copy(alpha = alpha.coerceIn(0f, 1f)),
+        color = PleyColors.AccentBright,
         topLeft = Offset(topLeft.x - offset, topLeft.y - offset),
         size = Size(width + 2 * offset, height + 2 * offset),
         cornerRadius = CornerRadius(radius, radius),

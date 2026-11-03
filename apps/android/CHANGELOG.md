@@ -38,6 +38,10 @@ describes how they are made.
 - On Android TV and Fire TV, Search's recent searches stay put while the
   chip you move to shows, and move only when it would pass the edge,
   rather than bringing each chip to a third of the way across.
+- On Android TV and Fire TV, a tile's focus look comes in and goes with
+  the native Samsung app's curves (150 ms eased out, 120 ms eased in), the
+  tile a held key stops on takes its look the same way, and Up from Home's
+  rows glides back to the hero over 150 ms rather than springing there.
 
 ### Fixed
 

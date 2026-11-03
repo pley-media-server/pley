@@ -104,7 +104,7 @@ class TvRowFocusTest {
                         ) {
                             if (withHero) {
                                 item("hero") {
-                                    Column(Modifier.height(400.dp)) {
+                                    Column(Modifier.height(400.dp).tvRowColumnHero()) {
                                         Spacer(Modifier.height(341.dp))
                                         Box(
                                             Modifier
@@ -190,6 +190,25 @@ class TvRowFocusTest {
         compose.mainClock.advanceTimeBy(2_000)
         compose.waitForIdle()
         assertEquals(0, list.firstVisibleItemScrollOffset)
+    }
+
+    @Test
+    fun upToTheHeroGlidesThePageBackToItsTopOver150MsEasedOut() {
+        page(withHero = true)
+        compose.press(Key.DirectionDown)
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+        val down = list.firstVisibleItemScrollOffset.toFloat()
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        // Eased out, as to a row: most of the way back a third of the way through.
+        compose.mainClock.advanceTimeBy(80)
+        val left = list.firstVisibleItemScrollOffset.toFloat()
+        assertTrue("$left of $down", left > 0f && left < down / 2)
+        compose.mainClock.advanceTimeBy(128)
+        assertEquals(0, list.firstVisibleItemIndex)
+        assertEquals(0, list.firstVisibleItemScrollOffset)
+        compose.onNodeWithTag("resume").assertIsFocused()
     }
 
     @Test

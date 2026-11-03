@@ -1,18 +1,19 @@
 package app.pley.android.ui.tv.kit
 
-import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequesterModifierNode
 import androidx.compose.ui.focus.requestFocus
@@ -25,6 +26,27 @@ import kotlin.math.abs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+
+/**
+ * The kit's curves, the native Samsung app's (its NUI's built-in alpha
+ * functions, Kit/TileView.cs and RowView.cs): a focus look comes in over
+ * 150 ms eased out and goes over 120 ms eased in; rows, pages and grids
+ * move to a press over 150 ms eased out; under a held key everything
+ * moves evenly ([KeyRepeatGate.GLIDE_MS]).
+ */
+internal object TvMotion {
+    /** NUI's EaseOut, a cubic: fast, then slowing to rest. */
+    val EaseOut: Easing = Easing { val left = 1f - it; 1f - left * left * left }
+
+    /** NUI's EaseIn, a cubic: slow, then fast. */
+    val EaseIn: Easing = Easing { it * it * it }
+
+    /** A focus look coming in. */
+    val FocusIn: FiniteAnimationSpec<Float> = tween(PleyMotion.FOCUS_MS, easing = EaseOut)
+
+    /** A focus look going. */
+    val FocusOut: FiniteAnimationSpec<Float> = tween(PleyMotion.UNFOCUS_MS, easing = EaseIn)
+}
 
 /**
  * How the TV's rows, pages of rows and grids move to what has focus
@@ -64,7 +86,7 @@ internal class TvGlide(private val state: ScrollableState, private val scope: Co
                 scope.launch { state.scrollBy(by) }
             }
             held -> start(by, KeyRepeatGate.GLIDE_MS, LinearEasing, null)
-            else -> start(by, PleyMotion.FOCUS_MS, EaseOutCubic, null)
+            else -> start(by, PleyMotion.FOCUS_MS, TvMotion.EaseOut, null)
         }
     }
 
@@ -123,10 +145,12 @@ internal class TvGlide(private val state: ScrollableState, private val scope: Co
  * Tiles keeping their resting look while their row slides, or their grid
  * glides, under a held key (D-pad rule 5): scale 1, no ring, a regular
  * caption, under one ring the row or grid draws still where focus will
- * land. A tile growing and shrinking at every step, its ring with it, would
- * make the page stutter. Tiles read [amount] only in their layer and while
- * drawing; the caption's weight, which composes, switches once at either
- * end ([on]).
+ * land while they are quiet ([on]). A tile growing and shrinking at every
+ * step, its ring with it, would make the page stutter. As on the native
+ * Samsung app, the still ring goes at once as the key comes up, and the
+ * focused tile's look comes in as a focus look does (150 ms, eased out).
+ * Tiles read [amount] only in their layer and while drawing; the caption's
+ * weight, which composes, switches once at either end ([on]).
  */
 @Stable
 internal class TileQuiet {
@@ -151,7 +175,7 @@ internal class TileQuiet {
             amount = 0f
             return
         }
-        animate(amount, 0f, animationSpec = PleyMotion.focus()) { value, _ -> amount = value }
+        animate(amount, 0f, animationSpec = TvMotion.FocusIn) { value, _ -> amount = value }
     }
 }
 

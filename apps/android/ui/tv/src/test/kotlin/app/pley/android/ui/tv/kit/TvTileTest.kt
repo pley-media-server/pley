@@ -112,5 +112,14 @@ class TvTileTest {
         quiet.end(reduced = true)
         assertEquals(1f, look.shown())
         assertTrue(look.emphasized)
+
+        // Focus reaching a tile while quiet: it takes its look at once, unseen, and shows it as the quiet ends.
+        quiet.start()
+        val other = TileFocusLook(this, gate, quiet)
+        other.focus(true)
+        runCurrent()
+        assertEquals(0f, other.shown())
+        quiet.end(reduced = true)
+        assertEquals(1f, other.shown())
     }
 }

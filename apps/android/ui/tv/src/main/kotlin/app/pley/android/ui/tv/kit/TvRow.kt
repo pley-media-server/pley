@@ -40,7 +40,9 @@ import androidx.compose.ui.draw.DrawResult
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusEventModifierNode
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
@@ -59,6 +61,10 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Density
@@ -352,7 +358,7 @@ internal class RowMotion(private val state: LazyListState, private val gate: Key
         val at = Offset(PleyTv.Gutter.roundToPx().toFloat(), TileBleed.roundToPx().toFloat())
         onDrawWithContent {
             drawContent()
-            drawStillRing(kind, at, quiet.amount, stroke)
+            if (quiet.on) drawStillRing(kind, at, stroke)
         }
     }
 
@@ -437,12 +443,13 @@ internal class RowMotion(private val state: LazyListState, private val gate: Key
  * press; evenly over [KeyRepeatGate.GLIDE_MS] for a held Up or Down's step,
  * a little longer than the time between steps, so the glides run into
  * each other and the page moves on without stopping (D-pad rule 5). What
- * isn't a row (a hero) is scrolled to as Compose scrolls to focus.
+ * else isn't a row is scrolled to as Compose scrolls to focus.
  *
- * A page with a hero (Home, item pages) makes it the first item and says
- * how tall it is ([heroHeight]): focus in the hero scrolls the page back
- * to its top, and Down from the hero's buttons finds the first row, since
- * both are in the one column.
+ * A page with a hero (Home, item pages) makes it the first item, marks it
+ * ([tvRowColumnHero]) and says how tall it is ([heroHeight]): focus in the
+ * hero takes the page back to its top, gliding as to a row, and Down from
+ * the hero's buttons finds the first row, since both are in the one
+ * column.
  *
  * Once the page has scrolled, nothing is drawn above the focused row's
  * header ([clearAbove]): the rows pass beneath the page's info block
@@ -507,13 +514,43 @@ fun rememberTvRowColumnState(): LazyListState =
 private val ColumnAhead = 300.dp
 
 /**
- * The page's own spec for what isn't a row; nothing for a row's tiles,
- * which the column moves to itself ([TvRowColumnFocus.follow]).
+ * The page's own spec for what isn't a row; nothing for a row's tiles or
+ * the hero, which the column moves to itself ([TvRowColumnFocus.follow],
+ * [TvRowColumnFocus.heroFocused]).
  */
 @Stable
 private class ColumnSpec(private val page: BringIntoViewSpec, private val column: TvRowColumnFocus) : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
-        if (column.following != null) 0f else page.calculateScrollDistance(offset, size, containerSize)
+        if (column.following != null || column.inHero) 0f else page.calculateScrollDistance(offset, size, containerSize)
+}
+
+/**
+ * Marks a [TvRowColumn]'s hero, its first item: focus coming into it
+ * takes the page back to its top as the page goes to a row, over 150 ms,
+ * eased out, as the native Samsung app's page does, where Compose's own
+ * scrolling would spring there. Nothing outside a [TvRowColumn].
+ */
+fun Modifier.tvRowColumnHero(): Modifier = this then TvRowColumnHeroElement
+
+private data object TvRowColumnHeroElement : ModifierNodeElement<TvRowColumnHeroNode>() {
+    override fun create() = TvRowColumnHeroNode()
+
+    override fun update(node: TvRowColumnHeroNode) = Unit
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "tvRowColumnHero"
+    }
+}
+
+private class TvRowColumnHeroNode : Modifier.Node(), FocusEventModifierNode, CompositionLocalConsumerModifierNode {
+    private var hadFocus = false
+
+    override fun onFocusEvent(focusState: FocusState) {
+        if (focusState.hasFocus == hadFocus) return
+        hadFocus = focusState.hasFocus
+        val column = currentValueOf(LocalTvRowColumn) ?: return
+        if (hadFocus) column.heroFocused() else column.heroLeft()
+    }
 }
 
 /**
@@ -585,9 +622,31 @@ internal class TvRowColumnFocus {
         glide.move(column.localPositionOf(tile, Offset.Zero).y - tileTop, gate?.holding == true, reduced)
     }
 
-    /** Focus left row [rowKey]: what takes it next, if not a row's tile, Compose scrolls to. */
+    /** Focus left row [rowKey]: what takes it next, if not a row's tile or the hero, Compose scrolls to. */
     fun left(rowKey: Any) {
         if (following == rowKey) following = null
+    }
+
+    /** Whether focus is in the hero ([tvRowColumnHero]), which the column takes back to its top itself. */
+    var inHero = false
+        private set
+
+    /**
+     * Focus came into the hero: the column glides back to its top. From a
+     * row the hero still shows, so how far that is is known; otherwise
+     * Compose scrolls there.
+     */
+    fun heroFocused() {
+        val list = state
+        val glide = glide
+        if (list == null || glide == null || list.firstVisibleItemIndex != 0) return
+        inHero = true
+        glide.move(-list.firstVisibleItemScrollOffset.toFloat(), gate?.holding == true, reduced)
+    }
+
+    /** Focus left the hero. */
+    fun heroLeft() {
+        inHero = false
     }
 
     /**

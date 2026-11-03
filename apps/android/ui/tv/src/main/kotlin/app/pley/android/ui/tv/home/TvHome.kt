@@ -51,6 +51,7 @@ import app.pley.android.ui.tv.kit.TvRowColumn
 import app.pley.android.ui.tv.kit.rememberBackdropPrefetcher
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberRested
+import app.pley.android.ui.tv.kit.tvRowColumnHero
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 import app.pley.android.ui.tv.shell.ReportOffline
 import app.pley.android.ui.tv.shell.failedBody
@@ -172,7 +173,7 @@ private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: Hom
                     onPlay = { fromStart -> vm.play(hero.info.item, fromStart, navigator) },
                     onInfo = { navigator.open(pageOf(hero.info.item)) },
                     onWatched = { vm.setWatched(hero.info.item, !hero.info.watched) },
-                    modifier = Modifier.graphicsLayer { alpha = heroAlpha },
+                    modifier = Modifier.graphicsLayer { alpha = heroAlpha }.tvRowColumnHero(),
                 )
             }
             model.rows.forEach { row ->

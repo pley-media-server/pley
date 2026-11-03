@@ -162,8 +162,7 @@ internal class GridMotion(private val state: LazyGridState, private val gate: Ke
         val stroke = Stroke(PleyFocus.RingStroke.toPx())
         onDrawWithContent {
             drawContent()
-            val alpha = quiet.amount
-            if (alpha > 0f) drawStillRing(kind, Offset(ringX, ringY), alpha, stroke)
+            if (quiet.on) drawStillRing(kind, Offset(ringX, ringY), stroke)
         }
     }
 

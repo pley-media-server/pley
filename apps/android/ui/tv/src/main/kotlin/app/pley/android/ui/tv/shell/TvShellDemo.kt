@@ -68,6 +68,7 @@ import app.pley.android.ui.tv.kit.TvRowColumn
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberRested
+import app.pley.android.ui.tv.kit.tvRowColumnHero
 import coil3.ImageLoader
 import coil3.Uri
 import coil3.asImage
@@ -220,6 +221,7 @@ private fun DemoHome() {
                         .height(HeroHeight)
                         .wrapContentHeight(Alignment.Top, unbounded = true)
                         .graphicsLayer { alpha = heroAlpha }
+                        .tvRowColumnHero()
                         .onFocusChanged { if (it.hasFocus) inRows = false },
                 )
             }
