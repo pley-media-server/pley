@@ -16,7 +16,9 @@ use pley_base::{
 
 use crate::focus::{self, Dir, Focus, FocusOpts, Group, Move, NodeKind, PageMemory, Tree};
 use crate::id::Id;
-use crate::input::{FrameInput, InputEvent, KeyGate, LONG_PRESS, OK_HELD_MAX, POINTER_SHOWN, TWIN, WHEEL_RUN};
+use crate::input::{
+    FrameInput, InputEvent, KeyGate, LONG_PRESS, OK_HELD_MAX, POINTER_SHOWN, TWIN, WHEEL_RUN, WHEEL_STEP,
+};
 use crate::motion::{Lanes, Motion, Tweens};
 use crate::theme::{self, Ramp, Tier, TierExt};
 
@@ -441,6 +443,12 @@ impl UiState {
                 InputEvent::Text(s) => self.ev.typed.push_str(s),
             }
         }
+        // A held direction moves on the app's clock, as a repeat of its key.
+        if let Some(key) = self.gate.tick(self.time)
+            && let Some(dir) = Dir::from_key(key)
+        {
+            self.step(dir, KeyEvent { key, pressed: true, repeat: true, code: 0 });
+        }
         self.ev.hover = match (self.pointer_visible, self.pointer) {
             (true, Some(p)) => self.prev.hit_test(p).map(|i| self.prev.node(i).id),
             _ => None,
@@ -482,9 +490,14 @@ impl UiState {
     }
 
     fn direction(&mut self, dir: Dir, e: KeyEvent) {
-        if !self.gate.admit(e.pressed, e.repeat, self.time) {
-            return;
+        if self.gate.admit(e.key, e.pressed, self.time) {
+            self.step(dir, e);
         }
+    }
+
+    /// A direction key's event let through: to the focused element when it takes the direction
+    /// (and every key-up), else a move of focus.
+    fn step(&mut self, dir: Dir, e: KeyEvent) {
         let focused = self.focus.focused.and_then(|f| self.prev.get(f));
         if !e.pressed || focused.is_some_and(|i| self.prev.takes(i, dir)) {
             self.ev.keys.push(e);
@@ -685,8 +698,8 @@ impl UiState {
     }
 
     /// The Magic Remote's wheel: over a group that scrolls by it, a notch for that group;
-    /// elsewhere a step of focus up or down as the keys take, notches in a quick run counting as
-    /// a held key (one move per 100 ms, without animating).
+    /// elsewhere a step of focus up or down as the keys take, at most one per 100 ms, notches in a
+    /// quick run counting as a held key.
     fn wheel(&mut self, d: f32) {
         if d == 0.0 || self.typing {
             return;
@@ -703,15 +716,17 @@ impl UiState {
             return;
         }
         let now = self.time;
-        if now - self.wheel_at < KeyGate::MOVE_INTERVAL {
+        if now - self.wheel_at < WHEEL_STEP {
             return;
         }
         let repeat = now - self.wheel_at < WHEEL_RUN;
         self.wheel_at = now;
         self.focus.wanted = None;
         self.pointer_at = None;
+        // A notch has no key-up: it steps once, past the gate, which only learns of the run.
+        self.gate.wheeled(repeat, now);
         let dir = if notch < 0 { Dir::Up } else { Dir::Down };
-        self.direction(dir, KeyEvent { key: dir.key(), pressed: true, repeat, code: 0 });
+        self.step(dir, KeyEvent { key: dir.key(), pressed: true, repeat, code: 0 });
     }
 }
 
@@ -818,7 +833,10 @@ impl<'a> Ui<'a> {
         if let Some(due) = st.ok.long_due {
             sooner(due);
         }
-        if want_gate && let Some(t) = st.gate.next_change(now) {
+        // While a direction key is down, frames keep coming for its held moves.
+        if (want_gate || st.gate.down())
+            && let Some(t) = st.gate.next_change(now)
+        {
             sooner(t);
         }
         if st.focus.request.is_some() {
@@ -1126,8 +1144,8 @@ impl<'a> Ui<'a> {
     // Keys and the pointer.
 
     /// This frame's key events that focus didn't use: Back, digits, the player's and colour keys,
-    /// key-ups, and directions the focused element or its groups take. Direction repeats come
-    /// through the repeat gate.
+    /// key-ups, and directions the focused element or its groups take. A held direction comes as
+    /// the repeat gate's repeats, on the app's clock, not the TV's.
     pub fn keys(&self) -> &[KeyEvent] {
         &self.st.ev.keys
     }

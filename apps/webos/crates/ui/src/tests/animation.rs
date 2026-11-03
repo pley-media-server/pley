@@ -50,8 +50,8 @@ fn a_held_key_snaps_animations() {
     target.set(1.0);
     let f = h.idle(&mut screen);
     assert_eq!(value.get(), 1.0);
-    // Snapped values ask for no frames.
-    assert_eq!(f.output.wake_at, None);
+    // Snapped values ask for no frames: the next comes for the held key's next move.
+    assert!((f.output.wake_at.unwrap() - (f.time + 0.045)).abs() < 1e-9);
 }
 
 #[test]

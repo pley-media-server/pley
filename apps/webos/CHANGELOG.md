@@ -55,6 +55,9 @@ describes how they are made.
 - A video the TV's Home interrupted comes back paused where it was, with
   the controls showing, as in the Samsung and Android apps, rather than
   playing on by itself.
+- A held arrow key moves focus as in the Samsung app: from 180 ms on, about
+  22 times a second at an even pace, rather than every other one of the
+  TV's uneven repeats.
 
 ### Fixed
 

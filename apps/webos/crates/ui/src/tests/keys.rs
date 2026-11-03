@@ -10,26 +10,33 @@ use crate::testing::{Harness, Step};
 use crate::{FocusOpts, Group, Id, Ui};
 
 #[test]
-fn a_held_direction_moves_once_per_100_ms() {
+fn a_held_direction_moves_every_45_ms_on_the_apps_clock() {
     let holding = RefCell::new(Vec::new());
     let mut screen = |ui: &mut Ui| {
-        row(ui, "a", 210.0, 0..30, Group::row());
+        row(ui, "a", 210.0, 0..40, Group::row());
         holding.borrow_mut().push(ui.holding());
     };
     let mut h = Harness::new();
     h.idle(&mut screen);
-    assert_eq!(h.step(Step::Down(Key::Right), &mut screen).focused, Some(t("a", 1)));
-    // LG repeats every 50 ms: every other repeat moves.
-    let mut seen = Vec::new();
-    for _ in 0..6 {
-        h.run(&[Step::Wait(0.05)], &mut screen);
-        seen.push(h.step(Step::Repeat(Key::Right), &mut screen).focused);
+    let f = h.step(Step::Down(Key::Right), &mut screen);
+    assert_eq!(f.focused, Some(t("a", 1)));
+    // Down, the next frame comes as the hold begins, 180 ms on.
+    assert!((f.output.wake_at.unwrap() - 0.18).abs() < 1e-9);
+    assert_eq!(h.step(Step::Wait(0.17), &mut screen).focused, Some(t("a", 1)));
+    assert_eq!(holding.borrow().last(), Some(&false));
+    // LG repeats every 50 ms from 400 ms; they only say the key is still down.
+    h.wait(0.4 - h.time(), &mut screen);
+    for _ in 0..12 {
+        h.step(Step::Repeat(Key::Right), &mut screen);
+        h.wait(0.05, &mut screen);
     }
-    let a = |i| Some(t("a", i));
-    assert_eq!(seen, [a(1), a(2), a(2), a(3), a(3), a(4)]);
+    // From 180 ms to 1 s, a move every 45 ms: 19.
+    let at = h.idle(&mut screen).focused;
+    assert!((19..=21).any(|i| at == Some(t("a", i))), "{at:?}");
     assert_eq!(holding.borrow().last(), Some(&true));
     h.step(Step::Up(Key::Right), &mut screen);
     assert_eq!(holding.borrow().last(), Some(&false));
+    assert_eq!(h.step(Step::Wait(0.5), &mut screen).focused, at);
 }
 
 #[test]
@@ -43,14 +50,21 @@ fn a_hold_whose_key_up_was_lost_ends_500_ms_after_the_last_key() {
     h.idle(&mut screen);
     h.step(Step::Down(Key::Right), &mut screen);
     h.run(&[Step::Wait(0.1)], &mut screen);
+    // A repeat starts the hold at once.
     let f = h.step(Step::Repeat(Key::Right), &mut screen);
-    assert!((f.output.wake_at.unwrap() - 0.6).abs() < 1e-9);
+    assert_eq!(f.focused, Some(t("a", 2)));
+    assert!((f.output.wake_at.unwrap() - 0.145).abs() < 1e-9);
     holding.borrow_mut().clear();
     let frames = h.run(&[Step::Wait(2.0)], &mut screen);
-    // One frame comes when the hold ends, and none after.
-    assert_eq!(frames.len(), 1);
-    let (time, held) = holding.borrow()[0];
-    assert!((time - 0.6).abs() < 1e-9 && !held);
+    // Frames come for the moves until the hold ends, and none after.
+    let seen = holding.borrow();
+    let (time, held) = *seen.last().unwrap();
+    assert!((0.6..0.62).contains(&time) && !held, "{time}");
+    assert!(seen[..seen.len() - 1].iter().all(|&(_, held)| held));
+    assert_eq!(frames.last().unwrap().output.wake_at, None);
+    // Ten more moves, 45 ms apart, after the one at 100 ms.
+    let at = frames.last().unwrap().focused;
+    assert!((11..=13).any(|i| at == Some(t("a", i))), "{at:?}");
 }
 
 #[test]

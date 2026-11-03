@@ -91,6 +91,10 @@ differs on LG:
   opens it, unless a panel is open. A click on the player's bar seeks
   there. The TV hides the pointer after a while; any key goes back to the
   remote's focus.
+- **A held arrow** moves focus by itself once held 180 ms, then every
+  45 ms on the app's own clock, as in the Samsung app: sooner and more
+  evenly than the TV's repeats, which only say the key is still down.
+  Backdrops and details follow focus once it has rested 400 ms.
 - **In the player** the keys follow the Samsung app's. With the controls
   hidden, OK and Up show them on the scrubber and Down on Play/Pause.
   Left and Right show them and step 10 s, and a held key scrubs faster
