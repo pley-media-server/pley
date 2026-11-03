@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsPropertiesAndroid
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -14,7 +15,6 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -126,6 +126,9 @@ class TvAppTest {
 
     private fun railEntry(id: String) = compose.onNodeWithTag("${TestTags.TV_RAIL}.$id")
 
+    private fun focusedDescription(): String = compose.onAllNodes(isFocused()).fetchSemanticsNodes().firstOrNull()
+        ?.config?.getOrElse(SemanticsProperties.ContentDescription) { emptyList() }?.joinToString().orEmpty()
+
     @Test
     fun serversStartsFocused() {
         app(StartFacts(null, false))
@@ -179,6 +182,18 @@ class TvAppTest {
         // Right goes back to where focus was.
         compose.press(Key.DirectionRight)
         compose.onNodeWithText("Resume").assertIsFocused()
+    }
+
+    @Test
+    fun rightFromTheRailGoesBackToTheRowsTile() {
+        app()
+        compose.press(Key.DirectionDown)
+        val tile = focusedDescription()
+        assertTrue(tile, tile.startsWith("Half Loop"))
+        compose.press(Key.DirectionLeft)
+        railEntry("home").assertIsFocused()
+        compose.press(Key.DirectionRight)
+        assertEquals(tile, focusedDescription())
     }
 
     @Test

@@ -171,6 +171,9 @@ describes how they are made.
 
 ### Fixed
 
+- On TVs, Back from a title or from a tile's actions, and Right from the
+  rail, land on the library grid's tile focus left, the grid as it was,
+  where they went to the first tile or to the Sort chip.
 - Discover's hero is the first title of the next row when the trending
   row has nothing the profile may ask for, where it stayed a grey
   placeholder.

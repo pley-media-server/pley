@@ -33,7 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.CacheDrawScope
 import androidx.compose.ui.draw.DrawResult
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -266,7 +266,7 @@ internal fun TvPosterGrid(
             state = state,
             modifier = modifier
                 .testTag(TestTags.LIBRARY_GRID)
-                .focusRestorer()
+                .comeBackTo(focus)
                 .focusGroup()
                 .onPlaced { motion.coordinates = it }
                 .onPreviewKeyEvent { event ->
@@ -317,6 +317,24 @@ internal fun TvPosterGrid(
                 )
             }
             footer?.invoke(this)
+        }
+    }
+}
+
+/**
+ * Focus coming into the grid (from the chips, Back from a tile's actions or
+ * a title, Right from the rail) lands on the cell it had, by position, as
+ * the Samsung app's grid comes back to its last child. A focusRestorer
+ * goes by the cell's composition, under the lazy grid's own focus group,
+ * and landed on the first cell composed: the first tile, or one in the
+ * row above the screen.
+ */
+private fun Modifier.comeBackTo(focus: TvGridFocus): Modifier = focusProperties {
+    onEnter = {
+        val at = focus.focused
+        if (at >= 0 && focus.slots.has(at)) {
+            cancelFocusChange()
+            focus.focus(at)
         }
     }
 }

@@ -256,6 +256,9 @@ internal class FocusSlots {
     /** Focuses the cell at [index], if it is composed; whether it took focus. */
     fun focus(index: Int): Boolean = cells[index]?.let { runCatching { it.requestFocus() }.getOrDefault(false) } == true
 
+    /** Whether the cell at [index] is composed, and so can take focus. */
+    fun has(index: Int): Boolean = cells[index]?.isAttached == true
+
     /** Where the cell at [index] is laid out, unscaled by its focus look; null when it isn't composed. */
     fun coordinates(index: Int): LayoutCoordinates? = cells[index]?.takeIf { it.isAttached }?.requireLayoutCoordinates()
 
