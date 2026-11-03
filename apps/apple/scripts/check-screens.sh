@@ -347,6 +347,24 @@ walk_cleanup() {
   if [[ -n "$lock" ]]; then rm -rf "$lock"; fi
 }
 
+# Runs the walk's UI tests on its simulator, writing log $1 and result
+# bundle $2; the rest are xcodebuild's (-only-testing:…). xcodebuild hands
+# TEST_RUNNER_ variables to the tests, without the prefix. It runs in the
+# background, so a stop reaches the walk at once.
+run_tests() {
+  local out=$1 bundle=$2 result=0
+  shift 2
+  rm -rf "$bundle"
+  TEST_RUNNER_PLEY_ORIGIN="$origin" TEST_RUNNER_PLEY_SECRETS_FILE="$dir/secrets.json" \
+    TEST_RUNNER_PLEY_ADMIN_NAME="Admin" TEST_RUNNER_PLEY_SHOTS="$shots" \
+    xcodebuild test-without-building -project apps/apple/Pley.xcodeproj -scheme "$scheme" -destination "id=$id" \
+    "$@" -resultBundlePath "$bundle" </dev/null >"$out" 2>&1 &
+  xcode=$!
+  wait "$xcode" || result=$?
+  xcode=""
+  return "$result"
+}
+
 walk() {
   local scheme=$1 name=$2 id log fresh=yes
   trap walk_cleanup EXIT
@@ -396,28 +414,33 @@ walk() {
 
   log="$dir/$scheme.log"
   echo "check-screens: $scheme on $name"
-  local only=() retry=(-retry-tests-on-failure -test-iterations 2 -test-repetition-relaunch-enabled YES)
+  local target=PleyUITests only=()
+  [[ $scheme == PleyTVUITests ]] && target=PleyTVUITests
   if [[ -n "${PLEY_UI_TESTS:-}" ]]; then
-    local target=PleyUITests test wanted
-    [[ $scheme == PleyTVUITests ]] && target=PleyTVUITests
+    local test wanted
     IFS=';' read -r -a wanted <<<"$PLEY_UI_TESTS"
     for test in "${wanted[@]}"; do
       [[ -n "$test" ]] && only+=("-only-testing:$target/ScreensTests/$test")
     done
   fi
-  if [[ -n "$quick" ]]; then retry=(); fi
-  rm -rf "$dir/$scheme.xcresult"
-  # xcodebuild hands TEST_RUNNER_ variables to the tests, without the
-  # prefix. It runs in the background, so a stop reaches this walk at once.
-  TEST_RUNNER_PLEY_ORIGIN="$origin" TEST_RUNNER_PLEY_SECRETS_FILE="$dir/secrets.json" \
-    TEST_RUNNER_PLEY_ADMIN_NAME="Admin" TEST_RUNNER_PLEY_SHOTS="$shots" \
-    xcodebuild test-without-building -project apps/apple/Pley.xcodeproj -scheme "$scheme" -destination "id=$id" \
-    ${only[@]+"${only[@]}"} ${retry[@]+"${retry[@]}"} -resultBundlePath "$dir/$scheme.xcresult" \
-    </dev/null >"$log" 2>&1 &
-  xcode=$!
   local passed=yes
-  wait "$xcode" || passed=no
-  xcode=""
+  run_tests "$log" "$dir/$scheme.xcresult" ${only[@]+"${only[@]}"} || passed=no
+  # A failed test runs once more, on its own in a new test runner: a walk
+  # stops at its first failure, which ends the runner, and the tests that
+  # passed aren't run again. A quick run doesn't.
+  if [[ $passed == no && -z "$quick" ]]; then
+    local again=() failure
+    for failure in $(sed -nE "s/^Test Case '-\[[A-Za-z]+\.ScreensTests (test[A-Za-z0-9_]+)\]' failed.*/\1/p" "$log" |
+      sort -u); do
+      again+=("-only-testing:$target/ScreensTests/$failure")
+    done
+    if [[ ${#again[@]} -gt 0 ]]; then
+      echo "check-screens: $name runs ${again[*]##*/} again"
+      log="$dir/$scheme-again.log"
+      passed=yes
+      run_tests "$log" "$dir/$scheme-again.xcresult" "${again[@]}" || passed=no
+    fi
+  fi
   if [[ $passed == yes ]]; then
     echo "check-screens: $name passed"
   else

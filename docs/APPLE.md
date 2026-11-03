@@ -1652,9 +1652,9 @@ other simulators, `PLEY_SHOTS` a folder for the walk's screenshots, and
 `PLEY_SCREENS_LOGS` a folder for the logs of a simulator that failed, and
 `PLEY_UI_TESTS` (names separated by `;`, such as `testMusic;testLiveTv`) the
 tests to run, all of them when unset. A
-test that fails runs once more, in a new test runner
-(`-retry-tests-on-failure`); one that fails
-twice fails the run, which then prints the test's errors and the server's
+test that fails runs once more, on its own in a new test runner
+(`-only-testing`), and the tests that passed aren't run again; one that
+fails twice fails the run, which then prints the test's errors and the server's
 last 40 log lines, with addresses, tokens and codes left out. The server's
 address reaches the tests as a `TEST_RUNNER_` variable; the
 administrator's token and the PINs are in a file only its owner reads
