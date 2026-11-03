@@ -48,6 +48,7 @@ import app.pley.android.screens.requests.DECLINE_REASON_MAX
 import app.pley.android.screens.requests.RequestTexts
 import app.pley.android.screens.requests.cardActions
 import app.pley.android.screens.requests.confirms
+import app.pley.android.screens.requests.declineReasonEnd
 import app.pley.android.screens.requests.downloadProgress
 import app.pley.android.screens.requests.stagePill
 import app.pley.android.ui.tv.kit.TvSidePanel
@@ -282,10 +283,11 @@ private fun ReasonField(first: FocusRequester, onDone: (String) -> Unit, onCance
     }
 }
 
-/** A reason past [DECLINE_REASON_MAX] characters (pasted, or a remote app's) keeps its first ones. */
+/** A reason past [DECLINE_REASON_MAX] characters (pasted, or a remote app's) keeps its first ones ([declineReasonEnd]). */
 private object ReasonLength : InputTransformation {
     override fun TextFieldBuffer.transformInput() {
-        if (length > DECLINE_REASON_MAX) replace(DECLINE_REASON_MAX, length, "")
+        val end = declineReasonEnd(asCharSequence())
+        if (end < length) replace(end, length, "")
     }
 }
 

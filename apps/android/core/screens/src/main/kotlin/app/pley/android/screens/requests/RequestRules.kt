@@ -309,6 +309,18 @@ fun askAgain(request: MediaRequest): NewRequest =
 /** The longest reason a decline takes (the server's limit): a longer one, pasted say, keeps its first characters. */
 const val DECLINE_REASON_MAX = 500
 
+/**
+ * Where a decline's [reason] ends once cut to [DECLINE_REASON_MAX]
+ * characters: its length when it fits, else after that many, or one
+ * before when the last would be the first half of a pair (an emoji), which
+ * alone would reach the server as "?".
+ */
+fun declineReasonEnd(reason: CharSequence): Int = when {
+    reason.length <= DECLINE_REASON_MAX -> reason.length
+    reason[DECLINE_REASON_MAX - 1].isHighSurrogate() -> DECLINE_REASON_MAX - 1
+    else -> DECLINE_REASON_MAX
+}
+
 // ---------------------------------------------------------------- seasons
 
 /** Whether [season] may be asked for: missing, partly in a library or not aired, not declined, the title not restricted. */

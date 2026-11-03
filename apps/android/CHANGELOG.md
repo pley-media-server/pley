@@ -264,6 +264,8 @@ describes how they are made.
 - On TVs, Up from a collection's titles to its buttons glides the page
   back to its top over 150 ms, as Home does, and with Reduce motion goes
   there at once.
+- A reason for declining a request cut to the server's 500 characters no
+  longer ends in "?" where the cut fell inside an emoji.
 
 ### Removed
 
