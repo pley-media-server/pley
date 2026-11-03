@@ -68,6 +68,9 @@ struct Extraction {
     pictures: bool,
     /// Text: the blocks as they come.
     blocks: Mutex<Vec<SubtitleBlock>>,
+    /// Text: the WebVTT last made, and of how many blocks: the player asks again and again
+    /// while the track is read, and nothing new is made of what didn't change.
+    webvtt: Mutex<Option<(usize, Vec<u8>)>>,
     /// Pictures: each sample made once, handed over in every answer.
     samples: Mutex<Vec<PictureSample>>,
     done: Mutex<bool>,
@@ -80,6 +83,7 @@ impl Extraction {
             track,
             pictures,
             blocks: Mutex::default(),
+            webvtt: Mutex::default(),
             samples: Mutex::default(),
             done: Mutex::new(false),
             finished: Condvar::new(),
@@ -107,6 +111,22 @@ impl Extraction {
         let done = self.done.lock().unwrap_or_else(|e| e.into_inner());
         let (done, _) = self.finished.wait_timeout_while(done, wait, |d| !*d).unwrap_or_else(|e| e.into_inner());
         *done
+    }
+
+    /// The text read out so far, as WebVTT: made again only when more has been read.
+    fn webvtt(&self) -> Vec<u8> {
+        let mut blocks = self.blocks.lock().unwrap_or_else(|e| e.into_inner());
+        let mut made = self.webvtt.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((count, body)) = &*made
+            && *count == blocks.len()
+        {
+            return body.clone();
+        }
+        // In place: the blocks are held once, never copied to be sorted.
+        blocks.sort_by_key(|b| b.start_ms);
+        let body = cues::webvtt(&blocks, &self.track.codec_id).into_bytes();
+        *made = Some((blocks.len(), body.clone()));
+        body
     }
 }
 
@@ -455,10 +475,7 @@ impl PlayerServer for LocalServer {
             let index: i64 = n.parse().map_err(|_| absent())?;
             let x = self.extract(index).filter(|x| !x.pictures).ok_or_else(absent)?;
             let complete = x.wait(EXTRACT_WAIT.min(timeout));
-            let mut blocks = x.blocks.lock().unwrap_or_else(|e| e.into_inner()).clone();
-            blocks.sort_by_key(|b| b.start_ms);
-            let body = cues::webvtt(&blocks, &x.track.codec_id).into_bytes();
-            return Ok(SubtitleAnswer { status: 200, body, complete });
+            return Ok(SubtitleAnswer { status: 200, body: x.webvtt(), complete });
         }
         let sidecar = self.sidecar(url).ok_or_else(absent)?;
         let text = folder::read_sidecar(&sidecar.path).map_err(|_| absent())?;

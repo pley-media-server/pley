@@ -36,8 +36,16 @@ pub const CLUSTER_MOST: u64 = 16 * 1024 * 1024;
 pub const INFLATED_MOST: usize = 4 * 1024 * 1024;
 /// The most cue points kept for a track: a film's subtitles are a few thousand.
 const CUE_POINTS_MOST: usize = 100_000;
-/// The most of a track's blocks read: a UHD film's PGS is a few tens of MB.
+/// The most of a picture track's blocks read: a UHD film's PGS is a few tens of MB.
 pub const TRACK_MOST: usize = 64 * 1024 * 1024;
+/// The most of a text track's blocks read: a film's subtitles are a few hundred KB, and each
+/// answer is made into WebVTT from all of them.
+pub const TEXT_TRACK_MOST: usize = 8 * 1024 * 1024;
+
+/// The most of `track`'s blocks [`read`] reads.
+pub fn track_most(track: &MatroskaTrack) -> usize {
+    if track.codec_id.starts_with("S_TEXT/") { TEXT_TRACK_MOST } else { TRACK_MOST }
+}
 
 /// A subtitle's block: when it shows, for how long when the file says, and
 /// its bytes, uncompressed.
@@ -83,8 +91,9 @@ pub fn read<R: ReadAt + ?Sized>(
     let mut starts = HashSet::new();
     let mut held = 0usize;
     let mut cluster_times = HashMap::new();
+    let most = track_most(track);
     for cue in cues {
-        if cancel.load(Ordering::Relaxed) || held > TRACK_MOST {
+        if cancel.load(Ordering::Relaxed) || held > most {
             break;
         }
         let Some(cluster_at) = facts.segment_start.checked_add(cue.cluster) else { continue };

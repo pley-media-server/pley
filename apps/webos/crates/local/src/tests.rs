@@ -260,6 +260,14 @@ fn a_zlib_vobsub_track_is_inflated_and_a_stripped_header_put_back() {
 }
 
 #[test]
+fn a_text_track_is_read_to_8_mib_and_a_picture_track_to_64() {
+    let text = read_head(&subtitled("S_TEXT/UTF8", None, vec![]), usize::MAX);
+    assert_eq!(cues::track_most(&text.tracks[0]), 8 << 20);
+    let pictures = read_head(&subtitled("S_HDMV/PGS", Some(vec![0x16, 0, 0]), vec![]), usize::MAX);
+    assert_eq!(cues::track_most(&pictures.tracks[0]), 64 << 20);
+}
+
+#[test]
 fn reading_a_track_stops_when_asked() {
     let file = subtitled("S_TEXT/UTF8", None, vec![]);
     let facts = read_head(&file, usize::MAX);
@@ -711,6 +719,8 @@ fn a_files_own_subtitle_tracks_are_read_out_of_it_for_the_player() {
     assert!(answer.complete);
     let cues: Vec<_> = parse_vtt(&String::from_utf8_lossy(&answer.body)).iter().map(|c| c.plain_text()).collect();
     assert_eq!(cues, ["Hello", "There"]);
+    // Asked again with nothing more read: the same WebVTT, made once.
+    assert_eq!(text.subtitles("embedded:0", "text/vtt", SECOND).unwrap().body, answer.body);
     // A text track is never handed over as pictures.
     assert!(text.picture_track("/api/files/7/subtitles/0.mks", SECOND).unwrap().is_err());
 
