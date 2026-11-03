@@ -163,7 +163,8 @@ second. What the libraries have comes in rows by kind, in the other apps'
 order: Movies, Shows, Seasons, Episodes, Artists, Albums, Tracks, Live TV
 (cards: OK watches the channel, and Up and Down in the player go through
 what was found) and People, the closest matches first in each; then
-Discover for those who may ask (below).
+Discover for those who may ask (below). Each row holds all that was found
+of its kind, up to 200 (`limit=200`), and scrolls sideways.
 Right from the keyboard's last column reaches them.
 
 Before anything is typed it lists the recent searches: the last 10 whose

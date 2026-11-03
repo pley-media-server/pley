@@ -23,6 +23,8 @@ describes how they are made.
 
 - Search shows movies, shows and episodes first, then music, then Live
   TV, then people, the closest matches first in each.
+- Search shows every title, person and Live TV channel it finds, up to 200
+  of each, where it stopped at 40 titles and 12 people and channels.
 
 ## [0.1.3] - 2026-11-02
 

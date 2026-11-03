@@ -176,7 +176,7 @@ sub search()
         return
     end if
     hideRecent()
-    m.path = urlWithQuery("/api/search", { q: query, limit: 40 })
+    m.path = searchPath(query)
     uiRequest({ method: "GET", path: m.path, build: "searchRows" }, "onResults")
     if m.mayAsk then askTmdb()
 end sub

@@ -1384,7 +1384,7 @@ const checks = [
   ["stepped the sleep timer through End of this track back to Off", music.sleepEnd && music.sleepCycled],
   ["played the track OK was on under an album's second disc", music.disc === 5203],
   ["played a playlist from its top, the next entry to come", fixture.playbacks.some((p) => p.item === 101)],
-  ["searched", asked(/^GET \/api\/search\?/)],
+  ["searched, asking for every title, person and channel found", asked(/^GET \/api\/search\?limit=200&/)],
   ["showed search's results in rows by kind, People last, a person's page opened from it", asked(/^GET \/api\/people\/11$/)],
   ["searched a recent search again from the list shown before typing", searched.again],
   ["kept the recent searches on the Roku for the server and profile", registry !== null && /searches\.http[^"]*\|1","\[\\"mo\\"\]"/.test(JSON.stringify([...registry]))],

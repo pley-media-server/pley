@@ -861,12 +861,15 @@ export function startFixture({ accessSeconds = 3600, refuse = [] } = {}) {
       res.writeHead(204);
       return res.end();
     }
+    // Up to limit (1 to 200) titles, people and channels each, as the
+    // server answers.
     if (path === "/api/search") {
       const q = (url.searchParams.get("q") ?? "").toLowerCase();
-      const channels = liveChannels().filter((c) => c.name.toLowerCase().includes(q) || c.number.startsWith(q)).slice(0, 12);
+      const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? 40) || 40, 1), 200);
+      const channels = liveChannels().filter((c) => c.name.toLowerCase().includes(q) || c.number.startsWith(q)).slice(0, limit);
       // A person whose name matches, for search's last row before Discover.
-      const people = [{ id: 11, name: "Monty Fixture", photo_url: "/api/people/11/photo?v=1" }].filter((p) => p.name.toLowerCase().includes(q));
-      return json(200, { items: [...movies, show].filter((item) => item.title.toLowerCase().includes(q)).slice(0, 40), people, channels });
+      const people = [{ id: 11, name: "Monty Fixture", photo_url: "/api/people/11/photo?v=1" }].filter((p) => p.name.toLowerCase().includes(q)).slice(0, limit);
+      return json(200, { items: [...movies, show].filter((item) => item.title.toLowerCase().includes(q)).slice(0, limit), people, channels });
     }
     // A keyed session's picture subtitles, which the app draws: their list
     // around where the player is (the first time a session asks, those
