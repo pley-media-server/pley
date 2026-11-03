@@ -2,7 +2,7 @@
 //! seek preview, the scrubber with its times, chapter gaps and marker label, and the control
 //! row. Everything is on the 960×540 canvas; the screen draws it at the controls' fade.
 
-use pley_base::{Align, Cmd, Color, GradientStop, Icon, ImageRequest, Point, Rect, Size, TextOpts, TextStyle, Weight};
+use pley_base::{Cmd, Color, GradientStop, Icon, ImageRequest, Point, Rect, Size, TextOpts, Weight};
 use pley_core::model::MarkerKind;
 use pley_kit::look::shade;
 use pley_player::controller::{ChapterMark, SeekPreview};
@@ -337,9 +337,7 @@ pub enum Btn {
     Sleep,
     Speed,
     Previous,
-    Back10,
     PlayPause,
-    Forward10,
     Next,
     Subtitles,
     Audio,
@@ -355,10 +353,8 @@ impl Btn {
             Btn::Sleep => "Sleep timer",
             Btn::Speed => "Speed",
             Btn::Previous => "Previous",
-            Btn::Back10 => "Back 10 seconds",
             Btn::PlayPause if playing => "Pause",
             Btn::PlayPause => "Play",
-            Btn::Forward10 => "Forward 10 seconds",
             Btn::Next => "Next",
             Btn::Subtitles => "Subtitles",
             Btn::Audio => "Audio",
@@ -379,8 +375,8 @@ pub struct RowOptions {
 }
 
 impl RowOptions {
-    /// The row's three groups, left to right: [Chapters] Sleep Speed · [Previous] Back 10
-    /// Play/Pause Forward 10 [Next] · [Subtitles] [Audio] [Quality] Info.
+    /// The row's three groups, left to right: [Chapters] Sleep Speed · [Previous] Play/Pause
+    /// [Next] · [Subtitles] [Audio] [Quality] Info, as the Android TV app's (Left and Right seek).
     pub fn groups(&self) -> [Vec<Btn>; 3] {
         let mut left = Vec::new();
         if self.chapters {
@@ -391,7 +387,7 @@ impl RowOptions {
         if self.previous_next {
             centre.push(Btn::Previous);
         }
-        centre.extend([Btn::Back10, Btn::PlayPause, Btn::Forward10]);
+        centre.push(Btn::PlayPause);
         if self.previous_next {
             centre.push(Btn::Next);
         }
@@ -505,8 +501,6 @@ fn glyph(ui: &mut Ui, rect: Rect, b: Btn, playing: bool, color: Color) {
         Btn::Speed => (Icon::FastForward, theme::ICON_SIZE),
         Btn::Previous => (Icon::SkipBack, TRANSPORT_ICON),
         Btn::Next => (Icon::SkipForward, TRANSPORT_ICON),
-        Btn::Back10 => return skip_glyph(ui, rect, false, color),
-        Btn::Forward10 => return skip_glyph(ui, rect, true, color),
         Btn::PlayPause => (if playing { Icon::Pause } else { Icon::Play }, PLAY_ICON),
         Btn::Subtitles => (Icon::Captions, theme::ICON_SIZE),
         Btn::Audio => (Icon::AudioLines, theme::ICON_SIZE),
@@ -519,21 +513,6 @@ fn glyph(ui: &mut Ui, rect: Rect, b: Btn, playing: bool, color: Color) {
         icon,
         color,
     );
-}
-
-/// Back 10 and Forward 10: a turning arrow with "10" inside, the number 36 % of the glyph and bold
-/// (`SkipIcon`).
-fn skip_glyph(ui: &mut Ui, rect: Rect, forward: bool, color: Color) {
-    let size = TRANSPORT_ICON;
-    let c = rect.center();
-    let icon = if forward { Icon::RotateCw } else { Icon::RotateCcw };
-    ui.icon(Rect::new(c.x - size / 2.0, c.y - size / 2.0, size, size), icon, color);
-    let style = TextStyle::new(size * 0.36, size * 0.36, Weight::Bold);
-    let opts = TextOpts::line(size).aligned(Align::Center);
-    let seconds = (pley_player::seeker::STEP_MS / 1000).to_string();
-    let l = ui.layout(&seconds, &style, &opts);
-    let h = l.size.h;
-    ui.draw_text(Point::new(c.x - size / 2.0, c.y - h / 2.0 + 0.5), l, color);
 }
 
 /// Every string a frame drew, in order (for tests).
@@ -574,10 +553,11 @@ mod tests {
         assert_eq!(at(Btn::Sleep).x, 94.0);
         assert_eq!(at(Btn::PlayPause), Rect::new(458.0, 441.0, 44.0, 44.0));
         assert_eq!(at(Btn::Info).right(), 912.0);
-        assert_eq!(at(Btn::Previous).x, 480.0 - 126.0);
+        assert_eq!(at(Btn::Previous).x, 480.0 - 74.0);
+        assert_eq!(at(Btn::Next).right(), 480.0 + 74.0);
         let bare = layout_row(&RowOptions::default());
         let names: Vec<Btn> = bare.iter().map(|(b, _)| *b).collect();
-        assert_eq!(names, [Btn::Sleep, Btn::Speed, Btn::Back10, Btn::PlayPause, Btn::Forward10, Btn::Info]);
+        assert_eq!(names, [Btn::Sleep, Btn::Speed, Btn::PlayPause, Btn::Info]);
     }
 
     #[test]

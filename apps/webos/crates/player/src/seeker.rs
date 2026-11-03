@@ -3,7 +3,7 @@
 //! press left the target, and the seek happens once: Left and Right wait for
 //! OK, going by themselves 5 s after the last key ([`WAIT_MS`]), so a few
 //! presses don't start the server's conversion again for each; the media keys
-//! and the Back 10 and Forward 10 buttons seek 400 ms after the last press
+//! seek 400 ms after the last press
 //! ([`SETTLE_MS`]). A badge sums the presses. A held key scrubs faster the
 //! longer it is held (from 20×, doubling every 1.5 s, up to a whole video in
 //! 10 s) and, let go, waits for OK as presses do.
@@ -15,7 +15,7 @@
 pub const STEP_MS: i64 = 10_000;
 /// A press of fast-forward or rewind.
 pub const MEDIA_STEP_MS: i64 = 30_000;
-/// The media keys' and buttons' jumps in a row seek once, this long after the last.
+/// The media keys' jumps in a row seek once, this long after the last.
 pub const SETTLE_MS: i64 = 400;
 /// A seek with Left and Right waits for OK, and goes by itself this long after the last key.
 pub const WAIT_MS: i64 = 5_000;

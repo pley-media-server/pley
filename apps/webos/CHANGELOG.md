@@ -69,6 +69,11 @@ describes how they are made.
 - The rail opens as in the Samsung app: its panel widens out of the closed
   rail as it fades in, and the labels slide in beside the icons.
 
+### Removed
+
+- The player's Back 10 seconds and Forward 10 seconds buttons, as in the
+  Samsung and Android TV apps. Left and Right still seek.
+
 ### Fixed
 
 - A programme's details in Live TV keep its description above Watch and

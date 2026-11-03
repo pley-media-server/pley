@@ -113,8 +113,9 @@ differs on LG:
   Left and Right show them and step 10 s, and a held key scrubs faster
   the longer it is held (from 20×, doubling every 1.5 s, up to a whole
   video in 10 s). The seek waits for OK, going by itself 5 s after the
-  last key, and Back lets it go. ◀◀ and ▶▶ (30 s) and the Back 10 and
-  Forward 10 buttons seek 400 ms after the last press. Up on the scrubber
+  last key, and Back lets it go. ◀◀ and ▶▶ (30 s) seek 400 ms after the
+  last press. The control row has no Back 10 or Forward 10, as in the
+  Android TV app: Left and Right seek. Up on the scrubber
   while a seek waits, or the Chapters button, opens the chapters as a row
   of cards over it: Left and Right go through them, OK goes to one, Down
   or Back closes them. As each item

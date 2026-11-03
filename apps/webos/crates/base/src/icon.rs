@@ -69,7 +69,6 @@ pub enum Icon {
     Repeat1,
     Rewind,
     RotateCcw,
-    RotateCw,
     Save,
     Search,
     Server,

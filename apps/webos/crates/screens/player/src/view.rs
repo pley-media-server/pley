@@ -355,9 +355,7 @@ impl PlayerView {
             Btn::Sleep,
             Btn::Speed,
             Btn::Previous,
-            Btn::Back10,
             Btn::PlayPause,
-            Btn::Forward10,
             Btn::Next,
             Btn::Subtitles,
             Btn::Audio,
@@ -1299,8 +1297,6 @@ impl PlayerView {
         let c = p.clock();
         match b {
             Btn::PlayPause => self.play_pause(p, now),
-            Btn::Back10 => self.seeker.press(now, -1, STEP_MS, SETTLE_MS, c.position_ms, c.duration_ms),
-            Btn::Forward10 => self.seeker.press(now, 1, STEP_MS, SETTLE_MS, c.position_ms, c.duration_ms),
             Btn::Previous => self.previous(p),
             Btn::Next => self.next(p),
             Btn::Chapters => self.open_chapters(c.position_ms, &p.state().chapters, true),
