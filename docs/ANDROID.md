@@ -364,7 +364,9 @@ On an emulator, add `-e androidx.benchmark.suppressErrors EMULATOR`. Traces
 are in `/storage/emulated/0/Android/data/app.pley.android.benchmark/cache`.
 
 The Baseline and Startup Profiles come from `BaselineProfileGenerator`'s
-journeys against the demo server: a cold start, then on a TV, with the
+journeys against the demo server: a cold start (the Startup Profile, which
+puts what starting runs first in the dex), then, for the Baseline Profile
+only, on a TV, with the
 D-pad, signing in, Who's watching?, Home (a tile's actions, the rows), a
 show's page (its episodes, OK held on one, its rows, the cast, a person),
 search, a library's grid, Collections and a collection, Playlists and a
