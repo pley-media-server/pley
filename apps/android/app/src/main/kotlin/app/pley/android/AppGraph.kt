@@ -46,7 +46,7 @@ class AppGraph(private val app: Application) : ScreensGraph {
     override val network: NetworkGraph by lazy { NetworkGraph.create(app, root, auth, device, app.cacheDir) }
     override val data: DataGraph by lazy { DataGraph.create(app, network, auth, device) }
     override val caps: CapsGraph by lazy { CapsGraph.create(app, device) }
-    override val player: PlayerGraph by lazy { PlayerGraph.create(app, data, network, caps, device) { localMedia } }
+    override val player: PlayerGraph by lazy { PlayerGraph.create(app, data, network, caps, device, local = { localMedia }) }
 
     /**
      * Phones and tablets only: TVs stay where the server is, and download
