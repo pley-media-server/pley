@@ -183,8 +183,9 @@ public final class AppModel: ObservableObject, SnapshotCache {
     private let eventSignals: @Sendable (PleyAPI) -> AsyncStream<EventSignal>
     /// Whether this is the Apple TV app, which asks "Who's watching?" at start.
     private let tv: Bool
-    /// Whether the app is in the foreground: the event stream runs only then.
-    private var active = true
+    /// Whether the app is in the foreground: the event stream runs, and
+    /// screens poll what moves, only then.
+    public private(set) var active = true
     private var eventsRunning = false
 
     private var listener: Task<Void, Never>?
@@ -278,7 +279,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
             self?.shell.setRequestsEntry(.of(.of(summary)))
         }
         #if !os(tvOS)
-        // Apple TV has no requests' pages yet: no toast offers an Open that leads nowhere.
+        // Apple TV has no requests' pages: no toast offers an Open that leads nowhere.
         requests.onNews = { [weak self] news in self?.heard(news) }
         playersWatch = $player.combineLatest($livePlayer).sink { [weak self] player, live in
             guard player == nil, live == nil else { return }

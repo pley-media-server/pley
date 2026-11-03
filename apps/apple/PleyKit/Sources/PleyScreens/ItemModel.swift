@@ -83,6 +83,8 @@ public final class ItemModel: ObservableObject {
     /// How long a failed read of the request block waits, and how often it's tried again.
     public var requestRetry: Double = 3
     public static let requestRetries = 4
+    /// Seconds between reads of the request block while it moves (tests shorten it).
+    public var movingEvery = RequestTimings.movingSeconds
 
     public init(app: AppModel, itemId: Int) {
         self.app = app
@@ -171,7 +173,10 @@ public final class ItemModel: ObservableObject {
             }
             state = .loaded
             rebuild()
+            #if !os(tvOS)
+            // Apple TV doesn't show requests on a title's page: nothing is read for them.
             if requestTask == nil { loadRequest() }
+            #endif
         } catch is CancellationError {
         } catch PleyError.signedOut {
             // The session says so, and sign-in shows.
@@ -457,17 +462,13 @@ public final class ItemModel: ObservableObject {
         app.actions.prefetch(itemId)
     }
 
-    // MARK: Inside
-
-    /// Whether `change` names what the page shows: the item, its show or
-    /// season, or one of the episodes listed.
     // MARK: Requests
 
     /// Reads what requests say of this movie or show, once the page is
     /// read, while asking works or the account has requests: tried again
     /// every 3 s, 4 times at most, while it fails or the server doesn't
     /// know yet what may be asked for; then read again as its requests
-    /// change, and every 10 s while one moves.
+    /// change (`followRequest` reads it while it moves).
     public func loadRequest() {
         requestTask?.cancel()
         let wait = requestRetry
@@ -480,11 +481,17 @@ public final class ItemModel: ObservableObject {
                 tries += 1
                 try? await Task.sleep(for: .seconds(wait))
             }
-            while !Task.isCancelled, self?.requestBlock?.moving == true {
-                try? await Task.sleep(for: .seconds(RequestTimings.movingSeconds))
-                guard !Task.isCancelled else { return }
-                _ = await self?.readRequest()
-            }
+        }
+    }
+
+    /// Reads the request block again every 10 s while its download moves
+    /// and the app is in the foreground, until the view goes (its `.task`
+    /// is cancelled, as when another page covers it).
+    public func followRequest() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(movingEvery))
+            guard !Task.isCancelled else { return }
+            if app.active, requestBlock?.moving == true { _ = await readRequest() }
         }
     }
 
@@ -524,6 +531,10 @@ public final class ItemModel: ObservableObject {
         }
     }
 
+    // MARK: Inside
+
+    /// Whether `change` names what the page shows: the item, its show or
+    /// season, or one of the episodes listed.
     private func follows(_ change: ServerChange) -> Bool {
         if change.names(itemId, parent: item?.summary.parentId) { return true }
         if let show = item?.summary.grandparentId, change.parentIds.contains(show) { return true }

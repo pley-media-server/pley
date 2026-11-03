@@ -1462,7 +1462,8 @@ Cancel goes back to the app as it was. The summary follows the event
 stream; while the stream is down, the app reads it every minute in the
 front, and an open list every 30 s. Download progress sends no events: a
 list, a title's page, a library title or Discover's requests showing a
-download are read again every 10 s while they show.
+download are read again every 10 s while they show and the app is in
+the front.
 
 For VoiceOver, a poster is one element ("Dune: Part Two, 2024, Movie,
 Requested") and a request card's title says its stage; numbers on the
@@ -1471,8 +1472,9 @@ says its percentage; a page that can't show, and the Discover row's
 failure, are read out as they appear. At the accessibility text sizes the
 hero's words go under its picture and a card's poster above its words.
 
-Apple TV has no requests' pages: nothing leads to them there, and no
-toast tells their news.
+Apple TV has no requests' pages: nothing leads to them there, no toast
+tells their news, and neither Search nor a title's page reads anything
+of requests.
 
 ## Top Shelf
 

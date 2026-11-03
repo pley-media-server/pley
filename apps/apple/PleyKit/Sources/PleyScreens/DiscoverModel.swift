@@ -112,14 +112,14 @@ public final class DiscoverModel: ObservableObject {
 
     private var gate: RequestsGate { app.requests.gate }
 
-    /// Reads the page, then "Your requests" every 10 s while one moves,
-    /// until the view goes (its `.task` is cancelled).
+    /// Reads the page, then "Your requests" every 10 s while one moves, in
+    /// the foreground, until the view goes (its `.task` is cancelled).
     public func run() async {
         await load()
         while !Task.isCancelled {
             try? await Task.sleep(for: .seconds(movingEvery))
             guard !Task.isCancelled else { return }
-            if yourRequests?.contains(where: { $0.request.moving }) == true { await readYours() }
+            if app.active, yourRequests?.contains(where: { $0.request.moving }) == true { await readYours() }
         }
     }
 

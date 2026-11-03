@@ -140,7 +140,8 @@ public final class RequestsListModel: ObservableObject {
     }
 
     /// Reads the list, then again every 10 s while something in it moves
-    /// and every 30 s while events can't come, until the view goes.
+    /// and every 30 s while events can't come, in the foreground, until
+    /// the view goes.
     public func run() async {
         // Back on the page (from a title it opened): what shows is read again quietly, where it was.
         if state == .ready { await reload(quiet: true) } else { await load() }
@@ -150,6 +151,8 @@ public final class RequestsListModel: ObservableObject {
             try? await Task.sleep(for: .seconds(tick))
             guard !Task.isCancelled else { return }
             waited += tick
+            // In the background nothing is read; back in front, everything shown is read again anyway.
+            guard app.active else { continue }
             let moving = requests.contains { $0.moving }
             if (moving && waited >= movingEvery) || (!app.serverEvents.connected && waited >= pollEvery) {
                 waited = 0
