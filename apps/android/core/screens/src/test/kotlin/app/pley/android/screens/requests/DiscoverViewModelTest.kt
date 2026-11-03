@@ -115,6 +115,42 @@ class DiscoverViewModelTest {
     }
 
     @Test
+    fun aRowThatFailedIsPassedForTheHeroAndSaidWhenNoRowHasATitle() = runTest(dispatcher) {
+        val requests = FakeRequests()
+        var moviesDown = true
+        requests.pages = { list, page ->
+            when (list) {
+                DiscoverList.Trending -> DiscoverPage(page, 1, emptyList())
+                DiscoverList.Movies -> if (moviesDown) throw ApiException(503, "tmdb_down", "TMDB isn't answering") else DiscoverPage(page, 1, emptyList())
+                DiscoverList.Shows -> DiscoverPage(page, 1, trending.results.filter { it.kind == TitleKind.Show })
+                else -> DiscoverPage(page, 1, emptyList())
+            }
+        }
+        val vm = viewModel(requests)
+        settle()
+        // Popular movies failed: the hero is Popular shows' first.
+        assertEquals(trending.results.first { it.kind == TitleKind.Show }.tmdbId, vm.state.value.hero?.title?.tmdbId)
+        assertEquals(null, vm.state.value.problem)
+
+        // Nothing anywhere but the failure: the page says what failed, and Retry reads that row again.
+        val none = FakeRequests()
+        none.pages = { list, page ->
+            if (list == DiscoverList.Movies && moviesDown) throw ApiException(503, "tmdb_down", "TMDB isn't answering")
+            DiscoverPage(page, 1, emptyList())
+        }
+        val other = viewModel(none)
+        settle()
+        assertEquals(null, other.state.value.hero)
+        assertEquals(RequestProblem.TmdbDown, other.state.value.problem)
+        assertFalse(other.state.value.nothing)
+        moviesDown = false
+        other.retry()
+        settle()
+        assertEquals(null, other.state.value.problem)
+        assertTrue(other.state.value.nothing)
+    }
+
+    @Test
     fun withNothingInAnyRowThePageSaysSo() = runTest(dispatcher) {
         val requests = FakeRequests()
         requests.pages = { _, page -> DiscoverPage(page, 1, emptyList()) }

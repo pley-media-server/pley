@@ -60,7 +60,11 @@ data class DiscoverUiState(
     val hero: DiscoverHero? = null,
     /** In their order; a row shows once it has titles, or is reading them. */
     val rows: List<DiscoverRow> = DiscoverList.entries.map { DiscoverRow(it, Pages()) },
-    /** Why the page can't show: the gate first (sign in again, off, no access), then the trending row's failure. */
+    /**
+     * Why the page can't show: the gate first (sign in again, off, no
+     * access), then the trending row's failure, then, with no title in any
+     * row, the first row's that failed.
+     */
     val problem: RequestProblem? = null,
     /** Shown from what was saved: the server didn't answer. */
     val stale: Boolean = false,
@@ -134,7 +138,9 @@ class DiscoverViewModel(private val deps: RequestsDeps) : ViewModel() {
         val summary = gate.summary
         val allowance = summary?.let(Allowance::of)
         val trending = rowList.first().pages
-        val problem = RequestProblem.of(gate) ?: trending.problem.takeIf { trending.titles.isEmpty() }
+        // Every row came, none with a title, and some failed: no hero can be found, so the page says why, with Retry.
+        val failed = rowList.firstNotNullOfOrNull { it.pages.problem }.takeIf { rowList.all { it.pages.titles.isEmpty() && it.pages.settled } }
+        val problem = RequestProblem.of(gate) ?: trending.problem.takeIf { trending.titles.isEmpty() } ?: failed
         val hero = heroOf(rowList)?.let { title ->
             val page = detail?.takeIf { it.kind == title.kind && it.tmdbId == title.tmdbId }
             DiscoverHero(title, page?.let { mainAction(it, gate) } ?: titleAction(title, gate, allowance), page)
@@ -150,15 +156,18 @@ class DiscoverViewModel(private val deps: RequestsDeps) : ViewModel() {
             manage = summary?.manage == true,
             allowance = allowance,
             asking = head.asking,
-            nothing = problem == null && rowList.all { it.pages.titles.isEmpty() && it.pages.settled },
+            nothing = problem == null && rowList.all { it.pages.titles.isEmpty() && it.pages.settled && it.pages.problem == null },
         )
     }
 
-    /** The hero's title: the first of the first row with any, once the rows before it have come with none. */
+    /**
+     * The hero's title: the first of the first row with any, once the rows
+     * before it have come with none, or failed (they show nothing either).
+     */
     private fun heroOf(rowList: List<DiscoverRow>): DiscoverTitle? {
         for (row in rowList) {
             row.pages.titles.firstOrNull()?.let { return it }
-            if (!row.pages.settled || row.pages.problem != null) return null
+            if (!row.pages.settled) return null
         }
         return null
     }
