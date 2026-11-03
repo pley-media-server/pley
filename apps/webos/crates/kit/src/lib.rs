@@ -32,6 +32,7 @@ pub mod qr;
 mod raster;
 pub mod row;
 pub mod tile;
+pub mod track;
 
 pub use backdrop::{Backdrop, BackdropArt, BackdropScrim, BackdropState, backdrop_px, faint_art, prefetch_backdrops};
 pub use badge::{Badge, BadgeStyle, MetaLine};
@@ -53,6 +54,7 @@ pub use row::{Row, RowResponse, RowState};
 pub use tile::{
     ProfileTile, SlotMode, Tile, TileKind, TileLook, TileSlot, Well, caption, first_art, placeholder, ring, tile_look,
 };
+pub use track::TrackLine;
 
 pub use pley_ui::Response;
 

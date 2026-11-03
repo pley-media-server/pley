@@ -1,13 +1,16 @@
 //! What every player shares with the app (pley-player's [`PlayerEnv`]): one report queue, so a
 //! playback's reports and its end go out in order even when the next title has started; the
 //! quality kept in Settings, which the player's menu sets too; Automatic's memory of a slow
-//! network for each server; and subtitle sync per file and profile.
+//! network for each server; and subtitle sync per file and profile. A video on the USB drive
+//! plays with the same reports and subtitle sync, and no server ([`local_player_env`]).
 
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use pley_core::{CapsOverrides, Store, Tasks};
+use pley_local::LocalServer;
 use pley_player::autoquality::AutoMemory;
-use pley_player::env::{QualityPrefs, SharedMemory, StoreMemory, SubtitleOffsets};
+use pley_player::env::{CapsProbe, HeldQuality, QualityPrefs, SharedMemory, StoreMemory, SubtitleOffsets};
 use pley_player::network::ServerNetwork;
 use pley_player::{PlayerEnv, PlayerServer, Reporter};
 
@@ -103,10 +106,7 @@ pub(crate) fn player_env(state: &mut AppState) -> Option<PlayerEnv> {
     let tasks = state.tasks().clone();
     let store = state.store().clone();
     let client_id = state.install_id().to_string();
-    let device = state.device().clone();
-    let overrides = CapsOverrides::from_settings(state.settings());
-    let probed = state.caps().cloned();
-    let caps = Arc::new(move || probed.clone().or_else(|| Some(device.caps(&overrides))));
+    let caps = caps_probe(state);
     let autoplay_next = state.settings().autoplay_next;
     let profile = state.profile();
     let players = state.players_mut();
@@ -118,6 +118,35 @@ pub(crate) fn player_env(state: &mut AppState) -> Option<PlayerEnv> {
     env.network = Some(Arc::new(ServerNetwork::new(server, client_id)));
     env.autoplay_next = autoplay_next;
     Some(env)
+}
+
+/// The TV's capabilities for a player: the probe's answer when there is one, else asked on the
+/// player's task.
+fn caps_probe(state: &AppState) -> CapsProbe {
+    let device = state.device().clone();
+    let overrides = CapsOverrides::from_settings(state.settings());
+    let probed = state.caps().cloned();
+    Arc::new(move || probed.clone().or_else(|| Some(device.caps(&overrides))))
+}
+
+/// The environment of a player for `file` on the drive mounted at `root`, with no server behind
+/// it: pley-local's [`LocalServer`] answers as a server would for direct play. The file plays as
+/// it is (Original, no Automatic and no network memory), its address is a plain `file://` one,
+/// and nothing plays next by itself.
+pub(crate) fn local_player_env(state: &mut AppState, file: PathBuf, root: PathBuf) -> PlayerEnv {
+    let caps = caps_probe(state);
+    let server = Arc::new(LocalServer::new(file, root, state.store().clone(), caps.clone()));
+    let tasks = state.tasks().clone();
+    let client_id = state.install_id().to_string();
+    let profile = state.profile();
+    let players = state.players_mut();
+    let mut env = PlayerEnv::new(server, tasks, players.reporter.clone(), caps, client_id);
+    env.profile = profile;
+    env.offsets = players.offsets.clone();
+    env.keyed_urls = false;
+    env.quality = Arc::new(HeldQuality::with("original"));
+    env.autoplay_next = false;
+    env
 }
 
 #[cfg(test)]

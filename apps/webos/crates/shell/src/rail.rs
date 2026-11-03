@@ -48,7 +48,7 @@ const GROW: Motion = Motion::new(0.250, Easing::cubic(0.2, 0.0, 0.0, 1.0));
 #[derive(Clone, Debug, PartialEq)]
 pub struct RailEntry {
     /// `search`, `home`, `live-tv`, `library:<id>`, `libraries`, `playlists`, `collections`,
-    /// `now-playing`, `settings`, `profile`.
+    /// `now-playing`, `storage`, `settings`, `profile`.
     pub id: String,
     pub label: String,
     pub icon: Icon,
@@ -98,10 +98,18 @@ fn library_icon(kind: LibraryKind) -> Icon {
 /// The rail's entries (Android's `RailItems`): Search, Home, Discover (or the requests,
 /// [`requests_entry`]), Live TV where the server has channels
 /// for this profile, up to three libraries, then Libraries when there are more, Playlists, and
-/// Collections when there are one to three libraries; Now Playing last while music has a queue;
+/// Collections when there are one to three libraries; Now Playing while music has a queue; USB
+/// drive last while the app can read a drive plugged into the TV (the Samsung app's `Pages.cs`);
 /// Settings at the foot. Seven fit: past that Collections goes first, then libraries from the
-/// last, Libraries listing them.
-pub fn rail_entries(libraries: &[Library], now_playing: bool, live: bool, requests: Option<RailEntry>) -> RailEntries {
+/// last, Libraries listing them. With Discover, Live TV, Now Playing and the drive all there, that
+/// still leaves eight: the drive's entry then takes Playlists' place.
+pub fn rail_entries(
+    libraries: &[Library],
+    now_playing: bool,
+    live: bool,
+    requests: Option<RailEntry>,
+    drive: bool,
+) -> RailEntries {
     let mut shown = libraries.len().min(MAX_LIBRARIES);
     let mut collections = !libraries.is_empty() && libraries.len() <= MAX_LIBRARIES;
     let build = |shown: usize, collections: bool| {
@@ -129,6 +137,9 @@ pub fn rail_entries(libraries: &[Library], now_playing: bool, live: bool, reques
         if now_playing {
             top.push(RailEntry::new("now-playing", "Now Playing", Icon::AudioLines, Route::NowPlaying));
         }
+        if drive {
+            top.push(RailEntry::new("storage", "USB drive", Icon::Usb, Route::Storage { path: None }));
+        }
         top
     };
     let mut top = build(shown, collections);
@@ -139,6 +150,11 @@ pub fn rail_entries(libraries: &[Library], now_playing: bool, live: bool, reques
             shown -= 1;
         }
         top = build(shown, collections);
+    }
+    if top.len() > MAX_ITEMS {
+        // Only the drive can bring it here: Playlists, which Home and the libraries also reach,
+        // gives way to it.
+        top.retain(|e| e.id != "playlists");
     }
     RailEntries {
         top,
@@ -560,7 +576,7 @@ mod tests {
     #[test]
     fn three_libraries_fit_with_collections() {
         let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Shows), lib(3, LibraryKind::Music)];
-        let e = rail_entries(&libs, false, false, None);
+        let e = rail_entries(&libs, false, false, None, false);
         assert_eq!(ids(&e), ["search", "home", "library:1", "library:2", "library:3", "playlists", "collections"]);
         assert_eq!(e.settings.id, "settings");
     }
@@ -568,24 +584,24 @@ mod tests {
     #[test]
     fn more_libraries_than_fit_go_under_libraries() {
         let libs: Vec<Library> = (1..=5).map(|i| lib(i, LibraryKind::Movies)).collect();
-        let e = rail_entries(&libs, false, false, None);
+        let e = rail_entries(&libs, false, false, None, false);
         assert_eq!(ids(&e), ["search", "home", "library:1", "library:2", "library:3", "libraries", "playlists"]);
     }
 
     #[test]
     fn now_playing_takes_the_place_of_collections() {
         let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Shows), lib(3, LibraryKind::Music)];
-        let e = rail_entries(&libs, true, false, None);
+        let e = rail_entries(&libs, true, false, None, false);
         assert_eq!(ids(&e), ["search", "home", "library:1", "library:2", "library:3", "playlists", "now-playing"]);
     }
 
     #[test]
     fn live_tv_comes_after_home_and_makes_room() {
         let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Shows), lib(3, LibraryKind::Music)];
-        let e = rail_entries(&libs, false, true, None);
+        let e = rail_entries(&libs, false, true, None, false);
         assert_eq!(ids(&e), ["search", "home", "live-tv", "library:1", "library:2", "library:3", "playlists"]);
         // With music as well, the last two libraries give way to Libraries.
-        let e = rail_entries(&libs, true, true, None);
+        let e = rail_entries(&libs, true, true, None, false);
         assert_eq!(ids(&e), ["search", "home", "live-tv", "library:1", "libraries", "playlists", "now-playing"]);
         assert!(e.top.len() <= MAX_ITEMS);
     }
@@ -593,18 +609,18 @@ mod tests {
     #[test]
     fn collections_open_on_the_first_library_that_isnt_music() {
         let libs = [lib(7, LibraryKind::Music), lib(8, LibraryKind::Shows)];
-        let e = rail_entries(&libs, false, false, None);
+        let e = rail_entries(&libs, false, false, None, false);
         let c = e.top.iter().find(|e| e.id == "collections").unwrap();
         assert_eq!(c.route, Route::Collections { library_id: Some(8) });
         assert_eq!(e.top.iter().find(|e| e.id == "library:7").unwrap().icon, Icon::Music);
         // No libraries: no Collections either.
-        assert_eq!(ids(&rail_entries(&[], false, false, None)), ["search", "home", "playlists"]);
+        assert_eq!(ids(&rail_entries(&[], false, false, None, false)), ["search", "home", "playlists"]);
     }
 
     #[test]
     fn the_current_entry_follows_the_first_page() {
         let libs: Vec<Library> = (1..=5).map(|i| lib(i, LibraryKind::Movies)).collect();
-        let e = rail_entries(&libs, false, false, None);
+        let e = rail_entries(&libs, false, false, None, false);
         let current = |r: Route| current_entry(Some(&r), &e);
         assert_eq!(current(Route::Home).as_deref(), Some("home"));
         assert_eq!(current(Route::Search { query: "x".into() }).as_deref(), Some("search"));
@@ -615,6 +631,37 @@ mod tests {
         assert_eq!(current(Route::Profiles).as_deref(), Some("profile"));
         assert_eq!(current(Route::Item { id: 3 }), None);
         assert_eq!(current_entry(None, &e), None);
+    }
+
+    #[test]
+    fn the_drive_shows_in_the_rail_while_one_is_plugged_in() {
+        let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Shows)];
+        assert!(!ids(&rail_entries(&libs, true, false, None, false)).contains(&"storage"));
+        let e = rail_entries(&libs, true, false, None, true);
+        assert_eq!(ids(&e)[e.top.len() - 2..], ["now-playing", "storage"]);
+        let drive = e.top.last().unwrap();
+        assert_eq!((drive.label.as_str(), drive.icon), ("USB drive", Icon::Usb));
+        assert_eq!(drive.route, Route::Storage { path: None });
+        // Every folder of the drive is under it.
+        let folder = Route::Storage { path: Some("/tmp/usb/sda/sda1/Films".into()) };
+        assert_eq!(current_entry(Some(&folder), &e).as_deref(), Some("storage"));
+        assert!(e.top.len() <= MAX_ITEMS);
+    }
+
+    #[test]
+    fn with_everything_in_the_rail_the_drive_takes_playlists_place() {
+        let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Shows), lib(3, LibraryKind::Music)];
+        let discover = Some(RailEntry::new("discover", "Discover", Icon::Compass, Route::Discover));
+        let e = rail_entries(&libs, true, true, discover.clone(), true);
+        assert_eq!(ids(&e), ["search", "home", "discover", "live-tv", "libraries", "now-playing", "storage"]);
+        assert!(e.top.len() <= MAX_ITEMS);
+        assert_eq!(current_entry(Some(&Route::Playlists), &e), None);
+        // Without the drive, Playlists keeps its place.
+        let e = rail_entries(&libs, true, true, discover, false);
+        assert_eq!(ids(&e), ["search", "home", "discover", "live-tv", "libraries", "playlists", "now-playing"]);
+        // Room for both: nothing gives way.
+        let e = rail_entries(&libs[..1], false, false, None, true);
+        assert_eq!(ids(&e), ["search", "home", "library:1", "playlists", "collections", "storage"]);
     }
 
     #[test]

@@ -1429,6 +1429,7 @@ dependencies = [
  "pley-core",
  "pley-fixtures",
  "pley-kit",
+ "pley-local",
  "pley-player",
  "pley-ui",
  "serde",

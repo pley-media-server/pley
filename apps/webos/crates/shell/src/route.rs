@@ -2,6 +2,8 @@
 //! app's `PageKey`s (`packages/tv/src/ui/shell/navigator.ts`), plus the pages the TV app shows
 //! inside others (the address pad, the PIN pad, a settings category, the licences).
 
+use std::path::PathBuf;
+
 use pley_core::model::{DiscoverList, LibrarySort, LiveCategory, TitleKind};
 
 use crate::screen::Chrome;
@@ -117,6 +119,9 @@ pub struct PlayRequest {
     /// A subtitle stream to start with; `Some(-1)` starts with them off.
     pub subtitle_index: Option<i64>,
     pub queue: Option<PlayQueue>,
+    /// A video on the USB drive, played from the file with no server behind it (`item_id` is
+    /// then pley-local's `ITEM_ID`).
+    pub file: Option<PathBuf>,
     /// When OK was pressed ([`pley_base::time::now`]), for the time to the first picture.
     pub pressed_at: f64,
 }
@@ -240,6 +245,10 @@ pub enum Route {
     },
     /// The video player.
     Player(PlayRequest),
+    /// A folder of the USB drive plugged into the TV; `None`: the drive's top.
+    Storage {
+        path: Option<PathBuf>,
+    },
     /// Settings, on `section` (`None`: the first, or the one it was left on).
     Settings {
         section: Option<SettingsSection>,
@@ -285,6 +294,7 @@ impl Route {
             Route::Requests => "requests",
             Route::LivePlayer { .. } => "live-player",
             Route::Player(_) => "player",
+            Route::Storage { .. } => "storage",
             Route::Settings { .. } => "settings",
             Route::History => "history",
             Route::Diagnostics => "diagnostics",
@@ -324,6 +334,7 @@ impl Route {
             Route::Requests => "Requests".into(),
             Route::LivePlayer { channel_id, .. } => format!("Channel {channel_id}"),
             Route::Player(r) => format!("Playing item {}", r.item_id),
+            Route::Storage { .. } => "USB drive".into(),
             Route::Settings { section: Some(s) } => format!("Settings: {}", s.label()),
             Route::Settings { section: None } => "Settings".into(),
             Route::History => "Watch history".into(),
@@ -359,14 +370,23 @@ impl Route {
                 | Route::Playlists
                 | Route::Collections { .. }
                 | Route::NowPlaying
+                | Route::Storage { .. }
                 | Route::Settings { .. }
                 | Route::Profiles
         )
     }
 
     /// The route the simulator's `--route` names: `home`, `item:12`, `library:3:collections`,
-    /// `search:alien`, `settings:about`, `player:12`, `live-player:4`…
+    /// `search:alien`, `settings:about`, `player:12`, `live-player:4`, `storage:<folder>`…
     pub fn parse(s: &str) -> Option<Route> {
+        // A folder's path may hold colons of its own (`C:\Films`).
+        if let Some(rest) = s.trim().strip_prefix("storage") {
+            return match rest.strip_prefix(':') {
+                Some(path) if !path.is_empty() => Some(Route::Storage { path: Some(PathBuf::from(path)) }),
+                _ if rest.is_empty() || rest == ":" => Some(Route::Storage { path: None }),
+                _ => None,
+            };
+        }
         let mut parts = s.trim().splitn(3, ':');
         let name = parts.next()?;
         let a = parts.next();
@@ -452,6 +472,7 @@ impl Route {
             Route::Requests,
             Route::LivePlayer { channel_id: 4, category: LiveCategory::All, pressed_at: 0.0 },
             Route::Player(PlayRequest::item(12)),
+            Route::Storage { path: None },
             Route::Settings { section: None },
             Route::History,
             Route::Diagnostics,
@@ -471,7 +492,7 @@ mod tests {
         unique.sort_unstable();
         unique.dedup();
         assert_eq!(unique.len(), names.len(), "{names:?}");
-        assert_eq!(names.len(), 33);
+        assert_eq!(names.len(), 34);
     }
 
     #[test]
@@ -493,6 +514,12 @@ mod tests {
             Route::parse("title:show:95396"),
             Some(Route::Title { kind: TitleKind::Show, tmdb_id: 95396, pick: false })
         );
+        assert_eq!(Route::parse("storage"), Some(Route::Storage { path: None }));
+        assert_eq!(
+            Route::parse("storage:/tmp/usb/sda/sda1/Films"),
+            Some(Route::Storage { path: Some(PathBuf::from("/tmp/usb/sda/sda1/Films")) })
+        );
+        assert_eq!(Route::parse("storages"), None);
         assert_eq!(Route::parse("item"), None);
         assert_eq!(Route::parse("nowhere"), None);
         // Every page can be opened from the command line, with an id where it needs one.

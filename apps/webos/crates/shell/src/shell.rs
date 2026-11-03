@@ -92,7 +92,7 @@ impl Shell {
             dimmed: false,
             music_due: None,
             exited: false,
-            entries: rail_entries(&[], false, false, None),
+            entries: rail_entries(&[], false, false, None, false),
             asked: false,
         }
     }
@@ -248,7 +248,10 @@ impl Shell {
             let libraries = state.libraries().unwrap_or(&[]);
             let queued = state.music.as_ref().is_some_and(|m| m.queued());
             let requests = crate::rail::requests_entry(state.request_summary());
-            self.entries = rail_entries(libraries, queued, state.live_available(), requests);
+            // The drive's entry shows only while the app can read it: a drive the jail hides
+            // has nothing to open.
+            let drive = state.device().drive().is_some_and(|d| d.readable());
+            self.entries = rail_entries(libraries, queued, state.live_available(), requests, drive);
         } else if self.rail.is_open() {
             self.rail.close();
         }

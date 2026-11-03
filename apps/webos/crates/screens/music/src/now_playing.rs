@@ -10,7 +10,7 @@ use std::hash::{Hash, Hasher};
 use pley_base::{Icon, ImageRequest, Key, Point, Rect, Size, TextOpts};
 use pley_core::format::format_clock;
 use pley_core::model::{ImageKind, ItemSummary};
-use pley_kit::{RoundButton, SCROLL, backdrop_px, look};
+use pley_kit::{RoundButton, SCROLL, TrackLine, backdrop_px, look};
 use pley_player::sleep::SleepState;
 use pley_shell::{AppCx, Chrome, Screen};
 use pley_ui::theme::focus::{self, ControlLook};
@@ -19,7 +19,7 @@ use pley_ui::{Dir, Dirs, Edge, FocusOpts, Group, Id, Ui, nudge};
 
 use crate::pages::{self, QUEUE_LINE, QUEUE_PITCH, SEEK_STEP_MS};
 use crate::player::{self, MusicPlayer};
-use crate::widgets::{FAINT_ART_PX, TrackLine, art_well, faint_art, message, register};
+use crate::widgets::{FAINT_ART_PX, art_well, faint_art, message, register};
 
 /// The cover: 300 dp at (96, 58), 8 dp corners; the column 32 dp to its right, to the safe edge.
 const ART: Rect = Rect::new(theme::GUTTER, 58.0, 300.0, 300.0);
@@ -352,6 +352,7 @@ impl NowPlayingScreen {
                         current: i == index,
                         playing: i == index && playing,
                         highlighted: false,
+                        ..TrackLine::default()
                     };
                     if line.show(ui, id.with(i), rect).activated {
                         picked = Some(i);

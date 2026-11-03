@@ -35,12 +35,15 @@ pub const ALL: &[Icon] = &[
     Icon::Clapperboard,
     Icon::Clock,
     Icon::Compass,
+    Icon::CornerLeftUp,
     Icon::Delete,
     Icon::Disc3,
     Icon::Ellipsis,
     Icon::EyeOff,
     Icon::FastForward,
+    Icon::FileVideo,
     Icon::Film,
+    Icon::Folder,
     Icon::Funnel,
     Icon::Gauge,
     Icon::GripVertical,
@@ -87,6 +90,7 @@ pub const ALL: &[Icon] = &[
     Icon::Trash2,
     Icon::Tv,
     Icon::TvMinimal,
+    Icon::Usb,
     Icon::UserRound,
     Icon::Users,
     Icon::WifiOff,
@@ -373,7 +377,7 @@ mod tests {
         for icon in ALL {
             assert!(seen.insert(*icon), "{icon:?} twice");
         }
-        assert_eq!(ALL.len(), 82);
+        assert_eq!(ALL.len(), 86);
     }
 
     #[test]

@@ -441,3 +441,34 @@ fn a_list_keeps_its_focused_row_at_30_percent() {
     assert_eq!(i, 39);
     assert!(close(y + 44.0, 27.0 + 486.0));
 }
+
+#[test]
+fn a_drives_line_has_its_icon_tile_its_bar_and_says_its_words() {
+    use crate::track::{ICON_LINE_MIN, LINE_MIN, TrackLine};
+    let film = TrackLine {
+        title: "Mad Max",
+        subtitle: Some("MKV · Resumes at 1:02:03"),
+        duration: "4.2 GB",
+        icon: Some(pley_base::Icon::FileVideo),
+        progress: 0.5,
+        ..TrackLine::default()
+    };
+    let folder = TrackLine { title: "Films", icon: Some(pley_base::Icon::Folder), ..TrackLine::default() };
+    let track = TrackLine { number: "3", title: "Song", ..TrackLine::default() };
+    assert_eq!((track.height(), folder.height()), (LINE_MIN, ICON_LINE_MIN));
+    // Its words, the bar and the padding: taller than an icon's least.
+    assert_eq!(film.height(), 20.0 + 17.0 + 6.0 + 3.0 + 12.0);
+    assert_eq!(film.spoken(), "Mad Max, MKV · Resumes at 1:02:03, 4.2 GB");
+    let rect = Rect::new(96.0, 100.0, 720.0, film.height());
+    let mut screen = |ui: &mut Ui| {
+        film.show(ui, Id::new("film"), rect);
+    };
+    let mut h = Harness::new();
+    let frame = h.idle(&mut screen);
+    let tiles = super::fills_of(&frame.list, theme::SURFACE2);
+    assert_eq!(tiles, [Rect::new(108.0, 100.0 + (rect.h - 36.0) / 2.0, 36.0, 36.0)]);
+    let bars = super::fills_of(&frame.list, theme::PROGRESS_TRACK_ON_ART);
+    assert_eq!(bars.len(), 1);
+    assert_eq!((bars[0].x, bars[0].w, bars[0].h), (108.0 + 36.0 + 14.0, 160.0, 3.0));
+    assert_eq!(super::fills_of(&frame.list, theme::ACCENT)[0].w, 80.0);
+}

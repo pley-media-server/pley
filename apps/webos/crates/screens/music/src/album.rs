@@ -8,16 +8,14 @@
 use pley_base::{Icon, ImageRequest, Point, Rect, TextOpts};
 use pley_core::model::{ItemDetail, ItemList, ItemSummary};
 use pley_core::store::snapshot_keys;
-use pley_kit::{Button, RoundButton, SCROLL, backdrop_px, skeleton_block};
+use pley_kit::{Button, RoundButton, SCROLL, TrackLine, backdrop_px, skeleton_block};
 use pley_shell::{AppCx, AppEvent, Chrome, Load, Resource, Route, Screen};
 use pley_ui::theme::{self, radius};
 use pley_ui::{Dir, Edge, Group, Ui, nudge};
 
 use crate::pages::{self, AlbumRow, NOT_FOUND_BODY, NOTHING_TO_PLAY, UNREACHABLE_TITLE};
 use crate::player;
-use crate::widgets::{
-    FAINT_ART_PX, ListState, TrackLine, art_well, faint_art, list_failure, list_state, message, stars,
-};
+use crate::widgets::{FAINT_ART_PX, ListState, art_well, faint_art, list_failure, list_state, message, stars};
 
 /// The page's top, the left column's width and its cover (`TvAlbumScreen.kt`).
 const TOP: f32 = 40.0;
@@ -150,6 +148,7 @@ impl AlbumScreen {
             current: is_current,
             playing: is_current && current.is_some_and(|c| c.1),
             highlighted: highlight && self.track_id == Some(t.id),
+            ..TrackLine::default()
         }
     }
 

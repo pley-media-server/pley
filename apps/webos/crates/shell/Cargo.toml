@@ -13,6 +13,7 @@ pley-core = { path = "../core" }
 pley-kit = { path = "../kit" }
 pley-ui = { path = "../ui" }
 pley-player = { path = "../player" }
+pley-local = { path = "../local" }
 log = "0.4.29"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"

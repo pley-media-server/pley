@@ -145,6 +145,12 @@ impl<'a> AppCx<'a> {
         crate::players::player_env(self.state)
     }
 
+    /// What a player of `file`, a video on the drive mounted at `root`, works with: no server, the
+    /// file as it is, the reports and subtitle sync every player shares.
+    pub fn local_player_env(&mut self, file: std::path::PathBuf, root: std::path::PathBuf) -> PlayerEnv {
+        crate::players::local_player_env(self.state, file, root)
+    }
+
     /// This TV's id for playbacks and Live TV (`webos-…`).
     pub fn install_id(&self) -> &str {
         self.state.install_id()
