@@ -48,9 +48,10 @@ import kotlinx.coroutines.launch
  * - pictures wait unless the memory cache has them: the gate is the
  *   window's [ArtworkHold], and where the key comes up loads them.
  *
- * A hold ends when its key comes up, another key goes down, or no sign of
- * the key comes for [LOST_KEY_UP_MS] (the window lost the key-up):
- * [onRelease] and [awaitRelease] say so.
+ * A hold ends when its key comes up, another direction goes down, or no
+ * sign of the key comes for [LOST_KEY_UP_MS] (the window lost the key-up):
+ * [onRelease] and [awaitRelease] say so. Other keys pass by it, as on the
+ * Samsung app: what they do under a slide is the row's ([TvRow]).
  *
  * One per window, at the root ([keyRepeatGate]), which runs its clock.
  * [clock] is the uptime in milliseconds and [firstRepeatMs] how long the
@@ -114,7 +115,7 @@ class KeyRepeatGate(
             KeyEventType.KeyDown -> {
                 lastKey = now
                 if (native.repeatCount == 0) {
-                    // Another key's press ends the hold before it.
+                    // Another direction's press ends the hold before it.
                     endHold(now)
                     press = native
                     pressedAt = now

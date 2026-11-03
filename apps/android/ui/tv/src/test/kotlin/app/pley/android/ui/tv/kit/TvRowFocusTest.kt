@@ -79,8 +79,9 @@ class TvRowFocusTest {
     private lateinit var list: LazyListState
     private lateinit var rowA: LazyListState
 
-    /** The ids of row A's tiles opened. */
+    /** The ids of row A's tiles opened, and whose actions opened (Menu). */
     private val opened = mutableListOf<Long>()
+    private val actioned = mutableListOf<Long>()
 
     private lateinit var view: View
 
@@ -124,7 +125,7 @@ class TvRowFocusTest {
                                 }
                             }
                             item("a") {
-                                TvRow("a", "Row A", tiles("A", 20), TileKind.Landscape, onOpen = { opened += it.id }, initialFocus = !withHero, state = rowA)
+                                TvRow("a", "Row A", tiles("A", 20), TileKind.Landscape, onOpen = { opened += it.id }, onActions = { actioned += it.id }, initialFocus = !withHero, state = rowA)
                             }
                             item("b") { TvRow("b", "Row B", tiles("B", 8, from = 100), TileKind.Poster, onOpen = {}) }
                         }
@@ -388,6 +389,27 @@ class TvRowFocusTest {
         compose.press(Key.DirectionCenter)
         val landed = compose.focused().fetchSemanticsNode().config[SemanticsProperties.ContentDescription].single()
         assertEquals(listOf(landed.removePrefix("A ").toLong()), opened)
+    }
+
+    @Test
+    fun menuPressedWhileARowSlidesOpensNoActionsEvenLetGoAfterTheLanding() {
+        page()
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionRight)
+        advance(304)
+        keyDown(Key.Menu)
+        advance(48)
+        keyUp(Key.DirectionRight)
+        advance(48)
+        // The slide has landed; Menu comes up on the tile it landed on, which it wasn't pressed on.
+        keyUp(Key.Menu)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertTrue("$actioned", actioned.isEmpty())
+        // A press of its own opens them.
+        compose.press(Key.Menu)
+        val landed = compose.focused().fetchSemanticsNode().config[SemanticsProperties.ContentDescription].single()
+        assertEquals(listOf(landed.removePrefix("A ").toLong()), actioned)
     }
 
     @Test

@@ -397,15 +397,22 @@ internal class RowMotion(private val state: LazyListState, private val gate: Key
         if (sliding == 0) moveTo(restFor(index))
     }
 
+    /** Select or Menu gone down while the row slid: its key-up, should it come after the landing, opens nothing either. */
+    private var swallowed: Key? = null
+
     /**
      * A key the row's tiles get first. Under a held key, Left or Right from
      * a tile resting at the gutter, where the row has room that way, starts
      * a slide; while it runs, its keys go to it and focus waits. So does
-     * Select or Menu pressed meanwhile: focus is still on the tile the
-     * slide left behind, which they would open.
+     * Select or Menu pressed meanwhile, its key-up too when it comes after
+     * the landing: focus is still on the tile the slide left behind, which
+     * they would open, and Menu opens a tile's actions as it comes up.
      */
     fun onKey(event: KeyEvent): Boolean {
-        if (sliding != 0 && event.key in TileKeys) return true
+        if (event.key in TileKeys && (sliding != 0 || event.key == swallowed)) {
+            swallowed = if (event.type == KeyEventType.KeyUp) null else event.key
+            return true
+        }
         if (event.type != KeyEventType.KeyDown) return false
         val step = when (event.key) {
             Key.DirectionLeft -> -1

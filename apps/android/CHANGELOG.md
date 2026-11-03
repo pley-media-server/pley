@@ -259,6 +259,8 @@ describes how they are made.
   Left or Right slides the row under a still ring, as on Samsung TVs.
 - On TVs, Back pressed as a tile's actions slide in leaves focus on the
   tile, where it could leave nothing focused.
+- On TVs, Menu pressed while a held key slides a row no longer opens the
+  actions of the tile the row lands on when it is let go.
 
 ### Removed
 
