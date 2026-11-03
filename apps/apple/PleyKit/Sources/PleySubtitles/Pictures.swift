@@ -87,6 +87,24 @@ public enum Pictures {
 
     /// The most bytes the frames kept per track hold together.
     static let cacheBytes = 128 << 20
+
+    /// Pictures placed at one moment, at most: a Blu-ray places two, a DVB
+    /// page a few. Each one is drawn on its own.
+    static let maxPictures = 64
+
+    /// Segments read from one sample: a real display set has tens.
+    static let maxSegments = 512
+
+    /// Samples a decode reads back to its epoch's start or acquisition
+    /// point, at most: real tracks have one every few samples.
+    static let maxLookBack = 128
+
+    /// Parsed samples kept for the next decodes, at most: a crafted track's
+    /// parsed samples would take many times its size.
+    static let maxParsed = 256
+
+    /// Samples read from a track's file, at most: a film's has a few thousand.
+    static let maxSamples = 100_000
 }
 
 /// The few frames decoded last, oldest dropped first.

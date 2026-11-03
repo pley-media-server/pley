@@ -233,6 +233,29 @@ struct PicturesTests {
         #expect(frame.bitmaps.first.map { [$0.width, $0.height] } == [3000, 2000])
     }
 
+    @Test func aFrameHasAFewPicturesAtMost() throws {
+        // A 1×1 region placed 100 times: each placement a picture of its own.
+        var placements: [UInt8] = []
+        for i in 0..<100 { placements += [0, 0] + u16(i) + u16(0) }
+        let page = Self.dvbSegment(0x10, [5, 2 << 2] + placements)
+        let size: [UInt8] = u16(1) + u16(1)
+        let region = Self.dvbSegment(0x11, [0, 0x08] + size + [2 << 2, 0, 0, 1 << 4])
+        let clut = Self.dvbSegment(0x12, [0, 0, 1, 0x40 | 0x01, 81, 240, 90, 0])
+        let set: [UInt8] = [0x20, 0x00] + page + region + clut + Self.dvbSegment(0x80, []) + [0xFF]
+        let frame = try #require(DVBDecoder(samples: [set]).decode(0))
+        #expect(frame.bitmaps.count == Pictures.maxPictures)
+    }
+
+    @Test func aSampleOfTinySegmentsIsReadInPartOnly() {
+        // 2,000 empty object fragments in one sample: 512 are read.
+        var data: [UInt8] = []
+        for _ in 0..<2_000 { data += pgsSegment(0x15, [0, 0, 0, 0]) }
+        #expect(PGSDecoder.parseDisplaySet(data).objects.count == Pictures.maxSegments)
+        var dvb: [UInt8] = [0x20, 0x00]
+        for _ in 0..<2_000 { dvb += Self.dvbSegment(0x13, []) }
+        #expect(DVBDecoder.segments(dvb).count == Pictures.maxSegments)
+    }
+
     @Test func dvbDrawsObjectsIntoRegionsPlacedByThePage() throws {
         let decoder = DVBDecoder(samples: [Self.dvbDisplaySet()])
         let frame = try #require(decoder.decode(0))

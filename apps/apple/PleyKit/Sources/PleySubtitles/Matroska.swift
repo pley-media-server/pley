@@ -147,7 +147,7 @@ public enum MatroskaPictureTrack {
         init(bytes: [UInt8]) { self.bytes = bytes }
 
         mutating func endGroup() {
-            if let groupBlock { raw.append((groupBlock, groupDuration)) }
+            if let groupBlock, raw.count < Pictures.maxSamples { raw.append((groupBlock, groupDuration)) }
             groupBlock = nil
             groupDuration = nil
         }
@@ -191,7 +191,9 @@ public enum MatroskaPictureTrack {
                     case ID.contentCompSettings: compSettings = body
                     case ID.timecode: clusterTime = uint(body)
                     case ID.simpleBlock:
-                        if let b = block(body, clusterTime: clusterTime) { raw.append((b, nil)) }
+                        if raw.count < Pictures.maxSamples, let b = block(body, clusterTime: clusterTime) {
+                            raw.append((b, nil))
+                        }
                     case ID.block: groupBlock = block(body, clusterTime: clusterTime)
                     case ID.blockDuration: groupDuration = uint(body)
                     default: break

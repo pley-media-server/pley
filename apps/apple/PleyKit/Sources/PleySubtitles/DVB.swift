@@ -55,6 +55,7 @@ public final class DVBDecoder: PictureDecoder {
 
     private let samples: [[UInt8]]
     private var parsed: [[Segment]?]
+    private var parsedCount = 0
     private var cache = FrameCache()
 
     public init(samples: [[UInt8]]) {
@@ -68,7 +69,7 @@ public final class DVBDecoder: PictureDecoder {
         var at = 0
         // data_identifier 0x20 and subtitle_stream_id 0x00 open a PES data field.
         if data.at(0) == 0x20 && data.count > 1 && data[1] == 0x00 { at = 2 }
-        while at + 6 <= data.count && data[at] == 0x0F {
+        while at + 6 <= data.count && data[at] == 0x0F && out.count < Pictures.maxSegments {
             let type = data.at(at + 1)
             let length = data.u16(at + 4)
             out.append(Segment(type: type, body: Array(data[(at + 6)..<min(data.count, at + 6 + length)])))
@@ -80,7 +81,7 @@ public final class DVBDecoder: PictureDecoder {
     private static func readPage(_ b: [UInt8]) -> Page {
         var regions: [(id: Int, x: Int, y: Int)] = []
         var i = 2
-        while i + 6 <= b.count {
+        while i + 6 <= b.count, regions.count < Pictures.maxPictures {
             regions.append((b.at(i), b.u16(i + 2), b.u16(i + 4)))
             i += 6
         }
@@ -302,7 +303,12 @@ public final class DVBDecoder: PictureDecoder {
     private func segs(_ index: Int) -> [Segment] {
         if let s = parsed[index] { return s }
         let s = Self.segments(samples[index])
+        if parsedCount >= Pictures.maxParsed {
+            parsed = Array(repeating: nil, count: parsed.count)
+            parsedCount = 0
+        }
         parsed[index] = s
+        parsedCount += 1
         return s
     }
 
@@ -327,7 +333,7 @@ public final class DVBDecoder: PictureDecoder {
 
     private func render(_ index: Int) -> PictureFrame? {
         var from = index
-        while from > 0 {
+        while from > 0, index - from < Pictures.maxLookBack {
             if let page = page(from), page.state != 0 { break }
             from -= 1
         }
@@ -366,7 +372,8 @@ public final class DVBDecoder: PictureDecoder {
                     let background = UInt8(depth == 8 ? b.at(8) : depth == 4 ? b.at(9) >> 4 : (b.at(9) >> 2) & 3)
                     var objects: [(id: Int, x: Int, y: Int)] = []
                     var o = 10
-                    while o + 6 <= b.count {
+                    // Each object is drawn once per entry: a few, not thousands.
+                    while o + 6 <= b.count, objects.count < Pictures.maxPictures {
                         let objectType = b.at(o + 2) >> 6
                         objects.append((b.u16(o), (b.at(o + 2) & 0x0F) << 8 | b.at(o + 3),
                                         (b.at(o + 4) & 0x0F) << 8 | b.at(o + 5)))

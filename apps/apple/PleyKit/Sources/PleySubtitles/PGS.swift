@@ -67,6 +67,7 @@ public final class PGSDecoder: PictureDecoder {
 
     private let samples: [[UInt8]]
     private var sets: [DisplaySet?]
+    private var parsedCount = 0
     private var cache = FrameCache()
 
     public init(samples: [[UInt8]]) {
@@ -78,7 +79,9 @@ public final class PGSDecoder: PictureDecoder {
     static func parseDisplaySet(_ data: [UInt8]) -> DisplaySet {
         var set = DisplaySet()
         var at = 0
-        while at + 3 <= data.count {
+        var segments = 0
+        while at + 3 <= data.count, segments < Pictures.maxSegments {
+            segments += 1
             // Some muxers keep the "PG" header of the .sup format: 2 magic bytes, PTS and DTS.
             if data.at(at) == 0x50 && data.at(at + 1) == 0x47 { at += 10 }
             let type = data.at(at)
@@ -93,7 +96,7 @@ public final class PGSDecoder: PictureDecoder {
                 guard body.count >= 2 else { break }
                 var entries: [PaletteEntry] = []
                 var i = 2
-                while i + 5 <= body.count {
+                while i + 5 <= body.count, entries.count < 256 {
                     entries.append(PaletteEntry(index: body.at(i), y: body.at(i + 1), cr: body.at(i + 2),
                                                 cb: body.at(i + 3), a: body.at(i + 4)))
                     i += 5
@@ -197,7 +200,12 @@ public final class PGSDecoder: PictureDecoder {
     private func set(_ index: Int) -> DisplaySet {
         if let s = sets[index] { return s }
         let s = Self.parseDisplaySet(samples[index])
+        if parsedCount >= Pictures.maxParsed {
+            sets = Array(repeating: nil, count: sets.count)
+            parsedCount = 0
+        }
         sets[index] = s
+        parsedCount += 1
         return s
     }
 
@@ -206,7 +214,7 @@ public final class PGSDecoder: PictureDecoder {
         if pcs.objects.isEmpty { return PictureFrame(planeWidth: pcs.width, planeHeight: pcs.height, bitmaps: []) }
         // Palettes and objects as they stand at `index`: from the last epoch start or acquisition point.
         var from = index
-        while from > 0 {
+        while from > 0, index - from < Pictures.maxLookBack {
             if (set(from).pcs?.state ?? 0) & 0xC0 != 0 { break }
             from -= 1
         }
@@ -242,6 +250,7 @@ public final class PGSDecoder: PictureDecoder {
         for placed in pcs.objects {
             guard let object = objects[placed.id], (1...Self.maxSide).contains(object.width),
                   (1...Self.maxSide).contains(object.height) else { continue }
+            guard bitmaps.count < Pictures.maxPictures else { break }
             pixelsLeft -= object.width * object.height
             guard pixelsLeft >= 0 else { break }
             let indexes = Self.decodeRle(object.rle, width: object.width, height: object.height)

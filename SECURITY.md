@@ -484,8 +484,10 @@ Pley for iPhone, iPad, Mac and Apple TV (in development).
   the scheme for its Top Shelf links, which the app signs and checks before
   opening one.
 - Picture subtitles (PGS, DVB, VobSub) decode at most a 4K screen's pixels
-  for one moment, and the frames kept per track hold 128 MiB at most, so a
-  crafted file can't take more memory than a real one.
+  and 64 pictures for one moment, keep 128 MiB of decoded frames and a few
+  hundred parsed samples per track, read 512 segments of a sample and
+  100,000 samples of a track at most, so what a crafted file makes the
+  app hold is bounded.
 
 ### TV apps, Kodi and Roku
 
