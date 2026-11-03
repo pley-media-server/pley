@@ -197,6 +197,13 @@ impl Listener {
         let result = match event {
             ServerEvent::SessionsChanged => Ok(self.sessions_changed()),
             ServerEvent::LibrariesChanged => self.load_libraries().await.map(|()| Vec::new()),
+            // The libraries the account may open changed: it is read again.
+            ServerEvent::OwnLibrariesChanged { user_id } if user_id == self.user.id => {
+                if let Some(user) = self.state.auth.validate_compatibility(&self.token, Some(&self.from)).await {
+                    self.user = user;
+                }
+                self.load_libraries().await.map(|()| Vec::new())
+            }
             ServerEvent::LibraryChanged { library_id } => self.items_added(library_id).await,
             ServerEvent::ScanStarted { library_id } => {
                 Ok(self.scan(library_id, "started", 0, "").into_iter().collect())
