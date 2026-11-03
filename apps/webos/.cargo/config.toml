@@ -14,7 +14,8 @@ AR_armv7_unknown_linux_gnueabi = "arm-webos-linux-gnueabi-ar"
 # webOS toolchain's GCC (openlgtv/buildroot-nc4), whose sysroot holds the TV's glibc 2.12, so
 # the binary loads on every firmware. The toolchain runs on Linux only: CI and
 # scripts/build-tv.ps1 put its bin folder on PATH. `cargo xtask build` adds the
-# --remap-path-prefix flags, which need this machine's folders.
+# --remap-path-prefix flags (and GCC's -ffile-prefix-map for C), which need this
+# machine's folders.
 [target.armv7-unknown-linux-gnueabi]
 linker = "arm-webos-linux-gnueabi-gcc"
 rustflags = [

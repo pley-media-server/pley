@@ -207,11 +207,18 @@ fn build(ws: &Workspace, locked: bool) -> Result<()> {
         }
     }
     let target_dir = ws.metadata(None)?.target_directory;
-    let remaps: Vec<String> = private_folders(ws, &target_dir)
-        .iter()
-        .map(|(from, to)| format!("--remap-path-prefix={}={to}", from.display()))
-        .collect();
+    let folders = private_folders(ws, &target_dir);
+    let remaps: Vec<String> =
+        folders.iter().map(|(from, to)| format!("--remap-path-prefix={}={to}", from.display())).collect();
     let mut command = ws.cargo();
+    // The C the crates build for the TV (ring's) gets the same names, in its debug information
+    // and its __FILE__, through GCC's own flag (the last that matches counts, as with rustc).
+    let c_flags = format!("CFLAGS_{}", TV_TARGET.replace('-', "_"));
+    let mut given = std::env::var(&c_flags).unwrap_or_default();
+    for (from, to) in &folders {
+        given.push_str(&format!(" -ffile-prefix-map={}={to}", from.display()));
+    }
+    command.env(&c_flags, given.trim_start());
     command.args(["build", "--release", "--target", TV_TARGET, "--package", APP_PACKAGE, "--bin", APP_BINARY]);
     command.args(TV_FEATURES);
     if locked {
