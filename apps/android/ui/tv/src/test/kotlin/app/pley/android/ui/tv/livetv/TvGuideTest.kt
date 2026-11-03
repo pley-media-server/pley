@@ -74,6 +74,8 @@ class TvGuideTest {
     private var uptime = 100_000L
     private val gate = KeyRepeatGate { uptime }
     private var leaves = 0
+    private var watches = 0
+    private var details = 0
     private lateinit var vm: LiveTvViewModel
 
     @After
@@ -102,7 +104,7 @@ class TvGuideTest {
                         val pages by vm.channels.collectAsStateWithLifecycle()
                         val now by vm.now.collectAsStateWithLifecycle()
                         if (pages.total != null) {
-                            TvGuide(vm, pages, LiveCategory.All, "", now, onWatch = {}, onDetails = { _, _ -> }, onLeave = { leaves++ })
+                            TvGuide(vm, pages, LiveCategory.All, "", now, onWatch = { watches++ }, onDetails = { _, _ -> details++ }, onLeave = { leaves++ })
                         }
                     }
                 }
@@ -229,6 +231,27 @@ class TvGuideTest {
         compose.mainClock.advanceTimeBy(160)
         assertTrue(shows("On 2"))
         assertTrue(shows("On 7"))
+    }
+
+    @Test
+    fun `OK after a held OK opened the details acts, though the held one's key-up went to them`() {
+        live.lineup.value = (1L..3L).map { LiveChannel(it, name = "Channel $it", number = "$it", hasGuide = true) }
+        show()
+        val start = vm.guideStart
+        for (chunk in live.guides.keys) {
+            val programs = (1L..3L).associateWith { id -> listOf(LiveProgram(id, start, start + 3 * 60 * 60, "On $id")) }
+            live.guideChunk(chunk).value = Loadable.Ready(LiveGuide(chunk, chunk + LiveTvRepository.GUIDE_CHUNK_S, programs), fresh = true)
+        }
+        compose.waitForIdle()
+        // Held: the details open, and take the key-up.
+        key(AndroidKeyEvent.KEYCODE_DPAD_CENTER, 200_000, up = false)
+        key(AndroidKeyEvent.KEYCODE_DPAD_CENTER, 200_500, repeat = 1, up = false)
+        assertEquals(1, details)
+        assertEquals(0, watches)
+        // Back on the guide, a press watches the channel rather than being swallowed.
+        key(AndroidKeyEvent.KEYCODE_DPAD_CENTER, 210_000)
+        assertEquals(1, watches)
+        assertEquals(1, details)
     }
 
     private companion object {

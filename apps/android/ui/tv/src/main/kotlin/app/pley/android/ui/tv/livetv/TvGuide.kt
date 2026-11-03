@@ -303,6 +303,8 @@ internal fun TvGuide(
                         KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
                             if (c == null) return@onPreviewKeyEvent true
                             if (down) {
+                                // A press of its own: a hold whose key-up went to the details it opened is over.
+                                if (native.repeatCount == 0) held = false
                                 // Held: the details, once.
                                 if (native.repeatCount > 0 && !held && on != null) {
                                     held = true
