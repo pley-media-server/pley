@@ -49,6 +49,7 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
@@ -222,20 +223,7 @@ private fun ScrubPreview(state: PlayerScreenState) {
         null
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        val image = picture
-        if (state.hasThumbnails) {
-            Box(
-                Modifier
-                    .size(tile.width.dp, tile.height.dp)
-                    .clip(PleyShape.Field)
-                    .background(PleyColors.Surface2)
-                    .border(2.dp, PleyColors.Fg.copy(alpha = 0.2f), PleyShape.Field),
-            ) {
-                if (image != null) {
-                    Image(image.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(tile.width.dp, tile.height.dp))
-                }
-            }
-        }
+        if (state.hasThumbnails) PreviewTile(picture, tile.width.dp, tile.height.dp)
         val time = PlayerLook.clock(at)
         Text(
             if (chapterName != null) stringResource(R.string.player_chapter_at, chapterName, time) else time,
@@ -246,6 +234,27 @@ private fun ScrubPreview(state: PlayerScreenState) {
                 .background(Color.Black.copy(alpha = 0.6f), PleyShape.Badge)
                 .padding(horizontal = 8.dp, vertical = 2.dp),
         )
+    }
+}
+
+/**
+ * A seek preview in its [width] × [height] tile, letterboxed on black as
+ * the video is, so a 2.39:1 film's keep their shape; the well until one
+ * comes.
+ */
+@Composable
+internal fun PreviewTile(image: Bitmap?, width: Dp, height: Dp, modifier: Modifier = Modifier) {
+    val picture = remember(image) { image?.asImageBitmap() }
+    Box(
+        modifier
+            .size(width, height)
+            .clip(PleyShape.Field)
+            .background(if (picture != null) Color.Black else PleyColors.Surface2)
+            .border(2.dp, PleyColors.Fg.copy(alpha = 0.2f), PleyShape.Field),
+    ) {
+        if (picture != null) {
+            Image(picture, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.size(width, height))
+        }
     }
 }
 

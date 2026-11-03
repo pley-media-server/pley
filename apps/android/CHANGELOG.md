@@ -8,12 +8,52 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- On TVs, the title shows at the top for a few seconds as each item
+  begins, the next episode too, while the player's controls are hidden
+  and Playback details aren't over the video.
+
+### Changed
+
+- Chapters named only by where they start ("00:06:19.212", as mkvmerge
+  names them) show as "Chapter 3" on phones and TVs, as untitled ones do.
+- On TVs, a held Left or Right scrubs on a smooth curve, twice as fast
+  every 1.5 s, up to a whole video in 10 s, as on Samsung TVs.
+- While a seek is coming on TVs, the scrubber's played part and both its
+  times stand where it goes, with the thumb, rather than at the playhead.
+- On TVs, Left and Right show the controls with the preview and wait for
+  OK before they seek, as YouTube's TV app does: OK goes there, it goes by
+  itself 5 s after the last key, and Back lets it go. A held key let go
+  waits there too, and Previous, Next or Skip take the place of a seek
+  waiting. Fast forward, rewind and the row's 10 s skips seek as before.
+- On TVs, OK with the player's controls hidden shows them on the scrubber
+  instead of pausing; OK there plays and pauses.
+- On TVs, Down with the player's controls hidden shows them on Play/Pause,
+  in the middle of the row, rather than on Subtitles.
+- On TVs, the chapters show as a row of cards over the scrubber, with
+  their pictures, as in YouTube's TV app, in place of the Chapters panel:
+  Up while a seek waits, or the Chapters button, opens them on the chapter
+  it was going to; OK goes to one, Down or Back closes them.
+- Seek previews keep the video's shape, letterboxed on black, on phones
+  and TVs, rather than cropped to fill their box: a wide film's no longer
+  loses its sides.
+- On TVs, a video's first picture fades in from black, as the player's
+  controls do, rather than appearing at once (at once with reduced motion).
+
 ### Fixed
 
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
   left on has a PIN, the start asks "Who's watching?".
+- On TVs, the player's Info shows the playback's details as soon as the
+  server sends them, rather than "Asking the server…" for up to a second.
+- While the TV player shows an error, the remote's media keys and CAPTIONS
+  do nothing, rather than seeking, changing the subtitles or playing the
+  next episode under it; Stop still leaves.
+- On TVs, the sleep timer's notice keeps its width as the count goes under
+  10 s, so Keep watching no longer moves under the focus.
 
 ## [0.1.3] - 2026-11-02
 

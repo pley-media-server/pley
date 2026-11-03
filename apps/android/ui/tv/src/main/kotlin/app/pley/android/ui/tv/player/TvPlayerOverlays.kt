@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -53,6 +54,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -74,6 +76,7 @@ import app.pley.android.common.Tier
 import app.pley.android.common.asSentence
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyFocus
+import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
@@ -81,6 +84,8 @@ import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.image.GradientBitmaps
+import app.pley.android.designsystem.image.drawStretched
 import app.pley.android.designsystem.reducedMotion
 import app.pley.android.player.PlayerUiState
 import app.pley.android.player.UpNextUi
@@ -91,11 +96,59 @@ import app.pley.android.ui.tv.theme.LocalTvTier
 import kotlinx.coroutines.delay
 
 /*
- * What shows over the video besides the controls (design spec §2.7): Skip,
- * Up Next, the seek badge, buffering, the refresh-rate switch, errors and
- * toasts. With the controls hidden, only Skip's and Up Next's countdowns
- * move, once a second (§6).
+ * What shows over the video besides the controls (design spec §2.7): the
+ * title as an item begins, Skip, Up Next, the seek badge, buffering, the
+ * refresh-rate switch, errors and toasts. With the controls hidden, only
+ * Skip's and Up Next's countdowns move, once a second (§6).
  */
+
+/**
+ * The title as each item begins (the first, the next episode, a queue's
+ * next), as the native Samsung app shows it: the controls' top bar's title
+ * and episode line, in its place, over a 120 dp band of black from 65 % to
+ * clear, for [TvPlayerUi.BANNER_MS] while the controls are hidden. It fades
+ * in and out as they do; showing them takes it at once
+ * ([TvPlayerUi.banner]). The band fades by its alpha while drawing, as the
+ * controls' scrim does, and the words on their own small layer.
+ */
+@Composable
+internal fun BoxScope.TvTitleBanner(state: State<PlayerUiState>, ui: TvPlayerUi) {
+    val alpha = animateFloatAsState(if (ui.banner != null) 1f else 0f, PleyMotion.overlay(reducedMotion()), label = "banner")
+    val present by remember(ui) { derivedStateOf { ui.banner != null || alpha.value > 0f } }
+    if (!present) return
+    val title by remember(state) { derivedStateOf { state.value.title } }
+    val line by remember(state) { derivedStateOf { TvPlayerText.episodeLine(state.value.subtitle) } }
+    Box(
+        Modifier
+            .align(Alignment.TopStart)
+            .fillMaxWidth()
+            .height(BANNER_HEIGHT)
+            .drawBehind { drawStretched(TitleBand, Offset.Zero, size, alpha = alpha.value) }
+            .testTag(TAG_TITLE_BANNER),
+    ) {
+        Column(
+            Modifier
+                .padding(start = TvSafeArea.Horizontal, top = TvSafeArea.Vertical, end = 300.dp)
+                .graphicsLayer { this.alpha = alpha.value },
+        ) {
+            BasicText(title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            line?.let {
+                Spacer(Modifier.height(4.dp))
+                BasicText(it, style = PleyType.Tv.Label.copy(color = PleyColors.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+private val BANNER_HEIGHT = 120.dp
+
+/** The banner's band: black at the controls' scrim's top (65 %), to clear at its foot. One stretched picture (GradientBitmaps). */
+private val TitleBand by lazy {
+    GradientBitmaps.vertical(
+        0f to Color.Black.copy(alpha = 0.65f),
+        1f to Color.Black.copy(alpha = 0f),
+    )
+}
 
 /**
  * Skip Intro / Skip Credits: a quiet button, its right edge at x = 912, its
@@ -490,6 +543,7 @@ private val SkipFillFocused = Color.Black.copy(alpha = 0.6f)
 private val SKIP_BOTTOM_HIDDEN = (540 - 489).dp
 private val SKIP_BOTTOM_SHOWN = (540 - 355).dp
 
+internal const val TAG_TITLE_BANNER = "pley.tv.player.titleBanner"
 internal const val TAG_SKIP = "pley.tv.player.skip"
 internal const val TAG_UP_NEXT = "pley.tv.player.upNext"
 internal const val TAG_PLAY_NOW = "pley.tv.player.playNow"

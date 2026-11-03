@@ -64,8 +64,18 @@ heard it for that profile, the start asks "Who's watching?".
 ### TVs and Fire TV
 
 - Select opens, holding Select or Menu (☰) opens a title's actions, Back
-  goes back. In the player, OK within two seconds of a seek plays on from
-  there; later, OK pauses.
+  goes back.
+- **The player**: OK with the controls hidden shows them on the scrubber,
+  as Up does (Down shows them on Play/Pause), and OK there plays and
+  pauses. It seeks as YouTube's TV app does: Left and Right show the
+  controls and move where it goes, 10 s a press (held, faster the longer
+  it's held), and it goes there on OK, or by itself 5 s after the last
+  key; Back lets it go. Fast forward and rewind (30 s) and the control
+  row's 10 s skips go without OK, 400 ms after the last press. OK within
+  two seconds of a seek plays on from there; later, OK pauses. Up while a
+  seek waits, or the Chapters button, shows the chapters as a row of
+  cards over the scrubber, on the one it was going to: Left and Right go
+  through them, OK goes to one, Down or Back closes them.
 - **Fire TV** runs the same APK and TV screens. The app spots it by the
   `amazon.hardware.fire_tv` feature and follows Amazon's player guidelines
   (asynchronous decoder queueing, surround from Fire OS's audio setting,
