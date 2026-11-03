@@ -23,6 +23,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performKeyPress
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.pressKey
 import app.pley.android.model.Marker
 import app.pley.android.model.MarkerKind
@@ -296,6 +298,19 @@ class TvPlayerScreenTest {
         compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
         compose.waitForIdle()
         assertEquals("the seeks waiting went", 2, controller.calls("seekTo").size)
+    }
+
+    @Test
+    fun `a screen reader's seek on the scrubber takes the place of a seek waiting`() {
+        val controller = playing()
+        show(controller)
+        press(Key.DirectionRight)
+        compose.onNodeWithTag(TAG_SCRUBBER).performSemanticsAction(SemanticsActions.SetProgress) { it(0.5f) }
+        compose.waitForIdle()
+        assertEquals(listOf(1_800_000L), controller.calls("seekTo").map { it.args.single() })
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
+        compose.waitForIdle()
+        assertEquals(1, controller.calls("seekTo").size)
     }
 
     @Test

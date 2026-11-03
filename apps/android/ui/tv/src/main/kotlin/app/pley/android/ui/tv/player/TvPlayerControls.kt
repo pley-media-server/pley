@@ -247,6 +247,8 @@ internal fun BoxScope.TvScrubber(
                     val d = state.value.durationMs.coerceAtLeast(1)
                     progressBarRangeInfo = ProgressBarRangeInfo((elapsed * 1000f / d).coerceIn(0f, 1f), 0f..1f)
                     setProgress { fraction ->
+                        // A seek of its own, as Previous and Next are: one waiting for OK gives way to it.
+                        seeker.cancel()
                         controller.seekTo((fraction * d).toLong())
                         true
                     }
