@@ -46,6 +46,8 @@ pub struct WebosDevice {
 }
 
 struct Inner {
+    /// Where the TV's files are: `/`, a folder of samples in tests.
+    root: PathBuf,
     luna: Option<Luna>,
     waker: Waker,
     app_version: String,
@@ -90,6 +92,7 @@ impl WebosDevice {
         ));
         let device = WebosDevice {
             inner: Arc::new(Inner {
+                root: root.to_path_buf(),
                 luna,
                 waker,
                 app_version: app_version.into(),
@@ -432,6 +435,10 @@ impl Device for WebosDevice {
 
     fn drive_space(&self, root: &Path) -> Option<DriveSpace> {
         data::space(root).map(|(free, total)| DriveSpace { free, total })
+    }
+
+    fn drive_name(&self, root: &Path) -> Option<String> {
+        crate::drives::name(&self.inner.root, root)
     }
 }
 

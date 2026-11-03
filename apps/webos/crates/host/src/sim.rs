@@ -141,6 +141,10 @@ impl Device for SimDevice {
         self.drive().filter(|d| d.root == root)?;
         space(root)
     }
+
+    fn drive_name(&self, root: &Path) -> Option<String> {
+        self.inner.drive_name(root)
+    }
 }
 
 #[cfg(unix)]

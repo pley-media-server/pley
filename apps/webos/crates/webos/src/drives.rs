@@ -20,6 +20,11 @@
 //! behind the `physicaldevice.query` group, which LG's TV group table doesn't list
 //! (<https://webostv.developer.lge.com/develop/guides/acg-guide>): any answer only makes it look
 //! again, and a refusal leaves the watcher as it was.
+//!
+//! The drive's make and model, which the page shows as its title, are what the disk says of
+//! itself under `/sys/block/<disk>/device` (`vendor`, `model`), the disk found from the device the
+//! mount table says is mounted there (`/dev/sda1` is on `sda`). The name given to the drive itself
+//! would need the device opened, which the app may not do.
 
 use std::fs;
 use std::io::Read;
@@ -38,6 +43,10 @@ pub const LOOK_EVERY: Duration = Duration::from_secs(3);
 const MOUNTINFO_MOST: u64 = 1024 * 1024;
 /// The most disks, and partitions of each, looked at under `/tmp/usb`.
 const FOLDERS_MOST: usize = 32;
+/// The most read of what a disk says of itself, each of its vendor and model.
+const SAID_MOST: u64 = 256;
+/// The longest drive name shown; a disk's vendor and model are 8 and 16 characters.
+const NAME_MOST: usize = 64;
 /// pdm's drive list, for news of drives coming and going.
 const PDM: &str = "luna://com.webos.service.pdm/getAttachedStorageDeviceList";
 
@@ -117,6 +126,58 @@ fn mounted_apart(folder: &Path, usb: &Path) -> bool {
 #[cfg(not(unix))]
 fn mounted_apart(_folder: &Path, _usb: &Path) -> bool {
     false
+}
+
+/// What `/proc/self/mountinfo`'s text says is mounted at `point`: the source after the line's
+/// ` - ` and file system type ("/dev/sda1"), unescaped.
+pub fn source_of(mountinfo: &str, point: &Path) -> Option<String> {
+    mountinfo.lines().find_map(|line| {
+        let (mount, source) = line.split_once(" - ")?;
+        let at = PathBuf::from(unescape(mount.split(' ').nth(4)?));
+        (at == point).then(|| source.split(' ').nth(1).map(unescape)).flatten()
+    })
+}
+
+/// The disk a device is on, as `/sys/block` names it: `sda` for `/dev/sda1`, `mmcblk0` for
+/// `/dev/mmcblk0p1`, `sdb` for a disk mounted whole. None for anything but a plain device name,
+/// so it never leads out of `/sys/block`.
+pub fn disk_of(device: &str) -> Option<&str> {
+    let name = device.strip_prefix("/dev/")?;
+    if name.is_empty() || !name.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit()) {
+        return None;
+    }
+    let base = name.trim_end_matches(|c: char| c.is_ascii_digit());
+    if base.len() == name.len() {
+        return Some(name);
+    }
+    let disk = match base.strip_suffix('p') {
+        Some(d) if d.ends_with(|c: char| c.is_ascii_digit()) => d,
+        _ => base,
+    };
+    (!disk.is_empty()).then_some(disk)
+}
+
+/// The make and model of the drive mounted at `drive`, as the disk says them ("Kingston
+/// DataTraveler 3.0"), with the TV's files under `root` (`/` on the TV); none when it says
+/// nothing, or the jail hides `/sys` or the mount.
+pub fn name(root: &Path, drive: &Path) -> Option<String> {
+    let source = source_of(&read_mountinfo(root), drive)?;
+    let device = root.join("sys/block").join(disk_of(&source)?).join("device");
+    let said: Vec<String> =
+        ["vendor", "model"].iter().map(|f| said(&device.join(f))).filter(|s| !s.is_empty()).collect();
+    let name: String = said.join(" ").chars().take(NAME_MOST).collect();
+    (!name.is_empty()).then_some(name)
+}
+
+/// A file of what a disk says of itself, at most [`SAID_MOST`] bytes: its words, one space
+/// between them, no control characters (a SCSI vendor is padded with spaces).
+fn said(file: &Path) -> String {
+    let mut bytes = Vec::new();
+    if let Ok(f) = fs::File::open(file) {
+        let _ = f.take(SAID_MOST).read_to_end(&mut bytes);
+    }
+    let text = String::from_utf8_lossy(&bytes);
+    text.split(|c: char| c.is_whitespace() || c.is_control()).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" ")
 }
 
 /// Reads the mount table under `root` (`/` on the TV), at most [`MOUNTINFO_MOST`].
@@ -297,6 +358,41 @@ short line
         assert_eq!(look(&gone, &usb), Some(Drive { root: usb.join("sda/sda1"), hidden: false }));
         // Mounts elsewhere aren't drives, nor is /tmp/usb itself.
         assert_eq!(look(&line(1, &usb), &root.join("nowhere")), None);
+    }
+
+    #[test]
+    fn a_drive_is_named_by_its_disks_make_and_model() {
+        let root = pley_core::device::scratch_dir("drives-name");
+        fs::create_dir_all(root.join("proc/self")).unwrap();
+        let table = "\
+36 22 0:30 / /tmp rw,nosuid shared:7 - tmpfs tmpfs rw
+81 36 8:1 / /tmp/usb/sda/sda1 rw,noatime - vfat /dev/sda1 rw
+82 36 179:1 / /tmp/usb/mmcblk0/mmcblk0p1 rw - exfat /dev/mmcblk0p1 rw
+83 36 8:17 / /tmp/usb/sdb/sdb1 rw - vfat /dev/../etc rw
+";
+        fs::write(root.join("proc/self/mountinfo"), table).unwrap();
+        let disk = root.join("sys/block/sda/device");
+        fs::create_dir_all(&disk).unwrap();
+        fs::write(disk.join("vendor"), "Kingston\n").unwrap();
+        fs::write(disk.join("model"), "DataTraveler 3.0\x07   \n").unwrap();
+        assert_eq!(name(&root, Path::new("/tmp/usb/sda/sda1")).as_deref(), Some("Kingston DataTraveler 3.0"));
+        // A disk that says only its model; one that says nothing; one the table doesn't name plainly.
+        let card = root.join("sys/block/mmcblk0/device");
+        fs::create_dir_all(&card).unwrap();
+        fs::write(card.join("model"), "x".repeat(300)).unwrap();
+        assert_eq!(name(&root, Path::new("/tmp/usb/mmcblk0/mmcblk0p1")).map(|n| n.len()), Some(NAME_MOST));
+        fs::remove_file(card.join("model")).unwrap();
+        assert_eq!(name(&root, Path::new("/tmp/usb/mmcblk0/mmcblk0p1")), None);
+        assert_eq!(name(&root, Path::new("/tmp/usb/sdb/sdb1")), None);
+        assert_eq!(name(&root, Path::new("/tmp/usb/sdc/sdc1")), None);
+
+        assert_eq!(source_of(table, Path::new("/tmp/usb/sda/sda1")).as_deref(), Some("/dev/sda1"));
+        assert_eq!(disk_of("/dev/sda1"), Some("sda"));
+        assert_eq!(disk_of("/dev/mmcblk0p1"), Some("mmcblk0"));
+        assert_eq!(disk_of("/dev/sdb"), Some("sdb"));
+        for odd in ["/dev/../etc", "/dev/", "sda1", "/dev/sd a1", "/dev/123"] {
+            assert_eq!(disk_of(odd), None, "{odd}");
+        }
     }
 
     #[test]

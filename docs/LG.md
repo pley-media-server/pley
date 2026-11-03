@@ -256,9 +256,15 @@ Its page lists the drive's folders, then the videos the TV's player opens
 (MKV, MP4, M4V, MOV, TS, M2TS, MTS, AVI, MPEG; LG's pipeline lists no
 WebM), sorted as a person sorts names; hidden files, what Windows and macOS
 leave on a drive, and other files aren't shown. A folder opens over the one
-before, with ".." first to go back up and its place on the drive under the
-title; at the drive's top, the page says how full the drive is. A video
+before, with ".." first to go back up. The page's title is the drive's make
+and model as the disk reports them under `/sys/block/<disk>/device`
+("Kingston DataTraveler 3.0"), or USB drive when it says nothing or the
+jail hides it; the line under the title is the folder's path
+("/Films/2019"), at the drive's top "/" and how full the drive is. A video
 started before says where it resumes, with a bar of how far through it is.
+A page with nothing to list (an empty folder, no drive, a folder that
+can't be read) says why in the middle, under a folder, USB or alert icon,
+and keeps focus there, unmarked, so the rail closes; Left opens it.
 With Discover, Live TV and Now Playing in the rail as well, the drive's
 entry takes Playlists' place.
 

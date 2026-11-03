@@ -153,6 +153,12 @@ pub trait Device: Send + Sync {
     fn drive_space(&self, _root: &Path) -> Option<DriveSpace> {
         None
     }
+    /// The make and model of the drive mounted at `root`, as it reports them ("Kingston
+    /// DataTraveler 3.0"); none when it says nothing or the device won't let the app read it. It
+    /// reads the system's files, so it runs off the main thread.
+    fn drive_name(&self, _root: &Path) -> Option<String> {
+        None
+    }
 }
 
 /// Where an LG TV mounts USB drives: `/tmp/usb/<disk>/<partition>`.
@@ -272,6 +278,7 @@ pub struct FakeDevice {
     spoken: Mutex<Vec<String>>,
     drive: Mutex<Option<Drive>>,
     drive_space: Mutex<Option<DriveSpace>>,
+    drive_name: Mutex<Option<String>>,
 }
 
 impl FakeDevice {
@@ -294,6 +301,7 @@ impl FakeDevice {
             spoken: Mutex::new(Vec::new()),
             drive: Mutex::new(None),
             drive_space: Mutex::new(None),
+            drive_name: Mutex::new(None),
         }
     }
 
@@ -337,6 +345,11 @@ impl FakeDevice {
     /// How full the drive says it is (none: it won't say).
     pub fn set_drive_space(&self, space: Option<DriveSpace>) {
         *self.drive_space.lock().unwrap_or_else(|e| e.into_inner()) = space;
+    }
+
+    /// The make and model the drive gives (none: it says nothing).
+    pub fn set_drive_name(&self, name: Option<&str>) {
+        *self.drive_name.lock().unwrap_or_else(|e| e.into_inner()) = name.map(str::to_string);
     }
 
     /// Tells every subscriber `event`.
@@ -429,6 +442,11 @@ impl Device for FakeDevice {
     fn drive_space(&self, root: &Path) -> Option<DriveSpace> {
         let space = *self.drive_space.lock().unwrap_or_else(|e| e.into_inner());
         space.filter(|_| self.drive().is_some_and(|d| d.root == root))
+    }
+
+    fn drive_name(&self, root: &Path) -> Option<String> {
+        let name = self.drive_name.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        name.filter(|_| self.drive().is_some_and(|d| d.root == root))
     }
 }
 
@@ -609,9 +627,12 @@ mod tests {
         device.set_drive_space(Some(DriveSpace { free: 1, total: 2 }));
         assert_eq!(device.drive_space(&drive.root), Some(DriveSpace { free: 1, total: 2 }));
         assert_eq!(device.drive_space(Path::new("/tmp/usb/sdb/sdb1")), None);
+        device.set_drive_name(Some("Kingston DataTraveler 3.0"));
+        assert_eq!(device.drive_name(&drive.root).as_deref(), Some("Kingston DataTraveler 3.0"));
         device.set_drive(None);
         assert_eq!(rx.try_recv().unwrap(), DeviceEvent::Drive(None));
         assert_eq!(device.drive_space(&drive.root), None);
+        assert_eq!(device.drive_name(&drive.root), None);
     }
 
     #[test]

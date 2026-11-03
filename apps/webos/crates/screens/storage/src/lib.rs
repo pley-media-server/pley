@@ -5,6 +5,12 @@
 //! resumes, with a bar of how far through it is. Hidden files and what Windows and macOS leave on
 //! a drive aren't shown; nor are files the TV doesn't play.
 //!
+//! The title is the drive's make and model when it says them ("Kingston DataTraveler 3.0"), and
+//! the line under it where the folder is ("/Films/2019"; at the top, "/" and how full the drive
+//! is). A page with no lines (no drive, an empty top) says why in the middle, under a picture, and
+//! keeps focus on that message, which nothing marks, so the rail closes as it does over any page;
+//! Left goes to the rail.
+//!
 //! The folder is read on the task pool, never on the main thread (a drive that sleeps takes a
 //! moment to answer), and again when the drive is plugged in, pulled out or swapped, and when the
 //! page is on top again (Back from the player: a video's line says where it resumes now). Each
@@ -16,7 +22,7 @@ mod listing;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use pley_base::{Point, Rect, TextOpts};
+use pley_base::{Align, Point, Rect, TextOpts};
 use pley_core::Promise;
 use pley_local::server::ITEM_ID;
 use pley_shell::{AppCx, AppEvent, Chrome, PlayRequest, Route, Screen};
@@ -36,6 +42,9 @@ const WIDTH: f32 = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
 /// A message's place under the list's top: under the ".." line when there is one.
 const MESSAGE_BELOW_UP: f32 = pley_kit::track::ICON_LINE_MIN + 24.0;
 const MESSAGE_ALONE: f32 = 40.0;
+/// The size of the message's picture, and the gap under it.
+const MESSAGE_ICON: f32 = 64.0;
+const MESSAGE_ICON_GAP: f32 = 20.0;
 /// How long a reading waits for a player just closed to keep where its video stopped.
 const REPORTS_WAIT: Duration = Duration::from_secs(2);
 
@@ -57,21 +66,12 @@ pub struct StorageScreen {
     /// Each line's height, worked out once per reading.
     heights: Vec<f32>,
     list: pley_kit::ListState,
-    /// Focus has been sent to the rail for a page with no lines.
-    rail_sent: bool,
 }
 
 impl StorageScreen {
     /// The page of the folder `path` (none: the drive's top); it reads the folder when first drawn.
     pub fn new(path: Option<PathBuf>) -> StorageScreen {
-        StorageScreen {
-            path,
-            reading: None,
-            listing: None,
-            heights: Vec::new(),
-            list: pley_kit::ListState::default(),
-            rail_sent: false,
-        }
+        StorageScreen { path, reading: None, listing: None, heights: Vec::new(), list: pley_kit::ListState::default() }
     }
 
     /// The id of line `index`, under the page's group `page`.
@@ -84,8 +84,9 @@ impl StorageScreen {
         self.listing.as_ref()
     }
 
-    fn has_lines(&self) -> bool {
-        self.listing.as_ref().is_some_and(|l| !l.lines.is_empty())
+    /// The id of what holds focus on a page with no lines: its message.
+    pub fn message_id(page: Id) -> Id {
+        page.with("message")
     }
 
     /// Reads the folder again on the task pool, once the players' last reports are kept.
@@ -101,8 +102,9 @@ impl StorageScreen {
     }
 
     /// Takes the reading once it is in: the lines change in place, focus staying on the line it
-    /// was on (the last when that one went), and a page left with no lines gives focus to the rail.
-    fn take_reading(&mut self, ui: &mut Ui, cx: &mut AppCx, list_id: Id) {
+    /// was on (the last when that one went); a page left with no lines keeps it on its message,
+    /// and lines that come back take it from there.
+    fn take_reading(&mut self, ui: &mut Ui, list_id: Id, message_id: Id) {
         let Some(reading) = self.reading.as_mut() else { return };
         let Some(listing) = reading.take() else {
             if reading.failed() {
@@ -112,6 +114,7 @@ impl StorageScreen {
         };
         self.reading = None;
         let had_focus = ui.focused_in(list_id).is_some();
+        let on_message = ui.is_focused(message_id);
         self.heights = listing.lines.iter().map(|l| l.track().height()).collect();
         if let Some(problem) = listing.problem {
             let (title, body) = problem.words();
@@ -120,10 +123,12 @@ impl StorageScreen {
         let len = listing.lines.len();
         self.listing = Some(listing);
         if len == 0 {
-            if had_focus || !self.rail_sent {
-                self.rail_sent = true;
-                cx.to_rail();
+            if had_focus {
+                ui.request_focus(message_id);
             }
+        } else if on_message {
+            self.list.index = 0;
+            ui.request_focus(list_id.with(0));
         } else if had_focus && self.list.index >= len {
             self.list.index = len - 1;
             ui.request_focus(list_id.with(self.list.index as u64));
@@ -156,32 +161,48 @@ impl StorageScreen {
         picked
     }
 
-    /// Why the folder shows no lines of its own: under the ".." line when there is one.
-    fn message(&self, ui: &mut Ui) {
+    /// Why the folder shows no lines of its own, centred under its picture: under the ".." line
+    /// when there is one. With no lines, it holds focus, unmarked.
+    fn message(&self, ui: &mut Ui, message_id: Id) {
         let Some(listing) = &self.listing else { return };
         let Some(problem) = listing.problem else { return };
         let (title, body) = problem.words();
         let y = LIST_TOP + if listing.has_up() { MESSAGE_BELOW_UP } else { MESSAGE_ALONE };
-        let h = ui.text(Point::new(theme::GUTTER, y), title, &theme::TITLE, &TextOpts::wrap(WIDTH, 2), theme::FG).h;
+        let icon = Rect::new(theme::GUTTER + (WIDTH - MESSAGE_ICON) / 2.0, y, MESSAGE_ICON, MESSAGE_ICON);
+        ui.icon(icon, problem.icon(), theme::MUTED);
+        let y = icon.bottom() + MESSAGE_ICON_GAP;
+        let centred = |lines| TextOpts::wrap(WIDTH, lines).aligned(Align::Center);
+        let h = ui.text(Point::new(theme::GUTTER, y), title, &theme::TITLE, &centred(2), theme::FG).h;
         let at = Point::new(theme::GUTTER, y + h + 10.0);
-        ui.text(at, body, &theme::BODY, &TextOpts::wrap(WIDTH, 3), theme::MUTED);
+        let h = h + 10.0 + ui.text(at, body, &theme::BODY, &centred(3), theme::MUTED).h;
+        if listing.lines.is_empty() {
+            ui.initial_focus(message_id);
+            ui.focusable(message_id, Rect::new(theme::GUTTER, icon.y, WIDTH, icon.h + MESSAGE_ICON_GAP + h));
+        }
+    }
+
+    /// The page's title: the drive's make and model once known.
+    fn page_title(&self) -> &str {
+        self.listing.as_ref().map_or(TITLE, |l| l.title.as_str())
     }
 }
 
 impl Screen for StorageScreen {
     fn ui(&mut self, ui: &mut Ui, cx: &mut AppCx) {
         let list_id = ui.scope_id().with("lines");
+        let message_id = StorageScreen::message_id(ui.scope_id());
         if self.listing.is_none() && self.reading.is_none() {
             self.read(cx);
         }
-        self.take_reading(ui, cx, list_id);
-        ui.text(Point::new(theme::GUTTER, theme::SAFE_Y), TITLE, &theme::PAGE_TITLE, &TextOpts::line(WIDTH), theme::FG);
+        self.take_reading(ui, list_id, message_id);
+        let title = self.page_title();
+        ui.text(Point::new(theme::GUTTER, theme::SAFE_Y), title, &theme::PAGE_TITLE, &TextOpts::line(WIDTH), theme::FG);
         if let Some(caption) = self.listing.as_ref().map(|l| l.caption.as_str()).filter(|c| !c.is_empty()) {
             let at = Point::new(theme::GUTTER, CAPTION_Y);
             ui.text(at, caption, &theme::CAPTION, &TextOpts::line(WIDTH), theme::MUTED);
         }
         let picked = self.lines(ui, list_id);
-        self.message(ui);
+        self.message(ui, message_id);
         match picked {
             Some(Pick::Up) => cx.back(),
             Some(Pick::Folder(path)) => cx.push(Route::Storage { path: Some(path) }),
@@ -207,12 +228,13 @@ impl Screen for StorageScreen {
         Chrome::Rail
     }
 
-    /// The list keeps focus while it has a line (".." at least, under the drive's top).
+    /// The list keeps focus while it has a line (".." at least, under the drive's top), the
+    /// message while there is none: once the folder is read.
     fn takes_focus(&self) -> bool {
-        self.has_lines()
+        self.listing.is_some()
     }
 
     fn title(&self) -> Option<String> {
-        Some(TITLE.into())
+        Some(self.page_title().into())
     }
 }

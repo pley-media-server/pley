@@ -119,6 +119,14 @@ impl TestApp {
     fn shows(&self, text: &str) -> bool {
         self.list.texts().any(|t| t == text)
     }
+
+    /// Where the icon `icon` is drawn.
+    fn icon_at(&self, icon: pley_base::Icon) -> Option<pley_base::Rect> {
+        self.list.cmds.iter().find_map(|c| match c {
+            pley_base::Cmd::Icon { rect, icon: i, .. } if *i == icon => Some(*rect),
+            _ => None,
+        })
+    }
 }
 
 /// A drive: two films, a folder of a series, and what a person never wants listed.
@@ -155,7 +163,7 @@ fn the_drives_top_lists_its_folders_then_its_videos_and_how_full_it_is() {
     let root = drive();
     let app = TestApp::open_on(tv(&root), Route::Storage { path: None });
     assert!(app.shows("USB drive"));
-    assert!(app.shows("1.0 GB free of 2.0 GB"));
+    assert!(app.shows("/ · 1.0 GB free of 2.0 GB"));
     let (folder, two, ten) = (y_of(&app, "Season 1"), y_of(&app, "Film 2"), y_of(&app, "Film 10"));
     assert!(folder < two && two < ten, "{folder:?} {two:?} {ten:?}");
     assert!(app.shows("MP4") && app.shows("1.5 KB") && app.shows("MKV"));
@@ -200,11 +208,13 @@ fn a_folder_opens_over_the_page_and_up_comes_back() {
     app.press(Key::Ok);
     app.read();
     assert_eq!(app.shell.top_route(), Some(&Route::Storage { path: Some(root.join("Season 1")) }));
-    assert!(app.shows("USB drive › Season 1"));
+    assert!(app.shows("/Season 1"));
     // Under "..", why nothing else shows.
     assert!(app.shows("..") && app.shows("Up a folder"));
     assert!(app.shows("Nothing to play here"));
     assert!(y_of(&app, "Up a folder") < y_of(&app, "Nothing to play here"));
+    let icon = app.icon_at(pley_base::Icon::FolderOpen).expect("the message's picture");
+    assert!(icon.bottom() < y_of(&app, "Nothing to play here").unwrap());
     assert_eq!(app.ui.focused(), Some(app.line(0)));
     app.press(Key::Ok);
     assert_eq!(app.shell.top_route(), Some(&Route::Storage { path: None }));
@@ -223,7 +233,11 @@ fn a_drive_pulled_out_leaves_the_page_saying_so() {
     assert!(app.until(|a| a.shows("No USB drive")));
     assert!(app.shows("Plug a USB drive into the TV to play its videos here."));
     assert!(!app.shows("Film 10"));
-    assert!(!app.shell.top().unwrap().screen().takes_focus());
+    // Focus stays on the page, on its message, which nothing marks: the rail stays closed.
+    assert_eq!(app.ui.focused(), Some(StorageScreen::message_id(app.page())));
+    assert!(!app.shell.rail_open());
+    let usb = app.icon_at(pley_base::Icon::Usb).expect("the message's picture");
+    assert!((usb.center().x - (96.0 + (960.0 - 96.0 - 48.0) / 2.0)).abs() < 0.5, "centred: {usb:?}");
     // A drive the jail hides is no drive to the page either.
     device.set_drive(Some(Drive { root: root.clone(), hidden: true }));
     app.news(&rx);
@@ -233,7 +247,27 @@ fn a_drive_pulled_out_leaves_the_page_saying_so() {
     device.set_drive(Some(Drive { root: root.clone(), hidden: false }));
     app.news(&rx);
     assert!(app.until(|a| a.shows("Film 10")));
-    assert!(app.shell.top().unwrap().screen().takes_focus());
+    assert_eq!(app.ui.focused(), Some(app.line(0)), "the lines take focus from the message");
+}
+
+#[test]
+fn an_empty_drive_keeps_focus_on_its_message() {
+    let root = scratch_dir("storage-empty");
+    let app = TestApp::open_on(tv(&root), Route::Storage { path: None });
+    assert!(app.shows("Nothing to play here") && app.shows("/ · 1.0 GB free of 2.0 GB"));
+    assert!(app.icon_at(pley_base::Icon::FolderOpen).is_some());
+    assert_eq!(app.ui.focused(), Some(StorageScreen::message_id(app.page())));
+    assert!(!app.shell.rail_open());
+}
+
+#[test]
+fn the_title_is_the_drives_make_and_model_when_it_says_them() {
+    let root = drive();
+    let device = tv(&root);
+    device.set_drive_name(Some("Kingston DataTraveler 3.0"));
+    let app = TestApp::open_on(device, Route::Storage { path: None });
+    assert!(app.shows("Kingston DataTraveler 3.0") && !app.shows("USB drive"));
+    assert_eq!(app.shell.top().unwrap().screen().title().as_deref(), Some("Kingston DataTraveler 3.0"));
 }
 
 #[test]

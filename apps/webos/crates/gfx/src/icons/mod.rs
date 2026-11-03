@@ -47,6 +47,7 @@ pub const ALL: &[Icon] = &[
     Icon::FileVideo,
     Icon::Film,
     Icon::Folder,
+    Icon::FolderOpen,
     Icon::Funnel,
     Icon::Gauge,
     Icon::GripVertical,
@@ -382,7 +383,7 @@ mod tests {
         for icon in ALL {
             assert!(seen.insert(*icon), "{icon:?} twice");
         }
-        assert_eq!(ALL.len(), 91);
+        assert_eq!(ALL.len(), 92);
     }
 
     #[test]

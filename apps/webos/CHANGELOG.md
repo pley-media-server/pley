@@ -14,6 +14,9 @@ describes how they are made.
   the Samsung app: the rail's USB drive lists the drive's folders and
   videos, each saying where it resumes, and a video plays as it is with
   its own tracks, chapters and subtitles and the subtitle files beside it.
+  The page's title is the drive's make and model when it says them, the
+  line under it the folder's path ("/Films/2019"), and an empty page says
+  so in the middle under an icon, with the rail closed.
 
 ### Changed
 

@@ -43,6 +43,7 @@ pub enum Icon {
     FileVideo,
     Film,
     Folder,
+    FolderOpen,
     Funnel,
     Gauge,
     GripVertical,

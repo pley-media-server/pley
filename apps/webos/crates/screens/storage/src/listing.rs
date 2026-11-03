@@ -1,6 +1,6 @@
 //! What a folder of the drive shows, read off the main thread (the Samsung app's
-//! `StorageScreen.Load` and `Lines`): its lines, the caption under the page's title, or why it
-//! shows none.
+//! `StorageScreen.Load` and `Lines`): the page's title, its lines, the caption under the title,
+//! or why it shows none.
 
 use std::path::{Path, PathBuf};
 
@@ -10,12 +10,14 @@ use pley_core::{Device, Store};
 use pley_kit::TrackLine;
 use pley_local::{folder, resume};
 
-/// The page's title, and the rail entry's label.
+/// The rail entry's label, and the page's title when the drive doesn't say its make and model.
 pub const TITLE: &str = "USB drive";
 /// The line that goes up a folder.
 pub const UP: &str = "..";
-/// Between the parts of the folder's place on the drive: "USB drive › Films › 2019".
-const BETWEEN: &str = " › ";
+/// Between the parts of the folder's place on the drive, and before them: "/Films/2019".
+const SLASH: &str = "/";
+/// Between the drive's top and how full it is: "/ · 437 GB free of 1.0 TB".
+const DOT: &str = " · ";
 /// A video started before shows at least this much of its bar.
 const LEAST_PROGRESS: f32 = 0.02;
 
@@ -37,6 +39,15 @@ impl Problem {
             Problem::NoDrive => ("No USB drive", "Plug a USB drive into the TV to play its videos here."),
             Problem::Unreadable => ("This folder can't be read", "The drive may have been pulled out."),
             Problem::Empty => ("Nothing to play here", "This folder has no videos or folders in it."),
+        }
+    }
+
+    /// The picture over the message.
+    pub fn icon(self) -> Icon {
+        match self {
+            Problem::NoDrive => Icon::Usb,
+            Problem::Unreadable => Icon::CircleAlert,
+            Problem::Empty => Icon::FolderOpen,
         }
     }
 }
@@ -82,7 +93,10 @@ impl Line {
 /// A folder as the page shows it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Listing {
-    /// Under the title: how full the drive is at its top, else where the folder is on it.
+    /// The drive's make and model as it says them ("Kingston DataTraveler 3.0"), else [`TITLE`].
+    pub title: String,
+    /// Under the title, where the folder is on the drive: "/Films/2019"; at its top "/" and how
+    /// full it is. Empty without a drive.
     pub caption: String,
     pub lines: Vec<Line>,
     pub problem: Option<Problem>,
@@ -100,18 +114,20 @@ impl Listing {
 /// main thread.
 pub fn list(device: &dyn Device, store: &Store, asked: Option<&Path>) -> Listing {
     let drive = device.drive().filter(|d| d.readable());
-    let Some(root) = drive.map(|d| d.root) else { return problem(String::new(), Vec::new(), Problem::NoDrive) };
+    let no_drive = || problem(TITLE.into(), String::new(), Vec::new(), Problem::NoDrive);
+    let Some(root) = drive.map(|d| d.root) else { return no_drive() };
     let dir = asked.unwrap_or(&root);
     if !dir.starts_with(&root) {
-        return problem(String::new(), Vec::new(), Problem::NoDrive);
+        return no_drive();
     }
+    let title = device.drive_name(&root).unwrap_or_else(|| TITLE.into());
     let under = dir.strip_prefix(&root).unwrap_or(Path::new(""));
     let mut lines = Vec::new();
     let caption = if under.as_os_str().is_empty() {
-        device
+        let space = device
             .drive_space(&root)
-            .map(|s| format!("{} free of {}", format_bytes(Some(s.free)), format_bytes(Some(s.total))))
-            .unwrap_or_default()
+            .map(|s| format!("{} free of {}", format_bytes(Some(s.free)), format_bytes(Some(s.total))));
+        space.map_or_else(|| SLASH.to_string(), |s| format!("{SLASH}{DOT}{s}"))
     } else {
         lines.push(Line {
             pick: Pick::Up,
@@ -121,15 +137,14 @@ pub fn list(device: &dyn Device, store: &Store, asked: Option<&Path>) -> Listing
             icon: Icon::CornerLeftUp,
             progress: 0.0,
         });
-        let parts = under.components().map(|c| c.as_os_str().to_string_lossy().into_owned());
-        std::iter::once(TITLE.to_string()).chain(parts).collect::<Vec<_>>().join(BETWEEN)
+        under.components().map(|c| format!("{SLASH}{}", c.as_os_str().to_string_lossy())).collect()
     };
     let entries = match folder::list(dir) {
         Ok(entries) => entries,
-        Err(_) => return problem(caption, lines, Problem::Unreadable),
+        Err(_) => return problem(title, caption, lines, Problem::Unreadable),
     };
     if entries.is_empty() {
-        return problem(caption, lines, Problem::Empty);
+        return problem(title, caption, lines, Problem::Empty);
     }
     let kept = resume::all_kept(store);
     lines.extend(entries.into_iter().map(|e| {
@@ -165,9 +180,9 @@ pub fn list(device: &dyn Device, store: &Store, asked: Option<&Path>) -> Listing
             progress,
         }
     }));
-    Listing { caption, lines, problem: None }
+    Listing { title, caption, lines, problem: None }
 }
 
-fn problem(caption: String, lines: Vec<Line>, problem: Problem) -> Listing {
-    Listing { caption, lines, problem: Some(problem) }
+fn problem(title: String, caption: String, lines: Vec<Line>, problem: Problem) -> Listing {
+    Listing { title, caption, lines, problem: Some(problem) }
 }
