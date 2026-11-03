@@ -115,18 +115,20 @@ internal class DriveVideo(
  * The subtitle files beside a video on a drive (their `file:` addresses),
  * whole, as the app's WebVTT: SubRip made WebVTT, UTF-8 else Latin-1
  * ([DriveFolder]). A file larger than [MAX_BYTES] isn't read: no subtitle
- * file comes near it.
+ * file comes near it, and its text is copied a few times on the way to
+ * WebVTT, beside the video's buffers on a 1 GB TV.
  */
 internal class DriveSubtitleFetcher(private val io: CoroutineDispatcher = Dispatchers.IO) : SubtitleFetcher {
     override suspend fun fetch(fileId: Long, index: Int, url: String): SubtitleText = withContext(io) {
         if (!url.startsWith("file:")) throw IOException("Not a file on the drive")
         val file = File(URI(url))
-        if (file.length() > MAX_BYTES) throw IOException("${file.name} is too large for subtitles")
+        if (file.length() > MAX_BYTES) throw IOException("A subtitle file too large to read")
         SubtitleText(DriveFolder.toWebVtt(DriveFolder.decode(file.readBytes())), complete = true)
     }
 
     companion object {
-        const val MAX_BYTES = 8L * 1024 * 1024
+        /** A film's SubRip file is some 100 KB; one with every cue twice over is still far from this. */
+        const val MAX_BYTES = 2L * 1024 * 1024
     }
 }
 
@@ -145,6 +147,9 @@ internal object DriveStreams {
     /** A track's or a chapter's name is cut to this many characters: the file says what it likes. */
     private const val MAX_NAME = 200
 
+    /** A track's language is cut to this, the longest tag (RFC 5646) a player needs to read. */
+    private const val MAX_LANGUAGE = 35
+
     fun streams(tracks: EngineTracks, sidecars: List<MediaStream>): List<MediaStream> {
         var index = 0
         val videos = tracks.video.take(MAX_PER_KIND).map { t ->
@@ -152,7 +157,7 @@ internal object DriveStreams {
                 index = index++,
                 kind = StreamKind.Video,
                 codec = codecOf(t.mimeType, t.codecs),
-                language = t.language,
+                language = t.language?.take(MAX_LANGUAGE),
                 title = t.label?.take(MAX_NAME),
                 default = t.default,
                 width = t.width.takeIf { it > 0 },
@@ -169,7 +174,7 @@ internal object DriveStreams {
                 index = index++,
                 kind = StreamKind.Audio,
                 codec = codecOf(t.mimeType, t.codecs),
-                language = t.language,
+                language = t.language?.take(MAX_LANGUAGE),
                 title = t.label?.take(MAX_NAME),
                 default = t.default,
                 channels = t.channels,
@@ -181,7 +186,7 @@ internal object DriveStreams {
                 index = index++,
                 kind = StreamKind.Subtitle,
                 codec = codec,
-                language = t.language,
+                language = t.language?.take(MAX_LANGUAGE),
                 title = t.label?.take(MAX_NAME),
                 default = t.default,
                 forced = t.forced,

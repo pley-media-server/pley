@@ -4,8 +4,15 @@ import app.pley.android.model.Chapter
 import app.pley.android.model.DynamicRange
 import app.pley.android.model.MediaStream
 import app.pley.android.model.StreamKind
+import java.io.File
+import java.io.IOException
+import java.nio.file.Files
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 /** A file on a drive, as Media3 found it: the streams and chapters the player shows. */
@@ -48,6 +55,32 @@ class DriveStreamsTest {
         assertEquals(listOf("Opening", "The Road", "Fury"), chapters.map { it.title })
         // A name as long as a file likes is cut short.
         assertEquals(200, DriveStreams.chapters(listOf(Chapter(0, 0, "x".repeat(10_000))), 1_000).single().title?.length)
+    }
+
+    @Test
+    fun aLanguageAsLongAsAFileLikesIsCutShort() {
+        val odd = EngineTracks(audio = listOf(EngineTrack("x".repeat(10_000), "audio/ac3", 6, supported = true)))
+        assertEquals(35, DriveStreams.streams(odd, emptyList()).single().language?.length)
+    }
+
+    @Test
+    fun aSubtitleFileBesideItIsReadAsWebVttUnlessItIsFarTooLarge() = runTest {
+        val dir = Files.createTempDirectory("pley-subtitles").toFile()
+        try {
+            val fetcher = DriveSubtitleFetcher(Dispatchers.Unconfined)
+            val srt = File(dir, "Mad Max.en.srt").apply { writeText("1\n00:00:01,000 --> 00:00:02,000\nWitness me\n") }
+            val text = fetcher.fetch(1, DriveStreams.SIDECAR_FROM, srt.toURI().toString())
+            assertTrue(text.text.startsWith("WEBVTT\n\n1\n00:00:01.000 --> 00:00:02.000"))
+            // A file no subtitle comes near (a video renamed, say) isn't read into memory.
+            val huge = File(dir, "Mad Max.fr.srt").apply { writeBytes(ByteArray((DriveSubtitleFetcher.MAX_BYTES + 1).toInt())) }
+            try {
+                fetcher.fetch(1, DriveStreams.SIDECAR_FROM + 1, huge.toURI().toString())
+                fail("read a file larger than any subtitle file")
+            } catch (_: IOException) {
+            }
+        } finally {
+            dir.deleteRecursively()
+        }
     }
 
     @Test
