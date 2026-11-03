@@ -191,6 +191,35 @@ class TvPlayerScreenTest {
     }
 
     @Test
+    fun `the Play-Pause button and the media key play and pause with a seek waiting, which still goes there`() {
+        val controller = playing()
+        show(controller)
+        press(Key.DirectionRight, times = 3)
+        press(Key.DirectionDown)
+        focusedOn(TAG_PLAY_PAUSE)
+        press(Key.DirectionCenter)
+        assertEquals(listOf("pause"), controller.calls.map { it.name })
+        controller.update { it.copy(phase = PlayerPhase.Paused) }
+        compose.waitForIdle()
+        press(Key.MediaPlayPause)
+        assertEquals(listOf("pause", "play"), controller.calls.map { it.name })
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
+        compose.waitForIdle()
+        assertEquals(listOf(630_000L), controller.calls("seekTo").map { it.args.single() })
+    }
+
+    @Test
+    fun `Play-Pause does nothing while the playback starts`() {
+        val controller = playing { it.copy(phase = PlayerPhase.Preparing) }
+        show(controller)
+        press(Key.MediaPlayPause)
+        press(Key.DirectionUp)
+        focusedOn(TAG_SCRUBBER)
+        press(Key.DirectionCenter)
+        assertTrue(controller.calls.none { it.name == "play" || it.name == "pause" })
+    }
+
+    @Test
     fun `holding Right scrubs through the previews and, let go, waits for OK there`() {
         val controller = playing()
         show(controller)
@@ -700,11 +729,7 @@ class TvPlayerScreenTest {
         compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + 100)
         compose.waitForIdle()
         assertEquals(listOf(630_000L), controller.calls("seekTo").map { it.args.single() })
-        // Play/Pause straight after fast forward plays on from there; later, it pauses.
-        press(Key.MediaPlayPause)
-        assertEquals("seekTo", controller.calls.last().name)
-        compose.mainClock.advanceTimeBy(TvSeeker.CONFIRM_MS)
-        compose.waitForIdle()
+        // Play/Pause plays or pauses, even straight after a seek: only OK confirms one.
         press(Key.MediaPlayPause)
         assertEquals("pause", controller.calls.last().name)
         // Next on an episode plays the next one; Previous goes to the chapter's start.

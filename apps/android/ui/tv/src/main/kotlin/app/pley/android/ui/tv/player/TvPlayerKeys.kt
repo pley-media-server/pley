@@ -6,7 +6,11 @@ import android.view.KeyEvent
 internal sealed interface PlayerKey {
     data object PlayPause : PlayerKey
 
-    /** OK with the controls hidden: a seek on its way goes there now; else the controls show, on the scrubber. */
+    /**
+     * OK on the scrubber, or with the controls hidden: a seek on its way, or
+     * just made, goes there; else it plays or pauses on the scrubber, and
+     * the controls show when hidden.
+     */
     data object Ok : PlayerKey
 
     data object Play : PlayerKey
@@ -90,13 +94,13 @@ internal object TvPlayerKeys {
     }
 
     /**
-     * A key while the scrubber has focus: Left and Right seek, Centre plays
-     * or pauses. Up opens the chapters' cards while a seek waits for OK
+     * A key while the scrubber has focus: Left and Right seek, Centre goes
+     * to a seek waiting or plays or pauses. Up opens the chapters' cards while a seek waits for OK
      * ([chaptersOnUp]), as YouTube's TV app does; otherwise Up and Down are
      * left to focus (Skip above while it shows, the control row below).
      */
     fun scrubber(keyCode: Int, chaptersOnUp: Boolean = false): PlayerKey? = when (keyCode) {
-        in SELECT -> PlayerKey.PlayPause
+        in SELECT -> PlayerKey.Ok
         KeyEvent.KEYCODE_DPAD_LEFT -> PlayerKey.Step(-1)
         KeyEvent.KEYCODE_DPAD_RIGHT -> PlayerKey.Step(1)
         KeyEvent.KEYCODE_DPAD_UP -> if (chaptersOnUp) PlayerKey.Chapters else null

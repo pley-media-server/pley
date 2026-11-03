@@ -29,6 +29,9 @@ describes how they are made.
   waiting. Fast forward, rewind and the row's 10 s skips seek as before.
 - On TVs, OK with the player's controls hidden shows them on the scrubber
   instead of pausing; OK there plays and pauses.
+- On TVs, Play/Pause, the player's button or the remote's key, plays and
+  pauses even just after a seek, and a seek waiting still goes; only OK on
+  the scrubber goes there at once, as on Samsung TVs.
 - On TVs, Down with the player's controls hidden shows them on Play/Pause,
   in the middle of the row, rather than on Subtitles.
 - On TVs, the chapters show as a row of cards over the scrubber, with

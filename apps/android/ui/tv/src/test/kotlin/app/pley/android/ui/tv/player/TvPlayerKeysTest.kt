@@ -34,7 +34,8 @@ class TvPlayerKeysTest {
     @Test
     fun `the scrubber takes Left, Right and Centre, and leaves Up and Down to focus`() {
         assertEquals(PlayerKey.Step(-1), TvPlayerKeys.scrubber(KeyEvent.KEYCODE_DPAD_LEFT))
-        assertEquals(PlayerKey.PlayPause, TvPlayerKeys.scrubber(KeyEvent.KEYCODE_DPAD_CENTER))
+        // OK there, not Play/Pause: it goes to a seek waiting before it pauses.
+        assertEquals(PlayerKey.Ok, TvPlayerKeys.scrubber(KeyEvent.KEYCODE_DPAD_CENTER))
         assertNull(TvPlayerKeys.scrubber(KeyEvent.KEYCODE_DPAD_UP))
         assertNull(TvPlayerKeys.scrubber(KeyEvent.KEYCODE_DPAD_DOWN))
     }
