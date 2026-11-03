@@ -82,6 +82,9 @@ heard it for that profile, the start asks "Who's watching?".
   focus look changes evenly from one tile to the next, and backdrops and
   info blocks wait until focus has rested 400 ms. With Reduce motion a
   held key steps focus a tile or a row at a time and nothing slides.
+- A held key never leaves its row or grid: a held Left stops at a row's
+  first tile, and a held Right or Up at a library grid's edge. The rail,
+  the A to Z jump and the chips above the grid take a press of their own.
 - **Fire TV** runs the same APK and TV screens. The app spots it by the
   `amazon.hardware.fire_tv` feature and follows Amazon's player guidelines
   (asynchronous decoder queueing, surround from Fire OS's audio setting,

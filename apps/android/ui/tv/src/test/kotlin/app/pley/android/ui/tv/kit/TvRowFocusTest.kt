@@ -209,6 +209,24 @@ class TvRowFocusTest {
     }
 
     @Test
+    fun aHeldLeftStopsAtTheFirstTileAndOnlyAPressOpensTheRail() {
+        page()
+        compose.press(Key.DirectionRight)
+        compose.mainClock.autoAdvance = false
+        keyDown(Key.DirectionLeft)
+        // The press moves back to A 1; held from 180 ms, Left goes no further, however long.
+        compose.mainClock.advanceTimeBy(600)
+        keyUp(Key.DirectionLeft)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.focused().assertContentDescriptionEquals("A 1")
+        assertEquals(0, rail.asked)
+        compose.press(Key.DirectionLeft)
+        assertEquals(1, rail.asked)
+        compose.onNodeWithTag("rail").assertIsFocused()
+    }
+
+    @Test
     fun leftFromAScrolledRowsFirstTileStillGoesToTheRail() {
         page()
         // Row A scrolled along, then down to row B's first tile: row A's tiles are under the rail.

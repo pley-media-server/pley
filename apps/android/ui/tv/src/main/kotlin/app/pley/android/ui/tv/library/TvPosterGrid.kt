@@ -213,7 +213,9 @@ private class CellSpec(private val page: BringIntoViewSpec, private val motion: 
  * - It is one focus group that comes back to the tile it had; each tile
  *   is remembered in [memory] (as `"<memoryPrefix>/<id>"`), so Back from
  *   a title lands on it.
- * - Right from the last column calls [onRight] (the jump control).
+ * - Right from the last column calls [onRight] (the jump control). A
+ *   held Right stops there, and a held Up at the first row: the jump, and
+ *   the chips or a page's header above, take a press of their own.
  * - Pictures load about a row ahead; [badge] puts a count on a tile's
  *   top right (collections).
  */
@@ -267,11 +269,15 @@ internal fun TvPosterGrid(
                 .focusGroup()
                 .onPlaced { motion.coordinates = it }
                 .onPreviewKeyEvent { event ->
-                    if (event.type != KeyEventType.KeyDown || event.key != Key.DirectionRight) return@onPreviewKeyEvent false
-                    val from = focus.focused
+                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    val from = motion.inCell
                     if (from < 0) return@onPreviewKeyEvent false
-                    val last = from % columns == columns - 1 || from == total - 1
-                    last && onRight?.invoke() == true
+                    when (event.key) {
+                        // A held key stays in the grid (rule 5): the A to Z jump and what is above take a press of their own.
+                        Key.DirectionRight -> (from % columns == columns - 1 || from == total - 1) && (gate.holding || onRight?.invoke() == true)
+                        Key.DirectionUp -> gate.holding && from < columns
+                        else -> false
+                    }
                 }
                 .drawWithCache { motion.drawRing(this, kind) },
             contentPadding = PaddingValues(

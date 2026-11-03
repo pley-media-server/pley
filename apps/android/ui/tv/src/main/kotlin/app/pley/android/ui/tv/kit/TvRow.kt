@@ -90,7 +90,8 @@ import kotlin.math.roundToInt
  * - The row is one focus group that comes back to the tile focused last
  *   (focusRestorer), the first time to [enterOn] when given; [memory]
  *   keeps that tile across leaving the page, so Back lands on it.
- * - Left from the first tile enters the rail; Right stops at the end.
+ * - Left from the first tile enters the rail, on a press of its own: a
+ *   held Left stops there. Right stops at the end.
  * - Keys are the tiles' ids, and the content type their kind.
  * - The row moves itself ([RowMotion]): to a pressed tile over 150 ms,
  *   eased out. Under a held Left or Right from a tile at the gutter it

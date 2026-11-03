@@ -1,7 +1,11 @@
 package app.pley.android.ui.tv.library
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -10,10 +14,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
@@ -38,7 +47,7 @@ import org.robolectric.annotation.Config
  * focused as a skeleton keeps focus when its title arrives, and the D-pad
  * goes on from it; a press glides the grid a row over 150 ms, and a held
  * Down glides it on a row a step, on the gate's clock, without a stop or
- * a jump (rule 5).
+ * a jump (rule 5); a held Up stays in the grid.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -55,13 +64,15 @@ class TvGridLoadFocusTest {
     private lateinit var focus: TvGridFocus
     private lateinit var state: LazyGridState
 
-    private fun grid(reduced: Boolean? = null, tileAt: (Int) -> ArtworkTileModel? = { tiles[it] }) {
+    /** The grid, with something focusable above it when [above] (the library's chips). */
+    private fun grid(reduced: Boolean? = null, above: Boolean = false, tileAt: (Int) -> ArtworkTileModel? = { tiles[it] }) {
         compose.setContent {
             TvTheme(reducedMotion = reduced) {
                 focus = remember { TvGridFocus() }
                 state = rememberTvGridState()
                 CompositionLocalProvider(LocalKeyRepeatGate provides gate) {
-                    Box(Modifier.fillMaxSize().keyRepeatGate(gate)) {
+                    Column(Modifier.fillMaxSize().keyRepeatGate(gate)) {
+                        if (above) Box(Modifier.size(40.dp).testTag(ABOVE).focusable())
                         TvPosterGrid(
                             total = tiles.size,
                             tileAt = tileAt,
@@ -73,7 +84,7 @@ class TvGridLoadFocusTest {
                             skeleton = rememberSkeleton(animated = false),
                             state = state,
                             focus = focus,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
                         )
                     }
                 }
@@ -145,8 +156,30 @@ class TvGridLoadFocusTest {
         assertEquals(6 * pitch, scrolled(), 1f)
     }
 
+    @Test
+    fun aHeldUpStaysInTheGridAndAPressLeavesIt() {
+        grid(above = true)
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        compose.waitForIdle()
+        assertEquals(Columns, focus.focused)
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionUp) }
+        // The press moves up to the first row; held from 180 ms, Up goes no further.
+        compose.mainClock.advanceTimeBy(600)
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionUp) }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertEquals(0, focus.focused)
+        compose.onNodeWithTag(ABOVE).assertIsNotFocused()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        compose.waitForIdle()
+        compose.onNodeWithTag(ABOVE).assertIsFocused()
+    }
+
     private companion object {
         /** The library grid's columns on TV. */
         val Columns = tvGridColumns(TileKind.LibraryGrid)
+
+        const val ABOVE = "above"
     }
 }

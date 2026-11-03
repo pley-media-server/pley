@@ -11,10 +11,11 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusEventModifierNode
+import androidx.compose.ui.focus.FocusProperties
+import androidx.compose.ui.focus.FocusPropertiesModifierNode
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.FocusRequesterModifierNode
 import androidx.compose.ui.focus.FocusState
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.requestFocus
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
@@ -50,26 +51,55 @@ val LocalTvRailFocus = staticCompositionLocalOf<TvRailFocus?> { null }
  * ([rail], [LocalTvRailFocus]'s), never to whatever is geometrically
  * nearest, such as another row's tile scrolled under the rail. Leaving it
  * to the right is refused when [stopRight], so Right stops at a row's end
- * (D-pad rule 3).
+ * (D-pad rule 3). A held Left stops at the start instead (rule 5): only a
+ * press of its own opens the rail, so scrolling back along a row never
+ * opens it by itself.
  *
  * Put it before the group's focusRestorer: the restorer's own exit (saving
  * the focused child) still runs first.
  */
 fun Modifier.railOnLeftStopOnRight(rail: TvRailFocus?, stopRight: Boolean = true): Modifier =
-    focusProperties {
-        val inner = onExit
-        onExit = {
+    this then RailOnLeftElement(rail, stopRight)
+
+private data class RailOnLeftElement(val rail: TvRailFocus?, val stopRight: Boolean) : ModifierNodeElement<RailOnLeftNode>() {
+    override fun create() = RailOnLeftNode(rail, stopRight)
+
+    override fun update(node: RailOnLeftNode) {
+        node.rail = rail
+        node.stopRight = stopRight
+    }
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "railOnLeftStopOnRight"
+        properties["stopRight"] = stopRight
+    }
+}
+
+private class RailOnLeftNode(var rail: TvRailFocus?, var stopRight: Boolean) :
+    Modifier.Node(),
+    FocusPropertiesModifierNode,
+    CompositionLocalConsumerModifierNode {
+    override fun applyFocusProperties(focusProperties: FocusProperties) {
+        val gate = currentValueOf(LocalKeyRepeatGate)
+        val rail = rail
+        val stopRight = stopRight
+        val inner = focusProperties.onExit
+        focusProperties.onExit = {
             inner()
             when (requestedFocusDirection) {
-                FocusDirection.Left -> if (rail != null) {
-                    cancelFocusChange()
-                    rail.focusCurrent()
+                FocusDirection.Left -> when {
+                    gate.holding -> cancelFocusChange()
+                    rail != null -> {
+                        cancelFocusChange()
+                        rail.focusCurrent()
+                    }
                 }
                 FocusDirection.Right -> if (stopRight) cancelFocusChange()
                 else -> Unit
             }
         }
     }
+}
 
 /**
  * Where focus was on a page, kept with the page's saved state, so coming

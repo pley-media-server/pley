@@ -3,6 +3,7 @@ package app.pley.android.ui.tv.library
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
@@ -25,6 +26,9 @@ import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.screens.library.AlphaIndex
+import app.pley.android.ui.tv.kit.KeyRepeatGate
+import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
+import app.pley.android.ui.tv.kit.keyRepeatGate
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.theme.TvTheme
 import kotlinx.coroutines.launch
@@ -39,7 +43,8 @@ import org.robolectric.annotation.Config
  * The A to Z on TV with key events (design spec §4.2): Right from the
  * grid's last column reaches the jump control, Up and Down step through
  * the letters, Select lands on the letter's first title, and an empty
- * letter lands on the next that has titles.
+ * letter lands on the next that has titles. A held Right stays in the
+ * grid: only a press of its own reaches the jump (rule 5).
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
@@ -52,6 +57,9 @@ class TvLetterJumpTest {
     private val tiles = items.map { ArtworkTileModel(id = it.id, title = it.title, subtitle = "2024") }
     private val index = AlphaIndex.of(items)
 
+    /** On the test's clock. The test sends no repeats, as the system would: none is waited for. */
+    private val gate = KeyRepeatGate(firstRepeatMs = 60_000) { compose.mainClock.currentTime }
+
     private fun grid() {
         compose.setContent {
             TvTheme {
@@ -59,37 +67,39 @@ class TvLetterJumpTest {
                 val state = rememberTvGridState()
                 val jump = remember { FocusRequester() }
                 val scope = rememberCoroutineScope()
-                Box(Modifier.fillMaxSize()) {
-                    TvPosterGrid(
-                        total = tiles.size,
-                        tileAt = { tiles.getOrNull(it) },
-                        keyAt = { tiles[it].id },
-                        kind = TileKind.LibraryGrid,
-                        onOpen = { _, _ -> },
-                        memory = rememberFocusMemory(),
-                        memoryPrefix = "grid",
-                        skeleton = rememberSkeleton(animated = false),
-                        state = state,
-                        focus = focus,
-                        onRight = {
-                            jump.requestFocus()
-                            true
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                    JumpControl(
-                        index = index,
-                        focus = focus,
-                        requester = jump,
-                        onJump = { position ->
-                            scope.launch {
-                                state.scrollToItem(position - position % 7)
-                                withFrameNanos { }
-                                focus.focus(position)
-                            }
-                        },
-                        modifier = Modifier.offset(x = 872.dp, y = 0.dp),
-                    )
+                CompositionLocalProvider(LocalKeyRepeatGate provides gate) {
+                    Box(Modifier.fillMaxSize().keyRepeatGate(gate)) {
+                        TvPosterGrid(
+                            total = tiles.size,
+                            tileAt = { tiles.getOrNull(it) },
+                            keyAt = { tiles[it].id },
+                            kind = TileKind.LibraryGrid,
+                            onOpen = { _, _ -> },
+                            memory = rememberFocusMemory(),
+                            memoryPrefix = "grid",
+                            skeleton = rememberSkeleton(animated = false),
+                            state = state,
+                            focus = focus,
+                            onRight = {
+                                jump.requestFocus()
+                                true
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        JumpControl(
+                            index = index,
+                            focus = focus,
+                            requester = jump,
+                            onJump = { position ->
+                                scope.launch {
+                                    state.scrollToItem(position - position % 7)
+                                    withFrameNanos { }
+                                    focus.focus(position)
+                                }
+                            },
+                            modifier = Modifier.offset(x = 872.dp, y = 0.dp),
+                        )
+                    }
                 }
             }
         }
@@ -109,6 +119,23 @@ class TvLetterJumpTest {
         grid()
         focusedTitle("Alien 1")
         press(Key.DirectionRight, 6)
+        focusedTitle("Alien 7")
+        press(Key.DirectionRight)
+        compose.onNodeWithTag(JUMP_TAG).assertIsFocused()
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun aHeldRightStaysInTheGridAndAPressReachesTheJump() {
+        grid()
+        press(Key.DirectionRight, 5)
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionRight) }
+        // The press moves to the last column; held from 180 ms, Right goes no further.
+        compose.mainClock.advanceTimeBy(600)
+        compose.onRoot().performKeyInput { keyUp(Key.DirectionRight) }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
         focusedTitle("Alien 7")
         press(Key.DirectionRight)
         compose.onNodeWithTag(JUMP_TAG).assertIsFocused()

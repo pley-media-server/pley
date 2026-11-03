@@ -23,6 +23,11 @@ describes how they are made.
   in a grid the posters stay at rest under one ring until the key comes
   up. A press moves pages and grids over 150 ms, eased out, as on the
   native Samsung app.
+- On Android TV and Fire TV, a held Left stops at a row's first tile
+  rather than opening the rail, and a held Right or Up stays in a
+  library's grid rather than running on to the A to Z jump, the chips and
+  the tabs; a press of its own still reaches them, as on the native
+  Samsung app.
 
 ### Fixed
 
