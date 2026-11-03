@@ -758,6 +758,25 @@ class TvPlayerScreenTest {
     }
 
     @Test
+    fun `while an error shows, the media keys and CAPTIONS do nothing, and Stop leaves`() {
+        val controller = playing { it.copy(phase = PlayerPhase.Error("The server stopped answering.", canRetry = true)) }
+        show(controller)
+        press(Key.MediaFastForward)
+        press(Key.MediaRewind)
+        press(Key.MediaPlayPause)
+        press(Key.MediaNext)
+        press(Key.MediaPrevious)
+        send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_CAPTIONS, 0, SystemClock.uptimeMillis())
+        compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + 100)
+        compose.waitForIdle()
+        assertTrue("nothing under the error: ${controller.calls}", controller.calls.isEmpty())
+        compose.onNodeWithText("Can't play this item").assertExists()
+        assertEquals(0, exits)
+        press(Key.MediaStop)
+        assertEquals(1, exits)
+    }
+
+    @Test
     fun `the quality panel puts Automatic under Original, says why it is lower, and chooses with the D-pad`() {
         val controller = playing {
             it.copy(

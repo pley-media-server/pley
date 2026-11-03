@@ -74,7 +74,8 @@ import kotlinx.coroutines.launch
  * - **Sleep timer.** Its notice takes focus 30 s before it pauses (Keep
  *   watching); paused by it for 10 minutes, the player leaves. A playback
  *   the server stopped says why and leaves after 20 s.
- * - **Media keys** work whatever shows.
+ * - **Media keys** and CAPTIONS work whatever shows, but an error: then
+ *   only Stop does, and it leaves.
  *
  * [onExit] leaves the player for where playing started; [now] is the wall
  * clock, for the clock and "Ends at". [captionLook] is Settings →
@@ -288,7 +289,10 @@ internal fun TvPlayerScreen(
         val native = event.nativeKeyEvent
         val code = native.keyCode
         TvPlayerKeys.media(code)?.let { key ->
-            if (native.action == AndroidKeyEvent.ACTION_DOWN && native.repeatCount == 0) act(key)
+            // An error on screen: only Stop, which leaves. The others would seek, change a track or
+            // play the next episode under it.
+            val acts = key == PlayerKey.Stop || state.value.phase !is PlayerPhase.Error
+            if (acts && native.action == AndroidKeyEvent.ACTION_DOWN && native.repeatCount == 0) act(key)
             return true
         }
         if (state.value.phase is PlayerPhase.Error) return false
