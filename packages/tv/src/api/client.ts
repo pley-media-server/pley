@@ -594,6 +594,8 @@ export class Api {
     return this.get(`/api/live/sessions/${encodeURIComponent(session)}/plan`, { cancel, timeoutMs: 8_000 }).then(
       () => null,
       (e: unknown) => {
+        // Ended: the server's words, or "" when it gave none (not a video's "stopped by the administrator").
+        if (e instanceof SessionStoppedError) return e.note ?? "";
         if (isApiError(e, 410)) return e.message;
         throw e;
       },

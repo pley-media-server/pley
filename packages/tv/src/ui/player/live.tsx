@@ -34,7 +34,9 @@ const MEDIA_KEYS: Key[] = ["playPause", "play", "pause", "stop", "fastForward", 
  * player under the page from the live edge (no pause, rewind or skip),
  * what's on, the channel list with the categories, and changing channels with CH+ and CH−, Up and Down within the category it
  * was opened from, or by a channel's number among every channel. Back
- * leaves, to the channel watched; the server is told at once.
+ * leaves, to the channel watched; the server is told at once. Watching
+ * ended on the server (its connection taken over, say) stops the picture
+ * for the server's words, with Watch again.
  */
 export function LivePlayerScreen(p: { channelId: number; category: string; pressedAt: number }) {
   const app = useApp();
@@ -102,6 +104,7 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
         server: ui.api,
         engine: () => app.platform.createEngine(host.current!),
         clientId: app.installId(),
+        events: (l) => app.onEvent(l),
       }),
     [],
   );
@@ -433,7 +436,8 @@ function LivePlayerView(p: { first: LiveChannel; category: LiveCategory; pressed
             )
           )}
           <G kind="row" class="buttons" style={`margin-top:${busy.length ? 24 : 32}px;justify-content:center`}>
-            {trouble.canRetry && <Pill label="Try again" icon="refresh-cw" fid="retry" onSelect={() => c.retry()} />}
+            {/* Watching ended on the server: watched again as any watch is, never taking a connection over by itself. */}
+            {trouble.canRetry && <Pill label={trouble.kind === "stopped" ? "Watch again" : "Try again"} icon="refresh-cw" fid="retry" onSelect={() => c.retry()} />}
             <Pill label="Other channels" icon="list" fid="others" onSelect={() => setList(true)} />
             <TextButton label="Back" fid="back" onSelect={leave} />
           </G>

@@ -429,6 +429,8 @@ export type ServerEvent =
   | { type: "live_channels_changed" }
   /** A live channel was tuned or let go, or its viewers changed. */
   | { type: "live_tuners_changed" }
+  /** Someone took over the connection of live channel `channel_id`: every viewer of it on this account was ended, and `message` says why (docs/API.md, "Live TV"). */
+  | { type: "live_taken_over"; session_id: string; channel_id: Id; message: string | null }
   /** Any change of a request (its stage included); all three null when many changed (after Your requests was seen elsewhere). */
   | { type: "requests_changed"; request_id?: Id | null; kind?: TitleKind | null; tmdb_id?: number | null }
   /** Ready to watch, or some seasons of a show are (`complete` false, `seasons` the ones newly ready); `item_id` as this profile can open it. */
