@@ -236,8 +236,9 @@ and goes with `live_channels_changed`. On LG:
   first HLS segments. The pipeline can't send the token, so the app reads
   the stream with it and hands it on from the TV's loopback address
   (`http://127.0.0.1:<port>/relay/<128 random bits>/stream.ts`): only that
-  one stream, to at most four connections, closed when the channel changes
-  or the player goes (`crates/player/src/live/relay.rs`). LG's pipeline
+  one stream, to at most four players (a place taken only by a request
+  that names it), closed when the channel changes or the player goes
+  (`crates/player/src/live/relay.rs`). LG's pipeline
   takes no buffering setting from an app, so the stream starts as the TV
   buffers it (the Samsung app asks for 0.5 s, and 1.5 s after a stall).
 - **The server's HLS** otherwise: the app waits for the playlist (up to
