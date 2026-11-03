@@ -88,7 +88,7 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
   row has no room for a chip each. Sorted by bitrate, the line under each
   poster is its bitrate and size ("42 Mbps · 23.4 GB"); sorted by bitrate
   or filtered by resolution or dynamic range, posters show "4K" and their
-  dynamic range ("DV", "HDR10+", "HDR10", "HLG"). The tab a library was
+  dynamic range ("DV", "HDR+", "HDR", "HLG"). The tab a library was
   left on is kept; its sort and filters start afresh each time it opens.
 - **Library order** is the profile's, saved for all its devices: Sort
   libraries in the profile's menu, or a library's menu key.

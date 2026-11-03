@@ -87,7 +87,7 @@ public class LibraryTextTests
 
         var chosen = LibraryText.Panel(LibraryPanel.Filter, StateOf(saved: "resolution=1080&dynamic_range=hdr10"));
         Assert.Equal(new[] { "Genre", "Year", "Resolution", "Dynamic range", "Clear filters", "Save as…" }, chosen.Rows.Skip(4).Select(r => r.Label));
-        Assert.Equal(new[] { "1080p", "HDR10" }, chosen.Rows.Where(r => r.Kind is LibraryRowKind.Resolutions or LibraryRowKind.DynamicRanges).Select(r => r.Detail));
+        Assert.Equal(new[] { "1080p", "HDR" }, chosen.Rows.Where(r => r.Kind is LibraryRowKind.Resolutions or LibraryRowKind.DynamicRanges).Select(r => r.Detail));
 
         var resolutions = LibraryText.Panel(LibraryPanel.Resolution, StateOf(saved: "resolution=1080"));
         Assert.Equal("Resolution", resolutions.Title);
@@ -96,7 +96,7 @@ public class LibraryTextTests
         Assert.Equal(2, resolutions.Focus);
         var ranges = LibraryText.Panel(LibraryPanel.DynamicRange, StateOf());
         Assert.Equal("Dynamic range", ranges.Title);
-        Assert.Equal(new[] { "All dynamic ranges", "HDR", "Dolby Vision", "HDR10", "SDR" }, ranges.Rows.Select(r => r.Label));
+        Assert.Equal(new[] { "All dynamic ranges", "Any HDR", "Dolby Vision", "HDR", "SDR" }, ranges.Rows.Select(r => r.Label));
         Assert.Equal(0, ranges.Focus);
 
         // A library with one of each has nothing to choose: the rows show only while one is chosen, to change or clear it.
@@ -110,7 +110,7 @@ public class LibraryTextTests
     public void Resolutions_and_dynamic_ranges_have_their_words()
     {
         Assert.Equal(new[] { "4K", "1080p", "720p", "SD" }, LibraryParams.Resolutions.Select(LibraryText.ResolutionLabel));
-        Assert.Equal(new[] { "HDR", "Dolby Vision", "HDR10+", "HDR10", "HLG", "SDR" }, LibraryParams.DynamicRanges.Select(LibraryText.DynamicRangeLabel));
+        Assert.Equal(new[] { "Any HDR", "Dolby Vision", "HDR+", "HDR", "HLG", "SDR" }, LibraryParams.DynamicRanges.Select(LibraryText.DynamicRangeLabel));
         Assert.Null(LibraryText.ResolutionLabel("8k"));
         Assert.Null(LibraryText.DynamicRangeLabel(null));
     }
@@ -203,7 +203,7 @@ public class LibraryTextTests
         Assert.Equal("", LibraryText.MediaLine(null));
         Assert.Equal("Bitrate unknown", LibraryText.MediaLine(new MediaSummary()));
         Assert.Equal("8.2 Mbps", LibraryText.MediaLine(new MediaSummary { Bitrate = 8_200_000 }));
-        Assert.Equal(new[] { "HDR10" }, LibraryText.MediaBadges(new MediaSummary { Width = 1920, Height = 1080, DynamicRange = "hdr10" }));
+        Assert.Equal(new[] { "HDR" }, LibraryText.MediaBadges(new MediaSummary { Width = 1920, Height = 1080, DynamicRange = "hdr10" }));
         Assert.Empty(LibraryText.MediaBadges(new MediaSummary { Width = 1920, Height = 1080, VideoCodec = "h264", DynamicRange = "sdr" }));
         Assert.Equal(new[] { "4K" }, LibraryText.MediaBadges(new MediaSummary { Width = 3840, Height = 2160, VideoCodec = "h264", DynamicRange = "sdr" }));
         Assert.Empty(LibraryText.MediaBadges(null));

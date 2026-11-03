@@ -45,11 +45,12 @@ export function formatBytes(bytes: number | null | undefined): string {
 /**
  * What sets a title's files apart, for its poster: `["4K", "DV"]`. Only 4K
  * of the resolutions, and no codec: "1080p" or "H.264" on most posters says
- * nothing worth the room.
+ * nothing worth the room. HDR10 and HDR10+ read as plain "HDR" and "HDR+"
+ * there and in the filters; a title's page names them exactly.
  */
 export function mediaBadges(media: MediaSummary | null | undefined): string[] {
   if (!media) return [];
-  const range: Partial<Record<DynamicRange, string>> = { dolby_vision: "DV", hdr10plus: "HDR10+", hdr10: "HDR10", hlg: "HLG" };
+  const range: Partial<Record<DynamicRange, string>> = { dolby_vision: "DV", hdr10plus: "HDR+", hdr10: "HDR", hlg: "HLG" };
   return [
     resolutionLabel(media.width, media.height) === "4K" ? "4K" : null,
     media.dynamic_range ? (range[media.dynamic_range] ?? null) : null,
@@ -61,10 +62,10 @@ export const RESOLUTION_LABELS: Record<Resolution, string> = { "4k": "4K", "1080
 
 /** What the library filters by dynamic range call each one. */
 export const RANGE_FILTER_LABELS: Record<RangeFilter, string> = {
-  hdr: "HDR",
+  hdr: "Any HDR",
   dolby_vision: "Dolby Vision",
-  hdr10plus: "HDR10+",
-  hdr10: "HDR10",
+  hdr10plus: "HDR+",
+  hdr10: "HDR",
   hlg: "HLG",
   sdr: "SDR",
 };

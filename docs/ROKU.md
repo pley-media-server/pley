@@ -127,7 +127,7 @@ left on, kept on the Roku for each server, profile and library.
   titles come.
 - **Quality badges:** sorted by bitrate, or filtered by resolution or
   dynamic range, the posters say what sets their best file apart at their
-  foot: "4K" (no other resolution), then "DV", "HDR10+", "HDR10" or "HLG".
+  foot: "4K" (no other resolution), then "DV", "HDR+", "HDR" or "HLG".
   Sorted by bitrate, its bitrate and size take the year's place under the
   poster ("42 Mbps · 23.4 GB"). Otherwise, and in rows, collections,
   playlists and search, posters have no quality badges.
@@ -147,7 +147,7 @@ left on, kept on the Roku for each server, profile and library.
 - **Filter**, the chip after the sort's, opens a panel: Show (all titles,
   unwatched or watched), Genre and Year, then, in a library of movies or
   shows, Resolution (4K, 1080p, 720p, SD) and Dynamic range (HDR, which is
-  any of them, Dolby Vision, HDR10+, HDR10, HLG, SDR). Those two show once
+  any of them, Dolby Vision, HDR+, HDR, HLG, SDR). Those two show once
   the server says the titles differ in them, offering what they have, or
   while one is chosen; a title counts by its best file, a show by its best
   episode. The chip says what is kept ("Unwatched, 4K, Dolby Vision").

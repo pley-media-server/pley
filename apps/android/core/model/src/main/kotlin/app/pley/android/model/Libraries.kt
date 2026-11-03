@@ -96,13 +96,14 @@ enum class ResolutionFilter(override val wire: String, val label: String) : Wire
 /**
  * The `dynamic_range` of GET /api/libraries/{id}/items: a title's best
  * file's (a show's best episode's). [Hdr] is any but SDR. [label] is how
- * every app names it.
+ * every app names it: HDR10 and HDR10+ as plain "HDR" and "HDR+", as on
+ * the posters.
  */
 enum class DynamicRangeFilter(override val wire: String, val label: String) : WireEnum {
-    Hdr("hdr", "HDR"),
+    Hdr("hdr", "Any HDR"),
     DolbyVision("dolby_vision", "Dolby Vision"),
-    Hdr10Plus("hdr10plus", "HDR10+"),
-    Hdr10("hdr10", "HDR10"),
+    Hdr10Plus("hdr10plus", "HDR+"),
+    Hdr10("hdr10", "HDR"),
     Hlg("hlg", "HLG"),
     Sdr("sdr", "SDR"),
     ;

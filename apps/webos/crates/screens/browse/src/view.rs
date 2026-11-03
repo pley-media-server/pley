@@ -122,13 +122,14 @@ pub fn resolution_label(resolution: ResolutionFilter) -> &'static str {
     }
 }
 
-/// A dynamic range as its chip and the Dynamic range panel name it.
+/// A dynamic range as its chip and the Dynamic range panel name it: HDR10 and HDR10+ as plain
+/// "HDR" and "HDR+", as on the posters.
 pub fn range_label(range: RangeFilter) -> &'static str {
     match range {
-        RangeFilter::Hdr => "HDR",
+        RangeFilter::Hdr => "Any HDR",
         RangeFilter::DolbyVision => "Dolby Vision",
-        RangeFilter::Hdr10Plus => "HDR10+",
-        RangeFilter::Hdr10 => "HDR10",
+        RangeFilter::Hdr10Plus => "HDR+",
+        RangeFilter::Hdr10 => "HDR",
         RangeFilter::Hlg => "HLG",
         RangeFilter::Sdr => "SDR",
         RangeFilter::Unknown => "",
@@ -474,8 +475,8 @@ mod tests {
             describe_smart_filter("resolution=4k&dynamicRange=dolby_vision&unwatched=1"),
             vec!["4K", "Dolby Vision", "Unwatched"]
         );
-        assert_eq!(describe_smart_filter("resolution=1080p&dynamicRange=hdr"), vec!["1080p", "HDR"]);
-        assert_eq!(describe_smart_filter("resolution=480&dynamicRange=hdr10plus"), vec!["SD", "HDR10+"]);
+        assert_eq!(describe_smart_filter("resolution=1080p&dynamicRange=hdr"), vec!["1080p", "Any HDR"]);
+        assert_eq!(describe_smart_filter("resolution=480&dynamicRange=hdr10plus"), vec!["SD", "HDR+"]);
         assert_eq!(describe_smart_filter("resolution=8k"), vec!["resolution: 8k"]);
     }
 
@@ -499,7 +500,7 @@ mod tests {
         let labels: Vec<&str> = ResolutionFilter::ALL.iter().map(|r| resolution_label(*r)).collect();
         assert_eq!(labels, ["4K", "1080p", "720p", "SD", ""]);
         let labels: Vec<&str> = RangeFilter::ALL.iter().map(|r| range_label(*r)).collect();
-        assert_eq!(labels, ["HDR", "Dolby Vision", "HDR10+", "HDR10", "HLG", "SDR", ""]);
+        assert_eq!(labels, ["Any HDR", "Dolby Vision", "HDR+", "HDR", "HLG", "SDR", ""]);
     }
 
     #[test]

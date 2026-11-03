@@ -357,15 +357,21 @@ pub fn quality_badges(file: &MediaFile) -> Vec<String> {
     out
 }
 
-/// The badges a listing can give: 4K (no other resolution, as on the web) and the dynamic range.
+/// The badges a listing can give: 4K (no other resolution, as on the web) and the dynamic range,
+/// HDR10 and HDR10+ as plain "HDR" and "HDR+" (a title's page names them exactly).
 pub fn summary_badges(media: &MediaSummary) -> Vec<String> {
-    [
-        resolution_badge(media.width, media.height).filter(|r| *r == "4K").map(str::to_string),
-        dynamic_range_short(media.dynamic_range, None, None, None, None),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
+    let range = match media.dynamic_range {
+        Some(DynamicRange::DolbyVision) => Some("DV"),
+        Some(DynamicRange::Hdr10Plus) => Some("HDR+"),
+        Some(DynamicRange::Hdr10) => Some("HDR"),
+        Some(DynamicRange::Hlg) => Some("HLG"),
+        _ => None,
+    };
+    [resolution_badge(media.width, media.height).filter(|r| *r == "4K"), range]
+        .into_iter()
+        .flatten()
+        .map(str::to_string)
+        .collect()
 }
 
 /// Whether the profile picked the file's audio track; older servers don't

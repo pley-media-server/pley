@@ -24,8 +24,8 @@ describe("smart filters", () => {
       "Recently added first",
       "At most 20",
     ]);
-    expect(describeSmartFilter("resolution=4k&dynamicRange=hdr")).toEqual(["4K", "HDR"]);
-    expect(describeSmartFilter("resolution=1080&dynamicRange=hdr10plus")).toEqual(["1080p", "HDR10+"]);
+    expect(describeSmartFilter("resolution=4k&dynamicRange=hdr")).toEqual(["4K", "Any HDR"]);
+    expect(describeSmartFilter("resolution=1080&dynamicRange=hdr10plus")).toEqual(["1080p", "HDR+"]);
     expect(describeSmartFilter("resolution=8k")).toEqual(["Resolution: 8k"]);
     expect(describeSmartFilter("videoCodec=hevc")).toEqual(["videoCodec: hevc"]);
   });

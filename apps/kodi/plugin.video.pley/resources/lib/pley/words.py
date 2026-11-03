@@ -216,10 +216,12 @@ def quality_badges(file) -> list:
 # and `dynamic_range`): the server's tokens and what the filters call them,
 # best first, as the server lists them.
 RESOLUTIONS = {"4k": "4K", "1080": "1080p", "720": "720p", "sd": "SD"}
-DYNAMIC_RANGES = {"hdr": "HDR", "dolby_vision": "Dolby Vision", "hdr10plus": "HDR10+", "hdr10": "HDR10", "hlg": "HLG", "sdr": "SDR"}
+# HDR10 and HDR10+ read as plain "HDR" and "HDR+" here and on the posters;
+# a title's page names them exactly.
+DYNAMIC_RANGES = {"hdr": "Any HDR", "dolby_vision": "Dolby Vision", "hdr10plus": "HDR+", "hdr10": "HDR", "hlg": "HLG", "sdr": "SDR"}
 # A poster's dynamic range badge, by its file's (the web's mediaBadges):
 # SDR and HDR of no known kind have none.
-RANGE_BADGES = {"dolby_vision": "DV", "hdr10plus": "HDR10+", "hdr10": "HDR10", "hlg": "HLG"}
+RANGE_BADGES = {"dolby_vision": "DV", "hdr10plus": "HDR+", "hdr10": "HDR", "hlg": "HLG"}
 
 
 def media_badges(media) -> list:

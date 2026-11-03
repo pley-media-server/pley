@@ -45,7 +45,7 @@ sub test_library_query_and_filters()
     view.dynamic_range = "hdr"
     tkTrue(libFiltered(view), "a dynamic range alone filters")
     tkEqual(libQuery(view, 0, 70), { sort: "title", order: "asc", offset: 0, limit: 70, dynamic_range: "hdr" })
-    tkEqual(libFilterLabel(view), "HDR")
+    tkEqual(libFilterLabel(view), "Any HDR")
     view.dynamic_range = ""
     view.resolution = "sd"
     tkTrue(libFiltered(view), "a resolution alone filters")
@@ -118,7 +118,7 @@ sub test_library_quality_filter_choices()
     tkEqual(choices, { labels: ["Any", "4K", "1080p", "SD"], values: ["", "4k", "1080", "sd"], current: 0 }, "the server's, in its order")
     tkEqual(libQualityChoices(fmtResolutions(), ["4k", "1080", "sd"], "1080").current, 2)
     choices = libQualityChoices(fmtDynamicRanges(), ["hdr", "dolby_vision", "sdr"], "hdr10")
-    tkEqual(choices.labels, ["Any", "HDR", "Dolby Vision", "SDR", "HDR10"], "the one chosen, no longer offered, still there")
+    tkEqual(choices.labels, ["Any", "Any HDR", "Dolby Vision", "SDR", "HDR"], "the one chosen, no longer offered, still there")
     tkEqual(choices.current, 4)
     tkEqual(libQualityChoices(fmtDynamicRanges(), [], "hlg"), { labels: ["Any", "HLG"], values: ["", "hlg"], current: 1 })
 end sub
@@ -194,7 +194,7 @@ sub test_library_filters_as_a_smart_filter()
     view.sort = "bitrate"
     view.order = "desc"
     tkEqual(libSmartFilter(view), "genre=Drama&year=1999&resolution=4k&dynamicRange=hdr&unwatched=1&sort=mediaBitrate%3Adesc", "after year, before unwatched")
-    tkEqual(libSmartFilterWords(view), ["Genre: Drama", "From 1999", "4K", "HDR", "Unwatched", "Highest bitrate first"])
+    tkEqual(libSmartFilterWords(view), ["Genre: Drama", "From 1999", "4K", "Any HDR", "Unwatched", "Highest bitrate first"])
     view.resolution = ""
     view.dynamic_range = "dolby_vision"
     view.genre = ""

@@ -104,7 +104,7 @@ def tile(base: str, item: dict, shape: str, quality: bool = False, bitrate: bool
 def badges(media) -> list:
     """A poster's quality badges (words.media_badges) as (key, word): the
     skin draws each by its key (layout.BADGES), the server's token, as its
-    conditions can't name "HDR10+" (Kodi reads + as "and")."""
+    conditions can't name "HDR+" (Kodi reads + as "and")."""
     keys = {word: key for key, (word, _) in L.BADGES.items()}
     return [(keys[word], word) for word in words.media_badges(media)]
 

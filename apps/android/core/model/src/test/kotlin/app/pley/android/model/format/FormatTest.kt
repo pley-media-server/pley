@@ -317,7 +317,7 @@ class FormatTest {
         assertEquals(listOf("4K", "DV"), mediaBadges(media))
         assertEquals("42 Mbps · 23.4 GB", mediaLine(media))
         assertEquals(emptyList<String>(), mediaBadges(media.copy(width = 1920, height = 1080, dynamicRange = DynamicRange.Sdr, videoCodec = "h264")))
-        assertEquals(listOf("HDR10"), mediaBadges(media.copy(width = 1920, height = 1080, dynamicRange = DynamicRange.Hdr10)))
+        assertEquals(listOf("HDR"), mediaBadges(media.copy(width = 1920, height = 1080, dynamicRange = DynamicRange.Hdr10)))
         assertEquals(emptyList<String>(), mediaBadges(MediaSummary()))
         assertEquals("Bitrate unknown", mediaLine(MediaSummary()))
         assertEquals("", mediaLine(null))

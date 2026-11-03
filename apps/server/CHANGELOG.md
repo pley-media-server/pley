@@ -62,7 +62,7 @@ describes how they are made.
   to the addresses or networks it is used from, or the home network; from
   elsewhere it is refused, and so are the streams it started.
 - Movie and show libraries can be filtered by resolution (4K, 1080p, 720p,
-  SD) and by dynamic range (HDR, Dolby Vision, HDR10+, HDR10, HLG, SDR),
+  SD) and by dynamic range (Any HDR, Dolby Vision, HDR+, HDR, HLG, SDR),
   each title by its best file (a show by its best episode), and shown and
   sorted by the version that matches: a film filtered by Dolby Vision shows
   its Dolby Vision file's badges and bitrate. The choices are those the
@@ -75,7 +75,7 @@ describes how they are made.
   each, where it stopped at 12 people and 12 channels. The web app shows
   two rows of each group of results and **Show all** for the rest.
 - Library posters on the web carry their quality badges ("4K", "DV",
-  "HDR10") only when the library is sorted by bitrate or filtered by
+  "HDR") only when the library is sorted by bitrate or filtered by
   resolution or dynamic range: on every poster they mostly said the same
   thing.
 - The web app's sidebar is more compact, so more libraries and playlists

@@ -18813,7 +18813,7 @@
                 <control type="image">
                   <left>12</left>
                   <top>240</top>
-                  <width>106</width>
+                  <width>82</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + String.IsEmpty(ListItem.Property(resolution))</visible>
                   <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -18821,7 +18821,7 @@
                 <control type="label">
                   <left>12</left>
                   <top>240</top>
-                  <width>106</width>
+                  <width>82</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + String.IsEmpty(ListItem.Property(resolution))</visible>
                   <font>font20_title</font>
@@ -18829,12 +18829,12 @@
                   <align>center</align>
                   <aligny>center</aligny>
                   <scroll>false</scroll>
-                  <label>HDR10+</label>
+                  <label>HDR+</label>
                 </control>
                 <control type="image">
                   <left>74</left>
                   <top>240</top>
-                  <width>106</width>
+                  <width>82</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                   <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -18842,7 +18842,7 @@
                 <control type="label">
                   <left>74</left>
                   <top>240</top>
-                  <width>106</width>
+                  <width>82</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                   <font>font20_title</font>
@@ -18850,12 +18850,12 @@
                   <align>center</align>
                   <aligny>center</aligny>
                   <scroll>false</scroll>
-                  <label>HDR10+</label>
+                  <label>HDR+</label>
                 </control>
                 <control type="image">
                   <left>12</left>
                   <top>240</top>
-                  <width>94</width>
+                  <width>70</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10) + String.IsEmpty(ListItem.Property(resolution))</visible>
                   <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -18863,7 +18863,7 @@
                 <control type="label">
                   <left>12</left>
                   <top>240</top>
-                  <width>94</width>
+                  <width>70</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10) + String.IsEmpty(ListItem.Property(resolution))</visible>
                   <font>font20_title</font>
@@ -18871,12 +18871,12 @@
                   <align>center</align>
                   <aligny>center</aligny>
                   <scroll>false</scroll>
-                  <label>HDR10</label>
+                  <label>HDR</label>
                 </control>
                 <control type="image">
                   <left>74</left>
                   <top>240</top>
-                  <width>94</width>
+                  <width>70</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                   <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -18884,7 +18884,7 @@
                 <control type="label">
                   <left>74</left>
                   <top>240</top>
-                  <width>94</width>
+                  <width>70</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                   <font>font20_title</font>
@@ -18892,7 +18892,7 @@
                   <align>center</align>
                   <aligny>center</aligny>
                   <scroll>false</scroll>
-                  <label>HDR10</label>
+                  <label>HDR</label>
                 </control>
                 <control type="image">
                   <left>12</left>
@@ -19160,7 +19160,7 @@
                 <control type="image">
                   <left>12</left>
                   <top>240</top>
-                  <width>106</width>
+                  <width>82</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + String.IsEmpty(ListItem.Property(resolution))</visible>
                   <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -19168,7 +19168,7 @@
                 <control type="label">
                   <left>12</left>
                   <top>240</top>
-                  <width>106</width>
+                  <width>82</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + String.IsEmpty(ListItem.Property(resolution))</visible>
                   <font>font20_title</font>
@@ -19176,12 +19176,12 @@
                   <align>center</align>
                   <aligny>center</aligny>
                   <scroll>false</scroll>
-                  <label>HDR10+</label>
+                  <label>HDR+</label>
                 </control>
                 <control type="image">
                   <left>74</left>
                   <top>240</top>
-                  <width>106</width>
+                  <width>82</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                   <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -19189,7 +19189,7 @@
                 <control type="label">
                   <left>74</left>
                   <top>240</top>
-                  <width>106</width>
+                  <width>82</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                   <font>font20_title</font>
@@ -19197,12 +19197,12 @@
                   <align>center</align>
                   <aligny>center</aligny>
                   <scroll>false</scroll>
-                  <label>HDR10+</label>
+                  <label>HDR+</label>
                 </control>
                 <control type="image">
                   <left>12</left>
                   <top>240</top>
-                  <width>94</width>
+                  <width>70</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10) + String.IsEmpty(ListItem.Property(resolution))</visible>
                   <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -19210,7 +19210,7 @@
                 <control type="label">
                   <left>12</left>
                   <top>240</top>
-                  <width>94</width>
+                  <width>70</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10) + String.IsEmpty(ListItem.Property(resolution))</visible>
                   <font>font20_title</font>
@@ -19218,12 +19218,12 @@
                   <align>center</align>
                   <aligny>center</aligny>
                   <scroll>false</scroll>
-                  <label>HDR10</label>
+                  <label>HDR</label>
                 </control>
                 <control type="image">
                   <left>74</left>
                   <top>240</top>
-                  <width>94</width>
+                  <width>70</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                   <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -19231,7 +19231,7 @@
                 <control type="label">
                   <left>74</left>
                   <top>240</top>
-                  <width>94</width>
+                  <width>70</width>
                   <height>36</height>
                   <visible>String.IsEqual(ListItem.Property(range),hdr10) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                   <font>font20_title</font>
@@ -19239,7 +19239,7 @@
                   <align>center</align>
                   <aligny>center</aligny>
                   <scroll>false</scroll>
-                  <label>HDR10</label>
+                  <label>HDR</label>
                 </control>
                 <control type="image">
                   <left>12</left>
@@ -35337,7 +35337,7 @@
               <control type="image">
                 <left>12</left>
                 <top>240</top>
-                <width>106</width>
+                <width>82</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + String.IsEmpty(ListItem.Property(resolution))</visible>
                 <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -35345,7 +35345,7 @@
               <control type="label">
                 <left>12</left>
                 <top>240</top>
-                <width>106</width>
+                <width>82</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + String.IsEmpty(ListItem.Property(resolution))</visible>
                 <font>font20_title</font>
@@ -35353,12 +35353,12 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>HDR10+</label>
+                <label>HDR+</label>
               </control>
               <control type="image">
                 <left>74</left>
                 <top>240</top>
-                <width>106</width>
+                <width>82</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                 <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -35366,7 +35366,7 @@
               <control type="label">
                 <left>74</left>
                 <top>240</top>
-                <width>106</width>
+                <width>82</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                 <font>font20_title</font>
@@ -35374,12 +35374,12 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>HDR10+</label>
+                <label>HDR+</label>
               </control>
               <control type="image">
                 <left>12</left>
                 <top>240</top>
-                <width>94</width>
+                <width>70</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10) + String.IsEmpty(ListItem.Property(resolution))</visible>
                 <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -35387,7 +35387,7 @@
               <control type="label">
                 <left>12</left>
                 <top>240</top>
-                <width>94</width>
+                <width>70</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10) + String.IsEmpty(ListItem.Property(resolution))</visible>
                 <font>font20_title</font>
@@ -35395,12 +35395,12 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>HDR10</label>
+                <label>HDR</label>
               </control>
               <control type="image">
                 <left>74</left>
                 <top>240</top>
-                <width>94</width>
+                <width>70</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                 <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -35408,7 +35408,7 @@
               <control type="label">
                 <left>74</left>
                 <top>240</top>
-                <width>94</width>
+                <width>70</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                 <font>font20_title</font>
@@ -35416,7 +35416,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>HDR10</label>
+                <label>HDR</label>
               </control>
               <control type="image">
                 <left>12</left>
@@ -35684,7 +35684,7 @@
               <control type="image">
                 <left>12</left>
                 <top>240</top>
-                <width>106</width>
+                <width>82</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + String.IsEmpty(ListItem.Property(resolution))</visible>
                 <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -35692,7 +35692,7 @@
               <control type="label">
                 <left>12</left>
                 <top>240</top>
-                <width>106</width>
+                <width>82</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + String.IsEmpty(ListItem.Property(resolution))</visible>
                 <font>font20_title</font>
@@ -35700,12 +35700,12 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>HDR10+</label>
+                <label>HDR+</label>
               </control>
               <control type="image">
                 <left>74</left>
                 <top>240</top>
-                <width>106</width>
+                <width>82</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                 <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -35713,7 +35713,7 @@
               <control type="label">
                 <left>74</left>
                 <top>240</top>
-                <width>106</width>
+                <width>82</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10plus) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                 <font>font20_title</font>
@@ -35721,12 +35721,12 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>HDR10+</label>
+                <label>HDR+</label>
               </control>
               <control type="image">
                 <left>12</left>
                 <top>240</top>
-                <width>94</width>
+                <width>70</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10) + String.IsEmpty(ListItem.Property(resolution))</visible>
                 <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -35734,7 +35734,7 @@
               <control type="label">
                 <left>12</left>
                 <top>240</top>
-                <width>94</width>
+                <width>70</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10) + String.IsEmpty(ListItem.Property(resolution))</visible>
                 <font>font20_title</font>
@@ -35742,12 +35742,12 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>HDR10</label>
+                <label>HDR</label>
               </control>
               <control type="image">
                 <left>74</left>
                 <top>240</top>
-                <width>94</width>
+                <width>70</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                 <texture colordiffuse="CC0B0D10" border="6">round4.png</texture>
@@ -35755,7 +35755,7 @@
               <control type="label">
                 <left>74</left>
                 <top>240</top>
-                <width>94</width>
+                <width>70</width>
                 <height>36</height>
                 <visible>String.IsEqual(ListItem.Property(range),hdr10) + !String.IsEmpty(ListItem.Property(resolution))</visible>
                 <font>font20_title</font>
@@ -35763,7 +35763,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>HDR10</label>
+                <label>HDR</label>
               </control>
               <control type="image">
                 <left>12</left>

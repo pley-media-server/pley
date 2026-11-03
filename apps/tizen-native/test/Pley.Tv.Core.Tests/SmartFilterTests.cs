@@ -29,7 +29,7 @@ public class SmartFilterTests
         Assert.Equal(new[] { "After 2019", "Recently added first", "At most 20" }, SmartFilter.Describe("year%3E%3E=2019&sort=movie.addedAt:desc&includeGuids=1&limit=20"));
         // A resolution and a dynamic range by their words, never the tokens; one Pley doesn't save, as it is.
         Assert.Equal(new[] { "4K", "Dolby Vision", "By title" }, SmartFilter.Describe("resolution=4k&dynamicRange=dolby_vision&sort=titleSort"));
-        Assert.Equal(new[] { "1080p", "HDR10+" }, SmartFilter.Describe("resolution=1080&dynamicRange=hdr10plus"));
+        Assert.Equal(new[] { "1080p", "HDR+" }, SmartFilter.Describe("resolution=1080&dynamicRange=hdr10plus"));
         Assert.Equal(new[] { "resolution: 480" }, SmartFilter.Describe("resolution=480"));
     }
 

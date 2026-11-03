@@ -152,7 +152,7 @@ describe("a library's resolution and dynamic range", () => {
 
     t.press(t.chip("chip/filter")!);
     t.press(t.row("Dynamic range"));
-    expect(t.rows()).toEqual(["All dynamic ranges", "HDR", "Dolby Vision", "SDR"]);
+    expect(t.rows()).toEqual(["All dynamic ranges", "Any HDR", "Dolby Vision", "SDR"]);
     t.press(t.row("Dolby Vision"));
     await t.settle();
     expect(t.asked.at(-1)).toMatchObject({ resolution: undefined, dynamic_range: "dolby_vision" });
@@ -168,7 +168,7 @@ describe("a library's resolution and dynamic range", () => {
     await t.settle();
     expect(t.asked[0]).toMatchObject({ genre: "Drama", resolution: "4k", dynamic_range: "hdr" });
     expect(t.chip("chip/resolution")!.textContent).toBe("4K");
-    expect(t.chip("chip/dynamicRange")!.textContent).toBe("HDR");
+    expect(t.chip("chip/dynamicRange")!.textContent).toBe("Any HDR");
     t.press(t.chip("chip/filter")!);
     expect(t.rows().slice(-2)).toEqual(["Clear filters", "Save as…"]);
     t.press(t.row("Save as…"));

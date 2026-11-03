@@ -14,8 +14,8 @@ describes how they are made.
   after Year, where their titles differ in them. The Filter chip says
   what is chosen, and Save as… keeps them. Needs a server from the same
   release.
-- Library posters show "4K" and their dynamic range ("DV", "HDR10+",
-  "HDR10", "HLG") while the library is sorted by bitrate or filtered by
+- Library posters show "4K" and their dynamic range ("DV", "HDR+",
+  "HDR", "HLG") while the library is sorted by bitrate or filtered by
   resolution or dynamic range.
 - Libraries sort by your rating and by bitrate, as on the other apps;
   sorted by bitrate, the line under each poster is its bitrate and size.

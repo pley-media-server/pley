@@ -596,7 +596,7 @@ class WindowTest(unittest.TestCase):
         with Dialogs(picks=[6, 2]) as dialogs:
             library.click(L.LIBRARY_FILTER_ON)
         self.assertEqual(dialogs.shown[0][0][5:], ["Resolution: 4K", "Dynamic range: All dynamic ranges", window.T("clear_filters"), window.T("save_as")])
-        self.assertEqual(dialogs.shown[1], (["All dynamic ranges", "HDR", "Dolby Vision", "SDR"], 0))
+        self.assertEqual(dialogs.shown[1], (["All dynamic ranges", "Any HDR", "Dolby Vision", "SDR"], 0))
         self.assertEqual(asked[-1][1]["dynamic_range"], "dolby_vision")
         self.assertEqual(win.made[L.LIBRARY_FILTER_ON].label, window.ICON_ROOM + "4K · Dolby Vision")
         # Save as…: after the year, before unwatched, in Plex's syntax (Pley's dynamicRange).

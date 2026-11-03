@@ -277,7 +277,7 @@ fn resolution_and_dynamic_range_filter_from_the_filter_panel_and_badge_the_poste
     app.open(Route::Library { id: ids::MOVIES, tab: None, sort: None });
     assert!(app.until(|a| a.shows("1,500 movies")));
     // By title, the posters carry no quality badges, though the listing has each title's media.
-    assert!(!app.shows("4K") && !app.shows("HDR10"), "badges on a grid that isn't about quality");
+    assert!(!app.shows("4K") && !app.shows("HDR"), "badges on a grid that isn't about quality");
 
     // Up to the chips, Right to Filter: its rows reach Resolution and Dynamic range after Year.
     press(&mut app, &[Key::Up, Key::Right, Key::Ok]);
@@ -290,7 +290,7 @@ fn resolution_and_dynamic_range_filter_from_the_filter_panel_and_badge_the_poste
     press(&mut app, &[Key::Down, Key::Ok]);
     assert!(app.until(|a| a.shows_part(" of 1,500 movies")), "the count doesn't say it's filtered");
     // A chip names the choice; the posters wear their badges.
-    assert!(app.until(|a| times(a, "4K") > 1 && a.shows("HDR10")), "no chip or no badges");
+    assert!(app.until(|a| times(a, "4K") > 1 && a.shows("HDR")), "no chip or no badges");
 
     // The view is kept: the library opens in it again.
     app.open(Route::Library { id: ids::MOVIES, tab: None, sort: None });
@@ -303,7 +303,7 @@ fn resolution_and_dynamic_range_filter_from_the_filter_panel_and_badge_the_poste
     press(&mut app, &[Key::Up, Key::Right, Key::Right, Key::Right, Key::Right, Key::Right]);
     assert_eq!(app.focused(), Some(app.id(&["chips", "resolution"])));
     press(&mut app, &[Key::Ok, Key::Up, Key::Ok]);
-    assert!(app.until(|a| a.shows("1,500 movies") && !a.shows("HDR10")), "the filter didn't clear");
+    assert!(app.until(|a| a.shows("1,500 movies") && !a.shows("HDR")), "the filter didn't clear");
     // Once the panel has slid out, no chip or poster says 4K.
     assert!(app.until(|a| !a.shows("4K") && !a.shows("All resolutions")), "the chip stayed");
     assert!(app.until(|a| a.focused() == Some(a.id(&["chips", "filter"]))), "focus went with the chip");
@@ -312,7 +312,7 @@ fn resolution_and_dynamic_range_filter_from_the_filter_panel_and_badge_the_poste
     app.press(Key::Ok);
     assert!(app.until(|a| a.shows("Dynamic range")));
     press(&mut app, &[Key::Down, Key::Down, Key::Down, Key::Down, Key::Down, Key::Down, Key::Ok]);
-    assert!(app.until(|a| a.shows("HDR10+")), "the Dynamic range panel didn't open");
+    assert!(app.until(|a| a.shows("HDR+")), "the Dynamic range panel didn't open");
     // All dynamic ranges, HDR, then Dolby Vision.
     press(&mut app, &[Key::Down, Key::Down, Key::Ok]);
     assert!(app.until(|a| a.shows("Dolby Vision") && a.shows_part(" of 1,500 movies")));

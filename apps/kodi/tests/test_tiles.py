@@ -73,7 +73,7 @@ class TilesTest(unittest.TestCase):
         self.assertEqual(plain.label2, "1995")
         self.assertNotIn("resolution", plain.properties)
         self.assertNotIn("range", plain.properties)
-        # The badges by the server's tokens: the skin's conditions can't name "HDR10+".
+        # The badges by the server's tokens: the skin's conditions can't name "HDR+".
         badged = tiles.tile(BASE, movie, "grid", quality=True)
         self.assertEqual((badged.properties["resolution"], badged.properties["range"], badged.label2), ("4k", "hdr10plus", "1995"))
         self.assertEqual(tiles.badges(dict(media, width=1920, dynamic_range="dolby_vision", height=800)), [("dolby_vision", "DV")])

@@ -94,8 +94,8 @@ BADGE_HEIGHT, BADGE_INSET, BADGE_GAP = 36, 12, 12
 BADGES = {
     "4k": ("4K", 50),
     "dolby_vision": ("DV", 54),
-    "hdr10plus": ("HDR10+", 106),
-    "hdr10": ("HDR10", 94),
+    "hdr10plus": ("HDR+", 82),
+    "hdr10": ("HDR", 70),
     "hlg": ("HLG", 68),
 }
 

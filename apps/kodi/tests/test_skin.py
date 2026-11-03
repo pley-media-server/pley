@@ -114,7 +114,7 @@ class SkinTest(unittest.TestCase):
             self.assertEqual(sorted(c.findtext("label") for c in drawn), sorted(["4K"] + [w for k, (w, _) in L.BADGES.items() if k != "4k"] * 2))
             for c in drawn:
                 # Kodi reads + in a condition as "and": the conditions name the server's tokens.
-                self.assertNotIn("HDR10+", c.findtext("visible"))
+                self.assertNotIn("HDR+", c.findtext("visible"))
                 left, width = int(c.findtext("left")), int(c.findtext("width"))
                 self.assertLessEqual(left + width, poster.width - L.BADGE_INSET, c.findtext("label"))
                 self.assertEqual(int(c.findtext("top")) + L.BADGE_HEIGHT, poster.height - L.BADGE_INSET)

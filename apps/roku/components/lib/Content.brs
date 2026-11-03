@@ -269,7 +269,8 @@ function contentTiles(items as dynamic, server as string, badges = false as bool
 end function
 
 ' What sets a title's best file apart, as the other apps badge a library's
-' posters: "4K", then its dynamic range ("DV", "HDR10+", "HDR10", "HLG").
+' posters: "4K", then its dynamic range ("DV", "HDR+", "HDR", "HLG": HDR10+
+' and HDR10 read as plain HDR there, as in the filters).
 ' No other resolution and no codec: "1080p" or "H.264" on most posters
 ' says nothing worth the room.
 function contentQualityBadges(media as dynamic) as object
@@ -277,7 +278,7 @@ function contentQualityBadges(media as dynamic) as object
     if summary = invalid then return []
     badges = []
     if httpNumber(summary.width, 0) >= 3800 or httpNumber(summary.height, 0) >= 2100 then badges.Push("4K")
-    ranges = { dolby_vision: "DV", hdr10plus: "HDR10+", hdr10: "HDR10", hlg: "HLG" }
+    ranges = { dolby_vision: "DV", hdr10plus: "HDR+", hdr10: "HDR", hlg: "HLG" }
     range = httpString(summary.dynamic_range)
     if range <> "" and ranges.DoesExist(range) then badges.Push(ranges[range])
     return badges

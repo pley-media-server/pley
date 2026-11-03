@@ -11,12 +11,12 @@ describes how they are made.
 ### Added
 
 - A library of movies or shows filters by resolution (4K, 1080p, 720p, SD)
-  and dynamic range (HDR, Dolby Vision, HDR10+, HDR10, HLG, SDR) in its
+  and dynamic range (Any HDR, Dolby Vision, HDR+, HDR, HLG, SDR) in its
   Filter panel, offering those its titles have. Clear filters clears them,
   the library keeps them, and Save as… saves them.
 - A library sorted by bitrate, or filtered by resolution or dynamic range,
-  badges its posters with "4K" and their dynamic range ("DV", "HDR10+",
-  "HDR10", "HLG"), as the other apps do. Sorted by bitrate, each poster
+  badges its posters with "4K" and their dynamic range ("DV", "HDR+",
+  "HDR", "HLG"), as the other apps do. Sorted by bitrate, each poster
   shows its bitrate and size under it ("42 Mbps · 23.4 GB").
 
 ### Changed

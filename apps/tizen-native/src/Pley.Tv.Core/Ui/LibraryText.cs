@@ -242,13 +242,16 @@ public static class LibraryText
         _ => null,
     };
 
-    /// <summary>A dynamic range's words ("Dolby Vision", "HDR10+"); null for a value that isn't one of <see cref="LibraryParams.DynamicRanges"/>.</summary>
+    /// <summary>
+    /// A dynamic range's words ("Dolby Vision", "HDR+"); null for a value that isn't one of <see cref="LibraryParams.DynamicRanges"/>.
+    /// HDR10 and HDR10+ read as plain "HDR" and "HDR+", as on the posters; a title's page names them exactly.
+    /// </summary>
     public static string? DynamicRangeLabel(string? range) => range switch
     {
-        "hdr" => "HDR",
+        "hdr" => "Any HDR",
         "dolby_vision" => "Dolby Vision",
-        "hdr10plus" => "HDR10+",
-        "hdr10" => "HDR10",
+        "hdr10plus" => "HDR+",
+        "hdr10" => "HDR",
         "hlg" => "HLG",
         "sdr" => "SDR",
         _ => null,
@@ -319,8 +322,8 @@ public static class LibraryText
         var range = media.DynamicRange switch
         {
             "dolby_vision" => "DV",
-            "hdr10plus" => "HDR10+",
-            "hdr10" => "HDR10",
+            "hdr10plus" => "HDR+",
+            "hdr10" => "HDR",
             "hlg" => "HLG",
             _ => null,
         };

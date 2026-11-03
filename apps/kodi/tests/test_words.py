@@ -58,7 +58,7 @@ class WordsTest(unittest.TestCase):
         # The web's mediaBadges: "4K" of the resolutions only, the dynamic range short, no codec.
         uhd = {"width": 3840, "height": 1608, "video_codec": "hevc", "dynamic_range": "dolby_vision"}
         self.assertEqual(words.media_badges(uhd), ["4K", "DV"])
-        self.assertEqual(words.media_badges(dict(uhd, width=1920, height=1080, dynamic_range="hdr10plus")), ["HDR10+"])
+        self.assertEqual(words.media_badges(dict(uhd, width=1920, height=1080, dynamic_range="hdr10plus")), ["HDR+"])
         self.assertEqual(words.media_badges(dict(uhd, dynamic_range="hlg")), ["4K", "HLG"])
         self.assertEqual(words.media_badges(dict(uhd, dynamic_range="sdr")), ["4K"])
         self.assertEqual(words.media_badges({"width": 1280, "height": 720, "dynamic_range": None}), [])

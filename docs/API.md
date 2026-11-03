@@ -1496,7 +1496,7 @@ open only some libraries see those, in that order.
 | `summaries` | `1`: with synopses ([`summaries=1`](#types)) |
 
 Items leave out `backdrop_url` and `thumb_url` (grids show posters), and
-carry `media`. The apps show its badges ("4K", "DV", "HDR10") on posters
+carry `media`. The apps show its badges ("4K", "DV", "HDR") on posters
 sorted by `bitrate` or filtered by `resolution` or `dynamic_range`, and
 its bitrate and size under them sorted by `bitrate`. Filtered by either,
 `media` describes the version that matches (a film's Dolby Vision file

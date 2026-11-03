@@ -479,7 +479,8 @@ describe("media summaries", () => {
     expect(mediaBadges(media)).toEqual(["4K", "DV"]);
     expect(mediaLine(media)).toBe("42 Mbps · 23.4 GB");
     expect(mediaBadges({ ...media, width: 1920, height: 1080, dynamic_range: "sdr", video_codec: "h264" })).toEqual([]);
-    expect(mediaBadges({ ...media, width: 1920, height: 1080, dynamic_range: "hdr10" })).toEqual(["HDR10"]);
+    expect(mediaBadges({ ...media, width: 1920, height: 1080, dynamic_range: "hdr10" })).toEqual(["HDR"]);
+    expect(mediaBadges({ ...media, dynamic_range: "hdr10plus" })).toEqual(["4K", "HDR+"]);
   });
 
   it("make do with what is known", () => {

@@ -12,7 +12,8 @@ export type DynamicRangeFilter = "hdr" | "dolby_vision" | "hdr10plus" | "hdr10" 
 const RESOLUTIONS: Resolution[] = ["4k", "1080", "720", "sd"];
 const RESOLUTION_LABELS: string[] = ["4K", "1080p", "720p", "SD"];
 const DYNAMIC_RANGES: DynamicRangeFilter[] = ["hdr", "dolby_vision", "hdr10plus", "hdr10", "hlg", "sdr"];
-const DYNAMIC_RANGE_LABELS: string[] = ["HDR", "Dolby Vision", "HDR10+", "HDR10", "HLG", "SDR"];
+// HDR10 and HDR10+ read as plain "HDR" and "HDR+", as on the posters.
+const DYNAMIC_RANGE_LABELS: string[] = ["Any HDR", "Dolby Vision", "HDR+", "HDR", "HLG", "SDR"];
 
 export function isResolution(v: unknown): v is Resolution {
   return RESOLUTIONS.indexOf(v as Resolution) >= 0;
@@ -27,7 +28,7 @@ export function resolutionLabel(v: string): string | null {
   return isResolution(v) ? RESOLUTION_LABELS[RESOLUTIONS.indexOf(v)]! : null;
 }
 
-/** A dynamic range's words ("Dolby Vision", "HDR10+"); null for a value that isn't one. */
+/** A dynamic range's words ("Dolby Vision", "HDR+"); null for a value that isn't one. */
 export function dynamicRangeLabel(v: string): string | null {
   return isDynamicRange(v) ? DYNAMIC_RANGE_LABELS[DYNAMIC_RANGES.indexOf(v)]! : null;
 }

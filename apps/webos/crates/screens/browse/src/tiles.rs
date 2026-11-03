@@ -303,7 +303,7 @@ mod tests {
         let uhd = ItemSummary { media: Some(summary(3840, 2160, DynamicRange::Hdr10)), ..movie() };
         // Filtered by resolution or dynamic range: 4K and the range, the usual second line.
         let c = Cell::with_art(uhd.clone(), TileKind::LibraryGrid, Vec::new(), FILTERED_BY_QUALITY);
-        assert_eq!(c.badges, vec!["4K", "HDR10"]);
+        assert_eq!(c.badges, vec!["4K", "HDR"]);
         assert_eq!(c.subtitle, "2016");
         // Otherwise none, though every listing carries the media summary.
         let c = Cell::with_art(uhd, TileKind::LibraryGrid, Vec::new(), Quality::NONE);

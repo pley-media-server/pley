@@ -347,7 +347,7 @@ describe("Save as… (smart playlists)", () => {
     expect(describeSmartFilter("type=1&sort=movie.year:desc&decade=1980")).toEqual(["Newest first", "The 1980s"]);
     // By their words, never the server's tokens.
     expect(describeSmartFilter("resolution=4k&dynamicRange=dolby_vision&sort=titleSort")).toEqual(["4K", "Dolby Vision", "By title"]);
-    expect(describeSmartFilter("resolution=1080&dynamicRange=hdr10plus")).toEqual(["1080p", "HDR10+"]);
+    expect(describeSmartFilter("resolution=1080&dynamicRange=hdr10plus")).toEqual(["1080p", "HDR+"]);
     expect(describeSmartFilter("resolution=480")).toEqual(["resolution: 480"]);
   });
 });

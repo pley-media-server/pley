@@ -39,7 +39,7 @@ describes how they are made.
   says so under an icon, with focus on the page, so the rail closes over
   it. The page asks for leave to read the drive as it opens.
 - Movie and show libraries filter by resolution (4K, 1080p, 720p, SD) and
-  dynamic range (HDR, Dolby Vision, HDR10+, HDR10, HLG, SDR) where they
+  dynamic range (Any HDR, Dolby Vision, HDR+, HDR, HLG, SDR) where they
   have more than one: chips beside Genre and Year on phones, rows of the
   Filter panel on TVs with a chip for the one chosen. Clear filters clears
   them, Save as… keeps them, and the library opens with them next time.

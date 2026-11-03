@@ -55,9 +55,9 @@ sub test_content_library_posters_show_their_files_only_when_asked()
 end sub
 
 sub test_content_quality_badges_say_4k_and_the_dynamic_range()
-    tkEqual(contentQualityBadges({ width: 3840, height: 2160, dynamic_range: "hdr10" }), ["4K", "HDR10"])
+    tkEqual(contentQualityBadges({ width: 3840, height: 2160, dynamic_range: "hdr10" }), ["4K", "HDR"])
     tkEqual(contentQualityBadges({ width: 3996, height: 1716, dynamic_range: "hlg" }), ["4K", "HLG"], "a wide 4K film")
-    tkEqual(contentQualityBadges({ width: 1920, height: 1080, dynamic_range: "hdr10plus" }), ["HDR10+"], "no other resolution")
+    tkEqual(contentQualityBadges({ width: 1920, height: 1080, dynamic_range: "hdr10plus" }), ["HDR+"], "no other resolution")
     tkEqual(contentQualityBadges({ width: 1920, height: 1080, dynamic_range: "sdr", video_codec: "h264" }), [], "1080p, SDR and a codec say nothing worth the room")
     tkEqual(contentQualityBadges({ width: invalid, height: invalid, dynamic_range: invalid }), [])
     tkEqual(contentQualityBadges(invalid), [])

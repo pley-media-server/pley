@@ -61,7 +61,7 @@ class SmartFilterTest {
     fun resolutionAndDynamicRangeReadAsTheFiltersNameThem() {
         assertEquals(listOf("4K"), SmartFilter.describe("resolution=4k"))
         assertEquals(listOf("1080p", "Dolby Vision"), SmartFilter.describe("resolution=1080&dynamicRange=dolby_vision"))
-        assertEquals(listOf("HDR", "HDR10+"), SmartFilter.describe("dynamicRange=hdr&dynamicRange=hdr10plus"))
+        assertEquals(listOf("Any HDR", "HDR+"), SmartFilter.describe("dynamicRange=hdr&dynamicRange=hdr10plus"))
         // A value Pley's filters don't name (Plex's own): as it is.
         assertEquals(listOf("resolution: 576"), SmartFilter.describe("resolution=576"))
     }

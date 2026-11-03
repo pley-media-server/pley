@@ -89,7 +89,7 @@ describe("LibraryPage", () => {
     const options = (select: HTMLElement) => Array.from(select.querySelectorAll("option")).map((o) => o.textContent);
     expect(options(resolution)).toEqual(["All resolutions", "4K", "1080p"]);
     const range = screen.getByRole("combobox", { name: "Dynamic range" });
-    expect(options(range)).toEqual(["All dynamic ranges", "HDR", "Dolby Vision", "HDR10", "SDR"]);
+    expect(options(range)).toEqual(["All dynamic ranges", "Any HDR", "Dolby Vision", "HDR", "SDR"]);
 
     await user.selectOptions(resolution, "4k");
     await user.selectOptions(range, "dolby_vision");

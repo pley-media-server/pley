@@ -163,9 +163,10 @@ function fmtResolutions() as object
     return [["4k", "4K"], ["1080", "1080p"], ["720", "720p"], ["sd", "SD"]]
 end function
 
-' The dynamic ranges, best first; "hdr" is any of them but SDR.
+' The dynamic ranges, best first; "hdr" is any of them but SDR. HDR10 and
+' HDR10+ read as plain "HDR" and "HDR+", as on the posters.
 function fmtDynamicRanges() as object
-    return [["hdr", "HDR"], ["dolby_vision", "Dolby Vision"], ["hdr10plus", "HDR10+"], ["hdr10", "HDR10"], ["hlg", "HLG"], ["sdr", "SDR"]]
+    return [["hdr", "Any HDR"], ["dolby_vision", "Dolby Vision"], ["hdr10plus", "HDR+"], ["hdr10", "HDR"], ["hlg", "HLG"], ["sdr", "SDR"]]
 end function
 
 ' What table ([[token, label]]) calls token; "" for one it doesn't hold.
