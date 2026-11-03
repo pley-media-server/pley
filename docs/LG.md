@@ -96,7 +96,8 @@ differs on LG:
   evenly than the TV's repeats, which only say the key is still down.
   Rows, pages, lists and grids glide evenly under it, each move running
   into the next, and a tile grows and shrinks with focus at the same
-  pace, on every TV, Low-tier ones too, as in the Samsung app. A row
+  pace, as in the Samsung app; on Low-tier TVs the glide runs too, and a
+  tile losing focus snaps. A row
   slides under one ring that stays still at its start, the tiles keeping
   their resting look, and near its end, where tiles stop coming to the
   start, focus steps across them. In a grid of posters (a library,
@@ -318,7 +319,8 @@ change with what is plugged in, so the app looks for the first drive in
 its own mount table (`/proc/self/mountinfo`) and follows drives as they
 come and go (`crates/webos/src/drives.rs`). The app runs in LG's jail: a
 drive the TV mounted that the jail doesn't show to the app gets no entry
-in the rail.
+in the rail. A link on the drive is followed only while it leads somewhere
+on the drive; one leading off it isn't listed, played or read.
 
 A video plays in Pley's player as it is, with no server
 (`crates/local`), so seeking, the panels, the sleep timer and the
@@ -338,11 +340,12 @@ them), the next episode, and Find subtitles.
   (profile 7 too, since nothing converts it), and a profile 5 file, which
   has none, shows with wrong colours. LG shows no HDR10+: such a file
   shows as HDR10.
-- **Subtitles**: the `.srt` and `.vtt` files beside the video, and an
-  MKV's own tracks read through its Cues, text as WebVTT and pictures
-  handed to the app's decoders as they are; a track still being read is
-  asked for again after 1 s, then 2, then every 4 s, and at once after a
-  seek.
+- **Subtitles**: the `.srt` and `.vtt` files beside the video (UTF-8,
+  UTF-16 with its byte-order mark as Windows saves "Unicode" text, else
+  Latin-1), and an MKV's own tracks read through its Cues, text as WebVTT
+  and pictures handed to the app's decoders as they are; a track still
+  being read is asked for again after 1 s, then 2, then every 4 s, and at
+  once after a seek.
 - **Where it stopped** is kept on the TV, by the file's path on the drive
   and its size, so a drive mounted under another letter still resumes;
   past 95 % it was watched. Delete all local data forgets it too.

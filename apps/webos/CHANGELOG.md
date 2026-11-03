@@ -18,7 +18,10 @@ describes how they are made.
   line under it the folder's path ("/Films/2019"), and an empty page says
   so in the middle under an icon, with the rail closed. A video that can
   no longer be read, the drive pulled out, says so with Try again, as the
-  Android app does.
+  Android app does, also when it stands still after playing; one whose
+  drive was pulled out while the TV showed Home says so and leaves.
+  Subtitle files saved as UTF-16 ("Unicode") read right, and a link that
+  leads off the drive isn't listed, played or read.
 - The player's Info says the TV's network speed under How it plays,
   beside the server's Speed, as in the Samsung app: a video that stalls
   while the server keeps up is on a network that can't carry it.
@@ -27,7 +30,7 @@ describes how they are made.
   (AC-3, E-AC-3, MP2): it starts sooner than the server's HLS, which
   plays it otherwise and whenever the stream fails.
 - In Live TV's guide, ◀◀ and ▶▶, Previous and Next, move it two hours
-  back or on, as in the Android TV app.
+  back or on, while music plays too, as in the Android TV app.
 - In the Live TV player, Next and Previous change channel as CH+ and CH−
   do, once a press, as in the Android TV app.
 
@@ -151,14 +154,6 @@ describes how they are made.
 - A Live TV channel that plays as HLS lets go of its stream.ts at once, as
   in the Samsung app, so the provider's connection isn't held for up to 45
   s.
-- A link on a USB drive that leads off the drive is no longer listed,
-  played or read for subtitles.
-- A USB drive's video whose drive was pulled out while the TV showed Home
-  says so and leaves when Pley shows again, rather than an empty player.
-- In Live TV's guide, ◀◀ and ▶▶, Previous and Next move it two hours while
-  music plays too, rather than skipping the music's track.
-- A USB drive's video that played and then stood still says the drive may
-  have been pulled out, not that the TV doesn't play the file.
 
 ### Security
 
