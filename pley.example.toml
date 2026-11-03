@@ -38,6 +38,9 @@
 # The network adapters to announce on, by name as Settings -> Network shows
 # them; every one Pley listens on when left out or empty.
 # bonjour_adapters = ["Ethernet"]
+# The host name Bonjour gives Pley's addresses, before .local: letters,
+# digits and hyphens. pley- and the server id's start when left out or empty.
+# bonjour_host_name = "media"
 
 # Database, caches and artwork (default: %LOCALAPPDATA%\pley on Windows,
 # ~/Library/Application Support/pley on macOS, ~/.local/share/pley on Linux).

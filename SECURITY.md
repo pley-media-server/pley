@@ -297,7 +297,11 @@ other apps (`pley_ct_…`), never with a session's
   a random identifier that says nothing about the computer or its users.
   Bonjour, once an administrator turns it on, tells them to every device
   on the local network unasked, and its host name (`pley-` and the id's
-  start) shows part of the id.
+  start, unless an administrator chooses one) shows part of the id.
+- A chosen host name is probed for before it is claimed, and left for
+  the generated one when another device has it. Any device on the
+  network can still answer for a `.local` name, so the apps confirm a
+  server by its id and public endpoint, never by the name.
 - The UDP answer goes only to addresses on the local network, at most 100
   a second. The Bonjour announcement goes out only from adapters with
   addresses on the local network, never to the internet, and from only

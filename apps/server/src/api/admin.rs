@@ -346,6 +346,8 @@ pub struct NetworkInfo {
     fixed: Fixed,
     listeners: Vec<Listener>,
     adapters: Vec<Adapter>,
+    /// Bonjour's host name when none is chosen.
+    bonjour_host_default: String,
     /// Where a change is saved.
     config_file: String,
     /// Windows Firewall decides which kinds of network reach pley.
@@ -359,6 +361,7 @@ async fn network_info(state: &AppState) -> ApiResult<NetworkInfo> {
         fixed: state.network.fixed,
         listeners: state.network.listeners(),
         adapters,
+        bonjour_host_default: crate::bonjour::generated_host(&state.server_id()),
         config_file: state.network.config_file.display().to_string(),
         windows: cfg!(windows),
     })
@@ -384,6 +387,7 @@ pub async fn put_network(
     }
     listen.bonjour_adapters.sort();
     listen.bonjour_adapters.dedup();
+    listen.bonjour_host_name = crate::bonjour::host_label(&listen.bonjour_host_name);
     listen.check().map_err(AppError::bad_request)?;
     let (now, fixed) = (state.network.wanted(), state.network.fixed);
     if (fixed.web && listen.web != now.web)

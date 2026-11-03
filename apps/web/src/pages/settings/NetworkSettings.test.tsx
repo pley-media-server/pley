@@ -14,6 +14,8 @@ const NETWORK: Network = {
   discovery: true,
   bonjour: false,
   bonjour_adapters: [],
+  bonjour_host_name: "",
+  bonjour_host_default: "pley-0123456789ab",
   fixed: { web: false, jellyfin: false, plex: false, discovery: false, bonjour: false },
   listeners: [{ kind: "web", address: "127.0.0.1:7539", error: null }],
   adapters: [
@@ -62,6 +64,7 @@ describe("NetworkSettings", () => {
         discovery: true,
         bonjour: false,
         bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
     expect(await screen.findByText("Pley listens there now")).toBeInTheDocument();
@@ -90,6 +93,7 @@ describe("NetworkSettings", () => {
         discovery: true,
         bonjour: false,
         bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
 
@@ -113,6 +117,7 @@ describe("NetworkSettings", () => {
         discovery: true,
         bonjour: false,
         bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
 
@@ -130,6 +135,7 @@ describe("NetworkSettings", () => {
         discovery: true,
         bonjour: false,
         bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
   });
@@ -162,6 +168,7 @@ describe("NetworkSettings", () => {
         discovery: true,
         bonjour: false,
         bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
 
@@ -187,6 +194,7 @@ describe("NetworkSettings", () => {
         discovery: true,
         bonjour: false,
         bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
 
@@ -205,6 +213,7 @@ describe("NetworkSettings", () => {
         discovery: true,
         bonjour: false,
         bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
   });
@@ -244,6 +253,7 @@ describe("NetworkSettings", () => {
         discovery: true,
         bonjour: false,
         bonjour_adapters: [],
+        bonjour_host_name: "",
       }),
     );
   });
@@ -285,6 +295,13 @@ describe("NetworkSettings", () => {
     await user.click(screen.getByRole("switch", { name: "Bonjour" }));
     expect(screen.getByRole("checkbox", { name: /Every network Pley listens on/ })).toBeChecked();
 
+    // A host name of its own, as typed.
+    expect(screen.getByRole("textbox", { name: "Host name" })).toHaveAttribute("placeholder", "pley-0123456789ab");
+    await user.type(screen.getByRole("textbox", { name: "Host name" }), "my media");
+    expect(screen.getByText(/Bonjour's host name is letters, digits and hyphens/)).toBeInTheDocument();
+    await user.clear(screen.getByRole("textbox", { name: "Host name" }));
+    await user.type(screen.getByRole("textbox", { name: "Host name" }), "Media.local");
+
     // The home network only, not the Wi-Fi.
     await user.click(within(screen.getByRole("group", { name: "Announced on" })).getByRole("checkbox", { name: /^Ethernet/ }));
     expect(screen.getByRole("checkbox", { name: /Every network Pley listens on/ })).not.toBeChecked();
@@ -299,6 +316,7 @@ describe("NetworkSettings", () => {
         discovery: true,
         bonjour: true,
         bonjour_adapters: ["Ethernet"],
+        bonjour_host_name: "media",
       }),
     );
 
@@ -316,6 +334,7 @@ describe("NetworkSettings", () => {
         web: ["127.0.0.1:7539", "192.168.1.10:7539"],
         bonjour: true,
         bonjour_adapters: ["Wi-Fi"],
+        bonjour_host_name: "",
       }),
     });
     renderWithProviders(<NetworkSettings />);

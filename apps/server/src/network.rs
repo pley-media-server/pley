@@ -64,6 +64,10 @@ pub struct Listen {
     /// guest Wi-Fi), the ones chosen only.
     #[serde(default)]
     pub bonjour_adapters: Vec<String>,
+    /// The host name Bonjour gives Pley's addresses, a DNS label before
+    /// `.local`: the generated `pley-` and the id's start when empty.
+    #[serde(default)]
+    pub bonjour_host_name: String,
 }
 
 impl Listen {
@@ -77,6 +81,7 @@ impl Listen {
             discovery: config.discovery,
             bonjour: config.bonjour,
             bonjour_adapters: config.bonjour_adapters.clone(),
+            bonjour_host_name: config.bonjour_host_name.clone(),
         }
     }
 
@@ -113,6 +118,12 @@ impl Listen {
         }
         if let Some(name) = self.bonjour_adapters.iter().find(|name| !crate::bonjour::adapter_name_ok(name)) {
             return Err(format!("{name:?} isn't a network adapter's name"));
+        }
+        if !crate::bonjour::host_label_ok(&self.bonjour_host_name) {
+            return Err(format!(
+                "{:?} can't be Bonjour's host name: letters, digits and hyphens, 63 at most",
+                self.bonjour_host_name
+            ));
         }
         let all: Vec<SocketAddr> = self.web.iter().chain(&self.plex).chain(&self.jellyfin).copied().collect();
         for (i, addr) in all.iter().enumerate() {
@@ -737,6 +748,7 @@ mod tests {
             discovery,
             bonjour: false,
             bonjour_adapters: Vec::new(),
+            bonjour_host_name: String::new(),
         }
     }
 

@@ -773,8 +773,11 @@ name (at most 63 bytes). The TXT records carry the UDP answer's fields:
 | `name` | the server's name (at most 64 characters and 250 bytes) |
 | `version` | the server's version |
 
-The SRV record names the host `pley-` and the id's start, `.local`, and
-its A record the server's IPv4 address on the network that asked. The
+The SRV record names the host, `pley-` and the id's start, `.local`, or
+the host name an administrator chose (`bonjour_host_name`), and its A
+record the server's IPv4 address on the network that asked. A chosen host
+name is probed for first: when another device answers for it, the
+server goes by the generated one, and says so in its log. The
 announcement goes out from the IPv4 adapters with the web addresses that
 are on the local network: private, link-local and Tailscale's addresses,
 or only those of them an administrator chooses (`bonjour_adapters`), so a
@@ -3670,7 +3673,7 @@ interface LiveTuner {                  // a connection in use
 | POST | `/api/settings/arr` | `admin` | `{ service: "radarr" \| "sonarr", url?, api_key? }` → `ArrOptions`: what Radarr or Sonarr offers requests |
 | POST | `/api/fs` | `admin` | `{ path? }` → `{ path: string \| null, parent: string \| null, entries: { name, path }[] }`: directories only (`path` left out: roots and drives). A POST, as a GET over plain HTTP could be another site's link ([SECURITY.md](../SECURITY.md#sessions)) |
 | GET | `/api/network` | `admin` | `Network`: where Pley listens, and could |
-| PUT | `/api/network` | `admin` | `{ web, plex, plex_on_web?, jellyfin, jellyfin_on_web?, discovery, bonjour?, bonjour_adapters? }` → `Network` |
+| PUT | `/api/network` | `admin` | `{ web, plex, plex_on_web?, jellyfin, jellyfin_on_web?, discovery, bonjour?, bonjour_adapters?, bonjour_host_name? }` → `Network` |
 
 - **`transcode-dir`** is saved in the config file for the next start
   (`null`, or the default folder, removes `transcode_dir`). `400` for a
@@ -3759,6 +3762,9 @@ interface Network {
   bonjour: boolean;       // announce Pley by Bonjour (off when a change leaves it out)
   bonjour_adapters: string[]; // the adapters it is announced on, by name: [] = every one
                           // Pley listens on; 32 at most
+  bonjour_host_name: string; // the host name before .local, one DNS label (letters, digits,
+                          // hyphens; "Media.local" is kept as "media"): "" = bonjour_host_default
+  bonjour_host_default: string; // read only: pley- and the server id's start
   fixed: { web: boolean; plex: boolean; jellyfin: boolean; discovery: boolean; bonjour: boolean }; // set by
                           // --bind/PLEY_BIND, --plex-bind/PLEY_PLEX_BIND,
                           // --jellyfin-bind/PLEY_JELLYFIN_BIND, --no-discovery,

@@ -46,7 +46,8 @@ Everything else is set in the web app:
   `--no-discovery` or `--no-bonjour` (or their `PLEY_*` variables) set it.
   Bonjour is off until turned on there, and has the networks it announces
   Pley on (`bonjour_adapters`, every network Pley listens on unless some
-  are chosen).
+  are chosen) and its host name (`bonjour_host_name`, `pley-` and the
+  server id's start unless one is chosen).
 - **Settings → Live TV**: IPTV sources, which channels show, and who may
   watch.
 - **Settings → Requests**: Discover and requests, their limits, and Radarr and

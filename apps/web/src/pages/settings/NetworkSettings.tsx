@@ -94,7 +94,16 @@ interface Form {
   bonjour: boolean;
   /** The adapters Bonjour announces from: every one when empty. */
   bonjourAdapters: string[];
+  /** Bonjour's host name as typed: the generated one when empty. */
+  bonjourHost: string;
 }
+
+/** A host name as typed (`Media`, `media.local`) as the server keeps it: its label, lowercase. */
+export const hostLabel = (typed: string) =>
+  typed.trim().replace(/\.+$/, "").toLowerCase().replace(/\.local$/, "");
+
+/** One DNS label of letters, digits and hyphens, not starting or ending with one; empty for the generated name. */
+const HOST_LABEL = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)?$/;
 
 /** `192.168.1.10:7539` or `[::1]:7539`: its address and port. */
 export function splitAddress(address: string): { ip: string; port: number } {
@@ -124,6 +133,7 @@ function formOf(choice: ListenChoice): Form {
     discovery: choice.discovery,
     bonjour: choice.bonjour,
     bonjourAdapters: choice.bonjour_adapters,
+    bonjourHost: choice.bonjour_host_name,
   };
 }
 
@@ -141,6 +151,7 @@ function choiceOf(form: Form, network: Network): ListenChoice {
     discovery: network.fixed.discovery ? network.discovery : form.discovery,
     bonjour: network.fixed.bonjour ? network.bonjour : form.bonjour,
     bonjour_adapters: [...form.bonjourAdapters].sort(),
+    bonjour_host_name: hostLabel(form.bonjourHost),
   };
 }
 
@@ -148,6 +159,7 @@ const sameChoice = (a: ListenChoice, b: ListenChoice) =>
   a.discovery === b.discovery &&
   a.bonjour === b.bonjour &&
   a.bonjour_adapters.join("\n") === b.bonjour_adapters.join("\n") &&
+  a.bonjour_host_name === b.bonjour_host_name &&
   a.jellyfin_on_web === b.jellyfin_on_web &&
   a.plex_on_web === b.plex_on_web &&
   a.web.join() === b.web.join() &&
@@ -169,6 +181,9 @@ function problemOf(form: Form): string | null {
     return "The Jellyfin-compatible and Plex-compatible APIs can't share a port.";
   }
   if (form.mode === "networks" && form.ips.length === 0) return "Choose a network, or Only this computer.";
+  if (!HOST_LABEL.test(hostLabel(form.bonjourHost))) {
+    return "Bonjour's host name is letters, digits and hyphens, 63 at most, not starting or ending with a hyphen.";
+  }
   return null;
 }
 
@@ -431,6 +446,7 @@ export function NetworkSettings() {
     data.discovery,
     data.bonjour,
     data.bonjour_adapters,
+    data.bonjour_host_name,
   ];
   useOnChange(where ? JSON.stringify(where) : "", () => {
     if (data) setForm(formOf(data));
@@ -591,6 +607,28 @@ export function NetworkSettings() {
             label="Bonjour"
           />
         </Row>
+        {form.bonjour && form.mode !== "local" ? (
+          <Row
+            label="Host name"
+            htmlFor="network-bonjour-host"
+            hint={`Where Apple's devices reach Pley; ${data.bonjour_host_default}.local when left empty. They list it by the server's name (Settings → Server).`}
+          >
+            <div className="flex items-center gap-1.5">
+              <TextInput
+                id="network-bonjour-host"
+                value={form.bonjourHost}
+                placeholder={data.bonjour_host_default}
+                disabled={data.fixed.bonjour}
+                onChange={(e) => set({ bonjourHost: e.target.value })}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                className="w-48"
+              />
+              <span className="text-sm text-muted">.local</span>
+            </div>
+          </Row>
+        ) : null}
         {form.bonjour && form.mode !== "local" ? (
             <div className="space-y-1.5">
               <h4 className="text-sm font-medium">Announced on</h4>

@@ -159,6 +159,7 @@ struct FileConfig {
     /// about the server, so an administrator turns it on.
     bonjour: Option<bool>,
     bonjour_adapters: Option<Vec<String>>,
+    bonjour_host_name: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -215,6 +216,8 @@ pub struct Config {
     pub bonjour: bool,
     /// The adapters Bonjour announces from, by name: any when empty.
     pub bonjour_adapters: Vec<String>,
+    /// Bonjour's host name, a DNS label: the generated one when empty.
+    pub bonjour_host_name: String,
     /// See [`EVENT_RECHECK`] (tests shorten it).
     pub event_recheck: Duration,
     /// See [`EXTRA_BIND_RETRY`] (tests shorten it).
@@ -273,6 +276,7 @@ impl Config {
         };
         let mut file_warnings = Vec::new();
         let bonjour_adapters = bonjour_adapters(file.bonjour_adapters.unwrap_or_default(), &mut file_warnings);
+        let bonjour_host_name = bonjour_host_name(&file.bonjour_host_name.unwrap_or_default(), &mut file_warnings);
         let transcode_dir = cli
             .transcode_dir
             .clone()
@@ -302,6 +306,7 @@ impl Config {
             discovery: !cli.no_discovery && file.discovery.unwrap_or(true),
             bonjour: !cli.no_discovery && !cli.no_bonjour && file.bonjour.unwrap_or(false),
             bonjour_adapters,
+            bonjour_host_name,
             event_recheck: EVENT_RECHECK,
             extra_bind_retry: EXTRA_BIND_RETRY,
             client_documents: crate::oauth::fetch::Source::Internet,
@@ -351,6 +356,7 @@ impl Config {
             discovery: false,
             bonjour: false,
             bonjour_adapters: Vec::new(),
+            bonjour_host_name: String::new(),
             event_recheck: EVENT_RECHECK,
             extra_bind_retry: EXTRA_BIND_RETRY,
             client_documents: crate::oauth::fetch::Source::Off,
@@ -421,6 +427,20 @@ impl Config {
     pub fn added_subtitles_dir(&self) -> PathBuf {
         self.data_dir.join("subtitles")
     }
+}
+
+/// Bonjour's host name as `pley.toml` has it, as Settings → Network saves
+/// it. One that can't be a host name is left out, for the generated one,
+/// and said in `warnings`, rather than stop Pley from starting.
+fn bonjour_host_name(typed: &str, warnings: &mut Vec<String>) -> String {
+    let label = crate::bonjour::host_label(typed);
+    if crate::bonjour::host_label_ok(&label) {
+        return label;
+    }
+    warnings.push(format!(
+        "bonjour_host_name: {typed:?} can't be a host name (letters, digits and hyphens), and the generated one is used"
+    ));
+    String::new()
 }
 
 /// The Bonjour adapters `pley.toml` lists, as Settings → Network saves
@@ -522,6 +542,7 @@ pub fn save_listen(path: &Path, listen: &crate::network::Listen, fixed: crate::n
     }
     let adapters: Vec<toml::Value> = listen.bonjour_adapters.iter().map(|name| name.as_str().into()).collect();
     values.push(("bonjour_adapters", adapters.into()));
+    values.push(("bonjour_host_name", listen.bonjour_host_name.as_str().into()));
     write_keys(path, &values)
 }
 
@@ -789,6 +810,15 @@ mod tests {
         std::fs::write(&file, format!("bonjour_adapters = [{}]\n", many.join(", "))).unwrap();
         assert_eq!(Config::load(&cli(dir.path())).unwrap().bonjour_adapters.len(), 32);
 
+        // A host name as typed is kept as its label; one that can't be a
+        // host name leaves the generated one.
+        std::fs::write(&file, "bonjour_host_name = \" Media.local \"\n").unwrap();
+        assert_eq!(Config::load(&cli(dir.path())).unwrap().bonjour_host_name, "media");
+        std::fs::write(&file, "bonjour_host_name = \"my media\"\n").unwrap();
+        let config = Config::load(&cli(dir.path())).unwrap();
+        assert_eq!(config.bonjour_host_name, "");
+        assert_eq!(config.file_warnings.len(), 1, "{:?}", config.file_warnings);
+
         let mut args = cli(dir.path());
         args.no_bonjour = true;
         std::fs::write(&file, "").unwrap();
@@ -1010,6 +1040,7 @@ mod tests {
             discovery: false,
             bonjour: true,
             bonjour_adapters: vec!["Ethernet".into(), "vEthernet (Default Switch)".into()],
+            bonjour_host_name: "media".into(),
         };
         save_listen(&config.config_file, &listen, config.network_fixed).unwrap();
         let config = Config::load(&cli(dir.path())).unwrap();

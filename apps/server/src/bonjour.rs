@@ -74,6 +74,8 @@ struct Plan {
     addresses: Vec<IpAddr>,
     /// The adapters chosen, by name: any when empty.
     adapters: Vec<String>,
+    /// The host name chosen, a DNS label: the generated one when empty.
+    host: String,
 }
 
 /// Where `listen` has the server announced: from the web addresses other
@@ -89,6 +91,7 @@ fn plan(listen: &Listen) -> Option<Plan> {
         port,
         addresses: web.filter(|addr| addr.port() == port).map(|addr| addr.ip()).collect(),
         adapters: listen.bonjour_adapters.clone(),
+        host: listen.bonjour_host_name.clone(),
     })
 }
 
@@ -150,12 +153,34 @@ fn txt(id: &str, name: &str) -> Vec<String> {
     ]
 }
 
-/// The host name the announcement's addresses go by: the server's own,
-/// `pley-` and its id's start, not the computer's, which the system's
-/// responder answers for.
-fn host_name(id: &str) -> Name {
+/// The host name the announcement's addresses go by, unless one is chosen:
+/// the server's own, `pley-` and its id's start, not the computer's, which
+/// the system's responder answers for.
+pub fn generated_host(id: &str) -> String {
     let short: String = id.chars().filter(char::is_ascii_alphanumeric).take(12).collect();
-    vec![format!("pley-{}", short.to_lowercase()), "local".into()]
+    format!("pley-{}", short.to_lowercase())
+}
+
+fn host_name(label: &str) -> Name {
+    vec![label.to_owned(), "local".into()]
+}
+
+/// A host name as typed (`Media`, `media.local`) as it is kept: its
+/// label, lowercase. Empty stays empty, for the generated one.
+pub fn host_label(typed: &str) -> String {
+    let lower = typed.trim().trim_end_matches('.').to_ascii_lowercase();
+    lower.strip_suffix(".local").unwrap_or(&lower).to_owned()
+}
+
+/// Whether `label` may be the host name: empty (the generated one), or one
+/// DNS label of letters, digits and hyphens, not starting or ending with a
+/// hyphen (RFC 952 and 1123), as every resolver takes it.
+pub fn host_label_ok(label: &str) -> bool {
+    label.is_empty()
+        || (label.len() <= MAX_LABEL
+            && label.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+            && !label.starts_with('-')
+            && !label.ends_with('-'))
 }
 
 fn labels(fixed: &[&str]) -> Name {
@@ -286,6 +311,9 @@ struct Responder {
     id: String,
     host: Name,
     links: Vec<Link>,
+    /// Whether `host` is known not to be another device's: the generated
+    /// one is unique, a chosen one is probed for first.
+    host_checked: bool,
     /// The server's name it stands for, and its instance label, once
     /// announced.
     announced: Option<(String, String)>,
@@ -307,12 +335,15 @@ impl Responder {
         socket.set_multicast_loop_v4(true)?;
         socket.set_nonblocking(true)?;
         let socket = UdpSocket::from_std(socket.into())?;
+        let chosen = !plan.host.is_empty();
+        let host = host_name(&if chosen { plan.host.clone() } else { generated_host(id) });
         let mut responder = Self {
             socket,
             plan,
             id: id.to_owned(),
-            host: host_name(id),
+            host,
             links: Vec::new(),
+            host_checked: !chosen,
             announced: None,
             again: None,
             multicast: HashMap::new(),
@@ -381,10 +412,23 @@ impl Responder {
             return;
         }
         self.announce_on(&self.links.clone(), true).await;
+        if !self.host_checked {
+            self.host_checked = true;
+            if self.taken(&self.host).await {
+                let generated = host_name(&generated_host(&self.id));
+                tracing::warn!(
+                    "another device on the network is {}: Bonjour gives Pley's addresses as {} instead",
+                    self.host.join("."),
+                    generated.join(".")
+                );
+                self.host = generated;
+            }
+        }
         let mut n = 1;
         let instance = loop {
             let instance = instance_name(name, n);
-            if n >= 9 || !self.taken(&instance).await {
+            let service: Name = std::iter::once(instance.clone()).chain(labels(&SERVICE)).collect();
+            if n >= 9 || !self.taken(&service).await {
                 break instance;
             }
             n += 1;
@@ -401,12 +445,11 @@ impl Responder {
         tracing::debug!("announced by Bonjour as {} on port {}", self.announced.as_ref().unwrap().1, self.plan.port);
     }
 
-    /// Whether another device answers for the instance `instance` (a
+    /// Whether another device answers for `name`, an instance or a host (a
     /// probe, RFC 6762 §8.1). What is heard meanwhile is otherwise dropped:
     /// browsers ask again.
-    async fn taken(&self, instance: &str) -> bool {
-        let name: Name = std::iter::once(instance.to_owned()).chain(labels(&SERVICE)).collect();
-        let query = mdns::write_query(&name, mdns::TYPE_ANY);
+    async fn taken(&self, name: &Name) -> bool {
+        let query = mdns::write_query(name, mdns::TYPE_ANY);
         let mut buf = vec![0; MAX_PACKET];
         for _ in 0..3 {
             for link in &self.links {
@@ -418,7 +461,7 @@ impl Responder {
             {
                 if self.link(*from.ip()).is_some()
                     && let Some(Packet::Response(names)) = mdns::read(&buf[..n])
-                    && names.iter().any(|answered| mdns::same(answered, &name))
+                    && names.iter().any(|answered| mdns::same(answered, name))
                 {
                     return true;
                 }
@@ -596,6 +639,7 @@ mod tests {
             discovery: true,
             bonjour,
             bonjour_adapters: Vec::new(),
+            bonjour_host_name: String::new(),
         }
     }
 
@@ -609,6 +653,7 @@ mod tests {
             port: 7539,
             addresses: web.iter().map(|a| ip(a)).collect(),
             adapters: adapters.iter().map(|&a| a.to_owned()).collect(),
+            host: String::new(),
         }
     }
 
@@ -617,7 +662,7 @@ mod tests {
     }
 
     fn records() -> Records {
-        let host = host_name("0123456789abcdef");
+        let host = host_name(&generated_host("0123456789abcdef"));
         Records::new("Den", &host, 7539, txt("0123456789abcdef", "Den"), Ipv4Addr::new(192, 168, 1, 10), None)
     }
 
@@ -631,7 +676,12 @@ mod tests {
         assert_eq!(plan(&listen(&["127.0.0.1:7539"], true)), None, "this computer only");
         assert_eq!(
             plan(&listen(&["127.0.0.1:7539", "192.168.1.10:8000", "10.0.0.2:8000", "10.0.0.3:9000"], true)),
-            Some(Plan { port: 8000, addresses: vec![ip("192.168.1.10"), ip("10.0.0.2")], adapters: Vec::new() })
+            Some(Plan {
+                port: 8000,
+                addresses: vec![ip("192.168.1.10"), ip("10.0.0.2")],
+                adapters: Vec::new(),
+                host: String::new()
+            })
         );
         // Its own switch: the broadcast's answer can be off and Bonjour on.
         let mut only = listen(&["0.0.0.0:7539"], true);
@@ -730,9 +780,9 @@ mod tests {
                 format!("version={}", env!("CARGO_PKG_VERSION")),
             ]
         );
-        assert_eq!(host_name(id), ["pley-0123456789ab", "local"]);
+        assert_eq!(generated_host(id), "pley-0123456789ab");
         // Goodbyes are the same records, with a TTL of 0.
-        let host = host_name(id);
+        let host = host_name(&generated_host(id));
         let gone = Records::new("Den", &host, 7539, txt(id, "Den"), Ipv4Addr::LOCALHOST, Some(0));
         assert!(gone.all().iter().all(|r| r.ttl == 0));
     }
@@ -751,5 +801,23 @@ mod tests {
         assert_eq!(instance_name(" \u{7}Den\n", 1), "Den", "no control characters");
         assert_eq!(instance_name("   ", 1), "Pley");
         assert_eq!(instance_name("media.home", 1), "media.home");
+    }
+
+    #[test]
+    fn a_host_name_is_chosen_as_one_label() {
+        assert_eq!(host_label(" Media.LOCAL. "), "media");
+        assert_eq!(host_label("den-tv"), "den-tv");
+        assert_eq!(host_label(""), "");
+        for ok in ["", "media", "den-tv", "pley2", &"a".repeat(63)] {
+            assert!(host_label_ok(ok), "{ok}");
+        }
+        for bad in ["my media", "media.home", "-media", "media-", "médiа", "a_b", &"a".repeat(64)] {
+            assert!(!host_label_ok(bad), "{bad}");
+        }
+        // Chosen, it goes in the plan, so a change starts the responder again.
+        let mut chosen = listen(&["0.0.0.0:7539"], true);
+        chosen.bonjour_host_name = "media".into();
+        assert_eq!(plan(&chosen).unwrap().host, "media");
+        assert_ne!(plan(&chosen), plan(&listen(&["0.0.0.0:7539"], true)));
     }
 }
