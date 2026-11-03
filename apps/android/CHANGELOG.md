@@ -177,6 +177,8 @@ describes how they are made.
 - On TVs, a held Up in a library grid keeps its column, as a held Down
   does, where it could jump to the end of the row above and end on the
   first column.
+- On TVs, Up from a show's episodes goes to the tab of the season shown,
+  where it could go to the next season's tab and show that season.
 - Discover's hero is the first title of the next row when the trending
   row has nothing the profile may ask for, where it stayed a grey
   placeholder.

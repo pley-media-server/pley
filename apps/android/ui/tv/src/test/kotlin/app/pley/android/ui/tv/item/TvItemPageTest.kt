@@ -7,9 +7,12 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -23,6 +26,7 @@ import app.pley.android.model.Credit
 import app.pley.android.model.CreditRole
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemRequest
+import app.pley.android.model.ItemSummary
 import app.pley.android.model.RequestList
 import app.pley.android.model.TitleKind
 import app.pley.android.model.TitleStatus
@@ -49,7 +53,8 @@ import org.robolectric.annotation.Config
  * keeps it, saves a choice, and Back closes it with focus back on its button;
  * the page glides to a row and back to its buttons as a page of rows does.
  * A movie or show from a request shows its stage, and a show with seasons
- * left to ask for offers Request more seasons.
+ * left to ask for offers Request more seasons. Up from a show's episodes
+ * goes to the shown season's tab.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
@@ -133,6 +138,32 @@ class TvItemPageTest {
         compose.onNode(isFocused()).assert(hasContentDescription("Request more seasons"))
         press(Key.Enter)
         assertEquals(PleyKey.DiscoverTitle(TitleKind.Show, 1396, pick = true), stack.last())
+    }
+
+    @Test
+    fun upFromAnEpisodeGoesToItsSeasonsTab() {
+        val show = movie().copy(kind = ItemKind.Show, title = "Breaking Bad", files = emptyList(), leafCount = 12)
+        val seasons = (1..3).map { s -> ItemSummary(id = 10L + s, libraryId = 1, kind = ItemKind.Season, title = "Season $s", index = s, parentId = 1) }
+        val episodes = seasons.associate { season ->
+            season.id to (1..4).map { e ->
+                ItemSummary(
+                    id = season.id * 10 + e, libraryId = 1, kind = ItemKind.Episode, title = "Episode $e", index = e,
+                    parentId = season.id, parentIndex = season.index, grandparentId = 1, durationMs = 2_700_000,
+                )
+            }
+        }
+        show(ItemData(show, children = mapOf(1L to seasons) + episodes))
+        val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()
+        while (compose.onAllNodes(episode).fetchSemanticsNodes().isEmpty()) press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Episode 1", substring = true))
+        press(Key.DirectionUp)
+        compose.onNode(isFocused()).assert(hasText("Season 1"))
+        // Focus resting on it leaves Season 1 shown.
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+        compose.onNode(hasTestTag(TV_SEASON_TABS)).assertExists()
+        compose.onNode(hasText("Season 1") and isSelected()).assertExists()
+        compose.onNode(hasText("Season 2") and isSelected()).assertDoesNotExist()
     }
 
     @Test

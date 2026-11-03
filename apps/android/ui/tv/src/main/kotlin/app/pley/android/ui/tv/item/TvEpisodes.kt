@@ -3,6 +3,7 @@ package app.pley.android.ui.tv.item
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -27,7 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -121,8 +122,10 @@ internal fun TvEpisodesSection(
 /**
  * The season tabs (design spec §2.6): 40 dp pills, labels in [muted][PleyColors.Muted];
  * the shown season on [surface3][PleyColors.Surface3] in [fg][PleyColors.Fg];
- * the focused tab in [accent][PleyColors.Accent], at 1.05. Focus comes back
- * to the shown season's tab.
+ * the focused tab in [accent][PleyColors.Accent], at 1.05. Focus coming
+ * into the tabs (Up from the episodes, Down from the buttons) lands on the
+ * shown season's tab, as on the Samsung app, never on the tab nearest the
+ * focus, which would show its season.
  */
 @Composable
 private fun SeasonTabs(seasons: SeasonsSection, onSelect: (Long) -> Unit, modifier: Modifier = Modifier) {
@@ -135,7 +138,8 @@ private fun SeasonTabs(seasons: SeasonsSection, onSelect: (Long) -> Unit, modifi
     Row(
         modifier
             .padding(start = PleyTv.Gutter - 20.dp, end = TvSafeArea.Horizontal)
-            .focusRestorer(selected)
+            .focusProperties { onEnter = { runCatching { selected.requestFocus() } } }
+            .focusGroup()
             .testTag(TV_SEASON_TABS),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
