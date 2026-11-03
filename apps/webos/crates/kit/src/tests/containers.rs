@@ -127,7 +127,7 @@ fn a_held_key_glides_the_row_from_tile_to_tile_under_one_still_ring() {
         inner(ui);
         let c = cell.borrow();
         shown.borrow_mut().push(c.state.shown_offset());
-        slots.borrow_mut().push(c.drawn.iter().map(|s| (s.mode, s.priority)).collect::<Vec<_>>());
+        slots.borrow_mut().push((ui.time(), c.drawn.iter().map(|s| (s.mode, s.priority)).collect::<Vec<_>>()));
     };
     let mut h = Harness::new();
     h.idle(&mut screen);
@@ -151,8 +151,7 @@ fn a_held_key_glides_the_row_from_tile_to_tile_under_one_still_ring() {
         assert_eq!(rings(&f.list), ring, "at {}", f.time);
     }
     assert!(super::scales(&held.last().unwrap().list).is_empty(), "a tile grew under the ring");
-    let late = slots.borrow().len() - held.len();
-    for frame in &slots.borrow()[late..] {
+    for (_, frame) in slots.borrow().iter().filter(|(t, _)| *t >= 0.25) {
         assert!(frame.iter().all(|&(mode, priority)| mode == SlotMode::Draw && priority == Priority::Prefetch));
     }
     // Let go, the last glide lands with the focused tile at the gutter, grown into its own ring,
@@ -475,16 +474,18 @@ fn a_held_down_glides_the_grid_under_one_still_ring() {
     let slots = RefCell::new(Vec::new());
     let mut screen = |ui: &mut Ui| {
         let mut s = state.borrow_mut();
-        slots.borrow_mut().clear();
+        let mut drawn = Vec::new();
         PosterGrid::new(TileKind::LibraryGrid, 122.0).show(ui, Id::new("grid"), &mut s, 10_000, |ui, slot| {
-            slots.borrow_mut().push((slot.mode, slot.priority));
+            drawn.push((slot.mode, slot.priority));
             Tile::new(TileKind::LibraryGrid, "T").paint(ui, slot);
         });
+        slots.borrow_mut().push((ui.time(), drawn));
         shown.borrow_mut().push(s.shown_scroll());
     };
     let mut h = Harness::new();
     h.idle(&mut screen);
     shown.borrow_mut().clear();
+    slots.borrow_mut().clear();
     let frames = hold(&mut h, Key::Down, &mut screen);
     // Once the hold is under way: one ring, still, on the focused line; the rows' pictures wait,
     // and nothing is fetched ahead.
@@ -496,7 +497,9 @@ fn a_held_down_glides_the_grid_under_one_still_ring() {
     let ring = rings(&held[0].list)[0];
     assert!(close(ring.y, 136.0 - theme::focus::RING_OFFSET), "{ring:?}");
     assert!(held.iter().all(|f| rings(&f.list)[0] == ring));
-    assert!(slots.borrow().iter().all(|&(mode, priority)| mode == SlotMode::Draw && priority == Priority::Prefetch));
+    for (_, frame) in slots.borrow().iter().filter(|(t, _)| *t >= 0.25) {
+        assert!(frame.iter().all(|&(mode, priority)| mode == SlotMode::Draw && priority == Priority::Prefetch));
+    }
     // Meanwhile the rows glide: never more than half a row a frame, and on their way between rows.
     let v = shown.borrow().clone();
     assert!(v.windows(2).all(|w| w[1] >= w[0] && w[1] - w[0] < 106.0), "{v:?}");
@@ -509,7 +512,7 @@ fn a_held_down_glides_the_grid_under_one_still_ring() {
     let rings = rings(&f.list);
     assert_eq!(rings.len(), 1);
     assert!(rings[0].w > ring.w);
-    assert!(slots.borrow().iter().any(|&(_, priority)| priority == Priority::Visible));
+    assert!(slots.borrow().last().unwrap().1.iter().any(|&(_, priority)| priority == Priority::Visible));
     let s = state.borrow();
     assert_eq!(s.shown_scroll(), s.scroll);
 }
