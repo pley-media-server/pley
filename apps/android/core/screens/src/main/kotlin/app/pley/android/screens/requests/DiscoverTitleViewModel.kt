@@ -44,8 +44,8 @@ import kotlinx.coroutines.launch
 sealed interface TitleUiState {
     data object Loading : TitleUiState
 
-    /** The page can't show: signed in before requests, requests off, TMDB away, not found… */
-    data class Problem(val problem: RequestProblem, val summary: RequestSummary?) : TitleUiState
+    /** The page can't show: signed in before requests, requests off, TMDB away, not found… [origin]: the server, to sign in to again. */
+    data class Problem(val problem: RequestProblem, val summary: RequestSummary?, val origin: String = "") : TitleUiState
 
     data class Ready(
         val detail: DiscoverDetail,
@@ -63,7 +63,7 @@ sealed interface TitleUiState {
 }
 
 /**
- * A title found on TMDB, on phones and tablets: its details, its one main
+ * A title found on TMDB: its details, its one main
  * action, its seasons with their states, and the season picker; the
  * requests for it (this account's and those it follows; everyone's for
  * managers) with their actions. While it shows, the page reads itself
@@ -125,16 +125,19 @@ class DiscoverTitleViewModel(
         .map { }
         .onStart { emit(Unit) }
 
+    /** The server's address: pictures come from it, and signing in again goes to it. */
+    private val server: Flow<String> = deps.origin.map { it.orEmpty() }.distinctUntilChanged()
+
     val state: StateFlow<TitleUiState> = combine(requests.state, retries) { gate, _ -> gate }
         .flatMapLatest { gate ->
             when {
-                gate is RequestsState.SignInAgain -> flowOf(TitleUiState.Problem(RequestProblem.SignInAgain(RequestScope.Requests), gate.summary))
+                gate is RequestsState.SignInAgain -> server.map { TitleUiState.Problem(RequestProblem.SignInAgain(RequestScope.Requests), gate.summary, it) }
                 gate == RequestsState.Hidden -> flowOf(TitleUiState.Problem(RequestProblem.Off, null))
                 gate == RequestsState.NoAccess -> flowOf(TitleUiState.Problem(RequestProblem.NoAccess, null))
                 gate == RequestsState.Unknown -> flowOf(TitleUiState.Loading)
                 else -> combine(
                     requests.title(key.kind, key.tmdbId),
-                    deps.origin.map { it.orEmpty() }.distinctUntilChanged(),
+                    server,
                     busy,
                     ticks,
                     news,
@@ -148,7 +151,7 @@ class DiscoverTitleViewModel(
         val detail = when (load) {
             Loadable.Loading -> return TitleUiState.Loading
             is Loadable.Ready -> load.value
-            is Loadable.Failed -> load.stale ?: return TitleUiState.Problem(RequestProblem.of(load.error), summary)
+            is Loadable.Failed -> load.stale ?: return TitleUiState.Problem(RequestProblem.of(load.error), summary, origin)
         }
         onPage = detail.requests.mapTo(HashSet()) { it.id }
         downloading.value = detail.requests.any { it.moving }
@@ -176,7 +179,7 @@ class DiscoverTitleViewModel(
     private fun refreshed(open: SeasonPicker, detail: DiscoverDetail, summary: RequestSummary?): SeasonPicker {
         val fresh = SeasonPicker.of(detail, Allowance.of(detail, summary).seasonsLeft)
         val askable = fresh.seasons.filter { it.askable }.mapTo(HashSet()) { it.season.number }
-        return fresh.copy(picked = open.picked.filterTo(HashSet()) { it in askable })
+        return fresh.copy(picked = open.picked.filterTo(HashSet()) { it in askable }, start = open.start)
     }
 
     private fun shown(): TitleUiState.Ready? = state.value as? TitleUiState.Ready
@@ -199,10 +202,10 @@ class DiscoverTitleViewModel(
         }
     }
 
-    /** Request more seasons: the picker. */
-    fun openPicker() {
+    /** Request more seasons: the picker; opened from a season's poster ([start], on TVs), that season ticked too. */
+    fun openPicker(start: Int? = null) {
         val page = shown() ?: return
-        _picker.value = SeasonPicker.of(page.detail, page.allowance.seasonsLeft)
+        _picker.value = SeasonPicker.of(page.detail, page.allowance.seasonsLeft, start)
     }
 
     fun toggle(season: Int) {

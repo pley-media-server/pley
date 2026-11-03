@@ -11,6 +11,18 @@ describes how they are made.
 
 ### Added
 
+- The server can announce itself on the local network by Bonjour
+  (`_pley._tcp`), with its id, name and version, so Apple's devices find it
+  without its address. It is off until turned on in Settings → Network
+  (`bonjour = true`; `--no-bonjour` keeps it off, as `--no-discovery`
+  does), which also chooses the networks it is announced on, for a
+  server that is also on a VPN, a container network or a guest Wi-Fi, and
+  the host name its addresses go by (`pley-` and the server id's start
+  unless another is chosen). It follows a rename, and goes out only from
+  adapters on the local network, answering only the devices there.
+  Windows Firewall's rule for Pley
+  already lets it through (UDP 5353), and the Synology package offers
+  DSM's firewall a **Pley (Bonjour)** rule for it.
 - Apple's devices can stream HEVC, HDR and Dolby Vision as they are: a
   player that asks for fMP4 segments first gets its streams in fMP4 rather
   than MPEG-TS, with VP9 and AV1 copied too where it decodes them. Other
@@ -56,6 +68,8 @@ describes how they are made.
   it, then the rest.
 - The web app's search shows movies, shows and episodes first, then
   music, then Live TV, then people.
+- The LG TV app's sign-ins are listed as "Pley for LG TV", with the TV's
+  webOS and model, now that the app names itself.
 - The Plex-compatible API no longer takes Pley's session tokens, which
   opened all of Pley's own API too, administration included: Tautulli,
   Kometa, players and scripts that use one get `401` until they have a token

@@ -1,0 +1,7 @@
+[
+  { "id": 2, "name": "Alex", "avatar_url": "/api/users/2/avatar?v=1761100000", "avatar_color": "#38bdf8", "current": true, "needs": "none" },
+  { "id": 3, "name": "Sam", "avatar_url": null, "avatar_color": "#a3e635", "current": false, "needs": "pin" },
+  { "id": 4, "name": "Kids", "avatar_url": null, "avatar_color": "#f472b6", "current": false, "needs": "none" },
+  { "id": 1, "name": "Robin", "avatar_url": "/api/users/1/avatar?v=1758000000", "avatar_color": null, "current": false, "needs": "password" },
+  { "id": 5, "name": "Guest", "avatar_url": null, "avatar_color": "#94a3b8", "current": false, "needs": "locked" }
+]

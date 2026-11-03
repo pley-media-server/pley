@@ -2,13 +2,15 @@ import type { DynamicRange } from "../api/types";
 import type { EngineError } from "./recovery";
 
 /**
- * The TV's own player, as the session drives it: Samsung's AVPlay on
- * Tizen, LG's media pipeline behind a <video> element on webOS. Each app
- * implements it; everything above it (the server session, recovery,
- * subtitles, Up Next) is shared.
+ * The TV's own player, as the session drives it: Samsung's AVPlay, which
+ * apps/tizen implements it with. Everything above it (the server session,
+ * recovery, subtitles, Up Next) is in this package.
  */
 
 export type EngineStatus = "idle" | "buffering" | "ready" | "ended";
+
+/** The MIME type HLS goes by on TVs. */
+export const HLS_MIME = "application/vnd.apple.mpegurl";
 
 /** What to play, and what is known of it before it opens. */
 export interface EngineSource {
@@ -76,7 +78,7 @@ export interface EngineListener {
 }
 
 export interface PlayerEngine {
-  /** "AVPlay", "webOS media pipeline". */
+  /** "AVPlay". */
   readonly name: string;
   setListener(listener: EngineListener): void;
   /** Opens `source` and starts at `source.startMs`; plays at once when `play` is true. */

@@ -21,7 +21,9 @@ import java.util.Locale
 /**
  * Home as the screens draw it (design spec §4.1, §8), the same for the
  * phone and the TV. Worked out off the main thread from what the
- * repositories hold.
+ * repositories hold. Whether it is the server's latest is apart from it
+ * ([HomeViewModel.status]), so the server saying again what it said
+ * before changes nothing here, and redraws nothing.
  */
 sealed interface HomeState {
     /** Nothing known yet: what was saved is still being read, or nothing was. */
@@ -43,12 +45,6 @@ sealed interface HomeState {
         val rows: List<HomeRow>,
         /** What the TV's hero shows; `null` with nothing to show. */
         val hero: HomeInfo?,
-        /** From the server now, rather than what was saved. */
-        val fresh: Boolean,
-        /** The server couldn't be asked again: what shows is what was saved. */
-        val error: Throwable? = null,
-        /** A refresh someone asked for (pull to refresh) is running. */
-        val refreshing: Boolean = false,
     ) : HomeState
 }
 

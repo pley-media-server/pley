@@ -1,0 +1,21 @@
+[package]
+name = "pley-storage"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: the folders and videos of the USB drive plugged into the TV"
+license = "AGPL-3.0-only"
+publish = false
+
+[dependencies]
+pley-base = { path = "../../base" }
+pley-core = { path = "../../core" }
+pley-ui = { path = "../../ui" }
+pley-kit = { path = "../../kit" }
+pley-shell = { path = "../../shell" }
+# A drive's folders as they show, and where each video stopped.
+pley-local = { path = "../../local" }
+
+[dev-dependencies]
+# The simulator with this crate's screens alone (examples/storage_sim.rs).
+pley-host = { path = "../../host" }

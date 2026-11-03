@@ -289,6 +289,39 @@ other apps (`pley_ct_…`), never with a session's
   networks that Automatic quality remembers.
 - On Unix, Pley raises its open-files limit to the most it may have.
 
+### Discovery
+
+- Apps find servers on the local network by a UDP broadcast and by
+  Bonjour (`_pley._tcp`). Both tell only the server's id, name, version and
+  web port. The name and version are on its public endpoint too; the id is
+  a random identifier that says nothing about the computer or its users.
+  Bonjour, once an administrator turns it on, tells them to every device
+  on the local network unasked, and its host name (`pley-` and the id's
+  start, unless an administrator chooses one) shows part of the id.
+- A chosen host name is probed for before it is claimed, and left for
+  the generated one when another device has it. Any device on the
+  network can still answer for a `.local` name, so the apps confirm a
+  server by its id and public endpoint, never by the name.
+- The UDP answer goes only to addresses on the local network, at most 100
+  a second. The Bonjour announcement goes out only from adapters with
+  addresses on the local network, never to the internet nor, unless
+  chosen, to 100.64.0.0/10 (Tailscale's, or a carrier's shared
+  addresses), and from only those an administrator chooses when some
+  are (a VPN, a container
+  network or a guest Wi-Fi left out). Each network is told only the
+  server's address on it.
+- Bonjour's responder is Pley's own and answers for Pley's names only. It
+  answers only devices on the networks it announces on, so a forged source
+  address elsewhere gets nothing; multicasts an answer once a second at
+  most on each network, and sends 100 answers a second at most by
+  unicast, so a device on the network can't make it flood another; reads
+  what it hears within bounds; and keeps none of it, so no device can
+  make it hold more.
+- Discovery is on and Bonjour off until Settings → Network changes them.
+  `--no-bonjour` (`PLEY_NO_BONJOUR`) keeps Bonjour off, and
+  `--no-discovery` (`PLEY_NO_DISCOVERY`) both; the Docker setup has them
+  off.
+
 ### Files
 
 - A symbolic link in a library is followed only to a file of the same kind
@@ -438,10 +471,35 @@ other apps (`pley_ct_…`), never with a session's
   in the `Authorization` header only, and refuse plain HTTP to an address
   beyond the home network (Kodi checks the address it actually connected
   to).
-- The Samsung and LG apps send the token only to the server's own origin.
+- The Samsung and LG apps send the token only to the server's own origin
+  (scheme, host and port), and their players get keyed media addresses,
+  never the token.
 - The native Samsung app keeps its tokens encrypted with AES-GCM under a
   256-bit key that the TV's key manager makes and keeps, bound to their
   server's address. Sign-in requests and server checks follow no redirect.
+- The LG app's HTTP client follows no redirect by itself: the app decides
+  each hop (a collection's picture), so a token never follows one
+  elsewhere. It keeps each server's tokens in its data folder on the TV,
+  which only the app's own user can read (folders 0700, files 0600),
+  never in its install folder, and writes each file whole (a temporary
+  file, then a rename). Refreshes run one at a time and the new pair is
+  saved before it is used. A server that grants more than the app asked
+  for has the grant revoked and the TV signed out. Signing out revokes the
+  tokens on the server; while the server can't prove itself at its
+  address, the TV only forgets them, and the server's Account → Apps ends
+  the sign-in.
+- The LG app carries its own TLS (rustls) and root certificates, since a
+  TV's own are as old as its firmware. Its log on the TV
+  (`/tmp/app.pley.tv/pley.log`, readable by the app's group) leaves out
+  tokens, codes, keyed addresses, the Live TV relay's path and a USB
+  drive's folder and file names.
+- The LG app hands a live channel's MPEG-TS stream to the TV's player,
+  which takes no request headers, through a relay of its own: it reads
+  the stream with the token and serves it on 127.0.0.1 alone, under a
+  path of 128 random bits made for that channel, to at most four
+  connections, each sending its request's head (8 KiB at most) within
+  5 s. The relay serves that one stream and closes it, its connections
+  with it, when the channel changes or the player goes.
 - Kodi's player and artwork cache reach the server through the add-on's
   proxy on 127.0.0.1, behind a random path checked in constant time, for
   requests addressed to it alone.

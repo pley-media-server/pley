@@ -103,8 +103,6 @@ class LinkViewModel(
     private val source: OnboardingSource,
     val server: String,
     private val purpose: LinkPurpose = LinkPurpose.SignIn,
-    /** The code asks for the scopes of requests too: phones. Android TV has no requests. */
-    private val requests: Boolean = true,
     /** The sign-in module's clock: codes expire by it. */
     private val clock: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
@@ -168,7 +166,7 @@ class LinkViewModel(
         if (!silent) _state.update { it.copy(status = LinkStatus.Starting) }
         job = viewModelScope.launch {
             val code = try {
-                source.deviceSignIn.start(server, requests)
+                source.deviceSignIn.start(server)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: AuthException) {

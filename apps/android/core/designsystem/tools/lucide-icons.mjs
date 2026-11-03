@@ -42,6 +42,8 @@ const icons = [
   ["HardDrive", "hard-drive"], ["Cpu", "cpu"], ["AppWindow", "app-window"], ["LayoutDashboard", "layout-dashboard"],
   ["Folder", "folder"], ["FolderOpen", "folder-open"], ["FolderPlus", "folder-plus"], ["FolderSearch", "folder-search"],
   ["ImageUp", "image-up"], ["ScanSearch", "scan-search"], ["DatabaseBackup", "database-backup"],
+  // A USB drive's page (TVs): the rail's entry, a video's line, "Up a folder"
+  ["Usb", "usb"], ["FilePlay", "file-play"], ["CornerLeftUp", "corner-left-up"],
   // Live TV
   ["TvMinimal", "tv-minimal"], ["CalendarDays", "calendar-days"], ["LayoutGrid", "layout-grid"], ["Radio", "radio"],
   ["Clock", "clock"], ["StarOutline", "star"],

@@ -1,0 +1,11 @@
+{
+  "video_codec": "h264",
+  "width": 1280,
+  "height": 720,
+  "frame_rate": 25.0,
+  "interlaced": false,
+  "audio_codec": "aac",
+  "audio_channels": 2,
+  "video": "copy",
+  "audio": "copy"
+}

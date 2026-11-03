@@ -7,7 +7,8 @@ import app.pley.android.player.PlayRequest
 /**
  * Where a playback was, to start it again after Android killed the app in
  * the background (the player screen keeps it in its saved instance state):
- * the item, its version, the position, the tracks, the quality and the queue.
+ * the item, its version, the position, the tracks, the quality and the queue,
+ * or the video on a drive.
  */
 data class SavedPlaybackState(
     val itemId: Long,
@@ -18,6 +19,8 @@ data class SavedPlaybackState(
     /** The quality's id ("original", "8m"). */
     val quality: String,
     val queue: PlayQueue?,
+    /** A video on a drive, by its path ([PlayRequest.drivePath]). */
+    val drivePath: String? = null,
 ) {
     /** The request that plays it again from where it was. */
     fun toPlayRequest(): PlayRequest = PlayRequest(
@@ -27,6 +30,7 @@ data class SavedPlaybackState(
         audioIndex = audioIndex,
         subtitleIndex = subtitleIndex,
         queue = queue,
+        drivePath = drivePath,
     )
 
     fun toBundle(): Bundle = Bundle().apply {
@@ -41,6 +45,7 @@ data class SavedPlaybackState(
             is PlayQueue.Collection -> putLong(COLLECTION, queue.collectionId)
             null -> Unit
         }
+        drivePath?.let { putString(DRIVE, it) }
     }
 
     companion object {
@@ -52,6 +57,7 @@ data class SavedPlaybackState(
         private const val QUALITY = "pley.quality"
         private const val PLAYLIST = "pley.playlist"
         private const val COLLECTION = "pley.collection"
+        private const val DRIVE = "pley.drive"
 
         /** What [toBundle] saved; `null` when [bundle] holds none. */
         fun fromBundle(bundle: Bundle?): SavedPlaybackState? {
@@ -65,6 +71,7 @@ data class SavedPlaybackState(
                 subtitleIndex = long(SUBTITLE),
                 quality = bundle.getString(QUALITY) ?: QualityPreset.ORIGINAL_ID,
                 queue = long(PLAYLIST)?.let { PlayQueue.Playlist(it) } ?: long(COLLECTION)?.let { PlayQueue.Collection(it) },
+                drivePath = bundle.getString(DRIVE),
             )
         }
     }

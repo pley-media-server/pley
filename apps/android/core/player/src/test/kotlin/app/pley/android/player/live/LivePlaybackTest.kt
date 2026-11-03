@@ -3,8 +3,14 @@ package app.pley.android.player.live
 import android.os.Looper
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.HttpDataSource
+import app.pley.android.caps.CapsSnapshot
 import app.pley.android.model.BusyConnection
 import app.pley.android.model.LivePlan
+import app.pley.android.model.caps.ClientCaps
 import app.pley.android.network.ApiException
 import app.pley.android.testing.Fixtures
 import app.pley.android.network.OfflineException
@@ -26,8 +32,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 
-/** Watching a channel: tuning with this device's id, zapping, the server's refusals, no pausing, the background. */
+/** Watching a channel: tuning with this device's id, zapping, the server's refusals, tuning again, no pausing, the background. */
 @RunWith(RobolectricTestRunner::class)
+@androidx.annotation.OptIn(UnstableApi::class)
 class LivePlaybackTest {
     private val scheduler = TestCoroutineScheduler()
     private val scope = CoroutineScope(StandardTestDispatcher(scheduler) + SupervisorJob())
@@ -107,6 +114,41 @@ class LivePlaybackTest {
     }
 
     @Test
+    fun `sound the server converts plays from stream ts where this device decodes it or sends it on as it is`() {
+        var caps: CapsSnapshot? = CapsSnapshot(ClientCaps(audioCodecs = listOf("aac", "ac3")), emptyList())
+        val playback = LivePlayback(live, { FakePlayerEngine().also { engines += it } }, { "android-1" }, scope) { caps }
+        live.plan = Fixtures.decode<LivePlan>("live/plan.json").copy(audio = "aac", audioCodec = "ac3", audioChannels = 6)
+        playback.tune(1)
+        settle()
+        // The stream.ts read as the channel was asked for plays: no HLS.
+        assertEquals(listOf(false), engine().prepared.map { it.source.hls })
+        assertTrue(engine().player.playWhenReady)
+
+        // Not where it neither decodes nor passes it, nor before the device is probed: the HLS made for every player.
+        caps = CapsSnapshot(ClientCaps(audioCodecs = listOf("aac")), emptyList())
+        playback.tune(2)
+        settle()
+        assertTrue(engine().prepared.last().source.hls)
+        caps = null
+        playback.tune(1)
+        settle()
+        assertTrue(engine().prepared.last().source.hls)
+        playback.close()
+    }
+
+    @Test
+    fun `a plan plays as sent with its picture as it is, and its sound as it is or one the device plays`() {
+        val passes = CapsSnapshot(ClientCaps(audioCodecs = listOf("aac"), audioPassthrough = listOf("eac3")), emptyList())
+        assertTrue(LivePlayback.playsAsSent(LivePlan(video = "copy", audio = "aac", audioCodec = "eac3"), passes))
+        assertTrue(LivePlayback.playsAsSent(LivePlan(video = "copy", audio = "none"), null))
+        assertFalse(LivePlayback.playsAsSent(LivePlan(video = "h264_vaapi", audio = "aac", audioCodec = "eac3"), passes))
+        // DTS isn't one the server's plan converts for some players only: it goes to HLS everywhere.
+        val dts = CapsSnapshot(ClientCaps(audioCodecs = listOf("aac", "dts")), emptyList())
+        assertFalse(LivePlayback.playsAsSent(LivePlan(video = "copy", audio = "aac", audioCodec = "dts"), dts))
+        assertFalse(LivePlayback.playsAsSent(LivePlan(video = "copy", audio = "aac", audioCodec = "mp2"), passes))
+    }
+
+    @Test
     fun `zapping lets the last channel go and keeps the one engine`() {
         playback.tune(1)
         settle()
@@ -130,7 +172,9 @@ class LivePlaybackTest {
         assertEquals(LiveTrouble.Kind.Busy, failed.trouble.kind)
         assertEquals(message, failed.trouble.message)
         assertTrue(failed.trouble.canRetry)
-        assertTrue("nothing was prepared", engines.isEmpty())
+        // The stream.ts read as the channel was asked for stops; no HLS was asked for.
+        assertEquals(Player.STATE_IDLE, engine().player.playbackState)
+        assertEquals(0, engine().prepared.count { it.source.hls })
 
         live.watchFails = null
         playback.retry()
@@ -154,6 +198,56 @@ class LivePlaybackTest {
         assertEquals("watch 1 android-1 taking 2", live.sent.last())
         // Taken over from here later, the server's sentence says who took it, as it is.
         assertEquals("Bob started watching Film Four on this connection.", LiveTrouble.of(ApiException(410, "gone", "Bob started watching Film Four on this connection.")).message)
+    }
+
+    @Test
+    fun `a stream ts refused before the watch answers waits for the watch, asking for the channel once`() {
+        val message = "The one connection of Test Provider is in use, watching Film Four."
+        live.watchFails = ApiException(409, "conflict", message)
+        live.watchTakesMs = 500
+        playback.tune(1)
+        settle()
+        val busy = HttpDataSource.InvalidResponseCodeException(409, "Conflict", null, emptyMap(), DataSpec.Builder().setUri("http://x").build(), ByteArray(0))
+        engine().player.fail(PlaybackException("busy", busy, PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS))
+        settle()
+        assertEquals(LivePhase.Tuning, playback.state.value.phase)
+        scheduler.advanceTimeBy(600)
+        settle()
+        // The watch's own answer says why: the channel was asked for once.
+        assertEquals(listOf("watch 1 android-1"), live.sent)
+        val failed = playback.state.value.phase as LivePhase.Failed
+        assertEquals(LiveTrouble.Kind.Busy, failed.trouble.kind)
+        assertEquals(message, failed.trouble.message)
+    }
+
+    @Test
+    fun `a stream ts that fails before the watch answers plays the HLS of that watch`() {
+        live.plan = Fixtures.decode<LivePlan>("live/plan.json")
+        live.watchTakesMs = 500
+        playback.tune(1)
+        settle()
+        engine().player.fail(PlaybackException("no", null, PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED))
+        settle()
+        scheduler.advanceTimeBy(600)
+        settle()
+        assertEquals(listOf("watch 1 android-1"), live.sent)
+        val hls = engine().prepared.last()
+        assertTrue(hls.source.hls && hls.source.url.endsWith("/api/live/sessions/live-1/index.m3u8") && hls.playWhenReady)
+        assertEquals(LivePhase.Tuning, playback.state.value.phase)
+    }
+
+    @Test
+    fun `stream ts is read as the channel is asked for, and after the answer when a connection is taken over`() {
+        live.watchFails = ApiException(409, "conflict", "In use.")
+        playback.tune(1)
+        settle()
+        // Read before the server refused the channel: the server tunes for whichever comes first.
+        assertEquals(listOf("http://127.0.0.1:7539/api/live/channels/1/stream.ts?client_id=android-1-stream"), engine().prepared.map { it.source.url })
+        playback.retry(takeOver = 2)
+        settle()
+        // Only the watch takes a connection over: nothing more read before it answered.
+        assertEquals(1, engine().prepared.size)
+        assertEquals("watch 1 android-1 taking 2", live.sent.last())
     }
 
     @Test
@@ -200,6 +294,58 @@ class LivePlaybackTest {
         engine().player.ready()
         settle()
         assertFalse(playback.state.value.buffering)
+    }
+
+    @Test
+    fun `a player failure tunes the channel again twice, after 1 s and 3 s, before it says why`() {
+        playback.tune(1)
+        settle()
+        engine().player.ready()
+        settle()
+        val broke = PlaybackException("broke", null, PlaybackException.ERROR_CODE_DECODING_FAILED)
+        engine().player.fail(broke)
+        settle()
+        // The server may have let the channel go, or the network blinked: tuning, not failed.
+        assertEquals(LivePhase.Tuning, playback.state.value.phase)
+        scheduler.advanceTimeBy(LivePlayback.FIRST_RETRY_MS - 1)
+        settle()
+        assertEquals(1, live.sent.count { it.startsWith("watch") })
+        scheduler.advanceTimeBy(2)
+        settle()
+        assertEquals(listOf("watch 1 android-1", "leave live-1", "watch 1 android-1"), live.sent)
+        engine().player.fail(broke)
+        settle()
+        scheduler.advanceTimeBy(LivePlayback.NEXT_RETRY_MS - 1)
+        settle()
+        assertEquals(2, live.sent.count { it.startsWith("watch") })
+        scheduler.advanceTimeBy(2)
+        settle()
+        assertEquals(3, live.sent.count { it.startsWith("watch") })
+        engine().player.fail(broke)
+        settle()
+        assertEquals(LiveTrouble.Kind.Other, (playback.state.value.phase as LivePhase.Failed).trouble.kind)
+
+        // Try again starts the count again.
+        playback.retry()
+        settle()
+        engine().player.fail(broke)
+        settle()
+        assertEquals(LivePhase.Tuning, playback.state.value.phase)
+    }
+
+    @Test
+    fun `a channel the server stopped says so at once`() {
+        playback.tune(1)
+        settle()
+        engine().player.ready()
+        settle()
+        val stopped = HttpDataSource.InvalidResponseCodeException(410, "Gone", null, emptyMap(), DataSpec.Builder().setUri("http://x").build(), ByteArray(0))
+        engine().player.fail(PlaybackException("gone", stopped, PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS))
+        settle()
+        assertEquals(LiveTrouble.Kind.Stopped, (playback.state.value.phase as LivePhase.Failed).trouble.kind)
+        scheduler.advanceTimeBy(LivePlayback.NEXT_RETRY_MS * 2)
+        settle()
+        assertEquals(1, live.sent.count { it.startsWith("watch") })
     }
 
     @Test

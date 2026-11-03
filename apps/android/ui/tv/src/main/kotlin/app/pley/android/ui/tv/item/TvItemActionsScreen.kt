@@ -41,9 +41,10 @@ import app.pley.android.ui.tv.theme.LocalTvTier
 
 /**
  * An item's actions as a screen of their own (PleyKey.ItemActions), for
- * the screens that open them by key: its backdrop, its name and the
- * actions as a list with focus on the first (D-pad rule 6). Pages of
- * this area show the same actions in a side panel instead.
+ * what opens them by key: its backdrop, its name and the actions as a
+ * list with focus on the first (D-pad rule 6). Tiles show the same
+ * actions in a side panel over their page instead ([TvTileActionsPanel],
+ * the item page's [TvPanels]).
  */
 @Composable
 internal fun TvItemActionsScreen(itemId: Long, continueWatching: Boolean = false) {

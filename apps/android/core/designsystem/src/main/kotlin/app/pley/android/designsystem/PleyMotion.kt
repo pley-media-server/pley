@@ -52,6 +52,18 @@ object PleyMotion {
     val UnfocusEasing: Easing = FastOutLinearInEasing
     val OverlayEasing: Easing = FastOutSlowInEasing
 
+    /**
+     * The native Samsung app's curves, as its TV draws them (NUI's EaseOut
+     * and EaseIn, both cubic): what opens or takes focus starts quick and
+     * settles, what closes or lets focus go starts slow and leaves quick.
+     * The TV's rail and side panels move on these.
+     */
+    val EaseOut: Easing = Easing { fraction ->
+        val rest = 1f - fraction
+        1f - rest * rest * rest
+    }
+    val EaseIn: Easing = Easing { fraction -> fraction * fraction * fraction }
+
     /** Focus in: 150 ms, fast out and slow in; a snap with reduced motion. */
     fun <T> focus(reduced: Boolean = false): FiniteAnimationSpec<T> =
         if (reduced) snap() else tween(FOCUS_MS, easing = FocusEasing)

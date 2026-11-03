@@ -98,6 +98,7 @@ import app.pley.android.ui.tv.item.TvToastHost
 import app.pley.android.ui.tv.item.TvToastState
 import app.pley.android.ui.tv.kit.BackdropScrim
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
+import app.pley.android.ui.tv.kit.OverlayShowing
 import app.pley.android.ui.tv.kit.TvBackdrop
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvRoundButton
@@ -237,11 +238,12 @@ private fun PlaylistContent(page: PlaylistPage<ArtworkTileModel>, vm: PlaylistVi
             focusNext = null
         }
     }
-    // While moving: Back puts the entry back where it was.
+    // While moving: Back puts the entry back where it was. The keys are the entry's: requests' news waits.
     BackHandler(enabled = moving != null) {
         vm.cancelMoves()
         moving = null
     }
+    OverlayShowing(moving != null)
 
     Box(Modifier.fillMaxSize()) {
         val backdrop = remember(page.lead, page.origin, tier) { page.lead?.let { ArtworkCandidates.backdrop(it, page.origin, tier) } }

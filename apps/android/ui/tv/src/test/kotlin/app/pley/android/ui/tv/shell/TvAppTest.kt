@@ -4,6 +4,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsPropertiesAndroid
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasAnyAncestor
@@ -18,10 +22,13 @@ import androidx.navigation3.runtime.NavKey
 import androidx.test.core.app.ApplicationProvider
 import app.pley.android.common.TestTags
 import app.pley.android.data.Loadable
+import app.pley.android.data.RequestNotice
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.Me
+import app.pley.android.model.TitleKind
 import app.pley.android.screens.onboarding.ProfileGate
+import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.testing.screens.onboarding.FakeOnboardingSource
 import app.pley.android.ui.tv.item.TV_ITEM_PAGE
 import app.pley.android.ui.tv.onboarding.LocalOnboardingSource
@@ -29,7 +36,10 @@ import app.pley.android.ui.tv.kit.focused
 import app.pley.android.ui.tv.kit.press
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -51,7 +61,12 @@ class TvAppTest {
 
     private var exits = 0
 
-    private class FakeSource(private val facts: StartFacts, libraries: List<Library>) : TvShellSource {
+    private class FakeSource(
+        private val facts: StartFacts,
+        libraries: List<Library>,
+        override val requests: Flow<RequestsEntry>,
+        private val queue: MutableStateFlow<List<TvNotice>>,
+    ) : TvShellSource {
         override suspend fun startFacts() = facts
 
         override val libraries: Flow<List<Library>> = MutableStateFlow(libraries)
@@ -59,7 +74,15 @@ class TvAppTest {
         override val profile: Flow<RailProfile?> = MutableStateFlow(RailProfile("Anna"))
 
         override suspend fun keepUpdated() = Unit
+
+        override val notices: Flow<List<TvNotice>> = queue
+
+        override fun dismiss(notice: RequestNotice) = queue.update { it.filterNot { n -> n.notice.key == notice.key } }
     }
+
+    /** The way into requests the rail shows, and the news to pop up. */
+    private val requests = MutableStateFlow(RequestsEntry.None)
+    private val notices = MutableStateFlow<List<TvNotice>>(emptyList())
 
     private val onboarding = FakeOnboardingSource().apply {
         active.value = "http://s"
@@ -81,7 +104,7 @@ class TvAppTest {
         compose.setContent {
             // Getting in reads a fake server: a household of four, a code to show, nobody on the network.
             CompositionLocalProvider(LocalOnboardingSource provides onboarding) {
-                TvApp(FakeSource(facts, threeLibraries), onExit = { exits++ }, reducedMotion = true, placeholder = placeholder)
+                TvApp(FakeSource(facts, threeLibraries, requests, notices), onExit = { exits++ }, reducedMotion = true, placeholder = placeholder)
             }
         }
     }
@@ -103,6 +126,9 @@ class TvAppTest {
 
     private fun railEntry(id: String) = compose.onNodeWithTag("${TestTags.TV_RAIL}.$id")
 
+    private fun focusedDescription(): String = compose.onAllNodes(isFocused()).fetchSemanticsNodes().firstOrNull()
+        ?.config?.getOrElse(SemanticsProperties.ContentDescription) { emptyList() }?.joinToString().orEmpty()
+
     @Test
     fun serversStartsFocused() {
         app(StartFacts(null, false))
@@ -115,8 +141,6 @@ class TvAppTest {
         app(StartFacts("http://s", false))
         compose.onNodeWithText("Sign in to Pley").assertExists()
         compose.onNodeWithText("Change server").assertIsFocused()
-        // A TV has no requests: its code asks for none of their scopes.
-        assertEquals(listOf(false), onboarding.requestScopes)
     }
 
     @Test
@@ -144,6 +168,12 @@ class TvAppTest {
     }
 
     @Test
+    fun itsTagsAreResourceIdsForTheBenchmarks() {
+        app()
+        compose.onNodeWithTag(TestTags.TV_ROOT).assert(SemanticsMatcher.expectValue(SemanticsPropertiesAndroid.TestTagsAsResourceId, true))
+    }
+
+    @Test
     fun leftFromContentEntersTheRailAtTheCurrentPage() {
         app()
         compose.onNodeWithText("Resume").assertIsFocused()
@@ -152,6 +182,18 @@ class TvAppTest {
         // Right goes back to where focus was.
         compose.press(Key.DirectionRight)
         compose.onNodeWithText("Resume").assertIsFocused()
+    }
+
+    @Test
+    fun rightFromTheRailGoesBackToTheRowsTile() {
+        app()
+        compose.press(Key.DirectionDown)
+        val tile = focusedDescription()
+        assertTrue(tile, tile.startsWith("Half Loop"))
+        compose.press(Key.DirectionLeft)
+        railEntry("home").assertIsFocused()
+        compose.press(Key.DirectionRight)
+        assertEquals(tile, focusedDescription())
     }
 
     @Test
@@ -246,6 +288,20 @@ class TvAppTest {
     }
 
     @Test
+    fun backComesBackToATilePastTheRowsFirst() {
+        app()
+        compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionRight)
+        val second = compose.onNode(isFocused()).fetchSemanticsNode().config.getOrElse(SemanticsProperties.ContentDescription) { emptyList() }.joinToString()
+        compose.press(Key.DirectionCenter)
+        compose.onNodeWithTag(TV_ITEM_PAGE).assertExists()
+        back()
+        // Home as it was under the page: the same tile, not the row's first.
+        compose.focused().assertContentDescriptionEquals(second)
+        assertTrue(second, second.isNotEmpty() && second != HALF_LOOP)
+    }
+
+    @Test
     fun aRowsFocusComesBackAfterBack() {
         app()
         compose.press(Key.DirectionDown, times = 2)
@@ -255,6 +311,74 @@ class TvAppTest {
         back()
         compose.focused().assertContentDescriptionEquals(DUNE)
     }
+
+    @Test
+    fun theRailLeadsToDiscoverAfterHomeWithItsNumber() {
+        requests.value = RequestsEntry(discover = true, requests = true, badge = 2)
+        app()
+        compose.press(Key.DirectionLeft)
+        compose.press(Key.DirectionDown)
+        railEntry("discover").assertIsFocused()
+        railEntry("discover").assert(hasText("Discover")).assert(hasContentDescription("2 of your requests have news"))
+    }
+
+    @Test
+    fun aManagersRailLeadsToTheRequestsWithWhatWaitsForThem() {
+        requests.value = RequestsEntry(requests = true, manage = true, badge = 3, failed = 1)
+        app()
+        compose.press(Key.DirectionLeft)
+        compose.press(Key.DirectionDown)
+        railEntry("requests").assertIsFocused()
+        railEntry("requests").assert(hasText("Requests")).assert(hasContentDescription("3 requests need you, 1 couldn't be sent"))
+    }
+
+    @Test
+    fun newsOfARequestPopsUpOverThePageAndBackGivesFocusBack() {
+        app()
+        compose.onNodeWithText("Resume").assertIsFocused()
+        notices.value = listOf(arrivalIsReady)
+        waitFor("“Arrival” is ready to watch.")
+        compose.onNodeWithText("Open").assertIsFocused()
+        back()
+        compose.onNodeWithTag(TV_REQUEST_NOTICE).assertDoesNotExist()
+        compose.onNodeWithText("Resume").assertIsFocused()
+        assertEquals(0, exits)
+    }
+
+    @Test
+    fun theWindowComingBackWhileNewsShowsKeepsThePagesPlaceForWhenItCloses() {
+        app()
+        compose.press(Key.DirectionDown)
+        val tile = compose.onNode(isFocused()).fetchSemanticsNode().config.getOrElseNullable(SemanticsProperties.ContentDescription) { null }?.firstOrNull()
+        assertNotNull(tile)
+        notices.value = listOf(arrivalIsReady)
+        compose.mainClock.advanceTimeBy(2_000)
+        waitFor("“Arrival” is ready to watch.")
+        compose.onNodeWithText("Open").assertIsFocused()
+        // The assistant takes the window over the app, and gives it back.
+        compose.runOnUiThread { compose.activity.window.decorView.dispatchWindowFocusChanged(false) }
+        compose.waitForIdle()
+        compose.runOnUiThread { compose.activity.window.decorView.dispatchWindowFocusChanged(true) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Open").assertIsFocused()
+        back()
+        compose.onNodeWithTag(TV_REQUEST_NOTICE).assertDoesNotExist()
+        compose.onNode(isFocused()).assert(hasContentDescription(tile!!))
+    }
+
+    @Test
+    fun aNoticesOpenOpensTheTitlesPage() {
+        app()
+        notices.value = listOf(arrivalIsReady)
+        waitFor("“Arrival” is ready to watch.")
+        compose.mainClock.advanceTimeBy(OK_GUARD_MS + 100)
+        compose.press(Key.Enter)
+        compose.onNodeWithTag(TV_ITEM_PAGE).assertExists()
+    }
+
+    private val arrivalIsReady = TvNotice(
+        RequestNotice.Ready(1, requestId = 1, title = "Arrival", kind = TitleKind.Movie, itemId = 7, seasons = null, complete = true),
+    )
 
     private companion object {
         const val STARTS_WITHIN_MS = 5_000L

@@ -2,7 +2,9 @@ package app.pley.android.ui.tv.search
 
 import app.pley.android.ui.tv.shell.failedTitle
 import app.pley.android.ui.tv.shell.failedBody
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,22 +20,29 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -49,12 +58,14 @@ import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.ArtworkImage
+import app.pley.android.designsystem.reducedMotion
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.SkeletonTile
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.designsystem.tile.TileStyle
 import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.designsystem.tile.skeleton
+import app.pley.android.model.DiscoverTitle
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.LiveChannel
 import app.pley.android.screens.PleyKey
@@ -67,14 +78,21 @@ import app.pley.android.screens.search.SearchResultsState
 import app.pley.android.screens.search.SearchTiles
 import app.pley.android.screens.search.SearchUiState
 import app.pley.android.screens.search.SearchViewModel
+import app.pley.android.screens.search.TmdbSection
 import app.pley.android.ui.tv.R
 
+import app.pley.android.ui.tv.item.tileActions
+import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvRow
 import app.pley.android.ui.tv.kit.TvRowColumn
+import app.pley.android.ui.tv.kit.TvScrolling
 import app.pley.android.ui.tv.kit.TvTextButton
+import app.pley.android.ui.tv.kit.TvTileRow
+import app.pley.android.ui.tv.kit.WithinMotion
 import app.pley.android.ui.tv.kit.initialFocus
+import app.pley.android.ui.tv.kit.keptWithin
 import app.pley.android.ui.tv.kit.railFade
 import app.pley.android.ui.tv.kit.railOnLeftStopOnRight
 import app.pley.android.ui.tv.kit.rememberFocusMemory
@@ -93,7 +111,8 @@ import kotlinx.coroutines.delay
  * searches as chips. While typing (250 ms after the last key), the
  * results as rows, grouped (Movies, Shows, Seasons, Episodes, Artists,
  * Albums, Tracks, Live TV, People), the first header at y = 96; a
- * channel found plays at once. Down from the
+ * channel found plays at once. After them, for a profile that may ask,
+ * Discover: what TMDB has that no library does. Down from the
  * field goes into the rows, Up from the first row back to it; Left goes
  * to the rail.
  */
@@ -101,14 +120,16 @@ import kotlinx.coroutines.delay
 internal fun TvSearchScreen(key: PleyKey.Search) {
     val resources = LocalResources.current
     val vm: SearchViewModel<ArtworkTileModel> = viewModel {
-        SearchViewModel(key.query, SearchDeps.of(screensGraph()), tvSearchTiles(TvTiles(resources)))
+        SearchViewModel(key.query, SearchDeps.of(screensGraph(), tmdbShown = TMDB_TITLES), tvSearchTiles(TvTiles(resources)))
     }
     val state by vm.state.collectAsStateWithLifecycle()
+    val tmdb by vm.tmdb.collectAsStateWithLifecycle()
     val field = rememberTextFieldState(key.query)
     LaunchedEffect(field, vm) {
         snapshotFlow { field.text.toString() }.collect(vm::onQueryChange)
     }
     val navigator = LocalTvNavigator.current
+    val actions = tileActions()
     TvSearchContent(
         state = state,
         field = field,
@@ -119,9 +140,13 @@ internal fun TvSearchScreen(key: PleyKey.Search) {
         },
         onClearRecent = vm::clearRecent,
         onOpen = { group, id -> vm.open(group, id)?.let(navigator::open) },
-        onActions = { id -> navigator.open(PleyKey.ItemActions(id)) },
+        onActions = { id -> actions.open(id, continueWatching = false) },
         onRetry = vm::retry,
         onWatch = vm::watch,
+        tmdb = tmdb,
+        onTmdbRetry = vm::retryTmdb,
+        onTmdbOpen = { navigator.open(PleyKey.DiscoverTitle(it.kind, it.tmdbId)) },
+        onTmdbAll = { navigator.open(PleyKey.DiscoverResults(it)) },
     )
 }
 
@@ -152,14 +177,35 @@ internal fun TvSearchContent(
     onActions: (Long) -> Unit,
     onRetry: () -> Unit = {},
     onWatch: (LiveChannel) -> Unit = {},
+    tmdb: TmdbSection = TmdbSection.Hidden,
+    onTmdbRetry: () -> Unit = {},
+    onTmdbOpen: (DiscoverTitle) -> Unit = {},
+    onTmdbAll: (String) -> Unit = {},
 ) {
     val rail = LocalTvRailFocus.current
     val memory = rememberFocusMemory()
     val fieldFocus = remember { FocusRequester() }
     // What Down from the field goes to: the chips or the rows (the field is wide; nearest would be a guess).
     val below = remember { FocusRequester() }
+    val tmdbBelow = tmdb is TmdbSection.Ready || (tmdb as? TmdbSection.Failed)?.problem?.retry == true
     val hasBelow = (state.results is SearchResultsState.Ready) || (state.results is SearchResultsState.Failed) ||
-        (state.results == SearchResultsState.Idle && state.recent.isNotEmpty())
+        (state.results == SearchResultsState.Idle && state.recent.isNotEmpty()) ||
+        (state.results is SearchResultsState.Empty && tmdbBelow)
+    // Retry on the Discover row: focus waits on the field, then goes to what came in the row's place.
+    val tmdbFocus = remember { FocusRequester() }
+    var retriedFrom by remember(state.query) { mutableStateOf<TmdbSection?>(null) }
+    LaunchedEffect(tmdb, retriedFrom) {
+        val from = retriedFrom ?: return@LaunchedEffect
+        if (tmdb == from || tmdb is TmdbSection.Loading) return@LaunchedEffect
+        retriedFrom = null
+        withFrameNanos { }
+        runCatching { tmdbFocus.requestFocus() }
+    }
+    val retryTmdb = {
+        runCatching { fieldFocus.requestFocus() }
+        retriedFrom = tmdb
+        onTmdbRetry()
+    }
     Box(Modifier.fillMaxSize().testTag(TV_SEARCH)) {
         when (val results = state.results) {
             SearchResultsState.Idle -> Recent(
@@ -176,10 +222,22 @@ internal fun TvSearchContent(
                 },
             )
             is SearchResultsState.Loading -> Skeletons()
-            is SearchResultsState.Empty -> Notice(
-                stringResource(R.string.tv_search_none_title, results.query),
-                stringResource(R.string.tv_search_none_body),
-            )
+            is SearchResultsState.Empty -> if (tmdb == TmdbSection.Hidden) {
+                Notice(
+                    stringResource(R.string.tv_search_none_title, results.query),
+                    stringResource(R.string.tv_search_none_body),
+                )
+            } else {
+                // The libraries have nothing: the line saying so, and Discover's row under it, where it stays.
+                NothingInLibraries(Modifier.padding(top = ResultsTop))
+                TvRowColumn(
+                    modifier = Modifier.fillMaxSize().focusRequester(below).testTag(TV_SEARCH_RESULTS),
+                    contentPadding = PaddingValues(top = OnlyTmdbTop, bottom = ResultsBottomRoom),
+                    headerY = OnlyTmdbTop,
+                ) {
+                    tmdbRow(tmdb, memory, tmdbFocus, retryTmdb, onTmdbOpen, onTmdbAll)
+                }
+            }
             is SearchResultsState.Failed -> Notice(
                 failedTitle(results.error, stringResource(R.string.tv_search_failed)),
                 failedBody(results.error),
@@ -215,6 +273,7 @@ internal fun TvSearchContent(
                     if (results.groups.none { it.kind == SearchGroupKind.People } && results.channels.isNotEmpty()) {
                         channelRow(results, memory, onWatch)
                     }
+                    if (tmdb != TmdbSection.Hidden) tmdbRow(tmdb, memory, tmdbFocus, retryTmdb, onTmdbOpen, onTmdbAll)
                 }
             }
         }
@@ -257,11 +316,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.channelRow(
 /**
  * The Live TV channels found (the web's ChannelResults), as Live TV's
  * channel tiles: the logo with the number and how far what's on is,
- * captioned with the name and what's on. Select plays the channel.
+ * captioned with the name and what's on. Select plays the channel. The
+ * row moves as the others do ([TvTileRow]), as Samsung's channel row
+ * glides to the gutter.
  */
 @Composable
 private fun ChannelRow(channels: List<LiveChannel>, origin: String, memory: FocusMemory, onWatch: (LiveChannel) -> Unit) {
-    val rail = LocalTvRailFocus.current
     val now by produceState(System.currentTimeMillis() / 1000) {
         while (true) {
             delay(NOW_TICK_MS)
@@ -275,33 +335,30 @@ private fun ChannelRow(channels: List<LiveChannel>, origin: String, memory: Focu
             maxLines = 1,
             modifier = Modifier.padding(start = PleyTv.Gutter, end = TvSafeArea.Horizontal).semantics { heading() },
         )
-        Spacer(Modifier.height(PleyTv.HeaderToTiles - ChannelBleed))
-        LazyRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(TV_SEARCH_CHANNELS)
-                .railOnLeftStopOnRight(rail)
-                .focusRestorer(),
-            contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeArea.Horizontal + TileKind.Episode.tvWidth, top = ChannelBleed, bottom = ChannelBleed),
-            horizontalArrangement = Arrangement.spacedBy(TileKind.Episode.tvGap),
-        ) {
-            items(channels, key = { it.id }, contentType = { "channel" }) { channel ->
-                ChannelTileCard(
-                    channel = channel,
-                    name = channel.name,
-                    origin = origin,
-                    now = now,
-                    focusModifier = Modifier.rememberedFocus(memory, "$CHANNELS_KEY/${channel.id}"),
-                    onWatch = onWatch,
-                    onDetails = null,
-                    modifier = Modifier.testTag(TV_SEARCH_CHANNEL + channel.id),
-                )
-            }
+        Spacer(Modifier.height(PleyTv.HeaderToTiles))
+        TvTileRow(
+            rowKey = CHANNELS_KEY,
+            items = channels,
+            key = { it.id },
+            kind = TileKind.Episode,
+            modifier = Modifier.testTag(TV_SEARCH_CHANNELS),
+        ) { channel, slot ->
+            ChannelTileCard(
+                channel = channel,
+                name = channel.name,
+                origin = origin,
+                now = now,
+                focusModifier = Modifier.rememberedFocus(memory, "$CHANNELS_KEY/${channel.id}").then(slot),
+                onWatch = onWatch,
+                onDetails = null,
+                modifier = Modifier.testTag(TV_SEARCH_CHANNEL + channel.id),
+            )
         }
     }
 }
 
 /** Before typing: "Recent searches" and a chip for each, with Clear; or what search finds. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun Recent(recent: List<String>, focus: FocusRequester, onRecent: (String) -> Unit, onClear: () -> Unit) {
     if (recent.isEmpty()) {
@@ -309,6 +366,15 @@ private fun Recent(recent: List<String>, focus: FocusRequester, onRecent: (Strin
         return
     }
     val rail = LocalTvRailFocus.current
+    val density = LocalDensity.current
+    val chips = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    // The chips move only when one would pass the gutter or the safe area's edge, as rows glide.
+    val motion = remember(chips, scope) { WithinMotion(chips, scope) }
+    motion.start = with(density) { PleyTv.Gutter.toPx() }
+    motion.end = with(density) { TvSafeArea.Horizontal.toPx() }
+    motion.gate = LocalKeyRepeatGate.current
+    motion.reduced = reducedMotion()
     Column(Modifier.fillMaxWidth().padding(top = ResultsTop).testTag(TV_SEARCH_RECENT)) {
         BasicText(
             stringResource(R.string.tv_search_recent),
@@ -316,17 +382,26 @@ private fun Recent(recent: List<String>, focus: FocusRequester, onRecent: (Strin
             modifier = Modifier.padding(start = PleyTv.Gutter).semantics { heading() },
         )
         Spacer(Modifier.height(16.dp))
-        LazyRow(
-            modifier = Modifier.fillMaxWidth().railFade().focusRequester(focus).railOnLeftStopOnRight(rail).focusGroup(),
-            contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeArea.Horizontal, top = 6.dp, bottom = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            items(recent, key = { it }, contentType = { "recent" }) { q ->
-                TvChip(label = q, onClick = { onRecent(q) }, icon = PleyIcons.History, modifier = Modifier.widthIn(max = 320.dp))
-            }
-            item(key = "pley.clear", contentType = "clear") {
-                TvTextButton(stringResource(R.string.tv_search_recent_clear), onClick = onClear)
+        CompositionLocalProvider(LocalBringIntoViewSpec provides TvScrolling.itself) {
+            LazyRow(
+                state = chips,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .railFade()
+                    .focusRequester(focus)
+                    .railOnLeftStopOnRight(rail)
+                    .focusGroup()
+                    .onPlaced { motion.row = it },
+                contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeArea.Horizontal, top = 6.dp, bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                items(recent, key = { it }, contentType = { "recent" }) { q ->
+                    TvChip(label = q, onClick = { onRecent(q) }, icon = PleyIcons.History, modifier = Modifier.widthIn(max = 320.dp).keptWithin(motion))
+                }
+                item(key = "pley.clear", contentType = "clear") {
+                    TvTextButton(stringResource(R.string.tv_search_recent_clear), onClick = onClear, modifier = Modifier.keptWithin(motion))
+                }
             }
         }
     }
@@ -415,6 +490,12 @@ private val ResultsBottomRoom = PleyTv.CanvasHeight - ResultsTop -
 /** Where "No results" sits. */
 private val NoticeTop = 120.dp
 
+/** Discover's row when the libraries found nothing: under the line saying so. */
+private val OnlyTmdbTop = ResultsTop + NothingHeight + PleyTv.RowGap
+
+/** How many of TMDB's titles the Discover row shows, as on the Samsung and LG apps; See all has the rest. */
+private const val TMDB_TITLES = 20
+
 private val FieldWidth = 520.dp
 
 internal const val TV_SEARCH = "pley.tv.search"
@@ -426,9 +507,6 @@ internal const val TV_SEARCH_CHANNEL = "pley.tv.search.channel."
 
 /** The Live TV row's key among the results' rows. */
 private const val CHANNELS_KEY = "Channels"
-
-/** Room above and below the channel tiles for a focused tile's growth and glow. */
-private val ChannelBleed = 16.dp
 
 /** How often what's on a channel found is looked at again. */
 private const val NOW_TICK_MS = 30_000L

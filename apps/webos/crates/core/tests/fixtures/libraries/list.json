@@ -1,0 +1,5 @@
+[
+  { "id": 1, "name": "Movies", "kind": "movies", "paths": [], "item_count": 412, "created_at": 1758000000, "scanned_at": 1761300000, "scanning": false },
+  { "id": 2, "name": "TV Shows", "kind": "shows", "paths": [], "item_count": 37, "created_at": 1758000100, "scanned_at": 1761300200, "scanning": false },
+  { "id": 3, "name": "Music", "kind": "music", "paths": [], "item_count": 128, "created_at": 1758000200, "scanned_at": 1761300400, "scanning": false }
+]

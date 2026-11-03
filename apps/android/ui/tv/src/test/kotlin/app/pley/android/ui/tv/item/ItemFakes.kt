@@ -15,6 +15,7 @@ import app.pley.android.data.PeopleRepository
 import app.pley.android.data.PlayItem
 import app.pley.android.data.PlayTarget
 import app.pley.android.data.PlaylistsRepository
+import app.pley.android.data.RequestsRepository
 import app.pley.android.data.SearchRepository
 import app.pley.android.data.ServersRepository
 import app.pley.android.data.SessionRepository
@@ -37,8 +38,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
 
-/** An item page's data for the TV's tests: the items set, and what was written. */
-internal class ItemData(vararg details: ItemDetail) : DataGraph {
+/**
+ * An item page's data for the TV's tests: the items set, what was written,
+ * and [requests] and each item's [children] (a show's seasons, a season's
+ * episodes) where a test gives them.
+ */
+internal class ItemData(
+    vararg details: ItemDetail,
+    override val requests: RequestsRepository = RequestsRepository.None,
+    private val children: Map<Long, List<ItemSummary>> = emptyMap(),
+) : DataGraph {
     private val held = details.associate { it.id to MutableStateFlow<Loadable<ItemDetail>>(Loadable.Ready(it, true)) }
     val streams = mutableListOf<List<Long?>>()
     val played = mutableListOf<PlayRequest>()
@@ -55,7 +64,7 @@ internal class ItemData(vararg details: ItemDetail) : DataGraph {
 
     override val items: ItemRepository = object : ItemRepository {
         override fun detail(itemId: Long): Flow<Loadable<ItemDetail>> = held[itemId] ?: flowOf(Loadable.Loading)
-        override fun children(itemId: Long): Flow<Loadable<List<ItemSummary>>> = flowOf(Loadable.Ready(emptyList(), true))
+        override fun children(itemId: Long): Flow<Loadable<List<ItemSummary>>> = flowOf(Loadable.Ready(children[itemId].orEmpty(), true))
         override fun onDeck(itemId: Long): Flow<Loadable<ItemSummary?>> = flowOf(Loadable.Ready(null, true))
         override fun related(itemId: Long): Flow<Loadable<List<ItemSummary>>> = flowOf(Loadable.Ready(emptyList(), true))
         override fun collectionsOf(itemId: Long): Flow<Loadable<List<CollectionSummary>>> = flowOf(Loadable.Ready(emptyList(), true))

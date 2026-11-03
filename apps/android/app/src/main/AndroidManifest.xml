@@ -18,6 +18,14 @@
         android:usesPermissionFlags="neverForLocation" />
     <!-- Fire TV below Fire OS 14: Alexa's play, pause and seek. -->
     <uses-permission android:name="com.amazon.permission.media.session.voicecommandcontrol" />
+    <!--
+      TVs: videos on a USB drive, asked for when its page opens. Android 13
+      and later ask for videos, earlier versions for storage.
+    -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
 
     <!--
       One app for phones, tablets and TVs: no remote, touchscreen or
@@ -40,7 +48,8 @@
       module holds the app's tokens, sealed by this device's Keystore. Back
       goes through the system's callbacks (Fire OS 16 can skip onBackPressed).
       Its category is video: Android files it with the video apps (data and
-      battery use, the launcher's groups).
+      battery use, the launcher's groups). Android 10 reads a USB drive's
+      folders as earlier versions do (requestLegacyExternalStorage).
     -->
     <application
         android:name=".PleyApplication"
@@ -52,6 +61,7 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
+        android:requestLegacyExternalStorage="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.Pley"
         android:usesCleartextTraffic="true">

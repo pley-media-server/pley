@@ -79,7 +79,7 @@ function request(id: number, over: Partial<MediaRequest> = {}): MediaRequest {
  * to say its event stream went down or came back.
  */
 function setup(store = memoryStore()) {
-  const platform = { name: "webos", clientId: "test", storage: store } as unknown as Platform;
+  const platform = { name: "tizen", clientId: "test", storage: store } as unknown as Platform;
   const app = new AppState(platform, () => Promise.reject(new Error("no network in tests")));
   const asked: string[] = [];
   const server = {

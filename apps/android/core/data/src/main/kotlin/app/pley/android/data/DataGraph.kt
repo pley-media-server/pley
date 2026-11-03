@@ -193,7 +193,9 @@ class AppDataGraph(private val env: DataEnvironment) : DataGraph {
     override val playItem: PlayItem by lazy { CachedPlayItem(cache, itemsImpl) }
     override val liveTv: LiveTvRepository by lazy { CachedLiveTv(cache) }
     override val requests: RequestsRepository by lazy {
-        ServerRequests(cache, live, env.foreground, sessionImpl.session.map { it?.scopes }, preferences(ServerRequests.FILE), env.scope)
+        ServerRequests(
+            cache, live, env.foreground, sessionImpl.session.map { it?.scopes }, preferences(ServerRequests.FILE), env.scope, tv = env.profile.isTv,
+        )
     }
 
     override val settings: AppSettings by lazy {

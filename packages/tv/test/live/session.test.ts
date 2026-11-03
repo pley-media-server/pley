@@ -97,7 +97,7 @@ function fakeServer(answer?: (id: number, n: number) => Promise<LiveWatching>) {
 function setup(answer?: (id: number, n: number) => Promise<LiveWatching>) {
   const engine = new FakeEngine();
   const { server, asked, ended } = fakeServer(answer);
-  const c = new LiveController(channel(1), { server, engine: () => engine, clientId: "webos-tv" });
+  const c = new LiveController(channel(1), { server, engine: () => engine, clientId: "tizen-tv" });
   return { c, engine, asked, ended };
 }
 
@@ -115,7 +115,7 @@ describe("a live channel on the TV's player", () => {
     const { c, engine, asked } = setup();
     c.tune(channel(1));
     await vi.advanceTimersByTimeAsync(0);
-    expect(asked).toEqual(["watch 1 webos-tv", "GET /api/live/media/pley_mk_1/index.m3u8"]);
+    expect(asked).toEqual(["watch 1 tizen-tv", "GET /api/live/media/pley_mk_1/index.m3u8"]);
     expect(engine.sources[0]).toMatchObject({ url: "http://tv.test/api/live/media/pley_mk_1/index.m3u8", hls: true, live: true, startMs: 0 });
     expect(c.state.value.phase).toBe("tuning");
     engine.listener!.firstFrame();
@@ -129,7 +129,7 @@ describe("a live channel on the TV's player", () => {
     engine.listener!.firstFrame();
     c.tune(channel(2));
     await vi.advanceTimersByTimeAsync(0);
-    expect(asked.slice(2)).toEqual(["leave s1", "watch 2 webos-tv", "GET /api/live/media/pley_mk_2/index.m3u8"]);
+    expect(asked.slice(2)).toEqual(["leave s1", "watch 2 tizen-tv", "GET /api/live/media/pley_mk_2/index.m3u8"]);
     expect(engine.calls).toContain("stop");
     expect(c.state.value).toMatchObject({ phase: "tuning", shown: false, tunes: 2 });
     expect(c.state.value.channel.id).toBe(2);
@@ -169,7 +169,7 @@ describe("a live channel on the TV's player", () => {
     expect(c.state.value.trouble?.connections?.map(holders)).toEqual(["You, on another device", "ana, bo"]);
     c.takeOver(7);
     await vi.advanceTimersByTimeAsync(0);
-    expect(asked.filter((a) => a.indexOf("watch") === 0)).toEqual(["watch 1 webos-tv", "watch 1 webos-tv taking 7"]);
+    expect(asked.filter((a) => a.indexOf("watch") === 0)).toEqual(["watch 1 tizen-tv", "watch 1 tizen-tv taking 7"]);
     expect(c.state.value.phase).toBe("tuning");
   });
 
@@ -288,7 +288,7 @@ describe("a live channel on the TV's player", () => {
     expect(asked[asked.length - 1]).toBe("leave s1");
     c.resume();
     await vi.advanceTimersByTimeAsync(0);
-    expect(asked.slice(-2)).toEqual(["watch 1 webos-tv", "GET /api/live/media/pley_mk_2/index.m3u8"]);
+    expect(asked.slice(-2)).toEqual(["watch 1 tizen-tv", "GET /api/live/media/pley_mk_2/index.m3u8"]);
   });
 
   it("tells the server at once when the player closes, and drops a watch that answers after", async () => {
@@ -298,7 +298,7 @@ describe("a live channel on the TV's player", () => {
     c.close();
     answer!({ session_id: "late", url: "/api/live/media/pley_mk_late/index.m3u8", kind: "hls", channel: channel(1) });
     await vi.advanceTimersByTimeAsync(0);
-    expect(asked).toEqual(["watch 1 webos-tv", "leave late"]);
+    expect(asked).toEqual(["watch 1 tizen-tv", "leave late"]);
     expect(engine.sources).toHaveLength(0);
   });
 });

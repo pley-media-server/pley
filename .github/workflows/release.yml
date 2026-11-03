@@ -19,7 +19,7 @@ on:
       - apps/desktop/package.json
       - apps/android/app/build.gradle.kts
       - apps/tizen/package.json
-      - apps/webos/package.json
+      - apps/webos/appinfo.json
       - apps/kodi/plugin.video.pley/addon.xml
       - apps/roku/manifest
   workflow_dispatch:

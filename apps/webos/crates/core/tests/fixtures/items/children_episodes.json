@@ -1,0 +1,32 @@
+{
+  "items": [
+    {
+      "id": 203, "library_id": 2, "kind": "episode", "title": "Good News About Hell", "sort_title": "Good News About Hell", "year": 2022, "index": 1,
+      "parent_id": 202, "parent_title": "Season 1", "parent_index": 1, "grandparent_id": 201, "grandparent_title": "Severance",
+      "duration_ms": 3427000, "rating": 8.0, "added_at": 1761200000,
+      "poster_url": "/api/items/202/images/poster?v=1761200400", "backdrop_url": "/api/items/201/images/backdrop?v=1761200400",
+      "thumb_url": "/api/items/203/images/thumb?v=1761200400",
+      "user_state": { "position_ms": 0, "watched": true, "play_count": 1, "last_played_at": 1761250000 },
+      "summary": "Mark is promoted to lead his team of severed employees at Lumon, and a new hire has trouble settling in.",
+      "release_date": "2022-02-18"
+    },
+    {
+      "id": 204, "library_id": 2, "kind": "episode", "title": "Half Loop", "sort_title": "Half Loop", "year": 2022, "index": 2,
+      "parent_id": 202, "parent_title": "Season 1", "parent_index": 1, "grandparent_id": 201, "grandparent_title": "Severance",
+      "duration_ms": 3209000, "rating": 7.9, "added_at": 1761200000,
+      "poster_url": "/api/items/202/images/poster?v=1761200400", "backdrop_url": "/api/items/201/images/backdrop?v=1761200400",
+      "thumb_url": "/api/items/204/images/thumb?v=1761200400",
+      "user_state": { "position_ms": 1185000, "watched": false, "play_count": 0, "last_played_at": 1761390000 },
+      "summary": "Helly tries to resign; Mark meets someone from his outside life.",
+      "release_date": "2022-02-18"
+    },
+    {
+      "id": 205, "library_id": 2, "kind": "episode", "title": "In Perpetuity", "sort_title": "In Perpetuity", "year": 2022, "index": 3,
+      "parent_id": 202, "parent_title": "Season 1", "parent_index": 1, "grandparent_id": 201, "grandparent_title": "Severance",
+      "duration_ms": 3074000, "added_at": 1761200000,
+      "poster_url": "/api/items/202/images/poster?v=1761200400", "backdrop_url": "/api/items/201/images/backdrop?v=1761200400",
+      "user_state": { "position_ms": 0, "watched": false, "play_count": 0 },
+      "release_date": "2022-02-25"
+    }
+  ]
+}

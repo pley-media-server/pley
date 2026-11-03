@@ -1,32 +1,36 @@
 # Verifies the licensing rules (see LICENSING.md):
-#  * the server (pley-server) and the transcoder (pley-transcoder), both
-#    under LICENSE (AGPL-3.0-only), must not depend on any crate that is only
-#    available under a copyleft license ((L/A)GPL and the like);
+#  * the server (pley-server), the transcoder (pley-transcoder) and Pley for
+#    LG TV (pley-lg, the workspace in apps/webos), all under LICENSE
+#    (AGPL-3.0-only), must not depend on any crate that is only available
+#    under a copyleft license ((L/A)GPL and the like);
 #  * the server must not depend on the transcoder crate: it is a separate
 #    program, spoken to only over HTTP.
-# Walks the resolved dependency graph from `cargo metadata` (dev-dependencies excluded).
+# Walks each workspace's resolved dependency graph from `cargo metadata`
+# (dev-dependencies excluded), for every platform: the LG TV app's graph is
+# its TV binary's and its desktop simulator's.
 # Exit code 1 on violations.
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
-Push-Location $root
-try {
-    $meta = cargo metadata --format-version 1 --quiet | ConvertFrom-Json
-} finally {
-    Pop-Location
+
+function Get-Metadata([string]$dir, [string[]]$features) {
+    Push-Location $dir
+    try {
+        $json = cargo metadata --format-version 1 --quiet @features
+        if ($LASTEXITCODE -ne 0) { throw "cargo metadata failed in $dir" }
+        return $json | ConvertFrom-Json
+    } finally {
+        Pop-Location
+    }
 }
 
-$packages = @{}
-foreach ($p in $meta.packages) { $packages[$p.id] = $p }
-$nodes = @{}
-foreach ($n in $meta.resolve.nodes) { $nodes[$n.id] = $n }
-# Pley's own crates are under LICENSE themselves; the rule is about the
-# crates they use.
-$own = @{}
-foreach ($id in $meta.workspace_members) { $own[$id] = $true }
-
-function Get-Closure([string]$name) {
-    $start = ($meta.packages | Where-Object { $_.name -eq $name } | Select-Object -First 1).id
+function Get-Closure($meta, [string]$name) {
+    $packages = @{}
+    foreach ($p in $meta.packages) { $packages[$p.id] = $p }
+    $nodes = @{}
+    foreach ($n in $meta.resolve.nodes) { $nodes[$n.id] = $n }
+    $start = ($meta.packages | Where-Object { $_.name -eq $name -and -not $_.source } | Select-Object -First 1).id
+    if (-not $start) { throw "no package $name in the workspace" }
     $seen = @{}
     $queue = [System.Collections.Generic.Queue[string]]::new()
     $queue.Enqueue($start)
@@ -53,28 +57,42 @@ function Test-CopyleftOnly([string]$expr) {
     return $true
 }
 
+$workspaces = @(
+    @{ Dir = $root; Programs = "pley-server", "pley-transcoder"; Features = @() },
+    # A workspace of its own (see the root Cargo.toml), resolved with the TV's
+    # features as well as the simulator's defaults, as `cargo xtask` does.
+    @{ Dir = Join-Path $root "apps/webos"; Programs = @("pley-lg"); Features = @("--features", "pley-lg/tv") }
+)
+
 $failed = $false
 
-foreach ($program in "pley-server", "pley-transcoder") {
-    $closure = Get-Closure $program
-    Write-Host "${program}: $($closure.Count) crates in the runtime dependency graph"
-    foreach ($p in $closure) {
-        if ($program -eq "pley-server" -and $p.name -eq "pley-transcoder") {
-            Write-Host "  ERROR: pley-server depends on pley-transcoder (a separate program)" -ForegroundColor Red
-            $failed = $true
+foreach ($workspace in $workspaces) {
+    $meta = Get-Metadata $workspace.Dir $workspace.Features
+    # Pley's own crates are under LICENSE themselves; the rule is about the
+    # crates they use.
+    $own = @{}
+    foreach ($id in $meta.workspace_members) { $own[$id] = $true }
+    foreach ($program in $workspace.Programs) {
+        $closure = Get-Closure $meta $program
+        Write-Host "${program}: $($closure.Count) crates in the runtime dependency graph"
+        foreach ($p in $closure) {
+            if ($program -eq "pley-server" -and $p.name -eq "pley-transcoder") {
+                Write-Host "  ERROR: pley-server depends on pley-transcoder (a separate program)" -ForegroundColor Red
+                $failed = $true
+            }
+            if ($own.ContainsKey($p.id)) { continue }
+            if (Test-CopyleftOnly $p.license) {
+                Write-Host "  ERROR: $($p.name) $($p.version) is $($p.license)" -ForegroundColor Red
+                $failed = $true
+            }
+            if (-not $p.license -and -not $p.license_file -and $p.source) {
+                Write-Host "  WARN: $($p.name) $($p.version) declares no license" -ForegroundColor Yellow
+            }
         }
-        if ($own.ContainsKey($p.id)) { continue }
-        if (Test-CopyleftOnly $p.license) {
-            Write-Host "  ERROR: $($p.name) $($p.version) is $($p.license)" -ForegroundColor Red
-            $failed = $true
-        }
-        if (-not $p.license -and -not $p.license_file -and $p.source) {
-            Write-Host "  WARN: $($p.name) $($p.version) declares no license" -ForegroundColor Yellow
-        }
+        $licenses = $closure | Group-Object { if ($_.license) { $_.license } else { "(file) $($_.license_file)" } } | Sort-Object Count -Descending
+        Write-Host "Licenses used by ${program}:"
+        foreach ($l in $licenses) { Write-Host ("  {0,4}  {1}" -f $l.Count, $l.Name) }
     }
-    $licenses = $closure | Group-Object { if ($_.license) { $_.license } else { "(file) $($_.license_file)" } } | Sort-Object Count -Descending
-    Write-Host "Licenses used by ${program}:"
-    foreach ($l in $licenses) { Write-Host ("  {0,4}  {1}" -f $l.Count, $l.Name) }
 }
 
 if ($failed) {

@@ -202,6 +202,13 @@ class PlaybackEnvironment(
     /** Downloads: files played as they are on the device, without the server. */
     val local: LocalMedia = LocalMedia.None,
     /**
+     * A video on a drive plugged into the TV, played from [local] as a
+     * download is: no server is behind it, so nothing only a server does is
+     * asked for (conversions, seek previews, saved track choices), and its
+     * tracks and chapters come from Media3 as it plays.
+     */
+    val drive: Boolean = false,
+    /**
      * Tracks picked in the player, saved by it (PUT /api/items/{id}/streams):
      * what the app holds of the item, and of the show's other episodes, is
      * told (WatchStateRepository.streamsChosen).

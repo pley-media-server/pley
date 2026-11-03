@@ -77,7 +77,8 @@ data class MusicPosition(val positionMs: Long = 0, val durationMs: Long = 0, val
 /**
  * Music, which keeps playing in the background with the lock screen's and
  * the notification's controls (a media session service). Video never does:
- * a video starting pauses the music ([pauseForVideo]).
+ * a video or a channel starting pauses the music and ends its session
+ * ([pauseForVideo]).
  *
  * Everything is called on the main thread. The members besides
  * [nowPlaying] and [pauseForVideo] do nothing by default, for fakes.
@@ -118,7 +119,10 @@ interface MusicControl {
     /** Stops and forgets the queue (signing out). */
     fun stop() {}
 
-    /** Pauses the music because a video starts. */
+    /**
+     * Pauses the music because a video or a channel starts, and ends its
+     * session on the server; Play starts a new one where it was.
+     */
     fun pauseForVideo()
 
     /** The sleep timer of the music. */

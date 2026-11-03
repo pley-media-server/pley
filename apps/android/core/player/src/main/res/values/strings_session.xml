@@ -44,6 +44,11 @@
     <string name="session_method_direct">Direct play</string>
     <string name="session_method_downloaded">Downloaded</string>
     <string name="session_error_download_needs_server">This download can\'t play on this device offline. Connect to your server to play it.</string>
+    <!-- A video on a USB drive, which plays with no server. -->
+    <string name="session_drive_unplayable">This TV can\'t play this file as it is, and a file on a drive has no server to convert it.</string>
+    <string name="session_drive_stuck">This TV doesn\'t play this file: its picture never started. With no server to convert it, try another copy.</string>
+    <string name="session_drive_unreadable">This video can\'t be read. The drive may have been pulled out.</string>
+    <string name="session_drive_speed_undecodable">Not for this file: its sound goes to your receiver as it is, and nothing here decodes it</string>
     <string name="session_method_remux">Direct stream</string>
     <string name="session_method_transcode">Transcoding</string>
     <string name="session_method_remux_audio">Direct stream · Audio transcoding</string>

@@ -3,24 +3,36 @@ package app.pley.android.ui.tv.search
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
 import app.pley.android.common.Tier
 import app.pley.android.designsystem.tile.ArtworkTileModel
+import app.pley.android.model.DiscoverPage
+import app.pley.android.model.DiscoverTitle
 import app.pley.android.model.LiveChannel
+import app.pley.android.screens.requests.RequestProblem
 import app.pley.android.screens.search.SearchGroup
 import app.pley.android.screens.search.SearchGroupKind
 import app.pley.android.screens.search.SearchResultsState
 import app.pley.android.screens.search.SearchUiState
+import app.pley.android.screens.search.TmdbSection
+import app.pley.android.testing.Fixtures
 import app.pley.android.ui.tv.kit.focused
 import app.pley.android.ui.tv.kit.press
 import app.pley.android.ui.tv.theme.TvTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -30,7 +42,10 @@ import org.robolectric.annotation.Config
 /**
  * Search with the remote (design spec §4.5, D-pad rules 1 and 7): focus
  * starts on the field; Down goes into the results' rows and Up back to
- * the field; recent searches are chips under it.
+ * the field; recent searches are chips under it, which move only when
+ * one would pass the gutter or the safe area's edge. After the results,
+ * for a profile that may ask, Discover's row of what TMDB has
+ * (packages/tv's requests.test.tsx, "search").
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
@@ -41,10 +56,13 @@ class TvSearchTest {
     private val opened = mutableListOf<Pair<SearchGroupKind, Long>>()
     private val chosen = mutableListOf<String>()
     private val watched = mutableListOf<Long>()
+    private val tmdbOpened = mutableListOf<DiscoverTitle>()
+    private val allOf = mutableListOf<String>()
+    private var tmdbRetries = 0
 
-    private fun show(state: SearchUiState<ArtworkTileModel>) {
+    private fun show(state: SearchUiState<ArtworkTileModel>, tmdb: TmdbSection = TmdbSection.Hidden, reduced: Boolean = true) {
         compose.setContent {
-            TvTheme(Tier.T2, reducedMotion = true) {
+            TvTheme(Tier.T2, reducedMotion = reduced) {
                 TvSearchContent(
                     state = state,
                     field = TextFieldState(state.query),
@@ -54,6 +72,10 @@ class TvSearchTest {
                     onOpen = { group, id -> opened += group to id },
                     onActions = {},
                     onWatch = { watched += it.id },
+                    tmdb = tmdb,
+                    onTmdbRetry = { tmdbRetries++ },
+                    onTmdbOpen = { tmdbOpened += it },
+                    onTmdbAll = { allOf += it },
                 )
             }
         }
@@ -103,6 +125,21 @@ class TvSearchTest {
     }
 
     @Test
+    fun theChannelRowBringsItsFocusedChannelToTheGutterAsRowsDo() {
+        val groups = listOf(SearchGroup(SearchGroupKind.Movies, listOf(tile(1, "Northern Lights")), listOf(1)))
+        val channels = (1L..12L).map { LiveChannel(id = it, name = "North $it", number = "$it") }
+        show(SearchUiState("north", emptyList(), SearchResultsState.Ready("north", groups, loading = false, channels = channels)))
+        compose.press(Key.DirectionDown, times = 2)
+        compose.press(Key.DirectionRight, times = 3)
+        // The fourth channel, at the gutter, 96 dp in, where the rows' tiles come.
+        assertEquals(96f, compose.onNodeWithTag(TV_SEARCH_CHANNEL + 4).getBoundsInRoot().left.value, 1f)
+        compose.press(Key.DirectionRight)
+        assertEquals(96f, compose.onNodeWithTag(TV_SEARCH_CHANNEL + 5).getBoundsInRoot().left.value, 1f)
+        compose.press(Key.Enter)
+        assertEquals(listOf(5L), watched)
+    }
+
+    @Test
     fun recentSearchesAreChipsUnderTheField() {
         show(SearchUiState("", listOf("north", "halcyon"), SearchResultsState.Idle))
         compose.onNodeWithText("Recent searches").assertExists()
@@ -113,6 +150,102 @@ class TvSearchTest {
         assertEquals(listOf("halcyon"), chosen)
         // The chips go once results come: focus waits on the field.
         compose.onNodeWithTag(TV_SEARCH_FIELD).assertIsFocused()
+    }
+
+    /** TMDB's trending titles, as its search finds them for [query]. */
+    private fun tmdbFound(query: String) =
+        TmdbSection.Ready(query, Fixtures.decode<DiscoverPage>("discover/trending.json").results, origin = "http://127.0.0.1:1")
+
+    @Test
+    fun discoverComesAfterTheLibrariesResultsWithSeeAll() {
+        val groups = listOf(SearchGroup(SearchGroupKind.Movies, listOf(tile(1, "Northern Lights")), listOf(1)))
+        val tmdb = tmdbFound("north")
+        show(SearchUiState("north", emptyList(), SearchResultsState.Ready("north", groups, loading = false)), tmdb)
+        compose.onNodeWithText("Discover").assertExists()
+        compose.press(Key.DirectionDown)
+        compose.focused().assert(hasContentDescription("Northern Lights"))
+        compose.press(Key.DirectionDown)
+        compose.focused().assert(hasContentDescription("The Wild Robot", substring = true))
+        compose.press(Key.Enter)
+        assertEquals(listOf(tmdb.titles.first()), tmdbOpened)
+        // See all, after the titles.
+        compose.press(Key.DirectionRight, tmdb.titles.size)
+        compose.press(Key.Enter)
+        assertEquals(listOf("north"), allOf)
+    }
+
+    @Test
+    fun withNothingInTheLibrariesTheLineSaysSoAboveDiscover() {
+        show(SearchUiState("robot", emptyList(), SearchResultsState.Empty("robot")), tmdbFound("robot"))
+        compose.onNodeWithText("Nothing in your libraries matches").assertExists()
+        compose.onNodeWithText("No results for “robot”").assertDoesNotExist()
+        compose.press(Key.DirectionDown)
+        compose.focused().assert(hasContentDescription("The Wild Robot", substring = true))
+        compose.press(Key.DirectionUp)
+        compose.onNodeWithTag(TV_SEARCH_FIELD).assertIsFocused()
+    }
+
+    @Test
+    fun whenTmdbDoesntAnswerTheRowSaysSoWithRetry() {
+        show(SearchUiState("robot", emptyList(), SearchResultsState.Empty("robot")), TmdbSection.Failed("robot", RequestProblem.TmdbDown))
+        compose.onNodeWithText("Nothing in your libraries matches").assertExists()
+        compose.onNodeWithText("TMDB isn't answering").assertExists()
+        compose.press(Key.DirectionDown)
+        compose.focused().assert(hasText("Retry"))
+        compose.press(Key.Enter)
+        assertEquals(1, tmdbRetries)
+        // Asked again: focus waits on the field.
+        compose.onNodeWithTag(TV_SEARCH_FIELD).assertIsFocused()
+    }
+
+    @Test
+    fun whileTmdbIsAskedTheRowIsStill() {
+        show(SearchUiState("robot", emptyList(), SearchResultsState.Empty("robot")), TmdbSection.Loading("robot"))
+        compose.onNodeWithText("Discover").assertExists()
+        // Nothing in it takes focus: Down stays on the field.
+        compose.press(Key.DirectionDown)
+        compose.onNodeWithTag(TV_SEARCH_FIELD).assertIsFocused()
+    }
+
+    @Test
+    fun recentChipsMoveOnlyWhenOneWouldPassTheEdge() {
+        show(SearchUiState("", List(12) { "a longer search $it" }, SearchResultsState.Idle))
+        compose.press(Key.DirectionDown)
+        // Along the chips that show between the gutter and the safe area's edge, nothing moves.
+        compose.press(Key.DirectionRight, times = 5)
+        compose.focused().assert(hasText("a longer search 5"))
+        assertEquals(96f, compose.onNodeWithText("a longer search 0").getBoundsInRoot().left.value, 1f)
+        // On to Clear, past the edge: the row moves just far enough for it, to the safe area's edge.
+        compose.press(Key.DirectionRight, times = 7)
+        compose.press(Key.DirectionLeft)
+        assertEquals(912f, compose.onNodeWithText("Clear").getBoundsInRoot().right.value, 1f)
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun recentChipsGlideOver150MsEasedOutWhenTheyMove() {
+        show(SearchUiState("", List(12) { "a longer search $it" }, SearchResultsState.Idle), reduced = false)
+        compose.press(Key.DirectionDown)
+        val first = compose.onNodeWithText("a longer search 0")
+        val start = first.getBoundsInRoot().left.value
+        compose.mainClock.autoAdvance = false
+        // Right until a chip would pass the edge: that press moves the row as rows move, over
+        // 150 ms eased out, so over several frames, each moving it less than the one before.
+        for (chip in 1..12) {
+            compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+            var at = start - first.getBoundsInRoot().left.value
+            val steps = mutableListOf<Float>()
+            repeat(20) {
+                compose.mainClock.advanceTimeByFrame()
+                val now = start - first.getBoundsInRoot().left.value
+                if (now != at) steps += now - at
+                at = now
+            }
+            if (steps.isEmpty()) continue
+            assertTrue("$steps at chip $chip", steps.size >= 5 && steps.zipWithNext().all { (a, b) -> b <= a + 0.5f })
+            return
+        }
+        fail("The chips never moved")
     }
 
     @Test

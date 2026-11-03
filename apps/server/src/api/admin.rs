@@ -346,6 +346,8 @@ pub struct NetworkInfo {
     fixed: Fixed,
     listeners: Vec<Listener>,
     adapters: Vec<Adapter>,
+    /// Bonjour's host name when none is chosen.
+    bonjour_host_default: String,
     /// Where a change is saved.
     config_file: String,
     /// Windows Firewall decides which kinds of network reach pley.
@@ -359,6 +361,7 @@ async fn network_info(state: &AppState) -> ApiResult<NetworkInfo> {
         fixed: state.network.fixed,
         listeners: state.network.listeners(),
         adapters,
+        bonjour_host_default: crate::bonjour::generated_host(&state.identity.id),
         config_file: state.network.config_file.display().to_string(),
         windows: cfg!(windows),
     })
@@ -377,12 +380,21 @@ pub async fn put_network(
     // This computer's address first: pley must listen on the first as it
     // starts, and an adapter's may be gone by then (DHCP, a VPN off).
     listen.web.sort_by_key(|addr| !addr.ip().is_loopback());
+    // An adapter chosen twice is chosen once, by its name as the system
+    // gives it.
+    for name in &mut listen.bonjour_adapters {
+        *name = name.trim().to_owned();
+    }
+    listen.bonjour_adapters.sort();
+    listen.bonjour_adapters.dedup();
+    listen.bonjour_host_name = crate::bonjour::host_label(&listen.bonjour_host_name);
     listen.check().map_err(AppError::bad_request)?;
     let (now, fixed) = (state.network.wanted(), state.network.fixed);
     if (fixed.web && listen.web != now.web)
         || (fixed.plex && (listen.plex != now.plex || listen.plex_on_web != now.plex_on_web))
         || (fixed.jellyfin && (listen.jellyfin != now.jellyfin || listen.jellyfin_on_web != now.jellyfin_on_web))
         || (fixed.discovery && listen.discovery != now.discovery)
+        || (fixed.bonjour && listen.bonjour != now.bonjour)
     {
         return Err(AppError::bad_request("the command line or the environment sets that: change it there"));
     }
@@ -400,12 +412,13 @@ pub async fn put_network(
         };
         tracing::info!(
             "{} changed where Pley listens: {} (the Plex-compatible API: {}; the Jellyfin-compatible API: {}; \
-             discovery {})",
+             discovery {}; Bonjour {})",
             user.username,
             addresses(&listen.web),
             api(listen.plex_on_web, &listen.plex),
             api(listen.jellyfin_on_web, &listen.jellyfin),
             if listen.discovery { "on" } else { "off" },
+            if listen.bonjour { "on" } else { "off" },
         );
         state.network.change(listen).await.map_err(|err| AppError::Unavailable(format!("{err:#}")))?;
     }
