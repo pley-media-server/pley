@@ -22,6 +22,8 @@ import app.pley.android.player.QualityChoice
 import app.pley.android.player.SubtitleSearchUi
 import app.pley.android.player.TrackChoice
 import app.pley.android.player.UpNextUi
+import app.pley.android.player.sleep.SleepChoice
+import app.pley.android.player.sleep.SleepState
 import app.pley.android.player.subtitles.CaptionLook
 import app.pley.android.testing.player.session.FakePlaybackController
 import app.pley.android.ui.phone.theme.PhoneTheme
@@ -379,6 +381,19 @@ class PhonePlayerScreenTest {
         val controls = setOf("seekBar", "centre", "skip", "top", "bottom", "screen")
         assertEquals("compositions while dragging: $during", emptyList<String>(), during.filter { it in controls })
         assertEquals(1, fake.calls("seekTo").size)
+    }
+
+    @Test
+    fun theSleepNoticeKeepsTheWidthOfItsThirtySecondsAsTheCountGoesDown() {
+        val fake = FakePlaybackController(playing { it.copy(sleep = SleepState(SleepChoice.Minutes(30), secondsLeft = 30, minutesLeft = 1)) })
+        show(fake)
+        compose.onNodeWithText("Pausing in 30 s").assertExists()
+        val wide = compose.onNodeWithTag(TAG_SLEEP_NOTICE).getBoundsInRoot()
+
+        fake.update { it.copy(sleep = it.sleep.copy(secondsLeft = 9)) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Pausing in 9 s").assertExists()
+        assertEquals(wide, compose.onNodeWithTag(TAG_SLEEP_NOTICE).getBoundsInRoot())
     }
 
     @Test

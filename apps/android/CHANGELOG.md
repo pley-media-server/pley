@@ -23,6 +23,8 @@ describes how they are made.
 - On phones and tablets, dragging the seek bar, the volume or the
   brightness moves only what is drawn: the controls no longer redraw with
   each move of the finger.
+- On phones and tablets, the sleep timer's notice keeps its width as the
+  count goes under 10 s, so Keep watching no longer moves under the finger.
 
 ## [0.1.3] - 2026-11-02
 
