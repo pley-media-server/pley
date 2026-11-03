@@ -71,6 +71,7 @@ import app.pley.android.screens.diagnostics.DiagnosticsViewModel
 import app.pley.android.screens.onboarding.ProfileTile
 import app.pley.android.screens.settings.SettingsUiState
 import app.pley.android.screens.settings.SettingsViewModel
+import app.pley.android.screens.R as ScreensR
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberedFocus
@@ -558,6 +559,11 @@ private fun LazyListScope.pane(
                 item(key = "licence-$i") {
                     TvSettingRow(name, value = licence, onClick = {}, modifier = keyed("licence-$i"))
                 }
+            }
+            // Discover's titles and pictures: TMDB's terms ask every app that shows them to say this.
+            item(key = "credits") { TvPaneHeading(stringResource(R.string.tv_settings_credits)) }
+            item(key = "row-tmdb") {
+                TvSettingRow("TMDB", value = stringResource(ScreensR.string.requests_credit_about), onClick = {}, modifier = keyed("row-tmdb"))
             }
         }
         Category.SignOut -> {

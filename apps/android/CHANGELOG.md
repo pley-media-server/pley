@@ -22,6 +22,7 @@ describes how they are made.
   results, up to 20 of TMDB's titles the libraries lack, and a library's
   movie or show from a request shows its stage, with Request more seasons
   for a show missing some.
+- On Android TV and Fire TV, Settings → About credits TMDB.
 
 ### Fixed
 

@@ -158,6 +158,17 @@ class TvSettingsFocusTest {
     }
 
     @Test
+    fun aboutCreditsTmdbAfterTheLicences() {
+        show()
+        compose.press(Key.DirectionDown, times = 6)
+        category(Category.About).assertIsFocused()
+        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionDown, times = licences().size + 1)
+        compose.focused().assert(hasText("TMDB")).assert(hasText("This product uses the TMDB API but is not endorsed or certified by TMDB."))
+        compose.onNodeWithText("Credits").assertExists()
+    }
+
+    @Test
     fun signOutAsksFirstWithFocusOnCancel() {
         show()
         compose.press(Key.DirectionDown, times = 7)

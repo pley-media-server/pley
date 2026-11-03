@@ -254,11 +254,12 @@ On Android TV and Fire TV, as on the Samsung and LG apps:
 
 On either, an app signed in before requests offers Sign in again on
 Discover (a TV shows a new code to link), which asks for the `requests`
-and `approvals` scopes the server now lists. The summary follows the
-event stream; without it, the app reads the summary every minute in the
-foreground and an open list every 30 s. Download progress sends no
-events: a list, a title's page, a library title or Discover's requests
-showing a download are read again every 10 s while they show.
+and `approvals` scopes the server now lists, and Settings → About credits
+TMDB, as its terms ask. The summary follows the event stream; without
+it, the app reads the summary every minute in the foreground and an open
+list every 30 s. Download progress sends no events: a list, a title's
+page, a library title or Discover's requests showing a download are read
+again every 10 s while they show.
 
 ### Offline and downloads
 
