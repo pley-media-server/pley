@@ -16,7 +16,8 @@ import { IconButton, Skeleton } from "./ui";
 import { discoverUrl, libraryUrl, playlistUrl, requestsUrl } from "@/lib/urls";
 
 export function LibraryIcon({ kind, className }: { kind: LibraryKind; className?: string }) {
-  const cls = cn("size-[18px] shrink-0", className);
+  // A size in `className` replaces the default: `cn` doesn't merge classes, and the later rule would win.
+  const cls = cn(className ?? "size-[18px]", "shrink-0");
   if (kind === "movies") return <Film className={cls} />;
   if (kind === "shows") return <Tv className={cls} />;
   return <Music className={cls} />;

@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ChevronDown, Search } from "lucide-react";
 import { errorMessage } from "@/api/client";
@@ -53,6 +53,7 @@ function ResultSection<T>({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLElement>(null);
+  const id = useId();
   const limit = columns * SHOWN_ROWS;
   const more = items.length > limit;
   const toggle = () => {
@@ -61,13 +62,15 @@ function ResultSection<T>({
     setOpen(!open);
   };
   return (
-    <section ref={ref} className="scroll-mt-20">
+    <section ref={ref} className="scroll-mt-20" aria-labelledby={`${id}-title`}>
       <SectionTitle
         action={
           more ? (
             <button
               type="button"
               aria-expanded={open}
+              aria-controls={`${id}-results`}
+              aria-describedby={`${id}-title`}
               onClick={toggle}
               className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-3 text-sm font-medium text-muted transition-colors hover:bg-white/[0.06] hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
@@ -77,9 +80,11 @@ function ResultSection<T>({
           ) : null
         }
       >
-        {title} <span className="ml-1 text-sm font-normal text-subtle">{items.length.toLocaleString()}</span>
+        <span id={`${id}-title`}>
+          {title} <span className="ml-1 text-sm font-normal text-subtle">{items.length.toLocaleString()}</span>
+        </span>
       </SectionTitle>
-      {children(open || !more ? items : items.slice(0, limit))}
+      <div id={`${id}-results`}>{children(open || !more ? items : items.slice(0, limit))}</div>
     </section>
   );
 }
@@ -288,10 +293,11 @@ export function SearchPage() {
       {/* The libraries' titles, then Live TV, then people (the server puts the closest first in each). */}
       {GROUPS.map(({ kind, title }) => {
         const items = results.filter((r) => r.kind === kind);
-        return items.length ? <ResultGroup key={kind} title={title} items={items} /> : null;
+        // Keyed by the query too: a new search starts with every group closed.
+        return items.length ? <ResultGroup key={`${q}:${kind}`} title={title} items={items} /> : null;
       })}
-      {channels.length ? <ChannelResults channels={channels} /> : null}
-      {people.length ? <PeopleResults people={people} /> : null}
+      {channels.length ? <ChannelResults key={q} channels={channels} /> : null}
+      {people.length ? <PeopleResults key={q} people={people} /> : null}
       {tmdb()}
     </div>
   );
