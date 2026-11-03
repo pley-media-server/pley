@@ -14,10 +14,13 @@ import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyPress
 import androidx.compose.ui.unit.dp
@@ -30,6 +33,7 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import app.pley.android.data.LiveTvRepository
 import app.pley.android.data.Loadable
 import app.pley.android.model.LiveCategory
+import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveGuide
 import app.pley.android.model.LiveProgram
 import app.pley.android.player.PlayRequest
@@ -46,11 +50,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.math.roundToInt
 
 /** The TV guide with the remote's keys: its edges, under a held key and pressed. */
 @RunWith(RobolectricTestRunner::class)
@@ -173,6 +179,32 @@ class TvGuideTest {
         key(AndroidKeyEvent.KEYCODE_DPAD_RIGHT, at = 100_000)
         assertEquals(30 * 3.6f + 2f, leftOf("World at One").value, 0.5f)
         assertEquals(-60 * 3.6f + 2f, leftOf("Morning Briefing").value, 0.5f)
+    }
+
+    @Test
+    fun `under a held Down the rows keep up with focus, a row at a time`() {
+        live.lineup.value = (1L..40L).map { LiveChannel(it, name = "Channel $it", number = "$it") }
+        show()
+        // Where a row's name shows when it is the first in view, from the second's.
+        val firstRow = compose.onNodeWithText("Channel 2").getUnclippedBoundsInRoot().top - 52.dp
+        compose.mainClock.autoAdvance = false
+        fun down(at: Long, repeat: Int) {
+            uptime = at
+            compose.onRoot().performKeyPress(KeyEvent(AndroidKeyEvent(100_000, at, AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_DOWN, repeat)))
+            // Three frames: the move drawn, then the rows where it put them. A glide takes ten times that.
+            compose.mainClock.advanceTimeBy(48)
+        }
+        down(at = 100_000, repeat = 0)
+        for (i in 1..12) down(at = 100_400 + i * 100L, repeat = i)
+        // The rows went with focus, whole rows at a time, none caught half way.
+        val names = compose.onAllNodes(hasText("Channel ", substring = true)).fetchSemanticsNodes()
+            .map { it.config[SemanticsProperties.Text].first().text to with(compose.density) { it.boundsInRoot.top.toDp() } }
+            .filter { (_, top) -> top >= firstRow - 1.dp }
+        assertTrue(names.toString(), names.any { (name, _) -> name.removePrefix("Channel ").toInt() >= 10 })
+        for ((name, top) in names) {
+            val rows = (top - firstRow).value / 52f
+            assertEquals(name, rows.roundToInt().toFloat(), rows, 0.05f)
+        }
     }
 
     private companion object {

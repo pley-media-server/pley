@@ -47,6 +47,9 @@ describes how they are made.
 - The TV guide moves more smoothly on slower TVs: a row is drawn again
   only when what it shows changes, and the grid slides without placing
   its programmes again.
+- Under a held Up or Down the TV guide's channels keep up with focus, a
+  row at a time, where each repeat began their scroll again; it opens on
+  the channel last watched without scrolling there.
 
 ### Fixed
 

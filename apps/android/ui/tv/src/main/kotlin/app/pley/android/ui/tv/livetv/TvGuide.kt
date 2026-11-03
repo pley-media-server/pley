@@ -7,6 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -164,11 +165,16 @@ internal fun TvGuide(
     // Opens on the channel last watched, once per category and return from the player.
     val landing by vm.landing.collectAsStateWithLifecycle()
     val placed = remember { mutableStateOf<Landing?>(null) }
+    // The rows' next scroll goes at once: the row was placed by a landing (not gliding as the guide
+    // opens), or moved by a held Channel up or down, which the gate, holding the arrows only, lets repeat.
+    val snapRows = remember { booleanArrayOf(false) }
     LaunchedEffect(landing) {
         val l = landing ?: return@LaunchedEffect
         if (l.category != category || placed.value == l) return@LaunchedEffect
         placed.value = l
-        focus = focus.place(l.index ?: 0, total)
+        val at = focus.place(l.index ?: 0, total)
+        snapRows[0] = at.row != focus.row
+        focus = at
     }
 
     // Not on a row still loading: there is nothing to come back to there.
@@ -186,11 +192,23 @@ internal fun TvGuide(
     val nowState = rememberUpdatedState(now)
     val nowAt = remember(nowState) { { nowState.value } }
     val rows = rememberLazyListState()
+    val rowPx = with(density) { ROW_HEIGHT.roundToPx() }
+    // The rows scroll when the focused one reaches the first or the last in view, bringing it second
+    // (Samsung's): in 150 ms for a press; at once for a landing, and a row at a time with the gate's
+    // moves under a held key (TvRow's), where a glide begun again at each repeat never got there.
     LaunchedEffect(row) {
         val visible = rows.layoutInfo.visibleItemsInfo
-        val first = visible.firstOrNull()?.index ?: 0
-        val last = visible.lastOrNull()?.index ?: 0
-        if (row <= first || row >= last) rows.animateScrollToItem((row - 1).coerceAtLeast(0))
+        val first = visible.firstOrNull()
+        val snap = snapRows[0]
+        snapRows[0] = false
+        if (first != null && row > first.index && row < visible.last().index) return@LaunchedEffect
+        val target = (row - 1).coerceAtLeast(0)
+        if (first == null || snap || gate.holding || reduced) {
+            rows.scrollToItem(target)
+        } else {
+            // The rows are all as tall: where the target is, in view or not.
+            rows.animateScrollBy(((target - first.index) * rowPx + first.offset).toFloat(), PleyMotion.focus())
+        }
     }
     LaunchedEffect(rows) {
         snapshotFlow { rows.layoutInfo.visibleItemsInfo.let { (it.firstOrNull()?.index ?: 0) to (it.lastOrNull()?.index ?: 0) } }
@@ -249,11 +267,19 @@ internal fun TvGuide(
                             true
                         }
                         KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_PAGE_UP -> {
-                            if (down) focus = at.pageUp()
+                            if (down) {
+                                val moved = at.pageUp()
+                                snapRows[0] = native.repeatCount > 0 && moved.row != at.row
+                                focus = moved
+                            }
                             true
                         }
                         KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_PAGE_DOWN -> {
-                            if (down) focus = at.pageDown(total)
+                            if (down) {
+                                val moved = at.pageDown(total)
+                                snapRows[0] = native.repeatCount > 0 && moved.row != at.row
+                                focus = moved
+                            }
                             true
                         }
                         // Two hours back or on, a press at a time: held, they would run through the two days in a second.
