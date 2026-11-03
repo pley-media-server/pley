@@ -5,7 +5,8 @@
 //! The header is a 44 dp row at y 27: the name at x 96 and the tabs at the right safe edge, 8
 //! apart; Up from a tab's content goes to the tab shown. The Library tab has its chips at y 80
 //! (Sort, Filter, Unwatched, Genre, Year, the resolution and dynamic range while chosen, then the
-//! count) and its grid's focused row at y 136;
+//! count where it fits whole; sliding with focus when they don't all fit) and its grid's focused
+//! row at y 136;
 //! the jump control sits at x 872, level with that row. The view (sort, order, filters) and the
 //! tab are kept per server, profile and library, read off the main thread before the page shows
 //! (500 ms at most); a row's See all opens the Library tab in its order, kept only once changed.
@@ -23,7 +24,7 @@ use pley_kit::{
 };
 use pley_shell::{AppCx, AppEvent, Chrome, LibraryTab, Load, Resource, Route, Screen};
 use pley_ui::theme;
-use pley_ui::{Dir, Dirs, Edge, Group, Id, Tier, Ui};
+use pley_ui::{Dir, Dirs, Edge, Group, Id, Tier, Ui, nudge};
 
 use crate::alpha::{AlphaIndex, JUMP_FROM};
 use crate::listing::{Listing, WINDOW_ABOVE, WINDOW_ABOVE_LOW};
@@ -57,8 +58,8 @@ const KEPT_WAIT: f64 = 0.5;
 const CHIP_LABEL_MAX: f32 = 220.0;
 /// The least the Genre and Sort chips' labels give way to, for the row to fit.
 const CHIP_LABEL_MIN: f32 = 48.0;
-/// The least room the count is drawn in.
-const COUNT_LEAST: f32 = 48.0;
+/// Between the last chip and the count.
+const COUNT_GAP: f32 = 8.0;
 
 /// What this TV kept of a library: its view and its tab.
 type Kept = (Option<LibraryQuery>, Option<String>);
@@ -387,6 +388,8 @@ struct GridTab {
     panel_list: ListState,
     /// A chip went with its value: Filter takes focus at the next frame.
     focus_filter: bool,
+    /// How far the chips slide left: with most filters chosen they are wider than the screen.
+    chips_shift: f32,
     rest: Rest,
     window_above: usize,
 }
@@ -415,6 +418,7 @@ impl GridTab {
             last_panel: Panel::Sort,
             panel_list: ListState::default(),
             focus_filter: false,
+            chips_shift: 0.0,
             rest: Rest::default(),
             window_above,
         }
@@ -620,14 +624,31 @@ impl GridTab {
             *button = button.max_label_width(cut);
             over -= shown - cut;
         }
+        // Wider than the screen still (a long genre, a year and both qualities chosen), the row
+        // slides to keep the focused chip whole between the gutter and the safe area's edge, as
+        // Search's recent searches and the other TV apps' chips do; past the gutter, chips go
+        // under the rail's fade.
         let chips_id = ui.id("chips");
+        let mut places = Vec::with_capacity(chips.len());
         let mut x = theme::GUTTER;
+        for (_, _, button) in &chips {
+            let w = button.size(ui).w;
+            places.push((x, w));
+            x += w + CHIP_GAP;
+        }
+        let end = x - CHIP_GAP;
+        let most = (end - right).max(0.0);
+        let focused = chips.iter().position(|(name, _, _)| ui.is_focused(chips_id.with(*name)));
+        if let Some((x, w)) = focused.map(|i| places[i]) {
+            self.chips_shift = nudge(self.chips_shift, x, x + w, theme::GUTTER, right, 0.0, most);
+        }
+        // Fewer chips (a filter cleared): no further than they need.
+        self.chips_shift = self.chips_shift.min(most);
+        let shift = ui.scroll(chips_id.with("shift"), self.chips_shift, pley_kit::SCROLL);
         let mut acted: Option<&'static str> = None;
         ui.group(chips_id, Group::row().edge(Dir::Left, Edge::Out).edge(Dir::Right, Edge::Stop), |ui| {
-            for (name, _, button) in &chips {
-                let r = button.show(ui, chips_id.with(*name), Point::new(x, CHIPS_Y));
-                x += button.size(ui).w + CHIP_GAP;
-                if r.activated {
+            for ((name, _, button), (x, _)) in chips.iter().zip(&places) {
+                if button.show(ui, chips_id.with(*name), Point::new(x - shift, CHIPS_Y)).activated {
                     acted = Some(*name);
                 }
             }
@@ -635,13 +656,17 @@ impl GridTab {
         if std::mem::take(&mut self.focus_filter) {
             ui.request_focus(chips_id.with("filter"));
         }
-        // The count in what is left of the row; none where little more than its "…" would show.
-        let width = theme::CANVAS_W - theme::SAFE_X - x + CHIP_GAP - 8.0;
-        if let Some(total) = total.filter(|_| width >= COUNT_LEAST) {
+        // The count after the chips, whole or not at all, as in the other TV apps: cut short
+        // ("23 of 1,5…") it would say nothing.
+        if let Some(total) = total {
             let of = (filtered_view && library.item_count >= total as i64).then_some(library.item_count);
             let text = count_label(total as i64, library.kind, of);
-            let y = CHIPS_Y + (theme::BUTTON_HEIGHT - theme::CAPTION.line_height) / 2.0;
-            ui.text(Point::new(x - CHIP_GAP + 8.0, y), &text, &theme::CAPTION, &TextOpts::line(width), theme::MUTED);
+            let room = right - end - COUNT_GAP;
+            if ui.measure(&text, &theme::CAPTION, &TextOpts::line(f32::MAX)).w <= room {
+                let y = CHIPS_Y + (theme::BUTTON_HEIGHT - theme::CAPTION.line_height) / 2.0;
+                let at = Point::new(end + COUNT_GAP - shift, y);
+                ui.text(at, &text, &theme::CAPTION, &TextOpts::line(room), theme::MUTED);
+            }
         }
         match acted {
             Some("sort") => {

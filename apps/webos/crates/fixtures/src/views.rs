@@ -18,6 +18,29 @@ pub(crate) struct ListOpts {
     pub summaries: bool,
     /// The best file's numbers (library listings, whatever the sort).
     pub media: bool,
+    /// The files those numbers come from: in a listing filtered by resolution or dynamic range,
+    /// those that match.
+    pub files: FileFilter,
+}
+
+/// The files a filtered listing describes its titles by (apps/server/src/catalog.rs,
+/// `FileFilter`): those of a resolution and a dynamic range asked for; any file when neither is.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct FileFilter {
+    pub resolutions: &'static [&'static str],
+    pub dynamic_ranges: &'static [&'static str],
+}
+
+impl FileFilter {
+    fn is_set(&self) -> bool {
+        !self.resolutions.is_empty() || !self.dynamic_ranges.is_empty()
+    }
+
+    fn matches(&self, file: &MediaFile) -> bool {
+        let resolution = resolution_of(file.width.unwrap_or(0), file.height.unwrap_or(0));
+        (self.resolutions.is_empty() || resolution.is_some_and(|r| self.resolutions.contains(&r)))
+            && (self.dynamic_ranges.is_empty() || range_of(file).is_some_and(|r| self.dynamic_ranges.contains(&r)))
+    }
 }
 
 /// An item's state for a profile; shows, seasons, artists and albums from
@@ -53,7 +76,7 @@ pub(crate) fn summary(catalog: &Catalog, item: &ItemDetail, profile: &Profile, o
     if !opts.summaries && item.kind() != Kind::Episode {
         s.summary = None;
     }
-    s.media = if opts.media { media_summary(catalog, item) } else { None };
+    s.media = if opts.media { media_summary(catalog, item, opts.files) } else { None };
     s
 }
 
@@ -76,6 +99,12 @@ pub(crate) fn title_resolution(catalog: &Catalog, item: &ItemDetail) -> Option<&
     let files = title_files(catalog, item);
     let w = files.iter().filter_map(|f| f.width).max().unwrap_or(0);
     let h = files.iter().filter_map(|f| f.height).max().unwrap_or(0);
+    resolution_of(w, h)
+}
+
+/// The resolution of a picture `w` by `h` by the server's lines: a width or a height is enough.
+/// None for neither.
+fn resolution_of(w: i64, h: i64) -> Option<&'static str> {
     let at = if w >= 3800 || h >= 2100 {
         0
     } else if w >= 1800 || h >= 1000 {
@@ -93,12 +122,18 @@ pub(crate) fn title_resolution(catalog: &Catalog, item: &ItemDetail) -> Option<&
 /// A title's dynamic range, its best file's (a show's best episode's), in the order of
 /// [`DYNAMIC_RANGES`]. None without a video file.
 pub(crate) fn title_range(catalog: &Catalog, item: &ItemDetail) -> Option<&'static str> {
-    title_files(catalog, item)
-        .iter()
-        .filter_map(|f| f.streams.iter().find(|s| s.is("video"))?.dynamic_range)
-        .filter_map(|r| DYNAMIC_RANGES.iter().position(|x| *x == r))
-        .min()
-        .map(|i| DYNAMIC_RANGES[i])
+    best_range(title_files(catalog, item))
+}
+
+/// The best dynamic range of `files`, in the order of [`DYNAMIC_RANGES`].
+fn best_range<'a>(files: impl IntoIterator<Item = &'a MediaFile>) -> Option<&'static str> {
+    let at = files.into_iter().filter_map(range_of).filter_map(|r| DYNAMIC_RANGES.iter().position(|x| *x == r));
+    at.min().map(|i| DYNAMIC_RANGES[i])
+}
+
+/// A file's dynamic range: its video's.
+fn range_of(file: &MediaFile) -> Option<&'static str> {
+    file.streams.iter().find(|s| s.is("video"))?.dynamic_range
 }
 
 pub(crate) fn summary_of(catalog: &Catalog, id: i64, profile: &Profile, opts: ListOpts) -> Option<ItemSummary> {
@@ -174,11 +209,24 @@ pub(crate) fn hidden_from_continue(catalog: &Catalog, item: &ItemDetail, profile
     played.unwrap_or(0) <= hidden_at
 }
 
-/// A movie's best file; a show's episodes (an artist's tracks) on average.
-pub(crate) fn media_summary(catalog: &Catalog, item: &ItemDetail) -> Option<MediaSummary> {
+/// A movie's best file; a show's episodes (an artist's tracks) on average. Of the files that
+/// match `filter` where the title has any, as the server's `media_summaries`: under the Dolby
+/// Vision filter, a film's Dolby Vision file rather than its higher-bitrate HDR10 one.
+pub(crate) fn media_summary(catalog: &Catalog, item: &ItemDetail, filter: FileFilter) -> Option<MediaSummary> {
     if !item.kind().playable() {
-        let files: Vec<&MediaFile> =
-            catalog.leaves(item.id()).iter().filter_map(|id| catalog.item(*id)?.files.first()).collect();
+        let leaves: Vec<&ItemDetail> = catalog.leaves(item.id()).iter().filter_map(|id| catalog.item(*id)).collect();
+        let matching: Vec<&MediaFile> = if filter.is_set() {
+            leaves.iter().flat_map(|i| i.files.iter()).filter(|f| filter.matches(f)).collect()
+        } else {
+            Vec::new()
+        };
+        // The best episode's range, as its resolution is.
+        let (files, range) = if matching.is_empty() {
+            (leaves.iter().filter_map(|i| i.files.first()).collect(), title_range(catalog, item))
+        } else {
+            let range = best_range(matching.iter().copied());
+            (matching, range)
+        };
         if files.is_empty() {
             return None;
         }
@@ -189,11 +237,12 @@ pub(crate) fn media_summary(catalog: &Catalog, item: &ItemDetail) -> Option<Medi
             width: files.iter().filter_map(|f| f.width).max(),
             height: files.iter().filter_map(|f| f.height).max(),
             video_codec: None,
-            // The best episode's, as its resolution is.
-            dynamic_range: title_range(catalog, item),
+            dynamic_range: range,
         });
     }
-    let best = item.files.iter().max_by_key(|f| f.bitrate.unwrap_or(0))?;
+    let matching: Vec<&MediaFile> = item.files.iter().filter(|f| filter.matches(f)).collect();
+    let files = if matching.is_empty() { item.files.iter().collect() } else { matching };
+    let best = files.into_iter().max_by_key(|f| f.bitrate.unwrap_or(0))?;
     let video = best.streams.iter().find(|s| s.is("video"));
     Some(MediaSummary {
         bitrate: best.bitrate,
@@ -431,4 +480,37 @@ pub(crate) fn history_entry(
         },
         item: summary(catalog, item, profile, opts),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ids;
+
+    #[test]
+    fn a_filtered_listing_describes_a_title_by_the_version_that_matches() {
+        let catalog = Catalog::new(1_379_196, 2_502_426);
+        // A film with two versions: its 4K HDR10 file, and a 1080p Dolby Vision one at a lower
+        // bitrate.
+        let mut film = catalog.top(ids::MOVIES).into_iter().find(|i| i.files.len() == 2).unwrap().clone();
+        film.files[0].bitrate = Some(30_000_000);
+        let dv = &mut film.files[1];
+        (dv.width, dv.height, dv.bitrate) = (Some(1920), Some(1080), Some(12_000_000));
+        dv.streams.iter_mut().find(|s| s.is("video")).unwrap().dynamic_range = Some("dolby_vision");
+        let summary = |resolutions, dynamic_ranges| {
+            let m = media_summary(&catalog, &film, FileFilter { resolutions, dynamic_ranges }).unwrap();
+            (m.bitrate, m.height, m.dynamic_range)
+        };
+        let hdr10 = (Some(30_000_000), Some(2160), Some("hdr10"));
+        let dolby_vision = (Some(12_000_000), Some(1080), Some("dolby_vision"));
+        // Unfiltered, its highest-bitrate file.
+        assert_eq!(summary(&[], &[]), hdr10);
+        // Filtered, the file that matches.
+        assert_eq!(summary(&[], &DYNAMIC_RANGES[..1]), dolby_vision);
+        assert_eq!(summary(&RESOLUTIONS[1..2], &[]), dolby_vision);
+        // Both match Any HDR: the highest bitrate again.
+        assert_eq!(summary(&[], &DYNAMIC_RANGES[..4]), hdr10);
+        // None matches 4K and Dolby Vision both: the usual one.
+        assert_eq!(summary(&RESOLUTIONS[..1], &DYNAMIC_RANGES[..1]), hdr10);
+    }
 }

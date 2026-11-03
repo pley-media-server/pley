@@ -19,7 +19,7 @@ use crate::pictures::{Shape, picture};
 use crate::server::{
     Answer, Cx, LIBRARY, Need, PLAY, Route, State, bad_request, error, free, json, locked, no_content, not_found,
 };
-use crate::views::{self, ListOpts};
+use crate::views::{self, FileFilter, ListOpts};
 use crate::{ServerEvent, ids};
 
 pub(crate) fn routes() -> Vec<Route> {
@@ -254,8 +254,9 @@ fn item(cx: &Cx<'_>, state: &mut State) -> Answer {
     Ok(json(200, &detail))
 }
 
-/// The value a listing sorts by.
-fn sort_key(catalog: &Catalog, item: &ItemDetail, profile: &Profile, sort: &str) -> Option<f64> {
+/// The value a listing sorts by; by bitrate, that of the version a listing filtered to `files`
+/// shows.
+fn sort_key(catalog: &Catalog, item: &ItemDetail, profile: &Profile, sort: &str, files: FileFilter) -> Option<f64> {
     let b = &item.base;
     match sort {
         "year" => b.year.map(|y| y as f64),
@@ -265,7 +266,7 @@ fn sort_key(catalog: &Catalog, item: &ItemDetail, profile: &Profile, sort: &str)
         "release" => b.release_date.as_ref().and_then(|d| d.replace('-', "").parse::<f64>().ok()),
         "duration" => b.duration_ms.map(|d| d as f64),
         "last_played" => views::state(catalog, item, profile).last_played_at.map(|t| t as f64),
-        "bitrate" => views::media_summary(catalog, item).and_then(|m| m.bitrate).map(|b| b as f64),
+        "bitrate" => views::media_summary(catalog, item, files).and_then(|m| m.bitrate).map(|b| b as f64),
         _ => None,
     }
 }
@@ -309,21 +310,27 @@ fn listing(cx: &Cx<'_>, state: &mut State) -> Answer {
     if let Some(year) = number(cx, "year")? {
         items.retain(|i| i.base.year == Some(year));
     }
-    // A title by its best file, a show by its best episode; an unknown value is refused.
+    // A title by its best file, a show by its best episode; an unknown value is refused. What is
+    // kept is shown, and sorted by bitrate, by the files that match.
+    let mut files = FileFilter::default();
     if let Some(value) = cx.query("resolution").map(str::trim).filter(|v| !v.is_empty()) {
         let wanted = resolutions_named(value).ok_or_else(|| bad_request(&format!("unknown resolution '{value}'")))?;
         items.retain(|i| views::title_resolution(catalog, i).is_some_and(|r| wanted.contains(&r)));
+        files.resolutions = wanted;
     }
     if let Some(value) = cx.query("dynamic_range").map(str::trim).filter(|v| !v.is_empty()) {
         let wanted = ranges_named(value).ok_or_else(|| bad_request(&format!("unknown dynamic_range '{value}'")))?;
         items.retain(|i| views::title_range(catalog, i).is_some_and(|r| wanted.contains(&r)));
+        files.dynamic_ranges = wanted;
     }
     if let Some(watched) = cx.query("watched") {
         let want = matches!(watched, "1" | "true" | "yes");
         items.retain(|i| views::state(catalog, i, profile).watched == want);
     }
-    let mut keyed: Vec<(Option<f64>, String, &ItemDetail)> =
-        items.into_iter().map(|i| (sort_key(catalog, i, profile, sort), i.base.sort_title.to_lowercase(), i)).collect();
+    let mut keyed: Vec<(Option<f64>, String, &ItemDetail)> = items
+        .into_iter()
+        .map(|i| (sort_key(catalog, i, profile, sort, files), i.base.sort_title.to_lowercase(), i))
+        .collect();
     keyed.sort_by(|a, b| {
         let by_title = a.1.cmp(&b.1).then(a.2.id().cmp(&b.2.id()));
         if sort == "title" {
@@ -342,7 +349,7 @@ fn listing(cx: &Cx<'_>, state: &mut State) -> Answer {
         primary.then(by_title)
     });
     let total = keyed.len();
-    let opts = ListOpts { listing: true, summaries: cx.summaries(), media: true };
+    let opts = ListOpts { listing: true, summaries: cx.summaries(), media: true, files };
     let page: Vec<ItemSummary> = keyed
         .into_iter()
         .skip(offset)

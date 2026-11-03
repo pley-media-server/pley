@@ -39,7 +39,9 @@ describes how they are made.
   from the Filter panel's Resolution and Dynamic range, where its titles
   have more than one. A chip names the choice while one is chosen; Clear
   filters, the count, the kept view and Save as… treat them as Genre and
-  Year.
+  Year. With most filters chosen, the chips slide to keep the focused one
+  in view, as in the Samsung and Android TV apps, and the count shows
+  only where it fits whole.
 
 ### Changed
 

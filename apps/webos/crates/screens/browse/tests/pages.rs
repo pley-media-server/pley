@@ -4,12 +4,13 @@
 mod common;
 
 use common::TestApp;
-use pley_base::Key;
+use pley_base::{Cmd, Key, Rect};
 use pley_core::device::Drive;
-use pley_core::model::{NewPlaylist, PlaylistKind};
+use pley_core::model::{LibraryQuery, LibrarySort, NewPlaylist, PlaylistKind, RangeFilter, ResolutionFilter};
+use pley_core::store::keys;
 use pley_fixtures::ids;
 use pley_shell::{BackgroundSession, Route};
-use pley_ui::Id;
+use pley_ui::{Id, theme};
 
 /// An entry's card on a playlist's page.
 fn card(app: &TestApp, entry: u64) -> Id {
@@ -328,6 +329,80 @@ fn resolution_and_dynamic_range_filter_from_the_filter_panel_and_badge_the_poste
         "saved {:?}",
         app.route()
     );
+}
+
+/// Opens the Movies library in `view`, kept on the TV before it opens, and waits for its listing
+/// to say nothing matches.
+fn open_in(app: &mut TestApp, view: LibraryQuery) {
+    assert!(app.until(|a| a.state.profile().is_some()), "no profile");
+    let (server, profile) = (app.state.server().unwrap().to_string(), app.state.profile().unwrap());
+    app.state.store().set(&keys::library_view(&server, profile, ids::MOVIES), &view).unwrap();
+    app.open(Route::Library { id: ids::MOVIES, tab: None, sort: None });
+    assert!(app.until(|a| a.shows("Dolby Vision") && a.shows("No matches")), "the kept view didn't show");
+    app.advance(0.5);
+}
+
+/// The chips' pills in the last frame, in their order.
+fn chip_rects(app: &TestApp) -> Vec<Rect> {
+    let pills = app.list.cmds.iter().filter_map(|c| match c {
+        Cmd::Fill { rect, .. } if rect.y == theme::HEADER_Y_LIBRARY && rect.h == theme::BUTTON_HEIGHT => Some(*rect),
+        _ => None,
+    });
+    pills.collect()
+}
+
+#[test]
+fn the_chips_fit_the_screen_whatever_is_chosen() {
+    let right = theme::CANVAS_W - theme::SAFE_X;
+    let mut app = TestApp::start();
+    // Unwatched, 1080p and Dolby Vision, after the Genre and Year chips, leave the count less
+    // room than it takes: it doesn't show, rather than show cut short ("0 of 1,5…").
+    let crowded = LibraryQuery {
+        watched: Some(false),
+        resolution: Some(ResolutionFilter::Fhd),
+        dynamic_range: Some(RangeFilter::DolbyVision),
+        ..LibraryQuery::default()
+    };
+    open_in(&mut app, crowded);
+    assert!(app.until(|a| a.shows("Genre") && a.shows("Year")), "no Genre or Year chip");
+    let room = right - chip_rects(&app).last().unwrap().right();
+    assert!(room > 48.0, "the count has some room: {room}");
+    assert!(!app.shows_part("of 1,500 movies"), "the count shows cut short");
+
+    // The most the row holds: by release date, Unwatched, a long genre, a year, 1080p and Dolby
+    // Vision. With the genre's and the sort's names cut short it is wider than the screen still.
+    let fullest = LibraryQuery {
+        sort: LibrarySort::Release,
+        watched: Some(false),
+        genre: Some("Science Fiction & Fantasy".into()),
+        year: Some(2019),
+        resolution: Some(ResolutionFilter::Fhd),
+        dynamic_range: Some(RangeFilter::DolbyVision),
+        ..LibraryQuery::default()
+    };
+    open_in(&mut app, fullest);
+    let chips = ["sort", "filter", "unwatched", "genre", "year", "resolution", "range"];
+    assert!(app.until(|a| a.shows("2019")), "no year chip");
+    let rects = chip_rects(&app);
+    assert_eq!(rects.len(), chips.len(), "{rects:?}");
+    assert!(rects.last().unwrap().right() > right, "the row fits: {rects:?}");
+    assert!(!app.shows_part("of 1,500 movies"), "the count shows cut short");
+    // Along the row, each chip shows whole between the gutter and the safe area's edge.
+    app.ui.request_focus(app.id(&["chips", "sort"]));
+    for (i, chip) in chips.iter().enumerate() {
+        if i > 0 {
+            app.press(Key::Right);
+        }
+        app.advance(0.5);
+        assert_eq!(app.focused(), Some(app.id(&["chips", chip])), "{chip}");
+        let r = chip_rects(&app)[i];
+        assert!(r.x >= theme::GUTTER - 0.01 && r.right() <= right + 0.01, "{chip} at {r:?}");
+    }
+    // Back at the first, the row is where it started.
+    press(&mut app, &[Key::Left; 6]);
+    app.advance(0.5);
+    assert_eq!(app.focused(), Some(app.id(&["chips", "sort"])));
+    assert_eq!(chip_rects(&app)[0].x, theme::GUTTER);
 }
 
 #[test]
