@@ -450,13 +450,7 @@ impl PlayerServer for LocalServer {
     /// A subtitle file beside the video, as WebVTT, whole; or a text track of
     /// the file's own, as much of it as is read out yet (asked again until all
     /// is). Only addresses this server gave are read.
-    fn subtitles(
-        &self,
-        url: &str,
-        _accept: &str,
-        _from: Option<u64>,
-        timeout: Duration,
-    ) -> Result<SubtitleAnswer, ApiError> {
+    fn subtitles(&self, url: &str, _accept: &str, timeout: Duration) -> Result<SubtitleAnswer, ApiError> {
         if let Some(n) = url.strip_prefix(EMBEDDED) {
             let index: i64 = n.parse().map_err(|_| absent())?;
             let x = self.extract(index).filter(|x| !x.pictures).ok_or_else(absent)?;
@@ -464,11 +458,11 @@ impl PlayerServer for LocalServer {
             let mut blocks = x.blocks.lock().unwrap_or_else(|e| e.into_inner()).clone();
             blocks.sort_by_key(|b| b.start_ms);
             let body = cues::webvtt(&blocks, &x.track.codec_id).into_bytes();
-            return Ok(SubtitleAnswer { status: 200, body, range_start: None, complete });
+            return Ok(SubtitleAnswer { status: 200, body, complete });
         }
         let sidecar = self.sidecar(url).ok_or_else(absent)?;
         let text = folder::read_sidecar(&sidecar.path).map_err(|_| absent())?;
-        Ok(SubtitleAnswer { status: 200, body: text.into_bytes(), range_start: None, complete: true })
+        Ok(SubtitleAnswer { status: 200, body: text.into_bytes(), complete: true })
     }
 
     fn search_subtitles(

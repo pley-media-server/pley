@@ -1002,6 +1002,34 @@ fn plays_at_the_speed_picked_only_those_offered_and_keeps_it_for_the_titles_next
     assert_eq!(rates(&w), ["rate 1.5", "rate 1.5"]);
 }
 
+// ---- picture subtitles
+
+#[test]
+fn picture_subtitles_are_asked_for_from_where_the_player_is_and_at_once_from_a_seek() {
+    let mut w = World::new(Fake::new(item(file()), |_| info(|_| ())), |_| ());
+    w.start();
+    w.play(2, 1.0);
+    let at = w.c.live_position_ms();
+    w.c.select_subtitle(Some(3));
+    w.settle();
+    let asks = w.fake.subtitle_asks();
+    assert_eq!(asks.len(), 1, "{asks:?}");
+    assert!(at > 0 && asks[0].ends_with(&format!("/subtitles/3.mks?at={at}")), "{at} {asks:?}");
+    // A seek asks at once from where it went, not 3 s after the last answer.
+    w.c.seek_to(90_000);
+    w.settle();
+    let asks = w.fake.subtitle_asks();
+    assert_eq!(asks.len(), 2, "{asks:?}");
+    assert!(asks[1].ends_with("/subtitles/3.mks?at=90000"), "{asks:?}");
+    // Then 3 s after that ask, from where the player is then.
+    w.advance(2_900);
+    assert_eq!(w.fake.subtitle_asks().len(), 2);
+    w.advance(200);
+    let asks = w.fake.subtitle_asks();
+    assert_eq!(asks.len(), 3, "{asks:?}");
+    assert!(asks[2].contains("/subtitles/3.mks?at="), "{asks:?}");
+}
+
 // ---- subtitles found on the server
 
 #[test]

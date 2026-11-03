@@ -156,7 +156,7 @@ impl PlayerServer for LiveFake {
     fn trickplay(&self, _: i64) -> Result<TrickplayInfo, ApiError> {
         not_here()
     }
-    fn subtitles(&self, _: &str, _: &str, _: Option<u64>, _: Duration) -> Result<SubtitleAnswer, ApiError> {
+    fn subtitles(&self, _: &str, _: &str, _: Duration) -> Result<SubtitleAnswer, ApiError> {
         not_here()
     }
     fn search_subtitles(&self, _: i64, _: Option<i64>, _: &[String]) -> Result<Vec<SubtitleResult>, ApiError> {

@@ -11,6 +11,20 @@
 //! [`Presenter::update`] what shows at its position; that costs a
 //! comparison until what shows changes, and a binary search when it does or
 //! the position jumps.
+//!
+//! The server's picture track is asked for from where the player is at every
+//! ask (`?at=`, 0 at the start too; the Samsung app's `SubtitlePresenter`):
+//! while the server still reads the track out of its file, it answers with
+//! the pictures around there, and each answer replaces the last. It is asked
+//! again 3 s after the ask, then twice as long each time up to 15 s, never
+//! sooner than 3 s after the answer, which may have waited for a read at a
+//! seek. An answer over 4 MB is a copy of the whole track so far (a file
+//! whose index doesn't list it): it is asked for again from its answer, up
+//! to 24 s on, as no read at a seek is to be spared for it. A seek asks at
+//! once from where the player went and drops an answer still on its way. A
+//! video on a drive is asked again 1 s after its answer, then twice as long
+//! up to 4 s, and at once after a seek. Nothing asks for part of a file
+//! (`Range`): an answer is a file of its own.
 
 use std::sync::Arc;
 
@@ -19,8 +33,22 @@ use crate::sync::clamp_offset;
 use crate::vtt::{CueIndex, TextCue, parse_vtt, reaches_further};
 
 /// A partial answer (a track still being read out of its file) is asked for
-/// again this long after it arrived.
+/// again this long after it arrived; the server's pictures this long after
+/// they were asked for, and never sooner after the answer.
 pub const PARTIAL_RETRY_MS: u64 = 3_000;
+/// The server's partial picture track is asked for again [`PARTIAL_RETRY_MS`]
+/// after the ask, then twice as long each time up to this. Its answer is
+/// mostly the pictures around where it was asked from, which are small; the
+/// server reads those up to 40 s past where a player asked from and answers
+/// from that read for 20 s on, so an ask this long after the last is
+/// answered from the read the last one started, not a read of its own.
+pub const PICTURES_RETRY_MOST_MS: u64 = 15_000;
+/// An answer past [`COPY_MIN_BYTES`] is the whole track so far, tens of MB
+/// for a film: it is asked for again this long after it came at most.
+pub const COPY_RETRY_MOST_MS: u64 = 24_000;
+/// More than the pictures around where a player is come to (two and a half
+/// minutes of a Blu-ray's).
+pub const COPY_MIN_BYTES: usize = 4 << 20;
 /// The header that marks a partial answer (`X-Pley-Complete: 0`).
 pub const COMPLETE_HEADER: &str = "X-Pley-Complete";
 /// How long cue checks wait at most, and at least, while cues change; and
@@ -71,28 +99,19 @@ pub struct Fetch {
     /// The track's address, as given to [`Presenter::show_text`] or [`Presenter::show_pictures`].
     pub url: Arc<str>,
     pub kind: TrackKind,
-    /// Ask for the file from this byte on (`Range: bytes=<n>-`); `None` for the whole file.
-    pub range_from: Option<u64>,
-    /// Send it this long from now, in ms: at once, or [`PARTIAL_RETRY_MS`] after a partial answer.
+    /// The server's picture track asked for from here, in ms of the file (a
+    /// seek's target); none: from where the player is as the request goes.
+    pub at_ms: Option<u64>,
+    /// Send it this long from now, in ms: at once, or after a partial answer.
     pub after_ms: u64,
-}
-
-impl Fetch {
-    /// The `Range` header's value, when it asks for part of the file.
-    pub fn range_header(&self) -> Option<String> {
-        self.range_from.map(|n| format!("bytes={n}-"))
-    }
 }
 
 /// An answer for a picture track.
 #[derive(Clone, Debug, PartialEq)]
 pub enum PictureAnswer {
-    /// The file from its start (200).
+    /// The server's `.mks`: the whole track, or while it isn't whole the
+    /// pictures around where it was asked from (or all of it so far).
     Whole(Vec<u8>),
-    /// The file from `start` (206, as its `Content-Range` says).
-    Range { start: u64, bytes: Vec<u8> },
-    /// The range asked for starts past what the server holds (416).
-    RangeRefused,
     /// The track as read so far, handed over as it is (a video on a drive,
     /// read out of the file): every sample found yet, in place of the last.
     Track(PictureTrack),
@@ -134,9 +153,9 @@ enum Source {
 }
 
 enum Loading {
-    /// The next request: from which byte, and how long from now.
+    /// The next request: from where (a seek's target), and how long from now.
     Due {
-        range_from: Option<u64>,
+        at_ms: Option<u64>,
         after_ms: u64,
     },
     InFlight(u64),
@@ -164,11 +183,11 @@ pub struct Presenter {
     at: i64,
     offset_ms: i32,
     next_id: u64,
-    /// A partial picture track is asked for again after the first of these
-    /// (ms), then twice as long each time up to the second; none: every
-    /// [`PARTIAL_RETRY_MS`].
-    picture_retry: Option<(u64, u64)>,
-    /// The wait after the next partial picture answer; 0: the first.
+    /// A video on a drive: its partial picture track is asked for again
+    /// after the first of these (ms) from the answer, then twice as long each
+    /// time up to the second. None: the server's.
+    drive_retry: Option<(u64, u64)>,
+    /// The wait for the next partial picture answer; 0: the first.
     picture_wait: u64,
 }
 
@@ -178,39 +197,53 @@ impl Presenter {
         Presenter::default()
     }
 
-    /// Asks again for a partial picture track after `first_ms`, then twice as
-    /// long each time, `most_ms` at most: a video on a drive (1 s up to 4 s),
-    /// whose answer is the samples in memory, not the server's `.mks` so far.
-    pub fn set_picture_retry(&mut self, first_ms: u64, most_ms: u64) {
-        self.picture_retry = Some((first_ms, most_ms.max(first_ms)));
+    /// Shows a video on a drive's tracks, whose answer is the samples read
+    /// so far, not the server's `.mks`: a partial picture track is asked for
+    /// again `first_ms` after its answer, then twice as long each time,
+    /// `most_ms` at most (1 s up to 4 s).
+    pub fn set_drive_retry(&mut self, first_ms: u64, most_ms: u64) {
+        self.drive_retry = Some((first_ms, most_ms.max(first_ms)));
         self.picture_wait = 0;
     }
 
-    /// The playback jumped: what shows is looked up again, and a track
-    /// still being read is asked for again at once, from the first wait, so
-    /// what was read meanwhile shows where it landed.
-    pub fn sought(&mut self) {
-        self.picture_wait = 0;
+    /// The playback jumped to `at_ms` of the file: what shows is looked up
+    /// again. The server's picture track that isn't whole is asked for at
+    /// once from there, the answer on its way for the old place dropped and
+    /// the waits starting over; its text waits for its next ask. A drive's
+    /// track still being read is asked for again at once, so what was read
+    /// meanwhile shows where it landed.
+    pub fn sought(&mut self, at_ms: u64) {
         self.valid = None;
-        if let Some(Track { loading: Loading::Due { after_ms, .. }, .. }) = &mut self.track {
-            *after_ms = 0;
+        let Some(t) = &mut self.track else { return };
+        if self.drive_retry.is_some() {
+            self.picture_wait = 0;
+            if let Loading::Due { after_ms, .. } = &mut t.loading {
+                *after_ms = 0;
+            }
+        } else if t.kind == TrackKind::Pictures && matches!(t.loading, Loading::Due { .. } | Loading::InFlight(_)) {
+            self.picture_wait = 0;
+            t.loading = Loading::Due { at_ms: Some(at_ms), after_ms: 0 };
         }
     }
 
-    /// The wait after a partial picture answer, as things stand.
-    fn picture_retry_ms(&self) -> u64 {
-        match self.picture_retry {
-            None => PARTIAL_RETRY_MS,
-            Some((first, _)) if self.picture_wait == 0 => first,
-            Some(_) => self.picture_wait,
-        }
-    }
-
-    /// A partial picture answer came: the next waits twice as long, up to the most.
-    fn picture_retried(&mut self) {
-        if let Some((_, most)) = self.picture_retry {
-            self.picture_wait = self.picture_retry_ms().saturating_mul(2).min(most);
-        }
+    /// How long after a partial picture answer of `bytes` to ask again, its
+    /// ask `waited_ms` before; the wait after the next one doubles, up to the
+    /// most for its kind.
+    fn picture_retry_ms(&mut self, bytes: usize, waited_ms: u64) -> u64 {
+        let wait = match (self.picture_wait, self.drive_retry) {
+            (0, Some((first, _))) => first,
+            (0, None) => PARTIAL_RETRY_MS,
+            (wait, _) => wait,
+        };
+        let (after, most) = match self.drive_retry {
+            Some((_, most)) => (wait, most),
+            // A copy of the whole track so far: from its answer, and less often.
+            None if bytes > COPY_MIN_BYTES => (wait, COPY_RETRY_MOST_MS),
+            // The pictures around the player: counted from the ask.
+            None => (wait.saturating_sub(waited_ms).max(PARTIAL_RETRY_MS), PICTURES_RETRY_MOST_MS),
+        };
+        self.picture_wait = wait.saturating_mul(2).min(most);
+        after
     }
 
     /// Shows the server's WebVTT at `url`. The same track again keeps what
@@ -248,7 +281,7 @@ impl Presenter {
             && &*t.url == url
         {
             if matches!(t.loading, Loading::Failed) {
-                t.loading = Loading::Due { range_from: None, after_ms: 0 };
+                t.loading = Loading::Due { at_ms: None, after_ms: 0 };
             }
             self.valid = None;
             return;
@@ -257,8 +290,7 @@ impl Presenter {
             TrackKind::Text => Source::Text(CueIndex::default()),
             TrackKind::Pictures => Source::Pictures { reader: Box::default(), subs: None },
         };
-        self.track =
-            Some(Track { kind, url: url.into(), source, loading: Loading::Due { range_from: None, after_ms: 0 } });
+        self.track = Some(Track { kind, url: url.into(), source, loading: Loading::Due { at_ms: None, after_ms: 0 } });
         self.set_shown(Vec::new(), Vec::new());
         self.valid = None;
     }
@@ -267,10 +299,10 @@ impl Presenter {
     /// then in flight until its answer or failure comes back.
     pub fn next_fetch(&mut self) -> Option<Fetch> {
         let t = self.track.as_mut()?;
-        let Loading::Due { range_from, after_ms } = t.loading else { return None };
+        let Loading::Due { at_ms, after_ms } = t.loading else { return None };
         self.next_id += 1;
         t.loading = Loading::InFlight(self.next_id);
-        Some(Fetch { id: self.next_id, url: t.url.clone(), kind: t.kind, range_from, after_ms })
+        Some(Fetch { id: self.next_id, url: t.url.clone(), kind: t.kind, at_ms, after_ms })
     }
 
     /// The track in flight for request `id`, if that is still the one wanted.
@@ -291,78 +323,65 @@ impl Presenter {
             *index = CueIndex::new(fresh);
             changed = true;
         }
-        t.loading =
-            if complete { Loading::Done } else { Loading::Due { range_from: None, after_ms: PARTIAL_RETRY_MS } };
+        t.loading = if complete { Loading::Done } else { Loading::Due { at_ms: None, after_ms: PARTIAL_RETRY_MS } };
         if changed {
             self.valid = None;
         }
     }
 
-    /// The answer to picture request `id`, and whether it is whole. A
-    /// partial answer asks for the rest in 3 s (or as
-    /// [`Presenter::set_picture_retry`] says), from the bytes it lacks.
-    pub fn pictures_arrived(&mut self, id: u64, answer: PictureAnswer, complete: bool) -> Result<(), Trouble> {
-        let retry = self.picture_retry_ms();
+    /// The answer to picture request `id`, whether it is whole, and how long
+    /// it took since it was asked for. A partial answer replaces what was
+    /// had and asks again as the module says.
+    pub fn pictures_arrived(
+        &mut self,
+        id: u64,
+        answer: PictureAnswer,
+        complete: bool,
+        waited_ms: u64,
+    ) -> Result<(), Trouble> {
         let Some(t) = self.answered(id, TrackKind::Pictures) else { return Ok(()) };
         let Source::Pictures { reader, subs } = &mut t.source else { return Ok(()) };
-        let (fed, handed) = match answer {
-            PictureAnswer::Whole(bytes) => (reader.feed_whole(bytes).map(|()| true), None),
-            PictureAnswer::Range { start, bytes } => (reader.feed_range(start, bytes), None),
-            PictureAnswer::RangeRefused => (Ok(false), None),
+        let (bytes, read) = match answer {
+            PictureAnswer::Whole(bytes) => {
+                let n = bytes.len();
+                (n, reader.feed_whole(bytes).and_then(|()| reader.track()).map_err(|_| Trouble::Failed))
+            }
             // Handed over as it is: no `.mks` to read.
-            PictureAnswer::Track(track) => (Ok(true), Some(track)),
+            PictureAnswer::Track(track) => (0, Ok(Some(track))),
         };
-        let outcome = match fed {
-            // The file changed on the server: all of it again.
-            Ok(false) => Ok(Loading::Due { range_from: None, after_ms: 0 }),
-            Ok(true) => match handed.map_or_else(|| reader.track(), |track| Ok(Some(track))) {
-                Ok(None) if complete => Err(Trouble::Failed),
-                Ok(None) => Ok(Loading::Due { range_from: reader.resume_from(), after_ms: retry }),
-                Ok(Some(track)) => {
-                    let ready = match subs {
-                        Some(s)
-                            if s.track().codec_id == track.codec_id
-                                && s.track().codec_private == track.codec_private =>
-                        {
-                            s.replace_samples(track.samples);
+        let outcome = match read {
+            Ok(None) if complete => Err(Trouble::Failed),
+            Ok(None) => Ok(false),
+            Ok(Some(track)) => {
+                let ready = match subs {
+                    Some(s)
+                        if s.track().codec_id == track.codec_id && s.track().codec_private == track.codec_private =>
+                    {
+                        s.replace_samples(track.samples);
+                        true
+                    }
+                    _ => match PictureSubtitles::of(track) {
+                        Some(s) => {
+                            *subs = Some(Box::new(s));
                             true
                         }
-                        _ => match PictureSubtitles::of(track) {
-                            Some(s) => {
-                                *subs = Some(Box::new(s));
-                                true
-                            }
-                            None => false,
-                        },
-                    };
-                    if !ready {
-                        Err(Trouble::PicturesUnavailable)
-                    } else if complete {
-                        Ok(Loading::Done)
-                    } else {
-                        Ok(Loading::Due { range_from: reader.resume_from(), after_ms: retry })
-                    }
-                }
-                Err(_) => Err(Trouble::Failed),
-            },
-            Err(_) => Err(Trouble::Failed),
-        };
-        if matches!(outcome, Ok(Loading::Due { after_ms, .. }) if after_ms > 0) {
-            self.picture_retried();
-        }
-        let Some(t) = self.track.as_mut() else { return Ok(()) };
-        let result = match outcome {
-            Ok(loading) => {
-                t.loading = loading;
-                Ok(())
+                        None => false,
+                    },
+                };
+                if ready { Ok(complete) } else { Err(Trouble::PicturesUnavailable) }
             }
-            Err(trouble) => {
-                t.loading = Loading::Failed;
-                Err(trouble)
-            }
+            Err(trouble) => Err(trouble),
         };
         self.valid = None;
-        result
+        let loading = match outcome {
+            Ok(true) => Loading::Done,
+            Ok(false) => Loading::Due { at_ms: None, after_ms: self.picture_retry_ms(bytes, waited_ms) },
+            Err(_) => Loading::Failed,
+        };
+        if let Some(t) = self.track.as_mut() {
+            t.loading = loading;
+        }
+        outcome.map(|_| ())
     }
 
     /// Request `id` failed: with the server's status when it answered one.
@@ -371,10 +390,6 @@ impl Presenter {
         let kind = self.track.as_ref()?.kind;
         let t = self.answered(id, kind)?;
         let trouble = match (kind, status) {
-            (TrackKind::Pictures, Some(416)) => {
-                t.loading = Loading::Due { range_from: None, after_ms: 0 };
-                return None;
-            }
             (TrackKind::Pictures, Some(404 | 503)) => Trouble::PicturesUnavailable,
             _ => Trouble::Failed,
         };
@@ -463,7 +478,7 @@ mod tests {
         assert_eq!(p.next_fetch(), None);
         p.show_text("/api/files/7/subtitles/2.vtt");
         let first = p.next_fetch().unwrap();
-        assert_eq!((first.kind, first.range_from, first.after_ms), (TrackKind::Text, None, 0));
+        assert_eq!((first.kind, first.at_ms, first.after_ms), (TrackKind::Text, None, 0));
         assert_eq!((first.kind.accept(), &*first.url), ("text/vtt", "/api/files/7/subtitles/2.vtt"));
         assert_eq!(p.next_fetch(), None, "one request at a time");
         p.text_arrived(first.id, PART, is_complete(Some("0")));
@@ -533,67 +548,39 @@ mod tests {
         assert_eq!(p.next_fetch(), None);
         p.show_text("b.vtt");
         let retry = p.next_fetch().unwrap();
-        assert_eq!(retry.range_from, None);
+        assert_eq!((retry.at_ms, retry.after_ms), (None, 0));
         p.text_arrived(retry.id, WHOLE, true);
         assert!(p.update(1500, 0));
     }
 
     #[test]
-    fn reads_pictures_as_they_grow_asking_only_for_new_bytes() {
+    fn the_servers_pictures_come_from_where_the_player_is_each_answer_replacing_the_last() {
         let head = header("S_HDMV/PGS", None);
-        let first = cluster(0, &[Block { time: 1000, data: white_set(), duration: None }]);
-        let second = cluster(2000, &[Block { time: 3000, data: empty_set(), duration: None }]);
+        let around = |time: u32| {
+            let mut file = head.clone();
+            file.extend(cluster(time, &[Block { time, data: white_set(), duration: None }]));
+            PictureAnswer::Whole(file)
+        };
         let mut p = Presenter::new();
         p.show_pictures("/api/files/7/subtitles/3.mks");
-        // The server's first answer: the track's header alone.
         let f = p.next_fetch().unwrap();
         assert_eq!((f.kind.accept(), f.kind.timeout_ms()), ("video/x-matroska", 900_000));
-        assert_eq!(p.pictures_arrived(f.id, PictureAnswer::Whole(head.clone()), false), Ok(()));
+        assert_eq!((f.at_ms, f.after_ms), (None, 0), "from where the player is");
+        // The header alone: asked for again, counting from the ask.
+        assert_eq!(p.pictures_arrived(f.id, PictureAnswer::Whole(head.clone()), false, 500), Ok(()));
         let f = p.next_fetch().unwrap();
-        assert_eq!((f.range_from, f.after_ms), (None, PARTIAL_RETRY_MS));
-        let mut so_far = head.clone();
-        so_far.extend(&first);
-        p.pictures_arrived(f.id, PictureAnswer::Whole(so_far.clone()), false).unwrap();
+        assert_eq!((f.at_ms, f.after_ms), (None, PARTIAL_RETRY_MS), "never sooner than 3 s after the answer");
+        p.pictures_arrived(f.id, around(1000), false, 1_000).unwrap();
         assert!(p.update(1500, 0));
-        let cue = p.shown().pictures[0].clone();
-        assert_eq!((cue.start_ms, cue.end_ms), (1000, None));
-        // Then only what is new, with a few bytes it holds.
+        assert_eq!(p.shown().pictures[0].start_ms, 1000);
+        // 6 s from the ask, which waited 1 s; then 12 s, which waited 11 s: 3 s after the answer.
         let f = p.next_fetch().unwrap();
-        let from = f.range_from.unwrap();
-        assert_eq!(from, so_far.len() as u64 - 16);
-        assert_eq!(f.range_header(), Some(format!("bytes={from}-")));
-        let mut whole = so_far.clone();
-        whole.extend(&second);
-        let rest = whole[from as usize..].to_vec();
-        p.pictures_arrived(f.id, PictureAnswer::Range { start: from, bytes: rest }, true).unwrap();
-        assert_eq!(p.next_fetch(), None);
-        // The picture now ends where the next sample (an empty one) starts.
-        assert!(p.update(1600, 0));
-        assert_eq!(p.shown().pictures[0].end_ms, Some(3000));
-        assert_eq!(p.shown().pictures[0].key, cue.key, "decoded once");
-        assert!(p.update(3000, 0));
+        assert_eq!(f.after_ms, 5_000);
+        p.pictures_arrived(f.id, around(60_000), false, 11_000).unwrap();
+        assert!(p.update(1600, 0), "the pictures around 1 s are gone with the answer that had them");
         assert!(p.shown().is_empty());
-    }
-
-    #[test]
-    fn asks_for_the_whole_file_when_the_rest_doesnt_follow() {
-        let mut so_far = header("S_HDMV/PGS", None);
-        so_far.extend(cluster(0, &[Block { time: 1000, data: white_set(), duration: None }]));
-        let mut p = Presenter::new();
-        p.show_pictures("x.mks");
-        let f = p.next_fetch().unwrap();
-        p.pictures_arrived(f.id, PictureAnswer::Whole(so_far.clone()), false).unwrap();
-        let f = p.next_fetch().unwrap();
-        let from = f.range_from.unwrap();
-        p.pictures_arrived(f.id, PictureAnswer::Range { start: from, bytes: vec![0xEE; 40] }, false).unwrap();
-        let f = p.next_fetch().unwrap();
-        assert_eq!((f.range_from, f.after_ms), (None, 0));
-        p.pictures_arrived(f.id, PictureAnswer::Whole(so_far.clone()), false).unwrap();
-        let f = p.next_fetch().unwrap();
-        assert!(f.range_from.is_some());
-        assert_eq!(p.fetch_failed(f.id, Some(416)), None);
-        assert_eq!(p.next_fetch().unwrap().range_from, None);
-        assert!(p.update(1200, 0));
+        assert!(p.update(60_500, 0));
+        assert_eq!(p.next_fetch().unwrap().after_ms, PARTIAL_RETRY_MS);
     }
 
     #[test]
@@ -608,10 +595,10 @@ mod tests {
         p.show_pictures("z.mks");
         let f = p.next_fetch().unwrap();
         let text = mks("S_TEXT/UTF8", &[Block { time: 0, data: b"hi".to_vec(), duration: None }], None);
-        assert_eq!(p.pictures_arrived(f.id, PictureAnswer::Whole(text), true), Err(Trouble::PicturesUnavailable));
+        assert_eq!(p.pictures_arrived(f.id, PictureAnswer::Whole(text), true, 0), Err(Trouble::PicturesUnavailable));
         p.show_pictures("w.mks");
         let f = p.next_fetch().unwrap();
-        assert_eq!(p.pictures_arrived(f.id, PictureAnswer::Whole(vec![1, 2, 3]), true), Err(Trouble::Failed));
+        assert_eq!(p.pictures_arrived(f.id, PictureAnswer::Whole(vec![1, 2, 3]), true, 0), Err(Trouble::Failed));
         assert_eq!(p.next_fetch(), None);
     }
 
@@ -623,33 +610,84 @@ mod tests {
     fn a_drives_track_is_asked_for_again_after_1_2_4_4_s_and_at_once_after_a_seek() {
         let first = PictureSample::new(1000, None, white_set());
         let mut p = Presenter::new();
-        p.set_picture_retry(1_000, 4_000);
+        p.set_drive_retry(1_000, 4_000);
         p.show_pictures("/api/files/7/subtitles/3.mks");
         let mut f = p.next_fetch().unwrap();
         assert_eq!(f.after_ms, 0);
         let mut waits = Vec::new();
         for _ in 0..4 {
-            p.pictures_arrived(f.id, pgs(vec![first.clone()]), false).unwrap();
+            // However long the read took: from the answer.
+            p.pictures_arrived(f.id, pgs(vec![first.clone()]), false, 900).unwrap();
             f = p.next_fetch().unwrap();
             waits.push(f.after_ms);
         }
         assert_eq!(waits, [1_000, 2_000, 4_000, 4_000]);
+        assert_eq!(f.at_ms, None, "a drive's track is read where the film goes");
         // A seek: the request waiting goes at once, and the waits start over.
-        p.pictures_arrived(f.id, pgs(vec![first.clone()]), false).unwrap();
-        p.sought();
+        p.pictures_arrived(f.id, pgs(vec![first.clone()]), false, 0).unwrap();
+        p.sought(90_000);
         let f = p.next_fetch().unwrap();
-        assert_eq!(f.after_ms, 0);
-        p.pictures_arrived(f.id, pgs(vec![first.clone()]), false).unwrap();
+        assert_eq!((f.at_ms, f.after_ms), (None, 0));
+        p.pictures_arrived(f.id, pgs(vec![first.clone()]), false, 0).unwrap();
         assert_eq!(p.next_fetch().unwrap().after_ms, 1_000);
+    }
 
-        // A server's track is asked for every 3 s.
+    #[test]
+    fn a_seek_asks_the_server_at_once_from_where_it_went_dropping_the_answer_on_its_way() {
+        let first = PictureSample::new(1000, None, white_set());
         let mut p = Presenter::new();
         p.show_pictures("x.mks");
-        for _ in 0..3 {
-            let f = p.next_fetch().unwrap();
-            p.pictures_arrived(f.id, pgs(vec![first.clone()]), false).unwrap();
+        let on_its_way = p.next_fetch().unwrap();
+        p.sought(90_000);
+        let f = p.next_fetch().unwrap();
+        assert_eq!((f.at_ms, f.after_ms), (Some(90_000), 0));
+        p.pictures_arrived(on_its_way.id, pgs(vec![first.clone()]), false, 0).unwrap();
+        assert!(!p.update(1500, 0), "the answer for the old place is dropped");
+        p.pictures_arrived(f.id, pgs(vec![first.clone()]), false, 0).unwrap();
+        // The waits start over, from where the player is at each ask.
+        let f = p.next_fetch().unwrap();
+        assert_eq!((f.at_ms, f.after_ms), (None, PARTIAL_RETRY_MS));
+        p.pictures_arrived(f.id, pgs(vec![first.clone()]), false, 0).unwrap();
+        p.sought(10_000);
+        assert_eq!(p.next_fetch().map(|f| (f.at_ms, f.after_ms)), Some((Some(10_000), 0)));
+        // A whole track isn't asked for again; nor is the server's text at a seek.
+        p.pictures_arrived(p.next_id, pgs(vec![first.clone()]), true, 0).unwrap();
+        p.sought(20_000);
+        assert_eq!(p.next_fetch(), None);
+        p.show_text("a.vtt");
+        let f = p.next_fetch().unwrap();
+        p.text_arrived(f.id, PART, false);
+        p.sought(20_000);
+        assert_eq!(p.next_fetch().map(|f| (f.at_ms, f.after_ms)), Some((None, PARTIAL_RETRY_MS)));
+    }
+
+    #[test]
+    fn the_servers_waits_double_to_15_s_and_a_whole_copy_waits_to_24_s_from_its_answer() {
+        let first = PictureSample::new(1000, None, white_set());
+        let mut p = Presenter::new();
+        p.show_pictures("x.mks");
+        let mut waits = Vec::new();
+        let mut f = p.next_fetch().unwrap();
+        for _ in 0..5 {
+            p.pictures_arrived(f.id, pgs(vec![first.clone()]), false, 0).unwrap();
+            f = p.next_fetch().unwrap();
+            waits.push(f.after_ms);
         }
-        assert_eq!(p.next_fetch().unwrap().after_ms, PARTIAL_RETRY_MS);
+        assert_eq!(waits, [3_000, 6_000, 12_000, 15_000, 15_000]);
+
+        // Past 4 MB: all of the track so far, asked for again from its answer however long it took.
+        let mut big = header("S_HDMV/PGS", None);
+        big.extend(cluster(0, &[Block { time: 1000, data: vec![0; COPY_MIN_BYTES], duration: None }]));
+        let mut p = Presenter::new();
+        p.show_pictures("y.mks");
+        let mut waits = Vec::new();
+        let mut f = p.next_fetch().unwrap();
+        for _ in 0..5 {
+            p.pictures_arrived(f.id, PictureAnswer::Whole(big.clone()), false, 2_000).unwrap();
+            f = p.next_fetch().unwrap();
+            waits.push(f.after_ms);
+        }
+        assert_eq!(waits, [3_000, 6_000, 12_000, 24_000, 24_000]);
     }
 
     #[test]
@@ -658,12 +696,12 @@ mod tests {
         let mut p = Presenter::new();
         p.show_pictures("/api/files/7/subtitles/3.mks");
         let f = p.next_fetch().unwrap();
-        p.pictures_arrived(f.id, pgs(vec![first.clone()]), false).unwrap();
+        p.pictures_arrived(f.id, pgs(vec![first.clone()]), false, 0).unwrap();
         assert!(p.update(1500, 0));
         let cue = p.shown().pictures[0].clone();
         assert_eq!((cue.start_ms, cue.end_ms), (1000, None));
         let f = p.next_fetch().unwrap();
-        p.pictures_arrived(f.id, pgs(vec![first, PictureSample::new(3000, None, empty_set())]), true).unwrap();
+        p.pictures_arrived(f.id, pgs(vec![first, PictureSample::new(3000, None, empty_set())]), true, 0).unwrap();
         assert_eq!(p.next_fetch(), None);
         assert!(p.update(1600, 0));
         assert_eq!(p.shown().pictures[0].end_ms, Some(3000));
@@ -674,6 +712,6 @@ mod tests {
         p.show_pictures("/api/files/7/subtitles/4.mks");
         let f = p.next_fetch().unwrap();
         let text = PictureTrack { codec_id: "S_TEXT/UTF8".into(), codec_private: None, samples: Vec::new() };
-        assert_eq!(p.pictures_arrived(f.id, PictureAnswer::Track(text), true), Err(Trouble::PicturesUnavailable));
+        assert_eq!(p.pictures_arrived(f.id, PictureAnswer::Track(text), true, 0), Err(Trouble::PicturesUnavailable));
     }
 }

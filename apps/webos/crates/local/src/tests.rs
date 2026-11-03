@@ -673,7 +673,7 @@ fn a_film_on_a_drive_plays_as_it_is_with_its_subtitle_files_and_a_track_the_tv_d
     let url = info.subtitles[0].url.clone().unwrap();
     assert_eq!(info.subtitles.len(), 1);
     assert_eq!(url, dir.join("Mad Max.en.srt").to_string_lossy());
-    let text = server.subtitles(&url, "text/vtt", None, SECOND).unwrap();
+    let text = server.subtitles(&url, "text/vtt", SECOND).unwrap();
     assert!(text.complete);
     assert_eq!(parse_vtt(&String::from_utf8_lossy(&text.body))[0].plain_text(), "Witness me");
     // The TV's player opens it at its address, each part encoded.
@@ -687,8 +687,8 @@ fn a_film_on_a_drive_plays_as_it_is_with_its_subtitle_files_and_a_track_the_tv_d
     }
     // Only what it gave is read.
     std::fs::write(dir.join("notes.srt"), "1\n00:00:01,000 --> 00:00:02,000\nNo\n").unwrap();
-    assert!(server.subtitles(&dir.join("notes.srt").to_string_lossy(), "text/vtt", None, SECOND).is_err());
-    assert!(server.subtitles("embedded:4", "text/vtt", None, SECOND).is_err());
+    assert!(server.subtitles(&dir.join("notes.srt").to_string_lossy(), "text/vtt", SECOND).is_err());
+    assert!(server.subtitles("embedded:4", "text/vtt", SECOND).is_err());
     assert!(server.picture_track("/api/files/7/subtitles/4.mks", SECOND).unwrap().is_err());
 
     // Where it stopped is kept, for the next time it plays.
@@ -707,7 +707,7 @@ fn a_files_own_subtitle_tracks_are_read_out_of_it_for_the_player() {
     let text = server_for(&dir, "Text.mkv", subtitled("S_TEXT/UTF8", None, vec![]), &store);
     let info = play(&text, PlaybackMode::Auto).unwrap();
     assert_eq!(info.subtitles[0].url.as_deref(), Some("embedded:0"));
-    let answer = text.subtitles("embedded:0", "text/vtt", None, SECOND).unwrap();
+    let answer = text.subtitles("embedded:0", "text/vtt", SECOND).unwrap();
     assert!(answer.complete);
     let cues: Vec<_> = parse_vtt(&String::from_utf8_lossy(&answer.body)).iter().map(|c| c.plain_text()).collect();
     assert_eq!(cues, ["Hello", "There"]);

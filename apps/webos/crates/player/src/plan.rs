@@ -127,6 +127,14 @@ pub fn picture_path(file_id: i64, index: i64) -> String {
     format!("/api/files/{file_id}/subtitles/{index}.mks")
 }
 
+/// `url` (a picture track's `.mks`) asked for from where the player is, `at_ms` of the file, 0 at
+/// the start too: a track the server hasn't read out of its file yet comes from there first, and
+/// is answered with the pictures around there until it is whole.
+pub fn picture_url_at(url: &str, at_ms: u64) -> String {
+    let join = if url.contains('?') { '&' } else { '?' };
+    format!("{url}{join}at={at_ms}")
+}
+
 /// The address of a text track's WebVTT when the session doesn't name one.
 pub fn text_path(file_id: i64, index: i64) -> String {
     format!("/api/files/{file_id}/subtitles/{index}.vtt")
@@ -296,6 +304,15 @@ pub fn video_stream_of(file: Option<&MediaFile>) -> Option<&MediaStream> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_picture_track_is_asked_for_from_where_the_player_is() {
+        assert_eq!(picture_url_at("/api/files/7/subtitles/3.mks", 0), "/api/files/7/subtitles/3.mks?at=0");
+        assert_eq!(
+            picture_url_at("/api/media/k/subtitles-3.mks?x=1", 90_000),
+            "/api/media/k/subtitles-3.mks?x=1&at=90000"
+        );
+    }
 
     #[test]
     fn keyed_addresses() {

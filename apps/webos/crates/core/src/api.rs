@@ -56,15 +56,6 @@ pub struct LiveBrowse {
     pub around: Option<i64>,
 }
 
-/// A picture subtitle track's `.mks` as far as it is copied.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct PictureSubtitles {
-    /// The bytes from the asked offset on.
-    pub bytes: Vec<u8>,
-    /// The server has all of it (`X-Pley-Complete` not `0`).
-    pub complete: bool,
-}
-
 /// The API of one server as one sign-in. Cheap to clone.
 #[derive(Clone)]
 pub struct Api {
@@ -545,23 +536,6 @@ impl Api {
         let req = Request::get(self.url(url)).header("Accept", "text/vtt").timeout(Duration::from_secs(120));
         let r = self.send(req)?;
         Ok((r.text(), r.complete()))
-    }
-
-    /// A picture track's `.mks` from byte `from` on (the server copies it
-    /// as it goes: ask again every few seconds while it isn't whole).
-    pub fn subtitle_pictures(&self, file_id: i64, index: i64, from: u64) -> Result<PictureSubtitles, ApiError> {
-        let mut req = Request::get(self.url(&format!("/api/files/{file_id}/subtitles/{index}.mks")))
-            .header("Accept", "video/x-matroska")
-            .timeout(Duration::from_secs(15 * 60));
-        if from > 0 {
-            req = req.header("Range", format!("bytes={from}-"));
-        }
-        match self.send(req) {
-            Ok(r) => Ok(PictureSubtitles { complete: r.complete(), bytes: r.body }),
-            // Nothing past `from` yet.
-            Err(e) if e.is(416) => Ok(PictureSubtitles { bytes: Vec::new(), complete: false }),
-            Err(e) => Err(e),
-        }
     }
 
     /// Subtitles found online for a file, in `languages` (two-letter codes;

@@ -21,8 +21,6 @@ use pley_subs::PictureTrack;
 pub struct SubtitleAnswer {
     pub status: u16,
     pub body: Vec<u8>,
-    /// Where a 206's bytes start (its `Content-Range`).
-    pub range_start: Option<u64>,
     pub complete: bool,
 }
 
@@ -59,14 +57,9 @@ pub trait PlayerServer: Send + Sync {
     fn speed_test(&self, bytes: u64) -> Result<SpeedSample, ApiError>;
 
     fn trickplay(&self, file_id: i64) -> Result<TrickplayInfo, ApiError>;
-    /// A subtitle file (WebVTT or `.mks`) with `accept`, from byte `from` when given.
-    fn subtitles(
-        &self,
-        url: &str,
-        accept: &str,
-        from: Option<u64>,
-        timeout: Duration,
-    ) -> Result<SubtitleAnswer, ApiError>;
+    /// A subtitle file (WebVTT or `.mks`) with `accept`, whole: a partial picture track's answer
+    /// is the pictures around where it was asked from, a file of its own, never a part of one.
+    fn subtitles(&self, url: &str, accept: &str, timeout: Duration) -> Result<SubtitleAnswer, ApiError>;
     fn search_subtitles(
         &self,
         item_id: i64,
@@ -99,11 +92,6 @@ pub trait PlayerServer: Send + Sync {
 }
 
 /// The bytes a `Content-Range: bytes 100-199/200` starts at.
-fn range_start(header: Option<&str>) -> Option<u64> {
-    let rest = header?.trim().strip_prefix("bytes")?.trim_start();
-    rest.split('-').next()?.trim().parse().ok()
-}
-
 impl PlayerServer for Api {
     fn server(&self) -> &str {
         Api::server(self)
@@ -182,20 +170,10 @@ impl PlayerServer for Api {
         Api::trickplay(self, file_id)
     }
 
-    fn subtitles(
-        &self,
-        url: &str,
-        accept: &str,
-        from: Option<u64>,
-        timeout: Duration,
-    ) -> Result<SubtitleAnswer, ApiError> {
-        let mut req = Request::new(Method::Get, Api::url(self, url)).header("Accept", accept).timeout(timeout);
-        if let Some(n) = from {
-            req = req.header("Range", format!("bytes={n}-"));
-        }
+    fn subtitles(&self, url: &str, accept: &str, timeout: Duration) -> Result<SubtitleAnswer, ApiError> {
+        let req = Request::new(Method::Get, Api::url(self, url)).header("Accept", accept).timeout(timeout);
         let r = self.send(req)?;
-        let range_start = if r.status == 206 { range_start(r.header("Content-Range")) } else { None };
-        Ok(SubtitleAnswer { status: r.status, complete: r.complete(), range_start, body: r.body })
+        Ok(SubtitleAnswer { status: r.status, complete: r.complete(), body: r.body })
     }
 
     fn search_subtitles(
@@ -241,18 +219,5 @@ impl PlayerServer for Api {
 
     fn set_live_favorite(&self, channel: i64, favorite: bool) -> Result<(), ApiError> {
         Api::set_live_favorite(self, channel, favorite)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn content_ranges() {
-        assert_eq!(range_start(Some("bytes 100-199/200")), Some(100));
-        assert_eq!(range_start(Some("bytes 0-0/*")), Some(0));
-        assert_eq!(range_start(Some("items 1-2")), None);
-        assert_eq!(range_start(None), None);
     }
 }

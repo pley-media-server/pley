@@ -74,6 +74,11 @@ describes how they are made.
   Live TV's guide and cards. Down on a grid's last row stays.
 - The rail opens as in the Samsung app: its panel widens out of the closed
   rail as it fades in, and the labels slide in beside the icons.
+- Picture subtitles (PGS, VobSub, DVB) show within a few seconds of a
+  playback starting or a seek, as in the Samsung app: the TV tells the
+  server where it plays at every ask, a seek asks at once from where it
+  went, and a track still being read is asked for less often as it goes
+  on (3 s, doubling to 15 s; 24 s for a large one).
 - Search shows movies, shows and episodes first, then music, then Live
   TV, then people, as the other apps do.
 - Settings draws the Android TV app's icons: a pulse for Diagnostics, a

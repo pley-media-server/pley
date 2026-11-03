@@ -234,6 +234,8 @@ pub struct Fake {
     requests: Mutex<Vec<PlaybackRequest>>,
     saved: Mutex<Vec<(AudioChoice, Option<i64>)>>,
     searched: Mutex<Vec<Search>>,
+    /// The subtitle files asked for, by address.
+    subtitle_asks: Mutex<Vec<String>>,
     on_add: Mutex<Option<AddAnswer>>,
     next_item: Mutex<Option<ItemSummary>>,
     /// What `GET /api/playback/network` answers; none: 404, an older server.
@@ -280,6 +282,7 @@ impl Fake {
             requests: Mutex::default(),
             saved: Mutex::default(),
             searched: Mutex::default(),
+            subtitle_asks: Mutex::default(),
             on_add: Mutex::default(),
             next_item: Mutex::default(),
             network_answer: Mutex::default(),
@@ -321,6 +324,10 @@ impl Fake {
 
     pub fn searched(&self) -> Vec<Search> {
         self.searched.lock().unwrap().clone()
+    }
+
+    pub fn subtitle_asks(&self) -> Vec<String> {
+        self.subtitle_asks.lock().unwrap().clone()
     }
 
     pub fn bitrates(&self) -> Vec<String> {
@@ -552,14 +559,13 @@ impl PlayerServer for Fake {
         Err(refused(404, "not_found", "not ready"))
     }
 
-    fn subtitles(
-        &self,
-        _url: &str,
-        _accept: &str,
-        _from: Option<u64>,
-        _timeout: Duration,
-    ) -> Result<SubtitleAnswer, ApiError> {
-        Ok(SubtitleAnswer { status: 200, body: b"WEBVTT\n\n".to_vec(), range_start: None, complete: true })
+    fn subtitles(&self, url: &str, _accept: &str, _timeout: Duration) -> Result<SubtitleAnswer, ApiError> {
+        self.subtitle_asks.lock().unwrap().push(url.to_string());
+        // A picture track still being read out of its file, with nothing around there yet.
+        if url.contains(".mks") {
+            return Ok(SubtitleAnswer { status: 200, body: Vec::new(), complete: false });
+        }
+        Ok(SubtitleAnswer { status: 200, body: b"WEBVTT\n\n".to_vec(), complete: true })
     }
 
     fn search_subtitles(

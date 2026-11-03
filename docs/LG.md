@@ -152,7 +152,14 @@ as the TV's menus do.
 - **Pley draws every subtitle itself**, over the picture: text tracks come
   from the server as WebVTT, and picture subtitles (PGS, VobSub, DVB) are
   decoded from the server's `.mks` copy of the track, so the file still
-  plays as it is.
+  plays as it is. As in the Samsung app, every ask for a picture track
+  says where the player is (`at`, 0 at the start too), and while the
+  server is still reading the track out of its file it answers with the
+  pictures around there. It is asked again 3 s after the ask, then twice
+  as long each time up to 15 s, never sooner than 3 s after the answer; an
+  answer over 4 MB, a copy of the whole track so far, is asked for again
+  up to 24 s after it came. A seek asks at once from where it went and
+  drops the answer on its way. No ask is for part of a file (`Range`).
 - **Subtitle sync:** 0.1 s steps, up to 10 s either way, kept per file
   and profile on the TV (the latest 300).
 - **Settings → Subtitles and display:** size, background, font and

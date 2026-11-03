@@ -445,21 +445,72 @@ enum NextFor {
 
 /// What a task hands back.
 enum Done {
-    Item { g: u64, result: Result<ItemDetail, ApiError> },
-    Caps { g: u64, report: Option<CapsReport> },
-    Known { g: u64, known: Option<Option<Remembered>> },
-    Session { g: u64, asked: Box<Asked>, result: Result<Opened, Opening> },
-    Check { session: String, check: Check, result: Result<SessionStatus, ApiError> },
-    Reach { outage: u64, result: Result<(), ApiError> },
-    Bitrate { session: String, auto: u64, asked: f64, result: Result<BitrateAnswer, ApiError> },
-    Next { lookup: u64, purpose: NextFor, result: Result<Option<ItemSummary>, ApiError> },
-    NextDetail { saved: u64, result: Result<ItemDetail, ApiError> },
-    Trickplay { file_id: i64, result: Result<TrickplayInfo, ApiError> },
-    Details { result: Result<SessionStatus, ApiError> },
-    Subtitle { fetch: Fetch, result: Result<crate::server::SubtitleAnswer, ApiError> },
-    Pictures { fetch: Fetch, result: Result<(PictureTrack, bool), ApiError> },
-    Found { search: u64, result: Result<Vec<SubtitleResult>, ApiError> },
-    Added { result: Result<SubtitleTrack, ApiError> },
+    Item {
+        g: u64,
+        result: Result<ItemDetail, ApiError>,
+    },
+    Caps {
+        g: u64,
+        report: Option<CapsReport>,
+    },
+    Known {
+        g: u64,
+        known: Option<Option<Remembered>>,
+    },
+    Session {
+        g: u64,
+        asked: Box<Asked>,
+        result: Result<Opened, Opening>,
+    },
+    Check {
+        session: String,
+        check: Check,
+        result: Result<SessionStatus, ApiError>,
+    },
+    Reach {
+        outage: u64,
+        result: Result<(), ApiError>,
+    },
+    Bitrate {
+        session: String,
+        auto: u64,
+        asked: f64,
+        result: Result<BitrateAnswer, ApiError>,
+    },
+    Next {
+        lookup: u64,
+        purpose: NextFor,
+        result: Result<Option<ItemSummary>, ApiError>,
+    },
+    NextDetail {
+        saved: u64,
+        result: Result<ItemDetail, ApiError>,
+    },
+    Trickplay {
+        file_id: i64,
+        result: Result<TrickplayInfo, ApiError>,
+    },
+    Details {
+        result: Result<SessionStatus, ApiError>,
+    },
+    /// A subtitle file's answer, and when it was asked for (the server's pictures are asked for
+    /// again counting from the ask).
+    Subtitle {
+        fetch: Fetch,
+        asked: i64,
+        result: Result<crate::server::SubtitleAnswer, ApiError>,
+    },
+    Pictures {
+        fetch: Fetch,
+        result: Result<(PictureTrack, bool), ApiError>,
+    },
+    Found {
+        search: u64,
+        result: Result<Vec<SubtitleResult>, ApiError>,
+    },
+    Added {
+        result: Result<SubtitleTrack, ApiError>,
+    },
 }
 
 /// A session made ready beside the one playing, waiting for its stream.
@@ -576,7 +627,7 @@ impl PlaybackController {
         let local = env.server.local();
         let mut presenter = Presenter::new();
         if local {
-            presenter.set_picture_retry(LOCAL_PICTURES_FIRST_MS, LOCAL_PICTURES_MOST_MS);
+            presenter.set_drive_retry(LOCAL_PICTURES_FIRST_MS, LOCAL_PICTURES_MOST_MS);
         }
         PlaybackController {
             env,
@@ -2064,12 +2115,13 @@ impl PlaybackController {
             position_ms.max(0)
         };
         self.hide_up_next();
-        if self.local() {
-            // A drive's subtitles still being read out of the file: what is read so far, at once.
-            self.presenter.sought();
-            if let Some((_, at)) = &mut self.subtitle_fetch {
-                *at = self.now;
-            }
+        // The server's picture subtitles still being read: asked for at once from the target. A
+        // drive's still being read out of the file: what is read so far, at once.
+        self.presenter.sought(target as u64);
+        if self.local()
+            && let Some((_, at)) = &mut self.subtitle_fetch
+        {
+            *at = self.now;
         }
         if self.ended || self.info.is_none() || self.session_ended {
             self.last_position_ms = target;
@@ -2799,8 +2851,15 @@ impl PlaybackController {
         if let Some((fetch, at)) = self.subtitle_fetch.take() {
             if self.now >= at {
                 let server = self.env.server.clone();
-                let url = fetch.url.to_string();
+                let mut url = fetch.url.to_string();
+                // The server's picture track from where the player is (a seek's target), at every
+                // ask: while it isn't whole, the answer is the pictures around there.
+                if fetch.kind == TrackKind::Pictures && !self.local() {
+                    let at = fetch.at_ms.unwrap_or(self.live_position().max(0) as u64);
+                    url = plan::picture_url_at(&url, at);
+                }
                 let timeout = Duration::from_millis(fetch.kind.timeout_ms());
+                let asked = self.now;
                 self.spawn(move || {
                     // A file on a drive hands its picture tracks over as they are.
                     if fetch.kind == TrackKind::Pictures
@@ -2808,8 +2867,8 @@ impl PlaybackController {
                     {
                         return Done::Pictures { fetch, result };
                     }
-                    let result = server.subtitles(&url, fetch.kind.accept(), fetch.range_from, timeout);
-                    Done::Subtitle { fetch, result }
+                    let result = server.subtitles(&url, fetch.kind.accept(), timeout);
+                    Done::Subtitle { fetch, asked, result }
                 });
             } else {
                 self.subtitle_fetch = Some((fetch, at));
@@ -2821,7 +2880,8 @@ impl PlaybackController {
         }
     }
 
-    fn on_subtitle(&mut self, fetch: Fetch, result: Result<crate::server::SubtitleAnswer, ApiError>) {
+    fn on_subtitle(&mut self, fetch: Fetch, asked: i64, result: Result<crate::server::SubtitleAnswer, ApiError>) {
+        let waited = (self.now - asked).max(0) as u64;
         let trouble = match result {
             Err(e) => self.presenter.fetch_failed(fetch.id, e.status()),
             Ok(answer) => match fetch.kind {
@@ -2830,12 +2890,8 @@ impl PlaybackController {
                     None
                 }
                 TrackKind::Pictures => {
-                    let picture = match (answer.status, answer.range_start) {
-                        (206, Some(start)) => PictureAnswer::Range { start, bytes: answer.body },
-                        (416, _) => PictureAnswer::RangeRefused,
-                        _ => PictureAnswer::Whole(answer.body),
-                    };
-                    self.presenter.pictures_arrived(fetch.id, picture, answer.complete).err()
+                    let picture = PictureAnswer::Whole(answer.body);
+                    self.presenter.pictures_arrived(fetch.id, picture, answer.complete, waited).err()
                 }
             },
         };
@@ -2847,7 +2903,7 @@ impl PlaybackController {
         let trouble = match result {
             Err(e) => self.presenter.fetch_failed(fetch.id, e.status()),
             Ok((track, complete)) => {
-                self.presenter.pictures_arrived(fetch.id, PictureAnswer::Track(track), complete).err()
+                self.presenter.pictures_arrived(fetch.id, PictureAnswer::Track(track), complete, 0).err()
             }
         };
         self.subtitle_trouble(trouble);
@@ -2947,7 +3003,7 @@ impl PlaybackController {
                 self.refresh_details(true);
                 self.details_at = Some(self.now + DETAILS_MS);
             }
-            Done::Subtitle { fetch, result } => self.on_subtitle(fetch, result),
+            Done::Subtitle { fetch, asked, result } => self.on_subtitle(fetch, asked, result),
             Done::Pictures { fetch, result } => self.on_pictures(fetch, result),
             Done::Found { search, result } => {
                 if search != self.searches {
