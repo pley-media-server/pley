@@ -70,8 +70,9 @@ heard it for that profile, the start asks "Who's watching?".
 
 ### TVs and Fire TV
 
-- Select opens, holding Select or Menu (☰) opens a title's actions, Back
-  goes back.
+- Select opens, holding Select or Menu (☰) opens a title's actions in a
+  panel over the page, which stays as it was, and Back goes back: to the
+  page the rail opened as it was left, focus included.
 - **The player**: OK with the controls hidden shows them on the scrubber,
   as Up does (Down shows them on Play/Pause), and OK there plays and
   pauses. It seeks as YouTube's TV app does: Left and Right show the

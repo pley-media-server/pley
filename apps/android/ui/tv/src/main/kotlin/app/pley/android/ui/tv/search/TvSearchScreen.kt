@@ -82,6 +82,7 @@ import app.pley.android.screens.search.SearchViewModel
 import app.pley.android.screens.search.TmdbSection
 import app.pley.android.ui.tv.R
 
+import app.pley.android.ui.tv.item.tileActions
 import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
@@ -128,6 +129,7 @@ internal fun TvSearchScreen(key: PleyKey.Search) {
         snapshotFlow { field.text.toString() }.collect(vm::onQueryChange)
     }
     val navigator = LocalTvNavigator.current
+    val actions = tileActions()
     TvSearchContent(
         state = state,
         field = field,
@@ -138,7 +140,7 @@ internal fun TvSearchScreen(key: PleyKey.Search) {
         },
         onClearRecent = vm::clearRecent,
         onOpen = { group, id -> vm.open(group, id)?.let(navigator::open) },
-        onActions = { id -> navigator.open(PleyKey.ItemActions(id)) },
+        onActions = { id -> actions.open(id, continueWatching = false) },
         onRetry = vm::retry,
         onWatch = vm::watch,
         tmdb = tmdb,

@@ -330,8 +330,10 @@ private val BottomScrim by lazy { GradientBitmaps.vertical(0f to Color.Transpare
  * A side panel (design spec §2.7; Subtitles, Audio, Quality, Info): 360 dp
  * from the right edge, full height, [surface2][PleyColors.Surface2] with
  * 16 dp left corners, over a [scrim][PleyColors.Scrim]. It slides in over
- * 200 ms (in place with reduced motion), takes focus ([initialFocus] on
- * the row to start from), and Back closes it ([onDismiss]).
+ * 200 ms, eased out as the Samsung app's panels slide in, and out eased
+ * in, the scrim with it (in place with reduced motion); it takes focus
+ * ([initialFocus] on the row to start from), and Back closes it
+ * ([onDismiss]).
  */
 @Composable
 fun TvSidePanel(
@@ -343,15 +345,20 @@ fun TvSidePanel(
     val reduced = reducedMotion()
     BackHandler(enabled = visible, onBack = onDismiss)
     OverlayShowing(visible)
+    val ms = if (reduced) 0 else PleyMotion.OVERLAY_MS
     Box(Modifier.fillMaxSize()) {
-        AnimatedVisibility(visible, enter = fadeIn(tween(if (reduced) 0 else PleyMotion.OVERLAY_MS)), exit = fadeOut(tween(if (reduced) 0 else PleyMotion.OVERLAY_MS))) {
+        AnimatedVisibility(
+            visible,
+            enter = fadeIn(tween(ms, easing = PleyMotion.EaseOut)),
+            exit = fadeOut(tween(ms, easing = PleyMotion.EaseIn)),
+        ) {
             Box(Modifier.fillMaxSize().background(PleyColors.Scrim))
         }
         AnimatedVisibility(
             visible,
             modifier = Modifier.align(Alignment.CenterEnd),
-            enter = slideInHorizontally(PleyMotion.overlay(reduced)) { it },
-            exit = slideOutHorizontally(PleyMotion.overlay(reduced)) { it },
+            enter = slideInHorizontally(tween(ms, easing = PleyMotion.EaseOut)) { it },
+            exit = slideOutHorizontally(tween(ms, easing = PleyMotion.EaseIn)) { it },
         ) {
             Surface(
                 modifier = modifier.width(SidePanelWidth).fillMaxHeight().focusGroup(),

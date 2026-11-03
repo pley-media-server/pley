@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pley.android.designsystem.PleyColors
+import app.pley.android.designsystem.reducedMotion
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
@@ -82,6 +83,13 @@ class ArtworkLoad {
     var failed: Boolean by mutableStateOf(false)
         private set
 
+    /**
+     * Whether the picture has loaded before ([ShownArtwork]): while it comes
+     * back, its well is plain, without the title, as once it is in. Set by
+     * [ArtworkBox] as it composes, before anything is drawn.
+     */
+    internal var known: Boolean = false
+
     private var fade: Job? = null
 
     internal fun onState(state: AsyncImagePainter.State, scope: CoroutineScope) {
@@ -113,9 +121,11 @@ private fun SuccessResult.fadeMillis(): Int =
  * A picture filling its box: [image]'s first address that loads, at the
  * box's width. Until then, and when none does, the title's gradient
  * ([Placeholder]) with [title] centred on it in [titleStyle] (none for
- * backdrops: leave [titleStyle] null). Nothing here recomposes when the
- * picture arrives: the placeholder is drawn behind it, in the draw phase.
- * [load] tells whoever passes it when the picture is in.
+ * backdrops: leave [titleStyle] null); a picture that has loaded before
+ * comes back without it, and without fading in, as none does with reduced
+ * motion. Nothing here recomposes when the picture arrives: the
+ * placeholder is drawn behind it, in the draw phase. [load] tells whoever
+ * passes it when the picture is in.
  */
 @Composable
 fun Artwork(
@@ -142,10 +152,14 @@ internal fun ArtworkBox(
     Box(modifier) {
         if (image != null && !image.isEmpty) {
             val loader = LocalArtworkImageLoader.current ?: SingletonImageLoader.get(LocalPlatformContext.current)
+            load.known = remember(image, loader) { loader.shownArtwork?.has(image) == true }
+            // Reduced motion: no fading either, things change in place.
+            val reduced = reducedMotion()
+            val model = remember(image, reduced) { if (reduced && image.fade) image.copy(fade = false) else image }
             val scope = rememberCoroutineScope()
             val onState = remember(load, scope) { { state: AsyncImagePainter.State -> load.onState(state, scope) } }
             AsyncImage(
-                model = rememberArtworkModel(image),
+                model = rememberArtworkModel(model),
                 contentDescription = null,
                 imageLoader = loader,
                 modifier = Modifier.matchParentSize(),
@@ -210,7 +224,10 @@ private class PlaceholderNode(
     }
 
     override fun ContentDrawScope.draw() {
-        if (!load.loaded) {
+        if (!load.loaded && load.known && !load.failed) {
+            // Shown before and on its way back: the well as it is under the picture.
+            if (well.isSpecified) drawRect(well)
+        } else if (!load.loaded) {
             drawStretched(picture ?: Placeholder.picture(title).also { picture = it }, Offset.Zero, size)
             titleLayout()?.let { text ->
                 drawText(

@@ -149,6 +149,18 @@ describes how they are made.
 - On Android TV and Fire TV, an item page glides to its episodes and rows,
   and back to its buttons, as Home does: over 150 ms, eased out, for a
   press, and on without a stop under a held Up or Down.
+- On Android TV and Fire TV, a title's actions (holding Select, or Menu)
+  open in a panel over Home, a library, search, a collection, a person's
+  or an artist's page, as they do on an item's page, rather than on a
+  page of their own: the page stays as it was, and focus comes back to
+  the title.
+- On Android TV and Fire TV, Back to the page the rail opened (Home, a
+  library, search) shows it at once as it was left, focus included, rather
+  than building it again with its pictures.
+- On Android TV and Fire TV, the rail and the side panels move as they do
+  on Samsung TVs: they open quickly and settle, the rail's names sliding
+  in as they appear, the rail's entries grow on focus the same way and
+  shrink back slow to start, and panels leave the same way.
 
 ### Fixed
 
@@ -166,6 +178,22 @@ describes how they are made.
 - A page of Live TV channels that didn't load is asked for again once
   10 s have passed, as the list moves, where its rows stayed blank until
   another category was chosen.
+- Home's rows are no longer drawn again when the server has nothing new
+  for them, as on coming back from a title, so moving through them right
+  then stays smooth; on Android TV and Fire TV a focus move no longer
+  redraws the page around the row.
+- On Android TV and Fire TV, a library's Genre and Year panels open with
+  focus on the genre or year chosen, however far down the list it is,
+  where focus was left behind the panel.
+- Pictures seen before come back at once when a page shows them again:
+  no title in their place while they load, and no fade.
+- With Reduce motion on (or the system's Remove animations), pictures
+  appear without fading in, as the setting says they will.
+- On Android TV and Fire TV, Reduce motion (in Settings, or the system's
+  Remove animations) stills the rail too: it opens and closes in place.
+- On Android TV and Fire TV, Up, Down or Right pressed while nothing on
+  the page has focus, as when what had it was drawn again, brings focus
+  back to the page, where the key did nothing.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was

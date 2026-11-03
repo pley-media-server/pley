@@ -38,6 +38,19 @@ internal data class TvHomeModel(
         return other.tiles.firstOrNull()?.let { "${other.key}/${it.id}" }
     }
 
+    /**
+     * Whether focus key [key] ("<row key>/<tile id>", as the rows remember
+     * focus) is one of these rows' tiles. Looked up when asked, rather than
+     * a set of every tile's key made for each new answer.
+     */
+    fun hasTile(key: String): Boolean {
+        val slash = key.lastIndexOf('/')
+        if (slash < 0) return false
+        val id = key.substring(slash + 1).toLongOrNull() ?: return false
+        val rowKey = key.substring(0, slash)
+        return rows.any { row -> row.key == rowKey && row.tiles.any { it.id == id } }
+    }
+
     companion object {
         /** The shaping for a device of [tier] (its backdrops' width). One per tier, so the ViewModel keeps one flow. */
         fun shaping(tier: Tier): (HomeState) -> TvHomeModel = SHAPINGS.getValue(tier)

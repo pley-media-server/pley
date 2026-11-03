@@ -12,10 +12,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -29,19 +31,18 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pley.android.common.TestTags
-import app.pley.android.data.Loadable
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.model.HubKeys
 import app.pley.android.model.ItemSummary
 import app.pley.android.screens.Navigator
-import app.pley.android.screens.PleyKey
 import app.pley.android.screens.home.HomeInfo
 import app.pley.android.screens.home.HomeMessage
 import app.pley.android.screens.home.HomeState
 import app.pley.android.screens.home.HomeViewModel
 import app.pley.android.screens.home.pageOf
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.item.tileActions
 import app.pley.android.ui.tv.kit.BackdropScrim
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.SeeAll
@@ -81,14 +82,7 @@ internal fun TvHomeScreen(vm: HomeViewModel = viewModel(factory = HomeViewModel.
     val navigator = LocalTvNavigator.current
     var message by remember { mutableStateOf<HomeMessage?>(null) }
     LaunchedEffect(vm) { vm.messages.collect { message = it } }
-    // The offline notice: up while what shows is what was saved, down once the server answers.
-    ReportOffline(
-        when (val reported = model?.state) {
-            is HomeState.Ready -> reported.error?.let { Loadable.Failed(it, Unit) } ?: Loadable.Ready(Unit, reported.fresh)
-            is HomeState.Failed -> Loadable.Failed(reported.error, Unit)
-            else -> null
-        },
-    )
+    ReportHomeStatus(vm)
 
     Box(Modifier.fillMaxSize()) {
         val shown = model
@@ -116,14 +110,37 @@ internal fun TvHomeScreen(vm: HomeViewModel = viewModel(factory = HomeViewModel.
     }
 }
 
-/** The tile focus is on, and the ones after it in its row. */
+/**
+ * The status of what Home shows, to the offline notice: up while it is
+ * what was saved, down once the server answers. Read here, its changes
+ * compose nothing else.
+ */
+@Composable
+private fun ReportHomeStatus(vm: HomeViewModel) {
+    val status by vm.status.collectAsStateWithLifecycle()
+    ReportOffline(status)
+}
+
+/** The tile focus is on, in its row. */
 @Immutable
-private data class FocusedTile(val item: ItemSummary, val ahead: List<ItemSummary>)
+private class FocusedTile(val item: ItemSummary, val row: TvHomeRow)
+
+/**
+ * Once focus rests on a tile ([rememberRested]), the info block follows
+ * it and the next tiles' details are asked for ahead. Only this reads
+ * [focused], so a focus move composes nothing else on the page.
+ */
+@Composable
+private fun RestedFocus(focused: State<FocusedTile?>, vm: HomeViewModel) {
+    val rested = rememberRested(focused.value)
+    LaunchedEffect(rested) { rested?.let { vm.focus(it.item, it.row.after(it.item)) } }
+}
 
 @Composable
 private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: HomeViewModel, navigator: Navigator) {
     val tier = LocalTvTier.current
     val rail = LocalTvRailFocus.current
+    val actions = tileActions()
     val scope = rememberCoroutineScope()
     val memory = rememberFocusMemory()
     val resume = remember { FocusRequester() }
@@ -131,18 +148,18 @@ private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: Hom
     val column = rememberLazyListState(cacheWindow = remember { LazyLayoutCacheWindow(ahead = RowAhead, behind = 0.dp) })
     var inRows by rememberSaveable { mutableStateOf(false) }
     var hasFocus by remember { mutableStateOf(false) }
-    var focused by remember { mutableStateOf<FocusedTile?>(null) }
-    val rested = rememberRested(focused)
+    val focused = remember { mutableStateOf<FocusedTile?>(null) }
+    RestedFocus(focused, vm)
     val backdrops = rememberBackdropPrefetcher()
-    LaunchedEffect(rested) { rested?.let { vm.focus(it.item, it.ahead) } }
     val info by vm.info.collectAsStateWithLifecycle()
     val heroAlpha by animateFloatAsState(if (inRows) 0f else 1f, PleyMotion.reveal(), label = "hero")
+    // What the rows' callbacks read when they run: rows that didn't change keep theirs, and aren't composed again.
+    val current by rememberUpdatedState(model)
 
     // In the rows, the backdrop and the info block show the tile focus rests on.
     val about: HomeInfo = if (inRows) info ?: hero.info else hero.info
     // A tile its actions took away (Remove from Continue Watching): focus comes back to its neighbour.
-    val tileKeys = remember(model.rows) { model.rows.flatMapTo(HashSet()) { row -> row.tiles.map { "${row.key}/${it.id}" } } }
-    memory.settle { it in tileKeys }
+    memory.settle(model::hasTile)
     val backdrop = remember(about.item.id, origin, tier) {
         if (about.item.id == hero.info.item.id) hero.backdrop else TvHomeModel.backdropOf(about.item, origin, tier)
     }
@@ -189,13 +206,13 @@ private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: Hom
                         seeAll = seeAll,
                         onOpen = { tile -> row.itemOf(tile)?.let { navigator.open(pageOf(it)) } },
                         onActions = { tile ->
-                            memory.mayLeave("${row.key}/${tile.id}", model.standIn(row.key, tile.id))
-                            navigator.open(PleyKey.ItemActions(tile.id, continueWatching = HubKeys.isContinueWatching(row.key)))
+                            memory.mayLeave("${row.key}/${tile.id}", current.standIn(row.key, tile.id))
+                            actions.open(tile.id, continueWatching = HubKeys.isContinueWatching(row.key))
                         },
                         onFocus = { tile ->
                             inRows = true
                             row.itemOf(tile)?.let {
-                                focused = FocusedTile(it, row.after(it))
+                                focused.value = FocusedTile(it, row)
                                 // Its backdrop and its neighbours' load now: focus may rest on any of them next.
                                 backdrops.prefetch(
                                     TvHomeModel.backdropOf(it, origin, tier),

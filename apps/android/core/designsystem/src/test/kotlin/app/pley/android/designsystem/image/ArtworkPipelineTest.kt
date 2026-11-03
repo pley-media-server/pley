@@ -21,8 +21,10 @@ import coil3.request.ImageRequest
 import coil3.request.ImageResult
 import coil3.request.Options
 import coil3.request.SuccessResult
+import coil3.request.transitionFactory
 import coil3.size.pxOrElse
 import coil3.test.FakeImage
+import coil3.transition.CrossfadeTransition
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -148,6 +150,31 @@ class ArtworkPipelineTest {
         server.asked.clear()
         loader.execute(request)
         assertEquals(listOf("$origin/api/items/10/images/poster?w=320"), server.asked)
+    }
+
+    @Test
+    fun aPictureThatLoadedComesBackWithoutFadingIn() = runTest {
+        val url = "$origin/api/items/77/images/poster"
+        val image = ArtworkImage(listOf(url))
+        val loader = loader(FakeServer(setOf("$url?w=320")))
+        val request = ImageRequest.Builder(context).data(image).size(248, 372).build()
+
+        val first = loader.execute(request) as SuccessResult
+        assertTrue(first.request.transitionFactory is CrossfadeTransition.Factory)
+        assertTrue(loader.shownArtwork!!.has(image))
+        // Asked for again (its page composed again, the memory cache had let it go): no fade.
+        val again = loader.execute(request) as SuccessResult
+        assertFalse(again.request.transitionFactory is CrossfadeTransition.Factory)
+        // At another box's width it is the same picture.
+        assertTrue(loader.shownArtwork!!.has(ArtworkImage(listOf(url), maxWidth = 960)))
+    }
+
+    @Test
+    fun onlyPicturesThatLoadedAreKnown() = runTest {
+        val image = ArtworkImage(listOf("$origin/api/items/78/images/poster"))
+        val loader = loader(FakeServer(emptySet()))
+        loader.execute(ImageRequest.Builder(context).data(image).size(248, 372).build())
+        assertFalse(loader.shownArtwork!!.has(image))
     }
 
     @Test

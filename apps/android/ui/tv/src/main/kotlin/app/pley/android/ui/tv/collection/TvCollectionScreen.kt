@@ -56,6 +56,7 @@ import app.pley.android.screens.collection.CollectionPage
 import app.pley.android.screens.collection.CollectionViewModel
 import app.pley.android.screens.screensGraph
 import app.pley.android.ui.tv.R
+import app.pley.android.ui.tv.item.tileActions
 import app.pley.android.ui.tv.kit.BackdropScrim
 import app.pley.android.ui.tv.kit.FocusMemory
 import app.pley.android.ui.tv.kit.TvBackdrop
@@ -122,6 +123,7 @@ internal fun TvCollectionScreen(key: PleyKey.Collection) {
 @Composable
 private fun CollectionContent(page: CollectionPage<ArtworkTileModel>, vm: CollectionViewModel<ArtworkTileModel>, message: String?) {
     val navigator = LocalTvNavigator.current
+    val actions = tileActions()
     val memory = rememberFocusMemory()
     val skeleton = rememberSkeleton(animated = false)
     val grid = rememberTvGridState()
@@ -145,7 +147,7 @@ private fun CollectionContent(page: CollectionPage<ArtworkTileModel>, vm: Collec
             keyAt = { page.itemIds.getOrNull(it) ?: -(it + 1L) },
             kind = TileKind.LibraryGrid,
             onOpen = { position, _ -> vm.opens(position)?.let(navigator::open) },
-            onActions = { tile -> navigator.open(PleyKey.ItemActions(tile.id)) },
+            onActions = { tile -> actions.open(tile.id, continueWatching = false) },
             memory = memory,
             memoryPrefix = "collection",
             skeleton = skeleton,

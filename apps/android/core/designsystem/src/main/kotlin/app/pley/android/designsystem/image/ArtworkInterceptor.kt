@@ -3,6 +3,7 @@ package app.pley.android.designsystem.image
 import app.pley.android.common.ImageUrls
 import app.pley.android.common.Tier
 import app.pley.android.designsystem.PleyMotion
+import coil3.ImageLoader
 import coil3.intercept.Interceptor
 import coil3.network.HttpException
 import coil3.request.ErrorResult
@@ -19,8 +20,9 @@ import kotlinx.coroutines.CancellationException
  * - Never wider than the screen needs ([screenWidthPx], rounded up to the
  *   server's next width) and never 1920 on T0.
  * - A 150 ms fade, only for pictures that weren't in the memory cache
- *   (Coil's crossfade skips those), none on T0, and none for an
- *   [ArtworkImage] that says not to.
+ *   (Coil's crossfade skips those), none on T0, none for an
+ *   [ArtworkImage] that says not to, and none for one that has loaded
+ *   before ([ShownArtwork]).
  */
 class ArtworkPolicy(val tier: Tier, screenWidthPx: Int) {
     /** The widest picture this device asks for. */
@@ -52,23 +54,29 @@ class ArtworkPolicy(val tier: Tier, screenWidthPx: Int) {
  * fills (Coil resolves the box's size before this runs), tries them in
  * order until one loads, and remembers addresses the server said don't
  * exist, so a missing poster costs one request, not one per frame it shows.
- * Any other request passes through.
+ * It also remembers the pictures that loaded ([shown]), which come back
+ * at once when they show again. Any other request passes through.
  */
 class ArtworkInterceptor(private val policy: ArtworkPolicy) : Interceptor {
     private val missing = object : LinkedHashMap<String, Unit>(64, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Unit>?): Boolean = size > MISSING_KEPT
     }
 
+    /** The pictures that have loaded, for [Artwork] to know one shown before ([shownArtwork]). */
+    internal val shown = ShownArtwork()
+
     override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
         val image = chain.request.data as? ArtworkImage ?: return chain.proceed()
         val px = (chain.size.width as? Dimension.Pixels)?.px
+        // One that loaded before comes back without fading in, from the memory cache or not.
+        val fade = policy.fadeMillis > 0 && image.fade && !shown.has(image)
         var last: ImageResult? = null
         for (candidate in image.candidates) {
             val url = policy.sized(candidate, px, image.maxWidth)
             if (isMissing(url)) continue
             val request = chain.request.newBuilder()
                 .data(url)
-                .apply { if (policy.fadeMillis > 0 && image.fade) crossfade(policy.fadeMillis) }
+                .apply { if (fade) crossfade(policy.fadeMillis) }
                 .build()
             val result = try {
                 chain.withRequest(request).proceed()
@@ -77,7 +85,10 @@ class ArtworkInterceptor(private val policy: ArtworkPolicy) : Interceptor {
             } catch (e: Exception) {
                 ErrorResult(null, request, e)
             }
-            if (result is SuccessResult) return result
+            if (result is SuccessResult) {
+                shown.add(image)
+                return result
+            }
             val code = ((result as? ErrorResult)?.throwable as? HttpException)?.response?.code
             if (code == 404 || code == 410) markMissing(url)
             last = result
@@ -96,3 +107,29 @@ class ArtworkInterceptor(private val policy: ArtworkPolicy) : Interceptor {
 
 /** An item without a picture to try, or none that loaded: the placeholder stays. */
 class NoArtworkException : RuntimeException("No artwork")
+
+/**
+ * Pictures that have loaded, by their addresses (the same picture asked
+ * for at another box's width is the same picture), up to [KEPT], the one
+ * asked about least recently leaving first. One shown again, when a page
+ * is composed again or the memory cache let it go, shows at once: no
+ * title in its well while it comes back ([ArtworkLoad.known]), and no
+ * fade. Asked on the main thread, told by the loader's.
+ */
+internal class ShownArtwork {
+    private val keys = object : LinkedHashMap<Int, Unit>(256, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, Unit>?): Boolean = size > KEPT
+    }
+
+    fun has(image: ArtworkImage): Boolean = synchronized(keys) { keys[image.candidates.hashCode()] != null }
+
+    fun add(image: ArtworkImage) = synchronized(keys) { keys[image.candidates.hashCode()] = Unit }
+
+    companion object {
+        const val KEPT = 5_000
+    }
+}
+
+/** The pictures this loader has loaded: the app's, which has an [ArtworkInterceptor]; `null` for another. */
+internal val ImageLoader.shownArtwork: ShownArtwork?
+    get() = components.interceptors.firstNotNullOfOrNull { (it as? ArtworkInterceptor)?.shown }
