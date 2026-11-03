@@ -37,6 +37,9 @@ describes how they are made.
   drive as it opens.
 ### Changed
 
+- On phones, the first scrolls after an install or an update are smoother:
+  the app comes compiled ahead for the phone's screens too, not only the
+  TV's.
 - Chapters named only by where they start ("00:06:19.212", as mkvmerge
   names them) show as "Chapter 3" on phones and TVs, as untitled ones do.
 - On TVs, a held Left or Right scrubs on a smooth curve, twice as fast

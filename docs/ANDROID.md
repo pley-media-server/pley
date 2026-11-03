@@ -577,7 +577,8 @@ change that draws less shows in HWUI's overdraw view
 in these times. What the emulator does show is compilation: the phone's
 first flings after a start without the profile compiled run at a 95th
 percentile of 400 ms and 16 % janky frames, where compiled from the
-profile they are at 34 to 121 ms and 5 to 9 %.
+profile, with its phone rules, they are at 34 to 89 ms and 5.6 to 6.4 %
+(105 ms and 8.8 % at the median with the TV's rules alone).
 
 The Baseline and Startup Profiles come from `BaselineProfileGenerator`'s
 journeys against the demo server: a cold start (the Startup Profile, which
@@ -592,8 +593,9 @@ a library's grid, search, a playlist and Me's Settings. Each journey runs
 on its own kind of device and is skipped on the other, so generate with a
 TV and a phone (or their emulators, API 33 or later) attached. Each step
 waits for the screen it leads to, and a journey that goes astray fails
-there, saying where. The phone signs in through the browser: on a new
-device, open the browser once first, past its welcome pages.
+there, saying where. The phone signs in through the browser, or with a
+code where it has none: on a new device with a browser, open it once
+first, past its welcome pages.
 
 ## Releases
 
