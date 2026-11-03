@@ -314,7 +314,9 @@ not even ".." shows (no drive, or the drive's top), the message keeps
 focus, unmarked, so the rail closes; Left opens it.
 Nothing leaves the rail to make room for the drive's entry: with more
 entries than its nine places, those between the avatar and Settings
-scroll.
+scroll, keeping the focused entry fourth from the top as on Android TV.
+The Magic Remote moves them only as far as brings a cut-off entry in
+whole, as it does a tile.
 
 webOS mounts a drive at `/tmp/usb/<disk>/<partition>`, and the letters
 change with what is plugged in, so the app looks for the first drive in

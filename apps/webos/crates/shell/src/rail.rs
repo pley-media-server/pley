@@ -408,29 +408,25 @@ impl Rail {
     }
 
     /// Where the entries between the avatar and Settings show scrolled to this frame, by the rule
-    /// the TV apps share ([`rail_scroll`]): the focused entry (the current one while closed) in
-    /// view and, as focus moves along the rail with keys, the next one the way it went. Opening
-    /// the rail, the entries made again and the pointer have no direction, so only the entry
-    /// comes in, as little as brings a cut-off one in whole.
+    /// the TV apps share ([`rail_scroll`]): placed for the focused entry, or, while the rail is
+    /// closed, for the current one, so opening it on that entry moves nothing. The pointer keeps
+    /// its own way: the entry it is on comes in only as far as shows it whole, since entries
+    /// moving under a still pointer would move focus.
     fn follow(&mut self, ui: &mut Ui, view: &RailView) -> f32 {
         let top = &view.entries.top;
-        let (at, dir) = if self.open {
-            let at = ui.focused().and_then(|id| place(view.entries, id));
-            // The way from where the element focused last frame is now, found by its id, so an
-            // entry coming or going before it doesn't read as a move. Closed, nothing was
-            // focused here: opening has no direction.
-            let from = self.last_focus.and_then(|id| place(view.entries, id));
-            let dir = match (from, at) {
-                (Some(from), Some(at)) if from != at && !ui.pointer_mode() => {
-                    Some(if from < at { Dir::Down } else { Dir::Up })
-                }
-                _ => None,
-            };
-            (at, dir)
+        let at = if self.open {
+            ui.focused().and_then(|id| place(view.entries, id))
         } else {
-            (view.current.and_then(|c| top.iter().position(|e| e.id == c)).map(|i| i as isize), None)
+            view.current.and_then(|c| top.iter().position(|e| e.id == c)).map(|i| i as isize)
         };
-        self.scroll = rail_scroll(self.scroll, at.unwrap_or(-1), top.len(), dir);
+        let at = at.unwrap_or(-1);
+        self.scroll = match usize::try_from(at) {
+            Ok(i) if self.open && ui.pointer_mode() && i < top.len() => {
+                let y = i as f32 * PITCH;
+                nudge(self.scroll, y, y + ENTRY_H, 0.0, VIEW_H, 0.0, scroll_end(top.len()))
+            }
+            _ => rail_scroll(self.scroll, at, top.len()),
+        };
         ui.scroll(rail_id().with("scroll"), self.scroll, SCROLL)
     }
 }
@@ -447,23 +443,25 @@ fn place(entries: &RailEntries, id: Id) -> Option<isize> {
     entries.top.iter().position(|e| Rail::entry_focus_id(&e.id) == id).map(|i| i as isize)
 }
 
-/// How far the entries are scrolled once entry `focused` of `count` has focus, from `scroll`
-/// (packages/tv's `railScroll`, which packages/tv/test/fixtures/rail.json pins for every TV
-/// app): the entry wholly in view and, moving `dir` (Down from above it or the avatar, Up from
-/// below or Settings), the next one that way too, so what is beyond the edge shows coming;
-/// within the first entry at its place and the last ending above Settings. With no direction
-/// only the entry is brought into view; with no entry focused (the avatar, Settings, -1 or
-/// `count`) the scroll is kept within its ends.
-fn rail_scroll(scroll: f32, focused: isize, count: usize, dir: Option<Dir>) -> f32 {
-    let max = (count as f32 * PITCH - GAP - VIEW_H).max(0.0);
-    let Ok(i) = usize::try_from(focused) else { return scroll.clamp(0.0, max) };
-    if i >= count {
-        return scroll.clamp(0.0, max);
+/// How far the entries are scrolled while entry `focused` of `count` has focus (packages/tv's
+/// `railScroll`, which packages/tv/test/fixtures/rail.json pins for every TV app): by whole
+/// entries, so none is ever cut in half at either end. Going down, focus moves until it is the
+/// fourth entry shown, then stays there while the entries move under it an entry a press, until
+/// the last ones are all in view and focus goes on to the last; going up is the same backwards.
+/// Where an entry shows depends on it alone, never on the way focus came or on `scroll`, as the
+/// app's lists keep their focused row in one place. With no entry focused (the avatar,
+/// Settings, -1 or `count`) `scroll` is kept, within the ends.
+fn rail_scroll(scroll: f32, focused: isize, count: usize) -> f32 {
+    let end = scroll_end(count);
+    match usize::try_from(focused) {
+        Ok(i) if i < count => ((i as f32 - PIVOT) * PITCH).clamp(0.0, end),
+        _ => scroll.clamp(0.0, end),
     }
-    let at = i as f32 * PITCH;
-    let top = at - if dir == Some(Dir::Up) && i > 0 { PITCH } else { 0.0 };
-    let bottom = at + ENTRY_H + if dir == Some(Dir::Down) && i + 1 < count { PITCH } else { 0.0 };
-    nudge(scroll, top, bottom, 0.0, VIEW_H, 0.0, max)
+}
+
+/// The furthest the entries scroll: by whole entries, until the last nine show.
+fn scroll_end(count: usize) -> f32 {
+    count.saturating_sub(FITS) as f32 * PITCH
 }
 
 /// How far a label slides in from as the rail opens: a little, since an entry doesn't clip it and
@@ -487,6 +485,10 @@ const FIRST_Y: f32 = TOP + AVATAR_ENTRY + AVATAR_GAP;
 const SETTINGS_Y: f32 = theme::CANVAS_H - BOTTOM - ENTRY_H;
 /// The view the entries scroll in, from the first entry's top to a gap above Settings: nine fit.
 const VIEW_H: f32 = SETTINGS_Y - GAP - FIRST_Y;
+/// Whole entries in the view, the last one's gap aside: nine.
+const FITS: usize = ((VIEW_H + GAP) / PITCH) as usize;
+/// The entries shown above the focused one while they scroll under it ([`rail_scroll`]).
+const PIVOT: f32 = 3.0;
 /// What shows of the entries, from the avatar's foot to Settings, so a focused entry growing at
 /// either end of the view isn't cut.
 const CLIP_TOP: f32 = TOP + AVATAR_ENTRY;
@@ -901,6 +903,7 @@ mod tests {
         assert_eq!(theme::CANVAS_H - SETTINGS_Y - ENTRY_H, BOTTOM);
         // Whole entries in the view, the last one's gap aside.
         assert_eq!(((VIEW_H + GAP) / PITCH).floor(), 9.0);
+        assert_eq!(FITS, 9);
         assert_eq!(CLOSED_WIDTH, X + ENTRY_W + 8.0);
         assert_eq!(OPEN_WIDTH, X + ENTRY_W_OPEN + 8.0);
     }
@@ -954,8 +957,14 @@ mod tests {
         }
     }
 
+    /// Where entry `i` of `count` starts while it has focus: down to the fourth place, then there
+    /// while the entries scroll by whole entries, until the last nine show.
+    fn resting_top(i: usize, count: usize) -> f32 {
+        FIRST_Y + i as f32 * PITCH - ((i as f32 - 3.0) * PITCH).clamp(0.0, (count - 9) as f32 * PITCH)
+    }
+
     #[test]
-    fn the_entries_scroll_to_keep_focus_in_view_with_the_next_one_beside_it() {
+    fn the_focused_entry_stays_fourth_from_the_top_as_the_entries_scroll_the_same_both_ways() {
         use pley_base::Key;
         use pley_ui::testing::{Harness, Step};
         use std::cell::{Cell, RefCell};
@@ -969,33 +978,30 @@ mod tests {
         h.idle(&mut screen);
         let f = h.step(Step::Wait(0.5), &mut screen);
         assert_eq!(tops(&f.list, &entries)[0], FIRST_Y, "the first entry starts at the top");
-        // Down along the rail: the focused entry and the one after it show whole.
+        // Down along the rail: focus goes down to the fourth entry shown, stays there while the
+        // entries move under it an entry a press, then goes on to the last. They move by whole
+        // entries, so the first one shown starts at the top.
         for i in 1..n {
             h.step(Step::Press(Key::Down), &mut screen);
             let f = h.step(Step::Wait(0.4), &mut screen);
             assert_eq!(f.focused, Some(Rail::entry_focus_id(&entries.top[i].id)));
             let tops = tops(&f.list, &entries);
-            assert!(whole(tops[i]), "entry {i} at {}", tops[i]);
-            if i + 1 < n {
-                assert!(whole(tops[i + 1]), "entry {} after {i} at {}", i + 1, tops[i + 1]);
-            }
+            assert_eq!(tops[i], resting_top(i, n), "entry {i}");
+            assert!(tops.iter().all(|&t| (t - FIRST_Y).rem_euclid(PITCH) == 0.0), "{tops:?}");
         }
-        // At the end the last one ends a gap above Settings, and Down goes on to Settings.
-        let f = h.step(Step::Wait(0.1), &mut screen);
-        assert_eq!(tops(&f.list, &entries)[n - 1] + ENTRY_H, SETTINGS_Y - GAP);
+        // At the end the last one ends at 459, and Down goes on to Settings, moving nothing.
+        assert_eq!(resting_top(n - 1, n) + ENTRY_H, FIRST_Y + 9.0 * PITCH - GAP);
         let f = h.step(Step::Press(Key::Down), &mut screen);
         assert_eq!(f.focused, Some(Rail::entry_focus_id("settings")));
         assert_eq!(label_y(&f.list, "Settings"), Some(SETTINGS_Y + (ENTRY_H - theme::LABEL.line_height) / 2.0));
-        // Back up: the entry before the focused one shows whole too.
-        h.step(Step::Press(Key::Up), &mut screen);
-        for i in (0..n - 1).rev() {
+        let f = h.step(Step::Wait(0.4), &mut screen);
+        assert_eq!(tops(&f.list, &entries)[n - 1], resting_top(n - 1, n));
+        // Back up: each entry where it was on the way down.
+        for i in (0..n).rev() {
             h.step(Step::Press(Key::Up), &mut screen);
             let f = h.step(Step::Wait(0.4), &mut screen);
-            let tops = tops(&f.list, &entries);
-            assert!(whole(tops[i]), "entry {i} at {}", tops[i]);
-            if i > 0 {
-                assert!(whole(tops[i - 1]), "entry {} before {i} at {}", i - 1, tops[i - 1]);
-            }
+            assert_eq!(f.focused, Some(Rail::entry_focus_id(&entries.top[i].id)));
+            assert_eq!(tops(&f.list, &entries)[i], resting_top(i, n), "entry {i}");
         }
         assert_eq!(tops(&h.idle(&mut screen).list, &entries)[0], FIRST_Y);
     }
@@ -1018,14 +1024,15 @@ mod tests {
             _ => None,
         });
         let usb = usb.expect("the drive's icon is drawn");
-        assert!(whole(usb - (ENTRY_H - ICON) / 2.0), "the drive's icon at {usb}");
-        assert_eq!(usb - (ENTRY_H - ICON) / 2.0 + ENTRY_H, SETTINGS_Y - GAP);
-        // Opened there, nothing moves: the view is at its end, the entry before it whole too.
+        assert_eq!(usb - (ENTRY_H - ICON) / 2.0, resting_top(13, 14), "the drive's icon at {usb}");
+        assert_eq!(rail.borrow().scroll, 5.0 * PITCH);
+        // Opened there, nothing moves: the view is at its end, the last nine whole.
         open.set(Some("storage"));
         h.idle(&mut screen);
         let f = h.step(Step::Wait(0.5), &mut screen);
         let tops = tops(&f.list, &entries);
-        assert!(whole(tops[13]) && whole(tops[12]), "{tops:?}");
+        assert_eq!(rail.borrow().scroll, 5.0 * PITCH);
+        assert!(tops[5..].iter().all(|&t| whole(t)), "{tops:?}");
         assert!(!whole(tops[0]), "the first entries are scrolled away");
         // The entries are drawn inside a clip from the avatar's foot to Settings, which is outside.
         let at = |pred: &dyn Fn(&Cmd) -> bool| f.list.cmds.iter().position(pred).unwrap();
@@ -1062,31 +1069,42 @@ mod tests {
         assert!(!cases.is_empty());
         for case in cases {
             let input = &case["in"];
-            let dir = match input["dir"].as_str() {
-                Some("down") => Some(Dir::Down),
-                Some("up") => Some(Dir::Up),
-                None => None,
-                Some(other) => panic!("a direction {other}"),
-            };
-            let scroll = input["scroll"].as_f64().unwrap() as f32;
             let focused = input["focused"].as_i64().unwrap() as isize;
             let count = input["count"].as_u64().unwrap() as usize;
-            assert_eq!(rail_scroll(scroll, focused, count, dir), case["out"].as_f64().unwrap() as f32, "{input}");
+            // With an entry focused, where it was scrolled before makes no difference.
+            let from = match input["scroll"].as_f64() {
+                Some(scroll) => vec![scroll as f32],
+                None => vec![0.0, 37.0, 1000.0],
+            };
+            for scroll in from {
+                assert_eq!(
+                    rail_scroll(scroll, focused, count),
+                    case["out"].as_f64().unwrap() as f32,
+                    "{input} from {scroll}"
+                );
+            }
         }
     }
 
     /// Where the first entry's top is drawn: `FIRST_Y` less the scroll.
+    /// Where the first entry starts, by its icon: a closed rail draws no labels.
     fn first_top(list: &pley_base::DisplayList, entries: &RailEntries) -> f32 {
-        tops(list, entries)[0]
+        let icon = entries.top[0].icon;
+        let y = list.cmds.iter().find_map(|c| match c {
+            pley_base::Cmd::Icon { rect, icon: drawn, .. } if *drawn == icon => Some(rect.y),
+            _ => None,
+        });
+        y.expect("the first entry's icon is drawn") - (ENTRY_H - ICON) / 2.0
     }
 
     #[test]
-    fn opening_the_rail_brings_in_only_its_entry_and_keys_look_ahead_the_way_they_go() {
+    fn the_closed_rail_places_its_entry_by_the_rule_and_the_pointer_only_brings_one_in_whole() {
         use pley_base::Key;
         use pley_ui::testing::{Harness, Step};
         use std::cell::{Cell, RefCell};
         // Twelve entries: Search, Home, Live TV, six libraries, Playlists, Collections, Now
-        // Playing. Closed on the sixth library's page (entry 8), which shows without scrolling.
+        // Playing. Closed on the sixth library's page (entry 8), placed as focus on it would be:
+        // the entries at their end, the last nine whole.
         let libs: Vec<Library> = (1..=6).map(|i| lib(i, LibraryKind::Movies)).collect();
         let entries = rail_entries(&libs, true, true, None, false);
         assert_eq!((entries.top.len(), entries.top[8].id.as_str()), (12, "library:6"));
@@ -1095,25 +1113,32 @@ mod tests {
         let mut screen = rail_screen(&entries, &rail, &open, "library:6");
         let mut h = Harness::new();
         h.idle(&mut screen);
-        h.step(Step::Wait(0.5), &mut screen);
-        assert_eq!(rail.borrow().scroll, 0.0);
-        // Opened there with keys, the rail doesn't move: no way was taken yet.
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(rail.borrow().scroll, 132.0);
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - 132.0);
+        // Opened there with keys, nothing moves.
         open.set(Some("library:6"));
         h.idle(&mut screen);
         let f = h.step(Step::Wait(0.5), &mut screen);
         assert_eq!(f.focused, Some(Rail::entry_focus_id("library:6")));
-        assert_eq!(first_top(&f.list, &entries), FIRST_Y);
-        // Down: entry 9 and the one after it in view (scrolled 78, as the fixture has it).
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - 132.0);
+        // Down and back up at the end: focus moves, the entries don't.
         h.step(Step::Press(Key::Down), &mut screen);
         let f = h.step(Step::Wait(0.5), &mut screen);
         assert_eq!(f.focused, Some(Rail::entry_focus_id("playlists")));
-        assert_eq!(first_top(&f.list, &entries), FIRST_Y - 78.0);
-        // Back up to entry 8, which shows with the one before it: nothing moves.
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - 132.0);
         h.step(Step::Press(Key::Up), &mut screen);
         let f = h.step(Step::Wait(0.5), &mut screen);
-        assert_eq!(first_top(&f.list, &entries), FIRST_Y - 78.0);
-        // Up to entry 1 shows Search above it, at the top.
-        for _ in 0..7 {
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - 132.0);
+        // Up to entry 5, fourth from the top, the entries moving under it.
+        for _ in 0..3 {
+            h.step(Step::Press(Key::Up), &mut screen);
+        }
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("library:3")));
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - 88.0);
+        // Up to entry 1 brings Search back to the top.
+        for _ in 0..4 {
             h.step(Step::Press(Key::Up), &mut screen);
         }
         let f = h.step(Step::Wait(0.5), &mut screen);
@@ -1123,11 +1148,17 @@ mod tests {
         h.step(Step::Point(Point::new(30.0, FIRST_Y + 9.0 * PITCH + 2.0)), &mut screen);
         let f = h.step(Step::Wait(0.5), &mut screen);
         assert_eq!(f.focused, Some(Rail::entry_focus_id("playlists")));
-        assert_eq!(first_top(&f.list, &entries), FIRST_Y - (9.0 * PITCH + ENTRY_H - VIEW_H));
+        let pointed = 9.0 * PITCH + ENTRY_H - VIEW_H;
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - pointed);
+        // On entry 4, in view, nothing moves under it.
+        h.step(Step::Point(Point::new(30.0, FIRST_Y + 4.0 * PITCH - pointed + 2.0)), &mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id(&entries.top[4].id)));
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - pointed);
     }
 
     #[test]
-    fn entries_made_again_keep_focus_and_scroll_on_the_focused_one() {
+    fn entries_made_again_keep_focus_and_place_the_focused_one_by_the_rule() {
         use pley_base::Key;
         use pley_ui::testing::{Harness, Step};
         use std::cell::{Cell, RefCell};
@@ -1161,22 +1192,23 @@ mod tests {
         h.idle(&mut screen);
         let f = h.step(Step::Wait(0.5), &mut screen);
         assert_eq!(f.focused, Some(Rail::entry_focus_id("playlists")));
-        assert_eq!(tops(&f.list, &entries.borrow())[10] + ENTRY_H, SETTINGS_Y - GAP, "Playlists at the view's foot");
-        // The entries change under it: focus stays on Playlists, which stays in view, and its
-        // moving down a place isn't a move down, so Now Playing after it doesn't come in.
+        assert_eq!(tops(&f.list, &entries.borrow())[10], resting_top(10, 11), "Playlists last of the nine shown");
+        // The entries change under it: focus stays on Playlists, placed again by the rule for
+        // its new place, which shows Now Playing after it whole.
         *entries.borrow_mut() = after;
         h.idle(&mut screen);
         let f = h.step(Step::Wait(0.5), &mut screen);
         assert_eq!(f.focused, Some(Rail::entry_focus_id("playlists")));
-        assert_eq!(rail.borrow().scroll, 11.0 * PITCH + ENTRY_H - VIEW_H);
+        assert_eq!(rail.borrow().scroll, 4.0 * PITCH);
         let tops_now = tops(&f.list, &entries.borrow());
-        assert_eq!(tops_now[11] + ENTRY_H, SETTINGS_Y - GAP, "Playlists still at the view's foot");
-        assert!(!whole(tops_now[12]), "Now Playing came in");
-        // Down from it now looks ahead: Now Playing, the last, ends at the foot.
+        assert_eq!(tops_now[11], resting_top(11, 13));
+        assert!(whole(tops_now[12]), "Now Playing in view");
+        // Down to Now Playing, the last: nothing moves.
         h.step(Step::Press(Key::Down), &mut screen);
         let f = h.step(Step::Wait(0.5), &mut screen);
         assert_eq!(f.focused, Some(Rail::entry_focus_id("now-playing")));
-        assert_eq!(tops(&f.list, &entries.borrow())[12] + ENTRY_H, SETTINGS_Y - GAP);
+        assert_eq!(rail.borrow().scroll, 4.0 * PITCH);
+        assert_eq!(tops(&f.list, &entries.borrow())[12] + ENTRY_H, FIRST_Y + 9.0 * PITCH - GAP);
     }
 
     #[test]
