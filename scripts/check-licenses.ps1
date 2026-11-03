@@ -13,10 +13,10 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
 
-function Get-Metadata([string]$dir) {
+function Get-Metadata([string]$dir, [string[]]$features) {
     Push-Location $dir
     try {
-        $json = cargo metadata --format-version 1 --quiet
+        $json = cargo metadata --format-version 1 --quiet @features
         if ($LASTEXITCODE -ne 0) { throw "cargo metadata failed in $dir" }
         return $json | ConvertFrom-Json
     } finally {
@@ -58,15 +58,16 @@ function Test-CopyleftOnly([string]$expr) {
 }
 
 $workspaces = @(
-    @{ Dir = $root; Programs = "pley-server", "pley-transcoder" },
-    # A workspace of its own (see the root Cargo.toml).
-    @{ Dir = Join-Path $root "apps/webos"; Programs = @("pley-lg") }
+    @{ Dir = $root; Programs = "pley-server", "pley-transcoder"; Features = @() },
+    # A workspace of its own (see the root Cargo.toml), resolved with the TV's
+    # features as well as the simulator's defaults, as `cargo xtask` does.
+    @{ Dir = Join-Path $root "apps/webos"; Programs = @("pley-lg"); Features = @("--features", "pley-lg/tv") }
 )
 
 $failed = $false
 
 foreach ($workspace in $workspaces) {
-    $meta = Get-Metadata $workspace.Dir
+    $meta = Get-Metadata $workspace.Dir $workspace.Features
     # Pley's own crates are under LICENSE themselves; the rule is about the
     # crates they use.
     $own = @{}
