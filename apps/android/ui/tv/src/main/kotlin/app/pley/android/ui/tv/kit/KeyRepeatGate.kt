@@ -228,10 +228,11 @@ class KeyRepeatGate(
     }
 
     private fun startHold(now: Long) {
-        holding = true
+        // Before holding: a picture loader on its own thread that sees the hold waits on this, not on nothing.
+        released = CompletableDeferred()
         // The first held move is due at once.
         nextMove = now
-        released = CompletableDeferred()
+        holding = true
     }
 
     private fun endHold(now: Long) {
