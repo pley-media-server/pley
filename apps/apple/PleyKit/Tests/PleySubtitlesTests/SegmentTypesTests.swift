@@ -42,8 +42,8 @@ struct SegmentTypesTests {
 
     @Test func pgsCropsAnObjectAsTheCompositionSays() throws {
         var pcs = u16(1920) + u16(1080) + [0x10] + u16(1) + [0x80, 0, 0, 1]
-        // Object 0, window 0, cropped (0x40), at (100, 900); crop from (2, 0), 2×2.
-        pcs += u16(0) + [0, 0x40] + u16(100) + u16(900) + u16(2) + u16(0) + u16(2) + u16(2)
+        // Object 0, window 0, cropped (0x80), at (100, 900); crop from (2, 0), 2×2.
+        pcs += u16(0) + [0, 0x80] + u16(100) + u16(900) + u16(2) + u16(0) + u16(2) + u16(2)
         var set = pgsSegment(0x16, pcs)
         set += pgsSegment(0x14, [0, 0, 1, 235, 128, 128, 255, 2, 16, 128, 128, 128])
         let data = u16(4) + u16(2) + [1, 1, 0, 0x02, 0, 0, 0, 0x84, 2, 0, 0]

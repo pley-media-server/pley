@@ -127,7 +127,8 @@ public final class PGSDecoder: PictureDecoder {
         var at = 11
         var i = 0
         while i < b.at(10), at + 8 <= b.count {
-            let cropped = b.at(at + 3) & 0x40 != 0
+            // 0x80 is the cropped flag; 0x40 is forced, which says nothing of the crop.
+            let cropped = b.at(at + 3) & 0x80 != 0
             var placed = Composition.Placed(id: b.u16(at), x: b.u16(at + 4), y: b.u16(at + 6))
             at += 8
             if cropped, at + 8 <= b.count {
