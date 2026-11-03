@@ -160,9 +160,13 @@ sealed class PictureSubtitleView : View
         if (Disposed) return;
         // Off the screen with the view; their textures a second later, as any. Only when disposed
         // by the app: collected, its images may have gone first (Kit/Held.cs).
-        if (type == DisposeTypes.Explicit) Clear();
-        held = null;
-        Waiting.Remove(this);
+        // A view waiting for room is held by Waiting, so is never collected while it waits.
+        if (type == DisposeTypes.Explicit)
+        {
+            Clear();
+            held = null;
+            Waiting.Remove(this);
+        }
         base.Dispose(type);
     }
 }
