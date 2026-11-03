@@ -1863,6 +1863,12 @@ Delete the folder afterwards.
   download is followed only while Pley is open, since following it needs
   the app running: one started then waits until Pley is opened again. The
   file itself downloads in the background.
+- On iPhone and iPad the system's player keeps its own 10-second back and
+  forward buttons beside Play, which the other apps' players no longer
+  have: AVKit hides them only by turning off scrubbing too
+  (`requiresLinearPlayback`). Apple TV shows none; its clickpad's Left and
+  Right go back and forward 10 seconds, as Left and Right do in the other
+  TV apps.
 - Live TV has no Picture in Picture and doesn't switch the display's
   frame rate or range, as on Android: its player is Pley's own view of the
   video, with no pause or seeking, not the system's player, which brings
