@@ -40,17 +40,17 @@ import app.pley.android.designsystem.reducedMotion
  * skeleton on it, and stops with reduced motion. Its position is read only
  * while drawing, so the shimmer never recomposes anything.
  *
- * The shimmer runs only while a skeleton is drawn with this look. A screen
+ * The shimmer runs only while a skeleton with this look is composed. A screen
  * keeps its look once its content has come (rows and grids that may still
  * load a part), and a clock running under content wakes the main thread
  * every frame for nothing.
  */
 @Stable
 class SkeletonState internal constructor(internal val animated: Boolean) {
-    /** Skeleton shapes drawn with this look now. */
+    /** Skeleton shapes with this look composed now. */
     private var drawn by mutableIntStateOf(0)
 
-    /** Whether any skeleton is drawn with this look: the shimmer runs only then. */
+    /** Whether any skeleton with this look is composed: the shimmer runs only then. */
     internal val shown: Boolean by derivedStateOf { drawn > 0 }
 
     /** Where the shimmer is, from 0 to 1. Read only while drawing. */
@@ -76,7 +76,7 @@ fun rememberSkeleton(animated: Boolean): SkeletonState {
 
 /**
  * Moves [state]'s shimmer across its skeletons, from left to right once
- * every [SHIMMER_MS], while one is drawn. In a scope of its own: a skeleton
+ * every [SHIMMER_MS], while one is composed. In a scope of its own: a skeleton
  * showing or going starts or stops it without recomposing the screen.
  */
 @Composable
