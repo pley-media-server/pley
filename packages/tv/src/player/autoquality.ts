@@ -138,9 +138,9 @@ export interface AutoOptions {
    */
   onCeiling?: (kbps: number | null) => void;
   /**
-   * The player goes black between streams (Samsung's AVPlay, LG's
-   * pipeline): it never moves to another stream while one plays well. A
-   * stream whose bitrate changes as it is sent steps that; any other moves
+   * The player goes black between streams (Samsung's AVPlay): it never
+   * moves to another stream while one plays well. A stream whose bitrate
+   * changes as it is sent steps that; any other moves
    * only once its picture has stopped (a wait of 2 s or more, a decoder
    * failing), and never back up.
    */

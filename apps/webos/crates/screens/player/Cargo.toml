@@ -1,0 +1,30 @@
+[package]
+name = "pley-player-ui"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: the video player screen"
+license = "AGPL-3.0-only"
+publish = false
+
+[dependencies]
+pley-base = { path = "../../base" }
+pley-core = { path = "../../core" }
+pley-ui = { path = "../../ui" }
+pley-kit = { path = "../../kit" }
+pley-shell = { path = "../../shell" }
+pley-player = { path = "../../player" }
+pley-subs = { path = "../../subs" }
+# Seek-preview sheets are decoded on the task pool and cut into their previews (src/previews.rs).
+pley-gfx = { path = "../../gfx" }
+log = "0.4.29"
+
+[dev-dependencies]
+# The simulator with this crate's screens alone (examples/player_sim.rs), and the fake server.
+pley-host = { path = "../../host" }
+pley-fixtures = { path = "../../fixtures" }
+# The tests build server errors with JSON bodies.
+serde_json = "1.0.154"
+# examples/player_states.rs draws the player's states with the app's renderer and fonts.
+pley-text = { path = "../../text" }
+pley-platform = { path = "../../platform" }

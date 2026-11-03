@@ -1,0 +1,11 @@
+[package]
+name = "pley-ui"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: the interface toolkit (focus, input, animation, theme and kit)"
+license = "AGPL-3.0-only"
+publish = false
+
+[dependencies]
+pley-base = { path = "../base" }

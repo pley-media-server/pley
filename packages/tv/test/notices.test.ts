@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { noticesText, packageOf, TEXTS, type Shipped } from "../build/notices.ts";
 import { licenseRows, THIRD_PARTY } from "../src/licenses";
 
-/** The licenses of what the Samsung and LG apps ship: in Settings → About, and in full in the package's NOTICES.txt. */
+/** The licenses of what the Samsung app ships: in Settings → About, and in full in the package's NOTICES.txt. */
 
 const pkg = (id: string, text = `The MIT License (MIT)\n\nCopyright (c) ${id}`): Shipped => ({ id, version: "1.0.0", homepage: null, text });
 
@@ -15,16 +15,16 @@ describe("the apps' notices", () => {
   });
 
   it("list each package, then its license in full", () => {
-    const text = noticesText("Pley for LG TV", [pkg("qrcode-generator", TEXTS["qrcode-generator"]!), pkg("preact")]);
-    expect(text.startsWith("Pley for LG TV includes the following open-source software")).toBe(true);
+    const text = noticesText("Pley for Samsung TV", [pkg("qrcode-generator", TEXTS["qrcode-generator"]!), pkg("preact")]);
+    expect(text.startsWith("Pley for Samsung TV includes the following open-source software")).toBe(true);
     expect(text).toContain("- Preact: preact 1.0.0 (MIT)\n- QR Code generator (Kazuhiko Arase): qrcode-generator 1.0.0 (MIT)");
     expect(text).toContain("Copyright (c) 2009 Kazuhiko Arase");
     expect(text).toContain("Copyright (c) preact");
   });
 
   it("stop the build on a package nobody named, or one without a license text", () => {
-    expect(() => noticesText("Pley for LG TV", [pkg("left-pad")])).toThrow(/licenses\.ts/);
-    expect(() => noticesText("Pley for LG TV", [pkg("preact", " ")])).toThrow(/no license text/);
+    expect(() => noticesText("Pley for Samsung TV", [pkg("left-pad")])).toThrow(/licenses\.ts/);
+    expect(() => noticesText("Pley for Samsung TV", [pkg("preact", " ")])).toThrow(/no license text/);
   });
 
   it("name each in About once, with its license", () => {

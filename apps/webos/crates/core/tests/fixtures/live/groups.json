@@ -1,0 +1,12 @@
+{
+  "total": 3,
+  "favorites": 1,
+  "recent": 2,
+  "groups": [
+    { "name": "News", "region": null, "label": "News", "count": 2 },
+    { "name": "Sport", "region": null, "label": "Sport", "count": 1 },
+    { "name": "UK| Sport", "region": "UK", "label": "Sport", "count": 80 },
+    { "name": "UK| News", "region": "UK", "label": "News", "count": 21 },
+    { "name": "AR| Kids", "region": "AR", "label": "Kids", "count": 12 }
+  ]
+}

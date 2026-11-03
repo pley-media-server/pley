@@ -1,0 +1,19 @@
+[package]
+name = "pley-local"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: videos on a USB drive (folders, file heads, subtitles, resume points)"
+license = "AGPL-3.0-only"
+publish = false
+
+[dependencies]
+pley-core = { path = "../core" }
+pley-player = { path = "../player" }
+pley-subs = { path = "../subs" }
+# Subtitle blocks a muxer compressed with zlib; already here for pley-core, and pure Rust.
+flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
+
+[dev-dependencies]
+# The simulator's sample drive, read as the TV reads a drive.
+pley-fixtures = { path = "../fixtures" }

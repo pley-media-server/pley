@@ -1,0 +1,27 @@
+{
+  "session_id": "6f1c2a9e4b7d4e0f9a3c5b8d7e6f1a2b",
+  "method": "transcode",
+  "transcode": {
+    "job_id": "j-4c8e1f",
+    "state": "running",
+    "video": "transcode",
+    "audio": "transcode",
+    "video_in": "HEVC 3840×2160 Dolby Vision P8.1",
+    "video_out": "H.264 3840×2160",
+    "audio_in": "TrueHD 7.1",
+    "audio_out": "AAC 2.0",
+    "encoder": "h264_nvenc",
+    "preset": null,
+    "decoder": "cuda",
+    "pipeline": "gpu",
+    "tonemap": "libplacebo",
+    "subtitle_burn": true,
+    "speed": 2.4,
+    "fps": 57.5,
+    "transcoded_ms": 2532000,
+    "segments_ready": 422,
+    "segments_total": 1165,
+    "bitrate_out": 15192000,
+    "last_error": null
+  }
+}

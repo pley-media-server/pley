@@ -1,0 +1,418 @@
+//! The shell: Back's four levels, the start gate, the rail's focus rules, the curtain, toasts and
+//! the registry's placeholders.
+
+mod common;
+
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use common::{TestApp, device, fixtures, http, registry, sign_in, store};
+use pley_base::{Key, KeyEvent};
+use pley_core::device::Drive;
+use pley_shell::{NavCommand, PLACEHOLDER_TEXT, Rail, Registry, Route};
+use pley_ui::InputEvent;
+
+fn heard() -> common::Heard {
+    Rc::new(RefCell::new(Vec::new()))
+}
+
+#[test]
+fn back_closes_the_page_s_own_then_pops_then_opens_the_rail_then_leaves() {
+    let server = fixtures();
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    let mut app = TestApp::new(device.clone(), store, http, registry(&heard(), &[]));
+    assert_eq!(app.shell.top_route(), Some(&Route::Home));
+    let home_button = app.button();
+    assert_eq!(app.focused(), Some(home_button));
+
+    app.press(Key::Ok);
+    assert_eq!(app.shell.routes(), [&Route::Home, &Route::Item { id: 1 }]);
+    assert_eq!(app.focused(), Some(app.button()));
+
+    // 1. What the page has open closes first.
+    app.press(Key::Menu);
+    let panel_row = app.shell.top().unwrap().group_id().with("panel").with("row");
+    assert_eq!(app.focused(), Some(panel_row));
+    app.press(Key::Back);
+    assert_eq!(app.shell.depth(), 2);
+    assert_eq!(app.focused(), Some(app.button()));
+
+    // 2. A page opened from another goes back to it, focus on what opened it.
+    app.press(Key::Back);
+    assert_eq!(app.shell.routes(), [&Route::Home]);
+    assert_eq!(app.focused(), Some(home_button));
+
+    // 3. A first page sends focus to the rail's current entry.
+    app.press(Key::Back);
+    assert!(app.shell.rail_open());
+    assert_eq!(app.focused(), Some(Rail::entry_focus_id("home")));
+    assert!(!device.exited());
+
+    // 4. Back in the rail asks "Exit Pley?" (webOS 6 and later), Exit focused; Back stays.
+    app.press(Key::Back);
+    assert!(app.shell.exit_asked());
+    assert_eq!(app.focused(), Some(exit_button(1)));
+    assert!(app.list.says("Exit Pley?"));
+    app.press(Key::Back);
+    assert!(!app.shell.exit_asked());
+    assert_eq!(app.focused(), Some(Rail::entry_focus_id("home")));
+    assert!(!device.exited() && !app.shell.exited());
+
+    // Cancel stays too.
+    app.press(Key::Back);
+    app.press(Key::Left);
+    assert_eq!(app.focused(), Some(exit_button(0)));
+    app.press(Key::Ok);
+    assert!(!app.shell.exit_asked() && !app.shell.quit());
+
+    // Exit ends the app: the frame loop stops, and the TV isn't sent Home.
+    app.press(Key::Back);
+    app.press(Key::Ok);
+    assert!(app.shell.quit());
+    assert!(app.shell.exited());
+    assert!(!device.exited());
+}
+
+fn exit_button(i: usize) -> pley_ui::Id {
+    pley_ui::Id::new("pley.exit").with(i)
+}
+
+#[test]
+fn back_without_the_rail_asks_before_leaving() {
+    let device = device();
+    let mut app = TestApp::new(device.clone(), store(&device), http(), registry(&heard(), &[]));
+    assert_eq!(app.shell.top_route(), Some(&Route::Servers));
+    app.press(Key::Back);
+    assert!(app.shell.exit_asked());
+    app.press(Key::Ok);
+    assert!(app.shell.quit());
+}
+
+#[test]
+fn up_to_webos_5_back_in_the_rail_shows_the_tv_s_home() {
+    let server = fixtures();
+    let device = device();
+    device.set_os_major(5);
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    let mut app = TestApp::new(device.clone(), store, http, registry(&heard(), &[]));
+    app.press(Key::Back);
+    assert!(app.shell.rail_open());
+    app.press(Key::Back);
+    assert!(!app.shell.exit_asked());
+    assert!(device.exited());
+    assert!(app.shell.exited() && !app.shell.quit());
+
+    // Without the rail too.
+    let device = common::device();
+    device.set_os_major(4);
+    let mut app = TestApp::new(device.clone(), common::store(&device), common::http(), registry(&heard(), &[]));
+    app.press(Key::Back);
+    assert!(device.exited());
+}
+
+#[test]
+fn the_start_gate_picks_the_first_page_from_what_the_tv_kept() {
+    let server = fixtures();
+    let url = server.url().to_string();
+
+    // No server: Choose your server.
+    let device = device();
+    let app = TestApp::new(device.clone(), store(&device), http(), Registry::new());
+    assert_eq!(app.shell.top_route(), Some(&Route::Servers));
+
+    // A server without a sign-in: its code screen.
+    let device = common::device();
+    let s = store(&device);
+    s.set_active_server(Some(&url)).unwrap();
+    let app = TestApp::new(device.clone(), s, http(), Registry::new());
+    assert_eq!(app.shell.top_route(), Some(&Route::Link { server: url.clone() }));
+
+    // Signed in, a household of one (or unknown): Home.
+    let device = common::device();
+    let (s, h) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &s, &h);
+    let app = TestApp::new(device.clone(), s.clone(), h.clone(), Registry::new());
+    assert_eq!(app.shell.top_route(), Some(&Route::Home));
+    drop(app);
+
+    // A household of three: "Who's watching?"…
+    let three = vec![
+        pley_core::model::AppProfile { id: 1, name: "Alex".into(), ..Default::default() },
+        pley_core::model::AppProfile { id: 2, name: "Sam".into(), ..Default::default() },
+        pley_core::model::AppProfile { id: 3, name: "Robin".into(), ..Default::default() },
+    ];
+    s.set_household(&url, &three).unwrap();
+    let mut app = TestApp::new(device.clone(), s.clone(), h.clone(), Registry::new());
+    assert_eq!(app.shell.top_route(), Some(&Route::Profiles));
+    assert_eq!(app.state.household_size(), 3);
+    // "Always start as" asks too while the TV doesn't know whether the profile has a PIN…
+    app.state.set_always_start_as(Some(pley_fixtures::ids::ALEX));
+    assert_eq!(app.state.start_route(), Route::Profiles);
+    // …and goes on as it once that is known and it has none.
+    assert!(app.until(|a| a.state.me().is_some()));
+    assert_eq!(app.state.start_route(), Route::Home);
+    app.state.set_always_start_as(None);
+    assert_eq!(app.state.start_route(), Route::Profiles);
+    // Answered in this launch: Home.
+    app.state.pass_profile_gate();
+    assert_eq!(app.state.start_route(), Route::Home);
+    drop(app);
+
+    // "Always start as" never goes past a PIN: the profile's pad comes first.
+    let device = common::device();
+    let (s, h) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::SAM, &s, &h);
+    s.set_household(&url, &three).unwrap();
+    let mut app = TestApp::new(device.clone(), s.clone(), h.clone(), Registry::new());
+    app.state.set_always_start_as(Some(pley_fixtures::ids::SAM));
+    assert!(app.until(|a| a.state.me().is_some()));
+    assert_eq!(app.state.start_route(), Route::Pin { profile: pley_fixtures::ids::SAM });
+    // Who it is is saved off the main thread: the next start finds it once it is on disk.
+    let snapshots = app.state.snapshots().clone();
+    let start = std::time::Instant::now();
+    let saved = || snapshots.read(&url, pley_fixtures::ids::SAM, pley_core::store::snapshot_keys::ME).is_some();
+    while !saved() && start.elapsed() < std::time::Duration::from_secs(5) {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    drop(app);
+    // The next start, from what the TV kept, opens on the pad.
+    let app = TestApp::new(device.clone(), s.clone(), h.clone(), Registry::new());
+    assert_eq!(app.shell.top_route(), Some(&Route::Pin { profile: pley_fixtures::ids::SAM }));
+}
+
+#[test]
+fn left_at_the_page_s_edge_opens_the_rail_and_right_comes_back() {
+    let server = fixtures();
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    let mut app = TestApp::new(device, store, http, registry(&heard(), &[]));
+    let button = app.button();
+    app.press(Key::Left);
+    assert!(app.shell.rail_open());
+    assert_eq!(app.focused(), Some(Rail::entry_focus_id("home")));
+    // Up and Down move along it; Left does nothing.
+    app.press(Key::Up);
+    assert_eq!(app.focused(), Some(Rail::entry_focus_id("search")));
+    app.press(Key::Left);
+    assert_eq!(app.focused(), Some(Rail::entry_focus_id("search")));
+    app.press(Key::Right);
+    assert!(!app.shell.rail_open());
+    assert_eq!(app.focused(), Some(button));
+    // A panel keeps Left to itself.
+    app.press(Key::Menu);
+    app.press(Key::Left);
+    assert!(!app.shell.rail_open());
+}
+
+#[test]
+fn the_rails_usb_drive_comes_and_goes_with_the_drive() {
+    let server = fixtures();
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    let mut app = TestApp::new(device.clone(), store, http, registry(&heard(), &[]));
+    let has = |app: &TestApp| app.shell.rail_entries().top.iter().any(|e| e.id == "storage");
+    app.advance(0.1);
+    assert!(!has(&app));
+    let root = std::env::temp_dir();
+    device.set_drive(Some(Drive { root: root.clone(), hidden: false }));
+    app.advance(0.1);
+    assert!(has(&app), "no entry for the drive plugged in");
+    device.set_drive(Some(Drive { root, hidden: true }));
+    app.advance(0.1);
+    assert!(!has(&app), "a drive the jail hides has an entry");
+}
+
+#[test]
+fn a_held_left_stops_at_the_page_s_edge_and_a_press_opens_the_rail() {
+    let server = fixtures();
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    let mut app = TestApp::new(device, store, http, registry(&heard(), &[]));
+    let button = app.button();
+    app.press(Key::Right);
+    assert_ne!(app.focused(), Some(button));
+    // Left held: back to the first button, and there it stays however long the key repeats.
+    let key = |pressed, repeat| vec![InputEvent::Key(KeyEvent { key: Key::Left, pressed, repeat, code: 0 })];
+    app.frame(key(true, false));
+    for i in 0..30 {
+        app.time += 0.05;
+        app.frame(if i >= 8 { key(true, true) } else { Vec::new() });
+    }
+    app.time += 0.05;
+    app.frame(key(false, false));
+    assert!(!app.shell.rail_open(), "a held Left opened the rail");
+    assert_eq!(app.focused(), Some(button));
+    // A press of its own opens it.
+    app.advance(0.3);
+    app.press(Key::Left);
+    assert!(app.shell.rail_open());
+}
+
+#[test]
+fn audio_guidance_reads_the_page_then_what_gains_focus() {
+    let server = fixtures();
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    // Off, nothing is read.
+    let mut app = TestApp::new(device.clone(), store.clone(), http.clone(), registry(&heard(), &[]));
+    app.press(Key::Left);
+    assert!(device.take_spoken().is_empty());
+    drop(app);
+
+    device.set_screen_reader(true);
+    let mut app = TestApp::new(device.clone(), store, http, registry(&heard(), &[]));
+    // The page's name, from its rail entry, as it opens.
+    assert!(device.take_spoken().iter().any(|w| w.starts_with("Home")), "the page wasn't named");
+    // Each entry focus moves to, once.
+    app.press(Key::Left);
+    assert_eq!(device.take_spoken(), ["Home"]);
+    app.press(Key::Up);
+    assert_eq!(device.take_spoken(), ["Search"]);
+    app.press(Key::Left);
+    assert!(device.take_spoken().is_empty(), "focus didn't move: nothing new to read");
+}
+
+#[test]
+fn a_page_chosen_in_the_rail_starts_the_stack_and_takes_focus_once_it_can() {
+    let server = fixtures();
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    let mut app = TestApp::new(device, store, http, registry(&heard(), &["search"]));
+    app.press(Key::Ok);
+    assert_eq!(app.shell.depth(), 2);
+    app.press(Key::Back);
+    app.press(Key::Back);
+    assert!(app.shell.rail_open());
+
+    // The page shown already: back to it, as it was.
+    app.press(Key::Ok);
+    assert!(!app.shell.rail_open());
+    assert_eq!(app.shell.routes(), [&Route::Home]);
+
+    // Another page: the stack starts over with it; it has nothing to focus yet, so the rail keeps
+    // focus, open.
+    app.press(Key::Left);
+    app.press(Key::Up);
+    app.press(Key::Ok);
+    assert_eq!(app.shell.routes(), [&Route::Search { query: String::new() }]);
+    assert!(app.shell.rail_open());
+    assert_eq!(app.focused(), Some(Rail::entry_focus_id("search")));
+}
+
+#[test]
+fn a_page_that_can_take_focus_at_once_takes_it_from_the_rail() {
+    let server = fixtures();
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    let mut app = TestApp::new(device, store, http, registry(&heard(), &[]));
+    app.press(Key::Left);
+    app.press(Key::Up);
+    app.press(Key::Ok);
+    assert_eq!(app.shell.routes(), [&Route::Search { query: String::new() }]);
+    assert!(!app.shell.rail_open());
+    assert_eq!(app.focused(), Some(app.button()));
+    // The rail's current entry now is Search's.
+    app.press(Key::Left);
+    assert_eq!(app.focused(), Some(Rail::entry_focus_id("search")));
+}
+
+#[test]
+fn pages_under_the_top_hear_what_changed_when_they_show_again() {
+    let server = fixtures();
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    let heard = heard();
+    let mut app = TestApp::new(device, store, http, registry(&heard, &[]));
+    app.press(Key::Ok);
+    heard.borrow_mut().clear();
+    app.state.refresh();
+    app.frame(Vec::new());
+    assert_eq!(heard.borrow().as_slice(), [(Route::Item { id: 1 }, pley_shell::AppEvent::Changed)]);
+    app.press(Key::Back);
+    let home: Vec<_> = heard.borrow().iter().filter(|(r, _)| *r == Route::Home).map(|(_, e)| e.clone()).collect();
+    assert_eq!(home, [pley_shell::AppEvent::Shown, pley_shell::AppEvent::Changed]);
+}
+
+#[test]
+fn every_route_has_a_screen_and_placeholders_name_theirs() {
+    let device = device();
+    let mut app = TestApp::new(device.clone(), store(&device), http(), Registry::new());
+    for route in Route::samples() {
+        app.navigate(NavCommand::Reset(route.clone()));
+        assert_eq!(app.shell.top_route(), Some(&route));
+        assert_eq!(app.shell.top().unwrap().screen().chrome(), route.chrome(), "{}", route.name());
+        assert!(app.list.says(PLACEHOLDER_TEXT), "{}", route.name());
+        assert!(app.list.says(&route.title()), "{}", route.name());
+        // Its one button does what Back does.
+        assert!(app.focused().is_some(), "{}", route.name());
+    }
+}
+
+#[test]
+fn a_new_page_comes_under_a_curtain() {
+    let server = fixtures();
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    let mut app = TestApp::new(device, store, http, Registry::new());
+    let curtain = |app: &TestApp| {
+        app.list.cmds.iter().any(|c| {
+            matches!(c, pley_base::Cmd::Fill { rect, color, .. }
+                if rect.w == 960.0 && rect.h == 540.0 && color.r == 0x0b && color.a > 0)
+        })
+    };
+    // The first page comes without one.
+    assert!(!curtain(&app));
+    app.navigate(NavCommand::Push(Route::Item { id: 3 }));
+    assert!(curtain(&app));
+    app.advance(0.2);
+    assert!(!curtain(&app));
+    // None with Reduce motion.
+    app.ui.set_reduced_motion(true);
+    app.navigate(NavCommand::Push(Route::Person { id: 1 }));
+    assert!(!curtain(&app));
+}
+
+#[test]
+fn toasts_show_for_their_time() {
+    let server = fixtures();
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    let mut app = TestApp::new(device, store, http, registry(&heard(), &[]));
+    app.navigate(NavCommand::Reset(Route::Settings { section: None }));
+    app.press(Key::Ok);
+    assert_eq!(app.shell.toast(), Some("Saved"));
+    assert!(app.list.says("Saved"));
+    app.advance(3.0);
+    assert!(app.list.says("Saved"));
+    app.advance(1.0);
+    assert!(!app.list.says("Saved"));
+    assert_eq!(app.shell.toast(), None);
+}
+
+#[test]
+fn an_idle_screen_dims_and_the_key_that_wakes_it_does_nothing_else() {
+    let server = fixtures();
+    let device = device();
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    let mut app = TestApp::new(device, store, http, registry(&heard(), &[]));
+    app.advance(pley_shell::DIM_AFTER + 1.0);
+    assert!(app.shell.dimmed());
+    app.press(Key::Ok);
+    assert!(!app.shell.dimmed());
+    assert_eq!(app.shell.routes(), [&Route::Home]);
+    app.press(Key::Ok);
+    assert_eq!(app.shell.depth(), 2);
+}

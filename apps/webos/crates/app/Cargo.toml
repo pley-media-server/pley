@@ -1,0 +1,41 @@
+[package]
+name = "pley-lg"
+version = "0.1.3"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: a native webOS app for Pley"
+license = "AGPL-3.0-only"
+publish = false
+
+[[bin]]
+name = "pley"
+path = "src/main.rs"
+
+[features]
+default = ["desktop"]
+# The simulator: a desktop window, and the fake server for `--fixtures`.
+desktop = ["pley-host/desktop"]
+# The TV: the firmware's SDL2, luna-service2 and media pipeline. Built with
+# `--no-default-features --features tv`.
+tv = ["pley-host/tv", "dep:libc"]
+
+[dependencies]
+pley-host = { path = "../host", default-features = false }
+pley-shell = { path = "../shell" }
+pley-onboarding = { path = "../screens/onboarding" }
+pley-home = { path = "../screens/home" }
+pley-browse = { path = "../screens/browse" }
+pley-item = { path = "../screens/item" }
+pley-search = { path = "../screens/search" }
+pley-music = { path = "../screens/music" }
+pley-settings = { path = "../screens/settings" }
+pley-live = { path = "../screens/live" }
+pley-requests = { path = "../screens/requests" }
+pley-storage = { path = "../screens/storage" }
+pley-player-ui = { path = "../screens/player" }
+# getauxval on the TV (src/auxv.rs).
+libc = { version = "0.2.191", optional = true }
+
+[dev-dependencies]
+pley-base = { path = "../base" }
+pley-core = { path = "../core" }

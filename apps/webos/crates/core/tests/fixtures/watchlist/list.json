@@ -1,0 +1,17 @@
+{
+  "items": [
+    {
+      "id": 201, "library_id": 2, "kind": "show", "title": "Severance", "sort_title": "Severance", "year": 2022,
+      "rating": 8.7, "added_at": 1761200000, "poster_url": "/api/items/201/images/poster?v=1761200400",
+      "backdrop_url": "/api/items/201/images/backdrop?v=1761200400",
+      "user_state": { "position_ms": 0, "watched": false, "play_count": 0, "last_played_at": 1761390000 },
+      "leaf_count": 19, "viewed_leaf_count": 1, "child_count": 2
+    },
+    {
+      "id": 104, "library_id": 1, "kind": "movie", "title": "Dune: Part Two", "sort_title": "Dune: Part Two", "year": 2024, "duration_ms": 9963000,
+      "rating": 8.2, "added_at": 1761300000, "poster_url": "/api/items/104/images/poster?v=1761300500",
+      "backdrop_url": "/api/items/104/images/backdrop?v=1761300500", "thumb_url": "/api/items/104/images/thumb?v=1761300500",
+      "user_state": { "position_ms": 0, "watched": false, "play_count": 0 }, "release_date": "2024-03-01"
+    }
+  ]
+}

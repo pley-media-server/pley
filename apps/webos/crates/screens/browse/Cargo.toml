@@ -1,0 +1,23 @@
+[package]
+name = "pley-browse"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: a library, collections and playlists"
+license = "AGPL-3.0-only"
+publish = false
+
+[dependencies]
+pley-base = { path = "../../base" }
+pley-core = { path = "../../core" }
+pley-ui = { path = "../../ui" }
+pley-kit = { path = "../../kit" }
+pley-shell = { path = "../../shell" }
+log = "0.4.29"
+
+[dev-dependencies]
+# The simulator with this crate's screens alone (examples/browse_sim.rs), the fake server, and the
+# simulated player engine the headless tests' TV plays on.
+pley-host = { path = "../../host" }
+pley-fixtures = { path = "../../fixtures" }
+pley-player = { path = "../../player" }

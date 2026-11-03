@@ -1,0 +1,22 @@
+[package]
+name = "pley-shell"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: routes, screens, navigation, the rail"
+license = "AGPL-3.0-only"
+publish = false
+
+[dependencies]
+pley-base = { path = "../base" }
+pley-core = { path = "../core" }
+pley-kit = { path = "../kit" }
+pley-ui = { path = "../ui" }
+pley-player = { path = "../player" }
+pley-local = { path = "../local" }
+log = "0.4.29"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+
+[dev-dependencies]
+pley-fixtures = { path = "../fixtures" }
