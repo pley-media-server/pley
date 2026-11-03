@@ -14,6 +14,7 @@ import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -37,6 +38,7 @@ import app.pley.android.player.sleep.SleepChoice
 import app.pley.android.player.sleep.SleepState
 import app.pley.android.testing.player.engine.FakePlayerEngine
 import app.pley.android.testing.player.session.FakePlaybackController
+import app.pley.android.ui.tv.kit.KeyRepeatGate
 import app.pley.android.ui.tv.theme.TvTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -461,6 +463,33 @@ class TvPlayerScreenTest {
         // The last card ends at the safe edge, 912, rather than the row running on past it.
         press(Key.DirectionRight, times = 6)
         assertEquals(960f - 48f - 240f, left("Part 10"), 0.5f)
+    }
+
+    @Test
+    fun `a held Right moves the cards at the held-key pace, and their pictures wait until it comes up`() {
+        val parts = (0 until 10).map { ChapterMark("Part ${it + 1}", it * 360_000L, (it + 1) * 360_000L, null) }
+        val asked = mutableListOf<Long>()
+        val controller = playing { it.copy(chapters = parts, positionMs = 0, hasThumbnails = true) }
+        controller.thumbnails = { at ->
+            asked += at
+            null
+        }
+        show(controller)
+        press(Key.DirectionRight)
+        press(Key.DirectionUp)
+        focusedOn(TAG_CHAPTER_STRIP)
+        val start = SystemClock.uptimeMillis()
+        send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, 0, start)
+        compose.onNodeWithTag(TAG_CHAPTER_STRIP).assert(hasContentDescription("Part 2", substring = true))
+        asked.clear()
+        // Eight repeats, two to each held move: four moves.
+        val gap = (KeyRepeatGate.MOVE_INTERVAL_MS + 1) / 2
+        for (i in 1..8) send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, i, start + 400 + (i - 1) * gap)
+        compose.onNodeWithTag(TAG_CHAPTER_STRIP).assert(hasContentDescription("Part 6", substring = true))
+        assertTrue("no previews while held: $asked", asked.isEmpty())
+        send(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, 0, start + 400 + 8 * gap)
+        assertTrue("the previews are asked for where it came up", asked.isNotEmpty())
+        compose.onNodeWithTag(TAG_CHAPTER_STRIP).assert(hasContentDescription("Part 6", substring = true))
     }
 
     @Test
