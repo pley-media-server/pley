@@ -621,10 +621,12 @@ address. A server without it is too old for the app.
 - **iPhone, iPad and Mac** sign in on the server's own page, in the system's
   sign-in sheet (`ASWebAuthenticationSession`), with PKCE (S256). The
   browser comes back to `app.pley.apple:/oauth/callback`, which the sheet
-  catches itself: the app registers no URL scheme. The answer must carry the
+  catches itself: the app registers no URL scheme there (Apple TV's
+  registers it for its signed Top Shelf links). The answer must carry the
   `state` the app sent and the server's issuer as `iss`. The sheet is a
   private session, so no cookie is shared with Safari or left behind: the
-  password is typed at every sign-in.
+  password is typed at every sign-in, unless Settings → Sign in privately
+  is turned off.
 - **Apple TV** shows a code, `BCDF-GHJK`, and the server's `/link` address,
   where it is typed on a phone or computer; the page must be on the
   server's own address. The app asks the server every 5 seconds, 5 seconds
@@ -1380,8 +1382,7 @@ another drops it.
 
 ## Building and testing
 
-Requirements: a Mac with Xcode 16 or later (the commands below were checked
-with Xcode 27.2). The apps use Apple's frameworks only: no Swift package is
+Requirements: a Mac with Xcode 16 or later. The apps use Apple's frameworks only: no Swift package is
 downloaded.
 
 Signing lives in `Config/Signing.xcconfig`. Without an Apple account, the
@@ -1851,7 +1852,7 @@ address, to have it found by Bonjour. Delete the folder afterwards.
   a track's sound earlier or later than its picture, and the apps don't
   decode the sound themselves.
 - Requests (Discover, asking for a title, approving, and their news) aren't
-  in the Apple apps yet; they are in Pley on the web and the Android app
-  on phones and tablets.
+  in the Apple apps; they are in Pley on the web and the Android app on
+  phones and tablets.
 - No Handoff: a video started on one Apple device isn't offered on
   another. Continue Watching, on every device, resumes it there.

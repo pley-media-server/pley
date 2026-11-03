@@ -34,7 +34,8 @@ public enum AppClient: String, Sendable, CaseIterable {
 
     /// Where the browser comes back: the app's id as a private-use scheme
     /// (RFC 8252 §7.1). `ASWebAuthenticationSession` catches it; the app
-    /// registers no URL scheme, so nothing else can open the app with one.
+    /// registers no URL scheme on iPhone, iPad and Mac, so nothing else can
+    /// open the app with one (Apple TV's opens its signed Top Shelf links).
     public static let redirectScheme = "app.pley.apple"
     public static let redirectPath = "/oauth/callback"
     public static let redirectURI = "\(redirectScheme):\(redirectPath)"

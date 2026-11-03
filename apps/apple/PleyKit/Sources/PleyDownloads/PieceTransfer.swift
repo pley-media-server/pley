@@ -51,8 +51,10 @@ public protocol TransferSession: AnyObject, Sendable {
 /// The delegate's methods run on the session's own queue, never the main
 /// actor: each hands its event on through `events`. A finished piece's
 /// file is moved before `didFinishDownloadingTo` returns, as the system
-/// deletes it then. Redirects aren't followed: the token goes only to the
-/// address asked.
+/// deletes it then. A session of its own refuses redirects, so the token
+/// goes only to the address asked; the system's background session follows
+/// them by itself, without asking, and the server sends none for a
+/// download.
 public final class PieceTransfer: NSObject, TransferSession, URLSessionDownloadDelegate, @unchecked Sendable {
     // Unchecked Sendable: `session` is set once in init; the rest is behind the lock.
 

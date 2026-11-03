@@ -424,9 +424,10 @@ Pley for iPhone, iPad, Mac and Apple TV (in development).
 - iPhone, iPad and Mac sign in on the server's own page in the system's
   sign-in sheet (`ASWebAuthenticationSession`), with PKCE (S256), a `state`
   the answer must repeat and the `iss` the server names (RFC 9207), which
-  must be the server's issuer. The sheet is a private session: it shares no
-  cookie with Safari and keeps none afterwards. Apple TV, and iPhone and iPad
-  when asked, show a code that is typed on the server's `/link` page.
+  must be the server's issuer. The sheet is a private session unless
+  Settings → Sign in privately is turned off: it shares no cookie with
+  Safari and keeps none afterwards. Apple TV, and iPhone and iPad when
+  asked, show a code that is typed on the server's `/link` page.
 - The server's metadata is kept only when its issuer is exactly the address
   the app used and every endpoint is on it, and the code's page must be on
   that address too.
@@ -434,22 +435,36 @@ Pley for iPhone, iPad, Mac and Apple TV (in development).
   never used.
 - Tokens are kept in the Keychain, readable after the first unlock, on this
   device only: never synchronised to iCloud, never in a backup restored to
-  another device. Signing out revokes them on the server.
+  another device. A Mac build signed to run locally, without a team, keeps
+  them in the login keychain instead, where "this device only" doesn't
+  apply ([APPLE.md](docs/APPLE.md)). Signing out revokes them on the
+  server.
 - Tokens go in the `Authorization` header only, and only to the server's own
   origin (scheme, host and port). Redirects are followed only within that
   origin: never between HTTPS and HTTP, never to another host or port; the
-  sign-in endpoints follow none. No cookies are kept or sent.
+  sign-in endpoints follow none. Downloads run in the system's background
+  session, which follows redirects by itself: the server sends none for
+  them. No cookies are kept or sent.
 - Over plain HTTP, codes and tokens go only to private addresses (loopback,
   RFC 1918, link-local, CGNAT, IPv6 unique local). A name is looked up first
   and every address it has must be private, or nothing is sent; after the
   request, the address the connection reached must be private too. A
-  sign-in whose request reached any other address is ended on the device.
-  A server on the internet needs HTTPS. Plain HTTP goes straight to the
-  server, never through the system's proxy settings, so a token can't
-  reach a proxy before the address is checked.
+  sign-in whose request reached any other address, a download's included,
+  is ended on the device. A server on the internet needs HTTPS. Plain HTTP
+  goes straight to the server, never through the system's proxy settings,
+  so a token can't reach a proxy before the address is checked; downloads,
+  in the system's background session, and the player's keyed media
+  addresses (which carry a key, not a token) use the system's proxy
+  settings.
 - Only the system's certificate authorities are trusted.
-- The app registers no URL scheme: the sign-in sheet catches its return
-  address itself, so no other app or page can open it with one.
+- On iPhone, iPad and Mac the app registers no URL scheme: the sign-in
+  sheet catches its return address (`app.pley.apple:/oauth/callback`)
+  itself. Another app could register that scheme and start a sign-in of
+  its own in a browser; the server's consent page, which names the app and
+  what it asks for, must still be allowed by someone signed in, and PKCE
+  keeps a code from the real app's sheet for that sheet. Apple TV registers
+  the scheme for its Top Shelf links, which the app signs and checks before
+  opening one.
 
 ### TV apps, Kodi and Roku
 

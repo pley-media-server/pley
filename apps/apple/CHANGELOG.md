@@ -80,23 +80,8 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   it is back.
 - When the server doesn't answer, the app opens on what it saved of your
   screens and says so, and reconnects by itself (Apple TV too).
+- A video that loses the server plays what it has loaded and keeps trying
+  to reach the server for 90 seconds, then plays on where it stood.
 - Continue Watching on Apple TV's Top Shelf: with Pley in the top row,
   your titles in progress show with their pictures and progress, and one
   opens its page or plays.
-
-### Fixed
-
-- A video that loses the server plays what it has loaded and keeps trying
-  to reach the server for 90 seconds, then plays on where it stood,
-  instead of stopping at once.
-- Apple TV's tabs stay on screen: seven at most, with a Libraries tab for
-  the libraries that don't fit.
-- The iPhone's Quality menu keeps each choice's second line when it is
-  checked.
-- VoiceOver no longer reads the page behind the player.
-- The Mac's player menu no longer flickers while playing.
-- Larger Tiles takes ⌘= on the Mac, as well as ⌘+.
-- On the Mac, an HDR video starts again where it is when its window moves
-  to a screen that shows HDR differently, so it plays as that screen shows it.
-- A playlist entry moved while a removal can still be undone keeps its
-  place, and the removed one comes back where it was.
