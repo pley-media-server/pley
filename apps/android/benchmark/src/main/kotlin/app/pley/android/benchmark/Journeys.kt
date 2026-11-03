@@ -465,7 +465,9 @@ internal class PhoneJourney(scope: MacrobenchmarkScope) : Steps(scope) {
     /**
      * Clears the app, then signs in to the demo server: Use demo server,
      * then Continue in browser, whose page signs in at once and comes back
-     * to the app. Once in this run of the tests: the browser is slow to open.
+     * to the app. A phone without a browser signs in with a code instead,
+     * which the demo server approves by itself. Once in this run of the
+     * tests: the browser is slow to open.
      */
     fun signedIn() {
         if (signedIn) return
@@ -473,7 +475,8 @@ internal class PhoneJourney(scope: MacrobenchmarkScope) : Steps(scope) {
         scope.pressHome()
         scope.startActivityAndWait()
         await(By.res(Tags.PHONE_DEMO), "Use demo server", START_MS).click()
-        await(By.res(Tags.PHONE_CONTINUE), "Continue in browser", SIGN_IN_MS).click()
+        awaitAny("Continue in browser or Home", SIGN_IN_MS, By.res(Tags.PHONE_CONTINUE), By.res(Tags.PHONE_TAB + "Home"))
+        device.findObject(By.res(Tags.PHONE_CONTINUE))?.click()
         check(device.wait(Until.hasObject(By.res(Tags.PHONE_TAB + "Home")), SIGN_IN_MS)) {
             "Journey: signing in didn't come back from the browser (${device.currentPackageName} shows): " +
                 "on a new device, open the browser once first, past its welcome pages"
@@ -552,14 +555,21 @@ internal class PhoneJourney(scope: MacrobenchmarkScope) : Steps(scope) {
         repeat(times) { grid.fling(Direction.UP) }
     }
 
-    /** Search: [Demo.QUERY] typed, then its result rows flung down, which puts the keyboard away, and back. */
+    /**
+     * Search: [Demo.QUERY] typed, then its result rows flung down, which
+     * puts the keyboard away, and back. The flings are swipes over the
+     * screen's upper part: one that starts on the keyboard would type.
+     */
     fun walkSearch() {
         tab("Search")
         await(By.res(Tags.PHONE_SEARCH_FIELD), "Search's field").text = Demo.QUERY
-        val results = await(By.res(Tags.PHONE_SEARCH_RESULTS), "search results for ${Demo.QUERY}", START_MS)
-        results.setGestureMargin(device.displayWidth / 5)
-        results.fling(Direction.DOWN)
-        results.fling(Direction.UP)
+        await(By.res(Tags.PHONE_SEARCH_RESULTS), "search results for ${Demo.QUERY}", START_MS)
+        val x = device.displayWidth / 2
+        val (low, high) = device.displayHeight * 45 / 100 to device.displayHeight * 15 / 100
+        device.swipe(x, low, x, high, FLING_STEPS)
+        SystemClock.sleep(PAGE_MS)
+        device.swipe(x, high, x, low, FLING_STEPS)
+        SystemClock.sleep(PAGE_MS)
     }
 
     /** The Playlists tab, then the demo's video playlist. */
@@ -584,6 +594,9 @@ internal class PhoneJourney(scope: MacrobenchmarkScope) : Steps(scope) {
     private companion object {
         var signedIn = false
         const val PLAYING_MS = 5_000L
+
+        /** A swipe's steps (5 ms each): quick enough to fling. */
+        const val FLING_STEPS = 4
 
         // The demo's library and ui/phone's words (res/values/strings_*.xml).
         const val MOVIES = "Movies"
