@@ -200,6 +200,8 @@ static class Profile
         static Timer? asking, pressing;
         static Capture? capture;
         static bool asked;
+        /// <summary>When the app may ask again after an ask failed (no listener), so it asks once a second then, not four times.</summary>
+        static double quietUntil;
         static Action<string, bool>? press;
         static readonly Queue<string> Pressed = new Queue<string>();
         static readonly string Tv = TvModel();
@@ -222,7 +224,7 @@ static class Profile
             asking = new Timer(250);
             asking.Tick += (_, _) =>
             {
-                if (!asked) _ = Ask(window, dataDir, root);
+                if (!asked && Now >= quietUntil) _ = Ask(window, dataDir, root);
                 return true;
             };
             asking.Start();
@@ -241,7 +243,8 @@ static class Profile
             }
             catch (Exception)
             {
-                // No listener: nothing asked.
+                // No listener: nothing asked, and a second before asking again.
+                quietUntil = Now + 1000;
             }
             finally
             {
@@ -313,15 +316,17 @@ static class Profile
         /// as JPEGs one after another for 6 s. A capture takes the TV a moment, so a 200 ms
         /// animation gives a frame or two at its own speed; slowed, it gives dozens. Each frame goes
         /// to the listener's /frame with when it was caught at the animation's own speed, then
-        /// /recorded says how many came.
+        /// /recorded says how many came, or why there are none.
         /// </summary>
         static void Record(Window window, string dataDir, string root, string[] words)
         {
-            if (recording != null || words.Length < 3) return;
-            var number = System.Globalization.CultureInfo.InvariantCulture;
-            var slow = Math.Max(1, float.Parse(words[0], number));
-            var forMs = int.Parse(words[1], number);
-            var area = words[2].Split(',').Select(v => int.Parse(v, number)).ToArray();
+            var refused = Refusal(words, out var slow, out var forMs, out var area);
+            if (refused != null)
+            {
+                Mark($"record: {refused}");
+                _ = Recorded(Http, root, 0, refused);
+                return;
+            }
             var dir = Path.Combine(dataDir, "frames");
             Forget(dir);
             Directory.CreateDirectory(dir);
@@ -364,25 +369,57 @@ static class Profile
             recording.Start();
         }
 
+        /// <summary>Why "record" can't run with these words, or null, with what they ask for.</summary>
+        static string? Refusal(string[] words, out float slow, out int forMs, out int[] area)
+        {
+            var number = System.Globalization.CultureInfo.InvariantCulture;
+            slow = 1;
+            forMs = 0;
+            area = Array.Empty<int>();
+            if (recording != null) return "a recording is already running";
+            if (words.Length < 3) return "record takes how many times slower, how long in ms and an area x,y,w,h";
+            if (!float.TryParse(words[0], System.Globalization.NumberStyles.Float, number, out slow) || float.IsNaN(slow) || float.IsInfinity(slow))
+                return $"not a number of times slower: {words[0]}";
+            slow = Math.Max(1, slow);
+            if (!int.TryParse(words[1], System.Globalization.NumberStyles.Integer, number, out forMs) || forMs <= 0)
+                return $"not a length in ms: {words[1]}";
+            var parts = words[2].Split(',');
+            area = new int[parts.Length];
+            for (var i = 0; i < parts.Length; i++)
+                if (!int.TryParse(parts[i], System.Globalization.NumberStyles.Integer, number, out area[i]) || area[i] < 0)
+                    return $"not an area x,y,w,h: {words[2]}";
+            if (area.Length != 4 || area[2] == 0 || area[3] == 0) return $"not an area x,y,w,h: {words[2]}";
+            return null;
+        }
+
         static async Task SendFrames(string root, List<(string File, double At)> frames, float slow)
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
             var tv = Uri.EscapeDataString(Tv);
+            var number = System.Globalization.CultureInfo.InvariantCulture;
             for (var i = 0; i < frames.Count; i++)
             {
                 try
                 {
                     using var body = new ByteArrayContent(File.ReadAllBytes(frames[i].File));
-                    await http.PostAsync($"{root}/frame?tv={tv}&n={i}&t={frames[i].At / slow:0.0}", body);
+                    // In the invariant culture: a TV in German would write 12,5, which the listener reads as no time.
+                    await http.PostAsync($"{root}/frame?tv={tv}&n={i}&t={(frames[i].At / slow).ToString("0.0", number)}", body);
                 }
                 catch (Exception error)
                 {
                     Mark($"record: frame {i}: {error.GetType().Name} {error.Message}");
                 }
             }
+            await Recorded(http, root, frames.Count, null);
+        }
+
+        /// <summary>Tells the listener the recording is over: how many frames came, or why none did.</summary>
+        static async Task Recorded(HttpClient http, string root, int frames, string? refused)
+        {
+            var why = refused == null ? "" : $"&refused={Uri.EscapeDataString(refused)}";
             try
             {
-                await http.PostAsync($"{root}/recorded?tv={tv}&n={frames.Count}", new StringContent(""));
+                await http.PostAsync($"{root}/recorded?tv={Uri.EscapeDataString(Tv)}&n={frames}{why}", new StringContent(""));
             }
             catch (Exception)
             {

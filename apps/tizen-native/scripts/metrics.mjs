@@ -119,10 +119,16 @@ function listen() {
         if (entry) return hand(entry, model, res);
         if (!url.searchParams.has("hold")) return res.end("");
         const ask = { model, res };
-        ask.timer = setTimeout(() => {
-          held.splice(held.indexOf(ask), 1);
-          res.end("");
-        }, holdMs);
+        const drop = () => {
+          const i = held.indexOf(ask);
+          if (i < 0) return false;
+          held.splice(i, 1);
+          clearTimeout(ask.timer);
+          return true;
+        };
+        ask.timer = setTimeout(() => drop() && res.end(""), holdMs);
+        // An ask whose TV has gone (the app closed, the TV asleep) takes no command: it would be lost.
+        res.on("close", drop);
         held.push(ask);
         return;
       }
@@ -144,9 +150,11 @@ function listen() {
       }
       if (req.method === "POST" && url.pathname === "/recorded") {
         const n = Math.trunc(Number(url.searchParams.get("n")) || 0);
-        appendFileSync(log, `${stamp()} RECORDED ${n} frames from ${model}\n`);
+        // Why the TV recorded nothing, where it couldn't: its words, a recording already running.
+        const refused = url.searchParams.get("refused")?.slice(0, most);
+        appendFileSync(log, `${stamp()} RECORDED ${n} frames from ${model}${refused ? `, refused: ${refused}` : ""}\n`);
         const entry = recordings.find((e) => e.model === model);
-        if (entry) settle(recordings, entry, 200, `${n} frames in ${entry.dir}`);
+        if (entry) settle(recordings, entry, refused ? 400 : 200, refused ? `${model} refused it: ${refused}` : `${n} frames in ${entry.dir}`);
         return res.end("ok");
       }
       if (req.method === "POST") appendFileSync(log, `${stamp()} ${body.toString("utf8").slice(0, most)}\n`);

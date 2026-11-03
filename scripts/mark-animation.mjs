@@ -191,8 +191,15 @@ function animatedPng(pictures, w, h) {
     fctl.writeUInt32BE(area.h, 8);
     fctl.writeUInt32BE(area.x, 12);
     fctl.writeUInt32BE(area.y, 16);
-    fctl.writeUInt16BE(Math.round(ms), 20);
-    fctl.writeUInt16BE(1000, 22);
+    // The delay is a 16-bit fraction: in ms up to 65.5 s, in coarser units past that.
+    let delay = Math.round(ms);
+    let unit = 1000;
+    while (delay > 0xffff && unit > 1) {
+      delay = Math.round(delay / 10);
+      unit /= 10;
+    }
+    fctl.writeUInt16BE(Math.min(delay, 0xffff), 20);
+    fctl.writeUInt16BE(unit, 22);
     chunk("fcTL", fctl);
     const data = deflateSync(filtered(rgba, w, area), { level: 9 });
     if (n === 0) chunk("IDAT", data);
@@ -225,27 +232,39 @@ function changed(before, after, w, h) {
 function filtered(rgba, w, area) {
   const stride = area.w * 4;
   const out = Buffer.alloc(area.h * (stride + 1));
-  const at = (x, y) => (x < 0 || y < 0 ? 0 : null);
-  const px = (x, y, i) => (at(x, y) === 0 ? 0 : rgba[((area.y + y) * w + area.x + x) * 4 + i]);
-  const line = Buffer.alloc(stride);
+  const row = (y) => rgba.subarray(((area.y + y) * w + area.x) * 4, ((area.y + y) * w + area.x) * 4 + stride);
+  // Above the area's first row and left of its first pixel count as 0, as PNG's filters have it.
+  const none = Buffer.alloc(stride);
+  // The row under each of the five filters (none, sub, up, average, Paeth), all in one pass.
+  const lines = Array.from({ length: 5 }, () => Buffer.alloc(stride));
+  const sums = [0, 0, 0, 0, 0];
+  const cost = (d) => (d < 128 ? d : 256 - d);
   for (let y = 0; y < area.h; y++) {
-    let best = null;
-    for (let f = 0; f < 5; f++) {
-      let sum = 0;
-      for (let x = 0; x < area.w; x++)
-        for (let i = 0; i < 4; i++) {
-          const v = px(x, y, i), a = px(x - 1, y, i), up = px(x, y - 1, i), c = px(x - 1, y - 1, i);
-          const p = a + up - c;
-          const pa = Math.abs(p - a), pb = Math.abs(p - up), pc = Math.abs(p - c);
-          const pred = [0, a, up, (a + up) >> 1, pa <= pb && pa <= pc ? a : pb <= pc ? up : c][f];
-          const d = (v - pred) & 0xff;
-          line[x * 4 + i] = d;
-          sum += d < 128 ? d : 256 - d;
-        }
-      if (!best || sum < best.sum) best = { f, sum, bytes: Buffer.from(line) };
+    const cur = row(y);
+    const above = y > 0 ? row(y - 1) : none;
+    sums.fill(0);
+    for (let j = 0; j < stride; j++) {
+      const v = cur[j], up = above[j];
+      const a = j >= 4 ? cur[j - 4] : 0, c = j >= 4 ? above[j - 4] : 0;
+      const p = a + up - c;
+      const pa = Math.abs(p - a), pb = Math.abs(p - up), pc = Math.abs(p - c);
+      const paeth = pa <= pb && pa <= pc ? a : pb <= pc ? up : c;
+      const d1 = (v - a) & 0xff, d2 = (v - up) & 0xff, d3 = (v - ((a + up) >> 1)) & 0xff, d4 = (v - paeth) & 0xff;
+      lines[0][j] = v;
+      lines[1][j] = d1;
+      lines[2][j] = d2;
+      lines[3][j] = d3;
+      lines[4][j] = d4;
+      sums[0] += cost(v);
+      sums[1] += cost(d1);
+      sums[2] += cost(d2);
+      sums[3] += cost(d3);
+      sums[4] += cost(d4);
     }
-    out[y * (stride + 1)] = best.f;
-    best.bytes.copy(out, y * (stride + 1) + 1);
+    let best = 0;
+    for (let f = 1; f < 5; f++) if (sums[f] < sums[best]) best = f;
+    out[y * (stride + 1)] = best;
+    lines[best].copy(out, y * (stride + 1) + 1);
   }
   return out;
 }
