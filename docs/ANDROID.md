@@ -168,7 +168,8 @@ are set up in the web app's Settings → Live TV ([API.md](API.md#live-tv)).
 - **Paging:** channels come 100 at a time (`GET /api/live/browse`), and the
   guide asks only for the rows in view, six hours at a time, so a lineup of
   50,000 channels opens at once.
-- **Live only:** no pause, rewind or seeking; media keys do nothing.
+- **Live only:** no pause, rewind or seeking; play, pause, rewind and fast
+  forward do nothing in the player.
 - **Changing channel:** channel up and down stay in the category the player
   was opened from, wrapping round its ends. A typed number tunes that
   channel among all channels.
@@ -179,10 +180,33 @@ are set up in the web app's Settings → Live TV ([API.md](API.md#live-tv)).
   allows it (`can_take_over`). A connection taken from you shows the
   server's `410` message.
 
-On Android the player reads the channel's MPEG-TS (`stream.ts`) at once
-while it asks for the session's `plan`: a channel the server sends as it is
-plays that MPEG-TS from its first keyframe; anything else plays the
-server's HLS. Leaving the player ends the session.
+On Android the player reads the channel's MPEG-TS (`stream.ts`) as it
+asks for the channel (`POST …/watch`), the server tuning for whichever
+comes first, then asks for the session's `plan`: a channel the server sends
+as it is plays that MPEG-TS from its first keyframe, as does one whose AC3
+or E-AC3 sound the server converts, where the device decodes it or sends it
+to its receiver as it is (Diagnostics lists both); anything else
+plays the server's HLS. Taking over a connection, it reads `stream.ts` only once
+the watch has answered, as only the watch takes the connection. Leaving
+the player ends the session. A page of channels that didn't load is asked
+for again once 10 s have passed, as the list moves. When the player fails,
+the channel is tuned again twice, after 1 s and then 3 s, before the player
+says why; not when the server refused it (every connection in use, the
+channel stopped, gone or not allowed). Try again starts the count again.
+
+On TVs, OK in the player opens the channel list, as Menu and Guide do;
+holding OK shows the controls (the channel list and the favourite) over
+what's on. Up and Down, Channel up and down, and Previous and Next change
+channel. In the guide, Left and Right go programme by programme, back
+through a programme that began before the guide a screen at a time, and a
+half hour at a time on a channel without a guide; rewind and fast forward
+(or Previous and Next) move it two hours, and the time now shows in a pill
+over the now line. Holding OK, Menu or Info on a programme or a channel's
+tile opens its details. Back goes up a step at a time: the guide back to now,
+a search back to the category before, the guide or the tiles to the
+categories, then the rail. A held Left stops at the start of the guide or of the
+tiles, and a held Up at the top: a press of its own goes on to the
+categories or the tabs, in the guide not within 0.5 s of Left moving.
 
 ### Requests
 

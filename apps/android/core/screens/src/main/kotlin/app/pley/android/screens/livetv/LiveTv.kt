@@ -12,6 +12,7 @@ import app.pley.android.model.LiveProgram
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -179,10 +180,29 @@ object LastWatched {
 }
 
 /**
+ * The channel a page opens the live player on, as the page has it: the
+ * player shows it at once (its tuning card's logo, number, name and
+ * what's on) rather than black until the server says what the channel
+ * is. Handed over in memory, as [LastWatched] is; the player of that
+ * channel takes it once.
+ */
+object ChannelHandoff {
+    private val given = AtomicReference<LiveChannel?>(null)
+
+    /** [channel] is about to be watched. */
+    fun give(channel: LiveChannel) = given.set(channel)
+
+    /** The channel given for [id], once; `null` when none was, or another. */
+    fun take(id: Long): LiveChannel? = given.getAndSet(null)?.takeIf { it.id == id }
+}
+
+/**
  * A category's channels a page at a time, as a list scrolls ([showing]):
  * its first page (which says how many there are) and the pages covering
  * the rows in view, so a lineup of tens of thousands costs what's on
- * screen.
+ * screen. A page that failed is asked for again once [RETRY_MS] have
+ * passed, as the list moves (Samsung's ChannelPaging). Made and used on
+ * the main thread; [clock] is in ms.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChannelPaging(
@@ -190,12 +210,20 @@ class ChannelPaging(
     category: Flow<LiveCategory>,
     query: Flow<String>,
     scope: CoroutineScope,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val rows = MutableStateFlow(0..0)
 
+    /** Moved on to collect the pages wanted again: the cache asks the server again for those that failed. */
+    private val again = MutableStateFlow(0)
+
+    /** The pages that failed, by number, and when. */
+    private val failed = HashMap<Int, Long>()
+
     val pages: StateFlow<ChannelPages> = combine(category.distinctUntilChanged(), query.map { it.trim() }.distinctUntilChanged(), ::Pair)
         .flatMapLatest { (c, q) ->
-            rows.map { pagesFor(it) }.distinctUntilChanged().flatMapLatest { wanted ->
+            failed.clear()
+            combine(rows.map { pagesFor(it) }.distinctUntilChanged(), again, ::Pair).flatMapLatest { (wanted, _) ->
                 combine(wanted.map { p -> live.page(c, q, p).map { p to it } }) { loads -> pagesOf(loads.toList()) }
             }
         }
@@ -204,6 +232,14 @@ class ChannelPaging(
     /** Rows [first] to [last] are in view (a few either side are asked for with them). Cheap: call it as the list scrolls. */
     fun showing(first: Int, last: Int) {
         rows.value = first.coerceAtLeast(0)..last.coerceAtLeast(first)
+        // Moving on, a page that failed a while ago is asked for again: its skeleton rows would
+        // otherwise stay until the category changed or Live TV was asked for again.
+        val now = clock()
+        val wanted = pagesFor(rows.value)
+        if (wanted.any { p -> failed[p]?.let { now - it >= RETRY_MS } == true }) {
+            wanted.forEach(failed::remove)
+            again.value++
+        }
     }
 
     private fun pagesFor(range: IntRange): List<Int> {
@@ -213,6 +249,8 @@ class ChannelPaging(
     }
 
     private fun pagesOf(loads: List<Pair<Int, Loadable<LiveChannelPage>>>): ChannelPages {
+        val now = clock()
+        for ((p, load) in loads) if (load is Loadable.Failed) failed.putIfAbsent(p, now) else failed.remove(p)
         val first = loads.firstOrNull { it.first == 0 }?.second
         val total = first?.valueOrNull?.total
         // A page past the end (the list got shorter) shows nothing.
@@ -220,9 +258,12 @@ class ChannelPaging(
         return ChannelPages(total, pages, (first as? Loadable.Failed)?.takeIf { total == null }?.error)
     }
 
-    private companion object {
+    companion object {
+        /** A page that failed is asked for again this long after, as the list moves. */
+        const val RETRY_MS = 10_000L
+
         /** Rows asked for either side of what shows. */
-        const val MARGIN = 20
+        private const val MARGIN = 20
     }
 }
 

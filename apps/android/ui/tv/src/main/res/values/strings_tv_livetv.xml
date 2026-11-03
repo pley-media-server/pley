@@ -72,7 +72,7 @@
     <string name="tv_live_player_live">Live</string>
     <string name="tv_live_player_radio">Sound only</string>
     <string name="tv_live_player_no_channel">No channel %1$s</string>
-    <string name="tv_live_player_hint">▲▼ change channel · OK for more</string>
+    <string name="tv_live_player_hint">▲▼ change channel · OK for channels · hold OK for more</string>
     <string name="tv_live_player_retry">Try again</string>
     <string name="tv_live_player_other_channels">Other channels</string>
     <string name="tv_live_player_back_to_guide">Back to the guide</string>

@@ -53,12 +53,71 @@ describes how they are made.
   loses its sides.
 - On TVs, a video's first picture fades in from black, as the player's
   controls do, rather than appearing at once (at once with reduced motion).
+- In the TV live player, OK opens the channel list, as on Samsung TVs;
+  holding OK shows the controls (the channel list and the favourite).
+- Previous and Next change channel in the TV live player, as Channel up
+  and down do.
+- The live player shows the channel's logo, name and what's on as it
+  opens from Live TV or search, where it was black until the server had
+  answered for the channel.
+- A live channel whose player fails is tuned again twice, after 1 s and
+  then 3 s, before the player says why, as on Samsung TVs; not when the
+  server refused it.
+- Live channels start a round trip sooner: the player reads the
+  channel's stream as it asks the server for the channel, rather than once
+  the server has answered, as on Samsung TVs.
+- A live channel with AC3 or E-AC3 sound starts sooner where the device
+  decodes that sound or sends it to a receiver: it plays from the
+  channel's own stream, as on Samsung TVs, rather than from the HLS the
+  server makes with the sound converted.
+- In the TV guide, Left goes back through a programme that began before
+  the guide, a screen at a time, before it leaves for the categories; on a
+  channel without a guide, Left and Right move the guide a half hour at a
+  time, as on Samsung TVs.
+- In the TV guide, rewind and fast forward (or Previous and Next) move it
+  two hours, as on the Samsung and LG apps, and the time now shows in a
+  pill over the now line.
+- Back on Live TV's page on TVs goes up a step at a time, as on Samsung
+  TVs: the guide back to now, a search back to the category before, the
+  guide or the tiles to the categories, and only then the rail.
+- On Live TV's page on TVs, a held Left stops at the start of the guide
+  or the first column of tiles, and a held Up at the top, rather than
+  running on to the categories, the rail or the tabs; a press of its own
+  goes on, and in the guide not within half a second of Left moving.
+- The TV live player's channel list moves as the app's other lists do
+  under a held key: at an even pace, without asking for every logo it
+  passes, its focused row a third of the way down.
+- Info on a channel's tile on Live TV's page on TVs opens its details, as
+  it does in the guide and on Samsung TVs.
+- A programme with a long description no longer holds each move along a
+  row of the TV guide: what shows over the grid is cut to its two lines.
+- The TV guide moves more smoothly on slower TVs: a row is drawn again
+  only when what it shows changes, and the grid slides without placing
+  its programmes again.
+- Under a held Up or Down the TV guide's channels keep up with focus, a
+  row at a time, where each repeat began their scroll again; it opens on
+  the channel last watched without scrolling there.
+- When the TV guide's programmes come in for a screen of channels, the
+  channel with focus shows them at once and the others over the next few
+  frames, nearest first, as on Samsung TVs, rather than all in one long
+  frame.
 
 ### Fixed
 
 - Discover's hero is the first title of the next row when the trending
   row has nothing the profile may ask for, where it stayed a grey
   placeholder.
+- Back leaves the TV guide on a channel without guide data, or a row
+  still loading, where it went on bringing the guide back to now.
+- The progress bar of a programme on now in the TV guide ends at the now
+  line; for one begun before the guide, it ran past it.
+- A programme's details on TVs keep Watch and the favourite whole, one
+  under the other, and cut what the guide says to the lines left above
+  them, as on Samsung TVs; with a picture and a long title the buttons
+  were squeezed, and the favourite's label wrapped.
+- A page of Live TV channels that didn't load is asked for again once
+  10 s have passed, as the list moves, where its rows stayed blank until
+  another category was chosen.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was
