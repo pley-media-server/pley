@@ -49,6 +49,10 @@ describes how they are made.
   still loading, where it went on bringing the guide back to now.
 - The progress bar of a programme on now in the TV guide ends at the now
   line; for one begun before the guide, it ran past it.
+- A programme's details on TVs keep Watch and the favourite whole, one
+  under the other, and cut what the guide says to the lines left above
+  them, as on Samsung TVs; with a picture and a long title the buttons
+  were squeezed, and the favourite's label wrapped.
 - A page of Live TV channels that didn't load is asked for again once
   10 s have passed, as the list moves, where its rows stayed blank until
   another category was chosen.

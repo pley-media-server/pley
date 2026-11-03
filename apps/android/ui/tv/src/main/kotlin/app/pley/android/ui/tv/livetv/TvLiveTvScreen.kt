@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -64,6 +65,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -72,6 +74,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -712,8 +715,11 @@ internal fun ChannelTileCard(
  * channel, the title, episode, day and times with its badges, how far it
  * is, what the guide says, then Watch and the favourite. Without a
  * programme, the channel alone.
+ *
+ * As Samsung's panel, the buttons keep their room at the foot and the
+ * text takes what is left above them: the title two lines at most, what
+ * the guide says the lines that fit, one to six ([PanelButtons]).
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProgramPanel(
     channel: LiveChannel,
@@ -731,49 +737,12 @@ private fun ProgramPanel(
             Spacer(Modifier.width(12.dp))
             BasicText(listOfNotNull(channel.number, channel.name).joinToString("  "), style = PleyType.Tv.Label.copy(color = PleyColors.Muted), maxLines = 1)
         }
-        if (program != null) {
-            ArtworkImage.of(program.image, origin)?.let { image ->
-                Spacer(Modifier.height(14.dp))
-                Artwork(image, program.title, Modifier.fillMaxWidth().height(160.dp).clip(PleyShape.TileTv))
-            }
-            Spacer(Modifier.height(14.dp))
-            BasicText(program.title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
-            val episode = listOfNotNull(program.episodeLabel, program.subtitle).joinToString(" · ")
-            if (episode.isNotEmpty()) BasicText(episode, style = PleyType.Tv.Body.copy(color = PleyColors.Muted), maxLines = 1, modifier = Modifier.padding(top = 2.dp))
-            Spacer(Modifier.height(8.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), itemVerticalAlignment = Alignment.CenterVertically) {
-                BasicText("${dayOf(program.start, now)} · ${spanOf(program, clock)}", style = PleyType.Tv.Caption.copy(color = PleyColors.Muted))
-                if (program.airingAt(now)) ProgramBadge(stringResource(R.string.tv_livetv_on_now), live = true)
-                if (program.isLive) ProgramBadge(stringResource(R.string.tv_livetv_badge_live), live = true)
-                if (program.isNew) ProgramBadge(stringResource(R.string.tv_livetv_badge_new), live = false)
-                program.rating?.let {
-                    BasicText(
-                        it,
-                        style = PleyType.Tv.Badge.copy(color = PleyColors.Muted),
-                        modifier = Modifier.border(1.dp, PleyColors.Outline, PleyShape.Badge).padding(horizontal = 5.dp, vertical = 2.dp),
-                    )
-                }
-            }
-            if (program.airingAt(now)) {
-                Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    ProgramProgress(program, now, Modifier.weight(1f))
-                    Spacer(Modifier.width(10.dp))
-                    BasicText(timeLeft(program, now), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle))
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            BasicText(
-                program.description?.takeIf { it.isNotBlank() } ?: stringResource(R.string.tv_livetv_no_description),
-                style = PleyType.Tv.Body.copy(color = if (program.description.isNullOrBlank()) PleyColors.Subtle else PleyColors.Fg),
-                maxLines = 6,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (program.stop <= now) {
-                BasicText(stringResource(R.string.tv_livetv_ended), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle), modifier = Modifier.padding(top = 8.dp))
-            }
+        // Measured after the buttons: they keep their height however long the programme's text.
+        Column(Modifier.weight(1f).fillMaxWidth()) {
+            if (program != null) ProgramText(program, origin, now, clock)
         }
-        Spacer(Modifier.weight(1f))
-        Row(horizontalArrangement = Arrangement.spacedBy(PleyTv.ButtonGap), modifier = Modifier.focusGroup()) {
+        Spacer(Modifier.height(12.dp))
+        PanelButtons {
             TvPillButton(
                 stringResource(if (airing) R.string.tv_livetv_watch_now else R.string.tv_livetv_watch_channel),
                 onClick = onWatch,
@@ -789,6 +758,79 @@ private fun ProgramPanel(
     }
 }
 
+/**
+ * The programme in [ProgramPanel], in the room above its buttons: what the
+ * guide says gets the lines left after the rest (and Ended under it), one
+ * at least, six at most, cut with "…" at the last that fits.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ColumnScope.ProgramText(program: LiveProgram, origin: String, now: Long, clock: (Long) -> String) {
+    ArtworkImage.of(program.image, origin)?.let { image ->
+        Spacer(Modifier.height(14.dp))
+        Artwork(image, program.title, Modifier.fillMaxWidth().height(160.dp).clip(PleyShape.TileTv))
+    }
+    Spacer(Modifier.height(14.dp))
+    BasicText(program.title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
+    val episode = listOfNotNull(program.episodeLabel, program.subtitle).joinToString(" · ")
+    if (episode.isNotEmpty()) BasicText(episode, style = PleyType.Tv.Body.copy(color = PleyColors.Muted), maxLines = 1, modifier = Modifier.padding(top = 2.dp))
+    Spacer(Modifier.height(8.dp))
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), itemVerticalAlignment = Alignment.CenterVertically) {
+        BasicText("${dayOf(program.start, now)} · ${spanOf(program, clock)}", style = PleyType.Tv.Caption.copy(color = PleyColors.Muted))
+        if (program.airingAt(now)) ProgramBadge(stringResource(R.string.tv_livetv_on_now), live = true)
+        if (program.isLive) ProgramBadge(stringResource(R.string.tv_livetv_badge_live), live = true)
+        if (program.isNew) ProgramBadge(stringResource(R.string.tv_livetv_badge_new), live = false)
+        program.rating?.let {
+            BasicText(
+                it,
+                style = PleyType.Tv.Badge.copy(color = PleyColors.Muted),
+                modifier = Modifier.border(1.dp, PleyColors.Outline, PleyShape.Badge).padding(horizontal = 5.dp, vertical = 2.dp),
+            )
+        }
+    }
+    if (program.airingAt(now)) {
+        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            ProgramProgress(program, now, Modifier.weight(1f))
+            Spacer(Modifier.width(10.dp))
+            BasicText(timeLeft(program, now), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle))
+        }
+    }
+    Spacer(Modifier.height(10.dp))
+    // Weighted, it is measured last, in the height left: a text cut by height ends its last line with "…".
+    BasicText(
+        program.description?.takeIf { it.isNotBlank() } ?: stringResource(R.string.tv_livetv_no_description),
+        style = PleyType.Tv.Body.copy(color = if (program.description.isNullOrBlank()) PleyColors.Subtle else PleyColors.Fg),
+        maxLines = 6,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.weight(1f, fill = false).testTag(TV_LIVE_PROGRAM_TEXT),
+    )
+    if (program.stop <= now) {
+        BasicText(stringResource(R.string.tv_livetv_ended), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle), modifier = Modifier.padding(top = 8.dp))
+    }
+}
+
+/**
+ * Watch and the favourite at the panel's foot (Samsung's): side by side
+ * where both fit with room for the favourite's longer label, which changes
+ * as it is pressed ([FAVORITE_ROOM]); one under the other otherwise, as in
+ * the 360 dp panel they mostly are. In a row, the second pill was squeezed
+ * and its label wrapped.
+ */
+@Composable
+private fun PanelButtons(content: @Composable () -> Unit) {
+    Layout(content, Modifier.fillMaxWidth().focusGroup()) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val (watch, favorite) = measurables.map { it.measure(loose) }
+        val gap = PleyTv.ButtonGap.roundToPx()
+        val side = watch.width + gap + maxOf(favorite.width, FAVORITE_ROOM.roundToPx()) <= constraints.maxWidth
+        val height = if (side) maxOf(watch.height, favorite.height) else watch.height + gap + favorite.height
+        layout(constraints.maxWidth, constraints.constrainHeight(height)) {
+            watch.place(0, 0)
+            if (side) favorite.place(watch.width + gap, 0) else favorite.place(0, watch.height + gap)
+        }
+    }
+}
+
 /** Three 184 dp tiles, 18 apart, beside the categories. */
 private const val COLUMNS = 3
 
@@ -799,6 +841,9 @@ private val CATEGORY_INSET = 12.dp
 /** A group's name starts where the categories' names do, after their icons. */
 private val GROUP_INSET = CATEGORY_INSET + 26.dp
 
+/** The room kept beside Watch for the favourite, whichever its label (Samsung's 210). */
+private val FAVORITE_ROOM = 210.dp
+
 private const val NOTICE_MS = 4_000L
 
 internal const val TV_LIVE_TV = "pley.tv.live"
@@ -806,3 +851,4 @@ internal const val TV_LIVE_CATEGORIES = "pley.tv.live.categories"
 internal const val TV_LIVE_SEARCH = "pley.tv.live.search"
 internal const val TV_LIVE_TILES = "pley.tv.live.tiles"
 internal const val TV_LIVE_PROGRAM = "pley.tv.live.program"
+internal const val TV_LIVE_PROGRAM_TEXT = "pley.tv.live.program.text"
