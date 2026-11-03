@@ -159,6 +159,8 @@ pub struct Dialog<'a> {
     buttons: &'a [DialogButton<'a>],
     initial: usize,
     reading: bool,
+    /// A width of its own (a short question's narrow card), else as wide as its content.
+    width: Option<f32>,
 }
 
 const CLOSE: [DialogButton<'static>; 1] = [DialogButton { label: "Close", danger: false }];
@@ -171,13 +173,13 @@ impl<'a> Dialog<'a> {
 
     /// A dialog titled `title` (padding 24; its text in `Tv.Body` Muted, 8 below the title).
     pub fn new(title: &'a str) -> Dialog<'a> {
-        Dialog { title, body: "", buttons: &[], initial: 0, reading: false }
+        Dialog { title, body: "", buttons: &[], initial: 0, reading: false, width: None }
     }
 
     /// A text to read (a title's full summary): padding 28, the text in `Tv.BodyLarge` at Fg 85 %
     /// 16 below the title, keeping its line breaks, and a Close button.
     pub fn reading(title: &'a str, text: &'a str) -> Dialog<'a> {
-        Dialog { title, body: text, buttons: &CLOSE, initial: 0, reading: true }
+        Dialog { title, body: text, buttons: &CLOSE, initial: 0, reading: true, width: None }
     }
 
     /// Its text.
@@ -195,6 +197,12 @@ impl<'a> Dialog<'a> {
         Dialog { initial: index, ..self }
     }
 
+    /// `width` wide, whatever its content (the Samsung app's `Dialog` with a `width`): "Exit
+    /// Pley?" is a narrow card of 360.
+    pub fn width(self, width: f32) -> Dialog<'a> {
+        Dialog { width: Some(width), ..self }
+    }
+
     fn padding(&self) -> f32 {
         if self.reading { 28.0 } else { 24.0 }
     }
@@ -203,7 +211,8 @@ impl<'a> Dialog<'a> {
         if self.reading { (theme::BODY_LARGE, theme::SUMMARY, 16.0) } else { (theme::BODY, theme::MUTED, 8.0) }
     }
 
-    /// Where the dialog sits: centred, as wide as its content within 320 to 560.
+    /// Where the dialog sits: centred, as wide as its content within 320 to 560 unless it has a
+    /// width of its own.
     pub fn rect(&self, ui: &Ui) -> Rect {
         let pad = self.padding();
         let (style, _, gap) = self.body_style();
@@ -213,7 +222,9 @@ impl<'a> Dialog<'a> {
         let body = if self.body.is_empty() { Size::ZERO } else { ui.measure(self.body, &style, &opts) };
         let buttons: f32 = self.buttons.iter().map(|b| Button::text(b.label).size(ui).w).sum::<f32>()
             + 12.0 * self.buttons.len().saturating_sub(1) as f32;
-        let w = (title.w.max(body.w).max(buttons) + 2.0 * pad).clamp(Dialog::MIN_WIDTH, Dialog::MAX_WIDTH);
+        let w = self.width.unwrap_or_else(|| {
+            (title.w.max(body.w).max(buttons) + 2.0 * pad).clamp(Dialog::MIN_WIDTH, Dialog::MAX_WIDTH)
+        });
         let inner = w - 2.0 * pad;
         let title_h = ui.measure(self.title, &theme::TITLE, &TextOpts::wrap(inner, 0)).h;
         let body_h =

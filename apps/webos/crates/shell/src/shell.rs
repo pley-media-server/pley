@@ -2,9 +2,12 @@
 //! page at a time from the back stack, the rail beside the pages that have it, the curtain
 //! between pages, toasts, the offline notice, the idle dimmer, and Back in the Android app's order:
 //! what the page has open, then the rail leaves the app, a page above the first pops, a first
-//! page opens the rail, else the app is left.
+//! page opens the rail, else the app is left. Leaving follows LG's Back-button guide
+//! (<https://webostv.developer.lge.com/develop/guides/back-button>): from webOS 6 it asks "Exit
+//! Pley?" first, as the Samsung app does (`Kit/Shell.cs`); up to webOS 5 the TV's Home shows.
 
 use pley_base::{ImageRequest, Key};
+use pley_kit::{Dialog, DialogButton};
 use pley_ui::{Dir, Edge, Group, Id, InputEvent, PageMemory, Ui, UiState};
 
 use crate::cx::{AppCx, NavCommand, Requests};
@@ -69,6 +72,10 @@ pub struct Shell {
     dimmed: bool,
     music_due: Option<f64>,
     exited: bool,
+    /// "Exit Pley?" is open.
+    exit_asked: bool,
+    /// It was answered Exit: the app ends.
+    quit: bool,
     entries: RailEntries,
     /// The server was asked for who is watching, the libraries and Home, after the first frame.
     asked: bool,
@@ -92,6 +99,8 @@ impl Shell {
             dimmed: false,
             music_due: None,
             exited: false,
+            exit_asked: false,
+            quit: false,
             entries: rail_entries(&[], false, false, None, false),
             asked: false,
         }
@@ -145,9 +154,20 @@ impl Shell {
         self.dimmed
     }
 
-    /// Whether the app asked to be left (Back in the rail, or on a first page without it).
+    /// Whether the app asked to be left (Back in the rail, or on a first page without it, up to
+    /// webOS 5; Exit in "Exit Pley?" after).
     pub fn exited(&self) -> bool {
         self.exited
+    }
+
+    /// Whether "Exit Pley?" is open.
+    pub fn exit_asked(&self) -> bool {
+        self.exit_asked
+    }
+
+    /// Whether "Exit Pley?" was answered Exit: the frame loop ends, and with it the app.
+    pub fn quit(&self) -> bool {
+        self.quit
     }
 
     /// The chrome of the page on top.
@@ -276,8 +296,9 @@ impl Shell {
         }
 
         // Back, before the page draws: in the rail it leaves the app; else the page's own. A
-        // notice on screen takes it itself.
-        if ui.key_down(Key::Back) && !self.notices.showing() {
+        // notice on screen, or "Exit Pley?", takes it itself.
+        let asking = self.exit_asked;
+        if ui.key_down(Key::Back) && !self.notices.showing() && !asking {
             if self.rail.is_open() {
                 ui.take_key(Key::Back);
                 self.requests.nav.push(NavCommand::Exit);
@@ -323,7 +344,7 @@ impl Shell {
         // there, so scrolling back along a row never opens it by itself.
         let mut to_rail =
             ui.failed_move() == Some(Dir::Left) && !ui.failed_move_held() && !modal && !self.rail.is_open();
-        if !self.notices.showing() && ui.take_key(Key::Back) {
+        if !self.notices.showing() && !asking && ui.take_key(Key::Back) {
             self.requests.nav.push(NavCommand::Back);
         }
         let depth = self.stack.len();
@@ -354,7 +375,7 @@ impl Shell {
                 me: state.me(),
                 avatar,
                 offline_mark: state.offline() && !state.offline_notice(),
-                page_modal: modal,
+                page_modal: modal || asking,
             };
             if let Some(chosen) = self.rail.ui(ui, &view).chosen {
                 let same = self.stack.len() == 1 && self.stack[0].route == chosen.route;
@@ -366,6 +387,8 @@ impl Shell {
                 }
             }
         }
+
+        self.exit_dialog(ui);
 
         let chrome = self.chrome();
         // Ready-to-watch news: never over a video, a panel or dialog, the open rail or Your
@@ -381,6 +404,21 @@ impl Shell {
         let below = overlay::offline_notice(ui, rail_shown && state.offline_notice(), top_y);
         self.toasts.ui(ui, below);
         overlay::dimmer(ui, self.dimmed);
+    }
+
+    /// "Exit Pley?" (`AskExit` in the Samsung app's `Kit/Shell.cs`): a narrow card, its title and
+    /// Cancel and Exit, Exit focused; Cancel or Back stays. Drawn every frame so it can fade out.
+    fn exit_dialog(&mut self, ui: &mut Ui) {
+        let buttons = [DialogButton::new("Cancel"), DialogButton::new("Exit")];
+        let dialog = Dialog::new("Exit Pley?").buttons(&buttons).initial(1).width(360.0);
+        let r = dialog.show(ui, Id::new("pley.exit"), self.exit_asked);
+        if r.dismissed || r.chosen == Some(0) {
+            self.exit_asked = false;
+        }
+        if r.chosen == Some(1) {
+            self.exit_asked = false;
+            self.requests.nav.push(NavCommand::Quit);
+        }
     }
 
     /// Carries out a navigation from outside a frame (the simulator's `--route`).
@@ -500,12 +538,30 @@ impl Shell {
                     self.apply(NavCommand::Exit, state, ui, now);
                 }
             }
+            NavCommand::Exit if asks_before_leaving(state.device().info().os_major) => {
+                self.exit_asked = true;
+            }
             NavCommand::Exit => {
                 log::info!("leaving the app");
                 state.end_playback();
                 state.device().exit();
                 self.exited = true;
             }
+            NavCommand::Quit => {
+                log::info!("the app ends");
+                state.end_playback();
+                self.exited = true;
+                self.quit = true;
+            }
         }
     }
+}
+
+/// Whether leaving asks "Exit Pley?" first: from webOS 6, as LG's Back-button guide says
+/// (<https://webostv.developer.lge.com/develop/guides/back-button>: "show a popup asking whether
+/// to exit the app"); up to webOS 5 it says to launch Home, which [`Device::exit`] does.
+///
+/// [`Device::exit`]: pley_core::Device::exit
+fn asks_before_leaving(os_major: u32) -> bool {
+    os_major >= 6
 }

@@ -102,6 +102,20 @@ fn a_dialog_sits_in_the_middle_keeps_focus_and_back_dismisses_it() {
 }
 
 #[test]
+fn a_dialog_with_a_width_keeps_it_and_focuses_the_button_asked() {
+    let mut screen = |ui: &mut Ui| {
+        let buttons = [DialogButton::new("Cancel"), DialogButton::new("Exit")];
+        Dialog::new("Exit Pley?").buttons(&buttons).initial(1).width(360.0).show(ui, Id::new("exit"), true);
+    };
+    let mut h = Harness::new();
+    h.idle(&mut screen);
+    let f = settle(&mut h, &mut screen);
+    assert_eq!(f.focused, Some(Id::new("exit").with(1usize)));
+    let card = fills_of(&f.list, theme::SURFACE2)[0];
+    assert_eq!((card.w, card.x), (360.0, 300.0));
+}
+
+#[test]
 fn audio_guidance_reads_a_dialog_as_it_opens_then_its_buttons() {
     let open = Cell::new(false);
     let mut screen = |ui: &mut Ui| {

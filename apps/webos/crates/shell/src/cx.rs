@@ -30,8 +30,12 @@ pub enum NavCommand {
     ToRail,
     /// Does what Back does past the page's own handling: pop, else the rail, else leave.
     Back,
-    /// Leaves the app the way the TV expects.
+    /// Leaves the app the way the TV expects: from webOS 6 "Exit Pley?" asks first, up to webOS 5
+    /// the TV's Home shows.
     Exit,
+    /// Ends the app ("Exit Pley?" answered Exit): playback ends, the reports go, the frame loop
+    /// stops.
+    Quit,
 }
 
 /// A message shown at the top right for a few seconds.

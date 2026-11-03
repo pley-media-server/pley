@@ -244,6 +244,11 @@ pub fn run(
     let mut script_done_at: Option<f64> = None;
 
     loop {
+        // "Exit Pley?" answered Exit: the app ends here (LG's guide has an app's own exit popup
+        // close the app, as `window.close()` does a web app).
+        if shell.quit() {
+            break;
+        }
         let now = time::now();
         let probe_due = first_frame.filter(|_| !probed).map(|t| t + PROBE_AFTER);
         let shooting = args.screenshot.is_some().then_some(now + 0.05);

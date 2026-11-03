@@ -5,7 +5,7 @@
 
 use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 
@@ -273,6 +273,7 @@ pub struct FakeDevice {
     clock_24h: AtomicBool,
     awake: AtomicBool,
     exited: AtomicBool,
+    os_major: AtomicU32,
     ipv4: Mutex<Option<Ipv4Addr>>,
     subscribers: Mutex<Vec<Sender<DeviceEvent>>>,
     spoken: Mutex<Vec<String>>,
@@ -296,6 +297,7 @@ impl FakeDevice {
             clock_24h: AtomicBool::new(true),
             awake: AtomicBool::new(false),
             exited: AtomicBool::new(false),
+            os_major: AtomicU32::new(22),
             ipv4: Mutex::new(Some(Ipv4Addr::new(192, 168, 1, 50))),
             subscribers: Mutex::new(Vec::new()),
             spoken: Mutex::new(Vec::new()),
@@ -313,6 +315,11 @@ impl FakeDevice {
     /// Shared, as the app holds its device.
     pub fn shared(self) -> Arc<dyn Device> {
         Arc::new(self)
+    }
+
+    /// Runs as webOS `major` (22 at first).
+    pub fn set_os_major(&self, major: u32) {
+        self.os_major.store(major, Ordering::SeqCst);
     }
 
     /// Turns the stand-in for Audio Guidance on or off, telling subscribers.
@@ -371,14 +378,15 @@ impl FakeDevice {
 impl Device for FakeDevice {
     fn info(&self) -> DeviceInfo {
         let model = "OLED65C2PUA";
+        let os_major = self.os_major.load(Ordering::SeqCst);
         DeviceInfo {
             maker: "LG".into(),
             model: model.into(),
-            os: "webOS 22".into(),
-            os_major: 22,
+            os: format!("webOS {os_major}"),
+            os_major,
             firmware: Some("03.20.70".into()),
             app_version: env!("CARGO_PKG_VERSION").into(),
-            user_agent: user_agent(env!("CARGO_PKG_VERSION"), 22, model),
+            user_agent: user_agent(env!("CARGO_PKG_VERSION"), os_major, model),
             data_durable: true,
         }
     }

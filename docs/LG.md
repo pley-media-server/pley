@@ -78,7 +78,7 @@ differs on LG:
 
 | Key | What it does |
 |---|---|
-| Back | Closes what the page has open, then goes back. On a first page it opens the rail; in the rail it leaves the app: the TV's Home shows, and Pley waits behind it where it was |
+| Back | Closes what the page has open, then goes back. On a first page it opens the rail; in the rail (or on a first page without it) it leaves the app as LG's [Back-button guide](https://webostv.developer.lge.com/develop/guides/back-button) says. From webOS 6 it asks "Exit Pley?", as the Samsung app does: Exit (focused) ends playback, tells the server and closes the app; Cancel or Back stays. On webOS 4 and 5 the TV's Home shows, and Pley waits behind it where it was |
 | Exit | Closes the app |
 | OK held, or the menu key | A title's actions; in the guide, a programme's details |
 | CH+, CH− | The next or previous channel in the Live TV player; a page of channels in the guide |
@@ -650,6 +650,7 @@ keep a release's.
   [appinfo.json](https://webostv.developer.lge.com/develop/references/appinfo-json),
   [streaming protocols](https://webostv.developer.lge.com/develop/specifications/streaming-protocol-drm),
   [resuming media](https://webostv.developer.lge.com/develop/guides/resuming-media-with-mediaoption),
+  [Back button](https://webostv.developer.lge.com/develop/guides/back-button),
   [uMediaServer for webOS OSE](https://www.webosose.org/docs/reference/ls2-api/com-webos-media/).
 - webosbrew:
   [native toolchain](https://github.com/webosbrew/native-toolchain),

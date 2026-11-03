@@ -410,10 +410,11 @@ impl Device for WebosDevice {
         }
     }
 
-    /// Back on the first screen shows the TV's Home and keeps the app running
-    /// (LG's rule for webOS 23 to 25, and what the web app's `platformBack`
-    /// did up to webOS 5): webOS 4 draws Home as a ribbon over the app, later
-    /// ones send it to the background. If Home won't show, the app hides itself.
+    /// Back on the first screen up to webOS 5 shows the TV's Home and keeps the app running, as
+    /// LG's Back-button guide says for those versions ("launch the Home launcher",
+    /// <https://webostv.developer.lge.com/develop/guides/back-button>; from webOS 6 the shell asks
+    /// "Exit Pley?" instead): webOS 4 draws Home as a ribbon over the app, webOS 5 sends it to the
+    /// background. If Home won't show, the app hides itself.
     fn exit(&self) {
         {
             let mut last = self.inner.last_exit.lock().unwrap_or_else(|e| e.into_inner());

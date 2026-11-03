@@ -31,6 +31,7 @@ pub fn main(app: &App, args: &Args, started: f64) -> Result<(), String> {
     let store = if info.data_durable { Store::open(&dir) } else { Store::open_volatile(&dir) }
         .map_err(|e| format!("the data folder can't be used: {e}"))?;
     let http = Http::network(&info.user_agent);
-    // The TV leaves the app itself (Back on the first page asks it to); the loop ends on SDL's quit.
+    // Up to webOS 5 the TV leaves the app itself (Back on the first page shows Home); the loop ends
+    // on SDL's quit, or on Exit in "Exit Pley?" from webOS 6.
     run::run(app, platform, device, store, http, args, started, Arc::new(AtomicBool::new(false)), &|_| {})
 }

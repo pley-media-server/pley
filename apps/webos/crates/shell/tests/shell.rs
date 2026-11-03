@@ -49,17 +49,65 @@ fn back_closes_the_page_s_own_then_pops_then_opens_the_rail_then_leaves() {
     assert_eq!(app.focused(), Some(Rail::entry_focus_id("home")));
     assert!(!device.exited());
 
-    // 4. Back in the rail leaves the app.
+    // 4. Back in the rail asks "Exit Pley?" (webOS 6 and later), Exit focused; Back stays.
     app.press(Key::Back);
-    assert!(device.exited());
+    assert!(app.shell.exit_asked());
+    assert_eq!(app.focused(), Some(exit_button(1)));
+    assert!(app.list.says("Exit Pley?"));
+    app.press(Key::Back);
+    assert!(!app.shell.exit_asked());
+    assert_eq!(app.focused(), Some(Rail::entry_focus_id("home")));
+    assert!(!device.exited() && !app.shell.exited());
+
+    // Cancel stays too.
+    app.press(Key::Back);
+    app.press(Key::Left);
+    assert_eq!(app.focused(), Some(exit_button(0)));
+    app.press(Key::Ok);
+    assert!(!app.shell.exit_asked() && !app.shell.quit());
+
+    // Exit ends the app: the frame loop stops, and the TV isn't sent Home.
+    app.press(Key::Back);
+    app.press(Key::Ok);
+    assert!(app.shell.quit());
     assert!(app.shell.exited());
+    assert!(!device.exited());
+}
+
+fn exit_button(i: usize) -> pley_ui::Id {
+    pley_ui::Id::new("pley.exit").with(i)
 }
 
 #[test]
-fn back_without_the_rail_leaves_the_app() {
+fn back_without_the_rail_asks_before_leaving() {
     let device = device();
     let mut app = TestApp::new(device.clone(), store(&device), http(), registry(&heard(), &[]));
     assert_eq!(app.shell.top_route(), Some(&Route::Servers));
+    app.press(Key::Back);
+    assert!(app.shell.exit_asked());
+    app.press(Key::Ok);
+    assert!(app.shell.quit());
+}
+
+#[test]
+fn up_to_webos_5_back_in_the_rail_shows_the_tv_s_home() {
+    let server = fixtures();
+    let device = device();
+    device.set_os_major(5);
+    let (store, http) = (store(&device), http());
+    sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
+    let mut app = TestApp::new(device.clone(), store, http, registry(&heard(), &[]));
+    app.press(Key::Back);
+    assert!(app.shell.rail_open());
+    app.press(Key::Back);
+    assert!(!app.shell.exit_asked());
+    assert!(device.exited());
+    assert!(app.shell.exited() && !app.shell.quit());
+
+    // Without the rail too.
+    let device = common::device();
+    device.set_os_major(4);
+    let mut app = TestApp::new(device.clone(), common::store(&device), common::http(), registry(&heard(), &[]));
     app.press(Key::Back);
     assert!(device.exited());
 }

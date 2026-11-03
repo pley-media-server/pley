@@ -85,6 +85,9 @@ describes how they are made.
   speaker for each pass-through format, and their own icons for Subtitle
   background, Subtitle position, Reduce motion and Manage your account on
   the web.
+- On webOS 6 and later, Back in the rail asks "Exit Pley?", as LG asks of
+  apps and as the Samsung app does: Exit closes Pley, Cancel or Back
+  stays. On webOS 4 and 5 it still shows the TV's Home.
 
 ### Removed
 
