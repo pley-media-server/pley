@@ -56,6 +56,8 @@ sealed class RailView : View
     float scroll;
     /// <summary>Where focus was in the rail, for the way a move went: -1 the avatar, the entries' count Settings; null outside it.</summary>
     int? lastAt;
+    /// <summary>The entries are being made again: focus goes to its entry at once, leaving no animation running on the one that went.</summary>
+    bool remaking;
 
     public RailView(FocusTree tree, Func<bool> reducedMotion, Action<RailItem> onSelect, Action onProfile)
     {
@@ -134,9 +136,15 @@ sealed class RailView : View
     /// <summary>The open rail's dim over the page, for the shell to put between the page and the rail.</summary>
     public View Scrim { get; }
 
-    /// <summary>The entries above Settings, as <see cref="Rail.Items"/> lists them.</summary>
+    /// <summary>
+    /// The entries above Settings, as <see cref="Rail.Items"/> lists them. Focus on an entry stays
+    /// on it as they're made again, or goes to the one in its place (<see cref="Rail.Refocus"/>):
+    /// left on the entry that went, nothing showed it, and Down went to the avatar.
+    /// </summary>
     public void SetItems(IReadOnlyList<RailItem> items)
     {
+        var place = PlaceOf(tree.Current) ?? -1;
+        var focused = place >= 0 && place < Count ? entries.Find(e => e.Item == tree.Current) : null;
         foreach (var e in entries)
         {
             if (e.Id == Rail.SettingsItem.Id) continue;
@@ -146,6 +154,16 @@ sealed class RailView : View
         entries.RemoveAll(e => e.Id != Rail.SettingsItem.Id);
         for (var i = 0; i < items.Count; i++) Group.Insert(1 + i, AddEntry(items[i], i * Rail.Pitch, track).Item);
         Mark();
+        if (focused != null)
+        {
+            var to = Rail.Refocus(focused.Id, place, items);
+            // Where focus was is where it goes: no way travelled, so only the entry comes into view (Follow).
+            lastAt = to;
+            remaking = true;
+            tree.Focus((FocusItem)Group.Children[1 + to]);
+            remaking = false;
+        }
+        else lastAt = PlaceOf(tree.Current);
         // Made again: the scroll within the entries' ends, the focused one in view (focus coming back to one moves it there too).
         ScrollTo(Rail.Scroll(scroll, PlaceOf(tree.Current) ?? -1, items.Count, null));
     }
@@ -421,7 +439,7 @@ sealed class RailView : View
             var scale = new Vector3(size, size, 1);
             focusAnimation?.Stop();
             focusAnimation = null;
-            if (rail.reduced())
+            if (rail.reduced() || rail.remaking)
             {
                 Box.Scale = scale;
                 return;

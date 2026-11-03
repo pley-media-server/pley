@@ -123,6 +123,33 @@ public class RailTests
         Assert.False(Rail.FirstEntry + 10 * Rail.Pitch <= Rail.SettingsY);
     }
 
+    [Fact]
+    public void Entries_made_again_keep_focus_on_the_same_entry()
+    {
+        // Search, Home, Live TV, six libraries, Libraries, Playlists, Now Playing, the drive: focus on Now Playing.
+        Assert.Equal("now-playing", Rail.Items(Libraries(8), nowPlaying: true, liveTv: true, storage: true)[11].Id);
+        // A scan reports the same libraries: the same entry, where it was.
+        Assert.Equal(11, Rail.Refocus("now-playing", 11, Rail.Items(Libraries(8), nowPlaying: true, liveTv: true, storage: true)));
+        // Live TV's channels go: the entry moves up one, and focus with it.
+        Assert.Equal(10, Rail.Refocus("now-playing", 11, Rail.Items(Libraries(8), nowPlaying: true, storage: true)));
+        // One of six libraries goes, from above it.
+        Assert.Equal("now-playing", Rail.Items(Libraries(6), nowPlaying: true, liveTv: true, storage: true)[11].Id);
+        Assert.Equal(10, Rail.Refocus("now-playing", 11, Rail.Items(Libraries(5), nowPlaying: true, liveTv: true, storage: true)));
+    }
+
+    [Fact]
+    public void Focus_on_an_entry_that_went_goes_to_the_one_in_its_place()
+    {
+        // The music stops while focus is on Now Playing: the drive comes up into its place.
+        var after = Rail.Items(Libraries(8), liveTv: true, storage: true);
+        Assert.Equal("storage", after[Rail.Refocus("now-playing", 11, after)].Id);
+        // The drive goes while focus is on it, the last: the last there is now.
+        after = Rail.Items(Libraries(8), nowPlaying: true, liveTv: true);
+        Assert.Equal("now-playing", after[Rail.Refocus("storage", 12, after)].Id);
+        // No entries left: Settings, after them.
+        Assert.Equal(0, Rail.Refocus("home", 1, new List<RailItem>()));
+    }
+
     // ---- the fixture packages/tv's rail.test.ts reads too
 
     public static IEnumerable<object[]> EntriesCases => Enumerable.Range(0, Fixtures.Load("rail").GetProperty("entries").GetArrayLength()).Select(i => new object[] { i });

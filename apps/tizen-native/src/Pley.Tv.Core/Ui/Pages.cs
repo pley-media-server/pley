@@ -168,6 +168,20 @@ public static class Rail
     }
 
     /// <summary>
+    /// Where focus goes in the rail when its entries are made again (a library scan, Live TV's
+    /// channels, Now Playing, a USB drive) while it was on entry <paramref name="index"/>,
+    /// <paramref name="id"/>: on that entry where it still is, as packages/tv's rail, whose entries
+    /// are keyed, keeps it; else on the one now in its place, the last when there are fewer; on
+    /// Settings, <paramref name="items"/>' count, when there are none.
+    /// </summary>
+    public static int Refocus(string id, int index, IReadOnlyList<RailItem> items)
+    {
+        for (var i = 0; i < items.Count; i++)
+            if (items[i].Id == id) return i;
+        return items.Count == 0 ? 0 : System.Math.Max(0, System.Math.Min(index, items.Count - 1));
+    }
+
+    /// <summary>
     /// Which entry is current for a back stack whose first page is <paramref name="root"/>: the
     /// entry that opened it, "libraries" for a library not in the rail, or null (Who's watching?,
     /// sign-in).

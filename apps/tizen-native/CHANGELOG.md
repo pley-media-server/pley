@@ -306,6 +306,10 @@ It has no releases yet: it is built and installed by hand
   make and model ("Kingston DataTraveler 3.0").
 - The rail marks the page a rail entry opened, not Home, when the page has
   nothing to focus yet, as the first page opened after Who's watching?.
+- The native app's rail keeps focus on its entry when its entries change
+  (a library scan, Live TV's channels, Now Playing, a USB drive), or puts
+  it on the entry now in its place, where nothing showed focus and Down
+  went to the avatar.
 - Diagnostics, Remove from My List and Settings' audio and subtitle rows
   show their icons.
 - The native app carries none of the profiling build's code: its marks, the
