@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasAnyAncestor
@@ -30,6 +31,7 @@ import app.pley.android.ui.tv.kit.press
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -243,6 +245,20 @@ class TvAppTest {
         railEntry("home").assertIsFocused()
         compose.press(Key.DirectionRight)
         compose.focused().assertContentDescriptionEquals(DUNE)
+    }
+
+    @Test
+    fun backComesBackToATilePastTheRowsFirst() {
+        app()
+        compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionRight)
+        val second = compose.onNode(isFocused()).fetchSemanticsNode().config.getOrElse(SemanticsProperties.ContentDescription) { emptyList() }.joinToString()
+        compose.press(Key.DirectionCenter)
+        compose.onNodeWithTag(TV_ITEM_PAGE).assertExists()
+        back()
+        // Home as it was under the page: the same tile, not the row's first.
+        compose.focused().assertContentDescriptionEquals(second)
+        assertTrue(second, second.isNotEmpty() && second != HALF_LOOP)
     }
 
     @Test

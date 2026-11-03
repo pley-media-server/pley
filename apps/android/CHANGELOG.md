@@ -14,6 +14,9 @@ describes how they are made.
   open in a panel over Home, a library, search, a collection or a
   person's page, as they do on an item's page, rather than on a page of
   their own: the page stays as it was, and focus comes back to the title.
+- On Android TV and Fire TV, Back to the page the rail opened (Home, a
+  library, search) shows it at once as it was left, focus included, rather
+  than building it again with its pictures.
 
 ### Fixed
 

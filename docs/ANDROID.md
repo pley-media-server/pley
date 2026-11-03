@@ -64,9 +64,9 @@ heard it for that profile, the start asks "Who's watching?".
 ### TVs and Fire TV
 
 - Select opens, holding Select or Menu (☰) opens a title's actions in a
-  panel over the page, which stays as it was, and Back goes back. In the
-  player, OK within two seconds of a seek plays on from there; later, OK
-  pauses.
+  panel over the page, which stays as it was, and Back goes back: to the
+  page the rail opened as it was left, focus included. In the player, OK
+  within two seconds of a seek plays on from there; later, OK pauses.
 - **Fire TV** runs the same APK and TV screens. The app spots it by the
   `amazon.hardware.fire_tv` feature and follows Amazon's player guidelines
   (asynchronous decoder queueing, surround from Fire OS's audio setting,

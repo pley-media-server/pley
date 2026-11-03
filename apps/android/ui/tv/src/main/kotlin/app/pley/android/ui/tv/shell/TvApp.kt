@@ -46,6 +46,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.scene.SinglePaneSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import app.pley.android.common.TestTags
 import app.pley.android.common.Tier
@@ -153,12 +154,13 @@ private fun TvShell(
     val offline = remember { TvOfflineState() }
     val navigator = remember(backStack) { TvNavigator(backStack, rail, onExit) }
     val tileActions = remember(backStack) { TvTileActionsState(content) { backStack.lastOrNull() } }
+    val pages = remember(rail) { RootUnderPages { rail.shown } }
     val root = navigator.root ?: start
     rail.current = railCurrent(root, items + SettingsItem)
     // Signing in and choosing a profile are full screen.
     rail.shown = root !is PleyKey.Servers && root !is PleyKey.Link && root !is PleyKey.SignIn && root !is PleyKey.Profiles
     val curtain = rememberCurtain(backStack.lastOrNull())
-    ReturnFocus(rail, content)
+    ReturnFocus(rail, content, pages)
     // The app is fully drawn (Android's time to full display) once Home has its
     // rows and pictures; a start elsewhere (sign-in, "Who's watching?") is at once.
     if (start == PleyKey.Home) {
@@ -219,7 +221,10 @@ private fun TvShell(
                     entryDecorators = listOf(
                         rememberSaveableStateHolderNavEntryDecorator(),
                         rememberViewModelStoreNavEntryDecorator(),
+                        rememberRootPageDecorator(backStack, pages),
                     ),
+                    // The rail's page stays under the pages opened on it (RootUnderPages).
+                    sceneStrategies = listOf(pages, SinglePaneSceneStrategy()),
                     // Screens change under the curtain, not with sliding or fading pages.
                     transitionSpec = { EnterTransition.None togetherWith ExitTransition.None },
                     popTransitionSpec = { EnterTransition.None togetherWith ExitTransition.None },
@@ -265,14 +270,17 @@ private val RailDim = PleyColors.Bg.copy(alpha = 0.5f)
  * lands in the rail. Not when focus was in the rail already.
  */
 @Composable
-private fun ReturnFocus(rail: RailState, content: FocusRequester) {
+private fun ReturnFocus(rail: RailState, content: FocusRequester, pages: RootUnderPages) {
     val window = LocalWindowInfo.current
-    LaunchedEffect(window, rail, content) {
+    LaunchedEffect(window, rail, content, pages) {
         var inRail = false
         snapshotFlow { window.isWindowFocused }.drop(1).collect { focused ->
             if (!focused) {
                 inRail = rail.hasFocus
-                if (!inRail) runCatching { content.saveFocusedChild() }
+                if (!inRail) {
+                    pages.saveFocus()
+                    runCatching { content.saveFocusedChild() }
+                }
             } else if (!inRail) {
                 withFrameNanos { }
                 rail.backToContent()
