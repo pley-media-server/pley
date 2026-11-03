@@ -46,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaLibraryInfo
 import androidx.media3.common.util.UnstableApi
 import app.pley.android.auth.Needs
+import app.pley.android.common.perf.FrameRate
 import app.pley.android.common.sentenceOf
 import app.pley.android.data.FrameRateMatching
 import app.pley.android.data.Passthrough
@@ -545,6 +546,18 @@ private fun LazyListScope.pane(
                     chevron = true,
                     onClick = { onOpen(PleyKey.Diagnostics) },
                     modifier = keyed("row-diagnostics"),
+                )
+            }
+            item(key = "row-frame-counter", contentType = SETTING_ROW) {
+                val context = LocalContext.current
+                val shown by FrameRate.on.collectAsStateWithLifecycle()
+                TvSettingRow(
+                    stringResource(R.string.tv_settings_show_frame_rate),
+                    value = stringResource(R.string.tv_settings_show_frame_rate_hint),
+                    checked = shown,
+                    icon = PleyIcons.Gauge,
+                    onClick = { FrameRate.show(context, !shown) },
+                    modifier = keyed("row-frame-counter"),
                 )
             }
             item(key = "facts") { DeviceFacts() }

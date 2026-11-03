@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.Tier
+import app.pley.android.common.perf.FrameRate
 import app.pley.android.data.FrameRateMatching
 import app.pley.android.data.Settings
 import app.pley.android.data.TrackDefaultsUnsupported
@@ -25,6 +26,7 @@ import app.pley.android.ui.tv.shell.TvNavigator
 import app.pley.android.ui.tv.theme.TvTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.After
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Rule
@@ -52,6 +54,11 @@ class TvSettingsFocusTest {
     @Before
     fun graph() {
         TvAccountTestApplication.graph = graph
+    }
+
+    @After
+    fun frameRateOff() {
+        FrameRate.show(compose.activity, false)
     }
 
     private fun show() {
@@ -155,6 +162,22 @@ class TvSettingsFocusTest {
         compose.press(Key.DirectionCenter)
         compose.onNodeWithTag(TV_WEB_DIALOG).assertExists()
         compose.onNodeWithText("192.168.1.20:7539/account").assertExists()
+    }
+
+    @Test
+    fun diagnosticsShowsTheFrameRateOnSelect() {
+        show()
+        compose.press(Key.DirectionDown, times = 5)
+        category(Category.Diagnostics).assertIsFocused()
+        compose.press(Key.DirectionRight)
+        compose.focused().assert(hasText("Open diagnostics"))
+        compose.press(Key.DirectionDown)
+        compose.focused().assert(hasText("Show frame rate"))
+        assertFalse(FrameRate.on.value)
+        compose.press(Key.DirectionCenter)
+        compose.waitUntil(5_000) { FrameRate.on.value }
+        compose.press(Key.DirectionCenter)
+        compose.waitUntil(5_000) { !FrameRate.on.value }
     }
 
     @Test

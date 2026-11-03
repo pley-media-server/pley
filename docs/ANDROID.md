@@ -622,6 +622,28 @@ On a device that already has Pley, signed with another key, build both with
 as `com.formandelement.pley.bench`, and the benchmarks (which clear the
 app's data between runs) touch only that one.
 
+Any build, release ones too, counts its frames while "Show frame rate" is
+on: Settings → Diagnostics on a TV, Diagnostics on a phone, kept on the
+device. For one run, the launch intent's `frames` extra turns it on (or
+off), also when the app is already open:
+
+```powershell
+adb -s <device> shell am start -n com.formandelement.pley/app.pley.android.TvActivity --ez frames true
+adb -s <device> logcat -s PleyFrames
+```
+
+Each half second something moves, the window shown (its frame metrics,
+read on a thread of its own) gives a line, `fps=58 longest=21.4
+missed=2 screen=Home`: frames drawn a second, the longest frame in
+milliseconds from its vsync to its drawing done, and how many missed
+their deadline (the deadline Android 12 and later give, else the
+display's refresh). The screen is the route shown in the TV's or phone's
+shell, else the activity (`TvPlayerActivity`). A box in the window's top
+corner shows the same, green with none late, amber with a few, red with a
+frame in four or more; dialogs and popups are windows of their own and
+aren't counted. At rest nothing is drawn, so nothing is told. Off, none
+of it runs.
+
 On an emulator, frame times (`dumpsys gfxinfo` while a key is held, as
 with `adb shell input keyevent --duration 3000 KEYCODE_DPAD_RIGHT`) say
 little about drawing: the emulator's GPU takes about the same time a frame

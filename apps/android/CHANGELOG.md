@@ -51,6 +51,10 @@ describes how they are made.
   have more than one: chips beside Genre and Year on phones, rows of the
   Filter panel on TVs with a chip for the one chosen. Clear filters clears
   them, Save as… keeps them, and the library opens with them next time.
+- Diagnostics can show the frame rate (on TVs, Settings → Diagnostics):
+  while something moves, a small box in the top corner gives the frames
+  drawn a second, the longest frame and how many were late, and the same
+  goes to the device's log.
 
 ### Changed
 

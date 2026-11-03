@@ -6,6 +6,7 @@ import android.os.StrictMode
 import androidx.tracing.trace
 import app.pley.android.common.AppBuild
 import app.pley.android.common.TraceNames
+import app.pley.android.common.perf.FrameRate
 import app.pley.android.common.perf.StartupSignals
 import app.pley.android.designsystem.PleyImageLoader
 import app.pley.android.downloads.AppDownloads
@@ -51,6 +52,8 @@ class PleyApplication : Application(), PleyGraphOwner, DownloadsOwner, Singleton
             super.onCreate()
             AppBuild.commit = BuildConfig.COMMIT
             if (BuildConfig.DEBUG) watchForSlowCalls()
+            // The frame-rate counter's switch, read in the background; off, it only follows the activities.
+            FrameRate.watch(this, shells = setOf(TvActivity::class.java, MainActivity::class.java))
             startup = StartupRead.start(this)
             restartDemoServer()
             warmGraph()

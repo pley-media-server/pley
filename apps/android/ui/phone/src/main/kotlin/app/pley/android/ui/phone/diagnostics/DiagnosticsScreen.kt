@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.perf.FrameRate
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.icon.PleyIcons
@@ -47,6 +48,7 @@ import app.pley.android.screens.diagnostics.DiagnosticsViewModel
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.account.RowDivider
 import app.pley.android.ui.phone.account.SettingsGroup
+import app.pley.android.ui.phone.account.SwitchRow
 import app.pley.android.ui.phone.account.versionOf
 import app.pley.android.ui.phone.kit.BusyLine
 import app.pley.android.ui.phone.kit.PleyIconButton
@@ -104,6 +106,15 @@ internal fun DiagnosticsScreen() {
                         RowDivider(inset = false)
                         FactRow(fact.label, fact.value)
                     }
+                    RowDivider(inset = false)
+                    val frames by FrameRate.on.collectAsStateWithLifecycle()
+                    SwitchRow(
+                        stringResource(R.string.diagnostics_show_frame_rate),
+                        subtitle = stringResource(R.string.diagnostics_show_frame_rate_hint),
+                        checked = frames,
+                        onChange = { FrameRate.show(context, it) },
+                        modifier = Modifier.testTag(DIAGNOSTICS_FRAME_RATE),
+                    )
                 }
             }
             item(key = "caps") {
@@ -171,3 +182,4 @@ private fun FactRow(label: String, value: String) {
 private val MAX_WIDTH = 720.dp
 
 internal const val DIAGNOSTICS_PAGE = "pley.diagnostics.page"
+internal const val DIAGNOSTICS_FRAME_RATE = "pley.diagnostics.frameRate"
