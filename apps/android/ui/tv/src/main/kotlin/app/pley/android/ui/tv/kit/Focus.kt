@@ -16,6 +16,7 @@ import androidx.compose.ui.focus.FocusPropertiesModifierNode
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.FocusRequesterModifierNode
 import androidx.compose.ui.focus.FocusState
+import androidx.compose.ui.focus.invalidateFocusProperties
 import androidx.compose.ui.focus.requestFocus
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
@@ -67,6 +68,8 @@ private data class RailOnLeftElement(val rail: TvRailFocus?, val stopRight: Bool
     override fun update(node: RailOnLeftNode) {
         node.rail = rail
         node.stopRight = stopRight
+        // The shell's rail comes and goes as it shows: focus asks the node again.
+        node.invalidateFocusProperties()
     }
 
     override fun InspectorInfo.inspectableProperties() {
