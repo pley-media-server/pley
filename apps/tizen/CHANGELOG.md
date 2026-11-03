@@ -94,6 +94,10 @@ describes how they are made.
   quality badges.
 - Search shows movies, shows and episodes first, then music, then Live
   TV, then people, the closest matches first in each.
+- The rail's entries are smaller and list up to six libraries, where
+  four or more went behind Libraries; nothing leaves the rail to make room
+  for Live TV, Discover or Now Playing any more, and the entries scroll
+  between the avatar and Settings when they don't all fit.
 
 ### Removed
 

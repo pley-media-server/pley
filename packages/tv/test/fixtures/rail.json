@@ -1,0 +1,98 @@
+{
+  "entries": [
+    {
+      "in": { "libraries": [], "nowPlaying": false, "live": false },
+      "out": ["search", "home", "playlists"]
+    },
+    {
+      "in": { "libraries": [], "nowPlaying": false, "live": true },
+      "out": ["search", "home", "live", "playlists"]
+    },
+    {
+      "in": { "libraries": ["music"], "nowPlaying": false, "live": false },
+      "out": ["search", "home", "library:1", "playlists", "collections"]
+    },
+    {
+      "in": { "libraries": ["movies", "shows"], "nowPlaying": true, "live": false },
+      "out": ["search", "home", "library:1", "library:2", "playlists", "collections", "now-playing"]
+    },
+    {
+      "in": { "libraries": ["movies", "shows", "movies"], "nowPlaying": false, "live": false },
+      "out": ["search", "home", "library:1", "library:2", "library:3", "playlists", "collections"]
+    },
+    {
+      "in": { "libraries": ["movies", "shows", "movies", "shows"], "nowPlaying": false, "live": false },
+      "out": ["search", "home", "library:1", "library:2", "library:3", "library:4", "playlists", "collections"]
+    },
+    {
+      "in": { "libraries": ["movies", "shows", "movies", "shows", "music"], "nowPlaying": false, "live": true },
+      "out": ["search", "home", "live", "library:1", "library:2", "library:3", "library:4", "library:5", "playlists", "collections"]
+    },
+    {
+      "in": { "libraries": ["movies", "shows", "movies", "shows", "movies", "shows"], "nowPlaying": false, "live": false },
+      "out": ["search", "home", "library:1", "library:2", "library:3", "library:4", "library:5", "library:6", "playlists", "collections"]
+    },
+    {
+      "in": { "libraries": ["movies", "shows", "movies", "shows", "movies", "shows"], "nowPlaying": true, "live": true },
+      "out": [
+        "search",
+        "home",
+        "live",
+        "library:1",
+        "library:2",
+        "library:3",
+        "library:4",
+        "library:5",
+        "library:6",
+        "playlists",
+        "collections",
+        "now-playing"
+      ]
+    },
+    {
+      "in": { "libraries": ["movies", "shows", "movies", "shows", "movies", "shows", "music"], "nowPlaying": false, "live": false },
+      "out": ["search", "home", "library:1", "library:2", "library:3", "library:4", "library:5", "library:6", "libraries", "playlists"]
+    },
+    {
+      "in": { "libraries": ["movies", "shows", "movies", "shows", "movies", "shows", "music", "movies", "shows"], "nowPlaying": true, "live": true },
+      "out": [
+        "search",
+        "home",
+        "live",
+        "library:1",
+        "library:2",
+        "library:3",
+        "library:4",
+        "library:5",
+        "library:6",
+        "libraries",
+        "playlists",
+        "now-playing"
+      ]
+    }
+  ],
+  "scroll": [
+    { "in": { "scroll": 0, "focused": 0, "count": 12, "dir": null }, "out": 0 },
+    { "in": { "scroll": 0, "focused": 7, "count": 12, "dir": "down" }, "out": 0 },
+    { "in": { "scroll": 0, "focused": 8, "count": 12, "dir": "down" }, "out": 34 },
+    { "in": { "scroll": 34, "focused": 9, "count": 12, "dir": "down" }, "out": 78 },
+    { "in": { "scroll": 78, "focused": 10, "count": 12, "dir": "down" }, "out": 122 },
+    { "in": { "scroll": 122, "focused": 11, "count": 12, "dir": "down" }, "out": 122 },
+    { "in": { "scroll": 122, "focused": 11, "count": 12, "dir": "up" }, "out": 122 },
+    { "in": { "scroll": 122, "focused": 3, "count": 12, "dir": "up" }, "out": 88 },
+    { "in": { "scroll": 88, "focused": 2, "count": 12, "dir": "up" }, "out": 44 },
+    { "in": { "scroll": 44, "focused": 1, "count": 12, "dir": "up" }, "out": 0 },
+    { "in": { "scroll": 0, "focused": 0, "count": 12, "dir": "up" }, "out": 0 },
+    { "in": { "scroll": 50, "focused": 5, "count": 12, "dir": null }, "out": 50 },
+    { "in": { "scroll": 60, "focused": 2, "count": 12, "dir": "down" }, "out": 60 },
+    { "in": { "scroll": 0, "focused": 11, "count": 12, "dir": null }, "out": 122 },
+    { "in": { "scroll": 122, "focused": 0, "count": 12, "dir": null }, "out": 0 },
+    { "in": { "scroll": 0, "focused": 8, "count": 9, "dir": "down" }, "out": 0 },
+    { "in": { "scroll": 0, "focused": 8, "count": 9, "dir": null }, "out": 0 },
+    { "in": { "scroll": 0, "focused": 9, "count": 10, "dir": null }, "out": 34 },
+    { "in": { "scroll": 0, "focused": 8, "count": 10, "dir": "down" }, "out": 34 },
+    { "in": { "scroll": 122, "focused": -1, "count": 10, "dir": null }, "out": 34 },
+    { "in": { "scroll": 34, "focused": 10, "count": 10, "dir": null }, "out": 34 },
+    { "in": { "scroll": 34, "focused": -1, "count": 7, "dir": null }, "out": 0 }
+  ]
+}

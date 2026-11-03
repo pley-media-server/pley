@@ -13,8 +13,10 @@ sealed record RailProfile(string Name, Color? Color = null)
 }
 
 /// <summary>
-/// The rail (the Android app's TvRail, design spec §2.1): 56 dp entries collapsed, 256 open. The
-/// avatar at the top switches profiles; then the entries; Settings at the foot, at y = 465.
+/// The rail (the Android app's TvRail, design spec §2.1): 56 dp entries collapsed, 256 open, 40
+/// tall. The avatar at the top switches profiles; then the entries, 4 apart from y = 67; Settings at
+/// the foot, at y = 473. Nine entries fit between them: more scroll as focus moves along them
+/// (<see cref="Rail.Scroll"/>), clipped from the avatar's foot to Settings' top, which stay put.
 /// Collapsed, the current entry has a 4 × 20 accent mark and its icon in Fg; open, it is a Surface3
 /// pill. The focused entry is the accent pill at 1.05. Open (focus in it), the rail is Surface at
 /// 96 % with a soft edge, and the page behind it is dimmed.
@@ -26,10 +28,10 @@ sealed record RailProfile(string Name, Color? Color = null)
 /// </summary>
 sealed class RailView : View
 {
-    /// <summary>The avatar's entry: 56 tall from y = 15, so its circle sits at y = 27 and Search starts at y = 75.</summary>
-    const float AvatarTop = 15, AvatarHeight = 56, AvatarSize = 32, FirstEntry = 75;
-    /// <summary>48 dp entries on a 56 dp pitch; Settings at the foot.</summary>
-    const float EntryHeight = 48, Pitch = 56, SettingsY = 465;
+    /// <summary>The avatar's entry: 48 tall from y = 15, so its circle sits at y = 23; the entries' view starts at its foot.</summary>
+    const float AvatarTop = 15, AvatarHeight = 48, AvatarSize = 32, ViewTop = AvatarTop + AvatarHeight;
+    /// <summary>40 dp entries on a 44 dp pitch from y = 67; Settings at the foot.</summary>
+    const float EntryHeight = Rail.EntryHeight, SettingsY = Rail.SettingsY;
     /// <summary>The open rail's soft right edge.</summary>
     const float Shadow = 64;
     /// <summary>How far a label slides in from: a little, not tv-material's whole width, since an entry doesn't clip it and it would cross the icon.</summary>
@@ -43,9 +45,17 @@ sealed class RailView : View
     readonly View avatarCircle;
     readonly TextLabel avatarInitial;
     readonly Func<bool> reduced;
+    /// <summary>The entries' view, clipped from the avatar's foot to Settings' top, and the entries in it, moved to scroll them.</summary>
+    readonly View view;
+    readonly View track;
     Animation? motion;
+    Animation? scrolling;
     string? current;
     bool open;
+    /// <summary>How far the entries are scrolled, in dp.</summary>
+    float scroll;
+    /// <summary>Where focus was in the rail, for the way a move went: -1 the avatar, the entries' count Settings; null outside it.</summary>
+    int? lastAt;
 
     public RailView(FocusTree tree, Func<bool> reducedMotion, Action<RailItem> onSelect, Action onProfile)
     {
@@ -84,8 +94,18 @@ sealed class RailView : View
         avatar.SetSecondLine("Switch profile");
         Group.Add(avatar.Item);
         Add(avatar.Box);
+        // As wide as the rail with its edge, so an open entry at 1.05 isn't cut.
+        view = new View
+        {
+            Size = new Size(Ui.Dp(PleyTv.RailExpanded + Shadow), Ui.Dp(SettingsY - ViewTop)),
+            Position = new Position(0, Ui.Dp(ViewTop)),
+            ClippingMode = ClippingModeType.ClipChildren,
+        };
+        track = new View { Position = new Position(0, Ui.Dp(Rail.FirstEntry - ViewTop)) };
+        view.Add(track);
+        Add(view);
         this.onSelect = onSelect;
-        Group.Add(AddEntry(Rail.SettingsItem, SettingsY).Item);
+        Group.Add(AddEntry(Rail.SettingsItem, SettingsY, this).Item);
 #if PROFILE
         // A profiling build says so, under Settings, where it's never in the way of a page.
         var debug = new TextLabel("DEBUG\nMODE")
@@ -99,8 +119,12 @@ sealed class RailView : View
         };
         Add(debug);
 #endif
-        // Focus in the rail is what opens it.
-        tree.Moved += item => Open(item?.Parent == Group);
+        // Focus in the rail is what opens it, and keeps the entry it is on in view.
+        tree.Moved += item =>
+        {
+            Open(item?.Parent == Group);
+            Follow(item);
+        };
     }
 
     readonly Action<RailItem> onSelect;
@@ -120,8 +144,10 @@ sealed class RailView : View
             e.Box.Unparent();
         }
         entries.RemoveAll(e => e.Id != Rail.SettingsItem.Id);
-        for (var i = 0; i < items.Count; i++) Group.Insert(1 + i, AddEntry(items[i], FirstEntry + i * Pitch).Item);
+        for (var i = 0; i < items.Count; i++) Group.Insert(1 + i, AddEntry(items[i], i * Rail.Pitch, track).Item);
         Mark();
+        // Made again: the scroll within the entries' ends, the focused one in view (focus coming back to one moves it there too).
+        ScrollTo(Rail.Scroll(scroll, PlaceOf(tree.Current) ?? -1, items.Count, null));
     }
 
     public void SetProfile(RailProfile? profile)
@@ -145,13 +171,54 @@ sealed class RailView : View
         return target != null && tree.Focus(target.Item);
     }
 
-    Entry AddEntry(RailItem item, float y)
+    Entry AddEntry(RailItem item, float y, View parent)
     {
         var e = new Entry(this, item.Id, item.Icon, item.Label, y, EntryHeight, () => onSelect(item));
         e.Open(open, null);
         entries.Add(e);
-        Add(e.Box);
+        parent.Add(e.Box);
         return e;
+    }
+
+    /// <summary>Entries between the avatar and Settings.</summary>
+    int Count => Group.Children.Count - 2;
+
+    /// <summary>Where <paramref name="item"/> is in the rail: an entry's index, -1 the avatar, <see cref="Count"/> Settings; null outside it.</summary>
+    int? PlaceOf(FocusItem? item)
+    {
+        if (item == null || item.Parent != Group) return null;
+        var children = Group.Children;
+        for (var i = 0; i < children.Count; i++)
+            if (children[i] == item) return i - 1;
+        return null;
+    }
+
+    /// <summary>Focus moved to <paramref name="item"/>: an entry comes into view, and the next one the way focus went.</summary>
+    void Follow(FocusItem? item)
+    {
+        var at = PlaceOf(item);
+        var from = lastAt;
+        lastAt = at;
+        if (at is not { } i || i < 0 || i >= Count) return;
+        Direction? direction = from is not { } f || f == i ? null : f < i ? Direction.Down : Direction.Up;
+        ScrollTo(Rail.Scroll(scroll, i, Count, direction));
+    }
+
+    void ScrollTo(float target)
+    {
+        if (target == scroll) return;
+        scroll = target;
+        scrolling?.Stop();
+        scrolling = null;
+        var y = Ui.Dp(Rail.FirstEntry - ViewTop - target);
+        if (reduced())
+        {
+            track.PositionY = y;
+            return;
+        }
+        scrolling = new Animation(PleyMotion.FocusMs) { DefaultAlphaFunction = new AlphaFunction(AlphaFunction.BuiltinFunctions.EaseOut) };
+        scrolling.AnimateTo(track, "PositionY", y);
+        scrolling.Play();
     }
 
     void Open(bool on)

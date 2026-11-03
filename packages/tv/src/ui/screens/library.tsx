@@ -834,7 +834,7 @@ function CollectionsTab(p: { entry: Entry; library: Library; initial: boolean; f
   );
 }
 
-// ---- Libraries (the rail's entry with more than three)
+// ---- Libraries (the rail's entry with more than six)
 
 /** "412 movies", "38 shows · Scanning…", "120 artists". */
 export function libraryCountLine(l: Library): string {
@@ -890,7 +890,7 @@ export function librarySorting(app: AppState): "yes" | "no" | "older" | "refused
 export const SORT_NEEDS_NEWER = "Sorting libraries needs a newer Pley on the server.";
 
 /**
- * Every library (TvLibrariesScreen): the rail lists three, and Libraries
+ * Every library (TvLibrariesScreen): the rail lists six, and Libraries
  * opens this page. A card a library, in the profile's order: its kind's
  * icon, its name, how much it holds, and "Scanning…" while the server
  * scans it.

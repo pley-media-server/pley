@@ -276,6 +276,11 @@ It has no releases yet: it is built and installed by hand
   first.
 - Search shows movies, shows and episodes first, then music, then
   people, the closest matches first in each.
+- The native app's rail has smaller entries and lists up to six
+  libraries, where four or more went behind Libraries; nothing leaves the
+  rail to make room for Live TV, Now Playing or a USB drive any more, and
+  the entries scroll between the avatar and Settings when they don't all
+  fit.
 
 ### Fixed
 

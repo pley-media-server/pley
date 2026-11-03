@@ -1,5 +1,5 @@
 import { useSignal } from "@preact/signals";
-import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { Library, RequestSummary, User } from "../../api/types";
 import { hasRequests, mayAsk, requestsCount, requestsTitle } from "../../requests";
 import { useUi } from "../context";
@@ -16,10 +16,43 @@ export interface RailEntry {
   badge?: { count: number; danger: boolean };
 }
 
-/** At most this many libraries in the rail. */
-const MAX_LIBRARIES = 3;
-/** Entries between the avatar and Settings, at most: their pitch fills the rail. */
-const MAX_ITEMS = 7;
+/** At most this many libraries in the rail; with more, Libraries lists them all. */
+const MAX_LIBRARIES = 6;
+
+/**
+ * The rail's geometry on the 960×540 canvas (theme.css): entries 40 tall
+ * and 4 apart, from y 67 under the avatar to Settings at y 473, so nine
+ * show at once; the rest scroll.
+ */
+export const RAIL_ENTRY = 40;
+export const RAIL_GAP = 4;
+const RAIL_PITCH = RAIL_ENTRY + RAIL_GAP;
+export const RAIL_FIRST = 67;
+export const RAIL_SETTINGS = 473;
+/** The entries' view: from the first entry's place to the gap above Settings. */
+const RAIL_VIEW = RAIL_SETTINGS - RAIL_GAP - RAIL_FIRST;
+
+/**
+ * How far the rail's entries are scrolled once entry `focused` of `count`
+ * has focus, from `scroll`: the entry wholly in view, and, moving `dir`
+ * ("down" from above it or the avatar, "up" from below or Settings), the
+ * next one that way too, so what is beyond the edge shows coming; within
+ * the first entry at its place and the last ending above Settings. With no
+ * direction (the rail opening on its current entry, the entries made
+ * again) only the entry is brought into view. With no entry focused, the
+ * scroll is kept within its ends.
+ */
+export function railScroll(scroll: number, focused: number, count: number, dir: "up" | "down" | null): number {
+  const max = Math.max(0, count * RAIL_PITCH - RAIL_GAP - RAIL_VIEW);
+  let s = scroll;
+  if (focused >= 0 && focused < count) {
+    const top = focused * RAIL_PITCH - (dir === "up" && focused > 0 ? RAIL_PITCH : 0);
+    const bottom = focused * RAIL_PITCH + RAIL_ENTRY + (dir === "down" && focused + 1 < count ? RAIL_PITCH : 0);
+    if (bottom - s > RAIL_VIEW) s = bottom - RAIL_VIEW;
+    if (top < s) s = top;
+  }
+  return Math.max(0, Math.min(max, s));
+}
 
 export interface RailEntries {
   top: RailEntry[];
@@ -42,40 +75,28 @@ export function requestsEntry(s: RequestSummary | null): RailEntry | null {
 /**
  * The rail's entries (the Android app's RailItems): Search, Home,
  * Discover (or the requests), Live TV where the server has channels for
- * this profile, up to three libraries, then Libraries when there are more,
- * Playlists, and Collections when there are three or fewer; Settings at
- * the foot. While music has a queue, Now Playing comes last. Seven fit:
- * past that, Collections goes first, then the libraries from the last,
- * Libraries listing them.
+ * this profile, up to six libraries, then Libraries when there are more,
+ * Playlists, and Collections when there are six or fewer; Settings at
+ * the foot. While music has a queue, Now Playing comes last. Every entry
+ * is listed: those that don't fit scroll (`railScroll`).
  */
 export function railEntries(libraries: Library[] | null, nowPlaying = false, live = false, requests: RailEntry | null = null): RailEntries {
   const libs = libraries ?? [];
   const icon = (l: Library): IconName => (l.kind === "movies" ? "clapperboard" : l.kind === "shows" ? "tv" : l.kind === "music" ? "music" : "film");
-  let shown = Math.min(libs.length, MAX_LIBRARIES);
-  let collections = libs.length > 0 && libs.length <= MAX_LIBRARIES;
-  const build = (): RailEntry[] => {
-    const top: RailEntry[] = [
-      { id: "search", label: "Search", icon: "search", key: { name: "search" } },
-      { id: "home", label: "Home", icon: "house", key: { name: "home" } },
-    ];
-    if (requests) top.push(requests);
-    if (live) top.push({ id: "live", label: "Live TV", icon: "tv-minimal", key: { name: "live" } });
-    for (const l of libs.slice(0, shown)) top.push({ id: `library:${l.id}`, label: l.name, icon: icon(l), key: { name: "library", id: l.id } });
-    if (libs.length > shown) top.push({ id: "libraries", label: "Libraries", icon: "layers", key: { name: "libraries" } });
-    top.push({ id: "playlists", label: "Playlists", icon: "list-music", key: { name: "playlists" } });
-    if (collections) {
-      const first = libs.filter((l) => l.kind !== "music")[0] ?? libs[0]!;
-      top.push({ id: "collections", label: "Collections", icon: "layers", key: { name: "collections", libraryId: first.id } });
-    }
-    if (nowPlaying) top.push({ id: "now-playing", label: "Now Playing", icon: "audio-lines", key: { name: "nowPlaying" } });
-    return top;
-  };
-  let top = build();
-  while (top.length > MAX_ITEMS && (collections || shown > 0)) {
-    if (collections) collections = false;
-    else shown--;
-    top = build();
+  const top: RailEntry[] = [
+    { id: "search", label: "Search", icon: "search", key: { name: "search" } },
+    { id: "home", label: "Home", icon: "house", key: { name: "home" } },
+  ];
+  if (requests) top.push(requests);
+  if (live) top.push({ id: "live", label: "Live TV", icon: "tv-minimal", key: { name: "live" } });
+  for (const l of libs.slice(0, MAX_LIBRARIES)) top.push({ id: `library:${l.id}`, label: l.name, icon: icon(l), key: { name: "library", id: l.id } });
+  if (libs.length > MAX_LIBRARIES) top.push({ id: "libraries", label: "Libraries", icon: "layers", key: { name: "libraries" } });
+  top.push({ id: "playlists", label: "Playlists", icon: "list-music", key: { name: "playlists" } });
+  if (libs.length > 0 && libs.length <= MAX_LIBRARIES) {
+    const first = libs.filter((l) => l.kind !== "music")[0] ?? libs[0]!;
+    top.push({ id: "collections", label: "Collections", icon: "layers", key: { name: "collections", libraryId: first.id } });
   }
+  if (nowPlaying) top.push({ id: "now-playing", label: "Now Playing", icon: "audio-lines", key: { name: "nowPlaying" } });
   return { top, settings: { id: "settings", label: "Settings", icon: "settings", key: { name: "settings" } } };
 }
 
@@ -137,6 +158,21 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
   /** The pointer has been on the open rail: moving out of it closes it (a rail opened by keys stays). */
   const pointedIn = useRef(false);
   const { top, settings } = p.entries;
+  /** How far the entries between the avatar and Settings are scrolled (`railScroll`). */
+  const [scroll, setScroll] = useState(0);
+  const entriesRef = useRef<HTMLDivElement>(null);
+  const count = useRef(top.length);
+  count.current = top.length;
+  /** Where focus was in the rail, for the way a move went: -1 the avatar, `count` Settings; null outside it. */
+  const lastAt = useRef<number | null>(null);
+  /** The focused element's place: an entry's index, -1 the avatar, `count` Settings; null outside the rail. */
+  const placeOf = (el: HTMLElement): number | null => {
+    const r = root.current;
+    if (!r || !r.contains(el)) return null;
+    const entries = entriesRef.current;
+    if (entries && entries.contains(el)) return Array.prototype.indexOf.call(entries.children, el) as number;
+    return el.classList.contains("avatar") ? -1 : count.current;
+  };
 
   /**
    * Focus back to the page: to where it was (Right), else to nothing in
@@ -212,6 +248,14 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
           handing.current = false;
           if (ui.focus.byPointer) pointedIn.current = true;
         }
+        // The focused entry in view, and the next one the way focus went; the pointer only brings a cut-off one in.
+        const at = el ? placeOf(el) : null;
+        const from = lastAt.current;
+        lastAt.current = at;
+        if (at !== null && at >= 0 && at < count.current) {
+          const dir = from === null || ui.focus.byPointer || from === at ? null : from < at ? "down" : "up";
+          setScroll((s) => railScroll(s, at, count.current, dir));
+        }
         if (r && el && !r.contains(el) && open.value) {
           open.value = false;
           handing.current = false;
@@ -221,6 +265,13 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
       }),
     [],
   );
+
+  // Entries made again (Now Playing came, a library went): the focused one stays in view, the scroll within its ends.
+  useLayoutEffect(() => {
+    const el = ui.focus.current;
+    const at = el ? placeOf(el) : null;
+    setScroll((s) => railScroll(s, at ?? -1, top.length, null));
+  }, [top.length]);
 
   const select = (entry: RailEntry) => {
     const nav = ui.nav;
@@ -302,14 +353,19 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
                 <Icon name="server-off" size={9} color="var(--fg)" />
               </div>
             )}
-            <span class="label" style="top:10px">
+            <span class="label" style="top:6px">
               <div class="t-label one-line">{me?.name ?? ""}</div>
               <div class="t-caption one-line" style="opacity:0.8">
                 Switch profile
               </div>
             </span>
           </F>
-          {top.map(item)}
+          {/* Between the avatar and Settings, clipped there: the entries scroll when there are more than fit. */}
+          <div class="rail-view">
+            <div ref={entriesRef} class="rail-scroll" style={scroll ? `transform:translateY(${-scroll}px)` : undefined}>
+              {top.map(item)}
+            </div>
+          </div>
           <div class="rail-spacer" />
           {item(settings)}
         </G>

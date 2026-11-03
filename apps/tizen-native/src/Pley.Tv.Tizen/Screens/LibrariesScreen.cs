@@ -11,9 +11,9 @@ namespace Pley.Tv.Tizen.Screens;
 
 /// <summary>
 /// Every library (design spec §2.1; the Android app's TvLibrariesScreen): the rail shows the first
-/// three, and "Libraries" opens this page. The title, then a card per library in three columns:
+/// six, and "Libraries" opens this page. The title, then a card per library in three columns:
 /// its kind's icon, its name, how much it holds, "Scanning…" while the server scans it. After
-/// them, while the rail has no room for Playlists, a card like theirs opens Playlists. The
+/// them, while the rail has no entry for Playlists, a card like theirs opens Playlists. The
 /// profile may put them in its own order: Sort, or Move in a card's actions (holding OK). While
 /// sorting, OK lifts a card, the arrows move it, OK drops it there (and saves), Back puts it back.
 /// </summary>

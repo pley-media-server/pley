@@ -820,7 +820,7 @@ public sealed class LibraryModel : IDisposable
 /// Move in a card's actions) starts sorting: OK lifts a card, the arrows move it through the
 /// grid, OK drops it there and saves the order, Back puts it back; Done or Back ends sorting.
 ///
-/// While the rail has no room for Playlists, the page lists them after the libraries.
+/// While the rail has no entry for Playlists, the page lists them after the libraries.
 /// </summary>
 public sealed class LibrariesModel : IDisposable
 {
