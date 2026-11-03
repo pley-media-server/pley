@@ -21,6 +21,14 @@ describes how they are made.
   answering only the devices there. Windows Firewall's rule for Pley
   already lets it through (UDP 5353), and the Synology package offers
   DSM's firewall a **Pley (Bonjour)** rule for it.
+- Apple's devices can stream HEVC, HDR and Dolby Vision as they are: a
+  player that asks for fMP4 segments first gets its streams in fMP4 rather
+  than MPEG-TS, with VP9 and AV1 copied too where it decodes them. Other
+  players stream as before.
+- Streams say when their video carries no closed captions, so Apple TV
+  shows one Subtitles menu, not two. Files scanned before this say nothing
+  until they are scanned again; captions in a TV recording's frames are
+  found and still offered.
 - A Jellyfin-compatible API, for Jellyfin's apps and others built on its
   API: they sign in with Pley's accounts, browse the libraries, play files
   as they are or as HLS from Pley's transcoder, with subtitles and Skip

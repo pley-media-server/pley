@@ -13,8 +13,8 @@ use std::time::Duration;
 use parking_lot::Mutex;
 use pley_transcoder_api::{
     AudioCodec, AudioMode, AudioRequest, DolbyVisionLayer, DolbyVisionMode, DynamicRange, FileContainer, JobRequest,
-    JobStatus, MediaInfo, MediaStream, OutputRange, StreamKind, SubtitleBurnRequest, VariantRequest, VideoCodec,
-    VideoMode, VideoPlan, VideoRequest, default_video_kbps, video_range_label,
+    JobStatus, MediaInfo, MediaStream, OutputRange, SegmentFormat, StreamKind, SubtitleBurnRequest, VariantRequest,
+    VideoCodec, VideoMode, VideoPlan, VideoRequest, default_video_kbps, video_range_label,
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::Notify;
@@ -143,7 +143,9 @@ pub struct DolbyVisionDecoder {
 pub struct HlsCaps {
     /// Reads multivariant playlists.
     pub master_playlist: bool,
-    /// Segment formats: "ts", "fmp4".
+    /// Segment formats, "ts" and "fmp4", the one it would rather have
+    /// first: fMP4 segments go to a player that puts "fmp4" before "ts"
+    /// ([`Caps::segment_format`]).
     pub segments: Vec<String>,
     /// Moves between a multivariant playlist's variants by itself, as its
     /// connection allows (adaptive bitrate): its transcodes come in several
@@ -241,6 +243,34 @@ impl Caps {
     pub fn adaptive(&self) -> bool {
         self.hls.as_ref().is_some_and(|hls| hls.variants)
     }
+
+    /// Where the version 2 player lists this segment format: `None` when it
+    /// doesn't.
+    fn segments_listed(&self, format: &str) -> Option<usize> {
+        let hls = self.hls.as_ref().filter(|_| self.is_v2())?;
+        hls.segments.iter().position(|x| x.eq_ignore_ascii_case(format))
+    }
+
+    /// How this player's HLS segments are packaged: fMP4 for a version 2
+    /// player that lists "fmp4" before "ts" (or without it), when the
+    /// transcoder makes fMP4 (`transcoder_fmp4`, its `fmp4_segments`);
+    /// MPEG-TS otherwise. A player that lists "ts" first plays MPEG-TS as
+    /// it did before fMP4 existed.
+    pub fn segment_format(&self, transcoder_fmp4: bool) -> SegmentFormat {
+        match (self.segments_listed("fmp4"), self.segments_listed("ts")) {
+            (Some(fmp4), ts) if transcoder_fmp4 && ts.is_none_or(|ts| fmp4 < ts) => SegmentFormat::Fmp4,
+            _ => SegmentFormat::Ts,
+        }
+    }
+
+    /// The player plays everything MPEG-TS segments carry: not a version 2
+    /// player whose segment formats leave out "ts" (Apple's players, which
+    /// take only H.264 from MPEG-TS). Such a player gets H.264 in MPEG-TS
+    /// from a transcoder that makes no fMP4.
+    fn plays_ts_fully(&self) -> bool {
+        let lists = self.hls.as_ref().filter(|hls| self.is_v2() && !hls.segments.is_empty());
+        lists.is_none() || self.segments_listed("ts").is_some()
+    }
 }
 
 /// What the player does with audio, for choosing among a language's tracks.
@@ -320,6 +350,11 @@ pub struct PlaybackRequest {
     /// capability): set by the server, never read from the player.
     #[serde(skip)]
     pub hdr_transcodes: bool,
+    /// The transcoder makes fMP4 segments (its `fmp4_segments`
+    /// capability): set by the server for playback, never read from the
+    /// player.
+    #[serde(skip)]
+    pub fmp4_segments: bool,
     /// A file made for downloading (`POST /api/conversions`), kept on the
     /// player: set by the server, never read from the player.
     #[serde(skip)]
@@ -497,6 +532,8 @@ pub struct Decision {
     /// The transcode's lower renditions, for a player that moves between
     /// them ([`ladder`]).
     pub variants: Vec<VariantRequest>,
+    /// How the HLS segments are packaged ([`Caps::segment_format`]).
+    pub segment_format: SegmentFormat,
 }
 
 /// The lines of adaptive bitrate's renditions below a transcode's own size,
@@ -1116,10 +1153,15 @@ fn screen_lines(caps: &Caps) -> Option<u32> {
     (lines > 0).then(|| [2160, 1080, 720, 480].into_iter().find(|l| i64::from(*l) <= lines).unwrap_or(480))
 }
 
-/// Video codecs HLS can carry in MPEG-TS segments, which players unpack
-/// (hls.js turns them into fragmented MP4 for the browser).
-fn hls_copyable(codec: &str) -> bool {
-    matches!(codec, "h264" | "hevc")
+/// Video codecs HLS segments carry copied. MPEG-TS carries H.264, and
+/// HEVC for players that unpack it themselves (hls.js turns it into
+/// fragmented MP4 for the browser, Media3 reads it): not Apple's, which
+/// take HEVC only in fMP4 (`h264_only`). fMP4 carries VP9 and AV1 too.
+fn hls_copyable(codec: &str, format: SegmentFormat, h264_only: bool) -> bool {
+    match format {
+        SegmentFormat::Ts => codec == "h264" || (codec == "hevc" && !h264_only),
+        SegmentFormat::Fmp4 => matches!(codec, "h264" | "hevc" | "vp9" | "av1"),
+    }
 }
 
 /// Containers the browser can play natively (used when a file was never probed).
@@ -1131,6 +1173,13 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
     let caps = &req.caps;
     let container = file.container.as_deref().unwrap_or_default();
     let mut reasons = Vec::new();
+    // A download is one file, whatever the player streams.
+    let segment_format = if req.download { SegmentFormat::Ts } else { caps.segment_format(req.fmp4_segments) };
+    // A player that takes only H.264 from MPEG-TS (one that lists fMP4
+    // segments alone, with a transcoder that makes none): its HEVC is
+    // converted, and so is HDR, which converted HDR video (HEVC Main 10)
+    // can't keep.
+    let ts_h264_only = !req.download && segment_format == SegmentFormat::Ts && !caps.plays_ts_fully();
 
     let Some(info) = info else {
         // Never probed (transcoder was unavailable during the scan).
@@ -1149,6 +1198,7 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
             reasons: if direct { vec![] } else { vec!["File not analyzed yet.".into()] },
             quality: None,
             variants: Vec::new(),
+            segment_format,
         };
     };
 
@@ -1186,7 +1236,7 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
     // keeps HDR): HEVC Main 10 in HDR10 or HLG, else SDR. Picture subtitles
     // drawn onto it (converted video always has them drawn) make it SDR.
     let hdr_out = match video {
-        Some(v) if v2 && req.hdr_transcodes && pictures.is_none() => hdr_transcode(v, caps),
+        Some(v) if v2 && req.hdr_transcodes && pictures.is_none() && !ts_h264_only => hdr_transcode(v, caps),
         _ => OutputRange::Sdr,
     };
     let video_ok = match video {
@@ -1285,6 +1335,7 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
             reasons: Vec::new(),
             quality: None,
             variants: Vec::new(),
+            segment_format,
         };
     }
 
@@ -1293,13 +1344,18 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
         PlaybackMode::Transcode => reasons.push("Transcode requested.".into()),
         _ => {}
     }
+    // HEVC the player would take copied, in fMP4.
+    if ts_h264_only && req.mode != PlaybackMode::Transcode && video_copy_ok && video.is_some_and(|v| v.codec == "hevc")
+    {
+        reasons.push("HEVC not supported in MPEG-TS.".into());
+    }
     let mut quality = None;
     let video_req = video.map(|v| {
         // Whatever the client plays as it is goes through untouched, like
         // Plex's Direct Stream: only the audio or the container changes.
         let copy = req.mode != PlaybackMode::Transcode
             && video_copy_ok
-            && hls_copyable(&v.codec)
+            && hls_copyable(&v.codec, segment_format, ts_h264_only)
             && v.interlaced != Some(true)
             && bitrate_ok
             && size_ok
@@ -1406,6 +1462,7 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
         reasons,
         quality,
         variants,
+        segment_format,
     }
 }
 
@@ -2417,6 +2474,7 @@ mod tests {
             keep_previous: false,
             keyed_urls: false,
             hdr_transcodes: false,
+            fmp4_segments: false,
             download: false,
         }
     }
@@ -3337,5 +3395,150 @@ mod tests {
         let tracks = subtitle_tracks(7, &streams);
         assert_eq!(tracks[0].url.as_deref(), Some("/api/files/7/subtitles/3.vtt"));
         assert_eq!(tracks[1].url, None);
+    }
+
+    /// An Apple player: no Matroska, H.264, HEVC Main 10 and VP9 decoders,
+    /// an HDR10 screen, master playlists, and fMP4 segments before TS.
+    fn apple(segments: &[&str]) -> Caps {
+        serde_json::from_value(serde_json::json!({
+            "containers": ["mp4", "m4v", "mov"], "video_codecs": ["h264", "hevc", "vp9"],
+            "audio_codecs": ["aac", "ac3", "eac3"], "hdr": true, "caps_version": 2,
+            "video": [
+                {"codec": "h264", "hardware": true, "profiles": ["Main", "High"], "max_width": 3840, "max_height": 2160,
+                 "max_bit_depth": 8},
+                {"codec": "hevc", "hardware": true, "profiles": ["Main", "Main 10"], "max_width": 3840, "max_height": 2160,
+                 "max_bit_depth": 10},
+                {"codec": "vp9", "hardware": true, "max_width": 3840, "max_height": 2160, "max_bit_depth": 10}
+            ],
+            "hdr_types": ["hdr10", "hlg"],
+            "audio_decode": ["aac", "ac3", "eac3"],
+            "hls": {"master_playlist": true, "variants": true, "segments": segments}
+        }))
+        .unwrap()
+    }
+
+    fn apple_request(segments: &[&str], fmp4_segments: bool) -> PlaybackRequest {
+        PlaybackRequest { caps: apple(segments), fmp4_segments, hdr_transcodes: true, ..request() }
+    }
+
+    fn hevc_main_10(range: DynamicRange) -> MediaInfo {
+        let mut i = info("hevc", &["eac3"], range);
+        i.streams[0].bit_depth = Some(10);
+        i.streams[0].profile = Some("Main 10".into());
+        i
+    }
+
+    #[test]
+    fn fmp4_segments_go_to_version_2_players_that_put_them_first() {
+        let fmp4 = SegmentFormat::Fmp4;
+        let ts = SegmentFormat::Ts;
+        assert_eq!(apple(&["fmp4", "ts"]).segment_format(true), fmp4);
+        assert_eq!(apple(&["fmp4"]).segment_format(true), fmp4);
+        assert_eq!(apple(&["FMP4"]).segment_format(true), fmp4);
+        // The Android app lists "ts" first: it plays MPEG-TS, as before.
+        assert_eq!(apple(&["ts", "fmp4"]).segment_format(true), ts);
+        assert_eq!(apple(&["ts"]).segment_format(true), ts);
+        assert_eq!(apple(&[]).segment_format(true), ts);
+        // A transcoder that makes no fMP4.
+        assert_eq!(apple(&["fmp4", "ts"]).segment_format(false), ts);
+        // Version 1 reports are never read for it.
+        let mut v1 = apple(&["fmp4"]);
+        v1.caps_version = None;
+        assert_eq!(v1.segment_format(true), ts);
+        assert!(v1.plays_ts_fully());
+        assert!(apple(&["fmp4", "ts"]).plays_ts_fully() && apple(&[]).plays_ts_fully());
+        assert!(!apple(&["fmp4"]).plays_ts_fully());
+
+        // An HEVC Main 10 HDR10 Matroska file: repackaged in fMP4, the
+        // video copied, HDR kept.
+        let hdr10 = hevc_main_10(DynamicRange::Hdr10);
+        let req = apple_request(&["fmp4", "ts"], true);
+        let d = decide(&file("mkv", 20_000_000), Some(&hdr10), &hdr10.streams, &req);
+        assert_eq!((d.method, d.segment_format), (Method::Remux, fmp4));
+        assert_eq!(d.video.as_ref().unwrap().mode, VideoMode::Copy);
+        assert_eq!(d.reasons, ["MKV not supported."]);
+        // A conversion of it is HEVC Main 10 in HDR10, in fMP4.
+        let d = decide(
+            &file("mkv", 20_000_000),
+            Some(&hdr10),
+            &hdr10.streams,
+            &PlaybackRequest { mode: PlaybackMode::Transcode, ..req.clone() },
+        );
+        let v = d.video.unwrap();
+        assert_eq!((d.segment_format, v.codec, v.dynamic_range), (fmp4, VideoCodec::Hevc, OutputRange::Hdr10));
+
+        // A download is one file: no segments.
+        let d =
+            decide(&file("mkv", 20_000_000), Some(&hdr10), &hdr10.streams, &PlaybackRequest { download: true, ..req });
+        assert_eq!((d.segment_format, d.video.unwrap().mode), (ts, VideoMode::Copy));
+
+        // Players listing "ts" first, and version 1 players, get MPEG-TS,
+        // their HEVC copied as before.
+        for caps in [apple(&["ts", "fmp4"]), sideloading_v2(), chrome()] {
+            let req = PlaybackRequest { caps, fmp4_segments: true, ..request() };
+            let d = decide(&file("mkv", 20_000_000), Some(&hdr10), &hdr10.streams, &req);
+            let dts = info("hevc", &["dts"], DynamicRange::Sdr);
+            let remux = decide(&file("mkv", 20_000_000), Some(&dts), &dts.streams, &req);
+            assert_eq!(d.segment_format, ts);
+            assert_eq!((remux.segment_format, remux.video.unwrap().mode), (ts, VideoMode::Copy));
+        }
+    }
+
+    #[test]
+    fn vp9_and_av1_are_copied_into_fmp4_for_players_that_decode_them() {
+        let req = apple_request(&["fmp4", "ts"], true);
+        let vp9 = info("vp9", &["aac"], DynamicRange::Sdr);
+        let d = decide(&file("mkv", 5_000_000), Some(&vp9), &vp9.streams, &req);
+        assert_eq!((d.method, d.segment_format), (Method::Remux, SegmentFormat::Fmp4));
+        assert_eq!(d.video.unwrap().mode, VideoMode::Copy);
+
+        // AV1 isn't among this player's decoders: converted.
+        let av1 = info("av1", &["aac"], DynamicRange::Sdr);
+        let d = decide(&file("mkv", 5_000_000), Some(&av1), &av1.streams, &req);
+        assert_eq!((d.method, d.video.unwrap().mode), (Method::Transcode, VideoMode::Transcode));
+        assert!(d.reasons.iter().any(|r| r == "AV1 video not supported."), "{:?}", d.reasons);
+        // An A17 Pro's or an M3's: copied.
+        let mut a17 = req.clone();
+        a17.caps.video.as_mut().unwrap().push(VideoDecoder {
+            codec: "av1".into(),
+            hardware: true,
+            max_bit_depth: Some(10),
+            ..Default::default()
+        });
+        let d = decide(&file("mkv", 5_000_000), Some(&av1), &av1.streams, &a17);
+        assert_eq!((d.method, d.video.unwrap().mode), (Method::Remux, VideoMode::Copy));
+
+        // Without fMP4 from the transcoder, MPEG-TS can't carry either.
+        for i in [&vp9, &av1] {
+            let mut old = a17.clone();
+            old.fmp4_segments = false;
+            let d = decide(&file("mkv", 5_000_000), Some(i), &i.streams, &old);
+            assert_eq!((d.segment_format, d.video.unwrap().mode), (SegmentFormat::Ts, VideoMode::Transcode));
+        }
+    }
+
+    #[test]
+    fn players_that_take_only_fmp4_get_h264_in_mpeg_ts_from_older_transcoders() {
+        let req = apple_request(&["fmp4"], false);
+        // HEVC is converted, not copied into MPEG-TS.
+        let sdr = hevc_main_10(DynamicRange::Sdr);
+        let d = decide(&file("mkv", 20_000_000), Some(&sdr), &sdr.streams, &req);
+        assert_eq!((d.method, d.segment_format), (Method::Transcode, SegmentFormat::Ts));
+        let v = d.video.unwrap();
+        assert_eq!((v.mode, v.codec), (VideoMode::Transcode, VideoCodec::H264));
+        assert_eq!(d.reasons, ["MKV not supported.", "HEVC not supported in MPEG-TS."]);
+        // HDR too: converted HDR is HEVC, so it becomes H.264 SDR.
+        let hdr10 = hevc_main_10(DynamicRange::Hdr10);
+        let d = decide(&file("mkv", 20_000_000), Some(&hdr10), &hdr10.streams, &req);
+        let v = d.video.unwrap();
+        assert_eq!((v.mode, v.codec, v.dynamic_range), (VideoMode::Transcode, VideoCodec::H264, OutputRange::Sdr));
+        // H.264 is still copied.
+        let h264 = info("h264", &["eac3"], DynamicRange::Sdr);
+        let d = decide(&file("mkv", 5_000_000), Some(&h264), &h264.streams, &req);
+        assert_eq!((d.method, d.video.unwrap().mode), (Method::Remux, VideoMode::Copy));
+        // A download keeps HEVC and HDR: it is a file, not MPEG-TS.
+        let d =
+            decide(&file("mkv", 20_000_000), Some(&hdr10), &hdr10.streams, &PlaybackRequest { download: true, ..req });
+        assert_eq!(d.video.unwrap().mode, VideoMode::Copy);
     }
 }

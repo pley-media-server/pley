@@ -159,8 +159,10 @@ Errors are `{"code": "...", "message": "..."}`:
 | GET | `/v1/jobs/{id}/index.m3u8` | HLS VOD playlist |
 | GET | `/v1/jobs/{id}/master.m3u8` | multivariant playlist |
 | GET | `/v1/jobs/{id}/{n}.ts` | MPEG-TS segment `n` |
+| GET | `/v1/jobs/{id}/init.mp4` | an fMP4 job's initialization segment |
+| GET | `/v1/jobs/{id}/{n}.m4s` | fMP4 segment `n` |
 | GET | `/v1/jobs/{id}/v{k}.m3u8` | rendition `k`'s playlist |
-| GET | `/v1/jobs/{id}/v{k}-{n}.ts` | rendition `k`'s segment `n` |
+| GET | `/v1/jobs/{id}/v{k}-{n}.ts` | rendition `k`'s segment `n` (`v{k}-init.mp4`, `v{k}-{n}.m4s` for fMP4) |
 | POST | `/v1/conversions` | convert a whole file |
 | GET | `/v1/conversions/{id}` | `ConversionStatus` |
 | DELETE | `/v1/conversions/{id}` | `204`: stop its FFmpeg, delete the file |
@@ -217,6 +219,7 @@ before using what it names:
 | `hls_variants` | jobs make lower renditions (`variants`) |
 | `live_bitrate` | `POST /v1/jobs/{id}/bitrate` works |
 | `live` | `/v1/live` works |
+| `fmp4_segments` | jobs make fMP4 segments when `segment_format` asks for them, except jobs without video ([fMP4 segments](#fmp4-segments)) |
 | `trickplay_version` | the version of the seek previews it makes (`TrickplayInfo.version`); `0` from older transcoders |
 | `trickplay_runs` | how many seek-preview sets it makes at once; `0` from older transcoders, which make one at a time and give a set up after an hour of running |
 
@@ -369,7 +372,7 @@ its palette, DVB) next to an HLS stream.
 
 `POST /v1/jobs` takes a `JobRequest` and returns `201` with `JobCreated {id,
 duration_ms, segment_seconds, segment_count, video, audio, warnings,
-variants}`. See [How HLS jobs work](#how-hls-jobs-work).
+variants, segment_format}`. See [How HLS jobs work](#how-hls-jobs-work).
 
 `JobRequest`:
 
@@ -385,6 +388,7 @@ variants}`. See [How HLS jobs work](#how-hls-jobs-work).
 | `start_ms?` | start transcoding here right away (playback start or resume) |
 | `options` | `TranscodeOptions` |
 | `variants` | lower renditions, highest first: `[{max_width?, max_height?, max_bitrate_kbps?}]` ([Renditions](#renditions)) |
+| `segment_format` | `ts` (default) or `fmp4` ([fMP4 segments](#fmp4-segments)); `JobCreated.segment_format` says what the job makes |
 | `container?` | conversions only: `matroska` (default) or `mp4` |
 
 `VideoRequest`:
@@ -424,13 +428,20 @@ variants}`. See [How HLS jobs work](#how-hls-jobs-work).
 Playlists and segments:
 
 - `GET /v1/jobs/{id}/{n}.ts` waits for the segment, or starts FFmpeg at it
-  ([Segments on demand](#segments-on-demand)).
+  ([Segments on demand](#segments-on-demand)). An fMP4 job's segments are
+  `{n}.m4s`, and `init.mp4` comes first ([fMP4 segments](#fmp4-segments)).
+  A segment named in the other format is `404`, and so is `init.mp4` of an
+  MPEG-TS job. Segments are `video/mp2t` and `video/mp4`, `init.mp4` is
+  `video/mp4`.
 - `GET /v1/jobs/{id}/master.m3u8` lists the job's own variant
   (`index.m3u8`), then its smaller renditions (`v1.m3u8`…), each with
   `CODECS`, `SUPPLEMENTAL-CODECS`, `RESOLUTION`, `FRAME-RATE`,
-  `VIDEO-RANGE` and its bandwidth. Capability `hls_master_playlist`.
+  `VIDEO-RANGE`, `CLOSED-CAPTIONS=NONE` when the probe found no captions
+  in the source video's frames (`MediaStream.closed_captions` false), and its
+  bandwidth. Capability `hls_master_playlist`.
 - `GET /v1/jobs/{id}/v{k}.m3u8` and `v{k}-{n}.ts`: rendition `k`'s playlist
-  and segments. Capability `hls_variants`.
+  and segments (`v{k}-init.mp4` and `v{k}-{n}.m4s` for fMP4). Capability
+  `hls_variants`.
 
 `POST /v1/jobs/{id}/bitrate` takes `{max_bitrate_kbps}` and returns
 `{bitrate_kbps}`, the bitrate the transcode goes on at (capability
@@ -440,7 +451,9 @@ Playlists and segments:
 - The segment its player asked for last and the next stay. Those after are
   deleted and made again at the same size and layout, so the player plays on
   from the same playlist. A running process restarts there at once.
-- `400` for a remux.
+- `400` for a remux, and for an fMP4 job: another bitrate can make the
+  encoder choose another level, which the init players have says. Players of
+  fMP4 streams move between renditions instead.
 
 ## Conversions
 
@@ -583,8 +596,74 @@ A segment that exists is served from disk or memory. Otherwise:
 FFmpeg's segment muxer writes a line to stdout as each segment finishes,
 which marks it ready and wakes waiting requests (no polling); a remux segment
 that needs editing is edited first
-([Dolby Vision in remuxes](#dolby-vision-in-remuxes)). FFmpeg's `-progress`
-output gives the live fps, speed, bitrate and position.
+([Dolby Vision in remuxes](#dolby-vision-in-remuxes)). An fMP4 process
+writes no segments itself: the transcoder cuts its output
+([fMP4 segments](#fmp4-segments)). FFmpeg's `-progress` output gives the
+live fps, speed, bitrate and position.
+
+### fMP4 segments
+
+A job asked for with `segment_format: fmp4` makes fragmented MP4 segments: an
+initialization segment, `init.mp4`, that players fetch once, then `{n}.m4s`.
+Apple's players take HEVC, HDR and Dolby Vision this way, and not in MPEG-TS.
+
+- **What gets them.** Jobs with video. A job without video makes MPEG-TS
+  whatever it asks: fragments are cut at video keyframes, and Apple's players
+  take AAC, AC-3 and E-AC-3 in MPEG-TS. `JobCreated.segment_format` says what
+  the job makes.
+- **One file per process.** Each FFmpeg process writes one fragmented MP4 to
+  stdout (`-f mp4 -movflags
+  +frag_keyframe+empty_moov+default_base_moof+delay_moov+frag_discont+skip_trailer`,
+  `-write_tmcd 0`, `-flush_packets 1`): its `ftyp` and `moov`, then a
+  fragment (`moof` and `mdat`) at each video keyframe, every one with its
+  absolute decode time. Encoded video is made at a constant frame rate
+  (`-fps_mode:v cfr`), as the segment muxer makes it for MPEG-TS: at a
+  variable rate the mp4 muxer drops a frame that hardware decoding hands
+  back late after a seek, and the process's segments start a frame late.
+  HEVC, copied or encoded, is tagged `hvc1`, which
+  Apple's players need; a copy of Dolby Vision profile 5 named as such,
+  `dvh1` ([Dolby Vision in remuxes](#dolby-vision-in-remuxes)).
+- **Cut by the transcoder.** Each fragment goes in the segment its first
+  video sample is shown in, as the segment muxer splits MPEG-TS: a segment
+  begins at the first keyframe at or after its split time. A fragment without
+  video (FFmpeg's last) goes with the one before. Fragments before the
+  process's first segment (a remux's seek that landed a keyframe early) and
+  from the next existing segment on are left out. A segment is written to a
+  part file of the process's own (`{n}.m4s.p{process}`) and named `{n}.m4s`,
+  and is ready, once the next one begins; the last once the process ends
+  well, else its part goes.
+- **The init is kept.** The first process's `ftyp` and `moov` (for a Dolby
+  Vision remux, with the configuration record the stream has once edited)
+  are written to `init.mp4` in the job's folder. Every later process must write the same,
+  byte for byte: players fetched it once and decode every segment with it. A
+  process that writes another fails, and `init.mp4` stays as it was; failing
+  twice at the same segment returns the error. Processes started anywhere
+  with the same encoder and settings write the same init.
+- **The encoder is kept.** The init holds the encoder's parameter sets and
+  its B-frame delay, which MPEG-TS repeats in every segment. Once a job has
+  its init, every process encodes as the one that made it:
+  - At the same preset. The automatic preset no longer moves for the job.
+  - On the GPU, when the init was made there. With every hardware session
+    in use the answer is `503`, not the software encoder. A process that
+    fails is started again on the GPU; failing twice at the same segment
+    returns the error.
+  - With the software encoder, when it stood in for a busy or failed
+    hardware one, even once a hardware session is free.
+
+  Before the init exists, the software encoder stands in as for MPEG-TS
+  jobs ([Failure handling](#failure-handling)). Moves for the GPU's load
+  ([Sharing the GPU](#sharing-the-gpu)) restart processes with the same
+  encoder; the init's byte-for-byte check catches anything that still
+  differs.
+- **Sound from before 0** (the encoder's priming, in a process that starts at
+  0) is left out of the first fragment, so the stream starts at 0: AAC at 0,
+  AC-3 at its first whole frame after it.
+- **Playlists** say `#EXT-X-VERSION:7` and `#EXT-X-MAP:URI="init.mp4"`
+  (`v{k}-init.mp4` for rendition `k`), and name `{n}.m4s`. Segment lengths
+  are the layout's, as for MPEG-TS.
+- `GET /v1/jobs/{id}/init.mp4` is answered at once once made. Before, it
+  starts the rendition at the segment its player asked for last, as a segment
+  request would, and waits for the init (`504` after 45 s).
 
 ### Throttling
 
@@ -619,11 +698,14 @@ server, on by default), and FFmpeg supports `readrate`.
 ### Failure handling
 
 - FFmpeg failing twice at the same segment returns the error. The job's
-  `last_error` holds FFmpeg's last log lines.
+  `last_error` holds FFmpeg's last log lines, or why its fMP4 output
+  couldn't be used.
 - A hardware encoder that fails before the first segment (a driver update, a
   GPU gone, a session refused) hands the job to the software encoder, with a
   warning. After that happens to three jobs, `capabilities.json` is deleted
-  and the next start tests the encoders again.
+  and the next start tests the encoders again. An fMP4 job whose init the
+  hardware encoder made stays on it instead, and tries again there
+  ([fMP4 segments](#fmp4-segments)).
 
 ### Renditions
 
@@ -637,7 +719,18 @@ smaller renditions:
 - They are jobs inside the job, in folders `v1/`…, with segments `v1-{n}.ts`…
   laid out as the job's. Burned-in text subtitles are extracted once and
   copied to them.
-- `master.m3u8` lists them after the job's own, largest first.
+- fMP4 renditions each have an init of their own (`v1/init.mp4`, served as
+  `v1-init.mp4`), with its own encoder kept, and segments `v1-{n}.m4s`….
+  Segment `n` of every rendition starts at the same keyframe time, so a
+  player switches between them at any segment.
+- `master.m3u8` lists them after the job's own, largest first. It says
+  `#EXT-X-VERSION:7` for fMP4 jobs (3 for MPEG-TS), and counts 2 % on top
+  of the streams' bitrates for fMP4's headers (5 % for MPEG-TS's). `CODECS`
+  comes from the plan and the media, not the init, so the master playlist
+  never waits for FFmpeg: H.264 is `avc1…`, HEVC `hvc1…` (FFmpeg is made to
+  tag it so), and VP9 and AV1, copied into fMP4 only, `vp09.PP.LL.DD` and
+  `av01.P.LLM.DD` (RFC 6381; the level from the stream, or the lowest its
+  size and frame rate take).
 - Only the rendition the player asked for last has a running process; the
   others stop, keeping what they made.
 - They expire with the job. The job's status is the playing rendition's
@@ -664,8 +757,9 @@ default), the job is throttled, and the transcoder has room.
   `v1/`…), private to its user and removed at shutdown, or at the next start
   after a crash.
 - Each process runs in the folder it writes to, with a copy of the burned-in
-  subtitles. Segments are served, edited and pruned there. Conversions and
-  the caches stay on disk.
+  subtitles. Segments are served, edited and pruned there. An fMP4 job's
+  `init.mp4` stays on disk: a few kilobytes that players need for as long as
+  they play. Conversions and the caches stay on disk.
 - Windows and macOS have no folder in RAM by default, so they keep segments
   on disk (`memory.available: false`, "works on Linux only").
 
@@ -987,9 +1081,10 @@ comes out earlier than the one before, the stream is marked
 
 ### Dolby Vision in remuxes
 
-A copied HEVC stream keeps its Dolby Vision RPUs (NAL type 62) in the MPEG-TS
-segments, which can't signal them, so `master.m3u8` does, as
-`VideoRequest.dolby_vision` asks:
+A copied HEVC stream keeps its Dolby Vision RPUs (NAL type 62) in its
+segments. MPEG-TS can't signal them, so `master.m3u8` does, as
+`VideoRequest.dolby_vision` asks; an fMP4 job's init says the same
+([below](#dolby-vision-in-fmp4)):
 
 | `dolby_vision` | `master.m3u8` |
 |---|---|
@@ -1022,6 +1117,32 @@ adaptation field (PCR, random access), continuity counters run on, and other
 PIDs' packets are untouched. A 2 s 4K segment takes milliseconds. The job's
 video plan reports `dolby_vision` and `hdr10plus_stripped`.
 
+#### Dolby Vision in fMP4
+
+An fMP4 remux is edited as it is cut ([fMP4 segments](#fmp4-segments)), with
+the same decisions for each NAL unit as MPEG-TS: each video sample's units
+(each after its length, as `hvcC` says) are edited, the sample's size in its
+`trun` follows, and the fragment is written anew with its data offsets and
+`mdat` worked out again. A fragment that can't be rewritten is kept as it
+is, with the warning `a segment's Dolby Vision metadata dropped`.
+
+The init's video sample entry gets the Dolby Vision configuration record
+(`DOVIDecoderConfigurationRecord`, version 1.0, right after `hvcC`) of the
+stream as it comes out, at the level `master.m3u8` names, and the file type
+the `dby1` brand. FFmpeg's own record, if any, is replaced, so every process
+writes the same init:
+
+| `dolby_vision` | Init |
+|---|---|
+| `copy` | no record and no `dby1`, as the base layer's codec `master.m3u8` names |
+| `signal`, profile 8 | `hvc1` with `dvvC`: the source's profile, level and compatibility id, RPU and base layer |
+| `signal`, profile 5 | `dvh1` (FFmpeg's `-tag:v dvh1`) with `dvcC`, compatibility id 0 |
+| `signal`, profile 7 | `hvc1` with `dvcC`: profile 7 with its enhancement layer, as the source |
+| `to81` | `hvc1` with `dvvC`: profile 8, compatibility id 1, RPU and base layer, no enhancement layer |
+
+The sample entries are `hvc1` and `dvh1` rather than `hev1` and `dvhe`, as
+Apple's players want them.
+
 ### HDR10+ and profile 7's enhancement layer
 
 The probe of a Dolby Vision or PQ stream decodes its first frames' side data
@@ -1034,6 +1155,13 @@ and records:
 
 Both are absent when the frames can't be read, and for other streams. The
 job's video plan repeats them (`dv_el`, `hdr10plus`).
+
+The probe of every video reads the same first frames' side data for closed
+captions (CEA-608/708, "ATSC A53 Part 4 Closed Captions") and records
+`MediaStream.closed_captions`, which master playlists turn into
+`CLOSED-CAPTIONS=NONE` when it is false. An ffprobe before 7.1 says it in
+the stream itself, and then the frames aren't read for it. It is absent
+when the frames can't be read.
 
 ### Subtitle extraction
 

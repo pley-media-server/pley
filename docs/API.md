@@ -477,10 +477,11 @@ interface PlaybackInfo {
   adaptive: boolean;                // the transcode comes in several sizes the player moves between
   live_bitrate: boolean;            // the video is converted, and PUT …/bitrate changes its bitrate as it
                                     // plays. Not for a player that moves between sizes itself
-                                    // (hls.variants; see Several sizes)
+                                    // (hls.variants; see Several sizes), nor for fMP4 segments
   pts_offset_ms?: number | null;    // how far the stream's timestamps run ahead of the file's (its start
-                                    // taken off, as `.mks` subtitles are timed): 1400 for HLS, wherever it
-                                    // started; null for a direct play. A player that knows the timestamp
+                                    // taken off, as `.mks` subtitles are timed): 1400 for HLS in MPEG-TS,
+                                    // wherever it started, 0 in fMP4 (fMP4 segments); null for a direct
+                                    // play. A player that knows the timestamp
                                     // of the frame it shows (hls.js: media time + initPTS) draws picture
                                     // subtitles at that minus this
 }
@@ -1823,8 +1824,9 @@ removed or reordered (`400`).
 | GET | `/api/playback/speedtest?bytes=` | `play` | that many bytes to time (`application/octet-stream`) |
 | GET | `/api/playback/{session_id}/index.m3u8` | `play` | HLS VOD playlist (`application/vnd.apple.mpegurl`) |
 | GET | `/api/playback/{session_id}/master.m3u8` | `play` | multivariant playlist naming the codecs ([Dolby Vision remuxes](#dolby-vision-remuxes)): `index.m3u8`, then a transcode's smaller sizes `v1.m3u8`… ([Several sizes](#several-sizes)) |
-| GET | `/api/playback/{session_id}/{n}.ts` | `play` | MPEG-TS segment |
-| GET | `/api/playback/{session_id}/v{k}.m3u8`, `…/v{k}-{n}.ts` | `play` | a smaller size's playlist and segments, laid out as `index.m3u8`'s |
+| GET | `/api/playback/{session_id}/{n}.ts` | `play` | MPEG-TS segment (`video/mp2t`) |
+| GET | `/api/playback/{session_id}/init.mp4`, `…/{n}.m4s` | `play` | an fMP4 session's init segment and media segments (`video/mp4`; [fMP4 segments](#fmp4-segments)) |
+| GET | `/api/playback/{session_id}/v{k}.m3u8`, `…/v{k}-{n}.ts`, `…/v{k}-init.mp4`, `…/v{k}-{n}.m4s` | `play` | a smaller size's playlist, init segment and segments, laid out as `index.m3u8`'s |
 | GET | `/api/media/{key}/{file}` | `public` (the key) | a keyed session's media ([Keyed URLs](#keyed-urls)) |
 | GET | `/api/files/{id}/stream` | `play` | the raw file, with `Range` (direct play) |
 | GET | `/api/files/{id}/subtitles/{index}.vtt?offset_ms=` | `play` | WebVTT of a text subtitle track |
@@ -1843,7 +1845,7 @@ removed or reordered (`400`).
   ([QUALITY.md](QUALITY.md#players-that-go-black-between-streams)). The
   answer is the bitrate it goes on at: within 1 Mbps and the session's own.
   A job the transcoder loses comes back at it. `400` for a direct play, a
-  remux, or a transcoder too old.
+  remux, an fMP4 session, or a transcoder too old.
 - **`/api/media/{key}/{file}`**: `master.m3u8`, `index.m3u8` and `{n}.ts`
   of a stream, `file.{ext}` of a direct play, `previews.bif` of either.
   `HEAD` answers as `GET` without the body: for a segment, once it is made
@@ -1991,7 +1993,9 @@ removed or reordered (`400`).
     picture_subtitles_sideload?: boolean; // shows picture subtitles from their `.mks` next to HLS too
     picture_subtitles_sideload_codecs?: string[]; // the picture codecs it shows so; left out: those in subtitle_codecs
     audio_track_switching?: boolean; // switches a file's audio tracks itself
-    hls?: { master_playlist?: boolean; segments?: string[]; // "ts", "fmp4"
+    hls?: { master_playlist?: boolean;
+            segments?: string[];  // "ts", "fmp4", the one the player would rather have first
+                                  // (fMP4 segments)
             variants?: boolean }; // moves between a stream's sizes itself: transcodes come in several
                                   // (any caps version)
     display?: { width: number; height: number; refresh_rates?: number[] };
@@ -2107,8 +2111,8 @@ a key of their own instead. Pley's Samsung, LG and Roku apps ask for keyed
 URLs.
 
 - `PlaybackInfo.url` is `/api/media/{key}/master.m3u8` (or `index.m3u8`)
-  for a stream, whose playlists name their segments relatively, so they
-  carry the key too; `/api/media/{key}/file.mkv` for a direct play, named
+  for a stream, whose playlists name their segments (and an fMP4 stream's
+  `init.mp4`) relatively, so they carry the key too; `/api/media/{key}/file.mkv` for a direct play, named
   for the file's container, with `Range` and
   `Cache-Control: private, no-store`.
 - The key is `pley_mk_` and 256 random bits, kept in memory only. It opens
@@ -2293,6 +2297,37 @@ reports still send the version 1 fields: `containers` always counts;
   - else AC-3 5.1 at 640 kbit/s when `ac3` is;
   - else AAC with as many channels as the output takes, up to 5.1 (stereo
     for stereo outputs; a stereo source stays stereo).
+- **Segments** are MPEG-TS, or fMP4 for a player that puts `fmp4` first in
+  `hls.segments` (see [fMP4 segments](#fmp4-segments)).
+
+### fMP4 segments
+
+Apple's players take HEVC, HDR and Dolby Vision in HLS only from
+fragmented MP4 (fMP4) segments, not from MPEG-TS. A version 2 player whose
+`hls.segments` lists `"fmp4"` before `"ts"` (or without `"ts"`) gets every
+HLS session in fMP4, when the server's transcoder makes it
+(`fmp4_segments` in its capabilities). A player that lists `"ts"` first
+(the Android app sends `["ts", "fmp4"]`), every version 1 player,
+downloads, Live TV and the compatibility API get MPEG-TS, as before.
+
+- The playlists say `#EXT-X-VERSION:7` and name the init segment first,
+  `#EXT-X-MAP:URI="init.mp4"` (a smaller size's `v{k}-init.mp4`); segments
+  are `{n}.m4s` (`v{k}-{n}.m4s`), served as `video/mp4`. A name in the
+  other format than the session's answers `404`.
+- fMP4 carries what MPEG-TS can't: HEVC is copied (tagged `hvc1`), and so
+  are VP9 and AV1 when an entry of `video` decodes them as they are.
+- The init segment holds the encoder's settings, so the stream's bitrate
+  can't change as it plays (`live_bitrate` is false, `PUT …/bitrate`
+  answers `400`); a player moves between sizes instead
+  ([Several sizes](#several-sizes)).
+- The stream's timestamps are the file's (`pts_offset_ms` 0).
+- An audio-only stream stays MPEG-TS, named `{n}.ts`.
+- A job the transcoder loses comes back in the same format, or the session
+  ends ("playback session expired").
+- A player that lists only `"fmp4"`, with a transcoder that makes none,
+  plays MPEG-TS as it takes it: H.264 only. Its HEVC is converted ("HEVC
+  not supported in MPEG-TS."), and its HDR to SDR, since converted HDR is
+  HEVC.
 
 ### HDR transcodes
 
@@ -2365,20 +2400,35 @@ multivariant playlist can name it. A version 2 player sending
 #EXTM3U
 #EXT-X-VERSION:3
 #EXT-X-INDEPENDENT-SEGMENTS
-#EXT-X-STREAM-INF:BANDWIDTH=85293600,AVERAGE-BANDWIDTH=43050000,CODECS="hvc1.2.4.L153.B0,ec-3",SUPPLEMENTAL-CODECS="dvh1.08.06/db1p",RESOLUTION=3840x2160,FRAME-RATE=23.976,VIDEO-RANGE=PQ
+#EXT-X-STREAM-INF:BANDWIDTH=85293600,AVERAGE-BANDWIDTH=43050000,CODECS="hvc1.2.4.L153.B0,ec-3",SUPPLEMENTAL-CODECS="dvh1.08.06/db1p",RESOLUTION=3840x2160,FRAME-RATE=23.976,CLOSED-CAPTIONS=NONE,VIDEO-RANGE=PQ
 index.m3u8
 ```
 
 - `CODECS` per RFC 6381: `avc1.PPCCLL`, `hvc1.P.C.LLLL.B0`, `mp4a.40.2`
-  (AAC), `mp4a.40.34` (MP3), `ac-3`, `ec-3`.
+  (AAC), `mp4a.40.34` (MP3), `ac-3`, `ec-3`, and copied Opus and FLAC by
+  their sample entries, `Opus` and `fLaC` (AVPlayer refuses a master
+  playlist that writes them in lowercase).
 - Dolby Vision kept in the remux is named: profile 5 as `dvh1.05.LL` alone
   (no base layer anything else decodes); profile 8 as the HEVC codec with
   `SUPPLEMENTAL-CODECS="dvh1.08.LL/db1p"` (8.1, `VIDEO-RANGE=PQ`), `/db4h`
   (8.4, `HLG`) or `/db2g` (8.2, `SDR`), which Media3 turns into a
   `video/dolby-vision` track; profile 7 as `dvh1.07.LL`.
 - `VIDEO-RANGE` is `SDR`, `PQ` or `HLG`. `FRAME-RATE` has three decimals.
+- `CLOSED-CAPTIONS=NONE` when the probe found no CEA-608/708 captions in
+  the video. Captions in the frames (a TV recording's) survive copying and
+  encoding, so a video with them, or one probed before probes said, gets
+  nothing and players look for them. Without it, AVKit offers a captions
+  menu of its own beside the app's subtitles.
   `BANDWIDTH` is twice the copied video's average (discs peak about there),
   or the encoder's rate. TS segments are the same as `index.m3u8`'s.
+- In fMP4 ([fMP4 segments](#fmp4-segments)) the master playlist is
+  `#EXT-X-VERSION:7`, and copied VP9 and AV1 are named `vp09.PP.LL.DD` and
+  `av01.P.LLT.DD`. The init segment carries Dolby Vision as Apple's
+  players read it: profile 5 tagged `dvh1` with its `dvcC` record; profile
+  8, and profile 7 converted to 8.1, as `hvc1` with a `dvvC` record
+  (profile 8, the level named, compatibility id 1 for 8.1), and the
+  `dby1` brand. A remux that doesn't keep Dolby Vision carries no record.
+  Profile 8.1 converted from 7 and HDR10+ left out work as in MPEG-TS.
 - Without `master_playlist` (and for every version 1 player, the web player
   and Jellyfin's apps) the session starts at `index.m3u8`, and
   remuxes name nothing.

@@ -9,6 +9,9 @@
 //! keeps its adaptation field (PCR, random access), continuity counters run
 //! on, and other PIDs' packets stay as they were (those met in the middle
 //! of a PES come right after it). Audio is never touched.
+//!
+//! What is done to each NAL unit ([`nal_decision`]) is the same for fMP4
+//! segments, whose samples [`crate::fmp4::Fragment::edit_video`] edits.
 
 use std::path::Path;
 
@@ -252,35 +255,7 @@ pub fn edit_access_unit(es: &[u8], edits: Edits, edited: &mut Edited) -> Option<
     let mut decisions = Vec::with_capacity(units.len());
     let mut any = false;
     for unit in &units {
-        let nal = &es[unit.nal.clone()];
-        let decision = match dovi::nal_type(nal) {
-            Some(NAL_DV_EL) if edits.to_81 => {
-                edited.el_dropped += 1;
-                NalEdit::Drop
-            }
-            Some(NAL_DV_RPU) if edits.to_81 => match dovi::rpu_to_p81(nal) {
-                Ok(NalEdit::Replace(new)) => {
-                    edited.rpus_converted += 1;
-                    NalEdit::Replace(new)
-                }
-                Ok(other) => other,
-                Err(err) => {
-                    edited.rpus_dropped += 1;
-                    if edited.first_error.is_none() {
-                        edited.first_error = Some(format!("{err:#}"));
-                    }
-                    NalEdit::Drop
-                }
-            },
-            Some(NAL_PREFIX_SEI) if edits.strip_hdr10plus => {
-                let decision = dovi::strip_hdr10plus(nal);
-                if decision != NalEdit::Keep {
-                    edited.hdr10plus_removed += 1;
-                }
-                decision
-            }
-            _ => NalEdit::Keep,
-        };
+        let decision = nal_decision(&es[unit.nal.clone()], edits, edited);
         any |= decision != NalEdit::Keep;
         decisions.push(decision);
     }
@@ -300,6 +275,41 @@ pub fn edit_access_unit(es: &[u8], edits: Edits, edited: &mut Edited) -> Option<
         }
     }
     Some(out)
+}
+
+/// What `edits` do to one HEVC NAL unit (without its start code or
+/// length), counted in `edited`: an enhancement-layer unit left out and an
+/// RPU made 8.1 (one that can't be read left out) for profile 8.1, HDR10+
+/// messages taken out of a prefix SEI.
+pub fn nal_decision(nal: &[u8], edits: Edits, edited: &mut Edited) -> NalEdit {
+    match dovi::nal_type(nal) {
+        Some(NAL_DV_EL) if edits.to_81 => {
+            edited.el_dropped += 1;
+            NalEdit::Drop
+        }
+        Some(NAL_DV_RPU) if edits.to_81 => match dovi::rpu_to_p81(nal) {
+            Ok(NalEdit::Replace(new)) => {
+                edited.rpus_converted += 1;
+                NalEdit::Replace(new)
+            }
+            Ok(other) => other,
+            Err(err) => {
+                edited.rpus_dropped += 1;
+                if edited.first_error.is_none() {
+                    edited.first_error = Some(format!("{err:#}"));
+                }
+                NalEdit::Drop
+            }
+        },
+        Some(NAL_PREFIX_SEI) if edits.strip_hdr10plus => {
+            let decision = dovi::strip_hdr10plus(nal);
+            if decision != NalEdit::Keep {
+                edited.hdr10plus_removed += 1;
+            }
+            decision
+        }
+        _ => NalEdit::Keep,
+    }
 }
 
 pub(crate) struct NalUnit {

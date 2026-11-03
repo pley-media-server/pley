@@ -228,6 +228,7 @@ async fn playback_info(
             keep_previous: false,
             keyed_urls: false,
             hdr_transcodes: false,
+            fmp4_segments: false,
             download: false,
         };
         let decision = crate::playback::decide(file, info.as_ref(), &streams, &req);
@@ -482,6 +483,7 @@ async fn master(
                 keep_previous: false,
                 keyed_urls: false,
                 hdr_transcodes: false,
+                fmp4_segments: false,
                 download: false,
             };
             let Json(info) = crate::api::playback::start(State(state.clone()), user.clone(), Json(req)).await?;

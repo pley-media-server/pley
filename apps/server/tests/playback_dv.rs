@@ -655,6 +655,7 @@ async fn start_fake(masters: bool, hdr: bool) -> (Fake, String) {
                     audio: None,
                     warnings: vec![],
                     variants,
+                    segment_format: Default::default(),
                 })
             }),
         )
