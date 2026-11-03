@@ -149,7 +149,7 @@ class TvPlayerScreenTest {
     }
 
     @Test
-    fun `Left shows the controls on the scrubber with the preview, and seeks 5 s after the last press`() {
+    fun `Left shows the controls on the scrubber with the preview, and seeks 5 s after the last press, the controls going with it`() {
         val controller = playing()
         show(controller)
         press(Key.DirectionLeft, times = 3)
@@ -160,11 +160,13 @@ class TvPlayerScreenTest {
         compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + 100)
         compose.waitForIdle()
         assertTrue("it waits for OK", controller.calls("seekTo").isEmpty())
+        compose.onNodeWithTag(TAG_SCRUBBER).assertExists()
         compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS)
         compose.waitForIdle()
         assertEquals(listOf(570_000L), controller.calls("seekTo").map { it.args.single() })
         compose.onNodeWithTag(TAG_PREVIEW).assertDoesNotExist()
-        compose.onNodeWithTag(TAG_SCRUBBER).assertExists()
+        // 5 s after the last key, as the seek lands, rather than 5 s after it.
+        compose.onNodeWithTag(TAG_SCRUBBER).assertDoesNotExist()
     }
 
     @Test
@@ -177,17 +179,32 @@ class TvPlayerScreenTest {
         assertEquals(listOf("seekTo"), controller.calls.map { it.name })
         assertEquals(610_000L, controller.calls("seekTo").single().args.single())
         // A seek made a moment ago is confirmed, not paused.
-        press(Key.DirectionRight)
-        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
+        focusedOn(TAG_SCRUBBER)
+        press(Key.MediaFastForward)
+        compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + 100)
         compose.waitForIdle()
         press(Key.DirectionCenter)
         assertEquals(listOf("seekTo", "seekTo"), controller.calls.map { it.name })
         // Long after the seek, Centre pauses again.
-        press(Key.DirectionRight)
-        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + TvSeeker.CONFIRM_MS + 100)
+        press(Key.MediaFastForward)
+        compose.mainClock.advanceTimeBy(TvSeeker.SETTLE_MS + TvSeeker.CONFIRM_MS + 100)
         compose.waitForIdle()
+        focusedOn(TAG_SCRUBBER)
         press(Key.DirectionCenter)
         assertEquals("pause", controller.calls.last().name)
+    }
+
+    @Test
+    fun `with the controls hidden after a seek, Centre shows them rather than pausing`() {
+        val controller = playing()
+        show(controller)
+        press(Key.DirectionRight)
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
+        compose.waitForIdle()
+        compose.onNodeWithTag(TAG_SCRUBBER).assertDoesNotExist()
+        press(Key.DirectionCenter)
+        focusedOn(TAG_SCRUBBER)
+        assertEquals(listOf("seekTo"), controller.calls.map { it.name })
     }
 
     @Test

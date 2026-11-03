@@ -18,6 +18,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,6 +45,7 @@ import app.pley.android.player.subtitles.ScreenCaptions
 import app.pley.android.ui.tv.R
 import app.pley.android.player.R as PlayerR
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -414,9 +416,11 @@ internal fun TvPlayerScreen(
         }
     }
     // The controls hide after 5 s without a key, unless paused, a seek waits, or in a panel or the chapters' cards.
-    LaunchedEffect(ui.controls, ui.panel, ui.input, playing, previewing, chaptersOpen) {
-        if (ui.controls && ui.panel == null && playing && !previewing && !chaptersOpen) {
+    // A seek waiting keeps them until it lands, 5 s after the last key too: they go with it, not 5 s later.
+    LaunchedEffect(ui.controls, ui.panel, ui.input, playing, chaptersOpen) {
+        if (ui.controls && ui.panel == null && playing && !chaptersOpen) {
             delay(TvPlayerUi.HIDE_AFTER_MS)
+            snapshotFlow { seeker.target == null }.first { it }
             ui.hideControls(if (skipShown) PlayerFocus.Skip else PlayerFocus.Video)
         }
     }

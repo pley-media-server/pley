@@ -24,7 +24,8 @@ describes how they are made.
   times stand where it goes, with the thumb, rather than at the playhead.
 - On TVs, Left and Right show the controls with the preview and wait for
   OK before they seek, as YouTube's TV app does: OK goes there, it goes by
-  itself 5 s after the last key, and Back lets it go. A held key let go
+  itself 5 s after the last key, the controls going with it, and Back
+  lets it go. A held key let go
   waits there too, and Previous, Next or Skip take the place of a seek
   waiting. Fast forward, rewind and the row's 10 s skips seek as before.
 - On TVs, OK with the player's controls hidden shows them on the scrubber
