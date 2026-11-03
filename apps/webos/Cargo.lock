@@ -1292,6 +1292,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pley-local"
+version = "0.0.0"
+dependencies = [
+ "flate2",
+ "pley-core",
+ "pley-subs",
+]
+
+[[package]]
 name = "pley-music"
 version = "0.0.0"
 dependencies = [

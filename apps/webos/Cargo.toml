@@ -17,6 +17,7 @@ members = [
     "crates/ui",
     "crates/kit",
     "crates/subs",
+    "crates/local",
     "crates/player",
     "crates/webos",
     "crates/shell",

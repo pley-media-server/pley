@@ -44,6 +44,9 @@ pub mod keys {
     pub const LIVE_CATEGORY: &str = "pley.live.category";
     /// Subtitle sync per file and profile: `[[key, ms], …]`, the 300 newest.
     pub const SUBTITLE_OFFSETS: &str = "pley.subtitleOffsets";
+    /// Where videos on a USB drive stopped: `[[file id, position ms, length ms], …]`,
+    /// newest first, at most 500 (pley-local's `resume`).
+    pub const LOCAL_RESUME: &str = "pley.localResume";
 
     /// A sign-in's tokens.
     pub fn tokens(server: &str) -> String {
