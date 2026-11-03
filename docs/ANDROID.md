@@ -248,10 +248,10 @@ On Android TV and Fire TV, as on the Samsung and LG apps:
 - **News**: only what became ready to watch pops up, at the bottom right
   with the title's poster, Open and Close, once the remote has rested for
   1.5 s and nothing else holds focus (the open rail, a panel, a dialog,
-  the keyboard); never over the player or on the requests, and coming
-  back from the player counts as a press. It takes focus and gives it
-  back, and goes by itself after 10 s untouched. The rest shows as the
-  rail's number and in the lists.
+  the keyboard, cards being sorted or moved); never over the player or on
+  the requests, and coming back from the player counts as a press. It
+  takes focus and gives it back, and goes by itself after 10 s untouched.
+  The rest shows as the rail's number and in the lists.
 
 On either, an app signed in before requests offers Sign in again on
 Discover (a TV shows a new code to link), which asks for the `requests`
