@@ -84,10 +84,10 @@ import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.item.TvToastHost
 import app.pley.android.ui.tv.item.TvToastState
 import app.pley.android.ui.tv.item.focusRing
+import app.pley.android.ui.tv.kit.FocusMemory
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvTextField
-import app.pley.android.ui.tv.kit.FocusMemory
 import app.pley.android.ui.tv.kit.railOnLeftStopOnRight
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberedFocus
@@ -447,10 +447,8 @@ private fun CardList(
     val ids = remember(requests) { requests.map { it.id } }
     val heir = remember(ids) { Snapshot.withoutReadObservation { cards.heirOf(ids) } }
     // The card remembered went while a title was open: the one in its place, else the one before, is focused instead.
-    remember(ids) {
-        val keys = ids.mapTo(HashSet()) { cardKey(it) }
-        memory.settle { it in keys }
-    }
+    val keys = remember(ids) { ids.mapTo(HashSet()) { cardKey(it) } }
+    memory.settle { it in keys }
     if (heir != null) {
         LaunchedEffect(heir) {
             withFrameNanos { }

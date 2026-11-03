@@ -89,7 +89,8 @@ class TvDiscoverUiTest {
 
     @Test
     fun discoverStartsOnTheHerosActionAndBackFromTheRowsGoesBackToIt() {
-        show { TvDiscoverScreen(DiscoverViewModel(deps())) }
+        val vm = DiscoverViewModel(deps())
+        show { TvDiscoverScreen(vm) }
         waitFor("Trending this week")
         compose.onNodeWithTag(TV_DISCOVER_HERO).assertExists()
         // The hero's page was read: a movie this profile may ask for.
@@ -106,7 +107,8 @@ class TvDiscoverUiTest {
 
     @Test
     fun backFromARowFurtherDownGoesBackToTheHero() {
-        show { TvDiscoverScreen(DiscoverViewModel(deps())) }
+        val vm = DiscoverViewModel(deps())
+        show { TvDiscoverScreen(vm) }
         waitFor("Trending this week")
         // Three rows down, the hero has scrolled out of the list.
         compose.press(Key.DirectionDown, 3)
@@ -121,7 +123,8 @@ class TvDiscoverUiTest {
         // Severance: some of it in a library, more seasons to ask for.
         val partly = trending.results.first { it.tmdbId == 95396L }
         requests.pages = { _, page -> DiscoverPage(page, 1, listOf(partly)) }
-        show { TvDiscoverScreen(DiscoverViewModel(deps())) }
+        val vm = DiscoverViewModel(deps())
+        show { TvDiscoverScreen(vm) }
         waitFor("Request more seasons")
         compose.focused().assert(hasText("Open"))
         compose.press(Key.DirectionRight)
@@ -135,7 +138,8 @@ class TvDiscoverUiTest {
         val movie: DiscoverDetail = Fixtures.decode("discover/movie.json")
         val followed = Fixtures.decode<RequestList>("requests/list.json").requests.first { it.id == 47L }.copy(kind = TitleKind.Movie, tmdbId = 1184918)
         requests.api.answer("discoverTitle", movie.copy(tmdbId = 1184918, status = TitleStatus.Requested, requestId = 47, watching = true, requests = listOf(followed)))
-        show { TvDiscoverScreen(DiscoverViewModel(deps())) }
+        val vm = DiscoverViewModel(deps())
+        show { TvDiscoverScreen(vm) }
         waitFor("Following")
         compose.focused().assert(hasText("Following"))
         compose.press(Key.DirectionRight)
@@ -152,7 +156,8 @@ class TvDiscoverUiTest {
 
     @Test
     fun aRowsSeeAllOpensTheWholeListAndATileItsTitle() {
-        show { TvDiscoverScreen(DiscoverViewModel(deps())) }
+        val vm = DiscoverViewModel(deps())
+        show { TvDiscoverScreen(vm) }
         waitFor("Trending this week")
         compose.press(Key.DirectionDown)
         compose.press(Key.Enter)
@@ -167,7 +172,8 @@ class TvDiscoverUiTest {
     @Test
     fun withNothingToAskForDiscoverSaysSo() {
         requests.pages = { _, page -> DiscoverPage(page, 1, emptyList()) }
-        show { TvDiscoverScreen(DiscoverViewModel(deps())) }
+        val vm = DiscoverViewModel(deps())
+        show { TvDiscoverScreen(vm) }
         waitFor("Nothing here right now")
         compose.onNodeWithText("TMDB's lists have nothing this profile can ask for. Search for a title instead.").assertExists()
     }
@@ -180,7 +186,8 @@ class TvDiscoverUiTest {
             asked += page
             DiscoverPage(page, 30, if (page < 8) emptyList() else trending.results.map { it.copy(tmdbId = it.tmdbId * 100 + page) })
         }
-        show { TvDiscoverGridScreen(DiscoverResultsViewModel(DiscoverSource.Words("robot"), deps(), 28, DiscoverResultsViewModel.TV_FILL)) }
+        val vm = DiscoverResultsViewModel(DiscoverSource.Words("robot"), deps(), 28, DiscoverResultsViewModel.TV_FILL)
+        show { TvDiscoverGridScreen(vm) }
         waitFor("Show more")
         compose.onNodeWithText("Results for “robot”").assertExists()
         compose.onNodeWithText("Nothing yet for “robot”").assertExists()
@@ -207,7 +214,8 @@ class TvDiscoverUiTest {
             }
             DiscoverPage(page, 30, titles)
         }
-        show { TvDiscoverGridScreen(DiscoverResultsViewModel(DiscoverSource.Words("robot"), deps(), 28, DiscoverResultsViewModel.TV_FILL)) }
+        val vm = DiscoverResultsViewModel(DiscoverSource.Words("robot"), deps(), 28, DiscoverResultsViewModel.TV_FILL)
+        show { TvDiscoverGridScreen(vm) }
         waitFor("Show more")
         compose.focused().assert(hasContentDescription("The Wild Robot", substring = true))
         compose.press(Key.DirectionRight, 2)
@@ -223,7 +231,8 @@ class TvDiscoverUiTest {
 
     @Test
     fun aMovieIsAskedForFromItsPage() {
-        show { TvDiscoverTitleScreen(DiscoverTitleViewModel(PleyKey.DiscoverTitle(TitleKind.Movie, 1184918), deps())) }
+        val vm = DiscoverTitleViewModel(PleyKey.DiscoverTitle(TitleKind.Movie, 1184918), deps())
+        show { TvDiscoverTitleScreen(vm) }
         waitFor("Discover your true nature.")
         compose.focused().assert(hasText("Request"))
         compose.onNodeWithText("You can ask for 2 more movies.").assertExists()
@@ -234,7 +243,8 @@ class TvDiscoverUiTest {
 
     @Test
     fun requestMoreSeasonsOpensWhichSeasonsAndAsksForWhatIsTicked() {
-        show { TvDiscoverTitleScreen(DiscoverTitleViewModel(PleyKey.DiscoverTitle(TitleKind.Show, 1396, pick = true), deps())) }
+        val vm = DiscoverTitleViewModel(PleyKey.DiscoverTitle(TitleKind.Show, 1396, pick = true), deps())
+        show { TvDiscoverTitleScreen(vm) }
         waitFor("Which seasons?")
         // Opened with the page: the missing seasons ticked; focus on the first that may be asked for.
         compose.onNodeWithTag(TV_PICKER_SEASON + 3).assertIsFocused()
@@ -251,7 +261,8 @@ class TvDiscoverUiTest {
 
     @Test
     fun aSeasonsPosterOpensWhichSeasonsAtIt() {
-        show { TvDiscoverTitleScreen(DiscoverTitleViewModel(PleyKey.DiscoverTitle(TitleKind.Show, 1396), deps())) }
+        val vm = DiscoverTitleViewModel(PleyKey.DiscoverTitle(TitleKind.Show, 1396), deps())
+        show { TvDiscoverTitleScreen(vm) }
         waitFor("Breaking Bad")
         compose.focused().assert(hasText("Request more seasons"))
         compose.press(Key.DirectionDown)
