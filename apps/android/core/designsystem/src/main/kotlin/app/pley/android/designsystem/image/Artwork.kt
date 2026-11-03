@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.reducedMotion
+import coil3.BitmapImage
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
@@ -90,6 +91,14 @@ class ArtworkLoad {
      */
     internal var known: Boolean = false
 
+    /**
+     * Whether the loaded picture has no transparency, so it hides whatever is
+     * under it: a well drawn there would be a fill of the whole box that never
+     * shows. Set before [loaded], which is what the drawing reads.
+     */
+    internal var opaque: Boolean = false
+        private set
+
     private var fade: Job? = null
 
     internal fun onState(state: AsyncImagePainter.State, scope: CoroutineScope) {
@@ -98,6 +107,8 @@ class ArtworkLoad {
         settled = state is AsyncImagePainter.State.Success || state is AsyncImagePainter.State.Error
         failed = state is AsyncImagePainter.State.Error
         val result = (state as? AsyncImagePainter.State.Success)?.result
+        // A JPEG, or a PNG without an alpha channel; anything else may let the well show through.
+        opaque = (result?.image as? BitmapImage)?.bitmap?.hasAlpha() == false
         val millis = result?.fadeMillis() ?: 0
         if (millis == 0) {
             loaded = result != null
@@ -239,7 +250,8 @@ private class PlaceholderNode(
                     ),
                 )
             }
-        } else if (well.isSpecified) {
+        } else if (well.isSpecified && !load.opaque) {
+            // Under an opaque picture (filling the box, ContentScale.Crop) the well would never show.
             drawRect(well)
         }
         drawContent()

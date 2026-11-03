@@ -1,6 +1,7 @@
 package app.pley.android.designsystem.tile
 
 import android.content.Context
+import android.graphics.Bitmap
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,7 @@ import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.UserState
 import coil3.ImageLoader
+import coil3.asImage
 import coil3.intercept.Interceptor
 import coil3.network.HttpException
 import coil3.network.NetworkResponse
@@ -209,6 +211,38 @@ class ArtworkTileTest {
             }
         }
         return lines
+    }
+
+    /** A loader whose every picture is [bitmap]. */
+    private fun loaderOf(bitmap: Bitmap): ImageLoader = ImageLoader.Builder(context)
+        .components { add(FakeImageLoaderEngine.Builder().intercept({ true }, bitmap.asImage()).build()) }
+        .memoryCache(null)
+        .diskCache(null)
+        .coroutineContext(Dispatchers.Unconfined)
+        .build()
+
+    @Test
+    fun theWellStaysUnderAPictureWithTransparencyOnly() {
+        // Clear: the well shows through it.
+        val clear = Bitmap.createBitmap(216, 324, Bitmap.Config.ARGB_8888)
+        // Opaque (as a JPEG decodes): the picture alone, no well drawn under it.
+        val opaque = Bitmap.createBitmap(216, 324, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(red)
+            setHasAlpha(false)
+        }
+        compose.setContent {
+            Column {
+                CompositionLocalProvider(LocalArtworkImageLoader provides loaderOf(clear)) {
+                    ArtworkTile(model(id = 1), TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("clear"))
+                }
+                CompositionLocalProvider(LocalArtworkImageLoader provides loaderOf(opaque)) {
+                    ArtworkTile(model(id = 2), TileKind.Poster, TileStyle.Tv, Modifier.tvTileSize(TileKind.Poster).testTag("opaque"))
+                }
+            }
+        }
+        compose.waitForIdle()
+        assertNear(PleyColors.Surface2, pixel("clear", 108, 162))
+        assertNear(Color(red), pixel("opaque", 108, 162))
     }
 
     @Test
