@@ -405,7 +405,9 @@ does:
   `?includePreferences=1`. `collectionMode` is always `-1`, the library's
   default: Pley has no collection modes, and changing it answers `400`.
   Smart collections report `collectionFilterBasedOnUser` `1`, as they show
-  each viewer what they may see, and refuse `0` and a new order.
+  each viewer what they may see, and refuse `0` and a new order. The
+  preferences list only the values Pley takes, so `python-plexapi`'s
+  `modeUpdate()` refuses another itself.
   `PUT /library/collections/{key}/items/{item}/move?after={item}` moves an
   item right after another (or first), from the order shown, and the
   collection keeps that order (`collectionSort` 2).

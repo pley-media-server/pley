@@ -167,9 +167,18 @@ pub(super) async fn collection_details(
 }
 
 /// A collection's preferences, as python-plexapi's `editAdvanced()` reads
-/// them before it changes one.
+/// them before it changes one. Each lists only the values Pley takes, so
+/// that python-plexapi refuses another before it asks.
 fn preferences(c: &CollectionDto) -> Node {
-    let setting = |id: &'static str, label: &'static str, default: i64, value: i64, values: &'static str| {
+    let smart = c.smart_filter.is_some();
+    let sorts = ["0:Release date", "1:Alphabetical", "2:Custom"];
+    let sort = sort_number(&c.sort);
+    // A smart collection keeps its filter's order.
+    let sort_values = match usize::try_from(sort).ok().and_then(|n| sorts.get(n)) {
+        Some(own) if smart => (*own).to_owned(),
+        _ => sorts.join("|"),
+    };
+    let setting = |id: &'static str, label: &'static str, default: i64, value: i64, values: &str| {
         Node::new("Setting")
             .attr("id", id)
             .attr("label", label)
@@ -184,27 +193,16 @@ fn preferences(c: &CollectionDto) -> Node {
     };
     let mut prefs = Node::new("Preferences")
         .single()
-        .child(setting(
-            "collectionMode",
-            "Collection mode",
-            MODE,
-            MODE,
-            "-1:Library default|0:Hide collection|1:Hide items in this collection|2:Show this collection and its items",
-        ))
-        .child(setting(
-            "collectionSort",
-            "Collection order",
-            0,
-            sort_number(&c.sort),
-            "0:Release date|1:Alphabetical|2:Custom",
-        ));
-    if c.smart_filter.is_some() {
+        // Pley has no collection modes but the library's default.
+        .child(setting("collectionMode", "Collection mode", MODE, MODE, "-1:Library default"))
+        .child(setting("collectionSort", "Collection order", 0, sort, &sort_values));
+    if smart {
         prefs.push(setting(
             "collectionFilterBasedOnUser",
             "Filter collection based on",
             0,
             FILTER_BY_VIEWER,
-            "0:Server administrator|1:Current viewer",
+            "1:Current viewer",
         ));
     }
     prefs

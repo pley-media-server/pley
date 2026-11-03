@@ -317,8 +317,10 @@ async fn collection_order_through_preferences() {
     let node = w.details(&details).await;
     assert_eq!((&node["collectionMode"], &node["collectionSort"]), (&json!(-1), &json!(0)), "Plex's defaults");
     assert_eq!((preference(&node, "collectionMode"), preference(&node, "collectionSort")), (Some(-1), Some(0)));
-    let modes = node["Preferences"]["Setting"][0]["enumValues"].as_str().unwrap();
-    assert!(modes.starts_with("-1:Library default|0:Hide collection"), "{modes}");
+    // Only what Pley takes, so python-plexapi refuses another mode itself.
+    let values = |node: &Value, n: usize| node["Preferences"]["Setting"][n]["enumValues"].as_str().unwrap().to_owned();
+    assert_eq!(values(&node, 0), "-1:Library default");
+    assert_eq!(values(&node, 1), "0:Release date|1:Alphabetical|2:Custom");
 
     // python-plexapi's sortUpdate("alpha"): Pley's title order.
     let prefs = format!("/library/collections/{collection}/prefs");
@@ -343,6 +345,8 @@ async fn collection_order_through_preferences() {
     let smart = key(&w.send(Method::POST, &uri).await.body["MediaContainer"]["Metadata"][0]);
     let node = w.details(&format!("/library/collections/{smart}?includePreferences=1")).await;
     assert_eq!(preference(&node, "collectionFilterBasedOnUser"), Some(1));
+    assert_eq!(values(&node, 1), "0:Release date", "its filter's order alone");
+    assert_eq!(values(&node, 2), "1:Current viewer");
     let smart_prefs = format!("/library/collections/{smart}/prefs");
     assert_eq!(
         w.send(Method::PUT, &format!("{smart_prefs}?collectionFilterBasedOnUser=1")).await.status,
