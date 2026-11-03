@@ -12,6 +12,9 @@ describes how they are made.
 
 - Search shows movies, shows and episodes first, then music, then Live
   TV, then people, the closest matches first in each.
+- The rail's entries are smaller, as on the other TV apps, and it lists
+  five libraries (four beside Live TV) instead of three before Libraries
+  takes Collections' place.
 
 ## [0.1.3] - 2026-11-02
 

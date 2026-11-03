@@ -108,27 +108,34 @@ BACKDROP = 1001
 SCRIM_HERO, SCRIM_ROWS, SCRIM_ITEM = 1003, 1004, 1005
 
 # The rail (TvRail, RailItems.kt): a group, its entries' groups and buttons.
-# The first three libraries take an entry each; with more, Libraries (a page
-# of them all) takes Collections' place, so the rail never holds more than
-# seven entries between the avatar and Settings; eight with Live TV, after
-# Home as in the web's sidebar, where the server has channels.
+# Search, Home, Live TV after it where the server has channels (as in the
+# web's sidebar), the libraries, then Playlists and Collections; with more
+# libraries than the rail lists, Libraries (a page of them all) takes
+# Collections' place. The Android TV app's rail scrolls; Kodi's entries have
+# fixed places, so it lists as many libraries as fit over Settings at full
+# height (window.rail_shown).
 RAIL = 100
 RAIL_AVATAR = 110
 RAIL_SEARCH = 111
 RAIL_HOME = 112
 RAIL_LIVE = 117
-RAIL_LIBRARIES = (113, 114, 115)
+# Room for five libraries: with Search, Home, Libraries and Playlists, nine
+# entries fit (RAIL_FIT); a sixth, as the other TV apps list, would not.
+RAIL_LIBRARIES = (113, 114, 115, 122, 123)
+RAIL_LEAST_LIBRARIES = 4  # listed whatever else the rail holds
 RAIL_ALL_LIBRARIES = 116
 RAIL_PLAYLISTS = 119
 RAIL_COLLECTIONS = 120
 RAIL_SETTINGS = 121
 RAIL_ENTRIES = (RAIL_AVATAR, RAIL_SEARCH, RAIL_HOME, RAIL_LIVE) + RAIL_LIBRARIES + (RAIL_ALL_LIBRARIES, RAIL_PLAYLISTS, RAIL_COLLECTIONS, RAIL_SETTINGS)
-RAIL_TOP = 194  # the first entry's middle, under the avatar's 86
-RAIL_PITCH = 112
-RAIL_SETTINGS_Y = 974
-RAIL_ROW = 100  # an entry's pill, as tall as the space between entries allows
-RAIL_GAP = 12  # at least, between two pills
-RAIL_AVATAR_Y = 86
+RAIL_AVATAR_Y = 86  # the avatar's middle; it is 100 tall, down to 136
+RAIL_TOP = 184  # the first entry's middle, a gap under the avatar
+RAIL_ROW = 80  # an entry's pill (40 on the Android TV app's canvas), as tall as the space between entries allows
+RAIL_GAP = 8  # at least, between two pills
+RAIL_PITCH = RAIL_ROW + RAIL_GAP
+RAIL_SETTINGS_Y = 986  # Settings' middle: its foot on the safe area's, 1026
+# How many entries fit from Search down at full height, Settings apart.
+RAIL_FIT = (RAIL_SETTINGS_Y - RAIL_TOP) // RAIL_PITCH
 RAIL_NAME, RAIL_SUBTITLE, RAIL_INITIAL, RAIL_PICTURE, RAIL_COLOR = 130, 131, 132, 133, 134
 
 
@@ -154,8 +161,8 @@ def rail_pill(entry: int) -> int:
 def rail_pitch(entries: int) -> int:
     """How far apart `entries` entries from Search down are: closer than
     RAIL_PITCH when there are too many for the last to end a step above
-    Settings (seven do). Settings' pill is as tall as the others', so a
-    full rail goes down to it evenly."""
+    Settings (more than RAIL_FIT). Settings' pill is as tall as the others',
+    so a full rail goes down to it evenly."""
     # From Search's middle, a step per entry down to Settings' middle.
     return min(RAIL_PITCH, (RAIL_SETTINGS_Y - RAIL_TOP) // entries)
 

@@ -70,9 +70,10 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
 ### Screens
 
 - **The rail:** the profile, Search, Home, Live TV (where the server has
-  channels), the first three libraries, Playlists, Collections and
-  Settings. With more than three libraries, Libraries takes Collections'
-  place.
+  channels), the first five libraries, Playlists, Collections and
+  Settings. With more libraries, Libraries takes Collections' place. Its
+  entries keep fixed places, nine of them over Settings at the other TV
+  apps' size, so beside Live TV it lists four libraries.
 - **The profile's menu** has Discover and Your requests where the server
   takes requests; they open in Kodi's lists ([Requests](#requests)).
 - **The menu key** on a tile: mark watched, My List, add to a playlist,

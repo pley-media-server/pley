@@ -467,16 +467,18 @@ class Window(xbmcgui.WindowXML):
         self.c(L.RAIL_INITIAL).setLabel(name[:1].upper(), textColor=L.ON_ACCENT if light else L.FG)
         # None: the initial shows (another profile's picture mustn't stay).
         self.prop("pley.avatar.picture", image(self.session.base, self.me.get("avatar_url"), 128))
+        live = livetv.available(self.live)
+        shown = rail_shown(len(self.libraries), live)
         for i, entry in enumerate(L.RAIL_LIBRARIES):
-            if i < len(self.libraries):
+            if i < shown:
                 library = self.libraries[i]
                 icon = LIBRARY_ICONS.get(library.get("kind"), "icon-folder.png")
                 for control in L.rail_icons(entry):
                     self.c(control).setImage(icon, False)
                 for control in L.rail_labels(entry):
                     self.put(control, library.get("name"))
-            self.visible(L.rail_group(entry), i < len(self.libraries))
-        entries = rail_entries(len(self.libraries), livetv.available(self.live))
+            self.visible(L.rail_group(entry), i < shown)
+        entries = rail_entries(len(self.libraries), live)
         self.visible(L.rail_group(L.RAIL_LIVE), L.RAIL_LIVE in entries)
         self.visible(L.rail_group(L.RAIL_ALL_LIBRARIES), L.RAIL_ALL_LIBRARIES in entries)
         self.visible(L.rail_group(L.RAIL_COLLECTIONS), L.RAIL_COLLECTIONS in entries)
@@ -646,8 +648,9 @@ class Window(xbmcgui.WindowXML):
             return self.use_server_order()
         ids.insert(to, ids.pop(i))
         if self.save_order(ids):
-            # Moved past the rail's three, it is on the Libraries page.
-            self.setFocusId(L.RAIL_LIBRARIES[to] if to < len(L.RAIL_LIBRARIES) else L.RAIL_ALL_LIBRARIES)
+            # Moved past the libraries the rail lists, it is on the Libraries page.
+            shown = rail_shown(len(self.libraries), livetv.available(self.live))
+            self.setFocusId(L.RAIL_LIBRARIES[to] if to < shown else L.RAIL_ALL_LIBRARIES)
 
     def save_order(self, ids: list) -> bool:
         """The profile's own order (PUT /api/me/libraries/order): whether it
@@ -696,7 +699,7 @@ class Window(xbmcgui.WindowXML):
         self.setup_rail()
         for screen in self.stack + ([self.screen] if self.screen is not None else []):
             if isinstance(screen, Library) and (screen.rail or "").startswith("lib"):
-                screen.rail = library_rail(libraries, screen.library["id"])
+                screen.rail = library_rail(libraries, screen.library["id"], livetv.available(self.live))
         if self.screen is not None:
             self.prop("pley.rail", self.screen.rail or (self.stack[0].rail if self.stack else "home"))
 
@@ -1029,26 +1032,38 @@ def rail_view(library: dict) -> tuple:
     return library.get("id"), library.get("name"), library.get("kind")
 
 
+def rail_shown(libraries: int, live: bool = False) -> int:
+    """How many of `libraries` the rail lists: every one while all its
+    entries fit over Settings at full height, else as many as fit with
+    Libraries and Playlists after them, and never fewer than four (the other
+    TV apps' rails scroll to theirs; Kodi's entries have fixed places)."""
+    top = 3 if live else 2
+    if libraries <= len(L.RAIL_LIBRARIES) and top + libraries + 2 <= L.RAIL_FIT:
+        return libraries
+    room = min(len(L.RAIL_LIBRARIES), L.RAIL_FIT - top - 2)
+    return min(libraries, max(L.RAIL_LEAST_LIBRARIES, room))
+
+
 def rail_entries(libraries: int, live: bool = False) -> list:
     """The rail's entries from Search down, Settings apart (RailItems.kt):
     Live TV after Home where the server has channels (the web's sidebar),
-    the first three libraries, and with more, Libraries in Collections'
-    place (collections stay on each library's Collections tab); without a
+    the libraries it lists, and with more, Libraries in Collections' place
+    (collections stay on each library's Collections tab); without a
     library, no Collections."""
-    shown = list(L.RAIL_LIBRARIES[:libraries])
+    shown = rail_shown(libraries, live)
     top = [L.RAIL_SEARCH, L.RAIL_HOME] + ([L.RAIL_LIVE] if live else [])
-    if libraries > len(L.RAIL_LIBRARIES):
-        return [*top, *shown, L.RAIL_ALL_LIBRARIES, L.RAIL_PLAYLISTS]
-    return [*top, *shown, L.RAIL_PLAYLISTS] + ([L.RAIL_COLLECTIONS] if libraries else [])
+    if libraries > shown:
+        return [*top, *L.RAIL_LIBRARIES[:shown], L.RAIL_ALL_LIBRARIES, L.RAIL_PLAYLISTS]
+    return [*top, *L.RAIL_LIBRARIES[:shown], L.RAIL_PLAYLISTS] + ([L.RAIL_COLLECTIONS] if libraries else [])
 
 
-def library_rail(libraries: list, library_id) -> str:
-    """The rail's entry a library's page marks: its own among the first
-    three, else Libraries (Home, once the library has gone)."""
+def library_rail(libraries: list, library_id, live: bool = False) -> str:
+    """The rail's entry a library's page marks: its own among those the
+    rail lists, else Libraries (Home, once the library has gone)."""
     at = next((i for i, lib in enumerate(libraries) if lib["id"] == library_id), None)
     if at is None:
         return "home"
-    return "lib%d" % at if at < len(L.RAIL_LIBRARIES) else "libraries"
+    return "lib%d" % at if at < rail_shown(len(libraries), live) else "libraries"
 
 
 LIBRARY_NOUNS = {"movies": ("movie", "movies"), "shows": ("show", "shows"), "music": ("artist", "artists")}
@@ -2023,7 +2038,7 @@ class Library(Screen):
     def __init__(self, win: Window, library: dict, rail_key):
         super().__init__(win)
         self.library = library
-        self.rail = rail_key or library_rail(win.libraries, library["id"])
+        self.rail = rail_key or library_rail(win.libraries, library["id"], livetv.available(win.live))
         # It opens on the tab it was last left on, on this Kodi, for this
         # server and profile (as on Android TV, Samsung and LG); on Library
         # the first time, and when that tab isn't the library's.
@@ -3440,8 +3455,8 @@ def program_text(channel: dict, program: dict, now: float, group=None) -> str:
 
 
 class Libraries(Screen):
-    """Every library (TvLibrariesScreen): the rail shows the first three,
-    and Libraries opens this page. A card for each in the profile's order:
+    """Every library (TvLibrariesScreen): the rail shows the first four or
+    five, and Libraries opens this page. A card for each in the profile's order:
     its kind's icon, its name, how much it holds, and "Scanning…" while the
     server scans it. Sort libraries sorts them as the profile's menu does;
     a card's menu opens it, moves it, or goes back to the server's order."""
@@ -3450,7 +3465,7 @@ class Libraries(Screen):
 
     @property
     def rail(self) -> str:
-        return "libraries" if L.RAIL_ALL_LIBRARIES in rail_entries(len(self.win.libraries)) else "home"
+        return "libraries" if L.RAIL_ALL_LIBRARIES in rail_entries(len(self.win.libraries), livetv.available(self.win.live)) else "home"
 
     def load(self) -> None:
         # How much each holds, and which the server is scanning, as of now.

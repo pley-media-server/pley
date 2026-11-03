@@ -686,48 +686,82 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(left, ["sign_out"])
 
     def test_the_rail_fits_every_library_above_settings(self):
-        for count in range(8):
-            win = FakeWindow()
-            win.libraries = [{"id": i, "name": "Library %d" % i, "kind": "movies"} for i in range(count)]
-            win.setup_rail()
-            # As on Android TV (RailItems.kt): three libraries, then Libraries in Collections'
-            # place; no Collections without a library.
-            more = count > 3
-            if more:
-                entries = [L.RAIL_SEARCH, L.RAIL_HOME, *L.RAIL_LIBRARIES, L.RAIL_ALL_LIBRARIES, L.RAIL_PLAYLISTS, L.RAIL_SETTINGS]
-            else:
-                entries = [L.RAIL_SEARCH, L.RAIL_HOME, *L.RAIL_LIBRARIES[:count], L.RAIL_PLAYLISTS] + ([L.RAIL_COLLECTIONS] if count else []) + [L.RAIL_SETTINGS]
-            for i, entry in enumerate(L.RAIL_LIBRARIES):
-                self.assertEqual(win.made[L.rail_group(entry)].visible, i < count)
-            self.assertEqual(win.made[L.rail_group(L.RAIL_ALL_LIBRARIES)].visible, more)
-            self.assertEqual(win.made[L.rail_group(L.RAIL_COLLECTIONS)].visible, 0 < count <= 3)
-            # Each pill's top and bottom on the screen.
-            pills = []
-            for entry in entries:
-                group, pill = win.made[L.rail_group(entry)], win.made[entry]
-                top = group.position[1] + pill.position[1]
-                pills.append((top, top + pill.height))
-                self.assertEqual(win.made[L.rail_pill(entry)].height, pill.height)
-            for (_, above), (below, _) in zip(pills, pills[1:]):
-                self.assertGreaterEqual(below - above, L.RAIL_GAP, "%d libraries: %s" % (count, pills))
-            # Settings stays where skin.py puts it, its pill as tall as the others' (a 100 one
-            # under pills of 64 looked out of place).
-            self.assertEqual(win.made[L.rail_group(L.RAIL_SETTINGS)].position, (0, L.RAIL_SETTINGS_Y - 50))
-            self.assertEqual(len({bottom - top for top, bottom in pills}), 1, pills)
-            # The icons (40 tall) still fit their pills.
-            self.assertGreaterEqual(min(bottom - top for top, bottom in pills), 60, count)
-            # Few libraries keep the rail as it was.
-            if count <= 2:
-                self.assertEqual(win.made[L.rail_group(L.RAIL_PLAYLISTS)].position[1], L.RAIL_TOP + (2 + count) * L.RAIL_PITCH - 50)
+        # Entries 80 tall and 8 apart (the other TV apps' 40 and 4), nine of them over Settings.
+        self.assertEqual((L.RAIL_ROW, L.RAIL_PITCH, L.RAIL_FIT), (80, 88, 9))
+        avatar_foot = L.RAIL_AVATAR_Y + 50
+        for live in (False, True):
+            for count in range(9):
+                win = FakeWindow()
+                win.libraries = [{"id": i, "name": "Library %d" % i, "kind": "movies"} for i in range(count)]
+                win.live = {"available": live}
+                win.setup_rail()
+                # As on Android TV (RailItems.kt), the libraries, then Libraries in Collections' place
+                # when the rail can't list them all: at least four, and five while nine entries fit
+                # (Search, Home, Libraries and Playlists around them); no Collections without a library.
+                shown = min(count, 4 if live else 5)
+                more = count > shown
+                top = [L.RAIL_SEARCH, L.RAIL_HOME] + ([L.RAIL_LIVE] if live else [])
+                if more:
+                    entries = top + [*L.RAIL_LIBRARIES[:shown], L.RAIL_ALL_LIBRARIES, L.RAIL_PLAYLISTS]
+                else:
+                    entries = top + [*L.RAIL_LIBRARIES[:count], L.RAIL_PLAYLISTS] + ([L.RAIL_COLLECTIONS] if count else [])
+                self.assertEqual(window.rail_entries(count, live), entries)
+                self.assertEqual(window.rail_shown(count, live), shown)
+                for i, entry in enumerate(L.RAIL_LIBRARIES):
+                    self.assertEqual(win.made[L.rail_group(entry)].visible, i < shown, (live, count, i))
+                self.assertEqual(win.made[L.rail_group(L.RAIL_ALL_LIBRARIES)].visible, more)
+                self.assertEqual(win.made[L.rail_group(L.RAIL_COLLECTIONS)].visible, 0 < count == shown)
+                # Each pill's top and bottom on the screen.
+                pills = []
+                for entry in entries + [L.RAIL_SETTINGS]:
+                    group, pill = win.made[L.rail_group(entry)], win.made[entry]
+                    top_ = group.position[1] + pill.position[1]
+                    pills.append((top_, top_ + pill.height))
+                    self.assertEqual(win.made[L.rail_pill(entry)].height, pill.height)
+                self.assertGreaterEqual(pills[0][0] - avatar_foot, L.RAIL_GAP, "under the avatar")
+                for (_, above), (below, _) in zip(pills, pills[1:]):
+                    self.assertGreaterEqual(below - above, L.RAIL_GAP, "%d libraries: %s" % (count, pills))
+                # Settings stays where skin.py puts it, its foot on the safe area's.
+                self.assertEqual(win.made[L.rail_group(L.RAIL_SETTINGS)].position, (0, L.RAIL_SETTINGS_Y - L.RAIL_ROW // 2))
+                self.assertEqual(pills[-1][1], L.HEIGHT - L.SAFE_Y)
+                # Every entry at full height: none smaller than the others.
+                self.assertEqual({bottom - top_ for top_, bottom in pills}, {L.RAIL_ROW}, pills)
+                # From Search down, a pitch apart.
+                self.assertEqual(win.made[L.rail_group(entries[-1])].position[1], L.RAIL_TOP + (len(entries) - 1) * L.RAIL_PITCH - L.RAIL_ROW // 2)
+        # Too many entries for their places close up, as before, the pills still apart.
+        self.assertEqual(L.rail_pitch(L.RAIL_FIT + 1), (L.RAIL_SETTINGS_Y - L.RAIL_TOP) // (L.RAIL_FIT + 1))
+        self.assertEqual(L.rail_row(L.rail_pitch(L.RAIL_FIT + 1)), L.rail_pitch(L.RAIL_FIT + 1) - L.RAIL_GAP)
+
+    def test_a_library_past_the_rail_marks_libraries(self):
+        libraries = [{"id": i, "name": "Library %d" % i, "kind": "movies"} for i in range(6)]
+        self.assertEqual(window.library_rail(libraries, 4), "lib4")
+        self.assertEqual(window.library_rail(libraries, 5), "libraries")
+        # With Live TV in the rail, four libraries.
+        self.assertEqual(window.library_rail(libraries, 3, live=True), "lib3")
+        self.assertEqual(window.library_rail(libraries, 4, live=True), "libraries")
+        self.assertEqual(window.library_rail(libraries, 9), "home")
+        # Live TV coming takes the fifth library's place: its page marks Libraries, focus goes there.
+        win = FakeWindow()
+        win.libraries = libraries
+        page = window.Library(win, libraries[4], None)
+        win.screen = page
+        self.assertEqual(page.rail, "lib4")
+        self.assertEqual(win.rail_entry("lib4"), L.RAIL_LIBRARIES[4])
+        win.take_libraries(libraries, live={"available": True})
+        self.assertEqual(page.rail, "libraries")
+        self.assertEqual(win.rail_entry("lib4"), L.RAIL_HOME)
+        self.assertFalse(win.made[L.rail_group(L.RAIL_LIBRARIES[4])].visible)
+        self.assertTrue(win.made[L.rail_group(L.RAIL_ALL_LIBRARIES)].visible)
 
     def test_the_libraries_page(self):
-        # Five libraries: the rail has three, and Libraries all of them (TvLibrariesScreen).
+        # Six libraries: the rail has five, and Libraries all of them (TvLibrariesScreen).
         listed = [
             {"id": 1, "name": "Movies", "kind": "movies", "item_count": 1234},
             {"id": 2, "name": "TV Shows", "kind": "shows", "item_count": 1},
             {"id": 3, "name": "Music", "kind": "music", "item_count": 40},
             {"id": 4, "name": "Documentaries", "kind": "movies", "item_count": 12, "scanning": True},
             {"id": 5, "name": "Anime", "kind": "shows"},
+            {"id": 6, "name": "Concerts", "kind": "movies", "item_count": 3},
         ]
 
         class Server:
@@ -767,13 +801,17 @@ class WindowTest(unittest.TestCase):
             ("Music", "40 artists"),
             ("Documentaries", "12 movies · " + window.T("scanning_now")),
             ("Anime", ""),
+            ("Concerts", "3 movies"),
         ])
         self.assertEqual(cards.items[2].properties["icon"], "icon-music.png")
         self.assertEqual(win.focused, L.LIBRARIES_LIST)
-        # A card opens its library; past the rail's three, its page marks Libraries.
+        # A card opens its library; past the rail's five, its page marks Libraries.
+        cards.selectItem(5)
+        page.click(L.LIBRARIES_LIST)
+        self.assertEqual((win.opened[-1].library["name"], win.opened[-1].rail), ("Concerts", "libraries"))
         cards.selectItem(3)
         page.click(L.LIBRARIES_LIST)
-        self.assertEqual((win.opened[-1].library["name"], win.opened[-1].rail), ("Documentaries", "libraries"))
+        self.assertEqual(win.opened[-1].rail, "lib3")
         cards.selectItem(1)
         page.click(L.LIBRARIES_LIST)
         self.assertEqual(win.opened[-1].rail, "lib1")
@@ -781,7 +819,7 @@ class WindowTest(unittest.TestCase):
         with Dialogs(picks=[2]) as asked:
             page.menu(L.LIBRARIES_LIST)
         self.assertEqual(asked.shown[0][0], [window.T("open"), window.T("move_up"), window.T("move_down"), window.T("server_order")])
-        self.assertEqual(server.orders[-1], [1, 3, 2, 4, 5])
+        self.assertEqual(server.orders[-1], [1, 3, 2, 4, 5, 6])
         self.assertEqual([c.label for c in cards.items[:3]], ["Movies", "Music", "TV Shows"])
         self.assertEqual(cards.getSelectedPosition(), 2)
         self.assertEqual(win.made[L.rail_labels(L.RAIL_LIBRARIES[1])[0]].label, "Music")
@@ -795,22 +833,22 @@ class WindowTest(unittest.TestCase):
         with Dialogs(picks=[-1]) as asked:
             page.click(L.LIBRARIES_SORT)
         self.assertEqual(asked.shown[0][0], [lib["name"] for lib in listed] + [window.T("server_order")])
-        # The rail's third library moved down goes to Libraries, and focus with it.
+        # The rail's fifth library moved down goes to Libraries, and focus with it.
         with Dialogs(picks=[1]):
-            win.library_menu(L.RAIL_LIBRARIES[2])
-        self.assertEqual(server.orders[-1], [1, 2, 4, 3, 5])
+            win.library_menu(L.RAIL_LIBRARIES[4])
+        self.assertEqual(server.orders[-1], [1, 2, 3, 4, 6, 5])
         self.assertEqual(win.focused, L.RAIL_ALL_LIBRARIES)
-        self.assertEqual(cards.items[3].label, "Music")
+        self.assertEqual(cards.items[5].label, "Anime")
         # A scan's counts reach the page; the rail stays as it is.
         win.session.details = {}
         win.session.lock = window.threading.Lock()
         server.listed = [dict(server.listed[0], item_count=1235)] + server.listed[1:]
         win.changed()
         self.assertEqual(cards.items[0].label2, "1,235 movies")
-        # Down to three libraries: Collections is back, Libraries gone, and the page marks Home.
-        server.listed = server.listed[:3]
+        # Down to five libraries: Collections is back, Libraries gone, and the page marks Home.
+        server.listed = server.listed[:5]
         win.changed()
-        self.assertEqual(len(cards.items), 3)
+        self.assertEqual(len(cards.items), 5)
         self.assertEqual(page.rail, "home")
         self.assertFalse(win.made[L.rail_group(L.RAIL_ALL_LIBRARIES)].visible)
         self.assertTrue(win.made[L.rail_group(L.RAIL_COLLECTIONS)].visible)

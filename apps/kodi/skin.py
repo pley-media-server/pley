@@ -567,6 +567,10 @@ def rail() -> list:
             ],
         )
     )
+    # Each entry's group is a pill tall; the window places them (setup_rail),
+    # and the icon and name stay in its middle when it makes pills shorter.
+    row = L.RAIL_ROW
+    middle = (row - 40) // 2
     y = L.RAIL_TOP
     for entry, key, icon, text in entries:
         if entry == L.RAIL_SETTINGS:
@@ -579,19 +583,19 @@ def rail() -> list:
             group(
                 L.rail_group(entry),
                 0,
-                y - 50,
+                y - row // 2,
                 544,
-                100,
+                row,
                 [
-                    image(8, 0, 528, 100, "round12.png", id_=L.rail_pill(entry), color=L.SURFACE3, border=14, visible=opened + " + " + current + " + !" + focused),
-                    image(16, 30, 8, 40, "round4.png", color=L.ACCENT, border=4, visible="!" + opened + " + " + current),
-                    button(entry, 8, 0, 528, 100, "round12.png", None, animations=[anim("Focus", ZOOM_PILL)], navigation=links(entry)),
-                    image(48, 30, 40, 40, icon, id_=rest_icon, color=L.MUTED, visible="!%s + !%s" % (focused, current)),
-                    image(48, 30, 40, 40, icon, id_=current_icon, color=L.FG, visible="!%s + %s" % (focused, current)),
-                    image(48, 30, 40, 40, icon, id_=focus_icon, color=L.ON_ACCENT, visible=focused),
-                    label(113, 0, 400, 100, L.FONT_BODY_LARGE, L.MUTED, text, id_=rest_label, visible="%s + !%s + !%s" % (opened, focused, current), animations=fades(150)),
-                    label(113, 0, 400, 100, L.FONT_BODY_LARGE, L.FG, text, id_=current_label, visible="%s + !%s + %s" % (opened, focused, current), animations=fades(150)),
-                    label(113, 0, 400, 100, L.FONT_BODY_LARGE, L.ON_ACCENT, text, id_=focus_label, visible=focused),
+                    image(8, 0, 528, row, "round12.png", id_=L.rail_pill(entry), color=L.SURFACE3, border=14, visible=opened + " + " + current + " + !" + focused),
+                    image(16, middle, 8, 40, "round4.png", color=L.ACCENT, border=4, visible="!" + opened + " + " + current),
+                    button(entry, 8, 0, 528, row, "round12.png", None, animations=[anim("Focus", ZOOM_PILL)], navigation=links(entry)),
+                    image(48, middle, 40, 40, icon, id_=rest_icon, color=L.MUTED, visible="!%s + !%s" % (focused, current)),
+                    image(48, middle, 40, 40, icon, id_=current_icon, color=L.FG, visible="!%s + %s" % (focused, current)),
+                    image(48, middle, 40, 40, icon, id_=focus_icon, color=L.ON_ACCENT, visible=focused),
+                    label(113, 0, 400, row, L.FONT_BODY_LARGE, L.MUTED, text, id_=rest_label, visible="%s + !%s + !%s" % (opened, focused, current), animations=fades(150)),
+                    label(113, 0, 400, row, L.FONT_BODY_LARGE, L.FG, text, id_=current_label, visible="%s + !%s + %s" % (opened, focused, current), animations=fades(150)),
+                    label(113, 0, 400, row, L.FONT_BODY_LARGE, L.ON_ACCENT, text, id_=focus_label, visible=focused),
                 ],
             )
         )
