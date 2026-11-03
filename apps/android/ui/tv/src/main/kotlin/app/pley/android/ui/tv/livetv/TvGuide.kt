@@ -30,6 +30,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +40,7 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -97,7 +99,12 @@ import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.initialFocus
 import java.util.Calendar
+import kotlin.coroutines.resume
+import kotlin.math.abs
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.math.roundToInt
 
 /**
@@ -216,6 +223,8 @@ internal fun TvGuide(
             .collect { (first, last) -> vm.showingRows(first, last) }
     }
     val skeleton = rememberSkeleton(animated = false)
+    val fill = remember { RowFill() }
+    LaunchedEffect(fill) { fill.run { focus.row } }
 
     Column(modifier.testTag(TV_LIVE_GUIDE)) {
         val name = remember(channel, category) { channel?.let { LiveTv.channelName(it, category) } }
@@ -353,6 +362,8 @@ internal fun TvGuide(
                         now = nowAt,
                         clock = clock,
                         rowFocused = rowFocused,
+                        index = index,
+                        fill = fill,
                     )
                 }
             }
@@ -523,6 +534,9 @@ internal data class CellLook(
  * every 15 s, which drew every row again.
  */
 internal data class RowCells(val cells: List<CellLook>, val blank: Boolean, val blankFocused: Boolean) {
+    /** Focus is in the row: drawn again at once as it leaves, never two rows showing it. */
+    val hasFocus: Boolean get() = blankFocused || cells.any { it.focused }
+
     companion object {
         /**
          * The row of [programs] with the grid at [left] (the guide starting
@@ -550,9 +564,11 @@ internal data class RowCells(val cells: List<CellLook>, val blank: Boolean, val 
 }
 
 /**
- * One channel's row: its cell, and its programmes on a layer that slides
- * with the grid, the one with focus filled with the accent. Drawn again
- * only when [cells] or the focus change; the bars of what airs follow the
+ * One channel's row ([index] of the list): its cell, and its programmes on
+ * a layer that slides with the grid, the one with focus filled with the
+ * accent. Drawn again only when [cells] or the focus change, and then in
+ * its turn ([fill]) but for focus coming to the row or leaving it; coming
+ * into view, it shows its channel first. The bars of what airs follow the
  * time ([now]) as they are drawn.
  */
 @Composable
@@ -567,7 +583,20 @@ private fun GuideRow(
     now: () -> Long,
     clock: (Long) -> String,
     rowFocused: Boolean,
+    index: Int,
+    fill: RowFill,
 ) {
+    // What the row last drew (not state: kept as it is drawn, it composes nothing), and what its turn let it draw.
+    val last = remember { arrayOfNulls<RowCells>(1) }
+    var turned by remember { mutableStateOf<RowCells?>(null) }
+    val drawn = if (rowFocused || last[0]?.hasFocus == true || turned == cells) cells else last[0]
+    if (drawn != cells) {
+        LaunchedEffect(cells) {
+            fill.turn(index)
+            turned = cells
+        }
+    }
+    SideEffect { last[0] = drawn }
     Row(
         Modifier
             .fillMaxWidth()
@@ -576,23 +605,56 @@ private fun GuideRow(
     ) {
         ChannelCell(channel, name, origin, rowFocused)
         Box(Modifier.weight(1f).fillMaxHeight().padding(end = TvSafeArea.Horizontal).clipToBounds()) {
-            if (cells.blank) {
+            if (drawn?.blank == true) {
                 val label = if (channel.hasGuide) stringResource(R.string.tv_livetv_no_info) else name
                 Box(
                     Modifier
                         .fillMaxSize()
                         .padding(vertical = 4.dp, horizontal = CELL_INSET_X)
-                        .background(if (cells.blankFocused) PleyColors.Accent else PleyColors.Surface.copy(alpha = 0.6f), PleyShape.Control)
+                        .background(if (drawn.blankFocused) PleyColors.Accent else PleyColors.Surface.copy(alpha = 0.6f), PleyShape.Control)
                         .padding(start = 12.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    BasicText(label, style = PleyType.Tv.Caption.copy(color = if (cells.blankFocused) PleyColors.OnAccent else PleyColors.Subtle))
+                    BasicText(label, style = PleyType.Tv.Caption.copy(color = if (drawn.blankFocused) PleyColors.OnAccent else PleyColors.Subtle))
                 }
             }
-            Box(Modifier.strip(x).fillMaxHeight()) {
-                for (cell in cells.cells) {
-                    key(cell.start) { ProgramCell(cell, start, pxPerSecond, now, clock) }
+            if (drawn != null) {
+                Box(Modifier.strip(x).fillMaxHeight()) {
+                    for (cell in drawn.cells) {
+                        key(cell.start) { ProgramCell(cell, start, pxPerSecond, now, clock) }
+                    }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * The rows' turns to draw what changed in them (Samsung's catch-up): a
+ * guide answer filling a screen of rows drew them all, cells and texts, in
+ * one frame, which dropped frames on weak TVs. A row waits its [turn];
+ * each frame [ROWS_PER_FRAME] of those waiting draw, the nearest the
+ * focused row first ([run]). Made and used on the main thread.
+ */
+@Stable
+private class RowFill {
+    private val waiting = HashMap<Int, CancellableContinuation<Unit>>()
+    private val asked = Channel<Unit>(Channel.CONFLATED)
+
+    /** Returns once row [index] may draw. */
+    suspend fun turn(index: Int) = suspendCancellableCoroutine { turn ->
+        waiting.put(index, turn)?.cancel()
+        turn.invokeOnCancellation { if (waiting[index] === turn) waiting.remove(index) }
+        asked.trySend(Unit)
+    }
+
+    /** Gives the rows waiting their turns, a frame at a time, nearest [focus] first, for as long as the guide shows. */
+    suspend fun run(focus: () -> Int) {
+        for (ignored in asked) {
+            while (waiting.isNotEmpty()) {
+                withFrameNanos { }
+                val row = focus()
+                waiting.keys.sortedBy { abs(it - row) }.take(ROWS_PER_FRAME).forEach { waiting.remove(it)?.resume(Unit) }
             }
         }
     }
@@ -748,6 +810,9 @@ private const val TITLE_ROOM_S = 25 * 60L
 
 /** An ended programme's cell, text and fill, at this much of its colours. */
 private const val PAST_ALPHA = 0.55f
+
+/** Rows drawing what changed in them each frame, the rest waiting their turn ([RowFill]). */
+private const val ROWS_PER_FRAME = 2
 
 /** How tall an airing programme's bar is, along its cell's foot. */
 private val BAR_HEIGHT = 2.dp

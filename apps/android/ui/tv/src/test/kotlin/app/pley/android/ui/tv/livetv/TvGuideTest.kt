@@ -18,6 +18,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -50,6 +51,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -205,6 +207,28 @@ class TvGuideTest {
             val rows = (top - firstRow).value / 52f
             assertEquals(name, rows.roundToInt().toFloat(), rows, 0.05f)
         }
+    }
+
+    @Test
+    fun `an answer for a screen of rows draws them over a few frames, the focused row first`() {
+        live.lineup.value = (1L..20L).map { LiveChannel(it, name = "Channel $it", number = "$it", hasGuide = true) }
+        show()
+        val start = vm.guideStart
+        compose.mainClock.autoAdvance = false
+        for (chunk in live.guides.keys) {
+            val programs = (1L..20L).associateWith { id -> listOf(LiveProgram(id, start, start + 90 * 60, "On $id")) }
+            live.guideChunk(chunk).value = Loadable.Ready(LiveGuide(chunk, chunk + LiveTvRepository.GUIDE_CHUNK_S, programs), fresh = true)
+        }
+        fun shows(title: String) = compose.onAllNodesWithContentDescription("$title,", substring = true).fetchSemanticsNodes().isNotEmpty()
+        // The focused row as the answer is in, the rows far from it not yet.
+        var frames = 0
+        while (!shows("On 1") && frames++ < 10) compose.mainClock.advanceTimeByFrame()
+        assertTrue(shows("On 1"))
+        assertFalse(shows("On 7"))
+        // Two rows a frame, nearest first: in a few frames, all in view.
+        compose.mainClock.advanceTimeBy(160)
+        assertTrue(shows("On 2"))
+        assertTrue(shows("On 7"))
     }
 
     private companion object {

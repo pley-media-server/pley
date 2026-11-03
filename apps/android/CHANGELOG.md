@@ -50,6 +50,10 @@ describes how they are made.
 - Under a held Up or Down the TV guide's channels keep up with focus, a
   row at a time, where each repeat began their scroll again; it opens on
   the channel last watched without scrolling there.
+- When the TV guide's programmes come in for a screen of channels, the
+  channel with focus shows them at once and the others over the next few
+  frames, nearest first, as on Samsung TVs, rather than all in one long
+  frame.
 
 ### Fixed
 
