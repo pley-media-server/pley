@@ -31,6 +31,9 @@ pub struct Args {
     pub keys: Option<String>,
     /// `--screenshot <file.png>`: after the script, write the frame there and leave.
     pub screenshot: Option<PathBuf>,
+    /// `--screenshot-after <ms>`: take it this long after the script rather than once the frames
+    /// go quiet (a playing video never does).
+    pub screenshot_after: Option<f64>,
     /// `--route <route>`: open a page directly (`home`, `item:12`, `settings:about`…).
     pub route: Option<String>,
     /// `--reduced-motion`: as Settings' Reduce motion.
@@ -58,6 +61,8 @@ pley: Pley for LG TV (the simulator on a computer)
                          yellow blue 0-9, hold:<key>:<ms>, wait:<ms>, text:<chars>,
                          point:<x>,<y> (dp), click, drive:out, drive:in
   --screenshot <file>    after the keys, write the frame as PNG and leave
+  --screenshot-after <ms>
+                         take it this long after the keys, not once the frames go quiet
   --route <route>        open a page: home, item:12, library:3, search:<query>, settings:about,
                          storage[:<folder>]…
   --reduced-motion       as Settings' Reduce motion
@@ -89,6 +94,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Args>, Str
             "--size" => out.size = Some(size(&value("--size")?)?),
             "--keys" => out.keys = Some(value("--keys")?),
             "--screenshot" => out.screenshot = Some(PathBuf::from(value("--screenshot")?)),
+            "--screenshot-after" => out.screenshot_after = Some(millis(&value("--screenshot-after")?)?),
             "--route" => out.route = Some(value("--route")?),
             "--reduced-motion" => out.reduced_motion = true,
             "--tier" => out.tier = Some(tier(&value("--tier")?)?),
@@ -108,6 +114,13 @@ fn size(s: &str) -> Result<(u32, u32), String> {
     match (n(w), n(h)) {
         (Some(w), Some(h)) => Ok((w, h)),
         _ => Err(format!("--size wants <w>x<h>, not {s}")),
+    }
+}
+
+fn millis(s: &str) -> Result<f64, String> {
+    match s.trim().parse::<u32>() {
+        Ok(ms) => Ok(f64::from(ms) / 1000.0),
+        Err(_) => Err(format!("--screenshot-after wants milliseconds, not {s}")),
     }
 }
 
@@ -138,6 +151,8 @@ mod tests {
             "down ok",
             "--screenshot",
             "shot.png",
+            "--screenshot-after",
+            "2500",
             "--tier",
             "low",
             "--route",
@@ -153,6 +168,7 @@ mod tests {
         assert_eq!(a.size, Some((1920, 1080)));
         assert_eq!(a.keys.as_deref(), Some("down ok"));
         assert_eq!(a.screenshot, Some(PathBuf::from("shot.png")));
+        assert_eq!(a.screenshot_after, Some(2.5));
         assert_eq!(a.tier, Some(Tier::Low));
         assert_eq!(a.route.as_deref(), Some("item:12"));
         assert_eq!(a.drive, Some(DriveArg::Fixtures));
@@ -166,6 +182,7 @@ mod tests {
         assert!(parse_all(&["--tier", "ultra"]).is_err());
         assert!(parse_all(&["--server"]).is_err());
         assert!(parse_all(&["--drive"]).is_err());
+        assert!(parse_all(&["--screenshot-after", "soon"]).is_err());
         assert!(parse_all(&["--nope"]).is_err());
         assert_eq!(parse_all(&["--help"]), Ok(None));
         // webOS's launch parameters are not options.

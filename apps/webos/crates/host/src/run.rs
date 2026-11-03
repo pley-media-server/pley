@@ -24,7 +24,8 @@ use crate::script;
 /// The capability probe runs this long after the first frame (`PROBE_AFTER_MS`), so the first
 /// Play has it and the start doesn't wait for it.
 const PROBE_AFTER: f64 = 1.0;
-/// A screenshot waits for the frames to settle this long after the script, at most this long.
+/// A screenshot waits for the frames to settle this long after the script, at most this long
+/// (unless `--screenshot-after` sets its time).
 const SETTLE: f64 = 0.8;
 const SETTLE_MAX: f64 = 15.0;
 /// How long leaving waits for the last playback reports to go out.
@@ -361,7 +362,12 @@ pub fn run(
             let quiet = ready && wake_at.is_none_or(|t| t > now + 0.1) && !state.busy() && !drawn.more && !waiting;
             quiet_since = if quiet { quiet_since.or(Some(now)) } else { None };
             let since = script_done_at.or(first_frame).unwrap_or(now);
-            if ready && (quiet_since.is_some_and(|t| now - t >= SETTLE) || now - since > SETTLE_MAX) {
+            // A playing video never goes quiet: `--screenshot-after` takes the shot at a set time.
+            let due = match args.screenshot_after {
+                Some(after) => now - since >= after,
+                None => quiet_since.is_some_and(|t| now - t >= SETTLE) || now - since > SETTLE_MAX,
+            };
+            if ready && due {
                 let frame = platform.read_frame();
                 pley_gfx::screenshot::save_png(path, &frame).map_err(|e| format!("screenshot not written: {e}"))?;
                 println!("wrote {}", path.display());

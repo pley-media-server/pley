@@ -585,7 +585,8 @@ but keeps time, seeks, changes speed, waits and ends as the TV's does.
 | `--size <w>x<h>` | The window's size (1280x720; `1920x1080` for the TV's) |
 | `--route <route>` | Open a page: `home`, `item:12`, `library:3`, `search:<query>`, `settings:about`, `storage` (the drive's top) or `storage:<folder>`… |
 | `--keys "<script>"` | Keys to press once the first page shows: `up down left right ok back menu info play pause playpause stop ff rew next prev chup chdown red green yellow blue`, digits, `hold:<key>:<ms>` (held, repeating as the remote does), `wait:<ms>`, `text:<chars>`, `point:<x>,<y>` (dp), `click`, and `drive:out` and `drive:in` (the drive pulled out and plugged in again) |
-| `--screenshot <file>` | After the keys, write the frame as PNG and leave |
+| `--screenshot <file>` | After the keys (and a `wait:` at their end), once the frames go quiet, write the frame as PNG and leave |
+| `--screenshot-after <ms>` | Take the screenshot this long after the keys instead: a playing video never goes quiet, and otherwise the shot comes 15 s after the last key |
 | `--tier low\|mid\|high` | Act as a TV of that tier |
 | `--reduced-motion` | As Settings' Reduce motion |
 | `--stats` | Print the time to the first frame and the frame times on leaving |

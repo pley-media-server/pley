@@ -118,12 +118,14 @@ pub struct Player {
     repeating: Option<(Key, f64)>,
     /// The drive plugged in (`true`) or pulled out, not yet done.
     drive: Option<bool>,
+    /// Every step played and the last wait over (a `wait:` at the end, the gap after a key).
+    finished: bool,
 }
 
 impl Player {
     /// Plays `steps` from `start`.
     pub fn new(steps: Vec<Step>, start: f64) -> Player {
-        Player { steps, next: 0, at: start, held: None, repeating: None, drive: None }
+        Player { steps, next: 0, at: start, held: None, repeating: None, drive: None, finished: false }
     }
 
     /// Starts playing at `t` (when it hasn't started yet).
@@ -133,9 +135,15 @@ impl Player {
         }
     }
 
-    /// Whether every step was played.
+    /// Whether every step was played and the last wait is over: a `wait:` at the end delays what
+    /// follows the script (a screenshot).
     pub fn done(&self) -> bool {
-        self.held.is_none() && self.repeating.is_none() && self.next >= self.steps.len()
+        self.finished
+    }
+
+    /// Whether steps, or a key's release, are still to come.
+    fn playing(&self) -> bool {
+        self.held.is_some() || self.repeating.is_some() || self.next < self.steps.len()
     }
 
     /// The drive plugged in (`Some(true)`) or pulled out since this was last asked.
@@ -145,13 +153,13 @@ impl Player {
 
     /// When it next has something to do.
     pub fn due(&self) -> Option<f64> {
-        (!self.done()).then_some(self.at)
+        (!self.finished).then_some(self.at)
     }
 
     /// The input due by `now`.
     pub fn take(&mut self, now: f64) -> Vec<InputEvent> {
         let mut out = Vec::new();
-        while !self.done() && now >= self.at {
+        while self.playing() && now >= self.at {
             if let Some(k) = self.held.take() {
                 out.push(InputEvent::Key(KeyEvent { key: k, pressed: false, repeat: false, code: 0 }));
                 self.at = now + GAP;
@@ -209,6 +217,7 @@ impl Player {
                 }
             }
         }
+        self.finished = !self.playing() && now >= self.at;
         out
     }
 }
@@ -294,8 +303,26 @@ mod tests {
         let back = p.take(HOLD + GAP + 1.0);
         assert!(matches!(back[..], [InputEvent::Key(KeyEvent { key: Key::Back, pressed: true, .. })]));
         assert!(!p.done());
+        // Let go, the gap after it, then done.
         p.take(10.0);
+        assert!(!p.done());
+        p.take(10.0 + GAP);
         assert!(p.done());
         assert_eq!(p.due(), None);
+    }
+
+    #[test]
+    fn a_wait_at_the_end_is_waited_for_before_the_script_is_done() {
+        let mut p = Player::new(parse("ok wait:2000").unwrap(), 0.0);
+        p.take(0.0);
+        p.take(HOLD);
+        // The gap after OK, then the wait starts: not done until it is over.
+        p.take(HOLD + GAP);
+        assert!(!p.done());
+        assert_eq!(p.due(), Some(HOLD + GAP + 2.0));
+        p.take(HOLD + GAP + 1.9);
+        assert!(!p.done());
+        p.take(HOLD + GAP + 2.0);
+        assert!(p.done());
     }
 }
