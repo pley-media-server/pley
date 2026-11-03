@@ -18,7 +18,7 @@ libraries. Until then, anyone with the code can claim the server.
 ## What Pley needs
 
 - **One port, TCP 7539**, for the web app, the apps and the
-  [Jellyfin-compatible API](../docs/COMPATIBILITY.md).
+  [Plex- and Jellyfin-compatible APIs](../docs/COMPATIBILITY.md).
 - **A data folder** for the database, artwork and caches. Change it with
   `--data-dir` or `PLEY_DATA_DIR`; back it up
   ([docs/STORAGE.md](../docs/STORAGE.md)).
