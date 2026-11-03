@@ -223,7 +223,7 @@ are set up in the web app's Settings → Live TV ([API.md](API.md#live-tv)).
   or cards) and the last channel are kept per server and profile.
 - **Search** looks across every channel by name, number or what's on, and
   offers the groups whose names match. The app's own search has a Live TV
-  row too.
+  row too, which moves as the other rows do.
 - **Paging:** channels come 100 at a time (`GET /api/live/browse`), and the
   guide asks only for the rows in view, six hours at a time, so a lineup of
   50,000 channels opens at once.

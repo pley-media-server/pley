@@ -41,7 +41,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
@@ -90,6 +89,7 @@ import app.pley.android.ui.tv.kit.TvRow
 import app.pley.android.ui.tv.kit.TvRowColumn
 import app.pley.android.ui.tv.kit.TvScrolling
 import app.pley.android.ui.tv.kit.TvTextButton
+import app.pley.android.ui.tv.kit.TvTileRow
 import app.pley.android.ui.tv.kit.WithinMotion
 import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.kit.keptWithin
@@ -316,11 +316,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.channelRow(
 /**
  * The Live TV channels found (the web's ChannelResults), as Live TV's
  * channel tiles: the logo with the number and how far what's on is,
- * captioned with the name and what's on. Select plays the channel.
+ * captioned with the name and what's on. Select plays the channel. The
+ * row moves as the others do ([TvTileRow]), as Samsung's channel row
+ * glides to the gutter.
  */
 @Composable
 private fun ChannelRow(channels: List<LiveChannel>, origin: String, memory: FocusMemory, onWatch: (LiveChannel) -> Unit) {
-    val rail = LocalTvRailFocus.current
     val now by produceState(System.currentTimeMillis() / 1000) {
         while (true) {
             delay(NOW_TICK_MS)
@@ -334,28 +335,24 @@ private fun ChannelRow(channels: List<LiveChannel>, origin: String, memory: Focu
             maxLines = 1,
             modifier = Modifier.padding(start = PleyTv.Gutter, end = TvSafeArea.Horizontal).semantics { heading() },
         )
-        Spacer(Modifier.height(PleyTv.HeaderToTiles - ChannelBleed))
-        LazyRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(TV_SEARCH_CHANNELS)
-                .railOnLeftStopOnRight(rail)
-                .focusRestorer(),
-            contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeArea.Horizontal + TileKind.Episode.tvWidth, top = ChannelBleed, bottom = ChannelBleed),
-            horizontalArrangement = Arrangement.spacedBy(TileKind.Episode.tvGap),
-        ) {
-            items(channels, key = { it.id }, contentType = { "channel" }) { channel ->
-                ChannelTileCard(
-                    channel = channel,
-                    name = channel.name,
-                    origin = origin,
-                    now = now,
-                    focusModifier = Modifier.rememberedFocus(memory, "$CHANNELS_KEY/${channel.id}"),
-                    onWatch = onWatch,
-                    onDetails = null,
-                    modifier = Modifier.testTag(TV_SEARCH_CHANNEL + channel.id),
-                )
-            }
+        Spacer(Modifier.height(PleyTv.HeaderToTiles))
+        TvTileRow(
+            rowKey = CHANNELS_KEY,
+            items = channels,
+            key = { it.id },
+            kind = TileKind.Episode,
+            modifier = Modifier.testTag(TV_SEARCH_CHANNELS),
+        ) { channel, slot ->
+            ChannelTileCard(
+                channel = channel,
+                name = channel.name,
+                origin = origin,
+                now = now,
+                focusModifier = Modifier.rememberedFocus(memory, "$CHANNELS_KEY/${channel.id}").then(slot),
+                onWatch = onWatch,
+                onDetails = null,
+                modifier = Modifier.testTag(TV_SEARCH_CHANNEL + channel.id),
+            )
         }
     }
 }
@@ -510,9 +507,6 @@ internal const val TV_SEARCH_CHANNEL = "pley.tv.search.channel."
 
 /** The Live TV row's key among the results' rows. */
 private const val CHANNELS_KEY = "Channels"
-
-/** Room above and below the channel tiles for a focused tile's growth and glow. */
-private val ChannelBleed = 16.dp
 
 /** How often what's on a channel found is looked at again. */
 private const val NOW_TICK_MS = 30_000L

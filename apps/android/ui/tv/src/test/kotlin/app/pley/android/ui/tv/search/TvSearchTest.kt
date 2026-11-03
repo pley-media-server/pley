@@ -125,6 +125,21 @@ class TvSearchTest {
     }
 
     @Test
+    fun theChannelRowBringsItsFocusedChannelToTheGutterAsRowsDo() {
+        val groups = listOf(SearchGroup(SearchGroupKind.Movies, listOf(tile(1, "Northern Lights")), listOf(1)))
+        val channels = (1L..12L).map { LiveChannel(id = it, name = "North $it", number = "$it") }
+        show(SearchUiState("north", emptyList(), SearchResultsState.Ready("north", groups, loading = false, channels = channels)))
+        compose.press(Key.DirectionDown, times = 2)
+        compose.press(Key.DirectionRight, times = 3)
+        // The fourth channel, at the gutter, 96 dp in, where the rows' tiles come.
+        assertEquals(96f, compose.onNodeWithTag(TV_SEARCH_CHANNEL + 4).getBoundsInRoot().left.value, 1f)
+        compose.press(Key.DirectionRight)
+        assertEquals(96f, compose.onNodeWithTag(TV_SEARCH_CHANNEL + 5).getBoundsInRoot().left.value, 1f)
+        compose.press(Key.Enter)
+        assertEquals(listOf(5L), watched)
+    }
+
+    @Test
     fun recentSearchesAreChipsUnderTheField() {
         show(SearchUiState("", listOf("north", "halcyon"), SearchResultsState.Idle))
         compose.onNodeWithText("Recent searches").assertExists()

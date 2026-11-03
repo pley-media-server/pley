@@ -254,6 +254,9 @@ describes how they are made.
   doesn't play the file.
 - On Android TV and Fire TV, a subtitle file saved as Unicode (UTF-16)
   beside a USB drive's video reads right, where it came out garbled.
+- On Android TV and Fire TV, Search's Live TV channels move as the other
+  rows do: the channel focused glides to the row's left edge, and a held
+  Left or Right slides the row under a still ring, as on Samsung TVs.
 
 ### Removed
 

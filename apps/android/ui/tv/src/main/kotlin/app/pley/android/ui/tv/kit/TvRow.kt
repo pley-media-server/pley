@@ -265,6 +265,72 @@ fun TvRow(
 class SeeAll(val label: String, val onClick: () -> Unit)
 
 /**
+ * A row of [items] drawn by [tile] rather than as [TvTile]s (search's Live
+ * TV channels), each [kind]'s size, without a header: it moves as a
+ * [TvRow] does ([RowMotion]), its focused tile gliding to the gutter and a
+ * held Left or Right sliding it under a still ring, and in a [TvRowColumn]
+ * the page goes to it as to a row. [tile] puts the slot it is given on its
+ * focusable part (a [TvTileFrame]'s focusModifier), after any focus
+ * memory. [rowKey] is its item key in the column.
+ */
+@Composable
+internal fun <T> TvTileRow(
+    rowKey: String,
+    items: List<T>,
+    key: (T) -> Any,
+    kind: TileKind,
+    modifier: Modifier = Modifier,
+    state: LazyListState = rememberTvRowState(),
+    tile: @Composable (item: T, slot: Modifier) -> Unit,
+) {
+    val density = LocalDensity.current
+    val gate = LocalKeyRepeatGate.current
+    val rail = LocalTvRailFocus.current
+    val column = LocalTvRowColumn.current
+    val scope = rememberCoroutineScope()
+    val motion = remember(state, gate) { RowMotion(state, gate, scope) }
+    motion.measure(density, kind, items.size, reducedMotion())
+    val group = remember { FocusRequester() }
+    if (column != null) {
+        DisposableEffect(column, rowKey) {
+            column.rows[rowKey] = group
+            onDispose { if (column.rows[rowKey] === group) column.rows.remove(rowKey) }
+        }
+    }
+    CompositionLocalProvider(LocalBringIntoViewSpec provides TvScrolling.itself, LocalTileQuiet provides motion.quiet) {
+        LazyRow(
+            state = state,
+            modifier = modifier
+                .fillMaxWidth()
+                .focusRequester(group)
+                .onFocusChanged {
+                    motion.hasFocus = it.hasFocus
+                    if (it.hasFocus) column?.focusedRow = rowKey else column?.left(rowKey)
+                }
+                .bleed(TileBleed)
+                .railOnLeftStopOnRight(rail)
+                .focusRestorer()
+                .onPreviewKeyEvent(motion::onKey)
+                .drawWithCache { motion.drawRing(this, kind) },
+            contentPadding = PaddingValues(start = PleyTv.Gutter, end = TvSafeArea.Horizontal + kind.tvWidth, top = TileBleed, bottom = TileBleed),
+            horizontalArrangement = Arrangement.spacedBy(kind.tvGap),
+        ) {
+            itemsIndexed(items, key = { _, item -> key(item) }, contentType = { _, _ -> kind }) { index, item ->
+                val slot = Modifier
+                    .onFocusChanged {
+                        if (it.hasFocus) {
+                            motion.focused(index)
+                            column?.follow(rowKey, motion.slots.coordinates(index))
+                        }
+                    }
+                    .focusSlot(motion.slots, index)
+                tile(item, slot)
+            }
+        }
+    }
+}
+
+/**
  * A row's scroll state, composing half a screen past its edge: the tiles a
  * slide brings in are made before they show, rather than in the frame they
  * do. [initialFirstVisibleItemIndex] is the tile it opens at.
