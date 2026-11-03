@@ -201,6 +201,113 @@ pub fn takes(e: &VideoDecoder, video: &MediaStream, depth: i64) -> bool {
     true
 }
 
+/// The container a file's extension names, as the TV's rules name it:
+/// lowercase, `mts` as `m2ts` and `mpg` as `mpeg`.
+pub fn container_of(extension: &str) -> String {
+    match extension.to_ascii_lowercase().as_str() {
+        "mts" => "m2ts".into(),
+        "mpg" => "mpeg".into(),
+        other => other.into(),
+    }
+}
+
+/// What the screen gets of `video` played as it is from a `container`
+/// file, by name, as the server words it for direct play
+/// (`video_range_shown` with `Delivery::Direct`, apps/server/src/playback.rs):
+/// "HDR10", "Dolby Vision P8.1", "HDR10 (this screen doesn't show HDR10+)",
+/// "HDR10 (Dolby Vision base layer, as this screen doesn't show Dolby
+/// Vision)", "Dolby Vision P5 not decoded (wrong colours)". With LG's rule
+/// beside the server's: Dolby Vision shows only from the containers in
+/// `dv_containers` (none: any), and from the others the TV plays its base
+/// layer. `None` for SDR video.
+pub fn direct_range_shown(
+    video: &MediaStream,
+    caps: &ClientCaps,
+    container: &str,
+    dv_containers: Option<&[String]>,
+) -> Option<String> {
+    let range = range_of(Some(video));
+    if !matches!(range, DynamicRange::Hdr10 | DynamicRange::Hdr10Plus | DynamicRange::Hlg | DynamicRange::DolbyVision) {
+        return None;
+    }
+    let shows_hdr10plus = caps.shows(DynamicRange::Hdr10Plus) || !caps.is_v2();
+    if range != DynamicRange::DolbyVision {
+        return crate::format::dynamic_range_label(Some(range), None, None, None, None, None).map(|label| {
+            if range == DynamicRange::Hdr10Plus && !shows_hdr10plus {
+                "HDR10 (this screen doesn't show HDR10+)".to_string()
+            } else {
+                label
+            }
+        });
+    }
+    let (profile, compat) = (video.dv_profile, video.dv_bl_compat);
+    let container = container.to_ascii_lowercase().replacen("matroska", "mkv", 1);
+    let container = container.split(',').next().unwrap_or("");
+    let shown_from = dv_containers.is_none_or(|list| list.iter().any(|c| c == container));
+    let decodes = decodes_dolby_vision(video, caps);
+    if decodes && shown_from {
+        return crate::format::dynamic_range_label(Some(range), profile, compat, None, video.dv_el.as_deref(), None);
+    }
+    // No base layer of its own: the TV shows it in the wrong colours.
+    if profile == Some(5) || compat == Some(0) {
+        let named = crate::format::dynamic_range_label(Some(range), profile, compat, None, None, None)?;
+        return Some(format!("{named} not decoded (wrong colours)"));
+    }
+    let base = match compat {
+        Some(BL_HLG) => "HLG",
+        Some(BL_SDR) => "SDR",
+        _ if video.hdr10plus == Some(true) && shows_hdr10plus => "HDR10+",
+        _ => "HDR10",
+    };
+    let why = if decodes {
+        format!("this TV doesn't show Dolby Vision from {}", container.to_uppercase())
+    } else {
+        base_layer_why(video, caps)
+    };
+    Some(format!("{base} (Dolby Vision base layer, as {why})"))
+}
+
+/// The TV decodes this Dolby Vision stream as Dolby Vision when it gets it
+/// as it is: a version 2 report that lists the profile, at the stream's
+/// level, with a Dolby Vision screen; a version 1 report that decodes Dolby
+/// Vision (single-layer profiles only).
+fn decodes_dolby_vision(video: &MediaStream, caps: &ClientCaps) -> bool {
+    if !caps.is_v2() {
+        return caps.dolby_vision && video.dv_profile != Some(7);
+    }
+    let profile = video.dv_profile.unwrap_or(0);
+    caps.shows(DynamicRange::DolbyVision)
+        && caps
+            .dolby_vision_profiles
+            .iter()
+            .any(|d| d.profile == profile && video.dv_level.zip(d.max_level).is_none_or(|(level, max)| level <= max))
+}
+
+/// Why a Dolby Vision stream the TV doesn't decode shows as its base layer,
+/// in the server's words: the screen, or the decoders.
+fn base_layer_why(video: &MediaStream, caps: &ClientCaps) -> String {
+    let profile = video.dv_profile.unwrap_or(0);
+    if !caps.is_v2() {
+        return if caps.dolby_vision {
+            format!("this player doesn't decode profile {profile}")
+        } else {
+            "Dolby Vision isn't shown here".to_string()
+        };
+    }
+    if !caps.shows(DynamicRange::DolbyVision) {
+        return if caps.dolby_vision_profiles.is_empty() {
+            "Dolby Vision isn't shown here".to_string()
+        } else {
+            "this screen doesn't show Dolby Vision".to_string()
+        };
+    }
+    let decoder = caps.dolby_vision_profiles.iter().find(|d| d.profile == profile);
+    match decoder.and_then(|d| video.dv_level.zip(d.max_level)) {
+        Some((level, max)) if level > max => format!("level {level} is above this player's {max}"),
+        _ => format!("this player doesn't decode profile {profile}"),
+    }
+}
+
 fn rank(d: &CapsDecision) -> u8 {
     match d {
         CapsDecision::Direct => 0,
@@ -310,6 +417,46 @@ mod tests {
         assert_eq!(decide(&dv(8, 2), &sdr_caps()), CapsDecision::Direct);
         assert_eq!(decide(&dv(8, 4), &hdr10_only), CapsDecision::ServerToneMaps);
         assert_eq!(decide(&dv(8, 1), &sdr_caps()), CapsDecision::ServerToneMaps);
+    }
+
+    #[test]
+    fn what_the_screen_gets_of_a_file_played_as_it_is() {
+        let shown = |f: &MediaFile, caps: &ClientCaps, container: &str, before_25: bool| {
+            let list: Vec<String> = ["mp4", "m4v", "mov", "ts", "m2ts", "mpegts"].map(String::from).to_vec();
+            direct_range_shown(video_of(f).unwrap(), caps, container, before_25.then_some(&list[..]))
+        };
+        let range = |r| file(move |v| v.dynamic_range = Some(r));
+        assert_eq!(shown(&file(|_| {}), &caps(), "mkv", true), None);
+        assert_eq!(shown(&range(DynamicRange::Hdr10), &caps(), "mkv", true).as_deref(), Some("HDR10"));
+        assert_eq!(shown(&range(DynamicRange::Hlg), &caps(), "mkv", true).as_deref(), Some("HLG"));
+        // LG shows no HDR10+.
+        assert_eq!(
+            shown(&range(DynamicRange::Hdr10Plus), &caps(), "mkv", true).as_deref(),
+            Some("HDR10 (this screen doesn't show HDR10+)")
+        );
+        // Dolby Vision decoded from MP4 any time, from MKV from webOS 25.
+        assert_eq!(shown(&dv(8, 1), &caps(), "mp4", true).as_deref(), Some("Dolby Vision P8.1"));
+        assert_eq!(shown(&dv(8, 1), &caps(), "matroska,webm", false).as_deref(), Some("Dolby Vision P8.1"));
+        assert_eq!(
+            shown(&dv(8, 1), &caps(), "mkv", true).as_deref(),
+            Some("HDR10 (Dolby Vision base layer, as this TV doesn't show Dolby Vision from MKV)")
+        );
+        assert_eq!(
+            shown(&dv(5, 0), &caps(), "mkv", true).as_deref(),
+            Some("Dolby Vision P5 not decoded (wrong colours)")
+        );
+        // Profile 7, which no LG decodes: its base layer.
+        assert_eq!(
+            shown(&dv(7, 6), &caps(), "mkv", false).as_deref(),
+            Some("HDR10 (Dolby Vision base layer, as this player doesn't decode profile 7)")
+        );
+        assert_eq!(
+            shown(&dv(8, 4), &sdr_caps(), "mp4", false).as_deref(),
+            Some("HLG (Dolby Vision base layer, as Dolby Vision isn't shown here)")
+        );
+        assert_eq!(container_of("MTS"), "m2ts");
+        assert_eq!(container_of("mpg"), "mpeg");
+        assert_eq!(container_of("Mkv"), "mkv");
     }
 
     #[test]
