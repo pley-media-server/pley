@@ -377,11 +377,20 @@ pub async fn put_network(
     // This computer's address first: pley must listen on the first as it
     // starts, and an adapter's may be gone by then (DHCP, a VPN off).
     listen.web.sort_by_key(|addr| !addr.ip().is_loopback());
+    // DNS names have no case; an adapter chosen twice is chosen once, and
+    // by its name as the system gives it.
+    listen.web_host_name = listen.web_host_name.trim().to_ascii_lowercase();
+    for name in &mut listen.bonjour_adapters {
+        *name = name.trim().to_owned();
+    }
+    listen.bonjour_adapters.sort();
+    listen.bonjour_adapters.dedup();
     listen.check().map_err(AppError::bad_request)?;
     let (now, fixed) = (state.network.wanted(), state.network.fixed);
     if (fixed.web && listen.web != now.web)
         || (fixed.jellyfin && (listen.jellyfin != now.jellyfin || listen.jellyfin_on_web != now.jellyfin_on_web))
         || (fixed.discovery && listen.discovery != now.discovery)
+        || (fixed.bonjour && listen.bonjour != now.bonjour)
     {
         return Err(AppError::bad_request("the command line or the environment sets that: change it there"));
     }
@@ -389,7 +398,7 @@ pub async fn put_network(
         let addresses =
             |list: &[std::net::SocketAddr]| list.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
         tracing::info!(
-            "{} changed where Pley listens: {} (the Jellyfin-compatible API: {}; discovery {})",
+            "{} changed where Pley listens: {} (the Jellyfin-compatible API: {}; discovery {}; Bonjour {})",
             user.username,
             addresses(&listen.web),
             if listen.jellyfin_on_web {
@@ -400,6 +409,7 @@ pub async fn put_network(
                 addresses(&listen.jellyfin)
             },
             if listen.discovery { "on" } else { "off" },
+            if listen.bonjour { "on" } else { "off" },
         );
         state.network.change(listen).await.map_err(|err| AppError::Unavailable(format!("{err:#}")))?;
     }

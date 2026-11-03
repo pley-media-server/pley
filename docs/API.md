@@ -757,7 +757,11 @@ name (at most 63 bytes). The TXT records carry the UDP answer's fields:
 | `version` | the server's version |
 
 The announcement goes out from the adapters with the web addresses that
-are on the local network: private, link-local and Tailscale's addresses.
+are on the local network: private, link-local and Tailscale's addresses,
+or only those of them an administrator chooses (`bonjour_adapters`), so a
+server that is also on a VPN, a container or virtual machine network, or a
+guest Wi-Fi isn't announced there. Each adapter announces only its own
+addresses.
 On `0.0.0.0` that is every IPv4 adapter; on `[::]`, every IPv4 and IPv6
 adapter, since the server takes both there (on Windows, `[::]` is IPv6
 only, and so is the announcement). It follows a rename, and says goodbye
@@ -768,13 +772,16 @@ through its public endpoint (`GET /api/server`, [Public endpoints](#public-endpo
 and its sign-in endpoints before it trusts it.
 
 The web app is announced as well, as `_http._tcp` with the same instance
-name, on the host name `pley.local`, so a browser on the local network
-opens it at `http://pley.local:7539`. If another device already answers
-to `pley.local`, the server withdraws that announcement and is reached
-by its own host name (`pley-` and the id's start, `.local`) instead.
+name, on the host name `pley.local` (`web_host_name`: another name, or
+none), so a browser on the local network opens it at
+`http://pley.local:7539`. If another device already answers to that
+name, the server withdraws that announcement and is reached by its own
+host name (`pley-` and the id's start, `.local`) instead.
 
-Administrators turn both off in Settings → Network (`discovery`) or with
-`--no-discovery` (`PLEY_NO_DISCOVERY`).
+Administrators turn the UDP answer off in Settings → Network
+(`discovery`), Bonjour off there too (`bonjour`) or with `--no-bonjour`
+(`PLEY_NO_BONJOUR`), and both with `--no-discovery`
+(`PLEY_NO_DISCOVERY`).
 
 **Finding the sign-in endpoints.**
 `GET /.well-known/oauth-authorization-server` (RFC 8414) says where
@@ -3589,7 +3596,7 @@ interface LiveTuner {                  // a connection in use
 | POST | `/api/settings/arr` | `admin` | `{ service: "radarr" \| "sonarr", url?, api_key? }` → `ArrOptions`: what Radarr or Sonarr offers requests |
 | POST | `/api/fs` | `admin` | `{ path? }` → `{ path: string \| null, parent: string \| null, entries: { name, path }[] }`: directories only (`path` left out: roots and drives). A POST, as a GET over plain HTTP could be another site's link ([SECURITY.md](../SECURITY.md#sessions)) |
 | GET | `/api/network` | `admin` | `Network`: where Pley listens, and could |
-| PUT | `/api/network` | `admin` | `{ web, jellyfin, jellyfin_on_web?, discovery }` → `Network` |
+| PUT | `/api/network` | `admin` | `{ web, jellyfin, jellyfin_on_web?, discovery, bonjour?, bonjour_adapters?, web_host_name? }` → `Network` |
 
 - **`transcode-dir`** is saved in the config file for the next start
   (`null`, or the default folder, removes `transcode_dir`). `400` for a
@@ -3670,8 +3677,14 @@ interface Network {
   jellyfin_on_web: boolean; // the Jellyfin-compatible API answers its apps on Pley's port;
                           // never with addresses in `jellyfin`
   discovery: boolean;     // answer Pley's apps on the networks (never on loopback addresses)
-  fixed: { web: boolean; jellyfin: boolean; discovery: boolean }; // set by --bind/PLEY_BIND,
-                          // --jellyfin-bind/PLEY_JELLYFIN_BIND, --no-discovery
+  bonjour: boolean;       // announce Pley by Bonjour (off when a change leaves it out)
+  bonjour_adapters: string[]; // the adapters it is announced on, by name: [] = every one
+                          // Pley listens on; 32 at most
+  web_host_name: string;  // the web app's name, "pley" for pley.local: one DNS label
+                          // (letters, digits, hyphens, 63 at most), "" = none
+  fixed: { web: boolean; jellyfin: boolean; discovery: boolean; bonjour: boolean }; // set by
+                          // --bind/PLEY_BIND, --jellyfin-bind/PLEY_JELLYFIN_BIND, --no-discovery,
+                          // --no-bonjour (or --no-discovery)
   listeners: { kind: "web" | "jellyfin" | "discovery"; address: string; error: string | null }[];
                           // error: why not (yet); tried again every 30 s
   adapters: { name: string; description: string | null; up: boolean; addresses: string[]; // IPv4, no loopback

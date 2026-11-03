@@ -1,7 +1,8 @@
 //! Where pley listens, which an administrator can change while it runs
 //! (Settings → Network): the web app and its API on each address chosen, the
 //! Jellyfin-compatible API on its own, and discovery (UDP, on the web port) on
-//! the web addresses other devices can reach. An address no longer chosen
+//! the web addresses other devices can reach, and the Bonjour announcement
+//! (see [`crate::bonjour`]). An address no longer chosen
 //! closes and a new one opens; one pley can't listen on yet (an adapter that
 //! comes later: Wi-Fi, a VPN) is tried again until it can. The choice is
 //! saved in the config file, but what the command line or the environment
@@ -43,9 +44,22 @@ pub struct Listen {
     /// requests told apart from the web app's (see [`crate::jellyfin::on_web_port`]).
     #[serde(default)]
     pub jellyfin_on_web: bool,
-    /// Answer the pley apps looking for servers on the local network, and
-    /// announce pley there by Bonjour (see [`crate::bonjour`]).
+    /// Answer the pley apps looking for servers on the local network (UDP).
     pub discovery: bool,
+    /// Announce pley on the local network by Bonjour (see [`crate::bonjour`]).
+    /// Off when a change leaves it out.
+    #[serde(default)]
+    pub bonjour: bool,
+    /// The network adapters Bonjour announces from, by name ("Ethernet",
+    /// "en0"): every adapter on the local network that the web app listens
+    /// on when empty. With several networks (a VPN, a container bridge, a
+    /// guest Wi-Fi), the ones chosen only.
+    #[serde(default)]
+    pub bonjour_adapters: Vec<String>,
+    /// The web app's name on the local network, `{name}.local`, which Bonjour
+    /// announces: none when empty.
+    #[serde(default)]
+    pub web_host_name: String,
 }
 
 impl Listen {
@@ -55,6 +69,9 @@ impl Listen {
             jellyfin: config.jellyfin_bind.into_iter().chain(config.jellyfin_extra_binds.iter().copied()).collect(),
             jellyfin_on_web: config.jellyfin_on_web,
             discovery: config.discovery,
+            bonjour: config.bonjour,
+            bonjour_adapters: config.bonjour_adapters.clone(),
+            web_host_name: config.web_host_name.clone(),
         }
     }
 
@@ -82,6 +99,13 @@ impl Listen {
         if self.web.len() > MAX_ADDRESSES || self.jellyfin.len() > MAX_ADDRESSES {
             return Err(format!("{MAX_ADDRESSES} addresses at most"));
         }
+        if self.bonjour_adapters.len() > MAX_ADDRESSES {
+            return Err(format!("{MAX_ADDRESSES} network adapters at most"));
+        }
+        if let Some(name) = self.bonjour_adapters.iter().find(|name| !crate::bonjour::adapter_name_ok(name)) {
+            return Err(format!("{name:?} isn't a network adapter's name"));
+        }
+        crate::bonjour::check_host_name(&self.web_host_name)?;
         let all: Vec<SocketAddr> = self.web.iter().chain(&self.jellyfin).copied().collect();
         for (i, addr) in all.iter().enumerate() {
             if addr.port() == 0 {
@@ -113,6 +137,8 @@ pub struct Fixed {
     pub jellyfin: bool,
     /// `--no-discovery`, `PLEY_NO_DISCOVERY`.
     pub discovery: bool,
+    /// `--no-bonjour`, `PLEY_NO_BONJOUR`, or `--no-discovery`.
+    pub bonjour: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
@@ -682,6 +708,9 @@ mod tests {
             jellyfin: jellyfin.iter().map(|a| a.parse().unwrap()).collect(),
             jellyfin_on_web: false,
             discovery,
+            bonjour: false,
+            bonjour_adapters: Vec::new(),
+            web_host_name: String::new(),
         }
     }
 
@@ -713,6 +742,29 @@ mod tests {
         assert_eq!(covered, "0.0.0.0:7539 and 192.168.1.10:7539 can't both have port 7539");
         assert!(listen(&["127.0.0.1:7539"], &["0.0.0.0:7539"], true).check().is_err(), "one port for both APIs");
         assert!(listen(&["127.0.0.1:7539"], &["192.168.1.10:7539"], true).check().is_ok(), "other addresses");
+    }
+
+    #[test]
+    fn bonjour_takes_adapters_and_a_host_name_it_can_announce() {
+        let ok = |adapters: &[&str], host: &str| {
+            let mut l = listen(&["0.0.0.0:7539"], &[], true);
+            l.bonjour = true;
+            l.bonjour_adapters = adapters.iter().map(|&a| a.to_owned()).collect();
+            l.web_host_name = host.into();
+            l.check()
+        };
+        assert!(ok(&[], "pley").is_ok());
+        assert!(ok(&["Ethernet", "Wi-Fi 2", "en0"], "media-room").is_ok());
+        assert!(ok(&[], "").is_ok(), "no name for the web app");
+        assert!(ok(&[""], "pley").is_err(), "an empty name");
+        assert!(ok(&["eth0\n"], "pley").is_err(), "a control character");
+        assert!(ok(&["x".repeat(257).as_str()], "pley").is_err(), "too long");
+        let many: Vec<String> = (0..=MAX_ADDRESSES).map(|i| format!("eth{i}")).collect();
+        assert!(ok(&many.iter().map(String::as_str).collect::<Vec<_>>(), "pley").is_err(), "too many");
+        assert!(ok(&[], "pley.local").is_err(), "one label");
+        assert!(ok(&[], "-pley").is_err());
+        assert!(ok(&[], "pley_tv").is_err());
+        assert!(ok(&[], &"a".repeat(64)).is_err());
     }
 
     #[test]

@@ -13,13 +13,17 @@ describes how they are made.
 
 - The server announces itself on the local network by Bonjour
   (`_pley._tcp`) too, with its id, name and version, so Apple's devices can
-  find it. It follows the discovery switch (`--no-discovery`, Settings →
-  Network, the Windows installer's checkbox) and a rename, and goes out
-  only from adapters on the local network. Windows Firewall's rule for
-  Pley already lets it through (UDP 5353), and the Synology package offers
-  DSM's firewall a **Pley (Bonjour)** rule for it.
+  find it. Settings → Network turns it on and off (`--no-bonjour`, and
+  `--no-discovery` with the apps' broadcast; a server with discovery off
+  starts with it off) and chooses the networks it is announced on, for a
+  server that is also on a VPN, a container network or a guest Wi-Fi. It
+  follows a rename, and goes out only from adapters on the local network.
+  Windows Firewall's rule for Pley already lets it through (UDP 5353), and
+  the Synology package offers DSM's firewall a **Pley (Bonjour)** rule for
+  it.
 - The web app answers at `http://pley.local:7539` on the local network,
-  when no other device there has that name.
+  when no other device there has that name. Settings → Network gives it
+  another name, or none.
 - A Jellyfin-compatible API, for Jellyfin's apps and others built on its
   API: they sign in with Pley's accounts, browse the libraries, play files
   as they are or as HLS from Pley's transcoder, with subtitles and Skip

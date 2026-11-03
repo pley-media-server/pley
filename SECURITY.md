@@ -283,9 +283,13 @@ other apps (`pley_ct_…`), never a session's
   and port, and nothing more.
 - The UDP answer goes only to addresses on the local network, at most 100
   a second. The Bonjour announcement goes out only from adapters with
-  addresses on the local network, never to the internet.
-- `--no-discovery` (`PLEY_NO_DISCOVERY`), or Settings → Network, turns
-  both off; the Docker setup has them off.
+  addresses on the local network, never to the internet, and from only
+  those an administrator chooses when some are (a VPN, a container
+  network or a guest Wi-Fi left out). Each adapter tells only its own
+  addresses.
+- Settings → Network turns either off. `--no-bonjour`
+  (`PLEY_NO_BONJOUR`) turns Bonjour off, and `--no-discovery`
+  (`PLEY_NO_DISCOVERY`) both; the Docker setup has them off.
 
 ### Files
 

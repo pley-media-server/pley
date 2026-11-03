@@ -97,6 +97,11 @@ pub struct Cli {
     /// there by Bonjour
     #[arg(long, env = "PLEY_NO_DISCOVERY", global = true)]
     pub no_discovery: bool,
+
+    /// Don't announce Pley on the local network by Bonjour (Apple's apps then need its address
+    /// typed in, and the web app has no .local name)
+    #[arg(long, env = "PLEY_NO_BONJOUR", global = true)]
+    pub no_bonjour: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -117,7 +122,8 @@ pub enum Command {
     /// Exit with status 0 when the server on this machine answers (for container health checks)
     Health,
     /// Save the options given before it (--bind, --jellyfin-bind, --transcode-dir, --ffmpeg,
-    /// --ffprobe, --no-discovery) in pley.toml in the data folder, for every later start
+    /// --ffprobe, --no-discovery, --no-bonjour) in pley.toml in the data folder, for every later
+    /// start
     SaveConfig {
         /// Whether to answer the Pley apps looking for servers on the local network
         #[arg(long, value_name = "true|false")]
@@ -147,6 +153,11 @@ struct FileConfig {
     transcoder_token: Option<String>,
     transcoder_max_jobs: Option<u32>,
     discovery: Option<bool>,
+    /// Like `discovery` when left out, which turned Bonjour off before it had
+    /// a switch of its own.
+    bonjour: Option<bool>,
+    bonjour_adapters: Option<Vec<String>>,
+    web_host_name: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -189,9 +200,16 @@ pub struct Config {
     pub metadata_endpoints: Option<crate::providers::Endpoints>,
     /// See [`SHUTDOWN_GRACE`] (tests shorten it).
     pub shutdown_grace: Duration,
-    /// Answer apps looking for servers on the local network, and announce
-    /// pley there (see [`crate::discovery`] and [`crate::bonjour`]).
+    /// Answer apps looking for servers on the local network (see
+    /// [`crate::discovery`]).
     pub discovery: bool,
+    /// Announce pley on the local network by Bonjour (see [`crate::bonjour`]).
+    pub bonjour: bool,
+    /// The adapters Bonjour announces from, by name: any when empty.
+    pub bonjour_adapters: Vec<String>,
+    /// The web app's host name on the local network (`pley` for
+    /// `pley.local`): not announced when empty.
+    pub web_host_name: String,
     /// See [`EVENT_RECHECK`] (tests shorten it).
     pub event_recheck: Duration,
     /// See [`EXTRA_BIND_RETRY`] (tests shorten it).
@@ -241,6 +259,17 @@ impl Config {
             _ => Vec::new(),
         };
         let plex_bind_ignored = cli.plex_bind.is_some() || file.plex_bind.is_some();
+        let web_host_name =
+            file.web_host_name.as_deref().map_or(crate::bonjour::DEFAULT_WEB_HOST_NAME, str::trim).to_ascii_lowercase();
+        crate::bonjour::check_host_name(&web_host_name).map_err(|err| anyhow::anyhow!("web_host_name: {err}"))?;
+        let mut bonjour_adapters: Vec<String> =
+            file.bonjour_adapters.unwrap_or_default().iter().map(|name| name.trim().to_owned()).collect();
+        // In the order Settings → Network saves them, each once.
+        bonjour_adapters.sort();
+        bonjour_adapters.dedup();
+        if let Some(name) = bonjour_adapters.iter().find(|name| !crate::bonjour::adapter_name_ok(name)) {
+            anyhow::bail!("bonjour_adapters: {name:?} isn't a network adapter's name");
+        }
         let transcode_dir = cli
             .transcode_dir
             .clone()
@@ -265,6 +294,9 @@ impl Config {
             metadata_endpoints: Some(crate::providers::Endpoints::default()),
             shutdown_grace: SHUTDOWN_GRACE,
             discovery: !cli.no_discovery && file.discovery.unwrap_or(true),
+            bonjour: !cli.no_discovery && !cli.no_bonjour && file.bonjour.or(file.discovery).unwrap_or(true),
+            bonjour_adapters,
+            web_host_name,
             event_recheck: EVENT_RECHECK,
             extra_bind_retry: EXTRA_BIND_RETRY,
             client_documents: crate::oauth::fetch::Source::Internet,
@@ -274,6 +306,7 @@ impl Config {
                 web: cli.bind.is_some(),
                 jellyfin: cli.jellyfin_bind.is_some(),
                 discovery: cli.no_discovery,
+                bonjour: cli.no_discovery || cli.no_bonjour,
             },
             config_file,
             data_dir,
@@ -307,6 +340,9 @@ impl Config {
             metadata_endpoints: None,
             shutdown_grace: SHUTDOWN_GRACE,
             discovery: false,
+            bonjour: false,
+            bonjour_adapters: Vec::new(),
+            web_host_name: crate::bonjour::DEFAULT_WEB_HOST_NAME.into(),
             event_recheck: EVENT_RECHECK,
             extra_bind_retry: EXTRA_BIND_RETRY,
             client_documents: crate::oauth::fetch::Source::Off,
@@ -388,7 +424,8 @@ impl Cli {
 
 /// `pley save-config`: the options given (on the command line or in the
 /// environment) written into the config file `path`, whose other lines and
-/// comments stay. `discovery` overrides `--no-discovery`.
+/// comments stay. `discovery` overrides `--no-discovery`; either turned off
+/// saves Bonjour off too, as `--no-bonjour` does.
 pub fn save_config(cli: &Cli, path: &Path, discovery: Option<bool>) -> anyhow::Result<()> {
     let mut values: Vec<(&str, toml::Value)> = Vec::new();
     if let Some(bind) = &cli.bind {
@@ -408,6 +445,12 @@ pub fn save_config(cli: &Cli, path: &Path, discovery: Option<bool>) -> anyhow::R
     }
     if let Some(discovery) = discovery.or(cli.no_discovery.then_some(false)) {
         values.push(("discovery", discovery.into()));
+    }
+    // Discovery turned off (Windows Setup's checkbox) turns Bonjour off too;
+    // turned on, it leaves Bonjour as Settings → Network has it, since Setup
+    // saves its checkbox again on every update.
+    if cli.no_bonjour || discovery == Some(false) || (discovery.is_none() && cli.no_discovery) {
+        values.push(("bonjour", false.into()));
     }
     write_keys(path, &values)
 }
@@ -434,6 +477,12 @@ pub fn save_listen(path: &Path, listen: &crate::network::Listen, fixed: crate::n
     if !fixed.discovery {
         values.push(("discovery", listen.discovery.into()));
     }
+    if !fixed.bonjour {
+        values.push(("bonjour", listen.bonjour.into()));
+    }
+    let adapters: Vec<toml::Value> = listen.bonjour_adapters.iter().map(|name| name.as_str().into()).collect();
+    values.push(("bonjour_adapters", adapters.into()));
+    values.push(("web_host_name", listen.web_host_name.as_str().into()));
     write_keys(path, &values)?;
     // Older versions' Plex-compatible API is gone: its line goes too.
     let text = read_config_text(path)?;
@@ -638,6 +687,52 @@ mod tests {
     }
 
     #[test]
+    fn bonjour_has_a_switch_of_its_own_and_takes_after_discovery() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("pley.toml");
+        let config = Config::load(&cli(dir.path())).unwrap();
+        assert!(config.bonjour && config.bonjour_adapters.is_empty());
+        assert_eq!(config.web_host_name, "pley");
+
+        // A server with discovery turned off before Bonjour had a switch
+        // isn't announced either.
+        std::fs::write(&file, "discovery = false\n").unwrap();
+        assert!(!Config::load(&cli(dir.path())).unwrap().bonjour);
+        std::fs::write(&file, "discovery = false\nbonjour = true\nweb_host_name = \" Media \"\n").unwrap();
+        let config = Config::load(&cli(dir.path())).unwrap();
+        assert!(config.bonjour && !config.discovery);
+        assert_eq!(config.web_host_name, "media");
+
+        // --no-bonjour, or --no-discovery, turns it off for good.
+        std::fs::write(&file, "bonjour = true\n").unwrap();
+        for (no_discovery, no_bonjour) in [(false, true), (true, false)] {
+            let mut args = cli(dir.path());
+            (args.no_discovery, args.no_bonjour) = (no_discovery, no_bonjour);
+            let config = Config::load(&args).unwrap();
+            assert!(!config.bonjour && config.network_fixed.bonjour);
+            assert_eq!(config.discovery, !no_discovery);
+        }
+
+        for wrong in ["web_host_name = \"pley.local\"\n", "bonjour_adapters = [\"\"]\n"] {
+            std::fs::write(&file, wrong).unwrap();
+            assert!(Config::load(&cli(dir.path())).is_err(), "{wrong}");
+        }
+
+        let mut args = cli(dir.path());
+        args.no_bonjour = true;
+        std::fs::write(&file, "").unwrap();
+        save_config(&args, &file, None).unwrap();
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "bonjour = false\n");
+        // Setup saves its discovery checkbox on every update: on, it leaves
+        // Bonjour turned off in Settings alone; off, it turns Bonjour off.
+        save_config(&cli(dir.path()), &file, Some(true)).unwrap();
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "bonjour = false\ndiscovery = true\n");
+        std::fs::write(&file, "bonjour = true\n").unwrap();
+        save_config(&cli(dir.path()), &file, Some(false)).unwrap();
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "bonjour = false\ndiscovery = false\n");
+    }
+
+    #[test]
     fn older_versions_plex_api_is_ignored() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("pley.toml"), "plex_bind = \"0.0.0.0:32400\"\n").unwrap();
@@ -674,6 +769,7 @@ mod tests {
             log: "info".into(),
             no_tray: false,
             no_discovery: false,
+            no_bonjour: false,
         }
     }
 
@@ -819,6 +915,9 @@ mod tests {
             jellyfin: Vec::new(),
             jellyfin_on_web: true,
             discovery: false,
+            bonjour: true,
+            bonjour_adapters: vec!["Ethernet".into(), "vEthernet (Default Switch)".into()],
+            web_host_name: "media-room".into(),
         };
         save_listen(&config.config_file, &listen, config.network_fixed).unwrap();
         let config = Config::load(&cli(dir.path())).unwrap();
@@ -828,7 +927,10 @@ mod tests {
         let mut args = cli(dir.path());
         args.bind = Some("0.0.0.0:7539".into());
         let fixed = Config::load(&args).unwrap();
-        assert_eq!(fixed.network_fixed, crate::network::Fixed { web: true, jellyfin: false, discovery: false });
+        assert_eq!(
+            fixed.network_fixed,
+            crate::network::Fixed { web: true, jellyfin: false, discovery: false, bonjour: false }
+        );
         let mut changed = crate::network::Listen::of(&fixed);
         changed.jellyfin_on_web = false;
         changed.jellyfin = vec!["127.0.0.1:8096".parse().unwrap()];

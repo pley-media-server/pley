@@ -52,6 +52,10 @@ interface Form {
   jellyfinOnWeb: boolean;
   jellyfinPort: number;
   discovery: boolean;
+  bonjour: boolean;
+  /** The adapters Bonjour announces from: every one when empty. */
+  bonjourAdapters: string[];
+  webHostName: string;
 }
 
 /** `192.168.1.10:7539` or `[::1]:7539`: its address and port. */
@@ -76,6 +80,9 @@ function formOf(choice: ListenChoice): Form {
     jellyfinOnWeb: jellyfin.length === 0,
     jellyfinPort: jellyfin[0]?.port ?? JELLYFIN_PORT,
     discovery: choice.discovery,
+    bonjour: choice.bonjour,
+    bonjourAdapters: choice.bonjour_adapters,
+    webHostName: choice.web_host_name,
   };
 }
 
@@ -91,11 +98,17 @@ function choiceOf(form: Form, network: Network): ListenChoice {
         : [],
     jellyfin_on_web: network.fixed.jellyfin ? network.jellyfin_on_web : form.jellyfin && form.jellyfinOnWeb,
     discovery: network.fixed.discovery ? network.discovery : form.discovery,
+    bonjour: network.fixed.bonjour ? network.bonjour : form.bonjour,
+    bonjour_adapters: [...form.bonjourAdapters].sort(),
+    web_host_name: form.webHostName.trim().toLowerCase(),
   };
 }
 
 const sameChoice = (a: ListenChoice, b: ListenChoice) =>
   a.discovery === b.discovery &&
+  a.bonjour === b.bonjour &&
+  a.web_host_name === b.web_host_name &&
+  a.bonjour_adapters.join("\n") === b.bonjour_adapters.join("\n") &&
   a.jellyfin_on_web === b.jellyfin_on_web &&
   a.web.join() === b.web.join() &&
   a.jellyfin.join() === b.jellyfin.join();
@@ -109,8 +122,14 @@ function problemOf(form: Form): string | null {
     if (form.jellyfinPort === form.port) return "Choose another port for the Jellyfin-compatible API, or Pley's port.";
   }
   if (form.mode === "networks" && form.ips.length === 0) return "Choose a network, or Only this computer.";
+  if (!hostNameOk(form.webHostName.trim())) {
+    return "The web app's name is letters, digits and hyphens (63 at most), not starting or ending with a hyphen.";
+  }
   return null;
 }
+
+/** A name on the local network, `{name}.local`: one DNS label, or empty for none. */
+export const hostNameOk = (name: string) => name === "" || /^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(name);
 
 /** This page's host as pley's addresses write it, or `null` for a name (a reverse proxy's, say), which says nothing. */
 function pageHost(url: URL): string | null {
@@ -206,7 +225,7 @@ function Adapters({
   // Chosen before, on an adapter that isn't here now (a VPN that is off).
   const elsewhere = ips.filter((ip) => !known.has(ip));
   return (
-    <div className="space-y-0.5 rounded-md border border-border p-1.5">
+    <div role="group" aria-label="Networks" className="space-y-0.5 rounded-md border border-border p-1.5">
       {adapters.map((adapter, i) => {
         const checked = adapter.addresses.some((ip) => ips.includes(ip));
         const toggle = () =>
@@ -237,6 +256,56 @@ function Adapters({
   );
 }
 
+/** The adapters Bonjour announces from, by name; "Every network" when none is chosen. */
+function BonjourAdapters({
+  adapters,
+  chosen,
+  disabled,
+  onChange,
+}: {
+  adapters: NetworkAdapter[];
+  chosen: string[];
+  disabled: boolean;
+  onChange: (chosen: string[]) => void;
+}) {
+  const names = [...new Set(adapters.map((a) => a.name))];
+  // Chosen before, on an adapter that isn't here now (a VPN that is off), or
+  // one Pley no longer listens on.
+  const elsewhere = chosen.filter((name) => !names.includes(name));
+  return (
+    <div role="group" aria-label="Announced on" className="space-y-0.5 rounded-md border border-border p-1.5">
+      <Choice id="bonjour-every-adapter" checked={chosen.length === 0} disabled={disabled} onChange={() => onChange([])}>
+        <span className="font-medium">Every network Pley listens on</span>
+        <span className="block text-xs text-subtle">Those that come later too.</span>
+      </Choice>
+      {names.map((name, i) => {
+        const adapter = adapters.find((a) => a.name === name);
+        const checked = chosen.includes(name);
+        return (
+          <Choice
+            key={`${i} ${name}`}
+            id={`bonjour-adapter-${i}`}
+            checked={checked}
+            disabled={disabled}
+            onChange={() => onChange(checked ? chosen.filter((n) => n !== name) : [...chosen, name])}
+          >
+            <span className="font-medium">{name}</span>
+            <span className="block truncate text-xs text-subtle">
+              {[adapter?.addresses.join(", "), adapter?.network?.name].filter(Boolean).join(" · ")}
+            </span>
+          </Choice>
+        );
+      })}
+      {elsewhere.map((name, i) => (
+        <Choice key={name} id={`bonjour-elsewhere-${i}`} checked disabled={disabled} onChange={() => onChange(chosen.filter((n) => n !== name))}>
+          <span className="font-medium">{name}</span>
+          <span className="block text-xs text-subtle">Not a network Pley listens on now: announced there once it is.</span>
+        </Choice>
+      ))}
+    </div>
+  );
+}
+
 export function NetworkSettings() {
   useDocumentTitle("Network settings");
   const network = useNetwork();
@@ -246,7 +315,10 @@ export function NetworkSettings() {
   // The form starts from where pley listens, and again when that changes
   // (not when only how its listeners are does).
   const [form, setForm] = useState<Form | null>(() => (data ? formOf(data) : null));
-  useOnChange(data ? JSON.stringify([data.web, data.jellyfin, data.jellyfin_on_web, data.discovery]) : "", () => {
+  const shown = data
+    ? JSON.stringify([data.web, data.jellyfin, data.jellyfin_on_web, data.discovery, data.bonjour, data.bonjour_adapters, data.web_host_name])
+    : "";
+  useOnChange(shown, () => {
     if (data) setForm(formOf(data));
   });
 
@@ -273,7 +345,7 @@ export function NetworkSettings() {
   const lost = dirty && !moved && stillServes(data.web, next.web, href) === false;
   // pley.toml lists addresses this page doesn't show as they are.
   const unusual = !sameChoice(saved, data);
-  const fixedAll = data.fixed.web && data.fixed.jellyfin && data.fixed.discovery;
+  const fixedAll = data.fixed.web && data.fixed.jellyfin && data.fixed.discovery && data.fixed.bonjour;
 
   const onSave = () => {
     if (problem) return;
@@ -430,6 +502,67 @@ export function NetworkSettings() {
             label="Found by the Pley apps"
           />
         </Row>
+      </Card>
+
+      <Card className="space-y-4">
+        <Row
+          label="Bonjour"
+          hint={
+            data.fixed.bonjour
+              ? "Turned off by --no-bonjour, --no-discovery, PLEY_NO_BONJOUR or PLEY_NO_DISCOVERY."
+              : form.mode === "local"
+                ? "On networks only: devices can't reach this computer's own address."
+                : "Apple's devices find this server by Bonjour, and browsers open the web app by its name below."
+          }
+        >
+          <Toggle
+            checked={form.bonjour && form.mode !== "local"}
+            disabled={data.fixed.bonjour || form.mode === "local"}
+            onChange={(v) => set({ bonjour: v })}
+            label="Bonjour"
+          />
+        </Row>
+        {form.bonjour && form.mode !== "local" ? (
+          <>
+            <div className="space-y-1.5">
+              <h4 className="text-sm font-medium">Announced on</h4>
+              <p className="text-xs text-subtle">
+                With a VPN, a virtual machine's or container's network, or a guest Wi-Fi, choose the networks whose devices should find Pley. Each
+                network is told only Pley's address on it.
+              </p>
+              <BonjourAdapters
+                // Only where Pley listens: announced elsewhere, it couldn't be reached.
+                adapters={form.mode === "networks" ? data.adapters.filter((a) => a.addresses.some((ip) => form.ips.includes(ip))) : data.adapters}
+                chosen={form.bonjourAdapters}
+                disabled={data.fixed.bonjour}
+                onChange={(bonjourAdapters) => set({ bonjourAdapters })}
+              />
+            </div>
+            <Row
+              label="Web app's name"
+              htmlFor="network-web-host-name"
+              hint={
+                form.webHostName.trim()
+                  ? `Browsers on these networks open http://${form.webHostName.trim().toLowerCase()}.local:${Number.isNaN(form.port) ? DEFAULT_PORT : form.port}, unless another device has that name.`
+                  : "Empty: the web app isn't announced by a name."
+              }
+            >
+              <div className="flex items-center gap-1.5">
+                <TextInput
+                  id="network-web-host-name"
+                  value={form.webHostName}
+                  maxLength={63}
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  disabled={data.fixed.bonjour}
+                  onChange={(e) => set({ webHostName: e.target.value })}
+                  className="w-44"
+                />
+                <span className="text-sm text-muted">.local</span>
+              </div>
+            </Row>
+          </>
+        ) : null}
       </Card>
 
       <ProxyAddresses />
