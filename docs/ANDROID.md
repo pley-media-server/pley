@@ -252,8 +252,9 @@ shown. At the drive's top the page says how full the drive is; a folder
 opens over the one before, with ".." first to go back up. A video's line
 gives its kind, or where it resumes with a bar of how far through it is,
 and its size. A video plays in Pley's player as it is, with no server,
-signed in or not, the way a download plays: seeking, the panels, the sleep
-timer and the subtitles' look are the same.
+also while the server is out of reach, the way a download plays: seeking,
+the panels, the sleep timer and the subtitles' look are the same. The page
+is in the rail, which shows once the TV is signed in to a server.
 
 - **The drive** is the first mounted volume of `StorageManager`'s that
   isn't the device's own, removable ones first (some TV builds don't mark a
