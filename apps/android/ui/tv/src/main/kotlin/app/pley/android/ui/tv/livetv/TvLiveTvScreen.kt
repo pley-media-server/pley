@@ -428,42 +428,42 @@ internal fun CategoryColumn(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         if (search != null) {
-            item(key = "search") { search() }
+            item(key = "search", contentType = "search") { search() }
         }
         if (found.isNotEmpty()) {
-            item(key = "found") { SectionHeading(stringResource(R.string.tv_livetv_found_groups)) }
-            items(found, key = { "found:${it.name}" }) { g ->
+            item(key = "found", contentType = HEADING) { SectionHeading(stringResource(R.string.tv_livetv_found_groups)) }
+            items(found, key = { "found:${it.name}" }, contentType = { CATEGORY }) { g ->
                 CategoryRow(null, LiveTv.groupName(g, g.name), g.count, selected = false, indent = GROUP_INSET) { onSelect(LiveCategory.Group(g.name)) }
             }
         }
-        item(key = "favorites") {
+        item(key = "favorites", contentType = CATEGORY) {
             CategoryRow(PleyIcons.Star, stringResource(R.string.tv_livetv_category_favorites), groups?.favorites, selected == LiveCategory.Favorites) {
                 onSelect(LiveCategory.Favorites)
             }
         }
-        item(key = "recent") {
+        item(key = "recent", contentType = CATEGORY) {
             CategoryRow(PleyIcons.History, stringResource(R.string.tv_livetv_category_recent), groups?.recent, selected == LiveCategory.Recent) {
                 onSelect(LiveCategory.Recent)
             }
         }
-        item(key = "all") {
+        item(key = "all", contentType = CATEGORY) {
             CategoryRow(PleyIcons.LayoutGrid, stringResource(R.string.tv_livetv_category_all), groups?.total, selected == LiveCategory.All) {
                 onSelect(LiveCategory.All)
             }
         }
         val regions = sections.regions
         if (regions.isNotEmpty()) {
-            item(key = "regions") { SectionHeading(stringResource(R.string.tv_livetv_regions)) }
+            item(key = "regions", contentType = HEADING) { SectionHeading(stringResource(R.string.tv_livetv_regions)) }
             for (r in regions) {
                 // One open at a time, as the web's.
                 val expanded = open == r.region
-                item(key = "region:${r.region}") {
+                item(key = "region:${r.region}", contentType = CATEGORY) {
                     CategoryRow(if (expanded) PleyIcons.ChevronDown else PleyIcons.ChevronRight, r.region, r.count, selected = false) {
                         open = if (expanded) null else r.region
                     }
                 }
                 if (expanded) {
-                    items(r.groups, key = { "group:${it.name}" }) { g ->
+                    items(r.groups, key = { "group:${it.name}" }, contentType = { CATEGORY }) { g ->
                         val category = LiveCategory.Group(g.name)
                         CategoryRow(null, g.label, g.count, selected == category, indent = GROUP_INSET + 16.dp) { onSelect(category) }
                     }
@@ -472,10 +472,10 @@ internal fun CategoryColumn(
         }
         val others = sections.others
         if (others.size > 1 || (others.size == 1 && regions.isNotEmpty())) {
-            item(key = "others") {
+            item(key = "others", contentType = HEADING) {
                 SectionHeading(stringResource(if (regions.isEmpty()) R.string.tv_livetv_groups else R.string.tv_livetv_more_groups))
             }
-            items(others, key = { "group:${it.name}" }) { g ->
+            items(others, key = { "group:${it.name}" }, contentType = { CATEGORY }) { g ->
                 val category = LiveCategory.Group(g.name)
                 CategoryRow(null, g.name.ifEmpty { stringResource(R.string.tv_livetv_no_group_name) }, g.count, selected == category, indent = GROUP_INSET) { onSelect(category) }
             }
@@ -524,6 +524,17 @@ private fun Modifier.heldUpStays(gate: KeyRepeatGate): Modifier = focusPropertie
         if (requestedFocusDirection == FocusDirection.Up && gate.holding) cancelFocusChange()
     }
 }
+
+/** The categories' kinds of row, for the column to reuse their layouts in kind. */
+private const val CATEGORY = "category"
+private const val HEADING = "heading"
+
+/**
+ * A guide row or a tile whose page is still loading: an item type of its
+ * own, so the list keeps the skeletons' layouts for skeletons and the
+ * channels' for channels.
+ */
+internal const val LOADING = "loading"
 
 /** A section's heading in the categories: "REGIONS", "MORE GROUPS". */
 @Composable
@@ -633,7 +644,7 @@ private fun ChannelTiles(
         horizontalArrangement = Arrangement.spacedBy(PleyTv.WideTileGap),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        items(count = pages.total ?: 0, key = { index -> pages[index]?.id ?: -index - 1L }, contentType = { "channel" }) { index ->
+        items(count = pages.total ?: 0, key = { index -> pages[index]?.id ?: -index - 1L }, contentType = { index -> if (pages[index] == null) LOADING else "channel" }) { index ->
             val channel = pages[index]
             if (channel == null) {
                 Box(Modifier.size(TileKind.Episode.tvWidth, TileKind.Episode.tvHeight + 40.dp).skeleton(skeleton, PleyShape.TileTv))

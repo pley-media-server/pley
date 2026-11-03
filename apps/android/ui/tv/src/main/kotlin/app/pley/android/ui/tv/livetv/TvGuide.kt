@@ -323,7 +323,7 @@ internal fun TvGuide(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = TvSafeAreaBottom),
             ) {
-                items(count = total, key = { index -> pages[index]?.id ?: -index - 1L }, contentType = { "row" }) { index ->
+                items(count = total, key = { index -> pages[index]?.id ?: -index - 1L }, contentType = { index -> if (pages[index] == null) LOADING else "row" }) { index ->
                     val c = pages[index]
                     if (c == null) {
                         Row(Modifier.fillMaxWidth().height(ROW_HEIGHT).padding(vertical = 4.dp)) {
