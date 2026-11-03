@@ -5,7 +5,7 @@
 //! Apps signed in through pley's own page hold app tokens instead
 //! ([`grants`]): they act without administrator rights, and only on the
 //! routes their [`scopes`] open. Other apps and tools hold
-//! [`compatibility`] tokens, which work on the Jellyfin-compatible API only.
+//! [`compatibility`] tokens, which work on the compatibility APIs only.
 
 pub mod compatibility;
 pub mod grants;
@@ -123,13 +123,30 @@ impl AuthUser {
     pub fn allowed(&self, scope: Scope) -> bool {
         self.app.as_ref().is_none_or(|app| app.scopes.contains(scope))
     }
+
+    /// Whether this request's compatibility token may use what `scope`
+    /// allows: the token has it, and for a scope only administrators' tokens
+    /// may have, the account is one now (a role taken away takes it at
+    /// once). Never for a session or an app.
+    pub fn compatibility_allows(&self, scope: compatibility::Scope) -> bool {
+        self.compatibility
+            .is_some_and(|token| token.scopes.contains(scope) && (!scope.administrators_only() || self.account_admin))
+    }
 }
 
-/// Where a token was used from, for the account page's list.
+/// Where a token was used from: for the account page's list, and for the
+/// origins a compatibility token is limited to ([`compatibility::Origins`]).
 #[derive(Debug, Clone, Default)]
 pub struct UsedFrom {
+    /// [`ClientIp`]'s, which nobody on the internet can choose.
     pub ip: Option<String>,
     pub user_agent: Option<String>,
+}
+
+impl UsedFrom {
+    fn address(&self) -> Option<IpAddr> {
+        self.ip.as_deref().and_then(|ip| ip.parse().ok())
+    }
 }
 
 /// Extractor that additionally requires administrator rights.
@@ -397,6 +414,7 @@ struct CachedApp {
 
 struct CachedCompatibility {
     user: AuthUser,
+    origins: compatibility::Origins,
     expires_at: i64,
     cached_at: Instant,
 }
@@ -775,24 +793,29 @@ impl AuthService {
         }
     }
 
-    /// The user of a compatibility token, never as an administrator: it
-    /// sees and changes its own account's things only. Every library and no
-    /// age limit for an administrator's role, the account's limits
-    /// otherwise. Not for an expired token, a disabled account, or one with
-    /// a password alone while the server requires two-step sign-in. A token
-    /// in use lasts 90 days from then, written at most every few minutes
-    /// with where it was `used` from, when that is known.
+    /// The user of a compatibility token, never as an administrator: what
+    /// its scopes allow beyond `play` (seeing everyone's activity, managing
+    /// libraries) goes by [`AuthUser::compatibility_allows`], where each
+    /// applies, and none of it administers accounts. Every library and no
+    /// age limit for an
+    /// administrator's role, the account's limits otherwise. Not for an
+    /// expired token, a disabled account, or one with a password alone while
+    /// the server requires two-step sign-in; not from where its origins
+    /// don't allow (`used`'s address, none when it isn't known). A token in
+    /// use lasts 90 days from then, written at most every few minutes with
+    /// where it was `used` from.
     pub async fn validate_compatibility(&self, token: &str, used: Option<&UsedFrom>) -> Option<AuthUser> {
         if !token.starts_with(compatibility::PREFIX) {
             return None;
         }
+        let from = used.and_then(UsedFrom::address);
         let key = hash_token(token);
         let now = now();
         if let Some(entry) = self.compatibility.get(&key)
             && entry.cached_at.elapsed() < CACHE_TTL
             && entry.expires_at > now
         {
-            return Some(entry.user.clone());
+            return entry.origins.allow(from).then(|| entry.user.clone());
         }
         // Read before the database: a revocation or a forget that lands
         // while the query runs keeps what it read out of the cache.
@@ -802,21 +825,21 @@ impl AuthService {
             self.compatibility.remove(&key);
             return None;
         };
-        if row.expires_at <= now || row.disabled || (row.without_two_step && self.two_step_required()) {
+        let Some((user, origins)) = self.compatibility_user_of(&row) else {
             self.compatibility.remove(&key);
             return None;
-        }
-        let scopes = compatibility::Scopes::from_stored(&row.scope);
-        let user = AuthUser {
-            id: row.user_id,
-            username: row.username,
-            is_admin: false,
-            account_admin: row.role_admin,
-            all_libraries: row.all_libraries || row.role_admin,
-            max_age: if row.role_admin { None } else { row.max_age },
-            app: None,
-            compatibility: Some(CompatibilityAccess { token_id: row.id, scopes }),
         };
+        let entry = CachedCompatibility {
+            user: user.clone(),
+            origins: origins.clone(),
+            expires_at: row.expires_at,
+            cached_at: Instant::now(),
+        };
+        if !origins.allow(from) {
+            // Neither used nor extended from there.
+            self.remember_compatibility(key, entry, epoch);
+            return None;
+        }
         if row.last_used_at.is_none_or(|at| now - at > TOUCH_INTERVAL_SECS) {
             // Sliding expiration, written at most every few minutes.
             let used = used.cloned().unwrap_or_default();
@@ -833,52 +856,58 @@ impl AuthService {
             .execute(&self.db.write)
             .await;
         }
-        let entry = CachedCompatibility { user: user.clone(), expires_at: row.expires_at, cached_at: Instant::now() };
         self.remember_compatibility(key, entry, epoch);
         Some(user)
     }
 
     /// The user of the compatibility token `token_id`, while it is valid, as
-    /// [`AuthService::validate_compatibility`] would take it: for an address
-    /// a client was given in its stead (a stream a player opens without
-    /// the token), which names the token rather than carrying it.
-    pub async fn compatibility_user(&self, token_id: i64) -> Option<AuthUser> {
+    /// [`AuthService::validate_compatibility`] would take it from `from`:
+    /// for an address a client was given in its stead (a stream a player
+    /// opens without the token), which names the token rather than carrying
+    /// it. `from` is the request's [`SourceIp`]; a check of a connection
+    /// already open passes the address it was opened from.
+    pub async fn compatibility_user(&self, token_id: i64, from: Option<IpAddr>) -> Option<AuthUser> {
         let row: CompatibilityRow = sqlx::query_as(sqlx::AssertSqlSafe(format!(
-            "SELECT t.id, t.scope, t.expires_at, t.last_used_at, u.id AS user_id, u.username, u.is_admin AS role_admin,
-                    u.all_libraries, u.max_age, u.disabled, {} AS without_two_step
-             FROM compatibility_tokens t JOIN users u ON u.id = t.user_id
-             WHERE t.id = ?",
-            without_two_step("u")
+            "SELECT {} FROM compatibility_tokens t JOIN users u ON u.id = t.user_id WHERE t.id = ?",
+            compatibility_columns()
         )))
         .bind(token_id)
         .fetch_optional(&self.db.read)
         .await
         .ok()??;
+        let (user, origins) = self.compatibility_user_of(&row)?;
+        origins.allow(from).then_some(user)
+    }
+
+    /// The user `row` stands for and where it may be used from, unless the
+    /// token has expired, the account is disabled, or it signs in with a
+    /// password alone while the server requires two-step sign-in.
+    fn compatibility_user_of(&self, row: &CompatibilityRow) -> Option<(AuthUser, compatibility::Origins)> {
         if row.expires_at <= now() || row.disabled || (row.without_two_step && self.two_step_required()) {
             return None;
         }
         let scopes = compatibility::Scopes::from_stored(&row.scope);
-        Some(AuthUser {
+        let user = AuthUser {
             id: row.user_id,
-            username: row.username,
+            username: row.username.clone(),
+            // Never an administrator: what a scope allows is checked by
+            // name where it applies ([`AuthUser::compatibility_allows`]).
             is_admin: false,
             account_admin: row.role_admin,
             all_libraries: row.all_libraries || row.role_admin,
             max_age: if row.role_admin { None } else { row.max_age },
             app: None,
             compatibility: Some(CompatibilityAccess { token_id: row.id, scopes }),
-        })
+        };
+        Some((user, compatibility::Origins::from_stored(row.allowed_from.as_deref())))
     }
 
     /// What the database says about the compatibility token whose SHA-256
     /// is `key`.
     async fn compatibility_row(&self, key: &str) -> sqlx::Result<Option<CompatibilityRow>> {
         let row = sqlx::query_as(sqlx::AssertSqlSafe(format!(
-            "SELECT t.id, t.scope, t.expires_at, t.last_used_at, u.id AS user_id, u.username, u.is_admin AS role_admin,
-                    u.all_libraries, u.max_age, u.disabled, {} AS without_two_step
-             FROM compatibility_tokens t JOIN users u ON u.id = t.user_id
-             WHERE t.token_hash = ?",
-            without_two_step("u")
+            "SELECT {} FROM compatibility_tokens t JOIN users u ON u.id = t.user_id WHERE t.token_hash = ?",
+            compatibility_columns()
         )))
         .bind(key)
         .fetch_optional(&self.db.read)
@@ -1071,11 +1100,21 @@ struct AppRow {
     ends_at: Option<i64>,
 }
 
+/// The columns of a [`CompatibilityRow`], of `compatibility_tokens t JOIN users u`.
+fn compatibility_columns() -> String {
+    format!(
+        "t.id, t.scope, t.allowed_from, t.expires_at, t.last_used_at, u.id AS user_id, u.username,
+         u.is_admin AS role_admin, u.all_libraries, u.max_age, u.disabled, {} AS without_two_step",
+        without_two_step("u")
+    )
+}
+
 /// What [`AuthService::validate_compatibility`] reads about a token.
 #[derive(sqlx::FromRow)]
 struct CompatibilityRow {
     id: i64,
     scope: String,
+    allowed_from: Option<String>,
     expires_at: i64,
     last_used_at: Option<i64>,
     user_id: i64,
@@ -1167,10 +1206,15 @@ pub struct SourceIp(pub Option<IpAddr>);
 impl<S: Send + Sync> FromRequestParts<S> for SourceIp {
     type Rejection = std::convert::Infallible;
 
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let PeerIp(peer) = PeerIp::from_request_parts(parts, state).await?;
-        Ok(SourceIp(peer.map(|peer| forwarded_for(peer, &parts.headers))))
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        Ok(SourceIp(source_ip_of(&parts.extensions, &parts.headers)))
     }
+}
+
+/// [`SourceIp`]'s address, for a handler that took the whole request.
+pub fn source_ip_of(extensions: &axum::http::Extensions, headers: &axum::http::HeaderMap) -> Option<IpAddr> {
+    let peer = extensions.get::<axum::extract::ConnectInfo<SocketAddr>>().map(|info| info.0.ip())?;
+    Some(forwarded_for(peer, headers))
 }
 
 /// The other end of a request's connection: the client itself, or the
@@ -1859,31 +1903,47 @@ mod tests {
         assert!(auth.validate(&token).await.is_some());
     }
 
-    /// A compatibility token of `user_id`.
+    /// A compatibility token of `user_id` that may play, from anywhere.
     async fn compatibility_token(auth: &AuthService, user_id: i64) -> String {
-        let asked = compatibility::asked("Infuse", None).unwrap();
+        limited_token(auth, user_id, "play", &[]).await
+    }
+
+    /// A compatibility token of `user_id` with `scope`, used from `origins`.
+    async fn limited_token(auth: &AuthService, user_id: i64, scope: &str, origins: &[&str]) -> String {
+        let origins: Vec<String> = origins.iter().map(|o| (*o).to_owned()).collect();
+        let asked = compatibility::asked("A tool", Some(scope), &origins).unwrap();
         auth.create_compatibility_token(user_id, &asked).await.unwrap().0
     }
 
     #[tokio::test]
-    async fn compatibility_tokens_act_for_their_account_never_as_administrators() {
+    async fn compatibility_tokens_are_never_administrators_and_check_each_scope() {
+        use compatibility::Scope::{Activity, Manage, Play};
         let dir = tempfile::tempdir().unwrap();
-        let (db, auth) = service_with_user(dir.path()).await;
+        let (_db, auth) = service_with_user(dir.path()).await;
 
-        let admins = auth.validate_compatibility(&compatibility_token(&auth, 2).await, None).await.unwrap();
-        assert_eq!((admins.id, admins.is_admin, admins.account_admin), (2, false, true));
-        assert!(admins.all_libraries && admins.max_age.is_none(), "an administrator's role sees everything");
-        assert!(admins.app.is_none());
-        assert!(admins.compatibility.unwrap().scopes.contains(compatibility::Scope::Play));
+        let play = auth.validate_compatibility(&compatibility_token(&auth, 2).await, None).await.unwrap();
+        assert_eq!((play.id, play.is_admin, play.account_admin), (2, false, true));
+        assert!(play.all_libraries && play.max_age.is_none(), "an administrator's role sees everything");
+        assert!(play.app.is_none());
+        assert!(play.compatibility_allows(Play));
+        assert!(!play.compatibility_allows(Activity) && !play.compatibility_allows(Manage));
 
-        // Someone else's limits stay theirs.
+        // Each scope is checked by name; none makes the token an administrator.
+        let activity = auth.validate_compatibility(&limited_token(&auth, 2, "activity", &[]).await, None).await;
+        let activity = activity.unwrap();
+        assert!(!activity.is_admin && activity.compatibility_allows(Activity));
+        assert!(!activity.compatibility_allows(Manage), "seeing isn't changing");
+        let manage = auth.validate_compatibility(&limited_token(&auth, 2, "manage", &[]).await, None).await.unwrap();
+        assert!(!manage.is_admin && manage.compatibility_allows(Manage));
+        assert!(!manage.compatibility_allows(Activity), "changing isn't seeing everyone's");
+
+        // Someone else's limits stay theirs, and rights stored with a token
+        // are checked against the role at use.
         let kid = auth.validate_compatibility(&compatibility_token(&auth, 1).await, None).await.unwrap();
         assert_eq!((kid.id, kid.is_admin, kid.all_libraries, kid.max_age), (1, false, false, Some(12)));
-        // Scopes older versions stored give nothing more.
-        let stored = compatibility_token(&auth, 2).await;
-        sqlx::query("UPDATE compatibility_tokens SET scope = 'play activity manage'").execute(&db.write).await.unwrap();
-        let older = auth.validate_compatibility(&stored, None).await.unwrap();
-        assert!(!older.is_admin);
+        let stored = limited_token(&auth, 1, "activity manage", &[]).await;
+        let kid = auth.validate_compatibility(&stored, None).await.unwrap();
+        assert!(!kid.is_admin && !kid.compatibility_allows(Activity) && !kid.compatibility_allows(Manage));
 
         assert!(auth.validate_compatibility("pley_ct_unknown", None).await.is_none());
         let session = auth.create_session(2, None, None).await.unwrap();
@@ -1894,6 +1954,42 @@ mod tests {
         assert!(auth.validate(&token).await.is_none(), "and the other way round");
         assert!(auth.validate_app(&token).await.is_none());
         assert!(auth.validate_any(&token).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn compatibility_tokens_work_only_from_their_origins() {
+        let dir = tempfile::tempdir().unwrap();
+        let (db, auth) = service_with_user(dir.path()).await;
+        let from = |ip: &str| UsedFrom { ip: Some(ip.into()), user_agent: None };
+        let token = limited_token(&auth, 1, "play", &["10.0.0.0/24"]).await;
+        let id: i64 = sqlx::query_scalar("SELECT id FROM compatibility_tokens").fetch_one(&db.read).await.unwrap();
+
+        // Read from the database, then from the cache: the same answers.
+        for _ in 0..2 {
+            assert!(auth.validate_compatibility(&token, Some(&from("10.0.0.9"))).await.is_some());
+            assert!(auth.validate_compatibility(&token, Some(&from("192.168.1.4"))).await.is_none());
+            assert!(auth.validate_compatibility(&token, Some(&UsedFrom::default())).await.is_none(), "unknown");
+            assert!(auth.validate_compatibility(&token, None).await.is_none());
+        }
+        auth.forget_user(1);
+        assert!(auth.validate_compatibility(&token, Some(&from("192.168.1.4"))).await.is_none(), "refused first");
+        assert!(auth.validate_compatibility(&token, Some(&from("10.0.0.200"))).await.is_some());
+        // A refused use isn't where it was last used from.
+        let last: Option<String> =
+            sqlx::query_scalar("SELECT last_ip FROM compatibility_tokens").fetch_one(&db.read).await.unwrap();
+        assert_eq!(last.as_deref(), Some("10.0.0.9"));
+
+        // Addresses given out in its stead: the same origins.
+        assert!(auth.compatibility_user(id, "10.0.0.1".parse().ok()).await.is_some());
+        assert!(auth.compatibility_user(id, "10.0.1.1".parse().ok()).await.is_none());
+        assert!(auth.compatibility_user(id, None).await.is_none());
+
+        let local = limited_token(&auth, 1, "play", &["local"]).await;
+        assert!(auth.validate_compatibility(&local, Some(&from("127.0.0.1"))).await.is_some());
+        assert!(auth.validate_compatibility(&local, Some(&from("192.168.50.2"))).await.is_some());
+        assert!(auth.validate_compatibility(&local, Some(&from("203.0.113.5"))).await.is_none());
+        // Without origins: anywhere, an unknown address too.
+        assert!(auth.validate_compatibility(&compatibility_token(&auth, 1).await, None).await.is_some());
     }
 
     #[tokio::test]

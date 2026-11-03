@@ -30,8 +30,9 @@
 
 Web, Windows, macOS, Linux, [Android](docs/ANDROID.md), [Kodi](docs/KODI.md),
 [Roku](docs/ROKU.md), [Samsung TV](docs/TV_PLATFORMS.md),
-[LG TV](docs/LG.md). Jellyfin's apps work too, through the
-[Jellyfin-compatible API](docs/COMPATIBILITY.md).
+[LG TV](docs/LG.md). Jellyfin's apps work too, and tools built on Plex's API
+such as Kometa and Tautulli, through the
+[compatibility APIs](docs/COMPATIBILITY.md).
 
 ## Install
 
@@ -54,7 +55,7 @@ Then [first start](docs/CONFIGURATION.md#first-start).
 [Quality](docs/QUALITY.md) ·
 [Storage](docs/STORAGE.md) ·
 [API](docs/API.md) ·
-[Jellyfin-compatible API](docs/COMPATIBILITY.md) ·
+[Compatibility APIs](docs/COMPATIBILITY.md) ·
 [Transcoder](docs/TRANSCODER.md) ·
 [Development](docs/DEVELOPMENT.md) ·
 [Releasing](docs/RELEASING.md) ·

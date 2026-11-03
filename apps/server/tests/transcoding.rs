@@ -23,13 +23,13 @@ use pley::trickplay::Pace;
 use pley_transcoder_api::{
     API_VERSION, AudioMode, AudioPlan, BitrateChanged, BitrateRequest, Capabilities, ConversionState, ConversionStatus,
     EncoderInfo, ErrorBody, FileContainer, HoldRequest, HwAccel, JobCreated, JobRequest, JobStatus, Limits, Load,
-    MediaInfo, MediaStream, PrefetchRequest, Prefetched, ProbeRequest, SUBTITLES_COMPLETE_HEADER, StreamKind,
-    SubtitleRequest, TranscoderInfo, TranscoderStatus, TrickplayInfo, TrickplayRequest, VideoCodec, VideoMode,
-    VideoPlan,
+    MediaInfo, MediaStream, PrefetchRequest, Prefetched, ProbeRequest, SUBTITLES_COMPLETE_HEADER, SegmentFormat,
+    StreamKind, SubtitleRequest, TranscoderInfo, TranscoderStatus, TrickplayInfo, TrickplayRequest, VideoCodec,
+    VideoMode, VideoPlan,
 };
 use serde_json::{Value, json};
 
-use common::TestApp;
+use common::{TestApp, encode};
 
 const TOKEN: &str = "shared-secret";
 
@@ -43,6 +43,8 @@ struct Fake {
     bitrates: Arc<Mutex<Vec<(String, u32)>>>,
     /// Every job request, in order.
     created: Arc<Mutex<Vec<JobRequest>>>,
+    /// Every job request as its JSON came, in order.
+    created_json: Arc<Mutex<Vec<Value>>>,
     deleted: Arc<Mutex<Vec<String>>>,
     probes: Arc<Mutex<Vec<String>>>,
     subtitles: Arc<Mutex<Vec<SubtitleRequest>>>,
@@ -319,6 +321,7 @@ async fn start_fake() -> (Fake, String) {
                         conversions: true,
                         conversions_mp4: true,
                         live_bitrate: true,
+                        fmp4_segments: true,
                         trickplay_version: 1,
                         trickplay_runs: fake.trickplay_runs.load(Ordering::SeqCst),
                         ..Default::default()
@@ -356,7 +359,9 @@ async fn start_fake() -> (Fake, String) {
         )
         .route(
             "/v1/jobs",
-            post(|State(fake): State<Fake>, Json(req): Json<JobRequest>| async move {
+            post(|State(fake): State<Fake>, Json(json): Json<Value>| async move {
+                let req: JobRequest = serde_json::from_value(json.clone()).expect("a job request");
+                fake.created_json.lock().push(json);
                 let delay = *fake.job_delay.lock();
                 if !delay.is_zero() {
                     tokio::time::sleep(delay).await;
@@ -371,6 +376,8 @@ async fn start_fake() -> (Fake, String) {
                 let id = format!("job{n}");
                 let segments = fake.layout.lock().unwrap_or(15);
                 let status = job_status(&id, &req, segments);
+                // fMP4 as asked, but for jobs without video.
+                let segment_format = if req.video.is_some() { req.segment_format } else { SegmentFormat::Ts };
                 fake.created.lock().push(req.clone());
                 fake.jobs.lock().insert(id.clone(), (req, segments));
                 Json(JobCreated {
@@ -382,6 +389,7 @@ async fn start_fake() -> (Fake, String) {
                     audio: status.audio,
                     warnings: vec![],
                     variants: 0,
+                    segment_format,
                 })
                 .into_response()
             }),
@@ -425,9 +433,13 @@ async fn start_fake() -> (Fake, String) {
         .route(
             "/v1/jobs/{id}/{file}",
             get(|State(fake): State<Fake>, Path((id, file)): Path<(String, String)>| async move {
-                let Some(segments) = fake.jobs.lock().get(&id).map(|(_, n)| *n) else {
+                let Some((format, segments)) = fake.jobs.lock().get(&id).map(|(req, n)| (req.segment_format, *n))
+                else {
                     return error(StatusCode::NOT_FOUND, "job_not_found");
                 };
+                if file == "init.mp4" && format == SegmentFormat::Fmp4 {
+                    return ([(header::CONTENT_TYPE, "video/mp4")], format!("{id}:init")).into_response();
+                }
                 if file == "index.m3u8" {
                     let mut playlist = String::from("#EXTM3U\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXT-X-TARGETDURATION:4\n");
                     for n in 0..segments {
@@ -436,9 +448,9 @@ async fn start_fake() -> (Fake, String) {
                     playlist.push_str("#EXT-X-ENDLIST\n");
                     return ([(header::CONTENT_TYPE, "application/vnd.apple.mpegurl")], playlist).into_response();
                 }
-                match file.strip_suffix(".ts").and_then(|n| n.parse::<u32>().ok()) {
+                match file.strip_suffix(&format!(".{}", format.extension())).and_then(|n| n.parse::<u32>().ok()) {
                     Some(n) if n < segments => {
-                        ([(header::CONTENT_TYPE, "video/mp2t")], format!("{id}:{n}")).into_response()
+                        ([(header::CONTENT_TYPE, format.content_type())], format!("{id}:{n}")).into_response()
                     }
                     _ => error(StatusCode::NOT_FOUND, "not_found"),
                 }
@@ -1035,6 +1047,94 @@ async fn a_converted_streams_bitrate_changes_as_it_plays() {
     let id = remux.body["session_id"].as_str().unwrap();
     let refused = app.put(&format!("/api/playback/{id}/bitrate"), admin, json!({"max_bitrate": 3000})).await;
     assert_eq!(refused.status, StatusCode::BAD_REQUEST);
+}
+
+/// An Apple player: no Matroska, H.264 decoded, fMP4 segments before TS.
+fn apple() -> Value {
+    json!({
+        "caps_version": 2, "containers": ["mp4", "m4v", "mov"], "video_codecs": ["h264"], "audio_codecs": ["aac"],
+        "video": [{"codec": "h264", "hardware": true, "profiles": ["Main", "High"], "max_width": 3840,
+                   "max_height": 2160, "max_bit_depth": 8}],
+        "audio_decode": ["aac"],
+        "hls": {"master_playlist": true, "segments": ["fmp4", "ts"]}
+    })
+}
+
+#[tokio::test]
+async fn players_that_put_fmp4_first_stream_fmp4_segments() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let feature = w.movies["Feature"];
+
+    // Players that don't ask for fMP4: the request names no format, as
+    // older transcoders read it.
+    let ts = play(app, admin, json!({"item_id": feature, "caps": browser(), "client_id": "tab"})).await;
+    assert_eq!(ts.status, StatusCode::OK, "{}", ts.body);
+    assert_eq!(w.fake.last_request().segment_format, SegmentFormat::Ts);
+    let json = w.fake.created_json.lock().last().cloned().unwrap();
+    assert!(json.get("segment_format").is_none(), "{json}");
+    assert_eq!(ts.body["pts_offset_ms"], json!(1400));
+
+    let started =
+        play(app, admin, json!({"item_id": feature, "caps": apple(), "mode": "transcode", "keyed_urls": true})).await;
+    assert_eq!(started.status, StatusCode::OK, "{}", started.body);
+    assert_eq!(w.fake.last_request().segment_format, SegmentFormat::Fmp4);
+    assert_eq!(w.fake.created_json.lock().last().unwrap()["segment_format"], json!("fmp4"));
+    let info = &started.body;
+    assert_eq!(info["method"], json!("transcode"));
+    // Its bitrate stays as it began; the MP4 muxer adds nothing to the times.
+    assert_eq!((&info["live_bitrate"], &info["pts_offset_ms"]), (&json!(false), &json!(0)));
+    let session = info["session_id"].as_str().unwrap().to_owned();
+    let refused = app.put(&format!("/api/playback/{session}/bitrate"), admin, json!({"max_bitrate": 3000})).await;
+    assert_eq!(refused.status, StatusCode::BAD_REQUEST);
+    assert!(w.fake.bitrates.lock().is_empty());
+
+    let get = |file: &str| {
+        let uri = format!("/api/playback/{session}/{file}");
+        async move { app.get(&uri, admin).await }
+    };
+    let init = get("init.mp4").await;
+    assert_eq!((init.status, init.text()), (StatusCode::OK, "job2:init".to_owned()));
+    assert_eq!(init.headers[header::CONTENT_TYPE], "video/mp4");
+    let segment = get("3.m4s").await;
+    assert_eq!((segment.status, segment.text()), (StatusCode::OK, "job2:3".to_owned()));
+    assert_eq!(segment.headers[header::CONTENT_TYPE], "video/mp4");
+    // Names in the other format, or no name at all, are not found.
+    for file in ["3.ts", "init.m4s", "3.m4s.p1", "v0-init.mp4"] {
+        assert_eq!(get(file).await.status, StatusCode::NOT_FOUND, "{file}");
+    }
+
+    // Keyed URLs name the same files.
+    let url = info["url"].as_str().unwrap();
+    assert!(url.starts_with("/api/media/") && url.ends_with("/index.m3u8"), "{url}");
+    let keyed = url.trim_end_matches("index.m3u8");
+    let init = app.call(Method::GET, &format!("{keyed}init.mp4"), None, None, &[]).await;
+    assert_eq!((init.status, &init.headers[header::CONTENT_TYPE]), (StatusCode::OK, &"video/mp4".parse().unwrap()));
+    let segment = app.call(Method::GET, &format!("{keyed}4.m4s"), None, None, &[]).await;
+    assert_eq!((segment.status, segment.text()), (StatusCode::OK, "job2:4".to_owned()));
+
+    // A lost job isn't made again: the player holds the first job's init,
+    // which another encoder's wouldn't match. It starts a new session.
+    w.fake.lose_jobs();
+    let lost = get("5.m4s").await;
+    assert_eq!(lost.status, StatusCode::NOT_FOUND);
+    assert_eq!(lost.body["message"], json!("playback session expired"));
+
+    // A remux's init is the file's, the same each time: its job comes back
+    // in fMP4, with the same names.
+    let remux = play(app, admin, json!({"item_id": feature, "caps": apple(), "client_id": "phone"})).await;
+    assert_eq!(remux.body["method"], json!("remux"), "{}", remux.body);
+    let id = remux.body["session_id"].as_str().unwrap().to_owned();
+    w.fake.lose_jobs();
+    let segment = app.get(&format!("/api/playback/{id}/5.m4s"), admin).await;
+    assert!(segment.status == StatusCode::OK && segment.text().ends_with(":5"), "{}", segment.text());
+    assert_eq!(w.fake.last_request().segment_format, SegmentFormat::Fmp4);
+
+    // An MPEG-TS session has no fMP4 files.
+    let tab = ts.body["session_id"].as_str().unwrap();
+    for file in ["0.m4s", "init.mp4"] {
+        assert_eq!(app.get(&format!("/api/playback/{tab}/{file}"), admin).await.status, StatusCode::NOT_FOUND);
+    }
 }
 
 #[tokio::test]
@@ -1832,6 +1932,61 @@ async fn jellyfin_clients_stream_hls_from_the_transcoder() {
     assert_eq!(stop.status, StatusCode::NO_CONTENT);
     eventually(|| w.fake.deleted.lock().contains(&"job1".to_owned())).await;
     assert_eq!(app.jf(Method::GET, &format!("{base}index.m3u8"), "", None).await.status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn plex_clients_stream_through_the_universal_transcoder() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let feature = w.movies["Feature"];
+    let file = app.file_of(feature).await;
+    let path = encode(&format!("/library/metadata/{feature}"));
+    let client = [("x-plex-client-identifier", "living-room"), ("x-plex-product", "Plex for TV")];
+
+    let start = format!(
+        "/video/:/transcode/universal/start.m3u8?path={path}&offset=30&maxVideoBitrate=2000&videoResolution=1280x720&audioStreamID={}",
+        file * 10_000 + 2
+    );
+    let master = app.plex(Method::GET, &start, admin, &client).await;
+    assert_eq!(master.status, StatusCode::OK, "{}", master.text());
+    let text = master.text();
+    assert!(text.contains("BANDWIDTH=2000000,RESOLUTION=1280x720"), "{text}");
+    let variant = text.lines().find(|l| l.starts_with("session/")).unwrap().to_owned();
+    let job = w.fake.last_request();
+    assert_eq!(job.start_ms, Some(30_000));
+    let video = job.video.unwrap();
+    assert_eq!((video.mode, video.max_height, video.max_bitrate_kbps), (VideoMode::Transcode, Some(720), Some(1_808)));
+    assert_eq!(job.audio.unwrap().stream_index, Some(2), "Plex stream ids map to file streams");
+
+    // The session URLs need no token.
+    let base = format!("/video/:/transcode/universal/{}", variant.trim_end_matches("index.m3u8"));
+    let playlist = app.plex(Method::GET, &format!("{base}index.m3u8"), "", &[]).await;
+    assert_eq!(playlist.status, StatusCode::OK);
+    let segment = app.plex(Method::GET, &format!("{base}0.ts"), "", &[]).await;
+    assert_eq!((segment.status, segment.text()), (StatusCode::OK, "job1:0".to_owned()));
+
+    // It shows up as a transcode session.
+    let sessions = app.plex_json("/transcode/sessions", admin).await;
+    assert_eq!(sessions["size"], json!(1));
+    assert_eq!(sessions["TranscodeSession"]["videoDecision"], json!("transcode"));
+
+    // directStream=0 forces transcoding where a remux would do.
+    let plain = format!("/video/:/transcode/universal/start.m3u8?path={path}&directStream=0");
+    app.plex(Method::GET, &plain, admin, &[("x-plex-client-identifier", "phone")]).await;
+    assert_eq!(w.fake.last_request().video.unwrap().mode, VideoMode::Transcode);
+    let plain = format!("/video/:/transcode/universal/start.m3u8?path={path}");
+    app.plex(Method::GET, &plain, admin, &[("x-plex-client-identifier", "tablet")]).await;
+    assert_eq!(w.fake.last_request().video.unwrap().mode, VideoMode::Copy);
+
+    // Its token revoked, the session's addresses open nothing more.
+    let token = app.plex_token(admin).await;
+    assert!(app.state.auth.end_compatibility_token_of(&token).await.unwrap());
+    assert_eq!(app.plex(Method::GET, &format!("{base}index.m3u8"), "", &[]).await.status, StatusCode::NOT_FOUND);
+
+    // Stopping by client ends that client's session and its job.
+    let stop = app.plex(Method::GET, "/video/:/transcode/universal/stop?session=living-room", admin, &[]).await;
+    assert_eq!(stop.status, StatusCode::OK);
+    eventually(|| w.fake.deleted.lock().contains(&"job1".to_owned())).await;
 }
 
 #[tokio::test]

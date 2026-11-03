@@ -132,21 +132,24 @@ impl Prober {
     }
 
     /// What only a video's frames say, so the first few are decoded (a
-    /// fraction of a second): whether a Dolby Vision or PQ stream carries
-    /// HDR10+ (a PQ one is then HDR10+, not HDR10), and what a profile 7
-    /// stream's enhancement layer holds. Left unknown when that fails.
+    /// fraction of a second): whether the video carries closed captions
+    /// (CEA-608/708) in its frames, whether a Dolby Vision or PQ stream
+    /// carries HDR10+ (a PQ one is then HDR10+, not HDR10), and what a
+    /// profile 7 stream's enhancement layer holds. Left unknown when that
+    /// fails.
     async fn read_first_frames(&self, path: &Path, info: &mut MediaInfo) {
         let Some(video) = info.streams.iter_mut().find(|s| s.kind == StreamKind::Video) else {
             return;
         };
         let range = video.dynamic_range();
         let profile_7 = range == DynamicRange::DolbyVision && video.dv_profile == Some(7);
-        let wanted = match range {
+        let hdr_wanted = match range {
             DynamicRange::DolbyVision => video.hdr10plus.is_none() || (profile_7 && video.dv_el.is_none()),
             DynamicRange::Hdr10 => video.hdr10plus.is_none(),
             _ => false,
         };
-        if !wanted {
+        // An ffprobe before 7.1 says whether there are captions itself.
+        if !hdr_wanted && video.closed_captions.is_some() {
             return;
         }
         // The enhancement layer takes the whole Dolby Vision metadata; the
@@ -174,6 +177,12 @@ impl Prober {
                 return;
             }
         };
+        if video.closed_captions.is_none() {
+            video.closed_captions = captions_in_frames(&output);
+        }
+        if !hdr_wanted {
+            return;
+        }
         if video.hdr10plus.is_none() {
             video.hdr10plus = hdr10plus_in_frames(&output);
         }
@@ -233,12 +242,23 @@ async fn head(path: &Path) -> Vec<u8> {
 /// Whether frames ffprobe showed (`-show_entries frame_side_data`) carry
 /// HDR10+ metadata; `None` without frames.
 pub fn hdr10plus_in_frames(json: &[u8]) -> Option<bool> {
+    side_data_in_frames(json, "2094-40")
+}
+
+/// Whether frames ffprobe showed carry closed captions ("ATSC A53 Part 4
+/// Closed Captions", CEA-608/708); `None` without frames.
+pub fn captions_in_frames(json: &[u8]) -> Option<bool> {
+    side_data_in_frames(json, "A53")
+}
+
+/// Whether any frame ffprobe showed has side data whose type names `kind`;
+/// `None` without frames.
+fn side_data_in_frames(json: &[u8], kind: &str) -> Option<bool> {
     let value: serde_json::Value = serde_json::from_slice(json).ok()?;
     let frames = value.get("frames")?.as_array().filter(|f| !f.is_empty())?;
     Some(frames.iter().any(|frame| {
         frame.get("side_data_list").and_then(|l| l.as_array()).is_some_and(|list| {
-            list.iter()
-                .any(|sd| sd.get("side_data_type").and_then(|t| t.as_str()).is_some_and(|t| t.contains("2094-40")))
+            list.iter().any(|sd| sd.get("side_data_type").and_then(|t| t.as_str()).is_some_and(|t| t.contains(kind)))
         })
     }))
 }
@@ -354,6 +374,7 @@ struct RawStream {
     level: Option<i64>,
     field_order: Option<String>,
     has_b_frames: Option<i64>,
+    closed_captions: Option<i64>,
     bits_per_raw_sample: Option<String>,
     r_frame_rate: Option<String>,
     avg_frame_rate: Option<String>,
@@ -441,6 +462,7 @@ pub fn parse_ffprobe_json(json: &[u8], path: &Path) -> anyhow::Result<MediaInfo>
                 stream.interlaced = s.field_order.as_deref().map(|f| !matches!(f, "progressive" | "unknown"));
                 stream.rotation = display_rotation(&s.side_data_list);
                 stream.has_b_frames = s.has_b_frames.map(|n| n > 0);
+                stream.closed_captions = s.closed_captions.map(|n| n > 0);
                 // Suspected only: the prober decodes a few frames to know.
                 stream.decode_order_times =
                     stream.has_b_frames == Some(true) && decode_times_only(&raw.packets, s.index);
@@ -729,6 +751,21 @@ mod tests {
         assert_eq!(info.video().unwrap().rotation, None);
     }
 
+    /// Captions in the frames (a TV recording's CEA-608), as ffprobe says.
+    #[test]
+    fn reads_whether_the_video_carries_captions() {
+        let captions = |cc: &str| {
+            let json = format!(
+                r#"{{"streams":[{{"index":0,"codec_name":"h264","codec_type":"video","width":1920,"height":1080{cc}}}],
+                "format":{{"duration":"10.0"}}}}"#
+            );
+            parse_ffprobe_json(json.as_bytes(), Path::new("/m/clip.ts")).unwrap().video().unwrap().closed_captions
+        };
+        assert_eq!(captions(r#","closed_captions":1"#), Some(true));
+        assert_eq!(captions(r#","closed_captions":0"#), Some(false));
+        assert_eq!(captions(""), None);
+    }
+
     #[test]
     fn parses_streams_and_dolby_vision() {
         let info = parse_ffprobe_json(SAMPLE.as_bytes(), Path::new("/m/Movie.mkv")).unwrap();
@@ -830,6 +867,11 @@ mod tests {
         assert_eq!(hdr10plus_in_frames(frames(&["Dolby Vision RPU Data"]).as_bytes()), Some(false));
         assert_eq!(hdr10plus_in_frames(br#"{"frames":[]}"#), None, "no frames read: unknown");
         assert_eq!(hdr10plus_in_frames(b"not json"), None);
+        // Closed captions in the frames, as the H.264 and MPEG-2 decoders give them.
+        let captions = frames(&["ATSC A53 Part 4 Closed Captions"]);
+        assert_eq!(captions_in_frames(captions.as_bytes()), Some(true));
+        assert_eq!(captions_in_frames(hybrid.as_bytes()), Some(false));
+        assert_eq!(captions_in_frames(br#"{"frames":[]}"#), None);
         // Said by the stream itself (rare): no need to look at frames.
         let json = r#"{"streams":[{"index":0,"codec_type":"video","codec_name":"hevc","pix_fmt":"yuv420p10le",
             "color_transfer":"smpte2084","side_data_list":[{"side_data_type":"DOVI configuration record","dv_profile":8,

@@ -1,0 +1,10 @@
+# Add-on: the Plex-compatible API (docs/COMPATIBILITY.md) on Plex's own port,
+# 32400, for tools that only know that one. It answers on Pley's port anyway;
+# here it moves to 32400, published like the web port: on this computer only
+# unless PLEY_PLEX_LISTEN says otherwise.
+services:
+  pley:
+    environment:
+      PLEY_PLEX_BIND: 0.0.0.0:32400
+    ports:
+      - "${PLEY_PLEX_LISTEN:-127.0.0.1:32400}:32400"

@@ -524,6 +524,8 @@ mod tests {
             pipeline: Pipeline::Software,
             dolby_vision: None,
             strip_hdr10plus: false,
+            hevc: false,
+            dvh1: false,
             hdr: None,
         };
         let audio = AudioOut {
@@ -548,6 +550,7 @@ mod tests {
             throttle: true,
             catchup: false,
             warnings: vec![],
+            segment_format: Default::default(),
         };
         let media = MediaInfo::default();
         // 4K at 20 Mbps with a quarter to spare, and AAC: 25.192 Mbps for 3 minutes.
