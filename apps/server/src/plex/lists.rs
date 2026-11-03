@@ -390,7 +390,8 @@ pub(super) async fn playlist_container_of(state: &AppState, user: &AuthUser, id:
 
 /// Collections and playlists among `keys`, as `/library/metadata/{keys}`
 /// lists them, with the library of the first collection. Those the user
-/// may not see are left out, as items are.
+/// may not see are left out, as items are, and so are those past the first
+/// 50: a smart one costs a listing.
 pub(super) async fn list_nodes(
     state: &AppState,
     user: &AuthUser,
@@ -398,7 +399,7 @@ pub(super) async fn list_nodes(
 ) -> PlexResult<(Vec<Node>, Option<LibraryRow>)> {
     let mut nodes = Vec::new();
     let mut first = None;
-    for key in keys {
+    for key in keys.iter().filter(|key| !matches!(key, Key::Item(_))).take(50) {
         match *key {
             Key::Collection(id) => match collection_for(state, user, id).await {
                 Ok((collection, _, lib, _)) => {
@@ -612,12 +613,14 @@ pub async fn collection_delete(
 }
 
 /// Item ids in a Plex `uri` (`server://…/library/metadata/1,2,3`,
-/// `library://…/item/%2Flibrary%2Fmetadata%2F1`).
+/// `library://…/item/%2Flibrary%2Fmetadata%2F1`), as many as a playlist or
+/// a play queue holds at most: each id costs a lookup.
 pub(super) fn uri_items(uri: &str) -> Vec<i64> {
+    const MAX_IDS: usize = 5000;
     let Some(start) = uri.find("/library/metadata/") else { return Vec::new() };
     let rest = &uri[start + "/library/metadata/".len()..];
     let ids = rest.split(['/', '?', '&']).next().unwrap_or_default();
-    ids.split(',').filter_map(|id| id.trim().parse().ok()).collect()
+    ids.split(',').filter_map(|id| id.trim().parse().ok()).take(MAX_IDS).collect()
 }
 
 /// `POST /playlists?type=video&title=…&uri=…`

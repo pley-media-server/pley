@@ -643,7 +643,7 @@ pub fn stream_id(file_id: i64, index: i64) -> i64 {
 
 /// The file stream index behind a Plex stream id of `file_id`.
 pub fn stream_index(file_id: i64, stream_id: i64) -> Option<i64> {
-    let index = stream_id - file_id * 10_000;
+    let index = stream_id.checked_sub(file_id.checked_mul(10_000)?)?;
     (0..10_000).contains(&index).then_some(index)
 }
 

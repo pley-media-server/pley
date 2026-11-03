@@ -649,7 +649,8 @@ pub async fn universal_start(
         .and_then(|r| r.split_once('x'))
         .and_then(|(w, h)| Some((w.parse::<i64>().ok()?, h.parse::<i64>().ok()?)))
         .or(file.width.zip(file.height));
-    let bandwidth = params.parse::<i64>("maxVideoBitrate").map(|k| k * 1000).or(file.bitrate).unwrap_or(8_000_000);
+    let bandwidth =
+        params.parse::<i64>("maxVideoBitrate").map(|k| k.saturating_mul(1000)).or(file.bitrate).unwrap_or(8_000_000);
     let mut playlist = String::from("#EXTM3U\n#EXT-X-VERSION:3\n");
     if audio_only {
         playlist.push_str(&format!("#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},CODECS=\"mp4a.40.2\"\n"));

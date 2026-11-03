@@ -672,7 +672,15 @@ pub async fn metadata(
     Path(ids): Path<String>,
     params: Params,
 ) -> PlexResult<Node> {
-    let keys: Vec<Key> = ids.split(',').filter_map(|i| i.trim().parse().ok()).take(500).map(Key::of).collect();
+    // Each key once: a smart collection's or playlist's costs a listing.
+    let mut seen = std::collections::HashSet::new();
+    let keys: Vec<Key> = ids
+        .split(',')
+        .filter_map(|i| i.trim().parse::<i64>().ok())
+        .filter(|i| seen.insert(*i))
+        .take(500)
+        .map(Key::of)
+        .collect();
     match keys[..] {
         [Key::Collection(id)] => return super::lists::collection_details(&state, &user, &info, id, &params).await,
         [Key::Playlist(id)] => return super::lists::playlist_container_of(&state, &user, id).await,

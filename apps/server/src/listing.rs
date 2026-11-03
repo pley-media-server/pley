@@ -379,6 +379,10 @@ pub(crate) struct FilterError(pub String);
 
 /// How deep `push=1` groups nest at most.
 const MAX_GROUPS: usize = 8;
+/// Filters a listing takes, and values a filter names, at most: more than
+/// any tool sends, and a bound on the work one request makes.
+const MAX_FILTERS: usize = 64;
+const MAX_VALUES: usize = 100;
 
 /// Filters joined as the query string joins them: `and=1` (or nothing) and
 /// `or=1` between terms, `push=1` … `pop=1` around a group. `and` binds
@@ -396,6 +400,7 @@ impl Expr {
         // `or`, each run a list of terms joined by `and`. A group always
         // has a run.
         let mut groups: Vec<Vec<Vec<Expr>>> = vec![vec![Vec::new()]];
+        let mut filters = 0;
         let add = |groups: &mut Vec<Vec<Vec<Expr>>>, term: Expr| {
             if let Some(run) = groups.last_mut().and_then(|runs| runs.last_mut()) {
                 run.push(term);
@@ -426,6 +431,10 @@ impl Expr {
                 "and" => {}
                 _ => {
                     if let Some(filter) = Filter::parse(key, value, kind)? {
+                        filters += 1;
+                        if filters > MAX_FILTERS {
+                            return Err(FilterError(format!("{MAX_FILTERS} filters at most")));
+                        }
                         add(&mut groups, Expr::Filter(filter));
                     }
                 }
@@ -555,7 +564,10 @@ impl Filter {
             None if prefixed || op != Op::Is || UNREAD_FIELDS.contains(&field) => return Err(refused()),
             None => return Ok(None),
         }
-        let values = value.split(',').map(|v| v.trim().to_owned()).filter(|v| !v.is_empty()).collect();
+        let values: Vec<String> = value.split(',').map(|v| v.trim().to_owned()).filter(|v| !v.is_empty()).collect();
+        if values.len() > MAX_VALUES {
+            return Err(FilterError(format!("{raw_key} names {MAX_VALUES} values at most")));
+        }
         Ok(Some(Filter { level, field: field.to_owned(), op, values }))
     }
 
@@ -1428,6 +1440,14 @@ mod tests {
         assert!(parsed(&deep, "movie").is_err());
         let deep: Vec<(&str, &str)> = std::iter::repeat_n(("push", "1"), MAX_GROUPS).collect();
         assert!(parsed(&deep, "movie").is_ok());
+
+        // Bounded, however long the query string.
+        let many: Vec<(&str, &str)> = std::iter::repeat_n(("genre", "a"), MAX_FILTERS).collect();
+        assert!(parsed(&many, "movie").is_ok());
+        let many: Vec<(&str, &str)> = std::iter::repeat_n(("genre", "a"), MAX_FILTERS + 1).collect();
+        assert!(parsed(&many, "movie").is_err());
+        let values = vec!["a"; MAX_VALUES + 1].join(",");
+        assert!(parsed(&[("title", &values)], "movie").is_err());
     }
 
     #[test]
