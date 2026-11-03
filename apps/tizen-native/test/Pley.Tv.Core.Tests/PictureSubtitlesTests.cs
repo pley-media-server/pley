@@ -368,6 +368,29 @@ public class DvbTests
     }
 
     [Fact]
+    public void Draws_an_object_in_the_first_64_places_a_region_lists_at_most()
+    {
+        // A 100×2 region listing object 1 at (0, 0) 64 times, then at (50, 0).
+        var places = Enumerable.Repeat(PictureKit.Cat(PictureKit.U16(1), new[] { 0, 0, 0, 0 }), 64).Append(PictureKit.Cat(PictureKit.U16(1), new[] { 0, 50, 0, 0 }));
+        var region = DvbSegment(0x11, PictureKit.Cat(new[] { 0, 0x00 }, PictureKit.U16(100), PictureKit.U16(2), new[] { 2 << 2, 0, 0, 0 }, places.SelectMany(p => p)));
+        // One pixel of entry 1, then the end of the string and of the line.
+        var line = new[] { 0x11, 0x10, 0x00, 0xf0 };
+        var obj = DvbSegment(0x13, PictureKit.Cat(PictureKit.U16(1), new[] { 0x00 }, PictureKit.U16(line.Length), PictureKit.U16(0), line));
+        var set = PictureKit.Bytes(PictureKit.Cat(new[] { 0x20, 0x00 }, Placing((0, 0, 0)), region, Red, obj, DvbSegment(0x80, new int[0]), new[] { 0xff }));
+        var b = new DvbDecoder(new[] { set }).Decode(0)!.Bitmaps[0];
+        Assert.Equal((255, 0), (b.Rgba[3], b.Rgba[50 * 4 + 3]));
+    }
+
+    [Fact]
+    public void Stops_decoding_a_frame_once_it_has_taken_eight_4K_screens_work()
+    {
+        // Region 0, 3840×2000, filled again and again; then region 1, the one placed.
+        static int[][] Fills(int n) => Enumerable.Repeat(Filled(0, 3840, 2000), n).ToArray();
+        Assert.Equal(new[] { (4, 2) }, Sizes(new[] { Placing((1, 0, 0)) }.Concat(Fills(2)).Append(Filled(1, 4, 2)).Append(Red).ToArray()));
+        Assert.Empty(Sizes(new[] { Placing((1, 0, 0)) }.Concat(Fills(10)).Append(Filled(1, 4, 2)).Append(Red).ToArray()));
+    }
+
+    [Fact]
     public void Keeps_a_frames_worth_of_regions_at_most_of_4096_pixels_a_side_at_most()
     {
         // The second 3000×2000 region would pass a 4K screen's pixels with the first: it isn't kept.

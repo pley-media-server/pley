@@ -327,6 +327,25 @@ describe("DVB", () => {
     expect(sizes(placing([0, 0, 0], [0, 10, 10]), filled(0, 3000, 2000), red)).toEqual([[3000, 2000]]);
   });
 
+  it("draws an object in the first 64 places a region lists at most", () => {
+    // A 100×2 region listing object 1 at (0, 0) 64 times, then at (50, 0).
+    const places = [...Array.from({ length: 64 }, () => [...u16(1), 0, 0, 0, 0]), [...u16(1), 0, 50, 0, 0]];
+    const region = dvbSegment(0x11, [0, 0x00, ...u16(100), ...u16(2), 2 << 2, 0, 0, 0, ...places.flat()]);
+    // One pixel of entry 1, then the end of the string and of the line.
+    const line = [0x11, 0x10, 0x00, 0xf0];
+    const object = dvbSegment(0x13, [...u16(1), 0x00, ...u16(line.length), ...u16(0), ...line]);
+    const set = new Uint8Array([0x20, 0x00, ...placing([0, 0, 0]), ...region, ...red, ...object, ...dvbSegment(0x80, []), 0xff]);
+    const b = new DvbDecoder([set]).decode(0)!.bitmaps[0]!;
+    expect([b.rgba[3], b.rgba[50 * 4 + 3]]).toEqual([255, 0]);
+  });
+
+  it("stops decoding a frame once it has taken eight 4K screens' work", () => {
+    // Region 0, 3840×2000, filled again and again; then region 1, the one placed.
+    const fills = (n: number) => Array.from({ length: n }, () => filled(0, 3840, 2000));
+    expect(sizes(placing([1, 0, 0]), ...fills(2), filled(1, 4, 2), red)).toEqual([[4, 2]]);
+    expect(sizes(placing([1, 0, 0]), ...fills(10), filled(1, 4, 2), red)).toEqual([]);
+  });
+
   it("keeps a frame's worth of regions at most, of 4096 pixels a side at most", () => {
     // The second 3000×2000 region would pass a 4K screen's pixels with the first: it isn't kept.
     expect(sizes(placing([1, 0, 0]), filled(0, 3000, 2000), filled(1, 3000, 2000), red)).toEqual([]);

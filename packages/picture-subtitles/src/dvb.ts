@@ -1,4 +1,4 @@
-import { FrameCache, MAX_PIXELS, MAX_SIDE, ycbcrToRgb, type PictureDecoder, type PictureFrame, type SubtitleBitmap } from "./pictures";
+import { FrameCache, MAX_PIXELS, MAX_SIDE, MAX_WORK, ycbcrToRgb, type PictureDecoder, type PictureFrame, type SubtitleBitmap } from "./pictures";
 
 /**
  * Broadcast subtitles (DVB, ETSI EN 300 743, `S_DVBSUB`): each sample is a
@@ -14,6 +14,9 @@ const REGION = 0x11;
 const CLUT = 0x12;
 const OBJECT = 0x13;
 const DISPLAY = 0x14;
+
+/** The objects a region lists at most: a real one has a few, one for each line of text. */
+const MAX_REGION_OBJECTS = 64;
 
 interface PageRegion {
   id: number;
@@ -204,8 +207,13 @@ function pixelString(bits: Bits, depth: number, emit: (count: number, pixel: num
   }
 }
 
-/** Draws one field of an object's pixel data into `region` at (`ox`, `oy`), every other line from `first`. */
-function drawField(data: Uint8Array, region: Region, ox: number, oy: number, first: number): void {
+/**
+ * Draws one field of an object's pixel data into `region` at (`ox`, `oy`),
+ * every other line from `first`; the work it took, bytes read and pixels
+ * written.
+ */
+function drawField(data: Uint8Array, region: Region, ox: number, oy: number, first: number): number {
+  let written = 0;
   let at = 0;
   let x = ox;
   let y = oy + first;
@@ -248,15 +256,18 @@ function drawField(data: Uint8Array, region: Region, ox: number, oy: number, fir
     };
     pixelString(bits, depth, (count, pixel) => {
       if (y < region.height) {
+        const start = Math.max(0, x);
         const stop = Math.min(region.width, x + count);
         const value = map(pixel);
         const row = y * region.width;
-        for (let px = Math.max(0, x); px < stop; px++) region.pixels[row + px] = value;
+        for (let px = start; px < stop; px++) region.pixels[row + px] = value;
+        if (stop > start) written += stop - start;
       }
       x += count;
     });
     at = bits.align();
   }
+  return at + written;
 }
 
 export class DvbDecoder implements PictureDecoder {
@@ -305,9 +316,15 @@ export class DvbDecoder implements PictureDecoder {
     const regions = new Map<number, Region>();
     const cluts = new Map<number, Uint8ClampedArray[]>();
     const hd = () => height > 576;
-    for (let i = from; i <= index; i++) {
+    // Bytes read, pixels filled and drawn: a crafted epoch could fill a 4K
+    // region, or draw an object into each of thousands of places, in every
+    // segment of every display set. What it shows stops there.
+    let work = MAX_WORK;
+    for (let i = from; i <= index && work > 0; i++) {
       for (const seg of this.segs(i)) {
         const b = seg.body;
+        work -= 1 + b.length;
+        if (work <= 0) break;
         switch (seg.type) {
           case DISPLAY:
             if (b.length >= 5) {
@@ -336,13 +353,14 @@ export class DvbDecoder implements PictureDecoder {
             const clut = b[7]!;
             const background = depth === 8 ? b[8]! : depth === 4 ? b[9]! >> 4 : (b[9]! >> 2) & 3;
             const objects: RegionObject[] = [];
-            for (let o = 10; o + 6 <= b.length; ) {
+            for (let o = 10; o + 6 <= b.length && objects.length < MAX_REGION_OBJECTS; ) {
               const objectType = b[o + 2]! >> 6;
               objects.push({ id: (b[o]! << 8) | b[o + 1]!, x: ((b[o + 2]! & 0x0f) << 8) | b[o + 3]!, y: ((b[o + 4]! & 0x0f) << 8) | b[o + 5]! });
               o += objectType === 1 || objectType === 2 ? 8 : 6;
             }
             let region = regions.get(id);
             if (!region || region.width !== w || region.height !== h || region.depth !== depth) {
+              work -= w * h;
               region = { width: w, height: h, depth, clut, fill, background, objects, pixels: new Uint8Array(w * h) };
               regions.set(id, region);
             } else {
@@ -351,7 +369,10 @@ export class DvbDecoder implements PictureDecoder {
               region.background = background;
               region.objects = objects;
             }
-            if (fill) region.pixels.fill(background);
+            if (fill) {
+              work -= w * h;
+              region.pixels.fill(background);
+            }
             break;
           }
           case CLUT: {
@@ -407,10 +428,11 @@ export class DvbDecoder implements PictureDecoder {
             const top = b.subarray(7, 7 + topLength);
             const bottom = bottomLength ? b.subarray(7 + topLength, 7 + topLength + bottomLength) : top;
             regions.forEach((region) => {
+              work -= region.objects.length;
               for (const o of region.objects) {
+                if (work <= 0) return;
                 if (o.id !== id) continue;
-                drawField(top, region, o.x, o.y, 0);
-                drawField(bottom, region, o.x, o.y, 1);
+                work -= 1 + drawField(top, region, o.x, o.y, 0) + drawField(bottom, region, o.x, o.y, 1);
               }
             });
             break;

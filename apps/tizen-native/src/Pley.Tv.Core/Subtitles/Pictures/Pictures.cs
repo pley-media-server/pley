@@ -72,6 +72,12 @@ public static class PictureColors
     /// </summary>
     public const int MaxPixels = 3840 * 2160;
 
+    /// <summary>
+    /// The most work decoding a frame takes, bytes read and pixels filled or drawn: eight 4K
+    /// screens' worth, where a real frame takes a fraction of one.
+    /// </summary>
+    public const long MaxWork = 8L * MaxPixels;
+
     /// <summary>Limited-range YCbCr to RGB: BT.709 for HD planes, BT.601 for SD (as FFmpeg's decoders).</summary>
     public static (byte R, byte G, byte B) YcbcrToRgb(int y, int cb, int cr, bool hd)
     {

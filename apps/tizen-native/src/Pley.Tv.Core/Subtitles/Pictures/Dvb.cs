@@ -34,6 +34,9 @@ public sealed class DvbDecoder : IPictureDecoder
 
     static readonly int[] Depths = { 0, 2, 4, 8 };
 
+    /// <summary>The objects a region lists at most: a real one has a few, one for each line of text.</summary>
+    const int MaxRegionObjects = 64;
+
     sealed class PageRegion
     {
         public int Id, X, Y;
@@ -272,9 +275,14 @@ public sealed class DvbDecoder : IPictureDecoder
         }
     }
 
-    /// <summary>Draws one field of an object's pixel data into <paramref name="region"/> at (<paramref name="ox"/>, <paramref name="oy"/>), every other line from <paramref name="first"/>.</summary>
-    static void DrawField(byte[] data, Region region, int ox, int oy, int first)
+    /// <summary>
+    /// Draws one field of an object's pixel data into <paramref name="region"/> at (<paramref name="ox"/>,
+    /// <paramref name="oy"/>), every other line from <paramref name="first"/>; the work it took, bytes read and pixels
+    /// written.
+    /// </summary>
+    static long DrawField(byte[] data, Region region, int ox, int oy, int first)
     {
+        long written = 0;
         var at = 0;
         var x = ox;
         var y = oy + first;
@@ -329,15 +337,18 @@ public sealed class DvbDecoder : IPictureDecoder
             {
                 if (y < region.Height)
                 {
+                    var start = Math.Max(0, x);
                     var stop = Math.Min(region.Width, x + count);
                     var value = (byte)Map(pixel);
                     var row = y * region.Width;
-                    for (var px = Math.Max(0, x); px < stop; px++) region.Pixels[row + px] = value;
+                    for (var px = start; px < stop; px++) region.Pixels[row + px] = value;
+                    if (stop > start) written += stop - start;
                 }
                 x += count;
             });
             at = bits.Align();
         }
+        return at + written;
     }
 
     List<DvbSegment> Segs(int index) => parsed[index] ??= Segments(samples[index]);
@@ -372,11 +383,17 @@ public sealed class DvbDecoder : IPictureDecoder
         var regions = new Dictionary<int, Region>();
         var regionOrder = new List<int>();
         var cluts = new Dictionary<int, byte[][]>();
-        for (var i = from; i <= index; i++)
+        // Bytes read, pixels filled and drawn: a crafted epoch could fill a 4K region, or draw an
+        // object into each of thousands of places, in every segment of every display set. What it
+        // shows stops there.
+        var work = PictureColors.MaxWork;
+        for (var i = from; i <= index && work > 0; i++)
         {
             foreach (var seg in Segs(i))
             {
                 var b = seg.Body;
+                work -= 1 + b.Length;
+                if (work <= 0) break;
                 switch (seg.Type)
                 {
                     case DisplaySegment:
@@ -412,7 +429,7 @@ public sealed class DvbDecoder : IPictureDecoder
                         var clut = b[7];
                         var background = depth == 8 ? b[8] : depth == 4 ? b[9] >> 4 : (b[9] >> 2) & 3;
                         var objects = new List<RegionObject>();
-                        for (var o = 10; o + 6 <= b.Length;)
+                        for (var o = 10; o + 6 <= b.Length && objects.Count < MaxRegionObjects;)
                         {
                             var objectType = b[o + 2] >> 6;
                             objects.Add(new RegionObject { Id = (b[o] << 8) | b[o + 1], X = ((b[o + 2] & 0x0f) << 8) | b[o + 3], Y = ((b[o + 4] & 0x0f) << 8) | b[o + 5] });
@@ -420,6 +437,7 @@ public sealed class DvbDecoder : IPictureDecoder
                         }
                         if (!regions.TryGetValue(id, out var region) || region.Width != w || region.Height != h || region.Depth != depth)
                         {
+                            work -= w * h;
                             region = new Region { Width = w, Height = h, Depth = depth, Clut = clut, Fill = fill, Background = background, Objects = objects, Pixels = new byte[w * h] };
                             if (!regions.ContainsKey(id)) regionOrder.Add(id);
                             regions[id] = region;
@@ -432,7 +450,10 @@ public sealed class DvbDecoder : IPictureDecoder
                             region.Objects = objects;
                         }
                         if (fill)
+                        {
+                            work -= w * h;
                             for (var p = 0; p < region.Pixels.Length; p++) region.Pixels[p] = (byte)background;
+                        }
                         break;
                     }
                     case ClutSegment:
@@ -494,11 +515,12 @@ public sealed class DvbDecoder : IPictureDecoder
                         foreach (var regionId in regionOrder)
                         {
                             var region = regions[regionId];
+                            work -= region.Objects.Count;
                             foreach (var o in region.Objects)
                             {
+                                if (work <= 0) break;
                                 if (o.Id != id) continue;
-                                DrawField(top, region, o.X, o.Y, 0);
-                                DrawField(bottom, region, o.X, o.Y, 1);
+                                work -= 1 + DrawField(top, region, o.X, o.Y, 0) + DrawField(bottom, region, o.X, o.Y, 1);
                             }
                         }
                         break;

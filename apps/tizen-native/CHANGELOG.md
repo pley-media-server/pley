@@ -313,6 +313,8 @@ It has no releases yet: it is built and installed by hand
 
 ### Security
 
+- A crafted file's DVB subtitles can no longer stall the app: a moment's
+  subtitles take eight 4K screens' work at most to decode.
 - A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer run
   the app out of memory: a moment's pictures decode to a 4K screen's
   pixels at most, and the frames kept decoded hold 128 MiB at most, as in

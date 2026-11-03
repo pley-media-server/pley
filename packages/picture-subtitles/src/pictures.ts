@@ -46,6 +46,13 @@ export const MAX_SIDE = 4096;
  */
 export const MAX_PIXELS = 3840 * 2160;
 
+/**
+ * The most work decoding a frame takes, bytes read and pixels filled or
+ * drawn: eight 4K screens' worth, where a real frame takes a fraction of
+ * one.
+ */
+export const MAX_WORK = 8 * MAX_PIXELS;
+
 /** Decoded frames kept per track, and the most bytes they hold together. */
 export const CACHE_FRAMES = 25;
 export const CACHE_BYTES = 128 << 20;
