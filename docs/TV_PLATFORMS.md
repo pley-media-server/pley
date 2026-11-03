@@ -465,8 +465,8 @@ screen is made, which takes the UI thread half a second the first time.
   screen a start opens (with Always start as, the PIN pad of the profile
   the TV was left on when it has one); `rail.json` pins the rail's
   entries (up to six libraries, then Libraries; nothing left out for
-  Live TV or Now Playing) and how far they scroll as focus moves along
-  them. Where the Android app is
+  Live TV or Now Playing) and how far they scroll for the entry focus is
+  on. Where the Android app is
   stricter (a token answer without `token_type`, a device code without
   `expires_in`), the native app follows it, and its test says which
   fixture case it answers differently.
@@ -549,7 +549,7 @@ the watchdog and sampler) and Core's marks are left out when it is compiled.
 
 While a drive is plugged into the TV, the rail ends with **USB drive**,
 after every other entry; the rail's entries scroll when they don't all
-fit, as Android TV's do. The drive's page lists the drive's folders, then
+fit, the focused entry fourth from the top, as Android TV's do. The drive's page lists the drive's folders, then
 the videos the TV's player opens (MKV, MP4,
 M4V, MOV, TS, M2TS, WebM, AVI, MPEG), sorted as a person sorts names;
 hidden files and what Windows and macOS leave on a drive aren't shown. A

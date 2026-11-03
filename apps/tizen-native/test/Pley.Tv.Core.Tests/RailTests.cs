@@ -121,6 +121,19 @@ public class RailTests
         Assert.Equal(27f, 540 - Rail.SettingsY - Rail.EntryHeight);
         Assert.True(Rail.FirstEntry + 9 * Rail.Pitch <= Rail.SettingsY);
         Assert.False(Rail.FirstEntry + 10 * Rail.Pitch <= Rail.SettingsY);
+        Assert.Equal(9, Rail.Fits);
+    }
+
+    [Fact]
+    public void The_focused_entry_is_fourth_from_the_top_while_the_entries_scroll_the_same_both_ways()
+    {
+        // Fourteen entries: focus goes down to the fourth place, the entries move under it an entry a press until
+        // the last nine show, and focus goes on to the last. Each entry's place is its own, whichever way focus came.
+        var places = Enumerable.Range(0, 14).Select(i => i * Rail.Pitch - Rail.Scroll(0, i, 14)).ToList();
+        Assert.Equal(new[] { 0f, 44, 88, 132, 132, 132, 132, 132, 132, 176, 220, 264, 308, 352 }, places);
+        // Whole entries at either end: the last ends 392 down the 402 of the view.
+        Assert.All(Enumerable.Range(0, 14), i => Assert.Equal(0f, Rail.Scroll(0, i, 14) % Rail.Pitch));
+        Assert.Equal(392f, places[13] + Rail.EntryHeight);
     }
 
     [Fact]
@@ -178,9 +191,9 @@ public class RailTests
     {
         var c = Case("scroll", i);
         var input = c.GetProperty("in");
-        var dir = input.GetProperty("dir");
-        Direction? direction = dir.ValueKind == JsonValueKind.Null ? null : dir.GetString() == "down" ? Direction.Down : Direction.Up;
-        var scroll = Rail.Scroll(input.GetProperty("scroll").GetSingle(), input.GetProperty("focused").GetInt32(), input.GetProperty("count").GetInt32(), direction);
-        Assert.Equal(c.GetProperty("out").GetSingle(), scroll);
+        // With an entry focused, where it was scrolled before makes no difference.
+        var from = input.TryGetProperty("scroll", out var s) ? new[] { s.GetSingle() } : new[] { 0f, 37f, 1000f };
+        foreach (var scroll in from)
+            Assert.Equal(c.GetProperty("out").GetSingle(), Rail.Scroll(scroll, input.GetProperty("focused").GetInt32(), input.GetProperty("count").GetInt32()));
     }
 }

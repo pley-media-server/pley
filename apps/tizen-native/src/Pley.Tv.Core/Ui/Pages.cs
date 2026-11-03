@@ -102,6 +102,12 @@ public static class Rail
     /// <summary>The entries' view: from the first entry's place to the gap above Settings.</summary>
     public const float View = SettingsY - EntryGap - FirstEntry;
 
+    /// <summary>Whole entries in the view, the last one's gap aside: nine.</summary>
+    public const int Fits = (int)((View + EntryGap) / Pitch);
+
+    /// <summary>The entries shown above the focused one while they scroll under it (<see cref="Scroll"/>).</summary>
+    public const int Pivot = 3;
+
     /// <summary>The avatar's id: it opens Who's watching?.</summary>
     public const string ProfileItem = "profile";
 
@@ -144,26 +150,20 @@ public static class Rail
     }
 
     /// <summary>
-    /// How far the entries are scrolled, in dp, once entry <paramref name="focused"/> of
-    /// <paramref name="count"/> has focus, from <paramref name="scroll"/>: the entry wholly in view and,
-    /// moving <paramref name="direction"/> (Down from above it or the avatar, Up from below or
-    /// Settings), the next one that way too, so what is beyond the edge shows coming; within the first
-    /// entry at its place and the last ending above Settings. With no direction (the rail opening on its
-    /// current entry, the entries made again) only the entry is brought into view. With no entry
-    /// focused (the avatar, Settings), the scroll is kept within its ends. packages/tv's railScroll,
-    /// which the shared fixture pins.
+    /// How far the entries are scrolled, in dp, while entry <paramref name="focused"/> of
+    /// <paramref name="count"/> has focus: by whole entries, so none is ever cut in half at either end.
+    /// Going down, focus moves until it is the fourth entry shown, then stays there while the entries
+    /// move under it an entry a press, until the last ones are all in view and focus goes on to the
+    /// last; going up is the same backwards. Where an entry shows depends on it alone, never on the way
+    /// focus came or on <paramref name="scroll"/>, as the app's lists keep their focused row in one
+    /// place. With no entry focused (the avatar, Settings: -1 or <paramref name="count"/>),
+    /// <paramref name="scroll"/> is kept, within the ends. packages/tv's railScroll, which the shared
+    /// fixture pins.
     /// </summary>
-    public static float Scroll(float scroll, int focused, int count, Direction? direction)
+    public static float Scroll(float scroll, int focused, int count)
     {
-        var max = System.Math.Max(0, count * Pitch - EntryGap - View);
-        var s = scroll;
-        if (focused >= 0 && focused < count)
-        {
-            var top = focused * Pitch - (direction == Direction.Up && focused > 0 ? Pitch : 0);
-            var bottom = focused * Pitch + EntryHeight + (direction == Direction.Down && focused + 1 < count ? Pitch : 0);
-            if (bottom - s > View) s = bottom - View;
-            if (top < s) s = top;
-        }
+        var max = System.Math.Max(0, count - Fits) * Pitch;
+        var s = focused >= 0 && focused < count ? (focused - Pivot) * Pitch : scroll;
         return System.Math.Max(0, System.Math.Min(max, s));
     }
 

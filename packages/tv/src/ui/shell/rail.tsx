@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { Library, RequestSummary, User } from "../../api/types";
 import { hasRequests, mayAsk, requestsCount, requestsTitle } from "../../requests";
 import { useUi } from "../context";
+import { nudge } from "../focus";
 import { F, G } from "../kit/focusable";
 import { Icon, type IconName } from "../kit/icons";
 import type { PageKey } from "./navigator";
@@ -31,26 +32,28 @@ export const RAIL_FIRST = 67;
 export const RAIL_SETTINGS = 473;
 /** The entries' view: from the first entry's place to the gap above Settings. */
 const RAIL_VIEW = RAIL_SETTINGS - RAIL_GAP - RAIL_FIRST;
+/** Whole entries in the view, the last one's gap aside: nine. */
+const RAIL_FITS = Math.floor((RAIL_VIEW + RAIL_GAP) / RAIL_PITCH);
+/** The entries shown above the focused one while they scroll under it. */
+const RAIL_PIVOT = 3;
+
+/** The furthest the entries scroll: by whole entries, until the last nine show. */
+const railEnd = (count: number) => Math.max(0, count - RAIL_FITS) * RAIL_PITCH;
 
 /**
- * How far the rail's entries are scrolled once entry `focused` of `count`
- * has focus, from `scroll`: the entry wholly in view, and, moving `dir`
- * ("down" from above it or the avatar, "up" from below or Settings), the
- * next one that way too, so what is beyond the edge shows coming; within
- * the first entry at its place and the last ending above Settings. With no
- * direction (the rail opening on its current entry, the entries made
- * again) only the entry is brought into view. With no entry focused, the
- * scroll is kept within its ends.
+ * How far the rail's entries are scrolled while entry `focused` of `count`
+ * has focus: by whole entries, so none is ever cut in half at either end.
+ * Going down, focus moves until it is the fourth entry shown, then stays
+ * there while the entries move under it an entry a press, until the last
+ * ones are all in view and focus goes on to the last; going up is the same
+ * backwards. Where an entry shows depends on it alone, never on the way
+ * focus came or on `scroll`, as the app's lists keep their focused row in
+ * one place. With no entry focused (the avatar, Settings: -1 or `count`),
+ * `scroll` is kept, within the ends.
  */
-export function railScroll(scroll: number, focused: number, count: number, dir: "up" | "down" | null): number {
-  const max = Math.max(0, count * RAIL_PITCH - RAIL_GAP - RAIL_VIEW);
-  let s = scroll;
-  if (focused >= 0 && focused < count) {
-    const top = focused * RAIL_PITCH - (dir === "up" && focused > 0 ? RAIL_PITCH : 0);
-    const bottom = focused * RAIL_PITCH + RAIL_ENTRY + (dir === "down" && focused + 1 < count ? RAIL_PITCH : 0);
-    if (bottom - s > RAIL_VIEW) s = bottom - RAIL_VIEW;
-    if (top < s) s = top;
-  }
+export function railScroll(scroll: number, focused: number, count: number): number {
+  const max = railEnd(count);
+  const s = focused >= 0 && focused < count ? (focused - RAIL_PIVOT) * RAIL_PITCH : scroll;
   return Math.max(0, Math.min(max, s));
 }
 
@@ -163,8 +166,9 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
   const entriesRef = useRef<HTMLDivElement>(null);
   const count = useRef(top.length);
   count.current = top.length;
-  /** Where focus was in the rail, for the way a move went: -1 the avatar, `count` Settings; null outside it. */
-  const lastAt = useRef<number | null>(null);
+  /** The page's entry's index; -1 when it has none among the entries (Settings, Who's watching?). */
+  const page = useRef(-1);
+  page.current = top.findIndex((e) => e.id === p.current);
   /** The focused element's place: an entry's index, -1 the avatar, `count` Settings; null outside the rail. */
   const placeOf = (el: HTMLElement): number | null => {
     const r = root.current;
@@ -172,6 +176,19 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
     const entries = entriesRef.current;
     if (entries && entries.contains(el)) return Array.prototype.indexOf.call(entries.children, el) as number;
     return el.classList.contains("avatar") ? -1 : count.current;
+  };
+  /**
+   * The entries scrolled for focus on `el` (`railScroll`): to its entry, or,
+   * with focus outside the rail, to the page's, so the rail opens on it
+   * without moving. The pointer only brings a cut-off entry in whole, no
+   * further: entries moving under a still pointer would move focus.
+   */
+  const follow = (el: HTMLElement | null) => {
+    const n = count.current;
+    const at = el ? placeOf(el) : null;
+    if (at === null) setScroll((s) => railScroll(s, page.current, n));
+    else if (ui.focus.byPointer && at >= 0 && at < n) setScroll((s) => nudge(s, at * RAIL_PITCH, at * RAIL_PITCH + RAIL_ENTRY, 0, RAIL_VIEW, 0, railEnd(n)));
+    else setScroll((s) => railScroll(s, at, n));
   };
 
   /**
@@ -248,14 +265,7 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
           handing.current = false;
           if (ui.focus.byPointer) pointedIn.current = true;
         }
-        // The focused entry in view, and the next one the way focus went; the pointer only brings a cut-off one in.
-        const at = el ? placeOf(el) : null;
-        const from = lastAt.current;
-        lastAt.current = at;
-        if (at !== null && at >= 0 && at < count.current) {
-          const dir = from === null || ui.focus.byPointer || from === at ? null : from < at ? "down" : "up";
-          setScroll((s) => railScroll(s, at, count.current, dir));
-        }
+        follow(el);
         if (r && el && !r.contains(el) && open.value) {
           open.value = false;
           handing.current = false;
@@ -266,15 +276,10 @@ export function Rail(p: { entries: RailEntries; me: User | null; current: string
     [],
   );
 
-  // Entries made again (Now Playing came, a library went): the focused one stays in view, the scroll within its ends.
-  // Its place is noted again, as one above it may have gone: the next move's way is read from where it is now, so a
-  // move still shows the entry beyond the one it reaches.
-  useLayoutEffect(() => {
-    const el = ui.focus.current;
-    const at = el ? placeOf(el) : null;
-    lastAt.current = at;
-    setScroll((s) => railScroll(s, at ?? -1, top.length, null));
-  }, [top.length]);
+  // Entries made again (Now Playing came, a library went) or another page's entry: the focused entry, else the page's,
+  // placed again by the same rule; on the avatar or Settings, the scroll kept within its ends.
+  const ids = top.map((e) => e.id).join(" ");
+  useLayoutEffect(() => follow(ui.focus.current), [ids, p.current]);
 
   const select = (entry: RailEntry) => {
     const nav = ui.nav;

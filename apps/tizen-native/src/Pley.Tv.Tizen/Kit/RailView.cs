@@ -51,11 +51,11 @@ sealed class RailView : View
     Animation? motion;
     Animation? scrolling;
     string? current;
+    /// <summary>The entries above Settings, in order.</summary>
+    IReadOnlyList<RailItem> items = Array.Empty<RailItem>();
     bool open;
     /// <summary>How far the entries are scrolled, in dp.</summary>
     float scroll;
-    /// <summary>Where focus was in the rail, for the way a move went: -1 the avatar, the entries' count Settings; null outside it.</summary>
-    int? lastAt;
     /// <summary>The entries are being made again: focus goes to its entry at once, leaving no animation running on the one that went.</summary>
     bool remaking;
 
@@ -121,7 +121,7 @@ sealed class RailView : View
         };
         Add(debug);
 #endif
-        // Focus in the rail is what opens it, and keeps the entry it is on in view.
+        // Focus in the rail is what opens it, and places the entry it is on.
         tree.Moved += item =>
         {
             Open(item?.Parent == Group);
@@ -143,6 +143,7 @@ sealed class RailView : View
     /// </summary>
     public void SetItems(IReadOnlyList<RailItem> items)
     {
+        this.items = items;
         var place = PlaceOf(tree.Current) ?? -1;
         var focused = place >= 0 && place < Count ? entries.Find(e => e.Item == tree.Current) : null;
         foreach (var e in entries)
@@ -157,15 +158,12 @@ sealed class RailView : View
         if (focused != null)
         {
             var to = Rail.Refocus(focused.Id, place, items);
-            // Where focus was is where it goes: no way travelled, so only the entry comes into view (Follow).
-            lastAt = to;
             remaking = true;
             tree.Focus((FocusItem)Group.Children[1 + to]);
             remaking = false;
         }
-        else lastAt = PlaceOf(tree.Current);
-        // Made again: the scroll within the entries' ends, the focused one in view (focus coming back to one moves it there too).
-        ScrollTo(Rail.Scroll(scroll, PlaceOf(tree.Current) ?? -1, items.Count, null));
+        // Made again: the focused entry, else the page's, placed by the same rule; on the avatar or Settings, the scroll within the entries' ends.
+        Follow(tree.Current);
     }
 
     public void SetProfile(RailProfile? profile)
@@ -180,6 +178,8 @@ sealed class RailView : View
     {
         current = id;
         Mark();
+        // Closed, the rail shows the page's entry where focus on it would.
+        Follow(tree.Current);
     }
 
     /// <summary>Focus to the current entry (D-pad rule 3: Left from content, Back from a top page), which opens the rail.</summary>
@@ -211,15 +211,19 @@ sealed class RailView : View
         return null;
     }
 
-    /// <summary>Focus moved to <paramref name="item"/>: an entry comes into view, and the next one the way focus went.</summary>
-    void Follow(FocusItem? item)
+    /// <summary>
+    /// Focus moved to <paramref name="item"/>: the entries placed for its entry (<see cref="Rail.Scroll"/>), or, with
+    /// focus outside the rail, for the page's, so the rail opens on it without moving; on the avatar or Settings, kept
+    /// where they are.
+    /// </summary>
+    void Follow(FocusItem? item) => ScrollTo(Rail.Scroll(scroll, PlaceOf(item) ?? CurrentPlace(), Count));
+
+    /// <summary>The page's entry's index; -1 when it has none among the entries (Settings, Who's watching?).</summary>
+    int CurrentPlace()
     {
-        var at = PlaceOf(item);
-        var from = lastAt;
-        lastAt = at;
-        if (at is not { } i || i < 0 || i >= Count) return;
-        Direction? direction = from is not { } f || f == i ? null : f < i ? Direction.Down : Direction.Up;
-        ScrollTo(Rail.Scroll(scroll, i, Count, direction));
+        for (var i = 0; i < items.Count; i++)
+            if (items[i].Id == current) return i;
+        return -1;
     }
 
     void ScrollTo(float target)

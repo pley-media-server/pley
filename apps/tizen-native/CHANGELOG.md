@@ -280,7 +280,8 @@ It has no releases yet: it is built and installed by hand
   libraries, where four or more went behind Libraries; nothing leaves the
   rail to make room for Live TV, Now Playing or a USB drive any more, and
   the entries scroll between the avatar and Settings when they don't all
-  fit.
+  fit, keeping the focused entry fourth from the top, as the app's lists
+  keep theirs.
 - The native app's search rows hold every result, up to 200 titles, 200
   people and 200 Live TV channels, where they stopped at 60 titles and 12
   people and channels. A row makes its tiles as focus comes near them, so

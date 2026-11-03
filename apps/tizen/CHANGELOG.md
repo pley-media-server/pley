@@ -98,7 +98,8 @@ describes how they are made.
 - The rail's entries are smaller and list up to six libraries, where
   four or more went behind Libraries; nothing leaves the rail to make room
   for Live TV, Discover or Now Playing any more, and the entries scroll
-  between the avatar and Settings when they don't all fit.
+  between the avatar and Settings when they don't all fit, keeping the
+  focused entry fourth from the top, as the app's lists keep theirs.
 - Search's rows hold every result, up to 200 titles, 200 people and 200
   Live TV channels, where they stopped at 60 titles and 12 people and
   channels.

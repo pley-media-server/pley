@@ -82,8 +82,9 @@ describe("the rail, as the shared fixture has it", () => {
 
   it("scroll", () => {
     for (const c of fixture.scroll) {
-      const dir = c.in.dir as "up" | "down" | null;
-      expect([c.in, railScroll(c.in.scroll, c.in.focused, c.in.count, dir)]).toEqual([c.in, c.out]);
+      // With an entry focused, where it was scrolled before makes no difference.
+      const from = c.in.scroll === undefined ? [0, 37, 1000] : [c.in.scroll];
+      for (const s of from) expect([c.in, s, railScroll(s, c.in.focused, c.in.count)]).toEqual([c.in, s, c.out]);
     }
   });
 
