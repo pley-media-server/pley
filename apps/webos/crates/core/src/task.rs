@@ -275,21 +275,45 @@ struct Queue {
     closed: AtomicBool,
 }
 
+impl Queue {
+    /// A queue and `threads` workers named `name-0`, `name-1`… taking from it.
+    fn start(name: &str, threads: usize) -> Arc<Queue> {
+        let queue = Arc::new(Queue { jobs: Mutex::new(VecDeque::new()), more: Condvar::new(), closed: false.into() });
+        for n in 0..threads.max(1) {
+            let q = queue.clone();
+            thread::Builder::new().name(format!("{name}-{n}")).spawn(move || work(&q)).expect("the task threads start");
+        }
+        queue
+    }
+
+    fn push(&self, job: Job) {
+        lock(&self.jobs).push_back(job);
+        self.more.notify_one();
+    }
+
+    fn close(&self) {
+        self.closed.store(true, Ordering::SeqCst);
+        self.more.notify_all();
+    }
+}
+
 /// Ends the workers when the last [`Tasks`] handle goes.
-struct Owner(Arc<Queue>);
+struct Owner(Arc<Queue>, Arc<Queue>);
 
 impl Drop for Owner {
     fn drop(&mut self) {
-        self.0.closed.store(true, Ordering::SeqCst);
-        self.0.more.notify_all();
+        self.0.close();
+        self.1.close();
     }
 }
 
 /// The task pool: three threads running requests and decoding answers for
-/// screens and the app's state. Cheap to clone.
+/// screens and the app's state, and one more for what pages keep in the
+/// [`Store`](crate::Store). Cheap to clone.
 #[derive(Clone)]
 pub struct Tasks {
     queue: Arc<Queue>,
+    store: Arc<Queue>,
     _owner: Arc<Owner>,
     waker: Waker,
 }
@@ -300,17 +324,10 @@ impl Tasks {
         Tasks::with_threads(TASK_THREADS, waker)
     }
 
-    /// A pool of `threads` threads (at least one).
+    /// A pool of `threads` threads (at least one), and the store's thread.
     pub fn with_threads(threads: usize, waker: Waker) -> Tasks {
-        let queue = Arc::new(Queue { jobs: Mutex::new(VecDeque::new()), more: Condvar::new(), closed: false.into() });
-        for n in 0..threads.max(1) {
-            let q = queue.clone();
-            thread::Builder::new()
-                .name(format!("pley-task-{n}"))
-                .spawn(move || work(&q))
-                .expect("the task threads start");
-        }
-        Tasks { _owner: Arc::new(Owner(queue.clone())), queue, waker }
+        let (queue, store) = (Queue::start("pley-task", threads), Queue::start("pley-store", 1));
+        Tasks { _owner: Arc::new(Owner(queue.clone(), store.clone())), queue, store, waker }
     }
 
     /// Runs `f` on a worker; its answer comes back through the promise, and
@@ -320,10 +337,49 @@ impl Tasks {
         T: Send + 'static,
         F: FnOnce() -> T + Send + 'static,
     {
+        self.spawn_on(&self.queue, f)
+    }
+
+    /// Runs `f` on a worker with nothing to hand back and nothing that cancels
+    /// it: progress reports and the end of a session, which outlive the screen
+    /// that made them.
+    pub fn detach(&self, f: impl FnOnce() + Send + 'static) {
+        detach_on(&self.queue, f);
+    }
+
+    /// Runs `f` on the store's thread, as [`Tasks::spawn`] does: a read of what
+    /// a page kept on the TV, which it waits for before it shows. That thread
+    /// runs one task at a time in the order asked, so the read sees every
+    /// [`Tasks::detach_store`] write asked before it, and it never waits behind
+    /// requests to a slow server.
+    pub fn spawn_store<T, F>(&self, f: F) -> Promise<T>
+    where
+        T: Send + 'static,
+        F: FnOnce() -> T + Send + 'static,
+    {
+        self.spawn_on(&self.store, f)
+    }
+
+    /// Runs `f` on the store's thread, as [`Tasks::detach`] does: a write of
+    /// what a page keeps, read again by [`Tasks::spawn_store`].
+    pub fn detach_store(&self, f: impl FnOnce() + Send + 'static) {
+        detach_on(&self.store, f);
+    }
+
+    /// The waker tasks call when they finish.
+    pub fn waker(&self) -> &Waker {
+        &self.waker
+    }
+
+    fn spawn_on<T, F>(&self, queue: &Queue, f: F) -> Promise<T>
+    where
+        T: Send + 'static,
+        F: FnOnce() -> T + Send + 'static,
+    {
         let slot = Arc::new(Slot { value: Mutex::new(SlotState::Pending) });
         let cancel = Cancel::new();
         let (s, c, waker) = (slot.clone(), cancel.clone(), self.waker.clone());
-        self.push(Box::new(move || {
+        queue.push(Box::new(move || {
             if c.is_cancelled() {
                 *lock(&s.value) = SlotState::Failed;
                 return;
@@ -337,25 +393,12 @@ impl Tasks {
         }));
         Promise { slot, cancel }
     }
+}
 
-    /// Runs `f` on a worker with nothing to hand back and nothing that cancels
-    /// it: progress reports and the end of a session, which outlive the screen
-    /// that made them.
-    pub fn detach(&self, f: impl FnOnce() + Send + 'static) {
-        self.push(Box::new(move || {
-            let _ = catch_unwind(AssertUnwindSafe(f));
-        }));
-    }
-
-    /// The waker tasks call when they finish.
-    pub fn waker(&self) -> &Waker {
-        &self.waker
-    }
-
-    fn push(&self, job: Job) {
-        lock(&self.queue.jobs).push_back(job);
-        self.queue.more.notify_one();
-    }
+fn detach_on(queue: &Queue, f: impl FnOnce() + Send + 'static) {
+    queue.push(Box::new(move || {
+        let _ = catch_unwind(AssertUnwindSafe(f));
+    }));
 }
 
 fn work(q: &Queue) {
@@ -419,6 +462,28 @@ mod tests {
         gate.cancel();
         assert!(blocker.wait(Duration::from_secs(5)).is_some());
         assert!(seen_rx.recv_timeout(Duration::from_millis(200)).is_err());
+    }
+
+    #[test]
+    fn the_store_reads_after_its_writes_while_the_workers_are_busy() {
+        let tasks = Tasks::with_threads(1, Waker::noop());
+        let gate = Cancel::new();
+        let g = gate.clone();
+        // The only worker is held, as by a request to a slow server.
+        let blocker = tasks.spawn(move || {
+            g.sleep(Duration::from_secs(5));
+        });
+        let kept = Arc::new(Mutex::new(None));
+        let k = kept.clone();
+        tasks.detach_store(move || {
+            thread::sleep(Duration::from_millis(50));
+            *lock(&k) = Some("kept");
+        });
+        let k = kept.clone();
+        let read = tasks.spawn_store(move || *lock(&k));
+        assert_eq!(read.wait(Duration::from_secs(2)), Some(Some("kept")));
+        gate.cancel();
+        assert!(blocker.wait(Duration::from_secs(5)).is_some());
     }
 
     #[test]

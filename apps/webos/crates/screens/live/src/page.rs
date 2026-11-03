@@ -214,7 +214,7 @@ impl LiveTvScreen {
             self.guide = Guide::new(now);
             let (store, server, profile) =
                 (cx.store().clone(), cx.state.server().map(str::to_string), cx.state.profile());
-            self.kept = Some(cx.tasks().spawn(move || kept::read(&store, server.as_deref(), profile)));
+            self.kept = Some(cx.tasks().spawn_store(move || kept::read(&store, server.as_deref(), profile)));
         }
         if let Some(p) = self.kept.as_mut()
             && (p.ready() || p.failed())
