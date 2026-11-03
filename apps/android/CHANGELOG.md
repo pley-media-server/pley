@@ -17,6 +17,10 @@ describes how they are made.
 - On Android TV and Fire TV, Back to the page the rail opened (Home, a
   library, search) shows it at once as it was left, focus included, rather
   than building it again with its pictures.
+- On Android TV and Fire TV, the rail and the side panels move as they do
+  on Samsung TVs: they open quickly and settle, the rail's entries grow on
+  focus the same way and shrink back slow to start, and panels leave the
+  same way.
 
 ### Fixed
 

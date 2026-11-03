@@ -2,6 +2,7 @@ package app.pley.android.ui.tv.shell
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
@@ -198,7 +199,8 @@ class RailState(private val content: FocusRequester = FocusRequester()) : TvRail
  * [surface][PleyColors.Surface] at 96 % with a soft edge, and the shell
  * dims the page behind it.
  *
- * Focus in it is what opens it. Over 200 ms ([PleyMotion.OVERLAY_MS]) the
+ * Focus in it is what opens it. Over 200 ms ([PleyMotion.OVERLAY_MS]),
+ * eased out as the Samsung app's rail is ([PleyMotion.EaseOut]), the
  * panel widens from 72 to 272 dp with its edge, the pills from 56 to 256,
  * and the labels fade in as they widen; leaving, the same back. With
  * reduced motion (Settings' or the system's) it opens and closes in place,
@@ -323,7 +325,8 @@ private fun rememberRailOpening(open: Boolean): Animatable<Float, AnimationVecto
     val opening = remember { Animatable(if (open) 1f else 0f) }
     LaunchedEffect(open, reduced) {
         val target = if (open) 1f else 0f
-        if (reduced) opening.snapTo(target) else opening.animateTo(target, PleyMotion.overlay())
+        // Both ways on the Samsung app's ease out, as its rail moves.
+        if (reduced) opening.snapTo(target) else opening.animateTo(target, tween(PleyMotion.OVERLAY_MS, easing = PleyMotion.EaseOut))
     }
     return opening
 }
@@ -362,7 +365,13 @@ private fun RailPill(
     val reduced = reducedMotion()
     val scale = remember { Animatable(1f) }
     LaunchedEffect(focused, reduced) {
-        if (focused) scale.animateTo(PleyFocus.PILL_SCALE, PleyMotion.focus(reduced)) else scale.animateTo(1f, PleyMotion.unfocus(reduced))
+        val target = if (focused) PleyFocus.PILL_SCALE else 1f
+        when {
+            reduced -> scale.snapTo(target)
+            // 150 ms eased out to 1.05, 120 eased in back, as the Samsung app's entries.
+            focused -> scale.animateTo(target, tween(PleyMotion.FOCUS_MS, easing = PleyMotion.EaseOut))
+            else -> scale.animateTo(target, tween(PleyMotion.UNFOCUS_MS, easing = PleyMotion.EaseIn))
+        }
     }
     val fill = when {
         pressed -> PleyColors.AccentBright
