@@ -32,6 +32,14 @@ const MAX_REGION_OBJECTS = 64;
 /** The regions a page places at most: a real one places a few, each of them a picture to draw. */
 const MAX_PLACED = 32;
 
+/**
+ * What reading a byte costs against MAX_WORK, next to filling a pixel: a
+ * segment's (a colour table's entries) about 8 times as long, and a pixel
+ * string's, walked a bit at a time, about 32.
+ */
+const READ_COST = 8;
+const WALK_COST = 32;
+
 interface PageRegion {
   id: number;
   x: number;
@@ -238,8 +246,8 @@ function pixelString(bits: Bits, depth: number, emit: (count: number, pixel: num
 
 /**
  * Draws one field of an object's pixel data into `region` at (`ox`, `oy`),
- * every other line from `first`; the work it took, bytes read and pixels
- * written.
+ * every other line from `first`, up to the region's bottom; the work it
+ * took, bytes walked and pixels written.
  */
 function drawField(data: Uint8Array, region: Region, ox: number, oy: number, first: number): number {
   let written = 0;
@@ -250,7 +258,7 @@ function drawField(data: Uint8Array, region: Region, ox: number, oy: number, fir
   let map24 = [0x0, 0x7, 0x8, 0xf];
   let map28 = [0x00, 0x77, 0x88, 0xff];
   let map48 = Array.from({ length: 16 }, (_, i) => i * 0x11);
-  while (at < data.length) {
+  while (at < data.length && y < region.height) {
     const type = data[at++]!;
     if (type === 0xf0) {
       x = ox;
@@ -296,7 +304,7 @@ function drawField(data: Uint8Array, region: Region, ox: number, oy: number, fir
     });
     at = bits.align();
   }
-  return at + written;
+  return at * WALK_COST + written;
 }
 
 export class DvbDecoder implements PictureDecoder {
@@ -333,7 +341,7 @@ export class DvbDecoder implements PictureDecoder {
     for (let i = from; i <= index && work > 0; i++) {
       for (const seg of segments(this.samples[i]!)) {
         const b = seg.body;
-        work -= 1 + b.length;
+        work -= (1 + b.length) * READ_COST;
         if (work <= 0) break;
         switch (seg.type) {
           case DISPLAY:

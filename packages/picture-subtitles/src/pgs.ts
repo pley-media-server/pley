@@ -28,6 +28,13 @@ const END = 0x80;
 /** The objects a composition places at most: Blu-ray's two, as FFmpeg reads them. */
 const MAX_PLACED = 2;
 
+/**
+ * What reading a byte of a display set costs against MAX_WORK, next to
+ * filling a pixel: reading it, and its objects' run-lengths later, take
+ * about 4 times as long.
+ */
+const READ_COST = 4;
+
 interface Composition {
   width: number;
   height: number;
@@ -209,7 +216,7 @@ export class PgsDecoder implements PictureDecoder {
     let work = MAX_WORK;
     for (let i = from; i <= index && work > 0; i++) {
       const data = this.samples[i]!;
-      work -= 1 + data.length;
+      work -= (1 + data.length) * READ_COST;
       const s = i === index ? current : parseDisplaySet(data);
       for (const p of s.palettes) {
         let palette = palettes.get(p.id);

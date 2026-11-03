@@ -40,6 +40,12 @@ public sealed class PgsDecoder : IPictureDecoder
     /// <summary>The objects a composition places at most: Blu-ray's two, as FFmpeg reads them.</summary>
     const int MaxPlaced = 2;
 
+    /// <summary>
+    /// What reading a byte of a display set costs against <see cref="PictureColors.MaxWork"/>, next
+    /// to filling a pixel: reading it, and its objects' run-lengths later, take about 4 times as long.
+    /// </summary>
+    const int ReadCost = 4;
+
     internal sealed class Palette
     {
         public int Id;
@@ -251,7 +257,7 @@ public sealed class PgsDecoder : IPictureDecoder
         for (var i = from; i <= index && work > 0; i++)
         {
             var data = samples[i];
-            work -= 1 + data.Length;
+            work -= (1L + data.Length) * ReadCost;
             var s = i == index ? current : ParseDisplaySet(data);
             foreach (var p in s.Palettes)
             {

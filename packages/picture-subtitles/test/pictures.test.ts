@@ -435,6 +435,20 @@ describe("DVB", () => {
     expect(sizes(placing([1, 0, 0]), ...fills(10), filled(1, 4, 2), red)).toEqual([]);
   });
 
+  it("counts walking pixel codes as more work than filling pixels, and walks no line below a region", () => {
+    // A 1×`h` region listing object 1 64 times; the object, a string of 1-pixel codes that never ends; then region 1, the one placed.
+    const places = Array.from({ length: 64 }, () => [...u16(1), 0, 0, 0, 0]).flat();
+    const region = (h: number) => dvbSegment(0x11, [0, 0x00, ...u16(1), ...u16(h), 2 << 2, 0, 0, 0, ...places]);
+    const object = (bytes: number) => {
+      const field = [0x11, ...new Array<number>(bytes).fill(0x11)];
+      return dvbSegment(0x13, [...u16(1), 0x00, ...u16(field.length), ...u16(0), ...field]);
+    };
+    expect(sizes(placing([1, 0, 0]), region(2), red, object(2_000), filled(1, 4, 2))).toEqual([[4, 2]]);
+    expect(sizes(placing([1, 0, 0]), region(2), red, object(20_000), filled(1, 4, 2))).toEqual([]);
+    // One line high: the bottom field starts below it, and takes nothing.
+    expect(sizes(placing([1, 0, 0]), region(1), red, object(20_000), filled(1, 4, 2))).toEqual([[4, 2]]);
+  });
+
   it("keeps a frame's worth of regions at most, of 4096 pixels a side at most", () => {
     // The second 3000×2000 region would pass a 4K screen's pixels with the first: it isn't kept.
     expect(sizes(placing([1, 0, 0]), filled(0, 3000, 2000), filled(1, 3000, 2000), red)).toEqual([]);

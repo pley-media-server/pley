@@ -40,6 +40,14 @@ public sealed class DvbDecoder : IPictureDecoder
     /// <summary>The regions a page places at most: a real one places a few, each of them a picture to draw.</summary>
     const int MaxPlaced = 32;
 
+    /// <summary>
+    /// What reading a byte costs against <see cref="PictureColors.MaxWork"/>, next to filling a
+    /// pixel: a segment's (a colour table's entries) about 8 times as long, and a pixel string's,
+    /// walked a bit at a time, about 32.
+    /// </summary>
+    const int ReadCost = 8;
+    const int WalkCost = 32;
+
     sealed class PageRegion
     {
         public int Id, X, Y;
@@ -293,8 +301,8 @@ public sealed class DvbDecoder : IPictureDecoder
 
     /// <summary>
     /// Draws one field of an object's pixel data into <paramref name="region"/> at (<paramref name="ox"/>,
-    /// <paramref name="oy"/>), every other line from <paramref name="first"/>; the work it took, bytes read and pixels
-    /// written.
+    /// <paramref name="oy"/>), every other line from <paramref name="first"/>, up to the region's bottom; the work it
+    /// took, bytes walked and pixels written.
     /// </summary>
     static long DrawField(byte[] data, Region region, int ox, int oy, int first)
     {
@@ -306,7 +314,7 @@ public sealed class DvbDecoder : IPictureDecoder
         var map24 = new[] { 0x0, 0x7, 0x8, 0xf };
         var map28 = new[] { 0x00, 0x77, 0x88, 0xff };
         var map48 = Enumerable.Range(0, 16).Select(i => i * 0x11).ToArray();
-        while (at < data.Length)
+        while (at < data.Length && y < region.Height)
         {
             var type = data[at++];
             if (type == 0xf0)
@@ -364,7 +372,7 @@ public sealed class DvbDecoder : IPictureDecoder
             });
             at = bits.Align();
         }
-        return at + written;
+        return (long)at * WalkCost + written;
     }
 
     public long? OwnDurationMs(int index)
@@ -396,7 +404,7 @@ public sealed class DvbDecoder : IPictureDecoder
             foreach (var seg in Segments(samples[i]))
             {
                 var b = seg.Body;
-                work -= 1 + b.Length;
+                work -= (1L + b.Length) * ReadCost;
                 if (work <= 0) break;
                 switch (seg.Type)
                 {

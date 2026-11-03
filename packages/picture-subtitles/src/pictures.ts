@@ -47,9 +47,9 @@ export const MAX_SIDE = 4096;
 export const MAX_PIXELS = 3840 * 2160;
 
 /**
- * The most work decoding a frame takes, bytes read and pixels filled or
- * drawn: eight 4K screens' worth, where a real frame takes a fraction of
- * one.
+ * The most work decoding a frame takes, in pixels filled or drawn, a byte
+ * read costing as many pixels as it takes as long: eight 4K screens' worth,
+ * where a real frame takes a fraction of one.
  */
 export const MAX_WORK = 8 * MAX_PIXELS;
 

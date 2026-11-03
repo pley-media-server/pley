@@ -73,8 +73,8 @@ public static class PictureColors
     public const int MaxPixels = 3840 * 2160;
 
     /// <summary>
-    /// The most work decoding a frame takes, bytes read and pixels filled or drawn: eight 4K
-    /// screens' worth, where a real frame takes a fraction of one.
+    /// The most work decoding a frame takes, in pixels filled or drawn, a byte read costing as many
+    /// pixels as it takes as long: eight 4K screens' worth, where a real frame takes a fraction of one.
     /// </summary>
     public const long MaxWork = 8L * MaxPixels;
 

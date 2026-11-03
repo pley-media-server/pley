@@ -493,6 +493,23 @@ public class DvbTests
     }
 
     [Fact]
+    public void Counts_walking_pixel_codes_as_more_work_than_filling_pixels_and_walks_no_line_below_a_region()
+    {
+        // A 1×h region listing object 1 64 times; the object, a string of 1-pixel codes that never ends; then region 1, the one placed.
+        var places = Enumerable.Repeat(PictureKit.Cat(PictureKit.U16(1), new[] { 0, 0, 0, 0 }), 64).SelectMany(p => p).ToArray();
+        int[] Region(int h) => DvbSegment(0x11, PictureKit.Cat(new[] { 0, 0x00 }, PictureKit.U16(1), PictureKit.U16(h), new[] { 2 << 2, 0, 0, 0 }, places));
+        static int[] Object(int bytes)
+        {
+            var field = Enumerable.Repeat(0x11, bytes + 1).ToArray();
+            return DvbSegment(0x13, PictureKit.Cat(PictureKit.U16(1), new[] { 0x00 }, PictureKit.U16(field.Length), PictureKit.U16(0), field));
+        }
+        Assert.Equal(new[] { (4, 2) }, Sizes(Placing((1, 0, 0)), Region(2), Red, Object(2_000), Filled(1, 4, 2)));
+        Assert.Empty(Sizes(Placing((1, 0, 0)), Region(2), Red, Object(20_000), Filled(1, 4, 2)));
+        // One line high: the bottom field starts below it, and takes nothing.
+        Assert.Equal(new[] { (4, 2) }, Sizes(Placing((1, 0, 0)), Region(1), Red, Object(20_000), Filled(1, 4, 2)));
+    }
+
+    [Fact]
     public void Keeps_a_frames_worth_of_regions_at_most_of_4096_pixels_a_side_at_most()
     {
         // The second 3000×2000 region would pass a 4K screen's pixels with the first: it isn't kept.
