@@ -33,10 +33,12 @@ import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.designsystem.tile.rememberSkeleton
 import app.pley.android.ui.tv.kit.KeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
+import app.pley.android.ui.tv.kit.frameAndPrefetch
 import app.pley.android.ui.tv.kit.keyRepeatGate
+import app.pley.android.ui.tv.kit.prefetchAsOnATv
 import app.pley.android.ui.tv.kit.rememberFocusMemory
+import app.pley.android.ui.tv.kit.showWindow
 import app.pley.android.ui.tv.theme.TvTheme
-import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -44,9 +46,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import org.robolectric.shadows.ShadowBuild
-import org.robolectric.shadows.ShadowLooper
-import org.robolectric.util.ReflectionHelpers
 
 /**
  * A TV grid's focus while its pages load, and how it moves: a cell
@@ -75,9 +74,8 @@ class TvGridLoadFocusTest {
 
     /** The grid, with something focusable above it when [above] (the library's chips). */
     private fun grid(reduced: Boolean? = null, above: Boolean = false, tileAt: (Int) -> ArtworkTileModel? = { tiles[it] }) {
-        // Compose prefetches nothing under Robolectric, known by its fingerprint, nor for a window that
-        // doesn't show, as Robolectric's says; a TV composes the cache window's rows off the screen.
-        ShadowBuild.setFingerprint("pley/tv")
+        // A TV composes the cache window's rows off the screen.
+        prefetchAsOnATv()
         compose.setContent {
             TvTheme(reducedMotion = reduced) {
                 focus = remember { TvGridFocus() }
@@ -103,7 +101,7 @@ class TvGridLoadFocusTest {
                 }
             }
         }
-        ReflectionHelpers.setField(ReflectionHelpers.getField<Any>(view, "mAttachInfo"), "mWindowVisibility", View.VISIBLE)
+        showWindow(view)
         compose.waitForIdle()
     }
 
@@ -195,10 +193,7 @@ class TvGridLoadFocusTest {
      * runs there, as on a TV, composing the cache window's rows off the
      * screen without laying them out.
      */
-    private fun frame() {
-        compose.mainClock.advanceTimeByFrame()
-        ShadowLooper.idleMainLooper(16, TimeUnit.MILLISECONDS)
-    }
+    private fun frame() = compose.frameAndPrefetch()
 
     /** Whether the focused cell is laid out on the grid, not only composed ahead of it. */
     private fun focusLaidOut(): Boolean = state.layoutInfo.visibleItemsInfo.any { it.key == focus.focused }
