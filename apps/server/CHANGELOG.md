@@ -62,6 +62,8 @@ describes how they are made.
 
 ### Changed
 
+- Search finds as many people and Live TV channels as titles, up to 200 of
+  each, where it stopped at 12 people and 12 channels.
 - Updating the Windows service no longer takes minutes on a large library:
   Setup no longer sets the permissions of every file in the data
   folder again when the folder is set up already.

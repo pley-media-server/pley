@@ -77,9 +77,6 @@ pub async fn hide_continue_watching(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// Live TV channels a search gives at most.
-const SEARCH_CHANNELS: usize = 12;
-
 #[derive(Serialize)]
 pub struct SearchResults {
     items: Vec<ItemSummary>,
@@ -94,13 +91,14 @@ pub async fn search(
     Query(query): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<SearchResults>> {
     let q = query.get("q").map(|s| s.trim()).unwrap_or_default();
+    // Up to `limit` of each: titles, people and channels.
     let limit = query.get("limit").and_then(|l| l.parse::<i64>().ok()).unwrap_or(40).clamp(1, 200);
     // Titles and people at the same time.
     let (rows, people) =
-        tokio::try_join!(catalog::search(&state.db, user.id, q, limit), people::search(&state.db, user.id, q, 12))?;
+        tokio::try_join!(catalog::search(&state.db, user.id, q, limit), people::search(&state.db, user.id, q, limit))?;
     let summaries = wants_summaries(&query);
     let channels = if !q.is_empty() && state.live.may_watch(&user).await {
-        state.live.browse(&user, &crate::livetv::Category::All, q, 0, SEARCH_CHANNELS, None).await?.channels
+        state.live.browse(&user, &crate::livetv::Category::All, q, 0, limit as usize, None).await?.channels
     } else {
         Vec::new()
     };
