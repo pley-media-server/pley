@@ -86,10 +86,10 @@ public static class PictureColors
 
     /// <summary>
     /// The most display sets a frame is decoded from, back to the last that holds everything it
-    /// needs (an epoch start, an acquisition point): real tracks have one every few, and without
-    /// that, each frame would read the whole track.
+    /// needs (an epoch start, an acquisition point): real tracks have one every few, or every few
+    /// hundred in a long palette animation, and without that, each frame would read the whole track.
     /// </summary>
-    public const int MaxEpoch = 1024;
+    public const int MaxEpoch = 4096;
 
     /// <summary>Limited-range YCbCr to RGB: BT.709 for HD planes, BT.601 for SD (as FFmpeg's decoders).</summary>
     public static (byte R, byte G, byte B) YcbcrToRgb(int y, int cb, int cr, bool hd)
@@ -122,6 +122,9 @@ public static class PictureColors
     /// <summary>The byte at <paramref name="i"/>, 0 past the end (as JavaScript reads an undefined one in arithmetic).</summary>
     internal static int At(byte[] data, long i) => i >= 0 && i < data.Length ? data[i] : 0;
 
+    /// <inheritdoc cref="At(byte[], long)"/>
+    internal static int At(ByteView data, long i) => i >= 0 && i < data.Length ? data[(int)i] : 0;
+
     /// <summary>Bytes <paramref name="start"/> to <paramref name="end"/>, clamped to the array (as <c>subarray</c>).</summary>
     internal static byte[] Slice(byte[] data, long start, long end)
     {
@@ -129,6 +132,43 @@ public static class PictureColors
         var e = (int)Math.Max(s, Math.Min(data.Length, end));
         var copy = new byte[e - s];
         Buffer.BlockCopy(data, s, copy, 0, copy.Length);
+        return copy;
+    }
+}
+
+/// <summary>
+/// Bytes in place in an array, clamped to it, as a JavaScript <c>subarray</c>: a sample's segments
+/// are read where they are, as copies of a crafted sample's would come to many times its size.
+/// </summary>
+public readonly struct ByteView
+{
+    readonly byte[] array;
+    readonly int start;
+
+    public ByteView(byte[] array, int start, int end)
+    {
+        this.array = array;
+        this.start = Math.Max(0, Math.Min(array.Length, start));
+        Length = Math.Max(0, Math.Min(array.Length, end) - this.start);
+    }
+
+    public ByteView(byte[] array) : this(array, 0, array.Length)
+    {
+    }
+
+    public int Length { get; }
+
+    public byte this[int i] => (uint)i < (uint)Length ? array[start + i] : throw new IndexOutOfRangeException();
+
+    /// <summary>Bytes <paramref name="from"/> to <paramref name="to"/> of these, clamped to them.</summary>
+    public ByteView Slice(int from, int to) => new ByteView(array, start + Math.Max(0, Math.Min(Length, from)), start + Math.Max(0, Math.Min(Length, to)));
+
+    public void CopyTo(byte[] destination, int at) => Buffer.BlockCopy(array, start, destination, at, Length);
+
+    public byte[] ToArray()
+    {
+        var copy = new byte[Length];
+        CopyTo(copy, 0);
         return copy;
     }
 }

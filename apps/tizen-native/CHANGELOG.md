@@ -313,16 +313,17 @@ It has no releases yet: it is built and installed by hand
 
 ### Security
 
-- A crafted file's DVB subtitles can no longer stall the app: a moment's
-  subtitles take eight 4K screens' work at most to decode.
-- A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer run
-  the app out of memory, as in the Samsung web app: a track is read up to
-  100,000 samples, a moment's pictures are a 4K screen's pixels at most (2
-  pictures for PGS, 32 for DVB), and the frames kept decoded hold 128 MiB
-  at most. Real subtitles show as before.
-- Pictures leaving the screen, whose textures go a second later, hold
-  128 MiB at most: past that, a crafted file's subtitles changing every
-  moment wait for some to go before the next show.
+- A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer keep
+  the app busy: decoding one moment of them stops after a set amount of
+  work, far more than real subtitles take, and that moment isn't shown.
+- A crafted file's picture subtitles can no longer run the app out of
+  memory, as in the Samsung web app: a track is read up to 100,000
+  samples and 512 MiB, a moment's pictures are a 4K screen's pixels at
+  most (2 pictures for PGS, 32 for DVB), and the frames kept decoded hold
+  128 MiB besides the one showing. Real subtitles show as before.
+- Pictures leaving the screen, whose copies and textures go a second
+  later, hold 128 MiB at most: past that, a crafted file's subtitles
+  changing every moment wait for some to go before the next show.
 - Before the token goes to the server's address, the server proves it is
   the one the TV signed in to, at that address, as in the Samsung web app
   and on Android: the access token waits for a proof made on this network

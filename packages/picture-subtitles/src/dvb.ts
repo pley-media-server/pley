@@ -34,11 +34,22 @@ const MAX_PLACED = 32;
 
 /**
  * What reading a byte costs against MAX_WORK, next to filling a pixel: a
- * segment's (a colour table's entries) about 8 times as long, and a pixel
- * string's, walked a bit at a time, about 32.
+ * segment's (a colour table's entries) about 16 times as long, and a pixel
+ * string's, walked a bit at a time, about 32. A segment costs 512 besides,
+ * a few hundred nanoseconds to read and keep.
  */
-const READ_COST = 8;
+const READ_COST = 16;
 const WALK_COST = 32;
+const SEGMENT_COST = 512;
+
+/**
+ * What drawing an object into a place costs against MAX_WORK, besides its
+ * bytes and pixels: a real frame draws a few, where a crafted one could draw
+ * an empty object millions of times. Looking through a region for an
+ * object's places costs 32, and each place it lists 32 more.
+ */
+const DRAW_COST = 4096;
+const SCAN_COST = 32;
 
 interface PageRegion {
   id: number;
@@ -244,6 +255,11 @@ function pixelString(bits: Bits, depth: number, emit: (count: number, pixel: num
   }
 }
 
+/** The default map tables of 2-bit codes to 4 and 8 bits, and of 4-bit codes to 8. */
+const MAP24: readonly number[] = [0x0, 0x7, 0x8, 0xf];
+const MAP28: readonly number[] = [0x00, 0x77, 0x88, 0xff];
+const MAP48: readonly number[] = Array.from({ length: 16 }, (_, i) => i * 0x11);
+
 /**
  * Draws one field of an object's pixel data into `region` at (`ox`, `oy`),
  * every other line from `first`, up to the region's bottom; the work it
@@ -254,10 +270,10 @@ function drawField(data: Uint8Array, region: Region, ox: number, oy: number, fir
   let at = 0;
   let x = ox;
   let y = oy + first;
-  // Map tables, for codes shallower than the region.
-  let map24 = [0x0, 0x7, 0x8, 0xf];
-  let map28 = [0x00, 0x77, 0x88, 0xff];
-  let map48 = Array.from({ length: 16 }, (_, i) => i * 0x11);
+  // Map tables, for codes shallower than the region: the defaults until the data gives its own.
+  let map24 = MAP24;
+  let map28 = MAP28;
+  let map48 = MAP48;
   while (at < data.length && y < region.height) {
     const type = data[at++]!;
     if (type === 0xf0) {
@@ -276,8 +292,9 @@ function drawField(data: Uint8Array, region: Region, ox: number, oy: number, fir
       continue;
     }
     if (type === 0x22) {
-      map48 = [];
-      for (let i = 0; i < 8; i++) map48.push(data[at + i]! >> 4, data[at + i]! & 0xf);
+      const own: number[] = [];
+      for (let i = 0; i < 8; i++) own.push(data[at + i]! >> 4, data[at + i]! & 0xf);
+      map48 = own;
       at += 8;
       continue;
     }
@@ -332,16 +349,19 @@ export class DvbDecoder implements PictureDecoder {
     let height = 576;
     let page: Page | null = null;
     const regions = new Map<number, Region>();
+    /** The pixels of the regions held, all together. */
+    let held = 0;
     const cluts = new Map<number, Uint8ClampedArray[]>();
     const hd = () => height > 576;
     // Bytes read, pixels filled and drawn: a crafted epoch could fill a 4K
     // region, or draw an object into each of thousands of places, in every
-    // segment of every display set. What it shows stops there.
+    // segment of every display set. A frame that would take more than
+    // MAX_WORK isn't decoded: what it leaves out could be any of what it shows.
     let work = MAX_WORK;
     for (let i = from; i <= index && work > 0; i++) {
       for (const seg of segments(this.samples[i]!)) {
         const b = seg.body;
-        work -= (1 + b.length) * READ_COST;
+        work -= SEGMENT_COST + b.length * READ_COST;
         if (work <= 0) break;
         switch (seg.type) {
           case DISPLAY:
@@ -352,7 +372,10 @@ export class DvbDecoder implements PictureDecoder {
             break;
           case PAGE:
             page = readPage(b);
-            if (page.state !== 0) regions.clear();
+            if (page.state !== 0) {
+              regions.clear();
+              held = 0;
+            }
             break;
           case REGION: {
             if (b.length < 10) break;
@@ -362,11 +385,8 @@ export class DvbDecoder implements PictureDecoder {
             const h = (b[4]! << 8) | b[5]!;
             if (w > MAX_SIDE || h > MAX_SIDE) break;
             // Up to 256 regions are kept at once: together, no more than a frame's pixels.
-            let held = w * h;
-            regions.forEach((other, otherId) => {
-              if (otherId !== id) held += other.pixels.length;
-            });
-            if (held > MAX_PIXELS) break;
+            const before = regions.get(id)?.pixels.length ?? 0;
+            if (held - before + w * h > MAX_PIXELS) break;
             const depth = [0, 2, 4, 8][(b[6]! >> 2) & 7] ?? 4;
             const clut = b[7]!;
             const background = depth === 8 ? b[8]! : depth === 4 ? b[9]! >> 4 : (b[9]! >> 2) & 3;
@@ -379,6 +399,7 @@ export class DvbDecoder implements PictureDecoder {
             let region = regions.get(id);
             if (!region || region.width !== w || region.height !== h || region.depth !== depth) {
               work -= w * h;
+              held += w * h - before;
               region = { width: w, height: h, depth, clut, fill, background, objects, pixels: new Uint8Array(w * h) };
               regions.set(id, region);
             } else {
@@ -446,11 +467,11 @@ export class DvbDecoder implements PictureDecoder {
             const top = b.subarray(7, 7 + topLength);
             const bottom = bottomLength ? b.subarray(7 + topLength, 7 + topLength + bottomLength) : top;
             regions.forEach((region) => {
-              work -= region.objects.length;
+              work -= (1 + region.objects.length) * SCAN_COST;
               for (const o of region.objects) {
                 if (work <= 0) return;
                 if (o.id !== id) continue;
-                work -= 1 + drawField(top, region, o.x, o.y, 0) + drawField(bottom, region, o.x, o.y, 1);
+                work -= DRAW_COST + drawField(top, region, o.x, o.y, 0) + drawField(bottom, region, o.x, o.y, 1);
               }
             });
             break;
@@ -458,7 +479,7 @@ export class DvbDecoder implements PictureDecoder {
         }
       }
     }
-    if (!page) return null;
+    if (!page || work <= 0) return null;
     const bitmaps: SubtitleBitmap[] = [];
     // A page may place a region any number of times, each a picture of its own.
     let pixelsLeft = MAX_PIXELS;

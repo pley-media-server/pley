@@ -62,10 +62,10 @@ export const MAX_SEGMENTS = 256;
 /**
  * The most display sets a frame is decoded from, back to the last that
  * holds everything it needs (an epoch start, an acquisition point): real
- * tracks have one every few, and without that, each frame would read the
- * whole track.
+ * tracks have one every few, or every few hundred in a long palette
+ * animation, and without that, each frame would read the whole track.
  */
-export const MAX_EPOCH = 1024;
+export const MAX_EPOCH = 4096;
 
 /** Decoded frames kept per track, and the most bytes they hold together. */
 export const CACHE_FRAMES = 25;

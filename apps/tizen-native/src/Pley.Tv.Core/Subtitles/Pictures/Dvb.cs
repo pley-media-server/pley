@@ -4,17 +4,17 @@ using System.Linq;
 
 namespace Pley.Tv.Core.Subtitles.Pictures;
 
-/// <summary>One segment of a DVB display set: its type and its body.</summary>
+/// <summary>One segment of a DVB display set: its type and its body, in place in the sample.</summary>
 public sealed class DvbSegment
 {
-    public DvbSegment(int type, byte[] body)
+    public DvbSegment(int type, ByteView body)
     {
         Type = type;
         Body = body;
     }
 
     public int Type { get; }
-    public byte[] Body { get; }
+    public ByteView Body { get; }
 }
 
 /// <summary>
@@ -42,11 +42,22 @@ public sealed class DvbDecoder : IPictureDecoder
 
     /// <summary>
     /// What reading a byte costs against <see cref="PictureColors.MaxWork"/>, next to filling a
-    /// pixel: a segment's (a colour table's entries) about 8 times as long, and a pixel string's,
-    /// walked a bit at a time, about 32.
+    /// pixel: a segment's (a colour table's entries) about 16 times as long, and a pixel string's,
+    /// walked a bit at a time, about 32. A segment costs 512 besides, a few hundred nanoseconds to
+    /// read and keep.
     /// </summary>
-    const int ReadCost = 8;
+    const int ReadCost = 16;
     const int WalkCost = 32;
+    const int SegmentCost = 512;
+
+    /// <summary>
+    /// What drawing an object into a place costs against <see cref="PictureColors.MaxWork"/>,
+    /// besides its bytes and pixels: a real frame draws a few, where a crafted one could draw an
+    /// empty object millions of times. Looking through a region for an object's places costs 32,
+    /// and each place it lists 32 more.
+    /// </summary>
+    const int DrawCost = 4096;
+    const int ScanCost = 32;
 
     sealed class PageRegion
     {
@@ -93,7 +104,7 @@ public sealed class DvbDecoder : IPictureDecoder
         {
             var type = data[at + 1];
             var length = (data[at + 4] << 8) | data[at + 5];
-            segments.Add(new DvbSegment(type, PictureColors.Slice(data, at + 6, Math.Min(data.Length, at + 6 + length))));
+            segments.Add(new DvbSegment(type, new ByteView(data, at + 6, at + 6 + length)));
             at += 6 + length;
         }
         return segments;
@@ -117,7 +128,7 @@ public sealed class DvbDecoder : IPictureDecoder
         return null;
     }
 
-    static Page ReadPage(byte[] b)
+    static Page ReadPage(ByteView b)
     {
         var page = new Page { TimeoutS = PictureColors.At(b, 0), State = (PictureColors.At(b, 1) >> 2) & 3 };
         for (var i = 2; i + 6 <= b.Length && page.Regions.Count < MaxPlaced; i += 6)
@@ -173,12 +184,12 @@ public sealed class DvbDecoder : IPictureDecoder
 
     sealed class Bits
     {
-        readonly byte[] data;
+        readonly ByteView data;
         readonly int end;
         int at;
         int bit;
 
-        public Bits(byte[] data, int at, int end)
+        public Bits(ByteView data, int at, int end)
         {
             this.data = data;
             this.at = at;
@@ -299,21 +310,26 @@ public sealed class DvbDecoder : IPictureDecoder
         }
     }
 
+    /// <summary>The default map tables of 2-bit codes to 4 and 8 bits, and of 4-bit codes to 8.</summary>
+    static readonly int[] Map24 = { 0x0, 0x7, 0x8, 0xf };
+    static readonly int[] Map28 = { 0x00, 0x77, 0x88, 0xff };
+    static readonly int[] Map48 = Enumerable.Range(0, 16).Select(i => i * 0x11).ToArray();
+
     /// <summary>
     /// Draws one field of an object's pixel data into <paramref name="region"/> at (<paramref name="ox"/>,
     /// <paramref name="oy"/>), every other line from <paramref name="first"/>, up to the region's bottom; the work it
     /// took, bytes walked and pixels written.
     /// </summary>
-    static long DrawField(byte[] data, Region region, int ox, int oy, int first)
+    static long DrawField(ByteView data, Region region, int ox, int oy, int first)
     {
         long written = 0;
         var at = 0;
         var x = ox;
         var y = oy + first;
-        // Map tables, for codes shallower than the region.
-        var map24 = new[] { 0x0, 0x7, 0x8, 0xf };
-        var map28 = new[] { 0x00, 0x77, 0x88, 0xff };
-        var map48 = Enumerable.Range(0, 16).Select(i => i * 0x11).ToArray();
+        // Map tables, for codes shallower than the region: the defaults until the data gives its own.
+        var map24 = Map24;
+        var map28 = Map28;
+        var map48 = Map48;
         while (at < data.Length && y < region.Height)
         {
             var type = data[at++];
@@ -394,17 +410,20 @@ public sealed class DvbDecoder : IPictureDecoder
         // By id, in the order they were first defined (a Map's).
         var regions = new Dictionary<int, Region>();
         var regionOrder = new List<int>();
+        // The pixels of the regions held, all together.
+        var held = 0;
         var cluts = new Dictionary<int, byte[][]>();
         // Bytes read, pixels filled and drawn: a crafted epoch could fill a 4K region, or draw an
-        // object into each of thousands of places, in every segment of every display set. What it
-        // shows stops there.
+        // object into each of thousands of places, in every segment of every display set. A frame
+        // that would take more than MaxWork isn't decoded: what it leaves out could be any of what
+        // it shows.
         var work = PictureColors.MaxWork;
         for (var i = from; i <= index && work > 0; i++)
         {
             foreach (var seg in Segments(samples[i]))
             {
                 var b = seg.Body;
-                work -= (1L + b.Length) * ReadCost;
+                work -= SegmentCost + (long)b.Length * ReadCost;
                 if (work <= 0) break;
                 switch (seg.Type)
                 {
@@ -421,6 +440,7 @@ public sealed class DvbDecoder : IPictureDecoder
                         {
                             regions.Clear();
                             regionOrder.Clear();
+                            held = 0;
                         }
                         break;
                     case RegionSegment:
@@ -432,10 +452,8 @@ public sealed class DvbDecoder : IPictureDecoder
                         var h = (b[4] << 8) | b[5];
                         if (w > PictureColors.MaxSide || h > PictureColors.MaxSide) break;
                         // Up to 256 regions are kept at once: together, no more than a frame's pixels.
-                        var held = w * h;
-                        foreach (var other in regions)
-                            if (other.Key != id) held += other.Value.Pixels.Length;
-                        if (held > PictureColors.MaxPixels) break;
+                        var before = regions.TryGetValue(id, out var kept) ? kept.Pixels.Length : 0;
+                        if (held - before + w * h > PictureColors.MaxPixels) break;
                         var code = (b[6] >> 2) & 7;
                         var depth = code < Depths.Length ? Depths[code] : 4;
                         var clut = b[7];
@@ -450,6 +468,7 @@ public sealed class DvbDecoder : IPictureDecoder
                         if (!regions.TryGetValue(id, out var region) || region.Width != w || region.Height != h || region.Depth != depth)
                         {
                             work -= w * h;
+                            held += w * h - before;
                             region = new Region { Width = w, Height = h, Depth = depth, Clut = clut, Fill = fill, Background = background, Objects = objects, Pixels = new byte[w * h] };
                             if (!regions.ContainsKey(id)) regionOrder.Add(id);
                             regions[id] = region;
@@ -522,17 +541,17 @@ public sealed class DvbDecoder : IPictureDecoder
                         if (coding != 0) break;
                         var topLength = (b[3] << 8) | b[4];
                         var bottomLength = (b[5] << 8) | b[6];
-                        var top = PictureColors.Slice(b, 7, 7 + topLength);
-                        var bottom = bottomLength != 0 ? PictureColors.Slice(b, 7 + topLength, 7 + topLength + bottomLength) : top;
+                        var top = b.Slice(7, 7 + topLength);
+                        var bottom = bottomLength != 0 ? b.Slice(7 + topLength, 7 + topLength + bottomLength) : top;
                         foreach (var regionId in regionOrder)
                         {
                             var region = regions[regionId];
-                            work -= region.Objects.Count;
+                            work -= (1L + region.Objects.Count) * ScanCost;
                             foreach (var o in region.Objects)
                             {
                                 if (work <= 0) break;
                                 if (o.Id != id) continue;
-                                work -= 1 + DrawField(top, region, o.X, o.Y, 0) + DrawField(bottom, region, o.X, o.Y, 1);
+                                work -= DrawCost + DrawField(top, region, o.X, o.Y, 0) + DrawField(bottom, region, o.X, o.Y, 1);
                             }
                         }
                         break;
@@ -540,7 +559,7 @@ public sealed class DvbDecoder : IPictureDecoder
                 }
             }
         }
-        if (page == null) return null;
+        if (page == null || work <= 0) return null;
         var bitmaps = new List<SubtitleBitmap>();
         // A page may place a region any number of times, each a picture of its own.
         var pixelsLeft = PictureColors.MaxPixels;

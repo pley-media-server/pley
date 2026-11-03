@@ -341,12 +341,16 @@ other apps (`pley_ct_…`), never with a session's
   256 MiB and 1,000 fonts, under names of the transcoder's own.
 - Picture subtitles (PGS, DVB, VobSub), which the web app and the Samsung
   and LG apps decode themselves, are read within bounds that real tracks
-  are far inside: 100,000 samples a track, 256 segments a sample, and for
-  one moment 1,024 display sets back and eight 4K screens' work. A
+  are far inside: a track up to 100,000 samples and 512 MiB, a sample up
+  to 16 MiB and 256 segments (a VobSub one up to 64 KiB and 64 control
+  sequences), and for one moment up to 4,096 display sets back and a set
+  amount of work, bytes read and pixels filled or drawn, each weighed by
+  how long it takes; a moment that would take more isn't shown. A
   moment's pictures are at most a 4K screen's pixels, 4096 pixels a side,
-  2 of them for PGS and 32 for DVB. The frames kept decoded hold 128 MiB a
-  track at most, and the web app's pictures ready to draw as much again,
-  as do the native Samsung app's pictures leaving the screen.
+  2 of them for PGS and 32 for DVB. Besides the frame just decoded, the
+  frames kept decoded hold 128 MiB a track at most, the web app's
+  pictures ready to draw as much again, and the native Samsung app's
+  pictures leaving the screen, their copies and textures, as much again.
 
 ### Transcoder
 

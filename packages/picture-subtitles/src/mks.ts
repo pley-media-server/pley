@@ -70,6 +70,13 @@ const SUBTITLE_TRACK = 0x11;
 export const MAX_SAMPLES = 100_000;
 
 /**
+ * A sample's bytes at most, and a track's: a display set is a few KiB to
+ * a MiB, and the server extracts a track up to 512 MiB.
+ */
+export const MAX_SAMPLE_BYTES = 16 << 20;
+export const MAX_TRACK_BYTES = 512 << 20;
+
+/**
  * How deep elements are read: the deepest this reader needs is 6 (a
  * track's compression), and a crafted file nesting thousands deep would
  * run the stack out.
@@ -78,6 +85,16 @@ const MAX_DEPTH = 8;
 
 /** The tracks read: the server's files have one. */
 const MAX_TRACKS = 64;
+
+/** A track's private data read: a VobSub index's header is a KiB or two. */
+const MAX_PRIVATE_BYTES = 64 << 10;
+
+/**
+ * The bytes stripped from every frame, at most (ContentCompAlgo 3): a few
+ * in practice. More is taken for compression this reader can't undo, as
+ * each sample gets a copy.
+ */
+const MAX_STRIPPED_BYTES = 1024;
 
 export class MatroskaError extends Error {
   constructor(message: string) {
@@ -118,8 +135,17 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
   let groupBlock: { track: number; time: number; data: Uint8Array } | null = null;
   let groupDuration: number | null = null;
 
+  let rawBytes = 0;
+  /** Keeps a block within a sample's bytes, and the track's samples and bytes. */
+  const keep = (b: { track: number; time: number; data: Uint8Array }, duration: number | null) => {
+    const size = b.data.length;
+    if (size > MAX_SAMPLE_BYTES || raw.length >= MAX_SAMPLES || rawBytes + size > MAX_TRACK_BYTES) return;
+    raw.push({ ...b, duration });
+    rawBytes += size;
+  };
+
   const endGroup = () => {
-    if (groupBlock && raw.length < MAX_SAMPLES) raw.push({ ...groupBlock, duration: groupDuration });
+    if (groupBlock) keep(groupBlock, groupDuration);
     groupBlock = null;
     groupDuration = null;
   };
@@ -165,7 +191,7 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
             if (track) track.codecId = ascii(body);
             break;
           case ID.CodecPrivate:
-            if (track) track.codecPrivate = body.slice();
+            if (track) track.codecPrivate = body.slice(0, MAX_PRIVATE_BYTES);
             break;
           case ID.ContentCompAlgo:
             compAlgo = uint(body);
@@ -177,12 +203,12 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
             clusterTime = uint(body);
             break;
           case ID.SimpleBlock: {
-            const b = raw.length < MAX_SAMPLES ? block(body, clusterTime) : null;
-            if (b) raw.push({ ...b, duration: null });
+            const b = block(body, clusterTime);
+            if (b) keep(b, null);
             break;
           }
           case ID.Block:
-            groupBlock = raw.length < MAX_SAMPLES ? block(body, clusterTime) : null;
+            groupBlock = block(body, clusterTime);
             break;
           case ID.BlockDuration:
             groupDuration = uint(body);
@@ -191,7 +217,7 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
       }
       if (el.id === ID.ContentCompression && track) {
         const t: Track = track;
-        if (compAlgo === 3) t.stripped = compSettings;
+        if (compAlgo === 3 && (compSettings?.length ?? 0) <= MAX_STRIPPED_BYTES) t.stripped = compSettings;
         else t.compressed = true;
       }
       if (el.id === ID.TrackEntry && track) {
@@ -235,7 +261,10 @@ export function matroskaEnd(bytes: Uint8Array): number | null {
   return segment?.id === ID.Segment && segment.size !== null ? segment.dataStart + segment.size : null;
 }
 
-/** A block's track, absolute time in ticks and its one frame (subtitles are never laced). */
+/**
+ * A block's track, absolute time in ticks and its one frame (subtitles are
+ * never laced), in place in the file's bytes: a copy would hold the track twice.
+ */
 function block(body: Uint8Array, clusterTime: number): { track: number; time: number; data: Uint8Array } | null {
   const v = vint(body, 0, true);
   if (!v || v.length + 3 > body.length) return null;
@@ -250,7 +279,7 @@ function block(body: Uint8Array, clusterTime: number): { track: number; time: nu
     if (frames < 1) return null;
     data = data.subarray(1);
   }
-  return { track: v.value, time: clusterTime + signed, data: data.slice() };
+  return { track: v.value, time: clusterTime + signed, data };
 }
 
 interface Element {

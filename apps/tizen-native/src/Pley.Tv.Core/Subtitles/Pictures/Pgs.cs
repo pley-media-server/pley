@@ -43,25 +43,29 @@ public sealed class PgsDecoder : IPictureDecoder
     /// <summary>
     /// What reading a byte of a display set costs against <see cref="PictureColors.MaxWork"/>, next
     /// to filling a pixel: reading it, and its objects' run-lengths later, take about 4 times as long.
+    /// A segment costs 512 besides, a few hundred nanoseconds to read and keep.
     /// </summary>
     const int ReadCost = 4;
+    const int SegmentCost = 512;
 
     internal sealed class Palette
     {
         public int Id;
         /// <summary>Its entries as they come, 5 bytes each (index, Y, Cr, Cb, alpha), one for each index at most.</summary>
-        public byte[] Entries = new byte[0];
+        public ByteView Entries;
     }
 
     internal sealed class ObjectPart
     {
         public int Id, Width, Height;
         public bool First, Last;
-        public byte[] Data = new byte[0];
+        public ByteView Data;
     }
 
     internal sealed class DisplaySet
     {
+        /// <summary>The segments read.</summary>
+        public int Segments;
         public Composition? Pcs;
         public List<Palette> Palettes = new List<Palette>();
         public List<ObjectPart> Objects = new List<ObjectPart>();
@@ -71,7 +75,7 @@ public sealed class PgsDecoder : IPictureDecoder
     {
         public int Width, Height;
         /// <summary>Its run-length data, in the parts it came in.</summary>
-        public List<byte[]> Parts = new List<byte[]>();
+        public List<ByteView> Parts = new List<ByteView>();
     }
 
     readonly IReadOnlyList<byte[]> samples;
@@ -115,7 +119,8 @@ public sealed class PgsDecoder : IPictureDecoder
         var set = new DisplaySet();
         EachSegment(data, (type, start, end) =>
         {
-            var body = PictureColors.Slice(data, start, end);
+            set.Segments++;
+            var body = new ByteView(data, start, end);
             switch (type)
             {
                 case Pcs:
@@ -125,7 +130,7 @@ public sealed class PgsDecoder : IPictureDecoder
                 {
                     if (body.Length < 2) break;
                     var entries = Math.Min((body.Length - 2) / 5, 256);
-                    set.Palettes.Add(new Palette { Id = body[0], Entries = PictureColors.Slice(body, 2, 2 + entries * 5) });
+                    set.Palettes.Add(new Palette { Id = body[0], Entries = body.Slice(2, 2 + entries * 5) });
                     break;
                 }
                 case Ods:
@@ -140,11 +145,11 @@ public sealed class PgsDecoder : IPictureDecoder
                         if (body.Length < 11) break;
                         var width = (body[7] << 8) | body[8];
                         var height = (body[9] << 8) | body[10];
-                        set.Objects.Add(new ObjectPart { Id = id, First = first, Last = last, Width = width, Height = height, Data = PictureColors.Slice(body, 11, body.Length) });
+                        set.Objects.Add(new ObjectPart { Id = id, First = first, Last = last, Width = width, Height = height, Data = body.Slice(11, body.Length) });
                     }
                     else
                     {
-                        set.Objects.Add(new ObjectPart { Id = id, First = first, Last = last, Data = PictureColors.Slice(body, 4, body.Length) });
+                        set.Objects.Add(new ObjectPart { Id = id, First = first, Last = last, Data = body.Slice(4, body.Length) });
                     }
                     break;
                 }
@@ -157,7 +162,7 @@ public sealed class PgsDecoder : IPictureDecoder
         return set;
     }
 
-    static Composition? ReadPcs(byte[] b)
+    static Composition? ReadPcs(ByteView b)
     {
         if (b.Length < 11) return null;
         var pcs = new Composition
@@ -197,7 +202,9 @@ public sealed class PgsDecoder : IPictureDecoder
     }
 
     /// <summary>Decodes PGS run-length data into palette indexes, <c>width × height</c>.</summary>
-    public static byte[] DecodeRle(byte[] rle, int width, int height)
+    public static byte[] DecodeRle(byte[] rle, int width, int height) => DecodeRle(new ByteView(rle), width, height);
+
+    static byte[] DecodeRle(ByteView rle, int width, int height)
     {
         var output = new byte[width * height];
         var x = 0;
@@ -253,12 +260,17 @@ public sealed class PgsDecoder : IPictureDecoder
         var palettes = new Dictionary<int, byte[]>();
         var objects = new Dictionary<int, ObjectData>();
         var pending = new Dictionary<int, ObjectData>();
+        // A frame that would take more than that isn't decoded: what it leaves out could be any of
+        // what it shows.
         var work = PictureColors.MaxWork;
-        for (var i = from; i <= index && work > 0; i++)
+        for (var i = from; i <= index; i++)
         {
             var data = samples[i];
             work -= (1L + data.Length) * ReadCost;
+            if (work < 0) return null;
             var s = i == index ? current : ParseDisplaySet(data);
+            work -= (long)s.Segments * SegmentCost;
+            if (work < 0) return null;
             foreach (var p in s.Palettes)
             {
                 if (!palettes.TryGetValue(p.Id, out var palette)) palettes[p.Id] = palette = new byte[256 * 5];
@@ -297,13 +309,15 @@ public sealed class PgsDecoder : IPictureDecoder
         var bitmaps = new List<SubtitleBitmap>();
         // Each placement is a picture of its own, the same object's too: together, no more than a frame's pixels.
         var pixelsLeft = PictureColors.MaxPixels;
+        var decoded = new Dictionary<int, byte[]>();
         foreach (var placed in pcs.Objects)
         {
             if (!objects.TryGetValue(placed.Id, out var obj) || obj.Width == 0 || obj.Height == 0) continue;
             if (obj.Width > PictureColors.MaxSide || obj.Height > PictureColors.MaxSide) continue;
             pixelsLeft -= obj.Width * obj.Height;
             if (pixelsLeft < 0) break;
-            var indexes = DecodeRle(Join(obj.Parts), obj.Width, obj.Height);
+            // An object placed twice is decoded once.
+            if (!decoded.TryGetValue(placed.Id, out var indexes)) decoded[placed.Id] = indexes = DecodeRle(Join(obj.Parts), obj.Width, obj.Height);
             var crop = placed.Crop ?? new Crop { X = 0, Y = 0, W = obj.Width, H = obj.Height };
             var w = Math.Max(0, Math.Min(crop.W, obj.Width - crop.X));
             var h = Math.Max(0, Math.Min(crop.H, obj.Height - crop.Y));
@@ -328,7 +342,7 @@ public sealed class PgsDecoder : IPictureDecoder
         return new PictureFrame(pcs.Width, pcs.Height, bitmaps);
     }
 
-    static byte[] Join(List<byte[]> parts)
+    static ByteView Join(List<ByteView> parts)
     {
         if (parts.Count == 1) return parts[0];
         var length = 0;
@@ -337,9 +351,9 @@ public sealed class PgsDecoder : IPictureDecoder
         var at = 0;
         foreach (var p in parts)
         {
-            Buffer.BlockCopy(p, 0, joined, at, p.Length);
+            p.CopyTo(joined, at);
             at += p.Length;
         }
-        return joined;
+        return new ByteView(joined);
     }
 }

@@ -16,8 +16,9 @@ namespace Pley.Tv.Tizen.Screens;
 /// being read out came again every few seconds (its frames new objects, the same pictures), the
 /// app closed natively. The same picture again is kept as it is. Unlike text, pictures stay
 /// where they are while the controls show, under them. The pictures leaving hold
-/// <see cref="LeavingMostBytes"/> at most: frames changing every tick, as a crafted file's may,
-/// would pile them up, so past that the next pictures wait for the sweep.
+/// <see cref="LeavingMostBytes"/> at most, their copies and textures together: frames changing
+/// every tick, as a crafted file's may, would pile them up, so past that the next pictures wait for
+/// the sweep.
 /// </summary>
 sealed class PictureSubtitleView : View
 {
@@ -79,7 +80,7 @@ sealed class PictureSubtitleView : View
                 Size = new Size((float)Math.Round(b.Width * sx), (float)Math.Round(b.Height * sy)),
             };
             Add(image);
-            shown.Add((image, url, pixels, b.Rgba.Length));
+            shown.Add((image, url, pixels, Bytes(b)));
         }
     }
 
@@ -135,10 +136,13 @@ sealed class PictureSubtitleView : View
         }
     }
 
+    /// <summary>What a picture holds once shown: its PixelData copy, and its texture as much again.</summary>
+    static long Bytes(SubtitleBitmap b) => 2L * b.Rgba.Length;
+
     static long Bytes(PictureFrame frame)
     {
         long bytes = 0;
-        foreach (var b in frame.Bitmaps) bytes += b.Rgba.Length;
+        foreach (var b in frame.Bitmaps) bytes += Bytes(b);
         return bytes;
     }
 

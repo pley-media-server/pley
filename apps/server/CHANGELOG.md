@@ -111,13 +111,15 @@ describes how they are made.
 
 ### Security
 
-- A crafted file's DVB subtitles can no longer stall the web app: a
-  moment's subtitles take eight 4K screens' work at most to decode.
-- A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer run
-  the web app out of memory: a track is read up to 100,000 samples, a
-  moment's pictures are a 4K screen's pixels at most (2 pictures for PGS,
-  32 for DVB), and the frames kept decoded hold 128 MiB at most, their
-  pictures ready to draw as much again. Real subtitles show as before.
+- A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer keep
+  the web app busy: decoding one moment of them stops after a set amount
+  of work, far more than real subtitles take, and that moment isn't shown.
+- A crafted file's picture subtitles can no longer run the web app out of
+  memory: a track is read up to 100,000 samples and 512 MiB, a moment's
+  pictures are a 4K screen's pixels at most (2 pictures for PGS, 32 for
+  DVB), and the frames kept decoded hold 128 MiB besides the one showing,
+  their pictures ready to draw as much again. Real subtitles show as
+  before.
 
 ## [0.1.4] - 2026-11-02
 

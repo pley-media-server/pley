@@ -94,6 +94,22 @@ public static class Mks
     public const int MaxSamples = 100_000;
 
     /// <summary>
+    /// A sample's bytes at most, and a track's: a display set is a few KiB to a MiB, and the server
+    /// extracts a track up to 512 MiB.
+    /// </summary>
+    public const int MaxSampleBytes = 16 << 20;
+    public const long MaxTrackBytes = 512L << 20;
+
+    /// <summary>A track's private data read: a VobSub index's header is a KiB or two.</summary>
+    const int MaxPrivateBytes = 64 << 10;
+
+    /// <summary>
+    /// The bytes stripped from every frame, at most (ContentCompAlgo 3): a few in practice. More is
+    /// taken for compression this reader can't undo, as each sample gets a copy.
+    /// </summary>
+    const int MaxStrippedBytes = 1024;
+
+    /// <summary>
     /// How deep elements are read: the deepest this reader needs is 6 (a track's compression), and
     /// a crafted file nesting thousands deep would run the stack out, which ends the app.
     /// </summary>
@@ -134,6 +150,7 @@ public static class Mks
         long scaleNs = 1_000_000;
         readonly List<Track> tracks = new List<Track>();
         readonly List<RawBlock> raw = new List<RawBlock>();
+        long rawBytes;
         Track? track;
         long compAlgo;
         byte[]? compSettings;
@@ -166,13 +183,24 @@ public static class Mks
 
         void EndGroup()
         {
-            if (groupBlock != null && raw.Count < MaxSamples)
+            if (groupBlock != null)
             {
                 groupBlock.Duration = groupDuration;
-                raw.Add(groupBlock);
+                Keep(groupBlock);
             }
             groupBlock = null;
             groupDuration = null;
+        }
+
+        /// <summary>Whether another block may be kept: checked before it is copied.</summary>
+        bool Room() => raw.Count < MaxSamples && rawBytes < MaxTrackBytes;
+
+        /// <summary>Keeps a block within the track's samples and bytes.</summary>
+        void Keep(RawBlock block)
+        {
+            if (raw.Count >= MaxSamples || rawBytes + block.Data.Length > MaxTrackBytes) return;
+            raw.Add(block);
+            rawBytes += block.Data.Length;
         }
 
         /// <summary>Reads the elements from <paramref name="start"/> to <paramref name="end"/>, <paramref name="depth"/> deep; where it stopped (an unknown-size cluster ends at the next level-1 element).</summary>
@@ -225,7 +253,7 @@ public static class Mks
                             if (track != null) track.CodecId = Ascii(bytes, from, to);
                             break;
                         case CodecPrivate:
-                            if (track != null) track.CodecPrivate = PictureColors.Slice(bytes, from, to);
+                            if (track != null) track.CodecPrivate = PictureColors.Slice(bytes, from, Math.Min(to, (long)from + MaxPrivateBytes));
                             break;
                         case ContentCompAlgo:
                             compAlgo = Uint(bytes, from, to);
@@ -237,10 +265,10 @@ public static class Mks
                             clusterTime = Uint(bytes, from, to);
                             break;
                         case SimpleBlock:
-                            if (raw.Count < MaxSamples && BlockOf(bytes, from, to, clusterTime) is RawBlock simple) raw.Add(simple);
+                            if (Room() && BlockOf(bytes, from, to, clusterTime) is RawBlock simple) Keep(simple);
                             break;
                         case Block:
-                            groupBlock = raw.Count < MaxSamples ? BlockOf(bytes, from, to, clusterTime) : null;
+                            groupBlock = Room() ? BlockOf(bytes, from, to, clusterTime) : null;
                             break;
                         case BlockDuration:
                             groupDuration = Uint(bytes, from, to);
@@ -249,7 +277,7 @@ public static class Mks
                 }
                 if (el.Id == ContentCompression && track != null)
                 {
-                    if (compAlgo == 3) track.Stripped = compSettings;
+                    if (compAlgo == 3 && (compSettings?.Length ?? 0) <= MaxStrippedBytes) track.Stripped = compSettings;
                     else track.Compressed = true;
                 }
                 if (el.Id == TrackEntry && track != null)
@@ -294,6 +322,7 @@ public static class Mks
         var start = at + 3;
         // Laced subtitle frames don't occur in practice: keep the first frame's bytes as they are.
         if (lacing != 0) start = Math.Min(to, start + 1);
+        if (to - start > MaxSampleBytes) return null;
         return new RawBlock { Track = v.Value.Value, Time = clusterTime + signed, Data = PictureColors.Slice(bytes, start, to) };
     }
 

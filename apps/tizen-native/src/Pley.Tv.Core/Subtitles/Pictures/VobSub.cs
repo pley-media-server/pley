@@ -62,15 +62,22 @@ public sealed class VobSubDecoder : IPictureDecoder
         parsed = new bool[samples.Count];
     }
 
+    /// <summary>An SPU's bytes at most: its size is a 16-bit field.</summary>
+    const int MaxSpuBytes = 0xffff;
+
+    /// <summary>The control sequences read of an SPU: a real one has two or three.</summary>
+    const int MaxSequences = 64;
+
     public static VobSubHeader ParseIdx(byte[]? codecPrivate)
     {
-        var text = codecPrivate != null ? Latin1(codecPrivate) : "";
+        // The header is a KiB or two; its palette, 16 colours.
+        var text = codecPrivate != null ? Latin1(codecPrivate, Math.Min(codecPrivate.Length, 64 << 10)) : "";
         var size = Size.Match(text);
         var palette = new List<(byte, byte, byte)>();
         var p = PaletteLine.Match(text);
         if (p.Success)
         {
-            foreach (var hex in p.Groups[1].Value.Split(','))
+            foreach (var hex in p.Groups[1].Value.Split(new[] { ',' }, 16))
             {
                 if (LeadingHex(hex.Trim()) is long v) palette.Add(((byte)((v >> 16) & 0xff), (byte)((v >> 8) & 0xff), (byte)(v & 0xff)));
             }
@@ -103,11 +110,11 @@ public sealed class VobSubDecoder : IPictureDecoder
         if (data.Length < 4) return null;
         var size = (data[0] << 8) | data[1];
         var ctrl = (data[2] << 8) | data[3];
-        var end = Math.Min(size != 0 ? size : data.Length, data.Length);
+        var end = Math.Min(size != 0 ? size : MaxSpuBytes, data.Length);
         var spu = new Spu();
         var seq = ctrl;
         var seen = new HashSet<int>();
-        while (seq + 4 <= end && seen.Add(seq))
+        while (seq + 4 <= end && seen.Count < MaxSequences && seen.Add(seq))
         {
             // Delays count in 1024 ticks of a 90 kHz clock.
             var delayMs = (long)Math.Floor(((data[seq] << 8) | data[seq + 1]) * 1024 / 90.0 + 0.5);
@@ -237,7 +244,7 @@ public sealed class VobSubDecoder : IPictureDecoder
         var data = samples[index];
         var size = (data[0] << 8) | data[1];
         var ctrl = (data[2] << 8) | data[3];
-        var end = Math.Min(ctrl != 0 ? ctrl : size != 0 ? size : data.Length, data.Length);
+        var end = Math.Min(ctrl != 0 ? ctrl : size != 0 ? size : MaxSpuBytes, data.Length);
         var pixels = new byte[width * height];
         DecodeField(data, spu.Top, end, width, height, 0, pixels);
         DecodeField(data, spu.Bottom, end, width, height, 1, pixels);
@@ -263,10 +270,11 @@ public sealed class VobSubDecoder : IPictureDecoder
         return new PictureFrame(header.Width, header.Height, new[] { new SubtitleBitmap(spu.X1, spu.Y1, width, height, rgba) });
     }
 
-    static string Latin1(byte[] bytes)
+    /// <summary>The first <paramref name="count"/> of <paramref name="bytes"/> as Latin-1 text.</summary>
+    static string Latin1(byte[] bytes, int count)
     {
-        var s = new StringBuilder(bytes.Length);
-        foreach (var b in bytes) s.Append((char)b);
+        var s = new StringBuilder(count);
+        for (var i = 0; i < count; i++) s.Append((char)bytes[i]);
         return s.ToString();
     }
 }
