@@ -37,8 +37,9 @@ describes how they are made.
   in the middle of the row, rather than on Subtitles.
 - On TVs, the chapters show as a row of cards over the scrubber, with
   their pictures, as in YouTube's TV app, in place of the Chapters panel:
-  Up while a seek waits, or the Chapters button, opens them on the chapter
-  it was going to; OK goes to one, Down or Back closes them.
+  Up while a seek waits opens them on the chapter it was going to, the
+  Chapters button on the one playing; OK goes to one, Down or Back closes
+  them.
 - Seek previews keep the video's shape, letterboxed on black, on phones
   and TVs, rather than cropped to fill their box: a wide film's no longer
   loses its sides.

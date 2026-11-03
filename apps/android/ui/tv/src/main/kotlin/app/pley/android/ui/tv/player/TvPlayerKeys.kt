@@ -56,7 +56,8 @@ internal enum class ControlFocus {
 /**
  * The player's keys (TV addendum §5.2, design spec §2.7): which key does
  * what, apart from what focus does with it. Media keys work whatever
- * shows; the rest depends on whether the controls are hidden.
+ * shows but an error, which leaves only Stop; the rest depends on whether
+ * the controls are hidden.
  */
 internal object TvPlayerKeys {
     /** Fast forward and rewind. */
