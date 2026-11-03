@@ -155,7 +155,7 @@ var
   // AdapterList's order.
   AdapterIps, AdapterNames, AdapterKinds: TStringList;
   PortEdit: TNewEdit;
-  DiscoveryCheck: TNewCheckBox;
+  PlexCheck, DiscoveryCheck: TNewCheckBox;
   FirewallPage: TWizardPage;
   PrivateCheck, DomainCheck, PublicCheck: TNewCheckBox;
   SubnetRadio, AnyRadio: TNewRadioButton;
@@ -241,6 +241,14 @@ end;
 function BindAddress: String;
 begin
   Result := AddressesWith(Port);
+end;
+
+function PlexBind: String;
+begin
+  if PlexCheck.Checked then
+    Result := 'web'
+  else
+    Result := 'off';
 end;
 
 // Whether other devices may reach pley.
@@ -569,6 +577,7 @@ begin
   PortEdit.Width := ScaleX(60);
   PortLabel.FocusControl := PortEdit;
   Top := Top + PortEdit.Height + ScaleY(14);
+  PlexCheck := AddCheck(NetworkPage, Top, 'Plex-compatible API, for Plex tools (on Pley''s port)', '');
 
   FirewallPage := CreateCustomPage(NetworkPage.ID, 'Windows Firewall', 'Which devices may reach Pley');
   Top := 0;
@@ -656,6 +665,7 @@ begin
   if AdaptersRadio.Checked then
     CheckAdapters(Ips);
   PortEdit.Text := CmdParam('PORT', GetPreviousData('Port', '7539'));
+  PlexCheck.Checked := Flag('PLEX', GetPreviousData('Plex', 'yes') = 'yes');
 
   // Private and domain networks, from devices on them, unless told otherwise.
   Firewall := Lowercase(CmdParam('FIREWALL', GetPreviousData('Firewall', 'private,domain')));
@@ -705,6 +715,7 @@ begin
     SetPreviousData(PreviousDataKey, 'Listen', 'local');
   SetPreviousData(PreviousDataKey, 'Addresses', ChosenIps);
   SetPreviousData(PreviousDataKey, 'Port', Port);
+  SetPreviousData(PreviousDataKey, 'Plex', YesNo(PlexCheck.Checked));
   if Profiles = '' then
     SetPreviousData(PreviousDataKey, 'Firewall', 'none')
   else
@@ -925,6 +936,8 @@ begin
     S := S + 'This computer and ' + ChosenIps + ', port ' + Port
   else
     S := S + 'This computer only (127.0.0.1:' + Port + ')';
+  if PlexCheck.Checked then
+    S := S + NewLine + Space + 'Plex-compatible API, on Pley''s port';
   if Profiles = '' then
     S := S + NewLine + Space + 'Not let through Windows Firewall'
   else if AnyRadio.Checked then
@@ -1143,7 +1156,7 @@ begin
     DelTree(ExpandConstant('{app}\ffmpeg'), True, True, True);
   if CurStep <> ssPostInstall then
     Exit;
-  Options := '--data-dir ' + AddQuotes(DataDir('')) + ' --bind ' + BindAddress + FfmpegOptions;
+  Options := '--data-dir ' + AddQuotes(DataDir('')) + ' --bind ' + BindAddress + ' --plex-bind ' + PlexBind + FfmpegOptions;
   SetStatus('Opening Windows Firewall...');
   Firewall;
   if Failure = '' then

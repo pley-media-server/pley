@@ -56,8 +56,19 @@ const CACHES: &[(&str, Duration)] = &[
     ("discover", Duration::from_secs(30 * DAY)),     // discover/pictures.rs: TMDB's pictures
 ];
 
-/// Hosts pictures may be downloaded from (metadata providers' image servers).
-const IMAGE_HOSTS: &[&str] = &["image.tmdb.org", "static.tvmaze.com", "artworks.thetvdb.com", "coverartarchive.org"];
+/// Hosts pictures may be downloaded from: metadata providers' image servers,
+/// and those library tools take artwork from (fanart.tv, ThePosterDB, and
+/// GitHub's raw files for Kometa's own). Public hosts only, so that no
+/// address can turn a download towards this network.
+const IMAGE_HOSTS: &[&str] = &[
+    "image.tmdb.org",
+    "static.tvmaze.com",
+    "artworks.thetvdb.com",
+    "coverartarchive.org",
+    "assets.fanart.tv",
+    "theposterdb.com",
+    "raw.githubusercontent.com",
+];
 
 /// Whether a stored reference is a blob (as opposed to a local file path).
 pub fn is_blob(reference: &str) -> bool {
@@ -262,18 +273,47 @@ impl Store {
     /// A picture from the internet, downloaded the first time and reused
     /// after that (image URLs of metadata providers change with the picture).
     pub async fn remote(&self, url: &str) -> anyhow::Result<String> {
+        if let Some(blob) = self.known_remote(url).await? {
+            return Ok(blob);
+        }
+        let bytes = self.fetch(url).await?;
+        let ext = picture_ext(&bytes).with_context(|| format!("{url} is not a picture"))?;
+        let blob = self.put(&bytes, ext).await?;
+        sqlx::query("INSERT OR REPLACE INTO remote_images (url, blob, fetched_at) VALUES (?, ?, ?)")
+            .bind(url)
+            .bind(&blob)
+            .bind(now())
+            .execute(&self.db.write)
+            .await?;
+        Ok(blob)
+    }
+
+    /// The bytes of a picture from the internet, as [`Self::remote`] gets
+    /// them but not stored: a picture someone chose by its address. Some of
+    /// the hosts serve anyone's files, so the caller decodes and re-encodes
+    /// it as an upload before storing it.
+    pub async fn download(&self, url: &str) -> anyhow::Result<Vec<u8>> {
+        if let Some(path) = self.known_remote(url).await?.and_then(|blob| self.path(&blob)) {
+            return Ok(tokio::fs::read(path).await?);
+        }
+        self.fetch(url).await
+    }
+
+    /// The blob a picture from `url` was stored as, if it still is.
+    async fn known_remote(&self, url: &str) -> anyhow::Result<Option<String>> {
         let known: Option<String> = sqlx::query_scalar("SELECT blob FROM remote_images WHERE url = ?")
             .bind(url)
             .fetch_optional(&self.db.read)
             .await?;
-        if let Some(blob) = known {
-            if let Some(name) = blob.strip_prefix(BLOB_PREFIX) {
-                self.hand_out(name);
-            }
-            if self.exists(&blob) {
-                return Ok(blob);
-            }
+        let Some(blob) = known else { return Ok(None) };
+        if let Some(name) = blob.strip_prefix(BLOB_PREFIX) {
+            self.hand_out(name);
         }
+        Ok(self.exists(&blob).then_some(blob))
+    }
+
+    /// Downloads `url` from one of the image hosts, up to [`MAX_REMOTE_BYTES`].
+    async fn fetch(&self, url: &str) -> anyhow::Result<Vec<u8>> {
         if !allowed_image_url(url) {
             bail!("pictures are not downloaded from {url}");
         }
@@ -287,15 +327,7 @@ impl Store {
             anyhow::ensure!(bytes.len() + chunk.len() <= MAX_REMOTE_BYTES, "{url} is too large");
             bytes.extend_from_slice(&chunk);
         }
-        let ext = picture_ext(&bytes).with_context(|| format!("{url} is not a picture"))?;
-        let blob = self.put(&bytes, ext).await?;
-        sqlx::query("INSERT OR REPLACE INTO remote_images (url, blob, fetched_at) VALUES (?, ?, ?)")
-            .bind(url)
-            .bind(&blob)
-            .bind(now())
-            .execute(&self.db.write)
-            .await?;
-        Ok(blob)
+        Ok(bytes)
     }
 
     /// Folder of files generated from the media file with this fingerprint.
@@ -790,6 +822,11 @@ mod tests {
         assert!(!allowed_image_url("http://image.tmdb.org/t/p/w780/x.jpg"));
         assert!(!allowed_image_url("https://image.tmdb.org.evil.com/x.jpg"));
         assert!(!allowed_image_url("https://localhost/x.jpg"));
+        assert!(allowed_image_url("https://raw.githubusercontent.com/team/images/master/poster.jpg"));
+        assert!(allowed_image_url("https://theposterdb.com/api/assets/1"));
+        assert!(!allowed_image_url("https://raw.githubusercontent.com@169.254.169.254/x.jpg"));
+        assert!(!allowed_image_url("https://raw.githubusercontent.com:8443/x.jpg"));
+        assert!(!allowed_image_url("https://theposterdb.com.example/x.jpg"));
     }
 
     #[tokio::test]

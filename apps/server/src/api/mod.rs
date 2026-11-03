@@ -252,7 +252,10 @@ pub fn router(state: AppState) -> Router {
             axum::http::StatusCode::REQUEST_TIMEOUT,
             Duration::from_secs(60 * 30),
         ))
-        // The Jellyfin-compatible API's clients, before anything of pley's.
+        // The compatibility APIs' clients, before anything of pley's: the
+        // Jellyfin-compatible API's first, which leaves the requests that
+        // name themselves the Plex-compatible API's to it.
+        .layer(axum::middleware::from_fn_with_state(crate::plex::OnWebPort::new(&state), crate::plex::on_web_port))
         .layer(axum::middleware::from_fn_with_state(
             crate::jellyfin::OnWebPort::new(&state),
             crate::jellyfin::on_web_port,
@@ -390,7 +393,7 @@ pub(crate) fn wants_summaries(query: &HashMap<String, String>) -> bool {
 }
 
 /// The request URI for logs, with credentials in the query left out:
-/// `token` and `api_key`, and what apps and TVs send while
+/// `token`, `X-Plex-Token` and `api_key`, and what apps and TVs send while
 /// signing in (`code`, `state`, `code_verifier`, `access_token`,
 /// `refresh_token`, `device_code`, `user_code`). Bodies and the
 /// Authorization header are never logged.
@@ -420,6 +423,7 @@ pub(crate) fn loggable_uri(uri: &axum::http::Uri) -> String {
                 if matches!(
                     key.to_ascii_lowercase().as_str(),
                     "token"
+                        | "x-plex-token"
                         | "api_key"
                         | "apikey"
                         | "mediasourceid"
@@ -474,8 +478,9 @@ mod tests {
 
     #[test]
     fn logs_leave_codes_and_tokens_out() {
-        let uri: axum::http::Uri = "/api/files/3/stream?token=secret&t=10&ApiKey=abc&api_key=k".parse().unwrap();
-        assert_eq!(loggable_uri(&uri), "/api/files/3/stream?token=…&t=10&ApiKey=…&api_key=…");
+        let uri: axum::http::Uri =
+            "/api/files/3/stream?token=secret&t=10&ApiKey=abc&api_key=k&X-Plex-Token=p".parse().unwrap();
+        assert_eq!(loggable_uri(&uri), "/api/files/3/stream?token=…&t=10&ApiKey=…&api_key=…&X-Plex-Token=…");
         let uri: axum::http::Uri = "/api/x?code=c0de&state=st4te".parse().unwrap();
         assert_eq!(loggable_uri(&uri), "/api/x?code=…&state=…");
         let uri =

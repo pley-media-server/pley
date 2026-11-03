@@ -19,7 +19,7 @@ use tokio::sync::broadcast::error::RecvError;
 
 use super::ids::Kind;
 use super::{Jellyfin, JfUser, Q};
-use crate::auth::AuthUser;
+use crate::auth::{AuthUser, SourceIp};
 use crate::events::ServerEvent;
 use crate::state::AppState;
 
@@ -38,16 +38,17 @@ async fn socket(
     State(state): State<AppState>,
     Extension(jellyfin): Extension<Arc<Jellyfin>>,
     JfUser { user, client }: JfUser,
+    SourceIp(from): SourceIp,
     q: Q,
     upgrade: WebSocketUpgrade,
 ) -> Response {
     let device = q.get("deviceId").map(str::to_owned).or(client.device_id);
-    let token_id = user.compatibility.map(|c| c.token_id).unwrap_or(0);
+    let token = (user.compatibility.map(|c| c.token_id).unwrap_or(0), from);
     // Clients send keep-alives, a few bytes each.
     upgrade
         .max_message_size(MAX_MESSAGE)
         .max_frame_size(MAX_MESSAGE)
-        .on_upgrade(move |socket| run(state, jellyfin, user, token_id, device, socket))
+        .on_upgrade(move |socket| run(state, jellyfin, user, token, device, socket))
 }
 
 fn message(kind: &str, data: Value) -> Message {
@@ -59,11 +60,13 @@ fn message(kind: &str, data: Value) -> Message {
     Message::Text(json!({"MessageType": kind, "MessageId": id, "Data": data}).to_string().into())
 }
 
+/// The socket of `user`, its token (`token`: the token's id, and where the
+/// socket was opened from, which its origins are checked against again).
 async fn run(
     state: AppState,
     jellyfin: Arc<Jellyfin>,
     user: AuthUser,
-    token_id: i64,
+    token: (i64, Option<std::net::IpAddr>),
     device: Option<String>,
     mut socket: WebSocket,
 ) {
@@ -103,7 +106,7 @@ async fn run(
                 Err(RecvError::Closed) => return,
             },
             _ = recheck.tick() => {
-                if state.auth.compatibility_user(token_id).await.is_none() {
+                if state.auth.compatibility_user(token.0, token.1).await.is_none() {
                     let _ = socket.send(Message::Close(None)).await;
                     return;
                 }

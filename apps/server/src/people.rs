@@ -345,6 +345,9 @@ pub struct Credit {
     pub character: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub photo_url: Option<String>,
+    /// Where the photo comes from (Plex clients load role thumbs directly).
+    #[serde(skip)]
+    pub photo_source: Option<String>,
 }
 
 #[derive(sqlx::FromRow)]
@@ -386,6 +389,7 @@ pub async fn for_items(db: &Db, ids: &[i64]) -> sqlx::Result<HashMap<i64, Vec<Cr
                 name: row.name,
                 role,
                 character: row.character,
+                photo_source: row.photo_url,
             });
         }
     }

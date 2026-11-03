@@ -16,7 +16,7 @@ Read the doc for the part you touch; they say how things work and why.
 | Transcoder and its protocol | [docs/TRANSCODER.md](docs/TRANSCODER.md) |
 | Quality, Automatic, playback decisions | [docs/QUALITY.md](docs/QUALITY.md) |
 | Data folder, caches, backups | [docs/STORAGE.md](docs/STORAGE.md) |
-| Jellyfin-compatible API, tokens for other apps | [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) |
+| Plex- and Jellyfin-compatible APIs, tokens for other apps | [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) |
 | Android, Kodi, Roku, Samsung and LG apps | [docs/ANDROID.md](docs/ANDROID.md), [docs/KODI.md](docs/KODI.md), [docs/ROKU.md](docs/ROKU.md), [docs/TV_PLATFORMS.md](docs/TV_PLATFORMS.md) |
 | Docker, Unraid, Windows, services | [deploy/README.md](deploy/README.md) |
 | Licences and dependencies | [LICENSING.md](LICENSING.md) |

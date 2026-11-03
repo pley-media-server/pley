@@ -51,7 +51,7 @@ pub enum AppError {
     TokenPlacement,
     /// A compatibility token on Pley's own API, wherever it was sent: it
     /// opens the compatibility API only (see `crate::auth::compatibility`).
-    #[error("tokens for other apps work on the Jellyfin-compatible API only")]
+    #[error("tokens for other apps work on the Plex- and Jellyfin-compatible APIs only")]
     CompatibilityToken,
     /// An app's token on a route its scopes don't open: the scope that
     /// would, or `None` when no scope opens it (see `crate::auth::scopes`).
@@ -262,7 +262,7 @@ mod tests {
             (
                 AppError::CompatibilityToken,
                 Some(r#"Bearer error="invalid_token""#),
-                Some("tokens for other apps work on the Jellyfin-compatible API only"),
+                Some("tokens for other apps work on the Plex- and Jellyfin-compatible APIs only"),
             ),
             (
                 AppError::InsufficientScope(None),

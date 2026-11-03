@@ -309,7 +309,7 @@ jobs:
           PLEY_RENDER_GID: "44"
         run: |
           python3 -c 'import xml.etree.ElementTree as e; e.parse("../unraid/pley.xml")'
-          for addon in vaapi nvidia proxy jellyfin; do
+          for addon in vaapi nvidia proxy plex jellyfin; do
             docker compose -f compose.yaml -f "compose.$addon.yaml" config --quiet
           done
           ports=$(docker compose -f compose.yaml -f compose.proxy.yaml config --format json | jq '.services.pley.ports // [] | length')

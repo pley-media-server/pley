@@ -16,8 +16,9 @@ async fn administrators_see_where_pley_listens_and_could() {
     let reply = app.get("/api/network", &admin).await;
     assert_eq!(reply.status, StatusCode::OK, "{:?}", reply.body);
     assert_eq!(reply.body["web"], json!(["127.0.0.1:0"]));
+    assert_eq!((&reply.body["plex"], &reply.body["plex_on_web"]), (&json!([]), &json!(true)));
     assert_eq!(reply.body["jellyfin"], json!([]));
-    assert_eq!(reply.body["fixed"], json!({"web": false, "jellyfin": false, "discovery": false}));
+    assert_eq!(reply.body["fixed"], json!({"web": false, "plex": false, "jellyfin": false, "discovery": false}));
     assert_eq!(reply.body["windows"], cfg!(windows));
     assert!(reply.body["adapters"].is_array());
     assert!(reply.body["config_file"].as_str().unwrap().ends_with("pley.toml"));
@@ -32,13 +33,20 @@ async fn administrators_see_where_pley_listens_and_could() {
 async fn a_change_is_saved_for_the_next_start() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
-    let change = json!({"web": ["127.0.0.1:7539", "192.168.1.10:7539"], "jellyfin": [], "discovery": false});
+    let change = json!({
+        "web": ["127.0.0.1:7539", "192.168.1.10:7539"],
+        "plex": [],
+        "plex_on_web": true,
+        "jellyfin": [],
+        "discovery": false,
+    });
     let reply = app.put("/api/network", &admin, change).await;
     assert_eq!(reply.status, StatusCode::OK, "{:?}", reply.body);
     assert_eq!(reply.body["web"], json!(["127.0.0.1:7539", "192.168.1.10:7539"]));
 
     let saved = std::fs::read_to_string(&app.state.config.config_file).unwrap();
     assert!(saved.contains("bind = \"127.0.0.1:7539, 192.168.1.10:7539\"\n"), "{saved}");
+    assert!(saved.contains("plex_bind = \"web\"\n"), "{saved}");
     assert!(saved.contains("jellyfin_bind = \"off\"\n"), "{saved}");
     assert!(saved.contains("discovery = false\n"), "{saved}");
     assert_eq!(app.get("/api/network", &admin).await.body["web"], json!(["127.0.0.1:7539", "192.168.1.10:7539"]));
@@ -61,6 +69,30 @@ async fn the_jellyfin_api_is_off_until_turned_on_on_pleys_port_or_its_own() {
         let file = std::fs::read_to_string(&app.state.config.config_file).unwrap();
         assert!(file.contains(&format!("jellyfin_bind = \"{saved}\"\n")), "{file}");
     }
+}
+
+#[tokio::test]
+async fn the_plex_api_is_on_pleys_port_until_given_its_own_or_turned_off() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let now = app.get("/api/network", &admin).await.body;
+    assert_eq!((&now["plex"], &now["plex_on_web"]), (&json!([]), &json!(true)), "on Pley's port by default");
+    for (change, saved) in [
+        (json!({"web": ["127.0.0.1:7539"], "plex": ["0.0.0.0:32400"], "discovery": false}), "0.0.0.0:32400"),
+        (json!({"web": ["127.0.0.1:7539"], "plex": [], "discovery": false}), "off"),
+        (json!({"web": ["127.0.0.1:7539"], "plex": [], "plex_on_web": true, "discovery": false}), "web"),
+        // Both APIs on Pley's port.
+        (json!({"web": ["127.0.0.1:7539"], "plex_on_web": true, "jellyfin_on_web": true, "discovery": false}), "web"),
+    ] {
+        let reply = app.put("/api/network", &admin, change.clone()).await;
+        assert_eq!(reply.status, StatusCode::OK, "{change}: {:?}", reply.body);
+        assert_eq!(reply.body["plex_on_web"], json!(change["plex_on_web"].as_bool().unwrap_or(false)));
+        let file = std::fs::read_to_string(&app.state.config.config_file).unwrap();
+        assert!(file.contains(&format!("plex_bind = \"{saved}\"\n")), "{file}");
+    }
+    let one_port =
+        json!({"web": ["127.0.0.1:7539"], "plex": ["0.0.0.0:8096"], "jellyfin": ["0.0.0.0:8096"], "discovery": false});
+    assert_eq!(app.put("/api/network", &admin, one_port).await.status, StatusCode::BAD_REQUEST, "one port, two APIs");
 }
 
 #[tokio::test]

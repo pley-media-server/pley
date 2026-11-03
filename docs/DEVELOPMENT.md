@@ -5,7 +5,7 @@ How Pley is built, tested and released.
 ## Architecture
 
 <p align="center">
-  <img src="images/architecture.svg" alt="Pley's architecture: the apps, and Jellyfin's, talk to the pley server over HTTP; the server starts the transcoder and talks to it over HTTP and JSON; the transcoder runs FFmpeg, on the GPU where there is one; the server reads metadata sources and IPTV providers, sends requests to Radarr and Sonarr, and scans your media folders, which the transcoder reads too." width="1000">
+  <img src="images/architecture.svg" alt="Pley's architecture: the apps, Jellyfin's, and tools built on Plex's API talk to the pley server over HTTP; the server starts the transcoder and talks to it over HTTP and JSON; the transcoder runs FFmpeg, on the GPU where there is one; the server reads metadata sources and IPTV providers, sends requests to Radarr and Sonarr, and scans your media folders, which the transcoder reads too." width="1000">
 </p>
 
 The transcoder is a separate program, the only one that runs FFmpeg, and the

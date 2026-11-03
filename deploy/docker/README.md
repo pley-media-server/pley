@@ -53,6 +53,7 @@ All in `.env`; [.env.example](.env.example) explains each one.
 | `PLEY_RENDER_GID` | | Intel / AMD: the GPU render node's group |
 | `PLEY_RENDER_DEVICE` | `/dev/dri/renderD128` | Intel / AMD: which GPU |
 | `PLEY_PROXY_NETWORK` | `proxy` | `compose.proxy.yaml`: the proxy's Docker network |
+| `PLEY_PLEX_LISTEN` | `127.0.0.1:32400` | `compose.plex.yaml`: where the Plex-compatible API is published |
 | `PLEY_JELLYFIN_LISTEN` | `127.0.0.1:8096` | `compose.jellyfin.yaml`: where the Jellyfin-compatible API is published |
 | `PLEY_IMAGE` | `pley:local` | The image; a release is `ghcr.io/pley-media-server/pley:<version>` |
 | `PLEY_PULL_POLICY` | `build` | `build` from this checkout, or `missing` for a release |
@@ -68,6 +69,7 @@ All in `.env`; [.env.example](.env.example) explains each one.
 | `compose.vaapi.yaml` | Intel or AMD hardware transcoding |
 | `compose.nvidia.yaml` | NVIDIA hardware transcoding |
 | `compose.proxy.yaml` | A reverse proxy in Docker: no published port |
+| `compose.plex.yaml` | The [Plex-compatible API](../../docs/COMPATIBILITY.md) on port 32400 (without it, it answers on Pley's port) |
 | `compose.jellyfin.yaml` | The [Jellyfin-compatible API](../../docs/COMPATIBILITY.md) on port 8096 (without it, Settings → Network can turn it on, on Pley's port) |
 
 Your own changes go in `compose.override.yaml` next to `compose.yaml` (git
@@ -179,7 +181,10 @@ docker run -d --name pley -p 7539:7539 --shm-size 2g \
   ghcr.io/pley-media-server/pley:latest
 ```
 
-For NVIDIA, use `--gpus all` instead of `--device /dev/dri`.
+For NVIDIA, use `--gpus all` instead of `--device /dev/dri`. For the
+Plex-compatible API on Plex's port, add
+`-p 32400:32400 -e PLEY_PLEX_BIND=0.0.0.0:32400`; it answers on Pley's port
+without them.
 
 ## Security
 

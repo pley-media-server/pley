@@ -380,6 +380,7 @@ pub async fn put_network(
     listen.check().map_err(AppError::bad_request)?;
     let (now, fixed) = (state.network.wanted(), state.network.fixed);
     if (fixed.web && listen.web != now.web)
+        || (fixed.plex && (listen.plex != now.plex || listen.plex_on_web != now.plex_on_web))
         || (fixed.jellyfin && (listen.jellyfin != now.jellyfin || listen.jellyfin_on_web != now.jellyfin_on_web))
         || (fixed.discovery && listen.discovery != now.discovery)
     {
@@ -388,17 +389,22 @@ pub async fn put_network(
     if listen != now {
         let addresses =
             |list: &[std::net::SocketAddr]| list.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
-        tracing::info!(
-            "{} changed where Pley listens: {} (the Jellyfin-compatible API: {}; discovery {})",
-            user.username,
-            addresses(&listen.web),
-            if listen.jellyfin_on_web {
+        let api = |on_web: bool, list: &[std::net::SocketAddr]| {
+            if on_web {
                 "on Pley's port".to_owned()
-            } else if listen.jellyfin.is_empty() {
+            } else if list.is_empty() {
                 "off".to_owned()
             } else {
-                addresses(&listen.jellyfin)
-            },
+                addresses(list)
+            }
+        };
+        tracing::info!(
+            "{} changed where Pley listens: {} (the Plex-compatible API: {}; the Jellyfin-compatible API: {}; \
+             discovery {})",
+            user.username,
+            addresses(&listen.web),
+            api(listen.plex_on_web, &listen.plex),
+            api(listen.jellyfin_on_web, &listen.jellyfin),
             if listen.discovery { "on" } else { "off" },
         );
         state.network.change(listen).await.map_err(|err| AppError::Unavailable(format!("{err:#}")))?;

@@ -101,6 +101,11 @@ you pick one; *Automatic* takes the GPU's.
   **Settings → Network → Reached through a reverse proxy**.
   [Apps and reverse proxies](../README.md#apps-and-reverse-proxies) says
   what the proxy must pass on.
+- **The Plex- or Jellyfin-compatible API on a port of its own** (32400,
+  8096): on *Bridge*, add a Port and a Variable to the container, as
+  [Ports and firewalls](../../docs/COMPATIBILITY.md#ports-and-firewalls)
+  says; on **br0** or **Host**, choose it in **Settings → Network**. On
+  Pley's port, the default for Plex's, nothing needs adding.
 - **Apps finding Pley by themselves** needs the container on your network:
   set *Network Type* to **br0** (Pley gets an address of its own) or
   **Host**. On the default *Bridge*, type the server's address in the apps.

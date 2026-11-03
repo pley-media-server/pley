@@ -44,6 +44,74 @@ pub fn decode_avatar(bytes: &[u8]) -> ImageResult<DynamicImage> {
     limited(ImageReader::new(Cursor::new(bytes)).with_guessed_format()?, 4096, 96 << 20)
 }
 
+/// The EXIF tag Kometa marks a poster with once it has drawn its overlay on
+/// it (`"overlay"`): that poster is never taken for an original again.
+const OVERLAY_TAG: u16 = 0x04BC;
+const OVERLAY: &[u8] = b"overlay";
+
+/// Whether a picture carries Kometa's overlay mark.
+pub fn has_overlay_mark(bytes: &[u8]) -> bool {
+    use image::ImageDecoder;
+    let exif = ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .ok()
+        .and_then(|reader| reader.into_decoder().ok())
+        .and_then(|mut decoder| decoder.exif_metadata().ok().flatten());
+    exif.is_some_and(|chunk| exif_text(&chunk, OVERLAY_TAG).is_some_and(|text| text == OVERLAY))
+}
+
+/// An EXIF chunk with Kometa's overlay mark alone, for a picture that had it.
+pub fn overlay_exif() -> Vec<u8> {
+    let value = [OVERLAY, b"\0"].concat();
+    let mut chunk = Vec::with_capacity(26 + value.len());
+    chunk.extend_from_slice(b"II*\0");
+    chunk.extend_from_slice(&8u32.to_le_bytes()); // the first directory, right after
+    chunk.extend_from_slice(&1u16.to_le_bytes()); // of one entry:
+    chunk.extend_from_slice(&OVERLAY_TAG.to_le_bytes());
+    chunk.extend_from_slice(&2u16.to_le_bytes()); // text
+    chunk.extend_from_slice(&(value.len() as u32).to_le_bytes());
+    chunk.extend_from_slice(&26u32.to_le_bytes()); // after the directory
+    chunk.extend_from_slice(&0u32.to_le_bytes()); // and no other directory
+    chunk.extend_from_slice(&value);
+    chunk
+}
+
+/// The text (or bytes) of `tag` in the first directory of an EXIF chunk,
+/// without its trailing NULs.
+fn exif_text(chunk: &[u8], tag: u16) -> Option<&[u8]> {
+    let chunk = chunk.strip_prefix(b"Exif\0\0").unwrap_or(chunk);
+    let little = match chunk.get(..4)? {
+        b"II*\0" => true,
+        b"MM\0*" => false,
+        _ => return None,
+    };
+    let u16_at = |at: usize| -> Option<u16> {
+        let b: [u8; 2] = chunk.get(at..at.checked_add(2)?)?.try_into().ok()?;
+        Some(if little { u16::from_le_bytes(b) } else { u16::from_be_bytes(b) })
+    };
+    let u32_at = |at: usize| -> Option<usize> {
+        let b: [u8; 4] = chunk.get(at..at.checked_add(4)?)?.try_into().ok()?;
+        usize::try_from(if little { u32::from_le_bytes(b) } else { u32::from_be_bytes(b) }).ok()
+    };
+    let directory = u32_at(4)?;
+    for n in 0..usize::from(u16_at(directory)?) {
+        let entry = directory.checked_add(2 + n * 12)?;
+        if u16_at(entry)? != tag {
+            continue;
+        }
+        // One byte a value: bytes, text or undefined.
+        if !matches!(u16_at(entry + 2)?, 1 | 2 | 7) {
+            return None;
+        }
+        let count = u32_at(entry + 4)?;
+        let at = if count <= 4 { entry + 8 } else { u32_at(entry + 8)? };
+        let value = chunk.get(at..at.checked_add(count)?)?;
+        let end = value.iter().rposition(|b| *b != 0).map_or(0, |last| last + 1);
+        return Some(&value[..end]);
+    }
+    None
+}
+
 const BUCKETS: [u32; 8] = [160, 240, 320, 480, 640, 960, 1280, 1920];
 const JPEG_QUALITY: u8 = 82;
 
@@ -261,5 +329,28 @@ mod tests {
             let decoded = image::load_from_memory(&small.bytes).unwrap().to_rgba8();
             assert_eq!((decoded.width(), decoded[(0, 0)][3]), (240, 0), "no black box behind it");
         }
+    }
+
+    fn jpeg(exif: Option<Vec<u8>>) -> Vec<u8> {
+        use image::ImageEncoder;
+        let mut out = Vec::new();
+        let mut encoder = JpegEncoder::new_with_quality(&mut out, 80);
+        if let Some(exif) = exif {
+            encoder.set_exif_metadata(exif).unwrap();
+        }
+        encoder.encode_image(&image::RgbImage::from_pixel(8, 8, image::Rgb([1, 2, 3]))).unwrap();
+        out
+    }
+
+    #[test]
+    fn kometas_overlay_mark_is_read() {
+        assert!(has_overlay_mark(&jpeg(Some(overlay_exif()))));
+        assert!(!has_overlay_mark(&jpeg(None)));
+        // Big-endian, as other writers make it, and another tag.
+        let mut chunk = b"MM\0*\0\0\0\x08\0\x01\x04\xBC\0\x02\0\0\0\x04ovl\0\0\0\0\0".to_vec();
+        assert_eq!(exif_text(&chunk, OVERLAY_TAG), Some(&b"ovl"[..]));
+        chunk[11] = 0xBD;
+        assert_eq!(exif_text(&chunk, OVERLAY_TAG), None);
+        assert_eq!(exif_text(b"II*\0\xff\xff\xff\xff", OVERLAY_TAG), None, "a directory past the end");
     }
 }
