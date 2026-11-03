@@ -242,6 +242,11 @@ impl Screen for PlaylistsScreen {
     fn takes_focus(&self) -> bool {
         self.list.value().is_some() || self.list.error().is_some()
     }
+
+    /// Its own name, also when opened from the Libraries page, whose rail entry the rail marks.
+    fn title(&self) -> Option<String> {
+        Some("Playlists".into())
+    }
 }
 
 #[cfg(test)]

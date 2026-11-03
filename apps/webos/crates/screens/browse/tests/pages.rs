@@ -5,9 +5,10 @@ mod common;
 
 use common::TestApp;
 use pley_base::Key;
+use pley_core::device::Drive;
 use pley_core::model::{NewPlaylist, PlaylistKind};
 use pley_fixtures::ids;
-use pley_shell::Route;
+use pley_shell::{BackgroundSession, Route};
 use pley_ui::Id;
 
 /// An entry's card on a playlist's page.
@@ -31,6 +32,39 @@ fn playlists_open_on_the_first_cover() {
     assert!(app.shows_part("Smart"), "a smart playlist says so under its cover");
     app.press(Key::Ok);
     assert_eq!(app.route(), Some(&Route::Playlist { id: ids::PLAYLIST_VIDEO }));
+}
+
+/// Music with a queue: the rail shows Now Playing.
+struct Queued;
+
+impl BackgroundSession for Queued {
+    fn queued(&self) -> bool {
+        true
+    }
+    fn tick(&mut self, _now: f64) -> Option<f64> {
+        None
+    }
+    fn pause(&mut self) {}
+    fn end(&mut self) {}
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
+#[test]
+fn audio_guidance_names_playlists_as_it_opens_also_from_the_libraries_page() {
+    let mut app = TestApp::start();
+    let rail_has = |a: &TestApp, id: &str| a.shell.rail_entries().has(id);
+    assert!(app.until(|a| rail_has(a, "discover") && rail_has(a, "live-tv")), "no Discover or Live TV");
+    // Now Playing and a drive as well: Playlists leaves the rail for the Libraries page, whose
+    // entry the rail marks, but the page still says its own name.
+    app.state.music = Some(Box::new(Queued));
+    app.device.set_drive(Some(Drive { root: std::env::temp_dir(), hidden: false }));
+    assert!(app.until(|a| !rail_has(a, "playlists")), "Playlists kept its place in the rail");
+    app.ui.set_speaking(true);
+    app.open(Route::Playlists);
+    let words = app.ui.take_speech().unwrap_or_default();
+    assert!(words.starts_with("Playlists"), "{words}");
 }
 
 #[test]

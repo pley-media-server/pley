@@ -1,12 +1,14 @@
-//! The libraries list against the fake server: its cards, opening a library, and sorting them.
+//! The libraries list against the fake server: its cards, opening a library, sorting them, and
+//! Playlists' card while the rail has no room for it.
 
 mod common;
 
 use common::TestApp;
 use pley_base::Key;
+use pley_core::device::Drive;
 use pley_fixtures::{Mode, ids};
 use pley_home::LibrariesScreen;
-use pley_shell::Route;
+use pley_shell::{BackgroundSession, NavCommand, Route, current_entry};
 
 /// The app on the libraries list, its cards in.
 fn libraries(sort: bool) -> TestApp {
@@ -135,4 +137,76 @@ fn audio_guidance_reads_each_cards_name_and_what_it_holds() {
     app.press(Key::Right);
     let next = app.ui.take_speech().unwrap_or_default();
     assert_eq!(next, "TV Shows, 300 shows");
+}
+
+/// Music with a queue: the rail shows Now Playing.
+struct Queued;
+
+impl BackgroundSession for Queued {
+    fn queued(&self) -> bool {
+        true
+    }
+    fn tick(&mut self, _now: f64) -> Option<f64> {
+        None
+    }
+    fn pause(&mut self) {}
+    fn end(&mut self) {}
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
+#[test]
+fn playlists_follows_the_libraries_while_the_rail_has_no_room_for_it() {
+    let mut app = TestApp::start();
+    let rail_has = |a: &TestApp, id: &str| a.shell.rail_entries().has(id);
+    // Alex's rail has Discover and Live TV, its libraries under Libraries, and Playlists.
+    assert!(app.until(|a| rail_has(a, "discover") && rail_has(a, "live-tv")), "no Discover or Live TV");
+    assert!(app.until(|a| rail_has(a, "libraries")), "no Libraries");
+    // The rail's Libraries: no card for Playlists while the rail has it.
+    app.shell.navigate(NavCommand::Reset(Route::Libraries { sort: false }), &mut app.state, &mut app.ui);
+    assert!(app.until(|a| a.shows("Music") && a.focused() == Some(card(a, ids::MOVIES))), "no cards");
+    assert!(rail_has(&app, "playlists"));
+    assert!(!app.shows("Playlists"));
+    let playlists = LibrariesScreen::playlists_id(app.page());
+
+    // Now Playing and a drive as well: no library is left to make way, and Playlists leaves the
+    // rail for this page, after the libraries.
+    app.state.music = Some(Box::new(Queued));
+    app.device.set_drive(Some(Drive { root: std::env::temp_dir(), hidden: false }));
+    assert!(app.until(|a| !rail_has(a, "playlists")), "Playlists kept its place in the rail");
+    assert!(rail_has(&app, "now-playing") && rail_has(&app, "storage"));
+    assert!(app.until(|a| a.shows("Playlists")), "no card for Playlists");
+    assert_eq!(app.shell.rail_entries().top.len(), pley_shell::MAX_ITEMS);
+    // Audio Guidance reads its name, as it reads a library's.
+    app.ui.set_speaking(true);
+    app.advance(0.1);
+    app.ui.take_speech();
+    app.press(Key::Down);
+    assert_eq!(app.focused(), Some(playlists));
+    assert_eq!(app.ui.take_speech().as_deref(), Some("Playlists"));
+
+    // OK opens Playlists, under the rail's Libraries; Back comes back to its card.
+    app.press(Key::Ok);
+    assert_eq!(app.shell.routes(), [&Route::Libraries { sort: false }, &Route::Playlists]);
+    let current = || current_entry(app.shell.routes().first().copied(), app.shell.rail_entries());
+    assert_eq!(current().as_deref(), Some("libraries"));
+    app.press(Key::Back);
+    assert_eq!(app.route(), Some(&Route::Libraries { sort: false }));
+    assert_eq!(app.focused(), Some(playlists));
+
+    // While sorting the libraries, it stays out of the way.
+    app.press(Key::Up);
+    app.press(Key::Up);
+    assert_eq!(app.focused(), Some(app.id(&["header", "sort"])));
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.shows("Sort libraries") && a.shows("Done")), "sorting didn't start");
+    assert!(!app.shows("Playlists"));
+    app.press(Key::Back);
+    assert!(app.until(|a| a.shows("Playlists")), "the card didn't come back after sorting");
+
+    // The drive pulled out: Playlists is back in the rail, and its card goes.
+    app.device.set_drive(None);
+    assert!(app.until(|a| rail_has(a, "playlists")), "Playlists didn't come back to the rail");
+    assert!(!app.shows("Playlists"));
 }
