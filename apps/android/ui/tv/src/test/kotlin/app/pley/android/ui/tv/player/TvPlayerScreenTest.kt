@@ -664,7 +664,7 @@ class TvPlayerScreenTest {
             }
         }
         compose.waitForIdle()
-        press(Key.DirectionDown)
+        toSubtitles()
         press(Key.DirectionCenter)
         compose.onNodeWithTag(TAG_PANEL).assertExists()
         compose.onNodeWithText("Subtitle size").assertDoesNotExist()
