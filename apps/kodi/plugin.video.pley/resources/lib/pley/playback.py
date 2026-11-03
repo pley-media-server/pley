@@ -59,12 +59,15 @@ def beside(base: str, info: dict, file=None) -> list:
     ]
 
 
-def prepare(client: api.Client, base: str, item_id: int, start_ms: int, detail=None, restart=None) -> xbmcgui.ListItem:
+def prepare(
+    client: api.Client, base: str, item_id: int, start_ms: int, detail=None, restart=None, file_id=None
+) -> xbmcgui.ListItem:
     """Kodi's item for playing `item_id` from `start_ms`, its address set,
     once the server said how. The item's details (for Kodi's info) are
     asked for while the server decides, unless given. Tells the service
     what plays (kodi.PLAYING). `restart` is Automatic's quality when the
-    service plays the title again at another one."""
+    service plays the title again at another one; `file_id` one of the
+    title's versions (None: the server's choice)."""
     started = time.perf_counter()
     details = {"item": detail} if detail else {}
     loader = None
@@ -85,9 +88,11 @@ def prepare(client: api.Client, base: str, item_id: int, start_ms: int, detail=N
     # as a file (VobSub, DVB): drawn onto the video if the file is
     # converted (the server draws nothing when Kodi shows them itself). PGS
     # comes as a `.sup` file beside the stream (`beside`).
-    burn = tracks.burn_index(tracks.file_of(detail))
+    if file_id is not None:
+        request["file_id"] = file_id
+    burn = tracks.burn_index(tracks.file_of(detail, file_id))
     if burn is not None:
-        request.update(file_id=tracks.file_of(detail)["id"], subtitle_index=burn)
+        request.update(file_id=tracks.file_of(detail, file_id)["id"], subtitle_index=burn)
     info = client.post("/api/playback", request)
     if loader:
         loader.join(10)
@@ -127,6 +132,7 @@ def prepare(client: api.Client, base: str, item_id: int, start_ms: int, detail=N
         "file_id": info.get("file_id"),
         "session_id": info["session_id"],
         "duration_ms": duration_ms,
+        "start_ms": start_ms,
         "path": url,
         # What the service needs for Skip and Up Next, so it asks for none of it again.
         "kind": (detail or {}).get("kind"),

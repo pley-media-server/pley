@@ -165,6 +165,27 @@ Live TV works as in the [Android app](ANDROID.md#live-tv). On Kodi:
   instead" where the server allows it. A connection taken by someone else
   ends with "The server stopped this stream." (`stream.ts` can't say who).
 
+### Being cast to
+
+Kodi can be cast to from Pley on a phone, in a browser or on a desktop
+signed in to the same profile ([API.md](API.md#casting-to-another-device)).
+It doesn't cast to other devices itself.
+
+- **In the list:** Kodi shows among the profile's devices under its own
+  name (Settings → Services → General → Device name; "Kodi" when it has
+  none) for as long as it runs with the add-on signed in, whatever is on
+  screen: the service, not the add-on's screens, holds the connection.
+- **A title sent here** stops what plays (a video of Pley's makes its last
+  report first) and plays as if picked in Kodi: its quality, audio,
+  subtitles, Skip and Up Next. It starts where the sender says, or where
+  the profile left off, without asking whether to resume.
+- **Steering:** pause, resume, seek and stop reach any video of Pley's
+  playing in Kodi, sent here or picked here. Music, Live TV and what other
+  add-ons play are left as they are.
+- **What plays** shows on the sender: loading, playing, paused and where,
+  and nothing once it stops. A title ending and the next episode starting
+  shows as two.
+
 ### Requests
 
 Where the server takes requests (its summary, `GET /api/requests/summary`,
@@ -279,6 +300,16 @@ TMDB API but is not endorsed or certified by TMDB."
   while paused, and on stop.
 - **Events:** the service keeps `GET /api/events` open and refreshes what
   is on screen, never behind a playing video.
+- **Casting** (`cast.py`): the service opens the event stream as a device
+  that may be cast to (`cast_device`, an id made once and kept in
+  `remembered.json`; `cast_name`; `cast_platform=kodi`), and opens it
+  without them where the server refuses (a sign-in without `play`, a
+  profile with 32 devices listed). `cast_play` and `cast_control` arrive
+  there. What plays goes to `PUT /api/cast/devices/{id}/state` as it
+  loads, starts, pauses, resumes, seeks and waits for the network, every
+  10 seconds while it plays, and as it stops, on a worker of its own that
+  never waits behind a title being asked for, and again when the stream
+  opens again.
 - **Requests** (`requests.py` holds the rules and words, `asking.py` the
   listings, `news.py` the service's part): the service reads the summary
   as Kodi starts, on another sign-in or profile, when the event stream

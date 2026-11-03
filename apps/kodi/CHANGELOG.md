@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Kodi can be cast to: Pley on a phone, in a browser or on a desktop
+  lists it among the profile's devices while Kodi runs, sends it a movie,
+  an episode or an extra, pauses, seeks and stops it, and shows what it
+  plays. Kodi doesn't cast itself. Needs a server from the same release.
+
 ### Changed
 
 - Search shows movies, shows and episodes first, then music, then Live

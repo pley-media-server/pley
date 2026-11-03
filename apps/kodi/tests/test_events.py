@@ -172,6 +172,34 @@ class EventsTest(unittest.TestCase):
         self.assertIn("Accept: text/event-stream", second)
         self.assertIn("User-Agent: pleyKodi/test", second)
 
+    def cast_to(self, server):
+        query = {"cast_device": "0123456789abcdef0123456789abcdef", "cast_name": "Living room", "cast_platform": "kodi"}
+        self.stream = Events(Tokens(server.url), "pleyKodi/test", self.heard.append, retry=(0.05,), query=lambda: query)
+        self.stream.start()
+
+    def test_a_kodi_that_may_be_cast_to_says_so_as_it_listens(self):
+        server = self.server([(401, [], False), (200, [{"type": "a"}], True)])
+        self.cast_to(server)
+        self.assertTrue(wait_for(lambda: self.heard), "its events")
+        self.assertTrue(self.stream.listed.is_set())
+        query = "cast_device=0123456789abcdef0123456789abcdef&cast_name=Living+room&cast_platform=kodi"
+        for request in server.requests:
+            self.assertTrue(request.startswith("GET /api/events?%s HTTP/1.1" % query), request)
+        self.stream.stop()
+        self.assertFalse(self.stream.listed.is_set())
+        self.stream = None
+
+    def test_a_kodi_that_cant_be_cast_to_listens_all_the_same(self):
+        # A sign-in without `play`, or a profile with too many devices.
+        for refused in (403, 429):
+            server = self.server([(refused, [], False), (200, [{"type": "a"}], True)])
+            self.heard.clear()
+            self.cast_to(server)
+            self.assertTrue(wait_for(lambda: self.heard), "its events")
+            self.assertFalse(self.stream.listed.is_set())
+            self.assertTrue(server.requests[1].startswith("GET /api/events HTTP/1.1"))
+            self.stream.stop()
+
     def test_a_stream_that_ends_is_opened_again(self):
         # The server ends a stream whose token expired.
         server = self.server([(200, [{"type": "a"}], False), (200, [{"type": "b"}], True)])

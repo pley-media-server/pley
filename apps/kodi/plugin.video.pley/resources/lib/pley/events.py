@@ -7,6 +7,9 @@ from __future__ import annotations
 import json
 import threading
 import time
+import urllib.parse
+
+import xbmc
 
 from . import api, auth, kodi
 from .proxy import hard_close
@@ -27,6 +30,9 @@ CHANGES = ("user_state_changed", "watchlist_changed", "library_changed", "librar
 # first, and no more often than every MIN_GAP seconds (a scan).
 GATHER = 0.3
 MIN_GAP = 2.0
+# What a stream asked for with the query to be cast to may answer when this
+# Kodi can't be (docs/API.md, "Casting to another device").
+UNLISTED = (400, 403, 429)
 
 
 def events_of(lines):
@@ -51,18 +57,24 @@ def events_of(lines):
 class Events:
     """`GET /api/events` of the server signed in to, held open by a thread
     of its own, which calls `heard(event)` for each event, and `opened()`
-    each time the stream opens (nothing it missed is replayed)."""
+    each time the stream opens (nothing it missed is replayed). `query()`
+    is the stream's query as it opens: this Kodi may be cast to (cast.py)."""
 
-    def __init__(self, tokens: auth.Tokens, user_agent: str, heard, retry=RETRY, read_timeout=READ_TIMEOUT, opened=None):
+    def __init__(
+        self, tokens: auth.Tokens, user_agent: str, heard, retry=RETRY, read_timeout=READ_TIMEOUT, opened=None, query=None
+    ):
         self.tokens = tokens
         self.user_agent = user_agent
         self.heard = heard
         self.opened = opened
+        self.query = query
         self.retry = retry
         self.read_timeout = read_timeout
         self.stopping = threading.Event()
         # Set while the server's stream is open.
         self.open = threading.Event()
+        # Set while it is open with the query: this Kodi is listed to cast to.
+        self.listed = threading.Event()
         self.lock = threading.Lock()
         self.sock = None
         self.thread = threading.Thread(target=self.run, name="pley-events", daemon=True)
@@ -110,7 +122,9 @@ class Events:
         latest) ends it, unread."""
         who = self.tokens.identity()
         server, token = self.tokens.session()
-        for attempt in range(2):
+        query = self.query() if self.query is not None else None
+        renewed = False
+        while True:
             conn = api.connect(server, self.read_timeout)
             try:
                 with self.lock:
@@ -122,14 +136,24 @@ class Events:
                     "Accept": "text/event-stream",
                     "Authorization": "Bearer " + token,
                 }
-                conn.request("GET", "/api/events", headers=headers)
+                path = "/api/events" + ("?" + urllib.parse.urlencode(query) if query else "")
+                conn.request("GET", path, headers=headers)
                 answer = conn.getresponse()
-                if answer.status == 401 and not attempt:
+                if answer.status == 401 and not renewed:
+                    renewed = True
                     token = self.tokens.refreshed(token, server)
+                    continue
+                if answer.status in UNLISTED and query:
+                    # Not to be cast to (a sign-in without `play`, a profile
+                    # with too many devices): the stream all the same.
+                    kodi.log("event stream: can't be cast to (%d)" % answer.status, xbmc.LOGWARNING)
+                    query = None
                     continue
                 if answer.status != 200:
                     raise api.ApiError(answer.status, "events", "the server answered %d" % answer.status)
                 self.open.set()
+                if query:
+                    self.listed.set()
                 if self.opened is not None:
                     self.opened()
                 for event in events_of(self.lines(answer, who)):
@@ -137,6 +161,7 @@ class Events:
                 return
             finally:
                 self.open.clear()
+                self.listed.clear()
                 with self.lock:
                     self.sock = None
                 conn.close()

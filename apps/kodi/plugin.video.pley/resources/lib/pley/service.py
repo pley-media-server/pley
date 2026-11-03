@@ -1,7 +1,8 @@
 """The service: it holds the sign-in, runs the proxy, and tells the server
 where playback is (docs/API.md, Playback): every 10 seconds while playing,
 every 30 while paused (the server ends a session it hasn't heard of for 90
-seconds), and when it stops, after which the session ends."""
+seconds), and when it stops, after which the session ends. It plays what
+the profile's other devices cast here, and tells them what plays (cast.py)."""
 
 from __future__ import annotations
 
@@ -15,8 +16,9 @@ import urllib.parse
 
 import xbmc
 
-from . import api, auth, autoquality, kodi, news, overlay, prompts, requests, tracks
+from . import api, auth, autoquality, cast, kodi, news, overlay, prompts, requests, tracks
 from .events import CHANGES, Events, Refresher
+from .listing import MUSIC
 from .proxy import Proxy, new_secret
 
 REPORT_EVERY = 10
@@ -127,12 +129,32 @@ class Worker:
 
 
 class Player(xbmc.Player):
-    def __init__(self, tokens: auth.Tokens, user_agent: str, worker: Worker, refresher: Refresher | None = None):
+    def __init__(
+        self,
+        tokens: auth.Tokens,
+        user_agent: str,
+        worker: Worker,
+        refresher: Refresher | None = None,
+        device: str | None = None,
+        casts: Worker | None = None,
+    ):
         super().__init__()
         self.tokens = tokens
         self.user_agent = user_agent
         self.worker = worker
         self.refresher = refresher
+        # Casting (cast.py): this Kodi's id among the profile's devices
+        # (None: not cast to), the worker its reports go out on, which never
+        # wait behind a title being asked for, and whether the event stream
+        # lists it to cast to now.
+        self.device = device
+        self.casts = casts
+        self.listed = lambda: False
+        self.cast = cast.Reporter(self.tell_cast)
+        # A title sent here, being asked for (the reporter's Loading), and
+        # the same once it is given to Kodi's player.
+        self.cast_wanted = None
+        self.cast_sent = None
         self.lock = threading.Lock()
         self.reports = None
         self.moments = None
@@ -262,6 +284,125 @@ class Player(xbmc.Player):
                 return
             by = "stopped_by_admin" if event.get("by_admin") else "stopped_elsewhere"
             self.stopped_by_server(event.get("message") or kodi.text(by))
+        elif kind == "cast_play":
+            self.cast_play(event)
+        elif kind == "cast_control":
+            self.cast_control(event)
+
+    # ------------------------------------------------------------- casting
+
+    def cast_play(self, event: dict) -> None:
+        """A title another of the profile's devices sent here: what plays
+        stops, its last report made, and the title plays as if picked here,
+        from where it was sent, else where the profile left off."""
+        found = cast.play_of(event, self.device) if self.device else None
+        if found is None:
+            return
+        item_id, file_id, position_ms = found
+        with self.lock:
+            # Buffering from now: what plays before isn't said to stop.
+            loading = self.cast_wanted = self.cast.loading(item_id, position_ms or 0)
+            self.cast_sent = None
+            if self.reports is not None:
+                if not self.reports.paused and self.tracked_playing():
+                    # Where it is now, not at the loop's last turn.
+                    self.reports.position_ms = self.position()
+                self._finish_locked(ended=False)
+            self.moments = None
+            self.after_end = None
+        with self.ui:
+            self.close_overlay()
+        if self.isPlaying():
+            self.stop()
+        self.worker.put(lambda: self.cast_start(loading, item_id, file_id, position_ms))
+
+    def cast_start(self, loading: cast.Loading, item_id: int, file_id, position_ms) -> None:
+        """Asks for the title sent here and plays it (from the worker)."""
+        from . import playback, words
+
+        if self.cast_wanted is not loading:
+            return
+        base = kodi.get_property(kodi.PROXY)
+        try:
+            # The settings as they are now (the service's are read once).
+            kodi.begin()
+            client = api.Client(base, self.user_agent, timeout=60, local=True)
+            detail = None
+            start_ms = position_ms
+            if start_ms is None:
+                # Where the profile left off, as Play starts here: not asked.
+                detail = client.get("/api/items/%d" % item_id)
+                start_ms = (words.state(detail).get("position_ms") or 0) if words.in_progress(detail) else 0
+            li = playback.prepare(client, base, item_id, int(start_ms), detail, file_id=file_id)
+        except (api.ApiError, OSError, ValueError, KeyError) as e:
+            kodi.log("cast: couldn't play %d: %r" % (item_id, e), xbmc.LOGWARNING)
+            with self.lock:
+                if self.cast_wanted is loading:
+                    self.cast_wanted = None
+                    self.cast.stopped(loading)
+            if isinstance(e, api.ApiError):
+                kodi.notify(kodi.text("server_error") % e.message, error=True)
+            return
+        with self.lock:
+            wanted = self.cast_wanted is loading
+            if wanted:
+                self.cast_sent = loading
+        if not wanted:
+            # Stopped meanwhile, or another title sent: this one isn't played.
+            return self.unplayed()
+        if start_ms:
+            li.setProperty("StartOffset", "%.3f" % (start_ms / 1000.0))
+        self.play(li.getPath(), li)
+
+    def unplayed(self) -> None:
+        """A playback asked for and not given to Kodi's player: its session ends."""
+        try:
+            session = json.loads(kodi.get_property(kodi.PLAYING))["session_id"]
+        except (ValueError, KeyError, TypeError):
+            return
+        kodi.clear_property(kodi.PLAYING)
+        self.end("/api/playback/%s" % session)
+
+    def cast_control(self, event: dict) -> None:
+        """Another of the profile's devices steers the video of pley's that
+        plays here, sent here or not; anything else is left as it is."""
+        found = cast.control_of(event, self.device) if self.device else None
+        if found is None:
+            return
+        action, position_ms = found
+        with self.lock:
+            pending, sent = self.cast_wanted, self.cast_sent
+            if action == "stop" and pending is not None:
+                # Stopped before it played: it isn't played.
+                self.cast_wanted = self.cast_sent = None
+                self.cast.stopped(pending)
+            playing = self.reports is not None and self.reports.playing.get("kind") not in MUSIC and self.tracked_playing()
+        if action == "stop":
+            if playing or (pending is not None and pending is sent):
+                self.stop()
+            return
+        if not playing:
+            return
+        if action == "seek":
+            self.seekTime(position_ms / 1000.0)
+        elif (action == "pause") != xbmc.getCondVisibility("Player.Paused"):
+            # Kodi's pause pauses and resumes in turn.
+            self.pause()
+
+    def tell_cast(self, body: dict) -> None:
+        """What plays here, for the devices that cast to it: on a worker of
+        its own while the event stream lists this Kodi, never waited for."""
+        if self.device is None or self.casts is None or not self.listed():
+            return
+        path = "/api/cast/devices/%s/state" % self.device
+        # 404: the server lost the stream a moment ago; it is told again once listed.
+        self.casts.put(lambda: self.call("PUT", path, body, fine=(404,)))
+
+    def cast_opened(self) -> None:
+        """The event stream opened again: the server knows nothing of what
+        plays here."""
+        with self.lock:
+            self.cast.again()
 
     # ----------------------------------------------------- what is playing
 
@@ -278,20 +419,28 @@ class Player(xbmc.Player):
         except RuntimeError:
             return 0
 
+    def starting(self, file: str):
+        """What pley asked to play, when it is `file`: what the plugin or
+        the window told the service (kodi.PLAYING)."""
+        raw = kodi.get_property(kodi.PLAYING)
+        if not raw:
+            return None
+        try:
+            playing = json.loads(raw)
+        except ValueError:
+            return None
+        if not file or not isinstance(playing, dict) or file != playing.get("path"):
+            return None
+        return playing
+
     def onAVStarted(self) -> None:
         file = self.playing_file()
         with self.lock:
             if self.reports is not None and file != self.reports.playing["path"]:
                 # Something else plays now: the one before is over.
                 self._finish_locked(ended=False)
-        raw = kodi.get_property(kodi.PLAYING)
-        if not raw:
-            return
-        try:
-            playing = json.loads(raw)
-        except ValueError:
-            return
-        if not file or file != playing.get("path"):
+        playing = self.starting(file)
+        if playing is None:
             return
         kodi.clear_property(kodi.PLAYING)
         reports = Reports(
@@ -316,6 +465,9 @@ class Player(xbmc.Player):
             self.watch = watch
             self.auto = playing.get("auto") if watch is not None else None
             reports.at(self.position())
+            # A title sent here plays: a stop now is Kodi's.
+            self.cast_wanted = self.cast_sent = None
+            self.cast.started(playing, self.position())
         if notice:
             kodi.notify(notice)
         if playing.get("kind") == "episode":
@@ -475,13 +627,7 @@ class Player(xbmc.Player):
         if not self.still_playing(item_id):
             # Stopped meanwhile: the new session isn't played, and ends.
             self.restarting = None
-            try:
-                session = json.loads(kodi.get_property(kodi.PLAYING))["session_id"]
-            except (ValueError, KeyError, TypeError):
-                return
-            kodi.clear_property(kodi.PLAYING)
-            self.end("/api/playback/%s" % session)
-            return
+            return self.unplayed()
         li.setProperty("StartOffset", "%.3f" % (position_ms / 1000.0))
         self.play(li.getPath(), li)
 
@@ -491,9 +637,15 @@ class Player(xbmc.Player):
 
     def onPlayBackSeek(self, time_ms, offset_ms) -> None:
         self.moved()
+        with self.lock:
+            if self.reports is not None:
+                self.cast.moved(self.reports.playing, time_ms)
 
     def onPlayBackSeekChapter(self, chapter) -> None:
         self.moved()
+        with self.lock:
+            if self.reports is not None:
+                self.cast.moved(self.reports.playing, self.position())
 
     def onPlayBackSpeedChanged(self, speed) -> None:
         self.moved()
@@ -525,20 +677,26 @@ class Player(xbmc.Player):
                 moments.next_item = following
 
     def onPlayBackStarted(self) -> None:
-        # Anything starting ends an Up Next still counting down.
+        playing = self.starting(self.playing_file())
         with self.lock:
+            # Anything starting ends an Up Next still counting down.
             self.after_end = None
+            if playing is not None and playing.get("kind") not in MUSIC and not isinstance(self.cast.current, cast.Loading):
+                # A video of pley's loads (one sent here said so already).
+                self.cast.loading(playing["item_id"], playing.get("start_ms") or 0)
 
     def onPlayBackPaused(self) -> None:
         with self.lock:
             if self.reports and self.tracked_playing():
                 self.reports.position_ms = self.position()
                 self.reports.pause()
+                self.cast.at(self.reports.playing, self.reports.position_ms, True)
 
     def onPlayBackResumed(self) -> None:
         with self.lock:
             if self.reports and self.tracked_playing():
                 self.reports.resume()
+                self.cast.at(self.reports.playing, self.position(), False)
 
     def onPlayBackStopped(self) -> None:
         self.finish(ended=False)
@@ -576,12 +734,25 @@ class Player(xbmc.Player):
 
     def finish(self, ended: bool) -> None:
         with self.lock:
-            if self.reports is None or self.tracked_playing():
+            if self.reports is None:
+                return self._loading_ended()
+            if self.tracked_playing():
                 return
             self._finish_locked(ended)
 
+    def _loading_ended(self) -> None:
+        """Kodi stopped before a playback started: one that was loading
+        didn't play. A title sent here and still asked for isn't the one
+        that stopped (what played before it was)."""
+        if self.cast_wanted is None or self.cast_sent is self.cast_wanted:
+            self.cast_wanted = self.cast_sent = None
+            self.cast.failed()
+
     def _finish_locked(self, ended: bool) -> None:
         reports, self.reports = self.reports, None
+        if self.restarting is None or self.restarting[0] != reports.playing["item_id"]:
+            # Automatic playing it again at another quality goes on playing it.
+            self.cast.stopped(reports.playing)
         moments, self.moments = self.moments, None
         follower, self.tracks = self.tracks, None
         self.watch = self.auto = None
@@ -607,6 +778,7 @@ class Player(xbmc.Player):
         # What Kodi shows counts: a pause made while a stream starts is told
         # of before the start, when there is nothing to report yet.
         paused = self.reports is not None and xbmc.getCondVisibility("Player.Paused")
+        caching = self.reports is not None and xbmc.getCondVisibility("Player.Caching")
         with self.lock:
             moments = None
             position = 0.0
@@ -624,6 +796,7 @@ class Player(xbmc.Player):
                     elif not paused and self.reports.paused:
                         self.reports.resume()
                     self.reports.at(position)
+                    self.cast.at(self.reports.playing, position, self.reports.paused, bool(caching))
                     moments = self.moments
                 elif file:
                     # Something else plays: the tracked one is over.
@@ -810,7 +983,10 @@ def run() -> None:
     config = proxy_config(profile)
     worker = Worker()
     refresher = Refresher(kodi.refresh_listing, busy=lambda: player.isPlaying())
-    player = Player(tokens, user_agent, worker, refresher)
+    # What plays, told to the devices that cast here, on a worker of its own.
+    device = cast.device_id()
+    casts = Worker()
+    player = Player(tokens, user_agent, worker, refresher, device=device, casts=casts)
     proxy = Proxy(
         tokens,
         user_agent,
@@ -835,7 +1011,13 @@ def run() -> None:
         player.heard(event)
         told.heard(event)
 
-    events = Events(tokens, user_agent, heard, opened=told.opened)
+    def opened() -> None:
+        told.opened()
+        player.cast_opened()
+
+    # Open with Kodi, whatever is on screen: this Kodi may be cast to while it runs.
+    events = Events(tokens, user_agent, heard, opened=opened, query=lambda: cast.query(device))
+    player.listed = events.listed.is_set
     events.start()
     # A quality chosen before Automatic, shown in the settings as it was.
     worker.put(quality.read)
@@ -860,6 +1042,7 @@ def run() -> None:
     # Ends after what it is doing, unwaited for: the last report has the
     # seconds Kodi gives.
     news_worker.put(None)
+    casts.put(None)
     events.stop()
     refresher.cancel()
     proxy.stop()
