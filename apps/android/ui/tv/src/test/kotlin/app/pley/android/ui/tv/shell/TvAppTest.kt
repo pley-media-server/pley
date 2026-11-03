@@ -4,7 +4,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsPropertiesAndroid
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -15,6 +14,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -327,6 +328,27 @@ class TvAppTest {
         compose.onNodeWithTag(TV_REQUEST_NOTICE).assertDoesNotExist()
         compose.onNodeWithText("Resume").assertIsFocused()
         assertEquals(0, exits)
+    }
+
+    @Test
+    fun theWindowComingBackWhileNewsShowsKeepsThePagesPlaceForWhenItCloses() {
+        app()
+        compose.press(Key.DirectionDown)
+        val tile = compose.onNode(isFocused()).fetchSemanticsNode().config.getOrElseNullable(SemanticsProperties.ContentDescription) { null }?.firstOrNull()
+        assertNotNull(tile)
+        notices.value = listOf(arrivalIsReady)
+        compose.mainClock.advanceTimeBy(2_000)
+        waitFor("“Arrival” is ready to watch.")
+        compose.onNodeWithText("Open").assertIsFocused()
+        // The assistant takes the window over the app, and gives it back.
+        compose.runOnUiThread { compose.activity.window.decorView.dispatchWindowFocusChanged(false) }
+        compose.waitForIdle()
+        compose.runOnUiThread { compose.activity.window.decorView.dispatchWindowFocusChanged(true) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Open").assertIsFocused()
+        back()
+        compose.onNodeWithTag(TV_REQUEST_NOTICE).assertDoesNotExist()
+        compose.onNode(isFocused()).assert(hasContentDescription(tile!!))
     }
 
     @Test

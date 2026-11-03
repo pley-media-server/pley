@@ -118,6 +118,14 @@ class RailState(private val content: FocusRequester = FocusRequester()) : TvRail
     /** The current entry's id; `null` while none (sign-in, Who's watching?). */
     var current: String? = null
 
+    /**
+     * The button that has focus in requests' news while the card shows
+     * ([TvRequestNotices]): the window coming back (from the player, the
+     * assistant) gives focus to it, and the page's place, saved as the card
+     * came, is kept for when it closes.
+     */
+    internal var notice: FocusRequester? = null
+
     /** Whether focus is in the rail, which is what opens it. */
     var hasFocus by mutableStateOf(false)
         private set

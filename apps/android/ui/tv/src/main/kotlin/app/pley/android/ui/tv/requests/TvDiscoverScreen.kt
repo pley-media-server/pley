@@ -2,6 +2,7 @@ package app.pley.android.ui.tv.requests
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.layout.LazyLayoutCacheWindow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -33,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -82,6 +85,7 @@ import app.pley.android.screens.requests.DiscoverHero
 import app.pley.android.screens.requests.DiscoverRow
 import app.pley.android.screens.requests.DiscoverUiState
 import app.pley.android.screens.requests.DiscoverViewModel
+import app.pley.android.screens.requests.MainAction
 import app.pley.android.screens.requests.RequestTexts
 import app.pley.android.screens.requests.RequestsDeps
 import app.pley.android.screens.requests.RequestsEntry
@@ -105,7 +109,6 @@ import app.pley.android.ui.tv.kit.rememberBackdropPrefetcher
 import app.pley.android.ui.tv.kit.rememberFocusMemory
 import app.pley.android.ui.tv.kit.rememberRested
 import app.pley.android.ui.tv.shell.LocalTvNavigator
-import app.pley.android.ui.tv.theme.LocalTvTier
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -169,13 +172,14 @@ private sealed interface Focused {
     data class Request(val request: MediaRequest) : Focused
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DiscoverRows(state: DiscoverUiState, hero: DiscoverHero, texts: RequestTexts, vm: DiscoverViewModel) {
     val navigator = LocalTvNavigator.current
-    val tier = LocalTvTier.current
     val scope = rememberCoroutineScope()
     val memory = rememberFocusMemory()
-    val column = rememberLazyListState()
+    // Composes about a row ahead, as Home does, so the next row's posters are on their way before focus gets there.
+    val column = rememberLazyListState(cacheWindow = remember { LazyLayoutCacheWindow(ahead = RowAhead, behind = 0.dp) })
     val heroGroup = remember { FocusRequester() }
     val heroMain = remember { FocusRequester() }
     var inRows by rememberSaveable { mutableStateOf(false) }
@@ -183,10 +187,13 @@ private fun DiscoverRows(state: DiscoverUiState, hero: DiscoverHero, texts: Requ
     var focused by remember { mutableStateOf<Focused?>(null) }
     val rested = rememberRested(focused)
     val backdrops = rememberBackdropPrefetcher()
+    var signIn by remember { mutableStateOf(false) }
+    // Stop following pressed: its button goes with the request, and focus goes to the main one, which stays.
+    var unfollowing by remember { mutableStateOf(false) }
     val heroAlpha by animateFloatAsState(if (inRows) 0f else 1f, PleyMotion.reveal(), label = "hero")
     val origin = state.origin
     val about = if (inRows) rested else null
-    val backdrop = remember(about, hero.title, origin, tier) {
+    val backdrop = remember(about, hero.title, origin) {
         val picture = when (about) {
             is Focused.Title -> about.title.backdropUrl
             is Focused.Request -> about.request.backdropUrl
@@ -200,11 +207,15 @@ private fun DiscoverRows(state: DiscoverUiState, hero: DiscoverHero, texts: Requ
         null -> hero.title.title
     }
 
-    // Back from the rows: the hero again, on the button it had; the next Back goes to the rail.
+    // Back from the rows: the hero again, on the button it had; the next Back goes to the rail. From a
+    // row further down, the hero scrolled out and is made again: focus waits for it.
     BackHandler(enabled = inRows && hasFocus) {
         inRows = false
-        scope.launch { column.scrollToItem(0) }
-        runCatching { heroGroup.requestFocus() }
+        scope.launch {
+            column.scrollToItem(0)
+            withFrameNanos { }
+            runCatching { heroGroup.requestFocus() }
+        }
     }
 
     Box(Modifier.fillMaxSize().onFocusChanged { hasFocus = it.hasFocus }) {
@@ -224,7 +235,19 @@ private fun DiscoverRows(state: DiscoverUiState, hero: DiscoverHero, texts: Requ
                     group = heroGroup,
                     main = heroMain,
                     onFocused = { inRows = false },
-                    onAction = vm::heroAction,
+                    handlers = remember(vm) {
+                        TvTitleHandlers(
+                            request = vm::heroAction,
+                            more = vm::heroMore,
+                            tellMeToo = vm::heroTellMeToo,
+                            stopFollowing = {
+                                unfollowing = true
+                                vm.heroStopFollowing()
+                            },
+                            open = { vm.heroAction() },
+                            signInAgain = { signIn = true },
+                        )
+                    },
                     onDetails = { navigator.open(PleyKey.DiscoverTitle(hero.title.kind, hero.title.tmdbId)) },
                     modifier = Modifier.graphicsLayer { alpha = heroAlpha },
                 )
@@ -267,6 +290,15 @@ private fun DiscoverRows(state: DiscoverUiState, hero: DiscoverHero, texts: Requ
             item(CREDIT_KEY, contentType = CREDIT_KEY) { TvTmdbCredit() }
         }
         RequestsChip(state, hidden = inRows, hero = heroGroup, onFocus = { inRows = false })
+        // Over the whole page, not in the hero's place in the list.
+        if (signIn) TvSignInAgainDialog(state.origin, onDismiss = { signIn = false }, returnTo = heroMain)
+    }
+    LaunchedEffect(hero.action) {
+        if (!unfollowing || hero.action is MainAction.Following) return@LaunchedEffect
+        unfollowing = false
+        withFrameNanos { }
+        // Unless focus went on to the rows meanwhile: Compose has put it wherever it chose.
+        if (!inRows) runCatching { heroMain.requestFocus() }
     }
 }
 
@@ -274,7 +306,9 @@ private fun DiscoverRows(state: DiscoverUiState, hero: DiscoverHero, texts: Requ
  * The hero (discover.tsx's DiscoverHero): the title's two lines ending at
  * y = 172 whatever their number, clear of the way to the requests above;
  * its facts; a line of overview; the main action (its first line of
- * words over it) and Details, which opens the title's page.
+ * words over it) and Details, which opens the title's page. Request more
+ * seasons opens the page with Which seasons?; Tell me too and Stop
+ * following act here, as on the page.
  */
 @Composable
 private fun Hero(
@@ -285,7 +319,7 @@ private fun Hero(
     group: FocusRequester,
     main: FocusRequester,
     onFocused: () -> Unit,
-    onAction: () -> Unit,
+    handlers: TvTitleHandlers,
     onDetails: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -297,17 +331,6 @@ private fun Hero(
         }
     }
     val title = hero.title
-    var signIn by remember { mutableStateOf(false) }
-    val handlers = remember(onAction) {
-        TvTitleHandlers(
-            request = onAction,
-            more = onAction,
-            tellMeToo = onAction,
-            stopFollowing = onAction,
-            open = { onAction() },
-            signInAgain = { signIn = true },
-        )
-    }
     Column(
         modifier
             .height(HeroHeight)
@@ -364,7 +387,6 @@ private fun Hero(
             )
         }
     }
-    if (signIn) TvSignInAgainDialog(state.origin, onDismiss = { signIn = false }, returnTo = main)
 }
 
 /** One of TMDB's rows: posters with their badges, then See all; near its end, the next page. */
@@ -617,6 +639,9 @@ private fun DiscoverSkeleton() {
         }
     }
 }
+
+/** How far below the screen rows are made: about a row of posters, with its header and caption. */
+private val RowAhead = 300.dp
 
 /** The hero, down to the first row's header at y = 356 less the gap between rows. */
 private val HeroHeight = 356.dp - PleyTv.RowGap

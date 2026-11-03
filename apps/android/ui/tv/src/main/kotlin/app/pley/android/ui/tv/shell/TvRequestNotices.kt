@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -25,6 +26,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +42,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -68,6 +71,10 @@ import app.pley.android.ui.tv.kit.LocalKeyRepeatGate
 import app.pley.android.ui.tv.kit.TvTextButton
 import app.pley.android.ui.tv.requests.rememberRequestTexts
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 /**
  * Requests' news over the pages, one at a time, as the Samsung and LG
@@ -76,20 +83,24 @@ import kotlinx.coroutines.delay
  * right with the title's poster, the news, Open and Close.
  *
  * It shows once the remote has rested [NOTICE_IDLE_MS], the app is in
- * front (never over the player, a window of its own), the page is [free]
- * for it (not the open rail, a panel, a dialog, a field being typed in)
- * and something on the page has focus, which it saves in [content]. On
- * screen it is off the queue ([TvShellSource.dismiss]), so newer news
- * can't push it out. Focus stays in it. Close, Back, Up or Down close it
- * and focus goes back where it was, as it does when [NOTICE_SHOWN_MS] pass
- * untouched; Open opens the title where it is in a library, else the
- * requests ([onOpen]). An OK in its first [OK_GUARD_MS] was meant for the
- * page: it does nothing.
+ * front (never over the player, a window of its own; coming back to the
+ * front counts as a press, so news heard meanwhile waits too), the page
+ * is [free] for it (not the open rail, a panel, a dialog, a field being
+ * typed in) and something on the page has focus, which it saves in
+ * [content]; while it shows, [rail] knows, so the window coming back
+ * gives focus to it and keeps that. On screen it is off the queue
+ * ([TvShellSource.dismiss]), so newer news can't push it out. Focus
+ * stays in it. Close, Back, Up or Down close it and focus goes back
+ * where it was, as it does when [NOTICE_SHOWN_MS] pass untouched; Open
+ * opens the title where it is in a library, else the requests
+ * ([onOpen]). An OK in its first [OK_GUARD_MS] was meant for the page: it
+ * does nothing.
  */
 @Composable
 internal fun BoxScope.TvRequestNotices(
     source: TvShellSource,
     content: FocusRequester,
+    rail: RailState,
     free: () -> Boolean,
     onOpen: (PleyKey) -> Unit,
 ) {
@@ -100,6 +111,14 @@ internal fun BoxScope.TvRequestNotices(
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { source.notices.collect { value = it } }
     }
     val gate = LocalKeyRepeatGate.current
+    // Back in front, or the window back from the assistant: as a press, so news waits for the remote to rest from it.
+    LaunchedEffect(lifecycle, gate) {
+        lifecycle.currentStateFlow.map { it.isAtLeast(Lifecycle.State.RESUMED) }.distinctUntilChanged().drop(1).collect { if (it) gate.touched() }
+    }
+    val window = LocalWindowInfo.current
+    LaunchedEffect(window, gate) {
+        snapshotFlow { window.isWindowFocused }.drop(1).collect { if (it) gate.touched() }
+    }
     val isFree by rememberUpdatedState(free)
     var shown by remember { mutableStateOf<TvNotice?>(null) }
     // One just closed (a key, often): the next waits for the remote to rest from it too.
@@ -112,8 +131,13 @@ internal fun BoxScope.TvRequestNotices(
             delay(NOTICE_IDLE_MS)
         }
         while (true) {
+            // Behind the player or Home: nothing to do until the app is in front, and coming back is a press.
+            if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                lifecycle.currentStateFlow.first { it.isAtLeast(Lifecycle.State.RESUMED) }
+                gate.touched()
+            }
             val quiet = gate.quietFor()
-            val ready = quiet >= NOTICE_IDLE_MS && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && isFree()
+            val ready = quiet >= NOTICE_IDLE_MS && isFree()
             // Where focus is on the page now, which it goes back to.
             if (ready && runCatching { content.saveFocusedChild() }.getOrDefault(false)) break
             delay(if (quiet < NOTICE_IDLE_MS) NOTICE_IDLE_MS - quiet else NOTICE_POLL_MS)
@@ -125,6 +149,7 @@ internal fun BoxScope.TvRequestNotices(
     key(notice.notice.key) {
         NoticeCard(
             notice = notice,
+            rail = rail,
             onClose = { open ->
                 closed[0] = true
                 if (open) {
@@ -149,10 +174,14 @@ internal fun BoxScope.TvRequestNotices(
  * opens.
  */
 @Composable
-private fun BoxScope.NoticeCard(notice: TvNotice, onClose: (open: Boolean) -> Unit) {
+private fun BoxScope.NoticeCard(notice: TvNotice, rail: RailState, onClose: (open: Boolean) -> Unit) {
     val texts = rememberRequestTexts()
     val text = remember(notice, texts) { texts.notice(notice.notice) }
     val openFocus = remember { FocusRequester() }
+    DisposableEffect(rail, openFocus) {
+        rail.notice = openFocus
+        onDispose { if (rail.notice === openFocus) rail.notice = null }
+    }
     // Closing: focus may leave the card then, and nothing else closes it.
     val closing = remember { BooleanArray(1) }
     var armed by remember { mutableStateOf(false) }

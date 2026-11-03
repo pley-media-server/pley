@@ -115,6 +115,42 @@ class DiscoverViewModelTest {
     }
 
     @Test
+    fun aRowThatFailedIsPassedForTheHeroAndSaidWhenNoRowHasATitle() = runTest(dispatcher) {
+        val requests = FakeRequests()
+        var moviesDown = true
+        requests.pages = { list, page ->
+            when (list) {
+                DiscoverList.Trending -> DiscoverPage(page, 1, emptyList())
+                DiscoverList.Movies -> if (moviesDown) throw ApiException(503, "tmdb_down", "TMDB isn't answering") else DiscoverPage(page, 1, emptyList())
+                DiscoverList.Shows -> DiscoverPage(page, 1, trending.results.filter { it.kind == TitleKind.Show })
+                else -> DiscoverPage(page, 1, emptyList())
+            }
+        }
+        val vm = viewModel(requests)
+        settle()
+        // Popular movies failed: the hero is Popular shows' first.
+        assertEquals(trending.results.first { it.kind == TitleKind.Show }.tmdbId, vm.state.value.hero?.title?.tmdbId)
+        assertEquals(null, vm.state.value.problem)
+
+        // Nothing anywhere but the failure: the page says what failed, and Retry reads that row again.
+        val none = FakeRequests()
+        none.pages = { list, page ->
+            if (list == DiscoverList.Movies && moviesDown) throw ApiException(503, "tmdb_down", "TMDB isn't answering")
+            DiscoverPage(page, 1, emptyList())
+        }
+        val other = viewModel(none)
+        settle()
+        assertEquals(null, other.state.value.hero)
+        assertEquals(RequestProblem.TmdbDown, other.state.value.problem)
+        assertFalse(other.state.value.nothing)
+        moviesDown = false
+        other.retry()
+        settle()
+        assertEquals(null, other.state.value.problem)
+        assertTrue(other.state.value.nothing)
+    }
+
+    @Test
     fun withNothingInAnyRowThePageSaysSo() = runTest(dispatcher) {
         val requests = FakeRequests()
         requests.pages = { _, page -> DiscoverPage(page, 1, emptyList()) }
@@ -262,6 +298,44 @@ class DiscoverViewModelTest {
         third.heroAction()
         settle()
         assertEquals(RequestEvent.Open(PleyKey.Item(201)), went.single())
+    }
+
+    @Test
+    fun theHerosOtherButtonsDoWhatTheySay() = runTest(dispatcher) {
+        // Partly in a library: Request more seasons, beside Open, opens Which seasons?.
+        val requests = FakeRequests()
+        val partly = trending.results.first { it.tmdbId == 95396L }
+        requests.pages = { _, page -> DiscoverPage(page, 1, listOf(partly)) }
+        val vm = viewModel(requests)
+        val events = mutableListOf<RequestEvent>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.events.collect { events += it } }
+        settle()
+        assertEquals(MainAction.Partial(201, Ask.Yes), vm.state.value.hero?.action)
+        vm.heroMore()
+        settle()
+        assertEquals(RequestEvent.Open(PleyKey.DiscoverTitle(TitleKind.Show, 95396, pick = true)), events.single())
+
+        // Someone else asked for it: Tell me too follows their request here.
+        val movie: DiscoverDetail = Fixtures.decode("discover/movie.json")
+        val asked = FakeRequests()
+        asked.api.answer("discoverTitle", movie.copy(tmdbId = 1184918, status = TitleStatus.Requested, requestId = null, requests = emptyList()))
+        val other = viewModel(asked)
+        settle()
+        assertEquals(MainAction.TellMeToo(Ask.Yes), other.state.value.hero?.action)
+        other.heroTellMeToo()
+        settle()
+        assertEquals(NewRequest(TitleKind.Movie, 1184918), asked.api.calls("ask").single().args.single())
+
+        // Followed: Stop following lets go of the request followed.
+        val followed = Fixtures.decode<RequestList>("requests/list.json").requests.first { it.id == 47L }.copy(kind = TitleKind.Movie, tmdbId = 1184918)
+        val following = FakeRequests()
+        following.api.answer("discoverTitle", movie.copy(tmdbId = 1184918, status = TitleStatus.Requested, requestId = 47, watching = true, requests = listOf(followed)))
+        val third = viewModel(following)
+        settle()
+        assertEquals(MainAction.Following(followed), third.state.value.hero?.action)
+        third.heroStopFollowing()
+        settle()
+        assertEquals(listOf<Any?>(47L), following.api.calls("unwatchRequest").single().args)
     }
 
     @Test

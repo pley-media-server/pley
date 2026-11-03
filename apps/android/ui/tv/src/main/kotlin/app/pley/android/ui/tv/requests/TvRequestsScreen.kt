@@ -84,11 +84,13 @@ import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.item.TvToastHost
 import app.pley.android.ui.tv.item.TvToastState
 import app.pley.android.ui.tv.item.focusRing
+import app.pley.android.ui.tv.kit.FocusMemory
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvTextField
-import app.pley.android.ui.tv.kit.initialFocus
 import app.pley.android.ui.tv.kit.railOnLeftStopOnRight
+import app.pley.android.ui.tv.kit.rememberFocusMemory
+import app.pley.android.ui.tv.kit.rememberedFocus
 import app.pley.android.ui.tv.library.TvChip
 import app.pley.android.ui.tv.library.TvTab
 import app.pley.android.ui.tv.settings.TvChoice
@@ -134,22 +136,29 @@ internal fun TvRequestsScreen(vm: RequestsViewModel) {
 private fun RequestsPage(state: RequestsUiState, texts: RequestTexts, vm: RequestsViewModel) {
     val navigator = LocalTvNavigator.current
     val cards = remember { CardFocus() }
+    // Where focus was on the page (a card, a tab, a filter), for coming back to it from a title (D-pad rule 2).
+    val memory = rememberFocusMemory()
     val tabFocus = remember { FocusRequester() }
     val kind = remember { FocusRequester() }
     val person = remember { FocusRequester() }
+    val signInPill = remember { FocusRequester() }
     var open by remember { mutableStateOf<Long?>(null) }
     var people by remember { mutableStateOf(false) }
     var signIn by remember { mutableStateOf(false) }
-    // News since the profile last looked keeps its dot while the page shows, though seeing it clears it on the server.
-    var news by remember { mutableStateOf(emptySet<Long>()) }
+    // The list is made again as each tab, filter or typed title is read: what shows then takes the
+    // page's first focus only while nothing on the page has it, so focus stays on the tab, the chip
+    // or the field being typed in.
+    var pageHasFocus by remember { mutableStateOf(false) }
     val list = state.list
     val ready = list as? RequestListState.Ready
-    if (ready != null) {
-        val fresh = ready.requests.filter { it.unseen && it.id !in news }
+    // News since the profile last looked keeps its dot while the page shows, though seeing it clears it on the server.
+    var news by remember { mutableStateOf(emptySet<Long>()) }
+    LaunchedEffect(ready?.requests) {
+        val fresh = ready?.requests.orEmpty().filter { it.unseen && it.id !in news }
         if (fresh.isNotEmpty()) news = news + fresh.map { it.id }
     }
     val listTop = if (state.manage || state.signInForApprovals) ListTopLow else ListTop
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().onFocusChanged { pageHasFocus = it.hasFocus }) {
         when (list) {
             RequestListState.Loading -> CardSkeletons(listTop)
             is RequestListState.Failed -> ListNote(
@@ -157,6 +166,8 @@ private fun RequestsPage(state: RequestsUiState, texts: RequestTexts, vm: Reques
                 title = problemTitle(list.problem, state.gate.summary, texts, stringResource(ScreensR.string.requests_list_failed)),
                 body = problemBody(list.problem, state.gate.summary, texts),
                 action = Triple(stringResource(ScreensR.string.requests_retry), PleyIcons.RefreshCw, vm::refresh),
+                memory = memory,
+                initial = !pageHasFocus,
             )
             is RequestListState.Empty -> {
                 val find = state.mayAsk && !state.manage && state.filter.view == RequestView.All && !list.filtered
@@ -165,6 +176,8 @@ private fun RequestsPage(state: RequestsUiState, texts: RequestTexts, vm: Reques
                     title = stringResource(emptyTitle(state, list.filtered)),
                     body = stringResource(emptyBody(state, list.filtered)),
                     action = if (find) Triple(stringResource(R.string.tv_requests_find), PleyIcons.Compass) { navigator.open(PleyKey.Discover) } else null,
+                    memory = memory,
+                    initial = !pageHasFocus,
                 )
             }
             is RequestListState.Ready -> CardList(
@@ -174,8 +187,14 @@ private fun RequestsPage(state: RequestsUiState, texts: RequestTexts, vm: Reques
                 texts = texts,
                 news = news,
                 cards = cards,
+                memory = memory,
+                initial = !pageHasFocus,
                 top = listTop,
-                onOpen = { open = it.id },
+                onOpen = {
+                    open = it.id
+                    // Until focus is back on a card, this one counts as focused: should it go meanwhile, the card in its place takes focus.
+                    cards.panelFor = it.id
+                },
                 onNearEnd = vm::more,
                 onLost = { runCatching { tabFocus.requestFocus() } },
                 // Up from the cards: the filters' first, else the tab shown.
@@ -189,15 +208,27 @@ private fun RequestsPage(state: RequestsUiState, texts: RequestTexts, vm: Reques
                 modifier = Modifier.semantics { heading() },
             )
             Spacer(Modifier.height(10.dp))
-            Tabs(state, texts, tabFocus, initial = list is RequestListState.Empty && !(state.mayAsk && !state.manage && state.filter.view == RequestView.All && !list.filtered), onView = vm::view)
+            Tabs(
+                state = state,
+                texts = texts,
+                focus = tabFocus,
+                memory = memory,
+                initial = !pageHasFocus && list is RequestListState.Empty && !(state.mayAsk && !state.manage && state.filter.view == RequestView.All && !list.filtered),
+                onView = vm::view,
+            )
             if (state.manage) {
                 Spacer(Modifier.height(10.dp))
-                Filters(state, vm, kind, person, onPeople = { people = true })
+                Filters(state, vm, kind, person, memory, onPeople = { people = true })
             } else if (state.signInForApprovals) {
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     BasicText(stringResource(ScreensR.string.requests_sign_in_approvals), style = PleyType.Tv.Body.copy(color = PleyColors.Muted), maxLines = 1)
-                    TvPillButton(stringResource(ScreensR.string.requests_sign_in), onClick = { signIn = true }, icon = PleyIcons.LogOut)
+                    TvPillButton(
+                        stringResource(ScreensR.string.requests_sign_in),
+                        onClick = { signIn = true },
+                        icon = PleyIcons.LogOut,
+                        modifier = Modifier.focusRequester(signInPill).rememberedFocus(memory, SIGN_IN_KEY).testTag(TV_REQUESTS_SIGN_IN),
+                    )
                 }
             }
         }
@@ -218,7 +249,7 @@ private fun RequestsPage(state: RequestsUiState, texts: RequestTexts, vm: Reques
                 navigator.open(key)
             },
             onClose = { open = null },
-            returnTo = { cards.requester(it) },
+            returnTo = cards::returnTo,
         )
         if (state.manage) {
             val choices = remember(ready?.people, state.filter.userId) {
@@ -235,13 +266,13 @@ private fun RequestsPage(state: RequestsUiState, texts: RequestTexts, vm: Reques
                 returnTo = person,
             )
         }
-        if (signIn) TvSignInAgainDialog(state.origin, onDismiss = { signIn = false })
+        if (signIn) TvSignInAgainDialog(state.origin, onDismiss = { signIn = false }, returnTo = signInPill)
     }
 }
 
 /** The tabs, each with its number after its name (none while 0). Select shows it. */
 @Composable
-private fun Tabs(state: RequestsUiState, texts: RequestTexts, focus: FocusRequester, initial: Boolean, onView: (RequestView) -> Unit) {
+private fun Tabs(state: RequestsUiState, texts: RequestTexts, focus: FocusRequester, memory: FocusMemory, initial: Boolean, onView: (RequestView) -> Unit) {
     val rail = LocalTvRailFocus.current
     val views = RequestView.entries.filter { it != RequestView.Attention || state.manage }
     val ready = state.list as? RequestListState.Ready
@@ -259,7 +290,7 @@ private fun Tabs(state: RequestsUiState, texts: RequestTexts, focus: FocusReques
                 onClick = { onView(view) },
                 modifier = Modifier
                     .then(if (shown) Modifier.focusRequester(focus) else Modifier)
-                    .then(if (shown && initial) Modifier.initialFocus() else Modifier)
+                    .rememberedFocus(memory, "tab/${view.name}", initial = shown && initial)
                     .testTag(TV_REQUESTS_TAB + view.name),
             )
         }
@@ -293,10 +324,12 @@ private fun viewLabel(view: RequestView): Int = when (view) {
 
 /** Managers' filters: movies or shows (each press the next), a person (Asked by), and a title's words, applied once typing pauses. */
 @Composable
-private fun Filters(state: RequestsUiState, vm: RequestsViewModel, kind: FocusRequester, person: FocusRequester, onPeople: () -> Unit) {
+private fun Filters(state: RequestsUiState, vm: RequestsViewModel, kind: FocusRequester, person: FocusRequester, memory: FocusMemory, onPeople: () -> Unit) {
     val rail = LocalTvRailFocus.current
     val filter = state.filter
-    val field = rememberTextFieldState(vm.titleQuery.value)
+    // What was typed before, for a field made again (the page coming back).
+    val typed by vm.titleQuery.collectAsStateWithLifecycle()
+    val field = rememberTextFieldState(typed)
     LaunchedEffect(field, vm) { snapshotFlow { field.text.toString() }.collect(vm::onTitleChange) }
     val name = (state.list as? RequestListState.Ready)?.people?.firstOrNull { it.id == filter.userId }?.name
     Row(
@@ -315,20 +348,21 @@ private fun Filters(state: RequestsUiState, vm: RequestsViewModel, kind: FocusRe
             onClick = { vm.kind(nextKind(filter.kind)) },
             selected = filter.kind != null,
             icon = PleyIcons.Film,
-            modifier = Modifier.focusRequester(kind).testTag(TV_REQUESTS_KIND),
+            modifier = Modifier.focusRequester(kind).rememberedFocus(memory, "kind").testTag(TV_REQUESTS_KIND),
         )
         TvChip(
             label = name ?: stringResource(ScreensR.string.requests_filter_everyone),
             onClick = onPeople,
             selected = filter.userId != null,
             icon = PleyIcons.Users,
-            modifier = Modifier.widthIn(max = 180.dp).focusRequester(person),
+            modifier = Modifier.widthIn(max = 180.dp).focusRequester(person).rememberedFocus(memory, "person"),
         )
         TvTextField(
             state = field,
             placeholder = stringResource(ScreensR.string.requests_filter_title),
             imeAction = ImeAction.Search,
-            modifier = Modifier.width(240.dp),
+            focusModifier = Modifier.rememberedFocus(memory, "title"),
+            modifier = Modifier.width(240.dp).testTag(TV_REQUESTS_TITLE),
         )
     }
 }
@@ -356,23 +390,31 @@ private fun emptyBody(state: RequestsUiState, filtered: Boolean): Int = when {
 /**
  * Which card has focus, for giving it to the right one when cards go: a
  * card that leaves with focus hands it to the card now in its place, else
- * the one before, else ([CardList]'s onLost) the tab.
+ * the one before, else ([CardList]'s onLost) the tab. A card whose panel
+ * was opened ([panelFor]) counts as focused until a card has focus again:
+ * the panel has focus, and gives it back to the card ([returnTo]) only
+ * once it has closed, by when the server may have taken the card out
+ * (Withdraw).
  */
 @Stable
 private class CardFocus {
     var hasFocus = false
     var focusedId: Long? = null
+    var panelFor: Long? = null
     private var ids: List<Long> = emptyList()
     private val requesters = HashMap<Long, FocusRequester>()
 
     fun requester(id: Long): FocusRequester = requesters.getOrPut(id) { FocusRequester() }
+
+    /** Where focus goes back to as [id]'s panel closes: its card while it is there; else nowhere, its heir has taken focus. */
+    fun returnTo(id: Long): FocusRequester? = if (id in ids) requester(id) else null
 
     /** The list is now [next]: when the focused card left it, the card that takes focus from it (`-1`: none, the tab does). */
     fun heirOf(next: List<Long>): Long? {
         val before = ids
         ids = next
         requesters.keys.retainAll(next.toSet())
-        val focused = focusedId?.takeIf { id -> hasFocus && next.none { it == id } } ?: return null
+        val focused = (if (hasFocus) focusedId else panelFor)?.takeIf { id -> next.none { it == id } } ?: return null
         val at = before.indexOf(focused).takeIf { it >= 0 } ?: return null
         return next.getOrNull(at) ?: next.getOrNull(at - 1) ?: NONE
     }
@@ -391,6 +433,8 @@ private fun CardList(
     texts: RequestTexts,
     news: Set<Long>,
     cards: CardFocus,
+    memory: FocusMemory,
+    initial: Boolean,
     top: Dp,
     onOpen: (MediaRequest) -> Unit,
     onNearEnd: () -> Unit,
@@ -402,6 +446,9 @@ private fun CardList(
     val requests = list.requests
     val ids = remember(requests) { requests.map { it.id } }
     val heir = remember(ids) { Snapshot.withoutReadObservation { cards.heirOf(ids) } }
+    // The card remembered went while a title was open: the one in its place, else the one before, is focused instead.
+    val keys = remember(ids) { ids.mapTo(HashSet()) { cardKey(it) } }
+    memory.settle { it in keys }
     if (heir != null) {
         LaunchedEffect(heir) {
             withFrameNanos { }
@@ -430,11 +477,15 @@ private fun CardList(
                 onClick = { onOpen(request) },
                 modifier = Modifier
                     .focusRequester(cards.requester(request.id))
+                    .rememberedFocus(memory, cardKey(request.id), initial = i == 0 && initial)
                     // Up from the first card: the filters' first, else the tab shown, not whichever is nearest.
-                    .then(if (i == 0) Modifier.initialFocus().focusProperties { this.up = up } else Modifier)
+                    .then(if (i == 0) Modifier.focusProperties { this.up = up } else Modifier)
                     .onFocusChanged {
                         if (it.isFocused) {
                             cards.focusedId = request.id
+                            cards.panelFor = null
+                            // Should it go while a title is open, the card after it (else before it) stands in.
+                            memory.mayLeave(cardKey(request.id), (requests.getOrNull(i + 1) ?: requests.getOrNull(i - 1))?.id?.let(::cardKey))
                             if (i >= requests.size - NEAR_END) onNearEnd()
                         }
                     },
@@ -487,9 +538,21 @@ private fun RequestCard(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val poster = remember(request.posterUrl, origin) { ArtworkImage.of(request.posterUrl, origin) }
-        Artwork(poster, request.title, Modifier.size(PosterWidth, PosterHeight).clip(PleyShape.Badge).background(PleyColors.Surface3))
-        if (news) {
-            Box(Modifier.offset((-6).dp, (-30).dp).size(10.dp).background(PleyColors.Accent, PleyShape.Circle).clearAndSetSemantics { })
+        Box {
+            Artwork(poster, request.title, Modifier.size(PosterWidth, PosterHeight).clip(PleyShape.Badge).background(PleyColors.Surface3))
+            // On the poster's top right corner, ringed in the card's colour, so the words beside it never move.
+            if (news) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(6.dp, (-4).dp)
+                        .size(14.dp)
+                        .background(if (focused) PleyColors.Surface3 else PleyColors.Surface, PleyShape.Circle)
+                        .padding(2.dp)
+                        .background(PleyColors.Accent, PleyShape.Circle)
+                        .clearAndSetSemantics { },
+                )
+            }
         }
         Column(Modifier.weight(1f).padding(horizontal = 16.dp).clearAndSetSemantics { }) {
             BasicText(
@@ -516,7 +579,14 @@ private fun RequestCard(
 
 /** What the list says instead of cards: none, or why none came, with a button where one helps. */
 @Composable
-private fun ListNote(top: Dp, title: String, body: String?, action: Triple<String, PleyIcon, () -> Unit>?) {
+private fun ListNote(
+    top: Dp,
+    title: String,
+    body: String?,
+    action: Triple<String, PleyIcon, () -> Unit>?,
+    memory: FocusMemory,
+    initial: Boolean,
+) {
     Column(Modifier.padding(start = PleyTv.Gutter, top = top + 24.dp, end = TvSafeArea.Horizontal)) {
         BasicText(title, style = PleyType.Tv.Section.copy(color = PleyColors.Fg))
         if (body != null) {
@@ -526,7 +596,7 @@ private fun ListNote(top: Dp, title: String, body: String?, action: Triple<Strin
         if (action != null) {
             Spacer(Modifier.height(20.dp))
             val (label, icon, onClick) = action
-            TvPillButton(label, onClick = onClick, icon = icon, modifier = Modifier.initialFocus())
+            TvPillButton(label, onClick = onClick, icon = icon, modifier = Modifier.rememberedFocus(memory, NOTE_KEY, initial = initial))
         }
     }
 }
@@ -558,8 +628,15 @@ private const val NEAR_END = 5
 
 private const val CARD_TYPE = "pley.requests.card"
 
+/** The page's elements in its [FocusMemory]: a card by its request, the note's button, Sign in again. */
+private fun cardKey(id: Long) = "card/$id"
+private const val NOTE_KEY = "note"
+private const val SIGN_IN_KEY = "signin"
+
 internal const val TV_REQUESTS = "pley.tv.requests"
 internal const val TV_REQUESTS_LIST = "pley.tv.requests.list"
 internal const val TV_REQUESTS_CARD = "pley.tv.requests.card."
 internal const val TV_REQUESTS_TAB = "pley.tv.requests.tab."
 internal const val TV_REQUESTS_KIND = "pley.tv.requests.kind"
+internal const val TV_REQUESTS_TITLE = "pley.tv.requests.title"
+internal const val TV_REQUESTS_SIGN_IN = "pley.tv.requests.signin"

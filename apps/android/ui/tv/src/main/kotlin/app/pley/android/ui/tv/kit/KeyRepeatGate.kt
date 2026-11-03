@@ -148,7 +148,7 @@ class KeyRepeatGate(
         }
     }
 
-    /** How long it is, in milliseconds, since a key went down, any key. */
+    /** How long it is, in milliseconds, since a key went down, any key ([touched] counts as one). */
     fun quietFor(): Long = clock() - lastPress
 
     /**
@@ -181,6 +181,15 @@ class KeyRepeatGate(
         } finally {
             sending = null
         }
+    }
+
+    /**
+     * Counts as a key going down now: the app came back to the front (from
+     * the player, Home, the assistant), and the person's next press is
+     * meant for the page, whatever was pressed elsewhere meanwhile.
+     */
+    fun touched() {
+        lastPress = clock()
     }
 
     /** Whether focus has rested: no key held, and nothing moved for [REST_MS]. */

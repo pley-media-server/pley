@@ -206,6 +206,10 @@ class KeyRepeatGateTest {
         gate.admit(up(NativeKeyEvent.KEYCODE_DPAD_CENTER))
         now += 50
         assertEquals(150L, gate.quietFor())
+        // The app coming back to the front counts as a press.
+        gate.touched()
+        now += 20
+        assertEquals(20L, gate.quietFor())
     }
 
     @Test

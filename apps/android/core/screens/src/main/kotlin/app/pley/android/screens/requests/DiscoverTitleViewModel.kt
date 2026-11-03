@@ -44,8 +44,8 @@ import kotlinx.coroutines.launch
 sealed interface TitleUiState {
     data object Loading : TitleUiState
 
-    /** The page can't show: signed in before requests, requests off, TMDB away, not found… */
-    data class Problem(val problem: RequestProblem, val summary: RequestSummary?) : TitleUiState
+    /** The page can't show: signed in before requests, requests off, TMDB away, not found… [origin]: the server, to sign in to again. */
+    data class Problem(val problem: RequestProblem, val summary: RequestSummary?, val origin: String = "") : TitleUiState
 
     data class Ready(
         val detail: DiscoverDetail,
@@ -125,16 +125,19 @@ class DiscoverTitleViewModel(
         .map { }
         .onStart { emit(Unit) }
 
+    /** The server's address: pictures come from it, and signing in again goes to it. */
+    private val server: Flow<String> = deps.origin.map { it.orEmpty() }.distinctUntilChanged()
+
     val state: StateFlow<TitleUiState> = combine(requests.state, retries) { gate, _ -> gate }
         .flatMapLatest { gate ->
             when {
-                gate is RequestsState.SignInAgain -> flowOf(TitleUiState.Problem(RequestProblem.SignInAgain(RequestScope.Requests), gate.summary))
+                gate is RequestsState.SignInAgain -> server.map { TitleUiState.Problem(RequestProblem.SignInAgain(RequestScope.Requests), gate.summary, it) }
                 gate == RequestsState.Hidden -> flowOf(TitleUiState.Problem(RequestProblem.Off, null))
                 gate == RequestsState.NoAccess -> flowOf(TitleUiState.Problem(RequestProblem.NoAccess, null))
                 gate == RequestsState.Unknown -> flowOf(TitleUiState.Loading)
                 else -> combine(
                     requests.title(key.kind, key.tmdbId),
-                    deps.origin.map { it.orEmpty() }.distinctUntilChanged(),
+                    server,
                     busy,
                     ticks,
                     news,
@@ -148,7 +151,7 @@ class DiscoverTitleViewModel(
         val detail = when (load) {
             Loadable.Loading -> return TitleUiState.Loading
             is Loadable.Ready -> load.value
-            is Loadable.Failed -> load.stale ?: return TitleUiState.Problem(RequestProblem.of(load.error), summary)
+            is Loadable.Failed -> load.stale ?: return TitleUiState.Problem(RequestProblem.of(load.error), summary, origin)
         }
         onPage = detail.requests.mapTo(HashSet()) { it.id }
         downloading.value = detail.requests.any { it.moving }

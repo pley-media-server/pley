@@ -128,7 +128,10 @@ class DiscoverTitleViewModelTest {
         val requests = FakeRequests(summary.copy(signInAgain = RequestScope.Requests))
         val page = page(requests, PleyKey.DiscoverTitle(TitleKind.Movie, 1184918))
         settle()
-        assertEquals(RequestProblem.SignInAgain(RequestScope.Requests), (page.vm.state.value as TitleUiState.Problem).problem)
+        val problem = page.vm.state.value as TitleUiState.Problem
+        assertEquals(RequestProblem.SignInAgain(RequestScope.Requests), problem.problem)
+        // The server to sign in to again.
+        assertEquals("http://pley", problem.origin)
         assertTrue(requests.api.calls("discoverTitle").isEmpty())
     }
 

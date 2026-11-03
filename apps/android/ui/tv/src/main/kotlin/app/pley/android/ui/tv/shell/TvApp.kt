@@ -271,7 +271,7 @@ private fun TvShell(
             if (rail.shown) TvOfflineNotice(offline)
             // Requests' news, once nothing else holds focus; not on the requests, which show it.
             if (rail.shown && backStack.lastOrNull() !is PleyKey.Requests) {
-                TvRequestNotices(source, content, free = { !rail.hasFocus && !overlays.any }, onOpen = navigator::open)
+                TvRequestNotices(source, content, rail, free = { !rail.hasFocus && !overlays.any }, onOpen = navigator::open)
             }
         }
         // A tile's actions, over the page they were asked on.
@@ -296,7 +296,9 @@ private val RailDim = PleyColors.Bg.copy(alpha = 0.5f)
  * Another activity (the player) had the window: when it comes back, focus
  * goes back to where it was on the page, or to the page's first element
  * when that one is gone (Resume that became Play). Left to Compose, it
- * lands in the rail. Not when focus was in the rail already.
+ * lands in the rail. Not when focus was in the rail already. While
+ * requests' news shows, focus goes back to it, and the page's place saved
+ * as it came stays saved for when it closes.
  */
 @Composable
 private fun ReturnFocus(rail: RailState, content: FocusRequester, pages: RootUnderPages) {
@@ -308,11 +310,13 @@ private fun ReturnFocus(rail: RailState, content: FocusRequester, pages: RootUnd
                 inRail = rail.hasFocus
                 if (!inRail) {
                     pages.saveFocus()
-                    runCatching { content.saveFocusedChild() }
+                    // Not while a notice has focus: closed, it would hand focus back to itself.
+                    if (rail.notice == null) runCatching { content.saveFocusedChild() }
                 }
             } else if (!inRail) {
                 withFrameNanos { }
-                rail.backToContent()
+                val notice = rail.notice
+                if (notice == null || !runCatching { notice.requestFocus() }.isSuccess) rail.backToContent()
             }
         }
     }

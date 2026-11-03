@@ -143,7 +143,7 @@ internal fun TvDiscoverTitleScreen(vm: DiscoverTitleViewModel) {
                     action = Triple(stringResource(R.string.tv_requests_back), PleyIcons.ArrowLeft) { navigator.back() },
                 )
             } else {
-                TvRequestMessage(s.problem, s.summary, texts, stringResource(ScreensR.string.requests_title_failed), originOf(vm), onRetry = vm::retry)
+                TvRequestMessage(s.problem, s.summary, texts, stringResource(ScreensR.string.requests_title_failed), s.origin, onRetry = vm::retry)
             }
             is TitleUiState.Ready -> {
                 // Read again and refused, the page keeps what it showed and says why (the shell says so when the server is away).
@@ -157,8 +157,6 @@ internal fun TvDiscoverTitleScreen(vm: DiscoverTitleViewModel) {
     }
 }
 
-/** The server's address, for signing in again from a page that couldn't show. */
-private fun originOf(vm: DiscoverTitleViewModel): String = (vm.state.value as? TitleUiState.Ready)?.origin.orEmpty()
 
 @Composable
 private fun TitlePage(page: TitleUiState.Ready, vm: DiscoverTitleViewModel, texts: RequestTexts) {

@@ -46,8 +46,12 @@ import kotlinx.coroutines.launch
 /** One of Discover's rows: its titles as read so far. */
 data class DiscoverRow(val list: DiscoverList, val pages: Pages)
 
-/** Discover's top: the first title of its rows (trending's, unless it has none for this account), with its main action. */
-data class DiscoverHero(val title: DiscoverTitle, val action: MainAction)
+/**
+ * Discover's top: the first title of its rows (trending's, unless it has
+ * none for this account), with its main action, and its page once read
+ * ([detail]: the seasons Tell me too follows).
+ */
+data class DiscoverHero(val title: DiscoverTitle, val action: MainAction, val detail: DiscoverDetail? = null)
 
 /** Discover's page. */
 data class DiscoverUiState(
@@ -56,7 +60,11 @@ data class DiscoverUiState(
     val hero: DiscoverHero? = null,
     /** In their order; a row shows once it has titles, or is reading them. */
     val rows: List<DiscoverRow> = DiscoverList.entries.map { DiscoverRow(it, Pages()) },
-    /** Why the page can't show: the gate first (sign in again, off, no access), then the trending row's failure. */
+    /**
+     * Why the page can't show: the gate first (sign in again, off, no
+     * access), then the trending row's failure, then, with no title in any
+     * row, the first row's that failed.
+     */
     val problem: RequestProblem? = null,
     /** Shown from what was saved: the server didn't answer. */
     val stale: Boolean = false,
@@ -130,11 +138,12 @@ class DiscoverViewModel(private val deps: RequestsDeps) : ViewModel() {
         val summary = gate.summary
         val allowance = summary?.let(Allowance::of)
         val trending = rowList.first().pages
-        val problem = RequestProblem.of(gate) ?: trending.problem.takeIf { trending.titles.isEmpty() }
+        // Every row came, none with a title, and some failed: no hero can be found, so the page says why, with Retry.
+        val failed = rowList.firstNotNullOfOrNull { it.pages.problem }.takeIf { rowList.all { it.pages.titles.isEmpty() && it.pages.settled } }
+        val problem = RequestProblem.of(gate) ?: trending.problem.takeIf { trending.titles.isEmpty() } ?: failed
         val hero = heroOf(rowList)?.let { title ->
-            val action = detail?.takeIf { it.kind == title.kind && it.tmdbId == title.tmdbId }?.let { mainAction(it, gate) }
-                ?: titleAction(title, gate, allowance)
-            DiscoverHero(title, action)
+            val page = detail?.takeIf { it.kind == title.kind && it.tmdbId == title.tmdbId }
+            DiscoverHero(title, page?.let { mainAction(it, gate) } ?: titleAction(title, gate, allowance), page)
         }
         return DiscoverUiState(
             gate = gate,
@@ -147,15 +156,18 @@ class DiscoverViewModel(private val deps: RequestsDeps) : ViewModel() {
             manage = summary?.manage == true,
             allowance = allowance,
             asking = head.asking,
-            nothing = problem == null && rowList.all { it.pages.titles.isEmpty() && it.pages.settled },
+            nothing = problem == null && rowList.all { it.pages.titles.isEmpty() && it.pages.settled && it.pages.problem == null },
         )
     }
 
-    /** The hero's title: the first of the first row with any, once the rows before it have come with none. */
+    /**
+     * The hero's title: the first of the first row with any, once the rows
+     * before it have come with none, or failed (they show nothing either).
+     */
     private fun heroOf(rowList: List<DiscoverRow>): DiscoverTitle? {
         for (row in rowList) {
             row.pages.titles.firstOrNull()?.let { return it }
-            if (!row.pages.settled || row.pages.problem != null) return null
+            if (!row.pages.settled) return null
         }
         return null
     }
@@ -283,6 +295,41 @@ class DiscoverViewModel(private val deps: RequestsDeps) : ViewModel() {
     }
 
     // ---------------------------------------------------------------- the hero's action
+
+    /** The hero's Request more seasons, beside Open: the show's page, with Which seasons? open. */
+    fun heroMore() {
+        val title = state.value.hero?.title ?: return
+        send(RequestEvent.Open(PleyKey.DiscoverTitle(title.kind, title.tmdbId, pick = true)))
+    }
+
+    /**
+     * The hero's Tell me too: following what others asked for, here, as
+     * the title's page does; a show whose page isn't read yet (which says
+     * the seasons asked for) opens it instead.
+     */
+    fun heroTellMeToo() {
+        val hero = state.value.hero ?: return
+        val title = hero.title
+        val detail = hero.detail
+        when {
+            detail != null -> ask(tellMeToo(detail), title.title)
+            title.kind == TitleKind.Movie -> ask(NewRequest(TitleKind.Movie, title.tmdbId), title.title)
+            else -> send(RequestEvent.Open(PleyKey.DiscoverTitle(title.kind, title.tmdbId)))
+        }
+    }
+
+    /** The hero's Stop following: the request this account follows for it, as the title's page does. */
+    fun heroStopFollowing() {
+        val request = (state.value.hero?.action as? MainAction.Following)?.request ?: return
+        if (!asking.compareAndSet(false, true)) return
+        viewModelScope.launch {
+            try {
+                attempt({ eventChannel.send(RequestEvent.Failed(it)) }) { requests.perform(request, CardAction.StopFollowing) }
+            } finally {
+                asking.value = false
+            }
+        }
+    }
 
     /**
      * The hero's main action was pressed: a movie is asked for here; a
