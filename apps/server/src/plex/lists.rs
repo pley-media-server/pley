@@ -41,13 +41,25 @@ fn playlist_path(key: i64) -> PlexResult<i64> {
 
 // ------------------------------------------------------------------ collections
 
+/// Plex's collection orders (`collectionSort`) and Pley's.
+const SORTS: [(i64, &str); 3] = [(0, "release"), (1, "title"), (2, "custom")];
+
+/// Plex's `collectionMode` of every collection: the library's default.
+/// Pley has no modes: collections are listed apart, and their items stay in
+/// the library.
+const MODE: i64 = -1;
+
+/// Smart collections show each viewer what they may see: Plex's
+/// `collectionFilterBasedOnUser` 1.
+const FILTER_BY_VIEWER: i64 = 1;
+
+fn sort_number(sort: &str) -> i64 {
+    SORTS.iter().find(|(_, s)| *s == sort).map_or(0, |(n, _)| *n)
+}
+
 fn collection_node(c: &CollectionDto, lib: &LibraryRow, labels: &[String]) -> Node {
     let subtype = if lib.kind() == LibraryKind::Shows { "show" } else { "movie" };
-    let sort = match c.sort.as_str() {
-        "title" => 1,
-        "custom" => 2,
-        _ => 0,
-    };
+    let sort = sort_number(&c.sort);
     let key = keys::collection(c.id);
     let mut node = Node::item("Directory")
         .attr("ratingKey", key.to_string())
@@ -66,7 +78,9 @@ fn collection_node(c: &CollectionDto, lib: &LibraryRow, labels: &[String]) -> No
         .attr("thumb", format!("/library/collections/{key}/thumb/{}", c.updated_at))
         .attr("art", format!("/library/collections/{key}/art/{}", c.updated_at))
         .attr("childCount", c.item_count)
+        .attr("collectionMode", MODE)
         .attr("collectionSort", sort)
+        .opt("collectionFilterBasedOnUser", c.smart_filter.is_some().then_some(FILTER_BY_VIEWER))
         .attr("smart", c.smart_filter.is_some())
         // A smart collection's filter, which python-plexapi reads back.
         .opt("content", c.smart_filter.as_ref().map(|f| format!("/library/sections/{}/all?{f}", lib.id)))
@@ -131,16 +145,65 @@ pub(super) async fn collection_for(
 }
 
 /// The collection as details list it (`/library/collections/{key}`, and
-/// `/library/metadata/{key}` for its key).
+/// `/library/metadata/{key}` for its key), with its preferences on
+/// `includePreferences=1`.
 pub(super) async fn collection_details(
     state: &AppState,
     user: &AuthUser,
     info: &PlexInfo,
     id: i64,
+    params: &Params,
 ) -> PlexResult<Node> {
     let (collection, _, lib, _) = collection_for(state, user, id).await?;
-    let node = collection_node(&collection, &lib, &labels_of(state, id).await?);
+    let mut node = collection_node(&collection, &lib, &labels_of(state, id).await?);
+    if params.flag("includePreferences") {
+        node.push(preferences(&collection));
+    }
     Ok(list_container(Some(&lib), info, vec![node], 1, &Page::default()))
+}
+
+/// A collection's preferences, as python-plexapi's `editAdvanced()` reads
+/// them before it changes one.
+fn preferences(c: &CollectionDto) -> Node {
+    let setting = |id: &'static str, label: &'static str, default: i64, value: i64, values: &'static str| {
+        Node::new("Setting")
+            .attr("id", id)
+            .attr("label", label)
+            .attr("summary", "")
+            .attr("type", "int")
+            .attr("default", default)
+            .attr("value", value)
+            .attr("hidden", false)
+            .attr("advanced", false)
+            .attr("group", "")
+            .attr("enumValues", values)
+    };
+    let mut prefs = Node::new("Preferences")
+        .single()
+        .child(setting(
+            "collectionMode",
+            "Collection mode",
+            MODE,
+            MODE,
+            "-1:Library default|0:Hide collection|1:Hide items in this collection|2:Show this collection and its items",
+        ))
+        .child(setting(
+            "collectionSort",
+            "Collection order",
+            0,
+            sort_number(&c.sort),
+            "0:Release date|1:Alphabetical|2:Custom",
+        ));
+    if c.smart_filter.is_some() {
+        prefs.push(setting(
+            "collectionFilterBasedOnUser",
+            "Filter collection based on",
+            0,
+            FILTER_BY_VIEWER,
+            "0:Server administrator|1:Current viewer",
+        ));
+    }
+    prefs
 }
 
 /// `/library/collections/{key}`
@@ -149,8 +212,59 @@ pub async fn collection(
     PlexUser(user): PlexUser,
     Extension(info): Extension<Arc<PlexInfo>>,
     Path(key): Path<i64>,
+    params: Params,
 ) -> PlexResult<Node> {
-    collection_details(&state, &user, &info, collection_path(key)?).await
+    collection_details(&state, &user, &info, collection_path(key)?, &params).await
+}
+
+/// `PUT /library/collections/{key}/prefs?collectionSort=…`, as
+/// python-plexapi's `sortUpdate()` and `modeUpdate()` send it: the order is
+/// Pley's own (release, title, custom). Pley has no collection modes, and
+/// its smart collections always show each viewer what they may see, so
+/// changing either answers `400`. Nothing is changed unless all of it can be.
+pub async fn collection_prefs(
+    State(state): State<AppState>,
+    PlexAdmin(admin): PlexAdmin,
+    Path(key): Path<i64>,
+    params: Params,
+) -> PlexResult<Node> {
+    let id = collection_path(key)?;
+    let (collection, _, lib, _) = collection_for(&state, &admin, id).await?;
+    let smart = collection.smart_filter.is_some();
+    let mut sort = None;
+    for (name, value) in &params.0 {
+        if name.get(..7).is_some_and(|p| p.eq_ignore_ascii_case("x-plex-")) {
+            continue;
+        }
+        let number: i64 =
+            value.trim().parse().map_err(|_| PlexError::BadRequest(format!("`{name}` takes a number")))?;
+        match name.as_str() {
+            "collectionMode" if number == MODE => {}
+            "collectionMode" => return Err(PlexError::BadRequest("Pley has no collection modes".into())),
+            "collectionSort" => {
+                let (_, to) = SORTS
+                    .iter()
+                    .find(|(n, _)| *n == number)
+                    .ok_or_else(|| PlexError::BadRequest("collectionSort is 0, 1 or 2".into()))?;
+                if smart && *to != collection.sort {
+                    return Err(PlexError::BadRequest("a smart collection is in its filter's order".into()));
+                }
+                sort = Some(*to);
+            }
+            "collectionFilterBasedOnUser" if smart && number == FILTER_BY_VIEWER => {}
+            "collectionFilterBasedOnUser" => {
+                return Err(PlexError::BadRequest(
+                    "Pley's smart collections show each viewer what they may see".into(),
+                ));
+            }
+            _ => return Err(PlexError::BadRequest(format!("`{name}` isn't a preference of collections"))),
+        }
+    }
+    if let Some(sort) = sort.filter(|s| *s != collection.sort) {
+        collections::update(&state.db, id, None, None, Some(sort)).await?;
+        state.events.send(crate::events::ServerEvent::LibraryChanged { library_id: lib.id });
+    }
+    Ok(Node::container().attr("size", 0))
 }
 
 /// The items of collection `id`, in its order.
@@ -357,7 +471,7 @@ pub async fn create_collection(
         id
     };
     state.events.send(crate::events::ServerEvent::LibraryChanged { library_id: section });
-    collection_details(&state, &admin, &info, id).await
+    collection_details(&state, &admin, &info, id, &Params::default()).await
 }
 
 /// `PUT /library/collections/{key}/items?uri=…`: a smart collection's new
@@ -383,7 +497,7 @@ pub async fn collection_add(
         collections::add_items(&state.db, id, library_id, &uri_items(uri)).await?;
     }
     state.events.send(crate::events::ServerEvent::LibraryChanged { library_id });
-    collection_details(&state, &admin, &info, id).await
+    collection_details(&state, &admin, &info, id, &Params::default()).await
 }
 
 /// `DELETE /library/collections/{key}/items/{item}`

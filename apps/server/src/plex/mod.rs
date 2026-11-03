@@ -285,6 +285,7 @@ fn router(state: AppState, info: Arc<PlexInfo>) -> Router {
         .route("/library/collections/{id}/items", put(lists::collection_add))
         .route("/library/collections/{id}/items/{item}", delete(lists::collection_remove))
         .route("/library/collections/{id}/children", get(lists::collection_children))
+        .route("/library/collections/{id}/prefs", put(lists::collection_prefs))
         .route(
             "/library/collections/{id}/{image}",
             get(lists::collection_image)

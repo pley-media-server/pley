@@ -204,3 +204,60 @@ async fn collections_keep_labels_and_are_found_by_them() {
     let play = w.app.compatibility_token(&w.admin, "play").await;
     assert_eq!(w.app.plex(Method::PUT, &labelled, &play, &[]).await.status, StatusCode::FORBIDDEN);
 }
+
+/// The value of setting `id` in `node`'s preferences.
+fn preference(node: &Value, id: &str) -> Option<i64> {
+    let settings = node["Preferences"]["Setting"].as_array()?;
+    settings.iter().find(|s| s["id"] == id).and_then(|s| s["value"].as_i64())
+}
+
+#[tokio::test]
+async fn collection_order_through_preferences() {
+    let w = world().await;
+    let casablanca = w.app.ids(w.movies, &w.admin).await["Casablanca"];
+    let collection = w.collection("Two Films", &[w.brazil, casablanca]).await;
+    let children = format!("/library/collections/{collection}/children");
+    assert_eq!(plex_titles(&w.app.plex_json(&children, &w.admin).await), ["Casablanca", "Brazil"], "by release");
+    let details = format!("/library/collections/{collection}?includePreferences=1");
+    let node = w.details(&details).await;
+    assert_eq!((&node["collectionMode"], &node["collectionSort"]), (&json!(-1), &json!(0)), "Plex's defaults");
+    assert_eq!((preference(&node, "collectionMode"), preference(&node, "collectionSort")), (Some(-1), Some(0)));
+    let modes = node["Preferences"]["Setting"][0]["enumValues"].as_str().unwrap();
+    assert!(modes.starts_with("-1:Library default|0:Hide collection"), "{modes}");
+
+    // python-plexapi's sortUpdate("alpha"): Pley's title order.
+    let prefs = format!("/library/collections/{collection}/prefs");
+    assert_eq!(w.send(Method::PUT, &format!("{prefs}?collectionSort=1")).await.status, StatusCode::OK);
+    assert_eq!(w.details(&details).await["collectionSort"], json!(1));
+    let id = collection - 1_000_000_000;
+    assert_eq!(w.app.get(&format!("/api/collections/{id}"), &w.admin).await.body["sort"], json!("title"));
+    assert_eq!(plex_titles(&w.app.plex_json(&children, &w.admin).await), ["Brazil", "Casablanca"]);
+
+    // Modes Pley doesn't have: the default is kept, a change refused whole.
+    assert_eq!(w.send(Method::PUT, &format!("{prefs}?collectionMode=-1")).await.status, StatusCode::OK);
+    for refused in ["collectionMode=0", "collectionSort=2&collectionMode=1", "collectionSort=7", "hidden=1"] {
+        let reply = w.send(Method::PUT, &format!("{prefs}?{refused}")).await;
+        assert_eq!(reply.status, StatusCode::BAD_REQUEST, "{refused}");
+    }
+    assert_eq!(w.details(&details).await["collectionSort"], json!(1), "unchanged");
+
+    // Smart collections are in their filter's order, as each viewer may see them.
+    let listing =
+        encode(&format!("server://m/com.plexapp.plugins.library/library/sections/{}/all?type=1&title=a", w.movies));
+    let uri = format!("/library/collections?type=1&title=Smart&smart=1&sectionId={}&uri={listing}", w.movies);
+    let smart = key(&w.send(Method::POST, &uri).await.body["MediaContainer"]["Metadata"][0]);
+    let node = w.details(&format!("/library/collections/{smart}?includePreferences=1")).await;
+    assert_eq!(preference(&node, "collectionFilterBasedOnUser"), Some(1));
+    let smart_prefs = format!("/library/collections/{smart}/prefs");
+    assert_eq!(
+        w.send(Method::PUT, &format!("{smart_prefs}?collectionFilterBasedOnUser=1")).await.status,
+        StatusCode::OK
+    );
+    for refused in ["collectionFilterBasedOnUser=0", "collectionSort=1"] {
+        assert_eq!(w.send(Method::PUT, &format!("{smart_prefs}?{refused}")).await.status, StatusCode::BAD_REQUEST);
+    }
+
+    let play = w.app.compatibility_token(&w.admin, "play").await;
+    let reply = w.app.plex(Method::PUT, &format!("{prefs}?collectionSort=0"), &play, &[]).await;
+    assert_eq!(reply.status, StatusCode::FORBIDDEN);
+}

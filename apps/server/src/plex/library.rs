@@ -673,7 +673,7 @@ pub async fn metadata(
 ) -> PlexResult<Node> {
     let keys: Vec<Key> = ids.split(',').filter_map(|i| i.trim().parse().ok()).take(500).map(Key::of).collect();
     match keys[..] {
-        [Key::Collection(id)] => return super::lists::collection_details(&state, &user, &info, id).await,
+        [Key::Collection(id)] => return super::lists::collection_details(&state, &user, &info, id, &params).await,
         [Key::Playlist(id)] => return super::lists::playlist_container_of(&state, &user, id).await,
         _ => {}
     }
