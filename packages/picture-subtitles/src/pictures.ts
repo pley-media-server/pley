@@ -53,6 +53,20 @@ export const MAX_PIXELS = 3840 * 2160;
  */
 export const MAX_WORK = 8 * MAX_PIXELS;
 
+/**
+ * The segments read of one sample: a real display set has a handful, where
+ * a crafted one could hold 150,000 in a MiB, each kept as an object.
+ */
+export const MAX_SEGMENTS = 256;
+
+/**
+ * The most display sets a frame is decoded from, back to the last that
+ * holds everything it needs (an epoch start, an acquisition point): real
+ * tracks have one every few, and without that, each frame would read the
+ * whole track.
+ */
+export const MAX_EPOCH = 1024;
+
 /** Decoded frames kept per track, and the most bytes they hold together. */
 export const CACHE_FRAMES = 25;
 export const CACHE_BYTES = 128 << 20;

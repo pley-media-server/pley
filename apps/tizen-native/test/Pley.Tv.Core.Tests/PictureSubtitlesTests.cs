@@ -72,8 +72,7 @@ static class PictureKit
 
     public static byte[] Mks(string codecId, IEnumerable<MksBlock> blocks, int[]? codecPrivate = null)
     {
-        var track = El(0xae, Cat(El(0xd7, new[] { 1 }), El(0x83, new[] { 0x11 }), El(0x86, Str(codecId)), codecPrivate != null ? El(0x63a2, codecPrivate) : new int[0]));
-        var cluster = new List<int>(El(0xe7, new[] { 0 }));
+        var cluster = new List<int>();
         foreach (var b in blocks)
         {
             var data = b.Data.Select(v => (int)v).ToArray();
@@ -81,7 +80,14 @@ static class PictureKit
             if (b.Duration is int d) cluster.AddRange(El(0xa0, Cat(El(0xa1, block), El(0x9b, U16(d)))));
             else cluster.AddRange(El(0xa3, Cat(new[] { 0x81 }, U16(b.Time), new[] { 0x80 }, data)));
         }
-        var segment = El(0x18538067, Cat(El(0x1549a966, El(0x2ad7b1, new[] { 0x0f, 0x42, 0x40 })), El(0x1654ae6b, track), El(0x1f43b675, cluster.ToArray())));
+        return MksFile(codecId, cluster.ToArray(), codecPrivate);
+    }
+
+    /// <summary>A file of one track and one cluster holding <paramref name="cluster"/> after its time.</summary>
+    public static byte[] MksFile(string codecId, int[] cluster, int[]? codecPrivate = null)
+    {
+        var track = El(0xae, Cat(El(0xd7, new[] { 1 }), El(0x83, new[] { 0x11 }), El(0x86, Str(codecId)), codecPrivate != null ? El(0x63a2, codecPrivate) : new int[0]));
+        var segment = El(0x18538067, Cat(El(0x1549a966, El(0x2ad7b1, new[] { 0x0f, 0x42, 0x40 })), El(0x1654ae6b, track), El(0x1f43b675, Cat(El(0xe7, new[] { 0 }), cluster))));
         return Bytes(Cat(El(0x1a45dfa3, El(0x4282, Str("matroska"))), segment));
     }
 
@@ -148,8 +154,52 @@ public class PgsTests
         static (int, int)[] Sizes(byte[] set) => PictureKit.Sizes(new PgsDecoder(new[] { set }).Decode(0));
         // One 2048×2048 object placed three times: twice would pass a 4K screen's pixels.
         Assert.Equal(new[] { (2048, 2048) }, Sizes(PictureKit.PgsPlaced(2048, 2048, 3)));
-        // A Blu-ray's whole plane, twice, is well within.
+        // A Blu-ray's whole plane, twice, is well within; twice its height, twice, just so.
         Assert.Equal(new[] { (1920, 1080), (1920, 1080) }, Sizes(PictureKit.PgsPlaced(1920, 1080, 2)));
+        Assert.Equal(new[] { (1920, 2160), (1920, 2160) }, Sizes(PictureKit.PgsPlaced(1920, 2160, 2)));
+    }
+
+    [Fact]
+    public void Places_two_objects_at_most_as_Blu_ray_does()
+    {
+        static (int, int)[] Sizes(byte[] set) => PictureKit.Sizes(new PgsDecoder(new[] { set }).Decode(0));
+        Assert.Equal(2, Sizes(PictureKit.PgsPlaced(1920, 2160, 3)).Length);
+        Assert.Equal(2, Sizes(PictureKit.PgsPlaced(1, 1, 255)).Length);
+    }
+
+    [Fact]
+    public void Reads_256_segments_of_a_display_set_at_most_and_256_entries_of_a_palette()
+    {
+        var rle = new[] { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0 };
+        // The composition, then empty windows, then the palette and object.
+        byte[] Padded(int windows)
+        {
+            var set = PictureKit.PgsDisplaySet(0x80, true, rle: rle);
+            var pcs = 3 + ((set[1] << 8) | set[2]);
+            return set.Take(pcs).Concat(Enumerable.Repeat(new byte[] { 0x17, 0, 0 }, windows).SelectMany(w => w)).Concat(set.Skip(pcs)).ToArray();
+        }
+        Assert.Single(new PgsDecoder(new[] { Padded(200) }).Decode(0)!.Bitmaps);
+        Assert.Null(new PgsDecoder(new[] { Padded(300) }).Decode(0));
+        // Entry 1 opaque white, then 255 more, then entry 1 again, transparent: not read.
+        var entries = PictureKit.Cat(new[] { 1, 235, 128, 128, 255 }, Enumerable.Repeat(new[] { 2, 16, 128, 128, 255 }, 255).SelectMany(e => e), new[] { 1, 235, 128, 128, 0 });
+        var composition = PictureKit.PgsDisplaySet(0x80, true);
+        var segment = (int type, int[] body) => PictureKit.Cat(new[] { type }, PictureKit.U16(body.Length), body);
+        var withPalette = PictureKit.Bytes(PictureKit.Cat(
+            composition.Take(composition.Length - 3).Select(b => (int)b),
+            segment(0x14, PictureKit.Cat(new[] { 0, 1 }, entries)),
+            segment(0x15, PictureKit.Cat(PictureKit.U16(0), new[] { 0, 0xc0, 0, 0, 16 }, PictureKit.U16(4), PictureKit.U16(2), rle)),
+            segment(0x80, new int[0])));
+        Assert.Equal(255, new PgsDecoder(new[] { withPalette }).Decode(0)!.Bitmaps[0].Rgba[3]);
+    }
+
+    [Fact]
+    public void Decodes_a_frame_from_1024_display_sets_back_at_most()
+    {
+        var start = PictureKit.PgsDisplaySet(0x80, true, rle: new[] { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0 });
+        var again = PictureKit.PgsDisplaySet(0x00, true);
+        var decoder = new PgsDecoder(new[] { start }.Concat(Enumerable.Repeat(again, 1025)).ToArray());
+        Assert.Single(decoder.Decode(1024)!.Bitmaps);
+        Assert.Null(decoder.Decode(1025));
     }
 
     [Fact]
@@ -234,6 +284,29 @@ public class MatroskaTests
         var e = Assert.Throws<MatroskaException>(() => Mks.ReadPictureTrack(new byte[] { 1, 2, 3, 4 }));
         Assert.Contains("not a Matroska file", e.Message);
     }
+
+    [Fact]
+    public void Reads_100000_samples_of_a_track_at_most()
+    {
+        var blocks = Enumerable.Range(0, Mks.MaxSamples + 5).Select(i => new PictureKit.MksBlock(i % 60_000, new byte[] { 0 }));
+        Assert.Equal(Mks.MaxSamples, Mks.ReadPictureTrack(PictureKit.Mks("S_HDMV/PGS", blocks)).Samples.Count);
+    }
+
+    [Fact]
+    public void Reads_elements_8_deep_at_most_however_deep_they_go()
+    {
+        // 100,000 block groups, each in the one before, around a block: read in full, the stack would run out.
+        const int n = 100_000;
+        var block = new[] { 0xa1, 0x85, 0x81, 0, 0, 0x00, 1 };
+        var nested = new int[n * 9 + block.Length];
+        for (var i = 0; i < n; i++)
+        {
+            var size = (n - 1 - i) * 9 + block.Length;
+            new[] { 0xa0, 0x01, 0, 0, 0, (size >> 24) & 0xff, (size >> 16) & 0xff, (size >> 8) & 0xff, size & 0xff }.CopyTo(nested, i * 9);
+        }
+        block.CopyTo(nested, n * 9);
+        Assert.Empty(Mks.ReadPictureTrack(PictureKit.MksFile("S_HDMV/PGS", nested)).Samples);
+    }
 }
 
 public class VobSubTests
@@ -299,9 +372,10 @@ public class VobSubTests
     [Fact]
     public void Refuses_a_picture_of_more_than_a_frames_pixels()
     {
-        // x 0..4095, y 0..4095: as large as its corners go.
-        var decoder = new VobSubDecoder(new[] { Spu(new[] { 0x00, 0x0f, 0xff, 0x00, 0x0f, 0xff }) }, Idx);
-        Assert.Null(decoder.Decode(0));
+        // x 0..3839, y 0..2159: a 4K screen's worth, just so.
+        Assert.Equal(new[] { (3840, 2160) }, PictureKit.Sizes(new VobSubDecoder(new[] { Spu(new[] { 0x00, 0x0e, 0xff, 0x00, 0x08, 0x6f }) }, Idx).Decode(0)));
+        // One line more.
+        Assert.Null(new VobSubDecoder(new[] { Spu(new[] { 0x00, 0x0e, 0xff, 0x00, 0x08, 0x70 }) }, Idx).Decode(0));
     }
 }
 
@@ -365,6 +439,34 @@ public class DvbTests
     {
         // One 3000×2000 region placed twice: twice would pass a 4K screen's pixels.
         Assert.Equal(new[] { (3000, 2000) }, Sizes(Placing((0, 0, 0), (0, 10, 10)), Filled(0, 3000, 2000), Red));
+    }
+
+    [Fact]
+    public void Places_32_regions_at_most()
+    {
+        var places = Enumerable.Range(0, 1000).Select(i => (0, i % 700, 0)).ToArray();
+        Assert.Equal(32, Sizes(Placing(places), Filled(0, 1, 1), Red).Length);
+    }
+
+    [Fact]
+    public void Reads_256_segments_of_a_display_set_at_most()
+    {
+        var empty = Enumerable.Repeat(DvbSegment(0x16, new int[0]), 300).ToArray();
+        var set = PictureKit.Bytes(PictureKit.Cat(new[] { 0x20, 0x00 }, Placing((0, 0, 0)), PictureKit.Cat(empty), Filled(0, 4, 2), Red, new[] { 0xff }));
+        Assert.Equal(256, DvbDecoder.Segments(set).Count);
+        Assert.Empty(new DvbDecoder(new[] { set }).Decode(0)!.Bitmaps);
+        Assert.Equal(new[] { (4, 2) }, Sizes(new[] { Placing((0, 0, 0)) }.Concat(empty.Take(200)).Append(Filled(0, 4, 2)).Append(Red).ToArray()));
+    }
+
+    [Fact]
+    public void Decodes_a_frame_from_1024_display_sets_back_at_most()
+    {
+        var start = PictureKit.Bytes(PictureKit.Cat(new[] { 0x20, 0x00 }, Placing((0, 0, 0)), Filled(0, 4, 2), Red, new[] { 0xff }));
+        // Normal case: the page again.
+        var again = PictureKit.Bytes(PictureKit.Cat(new[] { 0x20, 0x00 }, DvbSegment(0x10, PictureKit.Cat(new[] { 5, 0, 0, 0 }, PictureKit.U16(0), PictureKit.U16(0))), new[] { 0xff }));
+        var decoder = new DvbDecoder(new[] { start }.Concat(Enumerable.Repeat(again, 1025)).ToArray());
+        Assert.Single(decoder.Decode(1024)!.Bitmaps);
+        Assert.Empty(decoder.Decode(1025)!.Bitmaps);
     }
 
     [Fact]

@@ -87,6 +87,22 @@ public static class Mks
     const long SubtitleTrack = 0x11;
 
     /// <summary>
+    /// The samples read of a track: a film's subtitles have a few thousand, a day's broadcast tens
+    /// of thousands. A crafted file of tiny blocks could hold millions, each kept as an object many
+    /// times its size.
+    /// </summary>
+    public const int MaxSamples = 100_000;
+
+    /// <summary>
+    /// How deep elements are read: the deepest this reader needs is 6 (a track's compression), and
+    /// a crafted file nesting thousands deep would run the stack out, which ends the app.
+    /// </summary>
+    const int MaxDepth = 8;
+
+    /// <summary>The tracks read: the server's files have one.</summary>
+    const int MaxTracks = 64;
+
+    /// <summary>
     /// Reads a <c>.mks</c> file, or as much of one as there is: a file cut short gives the samples
     /// before the cut. Throws <see cref="MatroskaException"/> for anything that isn't one.
     /// </summary>
@@ -132,7 +148,7 @@ public static class Mks
             var header = ElementAt(0, bytes.Length);
             if (header == null || header.Value.Id != Ebml) throw new MatroskaException("not a Matroska file");
             var segmentStart = header.Value.DataStart + (header.Value.Size ?? 0);
-            Walk(segmentStart, bytes.Length, false);
+            Walk(segmentStart, bytes.Length, false, 0);
 
             var subtitle = tracks.FirstOrDefault(t => t.Type == SubtitleTrack) ?? tracks.FirstOrDefault();
             if (subtitle == null) throw new MatroskaException("no track");
@@ -150,7 +166,7 @@ public static class Mks
 
         void EndGroup()
         {
-            if (groupBlock != null)
+            if (groupBlock != null && raw.Count < MaxSamples)
             {
                 groupBlock.Duration = groupDuration;
                 raw.Add(groupBlock);
@@ -159,8 +175,8 @@ public static class Mks
             groupDuration = null;
         }
 
-        /// <summary>Reads the elements from <paramref name="start"/> to <paramref name="end"/>; where it stopped (an unknown-size cluster ends at the next level-1 element).</summary>
-        long Walk(long start, long end, bool unknownSize)
+        /// <summary>Reads the elements from <paramref name="start"/> to <paramref name="end"/>, <paramref name="depth"/> deep; where it stopped (an unknown-size cluster ends at the next level-1 element).</summary>
+        long Walk(long start, long end, bool unknownSize, int depth)
         {
             var at = start;
             while (at < end)
@@ -183,8 +199,11 @@ public static class Mks
                 var next = el.Size is long s ? el.DataStart + s : end;
                 if (Masters.Contains(el.Id))
                 {
-                    var stopped = Walk(el.DataStart, dataEnd, el.Size == null && el.Id != Segment);
-                    if (el.Size == null) next = stopped;
+                    if (depth < MaxDepth)
+                    {
+                        var stopped = Walk(el.DataStart, dataEnd, el.Size == null && el.Id != Segment, depth + 1);
+                        if (el.Size == null) next = stopped;
+                    }
                 }
                 else
                 {
@@ -218,10 +237,10 @@ public static class Mks
                             clusterTime = Uint(bytes, from, to);
                             break;
                         case SimpleBlock:
-                            if (BlockOf(bytes, from, to, clusterTime) is RawBlock simple) raw.Add(simple);
+                            if (raw.Count < MaxSamples && BlockOf(bytes, from, to, clusterTime) is RawBlock simple) raw.Add(simple);
                             break;
                         case Block:
-                            groupBlock = BlockOf(bytes, from, to, clusterTime);
+                            groupBlock = raw.Count < MaxSamples ? BlockOf(bytes, from, to, clusterTime) : null;
                             break;
                         case BlockDuration:
                             groupDuration = Uint(bytes, from, to);
@@ -235,7 +254,7 @@ public static class Mks
                 }
                 if (el.Id == TrackEntry && track != null)
                 {
-                    tracks.Add(track);
+                    if (tracks.Count < MaxTracks) tracks.Add(track);
                     track = null;
                 }
                 if (el.Id == BlockGroup) EndGroup();
@@ -314,10 +333,11 @@ public static class Mks
         return value;
     }
 
+    /// <summary>A codec id: 64 characters are far more than any has.</summary>
     static string Ascii(byte[] bytes, int from, int to)
     {
         var s = new StringBuilder();
-        for (var i = from; i < to && bytes[i] != 0; i++) s.Append((char)bytes[i]);
+        for (var i = from; i < to && i - from < 64 && bytes[i] != 0; i++) s.Append((char)bytes[i]);
         return s.ToString();
     }
 

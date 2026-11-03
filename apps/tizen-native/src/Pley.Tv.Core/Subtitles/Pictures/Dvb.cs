@@ -37,6 +37,9 @@ public sealed class DvbDecoder : IPictureDecoder
     /// <summary>The objects a region lists at most: a real one has a few, one for each line of text.</summary>
     const int MaxRegionObjects = 64;
 
+    /// <summary>The regions a page places at most: a real one places a few, each of them a picture to draw.</summary>
+    const int MaxPlaced = 32;
+
     sealed class PageRegion
     {
         public int Id, X, Y;
@@ -68,22 +71,17 @@ public sealed class DvbDecoder : IPictureDecoder
     }
 
     readonly IReadOnlyList<byte[]> samples;
-    readonly List<DvbSegment>?[] parsed;
     readonly FrameCache cache = new FrameCache();
 
-    public DvbDecoder(IReadOnlyList<byte[]> samples)
-    {
-        this.samples = samples;
-        parsed = new List<DvbSegment>?[samples.Count];
-    }
+    public DvbDecoder(IReadOnlyList<byte[]> samples) => this.samples = samples;
 
+    /// <summary>A display set's segments, <see cref="PictureColors.MaxSegments"/> at most.</summary>
     public static List<DvbSegment> Segments(byte[] data)
     {
         var segments = new List<DvbSegment>();
-        var at = 0;
         // data_identifier 0x20 and subtitle_stream_id 0x00 open a PES data field.
-        if (data.Length >= 2 && data[0] == 0x20 && data[1] == 0x00) at = 2;
-        while (at + 6 <= data.Length && data[at] == 0x0f)
+        var at = data.Length >= 2 && data[0] == 0x20 && data[1] == 0x00 ? 2 : 0;
+        while (segments.Count < PictureColors.MaxSegments && at + 6 <= data.Length && data[at] == 0x0f)
         {
             var type = data[at + 1];
             var length = (data[at + 4] << 8) | data[at + 5];
@@ -93,10 +91,28 @@ public sealed class DvbDecoder : IPictureDecoder
         return segments;
     }
 
+    /// <summary>The time-out and state of a display set's first page, read without the rest of it.</summary>
+    static (int TimeoutS, int State)? PageHead(byte[] data)
+    {
+        var at = data.Length >= 2 && data[0] == 0x20 && data[1] == 0x00 ? 2 : 0;
+        for (var n = 0; n < PictureColors.MaxSegments && at + 6 <= data.Length && data[at] == 0x0f; n++)
+        {
+            var length = (data[at + 4] << 8) | data[at + 5];
+            if (data[at + 1] == PageSegment)
+            {
+                var end = Math.Min(data.Length, at + 6 + length);
+                var flags = at + 7 < end ? data[at + 7] : 0;
+                return (at + 6 < end ? data[at + 6] : 0, (flags >> 2) & 3);
+            }
+            at += 6 + length;
+        }
+        return null;
+    }
+
     static Page ReadPage(byte[] b)
     {
         var page = new Page { TimeoutS = PictureColors.At(b, 0), State = (PictureColors.At(b, 1) >> 2) & 3 };
-        for (var i = 2; i + 6 <= b.Length; i += 6)
+        for (var i = 2; i + 6 <= b.Length && page.Regions.Count < MaxPlaced; i += 6)
             page.Regions.Add(new PageRegion { Id = b[i], X = (b[i + 2] << 8) | b[i + 3], Y = (b[i + 4] << 8) | b[i + 5] });
         return page;
     }
@@ -351,31 +367,19 @@ public sealed class DvbDecoder : IPictureDecoder
         return at + written;
     }
 
-    List<DvbSegment> Segs(int index) => parsed[index] ??= Segments(samples[index]);
-
-    Page? PageOf(int index)
-    {
-        var seg = Segs(index).FirstOrDefault(s => s.Type == PageSegment);
-        return seg != null ? ReadPage(seg.Body) : null;
-    }
-
     public long? OwnDurationMs(int index)
     {
-        var page = PageOf(index);
-        return page != null && page.TimeoutS > 0 ? page.TimeoutS * 1000L : null;
+        var page = PageHead(samples[index]);
+        return page != null && page.Value.TimeoutS > 0 ? page.Value.TimeoutS * 1000L : null;
     }
 
     public PictureFrame? Decode(int index) => cache.Get(index, Render);
 
+    /// <summary>Display sets are read again for each frame decoded, rather than kept: a crafted track's would take many times its size.</summary>
     PictureFrame? Render(int index)
     {
         var from = index;
-        while (from > 0)
-        {
-            var p = PageOf(from);
-            if (p != null && p.State != 0) break;
-            from--;
-        }
+        while (from > 0 && index - from < PictureColors.MaxEpoch && (PageHead(samples[from])?.State ?? 0) == 0) from--;
         var width = 720;
         var height = 576;
         Page? page = null;
@@ -389,7 +393,7 @@ public sealed class DvbDecoder : IPictureDecoder
         var work = PictureColors.MaxWork;
         for (var i = from; i <= index && work > 0; i++)
         {
-            foreach (var seg in Segs(i))
+            foreach (var seg in Segments(samples[i]))
             {
                 var b = seg.Body;
                 work -= 1 + b.Length;

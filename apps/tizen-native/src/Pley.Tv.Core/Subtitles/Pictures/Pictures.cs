@@ -78,6 +78,19 @@ public static class PictureColors
     /// </summary>
     public const long MaxWork = 8L * MaxPixels;
 
+    /// <summary>
+    /// The segments read of one sample: a real display set has a handful, where a crafted one could
+    /// hold 150,000 in a MiB, each kept as an object.
+    /// </summary>
+    public const int MaxSegments = 256;
+
+    /// <summary>
+    /// The most display sets a frame is decoded from, back to the last that holds everything it
+    /// needs (an epoch start, an acquisition point): real tracks have one every few, and without
+    /// that, each frame would read the whole track.
+    /// </summary>
+    public const int MaxEpoch = 1024;
+
     /// <summary>Limited-range YCbCr to RGB: BT.709 for HD planes, BT.601 for SD (as FFmpeg's decoders).</summary>
     public static (byte R, byte G, byte B) YcbcrToRgb(int y, int cb, int cr, bool hd)
     {

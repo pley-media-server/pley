@@ -62,6 +62,23 @@ const LEVEL_ONE = new Set<number>([0x114d9b74, ID.Info, ID.Tracks, ID.Cluster, 0
 
 const SUBTITLE_TRACK = 0x11;
 
+/**
+ * The samples read of a track: a film's subtitles have a few thousand, a
+ * day's broadcast tens of thousands. A crafted file of tiny blocks could
+ * hold millions, each kept as an object many times its size.
+ */
+export const MAX_SAMPLES = 100_000;
+
+/**
+ * How deep elements are read: the deepest this reader needs is 6 (a
+ * track's compression), and a crafted file nesting thousands deep would
+ * run the stack out.
+ */
+const MAX_DEPTH = 8;
+
+/** The tracks read: the server's files have one. */
+const MAX_TRACKS = 64;
+
 export class MatroskaError extends Error {
   constructor(message: string) {
     super(message);
@@ -102,13 +119,13 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
   let groupDuration: number | null = null;
 
   const endGroup = () => {
-    if (groupBlock) raw.push({ ...groupBlock, duration: groupDuration });
+    if (groupBlock && raw.length < MAX_SAMPLES) raw.push({ ...groupBlock, duration: groupDuration });
     groupBlock = null;
     groupDuration = null;
   };
 
-  /** Reads the elements from `start` to `end`; where it stopped (an unknown-size cluster ends at the next level-1 element). */
-  const walk = (start: number, end: number, unknownSize: boolean): number => {
+  /** Reads the elements from `start` to `end`, `depth` deep; where it stopped (an unknown-size cluster ends at the next level-1 element). */
+  const walk = (start: number, end: number, unknownSize: boolean, depth: number): number => {
     let at = start;
     while (at < end) {
       const el = r.element(at, end);
@@ -128,8 +145,10 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
       }
       let next = el.size === null ? end : el.dataStart + el.size;
       if (MASTERS.has(el.id)) {
-        const stopped = walk(el.dataStart, dataEnd, el.size === null && el.id !== ID.Segment);
-        if (el.size === null) next = stopped;
+        if (depth < MAX_DEPTH) {
+          const stopped = walk(el.dataStart, dataEnd, el.size === null && el.id !== ID.Segment, depth + 1);
+          if (el.size === null) next = stopped;
+        }
       } else {
         const body = bytes.subarray(el.dataStart, dataEnd);
         switch (el.id) {
@@ -158,12 +177,12 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
             clusterTime = uint(body);
             break;
           case ID.SimpleBlock: {
-            const b = block(body, clusterTime);
+            const b = raw.length < MAX_SAMPLES ? block(body, clusterTime) : null;
             if (b) raw.push({ ...b, duration: null });
             break;
           }
           case ID.Block:
-            groupBlock = block(body, clusterTime);
+            groupBlock = raw.length < MAX_SAMPLES ? block(body, clusterTime) : null;
             break;
           case ID.BlockDuration:
             groupDuration = uint(body);
@@ -176,7 +195,7 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
         else t.compressed = true;
       }
       if (el.id === ID.TrackEntry && track) {
-        tracks.push(track);
+        if (tracks.length < MAX_TRACKS) tracks.push(track);
         track = null;
       }
       if (el.id === ID.BlockGroup) endGroup();
@@ -186,7 +205,7 @@ export function readPictureTrack(buffer: ArrayBuffer): PictureTrack {
   };
 
   const segmentStart = header.dataStart + (header.size ?? 0);
-  walk(segmentStart, bytes.length, false);
+  walk(segmentStart, bytes.length, false, 0);
 
   const subtitle = tracks.filter((t) => t.type === SUBTITLE_TRACK)[0] ?? tracks[0];
   if (!subtitle) throw new MatroskaError("no track");
@@ -289,9 +308,10 @@ function uint(body: Uint8Array): number {
   return value;
 }
 
+/** A codec id: 64 characters are far more than any has. */
 function ascii(body: Uint8Array): string {
   let s = "";
-  for (let i = 0; i < body.length && body[i] !== 0; i++) s += String.fromCharCode(body[i]!);
+  for (let i = 0; i < body.length && i < 64 && body[i] !== 0; i++) s += String.fromCharCode(body[i]!);
   return s;
 }
 

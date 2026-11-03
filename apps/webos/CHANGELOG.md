@@ -28,9 +28,10 @@ describes how they are made.
 - A crafted file's DVB subtitles can no longer stall the app: a moment's
   subtitles take eight 4K screens' work at most to decode.
 - A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer run
-  the app out of memory: a moment's pictures decode to a 4K screen's
-  pixels at most, and the frames kept decoded hold 128 MiB at most. Real
-  subtitles show as before.
+  the app out of memory: a track is read up to 100,000 samples, a moment's
+  pictures are a 4K screen's pixels at most (2 pictures for PGS, 32 for
+  DVB), and the frames kept decoded hold 128 MiB at most. Real subtitles
+  show as before.
 
 ## [0.1.3] - 2026-11-02
 

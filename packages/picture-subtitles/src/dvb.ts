@@ -1,4 +1,15 @@
-import { FrameCache, MAX_PIXELS, MAX_SIDE, MAX_WORK, ycbcrToRgb, type PictureDecoder, type PictureFrame, type SubtitleBitmap } from "./pictures";
+import {
+  FrameCache,
+  MAX_EPOCH,
+  MAX_PIXELS,
+  MAX_SEGMENTS,
+  MAX_SIDE,
+  MAX_WORK,
+  ycbcrToRgb,
+  type PictureDecoder,
+  type PictureFrame,
+  type SubtitleBitmap,
+} from "./pictures";
 
 /**
  * Broadcast subtitles (DVB, ETSI EN 300 743, `S_DVBSUB`): each sample is a
@@ -17,6 +28,9 @@ const DISPLAY = 0x14;
 
 /** The objects a region lists at most: a real one has a few, one for each line of text. */
 const MAX_REGION_OBJECTS = 64;
+
+/** The regions a page places at most: a real one places a few, each of them a picture to draw. */
+const MAX_PLACED = 32;
 
 interface PageRegion {
   id: number;
@@ -54,12 +68,12 @@ interface Segment {
   body: Uint8Array;
 }
 
+/** A display set's segments, MAX_SEGMENTS at most. */
 export function segments(data: Uint8Array): Segment[] {
   const out: Segment[] = [];
-  let at = 0;
   // data_identifier 0x20 and subtitle_stream_id 0x00 open a PES data field.
-  if (data[0] === 0x20 && data[1] === 0x00) at = 2;
-  while (at + 6 <= data.length && data[at] === 0x0f) {
+  let at = data[0] === 0x20 && data[1] === 0x00 ? 2 : 0;
+  while (out.length < MAX_SEGMENTS && at + 6 <= data.length && data[at] === 0x0f) {
     const type = data[at + 1]!;
     const length = (data[at + 4]! << 8) | data[at + 5]!;
     out.push({ type, body: data.subarray(at + 6, Math.min(data.length, at + 6 + length)) });
@@ -68,9 +82,24 @@ export function segments(data: Uint8Array): Segment[] {
   return out;
 }
 
+/** The time-out and state of a display set's first page, read without the rest of it. */
+function pageHead(data: Uint8Array): { timeoutS: number; state: number } | null {
+  let at = data[0] === 0x20 && data[1] === 0x00 ? 2 : 0;
+  for (let n = 0; n < MAX_SEGMENTS && at + 6 <= data.length && data[at] === 0x0f; n++) {
+    const length = (data[at + 4]! << 8) | data[at + 5]!;
+    if (data[at + 1] === PAGE) {
+      const end = Math.min(data.length, at + 6 + length);
+      const flags = at + 7 < end ? data[at + 7]! : 0;
+      return { timeoutS: at + 6 < end ? data[at + 6]! : 0, state: (flags >> 2) & 3 };
+    }
+    at += 6 + length;
+  }
+  return null;
+}
+
 function readPage(b: Uint8Array): Page {
   const regions: PageRegion[] = [];
-  for (let i = 2; i + 6 <= b.length; i += 6) {
+  for (let i = 2; i + 6 <= b.length && regions.length < MAX_PLACED; i += 6) {
     regions.push({ id: b[i]!, x: (b[i + 2]! << 8) | b[i + 3]!, y: (b[i + 4]! << 8) | b[i + 5]! });
   }
   return { timeoutS: b[0] ?? 0, state: ((b[1] ?? 0) >> 2) & 3, regions };
@@ -272,30 +301,14 @@ function drawField(data: Uint8Array, region: Region, ox: number, oy: number, fir
 
 export class DvbDecoder implements PictureDecoder {
   private readonly samples: Uint8Array[];
-  private readonly parsed: (Segment[] | undefined)[];
   private readonly cache = new FrameCache();
 
   constructor(samples: Uint8Array[]) {
     this.samples = samples;
-    this.parsed = new Array<Segment[] | undefined>(samples.length);
-  }
-
-  private segs(index: number): Segment[] {
-    let s = this.parsed[index];
-    if (!s) {
-      s = segments(this.samples[index]!);
-      this.parsed[index] = s;
-    }
-    return s;
-  }
-
-  private page(index: number): Page | null {
-    const seg = this.segs(index).filter((s) => s.type === PAGE)[0];
-    return seg ? readPage(seg.body) : null;
   }
 
   ownDurationMs(index: number): number | null {
-    const page = this.page(index);
+    const page = pageHead(this.samples[index]!);
     return page && page.timeoutS > 0 ? page.timeoutS * 1000 : null;
   }
 
@@ -303,13 +316,10 @@ export class DvbDecoder implements PictureDecoder {
     return this.cache.get(index, (i) => this.render(i));
   }
 
+  /** Display sets are read again for each frame decoded, rather than kept: a crafted track's would take many times its size. */
   private render(index: number): PictureFrame | null {
     let from = index;
-    while (from > 0) {
-      const page = this.page(from);
-      if (page && page.state !== 0) break;
-      from--;
-    }
+    while (from > 0 && index - from < MAX_EPOCH && !pageHead(this.samples[from]!)?.state) from--;
     let width = 720;
     let height = 576;
     let page: Page | null = null;
@@ -321,7 +331,7 @@ export class DvbDecoder implements PictureDecoder {
     // segment of every display set. What it shows stops there.
     let work = MAX_WORK;
     for (let i = from; i <= index && work > 0; i++) {
-      for (const seg of this.segs(i)) {
+      for (const seg of segments(this.samples[i]!)) {
         const b = seg.body;
         work -= 1 + b.length;
         if (work <= 0) break;

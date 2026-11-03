@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readPictureTrack } from "../src/mks";
+import { MAX_SAMPLES, readPictureTrack } from "../src/mks";
 import { decodeRle, PgsDecoder } from "../src/pgs";
 import { parseIdx, parseSpu, VobSubDecoder } from "../src/vobsub";
 import { DvbDecoder, segments } from "../src/dvb";
@@ -131,11 +131,51 @@ describe("PGS", () => {
     const sizes = (set: Uint8Array) => new PgsDecoder([set]).decode(0)!.bitmaps.map((b) => [b.width, b.height]);
     // One 2048×2048 object placed three times: twice would pass a 4K screen's pixels.
     expect(sizes(pgsPlaced(2048, 2048, 3))).toEqual([[2048, 2048]]);
-    // A Blu-ray's whole plane, twice, is well within.
+    // A Blu-ray's whole plane, twice, is well within; twice its height, twice, just so.
     expect(sizes(pgsPlaced(1920, 1080, 2))).toEqual([
       [1920, 1080],
       [1920, 1080],
     ]);
+    expect(sizes(pgsPlaced(1920, 2160, 2))).toEqual([
+      [1920, 2160],
+      [1920, 2160],
+    ]);
+  });
+
+  it("places two objects at most, as Blu-ray does", () => {
+    const sizes = (set: Uint8Array) => new PgsDecoder([set]).decode(0)!.bitmaps.map((b) => [b.width, b.height]);
+    expect(sizes(pgsPlaced(1920, 2160, 3))).toHaveLength(2);
+    expect(sizes(pgsPlaced(1, 1, 255))).toHaveLength(2);
+  });
+
+  it("reads 256 segments of a display set at most, and 256 entries of a palette", () => {
+    const rle = [1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0];
+    // The composition, then empty windows, then the palette and object.
+    const padded = (windows: number) => {
+      const set = pgsDisplaySet({ state: 0x80, objects: true, rle });
+      const pcs = set.subarray(0, 3 + ((set[1]! << 8) | set[2]!));
+      return new Uint8Array([...pcs, ...Array.from({ length: windows }, () => pgsSegment(0x17, [])).flat(), ...set.subarray(pcs.length)]);
+    };
+    expect(new PgsDecoder([padded(200)]).decode(0)!.bitmaps).toHaveLength(1);
+    expect(new PgsDecoder([padded(300)]).decode(0)).toBeNull();
+    // Entry 1 opaque white, then 255 more, then entry 1 again, transparent: not read.
+    const entries = [1, 235, 128, 128, 255, ...Array.from({ length: 255 }, () => [2, 16, 128, 128, 255]).flat(), 1, 235, 128, 128, 0];
+    const composition = pgsDisplaySet({ state: 0x80, objects: true });
+    const set = new Uint8Array([
+      ...composition.subarray(0, composition.length - 3),
+      ...pgsSegment(0x14, [0, 1, ...entries]),
+      ...pgsSegment(0x15, [...u16(0), 0, 0xc0, 0, 0, 16, ...u16(4), ...u16(2), ...rle]),
+      ...pgsSegment(0x80, []),
+    ]);
+    expect(new PgsDecoder([set]).decode(0)!.bitmaps[0]!.rgba[3]).toBe(255);
+  });
+
+  it("decodes a frame from 1024 display sets back at most", () => {
+    const start = pgsDisplaySet({ state: 0x80, objects: true, rle: [1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0] });
+    const again = pgsDisplaySet({ state: 0x00, objects: true });
+    const decoder = new PgsDecoder([start, ...Array.from({ length: 1025 }, () => again)]);
+    expect(decoder.decode(1024)!.bitmaps).toHaveLength(1);
+    expect(decoder.decode(1025)).toBeNull();
   });
 
   it("decodes objects of 4096 pixels a side at most", () => {
@@ -214,6 +254,28 @@ describe("Matroska", () => {
   it("refuses what isn't Matroska", () => {
     expect(() => readPictureTrack(new Uint8Array([1, 2, 3, 4]).buffer)).toThrow(/not a Matroska file/);
   });
+
+  it("reads 100,000 samples of a track at most", () => {
+    const blocks = Array.from({ length: MAX_SAMPLES + 5 }, (_, i) => ({ time: i % 60_000, data: new Uint8Array([0]) }));
+    expect(readPictureTrack(mks("S_HDMV/PGS", blocks)).samples.length).toBe(MAX_SAMPLES);
+  });
+
+  it("reads elements 8 deep at most, however deep they go", () => {
+    // 100,000 block groups, each in the one before, around a block.
+    const n = 100_000;
+    const block = el(0xa1, [0x81, ...u16(0), 0x00, 1]);
+    const nested = new Uint8Array(n * 9 + block.length);
+    for (let i = 0; i < n; i++) {
+      const size = (n - 1 - i) * 9 + block.length;
+      nested.set([0xa0, 0x01, 0, 0, 0, (size >>> 24) & 0xff, (size >> 16) & 0xff, (size >> 8) & 0xff, size & 0xff], i * 9);
+    }
+    nested.set(block, n * 9);
+    const track = el(0xae, [...el(0xd7, [1]), ...el(0x83, [0x11]), ...el(0x86, str("S_HDMV/PGS"))]);
+    const cluster = el(0x1f43b675, [...el(0xe7, [0]), ...nested]);
+    const segment = el(0x18538067, [...el(0x1549a966, [...el(0x2ad7b1, [0x0f, 0x42, 0x40])]), ...el(0x1654ae6b, track), ...cluster]);
+    const file = new Uint8Array([...el(0x1a45dfa3, [...el(0x4282, str("matroska"))]), ...segment]);
+    expect(readPictureTrack(file.buffer).samples).toEqual([]);
+  });
 });
 
 describe("VobSub", () => {
@@ -270,9 +332,14 @@ describe("VobSub", () => {
   });
 
   it("refuses a picture of more than a frame's pixels", () => {
-    // x 0..4095, y 0..4095: as large as its corners go.
-    const frame = new VobSubDecoder([spu([0x00, 0x0f, 0xff, 0x00, 0x0f, 0xff])], new Uint8Array(idx)).decode(0);
-    expect(frame && frame.bitmaps.map((b) => [b.width, b.height])).toBeNull();
+    const sizes = (area: number[]) => {
+      const frame = new VobSubDecoder([spu(area)], new Uint8Array(idx)).decode(0);
+      return frame && frame.bitmaps.map((b) => [b.width, b.height]);
+    };
+    // x 0..3839, y 0..2159: a 4K screen's worth, just so.
+    expect(sizes([0x00, 0x0e, 0xff, 0x00, 0x08, 0x6f])).toEqual([[3840, 2160]]);
+    // One line more.
+    expect(sizes([0x00, 0x0e, 0xff, 0x00, 0x08, 0x70])).toBeNull();
   });
 });
 
@@ -325,6 +392,28 @@ describe("DVB", () => {
   it("decodes a frame's worth of pixels at most", () => {
     // One 3000×2000 region placed twice: twice would pass a 4K screen's pixels.
     expect(sizes(placing([0, 0, 0], [0, 10, 10]), filled(0, 3000, 2000), red)).toEqual([[3000, 2000]]);
+  });
+
+  it("places 32 regions at most", () => {
+    const places = Array.from({ length: 1000 }, (_, i): [number, number, number] => [0, i % 700, 0]);
+    expect(sizes(placing(...places), filled(0, 1, 1), red)).toHaveLength(32);
+  });
+
+  it("reads 256 segments of a display set at most", () => {
+    const empty = Array.from({ length: 300 }, () => dvbSegment(0x16, []));
+    const set = new Uint8Array([0x20, 0x00, ...placing([0, 0, 0]), ...empty.flat(), ...filled(0, 4, 2), ...red, 0xff]);
+    expect(segments(set)).toHaveLength(256);
+    expect(new DvbDecoder([set]).decode(0)!.bitmaps).toEqual([]);
+    expect(sizes(placing([0, 0, 0]), ...empty.slice(0, 200), filled(0, 4, 2), red)).toEqual([[4, 2]]);
+  });
+
+  it("decodes a frame from 1024 display sets back at most", () => {
+    const start = new Uint8Array([0x20, 0x00, ...placing([0, 0, 0]), ...filled(0, 4, 2), ...red, 0xff]);
+    // Normal case: the page again.
+    const again = new Uint8Array([0x20, 0x00, ...dvbSegment(0x10, [5, 0, 0, 0, ...u16(0), ...u16(0)]), 0xff]);
+    const decoder = new DvbDecoder([start, ...Array.from({ length: 1025 }, () => again)]);
+    expect(decoder.decode(1024)!.bitmaps).toHaveLength(1);
+    expect(decoder.decode(1025)!.bitmaps).toEqual([]);
   });
 
   it("draws an object in the first 64 places a region lists at most", () => {

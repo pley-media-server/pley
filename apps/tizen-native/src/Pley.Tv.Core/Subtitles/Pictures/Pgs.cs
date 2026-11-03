@@ -37,15 +37,14 @@ public sealed class PgsDecoder : IPictureDecoder
         public List<Placed> Objects = new List<Placed>();
     }
 
-    internal sealed class PaletteEntry
-    {
-        public int Index, Y, Cr, Cb, A;
-    }
+    /// <summary>The objects a composition places at most: Blu-ray's two, as FFmpeg reads them.</summary>
+    const int MaxPlaced = 2;
 
     internal sealed class Palette
     {
         public int Id;
-        public List<PaletteEntry> Entries = new List<PaletteEntry>();
+        /// <summary>Its entries as they come, 5 bytes each (index, Y, Cr, Cb, alpha), one for each index at most.</summary>
+        public byte[] Entries = new byte[0];
     }
 
     internal sealed class ObjectPart
@@ -65,37 +64,52 @@ public sealed class PgsDecoder : IPictureDecoder
     sealed class ObjectData
     {
         public int Width, Height;
-        public byte[] Rle = new byte[0];
-    }
-
-    sealed class Pending
-    {
-        public int Width, Height;
+        /// <summary>Its run-length data, in the parts it came in.</summary>
         public List<byte[]> Parts = new List<byte[]>();
     }
 
     readonly IReadOnlyList<byte[]> samples;
-    readonly DisplaySet?[] sets;
     readonly FrameCache cache = new FrameCache();
 
-    public PgsDecoder(IReadOnlyList<byte[]> samples)
-    {
-        this.samples = samples;
-        sets = new DisplaySet?[samples.Count];
-    }
+    public PgsDecoder(IReadOnlyList<byte[]> samples) => this.samples = samples;
 
-    internal static DisplaySet ParseDisplaySet(byte[] data)
+    /// <summary>
+    /// Calls <paramref name="each"/> with the type and body of a display set's segments,
+    /// <see cref="PictureColors.MaxSegments"/> at most, up to its end.
+    /// </summary>
+    static void EachSegment(byte[] data, Action<int, int, int> each)
     {
-        var set = new DisplaySet();
         var at = 0;
-        while (at + 3 <= data.Length)
+        for (var n = 0; n < PictureColors.MaxSegments && at + 3 <= data.Length; n++)
         {
             // Some muxers keep the "PG" header of the .sup format: 2 magic bytes, PTS and DTS.
             if (PictureColors.At(data, at) == 0x50 && PictureColors.At(data, at + 1) == 0x47) at += 10;
             var type = PictureColors.At(data, at);
             var size = (PictureColors.At(data, at + 1) << 8) | PictureColors.At(data, at + 2);
-            var body = PictureColors.Slice(data, at + 3, Math.Min(data.Length, at + 3 + size));
-            at += 3 + size;
+            var start = at + 3;
+            at = start + size;
+            each(type, start, Math.Min(data.Length, at));
+            if (type == End) return;
+        }
+    }
+
+    /// <summary>The state of a display set's composition, read without the rest of it.</summary>
+    static int StateOf(byte[] data)
+    {
+        var state = 0;
+        EachSegment(data, (type, start, end) =>
+        {
+            if (type == Pcs) state = end - start >= 11 ? data[start + 7] : 0;
+        });
+        return state;
+    }
+
+    internal static DisplaySet ParseDisplaySet(byte[] data)
+    {
+        var set = new DisplaySet();
+        EachSegment(data, (type, start, end) =>
+        {
+            var body = PictureColors.Slice(data, start, end);
             switch (type)
             {
                 case Pcs:
@@ -104,10 +118,8 @@ public sealed class PgsDecoder : IPictureDecoder
                 case Pds:
                 {
                     if (body.Length < 2) break;
-                    var palette = new Palette { Id = body[0] };
-                    for (var i = 2; i + 5 <= body.Length; i += 5)
-                        palette.Entries.Add(new PaletteEntry { Index = body[i], Y = body[i + 1], Cr = body[i + 2], Cb = body[i + 3], A = body[i + 4] });
-                    set.Palettes.Add(palette);
+                    var entries = Math.Min((body.Length - 2) / 5, 256);
+                    set.Palettes.Add(new Palette { Id = body[0], Entries = PictureColors.Slice(body, 2, 2 + entries * 5) });
                     break;
                 }
                 case Ods:
@@ -135,8 +147,7 @@ public sealed class PgsDecoder : IPictureDecoder
                 default:
                     break;
             }
-            if (type == End) break;
-        }
+        });
         return set;
     }
 
@@ -150,7 +161,7 @@ public sealed class PgsDecoder : IPictureDecoder
             State = b[7],
             PaletteId = b[9],
         };
-        var count = b[10];
+        var count = Math.Min((int)b[10], MaxPlaced);
         var at = 11;
         for (var i = 0; i < count && at + 8 <= b.Length; i++)
         {
@@ -218,44 +229,48 @@ public sealed class PgsDecoder : IPictureDecoder
         return output;
     }
 
-    DisplaySet Set(int index) => sets[index] ??= ParseDisplaySet(samples[index]);
-
     public long? OwnDurationMs(int index) => null;
 
     public PictureFrame? Decode(int index) => cache.Get(index, Compose);
 
+    /// <summary>Display sets are read again for each frame decoded, rather than kept: a crafted track's would take many times its size.</summary>
     PictureFrame? Compose(int index)
     {
-        var pcs = Set(index).Pcs;
+        var current = ParseDisplaySet(samples[index]);
+        var pcs = current.Pcs;
         if (pcs == null) return null;
         if (pcs.Objects.Count == 0) return new PictureFrame(pcs.Width, pcs.Height, new SubtitleBitmap[0]);
         // Palettes and objects as they stand at `index`: from the last epoch start or acquisition point.
         var from = index;
-        while (from > 0)
-        {
-            var state = Set(from).Pcs?.State ?? 0;
-            if ((state & 0xc0) != 0) break;
-            from--;
-        }
-        var palettes = new Dictionary<int, Dictionary<int, PaletteEntry>>();
+        while (from > 0 && index - from < PictureColors.MaxEpoch && (StateOf(samples[from]) & 0xc0) == 0) from--;
+        // Each palette's entries by index: whether set, then Y, Cr, Cb and alpha.
+        var palettes = new Dictionary<int, byte[]>();
         var objects = new Dictionary<int, ObjectData>();
-        var pending = new Dictionary<int, Pending>();
-        for (var i = from; i <= index; i++)
+        var pending = new Dictionary<int, ObjectData>();
+        var work = PictureColors.MaxWork;
+        for (var i = from; i <= index && work > 0; i++)
         {
-            var s = Set(i);
+            var data = samples[i];
+            work -= 1 + data.Length;
+            var s = i == index ? current : ParseDisplaySet(data);
             foreach (var p in s.Palettes)
             {
-                if (!palettes.TryGetValue(p.Id, out var palette)) palettes[p.Id] = palette = new Dictionary<int, PaletteEntry>();
-                foreach (var e in p.Entries) palette[e.Index] = e;
+                if (!palettes.TryGetValue(p.Id, out var palette)) palettes[p.Id] = palette = new byte[256 * 5];
+                for (var e = 0; e + 5 <= p.Entries.Length; e += 5)
+                {
+                    var at = p.Entries[e] * 5;
+                    palette[at] = 1;
+                    for (var k = 1; k < 5; k++) palette[at + k] = p.Entries[e + k];
+                }
             }
             foreach (var o in s.Objects)
             {
-                if (o.First) pending[o.Id] = new Pending { Width = o.Width, Height = o.Height };
+                if (o.First) pending[o.Id] = new ObjectData { Width = o.Width, Height = o.Height };
                 if (!pending.TryGetValue(o.Id, out var part)) continue;
                 part.Parts.Add(o.Data);
                 if (o.Last)
                 {
-                    objects[o.Id] = new ObjectData { Width = part.Width, Height = part.Height, Rle = Join(part.Parts) };
+                    objects[o.Id] = part;
                     pending.Remove(o.Id);
                 }
             }
@@ -263,15 +278,15 @@ public sealed class PgsDecoder : IPictureDecoder
         if (!palettes.TryGetValue(pcs.PaletteId, out var chosen)) return null;
         var hd = pcs.Height > 576;
         var rgba = new byte[256 * 4];
-        foreach (var entry in chosen)
+        for (var i = 0; i < 256; i++)
         {
-            var e = entry.Value;
-            var (r, g, b) = PictureColors.YcbcrToRgb(e.Y, e.Cb, e.Cr, hd);
-            var at = entry.Key * 4;
-            rgba[at] = r;
-            rgba[at + 1] = g;
-            rgba[at + 2] = b;
-            rgba[at + 3] = (byte)e.A;
+            var at = i * 5;
+            if (chosen[at] == 0) continue;
+            var (r, g, b) = PictureColors.YcbcrToRgb(chosen[at + 1], chosen[at + 3], chosen[at + 2], hd);
+            rgba[i * 4] = r;
+            rgba[i * 4 + 1] = g;
+            rgba[i * 4 + 2] = b;
+            rgba[i * 4 + 3] = chosen[at + 4];
         }
         var bitmaps = new List<SubtitleBitmap>();
         // Each placement is a picture of its own, the same object's too: together, no more than a frame's pixels.
@@ -282,7 +297,7 @@ public sealed class PgsDecoder : IPictureDecoder
             if (obj.Width > PictureColors.MaxSide || obj.Height > PictureColors.MaxSide) continue;
             pixelsLeft -= obj.Width * obj.Height;
             if (pixelsLeft < 0) break;
-            var indexes = DecodeRle(obj.Rle, obj.Width, obj.Height);
+            var indexes = DecodeRle(Join(obj.Parts), obj.Width, obj.Height);
             var crop = placed.Crop ?? new Crop { X = 0, Y = 0, W = obj.Width, H = obj.Height };
             var w = Math.Max(0, Math.Min(crop.W, obj.Width - crop.X));
             var h = Math.Max(0, Math.Min(crop.H, obj.Height - crop.Y));
