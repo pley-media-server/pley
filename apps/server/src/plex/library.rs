@@ -1265,6 +1265,9 @@ pub async fn image(
     if let Some(kind) = pictures::Kind::of_list(&image) {
         return Ok(pictures::list(&state, &user, key, kind).await?.into_response());
     }
+    if matches!(image.as_str(), "themes" | "clearLogos" | "squareArts") {
+        return Ok(pictures::none(&state, &user, key).await?.into_response());
+    }
     if image == "file" {
         let url = params.get("url").unwrap_or_default();
         return pictures::file(state, user, key, url, params.parse("width"), headers).await;

@@ -51,6 +51,11 @@ impl World {
         key(&made.body["MediaContainer"]["Metadata"][0])
     }
 
+    /// Titles of what `path` lists.
+    async fn titles(&self, path: &str) -> Vec<String> {
+        plex_titles(&self.app.plex_json(path, &self.admin).await)
+    }
+
     /// The collection with `key`, as `/library/collections/{key}` lists it.
     async fn details(&self, path: &str) -> Value {
         self.app.plex_json(path, &self.admin).await["Metadata"][0].clone()
@@ -203,6 +208,66 @@ async fn collections_keep_labels_and_are_found_by_them() {
 
     let play = w.app.compatibility_token(&w.admin, "play").await;
     assert_eq!(w.app.plex(Method::PUT, &labelled, &play, &[]).await.status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn collection_items_move_and_what_pley_lacks_says_so() {
+    let w = world().await;
+    let casablanca = w.app.ids(w.movies, &w.admin).await["Casablanca"];
+    let collection = w.collection("Three", &[w.alien, w.brazil, casablanca]).await;
+    let children = format!("/library/collections/{collection}/children");
+    assert_eq!(w.titles(&children).await, ["Casablanca", "Alien", "Brazil"]);
+
+    // python-plexapi's moveItem(): from the order shown, kept as a custom one.
+    let first = format!("/library/collections/{collection}/items/{}/move", w.brazil);
+    assert_eq!(w.send(Method::PUT, &first).await.status, StatusCode::OK);
+    assert_eq!(w.titles(&children).await, ["Brazil", "Casablanca", "Alien"]);
+    let after = format!("/library/collections/{collection}/items/{}/move?after={casablanca}", w.alien);
+    assert_eq!(w.send(Method::PUT, &after).await.status, StatusCode::OK);
+    assert_eq!(w.titles(&children).await, ["Brazil", "Casablanca", "Alien"]);
+    let after = format!("/library/collections/{collection}/items/{casablanca}/move?after={}", w.alien);
+    assert_eq!(w.send(Method::PUT, &after).await.status, StatusCode::OK);
+    assert_eq!(w.titles(&children).await, ["Brazil", "Alien", "Casablanca"]);
+    assert_eq!(w.details(&format!("/library/collections/{collection}")).await["collectionSort"], json!(2));
+    let stranger = format!("/library/collections/{collection}/items/{}/move?after=999999", w.alien);
+    assert_eq!(w.send(Method::PUT, &stranger).await.status, StatusCode::NOT_FOUND);
+
+    // A refresh changes nothing and says it's done, as Kometa asks after a failed upload.
+    let refresh = format!("/library/collections/{collection}/refresh");
+    assert_eq!(w.send(Method::PUT, &refresh).await.status, StatusCode::OK);
+
+    // Theme music, logos and square art: none kept, none taken.
+    for key in [w.alien, collection] {
+        for list in ["themes", "clearLogos", "squareArts"] {
+            assert_eq!(w.app.plex_json(&format!("/library/metadata/{key}/{list}"), &w.admin).await["size"], json!(0));
+            let upload =
+                w.app.plex_upload(Method::POST, &format!("/library/metadata/{key}/{list}"), &w.admin, png()).await;
+            assert_eq!(upload.status, StatusCode::BAD_REQUEST, "{list}: {}", upload.text());
+        }
+        let chosen =
+            format!("/library/metadata/{key}/clearLogo?url=https%3A%2F%2Fimage.tmdb.org%2Ft%2Fp%2Foriginal%2Fx.png");
+        assert_eq!(w.send(Method::PUT, &chosen).await.status, StatusCode::BAD_REQUEST);
+    }
+
+    // Hubs: Kometa reads a collection's promotions, and Pley makes none.
+    let manage = format!("/hubs/sections/{}/manage", w.movies);
+    let hubs = w.app.plex_json(&format!("{manage}?metadataItemId={collection}"), &w.admin).await;
+    assert_eq!(hubs["size"], json!(0));
+    assert!(hubs.get("Hub").is_none() && hubs.get("Directory").is_none());
+    let nowhere = format!(
+        "{manage}?metadataItemId={collection}&promotedToRecommended=0&promotedToOwnHome=0&promotedToSharedHome=0"
+    );
+    assert_eq!(w.send(Method::POST, &nowhere).await.status, StatusCode::OK);
+    let promoted = format!("{manage}?metadataItemId={collection}&promotedToRecommended=1&promotedToOwnHome=0");
+    assert_eq!(w.send(Method::POST, &promoted).await.status, StatusCode::BAD_REQUEST);
+    let moved = format!("{manage}/custom.collection.{}.{collection}/move", w.movies);
+    assert_eq!(w.send(Method::PUT, &moved).await.status, StatusCode::BAD_REQUEST);
+
+    let play = w.app.compatibility_token(&w.admin, "play").await;
+    for (method, uri) in [(Method::PUT, first), (Method::PUT, refresh), (Method::POST, nowhere), (Method::PUT, moved)] {
+        assert_eq!(w.app.plex(method, &uri, &play, &[]).await.status, StatusCode::FORBIDDEN, "{uri}");
+    }
+    assert_eq!(w.app.plex_json(&manage, &play).await["size"], json!(0), "reading is anyone's");
 }
 
 /// The value of setting `id` in `node`'s preferences.

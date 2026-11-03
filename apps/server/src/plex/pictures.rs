@@ -50,6 +50,24 @@ impl Kind {
     }
 }
 
+/// Pictures Pley keeps none of, by the names of their lists and of one
+/// (`themes`, `theme`, …): what to call them.
+pub fn unkept(name: &str) -> Option<&'static str> {
+    match name {
+        "themes" | "theme" => Some("theme music"),
+        "clearLogos" | "clearLogo" => Some("logos"),
+        "squareArts" | "squareArt" => Some("square art"),
+        _ => None,
+    }
+}
+
+/// `/library/metadata/{key}/themes` (or `/clearLogos`, `/squareArts`): none,
+/// for something the user may see.
+pub async fn none(state: &AppState, user: &AuthUser, key: i64) -> PlexResult<Node> {
+    current(state, user, key, Kind::Poster).await?;
+    Ok(base_container().attr("size", 0))
+}
+
 /// The picture shown of `kind`: its name and, for the agent's, the agent.
 struct Current {
     rating_key: String,

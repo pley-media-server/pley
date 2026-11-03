@@ -518,6 +518,84 @@ pub async fn collection_remove(
     Ok(StatusCode::OK)
 }
 
+/// `PUT /library/collections/{key}/items/{item}/move?after={item}`
+/// (python-plexapi's `moveItem()`): the item right after the other, or
+/// first, and the collection keeps that order (`collectionSort` 2).
+pub async fn collection_move(
+    State(state): State<AppState>,
+    PlexAdmin(admin): PlexAdmin,
+    Extension(info): Extension<Arc<PlexInfo>>,
+    Path((key, item)): Path<(i64, i64)>,
+    params: Params,
+) -> PlexResult<Node> {
+    let id = collection_path(key)?;
+    let (collection, ..) = collection_for(&state, &admin, id).await?;
+    if collection.smart_filter.is_some() {
+        return Err(PlexError::BadRequest("a smart collection is in its filter's order".into()));
+    }
+    let after = match params.get("after").filter(|a| !a.trim().is_empty()) {
+        Some(after) => Some(after.trim().parse().map_err(|_| PlexError::BadRequest("`after` is an item".into()))?),
+        None => None,
+    };
+    if !collections::move_item(&state.db, id, item, after).await? {
+        return Err(PlexError::NotFound);
+    }
+    state.events.send(crate::events::ServerEvent::LibraryChanged { library_id: collection.library_id });
+    collection_items(&state, &admin, &info, id, &Params::default(), &Page::default()).await
+}
+
+/// `PUT /library/collections/{key}/refresh`: a collection has no metadata
+/// of its own to fetch again (automatic ones follow their films'), so this
+/// answers once the collection is found, and changes nothing.
+pub async fn collection_refresh(
+    State(state): State<AppState>,
+    PlexAdmin(admin): PlexAdmin,
+    Path(key): Path<i64>,
+) -> PlexResult<Node> {
+    collection_for(&state, &admin, collection_path(key)?).await?;
+    Ok(Node::container().attr("size", 0))
+}
+
+/// `/hubs/sections/{id}/manage`: the hubs a section's collections are
+/// promoted to. Pley shows collections on no home page or recommendations,
+/// so there are none.
+pub async fn managed_hubs(
+    State(state): State<AppState>,
+    PlexUser(user): PlexUser,
+    Path(id): Path<String>,
+) -> PlexResult<Node> {
+    let (lib, _) = library_for(&state, &user, &id).await?;
+    Ok(Node::container().attr("size", 0).attr("allowSync", false).attr("librarySectionID", lib.id))
+}
+
+/// `POST /hubs/sections/{id}/manage?metadataItemId=…&promotedTo…=…`: a
+/// collection promoted nowhere stays so; promoting it answers `400`, as Pley
+/// has no hubs to promote it to.
+pub async fn promote_hub(
+    State(state): State<AppState>,
+    PlexAdmin(admin): PlexAdmin,
+    Path(id): Path<String>,
+    params: Params,
+) -> PlexResult<Node> {
+    library_for(&state, &admin, &id).await?;
+    if params.0.iter().any(|(k, v)| k.starts_with("promoted") && v.trim() != "0") {
+        return Err(PlexError::BadRequest("Pley shows collections on no home page or recommendations".into()));
+    }
+    Ok(Node::container().attr("size", 0))
+}
+
+/// `PUT /hubs/sections/{id}/manage/{identifier}[/move]` and `DELETE …`:
+/// there are no hubs to change.
+pub async fn change_hub(
+    State(state): State<AppState>,
+    PlexAdmin(admin): PlexAdmin,
+    Path(path): Path<Vec<(String, String)>>,
+) -> PlexResult<Node> {
+    let id = path.iter().find(|(name, _)| name == "id").map(|(_, id)| id.as_str()).unwrap_or_default();
+    library_for(&state, &admin, id).await?;
+    Err(PlexError::BadRequest("Pley has no hubs of collections to change".into()))
+}
+
 /// `DELETE /library/collections/{key}`
 pub async fn collection_delete(
     State(state): State<AppState>,

@@ -285,8 +285,10 @@ fn router(state: AppState, info: Arc<PlexInfo>) -> Router {
         .route("/library/collections/{id}", get(lists::collection).delete(lists::collection_delete))
         .route("/library/collections/{id}/items", put(lists::collection_add))
         .route("/library/collections/{id}/items/{item}", delete(lists::collection_remove))
+        .route("/library/collections/{id}/items/{item}/move", put(lists::collection_move))
         .route("/library/collections/{id}/children", get(lists::collection_children))
         .route("/library/collections/{id}/prefs", put(lists::collection_prefs))
+        .route("/library/collections/{id}/refresh", put(lists::collection_refresh))
         .route(
             "/library/collections/{id}/{image}",
             get(lists::collection_image)
@@ -305,6 +307,9 @@ fn router(state: AppState, info: Arc<PlexInfo>) -> Router {
         .route("/hubs/home/recentlyAdded", get(library::home_recently_added))
         .route("/hubs/sections/{id}", get(library::section_hubs))
         .route("/hubs/sections/{id}/continueWatching/items", get(library::section_continue_watching))
+        .route("/hubs/sections/{id}/manage", get(lists::managed_hubs).post(lists::promote_hub))
+        .route("/hubs/sections/{id}/manage/{identifier}", put(lists::change_hub).delete(lists::change_hub))
+        .route("/hubs/sections/{id}/manage/{identifier}/move", put(lists::change_hub))
         .route("/search", get(library::search))
         .route("/photo/_/transcode", get(library::photo_transcode))
         .route("/_/timeline", any(playback::timeline))

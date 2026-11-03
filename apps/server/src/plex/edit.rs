@@ -450,11 +450,15 @@ async fn collection_named(state: &AppState, library_id: i64, title: &str) -> sql
 }
 
 /// The override field of the picture a path names (`posters`, `poster`, …).
-fn artwork_field(name: &str) -> Option<&'static str> {
+/// Themes, logos and square art, which Pley keeps none of, answer `400`.
+fn artwork_field(name: &str) -> PlexResult<&'static str> {
     match name {
-        "posters" | "poster" | "thumbs" | "thumb" => Some("poster"),
-        "arts" | "art" => Some("backdrop"),
-        _ => None,
+        "posters" | "poster" | "thumbs" | "thumb" => Ok("poster"),
+        "arts" | "art" => Ok("backdrop"),
+        _ => match pictures::unkept(name) {
+            Some(what) => Err(PlexError::BadRequest(format!("Pley keeps no {what}"))),
+            None => Err(PlexError::NotFound),
+        },
     }
 }
 
@@ -499,7 +503,10 @@ pub async fn upload_artwork(
     params: Params,
     body: Bytes,
 ) -> PlexResult<StatusCode> {
-    let field = artwork_field(&name).filter(|_| name.ends_with('s')).ok_or(PlexError::NotFound)?;
+    let field = artwork_field(&name)?;
+    if !name.ends_with('s') {
+        return Err(PlexError::NotFound);
+    }
     let target = picture_target(&state, &admin, key).await?;
     let blob = match params.get("url").filter(|u| !u.is_empty()) {
         Some(url) => state.metadata.download_artwork(url).await.map_err(|e| PlexError::BadRequest(e.to_string()))?,
@@ -517,7 +524,10 @@ pub async fn choose_artwork(
     Path((key, name)): Path<(i64, String)>,
     params: Params,
 ) -> PlexResult<StatusCode> {
-    let field = artwork_field(&name).filter(|_| !name.ends_with('s')).ok_or(PlexError::NotFound)?;
+    let field = artwork_field(&name)?;
+    if name.ends_with('s') {
+        return Err(PlexError::NotFound);
+    }
     let url = params.get("url").filter(|u| !u.is_empty()).ok_or(PlexError::BadRequest("`url` is missing".into()))?;
     let target = picture_target(&state, &admin, key).await?;
     let kind = if field == "poster" { pictures::Kind::Poster } else { pictures::Kind::Art };
