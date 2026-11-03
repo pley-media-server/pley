@@ -44,6 +44,7 @@ internal object Tags {
     const val TV_SEARCH_FIELD = "pley.tv.search.field"
     const val TV_SEARCH_RESULTS = "pley.tv.search.results"
     const val TV_SETTINGS = "pley.tv.settings"
+    const val TV_SETTINGS_CATEGORY = "pley.tv.settings.category."
     const val TV_SETTINGS_PANE = "pley.tv.settings.pane"
     const val TV_CHOICES = "pley.tv.settings.choices"
     const val TV_PLAYLISTS_GRID = "pley.tv.playlists.grid"
@@ -403,14 +404,14 @@ internal class TvJourney(scope: MacrobenchmarkScope) : Steps(scope) {
     fun walkSettings() {
         railTo("settings")
         await(By.res(Tags.TV_SETTINGS), "Settings")
-        moveTo(By.text(PLAYBACK), Key.DOWN, "Settings' Playback")
+        moveTo(By.res(Tags.TV_SETTINGS_CATEGORY + PLAYBACK), Key.DOWN, "Settings' Playback")
         moveTo(By.res(Tags.TV_SETTINGS_PANE), Key.RIGHT, "Playback's settings")
         moveTo(By.textContains(QUALITY), Key.DOWN, "Playback's Quality")
         press(Key.CENTER, restMs = PAGE_MS)
         await(By.res(Tags.TV_CHOICES), "Quality's panel")
         repeat(2) { press(Key.DOWN) }
         press(Key.BACK, restMs = PAGE_MS)
-        moveTo(By.text(PROFILE), Key.LEFT, "Settings' Profile")
+        moveTo(By.res(Tags.TV_SETTINGS_CATEGORY + PROFILE), Key.LEFT, "Settings' Profile")
         moveTo(By.res(Tags.TV_SETTINGS_PANE), Key.RIGHT, "Profile's settings")
         moveTo(By.textContains(SORT_LIBRARIES), Key.DOWN, "Profile's Sort libraries")
         press(Key.CENTER, restMs = PAGE_MS)
@@ -444,11 +445,13 @@ internal class TvJourney(scope: MacrobenchmarkScope) : Steps(scope) {
         const val PLAYING_MS = 5_000L
         const val EDIT_TEXT = "android.widget.EditText"
 
+        // Settings' categories (ui/tv's settings Category names).
+        const val PLAYBACK = "Playback"
+        const val PROFILE = "Profile"
+
         // ui/tv's words (res/values/strings_tv_*.xml).
         const val COLLECTION_LABEL = "Collection"
-        const val PLAYBACK = "Playback"
         const val QUALITY = "Quality"
-        const val PROFILE = "Profile"
         const val SORT_LIBRARIES = "Sort libraries"
         const val LIBRARIES_TITLE = "Libraries"
         const val RESUME = "Resume"
