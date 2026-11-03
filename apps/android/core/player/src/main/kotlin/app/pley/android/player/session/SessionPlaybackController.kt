@@ -126,6 +126,11 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   [PlaybackEnvironment.local], which keeps it while the server is out of
  *   reach. A quality picked by hand, or a recovery's fallback, streams
  *   from the server instead.
+ * - **A video on a drive** ([PlaybackEnvironment.drive]) plays as a download
+ *   does, with no server at all: its tracks and chapters come from Media3
+ *   as it loads ([driveTracks]), Sync moves the subtitle files beside it
+ *   only, and what only a conversion would play says so in place of a
+ *   fallback. Dolby Vision profile 7 plays as its HDR10 base layer.
  *
  * Runs on [scope]'s dispatcher (the main thread); the engine's events come there too.
  */
@@ -192,6 +197,10 @@ class SessionPlaybackController(
 
     /** A download plays, with no session on the server. */
     private var playingLocal = false
+
+    /** A video on a drive: the tracks asked for (its window came back), chosen once Media3 has read them. */
+    private var pendingAudio: Long? = null
+    private var pendingSubtitle: Long? = null
 
     // ---------------------------------------------------------------- the session
 
@@ -328,6 +337,8 @@ class SessionPlaybackController(
      * remembered is Automatic (only Automatic uses it), alongside the item's details.
      */
     private fun networkLookup(): Deferred<NetworkStart.Lookup?> = scope.async {
+        // A file on a drive plays as it is: there is no network to ask about.
+        if (env.drive) return@async null
         val remembered = try {
             env.quality.remembered()
         } catch (e: CancellationException) {
@@ -361,6 +372,9 @@ class SessionPlaybackController(
         audio = PlaybackPlan.initialAudio(chosen, req.audioIndex)
         audioPicked = audio != null
         subtitle = PlaybackPlan.initialSubtitle(chosen, req.subtitleIndex)
+        // A file on a drive has its own tracks once Media3 has read them.
+        pendingAudio = req.audioIndex.takeIf { env.drive && audio == null }
+        pendingSubtitle = req.subtitleIndex.takeIf { env.drive && subtitle == null }
         val remembered = try {
             env.quality.remembered()
         } catch (e: CancellationException) {
@@ -434,7 +448,8 @@ class SessionPlaybackController(
     private suspend fun begin(atMs: Long, alongside: Boolean = false, refused: (() -> Unit)? = null) {
         val detail = item ?: return
         val chosen = file ?: return fail(texts.noFile, canRetry = false)
-        val local = localFile(chosen.id)?.takeIf { recovery.fallbackMode == null && !streamingPicked }
+        // A file on a drive plays as it is, always: no server streams it.
+        val local = localFile(chosen.id)?.takeIf { env.drive || (recovery.fallbackMode == null && !streamingPicked) }
         // A change while the media shows: the session playing plays on while the next one gets ready.
         val playing = session?.takeIf { alongside && local == null && link != null && mediaShown && !ended && ui.value.phase !is PlayerPhase.Error }
         if (playing != null) return beginBeside(playing, detail, chosen, atMs, refused)
@@ -656,7 +671,8 @@ class SessionPlaybackController(
      * Plays [chosen] from its download [local], as it is: a session of the
      * device's own, whose reports go through the downloads (sent at once,
      * or kept while the server is out of reach), and the subtitles saved
-     * beside the file.
+     * beside the file. A file on a drive plays the same way: its reports
+     * keep where it stopped on the device, with its length as Media3 reads it.
      */
     private fun beginLocal(detail: ItemDetail, chosen: MediaFile, local: LocalFile, atMs: Long) {
         // No server to choose the audio: the download's own choice.
@@ -682,13 +698,14 @@ class SessionPlaybackController(
                 )
             },
         )
-        sessionState.value = ServerPlaybackSession(LocalReportsApi(env.api, env.local), detail.id, info, env.reporter)
+        val length = { info.durationMs.takeIf { it > 0 } ?: link?.durationMs?.takeIf { it > 0 } }
+        sessionState.value = ServerPlaybackSession(LocalReportsApi(env.api, env.local), detail.id, info, env.reporter, length)
         live = null
         playingLocal = true
         playingConvertedSound = false
         ui.update {
             it.copy(
-                method = texts.downloaded,
+                method = if (env.drive) texts.method(info) else texts.downloaded,
                 note = null,
                 canPlayOriginal = false,
                 durationMs = info.durationMs.takeIf { d -> d > 0 } ?: it.durationMs,
@@ -706,6 +723,7 @@ class SessionPlaybackController(
             video = PlaybackPlan.videoStream(chosen),
             durationMs = info.durationMs.takeIf { it > 0 },
             dolbyVision = dolbyVision,
+            profile7BaseLayer = env.drive,
         )
         engineLink.prepare(source, atMs, wantPlay.value)
         engineLink.setSpeed(speed)
@@ -779,7 +797,7 @@ class SessionPlaybackController(
                     engineLink.selectText(null, null)
                     if (sideload) showPictures(sub) else hideServerSubtitles()
                 }
-                sub.external || (offset.value != 0L && !PlaybackPlan.isImage(sub)) -> {
+                sub.external || (offset.value != 0L && !PlaybackPlan.isImage(sub) && !env.drive) -> {
                     engineLink.selectText(null, null)
                     showServerSubtitles(sub)
                 }
@@ -849,11 +867,12 @@ class SessionPlaybackController(
 
     /**
      * Where a file's subtitle offset is kept: the file's own address, so
-     * files of different servers don't mix, and the profile watching, so
-     * one profile's timing never moves another's subtitles.
+     * files of different servers don't mix (a file on a drive, its id made
+     * of its path), and the profile watching, so one profile's timing never
+     * moves another's subtitles.
      */
     private fun offsetKey(fileId: Long): String {
-        val file = env.api.url("/api/files/$fileId")
+        val file = if (env.drive) "drive:$fileId" else env.api.url("/api/files/$fileId")
         return env.profileId?.let { "$file#profile=$it" } ?: file
     }
 
@@ -895,6 +914,7 @@ class SessionPlaybackController(
 
     /** A video or an audio track that no decoder here takes: the server has to help, as for a decoder error. */
     override fun onTracks(tracks: EngineTracks) {
+        if (env.drive && session != null) driveTracks(tracks)
         if (tracksChecked || session == null) return
         tracksChecked = true
         val videoUnplayable = tracks.video.isNotEmpty() && tracks.video.none { it.supported }
@@ -903,6 +923,38 @@ class SessionPlaybackController(
             val what = if (videoUnplayable) "video" else "audio"
             onError(EngineError.Unsupported(audio = !videoUnplayable, container = false, detail = "no $what track plays here"))
         }
+    }
+
+    /**
+     * A file on a drive, as Media3 read it: its streams and chapters fill
+     * the menus, the audio it plays shows as chosen, and tracks asked for
+     * before (its window came back) are chosen once they are there.
+     */
+    private fun driveTracks(tracks: EngineTracks) {
+        val detail = item ?: return
+        val chosen = file ?: return
+        val streams = DriveStreams.streams(tracks, chosen.streams.filter { it.external })
+        val known = chosen.copy(streams = streams, chapters = DriveStreams.chapters(tracks.chapters, link?.durationMs ?: 0))
+        if (known == chosen) return
+        file = known
+        item = detail.copy(files = detail.files.map { if (it.id == known.id) known else it })
+        val audios = PlaybackPlan.audioStreams(known)
+        val asked = pendingAudio?.let { wanted -> audios.firstOrNull { it.index.toLong() == wanted } }
+        val playing = audios.getOrNull(tracks.audio.indexOfFirst { it.selected })
+        audio = when {
+            asked != null -> asked
+            audioPicked -> audios.firstOrNull { it.index == audio?.index } ?: playing
+            else -> playing
+        }
+        if (asked != null) audioPicked = true
+        pendingSubtitle?.let { wanted -> PlaybackPlan.subtitleStreams(known).firstOrNull { it.index.toLong() == wanted } }?.let { subtitle = it }
+        val choose = pendingAudio != null || pendingSubtitle != null
+        pendingAudio = null
+        pendingSubtitle = null
+        ui.update { it.copy(chapters = known.chapters.map { c -> ChapterMark(c.title, c.startMs, c.endMs, null) }) }
+        publishChoices()
+        refreshDetails()
+        if (choose) applyTracks()
     }
 
     override fun onError(error: EngineError) {
@@ -919,6 +971,14 @@ class SessionPlaybackController(
 
     /** Does what the recovery ladder says; [alongside]: a new session is made ready beside the one playing, which plays on. */
     private fun act(action: Recovery.Action, starving: Boolean, alongside: Boolean = false) {
+        // A file on a drive has no server: what only a conversion would play doesn't play, and a
+        // file that still can't be read (the drive pulled out) says so, not that a server is away.
+        if (env.drive && action is Recovery.Action.NewSession && action.mode != null) {
+            return fail(texts.driveUnplayable, canRetry = false)
+        }
+        if (env.drive && action is Recovery.Action.Fail && (action.failure == Failure.Network || action.failure == Failure.Stopped)) {
+            return fail(texts.driveUnreadable, canRetry = true)
+        }
         when (action) {
             is Recovery.Action.NewSession -> {
                 if (action.reason == FallbackReason.NotSmooth && recovery.struggleSwitched && !automatic) {
@@ -1047,6 +1107,8 @@ class SessionPlaybackController(
             lastAdvancePos = pos
         } else if (now - lastAdvanceAt >= STALL_MS) {
             lastAdvanceAt = now
+            // A file on a drive waits for no server, and the same file again would only stand still again.
+            if (env.drive) return fail(texts.driveStuck, canRetry = true)
             val starving = engineLink.status == EngineStatus.Buffering && engineLink.bufferedMs - engineLink.positionMs < STARVING_MS
             act(recovery.onStall(s.info.method, starving), starving)
             return
@@ -1087,6 +1149,8 @@ class SessionPlaybackController(
      * down); a transcode in Automatic steps down to fewer lines.
      */
     private fun onStruggling(method: PlaybackMethod, now: Long) {
+        // A file on a drive has nothing smoother to go to: it plays on as it is.
+        if (env.drive) return
         val action = recovery.onStruggling(method)
         if (action != null) {
             if (automatic) {
@@ -1417,7 +1481,7 @@ class SessionPlaybackController(
     private fun soundUndecodable() {
         if (speed == 1f) return
         when {
-            playingLocal -> speedBack(texts.speedUndecodable)
+            playingLocal -> speedBack(if (env.drive) texts.driveSpeedUndecodable else texts.speedUndecodable)
             // Until the session asked for so plays, the one before still passes its sound through.
             serverDecodes -> if (playingConvertedSound) speedBack(texts.speedUnconverted)
             else -> {
@@ -1642,7 +1706,7 @@ class SessionPlaybackController(
             live = live,
             engine = link?.stats().orEmpty(),
             subtitle = subtitle,
-        ).let { if (info.url.startsWith("file:")) it.copy(method = texts.downloaded) else it }
+        ).let { if (info.url.startsWith("file:") && !env.drive) it.copy(method = texts.downloaded) else it }
         ui.update { it.copy(details = details) }
     }
 
@@ -1659,6 +1723,7 @@ class SessionPlaybackController(
         subtitleIndex = subtitle?.index?.toLong(),
         quality = picked.id,
         queue = current.queue,
+        drivePath = current.drivePath,
     )
 
     override fun retry() {
@@ -1840,8 +1905,10 @@ class SessionPlaybackController(
                 subs.map { TrackChoice(it.index.toLong(), streamLabel(it), it.index == subtitle?.index, burnIn = streaming && PlaybackPlan.isImage(it) && !sideload) }
         }
         val sub = subtitle
-        // Text moves always; pictures only when drawn here from the server's .mks.
-        val syncable = sub != null && (!PlaybackPlan.isImage(sub) || (streaming && sideload && info?.burnSubtitles != true))
+        // Text moves always; pictures only when drawn here from the server's .mks. On a drive, the
+        // files beside it only: the server's WebVTT moves a file's own tracks, and a drive has no server.
+        val syncable = sub != null &&
+            (if (env.drive) sub.external else !PlaybackPlan.isImage(sub) || (streaming && sideload && info?.burnSubtitles != true))
         val auto = serverQuality(info)
         val playing = label(auto ?: quality)
         val fileHint = chosenFile?.let { f ->
@@ -1879,6 +1946,8 @@ class SessionPlaybackController(
      * the audio chosen before stays, as subtitles alone were picked.
      */
     private fun saveStreams() {
+        // A file on a drive keeps its tracks for this viewing: there is no server to save them.
+        if (env.drive) return
         val itemId = item?.id ?: return
         val choice = StreamChoice(fileId = file?.id, audioIndex = audio?.takeIf { audioPicked }?.index, subtitleIndex = subtitle?.index)
         env.reporter.send { env.api.setStreams(itemId, choice) }
@@ -1907,6 +1976,8 @@ class SessionPlaybackController(
     }
 
     private fun failWith(error: Exception) {
+        // A file on a drive asks nothing of a server: what fails is reading it.
+        if (env.drive) return fail(texts.driveUnreadable, canRetry = true)
         val downloaded = file?.let { localFile(it.id) } != null
         if (error is OfflineException && downloaded && recovery.fallbackReason == FallbackReason.NotSmooth) {
             // A download that dropped frames went to the server for a smoother copy, which is out

@@ -191,7 +191,8 @@ class TvAccountTestGraph : ScreensGraph {
         var nexts = 0
         val jumps = mutableListOf<Int>()
         override val nowPlaying: StateFlow<NowPlaying?> = now
-        override val queue: StateFlow<MusicQueueState> = MutableStateFlow(MusicQueueState(TRACKS, 0))
+        val queueState = MutableStateFlow(MusicQueueState(TRACKS, 0))
+        override val queue: StateFlow<MusicQueueState> = queueState
         override fun position(): MusicPosition = MusicPosition(60_000, 185_000, 90_000)
         override fun play(tracks: List<ItemSummary>, startIndex: Int, shuffle: Boolean) {
             played += tracks.map { it.id } to startIndex

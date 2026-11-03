@@ -40,6 +40,8 @@ class PleyKeyTest {
         PleyKey.Settings,
         PleyKey.Diagnostics,
         PleyKey.NowPlaying,
+        PleyKey.Drive(),
+        PleyKey.Drive("/storage/1A2B-3C4D/Films"),
         PleyKey.ItemActions(4567),
         PleyKey.ItemActions(204, continueWatching = true),
         PleyKey.AddToPlaylist(listOf(1, 2, 3)),

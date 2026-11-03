@@ -26,7 +26,12 @@ describes how they are made.
 - On TVs, the title shows at the top for a few seconds as each item
   begins, the next episode too, while the player's controls are hidden
   and Playback details aren't over the video.
-
+- Android TV and Fire TV play videos from a USB drive, with no server: while
+  one is plugged in, the rail has USB drive after Now Playing. Its page
+  lists the drive's folders and videos, sorted as a person sorts names,
+  with where each video resumes, and a video plays in Pley's player with
+  the subtitle files beside it, from where it stopped. The page asks for
+  leave to read the drive as it opens.
 ### Changed
 
 - Chapters named only by where they start ("00:06:19.212", as mkvmerge
@@ -194,6 +199,18 @@ describes how they are made.
 - On Android TV and Fire TV, Up, Down or Right pressed while nothing on
   the page has focus, as when what had it was drawn again, brings focus
   back to the page, where the key did nothing.
+- Paused music stays in the server's Now playing, and a converted track
+  plays on at once after a long pause, where it started over. A video or
+  a live channel ends the music's session as well as pausing it, and Play
+  starts the music again where it was.
+- A remote's Stop key pauses music and keeps its queue, where it ended
+  the music and took Now Playing out of the TV's rail.
+- A track that stops for a reason the player can't name (the server
+  answering an error, say) no longer ends at once as "This track can't be
+  played": the app asks the server, and plays it again as a conversion or
+  in a new session, or says the server stopped it.
+- On TVs, Now Playing dims and wakes with a short fade (none with reduced
+  motion), and Down from its controls lands on the track playing.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was

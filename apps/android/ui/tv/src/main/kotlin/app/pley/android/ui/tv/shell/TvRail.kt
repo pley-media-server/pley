@@ -479,6 +479,7 @@ private fun label(item: RailItem): String = when (item.slot) {
     RailSlot.Playlists -> stringResource(R.string.tv_shell_rail_playlists)
     RailSlot.Collections -> stringResource(R.string.tv_shell_rail_collections)
     RailSlot.NowPlaying -> stringResource(R.string.tv_shell_rail_now_playing)
+    RailSlot.Drive -> stringResource(R.string.tv_shell_rail_drive)
     RailSlot.Settings -> stringResource(R.string.tv_shell_rail_settings)
 }
 

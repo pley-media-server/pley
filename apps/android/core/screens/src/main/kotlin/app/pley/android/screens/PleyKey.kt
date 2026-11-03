@@ -131,6 +131,10 @@ sealed interface PleyKey : NavKey {
     @Serializable
     data object NowPlaying : PleyKey
 
+    /** A folder of the drive plugged into the TV, by its path; `null`: the drive's top. */
+    @Serializable
+    data class Drive(val folder: String? = null) : PleyKey
+
     // Sheets, over the screen they were opened from.
 
     /**

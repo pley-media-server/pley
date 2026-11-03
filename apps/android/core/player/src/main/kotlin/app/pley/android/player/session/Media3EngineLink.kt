@@ -15,6 +15,9 @@ import androidx.media3.exoplayer.DecoderCounters
 import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.extractor.metadata.Chapter as ContainerChapter
+import app.pley.android.model.Chapter
+import app.pley.android.model.DynamicRange
 import app.pley.android.model.PleyJson
 import app.pley.android.player.EngineSource
 import app.pley.android.player.PlayerEngine
@@ -224,12 +227,23 @@ class Media3EngineLink(override val engine: PlayerEngine) : EngineLink {
             val format = group.getTrackFormat(0)
             EngineTrack(
                 language = format.language,
-                mimeType = format.sampleMimeType,
+                // Text read as the media loads carries its own MIME type in its codecs.
+                mimeType = if (format.sampleMimeType == MimeTypes.APPLICATION_MEDIA3_CUES) format.codecs ?: format.sampleMimeType else format.sampleMimeType,
                 channels = format.channelCount.takeIf { it != Format.NO_VALUE },
                 supported = group.isSupported,
+                label = format.label,
+                default = format.selectionFlags and C.SELECTION_FLAG_DEFAULT != 0,
+                forced = format.selectionFlags and C.SELECTION_FLAG_FORCED != 0,
+                selected = group.isSelected,
+                codecs = format.codecs,
+                width = format.width.coerceAtLeast(0),
+                height = format.height.coerceAtLeast(0),
+                frameRate = format.frameRate.coerceAtLeast(0f),
+                range = if (type == C.TRACK_TYPE_VIDEO) rangeOf(format) else null,
+                bitDepth = format.colorInfo?.lumaBitdepth?.takeIf { it != Format.NO_VALUE },
             )
         }
-        return EngineTracks(video = of(C.TRACK_TYPE_VIDEO), audio = of(C.TRACK_TYPE_AUDIO), text = of(C.TRACK_TYPE_TEXT))
+        return EngineTracks(video = of(C.TRACK_TYPE_VIDEO), audio = of(C.TRACK_TYPE_AUDIO), text = of(C.TRACK_TYPE_TEXT), chapters = chaptersOf(tracks))
     }
 
     companion object {
@@ -258,6 +272,35 @@ class Media3EngineLink(override val engine: PlayerEngine) : EngineLink {
         }
 
         private fun normalized(code: String): String = Util.normalizeLanguageCode(code)
+
+        /** A video's dynamic range as its format says it: Dolby Vision by its MIME type, HDR10 and HLG by their transfer. */
+        private fun rangeOf(format: Format): DynamicRange = when {
+            format.sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION -> DynamicRange.DolbyVision
+            format.colorInfo?.colorTransfer == C.COLOR_TRANSFER_ST2084 -> DynamicRange.Hdr10
+            format.colorInfo?.colorTransfer == C.COLOR_TRANSFER_HLG -> DynamicRange.Hlg
+            else -> DynamicRange.Sdr
+        }
+
+        /** The chapters Media3 read from the container, which it puts on the tracks' formats: once each, by start. */
+        private fun chaptersOf(tracks: Tracks): List<Chapter> {
+            val found = sortedMapOf<Long, Chapter>()
+            for (group in tracks.groups) {
+                for (track in 0 until group.length) {
+                    val metadata = group.getTrackFormat(track).metadata ?: continue
+                    for (n in 0 until metadata.length()) {
+                        val entry = metadata.get(n) as? ContainerChapter ?: continue
+                        if (entry.isHidden || entry.startTimeMs < 0 || found.size >= MAX_CHAPTERS) continue
+                        found.getOrPut(entry.startTimeMs) {
+                            Chapter(entry.startTimeMs, entry.endTimeMs.takeIf { it > entry.startTimeMs } ?: 0, entry.title?.value?.takeIf { it.isNotBlank() })
+                        }
+                    }
+                }
+            }
+            return found.values.toList()
+        }
+
+        /** The most chapters taken from a file: more is a file that isn't right. */
+        private const val MAX_CHAPTERS = 256
 
         /** What a Media3 error means for the session. */
         fun errorOf(error: PlaybackException): EngineError {
