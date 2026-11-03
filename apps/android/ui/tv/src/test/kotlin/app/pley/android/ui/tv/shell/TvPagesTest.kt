@@ -1,5 +1,8 @@
 package app.pley.android.ui.tv.shell
 
+import androidx.activity.OnBackPressedDispatcher
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
@@ -42,9 +45,9 @@ import org.robolectric.annotation.Config
 
 /**
  * The rail's page under the pages opened on it ([RootUnderPages]): it is
- * composed once, hidden and stopped while covered, and Back shows it with
- * focus where it was. The pages between are composed again, and a new
- * root starts over.
+ * composed once, hidden and stopped while covered, its Back handlers off,
+ * and Back shows it with focus where it was. The pages between are
+ * composed again, and a new root starts over.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
@@ -60,11 +63,20 @@ class TvPagesTest {
     private val gone = HashMap<NavKey, Int>()
     private val lifecycles = HashMap<NavKey, Lifecycle>()
 
+    /** Pages whose initial focus is their second element, b. */
+    private val startOnB = HashSet<NavKey>()
+
+    /** Back on the pages that handle it themselves: how many times each did. */
+    private val backs = HashMap<NavKey, Int>()
+    private lateinit var dispatcher: OnBackPressedDispatcher
 
     private fun shell() {
         compose.setContent {
             focusManager = LocalFocusManager.current
+            dispatcher = LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
             TvTheme {
+                // The shell's last resort of Back, below every page's own, as TvApp has it.
+                BackHandler { if (backStack.size > 1) backStack.removeAt(backStack.lastIndex) }
                 // The shell's page group, as TvApp has it.
                 Box(Modifier.fillMaxSize().focusRequester(content).focusGroup()) {
                     NavDisplay(
@@ -80,15 +92,21 @@ class TvPagesTest {
         compose.waitForIdle()
     }
 
-    /** A page: two elements, [key]/a (its initial focus) and [key]/b right of it; counts its compositions. */
+    /**
+     * A page: two elements, [key]/a (its initial focus, or b's in [startOnB])
+     * and [key]/b right of it; counts its compositions, and the Backs it
+     * takes while it is in [backs].
+     */
     @Composable
     private fun Page(key: NavKey) {
         remember { made[key] = (made[key] ?: 0) + 1 }
         DisposableEffect(key) { onDispose { gone[key] = (gone[key] ?: 0) + 1 } }
         lifecycles[key] = LocalLifecycleOwner.current.lifecycle
+        if (key in backs) BackHandler { backs[key] = backs.getValue(key) + 1 }
+        val b = key in startOnB
         Box(Modifier.fillMaxSize()) {
-            Box(Modifier.offset(100.dp, 100.dp).size(40.dp).testTag("$key/a").initialFocus().focusable())
-            Box(Modifier.offset(300.dp, 100.dp).size(40.dp).testTag("$key/b").focusable())
+            Box(Modifier.offset(100.dp, 100.dp).size(40.dp).testTag("$key/a").initialFocus(enabled = !b).focusable())
+            Box(Modifier.offset(300.dp, 100.dp).size(40.dp).testTag("$key/b").initialFocus(enabled = b).focusable())
         }
     }
 
@@ -152,6 +170,34 @@ class TvPagesTest {
         compose.waitForIdle()
         compose.runOnUiThread { content.restoreFocusedChild() }
         compose.waitForIdle()
+        compose.onNodeWithTag("${PleyKey.Home}/b").assertIsFocused()
+    }
+
+    @Test
+    fun theRailsPageLeavesBackToThePageOverIt() {
+        backs[PleyKey.Home] = 0
+        shell()
+        open(PleyKey.Search())
+        // Home handles Back itself when it shows; covered, Back is the page's over it.
+        compose.runOnUiThread { dispatcher.onBackPressed() }
+        compose.waitForIdle()
+        assertEquals(listOf<NavKey>(PleyKey.Home), backStack.toList())
+        assertEquals(0, backs[PleyKey.Home])
+        compose.onNodeWithTag("${PleyKey.Home}/a").assertIsFocused()
+        // Shown again, it has Back again.
+        compose.runOnUiThread { dispatcher.onBackPressed() }
+        compose.waitForIdle()
+        assertEquals(1, backs[PleyKey.Home])
+    }
+
+    @Test
+    fun aRailPageNeverShownStartsOnItsOwnFirstElement() {
+        // A page over Home from the start, as after process death or a Watch Next program.
+        startOnB += PleyKey.Home
+        backStack += PleyKey.Search()
+        shell()
+        compose.onNodeWithTag("${PleyKey.Search()}/a").assertIsFocused()
+        back()
         compose.onNodeWithTag("${PleyKey.Home}/b").assertIsFocused()
     }
 

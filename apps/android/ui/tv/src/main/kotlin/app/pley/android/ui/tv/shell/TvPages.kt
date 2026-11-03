@@ -117,7 +117,8 @@ internal fun rememberRootPageDecorator(backStack: List<NavKey>, pages: RootUnder
  * the page over it would reach otherwise. Covered, it lets focus go, as a
  * page that went would (the page over it takes it), keeping which of its
  * elements had it; shown again, by Back or by its rail entry, it gives
- * focus back to that element, or to its first.
+ * focus back to that element, or to its first. Shown for the first time
+ * (made under another page), it starts on its own initial focus.
  */
 @Composable
 private fun RootPage(covered: Boolean, pages: RootUnderPages, content: @Composable () -> Unit) {
@@ -130,10 +131,13 @@ private fun RootPage(covered: Boolean, pages: RootUnderPages, content: @Composab
     val hidden by rememberUpdatedState(covered)
     var focused by remember { mutableStateOf(false) }
     var wasCovered by remember { mutableStateOf(covered) }
+    // Whether focus was on it as it was covered, and so goes back to it.
+    var kept by remember { mutableStateOf(false) }
     // At once, before the page over it is placed and takes focus. Not forced, so focus leaves as it
     // does by a key and the rows' restorers keep where it was; forced only if something held on to it.
     DisposableEffect(covered) {
         if (covered && focused) {
+            kept = true
             runCatching { page.saveFocusedChild() }
             focusManager.clearFocus()
             if (focused) focusManager.clearFocus(force = true)
@@ -147,6 +151,14 @@ private fun RootPage(covered: Boolean, pages: RootUnderPages, content: @Composab
             wasCovered = false
             // Once it is placed again.
             withFrameNanos { }
+            if (!kept) {
+                // Focus wasn't on it: it was made under the page over it (after process death, or for a
+                // Watch Next program), and its own initial focus takes focus as it is first placed.
+                // Only when that hasn't, the element that last had focus, or its first.
+                withFrameNanos { }
+                if (focused) return@LaunchedEffect
+            }
+            kept = false
             runCatching { if (!page.restoreFocusedChild()) page.requestFocus() }
         }
     }
