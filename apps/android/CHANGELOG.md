@@ -27,11 +27,14 @@ describes how they are made.
   begins, the next episode too, while the player's controls are hidden
   and Playback details aren't over the video.
 - Android TV and Fire TV play videos from a USB drive, with no server: while
-  one is plugged in, the rail has USB drive after Now Playing. Its page,
-  titled with the drive's make and model when it says them, gives the
-  folder's path and lists the drive's folders and videos, sorted as a
-  person sorts names, with where each video resumes, and a video plays in
-  Pley's player with the subtitle files beside it, from where it stopped.
+  one is plugged in, the rail has USB drive after Now Playing (Playlists
+  makes way for it when no library can). Its page, titled with the drive's
+  make and model when it says them, gives the folder's path and lists the
+  drive's folders and videos, sorted as a person sorts names, with where
+  each video resumes, and a video plays in Pley's player with the subtitle
+  files beside it (UTF-8, UTF-16 or Latin-1), from where it stopped. A
+  video whose picture never starts says the TV doesn't play it; one that
+  played and then stands still, that the drive may have been pulled out.
   An empty folder or no drive says so under an icon, with focus on the
   page, so the rail closes over it. The page asks for leave to read the
   drive as it opens.
@@ -63,8 +66,8 @@ describes how they are made.
 - On TVs, the chapters show as a row of cards over the scrubber, with
   their pictures, as in YouTube's TV app, in place of the Chapters panel:
   Up while a seek waits opens them on the chapter it was going to, the
-  Chapters button on the one playing; OK goes to one, Down or Back closes
-  them.
+  Chapters button on the one playing; OK goes to one, and Down, Back or a
+  media key's seek (Previous, Next, fast forward or rewind) closes them.
 - Seek previews keep the video's shape, letterboxed on black, on phones
   and TVs, rather than cropped to fill their box: a wide film's no longer
   loses its sides.
@@ -177,10 +180,6 @@ describes how they are made.
 
 ### Fixed
 
-- The TV app no longer closes when a USB drive is plugged in with more
-  than three libraries, Live TV, requests and music playing; when no
-  library can make way in the rail, the drive takes Playlists' place, and
-  with a single library the rail no longer runs past its seven entries.
 - On TVs, Back from a title or from a tile's actions, and Right from the
   rail, land on the library grid's tile focus left, in its first row too,
   the grid as it was, where they went to the first tile or to the Sort
@@ -243,24 +242,9 @@ describes how they are made.
   count goes under 10 s, so Keep watching no longer moves under the finger.
 - On phones and tablets, seek previews that arrive while a finger rests on
   the seek bar show at once, rather than when the finger moves again.
-- On Android TV and Fire TV, a reason for declining a request keeps to
-  the server's 500 characters, as on phones, where a longer one wasn't
-  sent.
-- On TVs, the chapters' cards close when a media key seeks (Previous,
-  Next, fast forward or rewind), where they stayed over the scrubber on
-  the chapter left behind.
-- On Android TV and Fire TV, a USB drive's video that played and then
-  stood still says the drive may have been pulled out, not that the TV
-  doesn't play the file.
-- On Android TV and Fire TV, a subtitle file saved as Unicode (UTF-16)
-  beside a USB drive's video reads right, where it came out garbled.
 - On Android TV and Fire TV, Search's Live TV channels move as the other
   rows do: the channel focused glides to the row's left edge, and a held
   Left or Right slides the row under a still ring, as on Samsung TVs.
-- On TVs, Back pressed as a tile's actions slide in leaves focus on the
-  tile, where it could leave nothing focused.
-- On TVs, Menu pressed while a held key slides a row no longer opens the
-  actions of the tile the row lands on when it is let go.
 - On TVs, Up from a collection's titles to its buttons glides the page
   back to its top over 150 ms, as Home does, and with Reduce motion goes
   there at once.
