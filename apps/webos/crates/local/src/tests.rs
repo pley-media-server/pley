@@ -784,7 +784,8 @@ fn a_link_on_the_drive_leading_off_it_is_neither_listed_nor_read() {
     let store = Store::open(scratch_dir("local-links-store")).unwrap();
     let server = server_for(&drive, "Film.mkv", subtitled("S_TEXT/UTF8", None, vec![]), &store);
     let info = play(&server, PlaybackMode::Auto).unwrap();
-    let sidecar = info.subtitles.iter().find(|s| s.external).and_then(|s| s.url.clone()).unwrap();
+    assert!(!info.subtitles.iter().any(|s| s.external), "{:?}", info.subtitles);
+    let sidecar = drive.join("Film.en.srt").to_string_lossy().into_owned();
     assert!(server.subtitles(&sidecar, "text/vtt", SECOND).is_err());
     let _ = std::fs::remove_dir_all(&dir);
 }

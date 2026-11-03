@@ -210,7 +210,12 @@ impl LocalServer {
                     .collect()
             })
             .unwrap_or_default();
-        let sidecars = folder::sidecars_beside(&self.file);
+        // Only files on the drive: a subtitle file may be a link to anywhere, or a pipe that a
+        // read would wait on for ever.
+        let sidecars: Vec<_> = folder::sidecars_beside(&self.file)
+            .into_iter()
+            .filter(|s| fs::metadata(&s.path).is_ok_and(|m| m.is_file()) && folder::within(&self.root, &s.path))
+            .collect();
         streams.extend(folder::sidecar_streams(&sidecars));
         let video = streams.iter().find(|s| s.kind == StreamKind::Video);
         let audio = streams.iter().find(|s| s.kind == StreamKind::Audio);
