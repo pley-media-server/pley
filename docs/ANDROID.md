@@ -61,6 +61,13 @@ Whether it has one is the profile's `has_pin` from `GET /api/auth/me`, saved
 with the session, so the start reads it from the device; until the TV has
 heard it for that profile, the start asks "Who's watching?".
 
+### Phones and tablets
+
+- **The player** shows its controls, the title with them, for 3 s as
+  playback starts and as each later item begins (the next episode, a
+  queue's next), where TVs show the title alone at the top; a tap shows
+  them again.
+
 ### TVs and Fire TV
 
 - Select opens, holding Select or Menu (☰) opens a title's actions, Back
