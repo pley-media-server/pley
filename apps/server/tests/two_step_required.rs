@@ -262,6 +262,7 @@ async fn signing_in_sets_it_up_right_after_the_password() {
     // are up.
     let again = sign_in(&app, "bob", "test-pass-1", Some(&first)).await;
     assert_eq!(again.body["code"], "two_step", "the code that set it up was used");
+    assert!(again.text().contains("used already"), "{}", again.text());
     let next = sign_in(&app, "bob", "test-pass-1", Some(&next_code(&secret))).await;
     assert_eq!(next.status, StatusCode::OK, "{}", next.text());
     assert!(next.body.get("recovery_codes").is_none());
