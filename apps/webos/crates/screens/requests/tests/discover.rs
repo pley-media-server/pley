@@ -92,7 +92,8 @@ fn see_all_lists_the_whole_row_and_reads_on() {
 fn a_search_with_nothing_on_tmdb_says_so() {
     let mut app = TestApp::start();
     app.open(Route::DiscoverSearch { query: "  zzz  ".into() });
-    assert!(app.until_shows("Nothing on TMDB for “zzz”"), "no empty search");
+    assert!(app.until_shows("Nothing on TMDB matches “zzz”"), "no empty search");
+    assert!(app.shows("Try a different spelling, or the title in its own language."));
     assert!(app.shows("Results for “zzz”"));
 }
 

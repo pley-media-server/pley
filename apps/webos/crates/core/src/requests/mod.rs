@@ -98,20 +98,22 @@ pub fn requests_tabs(manage: bool) -> Vec<(RequestsTab, &'static str)> {
     tabs
 }
 
-/// What a tab with nothing in it says (`everyone`: a manager's list of everyone's).
-pub fn requests_empty(tab: RequestsTab, everyone: bool) -> String {
-    let whose = if everyone { "" } else { " of yours" };
-    match tab {
-        RequestsTab::Attention => "No requests need attention.".into(),
-        RequestsTab::Status(RequestStatus::Pending) => format!("No requests{whose} wait for a decision."),
-        RequestsTab::Status(RequestStatus::Approved) => format!("No requests{whose} are on their way."),
-        RequestsTab::Status(RequestStatus::Available) => format!("No requests{whose} are ready to watch yet."),
-        RequestsTab::Status(RequestStatus::Declined) => format!("No requests{whose} were declined."),
-        RequestsTab::Status(RequestStatus::Failed) => format!("No requests{whose} failed."),
-        RequestsTab::All | RequestsTab::Status(RequestStatus::Unknown) => {
-            if everyone { "No one has asked for anything yet." } else { "You haven't asked for anything yet." }.into()
-        }
+/// What an empty list says, its title and the line under it (Android's `TvRequestsScreen.kt`
+/// `emptyTitle` and `emptyBody`): `filtered`, a filter narrows it (a status's tab counts as one);
+/// `may_ask`, the profile may ask for titles.
+pub fn requests_empty(tab: RequestsTab, filtered: bool, may_ask: bool) -> (&'static str, &'static str) {
+    if filtered || matches!(tab, RequestsTab::Status(_)) {
+        return ("No requests match", "Try other filters.");
     }
+    if tab == RequestsTab::Attention {
+        return ("Nothing needs you", "Requests waiting for a decision, and those that couldn't be sent, show here.");
+    }
+    let body = if may_ask {
+        "Find movies and shows in Discover, and ask for what the libraries don't have."
+    } else {
+        "Requests you made or follow show here."
+    };
+    ("Nothing asked for yet", body)
 }
 
 /// The filters of the managers' list: movies or shows, one person's, a title's words.

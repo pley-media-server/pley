@@ -534,12 +534,8 @@ impl Screen for RequestsScreen {
                     }
                 },
                 Some(_) if shown.is_empty() => {
-                    let words = if filtered {
-                        "No requests match these filters.".to_string()
-                    } else {
-                        requests_empty(tab, manage)
-                    };
-                    let mut message = Message::new(MessageStyle::Column { top: list_top + 24.0 }, &words);
+                    let (title, body) = requests_empty(tab, filtered, may_ask(s.as_ref()));
+                    let mut message = Message::new(MessageStyle::Column { top: list_top + 24.0 }, title).body(body);
                     if find_some {
                         message = message.action("Find something to ask for", Icon::Compass);
                     }

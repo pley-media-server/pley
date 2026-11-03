@@ -66,7 +66,10 @@ impl TitlesScreen {
         let words = Words {
             title: format!("Results for “{q}”"),
             failed: "Couldn't search TMDB",
-            none: (format!("Nothing on TMDB for “{q}”"), "Try another spelling, or the title in its own language."),
+            none: (
+                format!("Nothing on TMDB matches “{q}”"),
+                "Try a different spelling, or the title in its own language.",
+            ),
             none_yet: format!("Nothing yet for “{q}”"),
         };
         TitlesScreen::new(words, Reader::new(0, move |api, page| api.discover_search(&q, page, false)))

@@ -106,6 +106,10 @@ describes how they are made.
   Samsung apps, rather than on a coloured gradient.
 - A video's first picture fades in from black, as in the Android TV and
   Samsung apps, rather than cutting in (at once with Reduce motion).
+- An empty requests list says why in the Android TV app's words: "Nothing
+  asked for yet" with where to find titles, "Nothing needs you" in Needs
+  attention, "No requests match" for a status or a filter. A Discover
+  search with no results says "Nothing on TMDB matches" it.
 
 ### Removed
 

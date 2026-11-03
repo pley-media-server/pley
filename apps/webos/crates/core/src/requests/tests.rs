@@ -139,11 +139,22 @@ fn tabs() {
     let labels: Vec<_> = requests_tabs(true).into_iter().map(|(_, l)| l).collect();
     assert_eq!(labels, ["Needs attention", "All", "Pending", "Approved", "Available", "Declined", "Failed"]);
     assert_eq!(requests_tabs(false)[0], (RequestsTab::All, "All"));
+    // An empty list says why as Android's does: a status's tab is a filter.
+    let pending = RequestsTab::Status(RequestStatus::Pending);
+    assert_eq!(requests_empty(pending, false, true), ("No requests match", "Try other filters."));
+    assert_eq!(requests_empty(RequestsTab::All, true, true).0, "No requests match");
     assert_eq!(
-        requests_empty(RequestsTab::Status(RequestStatus::Pending), false),
-        "No requests of yours wait for a decision."
+        requests_empty(RequestsTab::Attention, false, false),
+        ("Nothing needs you", "Requests waiting for a decision, and those that couldn't be sent, show here.")
     );
-    assert_eq!(requests_empty(RequestsTab::All, true), "No one has asked for anything yet.");
+    assert_eq!(
+        requests_empty(RequestsTab::All, false, true),
+        ("Nothing asked for yet", "Find movies and shows in Discover, and ask for what the libraries don't have.")
+    );
+    assert_eq!(
+        requests_empty(RequestsTab::All, false, false),
+        ("Nothing asked for yet", "Requests you made or follow show here.")
+    );
 
     let q = requests_query(RequestsTab::Attention, &RequestFilters { q: "  dune ".into(), ..Default::default() }, 50);
     assert!(q.attention && q.oldest);

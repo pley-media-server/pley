@@ -55,6 +55,19 @@ fn your_requests_tells_the_server_the_news_was_seen() {
 }
 
 #[test]
+fn an_empty_tab_says_why_as_androids_does() {
+    let mut app = requests(ids::SAM, "Paper Moons");
+    // The Available tab: none of Sam's is ready yet.
+    app.press(Key::Up);
+    for _ in 0..3 {
+        app.press(Key::Right);
+    }
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.shows("No requests match") && !a.shows("Paper Moons")), "the tab isn't empty");
+    assert!(app.shows("Try other filters."));
+}
+
+#[test]
 fn try_again_sends_a_failed_request_and_it_leaves_needs_attention() {
     let mut app = requests(ids::ALEX, "Quiet Fields");
     app.press(Key::Ok);
