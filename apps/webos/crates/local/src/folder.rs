@@ -319,18 +319,59 @@ pub fn to_webvtt(text: &str) -> String {
     "WEBVTT\n\n".to_string() + &String::from_utf8_lossy(&bytes)
 }
 
-/// A subtitle file's text: UTF-16 when it starts with that byte-order mark
-/// (as Windows tools save "Unicode" text), UTF-8 when it is, else Latin-1,
-/// close to the Western code page older SubRip files are in.
+/// A subtitle file's text. A byte-order mark says its encoding: UTF-16 or UTF-32, as Windows
+/// tools save "Unicode" text (UTF-8's goes in [`to_webvtt`]). Without one, UTF-16 shows by its NUL
+/// bytes, which text in UTF-8 or a code page never has; then UTF-8 when it is, else Windows-1252,
+/// the Western code page older SubRip files are in.
 pub fn decode(bytes: &[u8]) -> String {
     match bytes {
+        [0xFF, 0xFE, 0, 0, rest @ ..] => utf32(rest, u32::from_le_bytes),
+        [0, 0, 0xFE, 0xFF, rest @ ..] => utf32(rest, u32::from_be_bytes),
         [0xFF, 0xFE, rest @ ..] => utf16(rest, u16::from_le_bytes),
         [0xFE, 0xFF, rest @ ..] => utf16(rest, u16::from_be_bytes),
-        _ => match std::str::from_utf8(bytes) {
-            Ok(text) => text.to_string(),
-            Err(_) => bytes.iter().map(|b| char::from(*b)).collect(),
+        _ => match (utf16_order(bytes), std::str::from_utf8(bytes)) {
+            (Some(word), _) => utf16(bytes, word),
+            (None, Ok(text)) => text.to_string(),
+            (None, Err(_)) => bytes.iter().map(|&b| windows_1252(b)).collect(),
         },
     }
+}
+
+/// The byte order of UTF-16 without its mark, from its first 4 KB: where it is Latin text, times
+/// or numbers, every other byte is NUL, the high one.
+fn utf16_order(bytes: &[u8]) -> Option<fn([u8; 2]) -> u16> {
+    let (pairs, _) = bytes[..bytes.len().min(4096)].as_chunks::<2>();
+    let (first, second) =
+        pairs.iter().fold((0, 0), |(f, s), [a, b]| (f + usize::from(*a == 0), s + usize::from(*b == 0)));
+    let many = |n: usize| pairs.len() >= 8 && n * 4 >= pairs.len();
+    if many(second) && first * 8 <= second {
+        Some(u16::from_le_bytes)
+    } else if many(first) && second * 8 <= first {
+        Some(u16::from_be_bytes)
+    } else {
+        None
+    }
+}
+
+/// Windows-1252's byte `b`: Latin-1 but for 0x80–0x9F, where it has the euro, curly quotes,
+/// dashes and the like (the five it leaves out stay as Latin-1 has them).
+fn windows_1252(b: u8) -> char {
+    const HIGH: [char; 32] = [
+        '\u{20AC}', '\u{81}', '\u{201A}', '\u{192}', '\u{201E}', '\u{2026}', '\u{2020}', '\u{2021}', '\u{2C6}',
+        '\u{2030}', '\u{160}', '\u{2039}', '\u{152}', '\u{8D}', '\u{17D}', '\u{8F}', '\u{90}', '\u{2018}', '\u{2019}',
+        '\u{201C}', '\u{201D}', '\u{2022}', '\u{2013}', '\u{2014}', '\u{2DC}', '\u{2122}', '\u{161}', '\u{203A}',
+        '\u{153}', '\u{9D}', '\u{17E}', '\u{178}',
+    ];
+    match b {
+        0x80..=0x9F => HIGH[usize::from(b - 0x80)],
+        _ => char::from(b),
+    }
+}
+
+/// UTF-32 text in `word`'s byte order; what isn't a character reads as U+FFFD, and a last word
+/// cut short is dropped.
+fn utf32(bytes: &[u8], word: fn([u8; 4]) -> u32) -> String {
+    bytes.as_chunks::<4>().0.iter().map(|c| char::from_u32(word(*c)).unwrap_or(char::REPLACEMENT_CHARACTER)).collect()
 }
 
 /// UTF-16 text in `word`'s byte order; a lone surrogate reads as U+FFFD and
