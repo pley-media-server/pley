@@ -69,6 +69,8 @@ describes how they are made.
   "HDR10") only when the library is sorted by bitrate or filtered by
   resolution or dynamic range: on every poster they mostly said the same
   thing.
+- The web app's sidebar is more compact, so more libraries and playlists
+  fit without scrolling; Settings' list of pages matches it.
 - Updating the Windows service no longer takes minutes on a large library:
   Setup no longer sets the permissions of every file in the data
   folder again when the folder is set up already.
