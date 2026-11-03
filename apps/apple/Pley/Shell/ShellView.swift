@@ -72,8 +72,10 @@ struct ShellView: View {
                         if !accessoryHoldsMiniPlayer { FootMiniPlayer(app: app) }
                     }
                     .tabItem { Label(Self.title(section), systemImage: Self.symbol(section)) }
-                    // The system draws the tab's badge in its own red; Me's rows show the alarm's colour.
                     .badge(section == .me ? shell.requestsEntry.badgeText.map { Text($0) } : nil)
+                    #if os(iOS)
+                    .background { TabBadgeColour(alarm: shell.requestsEntry.alarm) }
+                    #endif
                     .tag(section)
             }
         }
@@ -233,6 +235,47 @@ private struct KeyboardShortcuts: View {
         .opacity(0)
         .frame(width: 0, height: 0)
         .accessibilityHidden(true)
+    }
+}
+
+/// Colours the tab bar's badge as Android colours its tab's number: the
+/// accent colour, and red only while a request couldn't be sent, so the
+/// red keeps its meaning. SwiftUI has no say in a badge's colour, so the
+/// tab bar's own appearance is set, again whenever the alarm changes.
+private struct TabBadgeColour: UIViewControllerRepresentable {
+    let alarm: Bool
+
+    func makeUIViewController(context: Context) -> Painter { Painter() }
+
+    func updateUIViewController(_ painter: Painter, context: Context) {
+        painter.alarm = alarm
+        painter.paint()
+    }
+
+    final class Painter: UIViewController {
+        var alarm = false
+
+        override func viewWillAppear(_ animated: Bool) {
+            super.viewWillAppear(animated)
+            paint()
+        }
+
+        func paint() {
+            guard let bar = tabBarController?.tabBar else { return }
+            let colour = alarm ? UIColor.systemRed : UIColor(Color.accentColor)
+            bar.standardAppearance = Self.painted(bar.standardAppearance, colour)
+            if let edge = bar.scrollEdgeAppearance { bar.scrollEdgeAppearance = Self.painted(edge, colour) }
+        }
+
+        private static func painted(_ appearance: UITabBarAppearance, _ colour: UIColor) -> UITabBarAppearance {
+            let painted = appearance.copy()
+            for item in [painted.stackedLayoutAppearance, painted.inlineLayoutAppearance,
+                         painted.compactInlineLayoutAppearance] {
+                item.normal.badgeBackgroundColor = colour
+                item.selected.badgeBackgroundColor = colour
+            }
+            return painted
+        }
     }
 }
 #endif

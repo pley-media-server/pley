@@ -1391,8 +1391,8 @@ phones and tablets: its rules, words and timings are ported to
 - **Ways in**: Me's rows, Discover ("Find movies and shows to ask for")
   and Your requests (Requests for administrators, "Approve, decline and
   follow what was asked for") with its number; Me's tab carries the
-  number, and so does Me's row at the sidebar's foot, in red while a
-  request couldn't be sent (the tab's badge is the system's own red).
+  number, and so does Me's row at the sidebar's foot, in the accent
+  colour, and in red while a request couldn't be sent.
   Search shows Discover before anything is typed, and its Discover row
   after the results. The Mac's View menu has Discover (⇧⌘D) and Requests
   (⇧⌘R), which open under Me. An account that may not ask and has no
