@@ -51,7 +51,10 @@ import app.pley.android.ui.phone.kit.ToastHost
 import app.pley.android.ui.phone.kit.ToastHostState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import androidx.compose.ui.res.stringResource
 
 /** What the player screen asks of its window: leaving, picture in picture, the volume and brightness. */
@@ -236,6 +239,15 @@ private fun PlayerEffects(state: PlayerScreenState, picture: PictureState, toast
     // Paused from anywhere (a headset, picture in picture, audio focus): the controls show, and stay.
     LaunchedEffect(state) {
         snapshotFlow { state.phase == PlayerPhase.Paused }.collect { paused -> if (paused && !state.locked) state.controlsVisible = true }
+    }
+    // Each item after the first (the next episode, a queue's next) shows the controls as it begins to play,
+    // its title at the top as the first's was: the TV and the native Samsung app show the title then.
+    LaunchedEffect(state) {
+        snapshotFlow { state.itemId.takeIf { state.phase == PlayerPhase.Playing } }
+            .filterNotNull()
+            .distinctUntilChanged()
+            .drop(1)
+            .collect { if (!state.locked) state.showControls() }
     }
     // The session's notices, as toasts.
     LaunchedEffect(state, toasts) {

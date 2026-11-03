@@ -42,6 +42,7 @@ class PlayerScreenState(
     // ---------------------------------------------------------------- the controller's state, by part
 
     val phase: PlayerPhase by derivedStateOf { ui.value.phase }
+    val itemId: Long by derivedStateOf { ui.value.itemId }
     val title: String by derivedStateOf { ui.value.title }
     val subtitle: String? by derivedStateOf { ui.value.subtitle }
     val method: String? by derivedStateOf { ui.value.method }

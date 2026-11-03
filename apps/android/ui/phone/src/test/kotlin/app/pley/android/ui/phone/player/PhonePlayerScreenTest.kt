@@ -136,6 +136,22 @@ class PhonePlayerScreenTest {
         onAllNodes(androidx.compose.ui.test.hasText(text)).fetchSemanticsNodes().size
 
     @Test
+    fun theNextItemShowsTheControlsWithItsTitleAsItBegins() {
+        val fake = FakePlaybackController(playing())
+        compose.mainClock.autoAdvance = false
+        show(fake)
+        compose.mainClock.advanceTimeBy(4_000)
+        assertTrue(compose.onAllNodesWithTextCount("Fixture Show") == 0)
+
+        // The next episode plays: its title shows at the top, then goes with the controls.
+        fake.update { it.copy(itemId = 20_002, title = "Second Show", subtitle = "S1 E2 — Second") }
+        compose.mainClock.advanceTimeBy(500)
+        compose.onNodeWithText("Second Show").assertIsDisplayed()
+        compose.mainClock.advanceTimeBy(3_500)
+        assertTrue(compose.onAllNodesWithTextCount("Second Show") == 0)
+    }
+
+    @Test
     fun skipShowsWhileAMarkerRunsAndSkips() {
         val fake = FakePlaybackController(
             playing {

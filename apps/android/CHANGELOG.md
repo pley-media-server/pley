@@ -15,6 +15,8 @@ describes how they are made.
   Home's rows and a library's grid already did.
 - On phones and tablets, a video's first picture fades in from black,
   rather than appearing at once.
+- On phones and tablets, the next episode, or a queue's next, shows the
+  controls with its title as it begins, as the first does.
 
 ### Fixed
 
