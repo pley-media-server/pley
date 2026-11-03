@@ -12,8 +12,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -88,7 +92,8 @@ internal fun dayOf(seconds: Long, now: Long): String {
 
 /**
  * A channel's logo in a rounded [well], or on its gradient its number (its
- * name when [name]) without one.
+ * name when [name]) without one. Rounded as it is drawn, not by a clip: a
+ * guide shows one in every row, and each clip is a graphics layer.
  */
 @Composable
 internal fun ChannelTile(
@@ -104,9 +109,15 @@ internal fun ChannelTile(
         image = ArtworkImage.of(channel.logo, origin),
         label = if (name) channel.name else channel.number ?: channel.name.take(3),
         textStyle = style,
-        modifier = modifier.clip(shape).background(well),
+        modifier = modifier.background(well, shape).drawnIn(shape),
         inset = 8.dp,
     )
+}
+
+/** What is drawn after this (the gradient, the logo) cut to [shape] on the canvas, with no layer of its own. */
+private fun Modifier.drawnIn(shape: Shape): Modifier = drawWithCache {
+    val outline = Path().apply { addOutline(shape.createOutline(size, layoutDirection, this@drawWithCache)) }
+    onDrawWithContent { clipPath(outline) { this@onDrawWithContent.drawContent() } }
 }
 
 /** How far [program] is at [now]: a 3 dp track with the accent over it. */

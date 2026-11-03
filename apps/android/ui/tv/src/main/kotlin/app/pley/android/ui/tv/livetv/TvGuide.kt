@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
@@ -28,23 +30,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -53,6 +62,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -165,11 +175,16 @@ internal fun TvGuide(
     BackHandler(enabled = focused && channel != null && cursor.awayFromNow(programs[channel.id], now)) { focus = focus.backToNow(now) }
 
     val pxPerSecond = with(density) { DP_PER_MINUTE.toPx() } / 60f
-    val x by animateFloatAsState(
+    val slide = animateFloatAsState(
         targetValue = (left - start) * pxPerSecond,
         animationSpec = tween(if (reduced) 0 else PleyMotion.OVERLAY_MS),
         label = "guide",
     )
+    // The grid's scroll and the time, read while drawing: as the grid slides only layers move, and
+    // as the time goes on only the bars grow; a row is composed again when a programme begins or ends.
+    val x = remember(slide) { { slide.value } }
+    val nowState = rememberUpdatedState(now)
+    val nowAt = remember(nowState) { { nowState.value } }
     val rows = rememberLazyListState()
     LaunchedEffect(row) {
         val visible = rows.layoutInfo.visibleItemsInfo
@@ -185,47 +200,9 @@ internal fun TvGuide(
     val skeleton = rememberSkeleton(animated = false)
 
     Column(modifier.testTag(TV_LIVE_GUIDE)) {
-        Focused(channel, channel?.let { LiveTv.channelName(it, category) }, current, origin, now, clock, Modifier.padding(end = TvSafeArea.Horizontal).height(INFO_HEIGHT))
-        // The times across the top, the day at the left.
-        Row(Modifier.fillMaxWidth().height(28.dp)) {
-            Box(Modifier.width(CHANNEL_WIDTH).fillMaxHeight().padding(start = CHANNEL_INSET), contentAlignment = Alignment.CenterStart) {
-                BasicText(dayOf(maxOf(left, start), now), style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), maxLines = 1)
-            }
-            Box(Modifier.weight(1f).fillMaxHeight().padding(end = TvSafeArea.Horizontal).clipToBounds()) {
-                var t = GuideCursor.slot(left - VIEW_S)
-                while (t < left + 2 * VIEW_S) {
-                    val slotStart = t
-                    // The time now, in its pill, takes the place of a time under it (the web's).
-                    val underNow = now > slotStart - NOW_PILL_S / 2 && now < slotStart + SLOT_LABEL_S + NOW_PILL_S / 2
-                    if (slotStart >= start && !underNow) {
-                        val midnight = Calendar.getInstance().apply { timeInMillis = slotStart * 1000 }.let { it.get(Calendar.HOUR_OF_DAY) == 0 && it.get(Calendar.MINUTE) == 0 }
-                        BasicText(
-                            if (midnight) dayOf(slotStart, now) else clock(slotStart),
-                            style = PleyType.Tv.Caption.copy(color = if (midnight) PleyColors.Fg else PleyColors.Muted),
-                            maxLines = 1,
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .offset { IntOffset(((slotStart - start) * pxPerSecond - x).roundToInt() + 6.dp.roundToPx(), 0) },
-                        )
-                    }
-                    t += LiveTv.SLOT_S
-                }
-                // The time now, in a pill over the now line.
-                BasicText(
-                    clock(now),
-                    style = PleyType.Tv.Badge.copy(color = PleyColors.OnAccent),
-                    maxLines = 1,
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .layout { measurable, constraints ->
-                            val pill = measurable.measure(constraints.copy(minWidth = 0))
-                            layout(pill.width, pill.height) { pill.place(((now - start) * pxPerSecond - x).roundToInt() - pill.width / 2, 0) }
-                        }
-                        .background(PleyColors.Accent, PleyShape.Badge)
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                )
-            }
-        }
+        val name = remember(channel, category) { channel?.let { LiveTv.channelName(it, category) } }
+        Focused(channel, name, current, origin, now, clock, Modifier.padding(end = TvSafeArea.Horizontal).height(INFO_HEIGHT))
+        GuideTimes(left, start, now, clock, pxPerSecond, x)
         Box(
             Modifier
                 .weight(1f)
@@ -333,23 +310,27 @@ internal fun TvGuide(
                         }
                         return@items
                     }
+                    val list = programs[c.id]
+                    val rowFocused = index == row && focused
+                    val focusAt = if (rowFocused) current?.start ?: -1L else null
+                    // What the row draws, worked out again only when one of these changes; the row is
+                    // drawn again only when that does (Samsung's): not at every tick, chunk or move.
+                    val cells = remember(list, left, now, focusAt, guide.loaded) { RowCells.of(list, start, left, now, focusAt, guide.loaded) }
                     GuideRow(
                         channel = c,
-                        name = LiveTv.channelName(c, category),
-                        programs = programs[c.id],
-                        loaded = guide.loaded,
+                        name = remember(c, category) { LiveTv.channelName(c, category) },
+                        cells = cells,
                         origin = origin,
                         start = start,
-                        left = left,
-                        now = now,
                         pxPerSecond = pxPerSecond,
-                        x = { x },
-                        focusedStart = if (index == row && focused) current?.start ?: -1L else null,
-                        rowFocused = index == row && focused,
+                        x = x,
+                        now = nowAt,
+                        clock = clock,
+                        rowFocused = rowFocused,
                     )
                 }
             }
-            // Now, down the grid.
+            // Now, down the grid, on a layer of its own that slides with it.
             val nowX = (now - start) * pxPerSecond
             Box(
                 Modifier
@@ -359,7 +340,7 @@ internal fun TvGuide(
             ) {
                 Box(
                     Modifier
-                        .offset { IntOffset((nowX - x).roundToInt() - 1.dp.roundToPx(), 0) }
+                        .graphicsLayer { translationX = nowX - x() - 1.dp.toPx() }
                         .width(2.dp)
                         .fillMaxHeight()
                         .background(PleyColors.Accent.copy(alpha = 0.85f)),
@@ -414,141 +395,291 @@ private fun Focused(channel: LiveChannel?, name: String?, program: LiveProgram?,
     }
 }
 
-/** One channel's row: its cell and its programmes, the one with focus filled with the accent. */
+/**
+ * The times across the top, the day at the left, and the time now in a
+ * pill over the now line: drawn again as the grid's edge or the time
+ * moves, not at every key (Samsung's header); the times on a layer that
+ * slides with the grid ([strip]).
+ */
+@Composable
+private fun GuideTimes(left: Long, start: Long, now: Long, clock: (Long) -> String, pxPerSecond: Float, x: () -> Float) {
+    // The half hours a screen either way of the grid's edge, as the programmes are, and which begin a day.
+    val slots = remember(left, start, clock) {
+        buildList {
+            var t = GuideCursor.slot(left - VIEW_S)
+            while (t < left + 2 * VIEW_S) {
+                if (t >= start) add(SlotTime(t, clock(t), midnight(t)))
+                t += LiveTv.SLOT_S
+            }
+        }
+    }
+    Row(Modifier.fillMaxWidth().height(28.dp)) {
+        Box(Modifier.width(CHANNEL_WIDTH).fillMaxHeight().padding(start = CHANNEL_INSET), contentAlignment = Alignment.CenterStart) {
+            BasicText(dayOf(maxOf(left, start), now), style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), maxLines = 1)
+        }
+        Box(Modifier.weight(1f).fillMaxHeight().padding(end = TvSafeArea.Horizontal).clipToBounds()) {
+            Box(Modifier.strip(x).fillMaxHeight()) {
+                for (slot in slots) {
+                    // The time now, in its pill, takes the place of a time under it (the web's).
+                    val underNow = now > slot.time - NOW_PILL_S / 2 && now < slot.time + SLOT_LABEL_S + NOW_PILL_S / 2
+                    if (!underNow) {
+                        key(slot.time) {
+                            BasicText(
+                                if (slot.midnight) dayOf(slot.time, now) else slot.label,
+                                style = PleyType.Tv.Caption.copy(color = if (slot.midnight) PleyColors.Fg else PleyColors.Muted),
+                                maxLines = 1,
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .offset { IntOffset(((slot.time - start) * pxPerSecond).roundToInt() + 6.dp.roundToPx(), 0) },
+                            )
+                        }
+                    }
+                }
+                BasicText(
+                    clock(now),
+                    style = PleyType.Tv.Badge.copy(color = PleyColors.OnAccent),
+                    maxLines = 1,
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .layout { measurable, constraints ->
+                            val pill = measurable.measure(constraints.copy(minWidth = 0))
+                            layout(pill.width, pill.height) { pill.place(((now - start) * pxPerSecond).roundToInt() - pill.width / 2, 0) }
+                        }
+                        .background(PleyColors.Accent, PleyShape.Badge)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+            }
+        }
+    }
+}
+
+/** A half hour across the top of the guide: its time as the device writes it, and whether a day begins at it. */
+private class SlotTime(val time: Long, val label: String, val midnight: Boolean)
+
+/** Whether [time] (unix seconds) is midnight where the device is. */
+private fun midnight(time: Long): Boolean =
+    Calendar.getInstance().apply { timeInMillis = time * 1000 }.let { it.get(Calendar.HOUR_OF_DAY) == 0 && it.get(Calendar.MINUTE) == 0 }
+
+/**
+ * The guide's time, two days of it from its start, on a layer the grid's
+ * scroll ([x]) moves: as the grid slides, only the layer moves, where each
+ * programme's cell was placed again at every frame. In view through its
+ * parent's clip.
+ */
+private fun Modifier.strip(x: () -> Float): Modifier =
+    wrapContentWidth(Alignment.Start, unbounded = true)
+        .requiredWidth(STRIP_WIDTH)
+        .graphicsLayer { translationX = -x() }
+
+/**
+ * What a programme's cell draws ([ProgramCell] is drawn again only when it
+ * changes): its times and title, whether it airs or has ended, whether it
+ * has focus, and how far its title is moved in to stay in view at the
+ * grid's left edge ([shift], in seconds of the guide's time).
+ */
+internal data class CellLook(
+    val start: Long,
+    val stop: Long,
+    val title: String,
+    val airing: Boolean,
+    val ended: Boolean,
+    val focused: Boolean,
+    val shift: Long,
+)
+
+/**
+ * What a guide row draws of its programmes (Samsung's ProgramsLook): the
+ * cells of those that may come into view as the grid moves a screen either
+ * way; with none, whether the guide has answered for them ([blank]: the
+ * channel says why across the row) and whether focus is there. Equal when
+ * the row would look the same, whatever the time or the grid's edge: each
+ * guide answer brings new lists of the same programmes, and the time ticks
+ * every 15 s, which drew every row again.
+ */
+internal data class RowCells(val cells: List<CellLook>, val blank: Boolean, val blankFocused: Boolean) {
+    companion object {
+        /**
+         * The row of [programs] with the grid at [left] (the guide starting
+         * at [start]) at [now]; [focus] is the start of the programme with
+         * focus (-1 where there is none under the cursor), `null` on a row
+         * without focus. [loaded]: the guide has answered for the time in view.
+         */
+        fun of(programs: List<LiveProgram>?, start: Long, left: Long, now: Long, focus: Long?, loaded: Boolean): RowCells {
+            val cells = LiveTv.between(programs, maxOf(left - VIEW_S, start), left + 2 * VIEW_S).map { p ->
+                val from = maxOf(p.start, start)
+                CellLook(
+                    start = p.start,
+                    stop = p.stop,
+                    title = p.title,
+                    airing = p.airingAt(now),
+                    ended = p.stop <= now,
+                    focused = focus == p.start,
+                    // A programme begun before the grid's edge keeps its title in view, with room for it.
+                    shift = (left - from).coerceIn(0L, maxOf(0L, p.stop - from - TITLE_ROOM_S)),
+                )
+            }
+            return RowCells(cells, blank = cells.isEmpty() && loaded, blankFocused = cells.isEmpty() && focus == -1L)
+        }
+    }
+}
+
+/**
+ * One channel's row: its cell, and its programmes on a layer that slides
+ * with the grid, the one with focus filled with the accent. Drawn again
+ * only when [cells] or the focus change; the bars of what airs follow the
+ * time ([now]) as they are drawn.
+ */
 @Composable
 private fun GuideRow(
     channel: LiveChannel,
     name: String,
-    programs: List<LiveProgram>?,
-    loaded: Boolean,
+    cells: RowCells,
     origin: String,
     start: Long,
-    left: Long,
-    now: Long,
     pxPerSecond: Float,
     x: () -> Float,
-    focusedStart: Long?,
+    now: () -> Long,
+    clock: (Long) -> String,
     rowFocused: Boolean,
 ) {
-    val density = LocalDensity.current
-    val clock = rememberClock()
-    // What may come into view as the grid moves a screen either way.
-    val visible = remember(programs, left, start) { LiveTv.between(programs, maxOf(left - VIEW_S, start), left + 2 * VIEW_S) }
     Row(
         Modifier
             .fillMaxWidth()
             .height(ROW_HEIGHT)
             .drawBehind { drawLine(PleyColors.Surface4.copy(alpha = 0.6f), Offset(0f, size.height - 0.5f), Offset(size.width, size.height - 0.5f), 1f) },
     ) {
-        Row(
-            Modifier
-                .width(CHANNEL_WIDTH)
-                .fillMaxHeight()
-                .padding(vertical = 4.dp)
-                .clip(PleyShape.Control)
-                .background(if (rowFocused) PleyColors.Surface3 else androidx.compose.ui.graphics.Color.Transparent)
-                .padding(start = CHANNEL_INSET, end = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ChannelTile(channel, origin, Modifier.size(width = 56.dp, height = 34.dp))
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    BasicText(channel.number.orEmpty(), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle), maxLines = 1)
-                    if (channel.favorite) Icon(PleyIcons.Star, contentDescription = null, size = 12.dp, tint = PleyColors.Accent, modifier = Modifier.padding(start = 4.dp))
-                }
-                BasicText(
-                    name,
-                    style = PleyType.Tv.Label.copy(color = if (rowFocused) PleyColors.Fg else PleyColors.Muted),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
+        ChannelCell(channel, name, origin, rowFocused)
         Box(Modifier.weight(1f).fillMaxHeight().padding(end = TvSafeArea.Horizontal).clipToBounds()) {
-            if (visible.isEmpty() && loaded) {
+            if (cells.blank) {
                 val label = if (channel.hasGuide) stringResource(R.string.tv_livetv_no_info) else name
                 Box(
                     Modifier
                         .fillMaxSize()
                         .padding(vertical = 4.dp, horizontal = CELL_INSET_X)
-                        .clip(PleyShape.Control)
-                        .background(if (focusedStart == -1L) PleyColors.Accent else PleyColors.Surface.copy(alpha = 0.6f))
+                        .background(if (cells.blankFocused) PleyColors.Accent else PleyColors.Surface.copy(alpha = 0.6f), PleyShape.Control)
                         .padding(start = 12.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    BasicText(label, style = PleyType.Tv.Caption.copy(color = if (focusedStart == -1L) PleyColors.OnAccent else PleyColors.Subtle))
+                    BasicText(label, style = PleyType.Tv.Caption.copy(color = if (cells.blankFocused) PleyColors.OnAccent else PleyColors.Subtle))
                 }
             }
-            for (program in visible) {
-                val from = maxOf(program.start, start)
-                val leftPx = (from - start) * pxPerSecond
-                val widthPx = (program.stop - from) * pxPerSecond
-                val isFocused = focusedStart == program.start
-                val airing = program.airingAt(now)
-                val span = spanOf(program, clock)
-                Box(
-                    Modifier
-                        .offset { IntOffset((leftPx - x()).roundToInt(), 0) }
-                        .width(with(density) { widthPx.toDp() })
-                        .fillMaxHeight()
-                        .padding(vertical = 4.dp, horizontal = CELL_INSET_X)
-                        .alpha(if (program.stop <= now && !isFocused) 0.55f else 1f)
-                        .clip(PleyShape.Control)
-                        .background(
-                            when {
-                                isFocused -> PleyColors.Accent
-                                airing -> PleyColors.PrimaryContainer
-                                else -> PleyColors.Surface2
-                            },
-                        )
-                        .then(if (airing && !isFocused) Modifier.border(1.dp, PleyColors.Accent.copy(alpha = 0.35f), PleyShape.Control) else Modifier)
-                        .semantics { contentDescription = "${program.title}, $span" },
-                ) {
-                    if (widthPx > MIN_TEXT_PX) {
-                        Column(
-                            Modifier
-                                .fillMaxHeight()
-                                .offset {
-                                    // A programme begun before the left edge keeps its title in view.
-                                    val room = (widthPx - 90.dp.toPx()).coerceAtLeast(0f)
-                                    IntOffset((x() - leftPx).coerceIn(0f, room).roundToInt(), 0)
-                                }
-                                .padding(horizontal = 10.dp),
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            BasicText(
-                                program.title,
-                                style = PleyType.Tv.Label.copy(
-                                    color = if (isFocused) PleyColors.OnAccent else PleyColors.Fg,
-                                    fontWeight = if (airing || isFocused) FontWeight.Bold else FontWeight.Medium,
-                                ),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            BasicText(
-                                span,
-                                style = PleyType.Tv.Caption.copy(color = if (isFocused) PleyColors.OnAccent.copy(alpha = 0.8f) else PleyColors.Subtle),
-                                maxLines = 1,
-                            )
-                        }
-                    }
-                    if (airing) {
-                        // From the cell's left edge to the now line (Samsung's BarWidth): as the share played of
-                        // the whole programme, one begun before the guide (its cell from the guide's edge) ran past now.
-                        val inset = with(density) { CELL_INSET_X.toPx() }
-                        val bar = ((now - start) * pxPerSecond - leftPx - inset).coerceIn(0f, (widthPx - 2 * inset).coerceAtLeast(0f))
-                        Box(
-                            Modifier
-                                .align(Alignment.BottomStart)
-                                .width(with(density) { bar.toDp() })
-                                .height(2.dp)
-                                .background(if (isFocused) PleyColors.OnAccent else PleyColors.Accent),
-                        )
-                    }
+            Box(Modifier.strip(x).fillMaxHeight()) {
+                for (cell in cells.cells) {
+                    key(cell.start) { ProgramCell(cell, start, pxPerSecond, now, clock) }
                 }
             }
         }
+    }
+}
+
+/** A row's channel: its logo, number (a star when a favourite) and name; the focused row's filled. */
+@Composable
+private fun ChannelCell(channel: LiveChannel, name: String, origin: String, focused: Boolean) {
+    Row(
+        Modifier
+            .width(CHANNEL_WIDTH)
+            .fillMaxHeight()
+            .padding(vertical = 4.dp)
+            // Drawn in its shape: clipped, each row's cell was a graphics layer.
+            .background(if (focused) PleyColors.Surface3 else Color.Transparent, PleyShape.Control)
+            .padding(start = CHANNEL_INSET, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ChannelTile(channel, origin, Modifier.size(width = 56.dp, height = 34.dp))
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                BasicText(channel.number.orEmpty(), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle), maxLines = 1)
+                if (channel.favorite) Icon(PleyIcons.Star, contentDescription = null, size = 12.dp, tint = PleyColors.Accent, modifier = Modifier.padding(start = 4.dp))
+            }
+            BasicText(
+                name,
+                style = PleyType.Tv.Label.copy(color = if (focused) PleyColors.Fg else PleyColors.Muted),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/**
+ * A programme's cell at its time on its row's layer: focused in the
+ * accent, airing marked with an edge and a bar to the now line, ended
+ * dimmed. Drawn in its shape and dimmed by its colours, without graphics
+ * layers: clipped and faded, each cell was a layer, and each ended one
+ * drawn off screen first.
+ */
+@Composable
+private fun ProgramCell(cell: CellLook, start: Long, pxPerSecond: Float, now: () -> Long, clock: (Long) -> String) {
+    val density = LocalDensity.current
+    val resources = LocalResources.current
+    val from = maxOf(cell.start, start)
+    val leftPx = (from - start) * pxPerSecond
+    val widthPx = (cell.stop - from) * pxPerSecond
+    // Made once for the programme, not each time its cell is drawn again.
+    val span = remember(cell.start, cell.stop, clock, resources) { resources.getString(R.string.tv_livetv_span, clock(cell.start), clock(cell.stop)) }
+    val fade = if (cell.ended && !cell.focused) PAST_ALPHA else 1f
+    val fill = when {
+        cell.focused -> PleyColors.Accent
+        cell.airing -> PleyColors.PrimaryContainer
+        else -> PleyColors.Surface2
+    }
+    Box(
+        Modifier
+            .offset { IntOffset(leftPx.roundToInt(), 0) }
+            .width(with(density) { widthPx.toDp() })
+            .fillMaxHeight()
+            .padding(vertical = 4.dp, horizontal = CELL_INSET_X)
+            .background(fill.copy(alpha = fill.alpha * fade), PleyShape.Control)
+            .then(if (cell.airing && !cell.focused) Modifier.border(1.dp, PleyColors.Accent.copy(alpha = 0.35f), PleyShape.Control) else Modifier)
+            .then(
+                if (cell.airing) {
+                    val inset = with(density) { CELL_INSET_X.toPx() }
+                    Modifier.nowBar(if (cell.focused) PleyColors.OnAccent else PleyColors.Accent, leftPx + inset, start, pxPerSecond, now)
+                } else {
+                    Modifier
+                },
+            )
+            .semantics { contentDescription = "${cell.title}, $span" },
+    ) {
+        if (widthPx > MIN_TEXT_PX) {
+            // Moved in by as much as the title is, narrower by as much: in the cell, which doesn't clip.
+            val shift = with(density) { (cell.shift * pxPerSecond).toDp() }
+            Column(
+                Modifier.fillMaxHeight().padding(start = 10.dp + shift, end = 10.dp),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                BasicText(
+                    cell.title,
+                    style = PleyType.Tv.Label.copy(
+                        color = (if (cell.focused) PleyColors.OnAccent else PleyColors.Fg).let { it.copy(alpha = it.alpha * fade) },
+                        fontWeight = if (cell.airing || cell.focused) FontWeight.Bold else FontWeight.Medium,
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                BasicText(
+                    span,
+                    style = PleyType.Tv.Caption.copy(color = if (cell.focused) PleyColors.OnAccent.copy(alpha = 0.8f) else PleyColors.Subtle.copy(alpha = PleyColors.Subtle.alpha * fade)),
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * An airing programme's bar along the foot of its cell, from the cell's
+ * left edge ([fromPx], on the guide's time line) to the now line
+ * (Samsung's BarWidth), in the cell's shape so it meets its rounded corner.
+ * [now] is read as it is drawn: the time moves it without composing.
+ */
+private fun Modifier.nowBar(color: Color, fromPx: Float, start: Long, pxPerSecond: Float, now: () -> Long): Modifier = drawWithCache {
+    val shape = Path().apply { addOutline(PleyShape.Control.createOutline(size, layoutDirection, this@drawWithCache)) }
+    val height = BAR_HEIGHT.toPx()
+    onDrawBehind {
+        val width = ((now() - start) * pxPerSecond - fromPx).coerceIn(0f, size.width)
+        if (width > 0f) clipPath(shape) { drawRect(color, Offset(0f, size.height - height), Size(width, height)) }
     }
 }
 
@@ -585,5 +716,17 @@ private val CELL_INSET_X = 2.dp
 
 /** Narrower than this, a programme shows no text. */
 private const val MIN_TEXT_PX = 70f
+
+/** The room a title keeps in its cell as it is moved in to stay in view: 90 dp, 25 minutes of the guide. */
+private const val TITLE_ROOM_S = 25 * 60L
+
+/** An ended programme's cell, text and fill, at this much of its colours. */
+private const val PAST_ALPHA = 0.55f
+
+/** How tall an airing programme's bar is, along its cell's foot. */
+private val BAR_HEIGHT = 2.dp
+
+/** The guide's two days, as wide as the grid draws them: the layer the programmes and the times are on. */
+private val STRIP_WIDTH = DP_PER_MINUTE * (LiveTv.GUIDE_SPAN_S / 60f)
 
 internal const val TV_LIVE_GUIDE = "pley.tv.live.guide"

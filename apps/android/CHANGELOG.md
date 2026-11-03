@@ -44,6 +44,9 @@ describes how they are made.
   it does in the guide and on Samsung TVs.
 - A programme with a long description no longer holds each move along a
   row of the TV guide: what shows over the grid is cut to its two lines.
+- The TV guide moves more smoothly on slower TVs: a row is drawn again
+  only when what it shows changes, and the grid slides without placing
+  its programmes again.
 
 ### Fixed
 

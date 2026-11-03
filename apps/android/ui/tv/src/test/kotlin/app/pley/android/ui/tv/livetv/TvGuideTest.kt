@@ -14,7 +14,9 @@ import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyPress
@@ -25,7 +27,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.CreationExtras
+import app.pley.android.data.LiveTvRepository
+import app.pley.android.data.Loadable
 import app.pley.android.model.LiveCategory
+import app.pley.android.model.LiveGuide
+import app.pley.android.model.LiveProgram
 import app.pley.android.player.PlayRequest
 import app.pley.android.screens.PlayerLauncher
 import app.pley.android.screens.livetv.LiveTvDeps
@@ -60,6 +66,7 @@ class TvGuideTest {
     private var uptime = 100_000L
     private val gate = KeyRepeatGate { uptime }
     private var leaves = 0
+    private lateinit var vm: LiveTvViewModel
 
     @After
     fun clear() = store.clear()
@@ -77,7 +84,7 @@ class TvGuideTest {
             @Suppress("UNCHECKED_CAST")
             override fun <V : ViewModel> create(modelClass: KClass<V>, extras: CreationExtras): V = LiveTvViewModel(deps, SavedStateHandle()) as V
         }
-        val vm = ViewModelProvider.create(store, factory)[LiveTvViewModel::class]
+        vm = ViewModelProvider.create(store, factory)[LiveTvViewModel::class]
         compose.setContent {
             TvTheme {
                 CompositionLocalProvider(LocalKeyRepeatGate provides gate) {
@@ -146,7 +153,32 @@ class TvGuideTest {
         compose.onNodeWithTag(ABOVE).assertIsFocused()
     }
 
+    @Test
+    fun `programmes sit at their time on the grid, and slide with it`() {
+        show()
+        val start = vm.guideStart
+        // Now is in the guide's second half hour: the first programme is on, the second next.
+        val on = LiveProgram(1, start, start + 90 * 60, "Morning Briefing")
+        val next = LiveProgram(1, start + 90 * 60, start + 150 * 60, "World at One")
+        for (chunk in live.guides.keys) {
+            live.guideChunk(chunk).value = Loadable.Ready(LiveGuide(chunk, chunk + LiveTvRepository.GUIDE_CHUNK_S, mapOf(1L to listOf(on, next))), fresh = true)
+        }
+        compose.waitForIdle()
+        val area = compose.onNodeWithTag(TV_LIVE_GUIDE).getUnclippedBoundsInRoot().left + CHANNEL
+        fun leftOf(title: String) = compose.onNodeWithContentDescription(title, substring = true).getUnclippedBoundsInRoot().left - area
+        // 3.6 dp a minute, each cell inset 2 dp.
+        assertEquals(2f, leftOf("Morning Briefing").value, 0.5f)
+        assertEquals(90 * 3.6f + 2f, leftOf("World at One").value, 0.5f)
+        // Right to the next programme, near the grid's edge: the grid moves on an hour.
+        key(AndroidKeyEvent.KEYCODE_DPAD_RIGHT, at = 100_000)
+        assertEquals(30 * 3.6f + 2f, leftOf("World at One").value, 0.5f)
+        assertEquals(-60 * 3.6f + 2f, leftOf("Morning Briefing").value, 0.5f)
+    }
+
     private companion object {
         const val ABOVE = "above"
+
+        /** The channels' column, left of the programmes. */
+        val CHANNEL = 160.dp
     }
 }
