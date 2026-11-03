@@ -181,7 +181,10 @@ docker run -d --name pley -p 7539:7539 --shm-size 2g \
   ghcr.io/pley-media-server/pley:latest
 ```
 
-For NVIDIA, use `--gpus all` instead of `--device /dev/dri`.
+For NVIDIA, use `--gpus all` instead of `--device /dev/dri`. For the
+Plex-compatible API on Plex's port, add
+`-p 32400:32400 -e PLEY_PLEX_BIND=0.0.0.0:32400`; it answers on Pley's port
+without them.
 
 ## Security
 
