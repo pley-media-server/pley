@@ -294,6 +294,9 @@ It has no releases yet: it is built and installed by hand
 
 ### Fixed
 
+- A film the TV can't play falls back one step at a time, to a conversion
+  of its audio before one of the whole film: the TV's player says a failure
+  twice, and the second skipped a step and started a second session.
 - The rail's grey panel fades into the dark under its entries over the
   last of its slide closed, where it went at once at the end.
 - Blu-ray subtitles that show two pictures at once, the first one forced,

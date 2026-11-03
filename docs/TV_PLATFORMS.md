@@ -347,8 +347,11 @@ output is set to Dolby; TrueHD and DTS only when Settings → Playback asks.
 
 AVPlay rules the engine keeps: one call at a time while a seek runs; no
 seek to 0; stop and close before the next source; the picture placed in
-1920×1080 coordinates; the screen saver off during playback. When the TV
-hides the app, the session closes and reopens at the same place.
+1920×1080 coordinates; the screen saver off during playback. AVPlay, and
+the native player too, can say one failure twice (its error, and the call
+that failed): the apps act on a session's first only, so the fallbacks go
+one step at a time. When the TV hides the app, the session closes and
+reopens at the same place.
 
 ## Releases
 

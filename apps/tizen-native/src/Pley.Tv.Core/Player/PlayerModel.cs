@@ -102,6 +102,8 @@ public sealed class PlayerModel : IDisposable
     bool picturesUnavailable;
 
     PlaybackInfo? info;
+    /// <summary>The session whose failure is being dealt with: the TV's player can say one failure twice.</summary>
+    PlaybackInfo? failed;
     bool sessionEnded = true;
     /// <summary>Bumped by every new start: what an older one finds when it resumes is no longer its own.</summary>
     int generation;
@@ -625,6 +627,10 @@ public sealed class PlayerModel : IDisposable
             StopByServer(stop.Message, byAdmin: true);
             return;
         }
+        // Once a session: the TV's player can say one failure twice (its error, and the call it
+        // failed in), and each would start a session, the second a step further down the ladder.
+        if (failed == s) return;
+        failed = s;
         // A TV's player can't say why a request failed: the session's own answer tells a stop from the rest.
         if (error is EngineError.Http or EngineError.Network or EngineError.Playlist)
         {

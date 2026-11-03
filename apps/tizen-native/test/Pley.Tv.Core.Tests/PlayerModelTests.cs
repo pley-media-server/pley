@@ -658,6 +658,27 @@ public class PlayerModelTests
         h.Clock.Advance(10_000);
         Assert.Equal(2, asked);
     }
+
+    [Fact]
+    public void A_failure_the_TV_says_twice_starts_one_session_at_the_next_step()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Start(new PlayRequest(1, 0, true));
+        var again = true;
+        h.Source.Answer = _ =>
+        {
+            // As on the TV: the second report comes while the new session is still being asked for.
+            if (again)
+            {
+                again = false;
+                h.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
+            }
+            return FakePlayerSource.Stream(10, "remux");
+        };
+        h.Engine.Fail(new EngineError.Unsupported("audio", Audio: true, Container: false));
+        Assert.Equal(new[] { "auto", "remux" }, h.Source.Bodies.Select(b => (string)b["mode"]!));
+    }
+
 }
 
 /// <summary>The panels as the screen builds them (the Android app's TvPlayerPanels and its screen test).</summary>
