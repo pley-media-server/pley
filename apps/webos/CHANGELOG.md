@@ -129,8 +129,9 @@ describes how they are made.
 - The rail's entries are smaller and it lists up to six libraries before
   Libraries takes over. Nothing leaves the rail to make room any more:
   when its entries don't fit, they scroll between the avatar and
-  Settings, which stay in place, keeping the entry after the focused one
-  in sight.
+  Settings, which stay in place, keeping the next entry the way focus
+  moves in sight, as in the Samsung and Android TV apps. Opening the rail
+  scrolls it only as far as its current entry needs.
 - Search shows up to 200 titles, 200 people and 200 Live TV channels,
   where it stopped at 60 titles and 12 people and channels; each row
   holds all it found and scrolls sideways.

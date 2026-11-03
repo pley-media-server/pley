@@ -407,32 +407,63 @@ impl Rail {
         outcome
     }
 
-    /// Where the entries between the avatar and Settings show scrolled to this frame. The focused
-    /// entry (the current one while closed) is kept in view; with keys, so are the entries either
-    /// side of it, so the next one in the direction of travel shows, while with the pointer the
-    /// rail moves only as far as brings a cut-off entry in whole. The first entry starts at the
-    /// top of the view and the last ends at its foot.
+    /// Where the entries between the avatar and Settings show scrolled to this frame, by the rule
+    /// the TV apps share ([`rail_scroll`]): the focused entry (the current one while closed) in
+    /// view and, as focus moves along the rail with keys, the next one the way it went. Opening
+    /// the rail, the entries made again and the pointer have no direction, so only the entry
+    /// comes in, as little as brings a cut-off one in whole.
     fn follow(&mut self, ui: &mut Ui, view: &RailView) -> f32 {
         let top = &view.entries.top;
-        let content = (top.len() as f32 * PITCH - GAP).max(0.0);
-        let max = (content - VIEW_H).max(0.0);
-        let at = if self.open {
-            top.iter().position(|e| ui.is_focused(Rail::entry_focus_id(&e.id)))
-        } else {
-            view.current.and_then(|c| top.iter().position(|e| e.id == c))
-        };
-        if let Some(i) = at {
-            let (lo, hi) = (i as f32 * PITCH, i as f32 * PITCH + ENTRY_H);
-            let (lo, hi) = if self.open && !ui.pointer_mode() {
-                ((lo - PITCH).max(0.0), (hi + PITCH).min(content))
-            } else {
-                (lo, hi)
+        let (at, dir) = if self.open {
+            let at = ui.focused().and_then(|id| place(view.entries, id));
+            // The way from where the element focused last frame is now, found by its id, so an
+            // entry coming or going before it doesn't read as a move. Closed, nothing was
+            // focused here: opening has no direction.
+            let from = self.last_focus.and_then(|id| place(view.entries, id));
+            let dir = match (from, at) {
+                (Some(from), Some(at)) if from != at && !ui.pointer_mode() => {
+                    Some(if from < at { Dir::Down } else { Dir::Up })
+                }
+                _ => None,
             };
-            self.scroll = nudge(self.scroll, lo, hi, 0.0, VIEW_H, 0.0, max);
-        }
-        self.scroll = self.scroll.clamp(0.0, max);
+            (at, dir)
+        } else {
+            (view.current.and_then(|c| top.iter().position(|e| e.id == c)).map(|i| i as isize), None)
+        };
+        self.scroll = rail_scroll(self.scroll, at.unwrap_or(-1), top.len(), dir);
         ui.scroll(rail_id().with("scroll"), self.scroll, SCROLL)
     }
+}
+
+/// Where the rail's element `id` is along it (packages/tv's `placeOf`): -1 for the avatar, an
+/// entry's index, the entries' count for Settings.
+fn place(entries: &RailEntries, id: Id) -> Option<isize> {
+    if id == Rail::entry_focus_id("profile") {
+        return Some(-1);
+    }
+    if id == Rail::entry_focus_id(&entries.settings.id) {
+        return Some(entries.top.len() as isize);
+    }
+    entries.top.iter().position(|e| Rail::entry_focus_id(&e.id) == id).map(|i| i as isize)
+}
+
+/// How far the entries are scrolled once entry `focused` of `count` has focus, from `scroll`
+/// (packages/tv's `railScroll`, which packages/tv/test/fixtures/rail.json pins for every TV
+/// app): the entry wholly in view and, moving `dir` (Down from above it or the avatar, Up from
+/// below or Settings), the next one that way too, so what is beyond the edge shows coming;
+/// within the first entry at its place and the last ending above Settings. With no direction
+/// only the entry is brought into view; with no entry focused (the avatar, Settings, -1 or
+/// `count`) the scroll is kept within its ends.
+fn rail_scroll(scroll: f32, focused: isize, count: usize, dir: Option<Dir>) -> f32 {
+    let max = (count as f32 * PITCH - GAP - VIEW_H).max(0.0);
+    let Ok(i) = usize::try_from(focused) else { return scroll.clamp(0.0, max) };
+    if i >= count {
+        return scroll.clamp(0.0, max);
+    }
+    let at = i as f32 * PITCH;
+    let top = at - if dir == Some(Dir::Up) && i > 0 { PITCH } else { 0.0 };
+    let bottom = at + ENTRY_H + if dir == Some(Dir::Down) && i + 1 < count { PITCH } else { 0.0 };
+    nudge(scroll, top, bottom, 0.0, VIEW_H, 0.0, max)
 }
 
 /// How far a label slides in from as the rail opens: a little, since an entry doesn't clip it and
@@ -989,7 +1020,7 @@ mod tests {
         let usb = usb.expect("the drive's icon is drawn");
         assert!(whole(usb - (ENTRY_H - ICON) / 2.0), "the drive's icon at {usb}");
         assert_eq!(usb - (ENTRY_H - ICON) / 2.0 + ENTRY_H, SETTINGS_Y - GAP);
-        // Opened there, the entry before it shows too, and nothing moves past the view's end.
+        // Opened there, nothing moves: the view is at its end, the entry before it whole too.
         open.set(Some("storage"));
         h.idle(&mut screen);
         let f = h.step(Step::Wait(0.5), &mut screen);
@@ -1004,6 +1035,148 @@ mod tests {
         let settings = at(&|c| matches!(c, Cmd::Text { layout, .. } if &*layout.text == "Settings"));
         assert!(clip < search && search < unclip && unclip < settings);
         assert_eq!(CLIP_TOP, TOP + AVATAR_ENTRY);
+    }
+
+    /// packages/tv/test/fixtures/rail.json, which the web TV app's and the native Samsung app's
+    /// tests read too: the rail's entries and how they scroll.
+    const SHARED: &str = include_str!("../../../../../packages/tv/test/fixtures/rail.json");
+
+    #[test]
+    fn the_entries_and_their_scroll_follow_the_shared_fixture() {
+        let fixture: serde_json::Value = serde_json::from_str(SHARED).unwrap();
+        let cases = fixture["entries"].as_array().unwrap();
+        assert!(!cases.is_empty());
+        for case in cases {
+            let input = &case["in"];
+            let libs: Vec<Library> = (input["libraries"].as_array().unwrap().iter().enumerate())
+                .map(|(i, kind)| lib(i as i64 + 1, serde_json::from_value(kind.clone()).unwrap()))
+                .collect();
+            let (now_playing, live) = (input["nowPlaying"].as_bool().unwrap(), input["live"].as_bool().unwrap());
+            let e = rail_entries(&libs, now_playing, live, None, false);
+            // The web TV app calls Live TV's entry "live"; this app, as Android's, "live-tv".
+            let got: Vec<&str> = ids(&e).into_iter().map(|id| if id == "live-tv" { "live" } else { id }).collect();
+            let want: Vec<&str> = case["out"].as_array().unwrap().iter().map(|id| id.as_str().unwrap()).collect();
+            assert_eq!(got, want, "{input}");
+        }
+        let cases = fixture["scroll"].as_array().unwrap();
+        assert!(!cases.is_empty());
+        for case in cases {
+            let input = &case["in"];
+            let dir = match input["dir"].as_str() {
+                Some("down") => Some(Dir::Down),
+                Some("up") => Some(Dir::Up),
+                None => None,
+                Some(other) => panic!("a direction {other}"),
+            };
+            let scroll = input["scroll"].as_f64().unwrap() as f32;
+            let focused = input["focused"].as_i64().unwrap() as isize;
+            let count = input["count"].as_u64().unwrap() as usize;
+            assert_eq!(rail_scroll(scroll, focused, count, dir), case["out"].as_f64().unwrap() as f32, "{input}");
+        }
+    }
+
+    /// Where the first entry's top is drawn: `FIRST_Y` less the scroll.
+    fn first_top(list: &pley_base::DisplayList, entries: &RailEntries) -> f32 {
+        tops(list, entries)[0]
+    }
+
+    #[test]
+    fn opening_the_rail_brings_in_only_its_entry_and_keys_look_ahead_the_way_they_go() {
+        use pley_base::Key;
+        use pley_ui::testing::{Harness, Step};
+        use std::cell::{Cell, RefCell};
+        // Twelve entries: Search, Home, Live TV, six libraries, Playlists, Collections, Now
+        // Playing. Closed on the sixth library's page (entry 8), which shows without scrolling.
+        let libs: Vec<Library> = (1..=6).map(|i| lib(i, LibraryKind::Movies)).collect();
+        let entries = rail_entries(&libs, true, true, None, false);
+        assert_eq!((entries.top.len(), entries.top[8].id.as_str()), (12, "library:6"));
+        let rail = RefCell::new(Rail::default());
+        let open = Cell::new(None);
+        let mut screen = rail_screen(&entries, &rail, &open, "library:6");
+        let mut h = Harness::new();
+        h.idle(&mut screen);
+        h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(rail.borrow().scroll, 0.0);
+        // Opened there with keys, the rail doesn't move: no way was taken yet.
+        open.set(Some("library:6"));
+        h.idle(&mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("library:6")));
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y);
+        // Down: entry 9 and the one after it in view (scrolled 78, as the fixture has it).
+        h.step(Step::Press(Key::Down), &mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("playlists")));
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - 78.0);
+        // Back up to entry 8, which shows with the one before it: nothing moves.
+        h.step(Step::Press(Key::Up), &mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - 78.0);
+        // Up to entry 1 shows Search above it, at the top.
+        for _ in 0..7 {
+            h.step(Step::Press(Key::Up), &mut screen);
+        }
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("home")));
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y);
+        // The pointer on entry 9, cut off above Settings, brings it in whole and no further.
+        h.step(Step::Point(Point::new(30.0, FIRST_Y + 9.0 * PITCH + 2.0)), &mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("playlists")));
+        assert_eq!(first_top(&f.list, &entries), FIRST_Y - (9.0 * PITCH + ENTRY_H - VIEW_H));
+    }
+
+    #[test]
+    fn entries_made_again_keep_focus_and_scroll_on_the_focused_one() {
+        use pley_base::Key;
+        use pley_ui::testing::{Harness, Step};
+        use std::cell::{Cell, RefCell};
+        // Eleven entries, Playlists last (entry 10); then Live TV comes before it and Now
+        // Playing after it, so it is entry 11 of 13.
+        let libs: Vec<Library> = (1..=8).map(|i| lib(i, LibraryKind::Movies)).collect();
+        let before = rail_entries(&libs, false, false, discover(), false);
+        let after = rail_entries(&libs, true, true, discover(), false);
+        assert_eq!((before.top.len(), before.top[10].id.as_str()), (11, "playlists"));
+        assert_eq!((after.top.len(), after.top[11].id.as_str()), (13, "playlists"));
+        let entries = RefCell::new(before);
+        let rail = RefCell::new(Rail::default());
+        let open = Cell::new(Some("playlists"));
+        let mut screen = |ui: &mut Ui| {
+            let mut r = rail.borrow_mut();
+            if let Some(at) = open.take() {
+                r.open(ui, at);
+            }
+            let entries = entries.borrow();
+            let view = RailView {
+                entries: &entries,
+                current: Some("playlists"),
+                me: None,
+                avatar: None,
+                offline_mark: false,
+                page_modal: false,
+            };
+            r.ui(ui, &view);
+        };
+        let mut h = Harness::new();
+        h.idle(&mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("playlists")));
+        assert_eq!(tops(&f.list, &entries.borrow())[10] + ENTRY_H, SETTINGS_Y - GAP, "Playlists at the view's foot");
+        // The entries change under it: focus stays on Playlists, which stays in view, and its
+        // moving down a place isn't a move down, so Now Playing after it doesn't come in.
+        *entries.borrow_mut() = after;
+        h.idle(&mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("playlists")));
+        assert_eq!(rail.borrow().scroll, 11.0 * PITCH + ENTRY_H - VIEW_H);
+        let tops_now = tops(&f.list, &entries.borrow());
+        assert_eq!(tops_now[11] + ENTRY_H, SETTINGS_Y - GAP, "Playlists still at the view's foot");
+        assert!(!whole(tops_now[12]), "Now Playing came in");
+        // Down from it now looks ahead: Now Playing, the last, ends at the foot.
+        h.step(Step::Press(Key::Down), &mut screen);
+        let f = h.step(Step::Wait(0.5), &mut screen);
+        assert_eq!(f.focused, Some(Rail::entry_focus_id("now-playing")));
+        assert_eq!(tops(&f.list, &entries.borrow())[12] + ENTRY_H, SETTINGS_Y - GAP);
     }
 
     #[test]
