@@ -243,7 +243,8 @@ async fn signing_in_sets_it_up_right_after_the_password() {
     assert_eq!(secret_of(&letters), secret);
     assert!(letters.text().contains("6-digit code"), "{}", letters.text());
 
-    let done = sign_in_with(&app, "bob", "test-pass-1", &id, Some(&code_at(&secret, now()))).await;
+    let first = code_at(&secret, now());
+    let done = sign_in_with(&app, "bob", "test-pass-1", &id, Some(&first)).await;
     assert_eq!(done.status, StatusCode::OK, "{}", done.text());
     assert!(done.headers.get(header::SET_COOKIE).is_some());
     assert_eq!(done.body["user"]["two_step"], true);
@@ -257,7 +258,9 @@ async fn signing_in_sets_it_up_right_after_the_password() {
     let asked = sign_in(&app, "bob", "test-pass-1", None).await;
     assert_eq!(asked.body["code"], "two_step", "{}", asked.text());
     assert!(asked.body.get("setup").is_none());
-    let again = sign_in(&app, "bob", "test-pass-1", Some(&code_at(&secret, now()))).await;
+    // That code itself: the app's code now is a new one once its 30 seconds
+    // are up.
+    let again = sign_in(&app, "bob", "test-pass-1", Some(&first)).await;
     assert_eq!(again.body["code"], "two_step", "the code that set it up was used");
     let next = sign_in(&app, "bob", "test-pass-1", Some(&next_code(&secret))).await;
     assert_eq!(next.status, StatusCode::OK, "{}", next.text());

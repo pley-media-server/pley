@@ -115,6 +115,11 @@ describes how they are made.
 
 ### Fixed
 
+- Blu-ray subtitles that show two pictures at once, the first one forced,
+  show both in the web app, and a picture the disc crops shows cropped.
+- A password or PIN checked while the server is out of memory gets "Pley
+  is busy checking passwords: try again in a moment" rather than "wrong",
+  and no longer counts towards locking the account or the PIN.
 - A picture sent to a collection or playlist through the Plex-compatible
   API no longer lands on the movie or show that had the same number:
   collections and playlists have keys of their own there. An episode's
@@ -127,6 +132,18 @@ describes how they are made.
 - Tautulli no longer takes Pley for a server that is down when nothing has
   happened for 15 seconds: the Plex-compatible API's notifications send
   pings, as Plex's server does.
+
+### Security
+
+- A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer keep
+  the web app busy: decoding one moment of them stops after a set amount
+  of work, far more than real subtitles take, and that moment isn't shown.
+- A crafted file's picture subtitles can no longer run the web app out of
+  memory: a track is read up to 100,000 samples and 512 MiB, a moment's
+  pictures are a 4K screen's pixels at most (2 pictures for PGS, 32 for
+  DVB), and the frames kept decoded hold 128 MiB besides the one showing,
+  their pictures ready to draw as much again. Real subtitles show as
+  before.
 
 ## [0.1.4] - 2026-11-02
 

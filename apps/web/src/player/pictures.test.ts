@@ -418,13 +418,13 @@ function fakeVideo({ frames = true, width = 1600, height = 900 } = {}) {
   return { video, present };
 }
 
-function setup(opts: Parameters<typeof fakeVideo>[0] = {}) {
+function setup(opts: Parameters<typeof fakeVideo>[0] & { keptBytes?: number } = {}) {
   const { video, present } = fakeVideo(opts);
   const canvas = document.createElement("canvas");
   const g = fakeContext();
   vi.spyOn(canvas, "getContext").mockReturnValue(g as unknown as CanvasRenderingContext2D);
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(g as unknown as CanvasRenderingContext2D);
-  const renderer = new PictureRenderer(video, canvas);
+  const renderer = new PictureRenderer(video, canvas, opts.keptBytes);
   return { video, canvas, g, present, renderer };
 }
 
@@ -462,6 +462,29 @@ describe("PictureRenderer", () => {
     expect(g.drawn).toEqual([[83, 750, 4, 2]]);
     present(4.4);
     expect(g.drawn).toEqual([]);
+  });
+
+  it("keeps the frames decoded within their bytes, the oldest going first", () => {
+    // Each frame is a 4×2 picture: 32 bytes, and its image as many again.
+    const { present, renderer } = setup({ keptBytes: 150 });
+    const subs = track([
+      [1000, 1400],
+      [2000, 2400],
+      [3000, 3400],
+    ]);
+    const decoded = vi.spyOn(subs, "frameAt");
+    renderer.setTrack(subs);
+    present(1);
+    present(2);
+    present(3);
+    expect(decoded).toHaveBeenCalledTimes(3);
+    // The first went for the third: decoded again, and the second goes for it.
+    present(1);
+    expect(decoded).toHaveBeenCalledTimes(4);
+    present(3);
+    expect(decoded).toHaveBeenCalledTimes(4);
+    present(2);
+    expect(decoded).toHaveBeenCalledTimes(5);
   });
 
   it("decodes once, and draws again only when what shows changes", () => {
