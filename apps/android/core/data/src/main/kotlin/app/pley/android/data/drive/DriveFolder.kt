@@ -145,7 +145,7 @@ object DriveFolder {
      * its times with a full stop. A WebVTT file is kept as it is.
      */
     fun toWebVtt(text: String): String {
-        val lines = text.removePrefix("﻿").replace("\r\n", "\n").replace('\r', '\n')
+        val lines = text.removePrefix("\uFEFF").replace("\r\n", "\n").replace('\r', '\n')
         if (lines.trimStart().startsWith("WEBVTT")) return lines
         return "WEBVTT\n\n" + TIMES.replace(lines, "$1.$2")
     }

@@ -71,7 +71,7 @@ class DriveFolderTest {
 
     @Test
     fun subRipBecomesWebVttTheAppDraws() {
-        val vtt = DriveFolder.toWebVtt("﻿1\r\n00:00:01,500 --> 00:00:03,000\r\nHello\r\n\r\n2\r\n00:01:02,250 --> 00:01:04,000\r\nThere\r\n")
+        val vtt = DriveFolder.toWebVtt("\uFEFF1\r\n00:00:01,500 --> 00:00:03,000\r\nHello\r\n\r\n2\r\n00:01:02,250 --> 00:01:04,000\r\nThere\r\n")
         assertTrue(vtt.startsWith("WEBVTT\n\n"))
         assertTrue(vtt.contains("00:00:01.500 --> 00:00:03.000\nHello\n"))
         assertTrue(vtt.contains("00:01:02.250 --> 00:01:04.000\nThere\n"))
