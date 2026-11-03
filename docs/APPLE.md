@@ -526,12 +526,13 @@ goes back to that server's sign-in and says why.
 
 ## Finding servers
 
-The apps find servers on the home network by Bonjour: Pley servers
-announce `_pley._tcp` ([API.md, Discovery](API.md#discovery)), and the
-apps browse for it with Network.framework's `NWBrowser`. They don't send
-the `pley?` broadcast the other apps use, so they need no multicast
-entitlement. A server that isn't found (another network, Bonjour turned
-off on the server, a router that drops it) is added by its address.
+The apps find servers on the home network by Bonjour, which is off on a
+server until its administrator turns it on in Settings → Network. Pley
+servers then announce `_pley._tcp` ([API.md, Discovery](API.md#discovery)),
+and the apps browse for it with Network.framework's `NWBrowser`. They
+don't send the `pley?` broadcast the other apps use, so they need no
+multicast entitlement. A server that isn't found (Bonjour off on it,
+another network, a router that drops it) is added by its address.
 
 The first browse makes the system ask for local network access, with the
 reason from the app's Info.plist. If it is refused, the search reports it
@@ -1810,8 +1811,10 @@ pley --data-dir "$data" --bind 127.0.0.1:7712 --no-discovery --no-tray
 ```
 
 The simulators share the Mac's network, so the apps open
-`http://127.0.0.1:7712`. Leave out `--no-discovery`, and bind a LAN
-address, to have it found by Bonjour. Delete the folder afterwards.
+`http://127.0.0.1:7712`. To have it found by Bonjour, leave out
+`--no-discovery`, bind a LAN address and turn Bonjour on in Settings →
+Network (or put `bonjour = true` in the data folder's `pley.toml`).
+Delete the folder afterwards.
 
 ## Known limits
 

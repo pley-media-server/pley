@@ -35,7 +35,8 @@ struct ServersView: View {
                     row(entry)
                 }
                 if model.foundEntries.isEmpty && !model.searching && !model.blocked {
-                    Text("No servers found on this network.")
+                    Text("No servers found on this network. Turn on Bonjour in the server's "
+                         + "Settings → Network, or add it by its address.")
                         .foregroundStyle(.secondary)
                 }
             } header: {
