@@ -25,6 +25,8 @@ pub struct TestApp {
     pub state: AppState,
     pub time: f64,
     pub server: FixtureServer,
+    /// The TV: a drive plugged in.
+    pub device: Arc<FakeDevice>,
 }
 
 impl TestApp {
@@ -44,7 +46,7 @@ impl TestApp {
         server.set_mode(mode).unwrap();
         let mut registry = Registry::new();
         registry.add(pley_home::screen).tile_actions(pley_item::tile_actions);
-        let state = AppState::new(device, store, http, Tasks::new(Waker::noop()));
+        let state = AppState::new(device.clone(), store, http, Tasks::new(Waker::noop()));
         let mut app = TestApp {
             ui: UiState::new(),
             list: DisplayList::default(),
@@ -53,6 +55,7 @@ impl TestApp {
             state,
             time: pley_base::time::now(),
             server,
+            device,
         };
         let route = app.state.start_route();
         app.shell.start(&mut app.state, &mut app.ui, route);

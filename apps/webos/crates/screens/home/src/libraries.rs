@@ -1,7 +1,9 @@
 //! The libraries list (Android's `TvLibraries.kt`; the TV app's `LibrariesScreen` in
 //! `library.tsx`): the rail's "Libraries" (more than three libraries) and Settings' "Sort
 //! libraries". A card a library, three to a row, in the profile's order: its kind's icon, its
-//! name, how much it holds and "Scanning…" while the server scans it.
+//! name, how much it holds and "Scanning…" while the server scans it. When the rail has no room
+//! for Playlists, a card for it follows the libraries' (not while sorting them), and this page is
+//! the way there.
 //!
 //! With two or more, the profile may put them in its own order, which every list of them follows
 //! on all its devices. Sort libraries (or Move in a card's actions) starts sorting: OK lifts a
@@ -18,9 +20,9 @@ use pley_base::{Icon, Key, Point, Rect, Size, TextOpts};
 use pley_core::ApiError;
 use pley_core::http::sentence;
 use pley_core::model::Library;
-use pley_kit::look::shade;
+use pley_kit::look::{shade, spoken};
 use pley_kit::{Button, Heading, ListRow, Message, MessageStyle, SCROLL, SidePanel, bar_group};
-use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen};
+use pley_shell::{AppCx, AppEvent, Chrome, RailEntries, Route, Screen};
 use pley_ui::theme::{self, focus, radius};
 use pley_ui::{Dirs, FocusOpts, Group, Id, Motion, Ui, nudge};
 
@@ -319,6 +321,11 @@ impl LibrariesScreen {
         page.with("cards").with(id)
     }
 
+    /// The focus id of Playlists' card on the page `page`.
+    pub fn playlists_id(page: Id) -> Id {
+        page.with("cards").with("playlists")
+    }
+
     fn ids_now(&self, cx: &AppCx) -> Vec<i64> {
         in_order(cx.state.libraries().unwrap_or(&[]), self.order.as_deref()).iter().map(|l| l.id).collect()
     }
@@ -460,25 +467,31 @@ impl LibrariesScreen {
         let title_w = right - theme::GUTTER;
         ui.text(Point::new(theme::GUTTER, title_y), title, &theme::PAGE_TITLE, &TextOpts::line(title_w), theme::FG);
 
-        // The grid of cards under it.
+        // The grid of cards under it, Playlists' last when the rail has no room for it.
         let view_top = theme::SAFE_Y + header_h + HEADER_TO_GRID;
         let view_h = theme::CANVAS_H - view_top - if in_sort { HINT_ROOM } else { 0.0 };
         let grid_id = page.with("cards");
         let count = cards.len();
-        let max = (content_height(count) - view_h).max(0.0);
+        let playlists = !in_sort && cx.rail().is_some_and(RailEntries::playlists_on_libraries_page);
+        let playlists_id = Self::playlists_id(page);
+        let tiles = count + usize::from(playlists);
+        let max = (content_height(tiles) - view_h).max(0.0);
         if let Some(first) = cards.first() {
             ui.initial_focus(grid_id.with(first.library.id));
         }
         if let Some(id) = self.focus_card.take() {
             ui.request_focus(grid_id.with(id));
         }
-        let focused = cards.iter().position(|c| ui.is_focused(grid_id.with(c.library.id)));
+        let focused = cards
+            .iter()
+            .position(|c| ui.is_focused(grid_id.with(c.library.id)))
+            .or_else(|| (playlists && ui.is_focused(playlists_id)).then_some(count));
         if let Some(i) = focused {
             let top = card_place(i).y;
             self.shift = if ui.pointer_mode() {
                 nudge(self.shift, top, top + CARD.h, 0.0, view_h, 0.0, max)
             } else {
-                shift_for(i, count, view_h)
+                shift_for(i, tiles, view_h)
             };
         }
         self.shift = self.shift.clamp(0.0, max);
@@ -521,6 +534,7 @@ impl LibrariesScreen {
         let mut actions = None;
         let mut dropped = false;
         let mut lifting = None;
+        let mut open_playlists = false;
         let clip = Rect::new(0.0, view_top, theme::CANVAS_W, view_h);
         let group = if lifted.is_some() { Group::grid(COLUMNS as u16).wheel() } else { Group::grid(COLUMNS as u16) };
         ui.clip(clip, |ui| {
@@ -536,7 +550,9 @@ impl LibrariesScreen {
                     let slot = Rect::new(place.x, place.y, CARD.w, CARD.h);
                     let rect = ui.animate_rect(id.with("place"), slot, SLIDE).translate(0.0, view_top - shift);
                     let is_lifted = lifted == Some(l.id);
-                    let r = draw_card(ui, id, rect, l, &card.line, in_sort, is_lifted);
+                    let face = Face { icon: kind_icon(l.kind), name: &l.name, line: &card.line };
+                    let opts = FocusOpts::default().long_press().takes(if is_lifted { Dirs::ALL } else { Dirs::NONE });
+                    let r = draw_card(ui, id, rect, &face, opts, in_sort, is_lifted);
                     if r.activated {
                         if is_lifted {
                             dropped = true;
@@ -549,6 +565,16 @@ impl LibrariesScreen {
                     if (r.long_pressed || r.menu) && lifted.is_none() {
                         actions = Some(l.id);
                     }
+                }
+                let place = card_place(count);
+                if playlists && near(view_top + place.y - shift, row_h) {
+                    // Playlists' card, without actions of its own: OK, held or not, opens it.
+                    let slot = Rect::new(place.x, place.y, CARD.w, CARD.h);
+                    let rect =
+                        ui.animate_rect(playlists_id.with("place"), slot, SLIDE).translate(0.0, view_top - shift);
+                    let face = Face { icon: Icon::ListMusic, name: "Playlists", line: "" };
+                    let r = draw_card(ui, playlists_id, rect, &face, FocusOpts::default(), false, false);
+                    open_playlists = r.activated;
                 }
             });
             if lifted.is_some() {
@@ -593,6 +619,9 @@ impl LibrariesScreen {
         }
         if let Some(id) = opened {
             cx.push(Route::Library { id, tab: None, sort: None });
+        }
+        if open_playlists {
+            cx.push(Route::Playlists);
         }
         if pressed_sort {
             if in_sort {
@@ -672,21 +701,30 @@ impl LibrariesScreen {
     }
 }
 
-/// A library's card (`LibraryCard`): Surface2 with 6 dp corners; focused, the Accent fill with
-/// OnAccent content at 1.05. Inside, 18 in: a 40 dp well (the content colour at 12 %) with the
-/// kind's icon, 14, then the name (`Tv.Title`) over "412 movies" (`Tv.Caption`, 75 %); while
-/// sorting a grip at its end. Lifted it turns Surface3 with a 3 dp AccentBright ring inside its
-/// edge and keeps its size; it then takes the arrows.
+/// What a card shows: the icon in its well, its name, and the line under it ("412 movies"; none
+/// on Playlists' card).
+struct Face<'a> {
+    icon: Icon,
+    name: &'a str,
+    line: &'a str,
+}
+
+/// A library's card (`LibraryCard`), and Playlists' like it: Surface2 with 6 dp corners; focused,
+/// the Accent fill with OnAccent content at 1.05. Inside, 18 in: a 40 dp well (the content colour
+/// at 12 %) with the icon, 14, then the name (`Tv.Title`) over "412 movies" (`Tv.Caption`, 75 %),
+/// or the name alone in the middle; while sorting a grip at its end. Lifted it turns Surface3
+/// with a 3 dp AccentBright ring inside its edge and keeps its size; it then takes the arrows.
+/// Audio Guidance reads the name, then the line.
 fn draw_card(
     ui: &mut Ui,
     id: Id,
     rect: Rect,
-    library: &Library,
-    line: &str,
+    face: &Face,
+    opts: FocusOpts,
     sorting: bool,
     lifted: bool,
 ) -> pley_ui::Response {
-    let opts = FocusOpts::default().long_press().takes(if lifted { Dirs::ALL } else { Dirs::NONE });
+    ui.name(id, || spoken(&[face.name, face.line]));
     let r = ui.focusable_with(id, rect, opts);
     if r.activated || r.long_pressed || r.menu {
         // What the press changes shows at the next frame.
@@ -707,15 +745,19 @@ fn draw_card(
         let well = Rect::new(rect.x + CARD_PAD, rect.y + (rect.h - WELL) / 2.0, WELL, WELL);
         ui.fill(well, content.alpha(theme::ICON_WELL_ALPHA), radius::CONTROL);
         let icon = Size::new(theme::ICON_SIZE, theme::ICON_SIZE);
-        ui.icon(well.place(icon, 0.5, 0.5), kind_icon(library.kind), content);
+        ui.icon(well.place(icon, 0.5, 0.5), face.icon, content);
         let x = well.right() + 14.0;
         let grip = if sorting { 12.0 + theme::ICON_SIZE } else { 0.0 };
         let w = (rect.right() - CARD_PAD - grip - x).max(1.0);
-        let block = theme::TITLE.line_height + 2.0 + theme::CAPTION.line_height;
+        let has_line = !face.line.is_empty();
+        let block = theme::TITLE.line_height + if has_line { 2.0 + theme::CAPTION.line_height } else { 0.0 };
         let y = rect.y + (rect.h - block) / 2.0;
-        ui.text(Point::new(x, y), &library.name, &theme::TITLE, &TextOpts::line(w), content);
-        let sub = content.alpha(theme::CARD_SUBLINE_ALPHA);
-        ui.text(Point::new(x, y + theme::TITLE.line_height + 2.0), line, &theme::CAPTION, &TextOpts::line(w), sub);
+        ui.text(Point::new(x, y), face.name, &theme::TITLE, &TextOpts::line(w), content);
+        if has_line {
+            let sub = content.alpha(theme::CARD_SUBLINE_ALPHA);
+            let at = Point::new(x, y + theme::TITLE.line_height + 2.0);
+            ui.text(at, face.line, &theme::CAPTION, &TextOpts::line(w), sub);
+        }
         if sorting {
             let at = Rect::new(rect.right() - CARD_PAD - theme::ICON_SIZE, rect.y, theme::ICON_SIZE, rect.h);
             let tint = if lifted { theme::ACCENT_BRIGHT } else { content.alpha(0.6) };

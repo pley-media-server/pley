@@ -543,7 +543,12 @@ the watchdog and sampler) and Core's marks are left out when it is compiled.
 
 ### Videos on a USB drive
 
-While a drive is plugged into the TV, the rail ends with **USB drive**. It
+While a drive is plugged into the TV, the rail ends with **USB drive**. The
+rail holds seven entries, as Android TV's does: the drive makes room as the
+other entries do (Collections goes, then libraries behind **Libraries**),
+and when no library can make way, Playlists does: the Libraries page lists
+it after the libraries while the rail doesn't, and a lone library becomes
+**Libraries**. The drive's page
 lists the drive's folders, then the videos the TV's player opens (MKV, MP4,
 M4V, MOV, TS, M2TS, WebM, AVI, MPEG), sorted as a person sorts names;
 hidden files and what Windows and macOS leave on a drive aren't shown. A

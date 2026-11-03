@@ -99,6 +99,8 @@ public static class Rail
     /// <summary>The avatar's id: it opens Who's watching?.</summary>
     public const string ProfileItem = "profile";
 
+    /// <summary>Every library, and Playlists while the rail has no room for them: the Libraries page.</summary>
+    static readonly RailItem LibrariesItem = new RailItem("libraries", RailSlot.Libraries, new PageKey.Libraries());
     public static readonly RailItem LiveTvItem = new RailItem("live-tv", RailSlot.LiveTv, new PageKey.LiveTv());
     public static readonly RailItem NowPlayingItem = new RailItem("now-playing", RailSlot.NowPlaying, new PageKey.NowPlaying());
     public static readonly RailItem StorageItem = new RailItem("storage", RailSlot.Storage, new PageKey.Storage());
@@ -128,19 +130,37 @@ public static class Rail
     /// <summary>
     /// <paramref name="items"/> with room for one more: as they are when there is room, else
     /// without Collections, else without the last library ("Libraries" lists it); with no
-    /// "Libraries" yet, the last two libraries make way for it.
+    /// "Libraries" yet, the last two libraries make way for it. When no library can make way
+    /// (none is left, or the only one, which "Libraries" would merely replace), Playlists leaves
+    /// for the Libraries page, which lists it after the libraries while the rail doesn't
+    /// (<see cref="PlaylistsOnLibrariesPage"/>). Without "Libraries" in the rail, a lone library
+    /// becomes "Libraries" (which lists it), so the rail keeps a way there. The rail never holds
+    /// more than <see cref="MaxItems"/>.
     /// </summary>
-    static List<RailItem> RoomIn(List<RailItem> items)
+    internal static List<RailItem> RoomIn(List<RailItem> items)
     {
         if (items.Count < MaxItems) return items;
         if (items.Any(i => i.Slot == RailSlot.Collections)) return items.Where(i => i.Slot != RailSlot.Collections).ToList();
         var libraries = items.Where(i => i.Slot == RailSlot.Library).ToList();
-        if (items.Any(i => i.Slot == RailSlot.Libraries)) return items.Where(i => i != libraries.Last()).ToList();
-        var leaving = libraries.Skip(libraries.Count - 2).ToList();
-        var at = items.IndexOf(leaving[0]);
-        var kept = items.Where(i => !leaving.Contains(i)).ToList();
-        return kept.Take(at).Concat(new[] { new RailItem("libraries", RailSlot.Libraries, new PageKey.Libraries()) }).Concat(kept.Skip(at)).ToList();
+        var listed = items.Any(i => i.Slot == RailSlot.Libraries);
+        if (listed && libraries.Count > 0) return items.Where(i => i != libraries[libraries.Count - 1]).ToList();
+        if (!listed && libraries.Count >= 2)
+        {
+            var leaving = libraries.Skip(libraries.Count - 2).ToList();
+            var at = items.IndexOf(leaving[0]);
+            var kept = items.Where(i => !leaving.Contains(i)).ToList();
+            return kept.Take(at).Concat(new[] { LibrariesItem }).Concat(kept.Skip(at)).ToList();
+        }
+        var rest = items.Where(i => i.Slot != RailSlot.Playlists).ToList();
+        if (listed || libraries.Count != 1) return rest;
+        return rest.Select(i => i == libraries[0] ? LibrariesItem : i).ToList();
     }
+
+    /// <summary>
+    /// Whether the Libraries page lists Playlists after the libraries: while the rail has no
+    /// entry for them, which made way for another (<see cref="RoomIn"/>).
+    /// </summary>
+    public static bool PlaylistsOnLibrariesPage(IReadOnlyList<RailItem> items) => items.All(i => i.Slot != RailSlot.Playlists);
 
     static List<RailItem> MainItems(IReadOnlyList<Library> libraries)
     {
@@ -151,7 +171,7 @@ public static class Rail
         };
         foreach (var library in libraries.Take(MaxLibraries))
             items.Add(new RailItem($"library:{library.Id}", RailSlot.Library, new PageKey.Library(library.Id), library.Name, library.Kind));
-        if (libraries.Count > MaxLibraries) items.Add(new RailItem("libraries", RailSlot.Libraries, new PageKey.Libraries()));
+        if (libraries.Count > MaxLibraries) items.Add(LibrariesItem);
         items.Add(new RailItem("playlists", RailSlot.Playlists, new PageKey.Playlists()));
         if (libraries.Count <= MaxLibraries)
         {
@@ -164,12 +184,14 @@ public static class Rail
 
     /// <summary>
     /// Which entry is current for a back stack whose first page is <paramref name="root"/>: the
-    /// entry that opened it, "libraries" for a library not in the rail, or null (Who's watching?, sign-in).
+    /// entry that opened it, "libraries" for a library or Playlists not in the rail, or null (Who's
+    /// watching?, sign-in).
     /// </summary>
     public static string? Current(PageKey root, IReadOnlyList<RailItem> items) => root switch
     {
         PageKey.Library l => items.FirstOrDefault(i => i.Key == new PageKey.Library(l.LibraryId))?.Id
             ?? items.FirstOrDefault(i => i.Slot == RailSlot.Libraries)?.Id,
+        PageKey.Playlists => (items.FirstOrDefault(i => i.Slot == RailSlot.Playlists) ?? items.FirstOrDefault(i => i.Slot == RailSlot.Libraries))?.Id,
         PageKey.Collections c => items.FirstOrDefault(i => i.Slot == RailSlot.Collections)?.Id
             ?? Current(new PageKey.Library(c.LibraryId), items),
         PageKey.Search => "search",

@@ -87,6 +87,19 @@ pub struct RailEntries {
     pub settings: RailEntry,
 }
 
+impl RailEntries {
+    /// Whether the rail has the entry `id` between the avatar and Settings.
+    pub fn has(&self, id: &str) -> bool {
+        self.top.iter().any(|e| e.id == id)
+    }
+
+    /// Whether the Libraries page lists Playlists after the libraries: the rail had no room for
+    /// it, and the page is the way there.
+    pub fn playlists_on_libraries_page(&self) -> bool {
+        !self.has("playlists")
+    }
+}
+
 fn library_icon(kind: LibraryKind) -> Icon {
     match kind {
         LibraryKind::Movies => Icon::Clapperboard,
@@ -103,7 +116,10 @@ fn library_icon(kind: LibraryKind) -> Icon {
 /// drive last while the app can read a drive plugged into the TV (the Samsung app's `Pages.cs`);
 /// Settings at the foot. Seven fit: past that Collections goes first, then libraries from the
 /// last, Libraries listing them. With Discover, Live TV, Now Playing and the drive all there, that
-/// still leaves eight: the drive's entry then takes Playlists' place.
+/// still leaves eight, and no library can make way: Playlists then leaves the rail for the
+/// Libraries page, which lists it after the libraries
+/// ([`RailEntries::playlists_on_libraries_page`]). By then a lone library has become Libraries
+/// too, so the rail always reaches Playlists, one way or the other.
 pub fn rail_entries(
     libraries: &[Library],
     now_playing: bool,
@@ -144,6 +160,8 @@ pub fn rail_entries(
         top
     };
     let mut top = build(shown, collections);
+    // The first library to go makes no room, "Libraries" coming in for it; the loop goes on, so a
+    // lone library has become "Libraries" by the time Playlists leaves below.
     while top.len() > MAX_ITEMS && (collections || shown > 0) {
         if collections {
             collections = false;
@@ -153,8 +171,8 @@ pub fn rail_entries(
         top = build(shown, collections);
     }
     if top.len() > MAX_ITEMS {
-        // Only the drive can bring it here: Playlists, which Home and the libraries also reach,
-        // gives way to it.
+        // Only the drive brings it here, with no library left to make way: Playlists goes to the
+        // Libraries page, which the rail's "Libraries" opens.
         top.retain(|e| e.id != "playlists");
     }
     RailEntries {
@@ -164,12 +182,13 @@ pub fn rail_entries(
 }
 
 /// The entry of the page at the root of the back stack (`railCurrent`): the entry that opened it,
-/// Libraries for a library not in the rail, the avatar for Profiles, or none.
+/// Libraries for a library or Playlists not in the rail, the avatar for Profiles, or none.
 pub fn current_entry(root: Option<&Route>, entries: &RailEntries) -> Option<String> {
     let top = &entries.top;
-    let has = |id: &str| top.iter().any(|e| e.id == id).then(|| id.to_string());
+    let has = |id: &str| entries.has(id).then(|| id.to_string());
     match root? {
         Route::Library { id, .. } => has(&format!("library:{id}")).or_else(|| has("libraries")),
+        Route::Playlists => has("playlists").or_else(|| has("libraries")),
         Route::Collections { library_id } => has("collections").or_else(|| {
             let id = (*library_id)?;
             current_entry(Some(&Route::Library { id, tab: None, sort: None }), entries)
@@ -668,20 +687,81 @@ mod tests {
         assert!(e.top.len() <= MAX_ITEMS);
     }
 
+    fn discover() -> Option<RailEntry> {
+        Some(RailEntry::new("discover", "Discover", Icon::Compass, Route::Discover))
+    }
+
     #[test]
-    fn with_everything_in_the_rail_the_drive_takes_playlists_place() {
+    fn with_no_library_left_to_make_way_playlists_leaves_for_the_libraries_page() {
         let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Shows), lib(3, LibraryKind::Music)];
-        let discover = Some(RailEntry::new("discover", "Discover", Icon::Compass, Route::Discover));
-        let e = rail_entries(&libs, true, true, discover.clone(), true);
+        let e = rail_entries(&libs, true, true, discover(), true);
         assert_eq!(ids(&e), ["search", "home", "discover", "live-tv", "libraries", "now-playing", "storage"]);
-        assert!(e.top.len() <= MAX_ITEMS);
-        assert_eq!(current_entry(Some(&Route::Playlists), &e), None);
-        // Without the drive, Playlists keeps its place.
-        let e = rail_entries(&libs, true, true, discover, false);
+        assert!(e.playlists_on_libraries_page());
+        // Playlists, opened from that page or left on top as the drive came in, is under Libraries.
+        assert_eq!(current_entry(Some(&Route::Libraries { sort: false }), &e).as_deref(), Some("libraries"));
+        assert_eq!(current_entry(Some(&Route::Playlists), &e).as_deref(), Some("libraries"));
+        // Without the drive, Playlists keeps its place, and the page doesn't list it.
+        let e = rail_entries(&libs, true, true, discover(), false);
         assert_eq!(ids(&e), ["search", "home", "discover", "live-tv", "libraries", "playlists", "now-playing"]);
+        assert!(!e.playlists_on_libraries_page());
+        assert_eq!(current_entry(Some(&Route::Playlists), &e).as_deref(), Some("playlists"));
         // Room for both: nothing gives way.
         let e = rail_entries(&libs[..1], false, false, None, true);
         assert_eq!(ids(&e), ["search", "home", "library:1", "playlists", "collections", "storage"]);
+    }
+
+    #[test]
+    fn a_lone_library_becomes_libraries_when_playlists_leaves() {
+        let libs = [lib(1, LibraryKind::Movies)];
+        // Collections making way is enough: the library keeps its entry.
+        let e = rail_entries(&libs, true, true, discover(), false);
+        assert_eq!(ids(&e), ["search", "home", "discover", "live-tv", "library:1", "playlists", "now-playing"]);
+        // With the drive too, Libraries, which lists the library and then Playlists, takes its place.
+        let e = rail_entries(&libs, true, true, discover(), true);
+        assert_eq!(ids(&e), ["search", "home", "discover", "live-tv", "libraries", "now-playing", "storage"]);
+        let libraries = e.top.iter().find(|e| e.id == "libraries").unwrap();
+        assert_eq!((libraries.label.as_str(), libraries.icon), ("Libraries", Icon::Layers));
+        assert_eq!(libraries.route, Route::Libraries { sort: false });
+        assert_eq!(
+            current_entry(Some(&Route::Library { id: 1, tab: None, sort: None }), &e).as_deref(),
+            Some("libraries")
+        );
+        assert_eq!(current_entry(Some(&Route::Playlists), &e).as_deref(), Some("libraries"));
+        // Two libraries go the same way.
+        let libs = [lib(1, LibraryKind::Movies), lib(2, LibraryKind::Music)];
+        let e = rail_entries(&libs, true, true, discover(), true);
+        assert_eq!(ids(&e), ["search", "home", "discover", "live-tv", "libraries", "now-playing", "storage"]);
+    }
+
+    #[test]
+    fn playlists_is_always_in_reach_and_the_rail_never_holds_more_than_seven() {
+        let kinds = [LibraryKind::Movies, LibraryKind::Shows, LibraryKind::Music];
+        let requests = [None, discover(), Some(RailEntry::new("requests", "Requests", Icon::Inbox, Route::Requests))];
+        for n in 0..=6 {
+            let libs: Vec<Library> = (1..=n).map(|i| lib(i, kinds[i as usize % 3])).collect();
+            for bits in 0..8 {
+                let (queued, live, drive) = (bits & 1 != 0, bits & 2 != 0, bits & 4 != 0);
+                for req in &requests {
+                    let e = rail_entries(&libs, queued, live, req.clone(), drive);
+                    let case = format!("{n} libraries, {:?}", ids(&e));
+                    assert!(e.top.len() <= MAX_ITEMS, "{case}");
+                    let playlists = current_entry(Some(&Route::Playlists), &e);
+                    if e.playlists_on_libraries_page() {
+                        // In reach through Libraries, and only once nothing else could make way.
+                        assert!(e.has("libraries") && !e.has("collections"), "{case}");
+                        assert!(!e.top.iter().any(|e| e.id.starts_with("library:")), "{case}");
+                        assert_eq!(playlists.as_deref(), Some("libraries"), "{case}");
+                    } else {
+                        assert_eq!(playlists.as_deref(), Some("playlists"), "{case}");
+                    }
+                    // Every library is in reach too: its own entry, else Libraries.
+                    for l in &libs {
+                        let root = Route::Library { id: l.id, tab: None, sort: None };
+                        assert!(current_entry(Some(&root), &e).is_some(), "{case}");
+                    }
+                }
+            }
+        }
     }
 
     #[test]
