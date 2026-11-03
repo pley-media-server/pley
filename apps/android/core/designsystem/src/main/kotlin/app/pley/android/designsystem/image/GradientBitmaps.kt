@@ -46,13 +46,31 @@ object GradientBitmaps {
     /**
      * A square of [side] pixels from [from] at the top left to [to] at the
      * bottom right, along its diagonal (CSS's `linear-gradient(135deg, …)`
-     * on a square; stretched to other boxes, close to it).
+     * on a square; stretched to other boxes, close to it). Blended in sRGB,
+     * as CSS blends the web's `hsl()` colours. It changes only along x + y,
+     * so one ramp of 2 × [side] - 1 colours fills it; and a linear gradient
+     * stays one when stretched (the filter blends between pixels linearly),
+     * so a small square serves any box. Tiles build these while drawing, as
+     * a held key brings them in: a few microseconds each.
      */
-    fun diagonal(from: Color, to: Color, side: Int = 32): ImageBitmap {
+    fun diagonal(from: Color, to: Color, side: Int = 16): ImageBitmap {
+        val a = from.toArgb()
+        val b = to.toArgb()
+        val last = (2 * (side - 1)).coerceAtLeast(1)
+        val ramp = IntArray(last + 1) { i -> lerpArgb(a, b, i.toFloat() / last) }
         val pixels = IntArray(side * side)
-        val last = (2 * (side - 1)).coerceAtLeast(1).toFloat()
-        for (y in 0 until side) for (x in 0 until side) pixels[y * side + x] = lerp(from, to, (x + y) / last).toArgb()
+        for (y in 0 until side) for (x in 0 until side) pixels[y * side + x] = ramp[x + y]
         return Bitmap.createBitmap(pixels, side, side, Bitmap.Config.ARGB_8888).asImageBitmap()
+    }
+
+    /** [a] to [b] at [t] (0 to 1), channel by channel in sRGB, alpha included. */
+    internal fun lerpArgb(a: Int, b: Int, t: Float): Int {
+        fun channel(shift: Int): Int {
+            val from = (a ushr shift) and 0xFF
+            val to = (b ushr shift) and 0xFF
+            return (from + (to - from) * t).roundToInt().coerceIn(0, 255) shl shift
+        }
+        return channel(24) or channel(16) or channel(8) or channel(0)
     }
 
     private fun colorAt(stops: List<Pair<Float, Color>>, t: Float): Color {

@@ -47,12 +47,14 @@ object Placeholder {
         )
     }
 
-    private val pictures = android.util.LruCache<Int, androidx.compose.ui.graphics.ImageBitmap>(48)
+    /** Every hue's picture once made: 360 of 16 × 16 pixels, under 400 KB. */
+    private val pictures = android.util.LruCache<Int, androidx.compose.ui.graphics.ImageBitmap>(360)
 
     /**
      * The gradient for [seed] as a small picture, to draw stretched
      * ([drawStretched]): a gradient shader over a tile or a backdrop costs far
-     * more on a TV's GPU. Kept per hue.
+     * more on a TV's GPU. Kept per hue, all of them: a grid of a library's
+     * titles goes through most hues, each tile that comes in needing its own.
      */
     fun picture(seed: String): androidx.compose.ui.graphics.ImageBitmap {
         val hue = hue(seed)
