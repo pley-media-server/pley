@@ -92,6 +92,8 @@ describes how they are made.
 
 ### Fixed
 
+- Blu-ray subtitles that show two pictures at once, the first one forced,
+  show both, and a picture the disc crops shows cropped.
 - Settings' Always start as no longer starts the TV as a profile with a
   PIN without it: the start opens on that profile's PIN pad, and Back shows
   the other profiles. While the TV doesn't know whether the profile it was

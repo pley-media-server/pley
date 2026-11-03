@@ -14,11 +14,14 @@ function pgsSegment(type: number, body: number[]): number[] {
   return [type, ...u16(body.length), ...body];
 }
 
-/** A display set placing a `w`×`h` object at (x, y) on a 1920×1080 plane, with palette entry 1 white. */
-function pgsDisplaySet(opts: { state: number; objects: boolean; x?: number; y?: number; rle?: number[]; w?: number; h?: number }): Uint8Array {
+/**
+ * A display set placing a `w`×`h` object at (x, y) on a 1920×1080 plane,
+ * with palette entry 1 white; or as the PCS's own entries `placed` say.
+ */
+function pgsDisplaySet(opts: { state: number; objects: boolean; x?: number; y?: number; rle?: number[]; w?: number; h?: number; placed?: number[][] }): Uint8Array {
   const { x = 100, y = 900, w = 4, h = 2 } = opts;
-  const pcs = [...u16(1920), ...u16(1080), 0x10, ...u16(1), opts.state, 0x00, 0x00, opts.objects ? 1 : 0];
-  if (opts.objects) pcs.push(...u16(0), 0, 0x00, ...u16(x), ...u16(y));
+  const placed = opts.placed ?? (opts.objects ? [[...u16(0), 0, 0x00, ...u16(x), ...u16(y)]] : []);
+  const pcs = [...u16(1920), ...u16(1080), 0x10, ...u16(1), opts.state, 0x00, 0x00, placed.length, ...placed.flat()];
   const out = [...pgsSegment(0x16, pcs)];
   if (opts.rle) {
     out.push(...pgsSegment(0x17, [1, 0, ...u16(x), ...u16(y), ...u16(w), ...u16(h)]));
@@ -109,6 +112,19 @@ describe("PGS", () => {
     const reused = decoder.decode(2)!.bitmaps[0]!;
     expect([reused.x, reused.y]).toEqual([200, 950]);
     expect(reused.rgba[3]).toBe(255);
+  });
+
+  it("crops an object only where its place says so, and shows a forced one whole", () => {
+    const rle = [1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0];
+    const boxes = (placed: number[][]) =>
+      new PgsDecoder([pgsDisplaySet({ state: 0x80, objects: true, rle, placed })]).decode(0)!.bitmaps.map((b) => [b.x, b.y, b.width, b.height]);
+    // Cropped (0x80) to 2×1 from (1, 1).
+    expect(boxes([[...u16(0), 0, 0x80, ...u16(100), ...u16(900), ...u16(1), ...u16(1), ...u16(2), ...u16(1)]])).toEqual([[100, 900, 2, 1]]);
+    // Forced (0x40), with a second place after it: no crop to read.
+    expect(boxes([[...u16(0), 0, 0x40, ...u16(100), ...u16(900)], [...u16(0), 0, 0x00, ...u16(200), ...u16(950)]])).toEqual([
+      [100, 900, 4, 2],
+      [200, 950, 4, 2],
+    ]);
   });
 
   it("decodes a frame's worth of pixels at most", () => {

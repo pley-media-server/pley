@@ -160,7 +160,8 @@ public sealed class PgsDecoder : IPictureDecoder
                 X = (b[at + 4] << 8) | b[at + 5],
                 Y = (b[at + 6] << 8) | b[at + 7],
             };
-            var cropped = (b[at + 3] & 0x40) != 0;
+            // 0x80 says a crop follows; 0x40 is forced.
+            var cropped = (b[at + 3] & 0x80) != 0;
             at += 8;
             if (cropped && at + 8 <= b.Length)
             {

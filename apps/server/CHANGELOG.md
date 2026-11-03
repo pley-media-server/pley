@@ -94,6 +94,8 @@ describes how they are made.
 
 ### Fixed
 
+- Blu-ray subtitles that show two pictures at once, the first one forced,
+  show both in the web app, and a picture the disc crops shows cropped.
 - A picture sent to a collection or playlist through the Plex-compatible
   API no longer lands on the movie or show that had the same number:
   collections and playlists have keys of their own there. An episode's

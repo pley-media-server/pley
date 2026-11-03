@@ -18,6 +18,11 @@ describes how they are made.
 - The player's Back 10 seconds and Forward 10 seconds buttons. Left and
   Right still seek.
 
+### Fixed
+
+- Blu-ray subtitles that show two pictures at once, the first one forced,
+  show both, and a picture the disc crops shows cropped.
+
 ### Security
 
 - A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer run

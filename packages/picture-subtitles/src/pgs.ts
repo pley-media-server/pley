@@ -96,7 +96,8 @@ function readPcs(b: Uint8Array): Composition | null {
   let at = 11;
   for (let i = 0; i < count && at + 8 <= b.length; i++) {
     const id = (b[at]! << 8) | b[at + 1]!;
-    const cropped = (b[at + 3]! & 0x40) !== 0;
+    // 0x80 says a crop follows; 0x40 is forced.
+    const cropped = (b[at + 3]! & 0x80) !== 0;
     const x = (b[at + 4]! << 8) | b[at + 5]!;
     const y = (b[at + 6]! << 8) | b[at + 7]!;
     at += 8;

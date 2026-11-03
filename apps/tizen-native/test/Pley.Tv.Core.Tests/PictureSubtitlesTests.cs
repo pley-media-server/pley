@@ -19,11 +19,14 @@ static class PictureKit
 
     static int[] PgsSegment(int type, int[] body) => Cat(new[] { type }, U16(body.Length), body);
 
-    /// <summary>A display set placing a <paramref name="w"/>×<paramref name="h"/> object at (x, y) on a 1920×1080 plane, with palette entry 1 white.</summary>
-    public static byte[] PgsDisplaySet(int state, bool objects, int x = 100, int y = 900, int[]? rle = null, int w = 4, int h = 2)
+    /// <summary>
+    /// A display set placing a <paramref name="w"/>×<paramref name="h"/> object at (x, y) on a 1920×1080 plane, with
+    /// palette entry 1 white; or as the PCS's own entries <paramref name="placed"/> say.
+    /// </summary>
+    public static byte[] PgsDisplaySet(int state, bool objects, int x = 100, int y = 900, int[]? rle = null, int w = 4, int h = 2, int[][]? placed = null)
     {
-        var pcs = Cat(U16(1920), U16(1080), new[] { 0x10 }, U16(1), new[] { state, 0x00, 0x00, objects ? 1 : 0 });
-        if (objects) pcs = Cat(pcs, U16(0), new[] { 0, 0x00 }, U16(x), U16(y));
+        placed ??= objects ? new[] { Cat(U16(0), new[] { 0, 0x00 }, U16(x), U16(y)) } : new int[0][];
+        var pcs = Cat(U16(1920), U16(1080), new[] { 0x10 }, U16(1), new[] { state, 0x00, 0x00, placed.Length }, Cat(placed));
         var output = new List<int>(PgsSegment(0x16, pcs));
         if (rle != null)
         {
@@ -123,6 +126,20 @@ public class PgsTests
         var reused = decoder.Decode(2)!.Bitmaps[0];
         Assert.Equal((200, 950), (reused.X, reused.Y));
         Assert.Equal(255, reused.Rgba[3]);
+    }
+
+    [Fact]
+    public void Crops_an_object_only_where_its_place_says_so_and_shows_a_forced_one_whole()
+    {
+        static (int, int, int, int)[] Boxes(params int[][] placed) =>
+            new PgsDecoder(new[] { PictureKit.PgsDisplaySet(0x80, true, rle: new[] { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0 }, placed: placed) })
+                .Decode(0)!.Bitmaps.Select(b => (b.X, b.Y, b.Width, b.Height)).ToArray();
+        // Cropped (0x80) to 2×1 from (1, 1).
+        Assert.Equal(new[] { (100, 900, 2, 1) }, Boxes(PictureKit.Cat(PictureKit.U16(0), new[] { 0, 0x80 }, PictureKit.U16(100), PictureKit.U16(900), PictureKit.U16(1), PictureKit.U16(1), PictureKit.U16(2), PictureKit.U16(1))));
+        // Forced (0x40), with a second place after it: no crop to read.
+        Assert.Equal(new[] { (100, 900, 4, 2), (200, 950, 4, 2) }, Boxes(
+            PictureKit.Cat(PictureKit.U16(0), new[] { 0, 0x40 }, PictureKit.U16(100), PictureKit.U16(900)),
+            PictureKit.Cat(PictureKit.U16(0), new[] { 0, 0x00 }, PictureKit.U16(200), PictureKit.U16(950))));
     }
 
     [Fact]

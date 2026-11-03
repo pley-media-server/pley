@@ -270,6 +270,8 @@ It has no releases yet: it is built and installed by hand
 
 ### Fixed
 
+- Blu-ray subtitles that show two pictures at once, the first one forced,
+  show both, and a picture the disc crops shows cropped.
 - On an item page in the native app, Details moves as on Android TV: a
   version or Media info moves it up only as far as keeps that row on the
   screen, nothing of it shows under the title and summary, Down reads on
