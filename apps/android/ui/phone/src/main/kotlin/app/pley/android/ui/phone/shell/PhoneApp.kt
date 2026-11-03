@@ -16,7 +16,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -120,6 +119,10 @@ import kotlinx.coroutines.withContext
  * Once in, the navigation bar (a rail from medium widths) switches
  * between Home, Libraries, Search, Playlists and Me, each with its own
  * saved back stack. Getting in is full screen.
+ *
+ * The window's background (the app's theme) is the page's colour, so
+ * nothing here paints the whole screen again: each such layer is another
+ * full screen of pixels on every frame.
  */
 @Composable
 fun PhoneApp(
@@ -128,7 +131,7 @@ fun PhoneApp(
     graph: () -> ScreensGraph,
 ) {
     PhoneTheme {
-        Box(Modifier.fillMaxSize().background(PleyColors.Bg).testTag(TestTags.PHONE_ROOT)) {
+        Box(Modifier.fillMaxSize().testTag(TestTags.PHONE_ROOT)) {
             val known by produceState(start) { if (value == null) value = awaitStart() }
             known?.let { PhoneShell(it, graph) }
         }
@@ -317,7 +320,8 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
                 contentColor = PleyColors.Muted,
             ),
         ),
-        containerColor = PleyColors.Bg,
+        // The window's background shows through (PhoneApp).
+        containerColor = Color.Transparent,
         contentColor = PleyColors.Fg,
     ) {
         val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
