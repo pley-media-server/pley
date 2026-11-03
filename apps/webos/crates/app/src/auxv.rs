@@ -34,12 +34,12 @@ pub unsafe extern "C" fn getauxval(kind: c_ulong) -> c_ulong {
             libc::close(fd);
         }
     }
-    let whole = filled / size_of::<c_ulong>() / 2 * 2;
-    for pair in words[..whole].chunks_exact(2) {
-        match pair[0] {
+    let (pairs, _) = words[..filled / size_of::<c_ulong>()].as_chunks::<2>();
+    for &[key, value] in pairs {
+        match key {
             // AT_NULL ends the vector.
             0 => break,
-            k if k == kind => return pair[1],
+            k if k == kind => return value,
             _ => {}
         }
     }
