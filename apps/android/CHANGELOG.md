@@ -49,6 +49,8 @@ describes how they are made.
 - While the TV player shows an error, the remote's media keys and CAPTIONS
   do nothing, rather than seeking, changing the subtitles or playing the
   next episode under it; Stop still leaves.
+- On TVs, the sleep timer's notice keeps its width as the count goes under
+  10 s, so Keep watching no longer moves under the focus.
 
 ## [0.1.3] - 2026-11-02
 

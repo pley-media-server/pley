@@ -32,6 +32,8 @@ import app.pley.android.player.PlayerUiState
 import app.pley.android.player.QualityChoice
 import app.pley.android.player.TrackChoice
 import app.pley.android.player.UpNextUi
+import app.pley.android.player.sleep.SleepChoice
+import app.pley.android.player.sleep.SleepState
 import app.pley.android.testing.player.engine.FakePlayerEngine
 import app.pley.android.testing.player.session.FakePlaybackController
 import app.pley.android.ui.tv.theme.TvTheme
@@ -622,6 +624,20 @@ class TvPlayerScreenTest {
         press(Key.DirectionCenter)
         assertEquals(listOf("skip"), controller.calls.map { it.name })
         focusedOn(TAG_SCRUBBER)
+    }
+
+    @Test
+    fun `the sleep timer's notice keeps the width of its 30 s as the count goes down`() {
+        val controller = playing { it.copy(sleep = SleepState(SleepChoice.Minutes(30), secondsLeft = 30, minutesLeft = 1)) }
+        show(controller)
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        compose.onNodeWithText("Pausing in 30 s").assertExists()
+        val wide = compose.onNodeWithTag(TAG_SLEEP_NOTICE).getBoundsInRoot()
+        controller.update { it.copy(sleep = it.sleep.copy(secondsLeft = 9)) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Pausing in 9 s").assertExists()
+        assertEquals(wide, compose.onNodeWithTag(TAG_SLEEP_NOTICE).getBoundsInRoot())
     }
 
     @Test
