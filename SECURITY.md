@@ -486,7 +486,8 @@ Pley for iPhone, iPad, Mac and Apple TV (in development).
   the scheme for its Top Shelf links, which the app signs and checks before
   opening one.
 - Picture subtitles (PGS, DVB, VobSub) decode at most a 4K screen's pixels
-  and 64 pictures (256 DVB object draws) for one moment, keep 128 MiB of
+  and 64 pictures (256 DVB object draws, and eight 4K screens of DVB
+  drawing and filling) for one moment, keep 128 MiB of
   decoded frames and 1,024 parsed samples (64 MiB) per track, look back
   16 MiB of samples for a decode, read 512 segments
   of a sample and 100,000 samples of a track at most, so what a crafted

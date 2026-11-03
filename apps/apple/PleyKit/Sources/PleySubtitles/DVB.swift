@@ -349,7 +349,8 @@ public final class DVBDecoder: PictureDecoder {
         var regions: [Int: Region] = [:]
         var cluts: [Int: [[UInt8]]] = [:]
         var draws = 0
-        for i in from...index {
+        var work = 0
+        pass: for i in from...index {
             for seg in segs(i) {
                 let b = seg.body
                 switch seg.type {
@@ -385,6 +386,12 @@ public final class DVBDecoder: PictureDecoder {
                         objects.append((b.u16(o), (b.at(o + 2) & 0x0F) << 8 | b.at(o + 3),
                                         (b.at(o + 4) & 0x0F) << 8 | b.at(o + 5)))
                         o += objectType == 1 || objectType == 2 ? 8 : 6
+                    }
+                    // Making or filling a region is work, each time a segment asks.
+                    let reused = regions[id].map { $0.width == w && $0.height == h && $0.depth == depth } ?? false
+                    if !reused || fill {
+                        work += w * h
+                        if work > Pictures.maxWork { break pass }
                     }
                     let region: Region
                     if let kept = regions[id], kept.width == w, kept.height == h, kept.depth == depth {
@@ -446,6 +453,9 @@ public final class DVBDecoder: PictureDecoder {
                     for region in regions.values {
                         for o in region.objects where o.id == id && draws < Pictures.maxDraws {
                             draws += 1
+                            // A draw walks its fields at most.
+                            work += 32 * (top.count + bottom.count)
+                            if work > Pictures.maxWork { break pass }
                             Self.drawField(top, into: region, ox: o.x, oy: o.y, first: 0)
                             Self.drawField(bottom, into: region, ox: o.x, oy: o.y, first: 1)
                         }
