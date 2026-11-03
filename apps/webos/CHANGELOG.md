@@ -124,6 +124,11 @@ describes how they are made.
 
 ### Fixed
 
+- A Live TV channel played from its own stream no longer falls back to
+  the server's HLS when something else on the TV holds connections to the
+  player's relay open without asking for a stream, and a network watch
+  that keeps failing as soon as it answers waits longer each time rather
+  than asking again every 5 seconds.
 - A programme's details in Live TV keep its description above Watch and
   the favourite, and the guide no longer lays out the whole of a long
   description each time focus moves onto a programme.
