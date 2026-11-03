@@ -93,6 +93,9 @@ pub struct Extras {
     pub people: Vec<Credit>,
     /// Labels (see `crate::labels`).
     pub labels: Vec<String>,
+    /// The title's resolution and dynamic range, loaded only for their filters.
+    pub resolution: Option<String>,
+    pub dynamic_range: Option<String>,
 }
 
 #[derive(sqlx::FromRow)]
@@ -134,6 +137,8 @@ async fn load_extras(db: &Db, ids: &[i64]) -> sqlx::Result<HashMap<i64, Extras>>
                     musicbrainz_id: row.musicbrainz_id,
                     people: Vec::new(),
                     labels: Vec::new(),
+                    resolution: None,
+                    dynamic_range: None,
                 },
             );
         }
@@ -148,6 +153,24 @@ async fn load_extras(db: &Db, ids: &[i64]) -> sqlx::Result<HashMap<i64, Extras>>
 async fn add_people(db: &Db, ids: &[i64], extras: &mut HashMap<i64, Extras>) -> sqlx::Result<()> {
     for (id, credits) in people::for_items(db, ids).await? {
         extras.entry(id).or_default().people = credits;
+    }
+    Ok(())
+}
+
+/// The resolution and dynamic range of `ids` into their extras.
+async fn add_media(db: &Db, ids: &[i64], extras: &mut HashMap<i64, Extras>) -> sqlx::Result<()> {
+    let found: Vec<(i64, Option<String>, Option<String>)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT i.id, {}, {} FROM items i WHERE i.id IN (SELECT value FROM json_each(?))",
+        catalog::title_resolution_sql(),
+        catalog::title_range_sql(),
+    )))
+    .bind(serde_json::to_string(ids).unwrap_or_else(|_| "[]".into()))
+    .fetch_all(&db.read)
+    .await?;
+    for (id, resolution, dynamic_range) in found {
+        let extras = extras.entry(id).or_default();
+        extras.resolution = resolution;
+        extras.dynamic_range = dynamic_range;
     }
     Ok(())
 }
@@ -293,7 +316,6 @@ const UNREAD_FIELDS: &[&str] = &[
     "collection",
     "country",
     "network",
-    "resolution",
     "videoResolution",
     "hdr",
     "dovi",
@@ -352,7 +374,8 @@ impl FieldKind {
                 "year" | "decade" | "index" | "id" | "duration" | "viewCount" | "viewOffset" | "rating"
                 | "audienceRating" | "userRating" | "leafCount",
             ) => FieldKind::Number,
-            (Level::Own, "genre" | "label" | "contentRating") => FieldKind::Tag,
+            // `dynamicRange` is Pley's: `hdr`, `dolby_vision`, `hdr10plus`, `hdr10`, `hlg` or `sdr`.
+            (Level::Own, "genre" | "label" | "contentRating" | "resolution" | "dynamicRange") => FieldKind::Tag,
             (Level::Own, field) if people_role(field).is_some() => FieldKind::Tag,
             (Level::Own, "unwatched" | "unwatchedLeaves" | "watched" | "inProgress") => FieldKind::Boolean,
             (Level::Own, "addedAt" | "updatedAt" | "lastViewedAt" | "originallyAvailableAt") => FieldKind::Date,
@@ -572,7 +595,20 @@ impl Filter {
     }
 
     fn needs_extras(&self) -> bool {
-        matches!(self.field.as_str(), "genre" | "label" | "contentRating" | "studio" | "guid") || self.needs_people()
+        matches!(self.field.as_str(), "genre" | "label" | "contentRating" | "studio" | "guid")
+            || self.needs_people()
+            || self.needs_media()
+    }
+
+    fn needs_media(&self) -> bool {
+        matches!(self.field.as_str(), "resolution" | "dynamicRange")
+    }
+
+    /// The values of a `resolution` or `dynamicRange` filter as the catalog
+    /// names them: `1080p` is `1080`, `hdr` every range but SDR.
+    fn media_values(&self) -> Vec<&'static str> {
+        let named = if self.field == "resolution" { catalog::resolutions_named } else { catalog::dynamic_ranges_named };
+        self.values.iter().flat_map(|v| named(v).iter().copied()).collect()
     }
 
     fn needs_people(&self) -> bool {
@@ -623,6 +659,13 @@ impl Filter {
             "contentRating" => {
                 let rating: Vec<String> = extras.and_then(|e| e.content_rating.clone()).into_iter().collect();
                 Some(self.tags(&rating))
+            }
+            "resolution" | "dynamicRange" => {
+                let value = extras.and_then(|e| {
+                    if self.field == "resolution" { e.resolution.as_deref() } else { e.dynamic_range.as_deref() }
+                });
+                let any = value.is_some_and(|v| self.media_values().contains(&v));
+                Some(if matches!(self.op, Op::Not | Op::NotExactly) { !any } else { any })
             }
             field if people_role(field).is_some() => {
                 let role = people_role(field);
@@ -960,6 +1003,8 @@ impl Filter {
             (Level::Own, "contentRating") => self.tags_sql(|list| {
                 format!("(i.content_rating IS NOT NULL AND i.content_rating COLLATE NOCASE IN ({list}))")
             }),
+            (Level::Own, "resolution") => self.media_sql(&catalog::title_resolution_sql()),
+            (Level::Own, "dynamicRange") => self.media_sql(&catalog::title_range_sql()),
             (Level::Own, field) if people_role(field).is_some() => {
                 self.people_sql(people_role(field).map(people::Role::as_str).unwrap_or_default())
             }
@@ -1063,6 +1108,19 @@ impl Filter {
         }
         let list = vec!["?"; self.values.len()].join(", ");
         self.any_sql(vec![test(&list)], self.values.iter().map(|v| SqlArg::Text(v.clone())).collect())
+    }
+
+    /// [`Filter::media_values`] of `expr`, a title's resolution or dynamic
+    /// range. A title without one is a different one, not an unknown that
+    /// `!=` would drop.
+    fn media_sql(&self, expr: &str) -> Condition {
+        let values = self.media_values();
+        if values.is_empty() {
+            return self.any_sql(Vec::new(), Vec::new());
+        }
+        let list = vec!["?"; values.len()].join(", ");
+        let args = values.into_iter().map(|v| SqlArg::Text(v.to_owned())).collect();
+        self.any_sql(vec![format!("COALESCE({expr}, '') IN ({list})")], args)
     }
 
     /// People credited in `role`, by person id or name.
@@ -1292,6 +1350,9 @@ impl<'a> SectionQuery<'a> {
             if self.filter.any_filter(&Filter::needs_people) {
                 add_people(db, &ids, &mut extras).await?;
             }
+            if self.filter.any_filter(&Filter::needs_media) {
+                add_media(db, &ids, &mut extras).await?;
+            }
         }
         if !self.filter.is_empty() {
             rows.retain(|r| self.filter.matches(r, extras.get(&r.id), self.now));
@@ -1453,7 +1514,8 @@ mod tests {
     #[test]
     fn refuses_filters_pley_cant_apply() {
         for (pairs, kind) in [
-            (&[("resolution", "4k")][..], "movie"),
+            (&[("videoResolution", "4k")][..], "movie"),
+            (&[("resolution>>", "720")], "movie"),
             (&[("hdr", "1")], "movie"),
             (&[("editionTitle", "Director's Cut")], "movie"),
             (&[("collection", "5")], "movie"),
@@ -1472,6 +1534,8 @@ mod tests {
             assert!(parsed(pairs, kind).is_err(), "{pairs:?} on {kind}s");
         }
         assert_eq!(parsed(&[("hdr", "1")], "movie").unwrap_err().0, "Pley can't filter by hdr");
+        // A title's resolution and dynamic range are read.
+        assert!(parsed(&[("resolution", "4k"), ("dynamicRange!", "sdr")], "movie").is_ok());
     }
 
     #[test]

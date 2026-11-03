@@ -289,7 +289,7 @@ interface MediaSummary {            // a movie's best file, or a show's episodes
   width: number | null;
   height: number | null;            // show: its largest episode
   video_codec: string | null;       // null for shows
-  dynamic_range: "sdr" | "hdr10" | "hdr10plus" | "hlg" | "dolby_vision" | null; // null for shows
+  dynamic_range: "sdr" | "hdr10" | "hdr10plus" | "hlg" | "dolby_vision" | null; // show: its best episode's
 }
 
 interface ItemDetail extends ItemSummary {
@@ -1452,7 +1452,7 @@ artwork, streams and the compatibility APIs.
 | POST | `/api/libraries/{id}/scan` | `admin` | `{ force?: boolean }` → `202`. `force` re-probes files and refreshes metadata |
 | POST | `/api/libraries/scan` | `admin` | `202`: scans every library |
 | GET | `/api/libraries/{id}/items` | `library` | `{ total, items: ItemSummary[] }`: top-level items, paged |
-| GET | `/api/libraries/{id}/filters` | `library` | `{ genres: string[], years: number[] }` |
+| GET | `/api/libraries/{id}/filters` | `library` | `{ genres: string[], years: number[], resolutions: string[], dynamic_ranges: string[] }`: what the titles the user may see can be filtered by |
 | GET | `/api/libraries/{id}/hubs` | `library` | `{ hubs: Hub[] }`: `continue_watching:{id}`, `recently_added:{id}`, `recently_released:{id}`, `top_rated:{id}`; music libraries only the second; empty hubs left out |
 
 **Order.** Libraries have one shared order, chosen by administrators (new
@@ -1478,11 +1478,22 @@ open only some libraries see those, in that order.
 | `watched` | `true`, `false`; `true` matches shows whose every episode is watched |
 | `genre` | a genre name |
 | `year` | `yyyy` |
+| `resolution` | `4k`, `1080` (up to 1440p), `720`, `sd`: the title's best file's, a show's best episode's; another value: `400` |
+| `dynamic_range` | `hdr` (any but SDR), `dolby_vision`, `hdr10plus`, `hdr10`, `hlg`, `sdr`: the title's best file's, in that order, a show's best episode's; another value: `400` |
 | `offset`, `limit` | paging |
 | `summaries` | `1`: with synopses ([`summaries=1`](#types)) |
 
-Items leave out `backdrop_url` and `thumb_url` (grids show posters);
-sorted by `bitrate`, they carry `media`. Answers carry an `ETag` and
+Items leave out `backdrop_url` and `thumb_url` (grids show posters), and
+carry `media`. The apps show its badges ("4K", "DV", "HDR10") on posters
+sorted by `bitrate` or filtered by `resolution` or `dynamic_range`, and
+its bitrate and size under them sorted by `bitrate`.
+
+`GET /api/libraries/{id}/filters` lists `resolutions` and `dynamic_ranges`
+best first, only those the titles have and only when they have two or
+more (one would keep every title); `dynamic_ranges` starts with `hdr` when
+the titles have SDR and two kinds of HDR. Music has neither.
+
+Answers to `/items` carry an `ETag` and
 `Cache-Control: private, no-cache`;
 `If-None-Match` with the same tag answers `304` while the library, the
 user's watch state and their access are unchanged.

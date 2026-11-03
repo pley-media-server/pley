@@ -1,7 +1,7 @@
 //! Read side of the library: item queries, watch state, hubs, search, and the
 //! JSON shapes returned by the API (see docs/API.md).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use futures::TryStreamExt;
 use pley_transcoder_api::{MediaInfo, MediaStream};
@@ -209,12 +209,13 @@ pub async fn media_summaries(db: &Db, items: &[ItemSummary]) -> sqlx::Result<Has
     .bind(ids(false))
     .fetch_all(&db.read)
     .await?;
-    let shows: Vec<Row> = sqlx::query_as(
+    // A show's best range, as its resolution is its best episode's.
+    let shows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT e.grandparent_id AS item_id, CAST(AVG(f.bitrate) AS INTEGER) AS bitrate, SUM(f.size) AS size,
-                MAX(f.width) AS width, MAX(f.height) AS height, NULL AS video_codec, NULL AS dynamic_range
+                MAX(f.width) AS width, MAX(f.height) AS height, NULL AS video_codec, {RANGE_OF_FILES} AS dynamic_range
          FROM items e JOIN media_files f ON f.item_id = e.id
-         WHERE e.grandparent_id IN (SELECT value FROM json_each(?)) GROUP BY e.grandparent_id",
-    )
+         WHERE e.grandparent_id IN (SELECT value FROM json_each(?)) GROUP BY e.grandparent_id"
+    )))
     .bind(ids(true))
     .fetch_all(&db.read)
     .await?;
@@ -223,6 +224,75 @@ pub async fn media_summaries(db: &Db, items: &[ItemSummary]) -> sqlx::Result<Has
         out.entry(row.item_id).or_insert(row.media);
     }
     Ok(out)
+}
+
+/// The resolutions a library can be filtered by, best first: a title's is
+/// its best file's (a show's best episode's), `1080` up to 1440p, `sd`
+/// below 720p.
+pub const RESOLUTIONS: [&str; 4] = ["4k", "1080", "720", "sd"];
+
+/// The dynamic ranges a library can be filtered by, best first: a title's
+/// is its best file's (a show's best episode's). `hdr` names the first four.
+pub const DYNAMIC_RANGES: [&str; 5] = ["dolby_vision", "hdr10plus", "hdr10", "hlg", "sdr"];
+
+/// The resolutions a filter's value names: Pley's, `2160`, and the `576`
+/// and `480` of Plex's filters, which are SD here. Nothing for another value.
+pub fn resolutions_named(value: &str) -> &'static [&'static str] {
+    let value = value.trim().to_ascii_lowercase();
+    match value.strip_suffix('p').unwrap_or(&value) {
+        "4k" | "2160" => &RESOLUTIONS[0..1],
+        "1080" => &RESOLUTIONS[1..2],
+        "720" => &RESOLUTIONS[2..3],
+        "sd" | "576" | "480" => &RESOLUTIONS[3..4],
+        _ => &[],
+    }
+}
+
+/// The dynamic ranges a filter's value names: one of them, or `hdr` for
+/// every one but SDR. Nothing for another value.
+pub fn dynamic_ranges_named(value: &str) -> &'static [&'static str] {
+    let value = value.trim().to_ascii_lowercase();
+    if value == "hdr" {
+        return &DYNAMIC_RANGES[..4];
+    }
+    DYNAMIC_RANGES.iter().position(|r| *r == value).map_or(&[], |i| &DYNAMIC_RANGES[i..=i])
+}
+
+/// The best resolution of the files `f` (as an aggregate), with the same
+/// lines as the posters' "4K": a width or a height is enough, for films
+/// cropped wider than 16:9.
+const RESOLUTION_OF_FILES: &str = "CASE WHEN MAX(f.width) >= 3800 OR MAX(f.height) >= 2100 THEN '4k'
+    WHEN MAX(f.width) >= 1800 OR MAX(f.height) >= 1000 THEN '1080'
+    WHEN MAX(f.width) >= 1200 OR MAX(f.height) >= 700 THEN '720'
+    WHEN MAX(f.width) > 0 OR MAX(f.height) > 0 THEN 'sd' END";
+
+/// The best dynamic range of the files `f` (as an aggregate), in the order
+/// of [`DYNAMIC_RANGES`].
+const RANGE_OF_FILES: &str = "CASE MAX(CASE f.dynamic_range WHEN 'dolby_vision' THEN 5 WHEN 'hdr10plus' THEN 4
+        WHEN 'hdr10' THEN 3 WHEN 'hlg' THEN 2 WHEN 'sdr' THEN 1 END)
+    WHEN 5 THEN 'dolby_vision' WHEN 4 THEN 'hdr10plus' WHEN 3 THEN 'hdr10' WHEN 2 THEN 'hlg' WHEN 1 THEN 'sdr' END";
+
+/// `aggregate` of the files of title `i`: its own, a show's episodes', a
+/// season's episodes'.
+fn of_title_files(aggregate: &str) -> String {
+    format!(
+        "(CASE i.kind
+            WHEN 'show' THEN (SELECT {aggregate} FROM items e JOIN media_files f ON f.item_id = e.id
+                              WHERE e.grandparent_id = i.id)
+            WHEN 'season' THEN (SELECT {aggregate} FROM items e JOIN media_files f ON f.item_id = e.id
+                                WHERE e.parent_id = i.id)
+            ELSE (SELECT {aggregate} FROM media_files f WHERE f.item_id = i.id) END)"
+    )
+}
+
+/// Title `i`'s resolution, one of [`RESOLUTIONS`] (NULL without a video file).
+pub(crate) fn title_resolution_sql() -> String {
+    of_title_files(RESOLUTION_OF_FILES)
+}
+
+/// Title `i`'s dynamic range, one of [`DYNAMIC_RANGES`] (NULL without a video file).
+pub(crate) fn title_range_sql() -> String {
+    of_title_files(RANGE_OF_FILES)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -625,6 +695,10 @@ pub struct LibraryQuery<'a> {
     pub year: Option<i64>,
     /// Movies and episodes: watched flag; shows: every episode watched.
     pub watched: Option<bool>,
+    /// The titles of these resolutions ([`resolutions_named`]).
+    pub resolutions: &'static [&'static str],
+    /// The titles of these dynamic ranges ([`dynamic_ranges_named`]).
+    pub dynamic_ranges: &'static [&'static str],
     pub offset: i64,
     pub limit: Option<i64>,
 }
@@ -640,6 +714,8 @@ impl<'a> LibraryQuery<'a> {
             genre: None,
             year: None,
             watched: None,
+            resolutions: &[],
+            dynamic_ranges: &[],
             offset: 0,
             limit: None,
         }
@@ -668,6 +744,13 @@ pub async fn library_items(db: &Db, user_id: i64, q: &LibraryQuery<'_>) -> sqlx:
                    ELSE COALESCE(s.watched, 0) = 1 END) = ?",
         );
     }
+    let json = |values: &[&str]| serde_json::to_string(values).unwrap_or_else(|_| "[]".into());
+    if !q.resolutions.is_empty() {
+        filter.push_str(&format!(" AND {} IN (SELECT value FROM json_each(?))", title_resolution_sql()));
+    }
+    if !q.dynamic_ranges.is_empty() {
+        filter.push_str(&format!(" AND {} IN (SELECT value FROM json_each(?))", title_range_sql()));
+    }
     let limit = q.limit.unwrap_or(i64::MAX).max(0);
     let sql = format!(
         "{SUMMARY_SELECT} WHERE {VISIBLE}{filter} ORDER BY {} LIMIT ? OFFSET ?",
@@ -684,6 +767,12 @@ pub async fn library_items(db: &Db, user_id: i64, q: &LibraryQuery<'_>) -> sqlx:
             }
             if let Some(watched) = q.watched {
                 query = query.bind(watched);
+            }
+            if !q.resolutions.is_empty() {
+                query = query.bind(json(q.resolutions));
+            }
+            if !q.dynamic_ranges.is_empty() {
+                query = query.bind(json(q.dynamic_ranges));
             }
             query
         }};
@@ -741,6 +830,49 @@ pub async fn library_filters(
     .fetch_all(&db.read)
     .await?;
     Ok((genres, years))
+}
+
+/// The resolutions and dynamic ranges a library's titles may be filtered by.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct MediaFilters {
+    /// Of [`RESOLUTIONS`], those titles have.
+    pub resolutions: Vec<&'static str>,
+    /// Of [`DYNAMIC_RANGES`], those titles have, after `hdr` when they have
+    /// SDR and two kinds of HDR.
+    pub dynamic_ranges: Vec<&'static str>,
+}
+
+/// The values of a filter worth offering: those of `order` that titles
+/// have, when they have two or more (one would keep every title).
+fn offered(found: &HashSet<String>, order: &[&'static str]) -> Vec<&'static str> {
+    let values: Vec<&'static str> = order.iter().copied().filter(|v| found.contains(*v)).collect();
+    if values.len() > 1 { values } else { Vec::new() }
+}
+
+/// The resolutions and dynamic ranges of the titles of a movie or show
+/// library that `user_id` can see worth filtering by.
+pub async fn media_filters(db: &Db, user_id: i64, library_id: i64, kind: &str) -> sqlx::Result<MediaFilters> {
+    if !matches!(kind, "movie" | "show") {
+        return Ok(MediaFilters::default());
+    }
+    let found: Vec<(Option<String>, Option<String>)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "{ME_CTE} SELECT DISTINCT {}, {} FROM {VISIBLE_ITEMS} WHERE {VISIBLE} AND i.library_id = ? AND i.kind = ?",
+        title_resolution_sql(),
+        title_range_sql(),
+    )))
+    .bind(user_id)
+    .bind(library_id)
+    .bind(kind)
+    .fetch_all(&db.read)
+    .await?;
+    let (resolutions, ranges): (HashSet<String>, HashSet<String>) =
+        found.into_iter().map(|(r, d)| (r.unwrap_or_default(), d.unwrap_or_default())).unzip();
+    let mut dynamic_ranges = offered(&ranges, &DYNAMIC_RANGES);
+    let hdr_kinds = dynamic_ranges.iter().filter(|r| **r != "sdr").count();
+    if hdr_kinds > 1 && dynamic_ranges.contains(&"sdr") {
+        dynamic_ranges.insert(0, "hdr");
+    }
+    Ok(MediaFilters { resolutions: offered(&resolutions, &RESOLUTIONS), dynamic_ranges })
 }
 
 pub async fn files_for_item(db: &Db, item_id: i64) -> sqlx::Result<Vec<FileRow>> {

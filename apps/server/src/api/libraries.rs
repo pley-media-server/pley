@@ -379,6 +379,18 @@ pub async fn items(
         ),
     };
     let year = query.get("year").and_then(|y| y.parse().ok());
+    // An unknown value is refused, not ignored: the listing would hold everything.
+    let named = |key: &str, named: fn(&str) -> &'static [&'static str]| -> ApiResult<&'static [&'static str]> {
+        match query.get(key).map(|v| v.trim()).filter(|v| !v.is_empty()) {
+            None => Ok(&[]),
+            Some(v) => match named(v) {
+                [] => Err(AppError::bad_request(format!("unknown {key} '{v}'"))),
+                found => Ok(found),
+            },
+        }
+    };
+    let resolutions = named("resolution", catalog::resolutions_named)?;
+    let dynamic_ranges = named("dynamic_range", catalog::dynamic_ranges_named)?;
     let q = LibraryQuery {
         library_id: lib.id,
         kind: lib.kind().top_level_kind(),
@@ -387,6 +399,8 @@ pub async fn items(
         genre: query.get("genre").map(String::as_str).filter(|g| !g.is_empty()),
         year,
         watched: query.get("watched").map(|w| truthy(w)),
+        resolutions,
+        dynamic_ranges,
         offset: query.get("offset").and_then(|o| o.parse().ok()).unwrap_or(0),
         limit: query.get("limit").and_then(|l| l.parse().ok()),
     };
@@ -411,8 +425,17 @@ pub async fn filters(
     Path(id): Path<i64>,
 ) -> ApiResult<Json<serde_json::Value>> {
     let lib = visible_library(&state, &user, id).await?;
-    let (genres, years) = catalog::library_filters(&state.db, user.id, lib.id, lib.kind().top_level_kind()).await?;
-    Ok(Json(serde_json::json!({ "genres": genres, "years": years })))
+    let kind = lib.kind().top_level_kind();
+    let ((genres, years), media) = tokio::try_join!(
+        catalog::library_filters(&state.db, user.id, lib.id, kind),
+        catalog::media_filters(&state.db, user.id, lib.id, kind),
+    )?;
+    Ok(Json(serde_json::json!({
+        "genres": genres,
+        "years": years,
+        "resolutions": media.resolutions,
+        "dynamic_ranges": media.dynamic_ranges,
+    })))
 }
 
 #[derive(Serialize)]

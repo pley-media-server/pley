@@ -54,6 +54,11 @@ describes how they are made.
   administrator's role, at once. A token can be limited
   to the addresses or networks it is used from, or the home network; from
   elsewhere it is refused, and so are the streams it started.
+- Movie and show libraries can be filtered by resolution (4K, 1080p, 720p,
+  SD) and by dynamic range (HDR, Dolby Vision, HDR10+, HDR10, HLG, SDR),
+  each title by its best file (a show by its best episode). The choices are
+  those the library has, and smart collections and playlists saved from a
+  filtered library keep them. Kometa's `resolution` filters work too.
 
 ### Changed
 

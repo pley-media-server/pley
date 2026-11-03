@@ -233,8 +233,8 @@ libraries and See everyone's activity (Kometa reads where files are, for
 its asset folders and overlays), and is best limited to Kometa's address.
 What Pley doesn't do for it:
 
-- collections and overlays on what Pley doesn't filter by, such as
-  resolution, audio or subtitle language, HDR, country or network: their
+- collections and overlays on what Pley doesn't filter by, such as audio
+  or subtitle language, Plex's `hdr` and `dovi`, country or network: their
   searches answer `400` and Kometa reports that collection's error, rather
   than acting on the whole library;
 - collection modes and promoting collections to home pages, which Pley
@@ -492,12 +492,19 @@ Filters on ancestors work (`artist.id=5` on albums, `show.title=…` on
 episodes). A filter Pley can't apply answers `400` (`Pley can't filter by
 hdr`) rather than being ignored, as a tool acting on what it finds would
 act on the whole library: one on descendants (`episode.title` on shows), on
-a field Pley doesn't read (`resolution`, `hdr`, `dovi`, `audioLanguage`,
+a field Pley doesn't read (`hdr`, `dovi`, `audioLanguage`,
 `subtitleLanguage`, `editionTitle`, `collection`, `country`, `network`,
 `unmatched` and others), or with an operator its field doesn't take
-(`genre>>=`). Other query parameters, a client's own, change nothing. With
-`includeMeta=1` the response describes these filters, sorts and fields in a
-`Meta` element; `python-plexapi` validates searches against it. Pley's
+(`genre>>=`). Other query parameters, a client's own, change nothing.
+
+`resolution` is a title's best file's (a show's best episode's): `4k`,
+`1080` (up to 1440p), `720`, or `sd` for anything smaller (Plex's `576` and
+`480` are SD). Pley also reads `dynamicRange`, a title's best: `hdr` (any
+but SDR), `dolby_vision`, `hdr10plus`, `hdr10`, `hlg` or `sdr`; its apps
+save these two in smart collections and playlists.
+
+With `includeMeta=1` the response describes these filters, sorts and fields
+in a `Meta` element; `python-plexapi` validates searches against it. Pley's
 smart collections and smart playlists use the same query string
 ([API.md](API.md#collections)).
 
@@ -529,8 +536,8 @@ playback and sessions, editing, collections, playlists and play queues.
   management), theme music, logos and square art: changes answer `400`.
 - Artwork from addresses on other hosts (upload the file instead), and
   per-item preferences (`/prefs`).
-- Filters on descendants (`episode.title` on shows) and on `resolution`,
-  `hdr`, audio or subtitle language, among others: refused
+- Filters on descendants (`episode.title` on shows) and on `hdr`, `dovi`,
+  audio or subtitle language, among others: refused
   ([Searching and filtering](#searching-and-filtering)).
 - Player remote control, photos and live TV.
 - Notifications about transcodes (`transcodeSession.*`), deleted items and
